@@ -64,6 +64,15 @@ namespace BuildXL.FrontEnd.Ninja.Tracing
         public abstract void GraphConstructionInternalError(LoggingContext context, Location location, string toolStandardError);
 
         [GeneratedEvent(
+            (ushort)LogEventId.GraphConstructionDeserializationError,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            EventTask = (ushort)Tasks.Parser,
+            Message = EventConstants.LabeledProvenancePrefix + "An exception occurred when deserializing the Ninja graph: {exception}",
+            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
+        public abstract void GraphConstructionDeserializationError(LoggingContext context, Location location, string exception);
+
+        [GeneratedEvent(
             (ushort)LogEventId.GraphConstructionFinishedSuccessfullyButWithWarnings,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,

@@ -185,10 +185,22 @@ namespace BuildXL.FrontEnd.Ninja
             Tracing.Logger.Log.LeftGraphToolOutputAt(m_context.LoggingContext, m_resolverSettings.Location(m_context.PathTable), outputFileString);
 
             NinjaGraphResult projectGraphWithPredictionResult;
-            using (var sr = new StreamReader(outputFileString))
-            using (var reader = new JsonTextReader(sr))
+
+            try
             {
-                projectGraphWithPredictionResult = serializer.Deserialize<NinjaGraphResult>(reader);
+                using (var sr = new StreamReader(outputFileString))
+                using (var reader = new JsonTextReader(sr))
+                {
+                    projectGraphWithPredictionResult = serializer.Deserialize<NinjaGraphResult>(reader);
+                }
+            }
+            catch (Exception ex)
+            {
+                Tracing.Logger.Log.GraphConstructionDeserializationError(
+                    m_context.LoggingContext,
+                    m_resolverSettings.Location(m_context.PathTable),
+                    ex.ToString());
+                return new NinjaGraphConstructionFailure(m_resolverSettings.ModuleName, ProjectRoot.ToString(m_context.PathTable));
             }
 
             return projectGraphWithPredictionResult;

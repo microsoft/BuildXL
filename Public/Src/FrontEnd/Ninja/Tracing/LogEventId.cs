@@ -25,6 +25,6 @@ namespace BuildXL.FrontEnd.Ninja.Tracing
         CouldNotDeleteToolArgumentsFile = 11558,
         CouldNotComputeRelativePathToSpec = 11659,
         LeftGraphToolOutputAt = 11560,
-
+        GraphConstructionDeserializationError = 11561,
     }
 }

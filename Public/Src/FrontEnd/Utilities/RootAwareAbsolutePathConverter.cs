@@ -42,8 +42,9 @@ namespace BuildXL.FrontEnd.Utilities
             var fullPath = Path.Combine(rootAsString, possiblyRelativePath);
             if (!AbsolutePath.TryCreate(m_pathTable, fullPath, out result))
             {
-                return AbsolutePath.Invalid;
-            } 
+                throw new InvalidDataException($"Failed creating an absolute path '{fullPath}' (root: '{rootAsString}', relative path: '{possiblyRelativePath}')");
+            }
+
             return result;
         }
     }

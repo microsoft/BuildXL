@@ -296,22 +296,22 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                     {
                         _keyValueStore = new KeyValueStoreGuard(store);
 
-                        _keyValueStore.UseExclusive(static (db, @this) =>
+                        _keyValueStore.UseExclusive((db, _) =>
                         {
-                            @this._columnMetadata = @this.LoadColumnGroups(db);
-                            @this.SaveColumnGroups(db, @this._columnMetadata);
+                            _columnMetadata = LoadColumnGroups(context, db);
+                            SaveColumnGroups(db, _columnMetadata);
                             return true;
                         },
-                        this).ThrowOnError();
+                        Unit.Void).ThrowOnError();
                     }
                     else
                     {
                         // Just replace the inner accessor
-                        oldKeyValueStore.Replace(store, (db, @this) =>
+                        oldKeyValueStore.Replace(store, (db, _) =>
                         {
-                            @this._columnMetadata = @this.LoadColumnGroups(db);
-                            @this.SaveColumnGroups(db, @this._columnMetadata);
-                        }, this).ThrowOnError();
+                            _columnMetadata = LoadColumnGroups(context, db);
+                            SaveColumnGroups(db, _columnMetadata);
+                        }, Unit.Void).ThrowOnError();
                     }
 
                     _activeSlot = activeSlot;
@@ -337,6 +337,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                 Group = group;
                 LastGcTimeUtc = lastGcTimeUtc;
             }
+
+            /// <summary>
+            /// Parameterless constructor needed for json serialization
+            /// </summary>
+            public ColumnMetadata()
+            {
+            }
         }
 
         public ColumnGroup GetCurrentColumnGroup(Columns column)
@@ -344,7 +351,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             return _columnMetadata[column].Group;
         }
 
-        private Dictionary<Columns, ColumnMetadata> LoadColumnGroups(RocksDbStore db)
+        private Dictionary<Columns, ColumnMetadata> LoadColumnGroups(OperationContext context, RocksDbStore db)
         {
             var now = Clock.UtcNow;
             var defaulted = EnumTraits<Columns>
@@ -354,7 +361,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             if (db.TryGetValue(nameof(GlobalKeys.ActiveColumnGroups), out var serializedActiveColumnGroups))
             {
                 // Current version of the DB, has a dictionary of column metadata
-                if (!TryDeserializeColumnMetadata(serializedActiveColumnGroups, out var activeColumnGroups))
+                if (!TryDeserializeColumnMetadata(context, serializedActiveColumnGroups, out var activeColumnGroups))
                 {
                     return defaulted;
                 }
@@ -388,11 +395,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             }
         }
 
-        private bool TryDeserializeColumnMetadata(string activeColumnGroups, [NotNullWhen(true)] out Dictionary<Columns, ColumnMetadata>? output)
+        private bool TryDeserializeColumnMetadata(OperationContext context, string activeColumnGroups, [NotNullWhen(true)] out Dictionary<Columns, ColumnMetadata>? output)
         {
             try
             {
-#pragma warning disable CS8762
                 output = new Dictionary<Columns, ColumnMetadata>();
 
                 // We need to do this because System.Text.Json doesn't support non-string keyed dicts
@@ -414,17 +420,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                 }
 
                 return true;
-#pragma warning restore CS8762
             }
-#pragma warning disable CA1031 // Do not catch general exception types
-            catch (Exception)
+            catch (Exception ex)
             {
-#pragma warning disable ERP022 // Unobserved exception in a generic exception handler
+                context.TracingContext.Warning(ex, "Error deserializing column metadata", Tracer.Name);
                 output = null;
                 return false;
-#pragma warning restore ERP022 // Unobserved exception in a generic exception handler
             }
-#pragma warning restore CA1031 // Do not catch general exception types
         }
 
         private void SaveColumnGroups(RocksDbStore db, Dictionary<Columns, ColumnMetadata> metadata)
@@ -484,10 +486,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             return GarbageCollectAsync(context, force: false);
         }
 
-        /// <inheritdoc />
         public Task<BoolResult> GarbageCollectAsync(OperationContext context, bool force)
         {
-            return context.PerformOperationAsync(Tracer,
+            return Task.FromResult(GarbageCollectColumns(context, force));
+        }
+
+        /// <inheritdoc />
+        public BoolResult GarbageCollectColumns(OperationContext context, bool force)
+        {
+            return context.PerformOperation(Tracer,
                () =>
                {
                    var now = Clock.UtcNow;
@@ -521,7 +528,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                                garbageCollectColumnFamily(context, store, column);
                            }
 
-                           return BoolResult.SuccessTask;
+                           return BoolResult.Success;
                        },
                        this).ThrowOnError();
                },
@@ -587,6 +594,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                 {
                     FileUtilities.DeleteDirectoryContents(targetDirectory, deleteRootDirectory: true);
                 }
+
+                GarbageCollectColumns(context, force: false).IgnoreFailure();
 
                 return _keyValueStore.Use(store => store.SaveCheckpoint(targetDirectory)).ToBoolResult();
             }

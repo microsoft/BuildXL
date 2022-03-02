@@ -8,13 +8,14 @@ using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using BuildXL.Utilities.Collections;
 
 namespace BuildXL.Cache.Host.Service
 {
     /// <summary>
     /// Defines constraint specifying and name and possible matching values for constraints with the given name
     /// </summary>
-    public class ConstraintDefinition
+    public record ConstraintDefinition
     {
         /// <nodoc />
         public ConstraintDefinition(string name, IEnumerable<string> acceptableValues)
@@ -56,7 +57,9 @@ namespace BuildXL.Cache.Host.Service
 
         private static Regex NameAndConstraintsRegex { get; } = new Regex($@"^(?<baseName>.*?)\s*(?<constraint>{Constraint.RegexPattern})+$");
 
-        public JsonPreprocessor(IEnumerable<ConstraintDefinition> constraintDefinitions, IReadOnlyDictionary<string, string> replacementMacros)
+        private static ConstraintDefinition EmptyConstraintDefinition { get; } = new ConstraintDefinition("<empty>", Array.Empty<string>());
+
+        public JsonPreprocessor(IEnumerable<ConstraintDefinition> constraintDefinitions, IEnumerable<KeyValuePair<string, string>> replacementMacros)
         {
             foreach (var constraintDefinition in constraintDefinitions)
             {
@@ -175,14 +178,8 @@ namespace BuildXL.Cache.Host.Service
                     Error(property.Name, $"Some term in {constraint.Name} constraint is empty.");
                 }
 
-                if (_constraintsByName.TryGetValue(constraint.Name, out var constraintDefinition))
-                {
-                    if (!constraint.Match(constraintDefinition))
-                    {
-                        return false;
-                    }
-                }
-                else
+                var constraintDefinition = _constraintsByName.GetOrDefault(constraint.Name, EmptyConstraintDefinition);
+                if (!constraint.Match(constraintDefinition))
                 {
                     return false;
                 }
@@ -191,12 +188,25 @@ namespace BuildXL.Cache.Host.Service
             return true;
         }
 
+        private string RemoveWhitespace(string value)
+        {
+            if (value.Any(c => char.IsWhiteSpace(c)))
+            {
+                return new string(value.Where(c => !char.IsWhiteSpace(c)).ToArray());
+            }
+            else
+            {
+                return value;
+            }
+        }
+
         private void ParseNameAndConstraints(JsonProperty property, out string name, out IEnumerable<Constraint> constraints)
         {
-            var match = NameAndConstraintsRegex.Match(property.Name);
+            name = RemoveWhitespace(property.Name);
+            var match = NameAndConstraintsRegex.Match(name);
             if (!match.Success)
             {
-                name = PreprocessString(property.Name.Trim());
+                name = PreprocessString(name);
                 constraints = Enumerable.Empty<Constraint>();
                 return;
             }
@@ -244,33 +254,25 @@ namespace BuildXL.Cache.Host.Service
 
             public bool Match(ConstraintDefinition definition)
             {
-                foreach (var value in definition.AcceptableValues)
+                bool isMatch = false;
+                foreach (var candidate in Candidates)
                 {
-                    if (Candidates.Any(c => c.Match(value)))
-                    {
-                        // One of the values matches the constraint so
-                        // return a match (or no match if the constraint is negated)
-                        return !Negated;
-                    }
+                    isMatch |= candidate.Match(definition.AcceptableValues);
                 }
 
-                if (!definition.AcceptableValues.Any() && Candidates.Any(c => c.Negated))
+                if (Negated)
                 {
-                    // When there are no values specified, any negated constraints should be considered
-                    // a match
-                    return !Negated;
+                    isMatch = !isMatch;
                 }
 
-                // None of the values match the constraint
-                // return no match (or a match if negated)
-                return Negated;
+                return isMatch;
             }
         }
 
         /// <summary>
         /// See <see cref="Constraint"/>
         /// </summary>
-        private class ConstraintCandidate
+        private record ConstraintCandidate
         {
             public bool Negated { get; }
             public string Value { get; }
@@ -283,10 +285,31 @@ namespace BuildXL.Cache.Host.Service
                 Value = candidateSpecifier.Substring(Negated ? 1 : 0);
             }
 
+            public bool Match(IEnumerable<string> values)
+            {
+                foreach (var value in values)
+                {
+                    if (ValueMatch(value))
+                    {
+                        return !Negated;
+                    }
+                }
+
+                // None of the values match the constraint
+                // return no match (or a match if negated)
+                return Negated;
+            }
+
             public bool Match(string value)
             {
                 var valueMatches = string.Equals(Value, value, StringComparison.OrdinalIgnoreCase);
                 return Negated ? !valueMatches : valueMatches;
+            }
+
+            public bool ValueMatch(string value)
+            {
+                var valueMatches = string.Equals(Value, value, StringComparison.OrdinalIgnoreCase);
+                return valueMatches;
             }
         }
 
@@ -304,7 +327,7 @@ namespace BuildXL.Cache.Host.Service
             public ReplacementMacro(string macroText, string replacementValue)
             {
                 _macroText = macroText;
-                _regex = new Regex(string.Format(RegexFormat, macroText),
+                _regex = new Regex(string.Format(RegexFormat, Regex.Escape(macroText)),
                     RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
                 _replacementValue = replacementValue;//.ThrowIfNull(nameof(replacementValue));
             }

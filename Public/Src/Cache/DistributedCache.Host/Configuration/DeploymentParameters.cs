@@ -22,6 +22,9 @@ namespace BuildXL.Cache.Host.Configuration
         public string Region { get; set; }
         public string MachineFunction { get; set; }
 
+        public Dictionary<string, string> Properties { get; set; } = new();
+        public Dictionary<string, string[]> Flags { get; set; } = new();
+
         public static HostParameters FromEnvironment()
         {
             var result = new HostParameters()

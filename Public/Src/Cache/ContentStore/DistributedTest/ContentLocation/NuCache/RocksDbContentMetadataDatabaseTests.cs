@@ -117,6 +117,24 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
 
                 await db.ShutdownAsync(ctx).ShouldBeSuccess();
             }
+
+            // Testing preservation of LastGcTime on reload. Namely,
+            // this ensures that column metadata is correctly deserialized
+            // on startup and used during GC.
+            {
+                // Increase time to ensure columns are collected during GC
+                Clock.UtcNow += TimeSpan.FromDays(30);
+                var db = new RocksDbContentMetadataDatabase(Clock, configuration);
+                await db.StartupAsync(ctx).ShouldBeSuccess();
+
+                checkBlob(db, keys[2]).Should().Be(KeyCheckResult.Valid);
+
+                await db.GarbageCollectAsync(ctx, force: false).ShouldBeSuccess();
+
+                checkBlob(db, keys[2]).Should().Be(KeyCheckResult.Missing);
+
+                await db.ShutdownAsync(ctx).ShouldBeSuccess();
+            }
         }
     }
 }

@@ -131,8 +131,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
             return new MemoryStream(Encoding.UTF8.GetBytes(value));
         }
 
-        private static class FuncJsonConverter
+        /// <summary>
+        /// Creates json converters from delegates
+        /// </summary>
+        public static class FuncJsonConverter
         {
+            /// <summary>
+            /// Creates a json converter from the given delegates
+            /// </summary>
             public static JsonConverter<T> Create<T>(
                 JsonReaderFunc<T> read,
                 Action<Utf8JsonWriter, T> write)
@@ -140,6 +146,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
                 return new Converter<T>(read, write);
             }
 
+            /// <nodoc />
             public delegate T JsonReaderFunc<T>(ref Utf8JsonReader reader);
 
             private class Converter<T> : JsonConverter<T>

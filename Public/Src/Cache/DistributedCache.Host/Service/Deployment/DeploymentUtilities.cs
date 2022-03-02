@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -13,6 +14,7 @@ using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Stores;
+using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.Host.Configuration;
 using static BuildXL.Cache.Host.Configuration.DeploymentManifest;
 
@@ -201,8 +203,10 @@ namespace BuildXL.Cache.Host.Service
                         // its own constraint
                         { "Feature", parameters.MachineFunction == null ? null : "MachineFunction_" + parameters.MachineFunction },
                     }
+                    .ConcatIfNotNull(parameters.Properties)
                     .Where(e => !string.IsNullOrEmpty(e.Value))
-                    .Select(e => new ConstraintDefinition(e.Key, new[] { e.Value })),
+                    .Select(e => new ConstraintDefinition(e.Key, new[] { e.Value }))
+                    .ConcatIfNotNull(parameters.Flags?.Where(f => f.Value != null).Select(f => new ConstraintDefinition(f.Key, f.Value))),
                 replacementMacros: new Dictionary<string, string>()
                     {
                         { "Env", parameters.Environment },
@@ -216,8 +220,38 @@ namespace BuildXL.Cache.Host.Service
                         { "RingId", parameters.Ring },
                         { "ServiceDir", parameters.ServiceDir },
                     }
-                .Where(e => !string.IsNullOrEmpty(e.Value))
-                .ToDictionary(e => e.Key, e => e.Value));
+                .ConcatIfNotNull(parameters.Properties)
+                .Concat(GetEnvironmentVariableMacros())
+                .Where(e => !string.IsNullOrEmpty(e.Value)));
+        }
+
+        private static IEnumerable<T> ConcatIfNotNull<T>(this IEnumerable<T> first, IEnumerable<T> second)
+        {
+            if (second == null)
+            {
+                return first;
+            }
+
+            return first.Concat(second);
+        }
+
+        private static IEnumerable<KeyValuePair<string, string>> GetEnvironmentVariableMacros()
+        {
+            string homeDirectory;
+            try
+            {
+                homeDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile, Environment.SpecialFolderOption.DoNotVerify);
+            }
+            catch(Exception ex)
+            {
+                Utilities.Analysis.IgnoreArgument(ex);
+                homeDirectory = null;
+            }
+
+            if (homeDirectory != null)
+            {
+                yield return new KeyValuePair<string, string>("$HOME", homeDirectory);
+            }
         }
     }
 }

@@ -200,6 +200,9 @@ namespace BuildXL.Execution.Analyzer
         private readonly string ChangeDirectoryCommand = OperatingSystemHelper.IsUnixOS ? "cd" : "cd /D";
         private readonly string ExecuteScriptCommand = OperatingSystemHelper.IsUnixOS ? "sh" : "call";
         private readonly string ExportVariableScope = OperatingSystemHelper.IsUnixOS ? "" : "setlocal";
+        private const string AllowPreserveOutputs = "/allowPreserveOutputs";
+        private const string SkipDelOutputs = "SkipDeleteOutputs";
+
         private static string VerboseCommandLogging(bool enabled) => OperatingSystemHelper.IsUnixOS ? (enabled ? "set -x" : "") : (enabled ? "" : "@echo off");
 
         private static string ScriptIfPathExistsConditionWithCommand(string path, string cmd, bool negate = false)
@@ -270,6 +273,15 @@ namespace BuildXL.Execution.Analyzer
 
         private void DeleteOutputs(StreamWriter writer, Process pip)
         {
+            //Deletes or Preserves the outputs based on the allowPreserveOutputs flag
+            if (pip.AllowPreserveOutputs && !OperatingSystemHelper.IsUnixOS)
+            {
+                writer.WriteLine($"{CommentPrefix} Preserve Outputs");
+                writer.WriteLine(@"for %%a in (%*) do (");
+                writer.WriteLine($"if  \"%%a\" EQU \"{AllowPreserveOutputs}\"  goto {SkipDelOutputs}");
+                writer.WriteLine(")");
+            }
+
             writer.WriteLine($"{CommentPrefix} Delete Outputs");
 
             writer.WriteLine($"{CommentPrefix} Delete Files");
@@ -327,7 +339,10 @@ namespace BuildXL.Execution.Analyzer
         {
             var pipEnviornment = new PipEnvironment(LoggingContext);
             var environment = pipEnviornment.GetEffectiveEnvironmentVariables(PathTable, pip).ToDictionary();
-
+            if (!OperatingSystemHelper.IsUnixOS)
+            {
+                writer.WriteLine($":{SkipDelOutputs}");
+            }
             writer.WriteLine($"{CommentPrefix} Environment Variables");
             if (string.IsNullOrEmpty(JsonEnvironmentScript))
             {

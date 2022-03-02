@@ -1138,183 +1138,44 @@ namespace BuildXL.Native.IO
         /// Given a reparse point path A\B\C and its relative target D\E\F, where D and E can be '.' or '..',
         /// this method simply combines A\B with D\E\F and normalizes the result, i.e., removes '.' and '..'.
         /// </remarks>
-        public static Possible<string> TryResolveRelativeTarget(
-            string path,
-            string relativeTarget,
-            Stack<string> processed = null,
-            Stack<string> needToBeProcessed = null)
+        public static Possible<string> TryResolveRelativeTarget(string path, string relativeTarget)
         {
-            int rootLength = s_fileSystem.GetRootLength(path);
-            int j = path.Length - 1;
-
-            while (j > rootLength && !s_fileSystem.IsDirectorySeparator(path[j]))
+            string parent = Path.GetDirectoryName(path);
+            if (parent == null)
             {
-                --j;
+                return new Failure<string>($"Failed to resolve relative target for path {path} with target {relativeTarget}");
             }
 
-            --j;
-
-            if (processed != null)
-            {
-                if (processed.Count == 0)
-                {
-                    return new Failure<string>(I($"Failed to resolve relative target of '{path}' and '{relativeTarget}' because processed stack is empty"));
-                }
-
-                processed.Pop();
-            }
-
-            string pathToCombine = path.Substring(0, j + 1);
-
-            if (!TryCombinePaths(pathToCombine, relativeTarget, out string result, processed, needToBeProcessed))
-            {
-                return new Failure<string>(I($"Failed to combine '{pathToCombine}' and '{relativeTarget}'"));
-            }
-
-            return result;
+            return Path.GetFullPath(Path.Combine(parent, relativeTarget));
         }
-
-        /// <summary>
-        /// Tries to combine an absolute path with a relative path by resolving all the "." and ".." prefixes of the relative paths.
-        /// </summary>
-        private static bool TryCombinePaths(
-            string absolutePath,
-            string relativePath,
-            out string result,
-            Stack<string> processed = null,
-            Stack<string> needToBeProcessed = null)
-        {
-            Contract.Requires(s_fileSystem.IsPathRooted(absolutePath));
-
-            result = null;
-
-            int length = absolutePath.Length;
-
-            if (length >= 2 && s_fileSystem.IsDirectorySeparator(absolutePath[length - 1]))
-            {
-                // Skip ending directory separator without trimming the path.
-                --length;
-            }
-
-            int rootLength = s_fileSystem.GetRootLength(absolutePath);
-            int absoluteIndex = length - 1;
-
-            int index = 0;
-            int start = 0;
-
-            while (index < relativePath.Length)
-            {
-                var ch = relativePath[index];
-
-                if (ch == '.' && index == start)
-                {
-                    // Component starts with a .
-                    if ((index == relativePath.Length - 1)
-                        || s_fileSystem.IsDirectorySeparator(relativePath[index + 1]))
-                    {
-                        // Component is a sole . so skip it
-                        index += 2;
-                        start = index;
-                        continue;
-                    }
-
-                    if (relativePath[index + 1] == '.')
-                    {
-                        // Component starts with ..
-                        if ((index == relativePath.Length - 2) || s_fileSystem.IsDirectorySeparator(relativePath[index + 2]))
-                        {
-                            // Component is a sole .. so try to go up
-
-                            if (absoluteIndex <= rootLength)
-                            {
-                                return false;
-                            }
-
-                            if (processed != null)
-                            {
-                                if (processed.Count == 0)
-                                {
-                                    return false;
-                                }
-
-                                processed.Pop();
-                            }
-
-                            while (absoluteIndex > rootLength && !s_fileSystem.IsDirectorySeparator(absolutePath[absoluteIndex]))
-                            {
-                                --absoluteIndex;
-                            }
-
-                            // Skip directory separators.
-                            --absoluteIndex;
-
-                            index += 3;
-                            start = index;
-                            continue;
-                        }
-                    }
-                }
-
-                break;
-            }
-
-            result = absolutePath.Substring(0, absoluteIndex + 1);
-            string newRelativePath = relativePath.Substring(start);
-
-            if (needToBeProcessed != null)
-            {
-                SplitPathsReverse(newRelativePath, needToBeProcessed);
-            }
-            else
-            {
-                result += Path.DirectorySeparatorChar + newRelativePath;
-            }
-
-            return true;
-        }
-
+        
         /// <summary>
         /// Splits path into atoms and push it into the stack such that the top stack contains the last atom.
         /// </summary>
         public static void SplitPathsReverse(string path, Stack<string> atoms)
         {
-            int length = path.Length;
+            string nextPath = path;
 
-            if (length >= 2 && s_fileSystem.IsDirectorySeparator(path[length - 1]))
+            do
             {
-                // Skip ending directory separator without trimming the path.
-                --length;
+                path = nextPath;
+                string name = Path.GetFileName(path);
+                AddAtom(name);
+                nextPath = Path.GetDirectoryName(path);
+            }
+            while (!string.IsNullOrEmpty(nextPath));
+
+            if (!string.IsNullOrEmpty(path))
+            {
+                AddAtom(path);
             }
 
-            int rootLength = s_fileSystem.GetRootLength(path);
-
-            if (length <= rootLength)
+            void AddAtom(string atom)
             {
-                return;
-            }
-
-            int i = length - 1;
-            string dir = path;
-
-            while (i >= rootLength)
-            {
-                while (i > rootLength && !s_fileSystem.IsDirectorySeparator(dir[i]))
+                if (!string.IsNullOrEmpty(atom))
                 {
-                    --i;
+                    atoms.Push(atom);
                 }
-
-                if (i >= rootLength)
-                {
-                    atoms.Push(dir.Substring(i));
-                }
-
-                --i;
-                dir = dir.Substring(0, i + 1);
-            }
-
-            if (dir.Length != 0)
-            {
-                atoms.Push(dir);
             }
         }
 

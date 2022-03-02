@@ -668,8 +668,8 @@ namespace Test.BuildXL.Storage
                 // Z:\E1\E2\f6.lnk --> ..\..\f6.txt ==> Z:\f6.txt
                 (GetFullPath(R("E1", "E2", "f6.lnk")), R("..", "..", "f6.txt"), GetFullPath("f6.txt")),
 
-                // Z:\E1\f7.lnk --> ..\... <99x> ..\..\f7.txt ==> failed
-                (GetFullPath(R("E1", "f7.lnk")), R(Enumerable.Select(Enumerable.Range(1, 100), i => i != 100 ? ".." : "f7.txt").ToArray()), null),
+                // Z:\E1\f7.lnk --> ..\... <99x> ..\..\f7.txt ==> Z:\f7.txt
+                (GetFullPath(R("E1", "f7.lnk")), R(Enumerable.Select(Enumerable.Range(1, 100), i => i != 100 ? ".." : "f7.txt").ToArray()), Path.Combine(Path.GetPathRoot(GetFullPath("E1")), "f7.txt")),
 
                 // Z:\E1\f8.lnk --> Z:\E2\f8.txt ==> Z:\E2\f8.txt
                 (GetFullPath(R("E1", "f8.lnk")), GetFullPath(R("E2", "f8.txt")), GetFullPath(R("E2", "f8.txt"))),

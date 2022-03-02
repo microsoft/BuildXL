@@ -4281,18 +4281,16 @@ namespace BuildXL.Native.IO.Windows
         public Possible<string> TryResolveReparsePointRelativeTarget(string path, string relativeTarget)
         {
             var needToBeProcessed = new Stack<string>();
-            var processed = new Stack<string>();
-
+            
             using (var sbWrapper = Pools.GetStringBuilder())
             {
                 StringBuilder result = sbWrapper.Instance;
 
-                FileUtilities.SplitPathsReverse(path, needToBeProcessed);
+                SplitPathsReverse(path, needToBeProcessed);
 
                 while (needToBeProcessed.Count != 0)
                 {
                     string atom = needToBeProcessed.Pop();
-                    processed.Push(atom);
 
                     if (result.Length > 0)
                     {
@@ -4328,30 +4326,26 @@ namespace BuildXL.Native.IO.Windows
                             return maybeTarget.Failure;
                         }
 
-                        if (IsPathRooted(maybeTarget.Result))
-                        {
-                            // Target is an absolute path -> restart symlink resolution.
-                            result.Clear();
-                            processed.Clear();
-                            FileUtilities.SplitPathsReverse(maybeTarget.Result, needToBeProcessed);
-                        }
-                        else
-                        {
-                            // Target is a relative path.
-                            var maybeResolveRelative = FileUtilities.TryResolveRelativeTarget(resultSoFar, maybeTarget.Result, processed, needToBeProcessed);
+                        string target = maybeTarget.Result;
 
+                        if (!IsPathRooted(target))
+                        {
+                            // Target is relative.
+                            var maybeResolveRelative = TryResolveRelativeTarget(resultSoFar, target);
                             if (!maybeResolveRelative.Succeeded)
                             {
                                 return maybeResolveRelative.Failure;
                             }
 
-                            result.Clear();
-                            result.Append(maybeResolveRelative.Result);
+                            target = maybeResolveRelative.Result;
                         }
+
+                        result.Clear();
+                        SplitPathsReverse(target, needToBeProcessed);
                     }
                 }
 
-                var maybeResolveFinalRelative = FileUtilities.TryResolveRelativeTarget(result.ToString(), relativeTarget, null, null);
+                var maybeResolveFinalRelative = TryResolveRelativeTarget(result.ToString(), relativeTarget);
 
                 if (!maybeResolveFinalRelative.Succeeded)
                 {

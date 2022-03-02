@@ -60,10 +60,10 @@ namespace BuildXL.Utilities.SBOMUtilities
         /// <summary>
         /// Generates an <see cref="SBOMMetadata"/> entity from the BuildSessionInfo file that backs this <see cref="BsiMetadataExtractor"/>.
         /// </summary>
-        /// <param name="packageName">The package name for the SBOM Metadata. This is an optional field and may be left unspecified. </param>
-        /// <param name="packageVersion">The package version for the SBOM Metadata. This is an optional field and may be left unspecified. </param>
+        /// <param name="packageName">The package name for the SBOM Metadata.</param>
+        /// <param name="packageVersion">The package version for the SBOM Metadata. If left unspecified, the build id will be used as the version. </param>
         /// <param name="buildEnvironment" />
-        public SBOMMetadata ProduceSbomMetadata(BuildEnvironmentName buildEnvironment, string packageName = null, string packageVersion = null)
+        public SBOMMetadata ProduceSbomMetadata(BuildEnvironmentName buildEnvironment, string packageName, string packageVersion = null)
         {
             return new SBOMMetadata()
             {
@@ -74,7 +74,7 @@ namespace BuildXL.Utilities.SBOMUtilities
                 Branch = m_backingBsi.BranchName,
                 RepositoryUri = GetWellFormedRepositoryUri(m_backingBsi),
                 PackageName = packageName,
-                PackageVersion = packageVersion,
+                PackageVersion = !string.IsNullOrEmpty(packageVersion) ? packageVersion : m_backingBsi.UniqueSessionId,
             };
         }
 

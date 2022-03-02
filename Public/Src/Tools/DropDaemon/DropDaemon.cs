@@ -219,6 +219,20 @@ namespace Tool.DropDaemon
             DefaultValue = DropConfig.DefaultSignBuildManifest,
         });
 
+        internal static readonly StrOption SbomPackageName = RegisterConfigOption(new StrOption("sbomPackageName")
+        {
+            ShortName = "sbpkg",
+            HelpText = "Custom SBOM PackageName",
+            IsRequired = false,
+        });
+
+        internal static readonly StrOption SbomPackageVersion = RegisterConfigOption(new StrOption("sbomPackageVersion")
+        {
+            ShortName = "sbpkgver",
+            HelpText = "Custom SBOM PackageVersion",
+            IsRequired = false,
+        });
+
         // This option should be removed once this SBOM format is deprecated
         // Related work item: #1895958.
         internal static readonly BoolOption DisableCBV1Manifest = new BoolOption("disableCloudBuildManifest")
@@ -757,8 +771,8 @@ namespace Tool.DropDaemon
                     m_bsiMetadataExtractor = new BsiMetadataExtractor(DropServiceConfig.BsiFileLocation);
                 }
 
-                // TODO: Consume custom package name and versions through drop config
-                var metadata = m_bsiMetadataExtractor.ProduceSbomMetadata(BuildEnvironmentName.BuildXL, FullyQualifiedDropName(dropConfig), "1.0");
+                var sbomPackageName = string.IsNullOrEmpty(dropConfig.SbomPackageName) ? FullyQualifiedDropName(dropConfig) : dropConfig.SbomPackageName;
+                var metadata = m_bsiMetadataExtractor.ProduceSbomMetadata(BuildEnvironmentName.BuildXL, sbomPackageName, dropConfig.SbomPackageVersion);
                 
                 // Create a temporary directory to be the root path of SBOM generation 
                 // We should create a different directory for each drop, so we use the drop name as part of the path.
@@ -1282,7 +1296,9 @@ namespace Tool.DropDaemon
                 batchSize: conf.Get(BatchSize),
                 dropDomainId: domainId,
                 generateBuildManifest: conf.Get(GenerateBuildManifest),
-                signBuildManifest: conf.Get(SignBuildManifest));
+                signBuildManifest: conf.Get(SignBuildManifest),
+                sbomPackageName: conf.Get(SbomPackageName),
+                sbomPackageVersion: conf.Get(SbomPackageVersion));
         }
 
         private static T RegisterConfigOption<T>(T option) where T : Option => RegisterOption(ConfigOptions, option);

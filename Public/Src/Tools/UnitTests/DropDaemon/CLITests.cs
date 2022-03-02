@@ -76,6 +76,8 @@ namespace Test.Tool.DropDaemon
             yield return new object[] { "create", new Option[] { DropNameOption, DropEndpoint }, new[] { "mydrop", "http://xyz" } };
             yield return new object[] { "create", new Option[] { DropNameOption, DropEndpoint, GenerateBuildManifest, SignBuildManifest }, new[] { "mydrop", "http://xyz", "true", "false" } };
             yield return new object[] { "create", new Option[] { DropNameOption, DropEndpoint, GenerateBuildManifest, SignBuildManifest, DisableCBV1Manifest }, new[] { "mydrop", "http://xyz", "true", "false", "true" } };
+            yield return new object[] { "create", new Option[] { DropNameOption, DropEndpoint, GenerateBuildManifest, SignBuildManifest, SbomPackageName, SbomPackageVersion }, new[] { "mydrop", "http://xyz", "true", "false", "MyAwesomePackage", "1.0.0" } };
+            yield return new object[] { "create", new Option[] { DropNameOption, DropEndpoint, GenerateBuildManifest, SignBuildManifest, SbomPackageName }, new[] { "mydrop", "http://xyz", "true", "false", "" } };
             yield return new object[] { "addfile", new Option[] { File, DropNameOption, DropEndpoint }, new[] { @"""c:\x\y.txt""", "mydrop", "http://xyz" } };
             yield return new object[] { "addfile", new Option[] { File, RelativeDropPath, DropNameOption, DropEndpoint }, new[] { @"""c:\x\y.txt""", "a/b/c.txt", "mydrop", "http://xyz" } };
             yield return new object[] { "addfile", new Option[] { File, RelativeDropPath, DropNameOption, DropEndpoint }, new[] { @"""c:\x\y.txt""", @"a\\b\\c.txt", "mydrop", "http://xyz" } };

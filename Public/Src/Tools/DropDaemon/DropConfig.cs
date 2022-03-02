@@ -76,6 +76,16 @@ namespace Tool.DropDaemon
         ///     Build Manifest Signing flag.
         /// </summary>
         public bool SignBuildManifest { get; }
+
+        /// <summary>
+        ///     Optional custom SBOM Package Name.
+        /// </summary>
+        public string SbomPackageName { get; }
+        
+        /// <summary>
+        ///     Optional custom SBOM Package version.
+        /// </summary>
+        public string SbomPackageVersion { get; }
         #endregion
 
         #region Defaults
@@ -128,7 +138,9 @@ namespace Tool.DropDaemon
             int? batchSize = null,
             byte? dropDomainId = null,
             bool? generateBuildManifest = null,
-            bool? signBuildManifest = null)
+            bool? signBuildManifest = null,
+            string sbomPackageName = null,
+            string sbomPackageVersion = null)
         {
             Name = dropName;
             Service = serviceEndpoint;
@@ -142,6 +154,8 @@ namespace Tool.DropDaemon
             DomainId = dropDomainId;
             GenerateBuildManifest = generateBuildManifest ?? DefaultGenerateBuildManifest;
             SignBuildManifest = signBuildManifest ?? DefaultSignBuildManifest;
+            SbomPackageName = sbomPackageName;
+            SbomPackageVersion = sbomPackageVersion;
         }
     }
 }

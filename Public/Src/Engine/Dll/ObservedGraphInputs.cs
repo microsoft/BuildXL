@@ -310,7 +310,7 @@ namespace BuildXL.Engine
         public bool Equals(EnvironmentVariableInput other)
         {
             return string.Equals(Name, other.Name, OperatingSystemHelper.EnvVarComparison) &&
-                   string.Equals(Value, other.Value, StringComparison.OrdinalIgnoreCase);
+                   string.Equals(Value, other.Value, StringComparison.Ordinal);
         }
 
         /// <inheritdoc />

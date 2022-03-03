@@ -23,7 +23,7 @@ namespace Test.BuildXL.Engine
         public void ChangesToGvfsProjectionsInvalidatePossiblyChangedPaths(bool changeGvfsProjection)
         {
             var gvfsProjections = new[]
-            { 
+            {
                 X("/c/.gvfs/GVFS_projection"),
                 X("/d/.gvfs/GVFS_projection")
             };
@@ -48,6 +48,20 @@ namespace Test.BuildXL.Engine
                 XAssert.SetEqual(new string[0], graphChanges.ChangedDirs);
                 XAssert.SetEqual(new[] { otherFile }, graphChanges.PossiblyChangedPaths);
             }
+        }
+
+        [Fact]
+        public void EnvironmentVariableGraphInputIsCaseSensitive()
+        {
+            string varName = "Foo";
+            string lowercaseVarValue = "bar";
+            string uppercaseVarValue = lowercaseVarValue.ToUpperInvariant();
+            XAssert.AreEqual(
+                new EnvironmentVariableInput(varName, lowercaseVarValue),
+                new EnvironmentVariableInput(varName, lowercaseVarValue));
+            XAssert.AreNotEqual(
+                new EnvironmentVariableInput(varName, lowercaseVarValue),
+                new EnvironmentVariableInput(varName, uppercaseVarValue));
         }
     }
 }

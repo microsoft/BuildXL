@@ -64,6 +64,22 @@ namespace BuildXL.Cache.ContentStore.Hashing
             return openFileStream((absoluteFilePath, FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize: 1, FileOptions.SequentialScan));
         }
 
+        /// <summary>
+        /// Calculate content hash of content in a byte array.
+        /// </summary>
+        public static ContentHash CalculateBytesHash(this byte[] content, HashType hashType)
+        {
+            return HashInfoLookup.GetContentHasher(hashType).GetContentHash(content);
+        }
+
+        /// <summary>
+        /// Calculate content hash of content in a byte array.
+        /// </summary>
+        public static ContentHash CalculateBytesHash(this ArraySegment<byte> content, HashType hashType)
+        {
+            return HashInfoLookup.GetContentHasher(hashType).GetContentHash(content.Array!, content.Offset, content.Count);
+        }
+
 #if NET_COREAPP
         /// <summary>
         /// Calculate content hash of content in a byte array.

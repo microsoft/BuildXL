@@ -9,6 +9,7 @@ using Xunit;
 using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Utilities.Tasks;
 using Test.BuildXL.TestUtilities.Xunit;
+using System.Collections.Concurrent;
 
 namespace Test.BuildXL.Utilities
 {
@@ -34,6 +35,45 @@ namespace Test.BuildXL.Utilities
 
             // This should not fail!
             actionBlock.Post(1);
+        }
+
+        [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [InlineData(true)]
+        [InlineData(false)]
+        public async Task ExceptionIsNotThrownWhenTheBlockIsFullOrComplete(bool useChannelBasedImpl)
+        {
+            ConcurrentQueue<int> seenInputs = new();
+            var tcs = new TaskCompletionSource<object>();
+            var actionBlock = ActionBlockSlim.CreateWithAsyncAction<int>(1, input =>
+            {
+                seenInputs.Enqueue(input);
+                return tcs.Task;
+            }, capacityLimit: 1, useChannelBasedImpl);
+
+            actionBlock.Post(42);
+            Assert.Equal(1, actionBlock.PendingWorkItems);
+
+            Assert.False(actionBlock.TryPost(-23, throwOnFullOrComplete: false));
+            Assert.Equal(1, actionBlock.PendingWorkItems);
+
+            tcs.SetResult(null);
+            await WaitUntilAsync(() => actionBlock.PendingWorkItems == 0, TimeSpan.FromMilliseconds(1)).WithTimeoutAsync(TimeSpan.FromSeconds(5));
+
+            Assert.Equal(0, actionBlock.PendingWorkItems);
+
+            // This should not fail!
+            actionBlock.Post(23);
+
+            actionBlock.Complete();
+            await actionBlock.CompletionAsync();
+
+            Assert.True(actionBlock.IsComplete);
+            Assert.False(actionBlock.TryPost(-43, throwOnFullOrComplete: false));
+
+            Assert.Equal(2, seenInputs.Count);
+
+            // Negative inputs denote cases where the item should not be added
+            Assert.DoesNotContain(seenInputs, i => i < 0);
         }
 
         internal static async Task WaitUntilAsync(Func<bool> predicate, TimeSpan waitInterval)

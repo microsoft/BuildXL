@@ -19,7 +19,7 @@ using BuildXL.Utilities.Tasks;
 namespace BuildXL.Cache.ContentStore.Utils
 {
     /// <todoc />
-    public abstract class StartupShutdownComponentBase : StartupShutdownSlimBase
+    public abstract class StartupShutdownComponentBase : StartupShutdownBase
     {
         private readonly List<IStartupShutdownSlim> _nestedComponents = new List<IStartupShutdownSlim>();
 

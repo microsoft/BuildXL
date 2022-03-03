@@ -42,7 +42,7 @@ namespace BuildXL.Cache.Host.Test
         [Fact]
         public void TestStringConvertibleSettings()
         {
-            var serialized = @"{ 'Mode': 'WriteBothPreferDistributed', 'TimeThreshold': '3d5h10m42s' }"
+            var serialized = @"{ 'Mode': 'WriteBothPreferDistributed', 'TimeThreshold': '3d5h10m42s', 'Bytes': '6pb7t2gb30mb4kb5b' }"
                 .Replace('\'', '"'); ;
 
             var deserialized = DeploymentUtilities.JsonDeserialize<TestConfig>(serialized);
@@ -51,10 +51,20 @@ namespace BuildXL.Cache.Host.Test
             Assert.Equal(ContentMetadataStoreMode.WriteBothPreferDistributed, deserialized.Mode.Value);
 
             var expectedTimeThreshold = TimeSpan.FromDays(3) + TimeSpan.FromHours(5) + TimeSpan.FromMinutes(10) + TimeSpan.FromSeconds(42);
+            long expectedBytes =
+                6 * ByteSizeSetting.Petabytes +
+                7 * ByteSizeSetting.Terabytes +
+                2 * ByteSizeSetting.Gigabytes +
+                30 * ByteSizeSetting.Megabytes +
+                4 * ByteSizeSetting.Kilobytes +
+                5;
+
             Assert.Equal(expectedTimeThreshold, deserialized.TimeThreshold.Value);
+            Assert.Equal(expectedBytes, deserialized.Bytes.Value);
 
             Assert.Equal(ContentMetadataStoreMode.WriteBothPreferDistributed, deserializedWithNulls.Mode.Value.Value);
             Assert.Equal(expectedTimeThreshold, deserializedWithNulls.TimeThreshold.Value.Value);
+            Assert.Equal(expectedBytes, deserializedWithNulls.Bytes.Value.Value);
         }
 
         public class TestConfig
@@ -64,6 +74,9 @@ namespace BuildXL.Cache.Host.Test
 
             [DataMember]
             public TimeSpanSetting TimeThreshold { get; set; }
+
+            [DataMember]
+            public ByteSizeSetting Bytes { get; set; }
         }
 
         public class TestConfigWithNulls
@@ -73,6 +86,9 @@ namespace BuildXL.Cache.Host.Test
 
             [DataMember]
             public TimeSpanSetting? TimeThreshold { get; set; }
+
+            [DataMember]
+            public ByteSizeSetting? Bytes { get; set; }
         }
     }
 }

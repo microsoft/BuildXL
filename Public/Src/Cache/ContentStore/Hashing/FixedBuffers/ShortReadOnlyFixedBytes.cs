@@ -122,8 +122,8 @@ namespace BuildXL.Cache.ContentStore.Hashing
         {
             fixed (byte* p = &_bytes.FixedElementField)
             {
-                // It is enough to use the first 4 bytes for the hash code.
-                return p[0] | p[1] << 8 | p[2] << 16 | p[3] << 24;
+                // It is enough to use the first 4 bytes (excluding byte 0 which is hash type) for the hash code.
+                return p[1] | p[2] << 8 | p[3] << 16 | p[4] << 24;
             }
         }
 

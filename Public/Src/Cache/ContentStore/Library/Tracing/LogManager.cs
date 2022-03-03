@@ -30,7 +30,8 @@ namespace BuildXL.Cache.ContentStore.Tracing
                 caller = string.Empty;
             }
 
-            if (!Configuration.TryGetValue(((string)component, (string)caller!), out var configuration))
+            if (!Configuration.TryGetValue(((string)component, (string)caller!), out var configuration)
+                && !Configuration.TryGetValue(((string)component, "*"), out configuration))
             {
                 return null;
             }

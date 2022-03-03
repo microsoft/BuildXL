@@ -5,6 +5,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Channels;
@@ -48,12 +49,12 @@ namespace BuildXL.Utilities.ParallelAlgorithms
         /// If you need to control the concurrency for asynchronous operations, please use <see cref="CreateWithAsyncAction{T}"/> helper.
         /// </remarks>
         public static ActionBlockSlim<T> Create<T>(
-            int degreeOfParallelism, 
+            int degreeOfParallelism,
             Action<T> processItemAction,
-            int? capacityLimit = null, 
-            bool? useChannelBasedImpl = null, 
-            bool? singleProducedConstrained = null, 
-            bool? singleConsumerConstrained = null, 
+            int? capacityLimit = null,
+            bool? useChannelBasedImpl = null,
+            bool? singleProducedConstrained = null,
+            bool? singleConsumerConstrained = null,
             CancellationToken cancellationToken = default)
         {
             degreeOfParallelism = degreeOfParallelism == -1 ? Environment.ProcessorCount : degreeOfParallelism;
@@ -66,11 +67,11 @@ namespace BuildXL.Utilities.ParallelAlgorithms
 
         /// <nodoc />
         public static ActionBlockSlim<T> CreateWithAsyncAction<T>(
-            int degreeOfParallelism, 
+            int degreeOfParallelism,
             Func<T, Task> processItemAction,
-            int? capacityLimit = null, 
-            bool? useChannelBasedImpl = null, 
-            bool? singleProducedConstrained = null, 
+            int? capacityLimit = null,
+            bool? useChannelBasedImpl = null,
+            bool? singleProducedConstrained = null,
             bool? singleConsumerConstrained = null,
             CancellationToken cancellationToken = default)
         {
@@ -110,16 +111,87 @@ namespace BuildXL.Utilities.ParallelAlgorithms
         public int DegreeOfParallelism { get; protected set; }
 
         /// <summary>
+        /// Gets whether the action block is complete
+        /// </summary>
+        public bool IsComplete
+        {
+            get
+            {
+                return m_schedulingCompleted == 1 && Tasks.All(t => t.IsCompleted);
+            }
+        }
+
+        /// <summary>
+        /// Used to cancel all pending operations
+        /// </summary>
+        protected CancellationTokenSource Cancellation { get; } = new CancellationTokenSource();
+
+        /// <summary>
         /// Add a given <paramref name="item"/> to a processing queue.
         /// </summary>
         /// <exception cref="ActionBlockIsFullException">If the queue is full and the queue was configured to limit the queue size.</exception>
-        public abstract void Post(T item);
+        public void Post(T item)
+        {
+            TryPost(item, throwOnFullOrComplete: true);
+        }
+
+        /// <summary>
+        /// Add a given <paramref name="item"/> to a processing queue.
+        /// </summary>
+        /// <exception cref="ActionBlockIsFullException">If the queue is full and the queue was configured to limit the queue size.</exception>
+        public bool TryPost(T item, bool throwOnFullOrComplete = false)
+        {
+            if (!TryIncrementPending(throwOnFullOrComplete))
+            {
+                return false;
+            }
+
+            PostCore(item);
+            return true;
+        }
+
+        /// <summary>
+        /// Add a given <paramref name="item"/> to a processing queue.
+        /// </summary>
+        protected abstract void PostCore(T item);
+
+        private bool TryIncrementPending(bool throwOnFullOrComplete)
+        {
+            if (!AssertNotCompleted(shouldThrow: throwOnFullOrComplete))
+            {
+                return false;
+            }
+
+            var currentCount = Interlocked.Increment(ref Pending);
+            if (CapacityLimit != null && currentCount > CapacityLimit.Value)
+            {
+                Interlocked.Decrement(ref Pending);
+
+                if (throwOnFullOrComplete)
+                {
+                    throw new ActionBlockIsFullException(
+                        $"Can't add new item because the queue is full. Capacity is '{CapacityLimit.Value}'. CurrentCount is '{currentCount}'.",
+                        CapacityLimit.Value, currentCount);
+                }
+                else
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
 
         /// <summary>
         /// Marks the action block as completed.
         /// </summary>
-        public virtual void Complete()
+        public void Complete(bool cancelPending = false)
         {
+            if (cancelPending)
+            {
+                Cancellation.Cancel();
+            }
+
             if (Interlocked.CompareExchange(ref m_schedulingCompleted, value: 1, comparand: 0) == 0)
             {
                 CompleteCore();
@@ -140,12 +212,19 @@ namespace BuildXL.Utilities.ParallelAlgorithms
         /// <summary>
         /// Fails if the block is completed.
         /// </summary>
-        protected void AssertNotCompleted([CallerMemberName] string callerName = null)
+        protected bool AssertNotCompleted(bool shouldThrow = true, [CallerMemberName] string callerName = null)
         {
             if (SchedulingCompleted())
             {
-                Contract.Assert(false, $"Operation '{callerName}' is invalid because 'Complete' method was already called.");
+                if (shouldThrow)
+                {
+                    Contract.Assert(false, $"Operation '{callerName}' is invalid because 'Complete' method was already called.");
+                }
+
+                return false;
             }
+
+            return true;
         }
 
         /// <summary>
@@ -216,20 +295,8 @@ namespace BuildXL.Utilities.ParallelAlgorithms
             }
 
             /// <inheritdoc />
-            public override void Post(T item)
+            protected override void PostCore(T item)
             {
-                AssertNotCompleted();
-
-                var currentCount = Interlocked.Increment(ref Pending);
-                if (CapacityLimit != null && currentCount > CapacityLimit.Value)
-                {
-                    Interlocked.Decrement(ref Pending);
-
-                    throw new ActionBlockIsFullException(
-                        $"Can't add new item because the queue is full. Capacity is '{CapacityLimit.Value}'. CurrentCount is '{currentCount}'.",
-                        CapacityLimit.Value, currentCount);
-                }
-
                 // NOTE: Enqueue MUST happen before releasing the semaphore
                 // to ensure WaitAsync below never returns when there is not
                 // a corresponding item in the queue to be dequeued. The only
@@ -241,8 +308,16 @@ namespace BuildXL.Utilities.ParallelAlgorithms
             /// <inheritdoc />
             protected override void CompleteCore()
             {
-                // Release one thread that will release all the threads when all the elements are processed.
-                m_semaphore.Release();
+                if (Cancellation.Token.IsCancellationRequested)
+                {
+                    // Release all tasks to complete immediately
+                    m_semaphore.Release(DegreeOfParallelism);
+                }
+                else
+                {
+                    // Release one thread that will release all the threads when all the elements are processed.
+                    m_semaphore.Release();
+                }
             }
 
             /// <inheritdoc />
@@ -251,11 +326,11 @@ namespace BuildXL.Utilities.ParallelAlgorithms
                 return Task.Run(
                     async () =>
                     {
-                        while (true)
+                        while (!Cancellation.Token.IsCancellationRequested)
                         {
                             await m_semaphore.WaitAsync();
 
-                            if (m_queue.TryDequeue(out var item))
+                            if (!Cancellation.Token.IsCancellationRequested && m_queue.TryDequeue(out var item))
                             {
                                 await ProcessItemAction(item);
                             }
@@ -285,21 +360,21 @@ namespace BuildXL.Utilities.ParallelAlgorithms
             /// <nodoc />
             internal ChannelBasedActionBlockSlim(int degreeOfParallelism, Action<T> processItemAction,
                 int? capacityLimit = null,
-                bool? singleProducedConstrained = null, 
+                bool? singleProducedConstrained = null,
                 bool? singleConsumerConstrained = null,
                 CancellationToken cancellationToken = default)
-                : this (degreeOfParallelism, t =>
-                {
-                    processItemAction(t);
-                    return Task.CompletedTask;
-                }, capacityLimit: capacityLimit, singleProducedConstrained, singleConsumerConstrained, cancellationToken)
+                : this(degreeOfParallelism, t =>
+               {
+                   processItemAction(t);
+                   return Task.CompletedTask;
+               }, capacityLimit: capacityLimit, singleProducedConstrained, singleConsumerConstrained, cancellationToken)
             {
             }
 
             /// <nodoc />
             internal ChannelBasedActionBlockSlim(int degreeOfParallelism, Func<T, Task> processItemAction,
                 int? capacityLimit = null,
-                bool? singleProducedConstrained = null, 
+                bool? singleProducedConstrained = null,
                 bool? singleConsumerConstrained = null,
                 CancellationToken cancellationToken = default)
             {
@@ -307,7 +382,7 @@ namespace BuildXL.Utilities.ParallelAlgorithms
                 CapacityLimit = capacityLimit;
 
                 m_cancellationToken = cancellationToken;
-                
+
                 var options = capacityLimit != null
                     // Blocking the calls if the channel is full to handle 
                     ? (ChannelOptions)new BoundedChannelOptions(capacityLimit.Value)
@@ -331,25 +406,10 @@ namespace BuildXL.Utilities.ParallelAlgorithms
             }
 
             /// <inheritdoc />
-            public override void Post(T item)
+            protected override void PostCore(T item)
             {
-                AssertNotCompleted();
-
-                if (!m_channel.Writer.TryWrite(item))
-                {
-                    // There are two cases when this may happen: the channel is completed or
-                    // we have a bounded channel and its full.
-
-                    AssertNotCompleted();
-
-                    Contract.Assert(CapacityLimit != null);
-                    throw new ActionBlockIsFullException(
-                        $"Can't add new item because the queue is full. Capacity is '{CapacityLimit.Value}'. CurrentCount is '{Pending}'.",
-                        CapacityLimit.Value, Pending);
-                }
-
-                // Technically, we have a race condition here: we can decrement the counter in the processing block before this one is incremented.
-                Interlocked.Increment(ref Pending);
+                bool added = m_channel.Writer.TryWrite(item);
+                Contract.Assert(added);
             }
 
             /// <inheritdoc />
@@ -373,11 +433,13 @@ namespace BuildXL.Utilities.ParallelAlgorithms
                 return Task.Run(
                     async () =>
                     {
+                        using var cts = CancellationTokenSource.CreateLinkedTokenSource(Cancellation.Token, m_cancellationToken);
+
                         // Not using 'Reader.ReadAllAsync' because its not available in the version we use here.
                         // So we do what 'ReadAllAsync' does under the hood.
-                        while (await m_channel.Reader.WaitToReadAsync(m_cancellationToken).ConfigureAwait(false))
+                        while (await m_channel.Reader.WaitToReadAsync(cts.Token).ConfigureAwait(false))
                         {
-                            while (m_channel.Reader.TryRead(out var item))
+                            while (!cts.Token.IsCancellationRequested && m_channel.Reader.TryRead(out var item))
                             {
                                 await ProcessItemAction(item);
                                 Interlocked.Decrement(ref Pending);

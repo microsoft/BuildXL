@@ -24,11 +24,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 
         public override bool AllowMultipleStartupAndShutdowns => true;
 
-        private readonly IContentMetadataStore _store;
+        internal IContentMetadataStore Store { get; }
 
         public GlobalCacheService(IContentMetadataStore store)
         {
-            _store = store;
+            Store = store;
             LinkLifetime(store);
         }
 
@@ -37,7 +37,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         {
             return ExecuteAsync(request, callContext, context =>
             {
-                return _store.GetBulkAsync(context, request.Hashes)
+                return Store.GetBulkAsync(context, request.Hashes)
                     .AsAsync(entries => new GetContentLocationsResponse()
                     {
                         Entries = entries
@@ -76,7 +76,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 
             try
             {
-                await _store.RegisterLocationAsync(context, request.MachineId, request.Hashes, touch: false).ThrowIfFailure();
+                await Store.RegisterLocationAsync(context, request.MachineId, request.Hashes, touch: false).ThrowIfFailure();
             }
             catch (Exception e)
             {
@@ -92,7 +92,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         {
             return ExecuteAsync(request, callContext, context =>
             {
-                return _store.RegisterLocationAsync(context, request.MachineId, request.Hashes, touch: false).AsTask()
+                return Store.RegisterLocationAsync(context, request.MachineId, request.Hashes, touch: false).AsTask()
                     .SelectAsync(_ => new RegisterContentLocationsResponse()
                      {
                          PersistRequest = true
@@ -110,7 +110,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             {
                 // NOTE: We don't persist put blob requests currently because they are not critical.
                 // This can be enabled by setting PersistRequest=true
-                return _store.PutBlobAsync(context, request.ContentHash, request.Blob)
+                return Store.PutBlobAsync(context, request.ContentHash, request.Blob)
                     .SelectAsync(_ => new PutBlobResponse());
             },
             extraEndMessage: _ => $"Hash=[{request.ContentHash}] Size=[{request.Blob.Length}]");
@@ -120,7 +120,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         {
             return ExecuteAsync(request, callContext, context =>
             {
-                return _store.GetBlobAsync(context, request.ContentHash)
+                return Store.GetBlobAsync(context, request.ContentHash)
                     .SelectAsync(r => new GetBlobResponse()
                     {
                         Blob = r.Blob,
@@ -140,7 +140,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         {
             return ExecuteAsync(request, callContext, context =>
             {
-                return _store.CompareExchangeAsync(context, request.StrongFingerprint, request.Replacement, request.ExpectedReplacementToken)
+                return Store.CompareExchangeAsync(context, request.StrongFingerprint, request.Replacement, request.ExpectedReplacementToken)
                     .SelectAsync(r => new CompareExchangeResponse()
                     {
                         Exchanged = r.Value,
@@ -155,7 +155,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         {
             return ExecuteAsync(request, callContext, context =>
             {
-                return _store.GetLevelSelectorsAsync(context, request.WeakFingerprint, request.Level)
+                return Store.GetLevelSelectorsAsync(context, request.WeakFingerprint, request.Level)
                     .SelectAsync(r => new GetLevelSelectorsResponse()
                     {
                         HasMore = r.Value.HasMore,
@@ -168,7 +168,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         {
             return ExecuteAsync(request, callContext, context =>
             {
-                return _store.GetContentHashListAsync(context, request.StrongFingerprint)
+                return Store.GetContentHashListAsync(context, request.StrongFingerprint)
                     .SelectAsync(r => new GetContentHashListResponse()
                     {
                         MetadataEntry = r.Value

@@ -525,7 +525,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                                }
 
                                Tracer.Info(context, $"Garbage collecting column family {NameOf(column)}. Now=[{now}] LastRotation=[{_columnMetadata[column].LastGcTimeUtc}] RotationInterval=[{rotationInterval}] Delta=[{delta}] Force=[{force}]");
-                               garbageCollectColumnFamily(context, store, column);
+                               GarbageCollectColumnFamily(context, store, column).IgnoreFailure();
                            }
 
                            return BoolResult.Success;
@@ -534,28 +534,41 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                },
                counter: Counters[ContentLocationDatabaseCounters.GarbageCollectContent],
                isCritical: true);
+        }
 
-            void garbageCollectColumnFamily(OperationContext context, RocksDbStore store, Columns column)
-            {
-                var nextGroup = GetFormerColumnGroup(column);
-                var nextName = NameOf(column, nextGroup);
-
-                var msg = $"Column=[{column}] NextGroup=[{nextGroup}] NextName=[{nextName}]";
-
-                context.PerformOperation(Tracer, () =>
+        /// <summary>
+        /// Internal for testing purposes only.
+        /// </summary>
+        internal BoolResult GarbageCollectColumnFamily(OperationContext context, Columns column)
+        {
+            return _keyValueStore.UseExclusive(
+                (store, _) =>
                 {
-                    // Clear the column family by dropping and recreating
-                    store.DropColumnFamily(nextName);
-                    store.CreateColumnFamily(nextName);
-                    _columnMetadata[column] = new ColumnMetadata(group: nextGroup, lastGcTimeUtc: Clock.UtcNow);
-                    SaveColumnGroups(store, _columnMetadata);
-                    return BoolResult.Success;
+                    return GarbageCollectColumnFamily(context, store, column);
                 },
-                    extraStartMessage: msg,
-                    messageFactory: _ => msg,
-                    traceOperationStarted: false,
-                    caller: "GarbageCollectColumnFamily").IgnoreFailure();
-            }
+                this).ThrowOnError();
+        }
+
+        private BoolResult GarbageCollectColumnFamily(OperationContext context, RocksDbStore store, Columns column)
+        {
+            var nextGroup = GetFormerColumnGroup(column);
+            var nextName = NameOf(column, nextGroup);
+
+            var msg = $"Column=[{column}] NextGroup=[{nextGroup}] NextName=[{nextName}]";
+
+            return context.PerformOperation(Tracer, () =>
+            {
+                // Clear the column family by dropping and recreating
+                store.DropColumnFamily(nextName);
+                store.CreateColumnFamily(nextName);
+                _columnMetadata[column] = new ColumnMetadata(group: nextGroup, lastGcTimeUtc: Clock.UtcNow);
+                SaveColumnGroups(store, _columnMetadata);
+                return BoolResult.Success;
+            },
+                extraStartMessage: msg,
+                messageFactory: _ => msg,
+                traceOperationStarted: false,
+                caller: "GarbageCollectColumnFamily");
         }
 
         private ColumnGroup GetFormerColumnGroup(Columns columnFamily)
@@ -1020,7 +1033,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                     {
                         MetadataEntryHeader header = default;
 
-                        if (TryGetValue(store, key, out var headerData, Columns.MetadataHeaders))
+                        // Just create a 1 byte span for testing if the data is present without
+                        // actually reading. We need to test for the presence of the data block
+                        // here to ensure we can replace if Metadata and MetadataHeaders are out of sync. 
+                        Span<byte> dataSpan = stackalloc byte[1];
+
+                        if (TryGetValue(store, key, out var headerData, Columns.MetadataHeaders)
+                            && TryRead(store, key, dataSpan, Columns.Metadata))
                         {
                             header = DeserializeMetadataEntryHeader(headerData);
 

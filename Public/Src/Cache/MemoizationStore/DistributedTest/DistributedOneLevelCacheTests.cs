@@ -7,6 +7,7 @@ using System.ComponentModel;
 using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed;
+using BuildXL.Cache.ContentStore.Distributed.MetadataService;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
@@ -236,6 +237,95 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Test
                     getTouchedFingerprintLastAccessTime(workerStore1).Should().Be(TestClock.UtcNow);
                 });
         }
+
+        [Theory]
+        [InlineData(RocksDbContentMetadataDatabase.Columns.Metadata)]
+        [InlineData(RocksDbContentMetadataDatabase.Columns.MetadataHeaders)]
+        public Task ReplacingContentHashListSucceedsWhenDatabaseInconsistent(RocksDbContentMetadataDatabase.Columns removedColumn)
+        {
+            UseGrpcServer = true;
+            DisableRedis = true;
+
+            ConfigureWithOneMaster(dcs =>
+            {
+                dcs.TouchContentHashLists = true;
+                dcs.ContentMetadataEnableResilience = true;
+                dcs.ContentMetadataStoreMode = ContentMetadataStoreMode.Distributed;
+                dcs.UseMemoizationContentMetadataStore = true;
+            });
+
+            return RunTestAsync(
+                3,
+                async context =>
+                {
+                    var sf = StrongFingerprint.Random();
+
+                    var workerCaches = context.EnumerateWorkersIndices().Select(i => context.Sessions[i]).ToArray();
+                    var workerCache0 = workerCaches[0];
+                    var workerCache1 = workerCaches[1];
+                    var masterCache = context.Sessions[context.GetMasterIndex()];
+
+                    var workerStores = context.EnumerateWorkersIndices().Select(i => context.GetLocalLocationStore(i)).ToArray();
+                    var workerStore0 = workerStores[0];
+                    var workerStore1 = workerStores[1];
+                    var masterStore = context.GetLocalLocationStore(context.GetMasterIndex());
+
+                    var cms = context.GetContentMetadataService();
+                    var db = ((RocksDbContentMetadataStore)cms.Store).Database;
+
+                    TraceLine("Initial put");
+                    var putResult = await workerCache0.PutRandomAsync(
+                        context,
+                        ContentHashType,
+                        false,
+                        RandomContentByteCount,
+                        Token).ShouldBeSuccess();
+                    var contentHashList = new ContentHashList(new[] { putResult.ContentHash });
+
+                    TraceLine("Initial add CHL");
+                    var addResult = await workerCache0.AddOrGetContentHashListAsync(
+                        context,
+                        sf,
+                        new ContentHashListWithDeterminism(contentHashList, CacheDeterminism.None),
+                        Token).ShouldBeSuccess();
+
+                    // Replace entry
+                    putResult = await workerCache0.PutRandomAsync(
+                         context,
+                         ContentHashType,
+                         false,
+                         RandomContentByteCount,
+                         Token).ShouldBeSuccess();
+                    var newContentHashList = new ContentHashList(new[] { putResult.ContentHash });
+
+                    var getResult = await workerCache0.GetContentHashListAsync(
+                        context,
+                        sf,
+                        Token).ShouldBeSuccess();
+                    Assert.NotEqual(null, getResult.ContentHashListWithDeterminism.ContentHashList);
+
+                    db.GarbageCollectColumnFamily(context, removedColumn).ShouldBeSuccess();
+                    db.GarbageCollectColumnFamily(context, removedColumn).ShouldBeSuccess();
+
+                    var afterRemoveGetResult = await workerCache0.GetContentHashListAsync(
+                        context,
+                        sf,
+                        Token).ShouldBeSuccess();
+                    Assert.Equal(null, afterRemoveGetResult.ContentHashListWithDeterminism.ContentHashList);
+
+                    TraceLine("Try replace CHL");
+                    var update = await workerCache0.AddOrGetContentHashListAsync(
+                        context,
+                        sf,
+                        new ContentHashListWithDeterminism(newContentHashList, CacheDeterminism.None),
+                        Token).ShouldBeSuccess();
+
+                    // Update succeeds because missing headers or data column entry is treated
+                    // as if the entry is missing in entirety.
+                    Assert.Equal(null, update.ContentHashListWithDeterminism.ContentHashList);
+                });
+        }
+
 
         [Fact]
         public Task BasicDistributedAddAndGetRedisBackCompat()

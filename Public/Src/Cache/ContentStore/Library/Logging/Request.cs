@@ -4,58 +4,35 @@
 using System;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 
-#pragma warning disable SA1600 // Elements must be documented
-
 namespace BuildXL.Cache.ContentStore.Logging
 {
-    internal class Request
+    internal record struct Request(
+        DateTime DateTime,
+        int ThreadId,
+        RequestType Type,
+        Severity Severity,
+        string? Message)
     {
-        public readonly RequestType Type;
-        public readonly DateTime DateTime;
-        public readonly int ThreadId;
-        public readonly Severity Severity;
-        public readonly string? Message;
+        public static Request FlushRequest { get; } = new Request(DateTime.MinValue, int.MinValue, RequestType.Flush,
+            Severity.Debug, Message: null);
 
-        protected Request(RequestType type)
-        {
-            Type = type;
-        }
-
-        protected Request(RequestType type, DateTime dateTime, int threadId, Severity severity, string message)
-        {
-            Type = type;
-            DateTime = dateTime;
-            ThreadId = threadId;
-            Severity = severity;
-            Message = message;
-        }
+        public static Request LogStringRequest(DateTime dateTime, int threadId, Severity severity, string message)
+            => new Request(dateTime, threadId, RequestType.LogString, severity, message);
     }
 
-#pragma warning disable SA1402 // File may only contain a single class
-
-    internal class ShutdownRequest : Request
+    /// <summary>
+    ///     Message to the background thread.
+    /// </summary>
+    internal enum RequestType : ushort
     {
-        public ShutdownRequest()
-            : base(RequestType.Shutdown)
-        {
-        }
-    }
+        /// <summary>
+        ///     Flush the log.
+        /// </summary>
+        Flush,
 
-    internal class FlushRequest : Request
-    {
-        public FlushRequest()
-            : base(RequestType.Flush)
-        {
-        }
+        /// <summary>
+        ///     Log on the background thread.
+        /// </summary>
+        LogString
     }
-
-    internal class LogStringRequest : Request
-    {
-        public LogStringRequest(DateTime dateTime, int threadId, Severity severity, string message)
-            : base(RequestType.LogString, dateTime, threadId, severity, message)
-        {
-        }
-    }
-
-#pragma warning restore SA1402 // File may only contain a single class
 }

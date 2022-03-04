@@ -29,9 +29,7 @@ export const dll = BuildXLSdk.library({
             importFrom("Microsoft.Win32.Registry").pkg,
         ]),
 
-        ...addIfLazy(!BuildXLSdk.isDotNetCoreBuild || qualifier.targetFramework === "netstandard2.0", () => [
-            importFrom("System.Threading.Channels").withQualifier({ targetFramework: "netstandard2.0" }).pkg,
-        ]),
+        ...BuildXLSdk.systemThreadingChannelsPackages,
 
         ...addIfLazy(BuildXLSdk.isDotNetCoreBuild, () => [
             SysMng.pkg.override<Shared.ManagedNugetPackage>({

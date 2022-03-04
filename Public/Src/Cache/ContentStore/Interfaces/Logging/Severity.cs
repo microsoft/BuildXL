@@ -6,7 +6,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Logging
     /// <summary>
     ///     Severity or impact of the message.
     /// </summary>
-    public enum Severity
+    public enum Severity : ushort
     {
         /// <summary>
         ///     Uninitialized

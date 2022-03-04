@@ -2,17 +2,18 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.Linq;
 using System.Threading;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
-using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Timers;
+
+#nullable enable
 
 namespace BuildXL.Cache.ContentStore.Logging
 {
@@ -27,30 +28,53 @@ namespace BuildXL.Cache.ContentStore.Logging
     ///       - ...
     ///     Clients usually provide their own logging infrastructure via <see cref="ILogger"/>
     /// </remarks>
-    public sealed class Logger : ILogger
+    public sealed class Logger : ILogger, IAsyncDisposable
     {
-        private readonly bool _synchronous;
+        /// <summary>
+        /// Gets and sets a queue length used by an async version of the logger.
+        /// </summary>
+        public static int QueueLength { get; set; } = 100_000;
+
+        /// <summary>
+        /// Gets and sets a mode that defines the behavior of the queue when its full.
+        /// </summary>
+        public static BoundedChannelFullMode QueueFullMode { get; set; } = BoundedChannelFullMode.Wait;
+
+        [MemberNotNullWhen(false, "_requests", "_writerTask")]
+        private bool Synchronous { get; } // using a property and not a field, because 'MemberNotNullWhen' can't be used with fields.
+
         private readonly List<ILog> _logs;
-        private readonly Task? _writerTask;
         private readonly IntervalTimer? _flushTimer;
-        private BlockingCollection<Request>? _requests;
+
+        private readonly Channel<Request>? _requests;
+        private readonly Task? _writerTask;
+
         private int _errorCount;
         private bool _disposed;
 
-        // Setting the maximum severity by default.
-        private Severity _currentSeverity = Severity.Always;
+        private Severity _currentSeverity;
+        private int _pendingRequest;
 
         private Logger(bool synchronous, TimeSpan? flushInterval, params ILog[] logs)
         {
-            _synchronous = synchronous;
+            Synchronous = synchronous;
             _logs = new List<ILog>(logs);
 
             _currentSeverity = _logs.Count == 0 ? Severity.Always : _logs.Min(l => l.CurrentSeverity);
 
-            if (!_synchronous)
+            if (!Synchronous)
             {
-                _requests = new BlockingCollection<Request>();
-                _writerTask = Task.Factory.StartNew(Writer, TaskCreationOptions.LongRunning);
+                _requests = Channel.CreateBounded<Request>(
+                    new BoundedChannelOptions(QueueLength)
+                    {
+                        AllowSynchronousContinuations = true,
+                        FullMode = QueueFullMode,
+                        // We consume the queue from a single thread but produce the log entries from multiple threads.
+                        SingleWriter = false,
+                        SingleReader = true,
+                    });
+
+                _writerTask = WriteAsync();
                 if (flushInterval.HasValue)
                 {
                     _flushTimer = new IntervalTimer(() => FlushIfIdle(), flushInterval.Value);
@@ -85,23 +109,28 @@ namespace BuildXL.Cache.ContentStore.Logging
         /// <inheritdoc />
         public void Dispose()
         {
+            DisposeAsync().GetAwaiter().GetResult();
+        }
+
+        /// <inheritdoc />
+        public async ValueTask DisposeAsync()
+        {
             if (_disposed)
             {
                 return;
             }
+            _disposed = true;
 
             Flush();
 
-            if (!_synchronous)
+            if (!Synchronous)
             {
                 _flushTimer?.Dispose();
-                _requests?.Add(new ShutdownRequest());
-                _writerTask?.Wait();
-                _requests?.Dispose();
-                _requests = null;
-            }
 
-            _disposed = true;
+                // No need to send any requests, just completing the channel to stop it.
+                _requests.Writer.Complete();
+                await _writerTask;
+            }
         }
 
         /// <inheritdoc />
@@ -134,13 +163,13 @@ namespace BuildXL.Cache.ContentStore.Logging
         /// <inheritdoc />
         public void Flush()
         {
-            if (_synchronous)
+            if (Synchronous)
             {
                 FlushImpl();
             }
             else
             {
-                _requests?.Add(new FlushRequest());
+                SendRequest(Request.FlushRequest);
             }
         }
 
@@ -257,14 +286,27 @@ namespace BuildXL.Cache.ContentStore.Logging
             DateTime dateTime = DateTime.Now;
             int threadId = Thread.CurrentThread.ManagedThreadId;
 
-            if (_synchronous)
+            if (Synchronous)
             {
                 LogStringImpl(dateTime, threadId, severity, message);
             }
             else
             {
-                var request = new LogStringRequest(dateTime, threadId, severity, message);
-                _requests?.Add(request);
+                var request = Request.LogStringRequest(dateTime, threadId, severity, message);
+                SendRequest(request);
+            }
+        }
+
+        private void SendRequest(Request request)
+        {
+            Interlocked.Increment(ref _pendingRequest);
+            bool written = _requests!.Writer.TryWrite(request);
+
+            if (QueueFullMode == BoundedChannelFullMode.Wait)
+            {
+                // Asserting that the message was written only when the full mode is 'wait', otherwise the messages can be dropped
+                // and 'written' might be false in this case.
+                Contract.Assert(written);
             }
         }
 
@@ -284,65 +326,56 @@ namespace BuildXL.Cache.ContentStore.Logging
             }
         }
 
-        private void Writer()
+        private Task WriteAsync()
         {
-            Contract.Assert(_requests != null);
-            try
-            {
-                foreach (var request in _requests.GetConsumingEnumerable())
+            Contract.Requires(_requests is not null);
+
+            return Task.Run(
+                async () =>
                 {
-                    if (request.Type == RequestType.Shutdown)
+                    // Not using 'Reader.ReadAllAsync' because its not available in the version we use here.
+                    // So we do what 'ReadAllAsync' does under the hood.
+                    while (await _requests.Reader.WaitToReadAsync(CancellationToken.None).ConfigureAwait(false))
                     {
-                        break;
-                    }
+                        while (_requests.Reader.TryRead(out var request))
+                        {
+                            Interlocked.Decrement(ref _pendingRequest);
 
-                    if (request.Type == RequestType.Flush)
-                    {
-                        FlushImpl();
+                            try
+                            {
+                                if (request.Type == RequestType.Flush)
+                                {
+                                    FlushImpl();
+                                }
+                                else if (request.Type == RequestType.LogString)
+                                {
+                                    LogStringImpl(request.DateTime, request.ThreadId, request.Severity, request.Message ?? string.Empty);
+                                }
+                            }
+                            catch (Exception)
+#pragma warning disable ERP022 // Unobserved exception in a generic exception handler
+                            {
+                                // We can't do anything here, but we don't want to break the message processing loop.
+                            }
+#pragma warning restore ERP022 // Unobserved exception in a generic exception handler
+                        }
                     }
+                });
 
-                    if (request.Type == RequestType.LogString)
-                    {
-                        LogStringImpl(request.DateTime, request.ThreadId, request.Severity, request.Message ?? string.Empty);
-                    }
-                }
-            }
-            catch (Exception e)
-            {
-                // Go ahead and let the exception escape and bring the process down because
-                // something is seriously broken, but show the exception on the way out.
-                Console.WriteLine("Logger.Writer unexpected exception=[{0}]", e);
-                throw;
-            }
         }
-
+        
         private void FlushIfIdle()
         {
-            if (!_synchronous && _requests?.Count == 0)
+            if (Synchronous)
+            {
+                return;
+            }
+
+            // _requests.Reader.Count is only available in .net 5 and 6 so have to count the number of pending requests manually.
+            if (Volatile.Read(ref _pendingRequest) == 0)
             {
                 Flush();
             }
         }
-    }
-
-    /// <summary>
-    ///     Message to the background thread.
-    /// </summary>
-    internal enum RequestType
-    {
-        /// <summary>
-        ///     Shutdown the thread.
-        /// </summary>
-        Shutdown,
-
-        /// <summary>
-        ///     Flush the log.
-        /// </summary>
-        Flush,
-
-        /// <summary>
-        ///     Log on the background thread.
-        /// </summary>
-        LogString
     }
 }

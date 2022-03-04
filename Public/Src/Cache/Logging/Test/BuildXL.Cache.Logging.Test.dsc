@@ -18,6 +18,7 @@ namespace Test {
             importFrom("BuildXL.Cache.ContentStore").Library.dll,
             importFrom("BuildXL.Cache.ContentStore").InterfacesTest.dll,
             importFrom("BuildXL.Cache.ContentStore").Test.dll,
+            ...BuildXLSdk.bclAsyncPackages,
             
             ...addIfLazy(BuildXLSdk.Flags.isMicrosoftInternal, () => [
                 importFrom("microsoft.cloud.instrumentationframework.netstd").pkg,

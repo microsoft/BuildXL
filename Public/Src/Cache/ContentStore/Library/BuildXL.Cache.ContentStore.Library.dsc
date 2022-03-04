@@ -49,6 +49,7 @@ namespace Library {
 
             ...getSystemTextJson(/*includeNetStandard*/true),
             ...BuildXLSdk.systemMemoryDeployment,
+            ...BuildXLSdk.systemThreadingChannelsPackages,
         ],
         runtimeContent: [
             importFrom("Sdk.Protocols.Grpc").Deployment.runtimeContent,

@@ -19,7 +19,6 @@ export const redisPackages = [
         ? [ 
             // Needed because net472 -> netstandard2.0 translation is not yet supported by the NuGet resolver.
             importFrom("System.IO.Pipelines").withQualifier({ targetFramework: "netstandard2.0" }).pkg,
-            importFrom("System.Threading.Channels").withQualifier({ targetFramework: "netstandard2.0" }).pkg,
             importFrom("System.Runtime.CompilerServices.Unsafe").withQualifier({ targetFramework: "netstandard2.0" }).pkg,
             importFrom("Pipelines.Sockets.Unofficial").withQualifier({ targetFramework: "netstandard2.0" }).pkg,
           ] 
@@ -28,13 +27,10 @@ export const redisPackages = [
             ...(BuildXLSdk.isDotNetCoreApp ? [] : [
                 // Don't need to add Unsafe for netcoreapp3.1 or net5.0
                 importFrom("System.Runtime.CompilerServices.Unsafe").pkg,
-
-                // System.Threading.Channels comes bundled with .NET Core, so we don't need to provide it. If we do,
-                // the version we provide will likely conflict with the official one
-                importFrom("System.Threading.Channels").pkg
             ]),
             importFrom("Pipelines.Sockets.Unofficial").pkg,
           ]),
+    ...BuildXLSdk.systemThreadingChannelsPackages,
     ...BuildXLSdk.bclAsyncPackages,
     // Needed because of snipped dependencies for System.IO.Pipelines and System.Threading.Channels
     importFrom("System.Threading.Tasks.Extensions").pkg,
@@ -120,6 +116,7 @@ export function getGrpcPackages(includeNetStandard: boolean) : Managed.ManagedNu
         ...getProtobufPackages(includeNetStandard),
         importFrom("Grpc.Core").pkg,
         importFrom("Grpc.Core.Api").pkg,
+        ...BuildXLSdk.bclAsyncPackages,
     ];
 }
 

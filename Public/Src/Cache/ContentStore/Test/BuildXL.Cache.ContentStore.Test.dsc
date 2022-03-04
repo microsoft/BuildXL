@@ -43,6 +43,7 @@ namespace Test {
             ...importFrom("BuildXL.Utilities").Native.securityDlls,
             ...BuildXLSdk.fluentAssertionsWorkaround,
             ...BuildXLSdk.systemThreadingTasksDataflowPackageReference,
+            ...BuildXLSdk.bclAsyncPackages,
         ],
         runtimeContent: [
             Library.dll,

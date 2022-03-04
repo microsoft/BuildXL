@@ -45,6 +45,7 @@ namespace App {
 
             importFrom("WindowsAzure.Storage").pkg,
             ...BuildXLSdk.systemThreadingTasksDataflowPackageReference,
+            BuildXLSdk.asyncInterfacesPackage
         ],
         tools: {
             csc: {

@@ -29,6 +29,7 @@ namespace VfsLibrary {
             ...importFrom("Sdk.Selfhost.RocksDbSharp").pkgs,
 
             ...getGrpcPackages(true),
+            BuildXLSdk.asyncInterfacesPackage,
 
             importFrom("BuildXL.Cache.MemoizationStore").Library.dll,
             importFrom("BuildXL.Cache.MemoizationStore").Interfaces.dll,

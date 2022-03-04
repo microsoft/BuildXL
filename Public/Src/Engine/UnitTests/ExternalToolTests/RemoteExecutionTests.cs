@@ -19,7 +19,7 @@ namespace ExternalToolTest.BuildXL.Scheduler
         {
             ShouldLogSchedulerStats = true;
             Configuration.Schedule.EnableProcessRemoting = true;
-            RemoteProcessManagerFactory.RemoteProcessManager = new Lazy<IRemoteProcessManager>(() => new TestRemoteProcessManager(shouldRunLocally: false));
+            RemoteProcessManagerFactory.PreSetRemoteProcessManager(new TestRemoteProcessManager(shouldRunLocally: false));
         }
 
         [Fact]
@@ -100,7 +100,7 @@ namespace ExternalToolTest.BuildXL.Scheduler
         [Fact]
         public void RemoteFallbackProcessRetryToRunLocally()
         {
-            RemoteProcessManagerFactory.RemoteProcessManager = new Lazy<IRemoteProcessManager>(() => new TestRemoteProcessManager(shouldRunLocally: true));
+            RemoteProcessManagerFactory.PreSetRemoteProcessManager(new TestRemoteProcessManager(shouldRunLocally: true));
 
             // Force run remotely.
             Configuration.Schedule.RemotingThresholdMultiplier = 0.0;

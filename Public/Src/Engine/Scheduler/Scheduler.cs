@@ -1411,7 +1411,7 @@ namespace BuildXL.Scheduler
 
             ProcessInContainerManager = new ProcessInContainerManager(loggingContext, Context.PathTable);
             VmInitializer = vmInitializer;
-            RemoteProcessManager = RemoteProcessManagerFactory.GetOrCreate(loggingContext, Context, configuration, SandboxedProcessFactory.Counters);
+            RemoteProcessManager = RemoteProcessManagerFactory.Create(loggingContext, Context, configuration, SandboxedProcessFactory.Counters);
             m_perPipPerformanceInfoStore = new PerProcessPipPerformanceInformationStore(configuration.Logging.MaxNumPipTelemetryBatches, configuration.Logging.AriaIndividualMessageSizeLimitBytes);
 
             ReparsePointAccessResolver = new ReparsePointResolver(context, directoryTranslator);

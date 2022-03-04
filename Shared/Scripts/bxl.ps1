@@ -324,10 +324,6 @@ if ($EnableProcessRemoting) {
     # Unit tests are not supported for remoting because change journal is not enabled on agents
     # and all volumes in agents have the same serial.
     $AdditionalBuildXLArguments += @(
-        # TODO: Remove /server-
-        #       Currently needed because of the following exception:
-        #       Exception:System.Net.Internals.SocketExceptionFactory+ExtendedSocketException (10061): No connection could be made because the target machine actively refused it. [::ffff:127.0.0.1]:21337
-        "/server-",
         "/enableProcessRemoting+",
         "/processCanRunRemoteTags:compile;cacheTest");
 

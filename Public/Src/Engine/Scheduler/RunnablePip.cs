@@ -149,6 +149,9 @@ namespace BuildXL.Scheduler
         /// LoggingContext no matter what the state of the pip is.</remarks>
         public LoggingContext LoggingContext => OperationContext.LoggingContext;
 
+        /// <nodoc/>
+        public PooledObjectWrapper<Task[]>? MaterializeOutputsTasks;
+
         /// <summary>
         /// Time when the pip is started executing
         /// </summary>

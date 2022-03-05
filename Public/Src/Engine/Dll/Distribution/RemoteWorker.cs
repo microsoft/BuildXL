@@ -92,7 +92,6 @@ namespace BuildXL.Engine.Distribution
 
         private readonly Thread m_sendThread;
         private readonly BlockingCollection<ValueTuple<PipCompletionTask, SinglePipBuildRequest>> m_buildRequests;
-        private readonly int m_maxMessagesPerBatch = EngineEnvironmentSettings.MaxMessagesPerBatch.Value;
 
         private readonly IWorkerClient m_workerClient;
         private Task m_schedulerCompletion;
@@ -120,6 +119,11 @@ namespace BuildXL.Engine.Distribution
 
         /// <inheritdoc/>
         public override int WaitingBuildRequestsCount => m_buildRequests.Count;
+
+        /// <inheritdoc/>
+        public override int CurrentBatchSize => m_currentBatchSize;
+
+        private volatile int m_currentBatchSize;
 
         /// <summary>
         /// Constructor
@@ -200,11 +204,13 @@ namespace BuildXL.Engine.Distribution
                     m_pipCompletionTaskList.Add(firstItem.Item1);
                     m_buildRequestList.Add(firstItem.Item2);
 
-                    while (m_buildRequestList.Count < m_maxMessagesPerBatch && m_buildRequests.TryTake(out var item))
+                    while (m_buildRequestList.Count < MaxMessagesPerBatch && m_buildRequests.TryTake(out var item))
                     {
                         m_pipCompletionTaskList.Add(item.Item1);
                         m_buildRequestList.Add(item.Item2);
                     }
+
+                    m_currentBatchSize = m_pipCompletionTaskList.Count;
 
                     using (m_orchestratorService.Environment.Counters.StartStopwatch(PipExecutorCounter.RemoteWorker_ExtractHashesDuration))
                     {
@@ -254,14 +260,6 @@ namespace BuildXL.Engine.Distribution
                         foreach (var task in m_pipCompletionTaskList)
                         {
                             task.SetRequestDuration(dateTimeBeforeSend, sendDuration);
-
-                            bool fireForgetMaterializeOutputEnabled = m_orchestratorService.Environment.Configuration.Distribution.FireForgetMaterializeOutput();
-                            if (task.RunnablePip.Step == PipExecutionStep.MaterializeOutputs && fireForgetMaterializeOutputEnabled)
-                            {
-                                // We do not wait for the result of MaterializeOutputs steps on the workers.
-                                // That's why, we return an empty success result to unblock the orchestrator.
-                                task.TrySet(ExecutionResult.GetEmptySuccessResult(m_appLoggingContext));
-                            }
                         }
                     }
                 }
@@ -745,8 +743,30 @@ namespace BuildXL.Engine.Distribution
                 // Send the pip to the remote machine
                 await SendToRemoteAsync(operationContext, runnablePip);
 
-                // Wait for result from remote matchine
-                ExecutionResult result = await AwaitRemoteResult(operationContext, runnablePip);
+                ExecutionResult result;
+                if (IsFireAndForget(runnablePip))
+                {
+                    // We will not wait for the result of MaterializeOutputs steps on the workers,
+                    // so we don't need the task in the pip completion tasks. We have just fired
+                    // the request (by virtue of adding it to the send queue) and we can forget about it.
+                    // We fired & forgot this pip step - we handle an empty success result instead
+                    if (m_pipCompletionTasks.TryRemove(runnablePip.PipId, out var completionTask)
+                        && completionTask.Completion.Task.IsCompleted)
+                    {
+                        // The task may have been completed in case of error (see FailRemotePip)
+                        // Try to use that result for consistency
+                        result = completionTask.Completion.Task.GetAwaiter().GetResult();
+                    }
+                    else
+                    {
+                        result = ExecutionResult.GetEmptySuccessResult(m_appLoggingContext);
+                    }
+                }
+                else
+                {
+                    // Wait for result from remote machine
+                    result = await AwaitRemoteResult(operationContext, runnablePip);
+                }
 
                 using (operationContext.StartOperation(PipExecutorCounter.HandleRemoteResultDuration))
                 {
@@ -758,10 +778,19 @@ namespace BuildXL.Engine.Distribution
             }
         }
 
+        private bool IsFireAndForget(RunnablePip runnablePip)
+        {
+            return m_orchestratorService.Environment.Configuration.Distribution.FireForgetMaterializeOutput()
+                && runnablePip.Step == PipExecutionStep.MaterializeOutputs;
+        }
+
         public async Task SendToRemoteAsync(OperationContext operationContext, RunnablePip runnable)
         {
             Contract.Assert(m_workerClient != null, "Calling SendToRemote before the worker is initialized");
             Contract.Assert(m_beforeSendingToRemoteTask != null, "Remote worker not started");
+            
+            // Retrieve the step to be executed before the next await statement.
+            var step = runnable.Step;
 
             await m_beforeSendingToRemoteTask;
 
@@ -808,7 +837,7 @@ namespace BuildXL.Engine.Distribution
                 PipIdValue = pipId.Value,
                 Fingerprint = fingerprint.Hash.ToBondFingerprint(),
                 Priority = runnable.Priority,
-                Step = (int)runnable.Step,
+                Step = (int)step,
                 ExpectedPeakWorkingSetMb = processRunnable?.ExpectedMemoryCounters?.PeakWorkingSetMb ?? 0,
                 ExpectedAverageWorkingSetMb = processRunnable?.ExpectedMemoryCounters?.AverageWorkingSetMb ?? 0,
                 ExpectedPeakCommitSizeMb = processRunnable?.ExpectedMemoryCounters?.PeakCommitSizeMb ?? 0,
@@ -837,16 +866,22 @@ namespace BuildXL.Engine.Distribution
         private void ExtractHashes(RunnablePip runnable, List<FileArtifactKeyedHash> hashes)
         {
             var step = runnable.Step;
-            bool requiresHashes = step == PipExecutionStep.MaterializeInputs
-                || step == PipExecutionStep.MaterializeOutputs
+            var environment = runnable.Environment;
+
+            // In the case of fire-and-forget MaterializeOutputs the pip can transition to HandleResult or Done
+            // before it is actually sent to the worker, so we can observe these steps here
+            bool materializingOutputs = step == PipExecutionStep.MaterializeOutputs
+                || step == PipExecutionStep.HandleResult
+                || step == PipExecutionStep.Done;
+                
+            bool requiresHashes = materializingOutputs
+                || step == PipExecutionStep.MaterializeInputs
                 || step == PipExecutionStep.CacheLookup;
+            
             if (!requiresHashes)
             {
                 return;
             }
-
-            var environment = runnable.Environment;
-            bool materializingOutputs = step == PipExecutionStep.MaterializeOutputs;
 
             // The block below collects process input file artifacts and hashes
             // Currently there is no logic to keep from sending the same hashes twice
@@ -1083,7 +1118,6 @@ namespace BuildXL.Engine.Distribution
         {
             var environment = runnable.Environment;
             var operationContext = runnable.OperationContext;
-            var description = runnable.Description;
             var pip = runnable.Pip;
             var pipType = runnable.PipType;
             bool isExecuteStep = runnable.Step == PipExecutionStep.ExecuteProcess || runnable.Step == PipExecutionStep.ExecuteNonProcessPip;

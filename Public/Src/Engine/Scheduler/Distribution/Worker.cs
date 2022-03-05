@@ -306,6 +306,9 @@ namespace BuildXL.Scheduler.Distribution
         /// </summary>
         public virtual int WaitingBuildRequestsCount => 0;
 
+        /// <nodoc/>
+        public virtual int CurrentBatchSize => 0;
+
         /// <summary>
         /// Gets the name of the worker
         /// </summary>
@@ -393,7 +396,7 @@ namespace BuildXL.Scheduler.Distribution
         /// <summary>
         /// Returns if true if the worker holds a remote node; false otherwise.
         /// </summary>
-        public bool IsRemote => !IsLocal && WorkerId != AllWorker.Id;
+        public bool IsRemote => !IsLocal;
 
         /// <summary>
         /// Whether the worker is available to acquire work items

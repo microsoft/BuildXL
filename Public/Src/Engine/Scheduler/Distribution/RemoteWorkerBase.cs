@@ -4,6 +4,7 @@
 using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Configuration;
 
 namespace BuildXL.Scheduler.Distribution
 {
@@ -26,5 +27,16 @@ namespace BuildXL.Scheduler.Distribution
         /// true indicates success, false indicates failure at some step (either attachment or validation of cache connection)
         /// </summary>
         public abstract Task<bool> SetupCompletionTask { get; }
+
+        /// <summary>
+        /// Maximum amount of messages per batch in an RPC call
+        /// </summary>
+        public int MaxMessagesPerBatch
+        {
+            get => m_maxMessagesPerBatch;
+            set => m_maxMessagesPerBatch = value;
+        }
+        private volatile int m_maxMessagesPerBatch = EngineEnvironmentSettings.MaxMessagesPerBatch.Value;
+
     }
 }

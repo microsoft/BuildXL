@@ -251,9 +251,7 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Enumerates the remote workers
         /// </summary>
-        public IEnumerable<RemoteWorkerBase> RemoteWorkers => m_workers.Skip(1).Select(w => w as RemoteWorkerBase);
-
-        private AllWorker m_allWorker;
+        private RemoteWorkerBase[] m_remoteWorkers = new RemoteWorkerBase[0];
 
         /// <summary>
         /// Encapsulates data and logic for choosing a worker for cpu queue in a distributed build
@@ -341,9 +339,14 @@ namespace BuildXL.Scheduler
         private const double BytesInMb = 1024 * 1024;
 
         /// <summary>
+        /// Task array to keep track of materialization output requests for remote workers.
+        /// </summary>
+        private ObjectPool<Task[]> m_taskArrayPool;
+
+        /// <summary>
         /// Enables distribution for the orchestrator node
         /// </summary>
-        public void EnableDistribution(Worker[] remoteWorkers)
+        public void EnableDistribution(RemoteWorkerBase[] remoteWorkers)
         {
             Contract.Requires(remoteWorkers != null);
 
@@ -358,6 +361,8 @@ namespace BuildXL.Scheduler
 
             m_workers.AddRange(remoteWorkers);
             PipExecutionCounters.AddToCounter(PipExecutorCounter.RemoteWorkerCount, remoteWorkers.Length);
+            m_taskArrayPool = new ObjectPool<Task[]>(() => new Task[remoteWorkers.Length], tb => { return tb; });
+            m_remoteWorkers = remoteWorkers;
         }
 
         private void StartWorkers(LoggingContext loggingContext)
@@ -380,9 +385,7 @@ namespace BuildXL.Scheduler
                 worker.Start();
             }
 
-            m_workersSetupResultsTask = TaskUtilities.SafeWhenAll(RemoteWorkers.Select(static w => w.SetupCompletionTask));
-
-            m_allWorker = new AllWorker(m_workers.ToArray(), Context);
+            m_workersSetupResultsTask = TaskUtilities.SafeWhenAll(m_remoteWorkers.Select(static w => w.SetupCompletionTask));
 
             ExecutionLog?.WorkerList(new WorkerListEventData { Workers = m_workers.SelectArray(w => w.Name) });
         }
@@ -2300,6 +2303,7 @@ namespace BuildXL.Scheduler
                         rows.Add(I($"W{worker.WorkerId} Total Light Slots"), _ => worker.TotalLightSlots, includeInSnapshot: false);
                         rows.Add(I($"W{worker.WorkerId} Used Light Slots"), _ => worker.AcquiredLightSlots, includeInSnapshot: false);
                         rows.Add(I($"W{worker.WorkerId} Waiting BuildRequests Count"), _ => worker.WaitingBuildRequestsCount, includeInSnapshot: false);
+                        rows.Add(I($"W{worker.WorkerId} BatchSize Count"), _ => worker.CurrentBatchSize, includeInSnapshot: false);
                         rows.Add(I($"W{worker.WorkerId} Total Ram Mb"), _ => worker.TotalRamMb ?? 0, includeInSnapshot: false);
                         rows.Add(I($"W{worker.WorkerId} Estimated Free Ram Mb"), _ => worker.EstimatedFreeRamMb, includeInSnapshot: false);
                         rows.Add(I($"W{worker.WorkerId} Actual Free Ram Mb"), _ => worker.ActualFreeMemoryMb ?? 0, includeInSnapshot: false);
@@ -2572,6 +2576,12 @@ namespace BuildXL.Scheduler
                 {
                     // There are no pips running anything except materializeOutputs.
                     Logger.Log.SchedulerCompleteExceptMaterializeOutputs(m_loggingContext);
+                    var maxMessages = (int) (EngineEnvironmentSettings.MaxMessagesPerBatch * EngineEnvironmentSettings.MaterializeOutputsBatchMultiplier);
+                    foreach (var worker in m_remoteWorkers)
+                    { 
+                        worker.MaxMessagesPerBatch = maxMessages;
+                    }
+
                     m_schedulerCompletionExceptMaterializeOutputsTimeUtc = DateTime.UtcNow;
                 }
 
@@ -3897,7 +3907,22 @@ namespace BuildXL.Scheduler
 
             // Transition to the next step
             runnablePip.Transition(nextStep);
+
             m_executionStepTracker.Transition(runnablePip.PipId, nextStep);
+
+            if (nextStep == PipExecutionStep.MaterializeOutputs && m_configuration.Distribution.ReplicateOutputsToWorkers())
+            {
+                // Send MaterializeOutput requests to all remote workers before
+                Logger.Log.DistributionExecutePipRequest(runnablePip.LoggingContext, runnablePip.FormattedSemiStableHash, "RemoteWorkers", nameof(PipExecutionStep.MaterializeOutputs));
+
+                var taskArrayInstance = m_taskArrayPool.GetInstance();
+                for (int i = 0; i < m_remoteWorkers.Length; i++)
+                {
+                    taskArrayInstance.Instance[i] = m_remoteWorkers[i].MaterializeOutputsAsync(runnablePip);
+                }
+
+                runnablePip.MaterializeOutputsTasks = taskArrayInstance;
+            }
 
             // (a) Execute as inlined here, OR
             // (b) Enqueue the execution of the rest of the steps until another enqueue.
@@ -3951,16 +3976,9 @@ namespace BuildXL.Scheduler
                 (m_configuration.Distribution.ReplicateOutputsToWorkers()
                     || runnablePip.Result.Value.Status == PipResultStatus.NotMaterialized) &&
                 RequiresPipOutputs(runnablePip.PipId.ToNodeId()))
-            {
-                if (AnyRemoteWorkers && m_configuration.Distribution.ReplicateOutputsToWorkers())
-                {
-                    runnablePip.SetWorker(m_allWorker);
-                }
-                else
-                {
-                    runnablePip.SetWorker(LocalWorker);
-                }
-
+            {                
+                runnablePip.SetWorker(LocalWorker);
+                
                 if (MaterializeOutputsInBackground)
                 {
                     // Background output materialization should yield to other tasks since its not required
@@ -4231,6 +4249,14 @@ namespace BuildXL.Scheduler
                     {
                         IncrementalSchedulingState?.PendingUpdates.MarkNodeMaterialized(runnablePip.PipId.ToNodeId());
                         Logger.Log.PipIsMarkedMaterialized(loggingContext, runnablePip.Description);
+                    }
+
+                    if (runnablePip.MaterializeOutputsTasks != null)
+                    {
+                        runnablePip.ReleaseDispatcher();
+                        await Task.WhenAll(runnablePip.MaterializeOutputsTasks.Value.Instance);
+                        Logger.Log.DistributionFinishedPipRequest(runnablePip.LoggingContext, runnablePip.FormattedSemiStableHash, "RemoteWorkers", nameof(PipExecutionStep.MaterializeOutputs));
+                        runnablePip.MaterializeOutputsTasks.Value.Dispose();
                     }
 
                     return PipExecutionStep.Done;
@@ -5796,9 +5822,7 @@ namespace BuildXL.Scheduler
                 uint workerId = performanceInfo.Workers.Value[i];
                 if (workerId != 0)
                 {
-                    string workerName = workerId == AllWorker.Id
-                        ? "AllWorkers"
-                        : $"{$"W{workerId}",10}:{m_workers[(int)workerId].Name}";
+                    string workerName = $"{$"W{workerId}",10}:{m_workers[(int)workerId].Name}";
                     stringBuilder.AppendLine(I($"\t\t  {"WorkerName",-88}: {workerName}"));
 
                     var queueRequest = (long)performanceInfo.QueueRequestDurations.Value[i].TotalMilliseconds;
@@ -7919,7 +7943,6 @@ namespace BuildXL.Scheduler
             RemoteProcessManager?.Dispose();
 
             LocalWorker.Dispose();
-            m_allWorker?.Dispose();
 
             m_performanceAggregator?.Dispose();
             m_ipcProvider.Dispose();

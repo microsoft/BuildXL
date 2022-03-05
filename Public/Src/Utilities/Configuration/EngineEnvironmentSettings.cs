@@ -36,9 +36,14 @@ namespace BuildXL.Utilities.Configuration
         public static readonly Setting<int> MaxNumPipsForCacheMissAnalysis = CreateSetting("MaxNumPipsForCacheMissAnalysis", value => ParseInt32(value) ?? 1000);
 
         /// <summary>
-        /// The maximum number of RPC messages to batch together for worker/orcehstrator communication
+        /// The maximum number of RPC messages to batch together for worker/orchestrator communication
         /// </summary>
         public static readonly Setting<int> MaxMessagesPerBatch = CreateSetting("MaxMessagesPerBatch", value => ParseInt32(value) ?? 1000);
+
+        /// <summary>
+        /// Multiplier to modify the maximum number of RPC messages per batch when only MaterializeOutput pips are remaining
+        /// </summary>
+        public static readonly Setting<double> MaterializeOutputsBatchMultiplier = CreateSetting("MaterializeOutputsBatchMultiplier", value => ParseDouble(value) ?? 1);
 
         /// <summary>
         /// Defines whether BuildXL should launch the debugger after a particular engine phase.

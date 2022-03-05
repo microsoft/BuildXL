@@ -130,11 +130,7 @@ namespace BuildXL.Scheduler.Distribution
             using (var operationContext = runnablePip.OperationContext.StartAsyncOperation(OperationKind.PassThrough))
             using (OnPipExecutionStarted(runnablePip, operationContext))
             {
-                var cachingInfo = runnablePip.ExecutionResult?.TwoPhaseCachingInfo;
-
-                Task cachingInfoAvailableCompletion = Unit.VoidTask;
-                PipResultStatus result = await PipExecutor.MaterializeOutputsAsync(operationContext, runnablePip.Environment, runnablePip.Pip);
-                return result;
+                return await PipExecutor.MaterializeOutputsAsync(operationContext, runnablePip.Environment, runnablePip.Pip);
             }
         }
 

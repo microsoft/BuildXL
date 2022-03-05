@@ -135,39 +135,58 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 
         internal CheckpointManager CheckpointManager => _checkpointManager;
 
+        /// <summary>
+        /// Returns true if the client should retry an operation.
+        /// </summary>
+        /// <remarks>
+        /// If the method returns <code>true</code> then <paramref name="retryReason"/> contains a reason why to do that
+        /// and <paramref name="errorMessage"/> contains a non-null (and not empty) error message.
+        /// </remarks>
         internal bool ShouldRetry(out RetryReason retryReason, out string errorMessage)
         {
-            errorMessage = string.Empty;
-
-            if (ShutdownStarted)
-            {
-                retryReason = RetryReason.ShutdownStarted;
-                return true;
-            }
-
-            if (_role == Role.Worker)
-            {
-                retryReason = RetryReason.WorkerMode;
-                return true;
-            }
-
-            var lastHeartbeat = _lastSuccessfulHeartbeat;
-            var now = _clock.UtcNow;
-            if (!lastHeartbeat.IsRecent(now, _configuration.MasterLeaseStaleThreshold))
-            {
-                errorMessage = $"Service's last successful heartbeat was at `{lastHeartbeat}`, currently `{now}` is beyond staleness threshold `{_configuration.MasterLeaseStaleThreshold}`";
-                retryReason = RetryReason.StaleHeartbeat;
-                return true;
-            }
-
-            if (!_hasRestoredCheckpoint)
-            {
-                retryReason = RetryReason.MissingCheckpoint;
-                return true;
-            }
-
+            errorMessage = null;
             retryReason = RetryReason.Invalid;
-            return false;
+
+            try
+            {
+                if (ShutdownStarted)
+                {
+                    retryReason = RetryReason.ShutdownStarted;
+                    return true;
+                }
+
+                if (_role == Role.Worker)
+                {
+                    retryReason = RetryReason.WorkerMode;
+                    return true;
+                }
+
+                var lastHeartbeat = _lastSuccessfulHeartbeat;
+                var now = _clock.UtcNow;
+                if (!lastHeartbeat.IsRecent(now, _configuration.MasterLeaseStaleThreshold))
+                {
+                    errorMessage = $"Service's last successful heartbeat was at `{lastHeartbeat}`, currently `{now}` is beyond staleness threshold `{_configuration.MasterLeaseStaleThreshold}`";
+                    retryReason = RetryReason.StaleHeartbeat;
+                    return true;
+                }
+
+                if (!_hasRestoredCheckpoint)
+                {
+                    retryReason = RetryReason.MissingCheckpoint;
+                    return true;
+                }
+
+                return false;
+            }
+            finally
+            {
+                if (retryReason != RetryReason.Invalid && errorMessage == null)
+                {
+                    // If the method returns true, then the error message should not be null.
+                    // Using a text representation of the reason.
+                    errorMessage = retryReason.ToString();
+                }
+            }
         }
 
         private DateTime _lastSuccessfulHeartbeat;

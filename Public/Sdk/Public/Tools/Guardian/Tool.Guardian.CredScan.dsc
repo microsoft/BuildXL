@@ -3,7 +3,6 @@
 
 import {Transformer} from "Sdk.Transformers";
 import * as Json from "Sdk.Json";
-import * as Drop from "Sdk.Drop";
 
 // Compliance build specific Environment variables
 const directoriesNamesToIgnore = "[Tool.Guardian]complianceIgnoreDirectories";
@@ -15,18 +14,6 @@ const autoGenerateSuppressions = !autoGenerateBaselines && Environment.getFlag(g
 const complianceBaselineSuppressionLocation = d`${Context.getMount("SourceRoot").path}/.config/buildxl/compliance`;
 const guardianConfigFile = createConfigurationFile();
 const complianceLogLevel : GuardianLogLevel = Environment.hasVariable(logLevel) ? Environment.getStringValue(logLevel) as GuardianLogLevel : "Warning";
-
-// Drop related
-const dropEnabled = Environment.hasVariable("BUILDXL_COMPLIANCE_BUILD_DROP_CONFIG");
-const dropRunner = dropEnabled ? Drop.cloudBuildRunner : undefined;
-const dropSettings = dropEnabled 
-    ? { 
-        dropServiceConfigFile: Environment.getFileValue("BUILDXL_COMPLIANCE_BUILD_DROP_CONFIG"),
-        generateBuildManifest: false, // Disabled because we don't care about generating a manifest for the Guardian outputs
-        signBuildManifest: false
-      }
-    : undefined;
-const dropCreateResult = dropEnabled ? Drop.cloudBuildRunner.createDrop(dropSettings) : undefined;
 
 /**
  * Calling this function will create Guardian pips with CredScan only on the entire repository from the guardianBuildRoot directory.
@@ -181,11 +168,5 @@ function createGuardianCall(guardianToolRoot : StaticDirectory, guardianDrop : D
         processRetries: 3,
     };
 
-    const guardianResult : Transformer.ExecuteResult = runGuardian(guardianArgs, /*skipInstall*/true);
-
-    if (dropEnabled) {
-        dropRunner.addFilesToDrop(dropCreateResult, /*args*/{}, [{ dropPath: r`CredentialScanner/${outputSarifFile}`, file: guardianResult.getOutputFile(guardianArgs.guardianResultFile.path) }]);
-    }
-
-    return guardianResult;
+    return runGuardian(guardianArgs, /*skipInstall*/true);
 }

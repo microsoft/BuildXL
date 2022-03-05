@@ -10,8 +10,6 @@ namespace StandardSdk.Guardian {
             d`${Context.getMount("SdkRoot").path}/Tools/Guardian`,
             d`${Context.getMount("SdkRoot").path}/Json`,
             d`${Context.getMount("SourceRoot").path}/Public/Sdk/Public/Deployment`,
-            // The mock sdk.drop module exists to avoid having to export drop to make these unit tests work
-            d`Mock/Sdk.Drop`,
         ],
         // autoFixLkgs: true // Uncomment this line to have all lkgs automatically updated.
     });

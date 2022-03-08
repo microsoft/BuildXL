@@ -2004,7 +2004,8 @@ namespace BuildXL.Scheduler
 
             long processPipsExecutedDueToCacheMiss = PipExecutionCounters.GetCounterValue(PipExecutorCounter.ProcessPipsExecutedDueToCacheMiss);
             long processPipsSkippedExecutionDueToCacheOnly = PipExecutionCounters.GetCounterValue(PipExecutorCounter.ProcessPipsSkippedExecutionDueToCacheOnly);
-            if ((processPipsExecutedDueToCacheMiss + processPipsSkippedExecutionDueToCacheOnly) != cacheMissSum)
+            // Cache miss type counters are not updated on workers in a distributed build.
+            if (!IsDistributedWorker && (processPipsExecutedDueToCacheMiss + processPipsSkippedExecutionDueToCacheOnly) != cacheMissSum)
             {
                 BuildXL.Tracing.UnexpectedCondition.Log(loggingContext, $"ProcessPipsExecutedDueToCacheMiss + ProcessPipsSkippedExecutionDueToCacheOnly != sum of counters for all cache miss types. " +
                     $"ProcessPipsExecutedDueToCacheMiss: {processPipsExecutedDueToCacheMiss}, ProcessPipsSkippedExecutionDueToCacheOnly: {processPipsSkippedExecutionDueToCacheOnly}, Sum: {cacheMissSum}");

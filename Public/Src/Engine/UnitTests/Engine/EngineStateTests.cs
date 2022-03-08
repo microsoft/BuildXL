@@ -1,9 +1,10 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Runtime.InteropServices.ComTypes;
+using System.Linq;
 using BuildXL.Engine;
 using BuildXL.Native.IO;
 using BuildXL.Storage.FileContentTableAccessor;
@@ -98,6 +99,7 @@ namespace Test.BuildXL.Engine
             Usn inFileUsn = Usn.Zero;
             Usn outFileUsn = Usn.Zero;
             ISet<FileIdAndVolumeId> ids = new HashSet<FileIdAndVolumeId>();
+            ISet<(FileIdAndVolumeId, string)> idsAndPaths = new HashSet<(FileIdAndVolumeId, string)>();
 
             XAssert.IsTrue(FileContentTableAccessorFactory.TryCreate(out var accesor, out string error));
             firstFCT.VisitKnownFiles(accesor, FileShare.ReadWrite | FileShare.Delete,
@@ -112,6 +114,7 @@ namespace Test.BuildXL.Engine
                         outFileUsn = knownUsn;
                     }
                     ids.Add(fileIdAndVolumeId);
+                    idsAndPaths.Add((fileIdAndVolumeId, path));
                     return true;
                 });
 
@@ -127,9 +130,13 @@ namespace Test.BuildXL.Engine
             outFileIdentity = GetIdentity(GetFullPath(OutputFilename));   // Output file changed
             bool visitedInput = false;
             bool visitedOutput = false;
+
+            ISet<(FileIdAndVolumeId, string)> newIdsAndPaths = new HashSet<(FileIdAndVolumeId, string)>();
             secondFCT.VisitKnownFiles(accesor, FileShare.ReadWrite | FileShare.Delete,
                 (fileIdAndVolumeId, fileHandle, path, knownUsn, knownHash) =>
                 {
+                    newIdsAndPaths.Add((fileIdAndVolumeId, path));
+
                     if (fileIdAndVolumeId == inFileIdentity)
                     {
                         XAssert.IsTrue(ids.Contains(fileIdAndVolumeId));
@@ -146,15 +153,22 @@ namespace Test.BuildXL.Engine
                     }
                     else
                     {
-                        XAssert.IsTrue(ids.Contains(fileIdAndVolumeId)); // Other entries are still there
+                        // Other entries are still there
+                        if (!ids.Contains(fileIdAndVolumeId))
+                        {
+                            var knownEntries = string.Join($",{Environment.NewLine}", idsAndPaths.Select(t => $"[{t.Item1.FileId} | {t.Item1.VolumeSerialNumber}] : {t.Item2}").ToArray());
+                            var newEntries = string.Join($",{Environment.NewLine}", newIdsAndPaths.Select(t => $"[{t.Item1.FileId} | {t.Item1.VolumeSerialNumber}] : {t.Item2}").ToArray());
+                            var error = $"Unexpected fileIdAndVolumeId {fileIdAndVolumeId} at path {path}. {Environment.NewLine} Known entries: {knownEntries} {Environment.NewLine} New entries: {newEntries}";
+                            XAssert.IsTrue(false, error);
+                        }
                     }
                     return true;
                 });
 
-            XAssert.IsTrue(visitedInput);
-            XAssert.IsTrue(visitedOutput);
-            XAssert.IsTrue(inFileUsn < outFileUsn);
-            XAssert.AreEqual(firstFCT.Count + 1, secondFCT.Count); // There's a new entry because the new output file has a different fileId
+            XAssert.IsTrue(visitedInput, "visitedInput is false");
+            XAssert.IsTrue(visitedOutput, "visitedOutput is false");
+            XAssert.IsTrue(inFileUsn < outFileUsn, "inFileUsn > outFileUsn");
+            XAssert.AreEqual(firstFCT.Count + 1, secondFCT.Count, "Entry count mismatch"); // There's a new entry because the new output file has a different fileId
         }
 
         [Fact]

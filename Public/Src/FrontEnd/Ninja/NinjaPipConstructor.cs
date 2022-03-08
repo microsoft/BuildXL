@@ -284,11 +284,7 @@ namespace BuildXL.FrontEnd.Ninja
                 }
             }
 
-            // TODO: Maybe a better description. Add ninja description or change command for input/outputs
-            processBuilder.ToolDescription = StringId.Create(m_context.StringTable,
-                I($"{m_moduleDefinition.Descriptor.Name} - {node.Rule} - {executable} :: [{node.Command}]"));
-
-
+            processBuilder.ToolDescription = StringId.Create(m_context.StringTable, GetNodeDescription(node));
             processBuilder.Options |= Process.Options.AllowUndeclaredSourceReads;
             processBuilder.Options |= Process.Options.RequireGlobalDependencies;
             processBuilder.RewritePolicy = RewritePolicy.DefaultSafe;
@@ -308,6 +304,15 @@ namespace BuildXL.FrontEnd.Ninja
             SetEnvironmentVariables(processBuilder, node);
 
             return true;
+        }
+
+        private string GetNodeDescription(NinjaNode node)
+        {
+            // Only list up to two outputs
+            var outputsSample = string.Join(", ", node.Outputs.Take(2).Select(output => output.ToString(m_context.PathTable)));
+            bool truncatedOutputs = node.Outputs.Count > 2;
+
+            return $"{m_moduleDefinition.Descriptor.Name} - {node.Rule} -> [{outputsSample}{(truncatedOutputs ? ", ..." : string.Empty)}]";
         }
 
         private void UntrackFilesAndDirectories(AbsolutePath projectRoot, ProcessBuilder processBuilder)

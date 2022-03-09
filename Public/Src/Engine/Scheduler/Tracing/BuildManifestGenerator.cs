@@ -56,7 +56,7 @@ namespace BuildXL.Scheduler.Tracing
             m_loggingContext = loggingContext;
             m_stringTable = stringTable;
             m_duplicateEntries = new ConcurrentBag<(string, string, string, string)>();
-            BuildManifestEntries = new ConcurrentBigMap<(StringId, RelativePath), BuildManifestHashes>();
+            BuildManifestEntries = new ConcurrentBigMap<(StringId, RelativePath), BuildManifestHashes>(keyComparer: new CaseInsensitiveKeyComparer(m_stringTable));
         }
 
         /// <summary>
@@ -260,5 +260,30 @@ namespace BuildXL.Scheduler.Tracing
         /// </summary>
         [CounterType(CounterType.Stopwatch)]
         AddHashesToBuildManifestEntriesDuration,
+    }
+
+    /// <summary>
+    /// A comparer that compare two relativepath object in a case insensitive manner
+    /// </summary>
+    internal sealed class CaseInsensitiveKeyComparer : IEqualityComparer<(StringId dropName, RelativePath relativePath)>
+    {
+        private readonly StringTable m_stringTable;
+
+        /// <nodoc/>
+        public CaseInsensitiveKeyComparer(StringTable stringTable)
+        {
+            Contract.RequiresNotNull(stringTable);
+            m_stringTable = stringTable;
+        }
+
+        public bool Equals((StringId dropName, RelativePath relativePath) x, (StringId dropName, RelativePath relativePath) y)
+        {
+            return x.dropName.Equals(y.dropName) && x.relativePath.CaseInsensitiveEquals(m_stringTable, y.relativePath);
+        }
+
+        public int GetHashCode((StringId dropName, RelativePath relativePath) obj)
+        {
+            return HashCodeHelper.Combine(obj.dropName.GetHashCode(), HashCodeHelper.Combine(obj.relativePath.Components, component => m_stringTable.CaseInsensitiveGetHashCode(component)));
+        }
     }
 }

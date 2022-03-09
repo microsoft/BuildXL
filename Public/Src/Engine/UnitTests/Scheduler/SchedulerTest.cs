@@ -2769,16 +2769,49 @@ namespace Test.BuildXL.Scheduler
             targets.Add(new BuildManifestEntry(dropName, "/a/b", ContentHash.Random(), new[] { ContentHash.Random() }));
             targets.Add(new BuildManifestEntry(dropName, "/a/b", ContentHash.Random(), new[] { ContentHash.Random() }));      // Register same path with different Hash value
             targets.Add(new BuildManifestEntry(dropName, "/a/b", ContentHash.Random(), new[] { ContentHash.Random() }));      // Register same path with different Hash value
+            
             targets.Add(new BuildManifestEntry(dropName, "/a/c", ContentHash.Random(), new[] { ContentHash.Random() }));
-
+            targets.Add(new BuildManifestEntry(dropName, "/A/c", ContentHash.Random(), new[] { ContentHash.Random() }));      // Register same path but upper case with different Hash value (duplicate)
             buildManifestGenerator.RecordFileForBuildManifest(targets);
 
-            XAssert.AreEqual(2, buildManifestGenerator.DuplicateEntries(dropName).Count);
+            targets.Clear();
+
+            targets.Add(new BuildManifestEntry(dropName, "/a/C", ContentHash.Random(), new[] { ContentHash.Random() }));      // Register same path but upper case with different Hash value (duplicate)
+
+            targets.Add(new BuildManifestEntry(dropName, "/a/d", ContentHash.Random(), new[] { ContentHash.Random() }));
+            targets.Add(new BuildManifestEntry(dropName, "\\a\\d", ContentHash.Random(), new[] { ContentHash.Random() }));    // Register same path but using back slash with different Hash value (duplicate)
+
+            targets.Add(new BuildManifestEntry(dropName, "/a/e", ContentHash.Random(), new[] { ContentHash.Random() }));
+            targets.Add(new BuildManifestEntry(dropName, "\\a\\E", ContentHash.Random(), new[] { ContentHash.Random() }));    // Register same path but using back slash and upper case with different Hash value (duplicate)
+            buildManifestGenerator.RecordFileForBuildManifest(targets);
+
+            XAssert.AreEqual(6, buildManifestGenerator.DuplicateEntries(dropName).Count);
             XAssert.IsFalse(buildManifestGenerator.TryGenerateBuildManifestFileList(dropName, out string error, out var buildManifestFileList));
             XAssert.IsNull(buildManifestFileList);
             XAssert.IsNotNull(error);
-            AssertWarningEventLogged(LogEventId.BuildManifestGeneratorFoundDuplicateHash, 2);
+            AssertWarningEventLogged(LogEventId.BuildManifestGeneratorFoundDuplicateHash, 6);
             AssertErrorEventLogged(LogEventId.GenerateBuildManifestFileListFoundDuplicateHashes, 1);
+        }
+
+        /// <summary>
+        /// Test CaseInsensitiveKeyComparer
+        /// Use different case, slash and back slash to test
+        /// Equal method should return true and hashcode is same for different case or back slash
+        /// Equal method should return false and hashcode is different for different relative path
+        /// </summary>
+        [Theory]
+        [InlineData("/A/C", "/a/c", true)] 
+        [InlineData("/a/C", "/a/c", true)]
+        [InlineData("\\a/C", "/a/c", true)]
+        [InlineData("\\a/C", "/a/d", false)]
+        public void TestCaseInsensitiveKeyComparer(string pathX, string pathY, bool expectedResult) 
+        {
+            StringId dropName = StringId.Create(Context.StringTable, "comparerTestDrop");
+            RelativePath relativePathX = RelativePath.Create(Context.StringTable, pathX);
+            RelativePath relativePathY = RelativePath.Create(Context.StringTable, pathY);
+            IEqualityComparer<(StringId, RelativePath)> comparer = new CaseInsensitiveKeyComparer(Context.StringTable);
+            XAssert.AreEqual(expectedResult, comparer.Equals((dropName, relativePathX), (dropName, relativePathY)));
+            XAssert.AreEqual(expectedResult, comparer.GetHashCode((dropName, relativePathX)) == comparer.GetHashCode((dropName, relativePathY)));
         }
 
         /// <summary>

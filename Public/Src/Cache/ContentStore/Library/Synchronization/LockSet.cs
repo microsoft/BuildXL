@@ -36,18 +36,20 @@ namespace BuildXL.Cache.ContentStore.Synchronization
         /// Acquires an exclusive lock for the given key. <see cref="Release" /> must be called
         /// subsequently in a 'finally' block.
         /// </summary>
-        public async Task<LockHandle> AcquireAsync(TKey key)
+        public async Task<LockHandle> AcquireAsync(TKey key, CancellationToken cancellationToken = default)
         {
             StopwatchSlim stopwatch = StopwatchSlim.Start();
             LockHandle thisHandle = new LockHandle(this, key);
-            
+
             while (true)
             {
+                cancellationToken.ThrowIfCancellationRequested();
+
                 LockHandle currentHandle = _exclusiveLocks.GetOrAdd(key, thisHandle);
 
                 if (currentHandle != thisHandle)
                 {
-                    await currentHandle.TaskCompletionSource.Task;
+                    await TaskUtilities.AwaitWithCancellationAsync(currentHandle.TaskCompletionSource.Task, cancellationToken);
                 }
                 else
                 {

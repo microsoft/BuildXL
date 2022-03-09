@@ -65,6 +65,12 @@ namespace BuildXL.Cache.ContentStore.UtilitiesCore
             return Generator.Next(minValue, maxValue);
         }
 
+        /// <nodoc />
+        public static double ContinuousUniform(double minValue, double maxValue)
+        {
+            return minValue + (maxValue - minValue) * Generator.NextDouble();
+        }
+
         /// <summary>
         ///     Shuffle array in place.
         /// </summary>

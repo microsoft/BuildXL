@@ -108,28 +108,33 @@ namespace BuildXL.Utilities.Tasks
         }
 
         /// <summary>
-        /// Creates a task that will complete when all of the <see cref="T:System.Threading.Tasks.Task" /> objects in an enumerable collection have completed or when the <paramref name="token"/> is triggered.
+        /// Creates a task that will complete when all of the <see cref="T:System.Threading.Tasks.Task" /> objects in an enumerable collection have completed or when the <paramref name="cancellationToken"/> is triggered.
         /// </summary>
-        /// <exception cref="OperationCanceledException">The exception is thrown if the <paramref name="token"/> is canceled before the completion of <paramref name="tasks"/></exception>
-        public static async Task WhenAllWithCancellationAsync(IEnumerable<Task> tasks, CancellationToken token)
+        /// <exception cref="OperationCanceledException">The exception is thrown if the <paramref name="cancellationToken"/> is canceled before the completion of <paramref name="tasks"/></exception>
+        public static Task WhenAllWithCancellationAsync(IEnumerable<Task> tasks, CancellationToken cancellationToken)
         {
             // If one of the tasks passed here fails, we want to make sure that the task created by 'Task.WhenAll(tasks)' is observed
             // in order to avoid unobserved task errors.
+            return AwaitWithCancellationAsync(Task.WhenAll(tasks), cancellationToken);
+        }
 
-            var whenAllTask = Task.WhenAll(tasks);
-
+        /// <summary>
+        /// Creates a task that will complete when either <paramref name="task"/> is completed, or when <paramref name="cancellationToken"/> is cancelled.
+        /// </summary>
+        public static async Task AwaitWithCancellationAsync(Task task, CancellationToken cancellationToken)
+        {
             var completedTask = await Task.WhenAny(
-                Task.Delay(Timeout.InfiniteTimeSpan, token),
-                whenAllTask);
+                Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken),
+                task);
 
-            // We have one of two cases here: either all the tasks are done or the cancellation was requested.
+            // We have one of two cases here: either the task is done or the cancellation was requested.
 
             // If the cancellation is requested we need to make sure we observe the result of the when all task created earlier.
-            whenAllTask.Forget();
+            task.Forget();
 
             // Now, we can trigger 'OperationCancelledException' if the token is canceled.
             // (Yes, its possible that all the tasks are done already, but this is a natural race condition for this pattern).
-            token.ThrowIfCancellationRequested();
+            cancellationToken.ThrowIfCancellationRequested();
 
             // The cancellation was not requested, but one of the tasks may fail.
             // Re-throwing the error in this case by awaiting already completed task.

@@ -43,7 +43,7 @@ namespace BuildXL.Cache.ContentStore.Utils
         {
             return Enumerable.Range(0, retryCount)
                 // Formula copied from TransientFaultHandling
-                .Select(currentRetryCount => minBackoff.TotalMilliseconds + ((Math.Pow(2.0, currentRetryCount) - 1.0) * ThreadSafeRandom.Generator.Next((int)(deltaBackoff.TotalMilliseconds * 0.8), (int)(deltaBackoff.TotalMilliseconds * 1.2))))
+                .Select(currentRetryCount => minBackoff.TotalMilliseconds + ((Math.Pow(2.0, currentRetryCount) - 1.0) * ThreadSafeRandom.ContinuousUniform((int)(deltaBackoff.TotalMilliseconds * 0.8), (int)(deltaBackoff.TotalMilliseconds * 1.2))))
                 .Select(ms => Math.Min(ms, maxBackoff.TotalMilliseconds))
                 .Select(ms => TimeSpan.FromMilliseconds(ms));
         }

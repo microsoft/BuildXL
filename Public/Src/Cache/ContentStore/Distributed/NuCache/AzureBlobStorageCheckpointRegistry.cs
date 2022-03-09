@@ -254,7 +254,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     {
                         try
                         {
-                            var deleteSucceeded = await _storage.DeleteIfExistsAsync(context, blob);
+                            var deleteSucceeded = (await _storage.DeleteIfExistsAsync(context, blob)).GetValueOr(false);
                             Tracer.Info(context, $"Delete attempt Name=[{blob.Name}] Succeeded=[{deleteSucceeded}]");
                         }
                         catch (Exception e)

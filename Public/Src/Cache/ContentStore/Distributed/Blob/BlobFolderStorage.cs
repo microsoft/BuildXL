@@ -8,12 +8,12 @@ using System.Linq;
 using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Distributed.MetadataService;
 using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Secrets;
-using BuildXL.Cache.ContentStore.Interfaces.Time;
+using BuildXL.Cache.ContentStore.Synchronization;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.ContentStore.Utils;
@@ -100,13 +100,36 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
         {
-            await _container.CreateIfNotExistsAsync(
-                accessType: BlobContainerPublicAccessType.Off,
-                options: DefaultBlobStorageRequestOptions,
-                operationContext: null,
-                cancellationToken: context.Token);
+            await EnsureContainerExists(context).ThrowIfFailure();
 
             return await base.StartupCoreAsync(context);
+        }
+
+        internal Task<Result<bool>> EnsureContainerExists(OperationContext context)
+        {
+            return context.PerformOperationWithTimeoutAsync(
+                Tracer,
+                async context =>
+                {
+                    return Result.Success(await _container.CreateIfNotExistsAsync(
+                        accessType: BlobContainerPublicAccessType.Off,
+                        options: DefaultBlobStorageRequestOptions,
+                        operationContext: null,
+                        cancellationToken: context.Token));
+                },
+                traceOperationStarted: false,
+                extraEndMessage: r =>
+                {
+                    var msg = $"Container=[{_configuration.ContainerName}]";
+
+                    if (!r.Succeeded)
+                    {
+                        return msg;
+                    }
+
+                    return $"{msg} Created=[{r.Value}]";
+                },
+                timeout: _configuration.StorageInteractionTimeout);
         }
 
         public record State<TState>(string? ETag = null, TState? Value = default);
@@ -153,17 +176,33 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             var attempt = 0;
 
             defaultValue ??= () => new TState();
+
             return context.PerformOperationAsync(Tracer,
                 async () =>
                 {
+                    var shouldWait = false;
                     while (true)
                     {
+                        attempt++;
+
                         context.Token.ThrowIfCancellationRequested();
 
-                        // TODO?: It is possible that caching the last state may allow us to avoid doing some reads by
-                        // pre-emptively trying to update on the basis of the old values. I am not sure if we should
-                        // expect this optimization to be helpful in actual prod environments.
-                        var currentState = await ReadStateAsync<TState>(context, fileName).ThrowIfFailureAsync();
+                        if (shouldWait)
+                        {
+                            var slots = Math.Min((1 << attempt) - 1, _configuration.MaxNumSlots);
+                            var delay = _configuration.SlotWaitTime.Multiply(ThreadSafeRandom.ContinuousUniform(0, slots));
+                            Tracer.Debug(context, $"Waiting for {delay}");
+                            await Task.Delay(delay, context.Token);
+                        }
+                        shouldWait = true;
+
+                        var readResult = await ReadStateAsync<TState>(context, fileName);
+                        if (IsStorageThrottle(readResult))
+                        {
+                            continue;
+                        }
+
+                        var currentState = readResult.ThrowIfFailure();
                         var currentValue = currentState.Value ?? defaultValue();
                         var next = transform(currentValue);
                         if (!next.Updated)
@@ -171,17 +210,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                             return Result.Success((next.NextState, next.Result));
                         }
 
-                        var succeeded = await CompareUpdateStateAsync<TState>(context, fileName, next.NextState, currentState.ETag, attempt).ThrowIfFailureAsync();
+                        var modifyResult = await CompareExchangeAsync<TState>(context, fileName, next.NextState, currentState.ETag, attempt);
+                        if (IsStorageThrottle(modifyResult))
+                        {
+                            continue;
+                        }
+
+                        var succeeded = modifyResult.ThrowIfFailure();
                         if (succeeded)
                         {
                             return Result.Success((next.NextState, next.Result));
                         }
-
-                        attempt++;
-
-                        var slots = Math.Min((1 << attempt) - 1, _configuration.MaxNumSlots);
-                        var delay = _configuration.SlotWaitTime.Multiply(ThreadSafeRandom.Uniform(0, slots));
-                        await Task.Delay(delay, context.Token);
                     }
                 },
                 traceOperationStarted: false,
@@ -205,15 +244,33 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Deletes the blob
         /// </summary>
-        public Task<bool> DeleteIfExistsAsync(OperationContext context, BlobName fileName)
+        public Task<Result<bool>> DeleteIfExistsAsync(OperationContext context, BlobName fileName)
         {
-            var blob = GetBlockBlobReference(fileName);
-            return blob.DeleteIfExistsAsync(
-                deleteSnapshotsOption: DeleteSnapshotsOption.None,
-                accessCondition: null,
-                options: null,
-                operationContext: null,
-                cancellationToken: context.Token);
+            return context.PerformOperationWithTimeoutAsync(
+                Tracer,
+                async context =>
+                {
+                    var blob = GetBlockBlobReference(fileName);
+                    return Result.Success(await blob.DeleteIfExistsAsync(
+                        deleteSnapshotsOption: DeleteSnapshotsOption.None,
+                        accessCondition: null,
+                        options: null,
+                        operationContext: null,
+                        cancellationToken: context.Token));
+                },
+                extraEndMessage: r =>
+                {
+                    var msg = $"FileName=[{GetDisplayPath(fileName)}]";
+
+                    if (r.Succeeded)
+                    {
+                        return $"{msg} Deleted=[{r.Value.ToString() ?? "false"}]";
+                    }
+
+                    return msg;
+                },
+                traceOperationStarted: false,
+                timeout: _configuration.StorageInteractionTimeout);
         }
 
         /// <summary>
@@ -224,10 +281,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             BlobName fileName,
             TState value)
         {
-            return await CompareUpdateStateAsync<TState>(context, fileName, value, etag: AlwaysEtag, attempt: 0);
+            return await CompareExchangeAsync<TState>(context, fileName, value, etag: AlwaysEtag, attempt: 0);
         }
 
-        private Task<Result<State<TState>>> ReadStateAsync<TState>(OperationContext context, BlobName fileName)
+        public Task<Result<State<TState>>> ReadStateAsync<TState>(OperationContext context, BlobName fileName)
         {
             return context.PerformOperationWithTimeoutAsync(
                 Tracer,
@@ -269,7 +326,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 timeout: _configuration.StorageInteractionTimeout);
         }
 
-        private Task<Result<bool>> CompareUpdateStateAsync<TState>(
+        private Task<Result<bool>> CompareExchangeAsync<TState>(
             OperationContext context,
             BlobName fileName,
             TState value,
@@ -287,37 +344,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         etag is null ?
                             AccessCondition.GenerateIfNotExistsCondition() :
                             AccessCondition.GenerateIfMatchCondition(etag);
+
                     try
                     {
-                        await reference.UploadTextAsync(
-                            jsonText,
-                            Encoding.UTF8,
-                            accessCondition: accessCondition,
-                            options: DefaultBlobStorageRequestOptions,
-                            operationContext: null,
-                            context.Token);
+                        return await upload(context, reference, jsonText, etag, accessCondition);
                     }
-                    catch (StorageException exception)
+                    catch (StorageException exception) when (exception.RequestInformation.HttpStatusCode == (int)HttpStatusCode.NotFound
+                                                             && exception.RequestInformation.ErrorCode == "ContainerNotFound")
                     {
-                        // We obtain PreconditionFailed when If-Match fails, and NotModified when If-None-Match fails
-                        // (corresponds to IfNotExistsCondition)
-                        if (exception.RequestInformation.HttpStatusCode == (int)HttpStatusCode.PreconditionFailed
-                            || exception.RequestInformation.HttpStatusCode == (int)HttpStatusCode.NotModified
-                            // Used only in the development storage case
-                            || exception.RequestInformation.ErrorCode == "BlobAlreadyExists")
-                        {
-                            Tracer.Debug(
-                                context,
-                                exception,
-                                $"Value does not exist or does not match ETag `{etag ?? "null"}`. Reported ETag is `{exception.RequestInformation.Etag ?? "null"}`");
-                            return Result.Success(false);
-                        }
-
-                        throw;
+                        await EnsureContainerExists(context).ThrowIfFailureAsync();
+                        return await upload(context, reference, jsonText, etag, accessCondition);
                     }
-
-                    // Uploaded successfully, so we overwrote the previous value
-                    return Result.Success(true);
                 },
                 traceOperationStarted: false,
                 extraEndMessage: r =>
@@ -332,6 +369,41 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     return $"{msg} Exchanged=[{r.Value}]";
                 },
                 timeout: _configuration.StorageInteractionTimeout);
+
+            async Task<Result<bool>> upload(OperationContext context, CloudBlockBlob reference, string jsonText, string? etag, AccessCondition accessCondition)
+            {
+                try
+                {
+                    await reference.UploadTextAsync(
+                        jsonText,
+                        Encoding.UTF8,
+                        accessCondition: accessCondition,
+                        options: DefaultBlobStorageRequestOptions,
+                        operationContext: null,
+                        context.Token);
+                }
+                catch (StorageException exception)
+                {
+                    // We obtain PreconditionFailed when If-Match fails, and NotModified when If-None-Match fails
+                    // (corresponds to IfNotExistsCondition)
+                    if (exception.RequestInformation.HttpStatusCode == (int)HttpStatusCode.PreconditionFailed
+                        || exception.RequestInformation.HttpStatusCode == (int)HttpStatusCode.NotModified
+                        // Used only in the development storage case
+                        || exception.RequestInformation.ErrorCode == "BlobAlreadyExists")
+                    {
+                        Tracer.Debug(
+                            context,
+                            exception,
+                            $"Value does not exist or does not match ETag `{etag ?? "null"}`. Reported ETag is `{exception.RequestInformation.Etag ?? "null"}`");
+                        return Result.Success(false);
+                    }
+
+                    throw;
+                }
+
+                // Uploaded successfully, so we overwrote the previous value
+                return Result.Success(true);
+            }
         }
 
         private CloudBlockBlob GetBlockBlobReference(BlobName fileName)
@@ -400,6 +472,25 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             },
             timeout: _configuration.StorageInteractionTimeout,
             extraEndMessage: r => $"FileName=[{GetDisplayPath(fileName)}]");
+        }
+
+        protected bool IsStorageThrottle(ResultBase result)
+        {
+            if (result.Succeeded)
+            {
+                return false;
+            }
+
+            if (result.Exception is StorageException storageException)
+            {
+                var httpStatusCode = storageException.RequestInformation.HttpStatusCode;
+                if (httpStatusCode == 429 || httpStatusCode == (int)HttpStatusCode.ServiceUnavailable || httpStatusCode == (int)HttpStatusCode.InternalServerError)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
     }
 }

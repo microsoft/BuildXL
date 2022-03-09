@@ -46,8 +46,7 @@ namespace BuildXL.Pips.Graph
                         normalizeReadTimestamps: true,
                         pipWarningsPromotedToErrors: false,
                         validateDistribution: false,
-                        requiredKextVersionNumber: s_requiredKextVersionNumber,
-                        explicitlyReportDirectoryProbes: false
+                        requiredKextVersionNumber: s_requiredKextVersionNumber
             );
 
         /// <summary>
@@ -91,8 +90,7 @@ namespace BuildXL.Pips.Graph
                 PipFingerprintingVersion.TwoPhaseV2,
                 fingerprintSalt,
                 searchPathToolsHash,
-                requiredKextVersionNumber: s_requiredKextVersionNumber,
-                config.Sandbox.ExplicitlyReportDirectoryProbes
+                requiredKextVersionNumber: s_requiredKextVersionNumber
                 )
         {
         }
@@ -134,7 +132,6 @@ namespace BuildXL.Pips.Graph
         /// <param name="fingerprintSalt">The extra, optional fingerprint salt.</param>
         /// <param name="searchPathToolsHash">The extra, optional salt of path fragments of tool locations for tools using search path enumeration.</param>
         /// <param name="requiredKextVersionNumber">The required kernel extension version number.</param>
-        /// <param name="explicitlyReportDirectoryProbes">Whether /unsafe_explicitlyReportDirectoryProbes was passed to BuildXL.</param>
         public ExtraFingerprintSalts(
             bool ignoreSetFileInformationByHandle,
             bool ignoreZwRenameFileInformation,
@@ -157,8 +154,7 @@ namespace BuildXL.Pips.Graph
             PipFingerprintingVersion fingerprintVersion,
             string fingerprintSalt,
             ContentHash? searchPathToolsHash,
-            string requiredKextVersionNumber,
-            bool explicitlyReportDirectoryProbes
+            string requiredKextVersionNumber
             )
         {
             IgnoreSetFileInformationByHandle = ignoreSetFileInformationByHandle;
@@ -184,7 +180,6 @@ namespace BuildXL.Pips.Graph
             PipWarningsPromotedToErrors = pipWarningsPromotedToErrors;
             RequiredKextVersionNumber = requiredKextVersionNumber;
             m_calculatedSaltsFingerprint = null;
-            ExplicitlyReportDirectoryProbes = explicitlyReportDirectoryProbes;
         }
 #pragma warning restore CS1572
 
@@ -307,11 +302,6 @@ namespace BuildXL.Pips.Graph
         /// </summary>
         public string RequiredKextVersionNumber { get; set; }
 
-        /// <summary>
-        /// Whether /unsafe_explicitlyReportDirectoryProbes flag was passed to BuildXL. (disabled by default)
-        /// </summary>
-        public bool ExplicitlyReportDirectoryProbes { get; set; }
-
         /// <nodoc />
         public static bool operator ==(ExtraFingerprintSalts left, ExtraFingerprintSalts right)
         {
@@ -353,8 +343,7 @@ namespace BuildXL.Pips.Graph
                 && SearchPathToolsHash.Value.Equals(SearchPathToolsHash.Value)
                 && other.PipWarningsPromotedToErrors == PipWarningsPromotedToErrors
                 && other.ValidateDistribution == ValidateDistribution
-                && other.RequiredKextVersionNumber.Equals(RequiredKextVersionNumber)
-                && other.ExplicitlyReportDirectoryProbes.Equals(ExplicitlyReportDirectoryProbes);
+                && other.RequiredKextVersionNumber.Equals(RequiredKextVersionNumber);
         }
 
         /// <inheritdoc />
@@ -390,7 +379,6 @@ namespace BuildXL.Pips.Graph
                 hashCode = (hashCode * 397) ^ ValidateDistribution.GetHashCode();
                 hashCode = (hashCode * 397) ^ (RequiredKextVersionNumber?.GetHashCode() ?? 0);
                 hashCode = (hashCode * 397) ^ IgnoreFullReparsePointResolving.GetHashCode();
-                hashCode = (hashCode * 397) ^ ExplicitlyReportDirectoryProbes.GetHashCode();
 
                 return hashCode;
             }
@@ -448,11 +436,6 @@ namespace BuildXL.Pips.Graph
             if (!string.IsNullOrEmpty(RequiredKextVersionNumber))
             {
                 fingerprinter.Add(nameof(RequiredKextVersionNumber), RequiredKextVersionNumber);
-            }
-
-            if (ExplicitlyReportDirectoryProbes)
-            {
-                fingerprinter.Add(nameof(ExplicitlyReportDirectoryProbes), 1);
             }
 
             fingerprinter.Add(nameof(FingerprintVersion), (int)FingerprintVersion);

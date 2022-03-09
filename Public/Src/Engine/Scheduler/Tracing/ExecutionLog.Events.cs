@@ -483,12 +483,6 @@ namespace BuildXL.Scheduler.Tracing
         /// </summary>
         public string RequiredKextVersionNumber;
 
-        /// <summary>
-        /// Whether /unsafe_explicitlyReportDirectoryProbes flag was passed to BuildXL. (disabled by default)
-        /// </summary>
-        public bool ExplicitlyReportDirectoryProbes;
-
-
         /// <inheritdoc />
         public ExecutionLogEventMetadata<BuildSessionConfigurationEventData> Metadata => ExecutionLogMetadata.BuildSessionConfiguration;
 
@@ -520,7 +514,6 @@ namespace BuildXL.Scheduler.Tracing
             PipWarningsPromotedToErrors = salts.PipWarningsPromotedToErrors;
             ValidateDistribution = salts.ValidateDistribution;
             RequiredKextVersionNumber = salts.RequiredKextVersionNumber;
-            ExplicitlyReportDirectoryProbes = salts.ExplicitlyReportDirectoryProbes;
         }
 
         /// <summary>
@@ -553,8 +546,7 @@ namespace BuildXL.Scheduler.Tracing
                        normalizeReadTimestamps: NormalizeReadTimestamps,
                        validateDistribution: ValidateDistribution,
                        pipWarningsPromotedToErrors: PipWarningsPromotedToErrors,
-                       requiredKextVersionNumber: RequiredKextVersionNumber,
-                       explicitlyReportDirectoryProbes: ExplicitlyReportDirectoryProbes
+                       requiredKextVersionNumber: RequiredKextVersionNumber
                    )
                    {
                        // Constructor appends EngineEnvironmentSettings.FingerprintSalt
@@ -590,7 +582,6 @@ namespace BuildXL.Scheduler.Tracing
             writer.Write(PipWarningsPromotedToErrors);
             writer.Write(RequiredKextVersionNumber);
             writer.Write(IgnoreFullReparsePointResolving);
-            writer.Write(ExplicitlyReportDirectoryProbes);
         }
 
         /// <inheritdoc />
@@ -619,7 +610,6 @@ namespace BuildXL.Scheduler.Tracing
             PipWarningsPromotedToErrors = reader.ReadBoolean();
             RequiredKextVersionNumber = reader.ReadString();
             IgnoreFullReparsePointResolving = reader.ReadBoolean();
-            ExplicitlyReportDirectoryProbes = reader.ReadBoolean();
         }
     }
 

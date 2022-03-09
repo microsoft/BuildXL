@@ -466,10 +466,6 @@ namespace BuildXL
                                 loggingConfiguration,
                                 ideConfiguration,
                                 frontEndConfiguration)),
-                        OptionHandlerFactory.CreateBoolOption(
-                            "explicitlyReportDirectoryProbes",
-                            sign => sandboxConfiguration.ExplicitlyReportDirectoryProbes = sign
-                            ),
                         OptionHandlerFactory.CreateOption(
                             "exportGraph",
                             opt =>

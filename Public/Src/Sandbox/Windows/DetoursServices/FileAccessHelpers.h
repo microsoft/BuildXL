@@ -338,12 +338,6 @@ inline bool Should##flag_name() { return Check##flag_name(g_fileAccessManifestFl
 FOR_ALL_FAM_FLAGS(GEN_CHECK_GLOBAL_FAM_FLAG)
 inline bool ReportAnyAccess(bool accessDenied) { return CheckReportAnyAccess(g_fileAccessManifestFlags, accessDenied); }
 
-#define GEN_CHECK_GLOBAL_FAM_EXTRA_FLAG(flag_name, flag_value) \
-inline bool flag_name()         { return Check##flag_name(g_fileAccessManifestExtraFlags); } \
-inline bool Should##flag_name() { return Check##flag_name(g_fileAccessManifestExtraFlags); }
-
-FOR_ALL_FAM_EXTRA_FLAGS(GEN_CHECK_GLOBAL_FAM_EXTRA_FLAG)
-
 inline LPCTSTR InternalDetoursErrorNotificationFile()
 {
     return g_internalDetoursErrorNotificationFile;

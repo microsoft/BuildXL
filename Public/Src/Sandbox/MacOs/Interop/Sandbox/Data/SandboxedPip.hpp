@@ -42,32 +42,29 @@ public:
     ~SandboxedPip();
 
     /*! Process id of the root process of this pip. */
-    inline const pid_t GetProcessId() const                           { return processId_; }
+    inline const pid_t GetProcessId() const                 { return processId_; }
 
     /*! A unique identifier of this pip. */
-    inline const pipid_t GetPipId() const                             { return fam_.GetPipId()->PipId; }
+    inline const pipid_t GetPipId() const                   { return fam_.GetPipId()->PipId; }
 
     /*! File access manifest record for this pip (to be used for checking file accesses) */
-    inline const PCManifestRecord GetManifestRecord() const           { return fam_.GetUnixRootNode(); }
+    inline const PCManifestRecord GetManifestRecord() const { return fam_.GetUnixRootNode(); }
 
     /*! File access manifest flags */
-    inline const FileAccessManifestFlag GetFamFlags() const           { return fam_.GetFamFlags(); }
-
-    /*! File access manifest extra flags */
-    inline const FileAccessManifestExtraFlag GetFamExtraFlags() const { return fam_.GetFamExtraFlags(); }
+    inline const FileAccessManifestFlag GetFamFlags() const { return fam_.GetFamFlags(); }
 
     /*!
      * Returns the full path of the root process of this pip.
      * The lenght of the path is stored in the 'length' argument because the path is not necessarily 0-terminated.
      */
-    inline const char* GetProcessPath(int *length) const              { return fam_.GetProcessPath(length); }
-    inline const char* GetReportsPath(int *length) const              { return fam_.GetReportsPath(length); }
+    inline const char* GetProcessPath(int *length) const    { return fam_.GetProcessPath(length); }
+    inline const char* GetReportsPath(int *length) const    { return fam_.GetReportsPath(length); }
 
     /*! Number of currently active processes in this pip's process tree */
-    inline const int GetTreeSize() const                              { return processTreeCount_; }
+    inline const int GetTreeSize() const                    { return processTreeCount_; }
 
     /*! When this returns true, child processes should not be tracked. */
-    bool AllowChildProcessesToBreakAway() const                       { return fam_.AllowChildProcessesToBreakAway(); }
+    bool AllowChildProcessesToBreakAway() const             { return fam_.AllowChildProcessesToBreakAway(); }
 
 
 #pragma mark Process Tree Tracking

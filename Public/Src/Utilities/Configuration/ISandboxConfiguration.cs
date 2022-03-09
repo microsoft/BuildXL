@@ -277,13 +277,5 @@ namespace BuildXL.Utilities.Configuration
         /// This list is only considered when <see cref="IUnsafeSandboxConfiguration.IgnoreFullReparsePointResolving"/> is set to true and<see cref="IUnsafeSandboxConfiguration.EnableFullReparsePointResolving"/> is set to false. 
         /// </summary>
         IReadOnlyList<AbsolutePath> DirectoriesToEnableFullReparsePointParsing { get; }
-
-        /// <summary>
-        /// Enable explicitly reporting directory probes from detours to help avoid underbuilds caused by unreported directory probes.
-        /// </summary>
-        /// <remarks>
-        /// This is an experimental feature, enabling this option may result in more DFAs on a build.
-        /// </remarks>
-        public bool ExplicitlyReportDirectoryProbes { get; }
     }
 }

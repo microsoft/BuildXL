@@ -306,8 +306,6 @@ namespace BuildXL.Scheduler.Tracing
         public uint Process { get; set; }
         public bool ExplicitlyReported { get; set; }
         public string EnumeratePattern { get; set; }
-        public bool IsOpenedHandleDirectory { get; set; }
-        public string OpenedFileOrDirectoryAttributes { get; set; }
     }
 
     public class ProcessDetouringStatusDataJson

@@ -111,16 +111,15 @@ public:
 
 private:
     FileAccessManifestFlag m_famFlag;
-    FileAccessManifestExtraFlag m_famExtraFlag;
 
 public:
-    PolicyResult(FileAccessManifestFlag famFlag, FileAccessManifestExtraFlag famExtraFlag)
-        : m_famFlag(famFlag), m_isIndeterminate(true), m_famExtraFlag(famExtraFlag)
+    PolicyResult(FileAccessManifestFlag famFlag)
+        : m_famFlag(famFlag), m_isIndeterminate(true)
     {
     }
 
-    PolicyResult(FileAccessManifestFlag famFlag, FileAccessManifestExtraFlag famExtraFlag, CanonicalizedPathType path, PolicySearchCursor cursor)
-        : PolicyResult(famFlag, famExtraFlag)
+    PolicyResult(FileAccessManifestFlag famFlag, CanonicalizedPathType path, PolicySearchCursor cursor)
+        : PolicyResult(famFlag)
     {
         Initialize(path, cursor);
     }
@@ -128,9 +127,6 @@ public:
     #define GEN_CHECK_FAM_FLAG_FUNC(flag_name, flag_value) inline bool flag_name() const { return Check##flag_name(m_famFlag); }
     FOR_ALL_FAM_FLAGS(GEN_CHECK_FAM_FLAG_FUNC)
     inline bool ReportAnyAccess(bool accessDenied) const { return CheckReportAnyAccess(m_famFlag, accessDenied); }
-
-    #define GEN_CHECK_FAM_EXTRA_FLAG_FUNC(flag_name, flag_value) inline bool flag_name() const { return Check##flag_name(m_famExtraFlag); }
-    FOR_ALL_FAM_EXTRA_FLAGS(GEN_CHECK_FAM_EXTRA_FLAG_FUNC)
 
 #endif // _WIN32
 

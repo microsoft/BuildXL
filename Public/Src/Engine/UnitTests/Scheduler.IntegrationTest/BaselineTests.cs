@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 using BuildXL.Pips;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
@@ -749,40 +750,26 @@ namespace IntegrationTest.BuildXL.Scheduler
         /// </summary>
         /// <remarks>See bug 1816341 for more context on what is being tested here.</remarks>
         [Feature(Features.DirectoryProbe)]
-        [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)]
-        [MemberData(nameof(TruthTable.GetTable), 1, MemberType = typeof(TruthTable))]
-        public void ValidatePipUnderbuildWithDirectoryProbes(bool explicitlyReport)
+        [Fact]
+        public void ValidatePipUnderbuildWithDirectoryProbes()
         {
-            Configuration.Sandbox.ExplicitlyReportDirectoryProbes = explicitlyReport;
+            DirectoryArtifact directoryToProbe = CreateOutputDirectoryArtifact();
+            Directory.CreateDirectory(ArtifactToString(directoryToProbe));
 
-            DirectoryArtifact directoryToProbe = CreateUniqueDirectoryArtifact(root: Path.Combine(SourceRoot, "Foo"));
-            DirectoryArtifact dir = SealDirectory(directoryToProbe.Path.GetParent(Context.PathTable), SealDirectoryKind.SourceAllDirectories);
-
-            var builder = CreatePipBuilder(new[]
+            Process pip = CreateAndSchedulePipBuilder(new Operation[]
             {
                 Operation.DirProbe(directoryToProbe),
                 Operation.WriteFile(CreateOutputFileArtifact())
-            });
-            builder.AddInputDirectory(dir);
-
-            var pip = SchedulePipBuilder(builder).Process;
+            }).Process;
 
             RunScheduler().AssertCacheMiss(pip.PipId);
             RunScheduler().AssertCacheHit(pip.PipId);
 
             Directory.Delete(ArtifactToString(directoryToProbe));
 
-            if (explicitlyReport)
-            {
-                RunScheduler().AssertCacheMiss(pip.PipId);
-                RunScheduler().AssertCacheHit(pip.PipId);
-            }
-            else
-            {
-                // Since detours does not report directory probes, we see a cache hit here even though we expect a cache miss (causing an underbuild)
-                // See where the explicitReport variable is being calcuated in PolicyResult::CheckReadAccess to see why these are not reported
-                RunScheduler().AssertCacheHit(pip.PipId);
-            }
+            // Since detours does not report directory probes, we see a cache hit here even though we expect a cache miss (causing an underbuild)
+            // See where the explicitReport variable is being calcuated in PolicyResult::CheckReadAccess to see why these are not reported
+            RunScheduler().AssertCacheHit(pip.PipId);
         }
 
         [Feature(Features.DirectoryProbe)]

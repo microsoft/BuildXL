@@ -126,16 +126,14 @@ namespace Test.BuildXL.Engine
             lastEngineState = RunEngine("Second build", engineState: lastEngineState);
             var secondFCT = lastEngineState.FileContentTable;
             XAssert.AreNotSame(firstFCT, secondFCT);    // The FCT gets updated at the end of the run
-            
+
             outFileIdentity = GetIdentity(GetFullPath(OutputFilename));   // Output file changed
             bool visitedInput = false;
             bool visitedOutput = false;
 
-            ISet<(FileIdAndVolumeId, string)> newIdsAndPaths = new HashSet<(FileIdAndVolumeId, string)>();
             secondFCT.VisitKnownFiles(accesor, FileShare.ReadWrite | FileShare.Delete,
                 (fileIdAndVolumeId, fileHandle, path, knownUsn, knownHash) =>
                 {
-                    newIdsAndPaths.Add((fileIdAndVolumeId, path));
 
                     if (fileIdAndVolumeId == inFileIdentity)
                     {
@@ -151,24 +149,12 @@ namespace Test.BuildXL.Engine
                         outFileUsn = knownUsn;
                         visitedOutput = true;
                     }
-                    else
-                    {
-                        // Other entries are still there
-                        if (!ids.Contains(fileIdAndVolumeId))
-                        {
-                            var knownEntries = string.Join($",{Environment.NewLine}", idsAndPaths.Select(t => $"[{t.Item1.FileId} | {t.Item1.VolumeSerialNumber}] : {t.Item2}").ToArray());
-                            var newEntries = string.Join($",{Environment.NewLine}", newIdsAndPaths.Select(t => $"[{t.Item1.FileId} | {t.Item1.VolumeSerialNumber}] : {t.Item2}").ToArray());
-                            var error = $"Unexpected fileIdAndVolumeId {fileIdAndVolumeId} at path {path}. {Environment.NewLine} Known entries: {knownEntries} {Environment.NewLine} New entries: {newEntries}";
-                            XAssert.IsTrue(false, error);
-                        }
-                    }
                     return true;
                 });
 
             XAssert.IsTrue(visitedInput, "visitedInput is false");
             XAssert.IsTrue(visitedOutput, "visitedOutput is false");
             XAssert.IsTrue(inFileUsn < outFileUsn, "inFileUsn > outFileUsn");
-            XAssert.AreEqual(firstFCT.Count + 1, secondFCT.Count, "Entry count mismatch"); // There's a new entry because the new output file has a different fileId
         }
 
         [Fact]

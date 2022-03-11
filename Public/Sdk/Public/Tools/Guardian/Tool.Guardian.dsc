@@ -58,7 +58,6 @@ function getGuardianTool(args: GuardianArguments, guardianPaths : GuardianPaths)
         prepareTempDirectory: true,
         untrackedDirectoryScopes: [
             ...guardianUntrackedDirectories,
-            d`${guardianPaths.install}`,
             // When using the integrated Guardian package (such as the one on CloudBuild), Guardian may write under these paths even though it has a temporary directory prepared.
             d`${args.guardianToolRootDirectory.path}/temp`,
             d`${args.guardianToolRootDirectory.path}/tmp`,
@@ -104,7 +103,7 @@ function findGuardianExecutable(guardianRoot : StaticDirectory) : File {
  *      d. guardian break: Look at processed data from previous step, return bad exit code if breaking results found and export results to file.
  */
 @@public
-export function runGuardian(args: GuardianArguments, skipInstall?: boolean) : Transformer.ExecuteResult {
+export function runGuardian(args: GuardianArguments) : Transformer.ExecuteResult {
     validateArguments(args);
 
     let guardianResult = undefined;
@@ -114,18 +113,15 @@ export function runGuardian(args: GuardianArguments, skipInstall?: boolean) : Tr
     }
     else {
         const outputDirectory = Context.getNewOutputDirectory("guardianOut");
-        const guardianPaths = createGuardianPaths(outputDirectory, args.guardianPackageDirectory);
+        const guardianPaths = createGuardianPaths(outputDirectory, args.guardianPackageDirectory.root);
         const guardianTool = getGuardianTool(args, guardianPaths);
         let guardianDependencies : Transformer.InputArtifact[] = [
             args.guardianToolRootDirectory,
             f`${guardianPaths.globalGuardianRepo}`,
-            args.guardianConfigFile,
-            ...addIfLazy(args.additionalDependencies !== undefined, () => args.additionalDependencies)
+            ...args.guardianConfigFiles,
+            ...addIfLazy(args.additionalDependencies !== undefined, () => args.additionalDependencies),
+            args.guardianPackageDirectory
         ];
-    
-        // 0. Create a Guardian settings
-        const genericSettingsFile = generateGenericGuardianSettingsFile(guardianPaths);
-        const installSettingsFile = generateGuardianInstallSettingsFile(guardianPaths);
 
         // TODO: remove workaround for policy packages
         const policyMicrosoft = generateGuardianWorkaroundPackageFile(guardianPaths.microsoftDefaultPolicyPackageConfig, "Microsoft.Security.CodeAnalysis.Policy.Microsoft.Internal");
@@ -134,7 +130,7 @@ export function runGuardian(args: GuardianArguments, skipInstall?: boolean) : Tr
         // 1. Initialize Guardian for this Guardian run
         //      - Settings files from previous step not necessary here, can be run concurrently with the WriteFile operation.
         const initializeResult = initializeGuardian(args, guardianTool, guardianPaths, guardianDependencies);
-    
+
         // Steps below this depend on the results of step 0 and step 1
         guardianDependencies = guardianDependencies.concat([
             f`${guardianPaths.globalSettings}`,
@@ -142,17 +138,26 @@ export function runGuardian(args: GuardianArguments, skipInstall?: boolean) : Tr
             policyMicrosoft,
             policyNames
         ]);
-        
-        if (!skipInstall)
-        {
-            // 2. Run Guardian Install phase
-            const installResult = runGuardianInstall(args, guardianTool, installSettingsFile, guardianDependencies, guardianPaths);
-            guardianDependencies = guardianDependencies.push(installResult.getOutputFile(guardianPaths.installLog.path));
+
+        switch (args.guardianCommand) {
+            case "Install":
+                // Generate a settings file for the install operation.
+                const installSettingsFile = generateGuardianInstallSettingsFile(guardianPaths);
+
+                // The output of the Guardian run execute call will contain a sealed directory that can be passed to the next guardian run call.
+                guardianResult = runGuardianInstallInternal(args, guardianTool, installSettingsFile, guardianDependencies, guardianPaths);
+                break;
+            case "Run":
+                // Create a Guardian settings
+                const genericSettingsFile = generateGenericGuardianSettingsFile(guardianPaths);
+                        
+                // 3. Guardian run to run static analysis tools specified in config file, break build if any breaking changes are found, and export results.
+                guardianDependencies = guardianDependencies.push(genericSettingsFile);
+                guardianResult = runGuardianInternal(args, guardianTool, genericSettingsFile, guardianDependencies, guardianPaths);
+                break;
+            default:
+                Contract.fail(`Unsupported Guardian command '${args.guardianCommand}'.`);
         }
-        
-        // 3. Guardian run to run static analysis tools specified in config file, break build if any breaking changes are found, and export results.
-        guardianDependencies = guardianDependencies.push(genericSettingsFile);
-        guardianResult = runGuardianInternal(args, guardianTool, genericSettingsFile, guardianDependencies, guardianPaths);
     }
     
     return guardianResult;
@@ -163,8 +168,9 @@ export function runGuardian(args: GuardianArguments, skipInstall?: boolean) : Tr
  */
 function validateArguments(args: GuardianArguments) : void {
     Contract.requires(args !== undefined, "Guardian arguments cannot be undefined.");
+    Contract.requires(args.guardianCommand !== undefined, "Guardian command must be specified.");
     Contract.requires(args.guardianToolRootDirectory !== undefined, "Guardian root must be set.");
-    Contract.requires(args.guardianConfigFile !== undefined, "Guardian config file must be set.");
+    Contract.requires(args.guardianConfigFiles !== undefined, "Guardian config file must be set.");
     Contract.requires(args.guardianResultFile !== undefined, "Guardian output file must be set.");
     Contract.requires(args.guardianPackageDirectory !== undefined, "Guardian tool package install directory must be set.");
     Contract.requires(args.filesToBeScanned !== undefined, "Files to be scanned by Guardian must be set.");
@@ -309,7 +315,7 @@ function initializeGuardian(args : GuardianArguments, guardianTool : Transformer
         outputs: [ d`${guardianPaths.localGuardianRepo}` ],
         successExitCodes: getSuccessExitCodes(),
         warningRegex: getWarningRegex(),
-        description: "Guardian Initialize",
+        description: `Guardian Initialize: ${args.guardianConfigFiles.map(file => file.name.toString()).join(",")}`,
         environmentVariables: getEnvironmentVariables(args)
     });
 }
@@ -319,15 +325,16 @@ function initializeGuardian(args : GuardianArguments, guardianTool : Transformer
  * Packages will be installed under guardianPaths.install
  * This step requires a mutex as multiple Guardian calls may try to install at the same time to the same directory.
  */
-function runGuardianInstall(args : GuardianArguments, guardianTool : Transformer.ToolDefinition, settingsFile : File, guardianDependencies : Transformer.InputArtifact[], guardianPaths : GuardianPaths) : Transformer.ExecuteResult {
+function runGuardianInstallInternal(args : GuardianArguments, guardianTool : Transformer.ToolDefinition, settingsFile : File, guardianDependencies : Transformer.InputArtifact[], guardianPaths : GuardianPaths) : Transformer.ExecuteResult {
     const arguments : Argument[] = [
         Cmd.argument("install"),
         Cmd.option("--settings-file ", settingsFile.path),
-        Cmd.option("--config ", args.guardianConfigFile.path),
         Cmd.option("--logger-filepath ", guardianPaths.installLog.path),
         Cmd.option("--logger-level ", args.logLevel !== undefined ? args.logLevel.toString() : undefined),
+        Cmd.flag("no-policy", args.noPolicy),
+        Cmd.option("--config ", Cmd.join(" ", args.guardianConfigFiles.map(file => file.path))),
         /** TODO: Remove this option */
-        Cmd.option("--package-config ", Cmd.join(" ", [guardianPaths.policyNamesPackageConfig, guardianPaths.microsoftDefaultPolicyPackageConfig]))
+        //Cmd.option("--package-config ", Cmd.join(" ", [guardianPaths.policyNamesPackageConfig, guardianPaths.microsoftDefaultPolicyPackageConfig]))
     ];
 
     guardianDependencies = guardianDependencies.push(settingsFile);
@@ -338,12 +345,16 @@ function runGuardianInstall(args : GuardianArguments, guardianTool : Transformer
         arguments: arguments,
         workingDirectory: d`${guardianPaths.localGuardianRepo.parent}`,
         dependencies: guardianDependencies,
-        outputs: [ guardianPaths.installLog ],
+        outputs: [ guardianPaths.installLog, {kind: "shared", directory: d`${guardianPaths.install}`} ],
         acquireMutexes: [ guardianInstallMutex ],
         successExitCodes: getSuccessExitCodes(),
         warningRegex: getWarningRegex(),
-        description: "Guardian Install",
-        environmentVariables: getEnvironmentVariables(args)
+        description: `Guardian Install: ${args.guardianConfigFiles.map(file => file.name.toString()).join(",")}`,
+        environmentVariables: getEnvironmentVariables(args),
+        unsafe: {
+            untrackedPaths: args.untrackedPaths,
+            untrackedScopes: args.untrackedScopes
+        }
     });
 }
 
@@ -356,7 +367,7 @@ function runGuardianInternal(args : GuardianArguments, guardianTool : Transforme
         Cmd.argument("run"),
         Cmd.argument("--no-install"),
         Cmd.option("--settings-file ", settingsFile.path),
-        Cmd.option("--config ", args.guardianConfigFile.path),
+        Cmd.option("--config ", Cmd.join(" ", args.guardianConfigFiles.map(file => file.path))),
         Cmd.option("--export-breaking-results-to-file ", args.guardianResultFile.path),
         Cmd.option("--logger-filepath ", args.loggerPath && args.loggerPath.path),
         Cmd.flag("--analyze-fast", args.fast),
@@ -365,7 +376,7 @@ function runGuardianInternal(args : GuardianArguments, guardianTool : Transforme
         Cmd.flag("--no-suppressions", args.noSuppressions),
         Cmd.option("--suppression-file ", Cmd.join(" ", args.suppressionFiles && args.suppressionFiles.map(e => e.path))),
         Cmd.options("--suppression-set ", args.suppressionSets),
-        Cmd.flag("--no-policy", args.noPolicy),
+        Cmd.flag("no-policy", args.noPolicy),
         Cmd.option("--policy ", args.policy),
         Cmd.option("--logger-level ", args.logLevel !== undefined ? args.logLevel.toString() : undefined),
         ...getBaselineOrSuppressOptions(args),
@@ -395,7 +406,8 @@ function runGuardianInternal(args : GuardianArguments, guardianTool : Transforme
         maybeExportFile,
         d`${guardianPaths.rawResults}`,
         d`${guardianPaths.results}`,
-        d`${guardianPaths.convertedResults}`
+        d`${guardianPaths.convertedResults}`,
+        ...addIf(args.additionalOutputs !== undefined, ...args.additionalOutputs)
     ];
 
     if (maybeLogFile) {
@@ -412,10 +424,14 @@ function runGuardianInternal(args : GuardianArguments, guardianTool : Transforme
         outputs: outputs,
         successExitCodes: getSuccessExitCodes(),
         warningRegex: getWarningRegex(),
-        description: "Guardian Run",
+        description: `Guardian Run: ${args.guardianConfigFiles.map(file => file.name.toString()).join(",")}`,
         environmentVariables: getEnvironmentVariables(args),
         retryExitCodes: args.retryExitCodes,
         processRetries: args.processRetries,
+        unsafe: {
+            untrackedPaths: args.untrackedPaths,
+            untrackedScopes: args.untrackedScopes
+        }
     });
 
     return result;
@@ -439,7 +455,7 @@ function getWarningRegex() : string {
  * Merges cloudbuild and user specified environment variables.
  */
 function getEnvironmentVariables(args : GuardianArguments) : Transformer.EnvironmentVariable[] {
-    const cbEnvVars = getCloudbuildEnvironmentVariables();
+    const cbEnvVars = getCloudbuildEnvironmentVariables(args);
 
     return args.environmentVariables === undefined
         ? cbEnvVars
@@ -450,10 +466,10 @@ function getEnvironmentVariables(args : GuardianArguments) : Transformer.Environ
  * If the TOOLPATH_GUARDIAN environment variable is set, then Guardian should be running on Cloudbuild.
  * Add dotnet to the PATH variable for Guardian calls on Cloudbuild.
  */
-function getCloudbuildEnvironmentVariables() : Transformer.EnvironmentVariable[] {
+function getCloudbuildEnvironmentVariables(args : GuardianArguments) : Transformer.EnvironmentVariable[] {
     if (cloudbuildToolPath) {
         return [
-            { name: "PATH", separator: ";", value: [ d`${cloudBuildDotNetDirectory.path}` ] },
+            { name: "PATH", separator: ";", value: [ d`${cloudBuildDotNetDirectory.path}`, ...addIf(args.pathDirectories !== undefined, ...args.pathDirectories) ] },
             { name: "DOTNET_ROOT", separator: ";", value: d`${cloudBuildDotNetDirectory.path}` },
         ];
     }
@@ -488,6 +504,8 @@ function getBaselineOrSuppressOptions(args : GuardianArguments) : Argument[] {
  */
 @@public
 export interface GuardianArguments extends Transformer.RunnerArguments {
+    /** The Guardian command to be run. */
+    guardianCommand: GuardianCommand;
     /** Root directory for Guardian install (contains guardian.cmd)
      ** Note: Guardian will still read/write to this directory for updates to itself
      **       or for tool updates, so this should be partially sealed.
@@ -499,14 +517,15 @@ export interface GuardianArguments extends Transformer.RunnerArguments {
      **  - Potentially write temporary files to ./.tmp/ */
     guardianToolRootDirectory: StaticDirectory;
     /** A configuration file to run with guardian */
-    guardianConfigFile: File;
+    guardianConfigFiles: File[];
     /** Path to export guardian result file
      ** Note: No export file will be generated if guardian executes without any errors. */
     guardianResultFile: File;
-    /** Specify where Guardian tool packages will be installed. 
-     ** Note: This path can either be the .gdn/i directory, but must always be declared so that Guardian does
+    /** Specify where Guardian tool packages will be installed.
+     ** If Guardian install was run as part of the build, this must be the sealed directory produced by the run command.
+     ** Note: This path can be the .gdn/i directory, but must always be declared so that Guardian does
      **       try to read packages from outside of this location (due to its package cache feature). */
-    guardianPackageDirectory: Directory;
+    guardianPackageDirectory: StaticDirectory;
     /** Optional Guardian tool working directory. Default: SourceRoot
      ** Note: the default directory "TargetDirectory" for many tools will be this working directory. */
     guardianToolWorkingDirectory?: Directory;
@@ -551,6 +570,14 @@ export interface GuardianArguments extends Transformer.RunnerArguments {
     retryExitCodes?: number[];
     /** Maximum number of times to retry if a process fails with any of the codes in retryExitCodes. Can only be used if retryExitCodes is specified. */
     processRetries?: number;
+    /** Set of directories to add to the PATH variable for the Guardian call. */
+    pathDirectories?: Directory[];
+    /** Declare any additional ouputs here that may be generated during a Guardian run. eg: .eslintcache */
+    additionalOutputs?: Transformer.Output[];
+    /** Paths to be untracked for a Guardian run. */
+    untrackedPaths?: (File | Directory)[];
+    /** Untracked scopes for a guardian run */
+    untrackedScopes?: Directory[]
 }
 
 /**
@@ -565,6 +592,12 @@ export interface GuardianArguments extends Transformer.RunnerArguments {
  */
 @public
 export type GuardianLogLevel = "None" | "Standard" | "Verbose" | "Warning" | "Error" | "Trace";
+
+/**
+ * Supported Guardian commands by the BuildXL Guardian SDK.
+ */
+@@public
+export type GuardianCommand = "Install" | "Run";
 
 /**
  * Collection of Paths that are produced or consumed by Guardian.

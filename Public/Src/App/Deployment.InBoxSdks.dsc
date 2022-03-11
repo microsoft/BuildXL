@@ -88,7 +88,7 @@ function createSdkDeploymentDefinition(serverDeployment: boolean, minimalDeploym
                         {
                             subfolder: "Sdk.Guardian",
                             contents: [ 
-                                importFrom("BuildXL.Tools.Guardian").deployment
+                                BuildXLSdk.Flags.isMicrosoftInternal ? importFrom("Sdk.Guardian").internalDeployment : importFrom("Sdk.Guardian").deployment
                             ]
                         },
                     ])

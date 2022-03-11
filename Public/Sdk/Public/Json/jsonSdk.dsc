@@ -22,6 +22,8 @@ export interface AdditionalJsonOptions
  * - backSlashes: Always use backs lashes as path separator (not escaped).
  * - escapedBackSlashes: Always use back slashes as path separator with escape characters.
  * - forwardSlashes: Always use forward slashes as path separator.
+ * 
+ * CODESYNC: Public/Sdk/Public/Transformers/Transformer.Write.dsc
  */
 @@public
 export type PathRenderingOption = "none" | "backSlashes" | "escapedBackSlashes" | "forwardSlashes";

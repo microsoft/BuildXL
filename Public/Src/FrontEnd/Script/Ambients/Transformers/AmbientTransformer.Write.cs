@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.Linq;
 using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.Types;
 using BuildXL.FrontEnd.Script.Util;
@@ -31,6 +32,8 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
         private SymbolAtom m_writeText;
         private SymbolAtom m_dataSeparator;
         private SymbolAtom m_dataContents;
+        private SymbolAtom m_pathRenderingOption;
+        private Dictionary<string, WriteFile.PathRenderingOption> m_pathRenderingOptionMapping;
 
         private void InitializeWriteNames()
         {
@@ -42,6 +45,10 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             m_writeText = Symbol("text");
             m_dataSeparator = Symbol("separator");
             m_dataContents = Symbol("contents");
+            m_pathRenderingOption = Symbol("pathRenderingOption");
+            m_pathRenderingOptionMapping = Enum.GetValues(typeof(WriteFile.PathRenderingOption))
+                .Cast<WriteFile.PathRenderingOption>()
+                .ToDictionary(opt => char.ToLower(opt.ToString()[0]) + opt.ToString().Substring(1), opt => opt);
         }
 
         private UnionType FileContentElementType => UnionType(AmbientTypes.PathType, AmbientTypes.RelativePathType, AmbientTypes.PathAtomType, PrimitiveType.StringType);
@@ -96,6 +103,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             string[] tags;
             string description;
             PipData pipData;
+            WriteFile.PathRenderingOption pathRenderingOption = default;
 
             if (args.Length > 0 && args[0].Value is ObjectLiteral)
             {
@@ -107,10 +115,20 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
                 {
                     case WriteFileMode.WriteData:
                         var data = obj[m_writeContents];
+                        var writeDataPathRenderingOption = Converter.ExtractStringLiteral(obj, m_pathRenderingOption, m_pathRenderingOptionMapping.Keys, allowUndefined: true);
+                        if (writeDataPathRenderingOption != null)
+                        {
+                            pathRenderingOption = m_pathRenderingOptionMapping[writeDataPathRenderingOption];
+                        }
                         pipData = ProcessData(context, data, new ConversionContext(pos: 1));
                         break;
                     case WriteFileMode.WriteAllLines:
                         var lines = Converter.ExtractArrayLiteral(obj, m_writeLines);
+                        var writeLinesPathRenderingOption = Converter.ExtractStringLiteral(obj, m_pathRenderingOption, m_pathRenderingOptionMapping.Keys, allowUndefined: true);
+                        if (writeLinesPathRenderingOption != null)
+                        {
+                            pathRenderingOption = m_pathRenderingOptionMapping[writeLinesPathRenderingOption];
+                        }
                         var entry = context.TopStack;
                         var newData = ObjectLiteral.Create(
                             new List<Binding>
@@ -177,8 +195,9 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
                 }
             }
 
+            WriteFile.Options options = new WriteFile.Options(pathRenderingOption);
             FileArtifact result;
-            if (!context.GetPipConstructionHelper().TryWriteFile(path, pipData, WriteFileEncoding.Utf8, tags, description, out result))
+            if (!context.GetPipConstructionHelper().TryWriteFile(path, pipData, WriteFileEncoding.Utf8, tags, description, out result, options))
             {
                 // Error has been logged
                 return EvaluationResult.Error;

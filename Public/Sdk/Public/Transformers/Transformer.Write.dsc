@@ -40,7 +40,7 @@ namespace Transformer {
         separator?: string;
         contents: Data[];
     }
-    
+
     /** The content of a file that can be written using writeFile. */
     @@public
     export type FileContent = PathFragment | Path | (PathFragment | Path)[];
@@ -49,12 +49,18 @@ namespace Transformer {
     export interface WriteDataArguments extends CommonWriteArguments {
         /** The contents to write */
         contents: Data;
+
+        /** Option for writing Paths */
+        pathRenderingOption?: PathRenderingOption;
     }
 
     @@public
     export interface WriteAllLinesArguments extends CommonWriteArguments {
         /** The lines to write */
         lines: Data[];
+
+        /** Option for writing Paths */
+        pathRenderingOption?: PathRenderingOption;
     }
 
     @@public
@@ -74,4 +80,16 @@ namespace Transformer {
         /** Optional custom description for this write file  pip. */
         description?: string,
     }
+
+    /**
+     * Indicate how Paths should be rendered when written to Json.
+     * - none: No additional transformations are performed, path separator will be based on OS (default).
+     * - backSlashes: Always use backs lashes as path separator (not escaped).
+     * - escapedBackSlashes: Always use back slashes as path separator with escape characters.
+     * - forwardSlashes: Always use forward slashes as path separator.
+     * 
+     * CODESYNC: Public/Sdk/Public/Json/jsonSdk.dsc
+     */
+    @@public
+    export type PathRenderingOption = "none" | "backSlashes" | "escapedBackSlashes" | "forwardSlashes";
 }

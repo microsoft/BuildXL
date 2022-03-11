@@ -3,24 +3,27 @@
 
 import {Transformer} from "Sdk.Transformers";
 import {Assert, Testing} from "Sdk.Testing";
-import * as Guardian from "BuildXL.Tools.Guardian";
+import * as Guardian from "Sdk.Guardian";
 
 namespace Sdk.Tests {
     @@Testing.unitTest()
     export function runGuardian() {
         addMounts();
         const guardianToolDirectory = getGuardianDirectory();
+        const guardianPackageDirectory = getGuardianPackageDirectory();
 
         const guardianTest = Guardian.runGuardian({
+            guardianCommand: "Run",
             guardianToolRootDirectory: guardianToolDirectory,
-            guardianConfigFile: f`path/to/guardian/config/file`,
+            guardianConfigFiles: [f`path/to/guardian/config/file`],
             guardianResultFile: f`out/result/file`,
             filesToBeScanned: [f`file1`, f`file2`],
-            guardianPackageDirectory: d`path/to/guardian/packages`,
+            guardianPackageDirectory: guardianPackageDirectory,
             guardianToolWorkingDirectory: d`working/directory`,
             baselineFiles: [f`baseLineFile1`, f`baseLineFile2`],
             noSuppressions: true,
-            policy: "microsoft"
+            policy: "microsoft",
+            additionalOutputs: []
         });
     }
 
@@ -28,6 +31,7 @@ namespace Sdk.Tests {
     export function runGuardianWithBadInputs() {
         addMounts();
         const guardianToolDirectory = getGuardianDirectory();
+        const guardianPackageDirectory = getGuardianPackageDirectory();
 
         Testing.expectFailure(
             () => Guardian.runGuardian(undefined),
@@ -39,15 +43,17 @@ namespace Sdk.Tests {
 
         Testing.expectFailure(
             () => Guardian.runGuardian({
+                guardianCommand: "Run",
                 guardianToolRootDirectory: undefined,
-                guardianConfigFile: f`path/to/guardian/config/file`,
+                guardianConfigFiles: [f`path/to/guardian/config/file`],
                 guardianResultFile: f`out/result/file`,
                 filesToBeScanned: [f`file1`, f`file2`],
-                guardianPackageDirectory: d`path/to/guardian/packages`,
+                guardianPackageDirectory: guardianPackageDirectory,
                 guardianToolWorkingDirectory: d`working/directory`,
                 baselineFiles: [f`baseLineFile1`, f`baseLineFile2`],
                 noSuppressions: true,
-                policy: "microsoft"
+                policy: "microsoft",
+                additionalOutputs: []
             }),
             {
                 code: 7503,
@@ -57,15 +63,17 @@ namespace Sdk.Tests {
 
         Testing.expectFailure(
             () => Guardian.runGuardian({
+                guardianCommand: "Run",
                 guardianToolRootDirectory: guardianToolDirectory,
-                guardianConfigFile: f`path/to/guardian/config/file`,
+                guardianConfigFiles: [f`path/to/guardian/config/file`],
                 guardianResultFile: f`out/result/file`,
                 filesToBeScanned: [f`file1`, f`file2`],
                 guardianPackageDirectory: undefined,
                 guardianToolWorkingDirectory: d`working/directory`,
                 baselineFiles: [f`baseLineFile1`, f`baseLineFile2`],
                 noSuppressions: true,
-                policy: "microsoft"
+                policy: "microsoft",
+                additionalOutputs: []
             }),
             {
                 code: 7503,
@@ -78,20 +86,23 @@ namespace Sdk.Tests {
     export function runGuardianWithConflictingInputs() {
         addMounts();
         const guardianToolDirectory = getGuardianDirectory();
+        const guardianPackageDirectory = getGuardianPackageDirectory();
 
         Testing.expectFailure(
             () =>
             {
                 Guardian.runGuardian({
+                    guardianCommand: "Run",
                     guardianToolRootDirectory: guardianToolDirectory,
-                    guardianConfigFile: f`path/to/guardian/config/file`,
+                    guardianConfigFiles: [f`path/to/guardian/config/file`],
                     guardianResultFile: f`out/result/file`,
                     filesToBeScanned: [f`file1`, f`file2`],
-                    guardianPackageDirectory: d`path/to/guardian/packages`,
+                    guardianPackageDirectory: guardianPackageDirectory,
                     guardianToolWorkingDirectory: d`working/directory`,
                     baselineFiles: [f`baseLineFile1`, f`baseLineFile2`],
                     noBaseline: true,
-                    policy: "microsoft"
+                    policy: "microsoft",
+                    additionalOutputs: []
                 });
             },
             {
@@ -104,15 +115,17 @@ namespace Sdk.Tests {
             () =>
             {                
                 Guardian.runGuardian({
+                    guardianCommand: "Run",
                     guardianToolRootDirectory: guardianToolDirectory,
-                    guardianConfigFile: f`path/to/guardian/config/file`,
+                    guardianConfigFiles: [f`path/to/guardian/config/file`],
                     guardianResultFile: f`out/result/file`,
                     filesToBeScanned: [f`file1`, f`file2`],
-                    guardianPackageDirectory: d`path/to/guardian/packages`,
+                    guardianPackageDirectory: guardianPackageDirectory,
                     guardianToolWorkingDirectory: d`working/directory`,
                     suppressionFiles: [f`baseLineFile1`, f`baseLineFile2`],
                     noSuppressions: true,
-                    policy: "microsoft"
+                    policy: "microsoft",
+                    additionalOutputs: []
                 });
             },
             {
@@ -125,15 +138,17 @@ namespace Sdk.Tests {
             () =>
             {                
                 Guardian.runGuardian({
+                    guardianCommand: "Run",
                     guardianToolRootDirectory: guardianToolDirectory,
-                    guardianConfigFile: f`path/to/guardian/config/file`,
+                    guardianConfigFiles: [f`path/to/guardian/config/file`],
                     guardianResultFile: f`out/result/file`,
                     filesToBeScanned: [f`file1`, f`file2`],
-                    guardianPackageDirectory: d`path/to/guardian/packages`,
+                    guardianPackageDirectory: guardianPackageDirectory,
                     guardianToolWorkingDirectory: d`working/directory`,
                     fast: true,
                     baselineFiles: [f`baseLineFile1`, f`baseLineFile2`],
-                    policy: "microsoft"
+                    policy: "microsoft",
+                    additionalOutputs: []
                 });
             },
             {
@@ -147,6 +162,13 @@ namespace Sdk.Tests {
         return Transformer.sealPartialDirectory({
             root: d`path/to/guardian`,
             files: [f`path/to/guardian/guardian.cmd`],
+        });
+    }
+
+    function getGuardianPackageDirectory() : StaticDirectory {
+        return Transformer.sealPartialDirectory({
+            root: d`path/to/guardian/packages`,
+            files: [f`path/to/guardian/packages/somepackage`],
         });
     }
 

@@ -7,7 +7,15 @@ import * as Deployment from "Sdk.Deployment";
 export const deployment : Deployment.Definition = {
     contents: [
         f`Tool.Guardian.dsc`,
-        f`Tool.Guardian.CredScan.dsc`,
+        {file: f`LiteralFiles/module.config.dsc.literal`, targetFileName: a`module.config.dsc`},
+    ]
+};
+
+@@public
+export const internalDeployment : Deployment.Definition = {
+    contents: [
+        f`Tool.Guardian.dsc`,
+        f`Tool.Guardian.ComplianceBuild.dsc`,
         {file: f`LiteralFiles/module.config.dsc.literal`, targetFileName: a`module.config.dsc`},
     ]
 };

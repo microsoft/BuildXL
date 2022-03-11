@@ -1,43 +1,6 @@
 
 Transformer.sealPartialDirectory({root: d`./path/to/guardian`, files: [f`./path/to/guardian/guardian.cmd`]});
-Transformer.writeFile(
-    f`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/buildxl.gdnsettings`,
-    {
-        escaping: "NoEscaping",
-        separator: "",
-        items: [
-            "{\r\n  \"folders\": {\r\n    \"GuardianRepo\": \"",
-            p`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/.gdn`,
-            "\",\r\n    \"Config\": \"",
-            p`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/.gdn/c`,
-            "\",\r\n    \"RawResults\": \"",
-            p`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/.r`,
-            "\",\r\n    \"Results\": \"",
-            p`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/r`,
-            "\",\r\n    \"ConvertedResults\": \"",
-            p`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/rc`,
-            "\",\r\n    \"Install\": \"",
-            p`./path/to/guardian/packages`,
-            "\"\r\n  }\r\n}",
-        ],
-    },
-    ["msguardian"]
-);
-Transformer.writeFile(
-    f`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/buildxl_install.gdnsettings`,
-    {
-        escaping: "NoEscaping",
-        separator: "",
-        items: [
-            "{\r\n  \"folders\": {\r\n    \"GuardianRepo\": \"",
-            p`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/.gdn`,
-            "\",\r\n    \"Install\": \"",
-            p`./path/to/guardian/packages`,
-            "\"\r\n  }\r\n}",
-        ],
-    },
-    ["msguardian"]
-);
+Transformer.sealPartialDirectory({root: d`./path/to/guardian/packages`, files: [f`./path/to/guardian/packages/somepackage`]});
 Transformer.writeFile(
     f`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/buildxl_policy_microsoft.gdnpackage`,
     {
@@ -74,6 +37,7 @@ Transformer.execute({
         f`./path/to/src/.gdn`,
         f`./path/to/guardian/config/file`,
         d`./path/to/guardian`,
+        d`./path/to/guardian/packages`,
     ],
     implicitOutputs: [d`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/.gdn`],
     environmentVariables: [{name: "TEMP", value: p`./tmp_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/t`}, {name: "TMP", value: p`./tmp_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/t`}],
@@ -92,7 +56,6 @@ Transformer.execute({
             p`./UserProfile/.nuget/plugins/netfx/CredentialProvider.Microsoft`,
             p`./UserProfile/.nuget/plugins/netcore/CredentialProvider.Microsoft`,
             p`./UserProfile/.nuget/packages`,
-            p`./path/to/guardian/packages`,
             p`./path/to/guardian/temp`,
             p`./path/to/guardian/tmp`,
             p`\${Context.getMount('Windows').path}`,
@@ -110,106 +73,31 @@ Transformer.execute({
 Transformer.sealDynamicDirectory({
     root: d`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/.gdn`,
     tags: ["msguardian"],
-    description: "Guardian Initialize",
+    description: "Guardian Initialize: file",
 });
-Transformer.execute({
-    tool: {exe: f`./path/to/guardian/guardian.cmd`},
-    tags: ["msguardian"],
-    arguments: {
-        escaping: "CRuntimeArgumentRules",
-        separator: " ",
+Transformer.writeFile(
+    f`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/buildxl.gdnsettings`,
+    {
+        escaping: "NoEscaping",
+        separator: "",
         items: [
-            "install",
-            {
-                escaping: "NoEscaping",
-                separator: "",
-                items: ["--settings-file"],
-            },
-            p`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/buildxl_install.gdnsettings`,
-            {
-                escaping: "NoEscaping",
-                separator: "",
-                items: ["--config"],
-            },
-            p`./path/to/guardian/config/file`,
-            {
-                escaping: "NoEscaping",
-                separator: "",
-                items: ["--logger-filepath"],
-            },
-            p`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/install`,
-            {
-                escaping: "NoEscaping",
-                separator: "",
-                items: ["--package-config"],
-            },
-            {
-                escaping: "NoEscaping",
-                separator: "",
-                items: [
-                    {
-                        escaping: "NoEscaping",
-                        separator: " ",
-                        items: [
-                            p`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/buildxl_policy_names.gdnpackage`,
-                            p`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/buildxl_policy_microsoft.gdnpackage`,
-                        ],
-                    },
-                ],
-            },
-        ],
-    },
-    workingDirectory: d`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut`,
-    dependencies: [
-        f`./path/to/guardian/guardian.cmd`,
-        f`./path/to/src/.gdn`,
-        f`./path/to/guardian/config/file`,
-        f`./path/to/src/.gdn/.gdnsettings`,
-        f`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/buildxl_policy_microsoft.gdnpackage`,
-        f`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/buildxl_policy_names.gdnpackage`,
-        f`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/buildxl_install.gdnsettings`,
-        d`./path/to/guardian`,
-        d`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/.gdn`,
-    ],
-    implicitOutputs: [f`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/install`],
-    environmentVariables: [{name: "TEMP", value: p`./tmp_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/t_1`}, {name: "TMP", value: p`./tmp_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/t_1`}],
-    acquireSemaphores: [
-        {
-            name: "BuildXL.Tools.Guardian.Install.Phase",
-            incrementBy: 1,
-            limit: 1,
-        },
-    ],
-    successExitCodes: [0],
-    tempDirectory: d`./tmp_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/t_1`,
-    unsafe: {
-        untrackedPaths: [p`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/.gdn/internal.gdnhistory`, p`./path/to/src/.gdn/internal.gdnhistory`],
-        untrackedScopes: [
-            p`./path/to/ProgramFilesX86/dotnet`,
-            p`./path/to/ProgramFiles/dotnet`,
-            p`./path/to/ProgramData/Microsoft/NetFramework`,
-            p`./path/to/ProgramData/Microsoft/VisualStudio/Setup`,
-            p`./path/to/ProgramFilesX86/Nuget`,
-            p`./path/to/ProgramFiles/Nuget`,
-            p`./LocalLow/Microsoft/CryptnetUrlCache`,
-            p`./UserProfile/.nuget/plugins/netfx/CredentialProvider.Microsoft`,
-            p`./UserProfile/.nuget/plugins/netcore/CredentialProvider.Microsoft`,
-            p`./UserProfile/.nuget/packages`,
+            "{\r\n  \"folders\": {\r\n    \"GuardianRepo\": \"",
+            p`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/.gdn`,
+            "\",\r\n    \"Config\": \"",
+            p`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/.gdn/c`,
+            "\",\r\n    \"RawResults\": \"",
+            p`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/.r`,
+            "\",\r\n    \"Results\": \"",
+            p`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/r`,
+            "\",\r\n    \"ConvertedResults\": \"",
+            p`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/rc`,
+            "\",\r\n    \"Install\": \"",
             p`./path/to/guardian/packages`,
-            p`./path/to/guardian/temp`,
-            p`./path/to/guardian/tmp`,
-            p`\${Context.getMount('Windows').path}`,
-            p`\${Context.getMount('InternetCache').path}`,
-            p`\${Context.getMount('InternetHistory').path}`,
-            p`\${Context.getMount('ProgramFiles').path}/Windows Defender`,
-            p`\${Context.getMount('ProgramFilesX86').path}/Windows Defender`,
-            p`\${Context.getMount('ProgramData').path}/Microsoft/Windows Defender`,
-            p`\${Context.getMount('AppData').path}`,
-            p`\${Context.getMount('LocalAppData').path}`,
-            p`./tmp_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/t_1`,
+            "\"\r\n  }\r\n}",
         ],
     },
-});
+    ["msguardian"]
+);
 Transformer.execute({
     tool: {exe: f`./path/to/guardian/guardian.cmd`},
     tags: ["msguardian"],
@@ -230,7 +118,17 @@ Transformer.execute({
                 separator: "",
                 items: ["--config"],
             },
-            p`./path/to/guardian/config/file`,
+            {
+                escaping: "NoEscaping",
+                separator: "",
+                items: [
+                    {
+                        escaping: "NoEscaping",
+                        separator: " ",
+                        items: [p`./path/to/guardian/config/file`],
+                    },
+                ],
+            },
             {
                 escaping: "NoEscaping",
                 separator: "",
@@ -270,13 +168,13 @@ Transformer.execute({
         f`./path/to/src/.gdn/.gdnsettings`,
         f`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/buildxl_policy_microsoft.gdnpackage`,
         f`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/buildxl_policy_names.gdnpackage`,
-        f`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/install`,
         f`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/buildxl.gdnsettings`,
         f`./file1`,
         f`./file2`,
         f`./baseLineFile1`,
         f`./baseLineFile2`,
         d`./path/to/guardian`,
+        d`./path/to/guardian/packages`,
         d`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/.gdn`,
     ],
     implicitOutputs: [
@@ -285,9 +183,9 @@ Transformer.execute({
         d`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/r`,
         d`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/rc`,
     ],
-    environmentVariables: [{name: "TEMP", value: p`./tmp_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/t_2`}, {name: "TMP", value: p`./tmp_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/t_2`}],
+    environmentVariables: [{name: "TEMP", value: p`./tmp_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/t_1`}, {name: "TMP", value: p`./tmp_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/t_1`}],
     successExitCodes: [0],
-    tempDirectory: d`./tmp_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/t_2`,
+    tempDirectory: d`./tmp_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/t_1`,
     unsafe: {
         untrackedPaths: [p`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/.gdn/internal.gdnhistory`, p`./path/to/src/.gdn/internal.gdnhistory`],
         untrackedScopes: [
@@ -301,7 +199,6 @@ Transformer.execute({
             p`./UserProfile/.nuget/plugins/netfx/CredentialProvider.Microsoft`,
             p`./UserProfile/.nuget/plugins/netcore/CredentialProvider.Microsoft`,
             p`./UserProfile/.nuget/packages`,
-            p`./path/to/guardian/packages`,
             p`./path/to/guardian/temp`,
             p`./path/to/guardian/tmp`,
             p`\${Context.getMount('Windows').path}`,
@@ -312,22 +209,22 @@ Transformer.execute({
             p`\${Context.getMount('ProgramData').path}/Microsoft/Windows Defender`,
             p`\${Context.getMount('AppData').path}`,
             p`\${Context.getMount('LocalAppData').path}`,
-            p`./tmp_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/t_2`,
+            p`./tmp_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/t_1`,
         ],
     },
 });
 Transformer.sealDynamicDirectory({
     root: d`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/.r`,
     tags: ["msguardian"],
-    description: "Guardian Run",
+    description: "Guardian Run: file",
 });
 Transformer.sealDynamicDirectory({
     root: d`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/r`,
     tags: ["msguardian"],
-    description: "Guardian Run",
+    description: "Guardian Run: file",
 });
 Transformer.sealDynamicDirectory({
     root: d`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/rc`,
     tags: ["msguardian"],
-    description: "Guardian Run",
+    description: "Guardian Run: file",
 });

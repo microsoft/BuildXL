@@ -2,5 +2,10 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 module({
-    name: "BuildXL.Tools.Guardian"
+    name: "Sdk.Guardian",
+    projects: [
+        f`deployment.dsc`,
+        f`Tool.Guardian.dsc`,
+        ...addIf(Environment.getFlag("[Sdk.BuildXL]microsoftInternal") && Context.getCurrentHost().os === "win", f`Tool.Guardian.ComplianceBuild.dsc`) // Only used for Cloudbuild builds
+    ]
 });

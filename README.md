@@ -19,7 +19,7 @@ BuildXL has a command-line interface. There are currently no plans to integrate 
 See the `Examples/` folder for basic project examples. 
 
 ## Documentation
-The BuildXL documentation landing page is [here](Documentation/INDEX.md) and look at [the develolper guide](Documentation/Wiki/DeveloperGuide.md) in order to understand how to build and use BuildXL.
+The BuildXL documentation landing page is [here](Documentation/INDEX.md) and look at [the developer guide](Documentation/Wiki/DeveloperGuide.md) in order to understand how to build and use BuildXL.
 
 ## Build Status - Azure DevOps Pipelines
 [![Build status](https://dev.azure.com/mseng/Domino/_apis/build/status/8196?branchName=master)](https://dev.azure.com/mseng/Domino/_build/latest?definitionId=8196)

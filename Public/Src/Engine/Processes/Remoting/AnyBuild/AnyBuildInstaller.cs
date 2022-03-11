@@ -174,11 +174,16 @@ namespace BuildXL.Processes.Remoting
             var output = new StringBuilder(512);
             var error = new StringBuilder(512);
 
+            string powerShellExe = !string.IsNullOrEmpty(EngineEnvironmentSettings.AnyBuildPsPath.Value)
+                ? EngineEnvironmentSettings.AnyBuildPsPath.Value
+                : "powershell.exe";
+            string powerShellArgs = $"-NoProfile -ExecutionPolicy ByPass -File \"{bootstrapperFile}\" {m_source} {m_ring}";
+
+            Tracing.Logger.Log.ExecuteAnyBuildBootstrapper(m_loggingContext, $"{powerShellExe} {powerShellArgs}");
+
             var process = new Process()
             {
-                StartInfo = new ProcessStartInfo(
-                    "powershell.exe",
-                    $"-NoProfile -ExecutionPolicy ByPass -File \"{bootstrapperFile}\" {m_source} {m_ring}")
+                StartInfo = new ProcessStartInfo(powerShellExe, powerShellArgs)
                 {
                     UseShellExecute = false,
                     RedirectStandardOutput = true,
@@ -206,41 +211,49 @@ namespace BuildXL.Processes.Remoting
                 }
             };
 
-            bool processStarted = process.Start();
-
-            if (!processStarted)
+            try
             {
-                Tracing.Logger.Log.FailedInstallingAnyBuildClient(m_loggingContext, "Failed to execute bootstrapper script");
-                return false;
-            }
+                bool processStarted = process.Start();
+
+                if (!processStarted)
+                {
+                    Tracing.Logger.Log.FailedInstallingAnyBuildClient(m_loggingContext, "Failed to execute bootstrapper script");
+                    return false;
+                }
 
 #if NET5_0_OR_GREATER
-            await process.WaitForExitAsync();
+                await process.WaitForExitAsync();
 #else
 #pragma warning disable AsyncFixer02
-            await Task.Run(() => process.WaitForExit());
+                await Task.Run(() => process.WaitForExit());
 #pragma warning restore AsyncFixer02
 #endif
 
-            if (process.ExitCode != 0)
-            {
-                Tracing.Logger.Log.FailedInstallingAnyBuildClient(
+                if (process.ExitCode != 0)
+                {
+                    Tracing.Logger.Log.FailedInstallingAnyBuildClient(
+                        m_loggingContext,
+                        error.ToString() + " (see log for details)");
+                }
+
+                var result = new string[]
+                {
+                    $"Exit code: {process.ExitCode}",
+                    $"StdOut: {output}",
+                    $"StdErr: {error}"
+                };
+
+                Tracing.Logger.Log.FinishedInstallAnyBuild(
                     m_loggingContext,
-                    error.ToString() + " (see log for details)");
+                    Environment.NewLine + string.Join(Environment.NewLine, result));
+
+                return process.ExitCode == 0;
             }
-
-            var result = new string[]
+            catch (Exception e)
             {
-                $"Exit code: {process.ExitCode}",
-                $"StdOut: {output}",
-                $"StdErr: {error}"
-            };
-
-            Tracing.Logger.Log.FinishedInstallAnyBuild(
-                m_loggingContext,
-                Environment.NewLine + string.Join(Environment.NewLine, result));
-
-            return process.ExitCode == 0;
+                Tracing.Logger.Log.FailedInstallingAnyBuildClient(m_loggingContext, e.ToString());
+                return false;
+            }
         }
 
         private async Task<string?> DownloadBootstrapperWinAsync(CancellationToken token)
@@ -259,7 +272,11 @@ namespace BuildXL.Processes.Remoting
 #endif
                 using (var bootstrapper = new FileStream(bootstrapperFile, FileMode.Create))
                 {
+#if NET5_0_OR_GREATER
+                    await stream.CopyToAsync(bootstrapper, token);
+#else
                     await stream.CopyToAsync(bootstrapper);
+#endif
                 }
 
                 return bootstrapperFile;

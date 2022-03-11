@@ -445,6 +445,15 @@ namespace BuildXL.Processes.Tracing
         public abstract void FinishedInstallAnyBuild(LoggingContext context, string message);
 
         [GeneratedEvent(
+            (int)LogEventId.ExecuteAnyBuildBootstrapper,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = "Execute AnyBuild bootstrapper: {command}")]
+        public abstract void ExecuteAnyBuildBootstrapper(LoggingContext context, string command);
+
+        [GeneratedEvent(
             (int)LogEventId.LogMacKextFailure,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,

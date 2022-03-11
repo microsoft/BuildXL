@@ -166,6 +166,7 @@ namespace BuildXL.Processes.Tracing
         FailedDownloadingAnyBuildClient = 12507,
         FailedInstallingAnyBuildClient = 12508,
         FinishedInstallAnyBuild = 12509,
+        ExecuteAnyBuildBootstrapper = 12510,
 
         //// Special tool errors
         PipProcessToolErrorDueToHandleToFileBeingUsed = 14300,

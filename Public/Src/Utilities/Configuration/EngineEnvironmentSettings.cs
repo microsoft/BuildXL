@@ -116,6 +116,14 @@ namespace BuildXL.Utilities.Configuration
         public static readonly Setting<string> AnyBuildClientSource = CreateSetting("BUILDXL_ANYBUILD_SOURCE", value => value);
 
         /// <summary>
+        /// Path to PowerShell.exe for installing AnyBuild.
+        /// </summary>
+        /// <remarks>
+        /// Typically launching `powershell.exe` is sufficient, but in some pipelines/environment that exe cannot be found.
+        /// </remarks>
+        public static readonly Setting<string> AnyBuildPsPath = CreateSetting("BUILDXL_ANYBUILD_PSPATH", value => value);
+
+        /// <summary>
         /// Indicates whether the application should fail fast on null reference exceptions
         /// </summary>
         public static readonly Setting<bool> FailFastOnNullReferenceException = CreateSetting("FailFastOnNullReferenceException", value => value == "1");

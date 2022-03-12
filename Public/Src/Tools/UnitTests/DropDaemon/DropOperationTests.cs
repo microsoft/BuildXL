@@ -19,7 +19,6 @@ using BuildXL.Storage.Fingerprints;
 using BuildXL.Tracing.CloudBuild;
 using BuildXL.Utilities;
 using BuildXL.Utilities.CLI;
-using JetBrains.Annotations;
 using Microsoft.VisualStudio.Services.Common;
 using Microsoft.VisualStudio.Services.Drop.WebApi;
 using Test.BuildXL.TestUtilities.Xunit;
@@ -601,12 +600,12 @@ namespace Test.Tool.DropDaemon
                 dropPaths.Add(item.RelativeDropPath);
                 return Task.FromResult(AddFileResult.Associated);
             });
-           
+
             var ipcProvider = IpcFactory.GetProvider();
             var bxlApiClient = CreateDummyBxlApiClient(ipcProvider);
 
             WithSetup(
-                dropClient, 
+                dropClient,
                 (daemon, etwListener, dropConfig) =>
                 {
                     // only hash and file rewrite count are important here; the rest are just fake values

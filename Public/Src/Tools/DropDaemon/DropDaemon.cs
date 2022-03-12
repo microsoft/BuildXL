@@ -24,7 +24,6 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.CLI;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
-using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.VisualStudio.Services.Common;
 using Microsoft.VisualStudio.Services.Drop.WebApi;
 using Microsoft.VisualStudio.Services.WebApi;
@@ -57,13 +56,15 @@ namespace Tool.DropDaemon
 
         private const string LogFileName = "DropDaemon";
 
+        private const string DropClientLogDirectoryName = "DropClient";
+
         /// <nodoc/>
         public const string DropDLogPrefix = "(DropD) ";
 
         private static readonly int s_minIoThreadsForDrop = Environment.ProcessorCount * 10;
 
         private static readonly int s_minWorkerThreadsForDrop = Environment.ProcessorCount * 10;
-
+        
         internal static readonly List<Option> ConfigOptions = new();
 
         internal static IEnumerable<Command> SupportedCommands => Commands.Values;
@@ -88,6 +89,13 @@ namespace Tool.DropDaemon
         /// A mapping between a fully-qualified drop name and a corresponding dropConfig/VsoClient
         /// </summary>
         private readonly BuildXL.Utilities.Collections.ConcurrentBigMap<string, (DropConfig dropConfig, Lazy<Task<IDropClient>> lazyVsoClientTask)> m_vsoClients = new();
+
+        /// <summary>
+        /// These loggers should only be used for drop-related messages. Daemon-related messages should be logged via <see cref="ServicePipDaemon.ServicePipDaemon.Logger"/>
+        /// </summary>
+        private readonly BuildXL.Utilities.Collections.ConcurrentBigMap<string, Lazy<IIpcLogger>> m_dropSpecificLoggers = new();
+
+        private readonly string m_dropClientLogDirectory;
 
         private readonly CounterCollection<DropDaemonCounter> m_counters = new CounterCollection<DropDaemonCounter>();
 
@@ -432,27 +440,29 @@ namespace Tool.DropDaemon
                var dropConfig = CreateDropConfig(conf);
                var daemon = dropDaemon as DropDaemon;
                var name = FullyQualifiedDropName(dropConfig);
-               daemon.Logger.Info($"[CREATE]: Started at '{name}'");
+               var logger = daemon.GetDropSpecificLogger(dropConfig);
+
+               logger.Info($"[CREATE]: Started at '{name}'");
                if (dropConfig.SignBuildManifest && !dropConfig.GenerateBuildManifest)
                {
-                   conf.Logger.Warning("SignBuildManifest = true and GenerateBuildManifest = false. The BuildManifest will not be generated, and thus cannot be signed.");
+                   logger.Warning("SignBuildManifest = true and GenerateBuildManifest = false. The BuildManifest will not be generated, and thus cannot be signed.");
                }
 
                if (!BuildManifestHelper.VerifyBuildManifestRequirements(dropConfig, daemon.DropServiceConfig, out string errMessage))
                {
-                   daemon.Logger.Error($"[CREATE]: Cannot create drop due to an invalid build manifest configuration: {errMessage}");
+                   logger.Error($"[CREATE]: Cannot create drop due to an invalid build manifest configuration: {errMessage}");
                    return new IpcResult(IpcResultStatus.InvalidInput, errMessage);
                }
 
                if (conf.Get(DisableCBV1Manifest))
                {
-                   daemon.Logger.Verbose("CloudBuildV1 Manifest is disabled");
+                   logger.Verbose("CloudBuildV1 Manifest is disabled");
                    daemon.m_disableCloudBuildManifest = true;
                }
 
                daemon.EnsureVsoClientIsCreated(dropConfig);
                IIpcResult result = await daemon.CreateAsync(name);
-               daemon.Logger.Info($"[CREATE]: {result}");
+               logger.Info($"[CREATE]: {result}");
                return result;
            });
 
@@ -495,17 +505,18 @@ namespace Tool.DropDaemon
            {
                var daemon = dropDaemon as DropDaemon;
                var dropConfig = CreateDropConfig(conf);
-               daemon.Logger.Info($"[FINALIZE] Started finalizing '{dropConfig.Name}'.");
+               var logger = daemon.GetDropSpecificLogger(dropConfig);
+               logger.Info($"[FINALIZE] Started finalizing '{dropConfig.Name}'.");
 
                var buildManifestResult = await daemon.ProcessBuildManifestForDropAsync(dropConfig);
                if (!buildManifestResult.Succeeded)
                {
-                   daemon.Logger.Info($"[FINALIZE] Operation failed while processing a build manifest.");
+                   logger.Info($"[FINALIZE] Operation failed while processing a build manifest.");
                    return buildManifestResult;
                }
 
                IIpcResult result = await daemon.FinalizeSingleDropAsync(dropConfig);
-               daemon.Logger.Info($"[FINALIZE] {result}");
+               logger.Info($"[FINALIZE] {result}");
                return result;
            });
 
@@ -523,8 +534,9 @@ namespace Tool.DropDaemon
             serverAction: async (conf, dropDaemon) =>
             {
                 var daemon = dropDaemon as DropDaemon;
-                daemon.Logger.Verbose("[ADDFILE] Started");
                 var dropConfig = CreateDropConfig(conf);
+                var logger = daemon.GetDropSpecificLogger(dropConfig);
+                logger.Verbose("[ADDFILE] Started");
                 string filePath = conf.Get(File);
                 string hashValue = conf.Get(HashOptional);
                 var contentInfo = string.IsNullOrEmpty(hashValue) ? null : (FileContentInfo?)FileContentInfo.Parse(hashValue);
@@ -532,7 +544,7 @@ namespace Tool.DropDaemon
                 IIpcResult result = System.IO.File.Exists(filePath)
                     ? await daemon.AddFileAsync(dropItem)
                     : new IpcResult(IpcResultStatus.ExecutionError, "file '" + filePath + "' does not exist");
-                daemon.Logger.Verbose("[ADDFILE] " + result);
+                logger.Verbose("[ADDFILE] " + result);
                 return result;
             });
 
@@ -544,13 +556,15 @@ namespace Tool.DropDaemon
             serverAction: async (conf, dropDaemon) =>
             {
                 var daemon = dropDaemon as DropDaemon;
-                daemon.Logger.Verbose("[ADDARTIFACTS] Started");
                 var dropConfig = CreateDropConfig(conf);
+                var logger = daemon.GetDropSpecificLogger(dropConfig);
+                var commandId = Guid.NewGuid();
+                logger.Verbose($"{commandId} [ADDARTIFACTS] Started");
                 daemon.EnsureVsoClientIsCreated(dropConfig);
 
-                var result = await AddArtifactsToDropInternalAsync(conf, daemon);
+                var result = await AddArtifactsToDropInternalAsync(conf, daemon, logger, commandId);
 
-                daemon.Logger.Verbose("[ADDARTIFACTS] " + result);
+                logger.Verbose($"{commandId} [ADDARTIFACTS]: {result}");
                 return result;
             });
 
@@ -591,6 +605,14 @@ namespace Tool.DropDaemon
             m_sbomGenerator = new SBOMGenerator(logger: new SBOMLoggingWrapper(Logger));
             m_sbomGenerationOutputDirectory = !string.IsNullOrWhiteSpace(daemonConfig?.LogDir) ? daemonConfig.LogDir : Path.GetTempPath();
             m_logFileNameCounter = 0;
+            if (!string.IsNullOrWhiteSpace(daemonConfig?.LogDir))
+            {
+                m_dropClientLogDirectory = Path.Combine(daemonConfig.LogDir, DropClientLogDirectoryName);
+                if (!System.IO.Directory.Exists(m_dropClientLogDirectory))
+                {
+                    System.IO.Directory.CreateDirectory(Path.Combine(daemonConfig.LogDir, DropClientLogDirectoryName));
+                }
+            }
         }
 
         internal static void EnsureCommandsInitialized()
@@ -700,6 +722,7 @@ namespace Tool.DropDaemon
         {
             // Get the config saved on create, which holds the build manifest settings
             var dropName = FullyQualifiedDropName(dropConfig);
+            var logger = GetDropSpecificLogger(dropConfig);
             if (m_vsoClients.TryGetValue(dropName, out var configAndClient))
             {
                 dropConfig = configAndClient.dropConfig;
@@ -713,14 +736,14 @@ namespace Tool.DropDaemon
             var bsiResult = await UploadBsiFileAsync(dropConfig);
             if (!bsiResult.Succeeded)
             {
-                Logger.Error($"[FINALIZE ({dropConfig.Name})] Failure occurred during BuildSessionInfo (bsi) upload: {bsiResult.Payload}");
+                logger.Error($"[FINALIZE ({dropConfig.Name})] Failure occurred during BuildSessionInfo (bsi) upload: {bsiResult.Payload}");
                 return bsiResult;
             }
 
             var buildManifestResult = await GenerateAndUploadBuildManifestFileWithSignedCatalogAsync(dropConfig);
             if (!buildManifestResult.Succeeded)
             {
-                Logger.Error($"[FINALIZE ({dropConfig.Name})] Failure occurred during Build Manifest upload: {buildManifestResult.Payload}");
+                logger.Error($"[FINALIZE ({dropConfig.Name})] Failure occurred during Build Manifest upload: {buildManifestResult.Payload}");
                 return buildManifestResult;
             }
 
@@ -760,10 +783,10 @@ namespace Tool.DropDaemon
                 return new IpcResult(IpcResultStatus.ExecutionError, $"GenerateBuildManifestData API call failed for Drop: {dropConfig.Name}. Failure: {bxlResult.Failure.DescribeIncludingInnerFailures()}");
             }
 
-            IEnumerable<SBOMFile> manifestFileList = bxlResult.Result
-                .Select(fileInfo => ToSbomFile(fileInfo));
+            IEnumerable<SBOMFile> manifestFileList = bxlResult.Result.Select(fileInfo => ToSbomFile(fileInfo));
 
             string sbomGenerationRootDirectory = null;
+            var logger = GetDropSpecificLogger(dropConfig);
             try
             {
                 if (m_bsiMetadataExtractor == null)
@@ -773,7 +796,7 @@ namespace Tool.DropDaemon
 
                 var sbomPackageName = string.IsNullOrEmpty(dropConfig.SbomPackageName) ? FullyQualifiedDropName(dropConfig) : dropConfig.SbomPackageName;
                 var metadata = m_bsiMetadataExtractor.ProduceSbomMetadata(BuildEnvironmentName.BuildXL, sbomPackageName, dropConfig.SbomPackageVersion);
-                
+
                 // Create a temporary directory to be the root path of SBOM generation 
                 // We should create a different directory for each drop, so we use the drop name as part of the path.
                 sbomGenerationRootDirectory = Path.Combine(m_sbomGenerationOutputDirectory, dropConfig.Name);
@@ -790,12 +813,12 @@ namespace Tool.DropDaemon
 
                 using (m_counters.StartStopwatch(DropDaemonCounter.BuildManifestComponentConversionDuration))
                 {
-                    packages = GetSbomPackages();
+                    packages = GetSbomPackages(logger);
                 }
 
-                Logger.Verbose("Starting SBOM Generation");
+                logger.Verbose("Starting SBOM Generation");
                 var result = await m_sbomGenerator.GenerateSBOMAsync(sbomGenerationRootDirectory, manifestFileList, packages, metadata, specs);
-                Logger.Verbose("Finished SBOM Generation");
+                logger.Verbose("Finished SBOM Generation");
 
                 if (!result.IsSuccessful)
                 {
@@ -844,7 +867,7 @@ namespace Tool.DropDaemon
             var startTime = DateTime.UtcNow;
             var signManifestResult = await GenerateAndSignBuildManifestCatalogFileAsync(dropConfig, filesToSign);
             long signTimeMs = (long)DateTime.UtcNow.Subtract(startTime).TotalMilliseconds;
-            Logger.Info($"Build Manifest signing via EsrpManifestSign completed in {signTimeMs} ms. Succeeded: {signManifestResult.Succeeded}");
+            logger.Info($"Build Manifest signing via EsrpManifestSign completed in {signTimeMs} ms. Succeeded: {signManifestResult.Succeeded}");
 
             return signManifestResult;
         }
@@ -899,7 +922,7 @@ namespace Tool.DropDaemon
         /// If partially succesful, a partial list of packages are returned and errors messages will be logged.
         /// If conversion is unsuccessful, an empty list is returned and errors are logged.
         /// </returns>
-        private IEnumerable<SBOMPackage> GetSbomPackages()
+        private IEnumerable<SBOMPackage> GetSbomPackages(IIpcLogger logger)
         {
             // Read Path for bcde output from environment, this should already be set by Cloudbuild
             var bcdeOutputJsonPath = Environment.GetEnvironmentVariable(Constants.ComponentGovernanceBCDEOutputFilePath);
@@ -908,16 +931,16 @@ namespace Tool.DropDaemon
             {
                 // This shouldn't happen, but SBOM creation can still happen without it a set of packages. So, log it and return an empty set.
                 // TODO [pgunasekara]: Change this to a Warning. Currently this is only Info level until CB changes are fully rolled out to avoid generating warnings unnecessarily.
-                Logger.Info($"[GetSbomPackages] The '{Constants.ComponentGovernanceBCDEOutputFilePath}' environment variable was not found. Component detection data will not be included in build manifest.");
+                logger.Info($"[GetSbomPackages] The '{Constants.ComponentGovernanceBCDEOutputFilePath}' environment variable was not found. Component detection data will not be included in build manifest.");
                 return new List<SBOMPackage>();
             }
             else if (!System.IO.File.Exists(bcdeOutputJsonPath))
             {
-                Logger.Warning($"[GetSbomPackages] Component detection output file not found at path '{bcdeOutputJsonPath}'. Component detection data will not be included in build manifest.");
+                logger.Warning($"[GetSbomPackages] Component detection output file not found at path '{bcdeOutputJsonPath}'. Component detection data will not be included in build manifest.");
                 return new List<SBOMPackage>();
             }
 
-            Logger.Info($"[GetSbomPackages] Retrieving component detection package list from file at {bcdeOutputJsonPath}");
+            logger.Info($"[GetSbomPackages] Retrieving component detection package list from file at {bcdeOutputJsonPath}");
 
             var (adapterReport, packages) = new ComponentDetectionToSBOMPackageAdapter().TryConvert(bcdeOutputJsonPath);
 
@@ -929,7 +952,7 @@ namespace Tool.DropDaemon
                     {
                         if (!string.IsNullOrEmpty(reportItem.Details))
                         {
-                            Logger.Info("[ComponentDetectionToSBOMPackageAdapter] " + reportItem.Details);
+                            logger.Info("[ComponentDetectionToSBOMPackageAdapter] " + reportItem.Details);
                         }
                         break;
                     }
@@ -937,7 +960,7 @@ namespace Tool.DropDaemon
                     {
                         if (!string.IsNullOrEmpty(reportItem.Details))
                         {
-                            Logger.Warning("[ComponentDetectionToSBOMPackageAdapter] " + reportItem.Details);
+                            logger.Warning("[ComponentDetectionToSBOMPackageAdapter] " + reportItem.Details);
                         }
                         break;
                     }
@@ -945,15 +968,15 @@ namespace Tool.DropDaemon
                     {
                         if (!string.IsNullOrEmpty(reportItem.Details))
                         {
-                            Logger.Error("[ComponentDetectionToSBOMPackageAdapter] " + reportItem.Details);
+                            logger.Error("[ComponentDetectionToSBOMPackageAdapter] " + reportItem.Details);
                         }
                         break;
                     }
                 }
             }
 
-            var result = packages ?? new List<SBOMPackage>(); 
-            Logger.Verbose($"[GetSbomPackages] Retrieved {result.Count()} packages");
+            var result = packages ?? new List<SBOMPackage>();
+            logger.Verbose($"[GetSbomPackages] Retrieved {result.Count()} packages");
             return result;
         }
 
@@ -1310,7 +1333,7 @@ namespace Tool.DropDaemon
                 : null;
         }
 
-        private static async Task<IIpcResult> AddArtifactsToDropInternalAsync(ConfiguredCommand conf, DropDaemon daemon)
+        private static async Task<IIpcResult> AddArtifactsToDropInternalAsync(ConfiguredCommand conf, DropDaemon daemon, IIpcLogger logger, Guid commandId)
         {
             var dropName = conf.Get(DropNameOption);
             var serviceEndpoint = conf.Get(DropEndpoint);
@@ -1344,6 +1367,23 @@ namespace Tool.DropDaemon
                 return new IpcResult(
                     IpcResultStatus.GenericError,
                     I($"Directory counts don't match: #directories = {directoryPaths.Length}, #directoryIds = {directoryIds.Length}, #dropPaths = {directoryDropPaths.Length}, #directoryFilters = {directoryFilters.Length}, #directoryApplyFilterToRelativePath = {directoryFilterUseRelativePath.Length}, #directoryRelativePathReplace = {directoryRelativePathsReplaceSerialized.Length}"));
+            }
+
+            using (var pooledSb = Pools.GetStringBuilder())
+            {
+                var sb = pooledSb.Instance;
+                for (int i = 0; i < files.Length; i++)
+                {
+                    sb.AppendFormat("{0}|{1}|{2}|{3}{4}", files[i], fileIds[i], hashes[i], dropPaths[i], Environment.NewLine);
+                }
+
+                for (int i = 0; i < directoryPaths.Length; i++)
+                {
+                    sb.AppendFormat("{0}|{1}|{2}|{3}|{4}|{5}{6}",
+                        directoryPaths[i], directoryIds[i], directoryDropPaths[i], directoryFilters[i], directoryFilterUseRelativePath[i], directoryRelativePathsReplaceSerialized[i], Environment.NewLine);
+                }
+
+                logger.Verbose("{0} Payload:{1}{2}", commandId, Environment.NewLine, sb.ToString());
             }
 
             var possibleFilters = InitializeFilters(directoryFilters);
@@ -1387,7 +1427,9 @@ namespace Tool.DropDaemon
                 directoryDropPaths,
                 possibleFilters.Result,
                 directoryFilterUseRelativePath,
-                possibleRelativePathReplacementArguments.Result);
+                possibleRelativePathReplacementArguments.Result,
+                logger,
+                commandId);
 
             if (error != null)
             {
@@ -1455,7 +1497,9 @@ namespace Tool.DropDaemon
             string dropPath,
             Regex contentFilter,
             bool applyFilterToRelativePath,
-            RelativePathReplacementArguments relativePathReplacementArgs)
+            RelativePathReplacementArguments relativePathReplacementArgs,
+            IIpcLogger logger,
+            Guid commandId)
         {
             Contract.Requires(!string.IsNullOrEmpty(directoryPath));
             Contract.Requires(!string.IsNullOrEmpty(directoryId));
@@ -1475,12 +1519,12 @@ namespace Tool.DropDaemon
             }
 
             var directoryContent = maybeResult.Result;
-            daemon.Logger.Verbose($"(dirPath'{directoryPath}', dirId='{directoryId}') contains '{directoryContent.Count}' files:{Environment.NewLine}{string.Join(Environment.NewLine, directoryContent.Select(f => f.Render()))}");
+            logger.Verbose($"{commandId} (dirPath'{directoryPath}', dirId='{directoryId}') contains '{directoryContent.Count}' files:{Environment.NewLine}{string.Join(Environment.NewLine, directoryContent.Select(f => f.Render()))}");
 
             if (contentFilter != null)
             {
                 var filteredContent = FilterDirectoryContent(directoryPath, directoryContent, contentFilter, applyFilterToRelativePath);
-                daemon.Logger.Verbose("[dirId='{0}'] Filter '{1}' (applied to relative paths: '{4}') excluded {2} file(s) out of {3}", directoryId, contentFilter, directoryContent.Count - filteredContent.Count, directoryContent.Count, applyFilterToRelativePath);
+                logger.Verbose("{5} [dirId='{0}'] Filter '{1}' (applied to relative paths: '{4}') excluded {2} file(s) out of {3}", directoryId, contentFilter, directoryContent.Count - filteredContent.Count, directoryContent.Count, applyFilterToRelativePath, commandId);
                 directoryContent = filteredContent;
             }
 
@@ -1552,7 +1596,9 @@ namespace Tool.DropDaemon
             string[] dropPaths,
             Regex[] contentFilters,
             bool[] applyFilterToRelativePath,
-            RelativePathReplacementArguments[] relativePathsReplacementArgs)
+            RelativePathReplacementArguments[] relativePathsReplacementArgs,
+            IIpcLogger logger,
+            Guid commandId)
         {
             Contract.Requires(directoryPaths != null);
             Contract.Requires(directoryIds != null);
@@ -1567,7 +1613,7 @@ namespace Tool.DropDaemon
             var createDropItemsTasks = Enumerable
                 .Range(0, directoryPaths.Length)
                 .Select(i => CreateDropItemsForDirectoryAsync(
-                    daemon, fullyQualifiedDropName, directoryPaths[i], directoryIds[i], dropPaths[i], contentFilters[i], applyFilterToRelativePath[i], relativePathsReplacementArgs[i]))
+                    daemon, fullyQualifiedDropName, directoryPaths[i], directoryIds[i], dropPaths[i], contentFilters[i], applyFilterToRelativePath[i], relativePathsReplacementArgs[i], logger, commandId))
                 .ToArray();
 
             var createDropItemsResults = await TaskUtilities.SafeWhenAll(createDropItemsTasks);
@@ -1642,25 +1688,23 @@ namespace Tool.DropDaemon
 
         internal void RegisterDropClientForTesting(DropConfig config, IDropClient client)
         {
-            m_vsoClients.Add(FullyQualifiedDropName(config), (config, new Lazy<Task<IDropClient>>(() => Task.FromResult(client))));
+            var dropName = FullyQualifiedDropName(config);
+            m_vsoClients.Add(dropName, (config, new Lazy<Task<IDropClient>>(() => Task.FromResult(client))));
+            m_dropSpecificLoggers.Add(dropName, new Lazy<IIpcLogger>(VoidLogger.Instance));
         }
 
         private void EnsureVsoClientIsCreated(DropConfig dropConfig)
         {
-            const int MaxLogFileNameLength = 200;
             var name = FullyQualifiedDropName(dropConfig);
-            var loggerName = string.Join("_", dropConfig.Name.Split(Path.GetInvalidFileNameChars()));
-            loggerName = $"DropClient_{loggerName.Substring(Math.Max(0, loggerName.Length - MaxLogFileNameLength))}";
-            var logFileNameCounter = Interlocked.Increment(ref m_logFileNameCounter).ToString();
+            var logger = GetDropSpecificLogger(dropConfig);
             var getOrAddResult = m_vsoClients.GetOrAdd(
                 name,
-                (loggerName: loggerName, apiClient: ApiClient, daemonConfig: Config, dropConfig: dropConfig, logFileNameCounter: logFileNameCounter),
+                (logger: logger, apiClient: ApiClient, daemonConfig: Config, dropConfig: dropConfig),
                 static (dropName, data) =>
                 {
                     var tsk = new Lazy<Task<IDropClient>>(() => Task.Run(() =>
                     {
-                        var dropLogger = new FileLogger(data.daemonConfig.LogDir, data.loggerName, data.logFileNameCounter, data.daemonConfig.Verbose, DropDLogPrefix);
-                        return (IDropClient)new VsoClient(dropLogger, data.apiClient, data.daemonConfig, data.dropConfig);
+                        return (IDropClient)new VsoClient(data.logger, data.apiClient, data.daemonConfig, data.dropConfig);
                     }));
                     return (data.dropConfig, tsk);
                 });
@@ -1668,9 +1712,43 @@ namespace Tool.DropDaemon
             // if it's a freshly added VsoClient, start the task
             if (!getOrAddResult.IsFound)
             {
-                m_logger.Info("Created a log file '{0}-{1}' for drop '{2}'", loggerName, logFileNameCounter, dropConfig.Name);
                 getOrAddResult.Item.Value.lazyVsoClientTask.Value.Forget();
             }
+        }
+
+        private IIpcLogger GetDropSpecificLogger(DropConfig dropConfig)
+        {
+            // If a log directory was not set, send all log messages into the main logger.
+            if (m_dropClientLogDirectory == null)
+            {
+                return Logger;
+            }
+
+            var dropName = FullyQualifiedDropName(dropConfig);
+            if (m_dropSpecificLoggers.TryGetValue(dropName, out var lazyLoggger))
+            {
+                return lazyLoggger.Value;
+            }
+
+            const int MaxLogFileNameLength = 200;
+            var logFileNameCounter = Interlocked.Increment(ref m_logFileNameCounter).ToString();
+            var logFileName = string.Join("_", dropConfig.Name.Split(Path.GetInvalidFileNameChars()));
+            logFileName = $"DropClient_{logFileName.Substring(Math.Max(0, logFileName.Length - MaxLogFileNameLength))}";
+
+            var result = m_dropSpecificLoggers.GetOrAdd(
+                dropName,
+                (logDirectory: m_dropClientLogDirectory, logFileName: logFileName, logFileNameCounter: logFileNameCounter, verbose: Config.Verbose),
+                static (dropName, data) =>
+                {
+                    return new Lazy<IIpcLogger>(() => new FileLogger(data.logDirectory, data.logFileName, data.logFileNameCounter, data.verbose, DropDLogPrefix));
+                });
+
+            if (!result.IsFound)
+            {
+                m_logger.Info("Created a log file '{0}-{1}' for drop '{2}'", logFileName, logFileNameCounter, dropConfig.Name);
+            }
+
+            return result.Item.Value.Value;
         }
 
         internal static string FullyQualifiedDropName(DropConfig dropConfig) => FullyQualifiedDropName(dropConfig.Service, dropConfig.Name);

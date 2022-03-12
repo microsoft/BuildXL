@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -199,7 +200,7 @@ namespace BuildXL.Execution.Analyzer
         private readonly string DirectoryCreationCommand = OperatingSystemHelper.IsUnixOS ? "mkdir -p" : "mkdir";
         private readonly string ChangeDirectoryCommand = OperatingSystemHelper.IsUnixOS ? "cd" : "cd /D";
         private readonly string ExecuteScriptCommand = OperatingSystemHelper.IsUnixOS ? "sh" : "call";
-        private readonly string ExportVariableScope = OperatingSystemHelper.IsUnixOS ? "" : "setlocal";
+        private readonly string ExportVariableScope = OperatingSystemHelper.IsUnixOS ? "" : "setlocal EnableDelayedExpansion";
         private const string AllowPreserveOutputs = "/allowPreserveOutputs";
         private const string SkipDelOutputs = "SkipDeleteOutputs";
 
@@ -209,7 +210,7 @@ namespace BuildXL.Execution.Analyzer
         {
             return OperatingSystemHelper.IsUnixOS ? $"if {(negate ? "!" : "")} [[ -d \"{path}\" ]]; then {cmd}; else if {(negate ? "!" : "")} [[ -f \"{path}\" ]]; then {cmd}; fi; fi" : $"IF {(negate ? "NOT": "")} EXIST \"{path}\" {cmd}";
         }
-
+     
         public ProcessRunScriptAnalyzer(AnalysisInput input)
             : base(input)
         {
@@ -270,25 +271,45 @@ namespace BuildXL.Execution.Analyzer
 
             yield return pip.TempDirectory;
         }
+        
+        private void MakeOutputPrivateScriptBlock(StreamWriter writer, String path)
+        {
+            writer.WriteLine($"if \"%preserveOutputs%\" EQU \"true\" (");
+            writer.WriteLine($"CALL :MakeOutputPrivate {path}");
+            writer.WriteLine($") else (");
+            writer.WriteLine(ScriptIfPathExistsConditionWithCommand(path, $"{FileDeleteOperation} \"{path}\""));
+            writer.WriteLine($")");
+        }
 
         private void DeleteOutputs(StreamWriter writer, Process pip)
         {
-            //Deletes or Preserves the outputs based on the allowPreserveOutputs flag
+            var preserveOutputAllowList = new HashSet<AbsolutePath>(pip.PreserveOutputAllowlist);
+            writer.WriteLine($"{ScriptVariableExportKeyword} preserveOutputs=false");
+
+            // Deletes or Preserves the outputs based on the allowPreserveOutputs flag
             if (pip.AllowPreserveOutputs && !OperatingSystemHelper.IsUnixOS)
             {
                 writer.WriteLine($"{CommentPrefix} Preserve Outputs");
                 writer.WriteLine(@"for %%a in (%*) do (");
-                writer.WriteLine($"if  \"%%a\" EQU \"{AllowPreserveOutputs}\"  goto {SkipDelOutputs}");
+                writer.WriteLine($"if  \"%%a\" EQU \"{AllowPreserveOutputs}\" (");
+                writer.WriteLine($" {ScriptVariableExportKeyword} preserveOutputs=true");
+                writer.WriteLine(")");
                 writer.WriteLine(")");
             }
 
             writer.WriteLine($"{CommentPrefix} Delete Outputs");
-
             writer.WriteLine($"{CommentPrefix} Delete Files");
             foreach (var fileOutput in pip.FileOutputs)
             {
                 var path = fileOutput.Path.ToString(PathTable);
-                writer.WriteLine(ScriptIfPathExistsConditionWithCommand(path, $"{FileDeleteOperation} \"{path}\""));
+                if (pip.AllowPreserveOutputs && !OperatingSystemHelper.IsUnixOS && (preserveOutputAllowList.Contains(fileOutput.Path) || pip.PreserveOutputAllowlist.Length == 0) )
+                {
+                    MakeOutputPrivateScriptBlock(writer, path);                 
+                }
+                else
+                {
+                    writer.WriteLine(ScriptIfPathExistsConditionWithCommand(path, $"{FileDeleteOperation} \"{path}\""));
+                }
             }
             writer.WriteLine();
 
@@ -302,10 +323,38 @@ namespace BuildXL.Execution.Analyzer
             foreach (var directory in GetOutputDirectories(pip))
             {
                 var directoryPath = directory.ToString(PathTable);
-                writer.WriteLine(ScriptIfPathExistsConditionWithCommand(directoryPath, $"{FileDeleteOperation} \"{directoryPath}\""));
-                writer.WriteLine(ScriptIfPathExistsConditionWithCommand(directoryPath, $"{DirectoryDeleteOperation} \"{directoryPath}\""));
+                if (!OperatingSystemHelper.IsUnixOS)
+                {   // Might cause a bug when the directory contains files which are to be preserved ,ie if the files are present in the pip.AllowPreserveOutputlist. 
+                    // TODO: Can be resolved in future where we iterate through all the files in the directory and preserve the required files.
+                    writer.WriteLine($"if \"%preserveOutputs%\" EQU \"true\" (");
+                    writer.WriteLine($"GOTO :{SkipDelOutputs}");
+                    writer.WriteLine($") else (");
+                    writer.WriteLine(ScriptIfPathExistsConditionWithCommand(directoryPath, $"{FileDeleteOperation} \"{directoryPath}\""));
+                    writer.WriteLine(ScriptIfPathExistsConditionWithCommand(directoryPath, $"{DirectoryDeleteOperation} \"{directoryPath}\""));
+                    writer.WriteLine($")");
+                }
+                else
+                {
+                    writer.WriteLine(ScriptIfPathExistsConditionWithCommand(directoryPath, $"{FileDeleteOperation} \"{directoryPath}\""));
+                    writer.WriteLine(ScriptIfPathExistsConditionWithCommand(directoryPath, $"{DirectoryDeleteOperation} \"{directoryPath}\""));
+                }
+           
             }
             writer.WriteLine();
+
+            if (!OperatingSystemHelper.IsUnixOS)
+            {
+                  writer.WriteLine($"GOTO :{SkipDelOutputs}");
+                  writer.WriteLine($":MakeOutputPrivate");           
+                  writer.WriteLine($"{ScriptVariableExportKeyword} fileName=\"newPreservedOutputFile.cpy\"");
+                  writer.WriteLine($"copy %~1 !fileName!");
+                  writer.WriteLine($"{ScriptVariableExportKeyword} tempFile=%~1");
+                  writer.WriteLine($"del %~1");
+                  writer.WriteLine($"move !fileName! !tempFile!");
+                  writer.WriteLine($"icacls !tempFile! /grant BUILTIN\\Users:F");
+                  writer.WriteLine($"EXIT /B 0");
+            }
+          
         }
 
         private void RestoreOutputs(StreamWriter writer, Process pip, string directory)

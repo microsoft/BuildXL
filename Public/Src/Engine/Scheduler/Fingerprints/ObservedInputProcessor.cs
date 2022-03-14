@@ -1731,10 +1731,12 @@ namespace BuildXL.Scheduler.Fingerprints
                     // Generally speaking, if the full graph file system doesn't know about a given directory, that means there are no known inputs
                     // underneath and it is safe to return that the directory does not exist: this makes the pip fingerprint stable across changes in directories
                     // that pips are not allowed to read anyway. However, when undeclared source reads mode is on, we need to return what the real file system
-                    // is seeing since there might be undeclared inputs underneath
+                    // is seeing since there might be undeclared inputs underneath. Consider as well this can only be the case when the directory is not created by a pip, otherwise
+                    // source files can't be underneath
                     // Observe this behavior is in sync wrt incremental scheduling: in case of undeclared reads, we are only returning that the directory exists when
                     // it actually exists in the real filesystem
-                    return pipInfo.UnderlyingPip.ProcessAllowsUndeclaredSourceReads ? existence : PathExistence.Nonexistent;
+                    return pipInfo.UnderlyingPip.ProcessAllowsUndeclaredSourceReads && !FileSystemView.ExistCreatedDirectoryInOutputFileSystem(path) 
+                        ? existence : PathExistence.Nonexistent;
                 }
             }
 

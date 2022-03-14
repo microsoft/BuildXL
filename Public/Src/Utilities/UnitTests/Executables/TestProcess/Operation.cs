@@ -225,6 +225,11 @@ namespace Test.BuildXL.Executables.TestProcess
             SucceedOnRetry,
 
             /// <summary>
+            /// Process that does nothing on the first invocation and creates a directory on the second invocation
+            /// </summary>
+            CreateDirOnRetry,
+
+            /// <summary>
             /// Waits until a given file is found on disk
             /// </summary>
             WaitUntilFileExists,
@@ -519,6 +524,9 @@ namespace Test.BuildXL.Executables.TestProcess
                         return;
                     case Type.SucceedOnRetry:
                         DoSucceedOnRetry();
+                        return;
+                    case Type.CreateDirOnRetry:
+                        DoCreateDirOnRetry();
                         return;
                     case Type.WaitUntilFileExists:
                         DoWaitUntilFileExists();
@@ -942,6 +950,16 @@ namespace Test.BuildXL.Executables.TestProcess
         public static Operation SucceedOnRetry(FileArtifact untrackedStateFilePath, int failExitCode = -1, int numberOfRetriesToSucceed = 1)
         {
             return new Operation(Type.SucceedOnRetry, path: untrackedStateFilePath, content: failExitCode.ToString(), additionalArgs: numberOfRetriesToSucceed.ToString());
+        }
+
+        /// <summary>
+        /// The first this pip runs, it does nothing. The second time, it creates the specified directory
+        /// </summary>
+        /// <param name="untrackedStateFilePath">File used to track state. This path should be untracked when scheduling the pip</param>
+        /// <param name="directoryToCreate">Directory to create</param>
+        public static Operation CreateDirOnRetry(FileArtifact untrackedStateFilePath, FileOrDirectoryArtifact directoryToCreate)
+        {
+            return new Operation(Type.CreateDirOnRetry, path: untrackedStateFilePath, linkPath: directoryToCreate);
         }
 
         /// <summary>
@@ -1511,6 +1529,23 @@ namespace Test.BuildXL.Executables.TestProcess
                     File.WriteAllText(PathAsString, (retriesLeft--).ToString());
                     Environment.Exit(int.Parse(Content));
                 }
+            }
+        }
+
+        private void DoCreateDirOnRetry()
+        {
+            // Use this state file to differentiate between the first and second runs. 
+            if (!File.Exists(PathAsString))
+            {
+                // The first time this operation does nothing
+                File.WriteAllText(PathAsString, "marker");
+                Environment.Exit(0);
+            }
+            else
+            {
+                // We used the LinkPath to carry the directory to be created. Set it to the expected place and call the regular operation
+                PathAsString = LinkPathAsString;
+                DoCreateDir();
             }
         }
 

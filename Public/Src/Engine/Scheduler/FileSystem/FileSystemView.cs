@@ -140,7 +140,19 @@ namespace BuildXL.Scheduler.FileSystem
             // by the pip graph. For dynamic files, we need to check PathExistenceCache.
             existence = PathExistence.Nonexistent;
             FileSystemEntry entry;
-            return PathExistenceCache.TryGetValue(path, out entry) && entry.TryGetExistence(mode, out existence);
+
+            var result = PathExistenceCache.TryGetValue(path, out entry) && entry.TryGetExistence(mode, out existence);
+
+            // If we found an entry that is a directory created by a pip with no known output files underneath, we return nonexistent.
+            // Observe in this case bxl won't replay the directory creation. So we pretend the directory is not part of the output file system to improve cache stability
+            if (existence == PathExistence.ExistsAsDirectory && 
+                entry.HasFlag(FileSystemEntryFlags.IsDirectoryCreatedByPip) && 
+                !entry.HasFlag(FileSystemEntryFlags.DirectoryContainingFiles))
+            {
+                existence = PathExistence.Nonexistent;
+            }
+
+            return result;
         }
 
         /// <summary>
@@ -456,6 +468,12 @@ namespace BuildXL.Scheduler.FileSystem
                     break;
                 }
 
+                // If the artifact being added is a file, then make sure we flag all upstream directories as containing files
+                if (existence == PathExistence.ExistsAsFile)
+                {
+                    flags |= FileSystemEntryFlags.DirectoryContainingFiles;
+                }
+
                 // Set ancestor paths existence to directory existent for existent paths
                 existence = PathExistence.ExistsAsDirectory;
                 path = path.GetParent(PathTable);
@@ -517,9 +535,9 @@ namespace BuildXL.Scheduler.FileSystem
         /// <summary>
         /// Reports existence of path in output file system
         /// </summary>
-        public void ReportOutputFileSystemExistence(AbsolutePath path, PathExistence existence, bool updateParents = true)
+        public void ReportOutputFileSystemExistence(AbsolutePath path, PathExistence existence)
         {
-            GetOrAddExistence(path, FileSystemViewMode.Output, existence, updateParents);
+            GetOrAddExistence(path, FileSystemViewMode.Output, existence, updateParents: true);
         }
 
         /// <summary>
@@ -605,6 +623,7 @@ namespace BuildXL.Scheduler.FileSystem
             return possibleExistence;
         }
 
+        [Flags]
         private enum FileSystemEntryFlags
         {
             None,
@@ -612,6 +631,7 @@ namespace BuildXL.Scheduler.FileSystem
             IsDirectorySymlink = 1 << 1,
             CheckedIsDirectorySymlink = 1 << 2,
             IsDirectoryCreatedByPip = 1 << 3,
+            DirectoryContainingFiles = 1 << 4,
         }
 
         private readonly struct FileSystemEntry
@@ -673,7 +693,7 @@ namespace BuildXL.Scheduler.FileSystem
                 }
 
                 var value = m_value;
-                value[FlagsSection] = (int)flags;
+                value[FlagsSection] = ((int)flags | value[FlagsSection]);
                 return new FileSystemEntry(value);
             }
 

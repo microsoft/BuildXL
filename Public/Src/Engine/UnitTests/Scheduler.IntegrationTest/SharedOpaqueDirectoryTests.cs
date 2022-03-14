@@ -2750,6 +2750,64 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler().AssertSuccess().AssertCacheHit(pip.Process.PipId);
         }
 
+        [Fact]
+        public void DirectoryProbeWithNoProducedFilesUnderneathReplayConsistently()
+        {
+            FileArtifact stateFile = FileArtifact.CreateOutputFile(ObjectRootPath.Combine(Context.PathTable, "stateFile.txt"));
+            string sharedOpaqueDir = Path.Combine(ObjectRoot, "sod");
+            AbsolutePath sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
+            var sodSubDir = Path.Combine(sharedOpaqueDir, "subDir");
+            DirectoryArtifact sharedOpaqueSubDirPath = DirectoryArtifact.CreateWithZeroPartialSealId(AbsolutePath.Create(Context.PathTable, sodSubDir));
+            var source = CreateSourceFile();
+
+            File.WriteAllText(source.Path.ToString(Context.PathTable), "input");
+
+            // Creates a pip that only creates a directory (with no files underneath) the second time is run. The first time it does nothing.
+            var dirCreator = CreatePipBuilder(new Operation[]
+            {
+                Operation.ReadFile(source, doNotInfer: true),
+                Operation.CreateDirOnRetry(stateFile, FileArtifact.CreateSourceFile(sharedOpaqueSubDirPath))
+            });
+            dirCreator.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
+            dirCreator.Options |= Process.Options.AllowUndeclaredSourceReads;
+            dirCreator.AddUntrackedFile(stateFile.Path);
+
+            var dirCreatorPip = SchedulePipBuilder(dirCreator);
+
+            // Create a pip that probes the directory and depends on the dir creator one
+            var prober = CreatePipBuilder(new Operation[]
+            {
+                Operation.Probe(sharedOpaqueSubDirPath),
+            });
+            prober.AddInputDirectory(dirCreatorPip.ProcessOutputs.GetOutputDirectories().Single().Root);
+            prober.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
+            prober.Options |= Process.Options.AllowUndeclaredSourceReads;
+
+            var proberPip = SchedulePipBuilder(prober);
+
+            // Run both pips. Check the directory is not created
+            // This implies the probe done by the prober pip results in an absent path probe (since the directory is missing, there is no way
+            // we know this will turn into a directory on subsequent runs)
+            RunScheduler().AssertSuccess(); 
+            XAssert.IsFalse(Directory.Exists(sodSubDir));
+
+            // Change the input so we force the re-run of the directory creation pip. Observe changing this
+            // input file shouldn't introduce per-se a cache miss for the prober pip
+            File.WriteAllText(source.Path.ToString(Context.PathTable), "modified input");
+
+            // The second time this runs the dir creator pip should be a miss because of the modified input, and therefore the directory is created
+            // However, we want the prober pip to be a hit since bxl does not replay directory creations (with no producing files underneath) so the presence
+            // of this directory should be inconsequential
+            RunScheduler().AssertSuccess().AssertCacheHit(proberPip.Process.PipId);
+            XAssert.IsTrue(Directory.Exists(sodSubDir));
+
+            // Simulate scrubbing/fresh machine
+            FileUtilities.DeleteFile(sodSubDir);
+
+            // We should see again a cache hit, now for both pips
+            RunScheduler().AssertSuccess().AssertCacheHit(proberPip.Process.PipId, dirCreatorPip.Process.PipId);
+        }
+
         private string ToString(AbsolutePath path) => path.ToString(Context.PathTable);
     }
 }

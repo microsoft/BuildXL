@@ -66,14 +66,14 @@ namespace BuildXL.Processes
             m_loggingContext = loggingContext;
             NamedPipeServerStream serverStream = null;
 
-            bool useNonDefaultPipeReader = PipeReaderFactory.GetKind() != PipeReaderFactory.Kind.Default;
+            bool useManagedPipeReader = !PipeReaderFactory.ShouldUseLegacyPipeReader();
 
             // This object will be the server for the tree. CreateSourceFile the pipe server.
             try
             {
                 SafeFileHandle injectorHandle = null;
 
-                if (useNonDefaultPipeReader)
+                if (useManagedPipeReader)
                 {
                     serverStream = Pipes.CreateNamedPipeServerStream(
                         PipeDirection.In,
@@ -90,9 +90,9 @@ namespace BuildXL.Processes
                 // Create the injector. This will duplicate the handles.
                 Injector = ProcessUtilities.CreateProcessInjector(payloadGuid, childHandle, reportPipe, dllNameX86, dllNameX64, payload);
 
-                if (useNonDefaultPipeReader)
+                if (useManagedPipeReader)
                 {
-                    m_injectionRequestReader = PipeReaderFactory.CreateNonDefaultPipeReader(
+                    m_injectionRequestReader = PipeReaderFactory.CreateManagedPipeReader(
                         serverStream,
                         InjectCallback,
                         Encoding.Unicode,

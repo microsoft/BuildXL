@@ -19,9 +19,15 @@ namespace BuildXL.Processes.Internal
         internal enum Kind
         {
             /// <summary>
-            /// Default or original async pipe reader.
+            /// Lagacy async pipe reader.
             /// </summary>
-            Default,
+            /// <remarks>
+            /// Legacy async pipe reader is based on IO completion. It mysteriously
+            /// causes an issue in .NET6 where the pipe reading is cancelled out of nowhere in
+            /// the middle of process execution. Attempt to retry pipe reading only works on short
+            /// running processes.
+            /// </remarks>
+            Legacy,
 
             /// <summary>
             /// StreamReader-based async pipe reader.
@@ -35,17 +41,25 @@ namespace BuildXL.Processes.Internal
         }
 
         /// <summary>
-        /// Creates a pipe reader.
+        /// Creates a managed pipe reader.
         /// </summary>
-        public static IAsyncPipeReader CreateNonDefaultPipeReader(
+        /// <remarks>
+        /// A managed pipe reader only use API provided by .NET for its implementation.
+        /// Currently there are two kinds of managed pipe reader, StreamAsyncPipeReader that
+        /// is based on .NET stream reader and PipelineAsyncPipeReader that is based on .NET System.IO.Pipelines.
+        /// </remarks>
+        public static IAsyncPipeReader CreateManagedPipeReader(
             NamedPipeServerStream pipeStream,
             StreamDataReceived callback,
             Encoding encoding,
-            int bufferSize)
+            int bufferSize,
+            Kind? overrideKind = default)
         {
-            if (GetKind() == Kind.Pipeline)
+            Kind kind = overrideKind ?? GetKind();
+
+            if (kind == Kind.Pipeline)
             {
-#if NET_COREAPP_60
+#if NET6_0_OR_GREATER
                 return new PipelineAsyncPipeReader(pipeStream, callback, encoding);
 #endif
             }
@@ -57,14 +71,28 @@ namespace BuildXL.Processes.Internal
         /// <summary>
         /// Gets kind of pipe reader to be created.
         /// </summary>
-        public static Kind GetKind()
+        /// <remarks>
+        /// For NET6 or greater, the default is StreamReader-based async pipe reader. For other runtimes,
+        /// the legacy one is chosen.
+        /// </remarks>
+        private static Kind GetKind()
         {
+#if NET6_0_OR_GREATER
             if (string.IsNullOrEmpty(EngineEnvironmentSettings.SandboxAsyncPipeReaderKind.Value))
             {
-                return Kind.Default;
+                return Kind.Stream;
             }
 
-            return Enum.TryParse(EngineEnvironmentSettings.SandboxAsyncPipeReaderKind.Value, true, out Kind value) ? value : Kind.Default;
+            return Enum.TryParse(EngineEnvironmentSettings.SandboxAsyncPipeReaderKind.Value, true, out Kind value) ? value : Kind.Stream;
+#else
+            return Kind.Legacy;
+#endif
         }
+
+        /// <summary>
+        /// Checks if BuildXL should use the legacy async pipe reader.
+        /// </summary>
+        /// <returns></returns>
+        public static bool ShouldUseLegacyPipeReader() => GetKind() == Kind.Legacy;
     }
 }

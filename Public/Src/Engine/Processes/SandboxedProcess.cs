@@ -466,7 +466,7 @@ namespace BuildXL.Processes
             SafeFileHandle childHandle = null;
             DetouredProcess detouredProcess = m_detouredProcess;
 
-            bool useNonDefaultPipeReader = PipeReaderFactory.GetKind() != PipeReaderFactory.Kind.Default;
+            bool useManagedPipeReader = !PipeReaderFactory.ShouldUseLegacyPipeReader();
 
             using (m_reportReaderSemaphore.AcquireSemaphore())
             {
@@ -475,7 +475,7 @@ namespace BuildXL.Processes
 
                 try
                 {
-                    if (useNonDefaultPipeReader)
+                    if (useManagedPipeReader)
                     {
                         pipeStream = Pipes.CreateNamedPipeServerStream(
                             PipeDirection.In,
@@ -557,9 +557,9 @@ namespace BuildXL.Processes
 
                 StreamDataReceived reportLineReceivedCallback = m_reports == null ? null : ReportLineReceived;
 
-                if (useNonDefaultPipeReader)
+                if (useManagedPipeReader)
                 {
-                    m_reportReader = PipeReaderFactory.CreateNonDefaultPipeReader(
+                    m_reportReader = PipeReaderFactory.CreateManagedPipeReader(
                         pipeStream,
                         message => reportLineReceivedCallback(message),
                         reportEncoding,

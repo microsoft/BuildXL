@@ -6,6 +6,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.IO;
+using System.IO.Pipes;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -54,12 +55,12 @@ namespace BuildXL.Processes.Internal
         private readonly byte[] m_unicodeEnvironmentBlock;
         private readonly string m_workingDirectory;
         private bool m_disposed;
-        private AsyncPipeReader m_errorReader;
+        private IAsyncPipeReader m_errorReader;
         private JobObject m_job;
         private bool m_killed;
         private bool m_timedout;
         private bool m_hasDetoursFailures;
-        private AsyncPipeReader m_outputReader;
+        private IAsyncPipeReader m_outputReader;
         private SafeProcessHandle m_processHandle;
         private int m_processId;
         private SafeWaitHandleFromSafeHandle m_processWaitHandle;
@@ -433,9 +434,13 @@ namespace BuildXL.Processes.Internal
                     creationFlags |= Native.Processes.ProcessUtilities.CREATE_NO_WINDOW;
                 }
 
+                bool useManagedPipeReader = !PipeReaderFactory.ShouldUseLegacyPipeReader();
+
                 SafeFileHandle standardInputWritePipeHandle = null;
                 SafeFileHandle standardOutputReadPipeHandle = null;
                 SafeFileHandle standardErrorReadPipeHandle = null;
+                NamedPipeServerStream standardOutputPipeStream = null;
+                NamedPipeServerStream standardErrorPipeStream = null;
 
                 try
                 {
@@ -447,6 +452,7 @@ namespace BuildXL.Processes.Internal
                     SafeFileHandle hStdOutput = null;
                     SafeFileHandle hStdError = null;
                     SafeThreadHandle threadHandle = null;
+
                     try
                     {
                         IntPtr environmentPtr = IntPtr.Zero;
@@ -473,11 +479,22 @@ namespace BuildXL.Processes.Internal
 
                         if (m_outputDataReceived != null)
                         {
-                            Pipes.CreateInheritablePipe(
-                                Pipes.PipeInheritance.InheritWrite,
-                                Pipes.PipeFlags.ReadSideAsync,
-                                readHandle: out standardOutputReadPipeHandle,
-                                writeHandle: out hStdOutput);
+                            if (useManagedPipeReader)
+                            {
+                                standardOutputPipeStream = Pipes.CreateNamedPipeServerStream(
+                                    PipeDirection.In,
+                                    PipeOptions.Asynchronous,
+                                    PipeOptions.None,
+                                    out hStdOutput);
+                            }
+                            else
+                            {
+                                Pipes.CreateInheritablePipe(
+                                    Pipes.PipeInheritance.InheritWrite,
+                                    Pipes.PipeFlags.ReadSideAsync,
+                                    readHandle: out standardOutputReadPipeHandle,
+                                    writeHandle: out hStdOutput);
+                            }
                         }
                         else
                         {
@@ -487,11 +504,22 @@ namespace BuildXL.Processes.Internal
 
                         if (m_errorDataReceived != null)
                         {
-                            Pipes.CreateInheritablePipe(
-                                Pipes.PipeInheritance.InheritWrite,
-                                Pipes.PipeFlags.ReadSideAsync,
-                                readHandle: out standardErrorReadPipeHandle,
-                                writeHandle: out hStdError);
+                            if (useManagedPipeReader)
+                            {
+                                standardErrorPipeStream = Pipes.CreateNamedPipeServerStream(
+                                    PipeDirection.In,
+                                    PipeOptions.Asynchronous,
+                                    PipeOptions.None,
+                                    out hStdError);
+                            }
+                            else
+                            {
+                                Pipes.CreateInheritablePipe(
+                                    Pipes.PipeInheritance.InheritWrite,
+                                    Pipes.PipeFlags.ReadSideAsync,
+                                    readHandle: out standardErrorReadPipeHandle,
+                                    writeHandle: out hStdError);
+                            }
                         }
                         else
                         {
@@ -657,6 +685,19 @@ namespace BuildXL.Processes.Internal
                         m_outputReader.BeginReadLine();
                     }
 
+                    if (standardOutputPipeStream != null)
+                    {
+                        m_outputReader = PipeReaderFactory.CreateManagedPipeReader(
+                            standardOutputPipeStream,
+                            message => m_outputDataReceived(message),
+                            m_standardOutputEncoding,
+                            m_bufferSize,
+                            // Force to use StreamReader based pipe reader because Pipeline one does not handle
+                            // different kinds of line endings.
+                            overrideKind: PipeReaderFactory.Kind.Stream);
+                        m_outputReader.BeginReadLine();
+                    }
+
                     if (standardErrorReadPipeHandle != null)
                     {
                         var standardErrorFile = AsyncFileFactory.CreateAsyncFile(
@@ -665,6 +706,19 @@ namespace BuildXL.Processes.Internal
                             ownsHandle: true,
                             kind: FileKind.Pipe);
                         m_errorReader = new AsyncPipeReader(standardErrorFile, m_errorDataReceived, m_standardErrorEncoding, m_bufferSize);
+                        m_errorReader.BeginReadLine();
+                    }
+
+                    if (standardErrorPipeStream != null)
+                    {
+                        m_errorReader = PipeReaderFactory.CreateManagedPipeReader(
+                            standardErrorPipeStream,
+                            message => m_errorDataReceived(message),
+                            m_standardErrorEncoding,
+                            m_bufferSize,
+                            // Force to use StreamReader based pipe reader because Pipeline one does not handle
+                            // different kinds of line endings.
+                            overrideKind: PipeReaderFactory.Kind.Stream);
                         m_errorReader.BeginReadLine();
                     }
 
@@ -825,7 +879,7 @@ namespace BuildXL.Processes.Internal
             {
                 if (!m_killed && !cancel)
                 {
-                    await m_outputReader.WaitUntilEofAsync();
+                    await m_outputReader.CompletionAsync(true);
                 }
 
                 m_outputReader.Dispose();
@@ -836,7 +890,7 @@ namespace BuildXL.Processes.Internal
             {
                 if (!m_killed && !cancel)
                 {
-                    await m_errorReader.WaitUntilEofAsync();
+                    await m_errorReader.CompletionAsync(true);
                 }
 
                 m_errorReader.Dispose();

@@ -21,7 +21,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         
     }
 
-    public interface IContentMetadataStore : IStartupShutdownSlim
+    public interface IContentMetadataStore : IMetadataStore, IStartupShutdownSlim
     {
         /// <summary>
         /// Gets the list of <see cref="ContentLocationEntry"/> for every hash specified by <paramref name="contentHashes"/> from a central store.
@@ -55,9 +55,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         /// Gets a value indicating whether the store supports storing and retrieving blobs.
         /// </summary>
         bool AreBlobsSupported { get; }
+    }
 
-        #region Memoization Operations
-
+    public interface IMetadataStore : IStartupShutdownSlim
+    {
         /// <nodoc />
         Task<Result<bool>> CompareExchangeAsync(
             OperationContext context,
@@ -70,7 +71,5 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 
         /// <nodoc />
         Task<Result<SerializedMetadataEntry>> GetContentHashListAsync(OperationContext context, StrongFingerprint strongFingerprint);
-
-        #endregion Memoization Operations
     }
 }

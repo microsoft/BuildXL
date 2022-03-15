@@ -118,6 +118,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
         /// <summary>
         /// Deserialize the value to json using <see cref="DefaultSerializationOptions"/>
         /// </summary>
+        public static ValueTask<T> JsonDeserializeAsync<T>(Stream value)
+        {
+            return JsonSerializer.DeserializeAsync<T>(value, DefaultSerializationOptions);
+        }
+
+        /// <summary>
+        /// Deserialize the value to json using <see cref="DefaultSerializationOptions"/>
+        /// </summary>
         public static ValueTask<T> JsonDeserializeAsync<T>(Stream stream, CancellationToken token = default)
         {
             return JsonSerializer.DeserializeAsync<T>(stream, DefaultSerializationOptions, token);

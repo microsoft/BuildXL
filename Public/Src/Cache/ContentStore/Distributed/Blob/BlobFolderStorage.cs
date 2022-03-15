@@ -4,8 +4,10 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.IO;
 using System.Linq;
 using System.Net;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -17,6 +19,7 @@ using BuildXL.Cache.ContentStore.Synchronization;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.ContentStore.Utils;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tasks;
 using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Blob;
@@ -194,6 +197,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                             Tracer.Debug(context, $"Waiting for {delay}");
                             await Task.Delay(delay, context.Token);
                         }
+
                         shouldWait = true;
 
                         var readResult = await ReadStateAsync<TState>(context, fileName);
@@ -286,20 +290,26 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         public Task<Result<State<TState>>> ReadStateAsync<TState>(OperationContext context, BlobName fileName)
         {
+            return ReadStateAsync(context, fileName, stream => JsonUtilities.JsonDeserializeAsync<TState>(stream));
+        }
+
+        public Task<Result<State<TState>>> ReadStateAsync<TState>(OperationContext context, BlobName fileName, Func<MemoryStream, ValueTask<TState>> readAsync)
+        {
+            long length = -1;
             return context.PerformOperationWithTimeoutAsync(
                 Tracer,
                 async (context) =>
                 {
                     var blob = GetBlockBlobReference(fileName);
 
+                    using var stream = new MemoryStream();
                     var downloadContext = new Microsoft.WindowsAzure.Storage.OperationContext();
-                    string jsonText;
                     try
                     {
-                        jsonText = await blob.DownloadTextAsync(
+                        await blob.DownloadToStreamAsync(
+                            target: stream,
                             operationContext: downloadContext,
                             cancellationToken: context.Token,
-                            encoding: Encoding.UTF8,
                             accessCondition: null,
                             options: DefaultBlobStorageRequestOptions);
                     }
@@ -308,10 +318,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         return Result.Success(new State<TState>());
                     }
 
-                    var value = JsonUtilities.JsonDeserialize<TState>(jsonText);
+                    length = stream.Length;
+                    stream.Position = 0;
+                    var value = await readAsync(stream);
                     return Result.Success(new State<TState>(downloadContext.LastResult.Etag, value));
                 },
-                extraEndMessage: (Func<Result<State<TState>>, string>?)(r =>
+                extraEndMessage: r =>
                 {
                     if (!r.Succeeded)
                     {
@@ -320,8 +332,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                     // We do not log the cluster state here because the file is too large and would spam the logs
                     var value = r.Value;
-                    return $"FileName=[{GetDisplayPath(fileName)}] ETag=[{value?.ETag ?? "null"}]";
-                }),
+                    return $"FileName=[{GetDisplayPath(fileName)}] ETag=[{value?.ETag ?? "null"}] Length=[{length}]";
+                },
                 traceOperationStarted: false,
                 timeout: _configuration.StorageInteractionTimeout);
         }
@@ -333,27 +345,84 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             string? etag,
             int attempt)
         {
+            return CompareUpdateContentAsync(
+                context,
+                fileName,
+                () =>
+                {
+                    var jsonText = (value is string text) ? text : JsonUtilities.JsonSerialize(value, indent: true);
+                    var stream = new MemoryStream(Encoding.UTF8.GetBytes(jsonText));
+                    return stream;
+                },
+                etag,
+                attempt);
+        }
+
+        public Task<Result<bool>> CompareUpdateContentAsync(
+            OperationContext context,
+            BlobName fileName,
+            Func<Stream> getValue,
+            string? etag,
+            int attempt,
+            [CallerMemberName] string? caller = null)
+        {
+            long length = -1;
             return context.PerformOperationWithTimeoutAsync(
                 Tracer,
                 async (context) =>
                 {
-                    var jsonText = (value is string text) ? text : JsonUtilities.JsonSerialize(value, indent: true);
-
                     var reference = GetBlockBlobReference(fileName);
                     var accessCondition = etag == AlwaysEtag ? AccessCondition.GenerateEmptyCondition() :
-                        etag is null ?
+                        string.IsNullOrEmpty(etag) ?
                             AccessCondition.GenerateIfNotExistsCondition() :
                             AccessCondition.GenerateIfMatchCondition(etag);
 
                     try
                     {
-                        return await upload(context, reference, jsonText, etag, accessCondition);
+                        return await uploadAsync();
                     }
                     catch (StorageException exception) when (exception.RequestInformation.HttpStatusCode == (int)HttpStatusCode.NotFound
                                                              && exception.RequestInformation.ErrorCode == "ContainerNotFound")
                     {
                         await EnsureContainerExists(context).ThrowIfFailureAsync();
-                        return await upload(context, reference, jsonText, etag, accessCondition);
+                        return await uploadAsync();
+                    }
+
+                    async Task<Result<bool>> uploadAsync()
+                    {
+                        var value = getValue();
+                        length = value.Length;
+
+                        try
+                        {
+                            await reference.UploadFromStreamAsync(
+                                value,
+                                accessCondition: accessCondition,
+                                options: DefaultBlobStorageRequestOptions,
+                                operationContext: null,
+                                context.Token);
+                        }
+                        catch (StorageException exception)
+                        {
+                            // We obtain PreconditionFailed when If-Match fails, and NotModified when If-None-Match fails
+                            // (corresponds to IfNotExistsCondition)
+                            if (exception.RequestInformation.HttpStatusCode == (int)HttpStatusCode.PreconditionFailed
+                                || exception.RequestInformation.HttpStatusCode == (int)HttpStatusCode.NotModified
+                                // Used only in the development storage case
+                                || exception.RequestInformation.ErrorCode == "BlobAlreadyExists")
+                            {
+                                Tracer.Debug(
+                                    context,
+                                    exception,
+                                    $"Value does not exist or does not match ETag `{etag ?? "null"}`. Reported ETag is `{exception.RequestInformation.Etag ?? "null"}`");
+                                return Result.Success(false);
+                            }
+
+                            throw;
+                        }
+
+                        // Uploaded successfully, so we overwrote the previous value
+                        return Result.Success(true);
                     }
                 },
                 traceOperationStarted: false,
@@ -366,44 +435,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         return msg;
                     }
 
-                    return $"{msg} Exchanged=[{r.Value}]";
+                    return $"{msg} Exchanged=[{r.Value}] Length=[{length}]";
                 },
-                timeout: _configuration.StorageInteractionTimeout);
-
-            async Task<Result<bool>> upload(OperationContext context, CloudBlockBlob reference, string jsonText, string? etag, AccessCondition accessCondition)
-            {
-                try
-                {
-                    await reference.UploadTextAsync(
-                        jsonText,
-                        Encoding.UTF8,
-                        accessCondition: accessCondition,
-                        options: DefaultBlobStorageRequestOptions,
-                        operationContext: null,
-                        context.Token);
-                }
-                catch (StorageException exception)
-                {
-                    // We obtain PreconditionFailed when If-Match fails, and NotModified when If-None-Match fails
-                    // (corresponds to IfNotExistsCondition)
-                    if (exception.RequestInformation.HttpStatusCode == (int)HttpStatusCode.PreconditionFailed
-                        || exception.RequestInformation.HttpStatusCode == (int)HttpStatusCode.NotModified
-                        // Used only in the development storage case
-                        || exception.RequestInformation.ErrorCode == "BlobAlreadyExists")
-                    {
-                        Tracer.Debug(
-                            context,
-                            exception,
-                            $"Value does not exist or does not match ETag `{etag ?? "null"}`. Reported ETag is `{exception.RequestInformation.Etag ?? "null"}`");
-                        return Result.Success(false);
-                    }
-
-                    throw;
-                }
-
-                // Uploaded successfully, so we overwrote the previous value
-                return Result.Success(true);
-            }
+                timeout: _configuration.StorageInteractionTimeout,
+                caller: caller);
         }
 
         private CloudBlockBlob GetBlockBlobReference(BlobName fileName)
@@ -421,28 +456,106 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Lists blobs in folder
         /// </summary>
-        public async IAsyncEnumerable<BlobName> ListBlobsAsync(
+        public IAsyncEnumerable<BlobName> ListBlobsAsync(
             OperationContext context,
-            Regex? regex = null)
+            Regex? regex = null,
+            string? subDirectoryPath = null,
+            int? maxResults = null)
+        {
+            return ListBlobsCoreAsync(context, regex, subDirectoryPath, maxResults: maxResults).Select(blob => BlobName.CreateAbsolute(blob.Name));
+        }
+
+        /// <summary>
+        /// Lists blobs in folder ordered by last access or write time
+        /// </summary>
+        public async Task<IReadOnlyList<BlobName>> ListLruOrderedBlobsAsync(
+            OperationContext context,
+            int maxResults,
+            Regex? regex = null,
+            string? subDirectoryPath = null)
+        {
+            var blobs = await ListBlobsCoreAsync(
+                context,
+                regex,
+                subDirectoryPath,
+                getMetadata: true,
+                maxResults: maxResults).ToListAsync();
+
+            blobs.Sort(LruCompareBlobs);
+
+            return blobs.SelectList(blob => BlobName.CreateAbsolute(blob.Name));
+        }
+
+        private int LruCompareBlobs(CloudBlob x, CloudBlob y)
+        {
+            return GetLastAccessTime(x).CompareTo(GetLastAccessTime(y));
+        }
+
+        private DateTimeOffset GetLastAccessTime(CloudBlob b)
+        {
+            var lastModified = b.Properties.LastModified;
+
+            // NOTE: Last access time is modified on a day granularity by blob lifetime management in blob store
+            if (b.Metadata.TryGetValue("LastAccessTime", out var lastAccessTimeMetadata)
+                && DateTimeOffset.TryParse(lastAccessTimeMetadata, out var lastAccessTime))
+            {
+                if (lastModified > lastAccessTime)
+                {
+                    return lastModified.Value;
+                }
+                else
+                {
+                    return lastAccessTime;
+                }
+            }
+
+            return lastModified ?? DateTimeOffset.MinValue;
+        }
+
+        /// <summary>
+        /// Lists blobs in folder
+        /// </summary>
+        private async IAsyncEnumerable<CloudBlob> ListBlobsCoreAsync(
+            OperationContext context,
+            Regex? regex = null,
+            string? subDirectoryPath = null,
+            bool getMetadata = false,
+            int? maxResults = null)
         {
             BlobContinuationToken? continuation = null;
+
             while (!context.Token.IsCancellationRequested)
             {
-                var blobs = await Directory.ListBlobsSegmentedAsync(
-                    useFlatBlobListing: true,
-                    blobListingDetails: BlobListingDetails.None,
-                    maxResults: null,
-                    currentToken: continuation,
-                    options: null,
-                    operationContext: null,
-                    cancellationToken: context.Token);
+                var directory = Directory;
+                if (subDirectoryPath != null)
+                {
+                    directory = directory.GetDirectoryReference(subDirectoryPath);
+                }
+
+                var blobs = await context.PerformOperationWithTimeoutAsync(
+                    Tracer,
+                    async context =>
+                    {
+                        var result = await directory.ListBlobsSegmentedAsync(
+                            useFlatBlobListing: true,
+                            blobListingDetails: getMetadata ? BlobListingDetails.Metadata : BlobListingDetails.None,
+                            maxResults: maxResults,
+                            currentToken: continuation,
+                            options: null,
+                            operationContext: null,
+                            cancellationToken: context.Token);
+                        return Result.Success(result);
+                    },
+                    timeout: _configuration.StorageInteractionTimeout,
+                    extraEndMessage: r => $"ItemCount={r.GetValueOrDefault()?.Results.Count()}").ThrowIfFailureAsync();
+
                 continuation = blobs.ContinuationToken;
 
-                foreach (CloudBlockBlob blob in blobs.Results.OfType<CloudBlockBlob>())
+                foreach (CloudBlob blob in blobs.Results.OfType<CloudBlob>())
                 {
                     if (regex is null || regex.IsMatch(blob.Name))
                     {
-                        yield return BlobName.CreateAbsolute(blob.Name);
+                        yield return blob;
                     }
                 }
 

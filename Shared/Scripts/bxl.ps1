@@ -130,6 +130,9 @@ param(
     [Parameter(Mandatory=$false)]
     [switch]$UseVfs = $false,
 
+    [Parameter(Mandatory=$false)]
+    [switch]$UseBlobL3 = $false,
+
     [string]$VsoAccount = "mseng",
 
     [string]$CacheNamespace = "BuildXLSelfhost",
@@ -433,7 +436,16 @@ function Get-CacheConfig {
         $remoteCache.Add("UseDedupStore", $true);
     }
 
-    return @{
+    if ($UseBlobL3) {
+        $remoteCache = @{
+            Assembly = "BuildXL.Cache.MemoizationStoreAdapter";
+            Type = "BuildXL.Cache.MemoizationStoreAdapter.BlobCacheFactory";
+            CacheId = "L3Cache";
+            CacheLogPath = "[BuildXLSelectedLogPath].Remote.log";
+        };
+    }
+
+    $resultCache = @{
         Assembly = "BuildXL.Cache.VerticalAggregator";
         Type = "BuildXL.Cache.VerticalAggregator.VerticalCacheAggregatorFactory";
         RemoteIsReadOnly = !($PublishToSharedCache);
@@ -441,6 +453,12 @@ function Get-CacheConfig {
         RemoteCache = $remoteCache;
         RemoteConstructionTimeoutMilliseconds = 5000;
     };
+
+    if ($UseBlobL3) {
+        $resultCache.RemoteContentIsReadOnly = $true
+    }
+
+    return $resultCache;
 }
 
 function Call-Subst {

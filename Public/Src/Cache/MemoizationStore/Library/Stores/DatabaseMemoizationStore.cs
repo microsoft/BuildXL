@@ -49,6 +49,12 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         protected string Component => Tracer.Name;
 
         /// <summary>
+        /// Indicates calls to <see cref="AddOrGetContentHashListAsync"/> should do an optimistic write (via CompareExchange) assuming
+        /// that content is not present for initial attempt.
+        /// </summary>
+        public bool OptimizeWrites { get; set; } = false;
+
+        /// <summary>
         ///     Initializes a new instance of the <see cref="DatabaseMemoizationStore"/> class.
         /// </summary>
         public DatabaseMemoizationStore(MemoizationDatabase database)
@@ -140,18 +146,20 @@ namespace BuildXL.Cache.MemoizationStore.Stores
                 // of this implementation, and this may fail if the database is heavily contended.
                 // Unfortunately, there is not much we can do at the time of writing to avoid this
                 // requirement.
-                var maxAttempts = 5;
-                while (maxAttempts-- >= 0)
+                const int MaxAttempts = 5;
+                for (int attempt = 0; attempt < MaxAttempts; attempt++)
                 {
                     var contentHashList = contentHashListWithDeterminism.ContentHashList;
                     var determinism = contentHashListWithDeterminism.Determinism;
 
                     // Load old value. Notice that this get updates the time, regardless of whether we replace the value or not.
-                    var (oldContentHashListInfo, replacementToken, _) = await Database.GetContentHashListAsync(
-                        ctx,
-                        strongFingerprint,
-                        // Prefer shared result because conflicts are resolved at shared level
-                        preferShared: true).ThrowIfFailureAsync();
+                    var (oldContentHashListInfo, replacementToken, _) = (!OptimizeWrites || attempt > 0)
+                        ? await Database.GetContentHashListAsync(
+                            ctx,
+                            strongFingerprint,
+                            // Prefer shared result because conflicts are resolved at shared level
+                            preferShared: true).ThrowIfFailureAsync()
+                        : new ContentHashListResult(default(ContentHashListWithDeterminism), string.Empty);
 
                     var oldContentHashList = oldContentHashListInfo.ContentHashList;
                     var oldDeterminism = oldContentHashListInfo.Determinism;

@@ -76,6 +76,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
             // Do nothing, since operation isn't supported in Redis.
             return Task.FromResult(0);
         }
+
         public override Task EnumerateStrongFingerprintsEmpty()
         {
             // Do nothing, since operation isn't supported in Redis.

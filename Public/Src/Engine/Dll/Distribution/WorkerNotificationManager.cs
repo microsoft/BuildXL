@@ -403,6 +403,7 @@ namespace BuildXL.Engine.Distribution
                         // Fire-forget exit call with failure.
                         // If we fail to send notification to orchestrator and we were not cancelled, the worker should fail.
                         m_executionLogTarget.Deactivate();
+                        m_uncleanExit = true;
                         DistributionService.ExitAsync(failure: "Notify event failed to send to orchestrator", isUnexpected: true).Forget();
                         break;
                     }

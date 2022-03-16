@@ -1113,6 +1113,53 @@ int CallMoveFileExWWithTrailingBackSlashNtEscape()
     return CallMoveFileExWWithTrailingBackSlash(fullPath);
 }
 
+int CreateStream(LPCWSTR fileName)
+{
+    wstring fullStreamPath;
+
+    if (!TryGetNtEscapedFullPath(fileName, fullStreamPath))
+    {
+        wprintf(L"Unable to get full path for file '%s'.", fileName);
+        return (int)GetLastError();
+    }
+
+    HANDLE hStream = CreateFile(fullStreamPath.c_str(), // Filename
+        GENERIC_WRITE,                                  // Desired access
+        FILE_SHARE_WRITE,                               // Share flags
+        NULL,                                           // Security Attributes
+        OPEN_ALWAYS,                                    // Creation Disposition
+        0,                                              // Flags and Attributes
+        NULL);                                          // OVERLAPPED pointer
+
+    if (hStream != INVALID_HANDLE_VALUE)
+    {
+        CloseHandle(hStream);
+        return 0;
+    }
+
+    return (int)GetLastError();
+}
+
+//Tests handling of newline characters in filenames when sending reports.
+int CallCreateFileWithNewLineCharacters()
+{
+    // CODESYNC: Public/Src/Engine/UnitTests/Processes.Detours/PipExecutorDetoursTest.cs
+    // Filenames should be in sync with SandboxedProcessPipExecutorTest.CallCreateFileWithNewLineCharacters
+    LPCWSTR filenames[] = { L"testfile:test\r\nstream", L"testfile:test\rstream", L"testfile:test\nstream", L"testfile:\rteststream\n", L"testfile:\r\ntest\r\n\r\n\r\nstream\r\n" };
+
+    for (LPCWSTR filename : filenames)
+    {
+        int result = CreateStream(filename);
+        if (result != 0) 
+        {
+            // Error should already be logged
+            return result;
+        }
+    }
+
+    return 0;
+}
+
 // ----------------------------------------------------------------------------
 // STATIC FUNCTION DEFINITIONS
 // ----------------------------------------------------------------------------
@@ -1156,6 +1203,7 @@ static void GenericTests(const string& verb)
     IF_COMMAND(CallCreateSelfForWrite);
     IF_COMMAND(CallMoveFileExWWithTrailingBackSlashNtObject);
     IF_COMMAND(CallMoveFileExWWithTrailingBackSlashNtEscape);
+    IF_COMMAND(CallCreateFileWithNewLineCharacters);
 
 #undef IF_COMMAND1
 #undef IF_COMMAND2

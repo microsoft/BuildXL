@@ -694,6 +694,13 @@ namespace BuildXL.Processes
                 return true;
             }
 
+            if (OperatingSystemHelper.IsWindowsOS)
+            {
+                // CODESYNC: Public/Src/Sandbox/Windows/DetoursServices/SendReport.cpp
+                // Handle escaped \r\n characters in path
+                path = path.Replace("/\\r", "\r").Replace("/\\n", "\n");
+            }
+
             // If there is a listener registered and notifications allowed, notify over the interface.
             if (m_detoursEventListener != null && (m_detoursEventListener.GetMessageHandlingFlags() & MessageHandlingFlags.FileAccessNotify) != 0)
             {

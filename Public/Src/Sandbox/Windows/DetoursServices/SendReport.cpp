@@ -56,6 +56,45 @@ void SendReportString(_In_z_ wchar_t const* dataString)
     SetLastError(lastError);
 }
 
+/**
+ ** Escapes new line characters from filenames by replacing the \ with \\
+ ** Returns true if the filename needed to be escaped, with the escaped name set in escapedFileName.
+ **
+ ** CODESYNC: Public/Src/Engine/Processes/SandboxedProcessReports.cs
+ */
+bool EscapeFileName(PCWSTR fileName, size_t fileNameLength, std::wstring &escapedFileName)
+{
+    size_t escapeCharIndex = wcscspn(fileName, L"\r\n"); // Returns the length of fileName if \r or \n not found.
+    if (escapeCharIndex < fileNameLength)
+    {
+        size_t startIndex = 0;
+
+        while (startIndex < fileNameLength)
+        {
+            // Append the part of the string from the starting index up to the character to be escaped.
+            escapedFileName.append(fileName, startIndex, escapeCharIndex);
+
+            // Escape \r or \n
+            switch (fileName[startIndex + escapeCharIndex])
+            {
+                case L'\r':
+                    escapedFileName.append(L"/\\r");
+                    break;
+                case L'\n':
+                    escapedFileName.append(L"/\\n");
+                    break;
+            }
+
+            startIndex += escapeCharIndex + 1;
+            escapeCharIndex = startIndex < fileNameLength ? wcscspn(&fileName[startIndex], L"\r\n") : 0;
+        }
+
+        return true;
+    }
+
+    return false;
+}
+
 // ----------------------------------------------------------------------------
 // FUNCTION DEFINITIONS
 // ----------------------------------------------------------------------------
@@ -74,6 +113,7 @@ void ReportFileAccess(
     }
 
     PCWSTR fileName, filterStr;
+    std::wstring escapedFileName;
 
     if (policyResult.IsIndeterminate()) {
         fileName = fileOperationContext.NoncanonicalPath;
@@ -84,6 +124,14 @@ void ReportFileAccess(
 
     if (fileName == nullptr) {
         fileName = L"";
+    }
+
+    size_t fileNameLength = wcslen(fileName); // in characters
+
+    if (EscapeFileName(fileName, fileNameLength, escapedFileName))
+    {
+        fileName = escapedFileName.c_str();
+        fileNameLength = wcslen(fileName);
     }
 
     if (filter == nullptr || accessCheckResult.Access != RequestedAccess::Enumerate) {
@@ -97,7 +145,6 @@ void ReportFileAccess(
         g_currentProcessCommandLine = L"";
     }
 
-    size_t fileNameLength = wcslen(fileName); // in characters
     size_t filterLength = wcslen(filterStr); // in characters
     size_t fileProcessCommandLineLength = wcslen(g_currentProcessCommandLine); // in characters
     size_t operationLen = wcslen(fileOperationContext.Operation); // in characters

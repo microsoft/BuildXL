@@ -7696,6 +7696,50 @@ namespace Test.BuildXL.Processes.Detours
             }
         }
 
+        [Fact]
+        public async Task CallCreateFileWithNewLineCharacters()
+        {
+            var context = BuildXLContext.CreateInstanceForTesting();
+            var pathTable = context.PathTable;
+
+            using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory))
+            {
+                var process = CreateDetourProcess(
+                    context,
+                    pathTable,
+                    tempFiles,
+                    argumentStr: "CallCreateFileWithNewLineCharacters",
+                    inputFiles: ReadOnlyArray<FileArtifact>.Empty,
+                    inputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
+                    outputFiles: ReadOnlyArray<FileArtifactWithAttributes>.Empty,
+                    outputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
+                    untrackedScopes: ReadOnlyArray<AbsolutePath>.Empty);
+
+                SandboxedProcessPipExecutionResult result = await RunProcessAsync(
+                    pathTable: pathTable,
+                    ignoreSetFileInformationByHandle: false,
+                    ignoreZwRenameFileInformation: false,
+                    monitorNtCreate: true,
+                    ignoreReparsePoints: false,
+                    disableDetours: false,
+                    context: context,
+                    pip: process,
+                    errorString: out _);
+
+                VerifyNormalSuccess(context, result);
+
+                // CODESYNC: Public/Src/Sandbox/Windows/DetoursTests/Main.cpp
+                // Filenames should be the same as the ones created in CallCreateFileWithNewLineCharacters
+                string[] filenames = { "testfile:test\r\nstream", "testfile:test\rstream", "testfile:test\nstream", "testfile:\rteststream\n", "testfile:\r\ntest\r\n\r\n\r\nstream\r\n" };
+                var testPaths = result.AllReportedFileAccesses.Select(access => access.Path).Where(path => path != null && path.Contains("testfile:")).ToList();
+
+                foreach (var filename in filenames)
+                {
+                    XAssert.IsTrue(testPaths.FindIndex(0, path => path != null && path.EndsWith(filename)) != -1, $"Could not find filename '{filename.Replace("\n", "\\n").Replace("\r", "\\r")}' in reported file acesses.");
+                }
+            }
+        }
+
         private static Process CreateDetourProcess(
             BuildXLContext context,
             PathTable pathTable,

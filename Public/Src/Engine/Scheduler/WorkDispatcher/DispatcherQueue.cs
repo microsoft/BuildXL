@@ -18,7 +18,17 @@ namespace BuildXL.Scheduler.WorkDispatcher
     public class DispatcherQueue : IDisposable
     {
 #if NET_COREAPP_60
-        private System.Collections.Generic.PriorityQueue<RunnablePip, int> m_queue = new System.Collections.Generic.PriorityQueue<RunnablePip, int>();
+        private sealed class ReverseIntegerComparer : IComparer<int>
+        {
+            /// <nodoc/>
+            public int Compare(int x, int y)
+            {
+                return y.CompareTo(x);
+            }
+        }
+
+        // C# PriorityQueue dequeues the lowest priority the first unlike our custom PriorityQueue. We pass a custom comparer to reverse this behavior.
+        private System.Collections.Generic.PriorityQueue<RunnablePip, int> m_queue = new System.Collections.Generic.PriorityQueue<RunnablePip, int>(new ReverseIntegerComparer());
         private object m_lock = new object();
 #else
         private PriorityQueue<RunnablePip> m_queue = new PriorityQueue<RunnablePip>();

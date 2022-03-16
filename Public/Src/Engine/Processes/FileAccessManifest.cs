@@ -83,7 +83,7 @@ namespace BuildXL.Processes
             HardExitOnErrorInDetours = false;
             CheckDetoursMessageCount = false;
             InternalDetoursErrorNotificationFile = string.Empty;
-            QBuildIntegrated = false;
+            UseLargeEnumerationBuffer = false;
             PipId = 0L;
             EnforceAccessPoliciesOnDirectoryCreation = false;
             IgnoreCreateProcessReport = false;
@@ -407,13 +407,29 @@ namespace BuildXL.Processes
         }
 
         /// <summary>
-        /// True when the sandbox is integrated in QBuild. False otherwise.
+        /// Previously used to provide some specific handling for QuickBuild builds when QuickBuild started to use BuildXL sandbox.
         /// </summary>
-        /// <remarks>Note: this is only an option that is set programmatically. Not controlled by a command line option.</remarks>
+        [Obsolete("Deprecated")]
         public bool QBuildIntegrated
         {
-            get => GetFlag(FileAccessManifestFlag.QBuildIntegrated);
-            set => SetFlag(FileAccessManifestFlag.QBuildIntegrated, value);
+            get;
+            set;
+        }
+
+        /// <summary>
+        /// Use large buffer for directory enumeration using NtQueryDirectoryFile or FindFirstFileEx.
+        /// </summary>
+        /// <remarks>
+        /// Due to bug in ProjFs, directory enumerations by NtQueryDirectoryFile and FindFirstFileEx requires a large
+        /// buffer for filling in enumeration results; otherwise directory enumerations can be incomplete.
+        /// 
+        /// BUG: https://microsoft.visualstudio.com/OS/_workitems/edit/38539442
+        /// TODO: Deprecate this flag once the bug is resolved.
+        /// </remarks>
+        public bool UseLargeEnumerationBuffer
+        {
+            get => GetFlag(FileAccessManifestFlag.UseLargeEnumerationBuffer);
+            set => SetFlag(FileAccessManifestFlag.UseLargeEnumerationBuffer, value);
         }
 
         /// <summary>
@@ -1141,7 +1157,7 @@ namespace BuildXL.Processes
             MonitorZwCreateOpenQueryFile = 0x800000,
             IgnoreNonCreateFileReparsePoints = 0x1000000,
             IgnoreCreateProcessReport = 0x2000000,
-            QBuildIntegrated = 0x4000000,
+            UseLargeEnumerationBuffer = 0x4000000,
             IgnorePreloadedDlls = 0x8000000,
             EnforceAccessPoliciesOnDirectoryCreation = 0x10000000,
             ProbeDirectorySymlinkAsDirectory = 0x20000000,

@@ -436,7 +436,7 @@ namespace BuildXL.Processes
         /// </summary>
         public byte[] GetUnicodeEnvironmentBlock()
         {
-            return m_environmentBlock ?? (m_environmentBlock = ProcessUtilities.SerializeEnvironmentBlock(EnvironmentVariables?.ToDictionary()));
+            return m_environmentBlock ??= ProcessUtilities.SerializeEnvironmentBlock(EnvironmentVariables?.ToDictionary());
         }
 
         /// <summary>

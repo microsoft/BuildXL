@@ -255,7 +255,6 @@ namespace BuildXL.Processes
             AbsolutePath buildEngineDirectory = default,
             DirectoryTranslator directoryTranslator = null,
             int remainingUserRetryCount = 0,
-            bool isQbuildIntegrated = false,
             VmInitializer vmInitializer = null,
             IRemoteProcessManager remoteProcessManager = null,
             SubstituteProcessExecutionInfo shimInfo = null,
@@ -316,7 +315,6 @@ namespace BuildXL.Processes
                     // SemiStableHash is 0 for pips with no provenance;
                     // since multiple pips can have no provenance, SemiStableHash is not always unique across all pips
                     PipId = m_pip.SemiStableHash != 0 ? m_pip.SemiStableHash : m_pip.PipId.Value,
-                    QBuildIntegrated = isQbuildIntegrated,
                     IgnoreCreateProcessReport = m_sandboxConfig.UnsafeSandboxConfiguration.IgnoreCreateProcessReport,
                     ProbeDirectorySymlinkAsDirectory = m_sandboxConfig.UnsafeSandboxConfiguration.ProbeDirectorySymlinkAsDirectory,
                     SubstituteProcessExecutionInfo = shimInfo,
@@ -1205,6 +1203,11 @@ namespace BuildXL.Processes
             }
 
             info.RemoteSandboxedProcessData = m_remoteSbDataBuilder.Build();
+
+            // Due to bug in ProjFs, process remoting requires using large buffer for doing enumeration.
+            // BUG: https://microsoft.visualstudio.com/OS/_workitems/edit/38539442
+            // TODO: Remove this once the bug is resolved.
+            info.FileAccessManifest.UseLargeEnumerationBuffer = true;
         }
 
         private void PopulateExternalVMSandboxedProcessData(SandboxedProcessInfo info)

@@ -30,10 +30,9 @@ using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;
 
 namespace Test.BuildXL.Processes.Detours
 {
-    /* TODO: This class tests symlink / junction behavior from before /unsafe_IgnoreFullReparsePointResolving was introduced and makes
-             sure we don't break compatibility for our partners relying on this. Once directory symlink support is the default,
-             these tests need to be adjusted.
-     */
+    // TODO: This class tests symlink / junction behavior from before /unsafe_IgnoreFullReparsePointResolving was introduced and makes
+    //       sure we don't break compatibility for our partners relying on this. Once directory symlink support is the default,
+    //       these tests need to be adjusted.
 
     [TestClassIfSupported(requiresWindowsBasedOperatingSystem: true)]
     public sealed partial class SandboxedProcessPipExecutorTest
@@ -87,7 +86,6 @@ namespace Test.BuildXL.Processes.Detours
             bool ignoreZwOtherFileInformation = true,
             bool monitorZwCreateOpenQueryFile = false,
             bool ignoreNonCreateFileReparsePoints = true,
-            bool isQuickBuildIntegrated = false,
             bool ignorePreloadedDlls = true,
             bool enforceAccessPoliciesOnDirectoryCreation = false,
             bool probeDirectorySymlinkAsDirectory = false,
@@ -167,7 +165,6 @@ namespace Test.BuildXL.Processes.Detours
                 directoryArtifactContext: TestDirectoryArtifactContext.Empty,
                 buildEngineDirectory: binDirectory,
                 directoryTranslator: directoryTranslator,
-                isQbuildIntegrated: isQuickBuildIntegrated,
                 tempDirectoryCleaner: MoveDeleteCleaner,
                 detoursListener: detoursListener).RunAsync(sandboxConnection: GetSandboxConnection());
         }
@@ -5126,8 +5123,7 @@ namespace Test.BuildXL.Processes.Detours
                     ignoreReparsePoints: false,
                     context: context,
                     pip: pip,
-                    errorString: out errorString,
-                    isQuickBuildIntegrated: true);
+                    errorString: out errorString);
 
                 VerifyNormalSuccess(context, result);
 

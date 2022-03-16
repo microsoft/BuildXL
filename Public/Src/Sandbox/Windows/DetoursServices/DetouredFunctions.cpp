@@ -36,6 +36,8 @@ using std::wstring;
 #define _MAX_EXTENDED_PATH_LENGTH 32768 // see https://docs.microsoft.com/en-us/cpp/c-runtime-library/path-field-limits?view=vs-2019
 #define _MAX_EXTENDED_DIR_LENGTH (_MAX_EXTENDED_PATH_LENGTH - _MAX_DRIVE - _MAX_FNAME - _MAX_EXT - 4)
 
+#define NTQUERYDIRECTORYFILE_MIN_BUFFER_SIZE 2048
+
 static bool IgnoreFullReparsePointResolvingForPath(const PolicyResult& policyResult)
 {
     return IgnoreFullReparsePointResolving() && !policyResult.EnableFullReparsePointParsing();
@@ -4695,6 +4697,11 @@ HANDLE WINAPI Detoured_FindFirstFileExW(
     __reserved LPVOID             lpSearchFilter,
     _In_       DWORD              dwAdditionalFlags)
 {
+    if (ShouldUseLargeEnumerationBuffer())
+    {
+        dwAdditionalFlags |= FIND_FIRST_EX_LARGE_FETCH;
+    }
+
     DetouredScope scope;
     if (scope.Detoured_IsDisabled() ||
         IsNullOrEmptyW(lpFileName) ||
@@ -4750,6 +4757,11 @@ HANDLE WINAPI Detoured_FindFirstFileExA(
 {
     // TODO: Note that we can't simply forward to FindFirstFileW here after a unicode conversion.
     // The output value differs too - WIN32_FIND_DATA{A, W}
+
+    if (ShouldUseLargeEnumerationBuffer())
+    {
+        dwAdditionalFlags |= FIND_FIRST_EX_LARGE_FETCH;
+    }
 
     return Real_FindFirstFileExA(
         lpFileName,
@@ -5897,6 +5909,7 @@ NTSTATUS NTAPI Detoured_NtQueryDirectoryFile(
 
         // See if the handle is known
         overlay = TryLookupHandleOverlay(FileHandle);
+        
         if (overlay == nullptr || overlay->EnumerationHasBeenReported)
         {
             noDetour = true;
@@ -5914,19 +5927,35 @@ NTSTATUS NTAPI Detoured_NtQueryDirectoryFile(
         }
     }
 
+    PVOID buffer = FileInformation;
+    ULONG bufferSize = Length;
+    std::unique_ptr<char[]> largerBuffer;
+
+    if (ShouldUseLargeEnumerationBuffer() && Length < NTQUERYDIRECTORYFILE_MIN_BUFFER_SIZE)
+    {
+        largerBuffer = std::make_unique<char[]>(NTQUERYDIRECTORYFILE_MIN_BUFFER_SIZE);
+        buffer = largerBuffer.get();
+        bufferSize = NTQUERYDIRECTORYFILE_MIN_BUFFER_SIZE;
+    }
+
     NTSTATUS result = Real_NtQueryDirectoryFile(
             FileHandle,
             Event,
             ApcRoutine,
             ApcContext,
             IoStatusBlock,
-            FileInformation,
-            Length,
+            buffer,
+            bufferSize,
             FileInformationClass,
             ReturnSingleEntry,
             FileName,
             RestartScan
             );
+
+    if (buffer != FileInformation)
+    {
+        memcpy_s(FileInformation, Length, buffer, Length);
+    }
 
     // If we should not or cannot get info on the directory, we are done
     if (!noDetour)
@@ -6044,19 +6073,35 @@ NTSTATUS NTAPI Detoured_ZwQueryDirectoryFile(
         }
     }
 
+    PVOID buffer = FileInformation;
+    ULONG bufferSize = Length;
+    std::unique_ptr<char[]> largerBuffer;
+
+    if (ShouldUseLargeEnumerationBuffer() && Length < NTQUERYDIRECTORYFILE_MIN_BUFFER_SIZE)
+    {
+        largerBuffer = std::make_unique<char[]>(NTQUERYDIRECTORYFILE_MIN_BUFFER_SIZE);
+        buffer = largerBuffer.get();
+        bufferSize = NTQUERYDIRECTORYFILE_MIN_BUFFER_SIZE;
+    }
+
     NTSTATUS result = Real_ZwQueryDirectoryFile(
         FileHandle,
         Event,
         ApcRoutine,
         ApcContext,
         IoStatusBlock,
-        FileInformation,
-        Length,
+        buffer,
+        bufferSize,
         FileInformationClass,
         ReturnSingleEntry,
         FileName,
         RestartScan
     );
+
+    if (buffer != FileInformation)
+    {
+        memcpy_s(FileInformation, Length, buffer, Length);
+    }
 
     // If we should not or cannot get info on the directory, we are done
     if (!noDetour)

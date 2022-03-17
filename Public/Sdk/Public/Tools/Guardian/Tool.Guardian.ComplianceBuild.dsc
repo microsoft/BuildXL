@@ -56,7 +56,7 @@ export function runComplianceBuildOnEntireRepository(guardianToolRoot : StaticDi
     // Package directory must be partially sealed first
     const packageDirectory : StaticDirectory = Transformer.sealPartialDirectory(
         d`${guardianDrop}/packages`,
-        globR(d`${guardianDrop}/packages`, "*"),
+        globR(d`${guardianDrop}/packages`, "*").filter(file => file.extension !== a`rex`), // This avoid sealing the .lite.rex files for CredScan to avoid double writes
         [guardianTag],
         "Seal Guardian package directory"
     );
@@ -152,7 +152,8 @@ function addCredScanCalls(rootDirectory : Directory, guardianToolRoot : StaticDi
                 /*processRetries*/3,
                 /*pathDirectories*/undefined,
                 /*additionalOutputs*/undefined,
-                /*untrackedPaths*/undefined)
+                /*untrackedPaths*/undefined,
+                /*untrackedScopes*/[d`${packageDirectory.path}/nuget/Microsoft.Security.CredScan.Client.2.2.9.6-preview/lib/netcoreapp3.1/SRM`])
             );
 
             files = [];
@@ -228,7 +229,8 @@ function addGuardianEsLintCalls(rootDirectory : Directory, guardianToolRoot : St
             [<Transformer.FileOrPathOutput>{ existence: "optional", artifact: f`${workingDirectory.path}/.eslintcache`}],
             // It is necessary to untrack the package.json files except for the main package.json file due to the cascading configuration feature reading these files outside of the provided scope
             // https://eslint.org/docs/user-guide/configuring/configuration-files#cascading-and-hierarchy
-            packageJsonFiles.filter(file => file !== packageJsonFiles[packageIndex]))
+            packageJsonFiles.filter(file => file !== packageJsonFiles[packageIndex]),
+            /*untrackedScopes*/undefined)
         );
     }
 
@@ -255,7 +257,8 @@ function createGuardianCall(
     processRetries: number,
     pathDirectories: Directory[],
     additionalOutputs: Transformer.Output[],
-    untrackedPaths: (File | Directory)[])
+    untrackedPaths: (File | Directory)[],
+    untrackedScopes: Directory[])
     : Transformer.ExecuteResult {
 
     const baselines = glob(complianceBaselineSuppressionLocation, "*.gdnbaselines");
@@ -283,7 +286,8 @@ function createGuardianCall(
         environmentVariables: environmentVariables,
         pathDirectories: pathDirectories,
         additionalOutputs: additionalOutputs,
-        untrackedPaths: untrackedPaths
+        untrackedPaths: untrackedPaths,
+        untrackedScopes: untrackedScopes
     };
 
     const guardianResult = runGuardian(guardianArgs);
@@ -355,7 +359,7 @@ function credScanConfiguration() : Object {
                 "fileVersion": "1.4",
                 "tool": {
                     "name": "CredScan",
-                    "version": "latest"
+                    "version": "2.2.9.6-preview"
                 },
                 "arguments": {
                     "TargetDirectory": "$(WorkingDirectory)/guardian.TSV",

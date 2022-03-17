@@ -9,7 +9,8 @@ import * as Nuget from "Sdk.Managed.Tools.NuGet";
 
 namespace NugetPackages {
     export declare const qualifier : { configuration: "debug" | "release" };
-
+    const defaultTargetFramework = "net6.0";
+    
     const net472PackageQualifer = {
         targetFramework: "net472",
         targetRuntime: "win-x64"
@@ -68,7 +69,7 @@ namespace NugetPackages {
     const winX64 = !canBuildAllPackagesOnThisHost ? undefined : pack({
         id: `${packageNamePrefix}.win-x64`,
         deployment: BuildXL.withQualifier({
-            targetFramework: "netcoreapp3.1",
+            targetFramework: defaultTargetFramework,
             targetRuntime: "win-x64"
         }).deployment,
         deploymentOptions: reducedDeploymentOptions
@@ -77,7 +78,7 @@ namespace NugetPackages {
     const osxX64 = pack({
         id: `${packageNamePrefix}.osx-x64`,
         deployment: BuildXL.withQualifier({
-            targetFramework: "netcoreapp3.1",
+            targetFramework: defaultTargetFramework,
             targetRuntime: "osx-x64"
         }).deployment,
         deploymentOptions: reducedDeploymentOptions
@@ -86,34 +87,7 @@ namespace NugetPackages {
     const linuxX64 = pack({
         id: `${packageNamePrefix}.linux-x64`,
         deployment: BuildXL.withQualifier({
-            targetFramework: "netcoreapp3.1",
-            targetRuntime: "linux-x64"
-        }).deployment,
-        deploymentOptions: reducedDeploymentOptions
-    });
-	
-	const winX64Net6 = !canBuildAllPackagesOnThisHost ? undefined : pack({
-        id: `${packageNamePrefix}.win-x64-net6`,
-        deployment: BuildXL.withQualifier({
-            targetFramework: "net6.0",
-            targetRuntime: "win-x64"
-        }).deployment,
-        deploymentOptions: reducedDeploymentOptions
-    });
-
-	const osxX64Net6 = pack({
-        id: `${packageNamePrefix}.osx-x64-net6`,
-        deployment: BuildXL.withQualifier({
-            targetFramework: "net6.0",
-            targetRuntime: "osx-x64"
-        }).deployment,
-        deploymentOptions: reducedDeploymentOptions
-    });
-
-    const linuxX64Net6 = pack({
-        id: `${packageNamePrefix}.linux-x64-net6`,
-        deployment: BuildXL.withQualifier({
-            targetFramework: "net6.0",
+            targetFramework: defaultTargetFramework,
             targetRuntime: "linux-x64"
         }).deployment,
         deploymentOptions: reducedDeploymentOptions
@@ -439,7 +413,7 @@ namespace NugetPackages {
     const toolsSandBoxExec = pack({
         id: `${packageNamePrefix}.Tools.SandboxExec.osx-x64`,
         deployment: Tools.SandboxExec.withQualifier({
-            targetFramework: "netcoreapp3.1",
+            targetFramework: defaultTargetFramework,
             targetRuntime: "osx-x64"
         }).deployment
     });
@@ -448,25 +422,7 @@ namespace NugetPackages {
     const toolsOrchestrator = pack({
         id: `${packageNamePrefix}.Tools.Orchestrator.osx-x64`,
         deployment: Tools.Orchestrator.withQualifier({
-            targetFramework: "netcoreapp3.1",
-            targetRuntime: "osx-x64"
-        }).deployment
-    });
-
-    // Currently we deploy tools as self-contained .NET Core binaries for macOS only!
-    const toolsSandBoxExecNet6 = pack({
-        id: `${packageNamePrefix}.Tools.SandboxExec.osx-x64-net6`,
-        deployment: Tools.SandboxExec.withQualifier({
-            targetFramework: "net6.0",
-            targetRuntime: "osx-x64"
-        }).deployment
-    });
-
-    // Currently we deploy tools as self-contained .NET Core binaries for macOS only!
-    const toolsOrchestratorNet6 = pack({
-        id: `${packageNamePrefix}.Tools.Orchestrator.osx-x64-net6`,
-        deployment: Tools.Orchestrator.withQualifier({
-            targetFramework: "net6.0",
+            targetFramework: defaultTargetFramework,
             targetRuntime: "osx-x64"
         }).deployment
     });
@@ -475,7 +431,7 @@ namespace NugetPackages {
         contents: [
             ...addIfLazy(canBuildAllPackagesOnThisHost, () => [
                 ...addIf(!BuildXLSdk.Flags.genVSSolution,
-                    winX64, winX64Net6
+                    winX64
                 ),
                 cacheTools,
                 cacheLibraries,
@@ -488,9 +444,8 @@ namespace NugetPackages {
                 engineCache
             ]),
             sdks,
-            ...addIf(!BuildXLSdk.Flags.genVSSolution, osxX64, osxX64Net6, linuxX64, linuxX64Net6, toolsOrchestrator, toolsOrchestratorNet6),
-            toolsSandBoxExec,
-			toolsSandBoxExecNet6
+            ...addIf(!BuildXLSdk.Flags.genVSSolution, osxX64, linuxX64, toolsOrchestrator),
+            toolsSandBoxExec
         ]
     };
 

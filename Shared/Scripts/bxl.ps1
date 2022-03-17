@@ -72,7 +72,7 @@ param(
     [ValidateSet("Release", "Debug")]
     [string]$DeployConfig = "Debug", # must match defaultQualifier.configuration in config.dsc 
 
-    [ValidateSet("net472", "net5.0", "net6.0", "win-x64", "osx-x64")]
+    [ValidateSet("net472", "netcoreapp3.1", "net5.0", "win-x64", "osx-x64")]
     [string]$DeployRuntime = "win-x64", # must correspond to defaultQualifier.targetFramework in config.dsc 
 
     [Parameter(Mandatory=$false)]
@@ -296,7 +296,7 @@ if ($Vs -or $VsAll) {
         $AdditionalBuildXLArguments += "/q:Debug /q:DebugNet472";
     } else {
         # by default (-vs) we build only .NET Core and only projects targeting one of the .NET Core frameworks
-        $AdditionalBuildXLArguments += "/q:Debug /vsTargetFramework:netcoreapp3.0 /vsTargetFramework:netcoreapp3.1 /vsTargetFramework:netstandard2.0 /vsTargetFramework:netstandard2.1";
+        $AdditionalBuildXLArguments += "/q:Debug /vsTargetFramework:netcoreapp3.0 /vsTargetFramework:netcoreapp3.1 /vsTargetFramework:netstandard2.0 /vsTargetFramework:netstandard2.1 /vsTargetFramework:net6.0";
     }
 }
 
@@ -371,14 +371,13 @@ function New-Deployment {
     }
 
     $buildRelativeDir = [io.path]::combine($DeploymentRoot, $DeployConfig, $DeployRuntime)
-
-    if ($DeployRuntime -eq "net5.0" -or $DeployRuntime -eq "net6.0") {
+    if ($DeployRuntime -ne "win-x64") {
         # Handling .net 5 differently, because the old scheme is not suitable for having dev deployments with different qualifiers.
         $framework = $DeployRuntime;
         $DeployRuntime = "win-x64";
         $buildRelativeDir = [io.path]::combine($DeploymentRoot, $DeployConfig, $framework, $DeployRuntime)
     }
-
+    
     return @{
         description = $Description;
         dir = $dir;
@@ -585,14 +584,17 @@ if ($DeployConfig -eq "Release") {
     if ($DeployRuntime -eq "net472") {
         $AdditionalBuildXLArguments += "/q:ReleaseNet472"
     }
+    elseif ($DeployRuntime -eq "netcoreapp3.1") {
+        $AdditionalBuildXLArguments += "/q:ReleaseDotNetCore"
+    }
     elseif ($DeployRuntime -eq "net5.0") {
         $AdditionalBuildXLArguments += "/q:ReleaseDotNet5"
     }
-    elseif ($DeployRuntime -eq "net6.0") {
-        $AdditionalBuildXLArguments += "/q:ReleaseDotNet6"
-    }
     elseif ($DeployRuntime -eq "osx-x64") {
         $AdditionalBuildXLArguments += "/q:ReleaseDotNetCoreMac"
+    }
+    elseif ($DeployRuntime -eq "linux-x64") {
+        $AdditionalBuildXLArguments += "/q:ReleaseLinux"
     }
     else {
         $AdditionalBuildXLArguments += "/q:Release"
@@ -601,14 +603,17 @@ if ($DeployConfig -eq "Release") {
     if ($DeployRuntime -eq "net472") {
         $AdditionalBuildXLArguments += "/q:DebugNet472"
     }
+    elseif ($DeployRuntime -eq "netcoreapp3.1") {
+        $AdditionalBuildXLArguments += "/q:ReleaseDotNetCore"
+    }
     elseif ($DeployRuntime -eq "net5.0") {
         $AdditionalBuildXLArguments += "/q:DebugDotNet5"
     }
-    elseif ($DeployRuntime -eq "net6.0") {
-        $AdditionalBuildXLArguments += "/q:DebugDotNet6"
-    }
     elseif ($DeployRuntime -eq "osx-x64") {
         $AdditionalBuildXLArguments += "/q:DebugDotNetCoreMac"
+    }
+    elseif ($DeployRuntime -eq "linux-x64") {
+        $AdditionalBuildXLArguments += "/q:DebugLinux"
     }
 }
 

@@ -1053,7 +1053,10 @@ namespace Test.BuildXL.Storage
             using (var stream = FileUtilities.CreateFileStream(file, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete))
             {
                 FileSystemType fsType = FileUtilities.GetVolumeFileSystemByHandle(stream.SafeFileHandle);
-                XAssert.AreNotEqual(FileSystemType.Unknown, fsType);
+                if (!OperatingSystemHelper.IsLinuxOS)
+                {
+                    XAssert.AreNotEqual(FileSystemType.Unknown, fsType);
+                }
             }
         }
 

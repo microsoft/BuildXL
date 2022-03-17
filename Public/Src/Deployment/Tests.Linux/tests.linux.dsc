@@ -7,7 +7,7 @@ import * as BuildXLSdk from "Sdk.BuildXL";
 
 namespace Tests.Linux {
     export declare const qualifier : 
-        {configuration: "debug" | "release", targetFramework: "netcoreapp3.1", targetRuntime: "linux-x64"};
+        {configuration: "debug" | "release", targetFramework: "net6.0", targetRuntime: "linux-x64"};
 
     const sharedBinFolderName = a`shared_bin`;
 

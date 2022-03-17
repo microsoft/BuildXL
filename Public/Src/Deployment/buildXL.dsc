@@ -58,8 +58,8 @@ namespace BuildXL {
     @@public
     export const deployed = BuildXLSdk.DeploymentHelpers.deploy({
         definition: deployment,
-        targetLocation: (qualifier.targetFramework === "net5.0" || qualifier.targetFramework === "net6.0") // Keeping the old layout as-is and making change for .net5 and .net6 only
-        ? r`${qualifier.configuration}/${qualifier.targetFramework}/${qualifier.targetRuntime}`
-        : r`${qualifier.configuration}/${qualifier.targetRuntime}`,
+        targetLocation: (qualifier.targetFramework === "net6.0") // If targetFramework is not a default one (net6.0), then we put it in a separate directory.
+        ? r`${qualifier.configuration}/${qualifier.targetRuntime}`
+        : r`${qualifier.configuration}/${qualifier.targetFramework}/${qualifier.targetRuntime}`,
     });
 }

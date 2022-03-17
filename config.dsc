@@ -468,23 +468,23 @@ config({
                     archiveType: "tgz",
                 },
 
-                // DotNet Core Runtime 6.0.1
+                // DotNet Core Runtime 6.0.3
                 {
-                    moduleName: "DotNet-Runtime.win-x64.6.0.101",
-                    url: "https://download.visualstudio.microsoft.com/download/pr/9347a0de-bc9f-455d-8224-2fdcdd4e92fe/83d5eeca56ad51922e47e8bd3880f738/dotnet-runtime-6.0.1-win-x64.zip",
-                    hash: "VSO0:48F06E9B0D7C1D61F907FC93EBC8526FCB98438E39D696F908371C985D18777800",
+                    moduleName: "DotNet-Runtime.win-x64.6.0.201", 
+                    url: "https://download.visualstudio.microsoft.com/download/pr/cf4207e9-1af7-4eec-8f3b-78880cae7500/1a1bd8eea1a0fb4287b3527bdfa4f757/dotnet-runtime-6.0.3-win-x64.zip",
+                    hash: "VSO0:F270ACEE84A4BE9A229AECC0A5B8D09C0BF01684674B3066516CF2FA58EEF4A100",
                     archiveType: "zip",
                 },
                 {
-                    moduleName: "DotNet-Runtime.osx-x64.6.0.101",
-                    url: "https://download.visualstudio.microsoft.com/download/pr/56ae949c-f246-44e3-bdb3-a89847123ed2/d35135999651b78c0ef42b0e19cf06c0/dotnet-runtime-6.0.1-osx-x64.tar.gz",
-                    hash: "VSO0:D00F26BB5137289D1C0C3D93334F53D1DD2CFB4CD2CC2229C6CFA8BC75823B1E00",
+                    moduleName: "DotNet-Runtime.osx-x64.6.0.201",
+                    url: "https://download.visualstudio.microsoft.com/download/pr/1f354e35-ff3f-4de7-b6be-f5001b7c3976/b7c8814ab28a6f00f063440e63903105/dotnet-runtime-6.0.3-osx-x64.tar.gz",
+                    hash: "VSO0:F934E2046E396EBFD83F21AA4E3B7EDB42AC307EB71F423D2D57945DE52D7F5B00",
                     archiveType: "tgz",
                 },
                 {
-                    moduleName: "DotNet-Runtime.linux-x64.6.0.101",
-                    url: "https://download.visualstudio.microsoft.com/download/pr/be8a513c-f3bb-4fbd-b382-6596cf0d67b5/968e205c44eabd205b8ea98be250b880/dotnet-runtime-6.0.1-linux-x64.tar.gz",
-                    hash: "VSO0:966B38724A2EF4A32A9784D6E52103AF96233B9E45B66865CE62E9602E36221300",
+                    moduleName: "DotNet-Runtime.linux-x64.6.0.201",
+                    url: "https://download.visualstudio.microsoft.com/download/pr/4e766615-57e6-4b1d-a574-25eeb7a71107/9f95f74c33711e085302ffd644ef86ee/dotnet-runtime-6.0.3-linux-x64.tar.gz",
+                    hash: "VSO0:A3426598ACFE162FB39F2D508DF43F23B4169BD3DA26A69535DA11CAB387641F00",
                     archiveType: "tgz",
                 },
 
@@ -562,8 +562,7 @@ config({
     qualifiers: {
         defaultQualifier: {
             configuration: "debug",
-            // Once the migration to net6 is done the next line needs to be changed to net5.0
-            targetFramework: "netcoreapp3.1",
+            targetFramework: "net6.0",
             targetRuntime:
                 Context.getCurrentHost().os === "win" ? "win-x64" :
                 Context.getCurrentHost().os === "macOS" ? "osx-x64" : "linux-x64",
@@ -571,7 +570,7 @@ config({
         namedQualifiers: {
             Debug: {
                 configuration: "debug",
-                targetFramework: "netcoreapp3.1",
+                targetFramework: "net6.0",
                 targetRuntime: "win-x64",
             },
             DebugNet472: {
@@ -596,18 +595,18 @@ config({
             },
             DebugDotNetCoreMac: {
                 configuration: "debug",
-                targetFramework: "netcoreapp3.1",
+                targetFramework: "net6.0",
                 targetRuntime: "osx-x64",
             },
             DebugLinux: {
                 configuration: "debug",
-                targetFramework: "netcoreapp3.1",
+                targetFramework: "net6.0",
                 targetRuntime: "linux-x64",
             },
             // Release
             Release: {
                 configuration: "release",
-                targetFramework: "netcoreapp3.1",
+                targetFramework: "net6.0",
                 targetRuntime: "win-x64",
             },
             ReleaseNet472: {
@@ -633,12 +632,12 @@ config({
             },
             ReleaseDotNetCoreMac: {
                 configuration: "release",
-                targetFramework: "netcoreapp3.1",
+                targetFramework: "net6.0",
                 targetRuntime: "osx-x64",
             },
             ReleaseLinux: {
                 configuration: "release",
-                targetFramework: "netcoreapp3.1",
+                targetFramework: "net6.0",
                 targetRuntime: "linux-x64",
             },
         }

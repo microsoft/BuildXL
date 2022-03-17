@@ -4,4 +4,4 @@
 import {createPublicDotNetRuntime} from "DotNet-Runtime.Common";
 
 @@public
-export const extracted = createPublicDotNetRuntime(importFrom("DotNet-Runtime.osx-x64.6.0.101").extracted, undefined);
+export const extracted = createPublicDotNetRuntime(importFrom("DotNet-Runtime.osx-x64.6.0.201").extracted, undefined);

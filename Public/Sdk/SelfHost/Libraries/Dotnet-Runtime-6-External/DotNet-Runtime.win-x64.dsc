@@ -7,4 +7,4 @@ const isWinOs = Context.getCurrentHost().os === "win";
 
 @@public
 export const extracted = createPublicDotNetRuntime(
-    isWinOs ? <StaticDirectory>importFrom("DotNet-Runtime.win-x64.6.0.101").extracted : undefined, undefined);
+    isWinOs ? <StaticDirectory>importFrom("DotNet-Runtime.win-x64.6.0.201").extracted : undefined, undefined);

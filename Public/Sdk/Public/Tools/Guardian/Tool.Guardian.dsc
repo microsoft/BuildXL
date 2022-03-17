@@ -407,7 +407,7 @@ function runGuardianInternal(args : GuardianArguments, guardianTool : Transforme
         d`${guardianPaths.rawResults}`,
         d`${guardianPaths.results}`,
         d`${guardianPaths.convertedResults}`,
-        ...addIf(args.additionalOutputs !== undefined, ...args.additionalOutputs)
+        ...addIfLazy(args.additionalOutputs !== undefined, () => args.additionalOutputs)
     ];
 
     if (maybeLogFile) {
@@ -469,7 +469,7 @@ function getEnvironmentVariables(args : GuardianArguments) : Transformer.Environ
 function getCloudbuildEnvironmentVariables(args : GuardianArguments) : Transformer.EnvironmentVariable[] {
     if (cloudbuildToolPath) {
         return [
-            { name: "PATH", separator: ";", value: [ d`${cloudBuildDotNetDirectory.path}`, ...addIf(args.pathDirectories !== undefined, ...args.pathDirectories) ] },
+            { name: "PATH", separator: ";", value: [ d`${cloudBuildDotNetDirectory.path}`, ...addIfLazy(args.pathDirectories !== undefined, () => args.pathDirectories) ] },
             { name: "DOTNET_ROOT", separator: ";", value: d`${cloudBuildDotNetDirectory.path}` },
         ];
     }

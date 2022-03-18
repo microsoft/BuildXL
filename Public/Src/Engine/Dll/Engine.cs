@@ -1271,10 +1271,31 @@ namespace BuildXL.Engine
 
                 // Fire forget materialize output is enabled by default in CloudBuild as it improves the perf during meta build.
                 mutableConfig.Distribution.FireForgetMaterializeOutput = initialCommandLineConfiguration.Distribution.FireForgetMaterializeOutput ?? true;
+
+                if (!mutableConfig.Schedule.MaxWorkersPerModule.HasValue)
+                {
+                    // Module affinity is enabled by default in CloudBuild builds.
+                    mutableConfig.Schedule.MaxWorkersPerModule = mutableConfig.Distribution.BuildWorkers.Count + 1;
+                    mutableConfig.Schedule.ModuleAffinityLoadFactor = 1;
+                }
             }
             else
             {
                 mutableConfig.Logging.StoreFingerprints = initialCommandLineConfiguration.Logging.StoreFingerprints ?? true;
+            }
+
+
+            if (mutableConfig.Schedule.MaxWorkersPerModule.HasValue &&
+                !mutableConfig.Schedule.ModuleAffinityLoadFactor.HasValue)
+            {
+                //If module affinity is enabled and a custom load factor is not given as an argument, we need to use the default value.
+                mutableConfig.Schedule.ModuleAffinityLoadFactor = 1;
+                if (mutableConfig.Logging.Environment == ExecutionEnvironment.OsgLab)
+                {
+                    // When choosing a worker for a module, we need to fill 2x capacity of the preferred worker before the next workers.
+                    // Running a module in another worker can be expensive for Cosine, so that's why, we try to fill the double capacity for the first preferred worker.
+                    mutableConfig.Schedule.ModuleAffinityLoadFactor = 2;
+                }
             }
 
             // If graph patching is requested, we need to reload the engine state when possible

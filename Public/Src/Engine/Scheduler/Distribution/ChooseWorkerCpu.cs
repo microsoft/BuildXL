@@ -121,7 +121,7 @@ namespace BuildXL.Scheduler.Distribution
             if (config.ModuleAffinityEnabled())
             {
                 m_moduleWorkerMapping = moduleWorkerMapping;
-                m_workerBalancedLoadFactors = ReadOnlyArray<double>.FromWithoutCopy(EngineEnvironmentSettings.BuildXLModuleAffinityMultiplier.Value ?? config.ModuleAffinityLoadFactor);
+                m_workerBalancedLoadFactors = ReadOnlyArray<double>.FromWithoutCopy(config.ModuleAffinityLoadFactor.Value);
             }
             else
             {

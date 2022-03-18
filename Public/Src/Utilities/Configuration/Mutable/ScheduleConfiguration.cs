@@ -91,10 +91,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
             ProcessCanRunRemoteTags = new List<string>();
             ProcessMustRunLocalTags = new List<string>();
             RemotingThresholdMultiplier = 1.5;
-
-            // When choosing a worker for a module, we need to fill 2x capacity of the preferred worker before the next workers.
-            // Running a module in another worker can be expensive, so that's why, we try to fill the double capacity for the first preferred worker.
-            ModuleAffinityLoadFactor = 2;
         }
 
         /// <nodoc />
@@ -434,10 +430,10 @@ namespace BuildXL.Utilities.Configuration.Mutable
         public bool TreatAbsentDirectoryAsExistentUnderOpaque { get; set; }
 
         /// <inheritdoc />
-        public int MaxWorkersPerModule { get; set; }
+        public int? MaxWorkersPerModule { get; set; }
 
         /// <inheritdoc />
-        public double ModuleAffinityLoadFactor { get; set; }
+        public double? ModuleAffinityLoadFactor { get; set; }
 
         /// <inheritdoc />
         public bool UpdateFileContentTableByScanningChangeJournal { get; set; }

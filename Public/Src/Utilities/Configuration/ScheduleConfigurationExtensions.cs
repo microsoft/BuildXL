@@ -40,6 +40,9 @@ namespace BuildXL.Utilities.Configuration
         /// <summary>
         /// <see cref="IScheduleConfiguration.MaxWorkersPerModule"/>
         /// </summary>
-        public static bool ModuleAffinityEnabled(this IScheduleConfiguration scheduleConfiguration) => scheduleConfiguration.MaxWorkersPerModule > 0;
+        public static bool ModuleAffinityEnabled(this IScheduleConfiguration scheduleConfiguration) => 
+            scheduleConfiguration.MaxWorkersPerModule.HasValue && 
+            scheduleConfiguration.MaxWorkersPerModule.Value > 0 && 
+            scheduleConfiguration.ModuleAffinityLoadFactor.HasValue;
     }
 }

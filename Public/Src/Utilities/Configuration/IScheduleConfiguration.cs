@@ -422,12 +422,12 @@ namespace BuildXL.Utilities.Configuration
         /// <summary>
         /// Maximum allowed workers per module
         /// </summary>
-        int MaxWorkersPerModule { get; }
+        int? MaxWorkersPerModule { get; }
 
         /// <summary>
         /// Load factor allowed to try another worker for the module.
         /// </summary>
-        double ModuleAffinityLoadFactor { get; }
+        double? ModuleAffinityLoadFactor { get; }
 
         /// <summary>
         /// Updates file content table by scanning change journal.

@@ -1,6 +1,17 @@
 This page is a curated list of the release notes for releases after 0.20170619.4.0 and a manual copy of notable changes from each build before that. See the repo's commit history full details for what is included in each build.
 
 =======
+# 0.1.0-20220306.0.2 (Release [148113](https://dev.azure.com/mseng/domino/_releaseProgress?_a=release-pipeline-progress&releaseId=148113) Released 3/9/2022
+- Allow increasing batch limit for orchestrator->worker RPC when sending MaterializeOutput requests
+- Support custom SBOM overrides through DropDaemon arguments
+- Entries in RuntimeConfigFiles are sorted to avoid artificial cache misses
+- Environment variable inputs to the graph are now compared in a case-sensitive way
+- Various fixes and improvements
+
+# 0.1.0-20220225.2 (Release [144135](https://dev.azure.com/mseng/domino/_releaseProgress?_a=release-pipeline-progress&releaseId=144135) Released 3/2/2022
+- Updated BuildXL trace documentation
+- Enable remoting cache tests
+- BsiMetadataExtractor to take custom PackageVersion
 
 # 0.1.0-20220218.5 (Release [141436](https://dev.azure.com/mseng/domino/_releaseProgress?_a=release-pipeline-progress&releaseId=141436) Released 2/24/2022
 -	Add milliseconds to CriticalPath table logging

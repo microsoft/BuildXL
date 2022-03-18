@@ -391,6 +391,12 @@ namespace BuildXL.Utilities.Configuration
         /// </remarks>
         public static readonly Setting<string> SandboxAsyncPipeReaderKind = CreateSetting<string>("BuildXLAsyncPipeReaderKind", value => value);
 
+        /// <nodoc />
+        public static readonly Setting<bool> MergeIOCacheLookupDispatcher = CreateSetting("BuildXLMergeIOCacheLookupDispatcher", value => value == "1");
+
+        /// <nodoc />
+        public static readonly Setting<bool> MergeCacheLookupMaterializeDispatcher = CreateSetting("BuildXLMergeCacheLookupMaterializeDispatcher", value => value == "1");
+
         /// <summary>
         /// Sets the variable for consumption by settings
         /// </summary>

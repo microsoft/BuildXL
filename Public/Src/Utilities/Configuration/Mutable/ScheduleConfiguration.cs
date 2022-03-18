@@ -40,7 +40,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
             // Based on the benchmarks, the cache lookup limit is 2 times the number of logical cores.
             MaxCacheLookup = Environment.ProcessorCount * 2;
-            MaxMaterialize = Environment.ProcessorCount * 2;
+            MaxMaterialize = Environment.ProcessorCount;
             MaxSealDirs = Environment.ProcessorCount;
 
             MaxChooseWorkerCpu = 5;

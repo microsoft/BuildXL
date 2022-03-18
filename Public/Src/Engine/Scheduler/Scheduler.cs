@@ -4021,7 +4021,7 @@ namespace BuildXL.Scheduler
                         case PipType.WriteFile:
                         case PipType.CopyFile:
                         case PipType.Ipc:
-                            return DispatcherKind.IO;
+                            return IODispatcher;
 
                         case PipType.Process:
                             var state = (ProcessMutablePipState)m_pipTable.GetMutable(runnablePip.PipId);
@@ -4031,7 +4031,7 @@ namespace BuildXL.Scheduler
                                 return PipQueue.IsDraining ? DispatcherKind.None : DispatcherKind.CPU;
                             }
 
-                            return DispatcherKind.IO;
+                            return IODispatcher;
 
                         default:
                             throw Contract.AssertFailure(I($"Invalid pip type: '{runnablePip.PipType}'"));
@@ -4048,7 +4048,7 @@ namespace BuildXL.Scheduler
                 case PipExecutionStep.PostProcess:
                     // DispatcherKind.CacheLookup is mainly for CAS and VSTS resources.
                     // As we store cache entries in PostProcess, so it makes sense to process those in CacheLookup queue.
-                    return DispatcherKind.CacheLookup;
+                    return CacheLookupDispatcher;
 
                 case PipExecutionStep.ChooseWorkerCpu:
                     return runnablePip.IsLight ? DispatcherKind.ChooseWorkerLight : DispatcherKind.ChooseWorkerCpu;
@@ -4086,13 +4086,17 @@ namespace BuildXL.Scheduler
             }
         }
 
+        private DispatcherKind IODispatcher => EngineEnvironmentSettings.MergeIOCacheLookupDispatcher.Value ? CacheLookupDispatcher : DispatcherKind.IO;
+
+        private DispatcherKind CacheLookupDispatcher => EngineEnvironmentSettings.MergeCacheLookupMaterializeDispatcher.Value ? DispatcherKind.Materialize : DispatcherKind.CacheLookup;
+
         private DispatcherKind GetExecutionDispatcherKind(RunnablePip pip)
         {
             switch (pip.PipType)
             {
                 case PipType.WriteFile:
                 case PipType.CopyFile:
-                    return DispatcherKind.IO;
+                    return IODispatcher;
 
                 case PipType.Process:
                     return IsLightProcess(pip) ? DispatcherKind.Light : DispatcherKind.CPU;

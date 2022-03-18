@@ -134,7 +134,7 @@ namespace BuildXL.Scheduler
         /// For all service pips found in <see cref="m_startedServices"/> executes their shutdown pips
         /// using the same executor/environment that was used to start the service.
         /// </summary>
-        internal async Task<bool> ShutdownStartedServices()
+        internal async Task<bool> ShutdownStartedServices(bool isCancellationRequested)
         {
             Contract.Requires(!ShutdownStarted, "Shutdown should only be called once on service manager");
             ShutdownStarted = true;
@@ -173,6 +173,15 @@ namespace BuildXL.Scheduler
 
                 var shutdownFailed = serviceShutdownResult.Status.IndicatesFailure();
                 var serviceFailed = serviceExecutionResult.Status.IndicatesFailure();
+                // When a cancellation token is triggered, the service processes are killed (i.e., there is nothing to shutdown).
+                // Also, because the token is triggered, the shutdown process will be killed almost immediately after it started,
+                // which in turn will cause IndicatesFailure to return true. To avoid wrong error bucket classification, ignore
+                // service pip / shutdown pip failures in such cases.
+                if (isCancellationRequested)
+                {
+                    return true;
+                }
+
                 if (shutdownFailed)
                 {
                     Logger.Log.ScheduleServicePipShuttingDownFailed(loggingContext, servicePipDescription, shutdownPipDescription);

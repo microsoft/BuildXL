@@ -1623,7 +1623,7 @@ namespace BuildXL.Scheduler
 
                 await State.Cache.CloseAsync();
 
-                var shutdownServicesSucceeded = await m_serviceManager.ShutdownStartedServices();
+                var shutdownServicesSucceeded = await m_serviceManager.ShutdownStartedServices(Context.CancellationToken.IsCancellationRequested);
                 Contract.Assert(
                     shutdownServicesSucceeded || m_executePhaseLoggingContext.ErrorWasLogged,
                     "ServiceManager encountered errors during shutdown, but none were logged.");

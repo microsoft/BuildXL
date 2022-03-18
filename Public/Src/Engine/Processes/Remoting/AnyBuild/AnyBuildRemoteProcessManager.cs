@@ -169,7 +169,6 @@ namespace BuildXL.Processes.Remoting
                 "--JsonConfigOverrides ProcessSubstitution.MaxParallelLocalExecutionsFactor=0 Run.DisableDirectoryMetadataDedup=true",
                 "--DisableActionCache",
                 "--RemoteAll",
-                "--Verbose",
                 "--DoNotUseMachineUtilizationForScheduling",
                 "--NoSandboxingBuildEngine",
                 $"--CacheDir {localCacheDir}",

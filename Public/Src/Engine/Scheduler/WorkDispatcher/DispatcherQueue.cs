@@ -234,6 +234,7 @@ namespace BuildXL.Scheduler.WorkDispatcher
                 }
                
                 releaser.Release(runnablePip.Weight);
+                Interlocked.Decrement(ref m_numRunningPips);
                 m_pipQueue.DecrementRunningOrQueuedPips(); // Trigger dispatching loop in the PipQueue
             }
         }
@@ -245,7 +246,6 @@ namespace BuildXL.Scheduler.WorkDispatcher
         {
             int slots = UseWeight ? weight : 1;
             Interlocked.Add(ref m_numAcquiredSlots, -slots); // Decrease the number of running slots in the current queue.
-            Interlocked.Decrement(ref m_numRunningPips);
             m_pipQueue.TriggerDispatcher();
         }
 

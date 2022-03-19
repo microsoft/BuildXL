@@ -394,6 +394,7 @@ namespace BuildXL.Engine.Tracing
         GrpcAuthWarningTrace = 7151,
 
         DistributionWorkerPendingMessageQueues = 7153,
+        DistributionOrchestratorExitBeforeAttachment = 7154,
 
         LogAndRemoveEngineStateOnBuildFailure = 10011,
         CacheIsStillBeingInitialized = 13200,

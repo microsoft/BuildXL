@@ -94,6 +94,7 @@ namespace BuildXL.Engine.Distribution
         private readonly BlockingCollection<ValueTuple<PipCompletionTask, SinglePipBuildRequest>> m_buildRequests;
 
         private readonly IWorkerClient m_workerClient;
+        private DateTime m_initializationTime;
         private Task m_schedulerCompletion;
 
         #region Distributed execution log state
@@ -161,6 +162,7 @@ namespace BuildXL.Engine.Distribution
             m_workerExecutionLogTarget = executionLogTarget;
 
             TimeSpan? minimumWaitForAttachment = EngineEnvironmentSettings.MinimumWaitForRemoteWorker;
+            m_initializationTime = DateTime.UtcNow;
             
             if (minimumWaitForAttachment.HasValue)
             {
@@ -509,8 +511,13 @@ namespace BuildXL.Engine.Distribution
             return false;
         }
 
-        private bool TryInitiateStop()
+        private bool TryInitiateStop(bool isEarlyRelease, [CallerMemberName] string callerName = null)
         {
+            // This is called even if this call is not the one initiating the stop (as checked below)
+            // to possibly override a longer waiting period before cancellation that may be active from
+            // an early release. Note the reentrancy of SignalExitCancellation.
+            SignalExitCancellation(isEarlyRelease);
+
             while (true)
             {
                 WorkerNodeStatus status = Status;
@@ -520,7 +527,7 @@ namespace BuildXL.Engine.Distribution
                     return false;
                 }
 
-                if (ChangeStatus(status, WorkerNodeStatus.Stopping))
+                if (ChangeStatus(status, WorkerNodeStatus.Stopping, callerName))
                 {
                     break;
                 }
@@ -529,10 +536,9 @@ namespace BuildXL.Engine.Distribution
             return true;
         }
 
-        /// <inheritdoc />
-        public override async Task FinishAsync(string buildFailure, [CallerMemberName] string callerName = null)
+        public override async Task FinishAsync(string buildFailure = null, [CallerMemberName] string callerName = null)
         {
-            if (TryInitiateStop())
+            if (TryInitiateStop(isEarlyRelease: false))
             {
                 Logger.Log.DistributionWorkerFinish(
                     m_appLoggingContext,
@@ -544,6 +550,40 @@ namespace BuildXL.Engine.Distribution
             }
         }
 
+        /// <summary>
+        /// Called by any codepath that is shutting communication from the worker (regular exit, disconnections, early release)
+        /// Should be reentrant: note that signalling the cancellation token multiple times is not a problem and the first one wins.
+        /// </summary>
+        private void SignalExitCancellation(bool isEarlyRelease)
+        {
+            if (m_attachCompletion.Task.Status != TaskStatus.RanToCompletion || !m_attachCompletion.Task.GetAwaiter().GetResult())
+            {
+                // Normally we only want to wait a short amount of time for exit (15 seconds) if worker is not successfully attached.
+                // If we are early releasing it is possible that we are really early in the build and so we give the worker
+                // some more time (up to 5min since initialization) to attach so we don't unnecesarily make workers be idle
+                // until their timeout and ultimately fail with "Orchestrator didn't attach".
+                var timeSinceInitialization = DateTime.UtcNow - m_initializationTime;
+                TimeSpan attachmentTolerance;
+                if (isEarlyRelease && timeSinceInitialization < TimeSpan.FromMinutes(5) && timeSinceInitialization > TimeSpan.Zero)
+                {
+                    attachmentTolerance = TimeSpan.FromMinutes(5) - timeSinceInitialization;
+                }
+                else
+                {
+                    attachmentTolerance = TimeSpan.FromSeconds(15);
+                }
+
+                // Give some extra time for the worker to attach so it can exit gracefully
+                Task.Delay(attachmentTolerance).ContinueWith(_ =>
+                {
+                    m_attachCompletion.TrySetResult(false);
+                    m_setupCompletion.TrySetResult(false);
+                });
+
+                m_exitCancellation.CancelAfter(attachmentTolerance);
+            }
+        }
+
         /// <inheritdoc />
         public override async Task EarlyReleaseAsync()
         {
@@ -551,10 +591,9 @@ namespace BuildXL.Engine.Distribution
             
             // Unblock scheduler
             await Task.Yield();
-            
             using (EarlyReleaseLock.AcquireWriteLock())
             {
-                if (!TryInitiateStop())
+                if (!TryInitiateStop(isEarlyRelease: true))
                 {
                     // Already stopped, no need to continue.
                     return;
@@ -580,15 +619,14 @@ namespace BuildXL.Engine.Distribution
             Contract.Assert(m_pipCompletionTasks.IsEmpty || !isDrainedWithSuccess, "There cannot be pending completion tasks when we drain the pending tasks successfully");
 
             var disconnectStopwatch = new StopwatchVar();
-
-            Logger.Log.DistributionWorkerFinish(
-                m_appLoggingContext,
-                m_serviceLocation.IpAddress,
-                m_serviceLocation.Port,
-                "EarlyReleaseAsync");
-
             using (disconnectStopwatch.Start())
             {
+                Logger.Log.DistributionWorkerFinish(
+                    m_appLoggingContext,
+                    m_serviceLocation.IpAddress,
+                    m_serviceLocation.Port,
+                    "EarlyReleaseAsync");
+
                 await DisconnectAsync();
             }
 
@@ -618,15 +656,18 @@ namespace BuildXL.Engine.Distribution
                 m_sendThread.Join();
             }
 
-            // Only wait a short amount of time for exit (15 seconds) if worker is not successfully attached.
-            if (m_attachCompletion.Task.Status != TaskStatus.RanToCompletion || !await m_attachCompletion.Task)
-            {
-                m_exitCancellation.CancelAfter(TimeSpan.FromSeconds(15));
-            }
-
             // If we still have a connection with the worker, we should send a message to worker to make it exit. 
             if (!m_isConnectionLost)
             {
+                // We wait until this task is completed to give the worker
+                // a chance to attach and then respond gracefully to the exit.
+                // Note that by virtue of transitioning to Stopping via TryInitiateStop
+                // this task will be completed eventually (see SignalExitCancellation)
+                using (m_orchestratorService.Environment.Counters.StartStopwatch(PipExecutorCounter.RemoteWorker_AwaitWorkerAttachmentOnDisconnectAsync))
+                {
+                    await m_attachCompletion.Task;
+                }
+
                 var buildEndData = new BuildEndData()
                 {
                     Failure = buildFailure ?? m_exitFailure
@@ -1187,6 +1228,10 @@ namespace BuildXL.Engine.Distribution
         {
             Contract.Requires(attachCompletionInfo != null);
 
+            // Complete this task regardless of the success in the transition below:
+            // we want to signal that the handshake with the worker was sucessful.
+            m_attachCompletion.TrySetResult(true);
+
             // There is a nearly impossible race condition where the node may still be
             // in the Starting state (i.e. waiting for ACK of Attach call) so we try to transition
             // from Starting AND Started
@@ -1325,14 +1370,10 @@ namespace BuildXL.Engine.Distribution
                 return false;
             }
 
-            if (toStatus == WorkerNodeStatus.Stopped || toStatus == WorkerNodeStatus.Stopping)
+            if (toStatus == WorkerNodeStatus.Stopped)
             {
                 m_attachCompletion.TrySetResult(false);
                 m_setupCompletion.TrySetResult(false);
-            }
-            else if (toStatus == WorkerNodeStatus.Attached)
-            {
-                m_attachCompletion.TrySetResult(true);
             }
             else if (toStatus == WorkerNodeStatus.Running)
             {

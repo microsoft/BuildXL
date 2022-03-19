@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.Threading;
 using System.Threading.Tasks;
@@ -191,16 +192,28 @@ namespace BuildXL.Engine.Distribution
             Logger.Log.DistributionWaitingForOrchestratorAttached(m_appLoggingContext);
             
             var timeout = GrpcSettings.WorkerAttachTimeout;
+            var sw = Stopwatch.StartNew();
             if (!AttachCompletion.Wait(timeout))
             {
                 Logger.Log.DistributionWorkerTimeoutFailure(m_appLoggingContext);
-                Exit(failure: "Timed out waiting for attach request from orchestrator", isUnexpected: true);
+                Exit(failure: $"Timed out waiting for attach request from orchestrator. Timeout: {timeout.TotalMinutes} min", isUnexpected: true);
                 return false;
             }
 
             if (!AttachCompletion.Result)
             {
-                Logger.Log.DistributionInactiveOrchestrator(m_appLoggingContext, (int)timeout.TotalMinutes);
+                if (m_isOrchestratorExited)
+                {
+                    // The orchestrator can send an Exit request before attachment if early releasing this worker
+                    // This is a corner case, as the orchestrator waits for the attachment to complete before doing this.
+                    // We should log an error in this case as we will fail the engine after returning false.
+                    Logger.Log.DistributionOrchestratorExitBeforeAttachment(m_appLoggingContext, (int)sw.Elapsed.TotalMilliseconds);
+                }
+                else
+                {
+                    Logger.Log.DistributionInactiveOrchestrator(m_appLoggingContext, (int)timeout.TotalMinutes);
+                }
+
                 return false;
             }
 

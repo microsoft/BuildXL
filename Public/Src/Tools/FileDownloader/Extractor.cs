@@ -73,9 +73,10 @@ namespace Tool.Download
                 case DownloadArchiveType.Zip:
                     try
                     {
-                        new FastZip().ExtractZip(archive, target, null);
+                        // SharpZipLib does not work well on mac and nested files are not properly handled when the zip file is constructed on Windows (with backslashes)
+                        System.IO.Compression.ZipFile.ExtractToDirectory(archive, target);
                     }
-                    catch (ZipException e)
+                    catch (Exception e) when (e is IOException || e is DirectoryNotFoundException || e is PathTooLongException)
                     {
                         ErrorExtractingArchive(archive, target, e.Message);
                         return false;

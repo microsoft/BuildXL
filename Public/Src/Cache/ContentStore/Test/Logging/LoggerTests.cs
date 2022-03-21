@@ -4,6 +4,7 @@
 using System;
 using System.Diagnostics;
 using System.Threading;
+using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using ContentStoreTest.Test;
@@ -65,6 +66,17 @@ namespace ContentStoreTest.Logging
         public LoggerTests()
             : base(TestGlobal.Logger)
         {
+        }
+
+        [Fact]
+        public async Task NoContractViolationWhenDisposeIsCalled()
+        {
+            // The logger's lifetime is hard to track, so the logger should be usable even
+            // after the Dispose method is called.
+            var logger = new Logger();
+            logger.Debug("Message");
+            await logger.DisposeAsync();
+            logger.Debug("Another message");
         }
 
         [Fact]

@@ -299,13 +299,17 @@ namespace BuildXL.Cache.ContentStore.Logging
 
         private void SendRequest(Request request)
         {
+            // Not checking that the instance is disposed, because we don't want to lock here and without
+            // synchronization we'll have a race condition.
+            // So instead, we just try and ignore the error if the instance is disposed.
             Interlocked.Increment(ref _pendingRequest);
             bool written = _requests!.Writer.TryWrite(request);
 
-            if (QueueFullMode == BoundedChannelFullMode.Wait)
+            if (QueueFullMode == BoundedChannelFullMode.Wait && !_disposed)
             {
                 // Asserting that the message was written only when the full mode is 'wait', otherwise the messages can be dropped
                 // and 'written' might be false in this case.
+
                 Contract.Assert(written);
             }
         }

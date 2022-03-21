@@ -149,7 +149,7 @@ namespace BuildXL.Cache.ContentStore.Grpc
                     out var publicCertificate,
                     out var privateKey,
                     out hostName,
-                    out var errorMessage))
+                    out var errorMessage) && publicCertificate != null && privateKey != null)
                 {
                     return Result.Success(new KeyCertificatePair(publicCertificate, privateKey));
                 }

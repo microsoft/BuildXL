@@ -2,10 +2,10 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 // Ideally these are same version, but ProtoBuf has a newer patch version.
-const protoVersion = "3.19.1";
-const protoToolsVersion = "3.19.1";
+const protoVersion = "3.19.4";
+const protoToolsVersion = "3.19.4";
 
-const grpcVersion = "2.41.0";
+const grpcVersion = "2.44.0";
 
 export const pkgs = [
     // grpc

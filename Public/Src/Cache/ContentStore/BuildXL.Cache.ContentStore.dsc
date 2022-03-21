@@ -124,10 +124,10 @@ export function getGrpcPackages(includeNetStandard: boolean) : Managed.ManagedNu
 export function getGrpcAspNetCorePackages() : Managed.ManagedNugetPackage[] {
     return [
         ...addIfLazy(BuildXLSdk.isDotNetCoreBuild, () => [
-                  importFrom("Grpc.Net.Common").withQualifier({targetFramework: "netstandard2.1"}).pkg,
-                  importFrom("Grpc.Net.Client").withQualifier({targetFramework: "netstandard2.1"}).pkg,
-                  importFrom("Grpc.Net.Client.Web").withQualifier({targetFramework: "netstandard2.1"}).pkg,
-                  importFrom("Grpc.Net.ClientFactory").withQualifier({targetFramework: "netstandard2.1"}).pkg,
+                  importFrom("Grpc.Net.Common").pkg,
+                  importFrom("Grpc.Net.Client").pkg,
+                  importFrom("Grpc.Net.Client.Web").pkg,
+                  importFrom("Grpc.Net.ClientFactory").pkg,
                  
                   importFrom("Grpc.AspNetCore.Server.ClientFactory").pkg,
                   importFrom("Grpc.AspNetCore.Server").pkg,

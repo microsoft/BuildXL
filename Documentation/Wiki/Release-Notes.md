@@ -1,6 +1,10 @@
 This page is a curated list of the release notes for releases after 0.20170619.4.0 and a manual copy of notable changes from each build before that. See the repo's commit history full details for what is included in each build.
 
 =======
+# 0.1.0-20220311.6 (Release [148943](https://dev.azure.com/mseng/domino/_releaseProgress?_a=release-pipeline-progress&releaseId=148934)) Released 3/16/2022
+-	Better descriptions for ninja pips
+-	Various fixes and improvements
+
 # 0.1.0-20220306.0.2 (Release [148113](https://dev.azure.com/mseng/domino/_releaseProgress?_a=release-pipeline-progress&releaseId=148113) Released 3/9/2022
 - Allow increasing batch limit for orchestrator->worker RPC when sending MaterializeOutput requests
 - Support custom SBOM overrides through DropDaemon arguments

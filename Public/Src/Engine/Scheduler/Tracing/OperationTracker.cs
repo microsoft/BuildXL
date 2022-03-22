@@ -218,6 +218,13 @@ namespace BuildXL.Scheduler.Tracing
 
         internal void WriteCountersFile(PipExecutionContext context, ILoggingConfiguration loggingConfiguration, TimeSpan? refreshInterval = null)
         {
+            // Skip further updates to tracker counters file when cancellation is requested to preserve state prior
+            // to winding everything down. This is helpful for debugging the state of builds that time out.
+            if (context.CancellationToken.IsCancellationRequested)
+            {
+                return;
+            }
+
             bool includeOutstanding = refreshInterval != null;
             lock (m_counterFileLock)
             {

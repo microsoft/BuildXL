@@ -681,7 +681,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Azure.Amqp",
-          "Version": "2.4.11"
+          "Version": "2.5.10"
         }
       }
     },

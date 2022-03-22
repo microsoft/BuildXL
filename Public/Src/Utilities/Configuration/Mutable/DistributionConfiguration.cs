@@ -18,7 +18,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
             // Local worker is always connected.
             MinimumWorkers = 1;
-            EarlyWorkerReleaseMultiplier = 0.5;
+            EarlyWorkerReleaseMultiplier = 2;
             EarlyWorkerRelease = true;
             VerifySourceFilesOnWorkers = false; // TODO: For testing purposes, this is going to be disabled by default. Update in the future to be enabled by default
         }

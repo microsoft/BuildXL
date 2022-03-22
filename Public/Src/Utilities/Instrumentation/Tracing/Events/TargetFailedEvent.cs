@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Diagnostics.Tracing;
 using System.Reflection;
 
@@ -23,7 +24,7 @@ namespace BuildXL.Tracing.CloudBuild
         /// <remarks>
         /// WARNING: INCREMENT IF YOU UPDATE THE PRIMITIVE MEMBERS!
         /// </remarks>
-        public override int Version { get; set; } = 1;
+        public override int Version { get; set; } = 2;
 
         /// <inheritdoc />
         public override EventKind Kind { get; set; } = EventKind.TargetFailed;
@@ -31,12 +32,12 @@ namespace BuildXL.Tracing.CloudBuild
         /// <summary>
         /// Worker id
         /// </summary>
-        public long WorkerId { get; set; }
+        public string? WorkerId { get; set; }
 
         /// <summary>
         /// Target id
         /// </summary>
-        public int TargetId { get; set; }
+        public string? TargetId { get; set; }
 
         /// <summary>
         /// File path that contains the output of standard error stream
@@ -47,5 +48,16 @@ namespace BuildXL.Tracing.CloudBuild
         /// Pip description
         /// </summary>
         public string? PipDescription { get; set; }
+
+        /// <summary>
+        /// Target Start time 
+        /// </summary>
+        public DateTime TargetStartTime { get; set; }
+
+        /// <summary>
+        /// Standard Output path
+        /// </summary>
+        public string? StdOutputPath { get; set; }
+
     }
 }

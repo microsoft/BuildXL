@@ -362,10 +362,6 @@ namespace BuildXL
                         OptionHandlerFactory.CreateBoolOption(
                             "disableProcessRetryOnResourceExhaustion",
                             sign => schedulingConfiguration.DisableProcessRetryOnResourceExhaustion = sign),
-                        // TODO: This is a temporary flag. Remove it once we no longer need it.
-                        OptionHandlerFactory.CreateBoolOption(
-                            "disableCompositeOpaqueFilters",
-                            sign => schedulingConfiguration.DisableCompositeOpaqueFilters = sign),
                         OptionHandlerFactory.CreateBoolOption(
                             "disableIsObsoleteCheckDuringConversion",
                             sign => frontEndConfiguration.DisableIsObsoleteCheckDuringConversion = sign),
@@ -1288,11 +1284,6 @@ namespace BuildXL
                                 sandboxConfiguration.UnsafeSandboxConfigurationMutable.ProbeDirectorySymlinkAsDirectory = sign;
                             },
                             isUnsafe: true),
-                        // TODO: Remove this!
-                        OptionHandlerFactory.CreateBoolOption(
-                            "unsafe_SourceFileCanBeInsideOutputDirectory",
-                            sign => { /* DEPRECATED -- DO NOTHING */ },
-                            isUnsafe: true),
                         OptionHandlerFactory.CreateBoolOption(
                             "unsafe_UnexpectedFileAccessesAreErrors",
                             sign =>
@@ -1535,7 +1526,7 @@ namespace BuildXL
 
                 if (OperatingSystemHelper.IsUnixOS)
                 {
-                    // TODO: Non Windows OS doesn't support admin-required process external execution mode.
+                    // Non Windows OS doesn't support admin-required process external execution mode.
                     if (sandboxConfiguration.AdminRequiredProcessExecutionMode != AdminRequiredProcessExecutionMode.Internal)
                     {
                         throw CommandLineUtilities.Error(Strings.Args_AdminRequiredProcessExecutionMode_NotSupportedOnNonWindows, sandboxConfiguration.AdminRequiredProcessExecutionMode.ToString());
@@ -2036,12 +2027,6 @@ namespace BuildXL
                     break;
                 case "USESUBSTTARGETFORCACHE":
                     experimentalOptions.UseSubstTargetForCache = experimentalOptionAndValue.Item2;
-                    break;
-
-                // TODO: These options are left to give consumers window to remove them from wrapper scripts.
-                case "TWOPHASEFINGERPRINTING":
-                case "NEWCACHE":
-                case "HASHSYMLINKSASTARGETPATH":
                     break;
                 case "ANALYZEDEPENDENCYVIOLATIONS":
                     // Deprecated

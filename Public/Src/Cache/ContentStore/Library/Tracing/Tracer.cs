@@ -316,12 +316,14 @@ namespace BuildXL.Cache.ContentStore.Tracing
             {
                 if (string.IsNullOrEmpty(prefix))
                 {
-                    // Trace(Severity.Debug, context, message);
-                    counterSet.LogOrderedNameValuePairs(s => Trace(Severity.Debug, context, s, operation: nameof(TraceStatisticsAtShutdown)));
+                    // Always prepend the messages with 'Shutdown stats' to simplify filtering.
+                    // It's possible to filter based on the operation name, but seeing a prefix like this one in every message
+                    // makes the filtering and analysis easier.
+                    counterSet.LogOrderedNameValuePairs(s => Trace(Severity.Debug, context, $"Shutdown stats: {s}", operation: nameof(TraceStatisticsAtShutdown)));
                 }
                 else
                 {
-                    counterSet.LogOrderedNameValuePairs(s => Trace(Severity.Debug, context, $"{prefix}.{s}", operation: nameof(TraceStatisticsAtShutdown)));
+                    counterSet.LogOrderedNameValuePairs(s => Trace(Severity.Debug, context, $"Shutdown stats: {prefix}.{s}", operation: nameof(TraceStatisticsAtShutdown)));
                 }
             }
         }

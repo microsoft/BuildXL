@@ -1210,10 +1210,6 @@ namespace BuildXL.Scheduler
 
         /// <nodoc/>
         [CounterType(CounterType.Stopwatch)]
-        RemoteWorker_AwaitWorkerAttachmentOnDisconnectAsync,
-
-        /// <nodoc/>
-        [CounterType(CounterType.Stopwatch)]
         RemoteWorker_ProcessExecutionLogDuration,
 
         /// <nodoc/>

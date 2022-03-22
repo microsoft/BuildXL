@@ -663,10 +663,7 @@ namespace BuildXL.Engine.Distribution
                 // a chance to attach and then respond gracefully to the exit.
                 // Note that by virtue of transitioning to Stopping via TryInitiateStop
                 // this task will be completed eventually (see SignalExitCancellation)
-                using (m_orchestratorService.Environment.Counters.StartStopwatch(PipExecutorCounter.RemoteWorker_AwaitWorkerAttachmentOnDisconnectAsync))
-                {
-                    await m_attachCompletion.Task;
-                }
+                await m_attachCompletion.Task;
 
                 var buildEndData = new BuildEndData()
                 {

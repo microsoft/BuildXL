@@ -1,23 +1,31 @@
 This page is a curated list of the release notes for releases after 0.20170619.4.0 and a manual copy of notable changes from each build before that. See the repo's commit history full details for what is included in each build.
 
 =======
+# 0.1.0-20220318.6.1 (Release [152886](https://mseng.visualstudio.com/Domino/_releaseProgress?releaseId=152886)) Released 3/23/2022
+-	Add some tolerance for late-joining workers 
+-	Enable module affinity
+-	Enable net6.0 by default
+-	Handle new line characters in detours
+-	Improve cache stability for directories created by pips
+-	Several bug fixes
+
 # 0.1.0-20220311.6 (Release [148943](https://dev.azure.com/mseng/domino/_releaseProgress?_a=release-pipeline-progress&releaseId=148934)) Released 3/16/2022
 -	Better descriptions for ninja pips
 -	Various fixes and improvements
 
-# 0.1.0-20220306.0.2 (Release [148113](https://dev.azure.com/mseng/domino/_releaseProgress?_a=release-pipeline-progress&releaseId=148113) Released 3/9/2022
+# 0.1.0-20220306.0.2 (Release [148113](https://dev.azure.com/mseng/domino/_releaseProgress?_a=release-pipeline-progress&releaseId=148113)) Released 3/9/2022
 - Allow increasing batch limit for orchestrator->worker RPC when sending MaterializeOutput requests
 - Support custom SBOM overrides through DropDaemon arguments
 - Entries in RuntimeConfigFiles are sorted to avoid artificial cache misses
 - Environment variable inputs to the graph are now compared in a case-sensitive way
 - Various fixes and improvements
 
-# 0.1.0-20220225.2 (Release [144135](https://dev.azure.com/mseng/domino/_releaseProgress?_a=release-pipeline-progress&releaseId=144135) Released 3/2/2022
+# 0.1.0-20220225.2 (Release [144135](https://dev.azure.com/mseng/domino/_releaseProgress?_a=release-pipeline-progress&releaseId=144135)) Released 3/2/2022
 - Updated BuildXL trace documentation
 - Enable remoting cache tests
 - BsiMetadataExtractor to take custom PackageVersion
 
-# 0.1.0-20220218.5 (Release [141436](https://dev.azure.com/mseng/domino/_releaseProgress?_a=release-pipeline-progress&releaseId=141436) Released 2/24/2022
+# 0.1.0-20220218.5 (Release [141436](https://dev.azure.com/mseng/domino/_releaseProgress?_a=release-pipeline-progress&releaseId=141436)) Released 2/24/2022
 -	Add milliseconds to CriticalPath table logging
 -	Globally skip logging specific warnings when CtrlC cancellation token is signaled
 -	Add option in cache dump analyzer to process multiple pips in single invocation
@@ -27,7 +35,7 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 -	Disable embedded webview for interactive authentication
 -	Update Lage graph builder tool to accept a lage location parameter
 
-# 0.1.0-20220211.6 (Release [138769](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=138769) Released 2/16/2022
+# 0.1.0-20220211.6 (Release [138769](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=138769)) Released 2/16/2022
 -	Improve performance of storing outputs in cache
 -	Add remotely run processes to the console.
 -	Detours improvements
@@ -38,7 +46,7 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 -	Explicitly report directory probes in detours
 -	Update critical path calculation and priority assignment
 
-# 0.1.0-20220204.4 (Release [136160](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=136160) Released 2/10/2022
+# 0.1.0-20220204.4 (Release [136160](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=136160)) Released 2/10/2022
 -	Switch BuildXL.Tools.CredentialProvider to .NET6
 -	Limit rush tests concurrency
 -	Enable limiting resource stats for distributed builds

@@ -502,6 +502,15 @@ namespace BuildXL.Utilities.Configuration
         double RemotingThresholdMultiplier { get; }
 
         /// <summary>
+        /// The amount of wait time in seconds for getting a remote agent to execute process pip remotely when <see cref="EnableProcessRemoting"/> is true.
+        /// </summary>
+        /// <remarks>
+        /// When a remote agent cannot be obtained by the specified time, then the process pip will fallback to local execution.
+        /// When the specified time is negative, then the process pip will wait forever for a remote agent.
+        /// </remarks>
+        double RemoteAgentWaitTimeSec { get; }
+
+        /// <summary>
         /// Whether Cpu resource determines the scheduling behavior
         /// </summary>
         bool CpuResourceAware { get; }

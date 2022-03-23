@@ -904,6 +904,9 @@ namespace BuildXL
                         OptionHandlerFactory.CreateOption(
                             "relatedActivityId",
                             opt => loggingConfiguration.RelatedActivityId = CommandLineUtilities.ParseStringOption(opt)),
+                        OptionHandlerFactory.CreateOption(
+                            "remoteAgentWaitTimeSec",
+                            opt => schedulingConfiguration.RemoteAgentWaitTimeSec = CommandLineUtilities.ParseDoubleOption(opt, double.MinValue, double.MaxValue)),
                         OptionHandlerFactory.CreateBoolOptionWithValue(
                             "remoteTelemetry",
                             (opt, sign) =>

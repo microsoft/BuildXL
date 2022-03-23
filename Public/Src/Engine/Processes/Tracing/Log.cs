@@ -418,6 +418,15 @@ namespace BuildXL.Processes.Tracing
         public abstract void InstallAnyBuildClient(LoggingContext context, string source, string ring);
 
         [GeneratedEvent(
+            (int)LogEventId.InstallAnyBuildClientDetails,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = "Installing AnyBuild client from '{source}' (ring: {ring}): {reason}")]
+        public abstract void InstallAnyBuildClientDetails(LoggingContext context, string source, string ring, string reason);
+
+        [GeneratedEvent(
             (int)LogEventId.FailedDownloadingAnyBuildClient,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,

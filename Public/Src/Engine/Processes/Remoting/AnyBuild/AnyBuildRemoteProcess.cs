@@ -1,7 +1,6 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-// #define FEATURE_ANYBUILD_PROCESS_REMOTING
 #if FEATURE_ANYBUILD_PROCESS_REMOTING
 
 using System;

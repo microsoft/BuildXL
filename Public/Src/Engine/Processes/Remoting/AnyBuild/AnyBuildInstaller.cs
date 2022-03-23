@@ -1,6 +1,8 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+#if FEATURE_ANYBUILD_PROCESS_REMOTING
+
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -8,6 +10,7 @@ using System.Net.Http;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using AnyBuild;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
@@ -39,6 +42,22 @@ namespace BuildXL.Processes.Remoting
         }
 
         private const string DefaultAnyBuildClientInstallSource = "https://anybuild.azureedge.net/clientreleases";
+
+        /// <summary>
+        /// Minimum required version of AnyBuild.
+        /// </summary>
+        /// <remarks>
+        /// If minumum is not satisfied, BuildXL will keep reinstalling AnyBuild.
+        /// 
+        /// Known versions:
+        /// - 98a7fbfa_20220314.3_149776
+        /// </remarks>
+        internal static readonly AnyBuildVersion MinRequiredVersion = AnyBuildVersion.Create("b36bd90f_20220319.3_151742")!;
+
+        private static readonly string s_installRoot = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "Microsoft",
+            "AnyBuild");
 
         private readonly string m_source;
         private readonly Ring m_ring;
@@ -138,25 +157,25 @@ namespace BuildXL.Processes.Remoting
 
         private async Task<bool> InstallWinAsync(CancellationToken token, bool forceInstall = false)
         {
-            string abDir = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "Microsoft",
-                "AnyBuild");
-
-            string abCmd = Path.Combine(abDir, "AnyBuild.cmd");
-
-            forceInstall |= EngineEnvironmentSettings.AnyBuildForceInstall.Value;
-
-            if (forceInstall && Directory.Exists(abDir))
-            {
-                Directory.Delete(abDir, true);
-            }
-
-            if (File.Exists(abCmd))
+            if (!ShouldInstallWin(MinRequiredVersion, forceInstall, out string reason))
             {
                 return true;
             }
 
+            try
+            {
+                if (Directory.Exists(s_installRoot))
+                {
+                    Directory.Delete(s_installRoot, true);
+                }
+            }
+            catch (Exception ex)
+            {
+                Tracing.Logger.Log.FailedInstallingAnyBuildClient(m_loggingContext, $"Failed to clean up installation root '{s_installRoot}': {ex}");
+                return false;
+            }
+
+            Tracing.Logger.Log.InstallAnyBuildClientDetails(m_loggingContext, m_source, m_ring.ToString(), reason);
             Tracing.Logger.Log.InstallAnyBuildClient(m_loggingContext, m_source, m_ring.ToString());
 
             string? bootstrapperFile = await DownloadBootstrapperWinAsync(token);
@@ -287,5 +306,94 @@ namespace BuildXL.Processes.Remoting
                 return null;
             }
         }
+
+        private static bool ShouldInstallWin(AnyBuildVersion version, bool forceInstall, out string reason) =>
+            ShouldInstall(
+                s_installRoot,
+                "AnyBuild.cmd",
+                "Current.txt",
+                version,
+                forceInstall,
+                out reason);
+
+        internal static bool ShouldInstall(
+            string installRoot,
+            string mainFileName,
+            string versionFileName,
+            AnyBuildVersion minRequiredVersion,
+            bool forceInstall,
+            out string reason)
+        {
+            reason = string.Empty;
+
+            forceInstall |= EngineEnvironmentSettings.AnyBuildForceInstall.Value;
+
+            if (forceInstall)
+            {
+                reason = "Force installation is enabled";
+                return true;
+            }
+
+            if (!Directory.Exists(installRoot))
+            {
+                reason = $"Installation directory '{installRoot}' not found";
+                return true;
+            }
+
+            string abMain = Path.Combine(installRoot, mainFileName);
+
+            if (!File.Exists(abMain))
+            {
+                reason = $"AnyBuild main file '{mainFileName}' in installation directory '{installRoot}' not found";
+                return true;
+            }
+
+            if (EngineEnvironmentSettings.AnyBuildSkipClientVersionCheck.Value)
+            {
+                return false;
+            }
+
+            string versionFile = Path.Combine(installRoot, versionFileName);
+            
+            if (!File.Exists(versionFile))
+            {
+                reason = $"AnyBuild version file '{versionFileName}' in installation directory '{installRoot}' not found";
+                return true;
+            }
+
+            string versionPath = File.ReadAllText(versionFile);
+
+            if (string.IsNullOrEmpty(versionPath))
+            {
+                reason = $"AnyBuild version cannot be found in '{versionFile}'";
+                return true;
+            }
+
+            AnyBuildVersion? currentVersion = AnyBuildVersion.Create(Path.GetFileName(versionPath));
+
+            if (currentVersion == null)
+            {
+                reason = $"Malformed AnyBuild version '{Path.GetFileName(versionPath)}' found in '{versionFile}'";
+                return true;
+            }
+
+            if (AnyBuildVersion.Comparer.Compare(currentVersion, minRequiredVersion) < 0)
+            {
+                reason = $"Current AnyBuild version '{currentVersion}' does not meet the minimum required version '{minRequiredVersion}'";
+                return true;
+            }
+
+            string abDir = Path.Combine(installRoot, currentVersion.ToString());
+
+            if (!Directory.Exists(abDir))
+            {
+                reason = $"AnyBuild directory for version '{currentVersion}' not found in '{installRoot}'";
+                return true;
+            }
+
+            return false;
+        }
     }
 }
+
+#endif

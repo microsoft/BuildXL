@@ -124,6 +124,14 @@ namespace BuildXL.Utilities.Configuration
         public static readonly Setting<string> AnyBuildPsPath = CreateSetting("BUILDXL_ANYBUILD_PSPATH", value => value);
 
         /// <summary>
+        /// Skip version check when deciding whether to install AnyBuild or not.
+        /// </summary>
+        /// <remarks>
+        /// This flag is useful when AnyBuild decides to change its version location and format.
+        /// </remarks>
+        public static readonly Setting<bool> AnyBuildSkipClientVersionCheck = CreateSetting("BUILDXL_ANYBUILD_SKIP_VERSION_CHECK", value => value == "1");
+
+        /// <summary>
         /// Indicates whether the application should fail fast on null reference exceptions
         /// </summary>
         public static readonly Setting<bool> FailFastOnNullReferenceException = CreateSetting("FailFastOnNullReferenceException", value => value == "1");

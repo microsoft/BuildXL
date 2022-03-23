@@ -91,6 +91,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
             ProcessCanRunRemoteTags = new List<string>();
             ProcessMustRunLocalTags = new List<string>();
             RemotingThresholdMultiplier = 1.5;
+
+            // Based on telemetry P85 of waiting time is 2s.
+            RemoteAgentWaitTimeSec = 2.0;
         }
 
         /// <nodoc />
@@ -181,6 +184,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             ProcessCanRunRemoteTags = new List<string>(template.ProcessCanRunRemoteTags);
             ProcessMustRunLocalTags = new List<string>(template.ProcessMustRunLocalTags);
             RemotingThresholdMultiplier = template.RemotingThresholdMultiplier;
+            RemoteAgentWaitTimeSec = template.RemoteAgentWaitTimeSec;
 
             StopDirtyOnSucceedFastPips = template.StopDirtyOnSucceedFastPips;
             CpuResourceAware = template.CpuResourceAware;
@@ -461,6 +465,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public double RemotingThresholdMultiplier { get; set; }
+
+        /// <inheritdoc />
+        public double RemoteAgentWaitTimeSec { get; set; }
 
         private int NumOfRemoteAgentLeasesValue => NumOfRemoteAgentLeases ?? 2 * MaxProcesses;
 

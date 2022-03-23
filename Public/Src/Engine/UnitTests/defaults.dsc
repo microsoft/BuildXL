@@ -4,7 +4,6 @@
 import * as BuildXLSdk from "Sdk.BuildXL";
 
 export {BuildXLSdk};
-
 export declare const qualifier: BuildXLSdk.DefaultQualifier;
 
 namespace DetoursCrossBitTests

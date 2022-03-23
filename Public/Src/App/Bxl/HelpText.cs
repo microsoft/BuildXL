@@ -932,6 +932,11 @@ namespace BuildXL
                 Strings.HelpText_DisplayHelp_NumRemoteAgentLeases,
                 HelpLevel.Verbose);
 
+            hw.WriteOption(
+                "/remoteAgentWaitTimeSec:<double>",
+                Strings.HelpText_DisplayHelp_RemoteAgentWaitTimeSec,
+                HelpLevel.Verbose);
+
             #endregion
 
 

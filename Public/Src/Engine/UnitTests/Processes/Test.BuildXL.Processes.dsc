@@ -10,6 +10,7 @@ namespace Processes {
     
     // BuildXL.Processes is still used as Net472 by Cloudbuild. So maintain the tests for net472
     export declare const qualifier: BuildXLSdk.DefaultQualifierWithNet472;
+    const bxlSdk = importFrom("Sdk.BuildXL");
 
     @@public
     export const test_BuildXL_Processes_dll = BuildXLSdk.test({
@@ -41,7 +42,16 @@ namespace Processes {
             importFrom("BuildXL.Utilities").Plugin.dll,
             importFrom("BuildXL.Utilities.Instrumentation").Common.dll,
             importFrom("BuildXL.Utilities.UnitTests").TestProcess.exe,
-            ...importFrom("BuildXL.Utilities").Native.securityDlls
+            ...importFrom("BuildXL.Utilities").Native.securityDlls,
+            ...addIf(bxlSdk.isFullFramework,
+                bxlSdk.NetFx.System.IO.Compression.dll,
+                bxlSdk.NetFx.System.Management.dll,
+                bxlSdk.NetFx.System.Net.Http.dll,
+                bxlSdk.NetFx.Netstandard.dll
+            ),
+            ...addIfLazy(bxlSdk.Flags.isMicrosoftInternal, () => [
+                  importFrom("AnyBuild.SDK").pkg,
+            ])
         ],
         runtimeContent: [
             ...addIfLazy(qualifier.targetRuntime === "win-x64", () => [

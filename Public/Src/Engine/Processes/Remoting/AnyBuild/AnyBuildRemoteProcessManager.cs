@@ -1,7 +1,6 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-// #define FEATURE_ANYBUILD_PROCESS_REMOTING
 #if FEATURE_ANYBUILD_PROCESS_REMOTING
 
 using System;
@@ -164,9 +163,18 @@ namespace BuildXL.Processes.Remoting
         private string CreateAnyBuildParams()
         {
             string localCacheDir = m_configuration.Layout.CacheDirectory.Combine(m_executionContext.PathTable, "AnyBuildLocalCache").ToString(m_executionContext.PathTable);
+            var jsonConfig = new List<string>()
+            {
+                "ProcessSubstitution.MaxParallelLocalExecutionsFactor=0",
+                "Run.DisableDirectoryMetadataDedup=true",
+                $"Agents.AgentSearchTimeoutSeconds={m_configuration.Schedule.RemoteAgentWaitTimeSec}"
+            };
+
+            string jsonConfigOverrides = string.Join(" ", jsonConfig);
+
             var args = new List<string>()
             {
-                "--JsonConfigOverrides ProcessSubstitution.MaxParallelLocalExecutionsFactor=0 Run.DisableDirectoryMetadataDedup=true",
+                $"--JsonConfigOverrides {jsonConfigOverrides}",
                 "--DisableActionCache",
                 "--RemoteAll",
                 "--DoNotUseMachineUtilizationForScheduling",

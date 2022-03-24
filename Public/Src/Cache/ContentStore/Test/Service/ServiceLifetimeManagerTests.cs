@@ -6,7 +6,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
+using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using BuildXL.Cache.ContentStore.Service;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
@@ -49,7 +51,7 @@ namespace ContentStoreTest.Service
 
             await Task.Delay(5);
 
-            await manager.ShutdownServiceAsync(context, InterruptableServiceId);
+            await manager.GracefulShutdownServiceAsync(context, InterruptableServiceId).ShouldBeSuccess();
 
             // It is possible that the manager shuts down before the service recognizes interruption.
             // Waiting a few polling intervals to make sure the service stopped.
@@ -63,6 +65,23 @@ namespace ContentStoreTest.Service
         {
             Completed,
             Cancelled
+        }
+
+        [Fact]
+        public async Task RunInterruptableServiceThrowsOperationCanceledExceptionAsync()
+        {
+            using var testDirectory = new DisposableDirectory(_fileSystem.Value);
+            var cts = new CancellationTokenSource();
+            var manager = Create(testDirectory.Path, cts, out var context);
+            cts.Cancel();
+
+            var interruptableServiceTask = manager.RunInterruptableServiceAsync(context, InterruptableServiceId, async token =>
+            {
+                await Task.Delay(TimeSpan.FromMinutes(1));
+                return ServiceResult.Completed;
+            });
+
+            await Assert.ThrowsAsync<OperationCanceledException>(() => interruptableServiceTask);
         }
 
         [Fact]
@@ -161,8 +180,13 @@ namespace ContentStoreTest.Service
 
         private ServiceLifetimeManager Create(AbsolutePath testDirectoryPath, out OperationContext context)
         {
-            // Don't allow tests to run over 30 seconds
+            // Don't allow tests to run over 5 minutes
             var cts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
+            return Create(testDirectoryPath, cts, out context);
+        }
+
+        private ServiceLifetimeManager Create(AbsolutePath testDirectoryPath, CancellationTokenSource cts, out OperationContext context)
+        {
             context = new OperationContext(new Context(Logger), cts.Token);
             return new ServiceLifetimeManager(testDirectoryPath, pollingInterval: LifetimeManagerPollInterval);
         }

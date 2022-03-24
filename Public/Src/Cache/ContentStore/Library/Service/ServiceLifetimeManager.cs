@@ -7,6 +7,8 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
+using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Native.IO;
 using BuildXL.Utilities.Tasks;
@@ -18,6 +20,7 @@ namespace BuildXL.Cache.ContentStore.Service
     /// </summary>
     public class ServiceLifetimeManager
     {
+        private static readonly Tracer Tracer = new Tracer(nameof(ServiceLifetimeManager));
         /// <summary>
         /// The directory in which signal files are stored
         /// </summary>
@@ -87,7 +90,7 @@ namespace BuildXL.Cache.ContentStore.Service
         /// <summary>
         /// Get path of signal file indicating that the service should shutdown
         /// </summary>
-        private string ServiceShutdownFile(string serviceId) => Path.Combine(SignalFileRoot.Path, $"{serviceId}.shutdown");
+        internal string ServiceShutdownFile(string serviceId) => Path.Combine(SignalFileRoot.Path, $"{serviceId}.shutdown");
 
         /// <summary>
         /// Get path of signal file indicating that the service should NOT startup
@@ -96,11 +99,11 @@ namespace BuildXL.Cache.ContentStore.Service
 
         /// <summary>
         /// Run a service which can be interrupted by another service (via <see cref="RunInterrupterServiceAsync{T}"/>)
-        /// or shutdown (via <see cref="ShutdownServiceAsync"/>).
+        /// or shutdown (via <see cref="GracefulShutdownServiceAsync"/>).
         /// </summary>
         public async Task<T> RunInterruptableServiceAsync<T>(OperationContext context, string serviceId, Func<CancellationToken, Task<T>> runAsync)
         {
-            await WaitForDeletionAsync(PreventStartupFile(serviceId), context.Token);
+            await WaitForDeletionAsync(PreventStartupFile(serviceId), context.Token).RethrowIfFailure();
             return await RunServiceCoreAsync(context, serviceId, runAsync);
         }
 
@@ -124,7 +127,7 @@ namespace BuildXL.Cache.ContentStore.Service
             // Create prevent startup for interrupted service so that it doesn't start until this service completes
             using (Create(PreventStartupFile(serviceToInterruptId), FileShare.None))
             {
-                await ShutdownServiceAsync(context, serviceToInterruptId);
+                await GracefulShutdownServiceAsync(context, serviceToInterruptId).RethrowIfFailure();
 
                 return await RunServiceCoreAsync(context, serviceId, runAsync);
             }
@@ -133,22 +136,69 @@ namespace BuildXL.Cache.ContentStore.Service
         /// <summary>
         /// Signals and waits for shutdown a service run under <see cref="RunInterruptableServiceAsync{T}"/>
         /// </summary>
-        public Task ShutdownServiceAsync(OperationContext context, string serviceId)
+        public Task<BoolResult> GracefulShutdownServiceAsync(OperationContext context, string serviceId)
         {
-            // Signal interrupted service to shutdown
-            FileUtilities.DeleteFile(ServiceShutdownFile(serviceId));
+            return context.PerformOperationAsync(
+                Tracer,
+                () =>
+                {
+                    // Signal interrupted service to shutdown
+                    FileUtilities.DeleteFile(ServiceShutdownFile(serviceId));
 
-            // Wait for interrupted service to shutdown
-            return WaitForShutdownAsync(context, serviceId);
+                    // Wait for interrupted service to shutdown
+                    return WaitForShutdownAsync(context, serviceId);
+                },
+                extraEndMessage: r => serviceId,
+                extraStartMessage: serviceId
+            );
         }
 
         /// <summary>
         /// Waits for shutdown of service
         /// </summary>
-        public Task WaitForShutdownAsync(OperationContext context, string serviceId)
+        public Task<BoolResult> WaitForShutdownAsync(OperationContext context, string serviceId)
         {
             // Wait for interrupted service to shutdown
             return WaitForDeletionAsync(ServiceActiveFile(serviceId), context.Token);
+        }
+
+        /// <summary>
+        /// Waits for a shutdown signal.
+        /// </summary>
+        public Task<BoolResult> WaitForShutdownRequestAsync(OperationContext context, string serviceId)
+        {
+            return WaitForDeletionAsync(ServiceShutdownFile(serviceId), context.Token);
+        }
+
+        /// <summary>
+        /// Create a file that indicates that the service started.
+        /// </summary>
+        public BoolResult ServiceStarted(OperationContext context, string serviceId)
+        {
+            return context.PerformOperation(
+                Tracer,
+                () =>
+                {
+                    File.WriteAllText(ServiceShutdownFile(serviceId), string.Empty);
+                    File.WriteAllText(ServiceActiveFile(serviceId), string.Empty);
+                    return BoolResult.Success;
+                },
+                extraStartMessage: serviceId);
+        }
+
+        /// <summary>
+        /// Delete a file that indicates that the service is active.
+        /// </summary>
+        public BoolResult ServiceStopped(OperationContext context, string serviceId)
+        {
+            return context.PerformOperation(
+                Tracer,
+                () =>
+                {
+                    FileUtilities.DeleteFile(ServiceActiveFile(serviceId));
+                    return BoolResult.Success;
+                },
+                extraStartMessage: serviceId);
         }
 
         private FileStream Create(string path, FileShare share)
@@ -156,24 +206,31 @@ namespace BuildXL.Cache.ContentStore.Service
             return new FileStream(path, FileMode.Create, FileAccess.Write, share, 1, FileOptions.DeleteOnClose);
         }
 
-        private async Task WaitForDeletionAsync(string path, CancellationToken token)
+        private async Task<BoolResult> WaitForDeletionAsync(string path, CancellationToken token)
         {
-            while (true)
+            try
             {
-                token.ThrowIfCancellationRequested();
-
-                if (!File.Exists(path))
+                while (true)
                 {
-                    return;
-                }
+                    token.ThrowIfCancellationRequested();
 
-                await Task.Delay(PollingInterval, token);
+                    if (!File.Exists(path))
+                    {
+                        return BoolResult.Success;
+                    }
+
+                    await Task.Delay(PollingInterval, token);
+                }
+            }
+            catch (OperationCanceledException e)
+            {
+                return new BoolResult(e) { IsCancelled = true };
             }
         }
 
         private async Task WaitForDeletionAsync(string path, Action action, CancellationToken token)
         {
-            await WaitForDeletionAsync(path, token);
+            await WaitForDeletionAsync(path, token).RethrowIfFailure();
             action();
         }
     }

@@ -80,7 +80,10 @@ namespace BuildXL.Cache.Host.Service.Internal
             if (IsOutOfProcCacheEnabled(cacheConfig))
             {
                 _tracer.Debug(operationContext, $"Creating an out-of-proc cache service.");
-                var outOfProcCache = await CacheServiceWrapper.CreateAsync(_arguments);
+                var outOfProcCache = await CacheServiceWrapper.CreateAsync(
+                    _arguments,
+                    DeploymentLauncherHost.Instance,
+                    static (context, reason) => LifetimeManager.RequestTeardown(context, reason));
 
                 if (outOfProcCache.Succeeded)
                 {

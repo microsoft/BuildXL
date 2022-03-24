@@ -82,41 +82,9 @@ namespace BuildXL.Cache.Host.Service
         /// Indicates if the process has exited
         /// </summary>
         bool HasExited { get; }
+
+
     }
-
-    ///// <summary>
-    ///// Represents a launched system process
-    ///// </summary>
-    //public interface ILauncherProcess
-    //{
-    //    /// <summary>
-    //    /// Starts the process.
-    //    /// </summary>
-    //    BoolResult Start(OperationContext context);
-
-    //    /// <summary>
-    //    /// Stop the service gracefully and kill it if it won't shutdown on time.
-    //    /// </summary>
-    //    /// <remarks>
-    //    /// If the shutdown is successful the result contains an exit code.
-    //    /// </remarks>
-    //    Task<Result<int>> StopAsync(OperationContext context, TimeSpan shutdownTimeout);
-
-    //    /// <summary>
-    //    /// The id of the process.
-    //    /// </summary>
-    //    int Id { get; }
-
-    //    /// <summary>
-    //    /// The id of the service that this process represents.
-    //    /// </summary>
-    //    string ServiceId { get; }
-
-    //    /// <summary>
-    //    /// Indicates if the process has exited.
-    //    /// </summary>
-    //    bool HasExited { get; }
-    //}
 
     /// <summary>
     /// Represents a tool deployed and launched by the <see cref="DeploymentLauncher"/>

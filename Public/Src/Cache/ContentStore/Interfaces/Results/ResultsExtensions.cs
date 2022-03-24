@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
+using System.Runtime.ExceptionServices;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
@@ -269,6 +270,24 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         }
 
         /// <summary>
+        /// Throws <see cref="ResultPropagationException"/> if <paramref name="result"/> is not successful.
+        /// </summary>
+        public static TResult RethrowIfFailure<TResult>(this TResult result) where TResult : ResultBase
+        {
+            if (!result.Succeeded)
+            {
+                if (result.Exception is not null)
+                {
+                    ExceptionDispatchInfo.Capture(result.Exception).Throw();
+                }
+
+                throw new ResultPropagationException(result);
+            }
+
+            return result;
+        }
+
+        /// <summary>
         /// Awaits the task and throws <see cref="ResultPropagationException"/> if the result is not successful.
         /// </summary>
         public static async Task<T> ThrowIfFailure<T>(this Task<T> task)
@@ -276,6 +295,18 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         {
             var result = await task;
             result.ThrowIfFailure();
+            return result;
+        }
+
+        /// <summary>
+        /// Awaits the task and throws the original exception that caused the original error.
+        /// If the result is unsuccessful not because of an exception then <see cref="ResultPropagationException"/> is thrown.
+        /// </summary>
+        public static async Task<T> RethrowIfFailure<T>(this Task<T> task)
+            where T : ResultBase
+        {
+            var result = await task;
+            result.RethrowIfFailure();
             return result;
         }
 

@@ -34,6 +34,23 @@ namespace BuildXL.Cache.Host.Service
             _process.Exited += (sender, e) => Exited?.Invoke();
         }
 
+        /// <nodoc />
+        public void WaitForExit(TimeSpan? timeout)
+        {
+            if (timeout == null)
+            {
+                _process.WaitForExit();
+            }
+            else
+            {
+                bool exited = _process.WaitForExit((int)timeout.Value.TotalMilliseconds);
+                if (!exited)
+                {
+                    throw new InvalidOperationException($"The process with Id {Id} did not exit after '{timeout}'.");
+                }
+            }
+        }
+
         /// <inheritdoc />
         public int ExitCode => _process.ExitCode;
 
@@ -72,24 +89,16 @@ namespace BuildXL.Cache.Host.Service
                 },
                 maxDegreeOfParallelism: 1, interval: TimeSpan.FromSeconds(1), batchSize: 1024);
 
-            _process.OutputDataReceived += (s, e) =>
-                                           {
-                                               if (!string.IsNullOrEmpty(e.Data))
-                                               {
-                                                   outputMessagesNagleQueue.Enqueue(e.Data);
-                                               }
-                                           };
-
-            _process.ErrorDataReceived += (s, e) =>
-                                          {
-                                              if (!string.IsNullOrEmpty(e.Data))
-                                              {
-                                                  errorMessagesNagleQueue.Enqueue(e.Data);
-                                              }
-                                          };
+            _process.OutputDataReceived += onOutputDataReceived;
+            _process.ErrorDataReceived += onErrorDataReceived;
 
             _process.Exited += (sender, args) =>
                                {
+                                   // Unsubscribing from the events before disposing.
+
+                                   _process.OutputDataReceived -= onOutputDataReceived;
+                                   _process.ErrorDataReceived -= onErrorDataReceived;
+
                                    // Dispose will drain all the existing items from the message queues.
                                    outputMessagesNagleQueue.Dispose();
                                    errorMessagesNagleQueue.Dispose();
@@ -100,6 +109,22 @@ namespace BuildXL.Cache.Host.Service
             _process.BeginOutputReadLine();
             _process.BeginErrorReadLine();
             _started = true;
+
+            void onOutputDataReceived(object s, DataReceivedEventArgs e)
+            {
+                if (!string.IsNullOrEmpty(e.Data))
+                {
+                    outputMessagesNagleQueue.Enqueue(e.Data);
+                }
+            }
+
+            void onErrorDataReceived(object s, DataReceivedEventArgs e)
+            {
+                if (!string.IsNullOrEmpty(e.Data))
+                {
+                    errorMessagesNagleQueue.Enqueue(e.Data);
+                }
+            }
         }
     }
 }

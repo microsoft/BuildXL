@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using Xunit;
@@ -9,6 +10,15 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Results
 {
     public class ResultsExtensionsTests
     {
+        [Fact]
+        public void RethrowIfFailurePropagatesOriginalException()
+        {
+            var exception = new System.InvalidOperationException();
+            var result = new BoolResult(exception);
+
+            Assert.Throws<InvalidOperationException>(() => result.RethrowIfFailure());
+        }
+
         [Fact]
         public async Task ThenAsyncIsCalledOnSuccessCase()
         {

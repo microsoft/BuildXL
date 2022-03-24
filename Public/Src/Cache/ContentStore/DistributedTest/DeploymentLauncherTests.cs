@@ -229,7 +229,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test
             ReadAllText(testProcess2.StartInfo.FileName).Should().Be(secondRunExecutableContent);
 
             // Verify shutdown launches new processes
-            await launcher.LifetimeManager.ShutdownServiceAsync(context, serviceId);
+            await launcher.LifetimeManager.GracefulShutdownServiceAsync(context, serviceId).ShouldBeSuccess();
 
             await launcher.ShutdownAsync(context).ThrowIfFailureAsync();
         }

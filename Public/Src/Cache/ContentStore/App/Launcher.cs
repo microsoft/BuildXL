@@ -55,7 +55,7 @@ namespace BuildXL.Cache.ContentStore.App
                     if (shutdown)
                     {
                         var context = new OperationContext(new Context(_logger), _cancellationToken);
-                        await launcher.LifetimeManager.ShutdownServiceAsync(context, settings.LauncherServiceId);
+                        await launcher.LifetimeManager.GracefulShutdownServiceAsync(context, settings.LauncherServiceId).IgnoreFailure(); // The error was already been logged.
                         return;
                     }
 

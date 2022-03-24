@@ -1,6 +1,8 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Collections.Generic;
+
 namespace BuildXL.Cache.Host.Configuration
 {
 #nullable enable
@@ -28,5 +30,11 @@ namespace BuildXL.Cache.Host.Configuration
         /// If true, then memory-mapped-based secrets communication is used.
         /// </summary>
         public bool UseInterProcSecretsCommunication { get; set; } = false;
+
+        /// <summary>
+        /// Additional environment variables passed to the launched out-of-proc CaSaaS.
+        /// </summary>
+        public Dictionary<string, string> EnvironmentVariables { get; set; } = new Dictionary<string, string>();
+
     }
 }

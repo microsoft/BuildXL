@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Reflection;
 using System.Threading.Tasks;
@@ -23,6 +24,11 @@ using BuildXL.Utilities.ConfigurationHelpers;
 namespace BuildXL.Cache.Host.Service.OutOfProc
 {
     /// <summary>
+    /// A delegate used to request the teardown of the current process.
+    /// </summary>
+    public delegate void RequestTeardownDelegate(OperationContext context, string reason);
+
+    /// <summary>
     /// A helper class that "wraps" an out-of-proc cache service.
     /// </summary>
     public class CacheServiceWrapper : StartupShutdownBase
@@ -30,6 +36,8 @@ namespace BuildXL.Cache.Host.Service.OutOfProc
         private readonly CacheServiceWrapperConfiguration _configuration;
         private readonly ServiceLifetimeManager _serviceLifetimeManager;
         private readonly RetrievedSecrets _secrets;
+        private readonly IDeploymentLauncherHost _host;
+        private readonly RequestTeardownDelegate _requestTeardownDelegate;
         private IDisposable? _interProcessSecretsCommunicator;
 
         /// <inheritdoc />
@@ -37,17 +45,36 @@ namespace BuildXL.Cache.Host.Service.OutOfProc
 
         private LauncherManagedProcess? _runningProcess;
 
-        public CacheServiceWrapper(CacheServiceWrapperConfiguration configuration, ServiceLifetimeManager serviceLifetimeManager, RetrievedSecrets secrets)
+        public CacheServiceWrapper(
+            CacheServiceWrapperConfiguration configuration,
+            ServiceLifetimeManager serviceLifetimeManager,
+            RetrievedSecrets secrets,
+            IDeploymentLauncherHost host,
+            RequestTeardownDelegate requestTeardownDelegate)
         {
             _configuration = configuration;
             _serviceLifetimeManager = serviceLifetimeManager;
             _secrets = secrets;
+            _host = host;
+            _requestTeardownDelegate = requestTeardownDelegate;
         }
+
+        /// <summary>
+        /// True when the instance is ready for use.
+        /// </summary>
+        [MemberNotNullWhen(true, nameof(LaunchedProcess))]
+        public bool Ready => StartupCompleted && !ShutdownStarted;
+
+        /// <summary>
+        /// Returns a process that was launched by this instance.
+        /// Not null when startup completed.
+        /// </summary>
+        public ILauncherProcess? LaunchedProcess => _runningProcess?.Process;
 
         /// <summary>
         /// Creates <see cref="CacheServiceWrapper"/> from <paramref name="configuration"/>.
         /// </summary>
-        public static async Task<Result<CacheServiceWrapper>> CreateAsync(DistributedCacheServiceArguments configuration)
+        public static async Task<Result<CacheServiceWrapper>> CreateAsync(DistributedCacheServiceArguments configuration, IDeploymentLauncherHost launcher, RequestTeardownDelegate requestTeardownDelegate)
         {
             // Validating the cache configuration
             
@@ -68,7 +95,7 @@ namespace BuildXL.Cache.Host.Service.OutOfProc
                 return new Result<CacheServiceWrapper>(secrets);
             }
 
-            return Result.Success(new CacheServiceWrapper(wrapperConfiguration.Value, serviceLifetimeManager, secrets.Value));
+            return Result.Success(new CacheServiceWrapper(wrapperConfiguration.Value, serviceLifetimeManager, secrets.Value, launcher, requestTeardownDelegate));
 
             // Creating final configuration based on provided settings and by using reasonable defaults.
             static Result<CacheServiceWrapperConfiguration> tryCreateConfiguration(DistributedCacheServiceArguments configuration)
@@ -109,14 +136,15 @@ namespace BuildXL.Cache.Host.Service.OutOfProc
                 var hostParameters = HostParameters.FromTelemetryProvider(configuration.TelemetryFieldsProvider);
 
                 var resultingConfiguration = new CacheServiceWrapperConfiguration(
-                    serviceId: "OutOfProcCache",
+                    serviceId: CacheServiceWrapperConfiguration.CacheServiceId,
                     executable: executable,
                     workingDirectory: workingDirectory,
                     hostParameters: hostParameters,
                     cacheConfigPath: new AbsolutePath(outOfProcSettings.CacheConfigPath),
                     // DataRootPath is set in CloudBuild and we need to propagate this configuration to the launched process.
                     dataRootPath: new AbsolutePath(configuration.Configuration.DataRootPath),
-                    useInterProcSecretsCommunication: outOfProcSettings.UseInterProcSecretsCommunication);
+                    useInterProcSecretsCommunication: outOfProcSettings.UseInterProcSecretsCommunication,
+                    outOfProcSettings.EnvironmentVariables);
 
                 outOfProcSettings.ServiceLifetimePollingIntervalSeconds.ApplyIfNotNull(v => resultingConfiguration.ServiceLifetimePollingInterval = TimeSpan.FromSeconds(v));
                 outOfProcSettings.ShutdownTimeoutSeconds.ApplyIfNotNull(v => resultingConfiguration.ShutdownTimeout = TimeSpan.FromSeconds(v));
@@ -159,7 +187,8 @@ namespace BuildXL.Cache.Host.Service.OutOfProc
                               {
                                   _configuration.HostParameters.ToEnvironment(),
                                   _serviceLifetimeManager.GetDeployedInterruptableServiceVariables(_configuration.ServiceId),
-                                  getDotNetEnvironmentVariables()
+                                  _configuration.EnvironmentVariables,
+                                  CacheServiceWrapperConfiguration.DefaultDotNetEnvironmentVariables
                               };
 
             if (_configuration.UseInterProcSecretsCommunication)
@@ -174,7 +203,7 @@ namespace BuildXL.Cache.Host.Service.OutOfProc
                 environment.Add(RetrievedSecretsSerializer.SerializedSecretsKeyName, RetrievedSecretsSerializer.Serialize(_secrets));
             }
 
-            var process = new LauncherProcess(
+            var process = _host.CreateProcess(
                 new ProcessStartInfo()
                 {
                     UseShellExecute = false,
@@ -185,22 +214,35 @@ namespace BuildXL.Cache.Host.Service.OutOfProc
                 });
 
             _runningProcess = new LauncherManagedProcess(process, _configuration.ServiceId, _serviceLifetimeManager);
+
+            // Handling the process exit event in case of a crash or an unbormal exit.
+            process.Exited += () =>
+                              {
+                                  // Calling the host about the process exit only if we haven't started the shutdown procedure ourselves.
+                                  if (!ShutdownStarted)
+                                  {
+                                      _requestTeardownDelegate(context, processDescription());
+                                  }
+
+                                  string processDescription()
+                                  {
+                                      try
+                                      {
+                                          // We should be able to get the Exit code and process id here.
+                                          return $"Child process exited. Id={process.Id}, ExitCode={process.ExitCode}";
+                                      }
+                                      catch (Exception e)
+                                      {
+                                          return $"Failed getting process description on exit: {e}";
+                                      }
+                                  }
+                              };
+
             Tracer.Info(context, "Starting out-of-proc cache process.");
             var result = _runningProcess.Start(context);
 
             Tracer.Info(context, $"Started out-of-proc cache process (Id={process.Id}). Result: {result}.");
             return Task.FromResult(result);
-
-            static IDictionary<string, string> getDotNetEnvironmentVariables()
-            {
-                return new Dictionary<string, string>
-                       {
-                           ["COMPlus_GCCpuGroup"] = "1",
-                           ["DOTNET_GCCpuGroup"] = "1", // This is the same option that is used by .net6+
-                           ["COMPlus_Thread_UseAllCpuGroups"] = "1",
-                           ["DOTNET_Thread_UseAllCpuGroups"] = "1", // This is the same option that is used by .net6+
-                };
-            }
         }
 
         /// <inheritdoc />
@@ -208,6 +250,7 @@ namespace BuildXL.Cache.Host.Service.OutOfProc
         {
             if (_runningProcess != null)
             {
+                _interProcessSecretsCommunicator?.Dispose();
                 return await _runningProcess.StopAsync(context, _configuration.ShutdownTimeout);
             }
 

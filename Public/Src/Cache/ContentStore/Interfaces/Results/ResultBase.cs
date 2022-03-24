@@ -139,15 +139,6 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         public Exception? Exception => Error?.Exception;
 
         /// <summary>
-        /// Re-throws the exception.
-        /// </summary>
-        public void ReThrow()
-        {
-            Contract.Requires(Exception != null);
-            ExceptionDispatchInfo.Capture(Exception).Throw();
-        }
-
-        /// <summary>
         /// Gets an error message (non null if the result is unsuccessful).
         /// </summary>
         public string? ErrorMessage => Error?.ErrorMessage;

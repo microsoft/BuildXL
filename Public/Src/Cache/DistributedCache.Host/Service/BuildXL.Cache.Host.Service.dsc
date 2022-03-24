@@ -7,7 +7,7 @@ namespace Service {
     @@public
     export const dll = BuildXLSdk.library({
         assemblyName: "BuildXL.Cache.Host.Service",
-        sources: globR(d`.`,"*.cs"),
+        sources: globR(d`.`, "*.cs"),
         skipDocumentationGeneration: true,
         references: [
             Configuration.dll,
@@ -43,6 +43,7 @@ namespace Service {
             ),
         ],
         allowUnsafeBlocks: false,
+        addNotNullAttributeFile: true,
         internalsVisibleTo: [
             "BuildXL.Cache.Host.Test",
         ]

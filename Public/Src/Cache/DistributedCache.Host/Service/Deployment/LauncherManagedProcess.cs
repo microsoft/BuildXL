@@ -51,6 +51,7 @@ namespace BuildXL.Cache.Host.Service
                 () =>
                 {
                     _process.Start(context);
+                    _process.Exited += () => OnExited(context, "Process Exited");
                     return Result.Success(_process.Id);
                 },
                 traceOperationStarted: true,
@@ -78,19 +79,15 @@ namespace BuildXL.Cache.Host.Service
                         () =>
                         {
                             // It is important to pass 'context' and not 'nestedContext',
-                            // because 'nestedContext' will be canceled at a time we call TerminateService.
+                            // because 'nestedContext' will be canceled at a time we call Kill method.
                             Kill(context);
                         });
 
-                    await context.PerformOperationAsync(
-                        Tracer,
-                        async () =>
-                        {
-                            await _lifetimeManager.ShutdownServiceAsync(nestedContext, ServiceId);
-                            return BoolResult.Success;
-                        },
-                        caller: "GracefulShutdownService").IgnoreFailure();
+                    // Trying to shut down the service gracefully and ignoring the error, because its already being traced).
+                    await _lifetimeManager.GracefulShutdownServiceAsync(nestedContext, ServiceId).IgnoreFailure();
 
+                    // Waiting for the process exit task. It should be set to completion either by a graceful shutdown,
+                    // or by calling Kill method.
                     return await _processExitSource.Task;
                 },
                 timeout: shutdownTimeout,

@@ -86,20 +86,20 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             if (!_configuration.IsMasterEligible)
             {
-                return Result.Success<Role>(Role.Worker);
+                return Result.Success(Role.Worker);
             }
 
-            var r = await UpdateRoleAsync(context, tryUpdateLease: TryReleaseLeaseIfHeld).AsAsync(s => s.Role);
+            var r = await UpdateRoleAsync(context, tryUpdateLease: TryReleaseLeaseIfHeld);
             if (r.Succeeded)
             {
                 // We don't know who the master is any more
-                _lastElection = new MasterElectionState(Master: default, Role: r.Value);
+                _lastElection = new MasterElectionState(Master: default, Role: Role.Worker);
             }
 
-            return r;
+            return Result.Success(Role.Worker);
         }
 
-        private delegate bool TryUpdateLease(ref MasterLease metadata);
+        private delegate bool TryUpdateLease(MasterLease current, out MasterLease next);
 
         private class MasterLease
         {
@@ -131,29 +131,41 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private record MasterLeaseMetadata(string? ETag = null, MasterLease? Lease = null);
 
-        private bool TryReleaseLeaseIfHeld(ref MasterLease lease)
+        private bool TryReleaseLeaseIfHeld(MasterLease current, out MasterLease next)
         {
+            next = current;
+
             var now = _clock.UtcNow;
-            bool isMaster = IsCurrentMaster(lease);
+
+            bool isMaster = IsCurrentMaster(current);
             if (!isMaster)
             {
-                // Does not hold the master lease, so cannot release.
+                // We can't release a lease we do not hold
                 return false;
             }
 
-            lease = new MasterLease()
+            if (IsLeaseExpired(current, now))
             {
-                CreationTimeUtc = isMaster ? lease!.CreationTimeUtc : now,
+                // We don't need to release a expired lease
+                return false;
+            }
+
+            next = new MasterLease()
+            {
+                CreationTimeUtc = isMaster ? current!.CreationTimeUtc : now,
                 LastUpdateTimeUtc = now,
-                LeaseExpiryTimeUtc = now + _configuration.LeaseExpiryTime,
-                Master = _primaryMachineLocation
+                // The whole point of this method is to basically set the lease expiry time as now
+                LeaseExpiryTimeUtc = now,
+                Master = _primaryMachineLocation,
             };
 
             return true;
         }
 
-        private bool TryCreateOrExtendLease(ref MasterLease lease)
+        private bool TryCreateOrExtendLease(MasterLease current, out MasterLease next)
         {
+            next = current;
+
             if (!_configuration.IsMasterEligible)
             {
                 // Not eligible to take master lease.
@@ -161,16 +173,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
 
             var now = _clock.UtcNow;
-            bool isMaster = IsCurrentMaster(lease);
-            if (!isMaster && !IsLeaseExpired(lease))
+            var isMaster = IsCurrentMaster(current);
+            if (!IsLeaseExpired(current, now) && !isMaster)
             {
-                // Other machine still has valid lease
+                // We only want to update the lease if it's either expired, or we are the master machine
                 return false;
             }
 
-            lease = new MasterLease()
+            next = new MasterLease()
             {
-                CreationTimeUtc = isMaster ? lease!.CreationTimeUtc : now,
+                CreationTimeUtc = isMaster ? current!.CreationTimeUtc : now,
                 LastUpdateTimeUtc = now,
                 LeaseExpiryTimeUtc = now + _configuration.LeaseExpiryTime,
                 Master = _primaryMachineLocation
@@ -179,9 +191,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return true;
         }
 
-        private bool IsLeaseExpired([NotNullWhen(false)] MasterLease? lease)
+        private bool IsLeaseExpired([NotNullWhen(false)] MasterLease? lease, DateTime? now = null)
         {
-            return lease == null || lease.LeaseExpiryTimeUtc < _clock.UtcNow;
+            return lease == null || lease.LeaseExpiryTimeUtc <= (now ?? _clock.UtcNow);
         }
 
         private bool IsCurrentMaster([NotNullWhen(true)] MasterLease? lease)
@@ -203,18 +215,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private Task<Result<MasterElectionState>> UpdateRoleAsync(OperationContext context, TryUpdateLease tryUpdateLease)
         {
-            return context.PerformOperationWithTimeoutAsync<Result<MasterElectionState>>(
+            return context.PerformOperationWithTimeoutAsync(
                 Tracer,
                 async context =>
                 {
-                    var lease = await _storage.ReadModifyWriteAsync<MasterLease>(context, _configuration.FileName,
-                        state =>
+                    var result = await _storage.ReadModifyWriteAsync<MasterLease, MasterLease>(context, _configuration.FileName,
+                        current =>
                         {
-                            tryUpdateLease(ref state);
-                            return state;
+                            var updated = tryUpdateLease(current, out var next);
+                            return (NextState: next, Result: next, Updated: updated);
                         }).ThrowIfFailureAsync();
 
-                    return Result.Success(GetElectionState(lease));
+                    return Result.Success(GetElectionState(result.Result));
                 },
                 timeout: _configuration.StorageInteractionTimeout,
                 extraEndMessage: r => $"{r!.GetValueOrDefault()} IsMasterEligible=[{_configuration.IsMasterEligible}]");

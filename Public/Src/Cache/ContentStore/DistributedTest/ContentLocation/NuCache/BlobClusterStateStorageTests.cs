@@ -3,23 +3,18 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
-using System.Security.Cryptography;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.MetadataService;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
-using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Secrets;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.InterfacesTest;
-using BuildXL.Cache.ContentStore.InterfacesTest.Results;
-using BuildXL.Cache.ContentStore.InterfacesTest.Time;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
-using BuildXL.Cache.ContentStore.Utils;
+using ContentStoreTest.Distributed.Redis;
 using ContentStoreTest.Test;
 using FluentAssertions;
 using Xunit;
@@ -29,19 +24,20 @@ using Xunit.Abstractions;
 
 namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
 {
+    [Collection("Redis-based tests")]
     public class BlobClusterStateStorageTests : TestWithOutput
     {
         private readonly static MachineLocation M1 = new MachineLocation("M1");
         private readonly static MachineLocation M2 = new MachineLocation("M2");
+        private readonly LocalRedisFixture _fixture;
 
-        private const string SkipReason = "This test can only be run with Azure Storage Emulator";
-
-        public BlobClusterStateStorageTests(ITestOutputHelper output)
+        public BlobClusterStateStorageTests(LocalRedisFixture fixture, ITestOutputHelper output)
             : base(output)
         {
+            _fixture = fixture;
         }
 
-        [Fact(Skip = SkipReason)]
+        [Fact]
         public Task SimpleGetUpdatesTests()
         {
             return RunTest(async (context, clock, storage) =>
@@ -66,7 +62,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
             });
         }
 
-        [Fact(Skip = SkipReason)]
+        [Fact]
         public Task SimpleHeartbeatTest()
         {
             return RunTest(async (context, clock, storage) =>
@@ -146,7 +142,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
             });
         }
 
-        private static async Task RunTest(
+        private async Task RunTest(
             Func<OperationContext, IClock, BlobClusterStateStorage, Task> runTest,
             IClock? clock = null,
             ClusterStateRecomputeConfiguration? recomputeConfiguration = null)
@@ -157,10 +153,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
             var context = new Context(logger);
             var operationContext = new OperationContext(context);
 
+            using var azureStorage = AzuriteStorageProcess.CreateAndStartEmpty(_fixture, TestGlobal.Logger, clock);
+
             var fileName = ThreadSafeRandom.RandomAlphanumeric(20);
             var configuration = new BlobClusterStateStorageConfiguration()
             {
-                Credentials = AzureBlobStorageCredentials.StorageEmulator,
+                Credentials = new AzureBlobStorageCredentials(connectionString: azureStorage.ConnectionString),
                 // Use a random filename to ensure tests don't interact with eachother
                 FileName = fileName,
             };

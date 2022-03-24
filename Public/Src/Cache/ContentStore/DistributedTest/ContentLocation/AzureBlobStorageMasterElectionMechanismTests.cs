@@ -16,6 +16,7 @@ using BuildXL.Cache.ContentStore.InterfacesTest.Time;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.ContentStore.Utils;
+using ContentStoreTest.Distributed.Redis;
 using ContentStoreTest.Test;
 using FluentAssertions;
 using Xunit;
@@ -25,19 +26,20 @@ using Xunit.Abstractions;
 
 namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
 {
+    [Collection("Redis-based tests")]
     public class AzureBlobStorageMasterElectionMechanismTests : TestWithOutput
     {
         private readonly static MachineLocation M1 = new MachineLocation("M1");
         private readonly static MachineLocation M2 = new MachineLocation("M2");
+        private readonly LocalRedisFixture _fixture;
 
-        private const string SkipReason = "This test can only be run with Azure Storage Emulator";
-
-        public AzureBlobStorageMasterElectionMechanismTests(ITestOutputHelper output)
+        public AzureBlobStorageMasterElectionMechanismTests(LocalRedisFixture fixture, ITestOutputHelper output)
             : base(output)
         {
+            _fixture = fixture;
         }
 
-        [Fact(Skip = SkipReason)]
+        [Fact]
         public Task SingleMasterFirstBootTest()
         {
             return RunSingleMachineTest(async (context, clock, client) =>
@@ -54,7 +56,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
             clock: new MemoryClock());
         }
 
-        [Fact(Skip = SkipReason)]
+        [Fact]
         public Task SingleWorkerFirstBootTest()
         {
             return RunSingleMachineTest(async (context, clock, worker) =>
@@ -72,7 +74,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
             worker: true);
         }
 
-        [Fact(Skip = SkipReason)]
+        [Fact]
         public Task WorkerAndMasterBasicInteractions()
         {
             return RunTwoMachinesTest(async (context, clock, m, w) =>
@@ -129,7 +131,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
             clock: new MemoryClock());
         }
 
-        [Fact(Skip = SkipReason)]
+        [Fact]
         public Task TwoMasterEligibleMachinesBasicInteractions()
         {
             return RunTwoMachinesTest(async (context, clock, m1, m2) =>
@@ -213,12 +215,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
             var context = new Context(logger);
             var operationContext = new OperationContext(context);
 
+            using var storage = AzuriteStorageProcess.CreateAndStartEmpty(_fixture, TestGlobal.Logger, clock);
+
             var fileName = ThreadSafeRandom.RandomAlphanumeric(20);
 
             var m1 = new AzureBlobStorageMasterElectionMechanism(
                 new AzureBlobStorageMasterElectionMechanismConfiguration()
                 {
-                    Credentials = AzureBlobStorageCredentials.StorageEmulator,
+                    Credentials = new AzureBlobStorageCredentials(connectionString: storage.ConnectionString),
                     IsMasterEligible = true,
                     // Use a random filename to ensure tests don't interact with eachother
                     FileName = fileName,
@@ -229,7 +233,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
             var m2 = new AzureBlobStorageMasterElectionMechanism(
                 new AzureBlobStorageMasterElectionMechanismConfiguration()
                 {
-                    Credentials = AzureBlobStorageCredentials.StorageEmulator,
+                    Credentials = new AzureBlobStorageCredentials(connectionString: storage.ConnectionString),
                     IsMasterEligible = twoMasters,
                     // Use a random filename to ensure tests don't interact with eachother
                     FileName = fileName,
@@ -248,7 +252,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
             await m1.ShutdownAsync(operationContext).ThrowIfFailureAsync();
         }
 
-        private static async Task RunSingleMachineTest(
+        private async Task RunSingleMachineTest(
             Func<OperationContext, IClock, AzureBlobStorageMasterElectionMechanism, Task> runTest,
             IClock? clock = null,
             bool worker = false)
@@ -259,11 +263,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
             var context = new Context(logger);
             var operationContext = new OperationContext(context);
 
+            using var storage = AzuriteStorageProcess.CreateAndStartEmpty(_fixture, TestGlobal.Logger, clock);
+
             var fileName = ThreadSafeRandom.RandomAlphanumeric(20);
 
             var configuration = new AzureBlobStorageMasterElectionMechanismConfiguration()
             {
-                Credentials = AzureBlobStorageCredentials.StorageEmulator,
+                Credentials = new AzureBlobStorageCredentials(connectionString: storage.ConnectionString),
                 IsMasterEligible = !worker,
                 // Use a random filename to ensure tests don't interact with eachother
                 FileName = fileName,

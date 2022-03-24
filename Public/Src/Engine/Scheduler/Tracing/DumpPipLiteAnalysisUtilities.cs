@@ -468,7 +468,9 @@ namespace BuildXL.Scheduler.Tracing
                 ManifestPath = CreateString(data.ManifestPath, pathTable),
                 Process = data.Process.ProcessId,
                 ExplicitlyReported = data.ExplicitlyReported,
-                EnumeratePattern = data.EnumeratePattern
+                EnumeratePattern = data.EnumeratePattern,
+                IsOpenedHandleDirectory = data.IsOpenedHandleDirectory(),
+                OpenedFileOrDirectoryAttributes = CreateString(data.OpenedFileOrDirectoryAttributes)
             };
         }
 

@@ -90,9 +90,20 @@ inline bool CheckReportAnyAccess(FileAccessManifestFlag flags, bool accessDenied
 //
 // Keep this in sync with the C# version declared in FileAccessManifest.cs
 //
+#define FOR_ALL_FAM_EXTRA_FLAGS(m) \
+    m(NoneExtra,                          0x0) \
+    m(ExplicitlyReportDirectoryProbes,    0x1)
+
 enum class FileAccessManifestExtraFlag {
-    None = 0x0,
+    FOR_ALL_FAM_EXTRA_FLAGS(GEN_FAM_FLAG_ENUM_NAME_VALUE)
 };
+
+DEFINE_ENUM_FLAG_OPERATORS(FileAccessManifestExtraFlag)
+
+// Checker function for FileAccessManifestFlagExtra enum.
+#define GEN_FAM_EXTRA_FLAG_CHECKER(flag_name, flag_value) \
+  inline bool Check##flag_name(FileAccessManifestExtraFlag flags) { return (flags & FileAccessManifestExtraFlag::flag_name) != FileAccessManifestExtraFlag::NoneExtra; }
+FOR_ALL_FAM_EXTRA_FLAGS(GEN_FAM_EXTRA_FLAG_CHECKER)
 
 //
 // CODESYNC: Keep this in sync with the C# version declared in Public\Src\Engine\Processes\FileAccessPolicy.cs

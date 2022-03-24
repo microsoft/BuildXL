@@ -857,6 +857,12 @@ namespace BuildXL
                 Strings.HelpText_DisplayHelp_TreatAbsentDirectoryAsExistentUnderOpaque,
                 HelpLevel.Verbose);
 
+            hw.WriteOption(
+                "/explicitlyReportDirectoryProbes[+|-]",
+                Strings.HelpText_DisplayHelp_ExplicitlyReportDirectoryProbes,
+                HelpLevel.Verbose
+                );
+
             #endregion
 
             hw.WriteBanner(

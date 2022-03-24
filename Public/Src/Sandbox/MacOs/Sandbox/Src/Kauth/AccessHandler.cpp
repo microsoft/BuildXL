@@ -158,7 +158,7 @@ PolicyResult AccessHandler::PolicyForPath(const char *absolutePath)
         log_error("Invalid policy cursor for path '%s'", absolutePath);
     }
 
-    return PolicyResult(GetPip()->getFamFlags(), absolutePath, cursor);
+    return PolicyResult(GetPip()->getFamFlags(), GetPip()->getFamExtraFlags(), absolutePath, cursor);
 }
 
 #define VATTR_GET(vp, ctx, vap, attr, errno, result) \

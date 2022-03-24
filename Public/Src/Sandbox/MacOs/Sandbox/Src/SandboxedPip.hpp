@@ -99,19 +99,22 @@ public:
     pipid_t getPipId() const   { return fam_.GetPipId()->PipId; }
 
     /*! File access manifest record for this pip (to be used for checking file accesses) */
-    PCManifestRecord getManifestRecord() const    { return fam_.GetUnixRootNode(); }
+    PCManifestRecord getManifestRecord() const              { return fam_.GetUnixRootNode(); }
 
     /*! File access manifest flags */
-    FileAccessManifestFlag getFamFlags() const    { return fam_.GetFamFlags(); }
+    FileAccessManifestFlag getFamFlags() const              { return fam_.GetFamFlags(); }
+
+    /*! File access manifest extra flags */
+    FileAccessManifestExtraFlag getFamExtraFlags() const    { return fam_.GetFamExtraFlags(); }
 
     /*! When this returns true, child processes should not be tracked. */
-    bool AllowChildProcessesToBreakAway() const   { return fam_.AllowChildProcessesToBreakAway(); }
+    bool AllowChildProcessesToBreakAway() const             { return fam_.AllowChildProcessesToBreakAway(); }
 
     /*!
      * Returns the full path of the root process of this pip.
      * The lenght of the path is stored in the 'length' argument because the path is not necessarily 0-terminated.
      */
-    const char* getProcessPath(int *length) const { return fam_.GetProcessPath(length); }
+    const char* getProcessPath(int *length) const           { return fam_.GetProcessPath(length); }
 
     /*! Various counters. */
     AllCounters* Counters() { return &counters_; }

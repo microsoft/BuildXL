@@ -913,42 +913,6 @@ static bool IsHandleOfDirectoryAndGetAttributes(_In_ HANDLE hFile, _In_ bool tre
 }
 
 /// <summary>
-/// Checks if a handle or a path points to a directory.
-/// </summary>
-/// <remarks>
-/// This function first tries to get attributes via the given handle, and, if failed (e.g., the handle has
-/// missing permisisons or is <code>INVALID_HANDLE_VALUE</code>), the function calls <code>GetFileAttributes</code> on the path.
-/// </remarks>
-static bool IsHandleOrPathToDirectory(_In_ HANDLE hFile, _In_ LPCWSTR lpFileName, bool treatReparsePointAsFile)
-{
-    bool isHandleOfDirectory;
-
-    return hFile == INVALID_HANDLE_VALUE || !TryCheckHandleOfDirectory(hFile, treatReparsePointAsFile, isHandleOfDirectory)
-        ? IsPathToDirectory(lpFileName, treatReparsePointAsFile)
-        : isHandleOfDirectory;
-}
-
-/// <summary>
-/// Checks if a handle or a path points to a directory but treat reparse point according to the desired accesses and flags.
-/// </summary>
-static bool IsHandleOrPathToDirectory(
-    _In_     HANDLE                hFile,
-    _In_     LPCWSTR               lpFileName,
-    _In_     DWORD                 dwDesiredAccess,
-    _In_     DWORD                 dwFlagsAndAttributes,
-    _In_     PolicyResult*         policyResult)
-{
-    bool treatReparsePointAsFile =
-        !ProbeDirectorySymlinkAsDirectory()                                // It is set globally that directory symlink probe should not be treated as directory.
-        && WantsProbeOnlyAccess(dwDesiredAccess)                           // Probe-only access.
-        && FlagsAndAttributesContainReparsePointFlag(dwFlagsAndAttributes) // Open attribute contains reparse point flag.
-        && (policyResult == nullptr                                        // No policy is specified,
-            || !policyResult->TreatDirectorySymlinkAsDirectory());         // or policy does not mandate directory symlink to be treated as directory.
-
-    return IsHandleOrPathToDirectory(hFile, lpFileName, treatReparsePointAsFile);
-}
-
-/// <summary>
 /// Gets the file attributes for a given path. Returns false if no valid attributes were found or if a NULL path is provided.
 /// </summary>
 static bool GetFileAttributesByPath(_In_ LPCWSTR lpFileName, _Out_ DWORD& attributes)
@@ -1036,7 +1000,7 @@ static bool IsHandleOrPathToDirectory(
         GetFileAttributesByPath(lpFileName, /*ref*/ fileOrDirectoryAttribute);
     }
     
-    return IsDirectoryFromAttributes(/*ref*/ fileOrDirectoryAttribute, treatReparsePointAsFile);
+    return IsDirectoryFromAttributes(fileOrDirectoryAttribute, treatReparsePointAsFile);
 }
 
 /// <summary>
@@ -6389,7 +6353,7 @@ NTSTATUS NTAPI Detoured_ZwCreateFile(
          CheckIfNtCreateDispositionImpliesWriteOrDelete(CreateDisposition) ||
          CheckIfNtCreateMayDeleteFile(CreateOptions, DesiredAccess)) &&
         // Force directory checking using path, instead of handle, because the value of *FileHandle is still undefined, i.e., neither valid nor not valid.
-        !IsHandleOrPathToDirectory(INVALID_HANDLE_VALUE, path.GetPathString(), opContext.DesiredAccess, CreateOptions, &policyResult))
+        !IsHandleOrPathToDirectory(INVALID_HANDLE_VALUE, path.GetPathString(), opContext.DesiredAccess, CreateOptions, &policyResult, /*ref*/opContext.OpenedFileOrDirectoryAttributes))
     {
         error = GetLastError();
         accessCheck = policyResult.CheckWriteAccess();
@@ -6694,7 +6658,7 @@ NTSTATUS NTAPI Detoured_NtCreateFile(
          CheckIfNtCreateDispositionImpliesWriteOrDelete(CreateDisposition) ||
          CheckIfNtCreateMayDeleteFile(CreateOptions, DesiredAccess)) &&
         // Force directory checking using path, instead of handle, because the value of *FileHandle is still undefined, i.e., neither valid nor not valid.
-        !IsHandleOrPathToDirectory(INVALID_HANDLE_VALUE, path.GetPathString(), opContext.DesiredAccess, CreateOptions, &policyResult))
+        !IsHandleOrPathToDirectory(INVALID_HANDLE_VALUE, path.GetPathString(), opContext.DesiredAccess, CreateOptions, &policyResult, /*ref*/opContext.OpenedFileOrDirectoryAttributes))
     {
         error = GetLastError();
         accessCheck = policyResult.CheckWriteAccess();
@@ -6982,7 +6946,7 @@ NTSTATUS NTAPI Detoured_ZwOpenFile(
          CheckIfNtCreateDispositionImpliesWriteOrDelete(FILE_OPEN) ||
          CheckIfNtCreateMayDeleteFile(OpenOptions, DesiredAccess)) &&
         // Force directory checking using path, instead of handle, because the value of *FileHandle is still undefined, i.e., neither valid nor not valid.
-        !IsHandleOrPathToDirectory(INVALID_HANDLE_VALUE, path.GetPathString(), opContext.DesiredAccess, OpenOptions, &policyResult))
+        !IsHandleOrPathToDirectory(INVALID_HANDLE_VALUE, path.GetPathString(), opContext.DesiredAccess, OpenOptions, &policyResult, /*ref*/opContext.OpenedFileOrDirectoryAttributes))
     {
         accessCheck = policyResult.CheckWriteAccess();
 

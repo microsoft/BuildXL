@@ -98,7 +98,9 @@ AccessCheckResult PolicyResult::CheckReadAccess(RequestedReadAccess readAccessRe
         ? ResultAction::Allow 
         : (FailUnexpectedFileAccesses() ? ResultAction::Deny : ResultAction::Warn);
 
-    bool explicitReport = !context.OpenedDirectory &&
+    // When ExplicitlyReportDirectoryProbes is set, if the request access is a probe then explicitly report it
+    // When ExplicitlyReportDirectoryProbes is not set, do not explicitly report any operations on directories (context.OpenedDirectory)
+    bool explicitReport = ((ExplicitlyReportDirectoryProbes() && accessRequested == RequestedAccess::Probe) || !context.OpenedDirectory) &&
         ((exists && ((m_policy & FileAccessPolicy::FileAccessPolicy_ReportAccessIfExistent) != 0)) ||
          (!exists && ((m_policy & FileAccessPolicy::FileAccessPolicy_ReportAccessIfNonExistent) != 0)));
 

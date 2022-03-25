@@ -61,7 +61,7 @@ namespace BuildXL.Cache.Monitor.Library.Rules.Kusto
                 $@"
                 let end = now();
                 let start = end - {CslTimeSpanLiteral.AsCslString(_configuration.LookbackPeriod)};
-                table('{_configuration.CacheTableName}')
+                CloudCacheLogEvent
                 | where PreciseTimeStamp between (start .. end)
                 | where Operation == 'RemoteCopyFile' and isnotempty(Duration)
                 | summarize TotalCopies = count(), LongCopies = countif(Duration > {CslTimeSpanLiteral.AsCslString(_configuration.LongCopyDurationThreshold)}) by Stamp

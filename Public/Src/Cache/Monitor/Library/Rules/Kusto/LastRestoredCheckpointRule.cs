@@ -81,7 +81,7 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
                 //
                 // All the events limited by the given time range
                 //
-                let Events = table('{_configuration.CacheTableName}')
+                let Events = CloudCacheLogEvent
                 | where PreciseTimeStamp between (start .. end);
                 //
                 // Last events per stamp per worker machine

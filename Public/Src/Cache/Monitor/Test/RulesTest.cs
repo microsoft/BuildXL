@@ -25,69 +25,6 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
         private const MonitorEnvironment TestEnvironment = MonitorEnvironment.CloudBuildTest;
 
         [Fact]
-        public async Task ActiveMachineTestAsync()
-        {
-            (var mockKusto, var baseConfiguration, var mockIcm) = await CreateClientAndConfigAsync(3);
-            var configuration = new ActiveMachinesRule.Configuration(baseConfiguration);
-            var rule = new ActiveMachinesRule(configuration);
-            var ruleContext = new RuleContext(Guid.NewGuid(), SystemClock.Instance.UtcNow, new CancellationToken());
-
-            var detectionHorizon = SystemClock.Instance.UtcNow - Constants.KustoIngestionDelay - configuration.AnomalyDetectionHorizon;
-
-            mockKusto.Add(new object[] {
-                new ActiveMachinesRule.Result() { Stamp = "DM_S1", PreciseTimeStamp = detectionHorizon - TimeSpan.FromHours(1) },
-                new ActiveMachinesRule.Result() { Stamp = "DM_S2", PreciseTimeStamp = detectionHorizon - TimeSpan.FromHours(1) },
-                new ActiveMachinesRule.Result() { Stamp = "DM_S2", PreciseTimeStamp = detectionHorizon + TimeSpan.FromHours(1) , ActiveMachines = 3},
-            });
-
-            await rule.Run(ruleContext);
-            _notifier.Results.Count.Should().Be(3);
-        }
-
-        [Fact]
-        public async Task BuildFailuresTestAsync()
-        {
-            (var mockKusto, var baseConfiguration, var mockIcm) = await CreateClientAndConfigAsync(3);
-            var configuration = new BuildFailuresRule.Configuration(baseConfiguration);
-            var rule = new BuildFailuresRule(configuration);
-            var ruleContext = new RuleContext(Guid.NewGuid(), SystemClock.Instance.UtcNow, new CancellationToken());
-
-            mockKusto.Add(new object[] {
-                new BuildFailuresRule.Result() { Stamp = "DM_S1", FailureRate = 0.0},
-                new BuildFailuresRule.Result() { Stamp = "DM_S2", FailureRate = configuration.FailureRateThresholds.Fatal!.Value + 0.1, Total = configuration.MinimumAmountOfBuildsForIcm },
-                new BuildFailuresRule.Result() { Stamp = "DM_S3", FailureRate = configuration.FailureRateThresholds.Fatal!.Value + 0.1, Total = configuration.MinimumAmountOfBuildsForIcm - 1 },
-            });
-
-            await rule.Run(ruleContext);
-            _notifier.Results.Count.Should().Be(3);
-            _notifier.Results[0].Severity.Should().Be(Severity.Fatal);
-        }
-
-        [Fact]
-        public async Task MostRecentBuildsFailureRateTestAsync()
-        {
-            (var mockKusto, var baseConfiguration, var mockIcm) = await CreateClientAndConfigAsync(3);
-            var configuration = new MostRecentBuildsFailureRateRule.Configuration(baseConfiguration);
-            var rule = new MostRecentBuildsFailureRateRule(configuration);
-            var ruleContext = new RuleContext(Guid.NewGuid(), SystemClock.Instance.UtcNow, new CancellationToken());
-
-            mockKusto.Add(new object[] {
-                new MostRecentBuildsFailureRateRule.Result() { Stamp = "DM_S1", Failed = 5 },
-                new MostRecentBuildsFailureRateRule.Result() { Stamp = "DM_S2", Failed = 10 },
-                new MostRecentBuildsFailureRateRule.Result() { Stamp = "DM_S3", Failed = 50 },
-                new MostRecentBuildsFailureRateRule.Result() { Stamp = "DM_S4", Failed = 30 },
-            });
-
-            await rule.Run(ruleContext);
-            _notifier.Results.Count.Should().Be(3);
-
-            mockIcm.Incidents.Count.Should().Be(3);
-            mockIcm.Incidents[0].Severity.Should().Be(4);
-            mockIcm.Incidents[1].Severity.Should().Be(4);
-            mockIcm.Incidents[2].Severity.Should().Be(4);
-        }
-
-        [Fact]
         public async Task CheckpointSizeTestAsync()
         {
             (var mockKusto, var baseConfiguration, var mockIcm) = await CreateClientAndConfigAsync();
@@ -109,22 +46,6 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
         }
 
         [Fact]
-        public async Task ContractViolationsTestAsync()
-        {
-            (var mockKusto, var baseConfiguration, var mockIcm) = await CreateClientAndConfigAsync();
-            var configuration = new ContractViolationsRule.Configuration(baseConfiguration);
-            var rule = new ContractViolationsRule(configuration);
-            var ruleContext = new RuleContext(Guid.NewGuid(), SystemClock.Instance.UtcNow, new CancellationToken());
-
-            mockKusto.Add(new object[] {
-                new ContractViolationsRule.Result() { Stamp = "DM_S1", Count = 1, ExceptionType = "Exception", Operation = "TEST"},
-            });
-
-            await rule.Run(ruleContext);
-            _notifier.Results.Count.Should().Be(1);
-        }
-
-        [Fact]
         public async Task EventHubProcessingDelayTestAsync()
         {
             (var mockKusto, var baseConfiguration, var mockIcm) = await CreateClientAndConfigAsync();
@@ -143,23 +64,6 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
 
             await rule.Run(ruleContext);
             _notifier.Results.Count.Should().Be(2);
-        }
-
-        [Fact]
-        public async Task FireAndForgetExceptionsTestAsync()
-        {
-            (var mockKusto, var baseConfiguration, var mockIcm) = await CreateClientAndConfigAsync();
-            var configuration = new FireAndForgetExceptionsRule.Configuration(baseConfiguration);
-            var rule = new FireAndForgetExceptionsRule(configuration);
-            var ruleContext = new RuleContext(Guid.NewGuid(), SystemClock.Instance.UtcNow, new CancellationToken());
-
-            mockKusto.Add(new object[] {
-                new FireAndForgetExceptionsRule.Result() { Stamp = "DM_S1", Machines = configuration.MachinesThresholds.Warning!.Value + 1, Count = configuration.MinimumErrorsThreshold - 1},
-                new FireAndForgetExceptionsRule.Result() { Stamp = "DM_S1", Machines = configuration.MachinesThresholds.Warning!.Value + 1, Count = configuration.MinimumErrorsThreshold + 1},
-            });
-
-            await rule.Run(ruleContext);
-            _notifier.Results.Count.Should().Be(1);
         }
 
         [Fact]
@@ -292,13 +196,12 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
         private async Task<(MockKustoClient, MultiStampRuleConfiguration, MockIcmClient)> CreateClientAndConfigAsync(int numStamps = 2)
         {
             var ring = "TEST_RING";
-            var cacheTableName = "CloudCacheLogEvent";
 
             var mockKusto = new MockKustoClient();
             var stamps = new object[numStamps];
             for (var i = 0; i < numStamps; i++)
             {
-                stamps[i] = new Watchlist.DynamicStampProperties() { Stamp = $"DM_S{i}", CacheTableName = cacheTableName, Ring = ring };
+                stamps[i] = new Watchlist.DynamicStampProperties() { Stamp = $"DM_S{i}", Ring = ring };
             }
 
             mockKusto.Add(stamps);
@@ -313,7 +216,6 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
                 mockKusto,
                 mockIcm,
                 Constants.DefaultEnvironments[TestEnvironment].KustoDatabaseName,
-                cacheTableName,
                 TestEnvironment,
                 watchlist);
 

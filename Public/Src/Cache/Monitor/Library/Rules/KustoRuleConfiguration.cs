@@ -23,15 +23,12 @@ namespace BuildXL.Cache.Monitor.App.Rules
 
         public string KustoDatabaseName { get; set; }
 
-        public string CacheTableName { get; set; }
-
         public KustoRuleConfiguration(
             IClock clock,
             ILogger logger,
             INotifier<Notification> notifier,
             IKustoClient kustoClient,
             string kustoDatabaseName,
-            string cacheTableName,
             IIcmClient icmClient)
         {
             Clock = clock;
@@ -39,12 +36,11 @@ namespace BuildXL.Cache.Monitor.App.Rules
             Notifier = notifier;
             KustoClient = kustoClient;
             KustoDatabaseName = kustoDatabaseName;
-            CacheTableName = cacheTableName;
             IcmClient = icmClient;
         }
 
         public KustoRuleConfiguration(KustoRuleConfiguration other)
-            : this (other.Clock, other.Logger, other.Notifier, other.KustoClient, other.KustoDatabaseName, other.CacheTableName, other.IcmClient)
+            : this (other.Clock, other.Logger, other.Notifier, other.KustoClient, other.KustoDatabaseName, other.IcmClient)
         {
 
         }

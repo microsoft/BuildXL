@@ -32,8 +32,6 @@ namespace BuildXL.Cache.Monitor.App
 
             public string Ring = string.Empty;
 
-            public string CacheTableName = string.Empty;
-
             public bool RedisAutoscalingEnabled;
 
             public long RedisAutoscalingMaximumClusterMemoryAllowedMb;
@@ -48,14 +46,13 @@ namespace BuildXL.Cache.Monitor.App
                 return properties != null &&
                        Stamp.Equals(properties.Stamp, StringComparison.InvariantCultureIgnoreCase) &&
                        Ring.Equals(properties.Ring, StringComparison.InvariantCultureIgnoreCase) &&
-                       CacheTableName.Equals(properties.CacheTableName, StringComparison.InvariantCultureIgnoreCase) &&
                        RedisAutoscalingEnabled == properties.RedisAutoscalingEnabled &&
                        RedisAutoscalingMaximumClusterMemoryAllowedMb == properties.RedisAutoscalingMaximumClusterMemoryAllowedMb;
             }
 
             public override int GetHashCode()
             {
-                return (Stamp, Ring, CacheTableName, RedisAutoscalingEnabled, RedisAutoscalingMaximumClusterMemoryAllowedMb).GetHashCode();
+                return (Stamp, Ring, RedisAutoscalingEnabled, RedisAutoscalingMaximumClusterMemoryAllowedMb).GetHashCode();
             }
         }
 #pragma warning restore CS0649
@@ -124,14 +121,13 @@ namespace BuildXL.Cache.Monitor.App
                 {
                     Contract.AssertNotNullOrEmpty(result.Stamp);
                     Contract.AssertNotNullOrEmpty(result.Ring);
-                    Contract.AssertNotNullOrEmpty(result.CacheTableName);
 
                     var entry = new StampId(envName, result.Stamp);
                     lock (watchlist) {
                         watchlist[entry] = result;
                     }
 
-                    _logger.Debug("Monitoring stamp `{0}` on ring `{1}` from table `{2}` in environment `{3}`", result.Stamp, result.Ring, result.CacheTableName, envName);
+                    _logger.Debug("Monitoring stamp `{0}` on ring `{1}` in environment `{2}`", result.Stamp, result.Ring, envName);
                 }
             });
 

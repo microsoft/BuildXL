@@ -59,7 +59,7 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
                 $@"
                 let end = now();
                 let start = end - {CslTimeSpanLiteral.AsCslString(_configuration.LookbackPeriod)};
-                table('{_configuration.CacheTableName}')
+                CloudCacheLogEvent
                 | where PreciseTimeStamp between (start .. end)
                 | where Role == 'Master'
                 | where Operation == 'CreateCheckpointAsync' and isnotempty(Duration)
@@ -86,7 +86,7 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
                 _configuration.AgeThresholds.Check(age, (severity, threshold) =>
                 {
                     Emit(context, "CreationThreshold", severity,
-                        $"Newest checkpoint age `{age}` above threshold `{threshold}`. Master is {results[0].Machine}",
+                        $"Latest checkpoint age `{age}` above threshold `{threshold}`. Master is {results[0].Machine}",
                         stamp,
                         eventTimeUtc: results[0].PreciseTimeStamp);
                 });

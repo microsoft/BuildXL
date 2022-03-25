@@ -253,10 +253,6 @@ namespace BuildXL.Cache.Monitor.App
         /// </summary>
         private void CreateSchedule(Watchlist watchlist)
         {
-            // TODO: per-stamp configuration (some stamps are more important than others, query frequency should reflect that)
-            // TODO: query weight (how much does it cost). We should adapt scheduling policy to have lighter queries prioritize earlier than the others.
-            // TODO: stamp configuration knowledge. Stamp configuration affects what our thresholds should be. We should reflect that here.
-            // TODO: add jitter to rules, so that queries to Kusto are spread out over time instead of all at once
             OncePerEnvironment(
                 arguments =>
                 {
@@ -280,6 +276,16 @@ namespace BuildXL.Cache.Monitor.App
 
             OncePerEnvironment(arguments =>
             {
+                var configuration = new MasterTakeoverRule.Configuration(arguments.BaseConfiguration);
+                return Analysis.Utilities.Yield(new Instantiation()
+                {
+                    Rule = new MasterTakeoverRule(configuration),
+                    PollingPeriod = configuration.LookbackPeriod,
+                });
+            }, watchlist);
+
+            OncePerEnvironment(arguments =>
+            {
                 var configuration = new CheckpointSizeRule.Configuration(arguments.BaseConfiguration);
                 return Analysis.Utilities.Yield(new Instantiation()
                 {
@@ -288,68 +294,15 @@ namespace BuildXL.Cache.Monitor.App
                 });
             }, watchlist);
 
-            // TODO: this rule is too noisy and inaccurate, we should make it work again
-            //OncePerStamp(arguments =>
-            //{
-            //    var configuration = new ActiveMachinesRule.Configuration(arguments.BaseConfiguration);
-            //    return Analysis.Utilities.Yield(new Instantiation()
-            //    {
-            //        Rule = new ActiveMachinesRule(configuration),
-            //        PollingPeriod = configuration.AnomalyDetectionHorizon - TimeSpan.FromMinutes(5),
-            //    });
-            //}, watchlist);
-
             OncePerEnvironment(arguments =>
             {
                 var configuration = new EventHubProcessingDelayRule.Configuration(arguments.BaseConfiguration);
                 return Analysis.Utilities.Yield(new Instantiation()
                 {
                     Rule = new EventHubProcessingDelayRule(configuration),
-                    PollingPeriod = TimeSpan.FromMinutes(30),
+                    PollingPeriod = configuration.LookbackPeriod,
                 });
             }, watchlist);
-
-            // Disabled as per David's request, since Arsh's monitor for build failures supersedes these.
-            //OncePerEnvironment(arguments =>
-            //{
-            //    var configuration = new BuildFailuresRule.Configuration(arguments.BaseConfiguration);
-            //    return Analysis.Utilities.Yield(new Instantiation()
-            //    {
-            //        Rule = new BuildFailuresRule(configuration),
-            //        PollingPeriod = TimeSpan.FromMinutes(45),
-            //    });
-            //}, watchlist);
-
-            //OncePerEnvironment(arguments =>
-            //{
-            //    var configuration = new MostRecentBuildsFailureRateRule.Configuration(arguments.BaseConfiguration);
-            //    return Analysis.Utilities.Yield(new Instantiation()
-            //    {
-            //        Rule = new MostRecentBuildsFailureRateRule(configuration),
-            //        PollingPeriod = TimeSpan.FromMinutes(45),
-            //    });
-            //}, watchlist);
-
-            // TODO: fire-and-forget exceptions are now being reported on the dashboards. We should see if this can be recycled.
-            //OncePerStamp(arguments =>
-            //{
-            //    var configuration = new FireAndForgetExceptionsRule.Configuration(arguments.BaseConfiguration);
-            //    return Analysis.Utilities.Yield(new Instantiation()
-            //    {
-            //        Rule = new FireAndForgetExceptionsRule(configuration),
-            //        PollingPeriod = configuration.LookbackPeriod - TimeSpan.FromMinutes(5),
-            //    });
-            //}, watchlist);
-
-            // TODO: this was just too noisy
-            //OncePerStamp(arguments =>
-            //{
-            //    var configuration = new ContractViolationsRule.Configuration(arguments.BaseConfiguration);
-            //    return Analysis.Utilities.Yield(new Instantiation() {
-            //        Rule = new ContractViolationsRule(configuration),
-            //        PollingPeriod = configuration.LookbackPeriod,
-            //    });
-            //}, watchlist);
 
             var failureChecks = new List<OperationFailureCheckRule.Check>() {
                 new OperationFailureCheckRule.Check()
@@ -448,6 +401,16 @@ namespace BuildXL.Cache.Monitor.App
 
             OncePerEnvironment(arguments =>
             {
+                var configuration = new DeploymentsRule.Configuration(arguments.BaseConfiguration);
+                return Analysis.Utilities.Yield(new Instantiation()
+                {
+                    Rule = new DeploymentsRule(configuration),
+                    PollingPeriod = configuration.AlertPeriod,
+                });
+            }, watchlist);
+
+            OncePerEnvironment(arguments =>
+            {
                 var configuration = new LongCopyRule.Configuration(arguments.BaseConfiguration);
                 return Analysis.Utilities.Yield(new Instantiation()
                 {
@@ -463,7 +426,7 @@ namespace BuildXL.Cache.Monitor.App
                 return Analysis.Utilities.Yield(new Instantiation()
                 {
                     Rule = new MachineReimagesRule(configuration),
-                    PollingPeriod = TimeSpan.FromMinutes(30),
+                    PollingPeriod = configuration.LookbackPeriod,
                 });
             }, watchlist);
 
@@ -474,7 +437,7 @@ namespace BuildXL.Cache.Monitor.App
                 return Analysis.Utilities.Yield(new Instantiation()
                 {
                     Rule = new DiskCorruptionRule(configuration),
-                    PollingPeriod = TimeSpan.FromMinutes(30),
+                    PollingPeriod = configuration.LookbackPeriod,
                 });
             }, watchlist);
 
@@ -542,7 +505,6 @@ namespace BuildXL.Cache.Monitor.App
                     resources.KustoQueryClient,
                     _icmClient,
                     environmentConfiguration.KustoDatabaseName,
-                    properties.CacheTableName,
                     stampId);
 
                 var request = new SingleStampRuleArguments
@@ -566,18 +528,9 @@ namespace BuildXL.Cache.Monitor.App
         /// </summary>
         private void OncePerEnvironment(Func<MultiStampRuleArguments, IEnumerable<Instantiation>> generator, Watchlist watchlist)
         {
-            var tableNames =
-                watchlist
-                    .Entries
-                    .Select(kvp => (kvp.Key.Environment, kvp.Value.CacheTableName))
-                    .Distinct()
-                    .ToDictionary(
-                        keySelector: pair => pair.Environment,
-                        elementSelector: pair => pair.CacheTableName);
-
-            foreach (var kvp in tableNames)
+            foreach (var environment in watchlist.Entries.Select(kvp => kvp.Key.Environment).Distinct())
             {
-                var resources = _environmentResources[kvp.Key];
+                var resources = _environmentResources[environment];
 
                 var configuration = new MultiStampRuleConfiguration(
                     _clock,
@@ -585,9 +538,8 @@ namespace BuildXL.Cache.Monitor.App
                     _alertNotifier,
                     resources.KustoQueryClient,
                     _icmClient,
-                    _configuration.Environments[kvp.Key].KustoDatabaseName,
-                    kvp.Value,
-                    kvp.Key,
+                    _configuration.Environments[environment].KustoDatabaseName,
+                    environment,
                     watchlist);
 
                 var request = new MultiStampRuleArguments

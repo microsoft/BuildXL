@@ -174,7 +174,7 @@ namespace BuildXL.Cache.Monitor.App.Rules.Autoscaling
             try
             {
                 await EmitIcmAsync(
-                    severity: 3,
+                    severity: 4,
                     title: $"{instance.Name} is in a failed state",
                     description: SingleFailedInstanceDescription,
                     machines: null,

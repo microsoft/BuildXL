@@ -7,7 +7,6 @@ using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.Monitor.App.Scheduling;
-using BuildXL.Cache.Monitor.Library.Analysis;
 using BuildXL.Cache.Monitor.Library.Rules;
 using Kusto.Data.Common;
 using static BuildXL.Cache.Monitor.App.Analysis.Utilities;
@@ -23,7 +22,7 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
             {
             }
 
-            public TimeSpan LookbackPeriod { get; set; } = TimeSpan.FromHours(2);
+            public TimeSpan LookbackPeriod { get; set; } = TimeSpan.FromMinutes(30);
 
             public TimeSpan BinWidth { get; set; } = TimeSpan.FromMinutes(10);
 
@@ -31,6 +30,7 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
             {
                 Warning = TimeSpan.FromMinutes(30),
                 Error = TimeSpan.FromHours(1),
+                Fatal = TimeSpan.FromHours(2),
             };
 
             public IcmThresholds<double> EventProcessingDelayIcmThresholdsInHours = new IcmThresholds<double>()
@@ -75,7 +75,7 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
                 let end = now();
                 let start = end - {CslTimeSpanLiteral.AsCslString(_configuration.LookbackPeriod)};
                 let binWidth = {CslTimeSpanLiteral.AsCslString(_configuration.BinWidth)};
-                let MasterEvents = table('{_configuration.CacheTableName}')
+                let MasterEvents = CloudCacheLogEvent
                 | where PreciseTimeStamp between (start .. end)
                 | where Role == 'Master'
                 | where Component has 'EventHubContentLocationEventStore' or Component has 'ContentLocationEventStore';
@@ -89,9 +89,9 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
                 | order by PreciseTimeStamp desc";
             var results = (await QueryKustoAsync<Result>(context, query)).ToList();
 
-            await GroupByStampAndCallHelperAsync<Result>(results, result => result.Stamp, eventHubProcessingDelayHelper);
+            await GroupByStampAndCallHelperAsync<Result>(results, result => result.Stamp, helper);
 
-            async Task eventHubProcessingDelayHelper(string stamp, List<Result> results)
+            async Task helper(string stamp, List<Result> results)
             {
                 if (results.Count == 0)
                 {
@@ -100,7 +100,7 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
                     var outstandingQuery = $@"
                     let end = now();
                     let start = end - {CslTimeSpanLiteral.AsCslString(_configuration.LookbackPeriod)};
-                    let Events = table('{_configuration.CacheTableName}')
+                    let Events = CloudCacheLogEvent
                     | where PreciseTimeStamp between (start .. end)
                     | where Stamp == '{stamp}'
                     | where Component has 'EventHubContentLocationEventStore' or Component has 'ContentLocationEventStore'
@@ -131,7 +131,7 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
                             eventTimeUtc: now);
 
                         await EmitIcmAsync(
-                            severity: _configuration.Environment.IsProduction() ? 2 : 3,
+                            severity: 3,
                             title: $"{stamp}: master event processing issues",
                             stamp,
                             machines: null,
@@ -154,7 +154,7 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
                                 eventTimeUtc: now);
 
                             await EmitIcmAsync(
-                                severity: _configuration.Environment.IsProduction() ? 2 : 3,
+                                severity: 3,
                                 title: $"{stamp}: master event processing issues",
                                 stamp,
                                 machines: null,
@@ -179,20 +179,8 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
 
                 await _configuration.EventProcessingDelayIcmThresholdsInHours.CheckAsync(delay.TotalHours, (severity, threshold) =>
                 {
-                    if (severity >= 2)
-                    {
-                        if (!_configuration.Environment.IsProduction())
-                        {
-                            severity = 3;
-                        }
-                        else if (!TimeConstraints.BusinessHours.SatisfiedPST(utcNow: _configuration.Clock.UtcNow))
-                        {
-                            severity = 3;
-                        }
-                    }
-
                     return EmitIcmAsync(
-                        severity,
+                        severity: 3,
                         title: $"{stamp}: master event processing issues",
                         stamp,
                         machines: new[] { results[0].Machine },

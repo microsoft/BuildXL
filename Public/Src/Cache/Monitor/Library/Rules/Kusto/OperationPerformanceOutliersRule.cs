@@ -111,7 +111,7 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
                 let end = now();
                 let start = end - {CslTimeSpanLiteral.AsCslString(_configuration.Check.LookbackPeriod)};
                 let detection = end - {CslTimeSpanLiteral.AsCslString(_configuration.Check.DetectionPeriod)};
-                let Events = materialize(table('{_configuration.CacheTableName}')
+                let Events = materialize(CloudCacheLogEvent
                 | where PreciseTimeStamp between (start .. end)
                 | where Message has '{_configuration.Check.Match}' and isnotempty(Duration)
                 | where Result != '{Constants.ResultCode.Success}'

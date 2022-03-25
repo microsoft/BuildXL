@@ -22,10 +22,9 @@ namespace BuildXL.Cache.Monitor.App.Rules
             IKustoClient kustoClient,
             IIcmClient icmClient,
             string kustoDatabaseName,
-            string cacheTableName,
             MonitorEnvironment environment,
             Watchlist watchlist)
-            : base(clock ,logger, notifier, kustoClient, kustoDatabaseName, cacheTableName, icmClient)
+            : base(clock ,logger, notifier, kustoClient, kustoDatabaseName, icmClient)
         {
             Environment = environment;
             WatchList = watchlist;

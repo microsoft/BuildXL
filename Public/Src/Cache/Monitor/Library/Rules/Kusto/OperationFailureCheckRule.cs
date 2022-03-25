@@ -92,7 +92,7 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
             var query  = $@"
                     let end = now();
                     let start = end - {CslTimeSpanLiteral.AsCslString(_configuration.LookbackPeriod)};
-                    table('{_configuration.CacheTableName}')
+                    CloudCacheLogEvent
                     | where PreciseTimeStamp between (start .. end)
                     | where Operation == '{_configuration.Check.Match}' and isnotempty(Duration)
                     | where Result == '{Constants.ResultCode.Failure}' // Looking only at failures

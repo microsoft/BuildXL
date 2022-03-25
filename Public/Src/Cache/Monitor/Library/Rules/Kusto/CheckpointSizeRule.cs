@@ -90,7 +90,7 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
                 $@"
                 let end = now();
                 let start = end - {CslTimeSpanLiteral.AsCslString(_configuration.LookbackPeriod)};
-                table(""{_configuration.CacheTableName}"")
+                CloudCacheLogEvent
                 | where PreciseTimeStamp between (start .. end)
                 | where Role == 'Master'
                 | where Operation == 'CreateCheckpointAsync' and Component == 'CheckpointManager' and isnotempty(Duration)

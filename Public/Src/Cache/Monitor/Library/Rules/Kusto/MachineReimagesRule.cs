@@ -62,10 +62,10 @@ namespace BuildXL.Cache.Monitor.Library.Rules.Kusto
                 $@"
                 let end = now();
                 let start = end - {CslTimeSpanLiteral.AsCslString(_configuration.LookbackPeriod)};
-                let Machines = table('{_configuration.CacheTableName}')
+                let Machines = CloudCacheLogEvent
                 | where PreciseTimeStamp between (start .. end)
                 | summarize Total=dcount(Machine) by Stamp;
-                table('{_configuration.CacheTableName}')
+                CloudCacheLogEvent
                 | where PreciseTimeStamp between (start .. end)
                 | where Message has 'MemoryContentDirectory' and Message has 'starting with 0 entries from no file'
                 | parse Message with 'MemoryContentDirectory(' Path ') starting ' *
@@ -88,6 +88,12 @@ namespace BuildXL.Cache.Monitor.Library.Rules.Kusto
                 }
 
                 var result = results[0];
+
+                // When stamps are being brought up, they may have very few machines. We don't want to alert in these cases.
+                if (result.Total < 30)
+                {
+                    return;
+                }
 
                 var reimageRate = (double)result.Reimaged / (double)result.Total;
                 _configuration.ReimageRateThresholds.Check(

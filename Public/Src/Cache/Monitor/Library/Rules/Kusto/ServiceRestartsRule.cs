@@ -68,7 +68,7 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
                 $@"
                 let end = now();
                 let start = end - {CslTimeSpanLiteral.AsCslString(_configuration.LookbackPeriod)};
-                let Exceptions = table('{_configuration.CacheTableName}')
+                let Exceptions = CloudCacheLogEvent
                 | where PreciseTimeStamp between (start .. end)
                 | where Message has 'Unhandled Exception in service.'
                 | project PreciseTimeStamp, Stamp, Machine, Service, Exception

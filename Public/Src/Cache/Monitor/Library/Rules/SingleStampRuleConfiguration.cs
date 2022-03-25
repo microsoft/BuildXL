@@ -24,9 +24,8 @@ namespace BuildXL.Cache.Monitor.App.Rules
             IKustoClient kustoClient,
             IIcmClient icmClient,
             string kustoDatabaseName,
-            string cacheTableName,
             StampId stamp)
-            : base(clock, logger, notifier, kustoClient, kustoDatabaseName, cacheTableName, icmClient)
+            : base(clock, logger, notifier, kustoClient, kustoDatabaseName, icmClient)
         {
             StampId = stamp;
         }

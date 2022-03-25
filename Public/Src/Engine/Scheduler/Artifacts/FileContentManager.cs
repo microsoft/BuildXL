@@ -40,12 +40,12 @@ namespace BuildXL.Scheduler.Artifacts
     /// they report content (potentially not materialized). Later pips may request materialization
     /// of inputs whose content must have been reported by an earlier operation (either through
     /// <see cref="ReportOutputContent"/>, <see cref="ReportInputContent"/>, <see cref="TryHashDependenciesAsync"/>,
-    /// or <see cref="TryHashOutputsAsync"/>.
+    /// or <see cref="TryRegisterOutputDirectoriesAndHashSharedOpaqueOutputsAsync"/>.
     ///
     /// Reporting:
     /// * <see cref="ReportOutputContent"/> is used to report the output content of all pips except hash source file
     /// * <see cref="ReportDynamicDirectoryContents"/> is used to report the files produced into dynamic output directories
-    /// * <see cref="TryHashOutputsAsync"/> is used to report content for the hash source file pip or during incremental scheduling.
+    /// * <see cref="TryRegisterOutputDirectoriesAndHashSharedOpaqueOutputsAsync"/> is used to report content for the hash source file pip or during incremental scheduling.
     /// * <see cref="TryHashDependenciesAsync"/> is used to report content for inputs prior to running/cache lookup.
     /// * <see cref="ReportInputContent"/> is used to report the content of inputs (distributed workers only since prerequisite pips
     /// will run on the worker and report output content)
@@ -425,21 +425,36 @@ namespace BuildXL.Scheduler.Artifacts
         }
 
         /// <summary>
-        /// Ensures pip outputs are hashed
+        /// Registers output directories as being materialized and hashes outputs shared opaques
+        /// Because shared opaques can recursively contain one another, we can't rely on hashing dependencies to pick up their contents.
         /// </summary>
-        public async Task<Possible<Unit>> TryHashOutputsAsync(Pip pip, OperationContext operationContext)
+        public async Task<Possible<Unit>> TryRegisterOutputDirectoriesAndHashSharedOpaqueOutputsAsync(Pip pip, OperationContext operationContext)
         {
             using (PipArtifactsState state = GetPipArtifactsState())
             {
                 // Get outputs
-                PopulateOutputs(pip, state.PipArtifacts);
+                PopulateOutputs(pip, state.PipArtifacts, fileOrDirectory =>
+                {
+                    if (fileOrDirectory.IsDirectory)
+                    {
+                        if (!state.EnforceOutputMaterializationExclusionRootsForDirectoryArtifacts)
+                        {
+                            // If running TryRegisterOutputDirectoriesAndHashSharedOpaqueOutputsAsync, the pip's outputs are assumed to be materialized
+                            // Mark directory artifacts as materialized so we don't try to materialize them later
+                            // NOTE: We don't hash the contents of the directory because they will be hashed lazily
+                            // by consumers of the seal directory
+                            MarkDirectoryMaterialization(fileOrDirectory.DirectoryArtifact, state.Virtualize);
+                        }
 
-                // If running TryHashOutputs, the pip's outputs are assumed to be materialized
-                // Mark directory artifacts as materialized so we don't try to materialize them later
-                // NOTE: We don't hash the contents of the directory because they will be hashed lazily
-                // by consumers of the seal directory
-                MarkDirectoryMaterializations(state);
+                        return fileOrDirectory.DirectoryArtifact.IsSharedOpaque;
+                    }
 
+                    return false;
+                });
+
+                // Most artifacts are hashes as dependencies when the pip which consumes them runs.
+                // However shared opaque contents always need to be registered
+                // because the consumer might need to access the contents of a directory multiple levels above it using composite opaques.
                 return await TryHashArtifactsAsync(operationContext, state, pip.ProcessAllowsUndeclaredSourceReads, artifactsProducer: pip);
             }
         }
@@ -458,6 +473,11 @@ namespace BuildXL.Scheduler.Artifacts
             bool allowUndeclaredSourceReads,
             Pip artifactsProducer)
         {
+            if (state.PipArtifacts.Count == 0)
+            {
+                return await Unit.VoidTask;
+            }
+
             using (operationContext.StartOperation(PipExecutorCounter.FileContentManagerEnumerateOutputDirectoryHashArtifacts))
             {
                 var maybeReported = EnumerateAndTrackOutputDirectories(state, artifactsProducer, shouldReport: true);

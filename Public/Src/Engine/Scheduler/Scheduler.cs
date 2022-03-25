@@ -1,4 +1,4 @@
-// Copyright (c) Microsoft Corporation.
+﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
 using System;
@@ -4273,7 +4273,7 @@ namespace BuildXL.Scheduler
                     // dirty build is not used (forceSkipDependencies is false).
                     if (IsPipCleanMaterialized(pipId))
                     {
-                        var maybeHashed = await fileContentManager.TryHashOutputsAsync(runnablePip.Pip, operationContext);
+                        var maybeHashed = await fileContentManager.TryRegisterOutputDirectoriesAndHashSharedOpaqueOutputsAsync(runnablePip.Pip, operationContext);
                         if (!maybeHashed.Succeeded)
                         {
                             if (maybeHashed.Failure is CancellationFailure)
@@ -4314,7 +4314,11 @@ namespace BuildXL.Scheduler
                                 PipResultStatus.UpToDate,
                                 runnablePip.StartTime));
                         }
+                    }
 
+                    // Contents of sealed directories get hashed by their consumer
+                    if (pipType != PipType.SealDirectory)
+                    {
                         using (PipExecutionCounters.StartStopwatch(PipExecutorCounter.HashProcessDependenciesDuration))
                         {
                             // The dependencies may have been skipped, so hash the processes inputs
@@ -6716,7 +6720,11 @@ namespace BuildXL.Scheduler
                     ReportCompositeOpaqueContents(environment, pip);
                 }
 
-                registerDirectoryResult = m_fileContentManager.TryRegisterStaticDirectory(pip.Directory);
+                // The consumers of an opaque directory will register the directory when they use it.
+                if (pip.Kind != SealDirectoryKind.Opaque)
+                {
+                    registerDirectoryResult = m_fileContentManager.TryRegisterStaticDirectory(pip.Directory);
+                }
             }
 
             if (registerDirectoryResult)

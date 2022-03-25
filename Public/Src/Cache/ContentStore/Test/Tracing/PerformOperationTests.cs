@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
@@ -242,7 +243,8 @@ namespace BuildXL.Cache.ContentStore.Test.Tracing
 
             result.ShouldBeError();
             // The operation should fail gracefully without exception messages and stacktraces.
-            result.ToString().Should().NotContain("TimeoutException");
+            result.Exception.Should().BeOfType<TimeoutException>();
+            result.ToString().Should().Contain("TimeoutException");
             result.ToString().Should().Contain("The operation 'MyOperation' has timed out");
             
             async Task<BoolResult> operation(int duration)

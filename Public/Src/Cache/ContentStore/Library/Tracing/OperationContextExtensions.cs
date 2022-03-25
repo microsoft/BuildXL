@@ -506,11 +506,9 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
                     timeout.Value,
                     context.Token);
             }
-            catch (TimeoutException)
+            catch (TimeoutException exception)
             {
-                // Handling the exception here to return an error message without stack traces.
-                var timeoutMessage = $"The operation '{caller}' has timed out after '{timeout}'.";
-                return new ErrorResult(timeoutMessage).AsResult<T>();
+                return new ErrorResult(exception, $"The operation '{caller}' has timed out after '{timeout}'.").AsResult<T>();
             }
         }
     }

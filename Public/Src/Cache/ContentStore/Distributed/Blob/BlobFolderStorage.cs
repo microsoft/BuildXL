@@ -23,6 +23,7 @@ using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tasks;
 using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Blob;
+using Polly.Caching;
 using OperationContext = BuildXL.Cache.ContentStore.Tracing.Internal.OperationContext;
 
 #nullable enable
@@ -186,23 +187,29 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     var shouldWait = false;
                     while (true)
                     {
-                        attempt++;
-
                         context.Token.ThrowIfCancellationRequested();
 
                         if (shouldWait)
                         {
                             var slots = Math.Min((1 << attempt) - 1, _configuration.MaxNumSlots);
+                            // WARNING: it is extremely important to use ContinuousUniform here: the fact that the
+                            // random variable's domain is the [0, slots] \subset R instead of \subset Z greatly
+                            // reduces the number of retries when under contention.
                             var delay = _configuration.SlotWaitTime.Multiply(ThreadSafeRandom.ContinuousUniform(0, slots));
                             Tracer.Debug(context, $"Waiting for {delay}");
                             await Task.Delay(delay, context.Token);
                         }
-
                         shouldWait = true;
 
+                        attempt++;
+
                         var readResult = await ReadStateAsync<TState>(context, fileName);
-                        if (IsStorageThrottle(readResult))
+                        if (IsStorageThrottle(readResult) || IsCancelledOrTimeout(readResult))
                         {
+                            // This continue here means we'll retry these cases. In the cancellation case, we retry
+                            // because the inner operation could have been cancelled by the internal cancellation token
+                            // to the timeout. If that's not the case (i.e., caller intended for the operation to be
+                            // cancelled), we'll cancel anyways at the top of the loop.
                             continue;
                         }
 
@@ -215,8 +222,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         }
 
                         var modifyResult = await CompareExchangeAsync<TState>(context, fileName, next.NextState, currentState.ETag, attempt);
-                        if (IsStorageThrottle(modifyResult))
+                        if (IsStorageThrottle(modifyResult) || IsCancelledOrTimeout(modifyResult))
                         {
+                            // Same rationale as previous if statement
                             continue;
                         }
 
@@ -228,6 +236,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     }
                 },
                 traceOperationStarted: false,
+                // Logging specifically as Attempts in order to distinguish the overall number of attempts to satisfy
+                // the RMW vs each individual retry.
                 extraEndMessage: _ => $"Attempts=[{attempt}]");
         }
 
@@ -601,6 +611,21 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 {
                     return true;
                 }
+            }
+
+            return false;
+        }
+
+        protected bool IsCancelledOrTimeout(ResultBase result)
+        {
+            if (result.Succeeded)
+            {
+                return false;
+            }
+
+            if (result.IsCancelled || result.Exception is TaskCanceledException || result.Exception is TimeoutException)
+            {
+                return true;
             }
 
             return false;

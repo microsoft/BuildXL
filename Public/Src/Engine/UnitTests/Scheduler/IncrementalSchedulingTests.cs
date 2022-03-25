@@ -671,8 +671,6 @@ ENDLOCAL && EXIT /b 1
             //         |
             //         O3
 
-            PipProvenance sharedProvenance = CreateProvenance();
-
             FileArtifact s1 = CreateSourceFile();
             FileArtifact s2 = CreateSourceFile();
             
@@ -680,11 +678,11 @@ ENDLOCAL && EXIT /b 1
             FileArtifact o2 = CreateOutputFileArtifact();
             FileArtifact o3 = CreateOutputFileArtifact();
 
-            Process p1 = CreateProcess(dependencies: new[] {s1}, outputs: new[] {o1}, tags: new[] {"P1"}, provenance: sharedProvenance);
+            Process p1 = CreateProcess(dependencies: new[] {s1}, outputs: new[] {o1}, tags: new[] {"P1"}, provenance: CreateProvenance());
             PipGraphBuilder.AddProcess(p1);
-            Process p2 = CreateProcess(dependencies: new[] {s2}, outputs: new[] {o2}, tags: new[] {"P2"}, provenance: sharedProvenance);
+            Process p2 = CreateProcess(dependencies: new[] {s2}, outputs: new[] {o2}, tags: new[] {"P2"}, provenance: CreateProvenance());
             PipGraphBuilder.AddProcess(p2);
-            Process p3 = CreateProcess(dependencies: new[] {o1, o2}, outputs: new[] {o3}, tags: new[] {"P3"}, provenance: sharedProvenance);
+            Process p3 = CreateProcess(dependencies: new[] {o1, o2}, outputs: new[] {o3}, tags: new[] {"P3"}, provenance: CreateProvenance());
             PipGraphBuilder.AddProcess(p3);
 
             if (nodes != null)
@@ -1018,6 +1016,7 @@ ENDLOCAL && EXIT /b 1
             }
 
             XAssert.AreEqual(0, iss.DirtyNodeTracker.AllDirtyNodes.Count());
+            iss.DirtyNodeTracker.MarkNodeNonMaterialized(nodes["S1"]);
             iss.DirtyNodeTracker.MarkNodeDirty(nodes["S1"]);
             XAssert.AreEqual(2, iss.DirtyNodeTracker.AllDirtyNodes.Intersect(nodes.Values).Count());
             XAssert.IsFalse(iss.DirtyNodeTracker.IsNodeDirty(nodes["P1"]));
@@ -1029,6 +1028,7 @@ ENDLOCAL && EXIT /b 1
             }
 
             XAssert.AreEqual(0, iss.DirtyNodeTracker.AllDirtyNodes.Count());
+            iss.DirtyNodeTracker.MarkNodeNonMaterialized(nodes["S2"]);
             iss.DirtyNodeTracker.MarkNodeDirty(nodes["S2"]);
             XAssert.AreEqual(2, iss.DirtyNodeTracker.AllDirtyNodes.Intersect(nodes.Values).Count());
             XAssert.IsFalse(iss.DirtyNodeTracker.IsNodeDirty(nodes["P2"]));
@@ -1043,6 +1043,7 @@ ENDLOCAL && EXIT /b 1
             }
 
             XAssert.AreEqual(0, iss.DirtyNodeTracker.AllDirtyNodes.Count());
+            iss.DirtyNodeTracker.MarkNodeNonMaterialized(nodes["S1"]);
             iss.DirtyNodeTracker.MarkNodeDirty(nodes["S1"]);
             XAssert.AreEqual(1, iss.DirtyNodeTracker.AllDirtyNodes.Intersect(nodes.Values).Count());
             XAssert.IsFalse(iss.DirtyNodeTracker.IsNodeDirty(nodes["P1"]));
@@ -1053,6 +1054,7 @@ ENDLOCAL && EXIT /b 1
             }
 
             XAssert.AreEqual(0, iss.DirtyNodeTracker.AllDirtyNodes.Count());
+            iss.DirtyNodeTracker.MarkNodeNonMaterialized(nodes["S2"]);
             iss.DirtyNodeTracker.MarkNodeDirty(nodes["S2"]);
             XAssert.AreEqual(2, iss.DirtyNodeTracker.AllDirtyNodes.Intersect(nodes.Values).Count());
             XAssert.IsFalse(iss.DirtyNodeTracker.IsNodeDirty(nodes["P2"]));
@@ -1082,6 +1084,7 @@ ENDLOCAL && EXIT /b 1
             XAssert.AreEqual(0, iss.DirtyNodeTracker.AllDirtyNodes.Count());
 
             // Dirty the S3 node. This should dirty all processes, so the count should be 4
+            iss.DirtyNodeTracker.MarkNodeNonMaterialized(nodes["S3"]);
             iss.DirtyNodeTracker.MarkNodeDirty(nodes["S3"]);
             XAssert.AreEqual(4, iss.DirtyNodeTracker.AllDirtyNodes.Intersect(nodes.Values).Count());
             XAssert.IsTrue(iss.DirtyNodeTracker.IsNodeDirty(nodes["P1"]));
@@ -1095,6 +1098,7 @@ ENDLOCAL && EXIT /b 1
             }
 
             // Now dirty S1. This should only make P2 dirty.
+            iss.DirtyNodeTracker.MarkNodeNonMaterialized(nodes["S1"]);
             iss.DirtyNodeTracker.MarkNodeDirty(nodes["S1"]);
             XAssert.AreEqual(2, iss.DirtyNodeTracker.AllDirtyNodes.Intersect(nodes.Values).Count());
             XAssert.IsFalse(iss.DirtyNodeTracker.IsNodeDirty(nodes["P1"]));
@@ -2252,6 +2256,9 @@ ENDLOCAL && EXIT /b 1
             // Since P1 executed, P1 is clean and has materialized its output O1.
             XAssert.IsTrue(iss.DirtyNodeTracker.IsNodeCleanAndMaterialized(nodes["P1"]));
             XAssert.IsTrue(iss.DirtyNodeTracker.IsNodeCleanAndMaterialized(nodes["P2"]));
+            XAssert.IsTrue(!iss.DirtyNodeTracker.IsNodeDirty(nodes["P3"]));
+            XAssert.IsTrue(iss.DirtyNodeTracker.IsNodeMaterialized(nodes["P3"]));
+
             XAssert.IsTrue(iss.DirtyNodeTracker.IsNodeCleanAndMaterialized(nodes["P3"]));
 
             XAssert.IsTrue(FileExists(files["O1"]));
@@ -2275,7 +2282,9 @@ ENDLOCAL && EXIT /b 1
 
                                                    // When dirty, P1 should not be marked as materialized.
                                                    XAssert.IsFalse(state.DirtyNodeTracker.IsNodeMaterialized(nodes["P1"]));
-                                                   XAssert.IsFalse(state.DirtyNodeTracker.IsNodeMaterialized(nodes["P3"]));
+
+                                                   // While P3 is dirty, is still has it's outputs from the previous run.
+                                                   XAssert.IsTrue(state.DirtyNodeTracker.IsNodeMaterialized(nodes["P3"]));
                                                }
                                        });
             XAssert.IsTrue(runScheduler);
@@ -2315,7 +2324,9 @@ ENDLOCAL && EXIT /b 1
                                                    XAssert.IsTrue(state.DirtyNodeTracker.IsNodeDirty(nodes["P2"]));
                                                    XAssert.IsTrue(state.DirtyNodeTracker.IsNodeDirty(nodes["P3"]));
                                                    XAssert.IsFalse(state.DirtyNodeTracker.IsNodeMaterialized(nodes["P2"]));
-                                                   XAssert.IsFalse(state.DirtyNodeTracker.IsNodeMaterialized(nodes["P3"]));
+
+                                                   // While P3 is dirty, is still has it's outputs from the previous run.
+                                                   XAssert.IsTrue(state.DirtyNodeTracker.IsNodeMaterialized(nodes["P3"]));
                                                }
                 });
             XAssert.IsTrue(runScheduler);

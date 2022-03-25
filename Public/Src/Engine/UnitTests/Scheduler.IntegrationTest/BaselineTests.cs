@@ -1131,7 +1131,7 @@ namespace IntegrationTest.BuildXL.Scheduler
                 Operation.ReadFile(srcA),
                 Operation.WriteFile(rewrittenFile), /* unique output on every pip run */
                 Operation.WriteFile(rewrittenFile, System.Environment.NewLine)
-            });
+            }, null, "ProcessA");
             Process pipA = paoA.Process;
 
             var srcB = CreateSourceFile();
@@ -1140,7 +1140,7 @@ namespace IntegrationTest.BuildXL.Scheduler
                 Operation.ReadFile(srcB),
                 Operation.WriteFile(rewrittenFile, doNotInfer: true), /* unique output on every pip run */
                 Operation.WriteFile(rewrittenFile, System.Environment.NewLine, doNotInfer: true)
-            });
+            }, null, "ProcessB");
             pipBuilderB.AddRewrittenFileInPlace(paoA.ProcessOutputs.GetOutputFile(rewrittenFile.Path));
             var paoB = SchedulePipBuilder(pipBuilderB);
             Process pipB = paoB.Process;
@@ -1151,7 +1151,7 @@ namespace IntegrationTest.BuildXL.Scheduler
                 Operation.ReadFile(srcC),
                 Operation.WriteFile(rewrittenFile, doNotInfer: true), /* unique output on every pip run */
                 Operation.WriteFile(rewrittenFile, System.Environment.NewLine, doNotInfer: true)
-            });
+            }, null, "ProcessC");
             pipBuilderC.AddRewrittenFileInPlace(paoB.ProcessOutputs.GetOutputFile(rewrittenFile.Path));
             Process pipC = SchedulePipBuilder(pipBuilderC).Process;
 

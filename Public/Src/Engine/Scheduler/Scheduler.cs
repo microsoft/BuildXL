@@ -378,7 +378,7 @@ namespace BuildXL.Scheduler
                 IExecutionLogTarget workerExecutionLogTarget = worker.IsLocal ?
                     ExecutionLog :
                     ExecutionLog?.CreateWorkerTarget((uint)worker.WorkerId);
-                
+
                 worker.TrackStatusOperation(m_workersStatusOperation);
                 worker.InitializeForDistribution(m_configuration.Schedule, PipGraph, workerExecutionLogTarget, m_schedulerCompletionExceptMaterializeOutputs);
                 worker.StatusChanged += OnWorkerStatusChanged;
@@ -583,6 +583,12 @@ namespace BuildXL.Scheduler
         private readonly ConcurrentDictionary<string, int> m_cacheIdHits = new ConcurrentDictionary<string, int>();
 
         /// <summary>
+        /// This set contains all nodes that become direct dirty during execution time (not during scheduling time).
+        /// A node becomes direct dirty at execution time if it is executed or if its outputs are deployed from the cache.
+        /// </summary>
+        private readonly ConcurrentBigSet<NodeId> m_executionTimeDirectDirtiedNodes = new ConcurrentBigSet<NodeId>();
+
+        /// <summary>
         /// Whether the scheduler is initialized with pip stats and priorities
         /// </summary>
         public bool IsInitialized { get; private set; }
@@ -763,6 +769,12 @@ namespace BuildXL.Scheduler
         private bool IsPipCleanMaterialized(PipId pipId)
         {
             return IncrementalSchedulingState != null && IncrementalSchedulingState.DirtyNodeTracker.IsNodeCleanAndMaterialized(pipId.ToNodeId());
+        }
+
+        private bool ShouldIncrementalSkip(PipId pipId)
+        {
+            var nodeId = pipId.ToNodeId();
+            return IncrementalSchedulingState != null && IncrementalSchedulingState.DirtyNodeTracker.IsNodeMaterialized(nodeId) && !m_executionTimeDirectDirtiedNodes.Contains(nodeId);
         }
 
         #endregion State
@@ -1534,7 +1546,7 @@ namespace BuildXL.Scheduler
             if (m_configuration.Schedule.EnablePlugin == true)
             {
                 m_pluginManager = new PluginManager(
-                    loggingContext, 
+                    loggingContext,
                     m_configuration.Logging.LogsDirectory.ToString(Context.PathTable),
                     m_configuration.Schedule.PluginLocations.Select(path => path.ToString(Context.PathTable)));
                 m_pluginManager.Start();
@@ -2402,7 +2414,7 @@ namespace BuildXL.Scheduler
                         pipsWaitingOnSemaphore: semaphoreQueued);
                 }
 
-                m_perfInfo = m_performanceAggregator?.ComputeMachinePerfInfo(ensureSample: m_testHooks != null ) ??
+                m_perfInfo = m_performanceAggregator?.ComputeMachinePerfInfo(ensureSample: m_testHooks != null) ??
                     (m_testHooks?.GenerateSyntheticMachinePerfInfo != null ? m_testHooks?.GenerateSyntheticMachinePerfInfo(m_executePhaseLoggingContext, this) : null) ??
                     default(PerformanceCollector.MachinePerfInfo);
 
@@ -3272,7 +3284,13 @@ namespace BuildXL.Scheduler
                                     // Track non materialized pip.
                                     m_pipOutputMaterializationTracker.AddNonMaterializedPip(pip);
                                 }
+                            }
+                        }
 
+                        if (IncrementalSchedulingState != null && !ShouldIncrementalSkip(pipId))
+                        {
+                            using (runnablePip.OperationContext.StartOperation(PipExecutorCounter.UpdateIncrementalSchedulingStateDuration))
+                            {
                                 // Record dynamic observation outside lock.
                                 if (pipType == PipType.Process)
                                 {
@@ -3414,6 +3432,13 @@ namespace BuildXL.Scheduler
                 Logger.Log.SkipDownstreamPipsDueToPipSuccess(m_executePhaseLoggingContext, runnablePip.Description);
             }
 
+            // The dependents are marked direct dirty if the current pip executes or deploys its outputs from the cache.
+            // This is analogous to a pip gets dirty because one of its inputs is modified/touched.
+            bool directDirtyDownStreams =
+                IncrementalSchedulingState?.DirtyNodeTracker != null &&
+                runnablePip?.Result != null &&
+                runnablePip.Result.Value.Status != PipResultStatus.UpToDate;
+
             foreach (Edge outEdge in ScheduledGraph.GetOutgoingEdges(nodeId))
             {
                 // Light edges do not propagate failure or ref-count changes.
@@ -3463,6 +3488,14 @@ namespace BuildXL.Scheduler
                 {
                     // if the current pip is not a frontier miss candidate, its dependents cannot be candidates
                     dependentPipRuntimeInfo.IsFrontierMissCandidate = false;
+                }
+
+                // We need to check to make sure the pip is dirty because we can't mark a pip direct dirty without it being dirty.
+                // The scenario that this happens for is when a sealed directory is clean and not materialized, but the downstream pip is clean and materialized.
+                if (directDirtyDownStreams && !IsPipCleanMaterialized(outEdge.OtherNode.ToPipId()))
+                {
+                    m_executionTimeDirectDirtiedNodes.Add(outEdge.OtherNode);
+                    IncrementalSchedulingState.PendingUpdates.MarkNodeMaterialization(outEdge.OtherNode, false);
                 }
 
                 if (!succeeded || result.Status == PipResultStatus.Skipped || shouldSkipDownstreamPipsDueToSucccessFast)
@@ -3701,7 +3734,7 @@ namespace BuildXL.Scheduler
 
             ushort cpuUsageInPercent = m_scheduleConfiguration.UseHistoricalCpuUsageInfo()
                 ? HistoricPerfDataTable[m_pipTable.GetPipSemiStableHash(pipId)].ProcessorsInPercents
-                : (ushort) 0;
+                : (ushort)0;
 
             var runnablePip = RunnablePip.Create(
                 m_executePhaseLoggingContext,
@@ -3954,6 +3987,12 @@ namespace BuildXL.Scheduler
             {
                 // Seal directories do not need to be materialized when materializing all outputs. Seal directory outputs
                 // are composed of other pip outputs which would necessarily be materialized if materializing all outputs
+                if (IncrementalSchedulingState != null && !runnablePip.Result.Value.Status.IndicatesNoOutput())
+                {
+                    IncrementalSchedulingState.PendingUpdates.MarkNodeMaterialized(runnablePip.PipId.ToNodeId());
+                    PipExecutionCounters.IncrementCounter(PipExecutorCounter.PipMarkMaterialized);
+                }
+
                 return;
             }
 
@@ -4271,7 +4310,7 @@ namespace BuildXL.Scheduler
                 {
                     // Enable incremental scheduling when distributed build role is none, and
                     // dirty build is not used (forceSkipDependencies is false).
-                    if (IsPipCleanMaterialized(pipId))
+                    if (ShouldIncrementalSkip(pipId))
                     {
                         var maybeHashed = await fileContentManager.TryRegisterOutputDirectoriesAndHashSharedOpaqueOutputsAsync(runnablePip.Pip, operationContext);
                         if (!maybeHashed.Succeeded)
@@ -5269,7 +5308,7 @@ namespace BuildXL.Scheduler
                 // lookup the historic perf data table.
                 if (runnablePip is ProcessRunnablePip runnableProcess && runnableProcess.HistoricPerfData == null)
                 {
-                    var perfData = HistoricPerfDataTable[runnableProcess];    
+                    var perfData = HistoricPerfDataTable[runnableProcess];
                     if (perfData != ProcessPipHistoricPerfData.Empty)
                     {
                         var memoryCounters = perfData.MemoryCounters;

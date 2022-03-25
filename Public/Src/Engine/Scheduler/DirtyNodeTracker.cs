@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Data;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Pips.DirectedGraph;
 using BuildXL.Utilities;
@@ -13,6 +14,13 @@ namespace BuildXL.Scheduler
     /// <summary>
     /// Tracks dirty nodes and invalidates transitive dependents when node is marked as dirty.
     /// </summary>
+    /// <remarks>
+    /// Currently we ensure the following invariants:
+    /// - If a node is marked Dirty, all downstream nodes should be marked dirty.
+    /// 
+    /// During schedule phase, a pip is marked dirty and non-materialized if one of its inputs (static/dynamic files/directories) is modified/touched (this modification is detected by USN journal scanning).
+    /// During execute phase, a pip can be marked direct dirty if one of pips that it directly depends on executed, or deployed its outputs from the cache, or, if sealed directory, is considered direct dirty.
+    /// </remarks>
     public class DirtyNodeTracker
     {
         /// <summary>
@@ -69,6 +77,10 @@ namespace BuildXL.Scheduler
         public sealed class PendingUpdatedState
         {
             private readonly ConcurrentDictionary<NodeId, bool> m_cleanNodes = new ConcurrentDictionary<NodeId, bool>();
+
+            /// <summary>
+            /// Key is the node, value is true if the node should be materialized, false if not.
+            /// </summary>
             private readonly ConcurrentDictionary<NodeId, bool> m_materializedNodes = new ConcurrentDictionary<NodeId, bool>();
             private readonly ConcurrentDictionary<NodeId, bool> m_perpetuallyDirtyNodes = new ConcurrentDictionary<NodeId, bool>();
 
@@ -76,11 +88,6 @@ namespace BuildXL.Scheduler
             /// Nodes marked clean.
             /// </summary>
             public IEnumerable<NodeId> CleanNodes => m_cleanNodes.Keys;
-
-            /// <summary>
-            /// Nodes that have materialized their outputs.
-            /// </summary>
-            public IEnumerable<NodeId> MaterializedNodes => m_materializedNodes.Keys;
 
             /// <summary>
             /// Nodes marked perpetually dirty.
@@ -95,7 +102,12 @@ namespace BuildXL.Scheduler
             /// <summary>
             /// Marks node materialized.
             /// </summary>
-            public void MarkNodeMaterialized(NodeId nodeId) => m_materializedNodes.TryAdd(nodeId, true);
+            public void MarkNodeMaterialized(NodeId nodeId) => MarkNodeMaterialization(nodeId, true);
+
+            /// <summary>
+            /// Marks node materialized or not, overwriting what was previously set.
+            /// </summary>
+            public void MarkNodeMaterialization(NodeId nodeId, bool materialized) => m_materializedNodes[nodeId] = materialized;
 
             /// <summary>
             /// Marks node perpetually dirty.
@@ -110,7 +122,7 @@ namespace BuildXL.Scheduler
             /// <summary>
             /// Checks if node has been marked materialized.
             /// </summary>
-            public bool IsNodeMaterialized(NodeId nodeId) => m_materializedNodes.ContainsKey(nodeId);
+            public bool IsNodeMaterialized(NodeId nodeId) => m_materializedNodes.TryGetValue(nodeId, out bool value) && value;
 
             /// <summary>
             /// Checks if node has been marked perpetually dirty.
@@ -146,13 +158,20 @@ namespace BuildXL.Scheduler
                     tracker.MarkNodeClean(perpetuallyDirtyNode);
                 }
 
-                foreach (var materializedNode in MaterializedNodes)
+                foreach (var materializedNode in m_materializedNodes)
                 {
-                    tracker.MarkNodeMaterialized(materializedNode);
+                    if (materializedNode.Value)
+                    {
+                        tracker.MarkNodeMaterialized(materializedNode.Key);
+                    }
+                    else
+                    {
+                        tracker.MarkNodeNonMaterialized(materializedNode.Key);
+                    }
                 }
 
                 // Dirty all perpetually dirty nodes and their downstream.
-                tracker.MarkNodesDirty(PerpetuallyDirtyNodes);
+                tracker.MarkNodesDirectDirty(PerpetuallyDirtyNodes);
 
                 IsStillPending = false;
             }
@@ -455,7 +474,6 @@ namespace BuildXL.Scheduler
         public void MarkNodeDirty(NodeId node, Action<NodeId> action = null)
         {
             Contract.Requires(node.IsValid);
-
             if (DirtyNodes.Contains(node))
             {
                 // Most of the time when this method is invoked, the node is already dirty.
@@ -476,13 +494,26 @@ namespace BuildXL.Scheduler
         }
 
         /// <summary>
-        /// Marks a list of nodes in a graph as dirty. This should mark all of their dependents transitively as dirty.
+        /// Marks a list of nodes in a graph as dirty and not materialized. This should mark all of their dependents transitively as dirty (but keep their materialization status).
         /// Since we maintain dependents dirty for all dirty nodes, we can stop when a dirty node is found.
         /// </summary>
         /// <remarks>
         /// This method is NOT thread safe.
         /// </remarks>
-        public void MarkNodesDirty(IEnumerable<NodeId> nodes, Action<NodeId> action = null)
+        public void MarkNodesDirectDirty(IEnumerable<NodeId> nodes, Action<NodeId> action = null)
+        {
+            MarkNodesRecursivelyDirty(nodes, action);
+            MarkNodesNonMaterialized(nodes);
+        }
+
+        /// <summary>
+        /// Marks a list of nodes in a graph as dirty. This should mark all of their dependents transitively as dirty (but keep their materialization status).
+        /// Since we maintain dependents dirty for all dirty nodes, we can stop when a dirty node is found.
+        /// </summary>
+        /// <remarks>
+        /// This method is NOT thread safe.
+        /// </remarks>
+        private void MarkNodesRecursivelyDirty(IEnumerable<NodeId> nodes, Action<NodeId> action = null)
         {
             Contract.Requires(nodes != null);
 
@@ -507,6 +538,43 @@ namespace BuildXL.Scheduler
         }
 
         /// <summary>
+        /// Mark nodes non-materialized
+        /// </summary>
+        private void MarkNodesNonMaterialized(IEnumerable<NodeId> nodes)
+        {
+            foreach (var node in nodes)
+            {
+                MarkNodeNonMaterialized(node);
+            }
+        }
+
+        /// <summary>
+        /// Marks a node in a graph as dirty and non-materialized. This should mark all of its dependents transitively as dirty.
+        /// Since we maintain dependents dirty for all dirty nodes, we can stop when a dirty node is found.
+        /// </summary>
+        /// <remarks>
+        /// This method is NOT thread safe.
+        /// </remarks>
+        public void MarkNodeDirectDirty(NodeId node, Action<NodeId> action = null)
+        {
+            MarkNodeDirty(node, action);
+            MarkNodeNonMaterialized(node);
+        }
+
+        /// <summary>
+        /// Mark a node non-materialized
+        /// </summary>
+        public void MarkNodeNonMaterialized(NodeId node)
+        {
+            Contract.Requires(node != null);
+            if (MaterializedNodes.Contains(node))
+            {
+                MaterializedNodesChanged = true;
+                MaterializedNodes.Remove(node);
+            }
+        }
+
+        /// <summary>
         /// Propagates node dirtiness to transitive dependents.
         /// </summary>
         private void ProcessDirtyNodeQueue(Queue<NodeId> nodesToDirty, Action<NodeId> action = null)
@@ -516,11 +584,6 @@ namespace BuildXL.Scheduler
             do
             {
                 NodeId node = nodesToDirty.Dequeue();
-
-                if (MaterializedNodes.Contains(node))
-                {
-                    MaterializedNodes.Remove(node);
-                }
 
                 action?.Invoke(node);
 
@@ -549,9 +612,6 @@ namespace BuildXL.Scheduler
         public void MarkNodeMaterialized(NodeId node)
         {
             Contract.Requires(node.IsValid);
-            Contract.Assert(
-                !DirtyNodes.Contains(node) || PerpetualDirtyNodes.Contains(node),
-                "Node can only be marked materialized if the node is clean or node is prepetually dirty");
 
             if (MaterializedNodes.Contains(node))
             {

@@ -67,7 +67,7 @@ namespace Test.BuildXL.Scheduler
             graph.AddEdge(cleanMaterializedNotRequested, dirtyRequested);
 
             dirtyNodeSet.ClearAndSetRange(graph.NodeRange);
-            dirtyNodeTracker.MarkNodeDirty(dirtyRequested);
+            dirtyNodeTracker.MarkNodeDirectDirty(dirtyRequested);
 
             materializedNodeSet.ClearAndSetRange(graph.NodeRange);
             materializedNodeSet.Add(cleanMaterializedNotRequested);
@@ -83,6 +83,116 @@ namespace Test.BuildXL.Scheduler
                 explicitlyScheduledNodes: new[] { dirtyRequested },
                 forceSkipDepsMode: ForceSkipDependenciesMode.Disabled,
                 scheduleDependents: true);
+        }
+
+        [Fact]
+        public void MaterializedSealDirectoryTests()
+        {
+            // Graph:
+            //         cleanMaterizedSealDirectory
+            //         \|/       |
+            //  dirtyDownstream  |
+            //                  \|/
+            //         downstreamOfSealedDirectory
+
+            MutableDirectedGraph graph = new MutableDirectedGraph();
+
+            var dirtyNodeSet = new RangedNodeSet();
+            var materializedNodeSet = new RangedNodeSet();
+            var dirtyNodeTracker = new DirtyNodeTracker(
+                graph: graph,
+                dirtyNodes: dirtyNodeSet,
+                perpetualDirtyNodes: new RangedNodeSet(),
+                dirtyNodesChanged: false,
+                materializedNodes: materializedNodeSet);
+            var buildSetCalculator = new TestBuildSetCalculator(graph, dirtyNodeTracker);
+
+            var cleanMaterizedSealDirectory = buildSetCalculator.CreateNode(PipType.SealDirectory);
+            var downstreamOfSealedDirectory = buildSetCalculator.CreateNode(PipType.Process);
+            var dirtyDownstreamOfSealedDirectory = buildSetCalculator.CreateNode(PipType.Process);
+            graph.AddEdge(cleanMaterizedSealDirectory, downstreamOfSealedDirectory);
+            graph.AddEdge(cleanMaterizedSealDirectory, dirtyDownstreamOfSealedDirectory);
+
+            dirtyNodeSet.ClearAndSetRange(graph.NodeRange);
+            materializedNodeSet.ClearAndSetRange(graph.NodeRange);
+            materializedNodeSet.Fill();
+
+            dirtyNodeTracker.MarkNodeDirectDirty(dirtyDownstreamOfSealedDirectory);
+
+            buildSetCalculator.ComputeAndValidate(
+                expectedNodes: new NodeId[] { dirtyDownstreamOfSealedDirectory, cleanMaterizedSealDirectory },
+                explicitlyScheduledNodes: new NodeId[] { dirtyDownstreamOfSealedDirectory },
+                forceSkipDepsMode: ForceSkipDependenciesMode.Disabled,
+                scheduleDependents: true);
+
+            XAssert.IsTrue(dirtyNodeTracker.IsNodeDirty(dirtyDownstreamOfSealedDirectory));
+            XAssert.IsFalse(dirtyNodeTracker.IsNodeMaterialized(dirtyDownstreamOfSealedDirectory));
+
+            XAssert.IsTrue(dirtyNodeTracker.IsNodeClean(cleanMaterizedSealDirectory));
+            XAssert.IsTrue(dirtyNodeTracker.IsNodeMaterialized(cleanMaterizedSealDirectory));
+
+            XAssert.IsTrue(dirtyNodeTracker.IsNodeClean(downstreamOfSealedDirectory));
+            XAssert.IsTrue(dirtyNodeTracker.IsNodeMaterialized(cleanMaterizedSealDirectory));
+        }
+
+        [Fact]
+        public void DirtyAndMaterializedTests()
+        {
+            // Graph:
+            //             dirtyRequested
+            //                   |
+            //                  \|/
+            //         downstreamOfDirtyNode
+            MutableDirectedGraph graph = new MutableDirectedGraph();
+
+            var dirtyNodeSet = new RangedNodeSet();
+            var materializedNodeSet = new RangedNodeSet();
+            var dirtyNodeTracker = new DirtyNodeTracker(
+                graph: graph,
+                dirtyNodes: dirtyNodeSet,
+                perpetualDirtyNodes: new RangedNodeSet(),
+                dirtyNodesChanged: false,
+                materializedNodes: materializedNodeSet);
+            var buildSetCalculator = new TestBuildSetCalculator(graph, dirtyNodeTracker);
+
+            var dirtyRequested = buildSetCalculator.CreateNode(PipType.Process);
+            var downstreamOfDirtyNode = buildSetCalculator.CreateNode(PipType.Process);
+            graph.AddEdge(dirtyRequested, downstreamOfDirtyNode);
+
+            dirtyNodeSet.ClearAndSetRange(graph.NodeRange);
+            materializedNodeSet.ClearAndSetRange(graph.NodeRange);
+            materializedNodeSet.Fill();
+            dirtyNodeTracker.MarkNodeDirectDirty(dirtyRequested);
+
+            XAssert.AreEqual(2, dirtyNodeTracker.AllDirtyNodes.Count());
+            XAssert.AreEqual(1, dirtyNodeTracker.AllMaterializedNodes.Count());
+            XAssert.AreEqual(downstreamOfDirtyNode.Value, dirtyNodeTracker.AllMaterializedNodes.First().Value);
+
+            dirtyNodeTracker.MarkNodeClean(dirtyRequested);
+            XAssert.AreEqual(1, dirtyNodeTracker.AllDirtyNodes.Count());
+            XAssert.AreEqual(1, dirtyNodeTracker.AllMaterializedNodes.Count());
+
+            dirtyNodeTracker.MarkNodeClean(downstreamOfDirtyNode);
+            XAssert.AreEqual(0, dirtyNodeTracker.AllDirtyNodes.Count());
+            XAssert.AreEqual(1, dirtyNodeTracker.AllMaterializedNodes.Count());
+
+            dirtyNodeTracker.MarkNodeDirectDirty(dirtyRequested);
+            XAssert.AreEqual(2, dirtyNodeTracker.AllDirtyNodes.Count());
+            XAssert.AreEqual(dirtyRequested.Value, dirtyNodeTracker.AllDirtyNodes.First().Value);
+            XAssert.AreEqual(1, dirtyNodeTracker.AllMaterializedNodes.Count());
+
+            dirtyNodeTracker.MarkNodeMaterialized(dirtyRequested);
+            XAssert.AreEqual(2, dirtyNodeTracker.AllMaterializedNodes.Count());
+
+            dirtyNodeTracker.MarkNodeDirectDirty(dirtyRequested);
+            XAssert.AreEqual(2, dirtyNodeTracker.AllDirtyNodes.Count());
+            XAssert.AreEqual(1, dirtyNodeTracker.AllMaterializedNodes.Count());
+            XAssert.AreEqual(downstreamOfDirtyNode.Value, dirtyNodeTracker.AllMaterializedNodes.First().Value);
+
+            dirtyNodeTracker.MarkNodeClean(dirtyRequested);
+            dirtyNodeTracker.MarkNodeClean(downstreamOfDirtyNode);
+            XAssert.AreEqual(0, dirtyNodeTracker.AllDirtyNodes.Count());
+            XAssert.AreEqual(1, dirtyNodeTracker.AllMaterializedNodes.Count());
         }
 
         [Fact]
@@ -109,7 +219,7 @@ namespace Test.BuildXL.Scheduler
             graph.AddEdge(cleanNotMaterializedNotRequested, dirtyRequested);
 
             dirtyNodeSet.ClearAndSetRange(graph.NodeRange);
-            dirtyNodeTracker.MarkNodeDirty(dirtyRequested);
+            dirtyNodeTracker.MarkNodeDirectDirty(dirtyRequested);
 
             materializedNodeSet.ClearAndSetRange(graph.NodeRange);
             materializedNodeSet.Add(cleanMaterializedNotRequested);
@@ -152,7 +262,7 @@ namespace Test.BuildXL.Scheduler
             graph.AddEdge(cleanMaterializedNotRequestedSealedDirectory, dirtyRequested);
 
             dirtyNodeSet.ClearAndSetRange(graph.NodeRange);
-            dirtyNodeTracker.MarkNodeDirty(dirtyRequested);
+            dirtyNodeTracker.MarkNodeDirectDirty(dirtyRequested);
 
             materializedNodeSet.ClearAndSetRange(graph.NodeRange);
             materializedNodeSet.Add(cleanMaterializedNotRequestedSealedDirectory);
@@ -205,8 +315,8 @@ namespace Test.BuildXL.Scheduler
             graph.AddEdge(dirtyNotRequestedDepOf2, dirtyNotRequested2);
 
             dirtyNodeSet.ClearAndSetRange(graph.NodeRange);
-            dirtyNodeTracker.MarkNodeDirty(dirtyRequested);
-            dirtyNodeTracker.MarkNodeDirty(dirtyNotRequestedDepOf2);
+            dirtyNodeTracker.MarkNodeDirectDirty(dirtyRequested);
+            dirtyNodeTracker.MarkNodeDirectDirty(dirtyNotRequestedDepOf2);
 
             materializedNodeSet.ClearAndSetRange(graph.NodeRange);
             materializedNodeSet.Add(cleanMaterializedNotRequestedCopyFile);
@@ -259,8 +369,8 @@ namespace Test.BuildXL.Scheduler
             graph.AddEdge(dirtyNotRequestedDepOf2, dirtyNotRequested2);
 
             dirtyNodeSet.ClearAndSetRange(graph.NodeRange);
-            dirtyNodeTracker.MarkNodeDirty(dirtyRequested);
-            dirtyNodeTracker.MarkNodeDirty(dirtyNotRequestedDepOf2);
+            dirtyNodeTracker.MarkNodeDirectDirty(dirtyRequested);
+            dirtyNodeTracker.MarkNodeDirectDirty(dirtyNotRequestedDepOf2);
 
             materializedNodeSet.ClearAndSetRange(graph.NodeRange);
             materializedNodeSet.Add(cleanMaterializedNotRequestedCopyFile);
@@ -314,8 +424,8 @@ namespace Test.BuildXL.Scheduler
             graph.AddEdge(dirtyRequestedDepOf2, dirtyNotRequested2);
 
             dirtyNodeSet.ClearAndSetRange(graph.NodeRange);
-            dirtyNodeTracker.MarkNodeDirty(dirtyRequested);
-            dirtyNodeTracker.MarkNodeDirty(dirtyRequestedDepOf2);
+            dirtyNodeTracker.MarkNodeDirectDirty(dirtyRequested);
+            dirtyNodeTracker.MarkNodeDirectDirty(dirtyRequestedDepOf2);
 
             materializedNodeSet.ClearAndSetRange(graph.NodeRange);
             materializedNodeSet.Add(cleanMaterializedNotRequestedCopyFile);
@@ -378,9 +488,9 @@ namespace Test.BuildXL.Scheduler
             graph.AddEdge(cleanNotMaterializedYCenterNotRequested, dirtyNotRequested);
 
             dirtyNodeSet.ClearAndSetRange(graph.NodeRange);
-            dirtyNodeTracker.MarkNodeDirty(dirtyRequested1);
-            dirtyNodeTracker.MarkNodeDirty(dirtyRequested2);
-            dirtyNodeTracker.MarkNodeDirty(dirtyNotRequested);
+            dirtyNodeTracker.MarkNodeDirectDirty(dirtyRequested1);
+            dirtyNodeTracker.MarkNodeDirectDirty(dirtyRequested2);
+            dirtyNodeTracker.MarkNodeDirectDirty(dirtyNotRequested);
 
             materializedNodeSet.ClearAndSetRange(graph.NodeRange);
             materializedNodeSet.Add(cleanMaterializedXCenterNotRequested);
@@ -437,7 +547,7 @@ namespace Test.BuildXL.Scheduler
             var cleanRequestedDirtyUnrequestedDependency = buildSetCalculator.CreateNode(PipType.Process);
 
             dirtyNodeSet.ClearAndSetRange(graph.NodeRange);
-            dirtyNodeTracker.MarkNodeDirty(dirtyRequested);
+            dirtyNodeTracker.MarkNodeDirectDirty(dirtyRequested);
 
             // All nodes are assumed to be materialized.
             materializedNodeSet.ClearAndSetRange(graph.NodeRange);
@@ -617,8 +727,8 @@ namespace Test.BuildXL.Scheduler
 
             // Nodes 0 & 7 are dirty, and they are requested.
             dirtyNodeSet.ClearAndSetRange(graph.NodeRange);
-            buildSetCalculator.MarkProcessNodeDirty(n[0]);
-            buildSetCalculator.MarkProcessNodeDirty(n[7]);
+            buildSetCalculator.MarkProcessNodeRecursivelyDirty(n[0], true);
+            buildSetCalculator.MarkProcessNodeRecursivelyDirty(n[7], true);
 
             // Nodes 2 & 5 have materialized their outputs.
             materializedNodeSet.ClearAndSetRange(graph.NodeRange);

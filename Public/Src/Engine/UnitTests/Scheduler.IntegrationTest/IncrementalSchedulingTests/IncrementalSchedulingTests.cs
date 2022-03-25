@@ -317,6 +317,119 @@ namespace IntegrationTest.BuildXL.Scheduler.IncrementalSchedulingTests
         }
 
         [Fact]
+        public void IncrementalSchedulingDirectDityPipTests()
+        {
+            // When an Input A changes, then the seal directory is scheduled, but B is not going to be scheduled
+            // When input A changes, A will be run, C will check for cache hit, and D will be skipped
+            // 
+            //        Seal Directory
+            //        \|/      \|/
+            // InputA--A        B
+            //        \|/      \|/
+            //      Output A Output B
+            //        \|/
+            //         C
+            //        \|/
+            //      Output C
+            //        \|/
+            //         D
+            //        \|/
+            //      Output D
+
+            var directoryPath = CreateUniqueDirectory(ReadonlyRoot);
+            var fileInsideDirectory = FileArtifact.CreateSourceFile(Combine(directoryPath, "fileToBeCreated"));
+            var otherFileInputA = CreateSourceFile();
+            var otherFileInputD = CreateSourceFile();
+
+            FileArtifact outputA = CreateOutputFileArtifact();
+            SealDirectory sealedDirectory = CreateAndScheduleSealDirectory(directoryPath, SealDirectoryKind.Partial, fileInsideDirectory);
+
+            var builderA = CreatePipBuilder(new Operation[]
+            {
+                Operation.ReadFile(otherFileInputA),
+                Operation.ReadFile(fileInsideDirectory, doNotInfer: true),
+                Operation.WriteFile(outputA, "Hello World A!")
+            }, description: "PipA");
+
+            builderA.AddInputDirectory(sealedDirectory.Directory);
+
+            var pipA = SchedulePipBuilder(builderA);
+
+            FileArtifact outputB = CreateOutputFileArtifact();
+
+            var builderB = CreatePipBuilder(new Operation[]
+            {
+                Operation.ReadFile(fileInsideDirectory, doNotInfer: true),
+                Operation.WriteFile(outputB, "Hello World B!"),
+            }, description: "PipB");
+
+            builderB.AddInputDirectory(sealedDirectory.Directory);
+
+            var pipB = SchedulePipBuilder(builderB);
+
+            FileArtifact outputC = CreateOutputFileArtifact();
+
+            var builderC = CreatePipBuilder(new Operation[]
+            {
+                Operation.ReadFile(outputA),
+                Operation.WriteFile(outputC, "Hello World C!")
+            }, description: "PipC");
+
+            var pipC = SchedulePipBuilder(builderC);
+
+            FileArtifact outputD = CreateOutputFileArtifact();
+
+            var builderD = CreatePipBuilder(new Operation[]
+            {
+                Operation.ReadFile(outputC),
+                Operation.ReadFile(otherFileInputD),
+                Operation.WriteFile(outputD, "Hello World D!")
+            }, description: "PipD");
+
+            var pipD = SchedulePipBuilder(builderD);
+
+            var result = RunScheduler().AssertScheduled(
+                sealedDirectory.PipId,
+                pipA.Process.PipId,
+                pipB.Process.PipId,
+                pipC.Process.PipId,
+                pipD.Process.PipId);
+
+            AssertVerboseEventLogged(LogEventId.PipIsIncrementallySkippedDueToCleanMaterialized, count: 0, allowMore: false);
+
+            ModifyFile(otherFileInputA);
+
+            // When otherFileInputA is changed, then pipA, all downstreams and immediate upstreams (sealDirectory) are marked dirty, and pipA/sealDiretory are marked directory dirty.
+            // First, sealedDirectory is run, and marks directDirty to all downstreams THAT ARE ALREADY DIRTY.  This means pipB is left out, and pipA is marked Direct Dirty
+            // Pip A is run, and marks it's downstream (PipC) as directDirty
+            // Pip C is cache hit, and so it doesn't mark its downstream as direct dirty, and pipD is skipped
+            RunScheduler()
+                .AssertScheduled(
+                    sealedDirectory.PipId,
+                    pipA.Process.PipId,
+                    pipC.Process.PipId,
+                    pipD.Process.PipId)
+                .AssertCacheMiss(pipA.Process.PipId)
+                .AssertCacheHit(pipC.Process.PipId, pipD.Process.PipId)
+                .AssertNotScheduled(pipB.Process.PipId);
+            AssertVerboseEventLogged(LogEventId.PipIsIncrementallySkippedDueToCleanMaterialized, count: 2, allowMore: false);
+
+            // PipD should be one of the pips which logged PipIsIncrementallySkippedDueToCleanMaterialized, but to verify this, we make D rebuild and ensure that the PipIsIncrementallySkippedDueToCleanMaterialized has gone to 1.
+            ModifyFile(otherFileInputA);
+            ModifyFile(otherFileInputD);
+            RunScheduler()
+                .AssertScheduled(
+                sealedDirectory.PipId,
+                pipA.Process.PipId,
+                pipC.Process.PipId,
+                pipD.Process.PipId)
+                .AssertCacheMiss(pipA.Process.PipId, pipD.Process.PipId)
+                .AssertCacheHit(pipC.Process.PipId)
+                .AssertNotScheduled(pipB.Process.PipId);
+            AssertVerboseEventLogged(LogEventId.PipIsIncrementallySkippedDueToCleanMaterialized, count: 1, allowMore: false);
+        }
+
+        [Fact]
         public void IncrementalSchedulingIsRobustAgainstFileCreationMidBuild()
         {
             var directoryPath = CreateUniqueDirectory(ReadonlyRoot);

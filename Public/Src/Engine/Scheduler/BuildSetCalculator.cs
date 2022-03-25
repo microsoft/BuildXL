@@ -584,17 +584,20 @@ namespace BuildXL.Scheduler
 
                             // The node is clean if it's (1) marked as clean and materialized and (2) none of its outputs are rewritten.
                             // Condition (2) is conservative, and is needed for correctness in the presence of rewritten files.
-                            bool isCleanMaterialized = IsNodeCleanAndMaterialized(node) && !IsRewrittenPip(node);
+                            bool isPipRewritten = IsRewrittenPip(node);
+                            bool isCleanMaterialized = IsNodeCleanAndMaterialized(node) && !isPipRewritten;
 
                             if (!isCleanMaterialized && nodesToSchedule.Add(node))
                             {
                                 // (1) Node is dirty or has not materialized its outputs.
                                 // (2) Node has not been scheduled yet.
 
-                                // Mark process node dirty, and add its dependents so that the dependencies of its dependents can be added later.
-                                MarkProcessNodeDirtyAndAddItsDependents(node, addNode);
-                                ++nodesAddedDueToNotCleanMaterializedCount;
+                                // By keeping the materialization status here for most pips, we give the build an opportunity to incrementally skip 'node'.
+                                // This will happen when no upstreams of 'node' run during the build
+                                // If a pip is rewritten, then the original output is not there on disk, so it needs to be non-materialized.
+                                MarkProcessNodeRecursivelyDirty(node, markNonMaterialized: isPipRewritten, addNode);
 
+                                ++nodesAddedDueToNotCleanMaterializedCount;
                                 if (pipType != PipType.HashSourceFile)
                                 {
                                     nodeQueue.Enqueue(node);
@@ -970,7 +973,7 @@ namespace BuildXL.Scheduler
                         // (2) it is marked clean, but
                         // (2) its outputs have never been materialized,
                         // consider the node dirty.
-                        MarkProcessNodeDirty(node);
+                        MarkProcessNodeRecursivelyDirty(node);
                         ++dirtyNodeCount;
                         ++nonMaterializedNodeCount;
 
@@ -1085,36 +1088,22 @@ namespace BuildXL.Scheduler
         /// files and their hashes to change). Of course, this only needs to be done if the node is clean (which is also
         /// an indicator of an incremental scheduling). Other types of pips are deterministic and running them will not
         /// change any hashes.
-        /// </remarks>
-        public void MarkProcessNodeDirty(NodeId node)
+        /// 
+        /// If <paramref name="markNonMaterialized"/> is set, also mark <paramref name="node"/> as nonMaterialized, but don't change materialization of dependents.</remarks>
+        public void MarkProcessNodeRecursivelyDirty(NodeId node, bool markNonMaterialized = false, Action<NodeId> action = null)
         {
-            if (!IsNodeDirty(node))
+            if (m_dirtyNodeTracker != null)
             {
                 PipType pipType = GetPipType(node);
-
                 if (pipType == PipType.Process)
                 {
-                    // Dirty this node and all dependents.
-                    m_dirtyNodeTracker.MarkNodeDirty(node);
+                    if (markNonMaterialized)
+                    {
+                        m_dirtyNodeTracker.MarkNodeNonMaterialized(node);
+                    }
+
+                    m_dirtyNodeTracker.MarkNodeDirty(node, action);
                 }
-            }
-        }
-
-        /// <summary>
-        /// Marks a process node dirty, as well as all of its dependents, plus performs some action when a node gets marked dirty.
-        /// </summary>
-        private void MarkProcessNodeDirtyAndAddItsDependents(NodeId node, Action<NodeId> action)
-        {
-            if (IsNodeDirty(node))
-            {
-                return;
-            }
-
-            PipType pipType = GetPipType(node);
-
-            if (pipType == PipType.Process)
-            {
-                m_dirtyNodeTracker.MarkNodeDirty(node, action);
             }
         }
 

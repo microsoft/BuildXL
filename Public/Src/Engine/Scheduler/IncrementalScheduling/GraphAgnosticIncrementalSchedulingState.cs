@@ -1,4 +1,4 @@
-// Copyright (c) Microsoft Corporation.
+﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
 using System;
@@ -187,9 +187,9 @@ namespace BuildXL.Scheduler.IncrementalScheduling
         private HashSet<AbsolutePath> m_allDirectories;
 
         /// <summary>
-        /// Nodes to be dirtied.
+        /// Nodes to be dirtied and non-materialized.
         /// </summary>
-        private readonly HashSet<NodeId> m_nodesToDirty = new HashSet<NodeId>();
+        private readonly HashSet<NodeId> m_nodesToDirectDirty = new HashSet<NodeId>();
 
         /// <summary>
         /// Records of pips that get dirtied due to graph changed or journal scan.
@@ -830,8 +830,18 @@ namespace BuildXL.Scheduler.IncrementalScheduling
         {
             if (!DirtyNodeTracker.IsNodeDirty(maybeImpactedNode))
             {
-                if (m_nodesToDirty.Add(maybeImpactedNode))
+                if (m_nodesToDirectDirty.Add(maybeImpactedNode))
                 {
+                    // Hash source file pips never make it into the scheduler,
+                    // so the immediate consumers of them must be marked as non-materialized as well to ensure they are not skipped.
+                    if (PipGraph.PipTable.GetPipType(maybeImpactedNode.ToPipId()) == PipType.HashSourceFile)
+                    {
+                        foreach (var edge in PipGraph.DirectedGraph.GetOutgoingEdges(maybeImpactedNode).Where(e => !DirtyNodeTracker.IsNodeDirty(e.OtherNode)))
+                        {
+                            m_nodesToDirectDirty.Add(edge.OtherNode);
+                        }
+                    }
+
                     if (changeTypeCount <= MaxMessagesPerChangeType)
                     {
                         var dirtyPipType = PipGraph.PipTable.GetPipType(maybeImpactedNode.ToPipId());
@@ -1056,14 +1066,13 @@ namespace BuildXL.Scheduler.IncrementalScheduling
                 // All changes processed; new nodes possibly dirtied.
                 // Given any dirtied node, ensure that all transitive dependents are also dirty.
                 // Note that we stop traversal whenever a dirty node is encountered (assuming this property already holds for them).
-                if (m_nodesToDirty.Count > 0)
+                if (m_nodesToDirectDirty.Count > 0)
                 {
                     using (dirtyingNodesTransitivelyStopwatch.Start())
                     {
                         var transitivelyDirtiedNodes = new HashSet<NodeId>();
-
-                        DirtyNodeTracker.MarkNodesDirty(
-                            m_nodesToDirty, 
+                        DirtyNodeTracker.MarkNodesDirectDirty(
+                            m_nodesToDirectDirty,
                             node => 
                             {
                                 ++m_stats.NodesTransitivelyDirtiedCount;
@@ -1096,7 +1105,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
                 Tracing.Logger.Log.IncrementalSchedulingDirtyPipChanges(
                     m_loggingContext,
                     DirtyNodeTracker.HasChanged,
-                    m_nodesToDirty.Count,
+                    m_nodesToDirectDirty.Count,
                     m_stats.NodesTransitivelyDirtiedCount,
                     (long)dirtyingNodesTransitivelyStopwatch.TotalElapsed.TotalMilliseconds);
 
@@ -2034,7 +2043,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
 
             stepStopwatch.Restart();
 
-            dirtyNodeTracker.MarkNodesDirty(
+            dirtyNodeTracker.MarkNodesDirectDirty(
                 nodesToBeDirtied.Keys,
                 node => 
                 {

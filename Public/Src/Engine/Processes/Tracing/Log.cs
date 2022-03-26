@@ -409,6 +409,15 @@ namespace BuildXL.Processes.Tracing
         public abstract void ExceptionOnGetAnyBuildRemoteProcessFactory(LoggingContext context, string exception);
 
         [GeneratedEvent(
+            (int)LogEventId.ExceptionOnFindingAnyBuildClient,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = "Exception on finding AnyBuild client: {exception}")]
+        public abstract void ExceptionOnFindingAnyBuildClient(LoggingContext context, string exception);
+
+        [GeneratedEvent(
             (int)LogEventId.InstallAnyBuildClient,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,

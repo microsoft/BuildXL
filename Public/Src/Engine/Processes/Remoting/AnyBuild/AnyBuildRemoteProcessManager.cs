@@ -30,10 +30,11 @@ namespace BuildXL.Processes.Remoting
         private readonly LoggingContext m_loggingContext;
         private readonly CounterCollection<SandboxedProcessFactory.SandboxedProcessCounters> m_counters;
         private readonly AsyncLazy<InitResult> m_initResultLazy;
-        private bool m_isDaemonStarted;
 
         /// <inheritdoc/>
         public bool IsInitialized { get; private set; }
+
+        private bool m_initializationStarted = false;
 
         public AnyBuildRemoteProcessManager(
             LoggingContext loggingContext,
@@ -53,7 +54,14 @@ namespace BuildXL.Processes.Remoting
         {
             Contract.Requires(IsInitialized);
 
-            IRemoteProcessFactory factory = (await m_initResultLazy.GetValueAsync()).RemoteProcessFactory;
+            InitResult initResult = await m_initResultLazy.GetValueAsync();
+
+            if (initResult.RemoteProcessFactory == null)
+            {
+                return new ErrorRemoteProcessPip(initResult.Exception!.ToString());
+            }
+
+            IRemoteProcessFactory factory = initResult.RemoteProcessFactory;
             var commandInfo = new RemoteCommandExecutionInfo(
                 processInfo.Executable,
                 processInfo.Args,
@@ -75,20 +83,31 @@ namespace BuildXL.Processes.Remoting
         /// <inheritdoc/>
         public void Dispose()
         {
-            if (m_isDaemonStarted)
+            if (m_initializationStarted)
             {
-                m_initResultLazy.GetValueAsync().GetAwaiter().GetResult().DaemonManager.Dispose();
+                InitResult initResult = m_initResultLazy.GetValueAsync().GetAwaiter().GetResult();
+                if (initResult.DaemonManager != null)
+                {
+                    // Daemon manager was started during initialization, so it must be disposed.
+                    initResult.DaemonManager.Dispose();
+                }
             }
         }
 
         /// <inheritdoc/>
-        public Task InitAsync()
+        public async Task InitAsync()
         {
-            return m_initResultLazy.GetValueAsync();
+            InitResult result = await m_initResultLazy.GetValueAsync();
+            if (result.Exception != null)
+            {
+                throw result.Exception;
+            }
         }
 
         private async Task<InitResult> InitCoreAsync()
         {
+            m_initializationStarted = true;
+
             using Stopwatch _ = m_counters.StartStopwatch(SandboxedProcessFactory.SandboxedProcessCounters.SandboxedPipExecutorInitializingRemoteProcessManager);
 
             AnyBuildClient abClient;
@@ -102,7 +121,12 @@ namespace BuildXL.Processes.Remoting
                 }
                 catch (AnyBuildNotInstalledException e)
                 {
-                    throw new BuildXLException("Failed to remote process because AnyBuild client cannot be found", e);
+                    Tracing.Logger.Log.ExceptionOnFindingAnyBuildClient(m_loggingContext, e.ToString());
+                    return new InitResult(
+                        null,
+                        null,
+                        null,
+                        new BuildXLException("Failed to remote process because AnyBuild client cannot be found", e));
                 }
             }
 
@@ -132,12 +156,13 @@ namespace BuildXL.Processes.Remoting
                 catch (Exception e)
                 {
                     Tracing.Logger.Log.ExceptionOnFindOrStartAnyBuildDaemon(m_loggingContext, e.ToString());
-
-                    throw new BuildXLException("Failed to remote process because AnyBuild daemon cannot be found or started");
+                    return new InitResult(
+                        abClient,
+                        null,
+                        null,
+                        new BuildXLException("Failed to remote process because AnyBuild daemon cannot be found or started", e));
                 }
             }
-
-            m_isDaemonStarted = true;
 
             IRemoteProcessFactory remoteProcessFactory;
 
@@ -150,14 +175,17 @@ namespace BuildXL.Processes.Remoting
                 catch (Exception e)
                 {
                     Tracing.Logger.Log.ExceptionOnGetAnyBuildRemoteProcessFactory(m_loggingContext, e.ToString());
-
-                    throw new BuildXLException("Failed to remote process because AnyBuild remote process factory cannot be obtained");
+                    return new InitResult(
+                        abClient,
+                        daemonManager,
+                        null,
+                        new BuildXLException("Failed to remote process because AnyBuild remote process factory cannot be obtained", e));
                 }
             }
 
             IsInitialized = true;
 
-            return new InitResult(abClient, daemonManager, remoteProcessFactory);
+            return new InitResult(abClient, daemonManager, remoteProcessFactory, null);
         }
 
         private string CreateAnyBuildParams()
@@ -204,7 +232,7 @@ namespace BuildXL.Processes.Remoting
         //     return port;
         // }
 
-        private record InitResult(AnyBuildClient AbClient, AnyBuildDaemonManager DaemonManager, IRemoteProcessFactory RemoteProcessFactory);
+        private record InitResult(AnyBuildClient? AbClient, AnyBuildDaemonManager? DaemonManager, IRemoteProcessFactory? RemoteProcessFactory, BuildXLException? Exception);
     }
 }
 

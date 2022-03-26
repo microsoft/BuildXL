@@ -15,11 +15,10 @@ namespace BuildXL.Processes.Remoting
         /// <inheritdoc/>
         public Task<IRemoteProcessPipResult> Completion { init; get; }
 
-
         /// <summary>
         /// Creates an instance of <see cref="ErrorRemoteProcessPip"/>.
         /// </summary>
-        public ErrorRemoteProcessPip(string error) => Completion = Task.FromResult((IRemoteProcessPipResult)new ErrorRemoteProcessPip(error));
+        public ErrorRemoteProcessPip(string error) => Completion = Task.FromResult((IRemoteProcessPipResult)new ErrorRemoteProcessPipResult(error));
 
         /// <inheritdoc/>
         public void Dispose()

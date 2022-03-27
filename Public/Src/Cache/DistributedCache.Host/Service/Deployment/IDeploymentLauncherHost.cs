@@ -82,8 +82,6 @@ namespace BuildXL.Cache.Host.Service
         /// Indicates if the process has exited
         /// </summary>
         bool HasExited { get; }
-
-
     }
 
     /// <summary>

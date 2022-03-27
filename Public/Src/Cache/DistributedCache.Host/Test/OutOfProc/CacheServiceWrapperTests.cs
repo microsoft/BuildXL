@@ -23,7 +23,7 @@ namespace BuildXL.Cache.Host.Configuration.Test
     public class CacheServiceWrapperTests : TestBase
     {
         public CacheServiceWrapperTests(ITestOutputHelper output = null)
-            : base(TestGlobal.Logger, output)
+            : base(TestGlobal.Logger)
         {
         }
 
@@ -103,9 +103,9 @@ namespace BuildXL.Cache.Host.Configuration.Test
                                      {
                                          killActionWasCalled = true;
 
-                                         #pragma warning disable AsyncFixer02 // Task.Delay should be used instead of Thread.Sleep.
+#pragma warning disable AsyncFixer02 // Task.Delay should be used instead of Thread.Sleep.
                                          Thread.Sleep(20_000);
-                                         #pragma warning restore AsyncFixer02
+#pragma warning restore AsyncFixer02
                                      };
 
             mockProcess.Started.Should().BeTrue();
@@ -136,11 +136,48 @@ namespace BuildXL.Cache.Host.Configuration.Test
 
             bool killActionWasCalled = false;
             
-            mockProcess.KillAction = () => { killActionWasCalled = true; };
+            mockProcess.KillAction = () =>
+                                     {
+                                         killActionWasCalled = true;
+                                     };
 
             // Assert
             // When the child process does not exit gracefully, the Kill method is called, but the shutdown will timeout.
             // This is not perfect and maybe two timeouts should be used: one for graceful shutdown and another one for the overall shutdown.
+            // The shutdown still should be successful, because once the timeout is passed the Kill method is called and that method should terminate the process succesffully.
+            await wrapper.ShutdownAsync(context).ShouldBeSuccess();
+            killActionWasCalled.Should().BeTrue();
+        }
+
+        [Fact]
+        public async Task ShutdownFailsWithTimeoutIfKillGotStuck()
+        {
+            // Arrange
+            using var tempDirectory = new DisposableDirectory(FileSystem);
+            var context = new OperationContext(new Context(TestGlobal.Logger));
+
+            var configuration = CreateConfiguration(tempDirectory.Path, shutdownTimeout: TimeSpan.FromSeconds(1), terminationTimeout: TimeSpan.FromSeconds(1));
+            var wrapper = CreateServiceWrapperWithHost(configuration, tempDirectory.Path, out var host);
+
+            // Setting up the test case logic to not respect the shutdown signals from the lifetime manager.
+            host.ShutdownGracefully(false);
+
+            await wrapper.StartupAsync(context).ShouldBeSuccess();
+
+            var mockProcess = (MockLauncherProcess)wrapper.LaunchedProcess!;
+
+            bool killActionWasCalled = false;
+            
+            mockProcess.KillAction = () =>
+                                     {
+                                         killActionWasCalled = true;
+#pragma warning disable AsyncFixer02 // Task.Delay should be used instead of Thread.Sleep.
+                                         Thread.Sleep(20_000);
+#pragma warning restore AsyncFixer02
+                                     };
+
+            // Assert
+            // The shutdown should fail with timeout, because the Kill method won't terminate in time.
             await wrapper.ShutdownAsync(context).ShouldBeError("timed out after");
             killActionWasCalled.Should().BeTrue();
         }
@@ -177,7 +214,7 @@ namespace BuildXL.Cache.Host.Configuration.Test
             );
         }
 
-        private CacheServiceWrapperConfiguration CreateConfiguration(AbsolutePath root, TimeSpan? shutdownTimeout = null, Dictionary<string, string> environmentVariables = null)
+        private CacheServiceWrapperConfiguration CreateConfiguration(AbsolutePath root, TimeSpan? shutdownTimeout = null, TimeSpan? terminationTimeout = null, Dictionary<string, string> environmentVariables = null)
         {
             return new CacheServiceWrapperConfiguration(
                 "TestServiceId",
@@ -189,7 +226,8 @@ namespace BuildXL.Cache.Host.Configuration.Test
                 useInterProcSecretsCommunication: true,
                 environmentVariables: environmentVariables)
                    {
-                       ShutdownTimeout = shutdownTimeout ?? TimeSpan.FromSeconds(5)
+                       ShutdownTimeout = shutdownTimeout ?? TimeSpan.FromSeconds(5),
+                       ProcessTerminationTimeout = terminationTimeout ?? TimeSpan.FromSeconds(1),
                    };
 
             AbsolutePath createEmpty(string path)

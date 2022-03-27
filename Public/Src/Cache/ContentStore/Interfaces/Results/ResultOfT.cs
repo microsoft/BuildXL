@@ -85,6 +85,15 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
             }
         }
 
+        /// <summary>
+        /// Sets the success diagnostics by calling <code>SetDiagnosticsForSuccess</code> and returning the current instance.
+        /// </summary>
+        public Result<T> WithSuccessDiagnostics(string successDiagnostics)
+        {
+            SetDiagnosticsForSuccess(successDiagnostics);
+            return this;
+        }
+
         /// <nodoc />
         public static implicit operator Result<T>(T result)
         {

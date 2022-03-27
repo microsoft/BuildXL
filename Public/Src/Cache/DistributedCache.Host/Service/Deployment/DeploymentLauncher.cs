@@ -589,7 +589,7 @@ namespace BuildXL.Cache.Host.Service
                         if (_runningProcess != null)
                         {
                             return await _runningProcess
-                                .StopAsync(context, TimeSpan.FromSeconds(tool.ShutdownTimeoutSeconds))
+                                .StopAsync(context, TimeSpan.FromSeconds(tool.ShutdownTimeoutSeconds), TimeSpan.FromSeconds(5))
                                 .ThrowIfFailure();
                         }
                     }

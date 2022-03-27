@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Service;
@@ -60,13 +61,27 @@ namespace BuildXL.Cache.Host.Service
             );
         }
 
-        /// <nodoc />
-        public Task<Result<int>> StopAsync(OperationContext context, TimeSpan shutdownTimeout)
+        /// <summary>
+        /// Stops the managed process.
+        /// </summary>
+        /// <remarks>
+        /// The method tries to stop the child process gracefully for <paramref name="gracefulShutdownTimeout"/> interval,
+        /// and if the child process does not respect the shutdown request, the <see cref="Kill"/> method is called to terminate
+        /// the process ungracefully.
+        /// And if the termination is not done within <paramref name="killTimeout"/> the operation fails with <see cref="TimeoutException"/>.
+        /// </remarks>
+        public Task<Result<int>> StopAsync(OperationContext context, TimeSpan gracefulShutdownTimeout, TimeSpan killTimeout)
         {
+            // To avoid race conditions with this code we separate the graceful timeout from the overall timeout.
+            // The Stop method uses 'lifetime manager' to notify the child process that it should exit.
+            // And if the signal is not respected, after the graceful shutdown interval the Kill method is called.
+            // And if the process does not exit in a given timeout after that, the method exits with timeout.
+            var totalTimeout = gracefulShutdownTimeout + killTimeout;
+
             bool alreadyExited = false;
             return context.PerformOperationWithTimeoutAsync(
                 Tracer,
-                async nestedContext =>
+                async _ =>
                 {
                     if (HasExited)
                     {
@@ -74,8 +89,12 @@ namespace BuildXL.Cache.Host.Service
                         return Result.Success(_process.ExitCode);
                     }
 
+                    // Not using the context passed to this method, because we managed timeout here manually.
+                    using var timeoutCts = new CancellationTokenSource(gracefulShutdownTimeout);
+                    using var nestedContext = context.WithCancellationToken(timeoutCts.Token);
+                    
                     // Terminating the process after timeout if it won't shutdown gracefully.
-                    using var registration = nestedContext.Token.Register(
+                    using var registration = nestedContext.Context.Token.Register(
                         () =>
                         {
                             // It is important to pass 'context' and not 'nestedContext',
@@ -90,14 +109,14 @@ namespace BuildXL.Cache.Host.Service
                     // or by calling Kill method.
                     return await _processExitSource.Task;
                 },
-                timeout: shutdownTimeout,
+                timeout: totalTimeout,
                 extraStartMessage: $"ProcessId={ProcessId}, ServiceId={ServiceId}",
                 extraEndMessage: r => $"ProcessId={ProcessId}, ServiceId={ServiceId}, ExitCode={r.GetValueOrDefault(-1)}, AlreadyExited={alreadyExited}");
         }
 
         private void Kill(OperationContext context)
         {
-            context
+            var result = context
                 .WithoutCancellationToken() // Not using the cancellation token from the context.
                 .PerformOperation(
                     Tracer,
@@ -107,19 +126,27 @@ namespace BuildXL.Cache.Host.Service
                         if (HasExited)
                         {
                             OnExited(context, "TerminateServiceAlreadyExited");
-                            return Result.Success("AlreadyExited");
+                            return Result.Success(_process.ExitCode).WithSuccessDiagnostics("AlreadyExited");
                         }
 
                         _process.Kill(context);
-                        return Result.Success("ProcessKilled");
+                        return Result.Success(_process.ExitCode).WithSuccessDiagnostics("ProcessKilled");
 
                     },
                     extraStartMessage: $"ProcessId={ProcessId}, ServiceId={ServiceId}",
-                    messageFactory: r => $"ProcessId={ProcessId}, ServiceId={ServiceId}, {r}")
-                .IgnoreFailure();
+                    messageFactory: r => $"ProcessId={ProcessId}, ServiceId={ServiceId}, {(r.Succeeded ? r.Value : r.ToString())}");
 
-            // Intentionally trying to set the result that indicates the cancellation after PerformOperation call that will never throw.
-            _processExitSource.TrySetResult(-1);
+            // The _process.Kill operation may fail with an exception,
+            // so we track if it was successful or not, to propagate the result back properly.
+            if (result.Succeeded)
+            {
+                // Intentionally trying to set the result that indicates the cancellation after PerformOperation call that will never throw.
+                _processExitSource.TrySetResult(result.Value);
+            }
+            else
+            {
+                _processExitSource.TrySetException(new ResultPropagationException(result));
+            }
         }
 
         private void OnExited(OperationContext context, string trigger)

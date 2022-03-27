@@ -22,9 +22,11 @@ namespace BuildXL.Cache.Host.Configuration
         /// </summary>
         public string? Executable { get; set; }
 
-        public int? ServiceLifetimePollingIntervalSeconds { get; set; }
+        public TimeSpanSetting? ServiceLifetimePollingInterval { get; set; }
 
-        public int? ShutdownTimeoutSeconds { get; set; }
+        public TimeSpanSetting? GracefulShutdownTimeout { get; set; }
+
+        public TimeSpanSetting? KillTimeout { get; set; }
 
         /// <summary>
         /// If true, then memory-mapped-based secrets communication is used.

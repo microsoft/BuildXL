@@ -9,83 +9,84 @@ using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.Host.Service;
 using BuildXL.Utilities.Tasks;
 
-namespace BuildXL.Cache.Host.Configuration.Test;
-
-public class MockLauncherProcess : ILauncherProcess
+namespace BuildXL.Cache.Host.Configuration.Test
 {
-    private readonly ServiceLifetimeManager _lifetimeManager;
-    private readonly string _serviceId;
-    private readonly bool _shutdownGracefully;
-
-    private int _exitCode = 42;
-
-    /// <nodoc />
-    public MockLauncherProcess(ProcessStartInfo info, ServiceLifetimeManager lifetimeManager, string serviceId, bool shutdownGracefully)
+    public class MockLauncherProcess : ILauncherProcess
     {
-        ProcessStartInfo = info;
-        _lifetimeManager = lifetimeManager;
-        _serviceId = serviceId;
-        _shutdownGracefully = shutdownGracefully;
-    }
+        private readonly ServiceLifetimeManager _lifetimeManager;
+        private readonly string _serviceId;
+        private readonly bool _shutdownGracefully;
 
-    public void SetExitCode(int exitCode) => _exitCode = exitCode;
+        private int _exitCode = 42;
 
-    /// <nodoc />
-    public ProcessStartInfo ProcessStartInfo { get; }
-
-    /// <nodoc />
-    public bool Started { get; private set; }
-
-    /// <inheritdoc />
-    public void Start(OperationContext context)
-    {
-        Started = true;
-
-        // Tracking the lifetime of the process if lifetime manager was passed through the constructor.
-        if (_lifetimeManager is not null)
+        /// <nodoc />
+        public MockLauncherProcess(ProcessStartInfo info, ServiceLifetimeManager lifetimeManager, string serviceId, bool shutdownGracefully)
         {
-            // Detaching the cancellation, because we don't want to stop the following operation if the token was trigerred.
-            context = context.WithoutCancellationToken();
+            ProcessStartInfo = info;
+            _lifetimeManager = lifetimeManager;
+            _serviceId = serviceId;
+            _shutdownGracefully = shutdownGracefully;
+        }
 
-            _lifetimeManager.ServiceStarted(context, _serviceId).ThrowIfFailure();
+        public void SetExitCode(int exitCode) => _exitCode = exitCode;
 
-            if (_shutdownGracefully)
+        /// <nodoc />
+        public ProcessStartInfo ProcessStartInfo { get; }
+
+        /// <nodoc />
+        public bool Started { get; private set; }
+
+        /// <inheritdoc />
+        public void Start(OperationContext context)
+        {
+            Started = true;
+
+            // Tracking the lifetime of the process if lifetime manager was passed through the constructor.
+            if (_lifetimeManager is not null)
             {
-                _lifetimeManager.WaitForShutdownRequestAsync(context, _serviceId)
-                    .ContinueWith(
-                        _ =>
-                        {
-                            _lifetimeManager.ServiceStopped(context, _serviceId).ThrowIfFailure();
-                            OnExited();
-                        }).Forget();
+                // Detaching the cancellation, because we don't want to stop the following operation if the token was trigerred.
+                context = context.WithoutCancellationToken();
+
+                _lifetimeManager.ServiceStarted(context, _serviceId).ThrowIfFailure();
+
+                if (_shutdownGracefully)
+                {
+                    _lifetimeManager.WaitForShutdownRequestAsync(context, _serviceId)
+                        .ContinueWith(
+                            _ =>
+                            {
+                                _lifetimeManager.ServiceStopped(context, _serviceId).ThrowIfFailure();
+                                OnExited();
+                            }).Forget();
+                }
             }
         }
-    }
 
-    /// <inheritdoc />
-    public event Action Exited;
+        /// <inheritdoc />
+        public event Action Exited;
 
-    public Action KillAction;
+        public Action KillAction;
 
-    /// <inheritdoc />
-    public void Kill(OperationContext context)
-    {
-        KillAction?.Invoke();
-    }
+        /// <inheritdoc />
+        public void Kill(OperationContext context)
+        {
+            KillAction?.Invoke();
+        }
 
-    /// <inheritdoc />
-    public int ExitCode { get; private set; }
+        /// <inheritdoc />
+        public int ExitCode { get; private set; }
 
-    /// <inheritdoc />
-    public int Id => 42;
+        /// <inheritdoc />
+        public int Id => 42;
 
-    /// <inheritdoc />
-    public bool HasExited { get; private set; }
+        /// <inheritdoc />
+        public bool HasExited { get; private set; }
 
-    public void OnExited(int? exitCode = null)
-    {
-        ExitCode = exitCode ?? _exitCode;
-        HasExited = true;
-        Exited?.Invoke();
+        public void OnExited(int? exitCode = null)
+        {
+            ExitCode = exitCode ?? _exitCode;
+            HasExited = true;
+            Exited?.Invoke();
+        }
     }
 }

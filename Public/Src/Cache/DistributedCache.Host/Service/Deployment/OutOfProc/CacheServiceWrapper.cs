@@ -146,8 +146,9 @@ namespace BuildXL.Cache.Host.Service.OutOfProc
                     useInterProcSecretsCommunication: outOfProcSettings.UseInterProcSecretsCommunication,
                     outOfProcSettings.EnvironmentVariables);
 
-                outOfProcSettings.ServiceLifetimePollingIntervalSeconds.ApplyIfNotNull(v => resultingConfiguration.ServiceLifetimePollingInterval = TimeSpan.FromSeconds(v));
-                outOfProcSettings.ShutdownTimeoutSeconds.ApplyIfNotNull(v => resultingConfiguration.ShutdownTimeout = TimeSpan.FromSeconds(v));
+                outOfProcSettings.ServiceLifetimePollingInterval.ApplyIfNotNull(v => resultingConfiguration.ServiceLifetimePollingInterval = v.Value);
+                outOfProcSettings.GracefulShutdownTimeout.ApplyIfNotNull(v => resultingConfiguration.ShutdownTimeout = v.Value);
+                outOfProcSettings.KillTimeout.ApplyIfNotNull(v => resultingConfiguration.ProcessTerminationTimeout = v.Value);
 
                 return resultingConfiguration;
             }
@@ -251,7 +252,7 @@ namespace BuildXL.Cache.Host.Service.OutOfProc
             if (_runningProcess != null)
             {
                 _interProcessSecretsCommunicator?.Dispose();
-                return await _runningProcess.StopAsync(context, _configuration.ShutdownTimeout);
+                return await _runningProcess.StopAsync(context, _configuration.ShutdownTimeout, _configuration.ProcessTerminationTimeout);
             }
 
             return BoolResult.Success;

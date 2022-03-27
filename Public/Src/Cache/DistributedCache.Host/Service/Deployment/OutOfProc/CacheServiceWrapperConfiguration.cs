@@ -79,9 +79,14 @@ namespace BuildXL.Cache.Host.Service.OutOfProc
         public TimeSpan ServiceLifetimePollingInterval { get; set; } = TimeSpan.FromSeconds(1);
 
         /// <summary>
-        /// The time to wait for service to shutdown before terminating the process
+        /// The time to wait for service to shutdown gracefully before terminating the process.
         /// </summary>
         public TimeSpan ShutdownTimeout { get; set; } = TimeSpan.FromSeconds(60);
+
+        /// <summary>
+        /// The time to wait for service to terminate.
+        /// </summary>
+        public TimeSpan ProcessTerminationTimeout { get; set; } = TimeSpan.FromSeconds(1);
 
         /// <summary>
         /// If true, then memory-mapped-based secrets communication is used.

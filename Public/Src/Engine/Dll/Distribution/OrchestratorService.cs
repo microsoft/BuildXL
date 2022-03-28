@@ -201,7 +201,7 @@ namespace BuildXL.Engine.Distribution
                                 new WorkerForwardedEvent()
                                 {
                                     Text = forwardedEvent.Text,
-                                    WorkerName = worker.Name,
+                                    WorkerName = worker.WorkerIpAddress,
                                     EventId = forwardedEvent.EventId,
                                     EventName = forwardedEvent.EventName,
                                     EventKeywords = forwardedEvent.EventKeywords,

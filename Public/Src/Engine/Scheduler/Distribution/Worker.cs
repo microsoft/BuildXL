@@ -315,6 +315,11 @@ namespace BuildXL.Scheduler.Distribution
         public string Name { get; }
 
         /// <summary>
+        /// Gets the worker IP address
+        /// </summary>
+        public string WorkerIpAddress { get; }
+
+        /// <summary>
         /// Which counters are being logged for tracer
         /// </summary>
         public readonly ConcurrentDictionary<string, byte> InitializedTracerCounters = new ConcurrentDictionary<string, byte>();
@@ -336,10 +341,11 @@ namespace BuildXL.Scheduler.Distribution
         /// <summary>
         /// Constructor
         /// </summary>
-        protected Worker(uint workerId, string name, PipExecutionContext context)
+        protected Worker(uint workerId, string name, PipExecutionContext context, string workerIpAddress)
         {
             WorkerId = workerId;
             Name = name;
+            WorkerIpAddress = workerIpAddress;
             m_workerSemaphores = new SemaphoreSet<StringId>();
             m_workerPipStateManager = new WorkerPipStateManager();
             PipStateSnapshot = m_workerPipStateManager.GetSnapshot();

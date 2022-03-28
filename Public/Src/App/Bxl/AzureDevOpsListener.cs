@@ -9,6 +9,7 @@ using System.Linq;
 using System.Threading;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes.Tracing;
+using BuildXL.Tracing.CloudBuild;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Instrumentation.Common;
@@ -156,7 +157,7 @@ namespace BuildXL
             {
                 case (int)LogEventId.PipProcessError:
                 {
-                    addPipErrors(new PipProcessErrorEventFields(eventData.Payload, false));
+                    addPipErrors(new PipProcessErrorEventFields(eventData.Payload, false), null);
                 }
                 break;
                 case (int)SharedLogEventId.DistributionWorkerForwardedError:
@@ -164,17 +165,20 @@ namespace BuildXL
                     var actualEventId = (int)eventData.Payload[1];
                     if (actualEventId == (int)LogEventId.PipProcessError)
                     {
-                        addPipErrors(new PipProcessErrorEventFields(eventData.Payload, true));
+                        var pipProcessErrorEventFields = new PipProcessErrorEventFields(eventData.Payload, true);
+                        addPipErrors(pipProcessErrorEventFields, (string)eventData.Payload[15]); 
+                       
                     }
                 }
                 break;
             }
 
-            void addPipErrors(PipProcessErrorEventFields pipProcessErrorEventFields)
+            void addPipErrors(PipProcessErrorEventFields pipProcessErrorEventFields, string workerId)
             {
+                var semiStableHash = Pip.FormatSemiStableHash(pipProcessErrorEventFields.PipSemiStableHash);
                 m_buildViewModel.BuildSummary.AddPipError(new BuildSummaryPipDiagnostic
                 {
-                    SemiStablePipId = Pip.FormatSemiStableHash(pipProcessErrorEventFields.PipSemiStableHash),
+                    SemiStablePipId = semiStableHash,
                     PipDescription = pipProcessErrorEventFields.PipDescription,
                     SpecPath = pipProcessErrorEventFields.PipSpecPath,
                     ToolName = pipProcessErrorEventFields.PipExe,
@@ -182,6 +186,14 @@ namespace BuildXL
                     Output = pipProcessErrorEventFields.OutputToLog,
                 },
                 MaxErrorsToIncludeInSummary);
+
+                Tracing.CloudBuildEventSource.Log.TargetFailedEvent(new TargetFailedEvent
+                {
+                    WorkerId = workerId,
+                    TargetId = semiStableHash,
+                    StdOutputPath = pipProcessErrorEventFields.OutputToLog,
+                    PipDescription = pipProcessErrorEventFields.PipDescription,
+                });
             }
         }
 

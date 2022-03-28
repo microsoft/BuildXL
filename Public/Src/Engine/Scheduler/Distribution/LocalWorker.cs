@@ -79,7 +79,7 @@ namespace BuildXL.Scheduler.Distribution
         /// Constructor
         /// </summary>
         public LocalWorker(IScheduleConfiguration scheduleConfig, IPipQueue pipQueue, IDetoursEventListener detoursListener, PipExecutionContext context)
-            : base(workerId: 0, name: "#0 (Local)", context: context)
+            : base(workerId: 0, name: "#0 (Local)", context: context, workerIpAddress: "localhost")
         {
             TotalProcessSlots = scheduleConfig.EffectiveMaxProcesses;
             TotalCacheLookupSlots = scheduleConfig.MaxCacheLookup;

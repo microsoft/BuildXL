@@ -16,8 +16,8 @@ namespace BuildXL.Scheduler.Distribution
         /// <summary>
         /// Constructor
         /// </summary>
-        protected RemoteWorkerBase(uint workerId, string name, PipExecutionContext context)
-            : base(workerId, name, context)
+        protected RemoteWorkerBase(uint workerId, string name, PipExecutionContext context, string workerIpAddress)
+            : base(workerId, name, context, workerIpAddress)
         {
         }
 

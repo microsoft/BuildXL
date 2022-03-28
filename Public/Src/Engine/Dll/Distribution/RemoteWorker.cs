@@ -124,8 +124,8 @@ namespace BuildXL.Engine.Distribution
         /// <inheritdoc/>
         public override int CurrentBatchSize => m_currentBatchSize;
 
-        private volatile int m_currentBatchSize;
-
+        private volatile int m_currentBatchSize;   
+        
         /// <summary>
         /// Constructor
         /// </summary>
@@ -135,7 +135,7 @@ namespace BuildXL.Engine.Distribution
             OrchestratorService orchestratorService,
             ServiceLocation serviceLocation,
             PipExecutionContext context)
-            : base(workerId, name: I($"#{workerId} ({serviceLocation.IpAddress}::{serviceLocation.Port})"), context: context)
+            : base(workerId, name: I($"#{workerId} ({serviceLocation.IpAddress}::{serviceLocation.Port})"), context: context, workerIpAddress: serviceLocation.IpAddress)
         {
             m_appLoggingContext = appLoggingContext;
             m_orchestratorService = orchestratorService;
@@ -143,7 +143,6 @@ namespace BuildXL.Engine.Distribution
             m_attachCompletion = TaskSourceSlim.Create<bool>();
             m_setupCompletion = TaskSourceSlim.Create<bool>();
             m_executionBlobCompletion = TaskSourceSlim.Create<bool>();
-
             m_serviceLocation = serviceLocation;
             m_workerClient = new Grpc.GrpcWorkerClient(
                 m_appLoggingContext, 

@@ -12,8 +12,6 @@ namespace BuildXL.Tracing
     /// </summary>
     public sealed class CloudBuildEventSource : EventSource
     {
-        [SuppressMessage("Microsoft.Performance", "CA1802:MarkAsConst", Justification = "If marked as const, csc complains about unreachable code")]
-        private static readonly bool s_disableTargetLevelEvents = true;
 
         private CloudBuildEventSource(string eventSourceName)
 #if NET_FRAMEWORK_451
@@ -59,37 +57,25 @@ namespace BuildXL.Tracing
         /// <nodoc/>
         public void TargetAddedEvent(TargetAddedEvent eventObj)
         {
-            if (!s_disableTargetLevelEvents)
-            {
-                WriteEvent(3, eventObj);
-            }
+            WriteEvent(3, eventObj);
         }
 
         /// <nodoc/>
         public void TargetRunningEvent(TargetRunningEvent eventObj)
         {
-            if (!s_disableTargetLevelEvents)
-            {
-                WriteEvent(4, eventObj);
-            }
+            WriteEvent(4, eventObj);
         }
 
         /// <nodoc/>
         public void TargetFinishedEvent(TargetFinishedEvent eventObj)
-        {
-            if (!s_disableTargetLevelEvents)
-            {
-                WriteEvent(5, eventObj);
-            }
+        {          
+            WriteEvent(5, eventObj);
         }
 
         /// <nodoc/>
         public void TargetFailedEvent(TargetFailedEvent eventObj)
         {
-            if (!s_disableTargetLevelEvents)
-            {
-                WriteEvent(6, eventObj);
-            }
+            WriteEvent(6, eventObj);
         }
 
         /// <nodoc/>

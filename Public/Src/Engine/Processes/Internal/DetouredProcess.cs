@@ -82,6 +82,7 @@ namespace BuildXL.Processes.Internal
         private readonly bool m_createJobObjectForCurrentProcess;
         private readonly int m_numRetriesPipeReadOnCancel;
         private readonly Action<string> m_debugPipeReporter;
+        private int m_killedCallFlag;
 
         /// Gather information for diagnosing flaky tests
         private readonly bool m_diagnosticsEnabled = false;
@@ -209,12 +210,17 @@ namespace BuildXL.Processes.Internal
         /// </remarks>
         public void Kill(int exitCode)
         {
+            
+            if (Interlocked.Increment(ref m_killedCallFlag) > 1)
+            {
+                return;
+            }
             // Notify the injected that the process is being killed
             m_processInjector?.OnKilled();
             LogDiagnostics($"Process will be killed with exit code {exitCode}");
             
             var processHandle = m_processHandle;
-            if (processHandle != null && !processHandle.IsInvalid)
+            if (processHandle != null && !processHandle.IsInvalid && !processHandle.IsClosed)
             {
                 // Ignore result, as there is a race with regular process termination that we cannot do anything about.
                 m_killed = true;

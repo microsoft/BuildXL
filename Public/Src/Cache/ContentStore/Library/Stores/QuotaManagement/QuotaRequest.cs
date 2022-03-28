@@ -1,6 +1,7 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Utilities.Tasks;
@@ -30,10 +31,24 @@ namespace BuildXL.Cache.ContentStore.Stores
         public Task<BoolResult> CompletionAsync() => _taskSource.Task;
 
         /// <nodoc />
-        public virtual void Success() => _taskSource.SetResult(BoolResult.Success);
+        public virtual void Success()
+        {
+            if (!_taskSource.TrySetResult(BoolResult.Success))
+            {
+                throw new InvalidOperationException(
+                    $"Can't change QuotaRequest state because the result is already set. Result is '{_taskSource.Task.Result}'.");
+            }
+        }
 
         /// <nodoc />
-        public void Failure(string error) => _taskSource.SetResult(new BoolResult(error));
+        public void Failure(string error)
+        {
+            if (!_taskSource.TrySetResult(new BoolResult(error)))
+            {
+                throw new InvalidOperationException(
+                    $"Can't change QuotaRequest state because the result is already set. Result is '{_taskSource.Task.Result}'.");
+            }
+        }
     }
 
     /// <summary>

@@ -23,6 +23,11 @@ namespace BuildXL.Scheduler.Distribution
     public class LocalWorker : Worker
     {
         /// <summary>
+        /// Machine name 
+        /// </summary>
+        public static string MachineName = Environment.MachineName;
+
+        /// <summary>
         /// Set of pips that are currently executing. Executing here means running under PipExecutor.
         /// </summary>
         public ConcurrentDictionary<PipId, Unit> RunningPipExecutorProcesses = new ConcurrentDictionary<PipId, Unit>();
@@ -79,7 +84,7 @@ namespace BuildXL.Scheduler.Distribution
         /// Constructor
         /// </summary>
         public LocalWorker(IScheduleConfiguration scheduleConfig, IPipQueue pipQueue, IDetoursEventListener detoursListener, PipExecutionContext context)
-            : base(workerId: 0, name: "#0 (Local)", context: context, workerIpAddress: "localhost")
+            : base(workerId: 0, name: "#0 (Local)", context: context, workerIpAddress: MachineName)
         {
             TotalProcessSlots = scheduleConfig.EffectiveMaxProcesses;
             TotalCacheLookupSlots = scheduleConfig.MaxCacheLookup;

@@ -9,6 +9,7 @@ using System.Linq;
 using System.Threading;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes.Tracing;
+using BuildXL.Scheduler.Distribution;
 using BuildXL.Tracing.CloudBuild;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
@@ -157,7 +158,7 @@ namespace BuildXL
             {
                 case (int)LogEventId.PipProcessError:
                 {
-                    addPipErrors(new PipProcessErrorEventFields(eventData.Payload, false), null);
+                    addPipErrors(new PipProcessErrorEventFields(eventData.Payload, false), LocalWorker.MachineName);
                 }
                 break;
                 case (int)SharedLogEventId.DistributionWorkerForwardedError:
@@ -167,7 +168,6 @@ namespace BuildXL
                     {
                         var pipProcessErrorEventFields = new PipProcessErrorEventFields(eventData.Payload, true);
                         addPipErrors(pipProcessErrorEventFields, (string)eventData.Payload[15]); 
-                       
                     }
                 }
                 break;

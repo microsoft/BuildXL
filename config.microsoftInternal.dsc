@@ -84,7 +84,7 @@ export const pkgs = isMicrosoftInternal ? [
     { id: "Microsoft.VisualStudio.Services.Governance.ComponentDetection.Contracts", version: "0.2010.80" },
 
     // Process remoting
-    { id: "AnyBuild.SDK", version: "0.1.12" },
+    { id: "AnyBuild.SDK", version: "0.1.13" },
 ] : [
 
     // Artifact packages and dependencies in OSS

@@ -428,6 +428,7 @@ function runGuardianInternal(args : GuardianArguments, guardianTool : Transforme
         environmentVariables: getEnvironmentVariables(args),
         retryExitCodes: args.retryExitCodes,
         processRetries: args.processRetries,
+        allowUndeclaredSourceReads: args.allowUndeclaredSourceReads,
         unsafe: {
             untrackedPaths: args.untrackedPaths,
             untrackedScopes: args.untrackedScopes
@@ -577,7 +578,9 @@ export interface GuardianArguments extends Transformer.RunnerArguments {
     /** Paths to be untracked for a Guardian run. */
     untrackedPaths?: (File | Directory)[];
     /** Untracked scopes for a guardian run */
-    untrackedScopes?: Directory[]
+    untrackedScopes?: Directory[],
+    /** Sets the allowUndeclaredSourceReads option for Transformer.Execute. This is useful for running JS Guardian tools. */
+    allowUndeclaredSourceReads?: boolean
 }
 
 /**

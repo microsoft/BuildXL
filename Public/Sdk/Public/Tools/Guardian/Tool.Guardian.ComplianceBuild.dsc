@@ -77,18 +77,19 @@ export function runComplianceBuildOnEntireRepository(guardianToolRoot : StaticDi
         toolsToRun = supportedTools;
     }
 
+    const files : File[] = discoverFilesToScan(guardianBuildRoot);
     const guardianResults = [
-        ...addIf(toolsToRun.contains("credscan"), ...addCredScanCalls(guardianBuildRoot, guardianToolRoot, packageDirectory , guardianDrop)),
-        ...addIf(toolsToRun.contains("eslint"), ...addGuardianEsLintCalls(guardianBuildRoot, guardianToolRoot, packageDirectory , guardianDrop, nodeToolRoot, nodeToolExe)),
+        ...(toolsToRun.contains("credscan") ? addCredScanCalls(guardianBuildRoot, guardianToolRoot, packageDirectory, guardianDrop, files) : []),
+        ...(toolsToRun.contains("eslint")   ? addGuardianEsLintCalls(guardianBuildRoot, guardianToolRoot, packageDirectory, guardianDrop, nodeToolRoot, nodeToolExe, files) : [] )
     ];
 
     return guardianResults;
 }
 
 /**
- * Goes through each directory under the given root directory and creates CredScan calls per ~500 files.
+ * Discovers a set of potential files that Guardian will run on for this repository.
  */
-function addCredScanCalls(rootDirectory : Directory, guardianToolRoot : StaticDirectory, packageDirectory : StaticDirectory, guardianDrop : Directory) : Transformer.ExecuteResult[] {
+function discoverFilesToScan(rootDirectory : Directory) : File[] {
     // These are directories that are local to a given repository that are not checked in remotely
     const directoryAtomsToIgnore = Set.create<PathAtom>(
         // Defaults
@@ -104,6 +105,7 @@ function addCredScanCalls(rootDirectory : Directory, guardianToolRoot : StaticDi
             return directoryList.map(dir => Context.getCurrentHost().os === "win" ? a`${dir.toLowerCase()}` : a`${dir}`);
         })
     );
+    
     const directoryPathsToIgnore = Set.create<Directory>(
         d`${Context.getMount("SourceRoot").path}/common/temp` // well known path for rush install (not part of initially checked out sources)
     );
@@ -112,12 +114,9 @@ function addCredScanCalls(rootDirectory : Directory, guardianToolRoot : StaticDi
         f`${Context.getMount("SourceRoot").path}/.SubstLock`
     );
     
-    let results : MutableSet<Transformer.ExecuteResult> = MutableSet.empty<Transformer.ExecuteResult>();
     let files : File[] = glob(rootDirectory).filter(f => !filesToIgnore.contains(f));
     let directories = globFolders(rootDirectory, "*", /*recursive*/false);
     let directoryIndex = 0;
-
-    const minFilesPerCall = Environment.hasVariable(filesPerCredScanCall) ? Environment.getNumberValue(filesPerCredScanCall) : 500;
 
     while (directoryIndex < directories.length) {
         const directoryAtom = Context.getCurrentHost().os === "win" ? a`${directories[directoryIndex].name.toString().toLowerCase()}` : directories[directoryIndex].name;
@@ -126,54 +125,71 @@ function addCredScanCalls(rootDirectory : Directory, guardianToolRoot : StaticDi
             continue;
         }
 
-        files = files.concat(glob(directories[directoryIndex], "*")); // Filter is currently not applied here because it's not necessary past the top level directory
-        directories = directories.concat(globFolders(directories[directoryIndex], "*", /*recursive*/false));
-
-        if (files.length >= minFilesPerCall || (directoryIndex === directories.length - 1 && files.length > 0)) {
-            const credScanWorkingDirectory = Context.getNewOutputDirectory("credscan");
-    
-            // Generate a TSV file for all files to be scanned by CredScan
-            const scanPaths = files.map(file => file.path);
-            const tsvFile = Transformer.writeAllLines(p`${credScanWorkingDirectory.path}/guardian.TSV`, scanPaths);
-    
-            // Schedule cred scan pips
-            results.add(createGuardianCall(
-                guardianToolRoot,
-                packageDirectory,
-                guardianDrop,
-                files,
-                `credscan_${directoryIndex}`,
-                credScanWorkingDirectory,
-                a`CredScan_${directoryIndex.toString()}.sarif`,
-                [tsvFile],
-                [guardianCredScanConfigFile],
-                /*environmentVariables*/undefined,
-                /*retryExitCodes*/[-9000],
-                /*processRetries*/3,
-                /*pathDirectories*/undefined,
-                /*additionalOutputs*/undefined,
-                /*untrackedPaths*/undefined,
-                /*untrackedScopes*/[d`${packageDirectory.path}/nuget/Microsoft.Security.CredScan.Client.2.2.9.6-preview/lib/netcoreapp3.1/SRM`])
-            );
-
-            files = [];
-        }
+        files = files.concat(glob(directories[directoryIndex], "*"));
+        directories = directories.concat(globFolders(directories[directoryIndex], "*", /*recursive*/ false));
 
         directoryIndex++;
+    }
+
+    return files;
+}
+
+/**
+ * Adds a set of batched credscan guardian calls.
+ */
+function addCredScanCalls(rootDirectory : Directory, guardianToolRoot : StaticDirectory, packageDirectory : StaticDirectory, guardianDrop : Directory, files : File[]) : Transformer.ExecuteResult[] {    
+    let results : MutableSet<Transformer.ExecuteResult> = MutableSet.empty<Transformer.ExecuteResult>();
+    let directories = globFolders(rootDirectory, "*", /*recursive*/false);
+    let directoryIndex = 0;
+
+    const minFilesPerCall = Environment.hasVariable(filesPerCredScanCall) ? Environment.getNumberValue(filesPerCredScanCall) : 500;
+    const additionalCalls = Math.mod(files.length, minFilesPerCall) > 0 ? 1 : 0;
+    const numCredScanCalls = Math.div(files.length, minFilesPerCall) + additionalCalls;
+
+    for (let i = 0; i < numCredScanCalls; i++) {
+        const credScanWorkingDirectory = Context.getNewOutputDirectory("credscan");
+    
+        // Generate a TSV file for all files to be scanned by CredScan
+        const scannedFiles = i === numCredScanCalls-1 && additionalCalls === 1
+            ? files.slice(minFilesPerCall * i, files.length)
+            : files.slice(minFilesPerCall * i, minFilesPerCall * (i + 1));
+        
+        const scanPaths = scannedFiles.map(file => file.path);
+        const tsvFile = Transformer.writeAllLines(p`${credScanWorkingDirectory.path}/guardian.TSV`, scanPaths);
+        
+        // Schedule cred scan pips
+        results.add(createGuardianCall(
+            guardianToolRoot,
+            packageDirectory,
+            guardianDrop,
+            scannedFiles,
+            `credscan_${i}`,
+            credScanWorkingDirectory,
+            a`CredScan_${i.toString()}.sarif`,
+            [tsvFile],
+            [guardianCredScanConfigFile],
+            /*environmentVariables*/undefined,
+            /*retryExitCodes*/[-9000],
+            /*processRetries*/3,
+            /*pathDirectories*/undefined,
+            /*additionalOutputs*/undefined,
+            /*untrackedPaths*/undefined,
+            /*untrackedScopes*/[d`${packageDirectory.path}/nuget/Microsoft.Security.CredScan.Client.2.2.9.6-preview/lib/netcoreapp3.1/SRM`],
+            /*allowUndeclaredSourceReads*/false)
+        );
     }
 
     return results.toArray();
 }
 
-function addGuardianEsLintCalls(rootDirectory : Directory, guardianToolRoot : StaticDirectory, packageDirectory : StaticDirectory, guardianDrop : Directory, nodeToolRoot : OpaqueDirectory, nodeToolExe : File) : Transformer.ExecuteResult[] {
+/**
+ * Adds an eslint guardian call for each package.json file discovered under the rootDirectory.
+ */
+function addGuardianEsLintCalls(rootDirectory : Directory, guardianToolRoot : StaticDirectory, packageDirectory : StaticDirectory, guardianDrop : Directory, nodeToolRoot : OpaqueDirectory, nodeToolExe : File, files : File[]) : Transformer.ExecuteResult[] {
     let results : MutableSet<TransformerExecuteResult> = MutableSet.empty<TransformerExecuteResult>();
-    let packageIndex : number = 0;
-    let packageJsonFiles = globR(rootDirectory, "package.json");
     const genericEslintSettingsDirectory = Context.getNewOutputDirectory("eslint");
     const dummyEsLintExclusionFile = Transformer.writeData(p`${genericEslintSettingsDirectory.path}/.eslintignore`, "");
-
-    // Filter out node modules
-    packageJsonFiles = packageJsonFiles.filter(file => !(file.path.toString().contains("node_modules")));
+    let packageJsonFiles = files.filter(file => file.name === a`package.json`);
 
     // If only one package.json file is left, then this is a repo with a single project
     if (packageJsonFiles.length > 1) {
@@ -212,15 +228,26 @@ function addGuardianEsLintCalls(rootDirectory : Directory, guardianToolRoot : St
             {name: "EsLintExclusionFile", value: excludePathsArray.length > 0 ? eslintExclusionFile : dummyEsLintExclusionFile }
         ];
 
+        // Get all files under the current package.json scope
+        let scannedFiles = files.filter(file => file.isWithin(packageJsonFiles[packageIndex].parent));
+
+        // Filter out files in subprojects
+        for(let excludePath of excludePathsArray) {
+            scannedFiles = scannedFiles.filter(file => !file.isWithin(excludePath.parent));
+        }
+
+        // Eslint will also read files under the node_modules directory under the root directory of each project
+        const node_modules = Transformer.sealSourceDirectory(d`${packageJsonFiles[packageIndex].parent}/node_modules`, Transformer.SealSourceDirectoryOption.allDirectories);
+
         results.add(createGuardianCall(
             guardianToolRoot,
             packageDirectory,
             guardianDrop,
-            globR(d`${packageJsonFiles[packageIndex].parent}`),
+            scannedFiles,
             `eslint_${packageIndex}`,
             workingDirectory,
             a`EsLint_${packageIndex.toString()}.sarif`,
-            /*additionalDependencies*/[eslintExclusionFile === undefined ? dummyEsLintExclusionFile : eslintExclusionFile, nodeToolRoot],
+            /*additionalDependencies*/[eslintExclusionFile === undefined ? dummyEsLintExclusionFile : eslintExclusionFile, nodeToolRoot, node_modules],
             [guardianEslintConfigFile],
             environmentVariables,
             /*retryExitCodes*/undefined,
@@ -230,7 +257,8 @@ function addGuardianEsLintCalls(rootDirectory : Directory, guardianToolRoot : St
             // It is necessary to untrack the package.json files except for the main package.json file due to the cascading configuration feature reading these files outside of the provided scope
             // https://eslint.org/docs/user-guide/configuring/configuration-files#cascading-and-hierarchy
             packageJsonFiles.filter(file => file !== packageJsonFiles[packageIndex]),
-            /*untrackedScopes*/undefined)
+            /*untrackedScopes*/[d`${Context.getMount("SourceRoot").path}/common/temp`],
+            /*allowUndeclaredSourceReads*/true)
         );
     }
 
@@ -258,7 +286,8 @@ function createGuardianCall(
     pathDirectories: Directory[],
     additionalOutputs: Transformer.Output[],
     untrackedPaths: (File | Directory)[],
-    untrackedScopes: Directory[])
+    untrackedScopes: Directory[],
+    allowUndeclaredSourceReads: boolean)
     : Transformer.ExecuteResult {
 
     const baselines = glob(complianceBaselineSuppressionLocation, "*.gdnbaselines");
@@ -287,7 +316,8 @@ function createGuardianCall(
         pathDirectories: pathDirectories,
         additionalOutputs: additionalOutputs,
         untrackedPaths: untrackedPaths,
-        untrackedScopes: untrackedScopes
+        untrackedScopes: untrackedScopes,
+        allowUndeclaredSourceReads: allowUndeclaredSourceReads
     };
 
     const guardianResult = runGuardian(guardianArgs);

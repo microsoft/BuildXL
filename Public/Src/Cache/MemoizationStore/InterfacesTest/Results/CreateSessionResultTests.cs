@@ -33,7 +33,7 @@ namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Results
             Assert.False(new CreateSessionResult<IReadOnlyCacheSession>(other, "message").Succeeded);
         }
 
-        [Fact(Skip = "This test fails with NRE! Please, please, remove equality implementation from results! Bug #1331026")]
+        [Fact]
         public void GetHashCodeOnFailure()
         {
             Assert.NotEqual(0, CreateFrom("error").GetHashCode());

@@ -1897,9 +1897,40 @@ static bool TryGetFileNameFromFileInformation(
     _In_  PWCHAR   fileName,
     _In_  ULONG    fileNameLength,
     _In_  HANDLE   rootDirectory,
+    _In_  bool     isNtApi,
     _Out_ wstring& result)
 {
-    result.assign(fileName, (size_t)(fileNameLength / sizeof(WCHAR)));
+    size_t length = (size_t)(fileNameLength / sizeof(WCHAR));
+
+    // The rename target is specified in FILE_RENAME_INFORMATION structure, in FileName field. The structure also has the filename length info 
+    // in FileNameLength field. However, in some tools, like clang, LLVM, Hermes, the length info does not correspond to the real length of the filename.
+    // Thus, on extracting the filename we get incorrect (mostly truncated) filename.
+    // 
+    // The API implementation of SetFileNameInformationByHandle drops the length info in determining the filename target.
+    // SetFileNameInformationByHandle relies on RtlInitUnicodeStringEx to extract the filename target.
+    // The latter in turn calls wcslen, which scans the pointer until NULL terminating character
+    // 
+    // NTFS API (Zw*) would not handle incorrect filename length, the string will be whatever the length says it is.
+
+    if (!isNtApi)
+    {
+        size_t actualLength = wcslen(fileName);
+
+        // RtlInitUnicodeStringEx limits to 32765 characters.
+
+        if (actualLength > (UNICODE_STRING_MAX_CHARS - 1))
+        {
+            actualLength = length;
+        }
+
+        if (actualLength != length)
+        {
+            // Prefer calculated length when there is a mismatch.
+            length = actualLength;
+        }
+    }
+
+    result.assign(fileName, length);
 
     DWORD lastError = GetLastError();
 
@@ -1987,6 +2018,7 @@ NTSTATUS HandleFileRenameInformation(
             pRenameInfo->FileName,
             pRenameInfo->FileNameLength,
             pRenameInfo->RootDirectory,
+            true,
             targetPath)
         || targetPath.empty())
     {
@@ -2150,6 +2182,7 @@ NTSTATUS HandleFileLinkInformation(
         fileName,
         fileNameLength,
         rootDirectory,
+        true,
         targetPath)
         || targetPath.empty())
     {
@@ -2454,6 +2487,7 @@ NTSTATUS HandleFileNameInformation(
         pNameInfo->FileName,
         pNameInfo->FileNameLength,
         nullptr,
+        true,
         targetPath)
         || targetPath.empty())
     {
@@ -5027,6 +5061,7 @@ static BOOL RenameUsingSetFileInformationByHandle(
         pRenameInfo->FileName,
         pRenameInfo->FileNameLength,
         pRenameInfo->RootDirectory,
+        false,
         targetFileName)
         || targetFileName.empty())
     {

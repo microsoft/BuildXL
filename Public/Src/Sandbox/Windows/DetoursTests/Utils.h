@@ -162,7 +162,7 @@ extern "C" {
     NTSTATUS NTAPI ZwClose(_In_ HANDLE FileHandle);
 }
 
-BOOL SetRenameFileByHandle(HANDLE hFile, const wstring& target);
+BOOL SetRenameFileByHandle(HANDLE hFile, const wstring& target, bool correctFileNameLength);
 NTSTATUS ZwSetRenameFileByHandle(HANDLE hFile, LPCWSTR targetName, FILE_INFORMATION_CLASS_EXTRA fileInfoClass);
 BOOL SetFileDispositionByHandle(HANDLE hFile, FILE_INFO_BY_HANDLE_CLASS fileInfoClass);
 NTSTATUS ZwSetFileDispositionByHandle(HANDLE hFile, FILE_INFORMATION_CLASS_EXTRA fileInfoClass);

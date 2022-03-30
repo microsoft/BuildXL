@@ -260,7 +260,7 @@ int CallDetouredSetFileInformationFileLinkEx()
     return InternalCallDetouredSetFileInformationFileLink(TRUE);
 }
 
-int CallDetouredSetFileInformationByHandle()
+int CallDetouredSetFileInformationByHandleForFileRename(bool correctFileNameLength)
 {
     HANDLE hFile = CreateFileW(
         L"input\\SetFileInformationByHandleTest2.txt",
@@ -282,10 +282,20 @@ int CallDetouredSetFileInformationByHandle()
         return (int)GetLastError();
     }
 
-    SetRenameFileByHandle(hFile, target);
+    SetRenameFileByHandle(hFile, target, correctFileNameLength);
     CloseHandle(hFile);
 
     return (int)GetLastError();
+}
+
+int CallDetouredSetFileInformationByHandle()
+{
+    return CallDetouredSetFileInformationByHandleForFileRename(true);
+}
+
+int CallDetouredSetFileInformationByHandle_IncorrectFileNameLength()
+{
+    return CallDetouredSetFileInformationByHandleForFileRename(false);
 }
 
 int CallDetouredSetFileDispositionByHandleCore(FILE_INFO_BY_HANDLE_CLASS fileInfoClass, FILE_INFORMATION_CLASS_EXTRA zwFileInfoClass)
@@ -589,7 +599,7 @@ int CallDetouredSetFileInformationByHandleForRenamingDirectory()
             return (int)GetLastError();
         }
 
-        SetRenameFileByHandle(hNewDirectory, L"TempDirectory");
+        SetRenameFileByHandle(hNewDirectory, L"TempDirectory", true);
 
         CloseHandle(hNewDirectory);
     }
@@ -608,7 +618,7 @@ int CallDetouredSetFileInformationByHandleForRenamingDirectory()
         return (int)GetLastError();
     }
 
-    SetRenameFileByHandle(hOldDirectory, L"OutputDirectory\\NewDirectory");
+    SetRenameFileByHandle(hOldDirectory, L"OutputDirectory\\NewDirectory", true);
 
     CloseHandle(hOldDirectory);
 
@@ -1175,6 +1185,7 @@ static void GenericTests(const string& verb)
     IF_COMMAND(CallDetouredSetFileInformationFileLink);
     IF_COMMAND(CallDetouredSetFileInformationFileLinkEx);
     IF_COMMAND(CallDetouredSetFileInformationByHandle);
+    IF_COMMAND(CallDetouredSetFileInformationByHandle_IncorrectFileNameLength);
     IF_COMMAND(CallGetAttributeQuestion);
     IF_COMMAND(CallGetAttributeNonExistent);
     IF_COMMAND(CallGetAttributeNonExistentInDepDirectory);

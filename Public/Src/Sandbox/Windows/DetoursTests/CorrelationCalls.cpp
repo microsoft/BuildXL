@@ -49,7 +49,7 @@ int CorrelateRenameDirectory()
         FILE_FLAG_BACKUP_SEMANTICS,
         NULL);
 
-    SetRenameFileByHandle(hSourceDirectory, L"Directory\\DestinationDirectory");
+    SetRenameFileByHandle(hSourceDirectory, L"Directory\\DestinationDirectory", true);
 
     CloseHandle(hSourceDirectory);
 

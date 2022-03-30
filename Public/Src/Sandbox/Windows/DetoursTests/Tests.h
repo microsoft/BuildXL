@@ -14,6 +14,7 @@ int CallDetouredZwOpenFile();
 int CallDetouredSetFileInformationFileLink();
 int CallDetouredSetFileInformationFileLinkEx();
 int CallDetouredSetFileInformationByHandle();
+int CallDetouredSetFileInformationByHandle_IncorrectFileNameLength();
 int CallDetouredGetFinalPathNameByHandle();
 int CallProbeForDirectory();
 int CallGetAttributeQuestion();

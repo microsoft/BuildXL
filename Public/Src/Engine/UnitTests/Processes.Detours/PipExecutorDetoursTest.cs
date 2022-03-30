@@ -856,6 +856,62 @@ namespace Test.BuildXL.Processes.Detours
             }
         }
 
+        [Fact]
+        public async Task CallDetouredSetFileInformationByHandleWithIncorrectFileNameLength()
+        {
+            var context = BuildXLContext.CreateInstanceForTesting();
+            var pathTable = context.PathTable;
+
+            using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory))
+            {
+                var createdInputPaths = new Dictionary<string, AbsolutePath>(OperatingSystemHelper.PathComparer);
+
+                var pip = SetupDetoursTests(
+                    context,
+                    tempFiles,
+                    pathTable,
+                    "SetFileInformationByHandleTest1.txt",
+                    "SetFileInformationByHandleTest2.txt",
+                    "CallDetouredSetFileInformationByHandle_IncorrectFileNameLength",
+                    isDirectoryTest: false,
+                    createSymlink: false,
+                    addCreateFileInDirectoryToDependencies: true,
+                    createFileInDirectory: false,
+                    addFirstFileKind: AddFileOrDirectoryKinds.AsOutput,
+                    addSecondFileOrDirectoryKind: AddFileOrDirectoryKinds.AsDependency,
+
+                    // The second file will be opened with a write access in order for SetFileInformationByHandle works.
+                    // However, the second file will be renamed into the first file, and so the second file does not fall into
+                    // rewrite category, and thus cannot be specified as output. This forces us to make it untracked.
+                    makeSecondUntracked: true,
+                    createdInputPaths: createdInputPaths);
+
+                string errorString = null;
+                SandboxedProcessPipExecutionResult result = await RunProcessAsync(
+                    pathTable: pathTable,
+                    ignoreSetFileInformationByHandle: false,
+                    ignoreZwRenameFileInformation: false,
+                    monitorNtCreate: true,
+                    ignoreReparsePoints: true,
+                    context: context,
+                    pip: pip,
+                    errorString: out errorString);
+
+                VerifyNormalSuccess(context, result);
+
+                var accesses = new List<(AbsolutePath, RequestedAccess, FileAccessStatus)>();
+
+                // Although ignored, we still have write request on SetFileInformationByHandleTest2.txt because we open handle of it by calling CreateFile.
+                accesses.Add((createdInputPaths["SetFileInformationByHandleTest2.txt"], RequestedAccess.Write, FileAccessStatus.Allowed));
+                accesses.Add((createdInputPaths["SetFileInformationByHandleTest1.txt"], RequestedAccess.Write, FileAccessStatus.Allowed));
+
+                VerifyFileAccesses(
+                    context,
+                    result.AllReportedFileAccesses,
+                    accesses.ToArray());
+            }
+        }
+
         [Theory]
         [InlineData("CallDetouredSetFileDispositionByHandle")]
         [InlineData("CallDetouredSetFileDispositionByHandleEx", Skip = "Undocumented API, and keeps returning incorrect parameter")]

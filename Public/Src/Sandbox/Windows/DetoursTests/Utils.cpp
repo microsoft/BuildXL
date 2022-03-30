@@ -92,7 +92,7 @@ BOOLEAN TestCreateSymbolicLinkA(_In_ LPCSTR lpSymlinkFileName, _In_ LPCSTR lpTar
     return res;
 }
 
-BOOL SetRenameFileByHandle(HANDLE hFile, const wstring& target)
+BOOL SetRenameFileByHandle(HANDLE hFile, const wstring& target, bool correctFileNameLength)
 {
     size_t targetLength = target.length();
     size_t targetLengthInBytes = targetLength * sizeof(WCHAR);
@@ -100,9 +100,9 @@ BOOL SetRenameFileByHandle(HANDLE hFile, const wstring& target)
     auto const buffer = make_unique<char[]>(bufferSize);
     auto const fri = reinterpret_cast<PFILE_RENAME_INFO>(buffer.get());
     fri->ReplaceIfExists = TRUE;
-    fri->FileNameLength = (ULONG)targetLengthInBytes;
+    fri->FileNameLength = correctFileNameLength ? (ULONG)targetLengthInBytes : (ULONG)targetLength;
     fri->RootDirectory = nullptr;
-    wmemcpy(fri->FileName, target.c_str(), targetLength);
+    wmemcpy(fri->FileName, target.c_str(), targetLength + 1);
 
     return SetFileInformationByHandle(
         hFile,

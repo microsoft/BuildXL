@@ -4,6 +4,7 @@
 using System;
 using System.ComponentModel;
 using System.Globalization;
+using System.Threading;
 
 namespace BuildXL.Cache.Host.Configuration
 {
@@ -49,7 +50,14 @@ namespace BuildXL.Cache.Host.Configuration
         {
             if (!TryParseReadableTimeSpan(value, out var timeSpan))
             {
-                timeSpan = TimeSpan.Parse(value);
+                if (value.StartsWith("inf", StringComparison.OrdinalIgnoreCase))
+                {
+                    timeSpan = Timeout.InfiniteTimeSpan;
+                }
+                else
+                {
+                    timeSpan = TimeSpan.Parse(value);
+                }
             }
 
             return new TimeSpanSetting(timeSpan);

@@ -137,6 +137,8 @@ namespace BuildXL.Cache.ContentStore.Stores
                             return result;
                         },
                         extraStartMessage: _settings.ToString(),
+                        // We know that this is a long running operation. Stop tracing when its running.
+                        pendingOperationTracingInterval: TimeSpan.MaxValue,
                         extraEndMessage: r => r ? r.Value.ToString() : string.Empty);
         }
 

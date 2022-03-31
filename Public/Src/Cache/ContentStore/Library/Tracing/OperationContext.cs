@@ -91,7 +91,7 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
             where T : ResultBase
         {
             return this.CreateInitializationOperation(operationTracer, operation)
-                .WithOptions(counter, traceErrorsOnly: false, traceOperationStarted: false, traceOperationFinished: true, extraStartMessage: null, endMessageFactory: endMessageFactory)
+                .WithOptions(counter, traceErrorsOnly: false, traceOperationStarted: false, traceOperationFinished: true, extraStartMessage: null, endMessageFactory: endMessageFactory, caller: caller)
                 .RunAsync(caller);
         }
 
@@ -114,7 +114,7 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
             [CallerMemberName]string? caller = null) where T : ResultBase
         {
             return this.CreateOperation(operationTracer, operation)
-                .WithOptions(counter, traceErrorsOnly, traceOperationStarted, traceOperationFinished, extraStartMessage, messageFactory, isCritical: isCritical)
+                .WithOptions(counter, traceErrorsOnly, traceOperationStarted, traceOperationFinished, extraStartMessage, messageFactory, isCritical: isCritical, caller: caller)
                 .Run(caller);
         }
 
@@ -192,7 +192,7 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
             [CallerMemberName]string? caller = null)
         {
             return this.CreateNonResultOperation(operationTracer, operation, resultBaseFactory)
-                .WithOptions(counter, traceErrorsOnly, traceOperationStarted, traceOperationFinished, extraStartMessage, extraEndMessage, isCritical: isCritical)
+                .WithOptions(counter, traceErrorsOnly, traceOperationStarted, traceOperationFinished, extraStartMessage, extraEndMessage, isCritical: isCritical, caller: caller)
                 .RunAsync(caller);
         }
     }

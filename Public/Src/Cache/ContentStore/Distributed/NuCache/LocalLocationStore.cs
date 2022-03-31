@@ -1944,7 +1944,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         func: () => ReconcilePerCheckpointCoreAsync(context, reconcileToken, _localMachineId.Value, _localContentStore, _lastProcessedAddHash, _lastProcessedRemoveHash),
                         funcIsRunningResultProvider: () => Task.FromResult(ReconciliationPerCheckpointResult.Error(new BoolResult("Previous reconciliation cycle is still running, new cycle not queued"))));
                 },
-                Counters[ContentLocationStoreCounters.Reconcile]);
+                Counters[ContentLocationStoreCounters.Reconcile],
+                // We know that this is a long running operation. Stop tracing when its running.
+                pendingOperationTracingInterval: TimeSpan.MaxValue);
 
             // We only change state for lastProcessedAddHash or remove if the result succeeded, in case of cancellation, skips, and errors
             if (result.IsSuccessCode)

@@ -25,5 +25,11 @@ namespace BuildXL.Cache.Host.Configuration
 
         [DataMember]
         public bool? ErrorsOnly { get; set; }
+
+        [DataMember]
+        public TimeSpanSetting? SilentOperationDurationThreshold { get; set; }
+
+        [DataMember]
+        public TimeSpanSetting? PendingOperationTracingInterval { get; set; }
     }
 }

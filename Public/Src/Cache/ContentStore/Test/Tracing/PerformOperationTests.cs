@@ -2,19 +2,21 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Diagnostics;
+using BuildXL.Cache.ContentStore.InterfacesTest.Results;
+using BuildXL.Utilities.Tasks;
+using FluentAssertions;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.InterfacesTest;
-using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Cache.ContentStore.Utils;
+using BuildXL.Cache.Host.Configuration;
 using ContentStoreTest.Test;
-using FluentAssertions;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -130,7 +132,137 @@ namespace BuildXL.Cache.ContentStore.Test.Tracing
             r.ShouldBeSuccess();
 
             var fullOutput = GetFullOutput();
-            fullOutput.Should().Contain("The operation 'MyTracer.TraceLongRunningOperationPeriodically' is not finished yet. Start message: Start message");
+            fullOutput.Should().Contain("not finished yet");
+        }
+
+        [Fact]
+        public async Task PassingTimeSpanMaxShouldWork()
+        {
+            var tracer = new Tracer("MyTracer");
+            var context = new OperationContext(new Context(TestGlobal.Logger));
+
+            var r = await context.PerformOperationAsync(
+                tracer,
+                async () =>
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(1));
+                    return BoolResult.Success;
+                },
+                pendingOperationTracingInterval: TimeSpan.MaxValue);
+            r.ShouldBeSuccess();
+        }
+
+        [Fact]
+        public async Task PassingInfiniteTimeSpanShouldWork()
+        {
+            var tracer = new Tracer("MyTracer");
+            var context = new OperationContext(new Context(TestGlobal.Logger));
+
+            var r = await context.PerformOperationAsync(
+                tracer,
+                async () =>
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(1));
+                    return BoolResult.Success;
+                },
+                pendingOperationTracingInterval: Timeout.InfiniteTimeSpan);
+            r.ShouldBeSuccess();
+        }
+
+        [Fact]
+        public async Task OperationNameIsOriginalWhenTracedPeriodically()
+        {
+            var tracer = new Tracer("MyTracer");
+            var context = new OperationContext(new Context(TestGlobal.Logger));
+
+            var r = await context.PerformOperationAsync(
+                tracer,
+                async () =>
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(1));
+                    return BoolResult.Success;
+                },
+                pendingOperationTracingInterval: TimeSpan.FromMilliseconds(100),
+                extraStartMessage: "Start message");
+            r.ShouldBeSuccess();
+
+            var fullOutput = GetFullOutput();
+            fullOutput.Should().NotContain("MyTracer.TracePendingOperation:");
+        }
+
+        private class LongStartup : StartupShutdownSlimBase
+        {
+            private readonly TimeSpan _startupDuration;
+
+            /// <inheritdoc />
+            public LongStartup(TimeSpan startupDuration)
+            {
+                _startupDuration = startupDuration;
+            }
+
+            /// <inheritdoc />
+            protected override Tracer Tracer => new Tracer(nameof(LongStartup));
+
+            /// <inheritdoc />
+            protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
+            {
+                await Task.Delay(_startupDuration);
+                return await base.StartupCoreAsync(context);
+            }
+        }
+
+        [Fact]
+        public async Task OperationNameIsCorrectForPendingStartupAsync()
+        {
+            // This test checks that when the startup takes a long time, the operation name is propagated properly
+            // to the long operation tracer.
+
+            // This test relies on static state. We'll have issues if more then one test will start changing the log manager configuration!
+            LogManager.Update(
+                new LogManagerConfiguration()
+                {
+                    Logs = new Dictionary<string, OperationLoggingConfiguration>()
+                           {
+                               ["LongStartup.StartupAsync"] = new OperationLoggingConfiguration()
+                                                              {
+                                                                  ErrorsOnly = false, StartMessage = true, PendingOperationTracingInterval = "100ms"
+                                                              }
+                           }
+                });
+            var context = new OperationContext(new Context(TestGlobal.Logger));
+            var component = new LongStartup(TimeSpan.FromSeconds(1));
+            var r = await component.StartupAsync(context);
+            r.ShouldBeSuccess();
+
+            var fullOutput = GetFullOutput();
+            
+            fullOutput.Should().Contain("'LongStartup.StartupAsync' has been running");
+        }
+
+        [Fact]
+        public async Task OperationNameIsCorrectForPendingOperationsCreatedWithOptions()
+        {
+            // This test case checks that the 'OperationName' is set correctly even with 'WithOptions' call does not pass it through.
+            var tracer = new Tracer("MyTracer");
+            var context = new OperationContext(new Context(TestGlobal.Logger));
+
+            // WithOptions takes a 'caller' argument and in some cases that argument can be missing.
+            // But RunAsync takes a caller as well and if 'WithOptions' didn't set the 'Caller' field, that field should be updated
+            // by RunAsync.
+            // Note: the Caller field is used only for tracing pending operations.
+            var r = await context.CreateOperation(
+                tracer,
+                async () =>
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(1));
+                    return BoolResult.Success;
+                })
+                .WithOptions(pendingOperationTracingInterval: TimeSpan.FromMilliseconds(10))
+                .RunAsync("TheOperationName");
+            r.ShouldBeSuccess();
+
+            var fullOutput = GetFullOutput();
+            fullOutput.Should().NotContain("'MyTracer.'");
         }
 
         [Fact]
@@ -153,7 +285,7 @@ namespace BuildXL.Cache.ContentStore.Test.Tracing
                 r.ShouldBeSuccess();
 
                 var fullOutput = GetFullOutput();
-                fullOutput.Should().Contain("The operation 'MyTracer.TraceLongRunningOperationPeriodicallyUsingDefaultSettings' is not finished yet");
+                fullOutput.Should().Contain("not finished yet");
             }
             finally
             {

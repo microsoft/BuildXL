@@ -88,16 +88,18 @@ namespace BuildXL.Pips
                     mutable = new CopyMutablePipState(pip.PipType, pip.SemiStableHash, default(PageableStoreId), pipAsCopy.OutputsMustRemainWritable);
                     break;
                 case PipType.SealDirectory:
-                    SealDirectoryKind sealDirectoryKind = default;
-                    bool scrub = false;
                     var seal = (SealDirectory)pip;
-                    if (seal != null)
-                    {
-                        sealDirectoryKind = seal.Kind;
-                        scrub = seal.Scrub;
-                    }
-
-                    mutable = new SealDirectoryMutablePipState(pip.PipType, pip.SemiStableHash, default(PageableStoreId), sealDirectoryKind, seal.Patterns, seal.IsComposite, scrub, seal.ContentFilter);
+                    
+                    mutable = new SealDirectoryMutablePipState(
+                        pip.PipType,
+                        pip.SemiStableHash,
+                        default(PageableStoreId),
+                        seal.DirectoryRoot,
+                        seal.Kind,
+                        seal.Patterns,
+                        seal.IsComposite,
+                        seal.Scrub,
+                        seal.ContentFilter);
                     break;
                 default:
                     mutable = new MutablePipState(pip.PipType, pip.SemiStableHash, default(PageableStoreId));
@@ -348,15 +350,26 @@ namespace BuildXL.Pips
     /// </summary>
     internal sealed class SealDirectoryMutablePipState : MutablePipState
     {
+        internal readonly AbsolutePath DirectoryRoot;
         internal readonly SealDirectoryKind SealDirectoryKind;
         internal readonly ReadOnlyArray<StringId> Patterns;
         internal readonly bool IsComposite;
         internal readonly bool Scrub;
         internal readonly SealDirectoryContentFilter? ContentFilter;
 
-        public SealDirectoryMutablePipState(PipType piptype, long semiStableHash, PageableStoreId storeId, SealDirectoryKind sealDirectoryKind, ReadOnlyArray<StringId> patterns, bool isComposite, bool scrub, SealDirectoryContentFilter? contentFilter)
+        public SealDirectoryMutablePipState(
+            PipType piptype,
+            long semiStableHash,
+            PageableStoreId storeId,
+            AbsolutePath directoryRoot,
+            SealDirectoryKind sealDirectoryKind,
+            ReadOnlyArray<StringId> patterns,
+            bool isComposite,
+            bool scrub,
+            SealDirectoryContentFilter? contentFilter)
             : base(piptype, semiStableHash, storeId)
         {
+            DirectoryRoot = directoryRoot;
             SealDirectoryKind = sealDirectoryKind;
             Patterns = patterns;
             IsComposite = isComposite;
@@ -366,6 +379,7 @@ namespace BuildXL.Pips
 
         protected override void SpecializedSerialize(BuildXLWriter writer)
         {
+            writer.Write(DirectoryRoot);
             writer.Write((byte)SealDirectoryKind);
             writer.Write(Patterns, (w, v) => w.Write(v));
             writer.Write(IsComposite);
@@ -385,6 +399,7 @@ namespace BuildXL.Pips
 
         internal static MutablePipState Deserialize(BuildXLReader reader, PipType pipType, long semiStableHash, PageableStoreId storeId)
         {
+            var directoryRoot = reader.ReadAbsolutePath();
             var sealDirectoryKind = (SealDirectoryKind)reader.ReadByte();
             var patterns = reader.ReadReadOnlyArray(reader1 => reader1.ReadStringId());
             var isComposite = reader.ReadBoolean();
@@ -395,7 +410,16 @@ namespace BuildXL.Pips
                 contentFilter = new SealDirectoryContentFilter((SealDirectoryContentFilter.ContentFilterKind)reader.ReadByte(), reader.ReadString());
             }
 
-            return new SealDirectoryMutablePipState(pipType, semiStableHash, storeId, sealDirectoryKind, patterns, isComposite, scrub, contentFilter);
+            return new SealDirectoryMutablePipState(
+                pipType,
+                semiStableHash,
+                storeId,
+                directoryRoot,
+                sealDirectoryKind,
+                patterns,
+                isComposite,
+                scrub,
+                contentFilter);
         }
     }
 }

@@ -51,8 +51,9 @@ namespace BuildXL.Processes.Remoting
         /// 
         /// Known versions:
         /// - 98a7fbfa_20220314.3_149776
+        /// - b36bd90f_20220319.3_151742
         /// </remarks>
-        internal static readonly AnyBuildVersion MinRequiredVersion = AnyBuildVersion.Create("b36bd90f_20220319.3_151742")!;
+        internal static readonly AnyBuildVersion MinRequiredVersion = AnyBuildVersion.Create("733e1fd5_20220330.10_156353")!;
 
         private static readonly string s_installRoot = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),

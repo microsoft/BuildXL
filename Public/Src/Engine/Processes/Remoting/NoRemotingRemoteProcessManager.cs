@@ -1,6 +1,7 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Utilities;
@@ -32,5 +33,10 @@ namespace BuildXL.Processes.Remoting
 
         /// <inheritdoc/>
         public Task InitAsync() => throw new BuildXLException(RemotingNotSupportedMessage);
+
+        /// <inheritdoc/>
+        public void RegisterStaticDirectories(IEnumerable<string> staticDirectories)
+        {
+        }
     }
 }

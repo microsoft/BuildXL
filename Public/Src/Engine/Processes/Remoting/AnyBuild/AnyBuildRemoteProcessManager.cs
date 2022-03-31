@@ -6,6 +6,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -14,6 +15,7 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
+using Newtonsoft.Json.Linq;
 using static BuildXL.Utilities.Tracing.CounterCollection;
 
 #nullable enable
@@ -30,6 +32,8 @@ namespace BuildXL.Processes.Remoting
         private readonly LoggingContext m_loggingContext;
         private readonly CounterCollection<SandboxedProcessFactory.SandboxedProcessCounters> m_counters;
         private readonly AsyncLazy<InitResult> m_initResultLazy;
+        private readonly List<string> m_staticDirectories = new ();
+        private readonly string m_remoteManagerDirectory;
 
         /// <inheritdoc/>
         public bool IsInitialized { get; private set; }
@@ -46,6 +50,7 @@ namespace BuildXL.Processes.Remoting
             m_executionContext = executionContext;
             m_configuration = configuration;
             m_counters = counters;
+            m_remoteManagerDirectory = Path.Combine(m_configuration.Layout.ExternalSandboxedProcessDirectory.ToString(m_executionContext.PathTable), nameof(AnyBuildRemoteProcessManager));
             m_initResultLazy = new AsyncLazy<InitResult>(InitCoreAsync);
         }
 
@@ -109,6 +114,8 @@ namespace BuildXL.Processes.Remoting
             m_initializationStarted = true;
 
             using Stopwatch _ = m_counters.StartStopwatch(SandboxedProcessFactory.SandboxedProcessCounters.SandboxedPipExecutorInitializingRemoteProcessManager);
+
+            Directory.CreateDirectory(m_remoteManagerDirectory);
 
             AnyBuildClient abClient;
 
@@ -191,18 +198,10 @@ namespace BuildXL.Processes.Remoting
         private string CreateAnyBuildParams()
         {
             string localCacheDir = m_configuration.Layout.CacheDirectory.Combine(m_executionContext.PathTable, "AnyBuildLocalCache").ToString(m_executionContext.PathTable);
-            var jsonConfig = new List<string>()
-            {
-                "ProcessSubstitution.MaxParallelLocalExecutionsFactor=0",
-                "Run.DisableDirectoryMetadataDedup=true",
-                $"Agents.AgentSearchTimeoutSeconds={m_configuration.Schedule.RemoteAgentWaitTimeSec}"
-            };
-
-            string jsonConfigOverrides = string.Join(" ", jsonConfig);
 
             var args = new List<string>()
             {
-                $"--JsonConfigOverrides {jsonConfigOverrides}",
+                $"--JsonConfigOverrides @\"{CreateJsonConfigOverrides()}\"",
                 "--DisableActionCache",
                 "--RemoteAll",
                 "--DoNotUseMachineUtilizationForScheduling",
@@ -220,8 +219,46 @@ namespace BuildXL.Processes.Remoting
             return string.Join(" ", args);
         }
 
+        private string CreateJsonConfigOverrides()
+        {
+            var jsonConfigOverridesObj = new
+            {
+                ProcessSubstitution = new
+                {
+                    MaxParallelLocalExecutionsFactor = 0
+                },
+                Run = new
+                {
+                    DisableDirectoryMetadataDedup = true,
+                },
+                Agents = new
+                {
+                    AgentSearchTimeoutSeconds = m_configuration.Schedule.RemoteAgentWaitTimeSec
+                },
+                StaticDirs = new
+                {
+                    DisablePostBuildAnalysis = true,
+                    Windows = OperatingSystemHelper.IsWindowsOS ? m_staticDirectories.ToArray() : Array.Empty<string>(),
+                    Linux = OperatingSystemHelper.IsLinuxOS ? m_staticDirectories.ToArray() : Array.Empty<string>()
+                }
+            };
+
+            string jsonConfigOverrides = Newtonsoft.Json.JsonConvert.SerializeObject(jsonConfigOverridesObj, Newtonsoft.Json.Formatting.Indented);
+            string jsonConfigOverridesFile = Path.Combine(m_remoteManagerDirectory, "AnyBuildRepoConfigOverrides.json");
+
+            // TODO: Change to File.WriteAllTextAsync when moving completely from NET framework.
+            File.WriteAllText(jsonConfigOverridesFile, jsonConfigOverrides);
+
+            Tracing.Logger.Log.AnyBuildRepoConfigOverrides(m_loggingContext, Environment.NewLine + jsonConfigOverrides);
+
+            return jsonConfigOverridesFile;
+        }
+
         /// <inheritdoc/>
         public IRemoteProcessManagerInstaller? GetInstaller() => new AnyBuildInstaller(m_loggingContext);
+
+        /// <inheritdoc/>
+        public void RegisterStaticDirectories(IEnumerable<string> staticDirectories) => m_staticDirectories.AddRange(staticDirectories);
 
         // private static int GetUnusedPort()
         // {

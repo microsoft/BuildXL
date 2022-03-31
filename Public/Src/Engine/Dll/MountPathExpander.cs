@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using BuildXL.Pips;
@@ -396,11 +397,11 @@ namespace BuildXL.Engine
         /// Gets the dictionary of mount name to SemanticPathInfo of this instance
         /// and all of its parents.
         /// </summary>
-        /// <returns></returns>
         public Dictionary<string, SemanticPathInfo> GetAllMountsByName()
         {
-            var result = (m_parent != null) ?
-                m_parent.GetAllMountsByName() : new Dictionary<string, SemanticPathInfo>(StringComparer.OrdinalIgnoreCase);
+            var result = m_parent != null
+                ? m_parent.GetAllMountsByName()
+                : new Dictionary<string, SemanticPathInfo>(StringComparer.OrdinalIgnoreCase);
 
             // Override the parent mounts
             foreach (var mount in m_mountsByName)
@@ -412,23 +413,12 @@ namespace BuildXL.Engine
         }
 
         /// <summary>
-        /// Gets the roots that can be scrubbed
+        /// Gets the roots whose semantic info match a given filter.
         /// </summary>
-        private IEnumerable<AbsolutePath> GetRoots(Func<SemanticPathInfo, bool> func)
-        {
-            using (var pool = Pools.AbsolutePathListPool.GetInstance())
-            {
-                foreach (var info in m_mountsByName.Values)
-                {
-                    if (func(info))
-                    {
-                        pool.Instance.Add(info.Root);
-                    }
-                }
+        private IEnumerable<AbsolutePath> GetRoots(Func<SemanticPathInfo, bool> filter) => GetSemanticPathInfos(filter).Select(i => i.Root);
 
-                return pool.Instance.ToArray();
-            }
-        }
+        /// <inheritdoc/>
+        public override IEnumerable<SemanticPathInfo> GetSemanticPathInfos(Func<SemanticPathInfo, bool> filter) => m_mountsByName.Values.Where(filter);
 
         /// <summary>
         /// Serializes a MountPathExpander

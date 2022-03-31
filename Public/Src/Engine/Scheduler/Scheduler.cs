@@ -6140,14 +6140,47 @@ namespace BuildXL.Scheduler
                     PopulateModuleWorkerMapping(nodesToSchedule);
                 }
 
+                if (m_configuration.Schedule.EnableProcessRemoting)
+                {
+                    RegisterStaticDirectoriesForRemoting(nodesToSchedule);
+                }
+
                 Contract.Assert(!HasFailed || loggingContext.ErrorWasLogged, "Scheduler encountered errors during initialization, but none were logged.");
                 return !HasFailed;
             }
         }
 
-        private void PopulateModuleWorkerMapping(IEnumerable<NodeId> nodes)
+        private void RegisterStaticDirectoriesForRemoting(IEnumerable<NodeId> nodesToSchedule)
         {
-            foreach (var node in nodes)
+            Dictionary<AbsolutePath, SemanticPathInfo> readOnlyMounts = m_semanticPathExpander
+                .GetSemanticPathInfos(i => i.IsReadable && !i.IsWritable)
+                .ToDictionary(i => i.Root, i => i);
+
+            // Remove RO-mounts whose descendants are writable.
+            foreach (AbsolutePath path in m_semanticPathExpander.GetWritableRoots())
+            {
+                foreach (HierarchicalNameId pathId in Context.PathTable.EnumerateHierarchyBottomUp(path.GetParent(Context.PathTable).Value))
+                {
+                    readOnlyMounts.Remove(new AbsolutePath(pathId));
+                }
+            }
+
+            IEnumerable<AbsolutePath> readOnlyAll = readOnlyMounts.Select(kvp => kvp.Value.Root);
+
+            // Get all source sealed directories that include all directories, instead of just top-level ones.
+            IEnumerable<AbsolutePath> allDirSourceSealedDirs = nodesToSchedule
+                .Select(n => n.ToPipId())
+                .Where(p => m_pipTable.GetPipType(p) == PipType.SealDirectory)
+                .Select(p => (SealDirectoryMutablePipState)m_pipTable.GetMutable(p))
+                .Where(s => s.SealDirectoryKind == SealDirectoryKind.SourceAllDirectories)
+                .Select(s => s.DirectoryRoot);
+
+            RemoteProcessManager.RegisterStaticDirectories(readOnlyAll.Concat(allDirSourceSealedDirs).Distinct().Select(p => p.ToString(Context.PathTable)));
+        }
+
+        private void PopulateModuleWorkerMapping(IEnumerable<NodeId> nodesToSchedule)
+        {
+            foreach (var node in nodesToSchedule)
             {
                 var pipId = node.ToPipId();
                 if (m_pipTable.GetPipType(pipId) == PipType.Process || m_pipTable.GetPipType(pipId) == PipType.Ipc)

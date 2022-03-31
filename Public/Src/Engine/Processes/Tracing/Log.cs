@@ -418,6 +418,15 @@ namespace BuildXL.Processes.Tracing
         public abstract void ExceptionOnFindingAnyBuildClient(LoggingContext context, string exception);
 
         [GeneratedEvent(
+            (int)LogEventId.AnyBuildRepoConfigOverrides,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = "AnyBuild repo config overrides: {config}")]
+        public abstract void AnyBuildRepoConfigOverrides(LoggingContext context, string config);
+
+        [GeneratedEvent(
             (int)LogEventId.InstallAnyBuildClient,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,

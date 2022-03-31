@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Collections.Generic;
 using BuildXL.Pips;
 using BuildXL.Utilities;
@@ -57,6 +58,12 @@ namespace BuildXL.Scheduler.Artifacts
         public override IEnumerable<AbsolutePath> GetPathsWithAllowedCreateDirectory()
         {
             return m_innerExpander.GetPathsWithAllowedCreateDirectory();
+        }
+
+        /// <inheritdoc />
+        public override IEnumerable<SemanticPathInfo> GetSemanticPathInfos(Func<SemanticPathInfo, bool> filter)
+        {
+            return m_innerExpander.GetSemanticPathInfos(filter);
         }
     }
 }

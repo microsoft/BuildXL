@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -41,5 +42,18 @@ namespace BuildXL.Processes.Remoting
         /// </summary>
         /// <returns>An instance of <see cref="IRemoteProcessManagerInstaller"/>.</returns>
         IRemoteProcessManagerInstaller? GetInstaller();
+
+        /// <summary>
+        /// Registers static directories to be sent to the remoting engine during initialization by <see cref="InitAsync"/>.
+        /// </summary>
+        /// <param name="staticDirectories">A list of static directories.</param>
+        /// <remarks>
+        /// Static directories are directories whose contents (including descendant directories) are assume to not change during a build session.
+        /// Static directories can improve build performance because the enumeration results of such directories
+        /// can be cached.
+        /// 
+        /// This method should be called before calling <see cref="InitAsync"/>.
+        /// </remarks>
+        void RegisterStaticDirectories(IEnumerable<string> staticDirectories);
     }
 }

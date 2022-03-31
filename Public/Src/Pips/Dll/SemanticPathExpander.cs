@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using BuildXL.Utilities;
@@ -15,7 +16,7 @@ namespace BuildXL.Pips
         /// <summary>
         /// The default expander which does has semantic path information
         /// </summary>
-        public static new readonly SemanticPathExpander Default = new SemanticPathExpander();
+        public static new readonly SemanticPathExpander Default = new ();
 
         /// <summary>
         /// Gets the semantic path information for the given path in the context of the given pip.
@@ -69,6 +70,14 @@ namespace BuildXL.Pips
         public virtual IEnumerable<AbsolutePath> GetPathsWithAllowedCreateDirectory()
         {
             return Enumerable.Empty<AbsolutePath>();
+        }
+
+        /// <summary>
+        /// Returns all semantic path infos that match a given filter.
+        /// </summary>
+        public virtual IEnumerable<SemanticPathInfo> GetSemanticPathInfos(Func<SemanticPathInfo, bool> filter)
+        {
+            return Enumerable.Empty<SemanticPathInfo>();
         }
     }
 }

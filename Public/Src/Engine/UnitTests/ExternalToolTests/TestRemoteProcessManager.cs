@@ -1,6 +1,7 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Processes.Remoting;
@@ -33,5 +34,9 @@ namespace ExternalToolTest.BuildXL.Scheduler
         }
 
         public IRemoteProcessManagerInstaller GetInstaller() => null;
+
+        public void RegisterStaticDirectories(IEnumerable<string> staticDirectories)
+        {
+        }
     }
 }

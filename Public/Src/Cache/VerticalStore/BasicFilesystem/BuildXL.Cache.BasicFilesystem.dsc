@@ -19,6 +19,7 @@ namespace BasicFilesystem {
             importFrom("BuildXL.Utilities").Collections.dll,
             importFrom("BuildXL.Utilities").Configuration.dll,
             importFrom("Newtonsoft.Json").pkg,
+            ...BuildXLSdk.bclAsyncPackages,
         ],
         internalsVisibleTo: [
             "BuildXL.Cache.BasicFilesystem.Test",

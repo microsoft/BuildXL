@@ -81,7 +81,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
         {
             using (Stream contentStream = MockBuilder.GetContentStream(contentLength: 0))
             {
-                Assert.Equal(contentStream.CalculateBlobIdentifierWithBlocks(), VsoHash.OfNothing);
+                Assert.Equal(await contentStream.CalculateBlobIdentifierWithBlocksAsync(), VsoHash.OfNothing);
                 contentStream.Position = 0;
                 Assert.Equal(await contentStream.CalculateBlobIdentifierWithBlocksAsync(), VsoHash.OfNothing);
             }

@@ -10,12 +10,13 @@ using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
-using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 
 #pragma warning disable CS3001 // CLS
 #pragma warning disable CS3002
 #pragma warning disable CS3003
+
+#nullable enable
 
 namespace BuildXL.Cache.ContentStore.Hashing
 {
@@ -181,6 +182,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
                 {
                     var hasher = hasherToken.Hasher;
 
+                    // We know that the hash size is always small, so its always safe to stackalloc the hash.
                     Span<byte> hashOutput = stackalloc byte[Info.ByteLength];
                     hasher.TryComputeHash(content, hashOutput, out _);
 
@@ -288,21 +290,22 @@ namespace BuildXL.Cache.ContentStore.Hashing
             private static readonly Task<bool> TrueTask = Task.FromResult(true);
 
             private static readonly Stopwatch Timer = Stopwatch.StartNew();
-
-            private readonly ActionBlock<Pool<Buffer>.PoolHandle>? _hashingBufferBlock;
-
             private readonly Stream _baseStream;
             private readonly ContentHasher<T> _hasher;
 
             private readonly CryptoStreamMode _streamMode;
             private readonly long _parallelHashingFileSizeBoundary;
-            private readonly bool _useParallelHashing;
+            
             private readonly GuardedHashAlgorithm _hashAlgorithm;
             private bool _disposed;
 
             private long _bytesHashed = 0;
 
             private long _ticksSpentHashing;
+
+            [MemberNotNullWhen(true, nameof(_hashingBufferBlock))]
+            private bool UseParallelHashing { get; }
+            private readonly ActionBlock<Pool<Buffer>.PoolHandle>? _hashingBufferBlock;
 
             public HashingStreamImpl(
                 Stream stream,
@@ -317,10 +320,10 @@ namespace BuildXL.Cache.ContentStore.Hashing
                 _baseStream = stream;
                 _hasher = hasher;
                 _streamMode = mode;
-                _useParallelHashing = useParallelHashing;
+                UseParallelHashing = useParallelHashing;
                 _parallelHashingFileSizeBoundary = parallelHashingFileSizeBoundary;
 
-                if (_useParallelHashing)
+                if (UseParallelHashing)
                 {
                     _hashingBufferBlock = new ActionBlock<Pool<Buffer>.PoolHandle>(
                         HashSegmentAsync,
@@ -354,6 +357,21 @@ namespace BuildXL.Cache.ContentStore.Hashing
             /// <inheritdoc />
             protected override void Dispose(bool disposing)
             {
+                if (disposing)
+                {
+                    DisposeAsync().GetAwaiter().GetResult();
+                }
+                else
+                {
+                    // This is an unlikely case when the Dispose method is called from the finalizer.
+                    // We can't call DisposeAsync in this case, because the order of finalization is not defined.
+                    _disposed = true;
+                }
+            }
+
+            /// <inheritdoc />
+            public override async ValueTask DisposeAsync()
+            {
                 if (_disposed)
                 {
                     return;
@@ -361,16 +379,13 @@ namespace BuildXL.Cache.ContentStore.Hashing
 
                 _disposed = true;
 
-                if (disposing && !_hashAlgorithm.Finalized)
+                if (!_hashAlgorithm.Finalized)
                 {
-                    FinishHash();
+                    await FinishHashAsync();
                 }
 
-                if (disposing)
-                {
                     // Disposing the owning resources only during disposal and not during the finalization.
                     _hashAlgorithm.Dispose();
-                }
 
                 Interlocked.Increment(ref _hasher._calls);
             }
@@ -380,18 +395,29 @@ namespace BuildXL.Cache.ContentStore.Hashing
             {
                 if (!_hashAlgorithm.Finalized)
                 {
-                    FinishHash();
+                    FinishHashAsync().GetAwaiter().GetResult();
                 }
 
                 return new ContentHash(_hasher.Info.HashType, _hashAlgorithm.Hash);
             }
 
-            private void FinishHash()
+            /// <inheritdoc />
+            public override async ValueTask<ContentHash> GetContentHashAsync()
             {
-                if (_useParallelHashing)
+                if (!_hashAlgorithm.Finalized)
                 {
-                    _hashingBufferBlock!.Complete();
-                    _hashingBufferBlock.Completion.GetAwaiter().GetResult();
+                    await FinishHashAsync();
+                }
+
+                return new ContentHash(_hasher.Info.HashType, _hashAlgorithm.Hash);
+            }
+
+            private async ValueTask FinishHashAsync()
+            {
+                if (UseParallelHashing)
+                {
+                    _hashingBufferBlock.Complete();
+                    await _hashingBufferBlock.Completion;
                 }
 
                 _hashAlgorithm.Finish();
@@ -447,7 +473,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
             }
 
             /// <inheritdoc />
-            public override IAsyncResult BeginRead(byte[] buffer, int offset, int count, [AllowNull]AsyncCallback callback, object? state)
+            public override IAsyncResult BeginRead(byte[] buffer, int offset, int count, AsyncCallback? callback, object? state)
             {
                 throw new NotImplementedException();
             }
@@ -457,7 +483,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
             {
                 throw new NotImplementedException();
             }
-
+            
             private Task<bool> PushHashBufferAsync(byte[] buffer, int offset, int count)
             {
                 // In some cases, count can be 0, and in this case we can do nothing and just return a completed task.
@@ -468,12 +494,12 @@ namespace BuildXL.Cache.ContentStore.Hashing
 
                 long foundBytesHashed = Interlocked.Add(ref _bytesHashed, count);
 
-                if (_useParallelHashing && foundBytesHashed > _parallelHashingFileSizeBoundary)
+                if (UseParallelHashing && foundBytesHashed > _parallelHashingFileSizeBoundary)
                 {
                     var handle = Buffer.GetBuffer();
                     handle.Value.CopyFrom(buffer, offset, count);
 
-                    return _hashingBufferBlock!.SendAsync(handle);
+                    return _hashingBufferBlock.SendAsync(handle);
                 }
                 else
                 {
@@ -515,7 +541,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
             }
 
             /// <inheritdoc />
-            public override IAsyncResult BeginWrite(byte[] buffer, int offset, int count, [AllowNull]AsyncCallback callback, object? state)
+            public override IAsyncResult BeginWrite(byte[] buffer, int offset, int count, AsyncCallback? callback, object? state)
             {
                 throw new NotImplementedException();
             }

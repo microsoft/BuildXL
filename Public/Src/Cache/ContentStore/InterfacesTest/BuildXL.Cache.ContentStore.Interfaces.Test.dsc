@@ -21,6 +21,7 @@ namespace InterfacesTest {
             ...BuildXLSdk.systemMemoryDeployment,
             importFrom("Newtonsoft.Json").pkg,
             ...getSerializationPackages(/*includeNetStandard*/true),
+            ...BuildXLSdk.bclAsyncPackages,
         ],
         runTestArgs: {
             skipGroups: BuildXLSdk.isDotNetCoreBuild ? [ "SkipDotNetCore" ] : [],

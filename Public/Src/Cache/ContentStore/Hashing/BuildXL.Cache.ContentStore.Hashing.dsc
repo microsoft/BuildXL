@@ -22,6 +22,8 @@ namespace Hashing {
             ]),
             ...BuildXLSdk.systemMemoryDeployment,
             ...BuildXLSdk.systemThreadingTasksDataflowPackageReference,
+            importFrom("System.Threading.Tasks.Extensions").pkg,
+            ...BuildXLSdk.bclAsyncPackages,
         ],
         runtimeContent: Context.getCurrentHost().os !== "win" ? [] : [
             {

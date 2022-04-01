@@ -405,6 +405,7 @@ namespace NugetPackages {
             importFrom("System.Threading.Tasks.Dataflow").withQualifier(net472PackageQualifer).pkg,
             importFrom("RuntimeContracts").withQualifier(net472PackageQualifer).pkg,
             importFrom("System.Memory").withQualifier(net472PackageQualifer).pkg,
+            importFrom("System.Threading.Tasks.Extensions").withQualifier(net472PackageQualifer).pkg,
         ]
     });
 

@@ -390,7 +390,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 using (var stream = _fileSystem.Open(path, FileAccess.Read, FileMode.Open, FileShare.Read))
                 {
                     byte[] headerBuffer = new byte[header.HeaderSize];
-                    stream.Stream.Read(headerBuffer, 0, header.HeaderSize);
+                    await stream.Stream.ReadAsync(headerBuffer, 0, header.HeaderSize);
 
                     var streamSync = new object();
                     var entriesSync = new object();

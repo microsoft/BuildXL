@@ -1,13 +1,72 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Diagnostics;
+using System.IO;
+using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.UtilitiesCore;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
 {
-    public class HashInfoTests
+    public class HashInfoTests : TestWithOutput
     {
+        /// <inheritdoc />
+        public HashInfoTests(ITestOutputHelper output)
+            : base(output)
+        {
+        }
+
+        [Fact]
+        public async Task RoundtripFullBinary()
+        {
+            HashType hashType = HashType.Vso0;
+
+            byte[] data = ThreadSafeRandom.GetBytes(40 * 1024);
+
+            int chunkCount = 100;
+
+            await WriteFiles(hashType, data, chunkCount, false);
+            await WriteFiles(hashType, data, chunkCount, true);
+
+            int iterationCount = 100;
+
+            var sw = Stopwatch.StartNew();
+            for (int i = 0; i < iterationCount; i++)
+            {
+                await WriteFiles(hashType, data, chunkCount, true);
+            }
+
+            var parallelDuration = sw.Elapsed;
+
+            sw.Reset();
+
+            for (int i = 0; i < iterationCount; i++)
+            {
+                await WriteFiles(hashType, data, chunkCount, false);
+            }
+
+            var sequentialDuration = sw.Elapsed;
+
+            Output.WriteLine($"Parallel: {parallelDuration}, Sequential: {sequentialDuration}");
+        }
+
+        private async Task<ContentHash> WriteFiles(HashType hashType, byte[] chunkToWrite, int chunkCount, bool useParallelHashing)
+        {
+            int fileSize = chunkCount * chunkToWrite.Length;
+            var hasher = HashInfoLookup.GetContentHasher(hashType);
+
+            {
+                var target = new MemoryStream();
+                await using var writer = hasher.CreateWriteHashingStream(target, useParallelHashing ? fileSize : -1);
+                await writer.WriteAsync(chunkToWrite, 0, chunkToWrite.Length);
+
+                return await writer.GetContentHashAsync();
+            }
+
+        }
         [Fact]
         public void ConstLengths()
         {

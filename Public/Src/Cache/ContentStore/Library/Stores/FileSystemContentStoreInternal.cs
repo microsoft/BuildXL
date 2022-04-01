@@ -1158,11 +1158,11 @@ namespace BuildXL.Cache.ContentStore.Stores
 
                 var hasher = HashInfoLookup.GetContentHasher(hashType);
                 long? length = stream.TryGetStreamLength();
-                using (var hashingStream = hasher.CreateReadHashingStream(length ?? -1, stream))
+                await using (var hashingStream = hasher.CreateReadHashingStream(length ?? -1, stream))
                 {
                     pathToTempContent = await WriteToTemporaryFileAsync(context, hashingStream, length);
                     contentSize = FileSystem.GetFileSize(pathToTempContent);
-                    contentHash = hashingStream.GetContentHash();
+                    contentHash = await hashingStream.GetContentHashAsync();
 
                     // This our temp file and it is responsibility of this method to delete it.
                     shouldDelete = true;
@@ -2166,7 +2166,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 }
                 else
                 {
-                    using (var hashingStream = hasher.CreateReadHashingStream(contentStream.Value))
+                    await using (var hashingStream = hasher.CreateReadHashingStream(contentStream.Value))
                     {
                         try
                         {
@@ -2181,7 +2181,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                                 ApplyPermissions(context, destinationPath, accessMode);
                             }
 
-                            computedHash = hashingStream.GetContentHash();
+                            computedHash = await hashingStream.GetContentHashAsync();
                         }
                         catch (IOException e)
                         {

@@ -736,7 +736,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                     {
                         using (Stream possiblyRecordingStream = _settings.AreBlobsSupported && hashInfo.Size <= _settings.MaxBlobSize && hashInfo.Size >= 0 ? (Stream)RecordingStream.WriteRecordingStream(fileStream) : fileStream)
                         // Use hashInfo.Size since if it is -1 we will not have resized the stream and it will disable an optimization in dedup hashers which depends on file size.
-                        using (HashingStream hashingStream = HashInfoLookup.GetContentHasher(hashInfo.ContentHash.HashType).CreateWriteHashingStream(hashInfo.Size, possiblyRecordingStream, hashEntireFileConcurrently ? 1 : _settings.ParallelHashingFileSizeBoundary))
+                        await using (HashingStream hashingStream = HashInfoLookup.GetContentHasher(hashInfo.ContentHash.HashType).CreateWriteHashingStream(hashInfo.Size, possiblyRecordingStream, hashEntireFileConcurrently ? 1 : _settings.ParallelHashingFileSizeBoundary))
                         {
                             var copyFileResult = await _remoteFileCopier.CopyToAsync(
                                 new OperationContext(context, cts), location, hashingStream,
@@ -746,7 +746,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
 
                             if (copyFileResult.Succeeded)
                             {
-                                var foundHash = hashingStream.GetContentHash();
+                                var foundHash = await hashingStream.GetContentHashAsync();
                                 if (foundHash != hashInfo.ContentHash)
                                 {
                                     return new CopyFileResult(CopyResultCode.InvalidHash, $"{nameof(CopyFileAsync)} unsuccessful with different hash. Found {foundHash.ToShortString()}, expected {hashInfo.ContentHash.ToShortString()}. Found size {copyFileResult.Size}, expected size {hashInfo.Size}." + (copyFileResult.MinimumSpeedInMbPerSec.HasValue ? $" minBandwidthSpeed={copyFileResult.MinimumSpeedInMbPerSec.Value}MiB/s " : string.Empty));

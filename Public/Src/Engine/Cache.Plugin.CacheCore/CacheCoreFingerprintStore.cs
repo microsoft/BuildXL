@@ -218,7 +218,7 @@ namespace BuildXL.Engine.Cache.Plugin.CacheCore
 
         private static Task<Possible<TResult, Failure>> PerformFingerprintCacheOperationAsync<TResult>(Func<Task<Possible<TResult, Failure>>> func, string operationName)
         {
-            return Utilities.PerformCacheOperationAsync(func, operationName, TimeoutDurationMin);
+            return Utilities.PerformCacheOperationAsync(func, operationName, TimeSpan.FromMinutes(TimeoutDurationMin));
         }
     }
 }

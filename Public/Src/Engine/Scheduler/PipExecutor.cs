@@ -2357,6 +2357,13 @@ namespace BuildXL.Scheduler
                                     description,
                                     weakFingerprint.ToString(),
                                     maybeBatch.Failure.DescribeIncludingInnerFailures());
+
+                                if (maybeBatch.Failure is CacheTimeoutFailure)
+                                {
+                                    // if ListPublishedEntriesByWeakFingerprint timed out, this pip will be a cache miss.
+                                    break;
+                                }
+
                                 continue;
                             }
 

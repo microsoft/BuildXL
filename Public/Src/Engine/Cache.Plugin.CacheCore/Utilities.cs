@@ -2,9 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Globalization;
 using System.Threading.Tasks;
-using BuildXL.Cache.Interfaces;
 using BuildXL.Engine.Cache.Artifacts;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Tasks;
@@ -19,15 +17,15 @@ namespace BuildXL.Engine.Cache.Plugin.CacheCore
         /// <summary>
         /// A wrapper for performing a cache operation with the given timeout duration
         /// </summary>
-        public static async Task<Possible<TResult, Failure>> PerformCacheOperationAsync<TResult>(Func<Task<Possible<TResult, Failure>>> func, string operationName, int timeoutDurationMin)
+        public static async Task<Possible<TResult, Failure>> PerformCacheOperationAsync<TResult>(Func<Task<Possible<TResult, Failure>>> func, string operationName, TimeSpan timeout)
         {
             try
             {
-                return await func().WithTimeoutAsync(TimeSpan.FromMinutes(timeoutDurationMin));
+                return await func().WithTimeoutAsync(timeout);
             }
             catch (TimeoutException)
             {
-                return new CacheTimeoutFailure(operationName, timeoutDurationMin);
+                return new CacheTimeoutFailure(operationName, (int)timeout.TotalMinutes);
             }
         }
     }

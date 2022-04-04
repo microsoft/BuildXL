@@ -9,6 +9,7 @@ using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Text;
 using System.Threading;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Exceptions;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
@@ -54,7 +55,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         private readonly FileSystemContentStoreInternal _store;
         private readonly IDistributedLocationStore? _distributedStore;
 
-        private readonly BlockingCollection<QuotaRequest> _reserveQueue;
+        private readonly Channel<QuotaRequest> _reserveQueue;
 
         private readonly ConcurrentQueue<ReserveSpaceRequest> _evictionQueue;
         private long _evictionQueueSize;
@@ -115,7 +116,9 @@ namespace BuildXL.Cache.ContentStore.Stores
             _token = token;
             _store = store;
             _distributedStore = distributedStore;
-            _reserveQueue = new BlockingCollection<QuotaRequest>();
+
+            // Setting SingleReader to true, because the queue is read only from a single thread.
+            _reserveQueue = Channel.CreateUnbounded<QuotaRequest>(new UnboundedChannelOptions() { SingleReader = true, SingleWriter = false, });
             _evictionQueue =  new ConcurrentQueue<ReserveSpaceRequest>();
             _rules = CreateRules(fileSystem, configuration, store);
             Counters = new CounterCollection<QuotaKeeperCounters>();
@@ -128,14 +131,13 @@ namespace BuildXL.Cache.ContentStore.Stores
             await CalibrateAllAsync(context).IgnoreFailure();
 
             // Processing requests is a long running operation. Scheduling it into a dedicated thread to avoid thread pool exhaustion.
-            _processReserveRequestsTask = Task.Factory.StartNew(
-                () => ProcessReserveRequestsAsync(context.CreateNested(nameof(QuotaKeeper))),
-                TaskCreationOptions.LongRunning).Unwrap();
+            _processReserveRequestsTask = Task.Run(
+                () => ProcessReserveRequestsAsync(context.CreateNested(nameof(QuotaKeeper))));
 
             // Start purging immediately on startup to clear out residual content in the cache
             // over the cache quota if configured.
             const string Operation = "PurgeRequest";
-            SendPurgeRequest(context, "Startup").FireAndForget(context, Operation);
+            SendPurgeRequest(context).FireAndForget(context, Operation);
 
             return BoolResult.Success;
         }
@@ -144,17 +146,17 @@ namespace BuildXL.Cache.ContentStore.Stores
         protected override async Task<BoolResult> ShutdownCoreAsync(OperationContext context)
         {
             // Need to notify the requests queue that there would be no more new requests.
-            _reserveQueue.CompleteAdding();
+            _reserveQueue.Writer.Complete();
 
             if (_processReserveRequestsTask != null)
             {
-                Tracer.Debug(context, $"Waiting for pending reservation requests.");
+                Tracer.Debug(context, "Waiting for pending reservation requests.");
                 await _processReserveRequestsTask;
             }
 
             if (!_purgeTask.IsCompleted)
             {
-                Tracer.Debug(context, $"Waiting for purge task.");
+                Tracer.Debug(context, "Waiting for purge task.");
                 return await _purgeTask;
             }
 
@@ -169,16 +171,8 @@ namespace BuildXL.Cache.ContentStore.Stores
             if (_rules.Any(r => r.CanBeCalibrated))
             {
                 var request = QuotaRequest.Calibrate();
-                _reserveQueue.Add(request);
+                _reserveQueue.Writer.TryWrite(request);
             }
-        }
-
-        /// <inheritdoc />
-        protected override void DisposeCore()
-        {
-            base.DisposeCore();
-
-            _reserveQueue.Dispose();
         }
 
         /// <summary>
@@ -244,14 +238,14 @@ namespace BuildXL.Cache.ContentStore.Stores
             return rules;
         }
 
-        private Task<BoolResult> SendPurgeRequest(OperationContext context, string reason)
+        private Task<BoolResult> SendPurgeRequest(OperationContext context)
         {
             return context.PerformOperationAsync(
                 Tracer,
                 () =>
                 {
                     var emptyRequest = QuotaRequest.Purge();
-                    _reserveQueue.Add(emptyRequest);
+                    _reserveQueue.Writer.TryWrite(emptyRequest);
 
                     return emptyRequest.CompletionAsync();
                 },
@@ -262,7 +256,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         {
             if (purge)
             {
-                return SendPurgeRequest(context, "Sync");
+                return SendPurgeRequest(context);
             }
 
             return context.PerformOperationAsync(
@@ -270,7 +264,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 () =>
                 {
                     var emptyRequest = QuotaRequest.Synchronize();
-                    _reserveQueue.Add(emptyRequest);
+                    _reserveQueue.Writer.TryWrite(emptyRequest);
 
                     return emptyRequest.CompletionAsync();
                 });
@@ -290,7 +284,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
             // To avoid potential race condition need to increase size first and only after that to add the request into the queue.
             IncreaseSize(ref _requestedSize, reserveRequest.ReserveSize);
-            _reserveQueue.Add(reserveRequest);
+            _reserveQueue.Writer.TryWrite(reserveRequest);
 
             BoolResult result = await reserveRequest.CompletionAsync();
 
@@ -411,7 +405,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 }
                 else
                 {
-                    Tracer.Debug(context, $"{Component}: EvictUntilTheHardLimitAsync failed with " + evictionResult);
+                    Tracer.Debug(context, $"EvictUntilTheHardLimitAsync failed with {evictionResult}");
                     // Eviction may fail, but this could be fine if all the rules that above the hard limit can be calibrated.
                     return SuccessIfOnlyCalibrateableRulesAboveHardLimit(context, reserveSize);
                 }
@@ -532,7 +526,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 {
                     if (_purgeTask.IsCompleted)
                     {
-                        Tracer.Debug(context, $"{Component}: Purge stated because {reason}. Current Size={CurrentSize}");
+                        Tracer.Debug(context, $"Purge stated because {reason}. Current Size={CurrentSize}");
                         _purgeTask = Task.Run(() => PurgeAsync(context));
                     }
                 }
@@ -690,59 +684,73 @@ namespace BuildXL.Cache.ContentStore.Stores
 
         private async Task ProcessReserveRequestsAsync(Context context)
         {
-            Tracer.Debug(context, $"{Component}: Starting reservation processing loop. Current content size={CurrentSize}");
-            var operationContext = new OperationContext(context);
+            Tracer.Debug(context, $"Starting reservation processing loop. Current content size={CurrentSize}");
+            using var shutdownContext = TrackShutdown(context, CancellationToken.None);
+            var operationContext = shutdownContext.Context;
+
             long requestCount = 0;
 
-            foreach (var request in _reserveQueue.GetConsumingEnumerable())
+            // Not using 'Reader.ReadAllAsync' because its not available in the version we use here.
+            // So we do what 'ReadAllAsync' does under the hood.
+            while (await _reserveQueue.Reader.WaitToReadAsync(CancellationToken.None).ConfigureAwait(false))
             {
-                requestCount++;
-
-                try
+                while (_reserveQueue.Reader.TryRead(out var request))
                 {
-                    // To avoid too many trace messages, we trace only every 1 request out of 1000
-                    bool traceRequest = (requestCount % 1000) == 0;
-
-                    var result = await operationContext.PerformOperationAsync(
-                        Tracer,
-                        () => ProcessQuotaRequestAsync(context, request),
-                        extraEndMessage: r => $"Request='{request}'. CurrentContentSize={CurrentSize}. Request#={requestCount}",
-                        caller: nameof(ProcessQuotaRequestAsync),
-                        counter: Counters[QuotaKeeperCounters.ProcessQuotaRequest],
-                        traceOperationStarted: false,
-                        traceOperationFinished: traceRequest);
-
-                    if (result)
+                    if (operationContext.Token.IsCancellationRequested)
                     {
-                        bool requestCompleted = false;
-                        if (request is ReserveSpaceRequest reserveRequest)
-                        {
-                            // When the reservation succeeds, the reserved size should fit under the hard limit (unless sensitive sessions are presented).
-                            if (IsAboveHardLimit(reserveRequest.ReserveSize, out var message))
-                            {
-                                string errorMessage = $"Reservation request is successful but still above hard quota. {message}";
+                        // Breaking the processing loop if the shutdown started
+                        Tracer.Debug(context, "Breaking the reservation processing loop because the cancellation was requested.");
+                        break;
+                    }
 
-                                requestCompleted = true;
-                                // Even though this should not be happening, we noticed that in some cases it does happen.
-                                // And to unblock the reservation requests we still need to complete the request.
-                                request.Failure(errorMessage);
+                    requestCount++;
+
+                    try
+                    {
+                        // To avoid too many trace messages, we trace only every 1 request out of 1000
+                        bool traceRequest = (requestCount % 1000) == 0;
+
+                        var result = await operationContext.PerformOperationAsync(
+                            Tracer,
+                            () => ProcessQuotaRequestAsync(context, request),
+                            extraEndMessage: r => $"Request='{request}'. CurrentContentSize={CurrentSize}. Request#={requestCount}",
+                            caller: nameof(ProcessQuotaRequestAsync),
+                            counter: Counters[QuotaKeeperCounters.ProcessQuotaRequest],
+                            traceOperationStarted: false,
+                            traceOperationFinished: traceRequest);
+
+                        if (result)
+                        {
+                            bool requestCompleted = false;
+                            if (request is ReserveSpaceRequest reserveRequest)
+                            {
+                                // When the reservation succeeds, the reserved size should fit under the hard limit (unless sensitive sessions are presented).
+                                if (IsAboveHardLimit(reserveRequest.ReserveSize, out var message))
+                                {
+                                    string errorMessage = $"Reservation request is successful but still above hard quota. {message}";
+
+                                    requestCompleted = true;
+                                    // Even though this should not be happening, we noticed that in some cases it does happen.
+                                    // And to unblock the reservation requests we still need to complete the request.
+                                    request.Failure(errorMessage);
+                                }
+                            }
+
+                            // The order matters here: we need to change the instance state first before completing the request.
+                            if (!requestCompleted)
+                            {
+                                request.Success();
                             }
                         }
-
-                        // The order matters here: we need to change the instance state first before completing the request.
-                        if (!requestCompleted)
+                        else
                         {
-                            request.Success();
+                            request.Failure(result.ToString());
                         }
                     }
-                    else
+                    catch (Exception e)
                     {
-                        request.Failure(result.ToString());
+                        Tracer.Error(context, $"{Component}: Purge loop failed for '{request}' with unexpected error: {e}");
                     }
-                }
-                catch (Exception e)
-                {
-                    Tracer.Error(context, $"{Component}: Purge loop failed for '{request}' with unexpected error: {e}");
                 }
             }
         }

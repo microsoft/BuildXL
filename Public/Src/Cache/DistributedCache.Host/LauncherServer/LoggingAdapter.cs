@@ -1,3 +1,6 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
 using System;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using Microsoft.Extensions.Logging;

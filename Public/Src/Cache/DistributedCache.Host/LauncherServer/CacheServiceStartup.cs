@@ -1,3 +1,6 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Threading;
@@ -224,7 +227,7 @@ namespace BuildXL.Launcher.Server
                                 {
                                     port = (int)ServiceConfiguration.LocalCasSettings.ServiceSettings.GrpcPort;
                                 }
-                                else if (proxyConfiguration == null)
+                                else if (proxyConfiguration != null)
                                 {
                                     port = proxyConfiguration.Port;
                                 }

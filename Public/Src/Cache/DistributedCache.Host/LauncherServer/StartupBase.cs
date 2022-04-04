@@ -1,3 +1,6 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
 using System.Reflection;
 using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Cache.Host.Configuration;

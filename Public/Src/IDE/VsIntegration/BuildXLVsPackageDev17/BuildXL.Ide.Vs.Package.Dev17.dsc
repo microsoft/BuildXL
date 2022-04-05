@@ -16,7 +16,7 @@ namespace BuildXLVsPackageDev17 {
         contractsLevel: Contracts.ContractsLevel.disabled,
         embeddedResources: [
             {
-                resX: f`../BuildXLVsPackageShared/Resources/MessageDialog.resx`, 
+                resX: f`../BuildXLVsPackageShared/Resources/MessageDialog.resx`,
                 generatedClassMode: "explicit",
             },
             {
@@ -25,7 +25,7 @@ namespace BuildXLVsPackageDev17 {
             {
                 linkedContent: [
                     Branding.iconFile,
-                    f`source.extension.vsixmanifest`,
+                    f`extension.vsixmanifest`,
                 ],
             },
         ],

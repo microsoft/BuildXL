@@ -97,6 +97,7 @@ namespace BuildXL.VsPackage
         public BuildXLVsPackage()
         {
             Debug.WriteLine(string.Format(CultureInfo.InvariantCulture, "Entering constructor for: {0}", GetType().ToString()));
+
             m_projectInfoDictionary = new Dictionary<string, ProjectInfo>(StringComparer.OrdinalIgnoreCase);
 
             // Regular expressions to parse errors or warnings
@@ -214,7 +215,7 @@ namespace BuildXL.VsPackage
                                            + "Publisher=\"Microsoft\"\\s*/>");
 
             string source_extension = null;
-            using (var sr = new StreamReader(Assembly.GetExecutingAssembly().GetManifestResourceStream("BuildXL.VsPackage.source.extension.vsixmanifest")))
+            using (var sr = new StreamReader(Assembly.GetExecutingAssembly().GetManifestResourceStream("BuildXL.VsPackage.extension.vsixmanifest")))
             {
                 source_extension = sr.ReadToEnd();
             }
@@ -226,7 +227,7 @@ namespace BuildXL.VsPackage
                 return;
             }
 
-            // Ensure that the same version number is mentioned in source.extension.vsixmanifest and Support\BuildXL.Task.targets
+            // Ensure that the same version number is mentioned in extension.vsixmanifest and Support\BuildXL.Task.targets
             var version = match.Groups["VERSION"].Value.Trim();
             globalcollection.SetGlobalProperty(Constants.DominoPackageVersion, version);
         }

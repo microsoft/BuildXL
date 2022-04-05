@@ -25,7 +25,7 @@ namespace BuildXLVsPackage {
             {
                 linkedContent: [
                     Branding.iconFile,
-                    f`source.extension.vsixmanifest`,
+                    f`extension.vsixmanifest`,
                 ],
             },
         ],

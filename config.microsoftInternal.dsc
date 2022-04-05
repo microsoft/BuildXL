@@ -15,7 +15,7 @@ export const pkgs = isMicrosoftInternal ? [
     { id: "BuildXL.DeviceMap", version: "0.0.1" },
 
     // Metrics library used by .net core CaSaaS
-    {id: "microsoft.cloud.instrumentationframework.netstd", version: "1.2.1011530001"},
+    {id: "Microsoft.Cloud.InstrumentationFramework.NetStd", version: "1.2.1011530001"},
 
     // Runtime dependencies used for macOS deployments
     { id: "runtime.osx-x64.BuildXL", version: "3.8.99" },
@@ -59,7 +59,7 @@ export const pkgs = isMicrosoftInternal ? [
     { id: "PowerShell.Core", version: "6.1.0", osSkip: [ "macOS", "unix" ] },
 
     // Officially mantained CB package that contains Yarn. Used for Yarn tests.
-    { id: "Npm.OnCloudBuild", version: "3.1.0" },
+    { id: "NPM.OnCloudbuild", version: "3.1.0" },
 
     // IcM and dependencies
     { id: "Microsoft.AzureAd.Icm.Types.amd64", version: "2.2.1363.11" },

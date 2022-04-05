@@ -6,7 +6,7 @@ namespace Analyzer {
     @@public
     export const exe = BuildXLSdk.executable({
         assemblyName: "bxlcacheanalyzer",
-        appConfig: f`App.Config`,
+        appConfig: f`App.config`,
         sources: globR(d`.`, "*.cs"),
         references: [
             ...addIf(BuildXLSdk.isFullFramework,

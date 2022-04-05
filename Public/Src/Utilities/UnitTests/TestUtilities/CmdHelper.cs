@@ -6,8 +6,8 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
+using BuildXL.Interop.Unix;
 using BuildXL.Utilities;
-using static BuildXL.Interop.Unix.IO;
 
 namespace Test.BuildXL.Processes
 {
@@ -19,7 +19,6 @@ namespace Test.BuildXL.Processes
         private static readonly string s_cmdX64 = Path.Combine(Environment.SystemDirectory, "cmd.exe");
         private static readonly string s_cmdX86 = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.SystemX86), "cmd.exe");
         private static readonly string s_conhost = Path.Combine(Environment.SystemDirectory, "conhost.exe");
-        private static readonly string[] s_cmdExecutables = { s_cmdX64, s_cmdX86, s_conhost };
 
         /// <summary>
         /// File name of x64 cmd.exe
@@ -39,12 +38,12 @@ namespace Test.BuildXL.Processes
         /// <summary>
         /// File name of the current operating system's shell executable
         /// </summary>
-        public static string OsShellExe => OperatingSystemHelper.IsUnixOS ? BinSh : s_cmdX64;
+        public static string OsShellExe => OperatingSystemHelper.IsUnixOS ? UnixPaths.BinSh : s_cmdX64;
 
         /// <summary>
         /// File name of bash on unix
         /// </summary>
-        public static string Bash => BinBash;
+        public static string Bash => UnixPaths.BinBash;
 
         /// <summary>
         /// Gets list of files used by cmd.exe
@@ -59,7 +58,7 @@ namespace Test.BuildXL.Processes
             return (OperatingSystemHelper.IsUnixOS
                 ? new string[] 
                 {
-                    BinSh
+                    UnixPaths.BinSh
                 }
                 : new string[]
                 {
@@ -78,15 +77,15 @@ namespace Test.BuildXL.Processes
             return (OperatingSystemHelper.IsUnixOS
                 ? new string[]
                 {
-                    Bin,
-                    Dev,
-                    UsrBin,
-                    UsrLib,
-                    Private,
-                    Etc,
-                    Var,
-                    AppleInternal,
-                    LibraryPreferencesLogging
+                    UnixPaths.Bin,
+                    UnixPaths.Dev,
+                    UnixPaths.UsrBin,
+                    UnixPaths.UsrLib,
+                    UnixPaths.Private,
+                    UnixPaths.Etc,
+                    UnixPaths.Var,
+                    MacPaths.AppleInternal,
+                    MacPaths.LibraryPreferencesLogging
                 }
                 : new string[]
                 {

@@ -10,7 +10,7 @@ import {Transformer} from "Sdk.Transformers";
 export function getYarn() : StaticDirectory {
     if (Environment.getFlag("[Sdk.BuildXL]microsoftInternal")) {
         // Internally in Microsoft we use a nuget package that contains Yarn.
-        return Transformer.reSealPartialDirectory(importFrom("Npm.OnCloudBuild").Contents.all, r`tools/Yarn`);
+        return Transformer.reSealPartialDirectory(importFrom("NPM.OnCloudbuild").Contents.all, r`tools/Yarn`);
     }
 
     // For the public build, we require Yarn to be installed

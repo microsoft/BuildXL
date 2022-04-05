@@ -351,8 +351,8 @@ namespace BuildXL.Interop.Unix
         [Flags]
         public enum CloneFileFlags : int
         {
-            CLONE_NONE        = 0x0000, // No flag.
-            CLONE_NOFOLLOW    = 0x0001, // Don't follow symbolic links.
+            CLONE_NONE = 0x0000, // No flag.
+            CLONE_NOFOLLOW = 0x0001, // Don't follow symbolic links.
             CLONE_NOOWNERCOPY = 0x0002, // Don't copy ownership information from source.
         }
 
@@ -394,45 +394,52 @@ namespace BuildXL.Interop.Unix
             ? throw new NotImplementedException()
             : Impl_Linux.posix_fadvise(ToInt(handle), offset, length, (int)hint);
 
+    }
+
+    public static class UnixPaths
+    {
+        public const string Bin             = "/bin";
+        public const string BinBash         = "/bin/bash";
+        public const string BinSh           = "/bin/sh";
+        public const string Dev             = "/dev";
+        public const string Etc             = "/etc";
+        public const string EtcOsRelease    = "/etc/os-release"; // symlink on Linux
+        public const string EtcMasterPasswd = "/etc/master.passwd";
+        public const string EtcLocalTime    = "/etc/localtime";
+        public const string LibLinuxGnu     = "/lib/x86_64-linux-gnu";
+        public const string Lib64           = "/lib64";
+        public const string Private         = "/private";
+        public const string PrivateVar      = "/private/var";
+        public const string Proc            = "/proc";
+        public const string Sbin            = "/sbin";
+        public const string Sys             = "/sys";
+        public const string TmpDir          = "/tmp";
+        public const string Usr             = "/usr";
+        public const string UsrBin          = "/usr/bin";
+        public const string UsrInclude      = "/usr/include";
+        public const string UsrLib          = "/usr/lib";
+        public const string UsrLibexec      = "/usr/libexec";
+        public const string UsrShare        = "/usr/share";
+        public const string UsrStandalone   = "/usr/standalone";
+        public const string UsrSbin         = "/usr/sbin";
+        public const string Var             = "/var";
+    }
+
+    public static class MacPaths
+    {
         private static readonly string s_user = Environment.GetEnvironmentVariable("USER") ?? string.Empty;
 
-        public const string AppleInternal             = "/AppleInternal";
-        public const string Applications              = "/Applications";
-        public const string Bin                       = "/bin";
-        public const string BinBash                   = "/bin/bash";
-        public const string BinSh                     = "/bin/sh";
-        public const string Dev                       = "/dev";
-        public const string Etc                       = "/etc";
-        public const string EtcOsRelease              = "/etc/os-release"; // symlink on Linux
-        public const string EtcMasterPasswd           = "/etc/master.passwd";
-        public const string LibLinuxGnu               = "/lib/x86_64-linux-gnu";
-        public const string Lib64                     = "/lib64";
-        public const string Library                   = "/Library";
-        public const string LibraryPreferencesLogging = "/Library/Preferences/Logging";
-        public const string Private                   = "/private";
-        public const string PrivateVar                = "/private/var";
-        public const string Proc                      = "/proc";
-        public const string Sbin                      = "/sbin";
-        public const string Sys                       = "/sys";
-        public const string System                    = "/System";
-        public const string SystemLibrary             = "/System/Library";
-        public const string TmpDir                    = "/tmp";
-        public const string Usr                       = "/usr";
-        public const string UsrBin                    = "/usr/bin";
-        public const string UsrInclude                = "/usr/include";
-        public const string UsrLib                    = "/usr/lib";
-        public const string UsrLibexec                = "/usr/libexec";
-        public const string UsrShare                  = "/usr/share";
-        public const string UsrStandalone             = "/usr/standalone";
-        public const string UsrSbin                   = "/usr/sbin";
-        public const string Var                       = "/var";
-
-        public static readonly string UserProvisioning      = $"/Users/{s_user}/Library/MobileDevice/Provisioning Profiles";
-        public static readonly string UserKeyChainsDb       = $"/Users/{s_user}/Library/Keychains/login.keychain-db";
-        public static readonly string UserKeyChains         = $"/Users/{s_user}/Library/Keychains/login.keychain";
-        public static readonly string UserCFTextEncoding    = $"/Users/{s_user}/.CFUserTextEncoding";
-        public static readonly string UserPreferences       = $"/Users/{s_user}/Library/Preferences";
-        public static readonly string EtcLocalTime         = $"/etc/localtime";
+        public const string AppleInternal                 = "/AppleInternal";
+        public const string Applications                  = "/Applications";
+        public const string Library                       = "/Library";
+        public const string LibraryPreferencesLogging     = "/Library/Preferences/Logging";
+        public const string System                        = "/System";
+        public const string SystemLibrary                 = "/System/Library";
+        public static readonly string UserProvisioning    = $"/Users/{s_user}/Library/MobileDevice/Provisioning Profiles";
+        public static readonly string UserKeyChainsDb     = $"/Users/{s_user}/Library/Keychains/login.keychain-db";
+        public static readonly string UserKeyChains       = $"/Users/{s_user}/Library/Keychains/login.keychain";
+        public static readonly string UserCFTextEncoding  = $"/Users/{s_user}/.CFUserTextEncoding";
+        public static readonly string UserPreferences     = $"/Users/{s_user}/Library/Preferences";
     }
 }
 #pragma warning restore CS1591

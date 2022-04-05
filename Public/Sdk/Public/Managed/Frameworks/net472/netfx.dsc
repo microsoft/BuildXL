@@ -151,7 +151,7 @@ export const NetFx = {
                 dll: createFacade(r`System.Collections.Concurrent.dll`),
             },
             NonGeneric: {
-                dll: createFacade(r`System.Collections.Nongeneric.dll`),
+                dll: createFacade(r`System.Collections.NonGeneric.dll`),
             },
             Specialized: {
                 dll: createFacade(r`System.Collections.Specialized.dll`),
@@ -182,7 +182,7 @@ export const NetFx = {
                 dll: createFacade(r`System.ComponentModel.Primitives.dll`),
             },
             TypeConverter: {
-                dll: createFacade(r`System.ComponentModel.Typeconverter.dll`),
+                dll: createFacade(r`System.ComponentModel.TypeConverter.dll`),
             }
         },
         Configuration: {
@@ -244,19 +244,19 @@ export const NetFx = {
                 dll: createFacade(r`System.Diagnostics.Debug.dll`),
             },
             FileVersionInfo: {
-                dll: createFacade(r`System.Diagnostics.Fileversioninfo.dll`),
+                dll: createFacade(r`System.Diagnostics.FileVersionInfo.dll`),
             },
             Process: {
                 dll: createFacade(r`System.Diagnostics.Process.dll`),
             },
             StackTrace: {
-                dll: createFacade(r`System.Diagnostics.Stacktrace.dll`),
+                dll: createFacade(r`System.Diagnostics.StackTrace.dll`),
             },
             TextWriterTraceListener: {
                 dll: createFacade(r`System.Diagnostics.TextWriterTraceListener.dll`),
             },
             TraceSource: {
-                dll: createFacade(r`System.Diagnostics.Tracesource.dll`),
+                dll: createFacade(r`System.Diagnostics.TraceSource.dll`),
             },
             Tools: {
                 dll: createFacade(r`System.Diagnostics.Tools.dll`),

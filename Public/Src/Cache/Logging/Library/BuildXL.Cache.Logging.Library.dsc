@@ -21,7 +21,7 @@ namespace Library {
             ...BuildXLSdk.systemThreadingTasksDataflowPackageReference,
 
             ...addIfLazy(BuildXLSdk.Flags.isMicrosoftInternal, () => [
-                importFrom("microsoft.cloud.instrumentationframework.netstd").pkg,
+                importFrom("Microsoft.Cloud.InstrumentationFramework.NetStd").pkg,
                 ]),
         ],
         internalsVisibleTo: [
@@ -34,7 +34,7 @@ namespace Library {
 
         export declare const qualifier : {targetRuntime: "win-x64" | "osx-x64" | "linux-x64"};
 
-        const pkgContents = importFrom("microsoft.cloud.instrumentationframework.netstd").Contents.all;
+        const pkgContents = importFrom("Microsoft.Cloud.InstrumentationFramework.NetStd").Contents.all;
 
         @@public
         export const runtimeContent: SdkDeployment.Definition = BuildXLSdk.Flags.isMicrosoftInternal ? {

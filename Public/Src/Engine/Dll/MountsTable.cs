@@ -9,6 +9,7 @@ using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Reflection;
 using BuildXL.Engine.Tracing;
+using BuildXL.Interop.Unix;
 using BuildXL.Native.IO;
 using BuildXL.Pips;
 using BuildXL.Utilities;
@@ -17,7 +18,6 @@ using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
 using JetBrains.Annotations;
-using MacPaths = BuildXL.Interop.Unix.IO;
 
 namespace BuildXL.Engine
 {
@@ -167,13 +167,16 @@ namespace BuildXL.Engine
             }
             else
             {
-                table.AddStaticSystemMount("Applications", MacPaths.Applications, trackSourceFileChanges: true);
-                table.AddStaticSystemMount("Bin", MacPaths.Bin, trackSourceFileChanges: true);
-                table.AddStaticSystemMount("UsrBin", MacPaths.UsrBin, trackSourceFileChanges: true);
-                table.AddStaticSystemMount("UsrInclude", MacPaths.UsrInclude, trackSourceFileChanges: true);
-                table.AddStaticSystemMount("UsrLib", MacPaths.UsrLib, trackSourceFileChanges: true);
-                table.AddStaticSystemMount("Library", MacPaths.Library, trackSourceFileChanges: true);
-                table.AddStaticSystemMount("UserProvisioning", MacPaths.UserProvisioning, trackSourceFileChanges: true);
+                table.AddStaticSystemMount("Bin", UnixPaths.Bin, trackSourceFileChanges: true);
+                table.AddStaticSystemMount("UsrBin", UnixPaths.UsrBin, trackSourceFileChanges: true);
+                table.AddStaticSystemMount("UsrInclude", UnixPaths.UsrInclude, trackSourceFileChanges: true);
+                table.AddStaticSystemMount("UsrLib", UnixPaths.UsrLib, trackSourceFileChanges: true);
+                if (OperatingSystemHelper.IsMacOS)
+                {
+                    table.AddStaticSystemMount("Applications", MacPaths.Applications, trackSourceFileChanges: true);
+                    table.AddStaticSystemMount("Library", MacPaths.Library, trackSourceFileChanges: true);
+                    table.AddStaticSystemMount("UserProvisioning", MacPaths.UserProvisioning, trackSourceFileChanges: true);
+                }
             }
 
             return table;

@@ -6,11 +6,11 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
+using BuildXL.Interop.Unix;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Instrumentation.Common;
 using static BuildXL.Utilities.BuildParameters;
-using MacPaths = BuildXL.Interop.Unix.IO;
 
 namespace BuildXL.Processes
 {
@@ -70,10 +70,10 @@ namespace BuildXL.Processes
                     SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.Windows),
                     Path.Combine(SpecialFolderUtilities.SystemDirectory, "wbem")
 #else
-                    MacPaths.UsrBin,
-                    MacPaths.UsrSbin,
-                    MacPaths.Bin,
-                    MacPaths.Sbin
+                    UnixPaths.UsrBin,
+                    UnixPaths.UsrSbin,
+                    UnixPaths.Bin,
+                    UnixPaths.Sbin
 #endif
                 );
 
@@ -108,7 +108,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// Gets the effective environment variables, taking into account default and machine-specific values
         /// </summary>
-        public IBuildParameters GetEffectiveEnvironmentVariables(Process pip, PipFragmentRenderer pipFragmentRenderer, int currentUserRetryCount, IReadOnlyList<string> globalUnsafePassthroughEnvironmentVariables = null)
+        public IBuildParameters GetEffectiveEnvironmentVariables(Pips.Operations.Process pip, PipFragmentRenderer pipFragmentRenderer, int currentUserRetryCount, IReadOnlyList<string> globalUnsafePassthroughEnvironmentVariables = null)
         {
             Contract.Requires(pipFragmentRenderer != null);
             Contract.Requires(pip != null);
@@ -147,7 +147,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// Gets the effective environment variables, taking into account default and machine-specific values
         /// </summary>
-        public IBuildParameters GetEffectiveEnvironmentVariables(PathTable pathTable, Process pip)
+        public IBuildParameters GetEffectiveEnvironmentVariables(PathTable pathTable, Pips.Operations.Process pip)
         {
             Contract.Requires(pathTable != null);
             Contract.Requires(pip != null);

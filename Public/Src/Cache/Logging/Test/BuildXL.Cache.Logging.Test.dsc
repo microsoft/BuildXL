@@ -21,7 +21,7 @@ namespace Test {
             ...BuildXLSdk.bclAsyncPackages,
             
             ...addIfLazy(BuildXLSdk.Flags.isMicrosoftInternal, () => [
-                importFrom("microsoft.cloud.instrumentationframework.netstd").pkg,
+                importFrom("Microsoft.Cloud.InstrumentationFramework.NetStd").pkg,
                 ]),
 
             ...BuildXLSdk.fluentAssertionsWorkaround,

@@ -113,6 +113,15 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "Bond.CSharp.linux-x64",
+          "Version": "8.0.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "Bond.CSharp.osx-x64",
           "Version": "8.0.0"
         }
@@ -1193,6 +1202,15 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "Microsoft.Cloud.InstrumentationFramework.NetStd",
+          "Version": "1.2.1011530001"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "Microsoft.CodeAnalysis.Analyzers",
           "Version": "3.3.1"
         }
@@ -1393,6 +1411,15 @@
         "NuGet": {
           "Name": "Microsoft.Diagnostics.Tracing.TraceEvent",
           "Version": "2.0.30"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.DotNet.XUnitConsoleRunner",
+          "Version": "2.5.1-beta.19270.4"
         }
       }
     },
@@ -2750,6 +2777,15 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "NPM.OnCloudbuild",
+          "Version": "3.1.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "Nerdbank.Streams",
           "Version": "2.6.81"
         }
@@ -2786,16 +2822,7 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "Npm.OnCloudBuild",
-          "Version": "3.1.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "NuGet.Commandline",
+          "Name": "NuGet.CommandLine",
           "Version": "4.7.1"
         }
       }
@@ -4534,24 +4561,6 @@
         "NuGet": {
           "Name": "boost",
           "Version": "1.71.0.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "microsoft.cloud.instrumentationframework.netstd",
-          "Version": "1.2.1011530001"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "microsoft.dotnet.xunitconsolerunner",
-          "Version": "2.5.1-beta.19270.4"
         }
       }
     },

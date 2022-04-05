@@ -9,7 +9,7 @@ namespace Execution.Analyzer {
     @@public
     export const exe = BuildXLSdk.executable({
         assemblyName: "bxlanalyzer",
-        appConfig: f`App.Config`,
+        appConfig: f`App.config`,
         generateLogs: true,
         rootNamespace: "BuildXL.Execution.Analyzer",
         skipDocumentationGeneration: true,

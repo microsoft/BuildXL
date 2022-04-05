@@ -58,7 +58,7 @@ export function assembly(args: Arguments, targetType: Csc.TargetType) : Result {
         Contract.fail(`The specified framework does not match the given qualifier. Your project uses targetFramework '${qualifier.targetFramework}' where the specified framework is '${framework.targetFramework}'.`);
     }
 
-    // Check if we need to update or create the App.Config file for assembly binding redirects.
+    // Check if we need to update or create the App.config file for assembly binding redirects.
     let appConfig = processAppConfigAndBindingRedirects(args, framework);
 
     args = processDeploymentDefaults(args, targetType, framework, appConfig);
@@ -319,7 +319,7 @@ function processAppConfigAndBindingRedirects(args: Arguments, framework: Shared.
             )
         );
 
-        let updatedAppConfigPath = p`${Context.getNewOutputDirectory("assemblyBindingRedirects")}/app.config`;
+        let updatedAppConfigPath = p`${Context.getNewOutputDirectory("assemblyBindingRedirects")}/App.config`;
         appConfig = Xml.write(updatedAppConfigPath, Xml.doc(patchedConfiguration));
     }
 
@@ -493,7 +493,7 @@ export interface Arguments {
     /** Optional assembly information */
     assemblyInfo?: AssemblyInfo;
 
-    /** Optional set of assembly binding redirects. If there is an existing app.config file, it will be merged with it, else when these are present one will be emitted. */
+    /** Optional set of assembly binding redirects. If there is an existing App.config file, it will be merged with it, else when these are present one will be emitted. */
     assemblyBindingRedirects?: AssemblyBindingRedirect[];
 
     /** Whether to create a runtime config file like xxxx.deps.json, runtimesettings.json, xxx.exe.config, etc */

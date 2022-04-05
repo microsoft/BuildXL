@@ -15,7 +15,7 @@ namespace App {
         sources: globR(d`.`,"*.cs"),
         skipDocumentationGeneration: true,
         assemblyBindingRedirects: BuildXLSdk.cacheBindingRedirects(),
-        appConfig: f`App.Config`,
+        appConfig: f`App.config`,
         references: [
             ...(BuildXLSdk.isDotNetCoreBuild ? [
                 importFrom("CLAP-DotNetCore").pkg,

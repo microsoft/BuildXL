@@ -26,7 +26,7 @@ fi
 
 function callNuget() {
     if [[ "${OSTYPE}" == "linux-gnu" ]]; then
-        nuget "$@"
+        $MONO_HOME/mono Shared/Tools/NuGet.exe "$@"
     elif [[ "${OSTYPE}" == "darwin"* ]]; then
         $MONO_HOME/mono Shared/Tools/NuGet.exe "$@"
     else
@@ -65,7 +65,7 @@ function getLkg() {
 }
 
 function setMinimal() {
-    arg_Positional+=(/q:Debug${HostQualifier} "/f:output='$MY_DIR/Out/bin/debug/${DeploymentFolder}/*'")
+    arg_Positional+=(/q:Debug${HostQualifier} "/f:output='$MY_DIR/Out/Bin/debug/${DeploymentFolder}/*'")
 }
 
 function setInternal() {
@@ -193,7 +193,7 @@ if [[ -n "$arg_DeployDev" || -n "$arg_Minimal" ]]; then
 fi
 
 if [[ -n "$arg_DeployDevRelease" ]]; then
-    arg_Positional+=(/q:Release${HostQualifier} "/f:output='$MY_DIR/Out/bin/release/${DeploymentFolder}/*'")
+    arg_Positional+=(/q:Release${HostQualifier} "/f:output='$MY_DIR/Out/Bin/release/${DeploymentFolder}/*'")
 fi
 
 if [[ -n "$arg_Internal" ]]; then
@@ -211,7 +211,7 @@ if [[ -n "$arg_UseDev" ]]; then
     fi
 
     export BUILDXL_BIN=$MY_DIR/Out/Selfhost/Dev
-else
+elif [[ -z "$BUILDXL_BIN" ]]; then
     getLkg
 fi
 

@@ -199,7 +199,7 @@ function build {
     setBxlCmdArgs
 
     local bxlExe="$arg_BuildXLBin/bxl"
-    chmod u=rx "$bxlExe"
+    chmod u=rx "$bxlExe" || true # could already be executable
 
     print_info "${tputBold}Running bxl:${tputReset} '$bxlExe' ${g_bxlCmdArgs[@]}"
 

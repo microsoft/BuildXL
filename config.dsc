@@ -71,7 +71,8 @@ config({
                 { id: "NLog", version: "4.7.7" },
                 { id: "Bond.Core.CSharp", version: "8.0.0" },
                 { id: "Bond.CSharp", version: "8.0.0" },
-                { id: "Bond.CSharp.osx-x64", version: "8.0.0" },
+                { id: "Bond.CSharp.osx-x64", version: "8.0.0", osSkip: [ "unix" ] },
+                { id: "Bond.CSharp.linux-x64", version: "8.0.0", osSkip: [ "macOS" ] },
                 { id: "Bond.Runtime.CSharp", version: "8.0.0" },
                 { id: "CLAP", version: "4.6" },
                 { id: "CLAP-DotNetCore", version: "4.6" },
@@ -163,7 +164,7 @@ config({
                 { id: "System.Threading.Tasks.Dataflow", version: "4.9.0" },
 
                 // Nuget
-                { id: "NuGet.Commandline", version: "4.7.1" },
+                { id: "NuGet.CommandLine", version: "4.7.1" },
                 { id: "NuGet.Versioning", version: "4.6.0" }, // Can't use the latest becuase nuget extracts to folder with metadata which we don't support yet.
                 { id: "NuGet.Frameworks", version: "5.0.0"}, // needed for qtest on .net core
 
@@ -222,7 +223,7 @@ config({
                 { id: "xunit.extensibility.core", version: "2.4.1" },
                 { id: "xunit.extensibility.execution", version: "2.4.1" },
                 { id: "xunit.runner.console", version: "2.4.1" },
-                { id: "microsoft.dotnet.xunitconsolerunner", version: "2.5.1-beta.19270.4" },
+                { id: "Microsoft.DotNet.XUnitConsoleRunner", version: "2.5.1-beta.19270.4" },
                 { id: "xunit.runner.reporters", version: "2.4.1-pre.build.4059" },
                 { id: "xunit.runner.utility", version: "2.4.1" },
                 { id: "xunit.runner.visualstudio", version: "2.4.1", dependentPackageIdsToSkip: ["Microsoft.NET.Test.Sdk"]  },
@@ -267,7 +268,7 @@ config({
                 // drop-in replacement here.
                 { id: "MemuraiDeveloper", version: "2.0.3", osSkip: [ "macOS", "unix" ] },
                 { id: "Redis-osx-x64", version: "1.0.0", osSkip: importFile(f`config.microsoftInternal.dsc`).isMicrosoftInternal
-                    ? [ "win" ]
+                    ? [ "win", "unix" ]
                     : [ "win", "macOS", "unix" ] },
 
                 // Testing

@@ -8,7 +8,9 @@ import * as MacOS from "Sdk.MacOS";
 // TODO: build 'gbc' from sources on Linux and publish Bond.CSharp.linux-x64
 const pkgContents = Context.getCurrentHost().os === "win"
     ? importFrom("Bond.CSharp").Contents.all
-    : importFrom("Bond.CSharp.osx-x64").Contents.all;
+    : Context.getCurrentHost().os === "macOS"
+        ? importFrom("Bond.CSharp.osx-x64").Contents.all
+        : importFrom("Bond.CSharp.linux-x64").Contents.all;
 
 @@public
 export const tool : Transformer.ToolDefinition = {

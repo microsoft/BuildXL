@@ -209,6 +209,8 @@ export function compile(inputArgs: Arguments) : Result {
                     d`/tmp`,
                     d`/dev`,
                     d`/etc`,
+                    d`/lib`,
+                    d`/lib64`,
                     d`/private`,
                     d`/System`,
                     d`/Library`,

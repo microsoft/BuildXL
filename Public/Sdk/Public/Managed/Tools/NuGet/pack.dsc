@@ -5,13 +5,13 @@ import {Artifact, Cmd, Transformer} from "Sdk.Transformers";
 
 import * as Managed    from "Sdk.Managed.Shared";
 import * as Deployment from "Sdk.Deployment";
-import * as Nuget      from "NuGet.Commandline";
+import * as Nuget      from "NuGet.CommandLine";
 import * as Xml        from "Sdk.Xml";
 import * as Mono       from "Sdk.Mono";
 
 @@public
 export const tool : Transformer.ToolDefinition = {
-    exe: Nuget.Contents.all.getFile(r`tools/nuget.exe`),
+    exe: Nuget.Contents.all.getFile(r`tools/NuGet.exe`),
     description: "NuGet pack",
     untrackedDirectoryScopes: [
         d`${Context.getMount("ProgramData").path}/Nuget`

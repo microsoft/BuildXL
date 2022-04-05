@@ -8,7 +8,7 @@ namespace VstsTest {
     export const dll = !BuildXLSdk.Flags.isVstsArtifactsEnabled || BuildXLSdk.isDotNetCoreBuild ? undefined : BuildXLSdk.cacheTest({
         assemblyName: "BuildXL.Cache.MemoizationStore.Vsts.Test",
         sources: globR(d`.`,"*.cs"),
-        appConfig: f`App.Config`,
+        appConfig: f`App.config`,
         skipTestRun: BuildXLSdk.restrictTestRunToSomeQualifiers,
         runTestArgs: {
             unsafeTestRunArguments: {

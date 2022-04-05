@@ -9,7 +9,7 @@ namespace VfsApplication {
         assemblyName: "bvfs",
         sources: globR(d`.`,"*.cs"),
         skipDocumentationGeneration: true,
-        appConfig: f`App.Config`,
+        appConfig: f`App.config`,
         references: [
             VfsLibrary.dll,
             UtilitiesCore.dll,

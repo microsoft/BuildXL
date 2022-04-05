@@ -295,7 +295,8 @@ namespace BuildXL.FrontEnd.Download
                 // These tools are bundled with the build engine so we trust that their behavior does not change except for when their command line changes.
                 $"untrackedDirectoryScopes: [" +
                 $"  d`{pathToTool.GetParent(m_context.PathTable).ToString(m_context.PathTable)}`," +
-                $"  ...addIfLazy(Context.getCurrentHost().os === \"win\", () => [d`${{Context.getMount(\"LocalLow\").path}}/Microsoft/CryptnetFlushCache`])" +
+                $"  ...addIfLazy(Context.getCurrentHost().os === \"win\", () => [d`${{Context.getMount(\"LocalLow\").path}}/Microsoft/CryptnetFlushCache`])," +
+                $"  ...addIfLazy(Context.getCurrentHost().os !== \"win\", () => [d`${{Context.getMount(\"UserProfile\").path}}/.dotnet`])" +
                 $"]}};";
         }
 

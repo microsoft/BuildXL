@@ -2,12 +2,13 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
+using BuildXL.Interop.Unix;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
-using UnixPaths = BuildXL.Interop.Unix.IO;
 
 namespace BuildXL.Pips.Graph
 {
@@ -52,13 +53,12 @@ namespace BuildXL.Pips.Graph
                     QualifierId.Unqualified,
                     PipData.Invalid);
 
-                m_sourceSealDirectoryPaths =
-                    new[]
-                    {
-                        UnixPaths.Applications,
-                        UnixPaths.Library,
-                        UnixPaths.UserProvisioning
-                    }
+                m_sourceSealDirectoryPaths = Enumerable
+                    .Empty<string>()
+                    .Concat(IfMacOs(
+                        MacPaths.Applications,
+                        MacPaths.Library,
+                        MacPaths.UserProvisioning))
                     .Select(p => AbsolutePath.Create(pathTable, p))
                     .ToArray();
 
@@ -67,6 +67,7 @@ namespace BuildXL.Pips.Graph
                 m_lazySourceSealDirectories = Lazy.Create(() =>
                     new DefaultSourceSealDirectories(m_sourceSealDirectoryPaths.Select(p => GetSourceSeal(pipGraph, p)).ToArray()));
 
+                // TODO: try not to untrack so many paths
                 m_untrackedFiles =
                     new[]
                     {
@@ -75,12 +76,13 @@ namespace BuildXL.Pips.Graph
                         UnixPaths.EtcLocalTime,
                         // login.keychain is created by the OS the first time any process invokes an OS API that references the keychain.
                         // Untracked because build state will not be stored there and code signing will fail if required certs are in the keychain
-                        UnixPaths.UserKeyChainsDb,
-                        UnixPaths.UserKeyChains,
-                        UnixPaths.UserCFTextEncoding,
                         UnixPaths.TmpDir,
                         UnixPaths.EtcOsRelease
                     }
+                    .Concat(IfMacOs(
+                        MacPaths.UserKeyChainsDb,
+                        MacPaths.UserKeyChains,
+                        MacPaths.UserCFTextEncoding))
                     .Select(p => FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, p)))
                     .ToArray();
 
@@ -89,11 +91,11 @@ namespace BuildXL.Pips.Graph
                     {
                         UnixPaths.Bin,
                         UnixPaths.Dev,
+                        UnixPaths.Etc, // /etc could be a folder or a directory symlink, hence should be untracked as both a path and a scope
                         UnixPaths.Private,
                         UnixPaths.Proc,
                         UnixPaths.Sbin,
                         UnixPaths.Sys,
-                        UnixPaths.SystemLibrary,
                         UnixPaths.UsrBin,
                         UnixPaths.UsrInclude,
                         UnixPaths.UsrLibexec,
@@ -101,8 +103,6 @@ namespace BuildXL.Pips.Graph
                         UnixPaths.UsrStandalone,
                         UnixPaths.UsrSbin,
                         UnixPaths.Var,
-                        UnixPaths.UserPreferences,
-                        UnixPaths.AppleInternal,
                         // it's important to untrack /usr/lib instead of creating a sealed source directory
                         //   - the set of dynamically loaded libraries during an execution of a process is 
                         //     not necessarily deterministic, i.e., when the same process---which itself is
@@ -112,9 +112,18 @@ namespace BuildXL.Pips.Graph
                         UnixPaths.LibLinuxGnu,
                         UnixPaths.Lib64,
                     }
+                    .Concat(IfMacOs(
+                        MacPaths.AppleInternal,
+                        MacPaths.SystemLibrary,
+                        MacPaths.UserPreferences))
                     .Select(p => DirectoryArtifact.CreateWithZeroPartialSealId(pathTable, p))
                     .ToArray();
             }
+
+            private static IEnumerable<string> IfMacOs(params string[] elems) => If(OperatingSystemHelper.IsMacOS, elems);
+            private static IEnumerable<string> If(bool condition, params string[] elems) => condition
+                ? elems
+                : Enumerable.Empty<string>();
 
             /// <summary>
             /// Augments the processBuilder with the OS dependencies.
@@ -123,7 +132,7 @@ namespace BuildXL.Pips.Graph
             /// <param name="untrackInsteadSourceSeal">when true, directories that are meant to be source sealed are untracked instead</param>
             public bool ProcessDefaults(ProcessBuilder processBuilder, bool untrackInsteadSourceSeal = false)
             {
-                if (processBuilder.Options.HasFlag(Process.Options.DependsOnCurrentOs))
+                if (processBuilder.Options.HasFlag(Operations.Process.Options.DependsOnCurrentOs))
                 {
                     // process source seal directories: either source seal them or untrack them, depending on 'untrackInsteadSourceSeal'
                     if (untrackInsteadSourceSeal)

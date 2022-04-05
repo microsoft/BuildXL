@@ -13,7 +13,7 @@ namespace Main {
         assemblyInfo: {
             fileVersion: Branding.Managed.fileVersion,
         },
-        appConfig: f`App.Config`,
+        appConfig: f`App.config`,
         sources: globR(d`.`, "*.cs"),
         embeddedResources: [{resX: f`Strings.resx`}],
         references: [

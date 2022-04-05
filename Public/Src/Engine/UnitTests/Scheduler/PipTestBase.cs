@@ -11,12 +11,12 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using BuildXL.Engine;
 using BuildXL.Interop;
+using BuildXL.Interop.Unix;
 using BuildXL.Pips;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler;
-using BuildXL.Scheduler.Graph;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
@@ -26,7 +26,8 @@ using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.Processes;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit.Abstractions;
-using MacPaths = BuildXL.Interop.Unix.IO;
+
+using Process = BuildXL.Pips.Operations.Process;
 
 namespace Test.BuildXL.Scheduler
 {
@@ -426,21 +427,21 @@ namespace Test.BuildXL.Scheduler
 
                 Expander.Add(pathTable, new SemanticPathInfo(
                     rootName: PathAtom.Create(stringTable, "UsrBin"),
-                    root: AbsolutePath.Create(pathTable, MacPaths.UsrBin),
+                    root: AbsolutePath.Create(pathTable, UnixPaths.UsrBin),
                     allowHashing: true,
                     readable: true,
                     writable: false));
 
                 Expander.Add(pathTable, new SemanticPathInfo(
                     rootName: PathAtom.Create(stringTable, "UsrInclude"),
-                    root: AbsolutePath.Create(pathTable, MacPaths.UsrInclude),
+                    root: AbsolutePath.Create(pathTable, UnixPaths.UsrInclude),
                     allowHashing: true,
                     readable: true,
                     writable: false));
 
                 Expander.Add(pathTable, new SemanticPathInfo(
                     rootName: PathAtom.Create(stringTable, "UsrLib"),
-                    root: AbsolutePath.Create(pathTable, MacPaths.UsrLib),
+                    root: AbsolutePath.Create(pathTable, UnixPaths.UsrLib),
                     allowHashing: true,
                     readable: true,
                     writable: false));

@@ -1,6 +1,16 @@
 This page is a curated list of the release notes for releases after 0.20170619.4.0 and a manual copy of notable changes from each build before that. See the repo's commit history full details for what is included in each build.
 
 =======
+# 0.1.0-20220327.0 (Release [154760](https://mseng.visualstudio.com/Domino/_releaseProgress?releaseId=154760)) Released 3/30/2022
+-	Added support for using Grpc.NET with .net6
+-	Fix for cache client logger crash
+-	Emit target failed event for eventual display on CloudBuild UI
+-	Configuration cleanup
+-	Preserve state of statsprf.json file on build timeout
+-	Incremental scheduling performance improvements
+-	Improvements for process remoting server initialization
+
+
 # 0.1.0-20220318.6.1 (Release [152886](https://mseng.visualstudio.com/Domino/_releaseProgress?releaseId=152886)) Released 3/23/2022
 -	Add some tolerance for late-joining workers 
 -	Enable module affinity

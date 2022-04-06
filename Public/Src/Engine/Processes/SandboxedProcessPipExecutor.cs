@@ -1757,7 +1757,7 @@ namespace BuildXL.Processes
                                 // There was an error logged when saving stdout or stderror.
                                 loggingSuccess = false;
                             }
-                            else if (m_sandboxConfig.RetryOnAzureWatsonExitCode && result.Processes.Any(p => p.ExitCode == AzureWatsonExitCode))
+                            else if (m_sandboxConfig.RetryOnAzureWatsonExitCode && result.Processes?.Any(p => p.ExitCode == AzureWatsonExitCode) == true)
                             {
                                 // Retry if the exit code is 0xDEAD.
                                 var deadProcess = result.Processes.Where(p => p.ExitCode == AzureWatsonExitCode).First();

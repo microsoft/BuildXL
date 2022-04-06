@@ -296,7 +296,7 @@ namespace BuildXL.FrontEnd.Download
                 $"untrackedDirectoryScopes: [" +
                 $"  d`{pathToTool.GetParent(m_context.PathTable).ToString(m_context.PathTable)}`," +
                 $"  ...addIfLazy(Context.getCurrentHost().os === \"win\", () => [d`${{Context.getMount(\"LocalLow\").path}}/Microsoft/CryptnetFlushCache`])," +
-                $"  ...addIfLazy(Context.getCurrentHost().os !== \"win\", () => [d`${{Context.getMount(\"UserProfile\").path}}/.dotnet`])" +
+                $"  ...addIfLazy(Context.getCurrentHost().os !== \"win\" && Context.hasMount(\"UserProfile\"), () => [d`${{Context.getMount(\"UserProfile\").path}}/.dotnet`])" +
                 $"]}};";
         }
 

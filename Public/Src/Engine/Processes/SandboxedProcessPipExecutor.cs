@@ -4985,6 +4985,8 @@ namespace BuildXL.Processes
                     EventConstants.PipProcessErrorWroteToStandardError :
                     string.Empty;
 
+            long totalElapsedTimeMS = Convert.ToInt64(result.PrimaryProcessTimes.TotalWallClockTime.TotalMilliseconds);
+
             Tracing.Logger.Log.PipProcessError(
                 m_loggingContext,
                 m_pip.SemiStableHash,
@@ -4996,8 +4998,10 @@ namespace BuildXL.Processes
                 messageAboutPathsToLog,
                 AddTrailingNewLineIfNeeded(outputPathsToLog),
                 result.ExitCode,
-                optionalMessage,
-                m_pip.GetShortDescription(m_context));
+                optionalMessage,                
+                m_pip.GetShortDescription(m_context),
+                totalElapsedTimeMS);          
+
         }
 
         private void HandleErrorsFromTool(string error)

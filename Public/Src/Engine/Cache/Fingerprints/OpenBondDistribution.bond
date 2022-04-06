@@ -130,6 +130,7 @@ struct PipProcessErrorEvent
     9: int32 ExitCode;
     10: string OptionalMessage;
     11: string ShortPipDescription;
+    12: int64 PipExecutionTimeMs;
 }
 
 /// Events that have been logged on workers and are transited to the orchestrator. Any changes here may require changes

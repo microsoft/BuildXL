@@ -798,8 +798,8 @@ namespace BuildXL.Processes.Tracing
             LoggingContext context,
 
             // CAUTION!!!
-            // ConsoleEventListener opens up the payload array to pluck off various members. It must be updated
-            // if the order or type of these parameters change
+            // Refer PipProcessErrorEventFields.cs if any of these fields or the order is changed.
+            // A reference to a field still remains in ConsoleEventListener.cs please refer to that when the fields or the order is changed.
             long pipSemiStableHash,
             string pipDescription,
             string pipSpecPath,
@@ -809,8 +809,9 @@ namespace BuildXL.Processes.Tracing
             string messageAboutPathsToLog,
             string pathsToLog,
             int exitCode,
-            string optionalMessage,
-            string shortPipDescription);
+            string optionalMessage,            
+            string shortPipDescription,
+            long pipExecutionTimeMs);
 
         [GeneratedEvent(
             (int)LogEventId.PipProcessWarning,

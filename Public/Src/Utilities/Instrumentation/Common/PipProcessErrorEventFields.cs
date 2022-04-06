@@ -45,6 +45,9 @@ namespace BuildXL.Utilities.Instrumentation.Common
         /// <nodoc />
         public string ShortPipDescription { get; }
 
+        /// <nodoc />
+        public long PipExecutionTimeMs { get; }
+
         /// <summary>
         /// Construct PipProcessErrorEventFields from eventPayload
         /// </summary>
@@ -66,6 +69,7 @@ namespace BuildXL.Utilities.Instrumentation.Common
 
             OptionalMessage = (string)eventPayload[9 + startIndex];
             ShortPipDescription = (string)eventPayload[10 + startIndex];
+            PipExecutionTimeMs = (long)eventPayload[11 + startIndex];
 #pragma warning restore CS8600
 #pragma warning restore CS8601
 
@@ -89,7 +93,8 @@ namespace BuildXL.Utilities.Instrumentation.Common
             string pathsToLog,
             int exitCode,
             string optionalMessage,
-            string shortPipDescription
+            string shortPipDescription,
+            long pipExecutionTimeMs
             )
         {
             PipSemiStableHash = pipSemiStableHash;
@@ -103,6 +108,7 @@ namespace BuildXL.Utilities.Instrumentation.Common
             ExitCode = exitCode;
             OptionalMessage = optionalMessage;
             ShortPipDescription = shortPipDescription;
+            PipExecutionTimeMs = pipExecutionTimeMs;
         }
     }
 }

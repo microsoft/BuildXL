@@ -309,4 +309,5 @@ message PipProcessErrorEvent {
     int32 ExitCode = 9;
     string OptionalMessage = 10;
     string ShortPipDescription = 11;
+    int64 PipExecutionTimeMs = 12;
 }

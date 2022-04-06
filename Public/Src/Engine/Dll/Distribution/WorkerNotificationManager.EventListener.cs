@@ -74,6 +74,7 @@ namespace BuildXL.Engine.Distribution
                             ExitCode = pipProcessErrorEventFields.ExitCode,
                             OptionalMessage = pipProcessErrorEventFields.OptionalMessage,
                             ShortPipDescription = pipProcessErrorEventFields.ShortPipDescription,
+                            PipExecutionTimeMs = pipProcessErrorEventFields.PipExecutionTimeMs
                         };
                     }
 

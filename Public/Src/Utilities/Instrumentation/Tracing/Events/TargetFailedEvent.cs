@@ -24,7 +24,7 @@ namespace BuildXL.Tracing.CloudBuild
         /// <remarks>
         /// WARNING: INCREMENT IF YOU UPDATE THE PRIMITIVE MEMBERS!
         /// </remarks>
-        public override int Version { get; set; } = 2;
+        public override int Version { get; set; } = 3;
 
         /// <inheritdoc />
         public override EventKind Kind { get; set; } = EventKind.TargetFailed;
@@ -58,6 +58,16 @@ namespace BuildXL.Tracing.CloudBuild
         /// Standard Output path
         /// </summary>
         public string? StdOutputPath { get; set; }
+
+        /// <summary>
+        /// Short Pip Description for Target Error Path
+        /// </summary>
+        public string? ShortPipDescription { get; set; }
+
+        /// <summary>
+        /// PipExecutionTime
+        /// </summary>
+        public long PipExecutionTimeMs { get; set; }
 
     }
 }

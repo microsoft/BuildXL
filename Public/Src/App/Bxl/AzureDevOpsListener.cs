@@ -167,7 +167,7 @@ namespace BuildXL
                     if (actualEventId == (int)LogEventId.PipProcessError)
                     {
                         var pipProcessErrorEventFields = new PipProcessErrorEventFields(eventData.Payload, true);
-                        addPipErrors(pipProcessErrorEventFields, (string)eventData.Payload[15]); 
+                        addPipErrors(pipProcessErrorEventFields, (string)eventData.Payload[16]);
                     }
                 }
                 break;
@@ -175,7 +175,7 @@ namespace BuildXL
 
             void addPipErrors(PipProcessErrorEventFields pipProcessErrorEventFields, string workerId)
             {
-                var semiStableHash = Pip.FormatSemiStableHash(pipProcessErrorEventFields.PipSemiStableHash);
+                string semiStableHash = Pip.FormatSemiStableHash(pipProcessErrorEventFields.PipSemiStableHash);
                 m_buildViewModel.BuildSummary.AddPipError(new BuildSummaryPipDiagnostic
                 {
                     SemiStablePipId = semiStableHash,
@@ -193,6 +193,8 @@ namespace BuildXL
                     TargetId = semiStableHash,
                     StdOutputPath = pipProcessErrorEventFields.OutputToLog,
                     PipDescription = pipProcessErrorEventFields.PipDescription,
+                    ShortPipDescription = pipProcessErrorEventFields.ShortPipDescription,
+                    PipExecutionTimeMs = pipProcessErrorEventFields.PipExecutionTimeMs                    
                 });
             }
         }

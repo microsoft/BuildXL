@@ -194,7 +194,9 @@ namespace BuildXL.Engine.Distribution
                                 forwardedEvent.PipProcessErrorEvent.PathsToLog,
                                 forwardedEvent.PipProcessErrorEvent.ExitCode,
                                 forwardedEvent.PipProcessErrorEvent.OptionalMessage,
-                                forwardedEvent.PipProcessErrorEvent.ShortPipDescription);
+                                forwardedEvent.PipProcessErrorEvent.ShortPipDescription,
+                                forwardedEvent.PipProcessErrorEvent.PipExecutionTimeMs
+                                );
 
                             logForwardedError(
                                 m_loggingContext,

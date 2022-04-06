@@ -97,7 +97,8 @@ namespace BuildXL.Engine.Distribution.Grpc
                         PathsToLog = i.PipProcessErrorEvent.PathsToLog,
                         ExitCode = i.PipProcessErrorEvent.ExitCode,
                         OptionalMessage = i.PipProcessErrorEvent.OptionalMessage,
-                        ShortPipDescription = i.PipProcessErrorEvent.ShortPipDescription
+                        ShortPipDescription = i.PipProcessErrorEvent.ShortPipDescription,
+                        PipExecutionTimeMs = i.PipProcessErrorEvent.PipExecutionTimeMs
                     };
                 }
 
@@ -147,7 +148,8 @@ namespace BuildXL.Engine.Distribution.Grpc
                         PathsToLog = i.PipProcessErrorEvent.PathsToLog,
                         ExitCode = i.PipProcessErrorEvent.ExitCode,
                         OptionalMessage = i.PipProcessErrorEvent.OptionalMessage,
-                        ShortPipDescription = i.PipProcessErrorEvent.ShortPipDescription
+                        ShortPipDescription = i.PipProcessErrorEvent.ShortPipDescription,
+                        PipExecutionTimeMs = i.PipProcessErrorEvent.PipExecutionTimeMs
                     } : null,
                 });
             }

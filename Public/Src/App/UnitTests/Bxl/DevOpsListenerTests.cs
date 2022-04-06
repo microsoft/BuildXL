@@ -79,7 +79,7 @@ namespace Test.BuildXL
             var eventName = "PipProcessError";
             var text = "Pip process error message";
             var pipSemiStableHash = (long)24;
-
+            
             m_eventListener.RegisterEventSource(global::BuildXL.Engine.ETWLogger.Log);
             m_eventListener.NestedLoggerHandler += eventData =>
             {
@@ -119,6 +119,7 @@ namespace Test.BuildXL
             public static PipProcessErrorTestElement Create(BuildXLTestBase testBase)
             {
                 var result = new PipProcessErrorTestElement();
+                long totalElapsedTimeMs = Convert.ToInt64(TimeSpan.FromSeconds(15).TotalMilliseconds);
                 var pipProcessError = new PipProcessErrorEventFields(
                     (long)24,
                     "my cool pip",
@@ -130,7 +131,8 @@ namespace Test.BuildXL
                     @"specs\workingDir\out.txt",
                     -1,
                     "what does this do?",
-                    "my pip");
+                    "my pip",
+                    totalElapsedTimeMs);
 
                 var processedOutputToLog = "Failure message Line1%0D%0A##[error]Failure message Line2%0D##[error]Failure message Line3%0A##[error]";
                 result.ExpectingConsoleLog = @$"##vso[task.logIssue type=error;]DX0064 [Pip0000000000000018, {pipProcessError.ShortPipDescription}, {pipProcessError.PipSpecPath}] - failed with exit code {pipProcessError.ExitCode}, {pipProcessError.OptionalMessage}%0D%0A##[error]{processedOutputToLog}%0D%0A##[error]{pipProcessError.MessageAboutPathsToLog}%0D%0A##[error]{pipProcessError.PathsToLog}";
@@ -157,7 +159,8 @@ namespace Test.BuildXL
                     PipProcessError.PathsToLog,
                     PipProcessError.ExitCode,
                     PipProcessError.OptionalMessage,
-                    PipProcessError.ShortPipDescription);
+                    PipProcessError.ShortPipDescription,
+                    PipProcessError.PipExecutionTimeMs);
             }
 
             public void Dispose()

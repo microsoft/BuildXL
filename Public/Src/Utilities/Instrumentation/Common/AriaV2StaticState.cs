@@ -26,7 +26,7 @@ namespace BuildXL.Utilities.Instrumentation.Common
 
         private static bool s_hasBeenInitialized;
         private static string? s_ariaTelemetryDBLocation;
-        private static IntPtr s_ariaLogger;
+        private static IAriaLogger? s_ariaLogger;
 
         /// <summary>
         /// Used to determine whether AriaV2 logging should be enabled
@@ -70,7 +70,7 @@ namespace BuildXL.Utilities.Instrumentation.Common
 
                     // s_ariaTelemetryDBLocation is defaulting to an empty string when not passed when enabling telemetry, in that case
                     // this causes the DB to be created in the current working directory of the process
-                    s_ariaLogger = AriaNative.CreateAriaLogger(
+                    s_ariaLogger = AriaLoggerFactory.CreateAriaLogger(
                         tenantToken,
                         Path.Combine(s_ariaTelemetryDBLocation, s_ariaTelemetryDBName),
                         (int)teardownTimeout.TotalSeconds);
@@ -110,8 +110,8 @@ namespace BuildXL.Utilities.Instrumentation.Common
                     {
                         try
                         {
-                            AriaNative.DisposeAriaLogger(s_ariaLogger);
-                            s_ariaLogger = IntPtr.Zero;
+                            s_ariaLogger?.Dispose();
+                            s_ariaLogger = null;
                             shutDownResult = ShutDownResult.Success;
                         }
                         catch (Exception ex)
@@ -144,7 +144,7 @@ namespace BuildXL.Utilities.Instrumentation.Common
                 return;
             }
 
-            AriaNative.LogEvent(s_ariaLogger, eventName, eventProperties);
+            s_ariaLogger?.LogEvent(eventName, eventProperties);
         }
 
         /// <summary>

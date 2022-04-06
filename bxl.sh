@@ -91,10 +91,10 @@ function compileWithBxl() {
     )
 
     if [[ -z "${VSTS_BUILDXL_BIN}" ]]; then
-        "$BUILDXL_BIN/bxl.sh" "${args[@]}"
+        bash "$BUILDXL_BIN/bxl.sh" "${args[@]}"
     else
         # Currently only used on VSTS CI to allow for custom BuildXL binary execution
-        "$VSTS_BUILDXL_BIN/bxl.sh" "${args[@]}"
+        bash "$VSTS_BUILDXL_BIN/bxl.sh" "${args[@]}"
     fi
 }
 

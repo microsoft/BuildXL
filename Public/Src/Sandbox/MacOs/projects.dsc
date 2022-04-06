@@ -96,20 +96,6 @@ namespace Sandbox {
         files: globR(d`Sandbox/Sandbox.xcodeproj`, "*")
     });
 
-    const ariaPkg = importFrom("Aria.Cpp.SDK.osx-x64");
-    const ariaXcconfig = Transformer.writeData({
-        outputPath: p`${Context.getNewOutputDirectory("xcconfig")}/Aria.xcconfig`,
-        contents: {
-            separator: "\n",
-            contents: [
-                "GCC_PREPROCESSOR_DEFINITIONS = MICROSOFT_INTERNAL",
-                { separator: "", contents: ["LIBRARY_SEARCH_PATHS = $(inherited) \"", ariaPkg.Contents.all.root, "/osx-x64/tools"]},
-                { separator: "", contents: ["HEADER_SEARCH_PATHS = $(inherited) \"", ariaPkg.Contents.all.root, "/osx-x64/tools/include"]},
-                "OTHER_LDFLAGS = $(inherited) -laria_osx_objc_cpp"
-            ]
-        }
-    });
-
     @@public
     export const bxlESDaemon = isMacOs && build({
         project: bxlAppXcodeproj,
@@ -120,16 +106,6 @@ namespace Sandbox {
         ],
         xcconfig: bundleInfoXCConfig
     }).outFiles;
-
-    @@public
-    export const libAria = !BuildXLSdk.Flags.isMicrosoftInternal ? undefined : isMacOs && build({
-        project: interopXcodeproj,
-        scheme: "AriaLibrary",
-        outFiles: [ a`libBuildXLAria.dylib`],
-        semaphores: [ "BuildXL.Aria" ], // prevents running debug/release builds of Aria concurrently
-        xcconfig: ariaXcconfig,
-        dependencies: [ ariaPkg.Contents.all ]
-    }).outFiles[0];
 
     @@public
     export const libInterop = isMacOs && build({

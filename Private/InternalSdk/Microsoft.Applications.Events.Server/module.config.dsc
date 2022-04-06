@@ -2,6 +2,6 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 module({
-    name: "Aria.Cpp.SDK.win-x64",
-	projects: [f`Aria.Cpp.SDK.win-x64.dsc`]
+    name: "Microsoft.Applications.Events.Server",
+	projects: [f`Microsoft.Applications.Events.Server.dsc`]
 });

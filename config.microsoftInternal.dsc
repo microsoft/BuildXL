@@ -19,8 +19,11 @@ export const pkgs = isMicrosoftInternal ? [
 
     // Runtime dependencies used for macOS deployments
     { id: "runtime.osx-x64.BuildXL", version: "3.8.99" },
-    { id: "Aria.Cpp.SDK.osx-x64", version: "8.5.6" },
     { id: "Aria.Cpp.SDK.win-x64", version: "8.5.6", osSkip: [ "macOS", "unix" ] },
+    // cross-plat Aria SDK and its dependencies
+    { id: "Microsoft.Applications.Events.Server", version: "1.1.3.308", dependentPackageIdsToIgnore: [ "Microsoft.Data.SQLite" ] },
+    { id: "Microsoft.Data.Sqlite", version: "1.1.1" },
+    { id: "SQLite", version: "3.13.0" },
 
     { id: "CB.QTest", version: "21.12.17.115124", osSkip: [ "macOS", "unix" ] },
 

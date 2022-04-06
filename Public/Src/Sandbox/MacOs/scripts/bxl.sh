@@ -50,7 +50,6 @@ function setBxlCmdArgs {
     if [[ "${OSTYPE}" == "linux-gnu" ]]; then
         g_bxlCmdArgs+=(
             /server-
-            /remoteTelemetry-
             /enableEvaluationThrottling
             # setting up core dump creation failed
             /noWarn:460

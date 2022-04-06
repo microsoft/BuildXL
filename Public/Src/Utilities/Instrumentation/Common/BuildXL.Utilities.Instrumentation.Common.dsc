@@ -14,14 +14,13 @@ namespace Common {
         sources: globR(d`.`, '*.cs'),
         nullable: true,
         skipDefaultReferences: true,
-        references: [],
+        references: [
+            importFrom("Microsoft.Applications.Events.Server").pkg
+        ],
         runtimeContent: [
             ...addIf(qualifier.targetRuntime === "win-x64",
                 AriaNative.deployment
             ),
-            ...addIfLazy(MacServices.Deployment.macBinaryUsage !== "none" && qualifier.targetRuntime === "osx-x64", () => [
-                MacServices.Deployment.ariaLibrary
-            ]),
         ],
         internalsVisibleTo: [
             "IntegrationTest.BuildXL.Scheduler",

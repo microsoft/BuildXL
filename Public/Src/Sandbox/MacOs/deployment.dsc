@@ -91,15 +91,6 @@ namespace Deployment {
     };
 
     @@public
-    export const ariaLibrary: SdkDeployment.Definition = {
-        contents: [
-            macBinaryUsage === "build"
-                ? Sandbox.libAria
-                : f`${pkgPath}/${qualifier.configuration}/libBuildXLAria.dylib`
-        ]
-    };
-
-    @@public
     export const interopLibrary: SdkDeployment.Definition = {
         contents: macBinaryUsage === "build"
             ? [ Sandbox.libInterop, Sandbox.libDetours ]

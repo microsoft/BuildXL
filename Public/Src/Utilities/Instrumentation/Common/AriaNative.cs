@@ -11,11 +11,8 @@ namespace BuildXL.Utilities.Instrumentation.Common
     /// </summary>
     public static class AriaNative
     {
-#if PLATFORM_WIN
+        // only used on Windows
         private const string AriaLibName = "x64\\BuildXLAria";
-#else
-        private const string AriaLibName = "libBuildXLAria";
-#endif
 
         /// <nodoc />
         [StructLayout(LayoutKind.Sequential)]

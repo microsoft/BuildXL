@@ -105,13 +105,13 @@ void PolicyResult::ReportIndeterminatePolicyAndSetLastError(FileOperationContext
 }
 
 #if !(MAC_OS_SANDBOX) && !(MAC_OS_LIBRARY)
-bool PolicyResult::AllowWrite() const {
+bool PolicyResult::AllowWrite(bool basedOnlyOnPolicy) const {
 
     bool isWriteAllowedByPolicy = (m_policy & FileAccessPolicy_AllowWrite) != 0;
 
     // Send a special message to managed code if the policy to override allowed writes based on file existence is set
     // and the write is allowed by policy (for the latter, if the write is denied, there is nothing to override)
-    if (!IndicateUntracked() && isWriteAllowedByPolicy && OverrideAllowWriteForExistingFiles()) {
+    if (!basedOnlyOnPolicy && !IndicateUntracked() && isWriteAllowedByPolicy && OverrideAllowWriteForExistingFiles()) {
 
         // Let's check if this path was already checked for allow writes in this process. Observe this structure lifespan is the same
         // as the current process so other child processes won't share it.

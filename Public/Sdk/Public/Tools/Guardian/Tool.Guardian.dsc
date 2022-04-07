@@ -119,7 +119,6 @@ export function runGuardian(args: GuardianArguments) : Transformer.ExecuteResult
             args.guardianToolRootDirectory,
             f`${guardianPaths.globalGuardianRepo}`,
             ...args.guardianConfigFiles,
-            ...addIfLazy(args.additionalDependencies !== undefined, () => args.additionalDependencies),
             args.guardianPackageDirectory
         ];
 
@@ -173,7 +172,7 @@ function validateArguments(args: GuardianArguments) : void {
     Contract.requires(args.guardianConfigFiles !== undefined, "Guardian config file must be set.");
     Contract.requires(args.guardianResultFile !== undefined, "Guardian output file must be set.");
     Contract.requires(args.guardianPackageDirectory !== undefined, "Guardian tool package install directory must be set.");
-    Contract.requires(args.filesToBeScanned !== undefined, "Files to be scanned by Guardian must be set.");
+    Contract.requires(args.dependencies !== undefined, "Dependencies by Guardian must be set.");
 
     if (args.fast && args.baselineFiles) {
         Contract.fail("The --fast argument is incompatible with the output baseline file argument, as this will require a full run of guardian break to generate all the results.");
@@ -383,7 +382,7 @@ function runGuardianInternal(args : GuardianArguments, guardianTool : Transforme
     ];
 
     // Dependencies
-    guardianDependencies = guardianDependencies.concat(args.filesToBeScanned);
+    guardianDependencies = guardianDependencies.concat(args.dependencies);
     
     if (args.baselineFiles) {
         guardianDependencies = guardianDependencies.concat(args.baselineFiles);
@@ -530,12 +529,10 @@ export interface GuardianArguments extends Transformer.RunnerArguments {
     /** Optional Guardian tool working directory. Default: SourceRoot
      ** Note: the default directory "TargetDirectory" for many tools will be this working directory. */
     guardianToolWorkingDirectory?: Directory;
-    /** Collection of files that guardian will be scanning
+    /** Collection of files that guardian will be scanning and artifacts to depend on before running Guardian
      ** Note: in many cases (such as with credscan), a user cannot specify which files specifically
      **       to run through the tool, so glob all source files that will be touched by the tool here */
-    filesToBeScanned: File[];
-    /** Any additional artifacts to depend on before running Guardian in addition to the ones declared in filesToBeScanned */
-    additionalDependencies?: Transformer.InputArtifact[];
+    dependencies?: Transformer.InputArtifact[];
     /** An optional path to a file to redirect the guardian logger output */
     loggerPath?: File;
     /** Indicate whether Guardian should fail entire job after the first failure

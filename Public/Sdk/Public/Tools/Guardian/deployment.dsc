@@ -16,6 +16,9 @@ export const internalDeployment : Deployment.Definition = {
     contents: [
         f`Tool.Guardian.dsc`,
         f`Tool.Guardian.ComplianceBuild.dsc`,
+        f`Tool.Guardian.CredScan.dsc`,
+        f`Tool.Guardian.EsLint.dsc`,
+        f`Tool.Guardian.PsScriptAnalyzer.dsc`,
         {file: f`LiteralFiles/module.config.dsc.literal`, targetFileName: a`module.config.dsc`},
     ]
 };

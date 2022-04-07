@@ -6,6 +6,9 @@ module({
     projects: [
         f`deployment.dsc`,
         f`Tool.Guardian.dsc`,
-        ...addIf(Environment.getFlag("[Sdk.BuildXL]microsoftInternal") && Context.getCurrentHost().os === "win", f`Tool.Guardian.ComplianceBuild.dsc`) // Only used for Cloudbuild builds
+        ...addIf(Environment.getFlag("[Sdk.BuildXL]microsoftInternal") && Context.getCurrentHost().os === "win", f`Tool.Guardian.ComplianceBuild.dsc`), // Only used for Cloudbuild builds
+        ...addIf(Environment.getFlag("[Sdk.BuildXL]microsoftInternal") && Context.getCurrentHost().os === "win", f`Tool.Guardian.EsLint.dsc`),
+        ...addIf(Environment.getFlag("[Sdk.BuildXL]microsoftInternal") && Context.getCurrentHost().os === "win", f`Tool.Guardian.CredScan.dsc`),
+        ...addIf(Environment.getFlag("[Sdk.BuildXL]microsoftInternal") && Context.getCurrentHost().os === "win", f`Tool.Guardian.PsScriptAnalyzer.dsc`)
     ]
 });

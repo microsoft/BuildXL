@@ -1,4 +1,4 @@
-// Copyright (c) Microsoft Corporation.
+﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
 using System;
@@ -108,9 +108,14 @@ namespace Test.BuildXL.Utilities
         {
             var st = new StringTable(0);
 
-            // remove a single char extension
-            PathAtom pa1 = PathAtom.Create(st, @"a.c");
+            // remove an empty extension
+            PathAtom pa1 = PathAtom.Create(st, @"abc.");
             PathAtom pa2 = pa1.RemoveExtension(st);
+            XAssert.AreEqual(@"abc", pa2.ToString(st));
+
+            // remove a single char extension
+            pa1 = PathAtom.Create(st, @"a.c");
+            pa2 = pa1.RemoveExtension(st);
             XAssert.AreEqual(@"a", pa2.ToString(st));
 
             // remove a multi char extension
@@ -147,7 +152,25 @@ namespace Test.BuildXL.Utilities
             pa2 = pa1.RemoveExtension(st);
             XAssert.AreEqual(@"ab.xyz", pa2.ToString(st));
 
+            // do not return an empty result
             pa1 = PathAtom.Create(st, @".cpp");
+            pa2 = pa1.RemoveExtension(st);
+            XAssert.AreEqual(pa1, pa2);
+            
+            pa1 = PathAtom.Create(st, @".");
+            pa2 = pa1.RemoveExtension(st);
+            XAssert.AreEqual(pa1, pa2);
+
+            // non-ascii strings
+            pa1 = PathAtom.Create(st, @"繙B.cpp");
+            pa2 = pa1.RemoveExtension(st);
+            XAssert.AreEqual(@"繙B", pa2.ToString(st));
+
+            pa1 = PathAtom.Create(st, @"B.c繙p");
+            pa2 = pa1.RemoveExtension(st);
+            XAssert.AreEqual(@"B", pa2.ToString(st));
+
+            pa1 = PathAtom.Create(st, @".c繙p");
             pa2 = pa1.RemoveExtension(st);
             XAssert.AreEqual(pa1, pa2);
         }
@@ -157,9 +180,14 @@ namespace Test.BuildXL.Utilities
         {
             var st = new StringTable(0);
 
-            // change a single char extension
-            PathAtom pa1 = PathAtom.Create(st, @"a.c");
+            // change an empty extension
+            PathAtom pa1 = PathAtom.Create(st, @"a.");
             PathAtom pa2 = pa1.ChangeExtension(st, PathAtom.Create(st, ".d"));
+            XAssert.AreEqual(@"a.d", pa2.ToString(st));
+
+            // change a single char extension
+            pa1 = PathAtom.Create(st, @"a.c");
+            pa2 = pa1.ChangeExtension(st, PathAtom.Create(st, ".d"));
             XAssert.AreEqual(@"a.d", pa2.ToString(st));
 
             // change a multi char extension
@@ -230,6 +258,10 @@ namespace Test.BuildXL.Utilities
             // get a multi char extension
             e1 = PathAtom.Create(st, ".cpp").GetExtension(st);
             XAssert.AreEqual(@".cpp", e1.ToString(st));
+
+            // non-ascii
+            e1 = PathAtom.Create(st, @"B.c繙p").GetExtension(st);
+            XAssert.AreEqual(@".c繙p", e1.ToString(st));
         }
 
         [Fact]

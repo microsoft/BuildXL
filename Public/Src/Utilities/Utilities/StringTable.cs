@@ -584,7 +584,7 @@ namespace BuildXL.Utilities
 
             // if the length >= 255 then we store it as a marker byte followed by a 4-byte length value
             space += longString ? 5 : 1;
-            
+
             int byteIndex;
             int bufferNum;
 
@@ -988,24 +988,18 @@ namespace BuildXL.Utilities
         {
             Contract.Requires(id.IsValid);
 
-            int length = GetLength(id);
-            using (var wrapper = Pools.GetCharArray(length))
+            var originalString = GetBinaryString(id);
+
+            var index = originalString.Length;
+            while (--index >= 0)
             {
-                char[] name = wrapper.Instance;
-                CopyString(id, name, 0);
-
-                for (int i = length; --i >= 0;)
+                if (originalString[index] == '.')
                 {
-                    char ch = name[i];
-                    if (ch == '.')
-                    {
-                        var s = new CharArraySegment(name, i, length - i);
-                        return AddString(s);
-                    }
+                    return AddString(originalString.Subsegment(index, originalString.Length - index));
                 }
-
-                return StringId.Invalid;
             }
+            
+            return StringId.Invalid;
         }
 
         /// <summary>
@@ -1018,38 +1012,18 @@ namespace BuildXL.Utilities
             Contract.Requires(IsValid());
             Contract.Requires(id.IsValid);
 
-            int originalLength = GetLength(id);
-            using (var wrapper = Pools.GetCharArray(originalLength))
+            var originalString = GetBinaryString(id);
+            for (var i = originalString.Length; --i > 0;) // avoid i == 0 as it would result in an empty string
             {
-                char[] name = wrapper.Instance;
-                CopyString(id, name, 0);
-
-                int newLength = originalLength;
-                for (int i = originalLength; --i >= 0;)
+                if (originalString[i] == '.')
                 {
-                    char ch = name[i];
-                    if (ch == '.')
-                    {
-                        newLength = i;
-                        break;
-                    }
+                    return AddString(originalString.Subsegment(0, i));
                 }
-
-                if (newLength == 0)
-                {
-                    // if we'd end up with an empty string just return the original
-                    return id;
-                }
-
-                if (newLength == originalLength)
-                {
-                    // no . found, return original string
-                    return id;
-                }
-
-                var s = new CharArraySegment(name, 0, newLength);
-                return AddString(s);
             }
+
+            // either we'd end up with an empty string or there is no '.' in the string
+            // just return the original
+            return id;
         }
 
         /// <summary>

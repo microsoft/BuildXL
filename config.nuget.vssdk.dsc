@@ -22,7 +22,7 @@ export const pkgs = [
     { id: "Microsoft.VisualStudio.Shell.Interop.8.0", version: "8.0.50728" },
     { id: "Microsoft.VisualStudio.Shell.Interop.9.0", version: "9.0.30730" },
     { id: "Microsoft.VisualStudio.Shell.Interop", version: "17.0.0-previews-3-31605-261" },
-    { id: "Microsoft.VisualStudio.Interop", version: "17.0.0-previews-3-31605-261" },
+    { id: "Microsoft.VisualStudio.Interop", version: "17.1.32210.191" },
     { id: "Microsoft.VisualStudio.Text.Data", version: "15.8.525" },
     { id: "Microsoft.VisualStudio.Threading", version: "17.0.32-alpha", dependentPackageIdsToSkip: ["Microsoft.Bcl.AsyncInterfaces"] },
     { id: "Microsoft.VisualStudio.Utilities", version: "15.8.28010" },

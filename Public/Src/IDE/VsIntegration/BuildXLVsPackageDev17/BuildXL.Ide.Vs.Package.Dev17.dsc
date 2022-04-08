@@ -6,7 +6,7 @@ import * as Contracts from "Tse.RuntimeContracts";
 
 namespace BuildXLVsPackageDev17 {
     @@public
-    export const dll = BuildXLSdk.library({
+    export const dll = !BuildXLSdk.Flags.isMicrosoftInternal ? undefined : BuildXLSdk.library({
         assemblyName: "BuildXLVsPackageDev17",
         rootNamespace: "BuildXL.VsPackage",
         skipDocumentationGeneration: false,
@@ -39,19 +39,20 @@ namespace BuildXLVsPackageDev17 {
             NetFx.System.Windows.Forms.dll,
             NetFx.System.Xml.dll,
             NetFx.System.Xml.Linq.dll,
+            importFrom("Microsoft.Internal.VisualStudio.Interop").pkg,
             importFrom("Microsoft.VisualStudio.ComponentModelHost").pkg,
             importFrom("Microsoft.VisualStudio.Shell.Framework").pkg,
             importFrom("Microsoft.VisualStudio.Interop").pkg,
             importFrom("Microsoft.VisualStudio.ProjectAggregator").pkg,
             importFrom("Microsoft.VisualStudio.Shell.15.0").pkg,
-            importFrom("System.Collections.Immutable.ForVBCS").pkg,
             importFrom("Microsoft.VisualStudio.Threading").pkg,
             importFrom("Microsoft.VisualStudio.ProjectSystem").pkg,
             importFrom("Microsoft.VisualStudio.Composition").pkg,
+            importFrom("System.Collections.Immutable.ForVBCS").pkg,
         ],
         defineConstants: [ "Dev17" ],
     });
-    
+
     const deployment: Deployment.Definition = {
         contents: [
             f`extension.vsixmanifest`,
@@ -64,7 +65,7 @@ namespace BuildXLVsPackageDev17 {
             },
         ],
     };
-    
+
     @@public
     export const vsix = CreateZipPackage.zip({
         outputFileName: "BuildXL.vs.Dev17.vsix",

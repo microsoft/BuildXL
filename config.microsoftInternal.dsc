@@ -88,6 +88,9 @@ export const pkgs = isMicrosoftInternal ? [
 
     // Process remoting
     { id: "AnyBuild.SDK", version: "0.1.13" },
+
+    // Part of VSSDK used by IDE/VsIntegration
+    { id: "Microsoft.Internal.VisualStudio.Interop", version: "17.2.32405.191" },
 ] : [
 
     // Artifact packages and dependencies in OSS
@@ -110,5 +113,6 @@ export const resolver = {
         f`Private/InternalSdk/Drop/module.config.dsc`,
         f`Private/InternalSdk/BuildXL.Tracing.AriaTenantToken/module.config.dsc`,
         f`Private/InternalSdk/AnyBuild.SDK/module.config.dsc`,
+        f`Private/InternalSdk/Microsoft.Internal.VisualStudio.Interop/module.config.dsc`,
     ]
 };

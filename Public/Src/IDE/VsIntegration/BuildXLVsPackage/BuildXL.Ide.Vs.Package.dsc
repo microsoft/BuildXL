@@ -10,7 +10,10 @@ namespace BuildXLVsPackage {
         assemblyName: "BuildXLVsPackage",
         rootNamespace: "BuildXL.VsPackage",
         skipDocumentationGeneration: false,
-        sources: globR(d`../BuildXLVsPackageShared`, "*.cs"),
+        sources: [
+            ...globR(d`../BuildXLVsPackageShared`, "*.cs"),
+            ...globR(d`.`, "*.cs"),
+        ],
 
         // Disabling runtime contracts to avoid redundant dependency.
         contractsLevel: Contracts.ContractsLevel.disabled,

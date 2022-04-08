@@ -289,7 +289,7 @@ namespace BuildXL.Processes
         /// 
         /// When set to value &lt; 0, the pipe reading retries are unlimited.
         /// </remarks>
-        public int NumRetriesPipeReadOnCancel { get; set; } = 0;
+        public int NumRetriesPipeReadOnCancel { get; set; } = DefaultPipeReadRetryOnCancellationCount;
 
         /// <summary>
         /// Encoded command line arguments

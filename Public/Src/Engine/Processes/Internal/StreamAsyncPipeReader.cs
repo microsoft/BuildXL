@@ -56,14 +56,12 @@ namespace BuildXL.Processes.Internal
                     }
                 }
             }
-            catch (OperationCanceledException)
-            {
-                // BuildXL never cancels pipe reading. So, cancelation may only happen
-                // when the build is forcefully canceled (e.g., due to Ctrl-C or reaching build timeout).
-                // Do nothing.
-            }
             catch (Exception ex)
             {
+                // Similar to the legacy async pipe reader, this pipe reader also suffer from OperationCanceledException
+                // triggered by unknown entity (under investigation).
+                // Catching such an exception and terminating the read will be incorrect because we may miss some
+                // file access reports when this reader is used to read Detours' messages.
                 throw new BuildXLException("Exception occured when reading from pipe", ex);
             }
         }

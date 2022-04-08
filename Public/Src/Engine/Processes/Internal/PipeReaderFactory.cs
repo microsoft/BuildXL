@@ -80,10 +80,10 @@ namespace BuildXL.Processes.Internal
 #if NET_COREAPP_60
             if (string.IsNullOrEmpty(EngineEnvironmentSettings.SandboxAsyncPipeReaderKind.Value))
             {
-                return Kind.Stream;
+                return Kind.Legacy;
             }
 
-            return Enum.TryParse(EngineEnvironmentSettings.SandboxAsyncPipeReaderKind.Value, true, out Kind value) ? value : Kind.Stream;
+            return Enum.TryParse(EngineEnvironmentSettings.SandboxAsyncPipeReaderKind.Value, true, out Kind value) ? value : Kind.Legacy;
 #else
             return Kind.Legacy;
 #endif

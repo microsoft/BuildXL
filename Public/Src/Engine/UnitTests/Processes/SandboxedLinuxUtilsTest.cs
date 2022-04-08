@@ -48,6 +48,24 @@ namespace Test.BuildXL.Processes
             [MarshalAs(UnmanagedType.LPStr)] string value,
             [MarshalAs(UnmanagedType.LPStr)] StringBuilder buf);
 
+        [DllImport(LibBxlUtils, EntryPoint = "scrub_ld_preload_for_test")]
+        private static extern void ScrubLdPreload(
+            [MarshalAs(UnmanagedType.LPStr)] string envKvp,
+            [MarshalAs(UnmanagedType.LPStr)] string valueToScrub,
+            [MarshalAs(UnmanagedType.LPStr)] StringBuilder buf);
+
+        [DllImport(LibBxlUtils, EntryPoint = "remove_path_from_LDPRELOAD_for_test")]
+        [return: MarshalAs(UnmanagedType.U1)]
+        private static extern bool RemovePathFromLDPRELOAD(
+            string[] env,
+            [MarshalAs(UnmanagedType.LPStr)] string path,
+            // Couldn't find a way to marshall StringBuilder Array, had to give 3 hardcoded StringBuilder for testing. 
+            // Accordingly, env size has to be lte 3.
+            // Or you need to change the test method.
+            [MarshalAs(UnmanagedType.LPStr)] StringBuilder buf0,
+            [MarshalAs(UnmanagedType.LPStr)] StringBuilder buf1,
+            [MarshalAs(UnmanagedType.LPStr)] StringBuilder buf2);
+
         [Theory]
         // no 'valueToAdd' specified --> no change
         [InlineData("")]
@@ -159,6 +177,81 @@ namespace Test.BuildXL.Processes
             var expected = new string[3] { "HOME=/User/home", "PATH=a:b:c d", "__BUILDXL_FAM_PATH=/my/fam" };
             var newEnvp = buffer.ToString().Split(EnvSeparator);
             XAssert.IsTrue(newEnvp.SequenceEqual(expected));
+        }  
+        
+        [Theory]
+        // no 'valueToScrub' specified --> no change
+        [InlineData("")]
+        [InlineData("PATH=a:b:c d")]
+        [InlineData("LD_DEBUG=libs")]
+        [InlineData("LD_PRELOAD=")]
+        [InlineData("LD_PRELOAD=/other/lib")]
+        // 'valueToScrub' specified but it either doesn't match 'source' or 'source' does not start with LD_PRELOAD= --> no change
+        [InlineData("SOME_VAR=/my/lib", "/my/lib")]
+        [InlineData("LD_PRELOAD= /my/lib", "/my/lib")]
+        [InlineData("LD_PRELOAD=/other/lib", "/my/lib")]
+        [InlineData("LD_PRELOAD=/my/lib.so", "/my/lib")]
+        [InlineData("LD_PRELOAD=:", "/my/lib")]
+        [InlineData("LD_PRELOAD=::", "/my/lib")]
+        // some scrubbing happening
+        [InlineData("LD_PRELOAD=::", "", "LD_PRELOAD=")]
+        [InlineData("LD_PRELOAD=/my/lib", "/my/lib", "LD_PRELOAD=")]
+        [InlineData("LD_PRELOAD=/my/lib:", "/my/lib", "LD_PRELOAD=")]
+        [InlineData("LD_PRELOAD=:/my/lib:", "/my/lib", "LD_PRELOAD=:")]
+        [InlineData("LD_PRELOAD=/before:/my/lib:/after", "/my/lib", "LD_PRELOAD=/before:/after")]
+        [InlineData("LD_PRELOAD=/before:/my/lib", "/my/lib", "LD_PRELOAD=/before:")]
+        [InlineData("LD_PRELOAD=/my/lib:/after:", "/my/lib", "LD_PRELOAD=/after:")]
+        [InlineData("LD_PRELOAD=/my/lib:/my/lib", "/my/lib", "LD_PRELOAD=")]
+        [InlineData("LD_PRELOAD=/my/lib:middle:/my/lib", "/my/lib", "LD_PRELOAD=middle:")]
+        public void TestLdPreloadScrubbing(string source, string valueToScrub = "", string expected = null)
+        {
+            if (!OperatingSystemHelper.IsLinuxOS)
+            {
+                return;
+            }
+
+            expected ??= source;
+
+            // add some bogus values to buffer to correctly test that a terminating \0 is set by ScrubLdPreload
+            var buffer = Enumerable.Range(0, source.Length + 1).Aggregate(new StringBuilder(capacity: source.Length + 1), (acc, _) => acc.Append('*'));
+
+            ScrubLdPreload(source, valueToScrub, buffer);
+            XAssert.AreEqual(expected, buffer.ToString());
+        }
+
+        [Theory]
+        [InlineData(new[] { "HOME=/User/home", "PATH=a:b:c d", "LD_PRELOAD=/before:/my/lib:/after", null }, "/my/lib", new[] { "HOME=/User/home", "PATH=a:b:c d", "LD_PRELOAD=/before:/after" }, false)]
+        [InlineData(new[] { "HOME=/User/home", "PATH=a:b:c d", "LD_PRELOAD=/before", null }, "/my/lib", new[] { "HOME=/User/home", "PATH=a:b:c d", "LD_PRELOAD=/before" }, false)]
+        [InlineData(new[] { "HOME=/User/home", "PATH=a:b:c d", "USER=someone", null }, "/my/lib", new[] { "HOME=/User/home", "PATH=a:b:c d", "USER=someone" }, true)]
+        [InlineData(new[] { "HOME=/User/home", "PATH=a:b:c d", "LD_PRELOAD=", null }, "/my/lib", new[] { "HOME=/User/home", "PATH=a:b:c d", "LD_PRELOAD=" }, true)]
+        [InlineData(new[] { "HOME=/User/home", "PATH=a:b:c d", "LD_PRELOAD=:", null }, "/my/lib", new[] { "HOME=/User/home", "PATH=a:b:c d", "LD_PRELOAD=:" }, false)]
+        [InlineData(new[] { "HOME=/User/home", "PATH=a:b:c d", "LD_PRELOAD=/my/lib", null }, "/my/lib", new[] { "HOME=/User/home", "PATH=a:b:c d", "LD_PRELOAD=" }, false)]
+        [InlineData(new[] { "HOME=/User/home", "PATH=a:b:c d", "LD_PRELOAD=/my/lib:/after", null }, "/my/lib", new[] { "HOME=/User/home", "PATH=a:b:c d", "LD_PRELOAD=/after" }, false)]
+        [InlineData(new[] { "HOME=/User/home", "PATH=a:b:c d", "LD_PRELOAD=/before:/my/lib", null }, "/my/lib", new[] { "HOME=/User/home", "PATH=a:b:c d", "LD_PRELOAD=/before:" }, false)]
+        [InlineData(new[] { "HOME=/User/home", "LD_PRELOAD=/before:/my/lib", "PATH=a:b:c d", null }, "/my/lib", new[] { "HOME=/User/home", "LD_PRELOAD=/before:", "PATH=a:b:c d" }, false)]
+        public void TestRemovePathFromLDPRELOAD(string[] envp, string path, string[] expected, bool shouldBeSameEnvp = true)
+        {
+            if (!OperatingSystemHelper.IsLinuxOS)
+            {
+                return;
+            }
+
+            XAssert.IsTrue(envp.Length == 4, "Change the RemovePathFromLDPRELOAD function if you need envp of different size.");
+            XAssert.IsNull(envp[3], "Must be null-terminated");
+
+            var buffers = new StringBuilder[3];
+            int i;
+            for (i = 0; i < 3; i++)
+            {
+                buffers[i] = new StringBuilder(capacity: envp[i].Length + path.Length + 1);
+            }
+
+            bool sameEvnp = RemovePathFromLDPRELOAD(envp, path, buffers[0], buffers[1], buffers[2]);
+
+            XAssert.AreEqual(expected[0], buffers[0].ToString());
+            XAssert.AreEqual(expected[1], buffers[1].ToString());
+            XAssert.AreEqual(expected[2], buffers[2].ToString());
+            XAssert.AreEqual(shouldBeSameEnvp, sameEvnp);
         }
     }
 }

@@ -25,13 +25,13 @@ DLL_EXPORT bool is_null_or_empty(char const *input);
  *        3) add env containing all paths to newenvp,
  *        4) return newenvp
 */
-DLL_EXPORT char** ensure_paths_included_in_env(char *const envp[], char const *envPrefix, const char *arg, ...);
+DLL_EXPORT char** ensure_paths_included_in_env(const char *const envp[], char const *envPrefix, const char *arg, ...);
 
 /**
  * This is a function to ensure "envName=envValue" is in envp[]
  * It returns a pointer to char * [] (following the same format of "envp") which "envName=envValue".
 */
-DLL_EXPORT char** ensure_env_value(char *const envp[], char const *envName, const char *envValue);
+DLL_EXPORT char** ensure_env_value(const char *const envp[], char const *envName, const char *envValue);
 
 /**
  * Tries to match 'prefix' from the beggining of 'src'.
@@ -58,9 +58,38 @@ DLL_EXPORT const char* skip_prefix(const char *src, const char *prefix);
  */
 DLL_EXPORT const char* add_value_to_env(const char *src, const char *value_to_add, const char *envPrefix);
 
+/**
+ * Scrubs the 'value_to_scrub' values from 'src' if 'src' begins with "LD_PRELOAD=";
+ * otherwise returns the original value provided in 'src'.
+ * 
+ * Only whole values are scrubbed.  That is, the part after "LD_PRELOAD=" in 'src'
+ * is treated as a colon-separated list of values; out of those values, those that
+ * are equal to 'value_to_scrub' are removed.
+ * 
+ * 'buf' is an auxiliary buffer that must be at least as big as 'src'.
+ * 
+ * The result is either stored in 'buf' or 'src' is returned; when the latter is 
+ * the case, the value written in 'buf' is unspecified.  In either case, the return
+ * value is a pointer to where the result is (either 'src' or 'buf').
+ */
+DLL_EXPORT const char* scrub_ld_preload(const char *src, const char *value_to_scrub, char *buf);
+
+/**
+ * If 'envp' does not contain a variable named "LD_PRELOAD" or the value of that
+ * environment variable does not include 'path', 'envp' is returned.
+ * 
+ * Otherwise, a new array of 'char*' pointers is allocated.  The values from 'envp'
+ * are copied into it verbatim except that 'path' is excluded from the "LD_PRELOAD" value.
+ * 
+ * Whenever the returned pointer is different from 'envp', the caller is responsible for freeing it.
+ */
+DLL_EXPORT char** remove_path_from_LDPRELOAD(const char *const envp[], const char *path);
+
 // Test wrappers to make p-invoke easier.
 
 DLL_EXPORT const bool add_value_to_env_for_test(const char *src, const char *value_to_add, const char *envPrefix, char *buf);
-DLL_EXPORT const bool ensure_env_value_for_test(char *const envp[], char const *envName, const char *envValue, char *buf);
-DLL_EXPORT const bool ensure_2_paths_included_in_env_for_test(char *const envp[], char const *envPrefix, const char *path0, const char *path1, char *buf);
-DLL_EXPORT const bool ensure_1_path_included_in_env_for_test(char *const envp[], char const *envPrefix, const char *path, char *buf);
+DLL_EXPORT const bool ensure_env_value_for_test(const char *const envp[], char const *envName, const char *envValue, char *buf);
+DLL_EXPORT const bool ensure_2_paths_included_in_env_for_test(const char *const envp[], char const *envPrefix, const char *path0, const char *path1, char *buf);
+DLL_EXPORT const bool ensure_1_path_included_in_env_for_test(const char *const envp[], char const *envPrefix, const char *path, char *buf);
+DLL_EXPORT const void scrub_ld_preload_for_test(const char *src, const char *value_to_scrub, char *buf);
+DLL_EXPORT const bool remove_path_from_LDPRELOAD_for_test(const char *const envp[], char *path, char *buf0, char *buf1, char *buf2);

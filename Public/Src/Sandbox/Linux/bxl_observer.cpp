@@ -26,8 +26,8 @@ BxlObserver::BxlObserver()
     rootPid_ = is_null_or_empty(rootPidStr) ? -1 : atoi(rootPidStr);
     disposed_ = false;
 
-    InitFam();
     InitLogFile();
+    InitFam();
     InitDetoursLibPath();
 }
 
@@ -51,7 +51,7 @@ void BxlObserver::InitFam()
     const char *famPath = getenv(BxlEnvFamPath);
     if (is_null_or_empty(famPath))
     {
-        real_fprintf(stderr, "[%s] ERROR: Env var '%s' not set\n", __func__, BxlEnvFamPath);
+        LOG_DEBUG("[%s] ERROR: Env var '%s' not set\n", __func__, BxlEnvFamPath);
         return;
     }
 
@@ -230,9 +230,12 @@ bool BxlObserver::SendReport(AccessReport &report)
 
 void BxlObserver::report_exec(const char *syscallName, const char *procName, const char *file)
 {
-    // first report 'procName' as is (without trying to resolve it) to ensure that a process name is reported before anything else
-    report_access(syscallName, ES_EVENT_TYPE_NOTIFY_EXEC, std::string(procName), empty_str_);
-    report_access(syscallName, ES_EVENT_TYPE_NOTIFY_EXEC, file);
+    if (IsMonitoringChildProcesses())
+    {
+        // first report 'procName' as is (without trying to resolve it) to ensure that a process name is reported before anything else
+        report_access(syscallName, ES_EVENT_TYPE_NOTIFY_EXEC, std::string(procName), empty_str_);
+        report_access(syscallName, ES_EVENT_TYPE_NOTIFY_EXEC, file);
+    }
 }
 
 AccessCheckResult BxlObserver::report_access(const char *syscallName, es_event_type_t eventType, const std::string &reportPath, const std::string &secondPath)
@@ -539,16 +542,28 @@ char** BxlObserver::ensure_env_value_with_log(char *const envp[], char const *en
 
 char** BxlObserver::ensureEnvs(char *const envp[])
 {
-    char **newEnvp = ensure_paths_included_in_env(envp, LD_PRELOAD_ENV_VAR_PREFIX, detoursLibFullPath_, NULL);
-    if (newEnvp != envp)
+    if (!IsMonitoringChildProcesses())
     {
-        LOG_DEBUG("envp has been modified with %s added to %s", detoursLibFullPath_, "LD_PRELOAD");
+        char **newEnvp = remove_path_from_LDPRELOAD(envp, detoursLibFullPath_);
+        newEnvp = ensure_env_value(newEnvp, BxlEnvFamPath, "");
+        newEnvp = ensure_env_value(newEnvp, BxlEnvLogPath, "");
+        newEnvp = ensure_env_value(newEnvp, BxlEnvRootPid, "");
+        newEnvp = ensure_env_value(newEnvp, BxlEnvDetoursPath, "");
+        return newEnvp;
     }
+    else
+    {
+        char **newEnvp = ensure_paths_included_in_env(envp, LD_PRELOAD_ENV_VAR_PREFIX, detoursLibFullPath_, NULL);
+        if (newEnvp != envp)
+        {
+            LOG_DEBUG("envp has been modified with %s added to %s", detoursLibFullPath_, "LD_PRELOAD");
+        }
 
-    newEnvp = ensure_env_value_with_log(newEnvp, BxlEnvFamPath);
-    newEnvp = ensure_env_value_with_log(newEnvp, BxlEnvLogPath);
-    newEnvp = ensure_env_value_with_log(newEnvp, BxlEnvRootPid);
-    newEnvp = ensure_env_value_with_log(newEnvp, BxlEnvDetoursPath);
+        newEnvp = ensure_env_value_with_log(newEnvp, BxlEnvFamPath);
+        newEnvp = ensure_env_value_with_log(newEnvp, BxlEnvLogPath);
+        newEnvp = ensure_env_value_with_log(newEnvp, BxlEnvRootPid);
+        newEnvp = ensure_env_value_with_log(newEnvp, BxlEnvDetoursPath);
 
-    return newEnvp;
+        return newEnvp;
+    }
 }

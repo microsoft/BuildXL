@@ -77,7 +77,7 @@ INTERPOSE(int, fexecve, int fd, char *const argv[], char *const envp[])({
 
 INTERPOSE(int, execv, const char *file, char *const argv[])({
     bxl->report_exec(__func__, argv[0], file);
-    return bxl->fwd_execv(file, argv).restore();
+    return bxl->fwd_execve(file, argv, bxl->ensureEnvs(environ)).restore();
 })
 
 INTERPOSE(int, execve, const char *file, char *const argv[], char *const envp[])({
@@ -87,7 +87,7 @@ INTERPOSE(int, execve, const char *file, char *const argv[], char *const envp[])
 
 INTERPOSE(int, execvp, const char *file, char *const argv[])({
     bxl->report_exec(__func__, argv[0], file);
-    return bxl->fwd_execvp(file, argv).restore();
+    return bxl->fwd_execvpe(file, argv, bxl->ensureEnvs(environ)).restore();
 })
 
 INTERPOSE(int, execvpe, const char *file, char *const argv[], char *const envp[])({

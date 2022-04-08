@@ -233,8 +233,9 @@ private:
 
     ssize_t read_path_for_fd(int fd, char *buf, size_t bufsiz);
 
-    inline bool IsValid()   { return sandbox_ != NULL; }
-    inline bool IsEnabled()
+    bool IsMonitoringChildProcesses() const { return CheckMonitorChildProcesses(pip_->GetFamFlags()); }
+    inline bool IsValid() const             { return sandbox_ != NULL; }
+    inline bool IsEnabled() const
     {
         return
             // successfully initialized

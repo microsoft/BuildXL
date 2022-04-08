@@ -35,7 +35,7 @@ const char* skip_prefix(const char *src, const char *prefix)
  * Replace the ith element of the copy with "newKVP".
  * Return the pointer of newenvp.
  */
-char** replace_KVP_in_envp(char *const envp[], int env_num, int i, const char *newKVP)
+char** replace_KVP_in_envp(const char *const envp[], int env_num, int i, const char *newKVP)
 {
     char **newenvp = (char **)malloc((env_num + 1) * sizeof(char*));
     if (newenvp == NULL)
@@ -130,11 +130,11 @@ char* createEnv(char const *envName, const char *envValue)
     return pKV;
 }
 
-char** ensure_env_value(char *const envp[], char const *envName, const char *envValue)
+char** ensure_env_value(const char *const envp[], char const *envName, const char *envValue)
 {
     // Finding env var in envp
-    char *const *pEnv = envp;
-    char *const *pEnvFound = NULL;
+    const char *const *pEnv = envp;
+    const char *const *pEnvFound = NULL;
     int env_index = 0;
     int env_num = 0;
     
@@ -157,7 +157,7 @@ char** ensure_env_value(char *const envp[], char const *envName, const char *env
         next = skip_prefix(next, "=");
         next = skip_prefix(next, envValue);
 
-        if (next == NULL)
+        if (next == NULL || *next != '\0')
         {
             char *kvp = createEnv(envName, envValue);
             if(kvp != NULL)
@@ -187,11 +187,11 @@ char** ensure_env_value(char *const envp[], char const *envName, const char *env
     return (char**)envp;
 }
 
-char** ensure_paths_included_in_env(char *const envp[], char const *envPrefix, const char *arg, ...)
+char** ensure_paths_included_in_env(const char *const envp[], char const *envPrefix, const char *arg, ...)
 {
     // Finding env var in envp
-    char *const *pEnv = envp;
-    char *const *pEnvFound = NULL;
+    const char *const *pEnv = envp;
+    const char *const *pEnvFound = NULL;
     int env_index = 0;
     int env_num = 0;
     
@@ -316,6 +316,102 @@ void copy_result_to_buf_for_test(char **result, char *buf)
     *(buf - 1) = '\0'; 
 }
 
+#define LD_PRELOAD_ENV_VAR_PREFIX "LD_PRELOAD="
+#define LD_PRELOAD_ENV_VAR_PREFIX_LENGTH 11
+
+const char* scrub_ld_preload(const char *src, const char *value_to_scrub, char *buf)
+{
+    const char *pSrc = skip_prefix(src, LD_PRELOAD_ENV_VAR_PREFIX);
+    if (!pSrc || !*pSrc)
+    {
+        return src;
+    }
+
+    // copy "LD_PRELOAD=" into buffer
+    strcpy(buf, LD_PRELOAD_ENV_VAR_PREFIX);
+
+    // split the rest by ':' and check if each segment matches the path of this library
+    char *pBuf = &buf[LD_PRELOAD_ENV_VAR_PREFIX_LENGTH];
+    while (*pSrc)
+    {
+        const char *next = skip_prefix(pSrc, value_to_scrub);
+        if (next && (*next == '\0' || *next == PATH_SEP_CHAR))
+        {
+            // found a match --> just skip it
+        }
+        else
+        {
+            // no match --> copy this segment into buffer
+            if (next == NULL) next = pSrc;
+            while (*next != '\0' && *next != PATH_SEP_CHAR) next++;
+            memcpy(pBuf, pSrc, next - pSrc + 1);
+            pBuf += next - pSrc + 1;
+        }
+
+        if (*next == '\0')
+        {
+            // reach the end.
+            break;
+        }
+        else
+        {
+            pSrc = next + 1;
+        }
+        
+    }
+
+    *pBuf = '\0';
+    return buf;
+}
+
+char** remove_path_from_LDPRELOAD(const char *const envp[], const char *path)
+{
+    // Finding LD_PRELOAD env var in envp
+    const char *const *pEnv = envp;
+    bool removed = false;
+    bool foundLdPreload = false;
+    const char* result;
+    int env_num = 0;
+    int ldPreloadEnv_index = 0;
+    
+    while (pEnv && *pEnv)
+    {
+        if (skip_prefix(*pEnv, LD_PRELOAD_ENV_VAR_PREFIX) && foundLdPreload == false)
+        {
+            foundLdPreload = true;
+            int len = strlen(*pEnv);
+            char *buf = malloc(len);
+            if (buf == NULL)
+            {
+                return (char**)envp;
+            }
+
+            result = scrub_ld_preload(*pEnv, path, buf);
+            if (result == buf)
+            {
+                removed = true;
+                ldPreloadEnv_index = env_num;
+            }
+            else
+            {
+                free(buf);
+            }
+        }
+
+        ++pEnv;
+        ++env_num;
+    }
+
+    if (removed)
+    {
+        return replace_KVP_in_envp(envp, env_num, ldPreloadEnv_index, result);
+    }
+
+    return (char**)envp;
+}
+
+// ======================= for testing ========================
+
 const bool add_value_to_env_for_test(const char *src, const char *value_to_add, const char *envPrefix, char *buf)
 {
     const char *result = add_value_to_env(src, value_to_add, envPrefix);
@@ -323,23 +419,43 @@ const bool add_value_to_env_for_test(const char *src, const char *value_to_add, 
     return result == src;
 }
 
-const bool ensure_env_value_for_test(char *const envp[], char const *envName, const char *envValue, char *buf)
+const bool ensure_env_value_for_test(const char *const envp[], char const *envName, const char *envValue, char *buf)
 {
     char **result = ensure_env_value(envp, envName, envValue);
     copy_result_to_buf_for_test(result, buf);
-    return result == envp;
+    return result == (char**)envp;
 }
 
-const bool ensure_2_paths_included_in_env_for_test(char *const envp[], char const *envPrefix, const char *path0, const char *path1, char *buf)
+const bool ensure_2_paths_included_in_env_for_test(const char *const envp[], char const *envPrefix, const char *path0, const char *path1, char *buf)
 {
     char **result = ensure_paths_included_in_env(envp, envPrefix, path0, path1, NULL);
     copy_result_to_buf_for_test(result, buf);
-    return result == envp;
+    return result == (char**)envp;
 }
 
-const bool ensure_1_path_included_in_env_for_test(char *const envp[], char const *envPrefix, const char *path, char *buf)
+const bool ensure_1_path_included_in_env_for_test(const char *const envp[], char const *envPrefix, const char *path, char *buf)
 {
     char **result = ensure_paths_included_in_env(envp, envPrefix, path, NULL);
     copy_result_to_buf_for_test(result, buf);
-    return result == envp;
+    return result == (char**)envp;
+}
+
+
+const bool remove_path_from_LDPRELOAD_for_test(const char *const envp[], char *path, char *buf0, char *buf1, char *buf2)
+{
+    char **result = remove_path_from_LDPRELOAD(envp, path);
+
+    strcpy(buf0, result[0]);
+    strcpy(buf1, result[1]);
+    strcpy(buf2, result[2]);
+    return result == (char**)envp;
+}
+
+const void scrub_ld_preload_for_test(const char *src, const char *value_to_scrub, char *buf)
+{
+    const char *result = scrub_ld_preload(src, value_to_scrub, buf);
+    if (result == src)
+    {
+        strcpy(buf, src);
+    }
 }

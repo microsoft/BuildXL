@@ -75,7 +75,9 @@ public:
 
     inline const Possible<bool> GetResolvingCheckResult(const std::wstring& path)
     {
-        return Find(m_resolverCache, Normalize(path));
+        // The resolver cache is essentially caching GetFileAttributesW when trying to discover reparse points. This is a very frequent IO operation and a relatively cheap
+        // one, so use best effor basis.
+        return Find(m_resolverCache, Normalize(path), true);
     }
 
     inline bool InsertResolvedPathWithType(const std::wstring& path, std::wstring& resolved, DWORD type)
@@ -97,7 +99,8 @@ public:
 
     inline const Possible<std::pair<std::wstring, DWORD>> GetResolvedPathAndType(const std::wstring& path)
     {
-        return Find(m_targetCache, Normalize(path));
+        // This cache is only accessed on the case of reparse points, so we don't expect high contention on the lock. Not using best effor basis should be fine.
+        return Find(m_targetCache, Normalize(path), false);
     }
 
     inline bool InsertResolvedPaths(
@@ -146,7 +149,8 @@ public:
 
     inline const Possible<ResolvedPathCacheEntries> GetResolvedPaths(const std::wstring& path, bool preserveLastReparsePointInPath)
     {
-        return Find(m_paths, std::make_pair(Normalize(path), preserveLastReparsePointInPath));
+        // A hit in m_paths involves many IO operations. Let's not make the search best effor basis since waiting for a read lock is worth it
+        return Find(m_paths, std::make_pair(Normalize(path), preserveLastReparsePointInPath), false);
     }
 
     void Invalidate(const std::wstring& path, bool isDirectory)
@@ -270,11 +274,17 @@ private:
     // Find should not return a pointer, as that memory can become invalid if a different thread adds/removes from the map.
     // Instead, the value store in the map should be a pointer so that the memory isn't copied.
     template<typename K, typename V, typename C>
-    const Possible<V> Find(std::map<K, V, C>& map, const K& path)
+    const Possible<V> Find(std::map<K, V, C>& map, const K& path, bool bestEffortBasis)
     {
-        ResolvedPathCacheReadLock r_lock(m_lock);
-        auto iter = map.find(path);
         Possible<V> p;
+        ResolvedPathCacheReadLock r_lock = bestEffortBasis? ResolvedPathCacheReadLock(m_lock, std::try_to_lock) : ResolvedPathCacheReadLock(m_lock);
+        if (bestEffortBasis && !r_lock.owns_lock())
+        {
+            p.Found = false;
+            return p;
+        }
+
+        auto iter = map.find(path);
         p.Found = iter != map.end();
         if (p.Found)
         {

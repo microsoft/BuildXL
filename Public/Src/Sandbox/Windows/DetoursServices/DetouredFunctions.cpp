@@ -311,9 +311,19 @@ static void GetTargetNameFromReparseData(_In_ PREPARSE_DATA_BUFFER pReparseDataB
 /// </summary>
 static bool TryGetReparsePointTarget(_In_ const wstring& path, _In_ HANDLE hInput, _Inout_ wstring& target, const PolicyResult& policyResult)
 {
-    // This is an I/O operation to get the file attributes, but it ends up being faster than checking the cache first.
-    // As tested by a pip that creates 100k symlinks and a full build containing a variety of pips.
-    if (!IsReparsePoint(path.c_str(), hInput))
+    bool isReparsePoint;
+    auto result = PathCache_GetResolvingCheckResult(path, policyResult);
+    if (result.Found)
+    {
+        isReparsePoint = result.Value;
+    }
+    else
+    {
+        isReparsePoint = IsReparsePoint(path.c_str(), hInput);
+        PathCache_InsertResolvingCheckResult(path, isReparsePoint, policyResult);
+    }
+
+    if (!isReparsePoint)
     {
         return false;
     }
@@ -449,6 +459,12 @@ static bool ShouldResolveReparsePointsInPath(
         return AccessReparsePointTarget(path.GetPathString(), dwFlagsAndAttributes, INVALID_HANDLE_VALUE);
     }
 
+    // Untracked scopes never need full reparse point resolution
+    if (policyResult.IndicateUntracked())
+    {
+        return false;
+    }
+
     // BuildXL can delete file by opening a handle using 'FILE_FLAG_DELETE_ON_CLOSE' attribute or 'DELETE' access (Posix delete).
     // If we try to delete a symbolic link, it's important to not do full resolving as only the link
     // itself should be deleted, not its targets.
@@ -492,7 +508,6 @@ static bool ShouldResolveReparsePointsInPath(
 
         if (level >= levelToEnforceReparsePointParsingFrom && TryGetReparsePointTarget(resolver, INVALID_HANDLE_VALUE, target, policyResult))
         {
-            PathCache_InsertResolvingCheckResult(path.GetPathStringWithoutTypePrefix(), true, policyResult);
             return true;
         }
 
@@ -506,11 +521,9 @@ static bool ShouldResolveReparsePointsInPath(
 
     if (level >= levelToEnforceReparsePointParsingFrom && TryGetReparsePointTarget(resolver, INVALID_HANDLE_VALUE, target, policyResult))
     {
-        PathCache_InsertResolvingCheckResult(path.GetPathStringWithoutTypePrefix(), true, policyResult);
         return true;
     }
 
-    PathCache_InsertResolvingCheckResult(path.GetPathStringWithoutTypePrefix(), false, policyResult);
     return false;
 }
 

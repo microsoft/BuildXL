@@ -3,7 +3,7 @@
 
 using System;
 
-#if MICROSOFT_INTERNAL
+#if MICROSOFT_INTERNAL && NET_COREAPP_60
 using Microsoft.Applications.Events;
 #endif
 
@@ -19,7 +19,7 @@ namespace BuildXL.Utilities.Instrumentation.Common
         public static IAriaLogger? CreateAriaLogger(string token, string db, int teardownTimeoutInSeconds)
         {
             return Environment.OSVersion.Platform == PlatformID.Unix
-#if MICROSOFT_INTERNAL
+#if MICROSOFT_INTERNAL && NET_COREAPP_60
                 ? new XPlatAriaLogger(token)
 #else
                 ? null
@@ -43,7 +43,7 @@ namespace BuildXL.Utilities.Instrumentation.Common
             => AriaNative.DisposeAriaLogger(m_logger);
     }
 
-#if MICROSOFT_INTERNAL
+#if MICROSOFT_INTERNAL && NET_COREAPP_60
     internal sealed class XPlatAriaLogger : IAriaLogger
     {
         private readonly Microsoft.Applications.Events.ILogger m_ariaLogger;

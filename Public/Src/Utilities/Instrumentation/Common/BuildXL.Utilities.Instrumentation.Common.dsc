@@ -15,7 +15,8 @@ namespace Common {
         nullable: true,
         skipDefaultReferences: true,
         references: [
-            importFrom("Microsoft.Applications.Events.Server").pkg
+            ...addIf(qualifier.targetFramework === "net6.0",
+                importFrom("Microsoft.Applications.Events.Server").pkg)
         ],
         runtimeContent: [
             ...addIf(qualifier.targetRuntime === "win-x64",

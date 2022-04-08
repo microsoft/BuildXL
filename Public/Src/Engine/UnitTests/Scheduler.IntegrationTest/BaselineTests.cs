@@ -9,6 +9,7 @@ using System.Threading;
 using BuildXL.Pips;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
+using BuildXL.Processes;
 using BuildXL.Scheduler;
 using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Scheduler.Tracing;
@@ -1564,6 +1565,68 @@ namespace IntegrationTest.BuildXL.Scheduler
             // Let's validate the env var value matches the retry number
             var output = File.ReadAllText(standardOutput.Path.ToString(Context.PathTable));
             XAssert.AreEqual(processRetry, int.Parse(output));
+        }
+
+        [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [InlineData(2)]
+        [InlineData(7)]
+        public void RetryPipForProcessExitingWithAzWatsonDeadExitCode(int numOfRetriesBeforeSucceed)
+        {
+            Configuration.Sandbox.RetryOnAzureWatsonExitCode = true;
+
+            FileArtifact stateFile = FileArtifact.CreateOutputFile(ObjectRootPath.Combine(Context.PathTable, "stateFile.txt"));
+
+            var ops = new Operation[]
+            {
+                Operation.WriteFile(CreateOutputFileArtifact()),
+                Operation.SucceedOnRetry(stateFile,(int)SandboxedProcessPipExecutor.AzureWatsonExitCode, numOfRetriesBeforeSucceed)
+            };
+            var builder = CreatePipBuilder(ops);
+            builder.AddUntrackedFile(stateFile.Path);
+
+            SchedulePipBuilder(builder);
+
+            int retryLogCount = numOfRetriesBeforeSucceed;
+            bool shouldFail = numOfRetriesBeforeSucceed > PipExecutor.InternalSandboxedProcessExecutionFailureRetryCountMax;
+            var result = RunScheduler();
+
+            if (shouldFail)
+            {
+                result.AssertFailure();
+                retryLogCount = PipExecutor.InternalSandboxedProcessExecutionFailureRetryCountMax + 1;
+            }
+            else
+            {
+                result.AssertSuccess();
+            }
+
+            AssertVerboseEventLogged(ProcessesLogEventId.PipRetryDueToExitedWithAzureWatsonExitCode, retryLogCount);
+
+            if (shouldFail)
+            {
+                AssertErrorEventLogged(SchedulerLogEventId.PipExitedWithAzureWatsonExitCode, 1);
+            }
+        }
+
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        public void RetryPipForChildExitingWithAzWatsonDeadExitCode()
+        {
+            Configuration.Sandbox.RetryOnAzureWatsonExitCode = true;
+
+            FileArtifact stateFile = FileArtifact.CreateOutputFile(ObjectRootPath.Combine(Context.PathTable, "stateFile.txt"));
+
+            var ops = new Operation[]
+            {
+                Operation.WriteFile(CreateOutputFileArtifact()),
+                Operation.Spawn(Context.PathTable, true, Operation.SucceedOnRetry(stateFile,(int)SandboxedProcessPipExecutor.AzureWatsonExitCode, 2)),
+                Operation.SucceedWithExitCode(0)
+            };
+            var builder = CreatePipBuilder(ops);
+            builder.AddUntrackedFile(stateFile.Path);
+
+            SchedulePipBuilder(builder);
+            RunScheduler().AssertSuccess();
+            AssertVerboseEventLogged(ProcessesLogEventId.PipRetryDueToExitedWithAzureWatsonExitCode, 2);
         }
 
         [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]

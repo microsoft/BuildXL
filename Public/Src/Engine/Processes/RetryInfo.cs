@@ -232,7 +232,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// Is retryable failure due to Detours
         /// </summary>
-        public static bool IsDetoursRetrableFailure(this RetryReason retryReason)
+        public static bool IsDetoursRetryableFailure(this RetryReason retryReason)
         {
             switch (retryReason)
             {

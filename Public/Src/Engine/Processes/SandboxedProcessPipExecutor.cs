@@ -55,7 +55,7 @@ namespace BuildXL.Processes
         /// When running in CloudBuild, Process nondeterministically sometimes exits with 0xDEAD exit code. This is the exit code
         /// returned by Azure Watson dump after catching the process crash.
         /// </remarks>
-        private const uint AzureWatsonExitCode = 0xDEAD;
+        public const uint AzureWatsonExitCode = 0xDEAD;
 
         private static readonly string s_appDataLocalMicrosoftClrPrefix =
             Path.Combine(SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Microsoft", "CLR");
@@ -310,7 +310,10 @@ namespace BuildXL.Processes
                     UseLargeNtClosePreallocatedList = m_sandboxConfig.UseLargeNtClosePreallocatedList,
                     UseExtraThreadToDrainNtClose = m_sandboxConfig.UseExtraThreadToDrainNtClose,
                     DisableDetours = m_sandboxConfig.UnsafeSandboxConfiguration.DisableDetours(),
-                    LogProcessData = m_sandboxConfig.LogProcesses && m_sandboxConfig.LogProcessData,
+                    // Identifying Azure watson exit code requires logging process data, e.g., exit code.
+                    LogProcessData = 
+                        (m_sandboxConfig.LogProcesses && m_sandboxConfig.LogProcessData) 
+                        || (m_sandboxConfig.RetryOnAzureWatsonExitCode && OperatingSystemHelper.IsWindowsOS),
                     IgnoreGetFinalPathNameByHandle = m_sandboxConfig.UnsafeSandboxConfiguration.IgnoreGetFinalPathNameByHandle,
                     // SemiStableHash is 0 for pips with no provenance;
                     // since multiple pips can have no provenance, SemiStableHash is not always unique across all pips
@@ -1650,7 +1653,10 @@ namespace BuildXL.Processes
             bool exitedWithSuccessExitCode = m_pip.SuccessExitCodes.Length == 0
                 ? result.ExitCode == 0
                 : m_pip.SuccessExitCodes.Contains(result.ExitCode);
-            bool exitedSuccessfullyAndGracefully = !canceled && exitedWithSuccessExitCode;
+            ReportedProcess azWatsonDeadProcess = m_sandboxConfig.RetryOnAzureWatsonExitCode && OperatingSystemHelper.IsWindowsOS
+                ? result.Processes?.FirstOrDefault(p => p.ExitCode == AzureWatsonExitCode)
+                : null;
+            bool exitedSuccessfullyAndGracefully = !canceled && exitedWithSuccessExitCode && (azWatsonDeadProcess == null);
             bool exitedWithRetryAbleUserError = m_pip.RetryExitCodes.Contains(result.ExitCode) && m_remainingUserRetryCount > 0;
             long maxDetoursHeapSize = process.GetDetoursMaxHeapSize() + result.DetoursMaxHeapSize;
 
@@ -1757,28 +1763,9 @@ namespace BuildXL.Processes
                                 // There was an error logged when saving stdout or stderror.
                                 loggingSuccess = false;
                             }
-                            else if (m_sandboxConfig.RetryOnAzureWatsonExitCode && result.Processes?.Any(p => p.ExitCode == AzureWatsonExitCode) == true)
+                            else if (azWatsonDeadProcess != null)
                             {
-                                // Retry if the exit code is 0xDEAD.
-                                var deadProcess = result.Processes.Where(p => p.ExitCode == AzureWatsonExitCode).First();
-                                Tracing.Logger.Log.PipRetryDueToExitedWithAzureWatsonExitCode(
-                                    m_loggingContext,
-                                    m_pip.SemiStableHash,
-                                    m_pipDescription,
-                                    deadProcess.Path,
-                                    deadProcess.ProcessId);
-
-                                return SandboxedProcessPipExecutionResult.RetryProcessDueToAzureWatsonExitCode(
-                                    result.ExitCode,
-                                    primaryProcessTimes,
-                                    jobAccounting,
-                                    result.DetouringStatuses,
-                                    sandboxPrepMs,
-                                    sw.ElapsedMilliseconds,
-                                    result.ProcessStartTime,
-                                    maxDetoursHeapSize,
-                                    m_containerConfiguration,
-                                    pipProperties);
+                                loggingSuccess = false;
                             }
                         }
                     }
@@ -2006,7 +1993,19 @@ namespace BuildXL.Processes
                 status = SandboxedProcessPipExecutionStatus.Succeeded;
             }
 
-            if (m_sandboxConfig.UnsafeSandboxConfiguration.MonitorFileAccesses &&
+            if (azWatsonDeadProcess != null)
+            {
+                // Retry if there is a process (can be a child process) that exits with exit code 0xDEAD.
+                Tracing.Logger.Log.PipRetryDueToExitedWithAzureWatsonExitCode(
+                    m_loggingContext,
+                    m_pip.SemiStableHash,
+                    m_pipDescription,
+                    azWatsonDeadProcess.Path,
+                    azWatsonDeadProcess.ProcessId);
+
+                retryInfo = RetryInfo.GetDefault(RetryReason.AzureWatsonExitCode);
+            }
+            else if (m_sandboxConfig.UnsafeSandboxConfiguration.MonitorFileAccesses &&
                 m_sandboxConfig.UnsafeSandboxConfiguration.SandboxKind != SandboxKind.MacOsKextIgnoreFileAccesses &&
                 status == SandboxedProcessPipExecutionStatus.Succeeded &&
                 m_pip.PipType == PipType.Process &&

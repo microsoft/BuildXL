@@ -1929,7 +1929,7 @@ namespace BuildXL.Scheduler
                         }
                         else
                         {
-                            if (EngineEnvironmentSettings.DisableDetoursRetries && result.RetryInfo.RetryReason.IsDetoursRetrableFailure())
+                            if (EngineEnvironmentSettings.DisableDetoursRetries && result.RetryInfo.RetryReason.IsDetoursRetryableFailure())
                             {
                                 Logger.Log.DisabledDetoursRetry(operationContext, pip.SemiStableHash, processDescription, result.RetryInfo.RetryReason.ToString());
                                 break;
@@ -1937,10 +1937,12 @@ namespace BuildXL.Scheduler
 
                             --remainingInternalSandboxedProcessExecutionFailureRetries;
 
-                            Logger.Log.PipProcessRetriedInline(operationContext,
+                            Logger.Log.PipProcessRetriedInline(
+                                operationContext,
                                 InternalSandboxedProcessExecutionFailureRetryCountMax - remainingInternalSandboxedProcessExecutionFailureRetries,
                                 InternalSandboxedProcessExecutionFailureRetryCountMax,
-                                processDescription, result.RetryInfo.RetryReason.ToString());
+                                processDescription,
+                                result.RetryInfo.RetryReason.ToString());
 
                             counters.AddToCounter(PipExecutorCounter.RetriedInternalExecutionDuration, result.PrimaryProcessTimes.TotalWallClockTime);
 

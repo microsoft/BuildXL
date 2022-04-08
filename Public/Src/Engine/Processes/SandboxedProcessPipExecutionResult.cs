@@ -189,42 +189,6 @@ namespace BuildXL.Processes
                 createdDirectories: null);
         }
 
-        internal static SandboxedProcessPipExecutionResult RetryProcessDueToAzureWatsonExitCode(
-            int exitCode,
-            ProcessTimes primaryProcessTimes,
-            JobObject.AccountingInformation? jobAccountingInformation,
-            IReadOnlyList<ProcessDetouringStatusData> detouringStatuses,
-            long sandboxPrepMs,
-            long processSandboxedProcessResultMs,
-            long processStartTime,
-            long maxDetoursHeapSize,
-            ContainerConfiguration containerConfiguration,
-            Dictionary<string, int> pipProperties)
-        {
-            return new SandboxedProcessPipExecutionResult(
-                SandboxedProcessPipExecutionStatus.ExecutionFailed,
-                observedFileAccesses: default(SortedReadOnlyArray<ObservedFileAccess, ObservedFileAccessExpandedPathComparer>),
-                sharedDynamicDirectoryWriteAccesses: default(Dictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>>),
-                encodedStandardError: null,
-                encodedStandardOutput: null,
-                numberOfWarnings: 0,
-                unexpectedFileAccesses: null,
-                primaryProcessTimes: primaryProcessTimes,
-                jobAccountingInformation: jobAccountingInformation,
-                exitCode: exitCode,
-                sandboxPrepMs: sandboxPrepMs,
-                processSandboxedProcessResultMs: processSandboxedProcessResultMs,
-                processStartTime: processStartTime,
-                allReportedFileAccesses: null,
-                detouringStatuses: detouringStatuses,
-                maxDetoursHeapSize: maxDetoursHeapSize,
-                containerConfiguration: containerConfiguration,
-                pipProperties: pipProperties,
-                timedOut: false,
-                retryInfo: RetryInfo.GetDefault(RetryReason.AzureWatsonExitCode),
-                createdDirectories: null);
-        }
-
         internal static SandboxedProcessPipExecutionResult MismatchedMessageCountFailure(SandboxedProcessPipExecutionResult result)
             => new SandboxedProcessPipExecutionResult(
                    SandboxedProcessPipExecutionStatus.FileAccessMonitoringFailed,

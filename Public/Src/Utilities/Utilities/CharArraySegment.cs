@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Diagnostics.ContractsLight;
 
 namespace BuildXL.Utilities
@@ -35,8 +36,8 @@ namespace BuildXL.Utilities
         /// </summary>
         public CharArraySegment(char[] value, int index, int length)
         {
-            Contract.RequiresNotNull(value);
-            Contract.Requires(Range.IsValid(index, length, value.Length));
+            Contract.RequiresDebug(value != null);
+            Contract.RequiresDebug(Range.IsValid(index, length, value.Length));
 
             m_value = value;
             m_index = index;
@@ -48,7 +49,7 @@ namespace BuildXL.Utilities
         /// </summary>
         public CharArraySegment(char[] value)
         {
-            Contract.RequiresNotNull(value);
+            Contract.RequiresDebug(value != null);
 
             m_value = value;
             m_index = 0;
@@ -60,10 +61,15 @@ namespace BuildXL.Utilities
         /// </summary>
         public CharArraySegment Subsegment(int index, int length)
         {
-            Contract.Requires(Range.IsValid(index, length, Length));
+            Contract.RequiresDebug(Range.IsValid(index, length, Length));
 
             return new CharArraySegment(m_value, m_index + index, length);
         }
+
+        /// <summary>
+        /// Gets a <see cref="ReadOnlySpan{T}"/> representation of the current instance.
+        /// </summary>
+        public ReadOnlySpan<char> AsSpan() => m_value.AsSpan(m_index, m_length);
 
         /// <inheritdoc />
         public bool Equals(CharArraySegment other)
@@ -82,17 +88,8 @@ namespace BuildXL.Utilities
                 }
             }
 
-            int thisIndex = m_index;
-            int otherIndex = other.m_index;
-            for (int i = 0; i < m_length; i++)
-            {
-                if (m_value[thisIndex + i] != other.m_value[otherIndex + i])
-                {
-                    return false;
-                }
-            }
-
-            return true;
+            // Using vectorized comparison via spans.
+            return AsSpan().SequenceEqual(other.AsSpan());
         }
 
         /// <summary>
@@ -100,8 +97,8 @@ namespace BuildXL.Utilities
         /// </summary>
         public bool Equals8Bit(byte[] buffer, int index)
         {
-            Contract.RequiresNotNull(buffer);
-            Contract.Requires(Range.IsValid(index, Length, buffer.Length));
+            Contract.RequiresDebug(buffer != null);
+            Contract.RequiresDebug(Range.IsValid(index, Length, buffer.Length));
 
             int end = m_index + m_length;
             for (int i = m_index; i < end; i++)
@@ -121,8 +118,8 @@ namespace BuildXL.Utilities
         /// </summary>
         public bool Equals16Bit(byte[] buffer, int index)
         {
-            Contract.RequiresNotNull(buffer);
-            Contract.Requires(Range.IsValid(index, Length, buffer.Length));
+            Contract.RequiresDebug(buffer != null);
+            Contract.RequiresDebug(Range.IsValid(index, Length, buffer.Length));
 
             int end = m_index + m_length;
             for (int i = m_index; i < end; i++)
@@ -163,14 +160,7 @@ namespace BuildXL.Utilities
         /// <summary>
         /// Returns a character from the segment.
         /// </summary>
-        public char this[int index]
-        {
-            get
-            {
-                Contract.Requires(index >= 0 && index < Length);
-                return m_value[m_index + index];
-            }
-        }
+        public char this[int index] => m_value[m_index + index];
 
         /// <nodoc />
         public static bool operator ==(CharArraySegment left, CharArraySegment right)
@@ -195,8 +185,8 @@ namespace BuildXL.Utilities
         /// </summary>
         public void CopyAs8Bit(byte[] buffer, int index)
         {
-            Contract.RequiresNotNull(buffer);
-            Contract.Requires(Range.IsValid(index, Length, buffer.Length));
+            Contract.RequiresDebug(buffer != null);
+            Contract.RequiresDebug(Range.IsValid(index, Length, buffer.Length));
 
             int end = m_index + m_length;
             for (int i = m_index; i < end; i++)
@@ -211,8 +201,8 @@ namespace BuildXL.Utilities
         /// </summary>
         public void CopyAs16Bit(byte[] buffer, int index)
         {
-            Contract.RequiresNotNull(buffer);
-            Contract.Requires(Range.IsValid(index, Length, buffer.Length));
+            Contract.RequiresDebug(buffer != null);
+            Contract.RequiresDebug(Range.IsValid(index, Length, buffer.Length));
 
             int end = m_index + m_length;
             for (int i = m_index; i < end; i++)
@@ -264,10 +254,7 @@ namespace BuildXL.Utilities
         /// <summary>
         /// The length of the segment
         /// </summary>
-        public int Length
-        {
-            get { return m_length; }
-        }
+        public int Length => m_length;
 
         /// <summary>
         /// Indicates whether this segment only contains ASCII characters.

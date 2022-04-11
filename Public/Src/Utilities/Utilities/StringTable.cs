@@ -4,6 +4,8 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -274,7 +276,7 @@ namespace BuildXL.Utilities
         /// </summary>
         protected StringTable(SerializedState state)
         {
-            Contract.RequiresNotNull(state);
+            Contract.Requires(state != null);
 
 #if DebugStringTable
             DebugRegisterStringTable(this);
@@ -306,9 +308,9 @@ namespace BuildXL.Utilities
         /// </remarks>
         internal bool CaseInsensitiveEquals(StringId id1, StringId id2)
         {
-            Contract.Requires(id1.IsValid);
-            Contract.Requires(id2.IsValid);
-            Contract.Requires(IsValid());
+            Contract.RequiresDebug(id1.IsValid);
+            Contract.RequiresDebug(id2.IsValid);
+            Contract.RequiresDebug(IsValid());
 
             if (id1 == id2)
             {
@@ -328,7 +330,7 @@ namespace BuildXL.Utilities
             {
                 Contract.Assume((index1 + length1) <= buffer1.Length);
                 Contract.Assume((index2 + length2) <= buffer2.Length);
-
+                
                 // characters are 8 bits
                 for (int i = 0; i < length1; i++)
                 {
@@ -373,9 +375,9 @@ namespace BuildXL.Utilities
         /// </summary>
         internal int CompareOrdinal(StringId id1, StringId id2)
         {
-            Contract.Requires(id1.IsValid);
-            Contract.Requires(id2.IsValid);
-            Contract.Requires(IsValid());
+            Contract.RequiresDebug(id1.IsValid);
+            Contract.RequiresDebug(id2.IsValid);
+            Contract.RequiresDebug(IsValid());
 
             if (id1 == id2)
             {
@@ -392,9 +394,9 @@ namespace BuildXL.Utilities
         /// </summary>
         internal int CompareCaseInsensitive(StringId id1, StringId id2)
         {
-            Contract.Requires(id1.IsValid);
-            Contract.Requires(id2.IsValid);
-            Contract.Requires(IsValid());
+            Contract.RequiresDebug(id1.IsValid);
+            Contract.RequiresDebug(id2.IsValid);
+            Contract.RequiresDebug(IsValid());
 
             if (id1 == id2)
             {
@@ -414,9 +416,9 @@ namespace BuildXL.Utilities
         /// </remarks>
         internal bool Equals(string str, StringId id)
         {
-            Contract.RequiresNotNull(str);
-            Contract.Requires(id.IsValid);
-            Contract.Requires(IsValid());
+            Contract.RequiresDebug(str != null);
+            Contract.RequiresDebug(id.IsValid);
+            Contract.RequiresDebug(IsValid());
 
             return Equals(new StringSegment(str, 0, str.Length), id);
         }
@@ -429,8 +431,8 @@ namespace BuildXL.Utilities
         /// </remarks>
         private bool Equals<T>(T seg, StringId id) where T : struct, ICharSpan<T>
         {
-            Contract.Requires(id.IsValid);
-            Contract.Requires(IsValid());
+            Contract.RequiresDebug(id.IsValid);
+            Contract.RequiresDebug(IsValid());
 
             GetBytesCore(id, out var buffer, out var index, out var length);
 
@@ -460,7 +462,7 @@ namespace BuildXL.Utilities
 
         internal int CaseInsensitiveGetHashCode(StringId id)
         {
-            Contract.Requires(id.IsValid);
+            Contract.RequiresDebug(id.IsValid);
 
             GetBytesCore(id, out var buffer, out var index, out var length);
 
@@ -509,8 +511,8 @@ namespace BuildXL.Utilities
         /// </remarks>
         internal int GetLength(StringId id)
         {
-            Contract.Requires(id.IsValid);
-            Contract.Requires(IsValid());
+            Contract.RequiresDebug(id.IsValid);
+            Contract.RequiresDebug(IsValid());
 
             GetBytesCore(id, out _, out _, length: out int length);
             Contract.Assume(length >= 0);
@@ -524,15 +526,15 @@ namespace BuildXL.Utilities
         /// <returns>The ID of the string within the table.</returns>
         public StringId AddString(string value)
         {
-            Contract.RequiresNotNull(value);
-            Contract.Requires(IsValid());
+            Contract.RequiresDebug(value != null);
+            Contract.RequiresDebug(IsValid());
 
             return AddString((StringSegment)value);
         }
 
         internal StringId AddString<T>(T value) where T : struct, ICharSpan<T>
         {
-            Contract.Requires(IsValid());
+            Contract.RequiresDebug(IsValid());
 
             var getOrAddResult = m_stringSet.GetOrAddItem(new SoughtSetString<T>(this, value));
             Contract.Assert(getOrAddResult.IsFound || !m_isSerializationInProgress, "StringTable is being serialized. No new entry can be added.");
@@ -542,7 +544,7 @@ namespace BuildXL.Utilities
 
         private StringId AddStringToBuffer<T>(T seg) where T : struct, ICharSpan<T>
         {
-            Contract.Requires(IsValid());
+            Contract.RequiresDebug(IsValid());
 
             // Not in the set, so get some space to hold the string
             //
@@ -764,17 +766,15 @@ namespace BuildXL.Utilities
         /// </summary>
         internal int CopyString(StringId id, ref char[] destination, int destinationIndex, bool isEndIndex = false, bool allowResizeBuffer = true)
         {
-            Contract.Requires(IsValid());
-            Contract.Requires(id.IsValid);
-            Contract.RequiresNotNull(destination);
-            Contract.Requires(destinationIndex >= 0);
-            Contract.Requires(
+            Contract.RequiresDebug(IsValid());
+            Contract.RequiresDebug(id.IsValid);
+            Contract.RequiresDebug(destination != null);
+            Contract.RequiresDebug(destinationIndex >= 0);
+            Contract.RequiresDebug(
                 (!isEndIndex && (destinationIndex < destination.Length)) || (isEndIndex && (destinationIndex <= destination.Length)) ||
                 (destination.Length == 0 && destinationIndex == 0));
 
-            int index, length;
-            byte[] buffer;
-            GetBytesCore(id, out buffer, out index, out length);
+            GetBytesCore(id, out byte[] buffer, out int index, out int length);
 
             if (allowResizeBuffer && length > buffer.Length)
             {
@@ -820,9 +820,9 @@ namespace BuildXL.Utilities
         /// </summary>
         public void CopyString(StringId id, StringBuilder destination)
         {
-            Contract.Requires(IsValid());
-            Contract.Requires(id.IsValid);
-            Contract.RequiresNotNull(destination);
+            Contract.RequiresDebug(IsValid());
+            Contract.RequiresDebug(id.IsValid);
+            Contract.RequiresDebug(destination != null);
 
             GetBytesCore(id, out byte[] buffer, out int index, out int length);
 
@@ -883,14 +883,14 @@ namespace BuildXL.Utilities
                 }
             }
         }
-
+        
         /// <summary>
         /// Gets a string from this table.
         /// </summary>
         public string GetString(StringId id)
         {
-            Contract.Requires(id.IsValid);
-            Contract.Requires(IsValid());
+            Contract.RequiresDebug(id.IsValid);
+            Contract.RequiresDebug(IsValid());
 
             if (!m_expansionCache.TryGetValue(id, out string result))
             {
@@ -949,9 +949,9 @@ namespace BuildXL.Utilities
         /// <returns>The id of a string with the new extension.</returns>
         public StringId ChangeExtension(StringId id, StringId extension)
         {
-            Contract.Requires(IsValid());
-            Contract.Requires(id.IsValid);
-            Contract.Requires(extension.IsValid);
+            Contract.RequiresDebug(IsValid());
+            Contract.RequiresDebug(id.IsValid);
+            Contract.RequiresDebug(extension.IsValid);
 
             int originalLength = GetLength(id);
             int extLength = GetLength(extension);
@@ -986,22 +986,19 @@ namespace BuildXL.Utilities
         /// <returns>The extension.</returns>
         public StringId GetExtension(StringId id)
         {
-            Contract.Requires(id.IsValid);
+            Contract.RequiresDebug(id.IsValid);
 
-            var originalString = GetBinaryString(id);
+            var binaryString = GetBinaryString(id);
 
-            var index = originalString.Length;
-            while (--index >= 0)
+            var index = FindLastIndexOf(binaryString, '.');
+            if (index != -1)
             {
-                if (originalString[index] == '.')
-                {
-                    return AddString(originalString.Subsegment(index, originalString.Length - index));
-                }
+                return AddString(binaryString.Subsegment(index, binaryString.Length - index));
             }
-            
+
             return StringId.Invalid;
         }
-
+        
         /// <summary>
         /// Remove the extension of a path.
         /// </summary>
@@ -1009,21 +1006,60 @@ namespace BuildXL.Utilities
         /// <returns>The id of a path without its last extension.</returns>
         public StringId RemoveExtension(StringId id)
         {
-            Contract.Requires(IsValid());
-            Contract.Requires(id.IsValid);
+            Contract.RequiresDebug(IsValid());
+            Contract.RequiresDebug(id.IsValid);
 
-            var originalString = GetBinaryString(id);
-            for (var i = originalString.Length; --i > 0;) // avoid i == 0 as it would result in an empty string
+            BinaryStringSegment binaryString = GetBinaryString(id);
+            int index = FindLastIndexOf(binaryString, '.');
+            // index is -1 if the binaryString does not have a '.' or index is 0 if the name is empty.
+            if (index > 0)
             {
-                if (originalString[i] == '.')
-                {
-                    return AddString(originalString.Subsegment(0, i));
-                }
+                return AddString(binaryString.Subsegment(0, index));
             }
 
-            // either we'd end up with an empty string or there is no '.' in the string
-            // just return the original
             return id;
+        }
+
+        /// <summary>
+        /// Finds an index in <paramref name="binaryString"/> of a character <paramref name="c"/>.
+        /// </summary>
+        /// <returns>Returns -1 if the character is not part of the input binary string.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static int FindLastIndexOf(BinaryStringSegment binaryString, char c)
+        {
+            // This method is used on an application's hot path and is intended to be very efficient.
+            // So instead of using an indexer that does a few checks on each call, this method
+            // gets a span of byte or a span of char and vectorized instructions for searching an element.
+
+            if (binaryString.OnlyContains8BitChars)
+            {
+                unchecked
+                {
+                    // MemoryExtensions.LastIndexOf is vectorized.
+                    return binaryString.AsSpan().LastIndexOf((byte)c);
+                }
+            }
+            else
+            {
+                // This still a slow-ish non-span-based implementation, because we can't reinterpret cast the content of the binary string
+                // as a span of char because of the wrong endianness.
+                // using 2 bytes per char, need to cast the binary string in this case.
+                return findLastIndexSlow(binaryString, c);
+            }
+
+            static int findLastIndexSlow(BinaryStringSegment binaryString, char c)
+            {
+                // Extracting this method as a slow path to make the calling method more inline-friendly.
+                for (var i = binaryString.Length; --i >= 0;)
+                {
+                    if (binaryString[i] == c)
+                    {
+                        return i;
+                    }
+                }
+
+                return -1;
+            }
         }
 
         /// <summary>
@@ -1031,8 +1067,8 @@ namespace BuildXL.Utilities
         /// </summary>
         public StringId Concat(StringId id1, StringId id2)
         {
-            Contract.Requires(id1.IsValid);
-            Contract.Requires(id2.IsValid);
+            Contract.RequiresDebug(id1.IsValid);
+            Contract.RequiresDebug(id2.IsValid);
 
             int len1 = GetLength(id1);
             int len2 = GetLength(id2);
@@ -1056,7 +1092,7 @@ namespace BuildXL.Utilities
         /// </remarks>
         internal void Freeze()
         {
-            Contract.Requires(IsValid());
+            Contract.RequiresDebug(IsValid());
 
             // release this set to free memory
             m_stringSet = null;
@@ -1276,7 +1312,7 @@ namespace BuildXL.Utilities
         /// </summary>
         public static Task<StringTable> DeserializeAsync(BuildXLReader reader)
         {
-            Contract.RequiresNotNull(reader);
+            Contract.RequiresDebug(reader != null);
 
             var state = ReadSerializationState(reader);
             return Task.FromResult(new StringTable(state));
@@ -1328,7 +1364,7 @@ namespace BuildXL.Utilities
         /// </summary>
         protected static SerializedState ReadSerializationState(BuildXLReader reader)
         {
-            Contract.RequiresNotNull(reader);
+            Contract.RequiresDebug(reader != null);
             SerializedState result = new SerializedState();
             result.NextId = reader.ReadInt32();
 
@@ -1386,7 +1422,7 @@ namespace BuildXL.Utilities
         /// </remarks>
         public void Serialize(BuildXLWriter writer)
         {
-            Contract.RequiresNotNull(writer);
+            Contract.RequiresDebug(writer != null);
 
             m_isSerializationInProgress = true;
             // Call a static method to do the actual serialization to ensure not state outside of SerializedState is used
@@ -1413,7 +1449,7 @@ namespace BuildXL.Utilities
 
         private static void Serialize(BuildXLWriter writer, SerializedState state)
         {
-            Contract.RequiresNotNull(writer);
+            Contract.RequiresDebug(writer != null);
 
             writer.Write(state.NextId);
 
@@ -1484,7 +1520,7 @@ namespace BuildXL.Utilities
         {
             get
             {
-                Contract.Requires(m_stringSet != null, "Can't enumerate the strings if the table is frozen");
+                Contract.RequiresDebug(m_stringSet != null, "Can't enumerate the strings if the table is frozen");
                 for (int i = 0; i < m_stringSet.Count; ++i)
                 {
                     yield return GetString(m_stringSet[i]);

@@ -53,26 +53,30 @@ export function withRuntimeContracts(args: Managed.Arguments, contractsLevel?: C
         }});
 }
 
-export function getContractsSymbols(level: ContractsLevel, enableContractsQuantifiers?: boolean): string[] {
+export function getContractsSymbols(level: ContractsLevel, isDebug?: boolean): string[] {
     let result: string[] = [];
 
     if (hasFlag(level, ContractsLevel.requires)) {
         result = result.push("CONTRACTS_LIGHT_PRECONDITIONS");
+
+        if (isDebug) {
+            // Adding a special symbol to enable 'RequiresDebug'
+            result = result.push("CONTRACTS_LIGHT_PRECONDITIONS_DEBUG");
+        }
     }
 
-    if (hasFlag(level, ContractsLevel.ensures)) {
-        // Postconditions are not supported.
-    }
-
-    if (hasFlag(level, ContractsLevel.invariants)) {
-        // Invariants are not supported and should be checked explicitly.
-    }
+    // Postconditions and invariants are not supported.
 
     if (hasFlag(level, ContractsLevel.assertions)) {
         result = result.push("CONTRACTS_LIGHT_ASSERTS");
+
+        if (isDebug) {
+            // Adding a special symbol to enable 'AssertDebug'
+            result = result.push("CONTRACTS_LIGHT_ASSERTS_DEBUG");
+        }
     }
 
-    if (enableContractsQuantifiers) {
+    if (isDebug) {
         result = result.push("CONTRACTS_LIGHT_QUANTIFIERS");
     }
 

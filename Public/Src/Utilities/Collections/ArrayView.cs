@@ -4,7 +4,6 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
-using System.Diagnostics.CodeAnalysis;
 
 namespace BuildXL.Utilities.Collections
 {
@@ -21,8 +20,8 @@ namespace BuildXL.Utilities.Collections
         /// <param name="length">the length of the segment</param>
         public static ArrayView<T> Create<T>(T[] array, int start, int length)
         {
-            Contract.RequiresNotNull(array);
-            Contract.Requires(Range.IsValid(start, length, array.Length));
+            Contract.RequiresDebug(array != null);
+            Contract.RequiresDebug(Range.IsValid(start, length, array.Length));
             return new ArrayView<T>(array, start, length);
         }
     }
@@ -55,13 +54,19 @@ namespace BuildXL.Utilities.Collections
         /// <param name="length">the length of the segment</param>
         public ArrayView(T[] array, int start, int length)
         {
-            Contract.RequiresNotNull(array);
-            Contract.Requires(Range.IsValid(start, length, array.Length));
+            Contract.RequiresDebug(array is not null);
+            Contract.RequiresDebug(Range.IsValid(start, length, array.Length));
 
             m_array = array;
             m_start = start;
             Length = length;
         }
+
+        /// <summary>
+        /// Gets a <see cref="ReadOnlySpan{T}"/> from the current instance.
+        /// </summary>
+        /// <returns></returns>
+        public ReadOnlySpan<T> AsSpan() => new ReadOnlySpan<T>(m_array, m_start, Length);
 
         /// <summary>
         /// Returns a subsegment of the current array view starting at the current index with the given length
@@ -71,7 +76,7 @@ namespace BuildXL.Utilities.Collections
         /// <returns>the subsegment in the array view</returns>
         public ArrayView<T> GetSubView(int start, int length)
         {
-            Contract.Requires(Range.IsValid(start, length, Length));
+            Contract.RequiresDebug(Range.IsValid(start, length, Length));
 
             return new ArrayView<T>(m_array, m_start + start, length);
         }
@@ -84,7 +89,7 @@ namespace BuildXL.Utilities.Collections
         /// <returns>the subsegment in the array view</returns>
         public ArrayView<T> GetSubView(int start)
         {
-            Contract.Requires((uint)start <= Length);
+            Contract.RequiresDebug((uint)start <= Length);
 
             return new ArrayView<T>(m_array, m_start + start, Length - start);
         }
@@ -105,7 +110,7 @@ namespace BuildXL.Utilities.Collections
         }
 
         /// <inheritdoc />
-        public bool Equals([AllowNull]ArrayView<T> other)
+        public bool Equals(ArrayView<T> other)
         {
             return m_array == other.m_array &&
                 m_start == other.m_start &&
@@ -179,7 +184,7 @@ namespace BuildXL.Utilities.Collections
         /// </summary>
         public static ArrayView<T> FromArray(T[] array)
         {
-            Contract.RequiresNotNull(array);
+            Contract.Requires(array != null);
 
             return new ArrayView<T>(array, 0, array.Length);
         }
@@ -189,7 +194,7 @@ namespace BuildXL.Utilities.Collections
         /// </summary>
         public static implicit operator ArrayView<T>(T[] array)
         {
-            Contract.RequiresNotNull(array);
+            Contract.Requires(array != null);
 
             return new ArrayView<T>(array, 0, array.Length);
         }

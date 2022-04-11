@@ -48,7 +48,7 @@ namespace BuildXL.Utilities
 
         internal PathAtom(StringId value)
         {
-            Contract.Requires(value.IsValid);
+            Contract.RequiresDebug(value.IsValid);
             StringId = value;
         }
 
@@ -111,8 +111,8 @@ namespace BuildXL.Utilities
         /// </remarks>
         public static bool TryCreate(StringTable table, string atom, out PathAtom result)
         {
-            Contract.RequiresNotNull(table);
-            Contract.RequiresNotNull(atom);
+            Contract.RequiresDebug(table != null);
+            Contract.RequiresDebug(atom != null);
 
             return TryCreate(table, (StringSegment)atom, out result);
         }
@@ -127,7 +127,7 @@ namespace BuildXL.Utilities
         public static bool TryCreate<T>(StringTable table, T atom, out PathAtom result)
             where T : struct, ICharSpan<T>
         {
-            Contract.RequiresNotNull(table);
+            Contract.RequiresDebug(table != null);
 
             ParseResult parseResult = TryCreate(table, atom, out result, out _);
             return parseResult == ParseResult.Success;
@@ -143,7 +143,7 @@ namespace BuildXL.Utilities
         public static ParseResult TryCreate<T>(StringTable table, T atom, out PathAtom result, out int characterWithError)
             where T : struct, ICharSpan<T>
         {
-            Contract.RequiresNotNull(table);
+            Contract.RequiresDebug(table != null);
 
             ParseResult validationResult = Validate(atom, out characterWithError);
             result = validationResult == ParseResult.Success ? new PathAtom(table.AddString(atom)) : default(PathAtom);
@@ -158,9 +158,9 @@ namespace BuildXL.Utilities
         /// </remarks>
         public static PathAtom Create(StringTable table, string atom)
         {
-            Contract.RequiresNotNull(table);
-            Contract.RequiresNotNull(atom);
-            Contract.Requires(atom.Length > 0);
+            Contract.RequiresDebug(table != null);
+            Contract.RequiresDebug(atom != null);
+            Contract.RequiresDebug(atom.Length > 0);
 
             return Create(table, (StringSegment)atom);
         }
@@ -174,8 +174,8 @@ namespace BuildXL.Utilities
         public static PathAtom Create<T>(StringTable table, T atom)
             where T : struct, ICharSpan<T>
         {
-            Contract.RequiresNotNull(table);
-            Contract.Requires(atom.Length > 0);
+            Contract.RequiresDebug(table != null);
+            Contract.RequiresDebug(atom.Length > 0);
 
             bool pathAtomCreated = TryCreate(table, atom, out PathAtom result);
 
@@ -192,9 +192,9 @@ namespace BuildXL.Utilities
         /// </summary>
         public PathAtom Concat(StringTable table, PathAtom addition)
         {
-            Contract.RequiresNotNull(table);
-            Contract.Requires(IsValid);
-            Contract.Requires(addition.IsValid);
+            Contract.RequiresDebug(table != null);
+            Contract.RequiresDebug(IsValid);
+            Contract.RequiresDebug(addition.IsValid);
 
             StringId newId = table.Concat(StringId, addition.StringId);
             return new PathAtom(newId);
@@ -208,8 +208,8 @@ namespace BuildXL.Utilities
         /// <returns>A new path atom with the applied extension.</returns>
         public PathAtom ChangeExtension(StringTable table, PathAtom extension)
         {
-            Contract.RequiresNotNull(table);
-            Contract.Requires(IsValid);
+            Contract.RequiresDebug(table != null);
+            Contract.RequiresDebug(IsValid);
 
             if (extension.IsValid)
             {
@@ -219,16 +219,17 @@ namespace BuildXL.Utilities
 
             return RemoveExtension(table);
         }
-
+        
         /// <summary>
         /// Removes the extension of a path atom.
         /// </summary>
         /// <returns>A new path atom without the final extension.</returns>
         public PathAtom RemoveExtension(StringTable table)
         {
-            Contract.RequiresNotNull(table);
-            Contract.Requires(IsValid);
+            Contract.RequiresDebug(table != null);
+            Contract.RequiresDebug(IsValid);
 
+            //StringId newId = table.RemoveExtension(StringId);
             StringId newId = table.RemoveExtension(StringId);
             return new PathAtom(newId);
         }
@@ -239,8 +240,8 @@ namespace BuildXL.Utilities
         /// <returns>A new path atom containing the extension.</returns>
         public PathAtom GetExtension(StringTable table)
         {
-            Contract.RequiresNotNull(table);
-            Contract.Requires(IsValid);
+            Contract.RequiresDebug(table != null);
+            Contract.RequiresDebug(IsValid);
 
             StringId newId = table.GetExtension(StringId);
             return newId.IsValid ? new PathAtom(newId) : Invalid;
@@ -273,7 +274,7 @@ namespace BuildXL.Utilities
         /// </remarks>
         public bool CaseInsensitiveEquals(StringTable stringTable, PathAtom other)
         {
-            Contract.RequiresNotNull(stringTable);
+            Contract.RequiresDebug(stringTable != null);
 
             return stringTable.CaseInsensitiveEqualityComparer.Equals(StringId, other.StringId);
         }
@@ -286,7 +287,7 @@ namespace BuildXL.Utilities
         /// </remarks>
         public int CaseInsensitiveCompareTo(StringTable stringTable, PathAtom other)
         {
-            Contract.RequiresNotNull(stringTable);
+            Contract.RequiresDebug(stringTable != null);
 
             return stringTable.CompareCaseInsensitive(StringId, other.StringId);
         }
@@ -327,8 +328,8 @@ namespace BuildXL.Utilities
         /// <param name="table">The string table used when creating the atom.</param>
         public string ToString(StringTable table)
         {
-            Contract.RequiresNotNull(table);
-            Contract.Requires(IsValid);
+            Contract.RequiresDebug(table != null);
+            Contract.RequiresDebug(IsValid);
 
             return table.GetString(StringId);
         }

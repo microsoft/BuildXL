@@ -31,15 +31,6 @@ namespace Core {
                 BuildXLSdk.withQualifier({targetFramework: qualifier.targetFramework}).NetFx.Netstandard.dll
             ),
         ],
-        assemblyBindingRedirects: [
-            {
-                // This redirect is needed for channel-based action block tests.
-                name: "System.Runtime.CompilerServices.Unsafe",
-                publicKeyToken: "b03f5f7f11d50a3a",
-                culture: "neutral",
-                oldVersion: "0.0.0.0-5.0.0.0",
-                newVersion: "5.0.0.0", // Corresponds to: { id: "System.Runtime.CompilerServices.Unsafe", version: "5.0.0.0" },
-            }
-        ]
+        assemblyBindingRedirects: BuildXLSdk.cacheBindingRedirects()
     });
 }

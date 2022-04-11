@@ -40,7 +40,7 @@ namespace BuildXL.Utilities
         /// </summary>
         public BinaryStringSegment(ArrayView<byte> value, bool isAscii)
         {
-            Contract.Assert(isAscii || (value.Length % 2) == 0, "UTF-16 must have even number of bytes");
+            Contract.AssertDebug(isAscii || (value.Length % 2) == 0, "UTF-16 must have even number of bytes");
             m_value = value;
             m_isAscii = isAscii;
         }
@@ -54,6 +54,11 @@ namespace BuildXL.Utilities
                 ? new BinaryStringSegment(m_value.GetSubView(index, length), m_isAscii)
                 : new BinaryStringSegment(m_value.GetSubView(index * 2, length * 2), m_isAscii);
         }
+
+        /// <summary>
+        /// Gets a <see cref="ReadOnlySpan{T}"/> representation of the current instance.
+        /// </summary>
+        public ReadOnlySpan<byte> AsSpan() => m_value.AsSpan();
 
         /// <inheritdoc />
         public bool Equals(BinaryStringSegment other)
@@ -72,6 +77,12 @@ namespace BuildXL.Utilities
                 }
             }
 
+            if (m_isAscii == other.m_isAscii)
+            {
+                // We can use span-based comparison only when both instances have the same "encoding".
+                return AsSpan().SequenceEqual(other.AsSpan());
+            }
+
             for (int i = 0; i < Length; i++)
             {
                 if (this[i] != other[i])
@@ -88,23 +99,23 @@ namespace BuildXL.Utilities
         /// </summary>
         public bool Equals8Bit(byte[] buffer, int index)
         {
-            for (int i = 0; i < Length; i++)
-            {
-                var storedCh = (char)buffer[index++];
-                if (storedCh != this[i])
-                {
-                    return false;
-                }
-            }
-
-            return true;
+            Contract.AssertDebug(OnlyContains8BitChars, "Equals8Bit should only be called for an instance with ASCII characters only!");
+            
+            var thisAsSpan = AsSpan();
+            var bufferSpan = buffer.AsSpan(index, thisAsSpan.Length);
+            // SequenceEquals is vectorized in .NET Core.
+            return thisAsSpan.SequenceEqual(bufferSpan);
         }
-
+        
         /// <summary>
         /// Compares this segment to a 16-bit characters drawn from a byte array starting at some index
         /// </summary>
         public bool Equals16Bit(byte[] buffer, int index)
         {
+            // Using less efficient implementation, because the endianness for wide characters is not span friendly.
+            // We can't just reinterpret the byte array into ReadOnlySpan<char> until we reverse the current endianness.
+            // I.e. we should the lower byte of char in 0-7 bit position and the higher bit in 8-15.
+            // But right now the order is reversed.
             for (int i = 0; i < Length; i++)
             {
                 var storedCh = (char)((buffer[index++] << 8) | buffer[index++]);
@@ -130,9 +141,22 @@ namespace BuildXL.Utilities
 
             unchecked
             {
-                for (int i = 0; i < Length; i++)
+                // Using more complicated logic to make the implementation faster.
+                if (OnlyContains8BitChars)
                 {
-                    hash = ((hash << 5) + hash) ^ this[i];
+                    var thisAsSpan = AsSpan();
+                    for (int i = 0; i < thisAsSpan.Length; i++)
+                    {
+                        hash = ((hash << 5) + hash) ^ thisAsSpan[i];
+                    }
+                }
+                else
+                {
+                    // This is still a slow-ish non-span-based path.
+                    for (int i = 0; i < Length; i++)
+                    {
+                        hash = ((hash << 5) + hash) ^ this[i];
+                    }
                 }
 
                 return (int)hash;
@@ -142,6 +166,10 @@ namespace BuildXL.Utilities
         /// <summary>
         /// Returns a character from the segment.
         /// </summary>
+        /// <remarks>
+        /// This method is not very efficient (especially compared to just a normal array indexer), so try to avoid using it on a hot path and
+        /// use the result of <see cref="AsSpan"/> method instead.
+        /// </remarks>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2233:OperationsShouldNotOverflow")]
         public char this[int index]
         {

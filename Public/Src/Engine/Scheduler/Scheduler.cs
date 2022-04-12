@@ -1309,7 +1309,7 @@ namespace BuildXL.Scheduler
 
             m_statusSnapshotLastUpdated = DateTime.UtcNow;
 
-            m_loggingIntervalPeriodMs = GetLoggingPeriodInMsForExecution(configuration);
+            m_loggingIntervalPeriodMs = GetLoggingPeriodInMsForExecution(configuration.Logging);
             m_previousStatusLogTimeUtc = DateTime.UtcNow.AddMilliseconds(-1 * m_loggingIntervalPeriodMs); // Reducing by loggingIntervalPeriodMs to enable logging in the first call to UpdateStatus
             m_pipTwoPhaseCache = pipTwoPhaseCache ?? new PipTwoPhaseCache(loggingContext, cache, context, m_semanticPathExpander);
             m_runnablePipPerformance = new ConcurrentDictionary<PipId, RunnablePipPerformanceInfo>();
@@ -1436,11 +1436,17 @@ namespace BuildXL.Scheduler
             m_diagnosticsEnabled = ETWLogger.Log.IsEnabled(EventLevel.Verbose, Keywords.Diagnostics);
         }
 
-        private static int GetLoggingPeriodInMsForExecution(IConfiguration configuration)
+        /// <summary>
+        /// returns frequency of the logging period in ms
+        /// </summary>
+        /// <param name="configuration"></param>
+        /// <returns></returns>
+
+        public static int GetLoggingPeriodInMsForExecution(ILoggingConfiguration configuration)
         {
-            return configuration.Logging.StatusFrequencyMs != 0 ?
-                configuration.Logging.StatusFrequencyMs :
-                configuration.Logging.GetTimerUpdatePeriodInMs();
+            return configuration.StatusFrequencyMs != 0 ?
+                configuration.StatusFrequencyMs :
+                configuration.GetTimerUpdatePeriodInMs();
         }
 
         /// <summary>

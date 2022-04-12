@@ -1595,13 +1595,15 @@ namespace BuildXL
 
             private void ConfigureAzureDevOpsLogging(BuildViewModel buildViewModel)
             {
+                var initialFrequency = Scheduler.Scheduler.GetLoggingPeriodInMsForExecution(m_configuration);
                 var listener = new AzureDevOpsListener(
                     Events.Log,
                     m_console,
                     m_baseTime,
                     buildViewModel,
                     m_configuration.UseCustomPipDescriptionOnConsole,
-                    m_warningManager.GetState
+                    m_warningManager.GetState,
+                    initialFrequency
                 );
 
                 AddListener(listener);

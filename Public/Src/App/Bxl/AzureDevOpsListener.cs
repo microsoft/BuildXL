@@ -49,7 +49,9 @@ namespace BuildXL
         private int m_lastReportedProgress = -1;
         private int m_warningCount;
         private int m_errorCount;
-
+        private readonly int m_initialFrequencyMs;
+        private int m_loggingFrequencyMs;
+        private DateTime m_statusLogTime;
         /// <nodoc />
         public AzureDevOpsListener(
             Events eventSource,
@@ -58,6 +60,7 @@ namespace BuildXL
             BuildViewModel buildViewModel,
             bool useCustomPipDescription,
             [CanBeNull] WarningMapper warningMapper,
+            int initialFrequencyMs,
             int maxIssuesToLog = 100)
             : base(eventSource, baseTime, warningMapper: warningMapper, level: EventLevel.Verbose, captureAllDiagnosticMessages: false, timeDisplay: TimeDisplay.Seconds, useCustomPipDescription: useCustomPipDescription)
         {
@@ -67,6 +70,7 @@ namespace BuildXL
             m_console = console;
             m_buildViewModel = buildViewModel;
             m_maxIssuesToLog = maxIssuesToLog;
+            m_initialFrequencyMs = initialFrequencyMs;
         }
 
         /// <inheritdoc />
@@ -75,6 +79,26 @@ namespace BuildXL
         {
             m_console.Dispose();
             base.Dispose();
+        }
+
+        private int GetCurrentFrequencyMs()
+        {
+            DateTime currentTime = DateTime.UtcNow;
+            long totalElapsedMins = SafeConvert.ToInt32(currentTime.Subtract(BaseTime).TotalMinutes);
+
+            if (totalElapsedMins <= 5)
+            {
+                return m_initialFrequencyMs;
+            }
+            else if (totalElapsedMins < 60)
+            {
+                return 20_000;
+            }
+            else
+            {
+                return 60_000;
+            }
+
         }
 
         /// <inheritdoc />
@@ -103,7 +127,14 @@ namespace BuildXL
                     if (currentProgress > m_lastReportedProgress)
                     {
                         m_lastReportedProgress = currentProgress;
-                        m_console.WriteOutputLine(MessageLevel.Info, $"##vso[task.setprogress value={currentProgress};]Pip Execution phase");
+
+                        DateTime currentTime = DateTime.UtcNow;
+                        m_loggingFrequencyMs = GetCurrentFrequencyMs();
+                        if (currentTime > m_statusLogTime.AddMilliseconds(m_loggingFrequencyMs))
+                        {
+                            m_statusLogTime = currentTime;
+                            m_console.WriteOutputLine(MessageLevel.Info, $"##vso[task.setprogress value={currentProgress};]Pip Execution phase");
+                        }
                     }
 
                     break;
@@ -184,6 +215,7 @@ namespace BuildXL
                     ToolName = pipProcessErrorEventFields.PipExe,
                     ExitCode = pipProcessErrorEventFields.ExitCode,
                     Output = pipProcessErrorEventFields.OutputToLog,
+                    
                 },
                 MaxErrorsToIncludeInSummary);
 

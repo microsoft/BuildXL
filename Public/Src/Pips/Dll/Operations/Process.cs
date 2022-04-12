@@ -827,7 +827,15 @@ namespace BuildXL.Pips.Operations
         /// <summary>
         /// Indicates whether this pip is configured to always miss
         /// </summary>
-        public bool DisableCacheLookup => (ProcessOptions & Options.DisableCacheLookup) != 0;
+        /// <remarks>
+        /// We always disable cache lookup for processes that run outside of the sandbox
+        /// </remarks>
+        public bool DisableCacheLookup => DisableSandboxing || (ProcessOptions & Options.DisableCacheLookup) != 0;
+
+        /// <summary>
+        /// Indicates whether this pip is configured to run outside of the sandbox
+        /// </summary>
+        public bool DisableSandboxing => (ProcessOptions & Options.DisableSandboxing) != 0;
 
         /// <summary>
         /// Whether this process produces any shared output directories

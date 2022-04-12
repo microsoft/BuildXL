@@ -215,6 +215,11 @@ namespace BuildXL.Processes
         /// </remarks>
         private bool NoFakeTimestamp => IsIncrementalPreserveOutputPip;
 
+        /// <summary>
+        /// Whether file monitoring is enabled for this pip
+        /// </summary>
+        private bool MonitorFileAccesses => m_sandboxConfig.UnsafeSandboxConfiguration.MonitorFileAccesses && !m_pip.DisableSandboxing;
+
         private FileAccessPolicy DefaultMask => NoFakeTimestamp ? ~FileAccessPolicy.Deny : ~FileAccessPolicy.AllowRealInputTimestamps;
 
         private readonly IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> m_staleOutputsUnderSharedOpaqueDirectories;
@@ -324,7 +329,7 @@ namespace BuildXL.Processes
                     ExplicitlyReportDirectoryProbes = m_sandboxConfig.ExplicitlyReportDirectoryProbes,
                 };
 
-            if (!m_sandboxConfig.UnsafeSandboxConfiguration.MonitorFileAccesses)
+            if (!MonitorFileAccesses)
             {
                 // If monitoring of file accesses is disabled, make sure a valid
                 // manifest is still provided and disable detours for this pip.
@@ -828,7 +833,7 @@ namespace BuildXL.Processes
                     // in the scope of a shared opaque
                     HashSet<AbsolutePath> allInputPathsUnderSharedOpaques = allInputPathsUnderSharedOpaquesWrapper.Instance;
 
-                    if (m_sandboxConfig.UnsafeSandboxConfiguration.MonitorFileAccesses && !TryPrepareFileAccessMonitoring(allInputPathsUnderSharedOpaques))
+                    if (MonitorFileAccesses && !TryPrepareFileAccessMonitoring(allInputPathsUnderSharedOpaques))
                     {
                         return SandboxedProcessPipExecutionResult.PreparationFailure();
                     }
@@ -865,7 +870,7 @@ namespace BuildXL.Processes
                         PipDescription = m_pipDescription,
                         TimeoutDumpDirectory = ComputePipTimeoutDumpDirectory(m_sandboxConfig, m_pip, m_pathTable),
                         SurvivingPipProcessChildrenDumpDirectory = m_sandboxConfig.SurvivingPipProcessChildrenDumpDirectory.ToString(m_pathTable),
-                        SandboxKind = m_sandboxConfig.UnsafeSandboxConfiguration.SandboxKind,
+                        SandboxKind = m_pip.DisableSandboxing ? SandboxKind.None : m_sandboxConfig.UnsafeSandboxConfiguration.SandboxKind,
                         AllowedSurvivingChildProcessNames = m_pip.AllowedSurvivingChildProcessNames.Select(n => n.ToString(m_pathTable.StringTable)).ToArray(),
                         NestedProcessTerminationTimeout = m_pip.NestedProcessTerminationTimeout ?? SandboxedProcessInfo.DefaultNestedProcessTerminationTimeout,
                         DetoursFailureFile = m_detoursFailuresFile,
@@ -1789,7 +1794,7 @@ namespace BuildXL.Processes
                 m_fileAccessAllowlist);
 
             // Note that when MonitorFileAccesses == false, we should not assume the various reported-access sets are non-null.
-            if (m_sandboxConfig.UnsafeSandboxConfiguration.MonitorFileAccesses)
+            if (MonitorFileAccesses)
             {
                 // First remove all the paths that are Injectable from in the process.
                 RemoveInjectableFileAccesses(result.AllUnexpectedFileAccesses);
@@ -1922,7 +1927,7 @@ namespace BuildXL.Processes
             // N.B. here 'observed' means 'all', not observed in the terminology of SandboxedProcessPipExecutor.
             List<ReportedFileAccess> allFileAccesses = null;
 
-            if (m_sandboxConfig.UnsafeSandboxConfiguration.MonitorFileAccesses && m_sandboxConfig.LogObservedFileAccesses)
+            if (MonitorFileAccesses && m_sandboxConfig.LogObservedFileAccesses)
             {
                 allFileAccesses = new List<ReportedFileAccess>(result.FileAccesses);
                 allFileAccesses.AddRange(result.AllUnexpectedFileAccesses);
@@ -2005,7 +2010,7 @@ namespace BuildXL.Processes
 
                 retryInfo = RetryInfo.GetDefault(RetryReason.AzureWatsonExitCode);
             }
-            else if (m_sandboxConfig.UnsafeSandboxConfiguration.MonitorFileAccesses &&
+            else if (MonitorFileAccesses &&
                 m_sandboxConfig.UnsafeSandboxConfiguration.SandboxKind != SandboxKind.MacOsKextIgnoreFileAccesses &&
                 status == SandboxedProcessPipExecutionStatus.Succeeded &&
                 m_pip.PipType == PipType.Process &&
@@ -4485,7 +4490,7 @@ namespace BuildXL.Processes
                     // See Bug #1043533
                     !m_shouldPreserveOutputs &&
                     !m_pip.HasUntrackedChildProcesses &&
-                    m_sandboxConfig.UnsafeSandboxConfiguration.MonitorFileAccesses;
+                    MonitorFileAccesses;
         }
 
         private void LogFinishedFailed(SandboxedProcessResult result)

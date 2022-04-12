@@ -1367,6 +1367,22 @@ namespace BuildXL.Scheduler
 
             counters.AddToCounter(PipExecutorCounter.ExecuteProcessDuration, executionResult.PrimaryProcessTimes.TotalWallClockTime);
 
+            // Skip the post-processing if the pip was run outside of the sandbox
+            if (pip.DisableSandboxing)
+            {
+                // We just populate processExecutionResult with empty observations
+                // to appease the contract assertions regarding these fields being set
+                processExecutionResult.DynamicObservations = ReadOnlyArray<(AbsolutePath Path, DynamicObservationKind Kind)>.Empty;
+                processExecutionResult.AllowedUndeclaredReads = new ReadOnlyHashSet<AbsolutePath>();
+                processExecutionResult.FileAccessViolationsNotAllowlisted = new List<ReportedFileAccess>();
+                processExecutionResult.AllowlistedFileAccessViolations = new List<ReportedFileAccess>();
+                processExecutionResult.ReportUnexpectedFileAccesses(default);
+
+                Logger.Log.ScheduleProcessNotStoredToCacheDueToSandboxDisabled(operationContext, processDescription);
+                processExecutionResult.SetResult(operationContext, succeeded ? PipResultStatus.Succeeded : PipResultStatus.Failed);
+                return processExecutionResult;
+            }
+
             using (operationContext.StartOperation(PipExecutorCounter.ProcessOutputsDuration))
             {
                 ObservedInputProcessingResult observedInputValidationResult;
@@ -4867,7 +4883,8 @@ namespace BuildXL.Scheduler
                 bool isReparsePoint = reparsePointType.Succeeded && FileUtilities.IsReparsePointActionable(reparsePointType.Result);
 
                 bool shouldStoreOutputToCache =
-                    ((environment.Configuration.Schedule.StoreOutputsToCache && !shouldOutputBePreserved) || isRewrittenOutputFile)
+                    !process.DisableSandboxing  // Don't store outputs to cache for processes running outside of the sandbox
+                    && ((environment.Configuration.Schedule.StoreOutputsToCache && !shouldOutputBePreserved) || isRewrittenOutputFile)
                     && !isReparsePoint;
 
                 Possible<TrackedFileContentInfo> possiblyStoredOutputArtifact = shouldStoreOutputToCache

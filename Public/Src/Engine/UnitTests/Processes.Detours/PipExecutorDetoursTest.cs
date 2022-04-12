@@ -4447,6 +4447,51 @@ namespace Test.BuildXL.Processes.Detours
         }
 
         [Fact]
+        public async Task TestDisableDetoursViaProcessOptions()
+        {
+            var context = BuildXLContext.CreateInstanceForTesting();
+            var pathTable = context.PathTable;
+
+            using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory))
+            {
+                string currentCodeFolder = Path.GetDirectoryName(AssemblyHelper.GetAssemblyLocation(Assembly.GetExecutingAssembly()));
+                Contract.Assume(currentCodeFolder != null);
+
+                string workingDirectory = tempFiles.RootDirectory;
+                Contract.Assume(workingDirectory != null);
+
+                string inputFile = Path.Combine(workingDirectory, "CallGetAttributeNonExistent.txt");
+
+                var process = CreateDetourProcess(
+                    context,
+                    pathTable,
+                    tempFiles,
+                    argumentStr: "CallGetAttributeNonExistent",
+                    inputFiles: ReadOnlyArray<FileArtifact>.Empty,
+                    inputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
+                    outputFiles: ReadOnlyArray<FileArtifactWithAttributes>.Empty,
+                    outputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
+                    untrackedScopes: ReadOnlyArray<AbsolutePath>.Empty,
+                    // Disable the sandbox via process options:
+                    sandboxDisabled: true);
+
+                string errorString = null;
+                SandboxedProcessPipExecutionResult result = await RunProcessAsync(
+                    pathTable: pathTable,
+                    ignoreSetFileInformationByHandle: false,
+                    ignoreZwRenameFileInformation: false,
+                    monitorNtCreate: true,
+                    ignoreReparsePoints: false,
+                    disableDetours: false,  // Pip configuration takes precedence
+                    context: context,
+                    pip: process,
+                    errorString: out errorString);
+
+                VerifyNoFileAccesses(result);
+            }
+        }
+
+        [Fact]
         public async Task TestGetAttributeNonExistentNotDeclared()
         {
             var context = BuildXLContext.CreateInstanceForTesting();
@@ -7801,7 +7846,8 @@ namespace Test.BuildXL.Processes.Detours
             ReadOnlyArray<DirectoryArtifact> inputDirectories,
             ReadOnlyArray<FileArtifactWithAttributes> outputFiles,
             ReadOnlyArray<DirectoryArtifact> outputDirectories,
-            ReadOnlyArray<AbsolutePath> untrackedScopes)
+            ReadOnlyArray<AbsolutePath> untrackedScopes,
+            bool sandboxDisabled = false)
         {
             Contract.Requires(pathTable != null);
             Contract.Requires(tempFileStorage != null);
@@ -7855,7 +7901,8 @@ namespace Test.BuildXL.Processes.Detours
                 semaphores: ReadOnlyArray<ProcessSemaphoreInfo>.Empty,
                 provenance: PipProvenance.CreateDummy(context),
                 toolDescription: StringId.Invalid,
-                additionalTempDirectories: ReadOnlyArray<AbsolutePath>.Empty);
+                additionalTempDirectories: ReadOnlyArray<AbsolutePath>.Empty,
+                options: sandboxDisabled ? Process.Options.DisableSandboxing : default);
         }
 
         private static void VerifyFileAccesses(

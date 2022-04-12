@@ -509,6 +509,30 @@ namespace Test.BuildXL.FingerprintStore
         }
 
         [Fact]
+        public void WeakFingerprintNotStoredForUnsandboxedPip()
+        {
+            var srcA = CreateSourceFile();
+            var pipBuilderA = CreatePipBuilder(new Operation[]
+            {
+                Operation.ReadFile(srcA),
+                Operation.WriteFile(CreateOutputFileArtifact())
+            });
+
+            pipBuilderA.Options |= Process.Options.DisableSandboxing;
+
+            var pipA = SchedulePipBuilder(pipBuilderA).Process;
+            var build1 = RunScheduler().AssertCacheMiss(pipA.PipId);
+
+            var storeDirectory = ResultToStoreDirectory(build1);
+            FingerprintStoreEntry entry1A = new FingerprintStoreEntry();
+            FingerprintStoreSession(storeDirectory, (store) =>
+            {
+                // No entry for pipA 
+                XAssert.IsFalse(store.TryGetFingerprintStoreEntryBySemiStableHash(pipA.FormattedSemiStableHash, out entry1A));
+            });
+        }
+
+        [Fact]
         public void TestFingerprintStoreEntryToString()
         {
             var dir = CreateOutputDirectoryArtifact(ReadonlyRoot);

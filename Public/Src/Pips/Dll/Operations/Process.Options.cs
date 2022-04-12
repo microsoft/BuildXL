@@ -176,7 +176,12 @@ namespace BuildXL.Pips.Operations
             /// <summary>
             /// Whether full reparse point resolving is disabled
             /// </summary>
-            DisableFullReparsePointResolving = 1 << 20
+            DisableFullReparsePointResolving = 1 << 20,
+
+            /// <summary>
+            /// Whether to disable sandboxing for this process
+            /// </summary>
+            DisableSandboxing = 1 << 21,
         }
     }
 }

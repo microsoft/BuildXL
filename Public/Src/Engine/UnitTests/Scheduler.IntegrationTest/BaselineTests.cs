@@ -592,6 +592,20 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler().AssertCacheMiss(pip.PipId);
         }
 
+        [Fact]
+        public void SandboxDisabledPipIsCacheMiss()
+        {
+            var outFile = CreateOutputFileArtifact();
+            var pipBuilder = CreatePipBuilder(new Operation[] { Operation.WriteFile(outFile) });
+            pipBuilder.Options = Process.Options.DisableSandboxing;
+
+            var pip = SchedulePipBuilder(pipBuilder).Process;
+            RunScheduler().AssertCacheMiss(pip.PipId);
+
+            // Unsandboxed pips are always misses
+            RunScheduler().AssertCacheMiss(pip.PipId);
+        }
+
         [Feature(Features.AbsentFileProbe)]
         [Theory]
         [InlineData(true, false)]

@@ -336,6 +336,13 @@ namespace Transformer {
          * The flag has no effect if reparse point resolution is globally disabled already.
          */
         disableFullReparsePointResolving?: boolean;
+
+        /**
+         * Disables sandboxing for this process, i.e., the pip will run without observation tracking. 
+         * If this is true cache lookup is also disabled for the pip.
+         */
+        disableSandboxing?: boolean;
+
     }
 
     /**

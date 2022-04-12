@@ -481,6 +481,15 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void ScheduleProcessNotStoredToCacheDueToInherentUncacheability(LoggingContext loggingContext, string pipDescription);
 
         [GeneratedEvent(
+            (ushort)LogEventId.ScheduleProcessNotStoredToCacheDueToSandboxDisabled,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.PipExecutor,
+            Message = "[{pipDescription}] Pip completed successfully, but its outputs will not be processed and it won't be stored to the cache, since it was run with sandboxing disabled.")]
+        internal abstract void ScheduleProcessNotStoredToCacheDueToSandboxDisabled(LoggingContext loggingContext, string pipDescription);
+
+        [GeneratedEvent(
             (ushort)LogEventId.ContentMissAfterContentFingerprintCacheDescriptorHit,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,

@@ -18,9 +18,6 @@ using Microsoft.Win32.SafeHandles;
 #else
 using SafeProcessHandle = BuildXL.Interop.Windows.SafeProcessHandle;
 #endif
-#if !PLATFORM_WIN
-using static BuildXL.Interop.Unix.IO;
-#endif
 
 using static BuildXL.Utilities.FormattableStringEx;
 
@@ -173,34 +170,12 @@ namespace BuildXL.Processes
         /// Unix only: sets u+x on <paramref name="fileName"/>.  Throws if file doesn't exists and <paramref name="throwIfNotFound"/> is true.
         /// </summary>
         protected void SetExecutePermissionIfNeeded(string fileName, bool throwIfNotFound = true)
-        {
-#if !PLATFORM_WIN
-            var mode = GetFilePermissionsForFilePath(fileName, followSymlink: false);
-            if (mode < 0)
-            {
-                if (throwIfNotFound)
-                {
-                    ThrowBuildXLException($"Process creation failed: File '{fileName}' not found", new Win32Exception(0x2));
-                }
-
-                return;
-            }
-
-            var filePermissions = checked((FilePermissions)mode);
-            FilePermissions exePermission = FilePermissions.S_IXUSR;
-            if (!filePermissions.HasFlag(exePermission))
-            {
-                SetFilePermissionsForFilePath(fileName, (filePermissions | exePermission));
-            }
-#endif
-        }
+            => m_processExecutor.SetExecutePermissionIfNeeded(fileName, throwIfNotFound);
 
         /// <inheritdoc />
         public void Start()
         {
             Contract.Requires(!Started, "Process was already started.  Cannot start process more than once.");
-
-            SetExecutePermissionIfNeeded(Process.StartInfo.FileName);
 
             Started = true;
             m_processExecutor.Start();

@@ -392,11 +392,15 @@ INTERPOSE(int, linkat, int fd1, const char *name1, int fd2, const char *name2, i
 })
 
 INTERPOSE(int, unlink, const char *path)({
+    if (path && *path == '\0')
+        return bxl->fwd_unlink(path).restore();
     auto check = bxl->report_access(__func__, ES_EVENT_TYPE_NOTIFY_UNLINK, path, O_NOFOLLOW);
     return bxl->check_and_fwd_unlink(check, ERROR_RETURN_VALUE, path);
 })
 
 INTERPOSE(int, unlinkat, int dirfd, const char *path, int flags)({
+    if (dirfd == AT_FDCWD && path && *path == '\0')
+        return bxl->fwd_unlinkat(dirfd, path, flags).restore();
     int oflags = (flags & AT_REMOVEDIR) ? 0 : O_NOFOLLOW;
     auto check = bxl->report_access_at(__func__, ES_EVENT_TYPE_NOTIFY_UNLINK, dirfd, path, oflags);
     return bxl->check_and_fwd_unlinkat(check, ERROR_RETURN_VALUE, dirfd, path, flags);

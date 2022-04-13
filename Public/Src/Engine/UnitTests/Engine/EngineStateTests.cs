@@ -24,7 +24,6 @@ namespace Test.BuildXL.Engine
         {
         }
 
-
         [Fact]
         public void EngineStateIsUpdated()
         {
@@ -85,6 +84,7 @@ namespace Test.BuildXL.Engine
             XAssert.AreNotSame(afterFirst, afterFail);
         }
 
+        [Trait("Category", "SkipLinux")] // TODO: nothing is recorded in firstFCT
         [Fact]
         public void TestEngineStateFileContentTableReuse()
         {
@@ -218,7 +218,6 @@ namespace Test.BuildXL.Engine
 
         private void SetupHelloWorld(string content = "")
         {
-
             WriteFile(InputFilename, $"Some content {content}");
 
             SetConfig($@"

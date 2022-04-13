@@ -1023,7 +1023,7 @@ namespace Test.BuildXL.Scheduler
         }
 
         [Trait(Test.BuildXL.TestUtilities.Features.Feature, Test.BuildXL.TestUtilities.Features.SearchPath)]
-        [Fact]
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)] // no search filters on Linux
         public void SearchPathDirectoryEnumerations()
         {
             var harness = new Harness();
@@ -1080,7 +1080,7 @@ namespace Test.BuildXL.Scheduler
         }
 
         [Trait(Test.BuildXL.TestUtilities.Features.Feature, Test.BuildXL.TestUtilities.Features.SearchPath)]
-        [Fact]
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)] // no search filters on Linux
         public void SearchPathDirectoryEnumerationsWithFilters()
         {
             var harness = new Harness();

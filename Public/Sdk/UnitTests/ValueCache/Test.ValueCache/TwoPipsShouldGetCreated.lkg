@@ -1,5 +1,5 @@
 Transformer.writeFile(
-    f`./Out/out1.txt`,
+    f`./out/out1.txt`,
     {
         escaping: "NoEscaping",
         separator: "",
@@ -7,7 +7,7 @@ Transformer.writeFile(
     }
 );
 Transformer.writeFile(
-    f`./Out/out2.txt`,
+    f`./out/out2.txt`,
     {
         escaping: "NoEscaping",
         separator: "",

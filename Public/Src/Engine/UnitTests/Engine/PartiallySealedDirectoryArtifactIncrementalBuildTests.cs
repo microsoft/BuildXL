@@ -169,10 +169,10 @@ namespace Test.BuildXL.Engine
         protected override string GetSpecContents()
         {
             var combineCmd = OperatingSystemHelper.IsUnixOS
-                ? "-c \" if [[ -f inc/a/unsealed.h ]]; then /bin/cat inc/a/unsealed.h; fi ; /bin/cat inc/a/a.h ; /usr/bin/find -s inc/b -type f -exec /bin/cat {} \\\\; \""
+                ? "-c \" if test -f inc/a/unsealed.h ; then /bin/cat inc/a/unsealed.h; fi ; /bin/cat inc/a/a.h ; /usr/bin/find inc/b -type f | sort | xargs /bin/cat \""
                 : @"/d /c (if exist inc\\a\\unsealed.h (type inc\\a\\unsealed.h)) & type inc\\a\\a.h & (for /R inc\\b %f in (*) do @type ""%f"")";
             var echoCmd = OperatingSystemHelper.IsUnixOS
-                ? "-c \" if [[ -f obj/inc/absent.h ]]; then /bin/cat obj/inc/absent.h; fi ; /bin/cat obj/inc/combined.h \""
+                ? "-c \" if test -f obj/inc/absent.h ; then /bin/cat obj/inc/absent.h; fi ; /bin/cat obj/inc/combined.h \""
                 : @"/d /c (if exist obj\\inc\\absent.h (type obj\\inc\\absent.h) else (type obj\\inc\\combined.h))";
 
             return $@"

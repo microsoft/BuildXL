@@ -1,5 +1,5 @@
 Transformer.writeFile(
-    f`./Out/out.xml`,
+    f`./out/out.xml`,
     {
         escaping: "NoEscaping",
         separator: "",

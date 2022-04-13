@@ -9,6 +9,10 @@ using System.Threading.Tasks;
 using BuildXL.Interop;
 using BuildXL.Utilities.Tasks;
 
+#if !PLATFORM_WIN
+using static BuildXL.Interop.Unix.IO;
+#endif
+
 namespace BuildXL.Utilities
 {
     /// <summary>
@@ -143,6 +147,32 @@ namespace BuildXL.Utilities
         }
 
         /// <summary>
+        /// Unix only: sets +x on <paramref name="fileName"/>.  Throws if file doesn't exists and <paramref name="throwIfNotFound"/> is true.
+        /// </summary>
+        public void SetExecutePermissionIfNeeded(string fileName, bool throwIfNotFound = true)
+        {
+#if !PLATFORM_WIN
+            var mode = GetFilePermissionsForFilePath(fileName, followSymlink: false);
+            if (mode < 0)
+            {
+                if (throwIfNotFound)
+                {
+                    ThrowBuildXLException($"Process creation failed: File '{fileName}' not found", new Win32Exception(0x2));
+                }
+
+                return;
+            }
+
+            var filePermissions = checked((FilePermissions)mode);
+            FilePermissions exePermission = FilePermissions.S_IXUSR | FilePermissions.S_IXGRP | FilePermissions.S_IXOTH;
+            if (!filePermissions.HasFlag(exePermission))
+            {
+                SetFilePermissionsForFilePath(fileName, (filePermissions | exePermission));
+            }
+#endif
+        }
+
+        /// <summary>
         /// Starts process.
         /// </summary>
         public void Start()
@@ -167,6 +197,7 @@ namespace BuildXL.Utilities
 
             try
             {
+                SetExecutePermissionIfNeeded(Process.StartInfo.FileName);
                 Process.Start();
             }
             catch (Win32Exception e)

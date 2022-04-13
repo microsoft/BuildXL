@@ -42,6 +42,7 @@ export function runConsoleTest(args: TestRunArguments): Result {
 
     const testMethod = args.method || Environment.getStringValue("[UnitTest]Filter.testMethod");
     const testClass  = args.className || Environment.getStringValue("[UnitTest]Filter.testClass");
+    const runningInLinux = Context.getCurrentHost().os === "unix";
 
     if (Context.getCurrentHost().os !== "win") {
         args = args.merge<TestRunArguments>({
@@ -50,6 +51,7 @@ export function runConsoleTest(args: TestRunArguments): Result {
                 "QTestSkip",
                 "Performance",
                 "SkipDotNetCore",
+                ...(runningInLinux ? [ "SkipLinux" ] : []),
                 ...(args.noTraits || [])
             ].unique().map(categoryToTrait)
         });
@@ -102,7 +104,8 @@ export function runConsoleTest(args: TestRunArguments): Result {
                 ])
             ],
             unsafe: {
-                untrackedPaths: addIf(Environment.hasVariable("HOME"), f`${Environment.getDirectoryValue("HOME")}/.CFUserTextEncoding`)
+                untrackedPaths: addIf(Environment.hasVariable("HOME"), f`${Environment.getDirectoryValue("HOME")}/.CFUserTextEncoding`),
+                untrackedScopes: [ d`/mnt`, d`/init`, d`/usr` ]
             },
         });
     }

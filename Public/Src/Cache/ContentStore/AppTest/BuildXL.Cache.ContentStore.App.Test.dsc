@@ -39,6 +39,11 @@ namespace AppTest {
             },
         ],
         // This file is generated for non-Windows OSs
-        runTestArgs: {unsafeTestRunArguments: {untrackedPaths: [r`AppTestsMMF`]}}
+        runTestArgs: {unsafeTestRunArguments: {untrackedPaths: [
+            r`AppTestsMMF`,
+            // A write access is reported when we run "chmod +x" before executing this program.  Trying to declare
+            // this file as "rewritten" might work but it would look very strange, which is why this file is untracked.
+            r`app/${App.exe.name}`
+        ]}}
     });
 }

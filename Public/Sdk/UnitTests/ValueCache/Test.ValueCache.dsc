@@ -11,7 +11,7 @@ namespace Sdk.Tests {
         let value1 = ValueCache.getOrAdd('myKey', () => {
             return {
                 result: Transformer.writeAllText({
-                    outputPath: p`Out/out1.txt`, 
+                    outputPath: p`out/out1.txt`, 
                     text: "FileContent"
                 }),
             };
@@ -20,7 +20,7 @@ namespace Sdk.Tests {
         let value2 = ValueCache.getOrAdd('myKey', () => {
             return {
                 result: Transformer.writeAllText({
-                    outputPath: p`Out/out1.txt`, 
+                    outputPath: p`out/out1.txt`, 
                     text: "FileContent"
                 }),
             };
@@ -29,7 +29,7 @@ namespace Sdk.Tests {
         let value3 = ValueCache.getOrAdd('myKey2', () => {
             return {
                 result: Transformer.writeAllText({
-                    outputPath: p`Out/out2.txt`, 
+                    outputPath: p`out/out2.txt`, 
                     text: "FileContent"
                 }),
             };
@@ -51,15 +51,15 @@ namespace Sdk.Tests {
     export function sealDirectory(){
         // Write some files to test
         let f1a = Transformer.writeAllText({
-            outputPath: p`Out/Dir1/a.txt`,
+            outputPath: p`out/Dir1/a.txt`,
             text: "1A"
         });
         let f2a = Transformer.writeAllText({
-            outputPath: p`Out/Dir2/a.txt`,
+            outputPath: p`out/Dir2/a.txt`,
             text: "2A"
         });
         let f2b = Transformer.writeAllText({
-            outputPath: p`Out/Dir2/b.txt`,
+            outputPath: p`out/Dir2/b.txt`,
             text: "2B"
         });
 
@@ -68,28 +68,28 @@ namespace Sdk.Tests {
         // We need to add a test-option to diable this validation when we close that loophole.
 
         let full1 = Transformer.sealDirectory({
-            root: d`Out/Dir1`, 
+            root: d`out/Dir1`, 
             files: [f1a]
         });
         getValueFromCache(full1, "full1");
 
         // Each sealed directory is unique
         let full2 = Transformer.sealDirectory({
-            root: d`Out/Dir1`, 
+            root: d`out/Dir1`, 
             files: [f1a]
         });
         getValueFromCache(full2, "full2");
 
         // Partial is different from full seal
-        let partial1 = Transformer.sealPartialDirectory(d`Out/Dir2`, [f2a]);
+        let partial1 = Transformer.sealPartialDirectory(d`out/Dir2`, [f2a]);
         getValueFromCache(partial1, "partial1");
 
         // Partial seal with differnt content is different
-        let partial2 = Transformer.sealPartialDirectory(d`Out/Dir2`, [f2a, f2b]);
+        let partial2 = Transformer.sealPartialDirectory(d`out/Dir2`, [f2a, f2b]);
         getValueFromCache(partial2, "partial2");
 
         // Partial seal with same content is different
-        let partial3 = Transformer.sealPartialDirectory(d`Out/Dir2`, [f2a, f2b]);
+        let partial3 = Transformer.sealPartialDirectory(d`out/Dir2`, [f2a, f2b]);
         getValueFromCache(partial3, "partial3");
     }
 
@@ -102,7 +102,7 @@ namespace Sdk.Tests {
         const _ = ValueCache.getOrAdd(directory, () => {
             return {
                 result: Transformer.writeAllText({
-                    outputPath: p`Out/temp/${testName + ".txt"}`, 
+                    outputPath: p`out/temp/${testName + ".txt"}`, 
                     text: testName
                 }),
             };

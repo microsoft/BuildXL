@@ -128,10 +128,20 @@ namespace TestGenerator {
 
     @@public
     export const tool: Transformer.ToolDefinition = {
-        exe: testGeneratorContents.getFile(Context.getCurrentHost().os === "win" ? r`Win/TestGenerator.exe` : r`MacOs/TestGenerator`),
+        exe: testGeneratorContents.getFile(Context.getCurrentHost().os === "win"
+            ? r`Win/TestGenerator.exe`
+            : Context.getCurrentHost().os === "unix"
+                ? r`Linux/TestGenerator`
+                : r`MacOs/TestGenerator`),
         dependsOnCurrentHostOSDirectories: true,
         prepareTempDirectory: true,
         runtimeDirectoryDependencies: [testGeneratorContents],
+        untrackedDirectoryScopes: [
+            ...addIfLazy(Context.getCurrentHost().os !== "win", () => [
+                d`/init`,
+                d`/mnt`
+            ]),
+        ]
     };
 
     /** Arguments for TestGenerator */

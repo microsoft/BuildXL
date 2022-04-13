@@ -17,13 +17,20 @@ namespace TestGeneratorDeployment {
                     targetRuntime: "win-x64"
                 }).TestGenerator.deploymentContents
             }]),
-            {
+            ...addIfLazy(Context.getCurrentHost().os === "macOS", () => [{
                 subfolder: a`MacOs`,
                 contents: $.withQualifier({
                     targetFramework: "netcoreapp3.1",
                     targetRuntime: "osx-x64"
                 }).TestGenerator.deploymentContents
-            }
+            }]),
+            ...addIfLazy(Context.getCurrentHost().os === "unix", () => [{
+                subfolder: a`Linux`,
+                contents: $.withQualifier({
+                    targetFramework: "netcoreapp3.1",
+                    targetRuntime: "linux-x64"
+                }).TestGenerator.deploymentContents
+            }])
         ]
     };
 

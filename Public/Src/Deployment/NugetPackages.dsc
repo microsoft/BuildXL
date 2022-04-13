@@ -409,7 +409,6 @@ namespace NugetPackages {
         ]
     });
 
-
     // Currently we deploy tools as self-contained .NET Core binaries for macOS only!
     const toolsSandBoxExec = pack({
         id: `${packageNamePrefix}.Tools.SandboxExec.osx-x64`,

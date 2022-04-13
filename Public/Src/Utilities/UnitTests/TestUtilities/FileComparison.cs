@@ -16,9 +16,9 @@ namespace Test.BuildXL.TestUtilities
         /// <summary>
         /// Helper to compare large strings and provide a meaningful error on diffs.
         /// </summary>
-        public static bool ValidateContentsAreEqual(string expected, string actual, string expectedFilePath, out string message)
+        public static bool ValidateContentsAreEqual(string expected, string actual, string expectedFilePath, StringComparison stringComparison, out string message)
         {
-            if (!string.Equals(expected, actual, StringComparison.Ordinal))
+            if (!string.Equals(expected, actual, stringComparison))
             {
                 string[] expectedSplit = expected.Split(new[] { Environment.NewLine }, StringSplitOptions.None);
                 string[] actualSplit = actual.Split(new[] { Environment.NewLine }, StringSplitOptions.None);

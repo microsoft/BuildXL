@@ -285,9 +285,9 @@ namespace BuildXL.Engine
                                                 shouldDeleteCurrentDirectory = false;
                                             }
                                         }
-                                        // On Mac directory symlinks are treated like any files, and so we must delete them if 
+                                        // On Unix directory symlinks are treated like any files, and so we must delete them if 
                                         // when they happen to be marked as shared opaque directory output.  
-                                        else if (OperatingSystemHelper.IsMacOS || !FileUtilities.IsDirectorySymlinkOrJunction(attributes))
+                                        else if (OperatingSystemHelper.IsUnixOS || !FileUtilities.IsDirectorySymlinkOrJunction(attributes))
                                         {
                                             Interlocked.Increment(ref filesEncountered);
 

@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-export const mounts = Context.getCurrentHost().os === "macOS" ? [
+export const mounts = Context.getCurrentHost().os !== "win" ? [
     {
         name: a`xcode`,
         path: p`/Applications`,

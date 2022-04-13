@@ -1298,7 +1298,7 @@ namespace BuildXL.Native.IO
                 }
 
                 var filePermissions = checked((UnixIO.FilePermissions)mode);
-                UnixIO.FilePermissions exePermission = UnixIO.FilePermissions.S_IXUSR;
+                UnixIO.FilePermissions exePermission = UnixIO.FilePermissions.S_IXUSR | UnixIO.FilePermissions.S_IXGRP | UnixIO.FilePermissions.S_IXOTH;
                 if (!filePermissions.HasFlag(exePermission))
                 {
                     var result = UnixIO.SetFilePermissionsForFilePath(fileName, (filePermissions | exePermission));

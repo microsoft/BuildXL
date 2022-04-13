@@ -153,7 +153,7 @@ export function pack(args: Arguments): PackResult {
         ],
         arguments: arguments,
         workingDirectory: outDir,
-        allowUndeclaredSourceReads: Context.getCurrentHost().os === "macOS",
+        allowUndeclaredSourceReads: Context.getCurrentHost().os !== "win",
         dependencies: nuspecData.dependencies,
         outputs: [
             nupkgPath

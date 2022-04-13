@@ -171,7 +171,7 @@ namespace Test.Tool.SandboxExec
         }
 
         // Run this on Unix only as our CI pipeline makes sure the sandbox is running prior to execution of this test
-        [FactIfSupported(requiresUnixBasedOperatingSystem: true)]
+        [FactIfSupported(requiresMacOperatingSystem: true)]
         public async Task CheckForFileAccessReportsWhenRunningProcessWithKextLoaded()
         {
             try

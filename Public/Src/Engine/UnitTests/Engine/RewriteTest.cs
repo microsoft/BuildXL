@@ -20,7 +20,7 @@ namespace Test.BuildXL.Engine
         public void Rewrite()
         {
             var shellCmd = OperatingSystemHelper.IsUnixOS
-                ? (start: "-c \"", cmd: "/bin/cat ", end: " | /bin/cat \"")
+                ? (start: "-c \"", cmd: "x=$(/bin/cat", end: "); printf '%s\\\\n' $x \"")
                 : (start: "/d /c ", cmd: "type ", end: " ");
 
             string spec = $@"
@@ -38,10 +38,10 @@ const step2 = execute({{
     tool: cmd,
     workingDirectory: d`.`,
     arguments: [
-        Cmd.rawArgument('{shellCmd.start}'),
-        Cmd.rawArgument('{shellCmd.cmd}'),
+        Cmd.rawArgument('{Escape(shellCmd.start)}'),
+        Cmd.rawArgument('{Escape(shellCmd.cmd)}'),
         Cmd.argument(Artifact.none(step2OutputPath)),
-        Cmd.rawArgument('{shellCmd.end}'),
+        Cmd.rawArgument('{Escape(shellCmd.end)}'),
         Cmd.rawArgument(' >> '),
         Cmd.argument(Artifact.rewritten(step1, step2OutputPath)),
     ],
@@ -52,10 +52,10 @@ const step3 = execute({{
     tool: cmd,
     workingDirectory: d`.`,
     arguments: [
-        Cmd.rawArgument('{shellCmd.start}'),
-        Cmd.rawArgument('{shellCmd.cmd}'),
+        Cmd.rawArgument('{Escape(shellCmd.start)}'),
+        Cmd.rawArgument('{Escape(shellCmd.cmd)}'),
         Cmd.argument(Artifact.none(step3OutputPath)),
-        Cmd.rawArgument('{shellCmd.end}'),
+        Cmd.rawArgument('{Escape(shellCmd.end)}'),
         Cmd.rawArgument(' >> '),
         Cmd.argument(Artifact.rewritten(step2, step3OutputPath)),
     ],
@@ -66,10 +66,10 @@ const step4 = execute({{
     tool: cmd,
     workingDirectory: d`.`,
     arguments: [
-        Cmd.rawArgument('{shellCmd.start}'),
-        Cmd.rawArgument('{shellCmd.cmd}'),
+        Cmd.rawArgument('{Escape(shellCmd.start)}'),
+        Cmd.rawArgument('{Escape(shellCmd.cmd)}'),
         Cmd.argument(Artifact.none(step4OutputPath)),
-        Cmd.rawArgument('{shellCmd.end}'),
+        Cmd.rawArgument('{Escape(shellCmd.end)}'),
         Cmd.rawArgument(' >> '),
         Cmd.argument(Artifact.rewritten(step3, step4OutputPath)),
     ],
@@ -82,5 +82,7 @@ const step4 = execute({{
             XAssert.IsTrue(File.Exists(testFile));
             XAssert.AreEqual(@"AAAAAAAA", string.Join(string.Empty, File.ReadAllLines(testFile)));
         }
+
+        static string Escape(string str) => str.Replace("'", "\\'");
     }
 }

@@ -19,7 +19,9 @@ export const dotnetTool: Transformer.ToolDefinition = {
         ...addIfLazy(Context.getCurrentHost().os !== "win", () => [
             d`${Environment.getDirectoryValue("HOME")}/.dotnet`,
             d`/usr/local/share/dotnet`,
-            d`/etc`
+            d`/etc`,
+            d`/init`,
+            d`/mnt`
         ]),
     ]
 };

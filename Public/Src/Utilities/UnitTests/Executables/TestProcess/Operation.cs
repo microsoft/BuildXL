@@ -1413,6 +1413,7 @@ namespace Test.BuildXL.Executables.TestProcess
                 }
             }
 
+            FileUtilities.TrySetExecutePermissionIfNeeded(process.StartInfo.FileName, throwIfNotFound: false);
             process.Start();
             process.BeginOutputReadLine();
             process.BeginErrorReadLine();
@@ -1460,6 +1461,7 @@ namespace Test.BuildXL.Executables.TestProcess
                 CreateNoWindow = true,
             };
 
+            FileUtilities.TrySetExecutePermissionIfNeeded(process.StartInfo.FileName, throwIfNotFound: false);
             process.Start();
 
             // Log the the process that was launched with its id so it can be retrieved by bxl tests later

@@ -83,10 +83,10 @@ namespace Test.BuildXL.Engine
         protected override string GetSpecContents()
         {
             var pickAOrBCmd = OperatingSystemHelper.IsUnixOS
-                ? "-c \" if [[ -f inc/a.h ]]; then /bin/cat inc/a.h; else /bin/cat inc/b.h; fi \""
+                ? "-c \" if test -f inc/a.h ; then /bin/cat inc/a.h; else /bin/cat inc/b.h; fi \""
                 : @"/d /c (if exist inc\\a.h (type inc\\a.h) else (type inc\\b.h))";
             var useAOrBCmd = OperatingSystemHelper.IsUnixOS
-                ? "-c \" if [[ -f obj/inc/absent.h ]]; then /bin/cat obj/inc/absent.h; else /bin/cat obj/inc/A_or_B.h; fi \""
+                ? "-c \" if test -f obj/inc/absent.h ; then /bin/cat obj/inc/absent.h; else /bin/cat obj/inc/A_or_B.h; fi \""
                 : @"/d /c (if exist obj\\inc\\absent.h (type obj\\inc\\absent.h) else (type obj\\inc\\A_or_B.h))";
 
             return $@"

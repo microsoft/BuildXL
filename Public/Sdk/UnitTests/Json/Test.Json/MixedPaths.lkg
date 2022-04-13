@@ -1,5 +1,5 @@
 Transformer.writeFile(
-    f`./Out/out.json`,
+    f`./out/out.json`,
     {
         escaping: "NoEscaping",
         separator: "",

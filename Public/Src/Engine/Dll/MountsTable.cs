@@ -123,8 +123,6 @@ namespace BuildXL.Engine
 
             // Cross Plat supported MountPoints
             table.AddStaticSystemMount("ProgramData", Environment.SpecialFolder.CommonApplicationData);
-            table.AddStaticSystemMount("ProgramFiles", Environment.SpecialFolder.ProgramFiles, trackSourceFileChanges: true);
-            table.AddStaticSystemMount("System", Environment.SpecialFolder.System);
             if (!layout.RedirectedUserProfileJunctionRoot.IsValid)
             {
                 table.AddStaticSystemMount("UserProfile", Environment.SpecialFolder.UserProfile);
@@ -143,6 +141,8 @@ namespace BuildXL.Engine
             if (!OperatingSystemHelper.IsUnixOS)
             {
                 // Add system mounts that are Windows Only
+                table.AddStaticSystemMount("ProgramFiles", Environment.SpecialFolder.ProgramFiles, trackSourceFileChanges: true);
+                table.AddStaticSystemMount("System", Environment.SpecialFolder.System);
                 table.AddStaticSystemMount("Windows", Environment.SpecialFolder.Windows);
                 table.AddStaticSystemMount("ProgramFilesX86", Environment.SpecialFolder.ProgramFilesX86, trackSourceFileChanges: true);
                 table.AddStaticSystemMount("CommonProgramFiles", Environment.SpecialFolder.CommonProgramFiles, trackSourceFileChanges: true);

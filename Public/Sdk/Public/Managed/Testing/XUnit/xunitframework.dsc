@@ -84,8 +84,7 @@ function runTest(args : TestRunArguments) : File[] {
     let logFolder = Context.getNewOutputDirectory('xunit-logs');
     let xmlResultFile = p`${logFolder}/xunit.results.xml`;
 
-    if (Context.getCurrentHost().os === "win" &&
-        args.unsafeTestRunArguments && 
+    if (args.unsafeTestRunArguments && 
         args.unsafeTestRunArguments.runWithUntrackedDependencies){
             args = args.merge({
                 tools: {
@@ -119,20 +118,28 @@ function wrapInUntrackedCmd(executeArguments: Transformer.ExecuteArguments) : Tr
             isStaticDirectory(dependency) ? dependency.contents : []
         );
 
+    const runningInWindows = Context.getCurrentHost().os === "win";
     return Object.merge<Transformer.ExecuteArguments>(
         executeArguments, 
         {
             tool: {
-                exe: Environment.getFileValue("COMSPEC"),
+                exe: runningInWindows ? Environment.getFileValue("COMSPEC") : f`/bin/bash`,
             },
             unsafe: {
-                hasUntrackedChildProcesses: true
+                hasUntrackedChildProcesses: true,
+                untrackedPaths: addIf(!runningInWindows, executeArguments.tool.exe.path), // because of chmod +x
             },
             arguments: [
-                Cmd.argument("/D"),
-                Cmd.argument("/C"),
-                Cmd.argument(Artifact.input(executeArguments.tool.exe))
-                ].prependWhenMerged(),
+                ...(runningInWindows ? [
+                    Cmd.argument("/D"), Cmd.argument("/C")
+                ] : [
+                    Cmd.argument("-c"), Cmd.rawArgument("'"), Cmd.argument("chmod"), Cmd.argument("+x"), Cmd.argument(Artifact.input(executeArguments.tool.exe)), Cmd.rawArgument(";")
+                ]),
+                Cmd.argument(Artifact.input(executeArguments.tool.exe)),
+                ...executeArguments.arguments,
+                ...addIf(!runningInWindows, Cmd.rawArgument("'"))
+            ].replaceWhenMerged(),
+
             dependencies: staticDirectoryContents,
             tags: ["test", "telemetry:xUnitUntracked"]
         });

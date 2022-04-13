@@ -419,7 +419,7 @@ export function test(args: TestArguments): TestResult {{
 
                     var expected = TranslateLkgContentForCurrentPlatform(File.ReadAllText(lkgFile));
                     string message;
-                    if (!FileComparison.ValidateContentsAreEqual(expected, actual, lkgFile, out message))
+                    if (!FileComparison.ValidateContentsAreEqual(expected, actual, lkgFile, OperatingSystemHelper.PathComparison, out message))
                     {
                         m_diagnosticHandler(
                             new Diagnostic(

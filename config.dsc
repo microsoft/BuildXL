@@ -412,7 +412,7 @@ config({
                 // Runtime dependencies for Linux
                 {
                     id: "runtime.linux-x64.BuildXL",
-                    version: "0.0.57",
+                    version: "0.0.58",
                     osSkip: importFile(f`config.microsoftInternal.dsc`).isMicrosoftInternal
                         ? []
                         : [ "win", "macOS", "unix" ]
@@ -645,7 +645,7 @@ config({
     },
 
     mounts: [
-        ...importFile(f`macos.mounts.dsc`).mounts,
+        ...importFile(f`unix.mounts.dsc`).mounts,
         {
             name: a`DeploymentRoot`,
             path: p`Out/Bin`,

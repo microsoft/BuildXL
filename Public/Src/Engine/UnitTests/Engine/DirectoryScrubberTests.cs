@@ -428,7 +428,7 @@ namespace Test.BuildXL.Engine
                         nonDeletableRootDirectories: CollectionUtilities.EmptyArray<string>());
 
             XAssert.IsFalse(File.Exists(fileUnderTarget));
-            XAssert.AreEqual(OperatingSystemHelper.IsMacOS, !Directory.Exists(fullSymlinkPath));
+            XAssert.AreEqual(OperatingSystemHelper.IsUnixOS, !Directory.Exists(fullSymlinkPath));
         }
 
         [FactIfSupported(requiresSymlinkPermission: true)]
@@ -445,7 +445,7 @@ namespace Test.BuildXL.Engine
             string fullSymlinkPath = WriteSymlink(Path.Combine(rootDir, "directory symlink"), fullTargetDirPath, isTargetFile: false);
             XAssert.IsTrue(FileUtilities.FileExistsNoFollow(fullSymlinkPath));
 
-            if (OperatingSystemHelper.IsMacOS)
+            if (OperatingSystemHelper.IsUnixOS)
             {
                 SharedOpaqueOutputHelper.EnforceFileIsSharedOpaqueOutput(fullSymlinkPath);
                 XAssert.IsTrue(SharedOpaqueOutputHelper.IsSharedOpaqueOutput(fullSymlinkPath));
@@ -463,13 +463,13 @@ namespace Test.BuildXL.Engine
 
             XAssert.FileExists(fileUnderTarget);
 
-            // On Mac:
+            // On Unix:
             //   - any symlink is a file, any file under shared opaque dir gets scrubber ==> fullSymlinkPath should be scrubbed
             //
             // On Windows:
             //   - directories under shared opaques are always removed unless they have files underneath that shouldn't be 
             //     removed. This test verifies this behavior also applies to symlink directories
-            XAssert.AreEqual(!OperatingSystemHelper.IsMacOS, Directory.Exists(fullSymlinkPath));
+            XAssert.AreEqual(!OperatingSystemHelper.IsUnixOS, Directory.Exists(fullSymlinkPath));
         }
 
         [FactIfSupported(requiresSymlinkPermission: true)]
@@ -504,13 +504,13 @@ namespace Test.BuildXL.Engine
                     nonDeletableRootDirectories: CollectionUtilities.EmptyArray<string>());
 
                 XAssert.IsFalse(File.Exists(fileUnderSymlinkDir));
-                XAssert.AreEqual(!OperatingSystemHelper.IsMacOS, Directory.Exists(realDirectory));
-                XAssert.AreEqual(!OperatingSystemHelper.IsMacOS, Directory.Exists(symlinkDirectory));
+                XAssert.AreEqual(!OperatingSystemHelper.IsUnixOS, Directory.Exists(realDirectory));
+                XAssert.AreEqual(!OperatingSystemHelper.IsUnixOS, Directory.Exists(symlinkDirectory));
             }
             finally 
             {
                 // On Windows, the temp directory cleaner has problems with cycles. So let's remove the symlink dir explicitly here
-                if (!OperatingSystemHelper.IsMacOS)
+                if (!OperatingSystemHelper.IsUnixOS)
                 {
                     Directory.Delete(symlinkDirectory);
                 }

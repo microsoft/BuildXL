@@ -202,7 +202,7 @@ export function compile(inputArgs: Arguments) : Result {
                 // sealed source directories from some system folders (e.g., /Library, /Applications, etc.) and add them as dependencies,
                 // which, unfortunately, is not allowed for pips declaring 'trustStaticallyDeclaredAccesses'.
                 dependsOnCurrentHostOSDirectories: !args.shared,
-                untrackedDirectoryScopes: addIf(args.shared === true, 
+                untrackedDirectoryScopes: [
                     d`/usr`,
                     d`/var`,
                     d`/bin`,
@@ -215,8 +215,10 @@ export function compile(inputArgs: Arguments) : Result {
                     d`/System`,
                     d`/Library`,
                     d`/proc`,
+                    d`/run`,
                     d`/sys`,
-                    ...addIf(Environment.hasVariable("HOME"), d`${Environment.getDirectoryValue("HOME")}/.CFUserTextEncoding`))
+                    ...addIf(Environment.hasVariable("HOME"), d`${Environment.getDirectoryValue("HOME")}/.CFUserTextEncoding`)
+                ]
             }
         });
     }

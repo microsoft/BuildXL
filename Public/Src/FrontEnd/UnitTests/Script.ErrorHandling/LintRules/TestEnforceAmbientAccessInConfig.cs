@@ -64,7 +64,7 @@ namespace Test.DScript.Ast.ErrorHandling
         [InlineData("Context.getLastActiveUsePath()")]
         [InlineData("Context.getSpecFile()")]
         [InlineData("Context.getCurrentHost()")]
-        [InlineData("Context.getMount(\"System\")")]
+        [InlineData("Context.getMount(\"AppData\")")] // pick a cross-plat system mount
         [InlineData("Context.hasMount(\"foo\")")]
         [InlineData("MutableSet.empty()")]
         [InlineData("Set.empty()")]

@@ -369,7 +369,7 @@ namespace Test.BuildXL.Scheduler
             var camelCaseResult = CreateProcessAndFingerprintsWithPathArg(A("x", "pathTest", "nestedPath"), pathAsStringLiteral);
             var upperCaseResult = CreateProcessAndFingerprintsWithPathArg(A("x", "PATHTEST", "NESTEDPATH"), pathAsStringLiteral);
 
-            if (pathAsStringLiteral)
+            if (pathAsStringLiteral || OperatingSystemHelper.IsLinuxOS) // paths should always be case sensitive on Linux
             {
                 XAssert.AreNotEqual(lowerCaseResult, camelCaseResult);
                 XAssert.AreNotEqual(lowerCaseResult, upperCaseResult);
@@ -399,7 +399,7 @@ namespace Test.BuildXL.Scheduler
                 .WithEnvironmentVariables(new EnvironmentVariable[] { envVar })
                 .WithDependencies(dependencies)
                 .WithOutputs(FileArtifactWithAttributes.Create(FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, X("/x/obj/working/out.bin"))), FileExistence.Temporary).CreateNextWrittenVersion())
-                .WithUntrackedPaths(new AbsolutePath[] { AbsolutePath.Create(pathTable, Environment.GetFolderPath(Environment.SpecialFolder.InternetCache)) })
+                .WithUntrackedPaths(new AbsolutePath[] { AbsolutePath.Create(pathTable, OperatingSystemHelper.IsUnixOS ? "/tmp" : Environment.GetFolderPath(Environment.SpecialFolder.InternetCache)) })
                 .WithUntrackedScopes(new AbsolutePath[] { AbsolutePath.Create(pathTable, OperatingSystemHelper.IsUnixOS ? "/tmp" : Environment.GetFolderPath(Environment.SpecialFolder.History)) })
                 .Build();
 

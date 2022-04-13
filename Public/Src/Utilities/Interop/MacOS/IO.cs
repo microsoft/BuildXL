@@ -407,10 +407,12 @@ namespace BuildXL.Interop.Unix
         public const string EtcMasterPasswd = "/etc/master.passwd";
         public const string EtcLocalTime    = "/etc/localtime";
         public const string LibLinuxGnu     = "/lib/x86_64-linux-gnu";
+        public const string Lib             = "/lib";
         public const string Lib64           = "/lib64";
         public const string Private         = "/private";
         public const string PrivateVar      = "/private/var";
         public const string Proc            = "/proc";
+        public const string Run             = "/run";
         public const string Sbin            = "/sbin";
         public const string Sys             = "/sys";
         public const string TmpDir          = "/tmp";

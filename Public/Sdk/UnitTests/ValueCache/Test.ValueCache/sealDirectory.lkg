@@ -1,5 +1,5 @@
 Transformer.writeFile(
-    f`./Out/Dir1/a.txt`,
+    f`./out/Dir1/a.txt`,
     {
         escaping: "NoEscaping",
         separator: "",
@@ -7,7 +7,7 @@ Transformer.writeFile(
     }
 );
 Transformer.writeFile(
-    f`./Out/Dir2/a.txt`,
+    f`./out/Dir2/a.txt`,
     {
         escaping: "NoEscaping",
         separator: "",
@@ -15,52 +15,52 @@ Transformer.writeFile(
     }
 );
 Transformer.writeFile(
-    f`./Out/Dir2/b.txt`,
+    f`./out/Dir2/b.txt`,
     {
         escaping: "NoEscaping",
         separator: "",
         items: ["2B"],
     }
 );
-Transformer.sealDirectory({root: d`./Out/Dir1`, files: [f`./Out/Dir1/a.txt`]});
+Transformer.sealDirectory({root: d`./out/Dir1`, files: [f`./out/Dir1/a.txt`]});
 Transformer.writeFile(
-    f`./Out/Temp/full1.txt`,
+    f`./out/temp/full1.txt`,
     {
         escaping: "NoEscaping",
         separator: "",
         items: ["full1"],
     }
 );
-Transformer.sealDirectory({root: d`./Out/Dir1`, files: [f`./Out/Dir1/a.txt`]});
+Transformer.sealDirectory({root: d`./out/Dir1`, files: [f`./out/Dir1/a.txt`]});
 Transformer.writeFile(
-    f`./Out/Temp/full2.txt`,
+    f`./out/temp/full2.txt`,
     {
         escaping: "NoEscaping",
         separator: "",
         items: ["full2"],
     }
 );
-Transformer.sealPartialDirectory({root: d`./Out/Dir2`, files: [f`./Out/Dir2/a.txt`]});
+Transformer.sealPartialDirectory({root: d`./out/Dir2`, files: [f`./out/Dir2/a.txt`]});
 Transformer.writeFile(
-    f`./Out/Temp/partial1.txt`,
+    f`./out/temp/partial1.txt`,
     {
         escaping: "NoEscaping",
         separator: "",
         items: ["partial1"],
     }
 );
-Transformer.sealPartialDirectory({root: d`./Out/Dir2`, files: [f`./Out/Dir2/a.txt`, f`./Out/Dir2/b.txt`]});
+Transformer.sealPartialDirectory({root: d`./out/Dir2`, files: [f`./out/Dir2/a.txt`, f`./out/Dir2/b.txt`]});
 Transformer.writeFile(
-    f`./Out/Temp/partial2.txt`,
+    f`./out/temp/partial2.txt`,
     {
         escaping: "NoEscaping",
         separator: "",
         items: ["partial2"],
     }
 );
-Transformer.sealPartialDirectory({root: d`./Out/Dir2`, files: [f`./Out/Dir2/a.txt`, f`./Out/Dir2/b.txt`]});
+Transformer.sealPartialDirectory({root: d`./out/Dir2`, files: [f`./out/Dir2/a.txt`, f`./out/Dir2/b.txt`]});
 Transformer.writeFile(
-    f`./Out/Temp/partial3.txt`,
+    f`./out/temp/partial3.txt`,
     {
         escaping: "NoEscaping",
         separator: "",

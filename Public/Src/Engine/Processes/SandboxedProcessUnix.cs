@@ -102,7 +102,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// Shell executable that wraps the process to be executed.
         /// </summary>
-        internal const string ShellExecutable = "/bin/sh";
+        internal const string ShellExecutable = "/bin/bash"; // /bin/sh doesn't support env vars that contain funky characters (e.g., [])
 
         /// <summary>
         /// Optional configuration for running this process in a root jail.
@@ -431,7 +431,7 @@ namespace BuildXL.Processes
         }
 
         /// <nodoc />
-        protected override bool ReportsCompleted() => m_pendingReports.Completion.IsCompleted;
+        protected override bool ReportsCompleted() => m_pendingReports?.Completion.IsCompleted ?? false;
 
         /// <summary>
         /// Must not be blocking and should return as soon as possible

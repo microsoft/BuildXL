@@ -78,11 +78,15 @@ namespace Test.BuildXL.Processes
                 ? new string[]
                 {
                     UnixPaths.Bin,
+                    UnixPaths.Sbin,
                     UnixPaths.Dev,
                     UnixPaths.UsrBin,
                     UnixPaths.UsrLib,
+                    UnixPaths.Lib,
+                    UnixPaths.Lib64,
                     UnixPaths.Private,
                     UnixPaths.Etc,
+                    UnixPaths.Proc,
                     UnixPaths.Var,
                     MacPaths.AppleInternal,
                     MacPaths.LibraryPreferencesLogging

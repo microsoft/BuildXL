@@ -22,8 +22,8 @@ trap onExit EXIT
 echo "---------- Building ----------"
 JOBS=$(which nproc > /dev/null && nproc || echo 2)
 docker run                                 \
-    --rm -it                               \
+    --rm                                   \
     -v ${SANDBOX_ROOT}:/src                \
-    -w /src/${__dir##$SANDBOX_ROOT/} \
+    -w /src/${__dir##$SANDBOX_ROOT/}       \
     quay.io/pypa/manylinux2014_x86_64      \
     make all -j${JOBS}

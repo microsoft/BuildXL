@@ -163,8 +163,9 @@ namespace BuildXL.Utilities
                 return;
             }
 
+
             var filePermissions = checked((FilePermissions)mode);
-            FilePermissions exePermission = FilePermissions.S_IXUSR | FilePermissions.S_IXGRP | FilePermissions.S_IXOTH;
+            FilePermissions exePermission = FilePermissions.S_IXUSR;
             if (!filePermissions.HasFlag(exePermission))
             {
                 SetFilePermissionsForFilePath(fileName, (filePermissions | exePermission));

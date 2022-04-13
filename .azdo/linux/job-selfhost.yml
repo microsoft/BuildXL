@@ -1,0 +1,110 @@
+jobs:
+- job: Selfhost
+  displayName: Build and Validate Selfhost
+  pool:
+    vmImage: ubuntu-18.04
+
+  timeoutInMinutes: 90
+
+  strategy:
+    matrix:
+      InternalRelease:
+        BxlMatrixArgs: --internal /q:ReleaseLinux
+      PublicRelease:
+        BxlMatrixArgs: /q:ReleaseLinux
+
+  variables:
+    skipComponentGovernanceDetection: true # done elsewhere (in the main rolling pipeline)
+    BxlCommonArgs: --shared-comp /ado /logsToRetain:10 /cacheMiss /logObservedFileAccesses /logoutput:FullOutputOnError # /p:[Sdk.BuildXL]xunitSemaphoreCount=20
+
+  steps:
+  - checkout: self
+    fetchDepth: 1
+
+  # see https://docs.microsoft.com/en-us/azure/devops/pipelines/release/caching?view=azure-devops for how the Cache task works
+  - task: Cache@2
+    inputs:
+      # this means that we'll get a cache hit against the first successful build where the content of 'cgmanifest.json' was the same
+      key: '"nuget" | "1" | ./cg/nuget/cgmanifest.json'
+      # downloading/uploading the content of this folder (~4GB) takes 0.5-2 minutes, while restoring all NuGets from BuildXL takes 5-8 minutes
+      path: Out/frontend/Nuget
+    displayName: Cache NuGet packages
+
+  - task: Cache@2
+    inputs:
+      # this means that we'll get a cache hit against the first successful build done with the same LKG against the same branch
+      key: '"bxl" | "1" | "$(BxlMatrixArgs)" | ./Shared/Scripts/BuildXLLkgVersion.cmd | "$(Build.SourceBranch)"'
+      # this means even if the branch is different we'll get a "partial" cache hit against the first successful build done with the same LKG
+      restoreKeys: '"bxl" | "1" | "$(BxlMatrixArgs)" | ./Shared/Scripts/BuildXLLkgVersion.cmd'
+      path: Out/Cache.noindex
+    displayName: Cache BuildXL's cache dir
+
+  - task: UseDotNet@2
+    displayName: Use .NET Core sdk 6.x
+    inputs:
+      version: 6.x
+
+  - template: step-nuget-config.yml
+
+  - bash: |
+      set -eu
+      bash bxl.sh $(BxlCommonArgs) --minimal --internal --deploy-dev-release
+    displayName: Build
+
+  - bash: |
+      echo "== Deleting Out/frontend/Nuget/tmp folder to reduce the size of the NuGet cache dir"
+      rm -rf Out/frontend/Nuget/tmp Out/Objects.noindex Out/bin Out/BootStrap
+      echo "== Disk usage of folders in Out"
+      du -sh Out/*
+    continueOnError: true
+    condition: always()
+    displayName: Free up disk space
+
+  - bash: |
+      set -eu
+      function run_build {
+        # the disks on Azure Pipeline VMs are too small to build everything, so let's instead run tests
+        bash bxl.sh --use-dev $(BxlCommonArgs) $(BxlMatrixArgs) "/f:tag='test'"
+      }
+
+      run_build || {
+        echo "\n**** First build failed, retrying once ***\n"
+        run_build
+      }
+    displayName: Test
+
+  - task: PublishPipelineArtifact@1
+    displayName: Upload BuildXL Logs
+    inputs:
+      targetPath: $(Build.SourcesDirectory)/Out/Logs
+      artifactName: BuildXL-Logs.$(System.JobName).$(System.JobAttempt)
+    condition: always()
+    continueOnError: true
+
+  - task: CopyFiles@2
+    displayName: Copy XUnit Result Files
+    inputs:
+        sourceFolder: $(Build.SourcesDirectory)/Out/Objects.noindex/
+        contents: '**/xunit.results*.xml'
+        targetFolder: $(Build.ArtifactStagingDirectory)/xunit-logs
+        cleanTargetFolder: true
+        ignoreMakeDirErrors: true
+        flattenFolders: true
+    condition: always()
+    continueOnError: true
+
+  - task: PublishTestResults@2
+    displayName: Publish Test Results
+    inputs:
+      testResultsFormat: XUnit
+      testResultsFiles: '$(Build.ArtifactStagingDirectory)/xunit-logs/**/xunit*.xml'
+    condition: always()
+    continueOnError: true
+
+  - task: PublishPipelineArtifact@1
+    displayName: Upload XUnit Logs
+    inputs:
+      targetPath: $(Build.ArtifactStagingDirectory)/xunit-logs
+      artifactName: XUnit-Logs.$(System.JobName).$(System.JobAttempt)
+    condition: always()
+    continueOnError: true

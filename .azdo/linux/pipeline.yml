@@ -1,92 +1,24 @@
 trigger: none
 
-pool:
-  vmImage: ubuntu-18.04
+parameters:
+- name: BuildSelfhost
+  type: boolean
+  default: true
+- name: BuildLinuxRuntime
+  type: boolean
+  default: true
+- name: PublishLinuxRuntimeNuget
+  type: boolean
+  default: false
+- name: LinuxRuntimePackageVersion
+  type: string
+  default: 0.1.0-$(Build.BuildNumber)
 
-strategy:
-  matrix:
-    InternalRelease:
-      BxlMatrixArgs: --internal /q:ReleaseLinux
-    PublicRelease:
-      BxlMatrixArgs: /q:ReleaseLinux
-
-variables:
-  BxlCommonArgs: --shared-comp /ado /logsToRetain:10 /cacheMiss /logObservedFileAccesses /logoutput:FullOutputOnError # /p:[Sdk.BuildXL]xunitSemaphoreCount=20
-
-steps:
-- checkout: self
-  fetchDepth: 1
-
-# see https://docs.microsoft.com/en-us/azure/devops/pipelines/release/caching?view=azure-devops for how the Cache task works
-- task: Cache@2
-  inputs:
-    # this means that we'll get a cache hit against the first successful build where the content of 'cgmanifest.json' was the same
-    key: '"nuget" | "1" | ./cg/nuget/cgmanifest.json'
-    # downloading/uploading the content of this folder (~4GB) takes 0.5-2 minutes, while restoring all NuGets from BuildXL takes 5-8 minutes
-    path: Out/frontend/Nuget
-  displayName: Cache NuGet packages
-
-- task: Cache@2
-  inputs:
-    # this means that we'll get a cache hit against the first successful build done with the same LKG against the same branch
-    key: '"bxl" | "1" | "$(BxlMatrixArgs)" | ./Shared/Scripts/BuildXLLkgVersion.cmd | "$(Build.SourceBranch)"'
-    # this means even if the branch is different we'll get a "partial" cache hit against the first successful build done with the same LKG
-    restoreKeys: '"bxl" | "1" | "$(BxlMatrixArgs)" | ./Shared/Scripts/BuildXLLkgVersion.cmd'
-    path: Out/Cache.noindex
-  displayName: Cache BuildXL's cache dir
-
-- task: UseDotNet@2
-  displayName: Use .NET Core sdk 6.x
-  inputs:
-    version: 6.x
-
-- bash: |
-    set -eu
-
-    # install mono
-    sudo apt-get update
-    sudo apt-get install mono-complete mono-devel 
-    mono --version
-  displayName: Install Prerequisites
-
-- bash: |
-    set -eu
-    mono Shared/Tools/NuGet.exe sources add -Name "BuildXL.Selfhost" -Source "$(Feed-BuildXL.Selfhost)" -username tsebuild -password $(PAT-TseBuild-AzureDevOps-CloudBuild)
-    mono Shared/Tools/NuGet.exe sources add -Name "BuildXL" -Source "$(Feed-BuildXL)" -username tsebuild -password $(PAT-TseBuild-AzureDevOps-1esSharedAssets)
-  displayName: Add NuGet Sources
-
-- bash: |
-    set -eu
-    bash bxl.sh $(BxlCommonArgs) --minimal --internal --deploy-dev-release
-  displayName: Build
-
-- bash: |
-    echo "== Deleting Out/frontend/Nuget/tmp folder to reduce the size of the NuGet cache dir"
-    rm -rf Out/frontend/Nuget/tmp Out/Objects.noindex Out/bin Out/BootStrap
-    echo "== Disk usage of folders in Out"
-    du -sh Out/*
-  continueOnError: true
-  condition: always()
-  displayName: Free up disk space
-
-- bash: |
-    set -eu
-    function run_build {
-      # the disks on Azure Pipeline VMs are too small to build everything, so let's instead run tests
-      bash bxl.sh --use-dev $(BxlCommonArgs) $(BxlMatrixArgs) "/f:tag='test'"
-    }
-
-    run_build || {
-      echo "\n**** First build failed, retrying once ***\n"
-      run_build
-    }
-  displayName: Test
-
-- task: PublishPipelineArtifact@1
-  displayName: Upload Logs
-  inputs:
-    targetPath: $(Build.SourcesDirectory)/Out/Logs
-    artifactName: BuildXL.$(System.JobName).$(System.JobId).$(System.JobAttempt)
-  condition: always()
-  continueOnError: true
-
+jobs:
+- ${{ if parameters.BuildSelfhost }}:
+  - template: job-selfhost.yml
+- ${{ if parameters.BuildLinuxRuntime }}:
+  - template: job-linux-runtime.yml
+    parameters:
+      PublishNuget: ${{ parameters.PublishLinuxRuntimeNuget }}
+      PackageVersion: ${{ parameters.LinuxRuntimePackageVersion }}

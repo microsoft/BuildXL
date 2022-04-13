@@ -399,7 +399,7 @@ namespace Test.BuildXL.Scheduler
                 .WithEnvironmentVariables(new EnvironmentVariable[] { envVar })
                 .WithDependencies(dependencies)
                 .WithOutputs(FileArtifactWithAttributes.Create(FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, X("/x/obj/working/out.bin"))), FileExistence.Temporary).CreateNextWrittenVersion())
-                .WithUntrackedPaths(new AbsolutePath[] { AbsolutePath.Create(pathTable, OperatingSystemHelper.IsUnixOS ? "/tmp" : Environment.GetFolderPath(Environment.SpecialFolder.InternetCache)) })
+                .WithUntrackedPaths(new AbsolutePath[] { AbsolutePath.Create(pathTable, OperatingSystemHelper.IsLinuxOS ? "/tmp" : Environment.GetFolderPath(Environment.SpecialFolder.InternetCache)) })
                 .WithUntrackedScopes(new AbsolutePath[] { AbsolutePath.Create(pathTable, OperatingSystemHelper.IsUnixOS ? "/tmp" : Environment.GetFolderPath(Environment.SpecialFolder.History)) })
                 .Build();
 

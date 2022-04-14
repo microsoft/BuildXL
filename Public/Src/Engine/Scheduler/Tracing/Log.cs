@@ -870,7 +870,7 @@ namespace BuildXL.Scheduler.Tracing
         [GeneratedEvent(
             (int)LogEventId.TwoPhaseFailureQueryingWeakFingerprint,
             EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Warning,
+            EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.PipExecutor,
             Message = "[{pipDescription}] Querying for a batch of prior executions (for weak fingerprint {weakFingerprint}) failed: {errorMessage}. Since some cached results may be unavailable, this process may have to re-run.")]

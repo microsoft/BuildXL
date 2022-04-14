@@ -99,8 +99,12 @@ namespace BuildXL.Utilities
         /// </summary>
         public bool Equals8Bit(byte[] buffer, int index)
         {
-            Contract.AssertDebug(OnlyContains8BitChars, "Equals8Bit should only be called for an instance with ASCII characters only!");
-            
+            if (!OnlyContains8BitChars)
+            {
+                // If the current instance has wide characters but the 'buffer' - does not, then the instances can't be equal.
+                return false;
+            }
+
             var thisAsSpan = AsSpan();
             var bufferSpan = buffer.AsSpan(index, thisAsSpan.Length);
             // SequenceEquals is vectorized in .NET Core.

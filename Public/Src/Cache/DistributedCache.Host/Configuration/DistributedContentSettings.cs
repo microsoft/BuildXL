@@ -1264,13 +1264,10 @@ namespace BuildXL.Cache.Host.Configuration
         public TimeSpanSetting? BlobCheckpointRegistryGetCheckpointStateTimeout { get; set; }
 
         [DataMember]
-        public TimeSpanSetting? BlobCheckpointRegistrySlotWaitTime { get; set; }
-
-        [DataMember]
-        public int? BlobCheckpointRegistryMaxNumSlots { get; set; }
-
-        [DataMember]
         public int? BlobCheckpointRegistryFanout { get; set; }
+
+        [DataMember]
+        public RetryPolicyConfiguration BlobCheckpointRegistryRetryPolicy { get; set; }
 
         #endregion
 
@@ -1283,22 +1280,10 @@ namespace BuildXL.Cache.Host.Configuration
         public TimeSpanSetting? BlobMasterElectionLeaseExpiryTime { get; set; }
 
         [DataMember]
-        public TimeSpanSetting? BlobMasterElectionFetchCurrentMasterTimeout { get; set; }
-
-        [DataMember]
-        public TimeSpanSetting? BlobMasterElectionUpdateMasterLeaseTimeout { get; set; }
-
-        [DataMember]
-        public TimeSpanSetting? BlobMasterElectionReleaseRoleIfNecessaryTimeout { get; set; }
-
-        [DataMember]
         public TimeSpanSetting? BlobMasterElectionStorageInteractionTimeout { get; set; }
 
         [DataMember]
-        public TimeSpanSetting? BlobMasterElectionSlotWaitTime { get; set; }
-
-        [DataMember]
-        public int? BlobMasterElectionMaxNumSlots { get; set; }
+        public RetryPolicyConfiguration BlobMasterElectionRetryPolicy { get; set; }
 
         #endregion
 
@@ -1317,10 +1302,7 @@ namespace BuildXL.Cache.Host.Configuration
         public bool? BlobClusterStateStorageStandalone { get; set; }
 
         [DataMember]
-        public TimeSpanSetting? BlobClusterStateStorageSlotWaitTime { get; set; }
-
-        [DataMember]
-        public int? BlobClusterStateStorageMaxNumSlots { get; set; }
+        public RetryPolicyConfiguration BlobClusterStateStorageRetryPolicy { get; set; }
 
         #endregion
     }

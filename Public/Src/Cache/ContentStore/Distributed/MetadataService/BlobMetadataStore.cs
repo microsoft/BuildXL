@@ -17,6 +17,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Utils;
+using BuildXL.Cache.Host.Configuration;
 using BuildXL.Cache.MemoizationStore.Interfaces.Results;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using OperationContext = BuildXL.Cache.ContentStore.Tracing.Internal.OperationContext;
@@ -40,9 +41,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         public TimeSpan StorageInteractionTimeout { get; set; } = TimeSpan.FromSeconds(10);
 
-        public TimeSpan SlotWaitTime { get; set; } = TimeSpan.FromMilliseconds(1);
-
-        public int MaxNumSlots { get; set; } = int.MaxValue;
+        public RetryPolicyConfiguration RetryPolicy { get; set; } = BlobFolderStorage.DefaultRetryPolicy;
     }
 
     public class BlobMetadataStore : StartupShutdownComponentBase, IMetadataStore

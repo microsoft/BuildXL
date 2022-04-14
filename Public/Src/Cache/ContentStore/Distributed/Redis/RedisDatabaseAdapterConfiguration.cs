@@ -3,43 +3,17 @@
 
 using System;
 using BuildXL.Cache.ContentStore.Utils;
+using BuildXL.Cache.Host.Configuration;
 
 #nullable enable
 
 namespace BuildXL.Cache.ContentStore.Distributed.Redis
 {
-    /// <nodoc />
-    public class ExponentialBackoffConfiguration
-    {
-        /// <nodoc />
-        public int RetryCount { get; }
-
-        /// <nodoc />
-        public TimeSpan MinBackoff { get; }
-
-        /// <nodoc />
-        public TimeSpan MaxBackoff { get; }
-
-        /// <nodoc />
-        public TimeSpan DeltaBackoff { get; }
-
-        /// <nodoc />
-        public ExponentialBackoffConfiguration(int retryCount, TimeSpan? minBackoff = null, TimeSpan? maxBackoff = null, TimeSpan? deltaBackoff = null)
-        {
-            RetryCount = retryCount;
-            MinBackoff = minBackoff ?? RetryPolicyFactory.DefaultMinBackoff;
-            MaxBackoff = maxBackoff ?? RetryPolicyFactory.DefaultMaxBackoff;
-            DeltaBackoff = deltaBackoff ?? RetryPolicyFactory.DefaultDeltaBackoff;
-        }
-    }
-
     /// <summary>
     /// A configuration class for <see cref="RedisDatabaseAdapter"/>.
     /// </summary>
     internal class RedisDatabaseAdapterConfiguration
     {
-        private readonly int? _retryCount;
-        
         public string KeySpace { get; }
 
         /// <inheritdoc cref="RedisContentLocationStoreConfiguration.RedisConnectionErrorLimit"/>
@@ -63,20 +37,22 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// <inheritdoc cref="RedisContentLocationStoreConfiguration.TreatObjectDisposedExceptionAsTransient"/>
         public bool TreatObjectDisposedExceptionAsTransient { get; }
 
-        /// <inheritdoc cref="RedisContentLocationStoreConfiguration.ExponentialBackoffConfiguration"/>
-        public ExponentialBackoffConfiguration? ExponentialBackoffConfiguration { get; }
+        private readonly int? _retryCount;
+
+        /// <inheritdoc cref="RedisContentLocationStoreConfiguration.RetryPolicyConfiguration"/>
+        public RetryPolicyConfiguration? RetryPolicyConfiguration { get; }
 
         public IRetryPolicy CreateRetryPolicy(Action<Exception> onRedisException)
         {
             var policy = new RedisDatabaseAdapter.RedisRetryPolicy(onRedisException, TreatObjectDisposedExceptionAsTransient);
-            if (_retryCount != null)
+            if (RetryPolicyConfiguration != null)
+            {
+                return RetryPolicyConfiguration
+                    .AsRetryPolicy(policy.IsTransient, _retryCount ?? RetryPolicyConfiguration.DefaultRetryCount);
+            }
+            else if (_retryCount != null)
             {
                 return RetryPolicyFactory.GetLinearPolicy(policy.IsTransient, _retryCount.Value);
-            }
-            else if (ExponentialBackoffConfiguration != null)
-            {
-                var config = ExponentialBackoffConfiguration;
-                return RetryPolicyFactory.GetExponentialPolicy(policy.IsTransient, config.RetryCount, config.MinBackoff, config.MaxBackoff, config.DeltaBackoff);
             }
             else
             {
@@ -94,7 +70,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             bool cancelBatchWhenMultiplexerIsClosed = false,
             bool treatObjectDisposedExceptionAsTransient = false,
             TimeSpan? operationTimeout = null,
-            ExponentialBackoffConfiguration? exponentialBackoffConfiguration = null)
+            RetryPolicyConfiguration? retryPolicyConfiguration = null)
         {
             _retryCount = retryCount;
             KeySpace = keySpace;
@@ -105,7 +81,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             CancelBatchWhenMultiplexerIsClosed = cancelBatchWhenMultiplexerIsClosed;
             TreatObjectDisposedExceptionAsTransient = treatObjectDisposedExceptionAsTransient;
             OperationTimeout = operationTimeout ?? RedisContentLocationStoreConfiguration.DefaultOperationTimeout;
-            ExponentialBackoffConfiguration = exponentialBackoffConfiguration;
+            RetryPolicyConfiguration = retryPolicyConfiguration;
         }
     }
 }

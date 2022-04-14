@@ -138,7 +138,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// <summary>
         /// An optional configuration for exponential backoff retry policy.
         /// </summary>
-        public ExponentialBackoffConfiguration ExponentialBackoffConfiguration { get; set; } = null;
+        public RetryPolicyConfiguration RetryPolicyConfiguration { get; set; } = null;
 
         /// <summary>
         /// Timeout for GetBlob/PutBlob operations.

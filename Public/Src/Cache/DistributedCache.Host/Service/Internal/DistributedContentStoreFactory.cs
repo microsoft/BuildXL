@@ -7,7 +7,6 @@ using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
@@ -26,22 +25,17 @@ using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.Host.Configuration;
-using BuildXL.Cache.MemoizationStore.Distributed.Stores;
-using BuildXL.Cache.MemoizationStore.Interfaces.Stores;
-using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling;
 using ContentStore.Grpc;
 using BuildXL.Cache.ContentStore.Service.Grpc;
-using BuildXL.Utilities.Tracing;
 using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Cache.ContentStore.Distributed.MetadataService;
-using BuildXL.Cache.ContentStore.FileSystem;
-using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Distributed.Services;
 
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 using BandwidthConfiguration = BuildXL.Cache.ContentStore.Distributed.BandwidthConfiguration;
 using static BuildXL.Utilities.ConfigurationHelper;
+using BuildXL.Cache.ContentStore.Utils;
 
 namespace BuildXL.Cache.Host.Service.Internal
 {
@@ -255,13 +249,11 @@ namespace BuildXL.Cache.Host.Service.Internal
 
             if (_distributedSettings.RedisExponentialBackoffRetryCount != null)
             {
-                var exponentialBackoffConfiguration = new ExponentialBackoffConfiguration(
-                    _distributedSettings.RedisExponentialBackoffRetryCount.Value,
-                    minBackoff: IfNotNull(_distributedSettings.RedisExponentialBackoffMinIntervalInSeconds, v => TimeSpan.FromSeconds(v)),
-                    maxBackoff: IfNotNull(_distributedSettings.RedisExponentialBackoffMaxIntervalInSeconds, v => TimeSpan.FromSeconds(v)),
-                    deltaBackoff: IfNotNull(_distributedSettings.RedisExponentialBackoffDeltaIntervalInSeconds, v => TimeSpan.FromSeconds(v))
-                    );
-                redisConfig.ExponentialBackoffConfiguration = exponentialBackoffConfiguration;
+                redisConfig.RetryCount = _distributedSettings.RedisExponentialBackoffRetryCount;
+                redisConfig.RetryPolicyConfiguration = RetryPolicyConfiguration.Exponential(
+                    minimumRetryWindow: IfNotNull(_distributedSettings.RedisExponentialBackoffMinIntervalInSeconds, v => TimeSpan.FromSeconds(v)),
+                    maximumRetryWindow: IfNotNull(_distributedSettings.RedisExponentialBackoffMaxIntervalInSeconds, v => TimeSpan.FromSeconds(v)),
+                    delta: IfNotNull(_distributedSettings.RedisExponentialBackoffDeltaIntervalInSeconds, v => TimeSpan.FromSeconds(v)));
             }
 
             ApplyIfNotNull(_distributedSettings.ReplicaCreditInMinutes, v => redisConfig.ContentLifetime = TimeSpan.FromMinutes(v));
@@ -754,8 +746,7 @@ namespace BuildXL.Cache.Host.Service.Internal
             ApplyIfNotNull(_distributedSettings.BlobCheckpointRegistryRegisterCheckpointTimeout, v => azureBlobStorageCheckpointRegistryConfiguration.RegisterCheckpointTimeout = v);
             ApplyIfNotNull(_distributedSettings.BlobCheckpointRegistryGetCheckpointStateTimeout, v => azureBlobStorageCheckpointRegistryConfiguration.CheckpointStateTimeout = v);
             ApplyIfNotNull(_distributedSettings.BlobCheckpointRegistryFanout, v => azureBlobStorageCheckpointRegistryConfiguration.CheckpointContentFanOut = v);
-            ApplyIfNotNull(_distributedSettings.BlobCheckpointRegistrySlotWaitTime, v => azureBlobStorageCheckpointRegistryConfiguration.SlotWaitTime = v);
-            ApplyIfNotNull(_distributedSettings.BlobCheckpointRegistryMaxNumSlots, v => azureBlobStorageCheckpointRegistryConfiguration.MaxNumSlots = v);
+            ApplyIfNotNull(_distributedSettings.BlobCheckpointRegistryRetryPolicy, v => azureBlobStorageCheckpointRegistryConfiguration.RetryPolicy = v);
 
             ApplyIfNotNull(_distributedSettings.BlobCheckpointRegistryCheckpointLimit, v => azureBlobStorageCheckpointRegistryConfiguration.CheckpointLimit = v);
             azureBlobStorageCheckpointRegistryConfiguration.NewEpochEventStartCursorDelay = eventStoreConfiguration.NewEpochEventStartCursorDelay;
@@ -774,8 +765,7 @@ namespace BuildXL.Cache.Host.Service.Internal
             ApplyIfNotNull(_distributedSettings.BlobMasterElectionFileName, v => azureBlobStorageMasterElectionMechanismConfiguration.FileName = v);
             ApplyIfNotNull(_distributedSettings.BlobMasterElectionLeaseExpiryTime, v => azureBlobStorageMasterElectionMechanismConfiguration.LeaseExpiryTime = v);
             ApplyIfNotNull(_distributedSettings.BlobMasterElectionStorageInteractionTimeout, v => azureBlobStorageMasterElectionMechanismConfiguration.StorageInteractionTimeout = v);
-            ApplyIfNotNull(_distributedSettings.BlobMasterElectionSlotWaitTime, v => azureBlobStorageMasterElectionMechanismConfiguration.SlotWaitTime = v);
-            ApplyIfNotNull(_distributedSettings.BlobMasterElectionMaxNumSlots, v => azureBlobStorageMasterElectionMechanismConfiguration.MaxNumSlots = v);
+            ApplyIfNotNull(_distributedSettings.BlobMasterElectionRetryPolicy, v => azureBlobStorageMasterElectionMechanismConfiguration.RetryPolicy = v);
 
             configuration.AzureBlobStorageMasterElectionMechanismConfiguration = azureBlobStorageMasterElectionMechanismConfiguration;
 
@@ -791,8 +781,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                 ApplyIfNotNull(_distributedSettings.BlobClusterStateStorageFileName, v => blobClusterStateStorageConfiguration.FileName = v);
                 ApplyIfNotNull(_distributedSettings.BlobClusterStateStorageStorageInteractionTimeout, v => blobClusterStateStorageConfiguration.StorageInteractionTimeout = v);
                 ApplyIfNotNull(_distributedSettings.BlobClusterStateStorageStandalone, v => blobClusterStateStorageConfiguration.Standalone = v);
-                ApplyIfNotNull(_distributedSettings.BlobClusterStateStorageSlotWaitTime, v => blobClusterStateStorageConfiguration.SlotWaitTime = v);
-                ApplyIfNotNull(_distributedSettings.BlobClusterStateStorageMaxNumSlots, v => blobClusterStateStorageConfiguration.MaxNumSlots = v);
+                ApplyIfNotNull(_distributedSettings.BlobClusterStateStorageRetryPolicy, v => blobClusterStateStorageConfiguration.RetryPolicy = v);
 
                 var gcCfg = new ClusterStateRecomputeConfiguration();
                 ApplyIfNotNull(_distributedSettings.MachineStateRecomputeIntervalMinutes, v => gcCfg.RecomputeFrequency = TimeSpan.FromMinutes(v));

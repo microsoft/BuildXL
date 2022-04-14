@@ -10,20 +10,17 @@ using System.Net;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Secrets;
-using BuildXL.Cache.ContentStore.Synchronization;
 using BuildXL.Cache.ContentStore.Tracing;
-using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.ContentStore.Utils;
+using BuildXL.Cache.Host.Configuration;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tasks;
 using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Blob;
-using Polly.Caching;
 using OperationContext = BuildXL.Cache.ContentStore.Tracing.Internal.OperationContext;
 
 #nullable enable
@@ -40,9 +37,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         TimeSpan StorageInteractionTimeout { get; }
 
-        TimeSpan SlotWaitTime { get; }
-
-        int MaxNumSlots { get; }
+        RetryPolicyConfiguration RetryPolicy { get; }
     }
 
     /// <summary>
@@ -68,6 +63,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     /// </summary>
     internal class BlobFolderStorage : StartupShutdownSlimBase
     {
+        public static RetryPolicyConfiguration DefaultRetryPolicy { get; } = new RetryPolicyConfiguration()
+        {
+            RetryPolicy = StandardRetryPolicy.ExponentialSpread,
+            MinimumRetryWindow = TimeSpan.FromMilliseconds(1),
+            MaximumRetryWindow = TimeSpan.FromSeconds(30),
+            WindowJitter = 1.0,
+        };
+
         protected override Tracer Tracer { get; }
 
         private readonly IBlobFolderStorageConfiguration _configuration;
@@ -86,6 +89,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             RetryPolicy = new Microsoft.WindowsAzure.Storage.RetryPolicies.ExponentialRetry(),
         };
 
+        private readonly IStandardRetryPolicy _retryPolicy;
+
         public BlobFolderStorage(
             Tracer tracer,
             IBlobFolderStorageConfiguration configuration)
@@ -93,6 +98,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             Contract.RequiresNotNull(configuration.Credentials);
             Tracer = tracer;
             _configuration = configuration;
+            _retryPolicy = _configuration.RetryPolicy.Create();
 
             _client = _configuration.Credentials!.CreateCloudBlobClient();
             _container = _client.GetContainerReference(_configuration.ContainerName);
@@ -191,12 +197,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                         if (shouldWait)
                         {
-                            var slots = Math.Min((1 << attempt) - 1, _configuration.MaxNumSlots);
-                            // WARNING: it is extremely important to use ContinuousUniform here: the fact that the
-                            // random variable's domain is the [0, slots] \subset R instead of \subset Z greatly
-                            // reduces the number of retries when under contention.
-                            var delay = _configuration.SlotWaitTime.Multiply(ThreadSafeRandom.ContinuousUniform(0, slots));
-                            Tracer.Debug(context, $"Waiting for {delay}");
+                            var delay = _retryPolicy.Compute(attempt);
+                            Tracer.Debug(context, $"Waiting for {delay} in attempt {attempt}");
                             await Task.Delay(delay, context.Token);
                         }
                         shouldWait = true;

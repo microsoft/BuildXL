@@ -19,6 +19,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.ContentStore.Utils;
+using BuildXL.Cache.Host.Configuration;
 using BuildXL.Utilities.Tasks;
 using OperationContext = BuildXL.Cache.ContentStore.Tracing.Internal.OperationContext;
 
@@ -67,9 +68,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         public bool WriteLegacyFormat { get; set; } = true;
 
-        public TimeSpan SlotWaitTime { get; set; } = TimeSpan.FromMilliseconds(1);
-
-        public int MaxNumSlots { get; set; } = int.MaxValue;
+        public RetryPolicyConfiguration RetryPolicy { get; set; } = BlobFolderStorage.DefaultRetryPolicy;
     }
 
     /// <summary>

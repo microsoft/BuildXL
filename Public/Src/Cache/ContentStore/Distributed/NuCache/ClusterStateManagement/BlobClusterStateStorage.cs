@@ -13,6 +13,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
+using BuildXL.Cache.Host.Configuration;
 
 #nullable enable
 
@@ -34,9 +35,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         public ClusterStateRecomputeConfiguration RecomputeConfiguration { get; set; } = new ClusterStateRecomputeConfiguration();
 
-        public TimeSpan SlotWaitTime { get; set; } = TimeSpan.FromMilliseconds(1);
-
-        public int MaxNumSlots { get; set; } = int.MaxValue;
+        public RetryPolicyConfiguration RetryPolicy { get; set; } = BlobFolderStorage.DefaultRetryPolicy;
     }
 
     public class BlobClusterStateStorage : StartupShutdownComponentBase, IClusterStateStorage, ISecondaryClusterStateStorage

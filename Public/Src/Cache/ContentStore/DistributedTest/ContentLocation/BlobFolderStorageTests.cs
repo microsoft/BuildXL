@@ -14,6 +14,7 @@ using BuildXL.Cache.ContentStore.InterfacesTest;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
+using BuildXL.Cache.Host.Configuration;
 using BuildXL.Utilities.Tracing;
 using ContentStoreTest.Distributed.Redis;
 using ContentStoreTest.Test;
@@ -38,9 +39,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
 
             public TimeSpan StorageInteractionTimeout { get; set; } = TimeSpan.FromMinutes(1);
 
-            public TimeSpan SlotWaitTime { get; set; } = TimeSpan.FromSeconds(1);
-
-            public int MaxNumSlots { get; set; } = 10;
+            public RetryPolicyConfiguration RetryPolicy { get; set; } = BlobFolderStorage.DefaultRetryPolicy;
 
             public BlobFolderStorageConfiguration()
             {

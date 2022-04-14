@@ -48,7 +48,7 @@ namespace BuildXL.Cache.ContentStore.Distributed
                     cancelBatchWhenMultiplexerIsClosed: configuration.CancelBatchWhenMultiplexerIsClosed,
                     treatObjectDisposedExceptionAsTransient: configuration.TreatObjectDisposedExceptionAsTransient,
                     operationTimeout: configuration.OperationTimeout,
-                    exponentialBackoffConfiguration: configuration.ExponentialBackoffConfiguration,
+                    retryPolicyConfiguration: configuration.RetryPolicyConfiguration,
                     retryCount: configuration.RetryCount);
 
                 return new RedisDatabaseAdapter(factory, adapterConfiguration);

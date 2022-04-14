@@ -159,10 +159,39 @@ namespace BuildXL.Engine
         /// <nodoc/>
         public static HistoricDataPoint Deserialize(BuildXLReader reader)
         {
+            TableStats pathTableStats, symbolTableStats, stringTableStats;
+
+            try
+            {
+                pathTableStats = TableStats.Deserialize(reader);
+            }
+            catch (FormatException fex)
+            {
+                throw new FormatException("FormatException while deserializing pathTableStats: " + fex);
+            }
+
+            try
+            {
+                symbolTableStats = TableStats.Deserialize(reader);
+            }
+            catch (FormatException fex)
+            {
+                throw new FormatException("FormatException while deserializing symbolTableStats: " + fex);
+            }
+
+            try
+            {
+                stringTableStats = TableStats.Deserialize(reader);
+            }
+            catch (FormatException fex)
+            {
+                throw new FormatException("FormatException while deserializing stringTableStats: " + fex);
+            }
+
             return new HistoricDataPoint(
-                pathTableStats: TableStats.Deserialize(reader),
-                symbolTableStats: TableStats.Deserialize(reader),
-                stringTableStats: TableStats.Deserialize(reader));
+                pathTableStats,
+                symbolTableStats,
+                stringTableStats);
         }
     }
 

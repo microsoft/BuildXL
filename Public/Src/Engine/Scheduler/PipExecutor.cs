@@ -1365,7 +1365,11 @@ namespace BuildXL.Scheduler
             Contract.Assert(executionResult.UnexpectedFileAccesses != null, "Success / ExecutionFailed provides all execution-time fields");
             Contract.Assert(executionResult.PrimaryProcessTimes != null, "Success / ExecutionFailed provides all execution-time fields");
 
-            counters.AddToCounter(PipExecutorCounter.ExecuteProcessDuration, executionResult.PrimaryProcessTimes.TotalWallClockTime);
+            // Do not update the counter for service pips
+            if (!pip.IsStartOrShutdownKind)
+            {
+                counters.AddToCounter(PipExecutorCounter.ExecuteProcessDuration, executionResult.PrimaryProcessTimes.TotalWallClockTime); 
+            }
 
             // Skip the post-processing if the pip was run outside of the sandbox
             if (pip.DisableSandboxing)

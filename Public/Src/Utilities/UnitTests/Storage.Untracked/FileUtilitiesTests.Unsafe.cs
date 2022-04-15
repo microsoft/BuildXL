@@ -516,11 +516,17 @@ namespace Test.BuildXL.Storage
 
             using (var waiter = DummyWaiter.RunAndWait())
             {
+                bool isWin11OrNewer = Environment.OSVersion.Version.Build >= 22000;
 
                 try
                 {
                     File.Delete(exeLink);
-                    XAssert.Fail("Expected deletion to fail due to the executable being loaded and running.");
+
+                    // Starting in Windows 11, the filesystem behavior changes to allow deleting a hardlink to a running executable.
+                    if (!isWin11OrNewer)
+                    {
+                        XAssert.Fail("Expected deletion to fail due to the executable being loaded and running.");
+                    }
                 }
                 catch (UnauthorizedAccessException)
                 {

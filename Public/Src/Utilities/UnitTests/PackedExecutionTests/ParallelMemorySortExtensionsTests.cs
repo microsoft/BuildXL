@@ -36,14 +36,14 @@ namespace Test.Tool.Analyzers
         }
 
         /// <summary>Test sorting the input array in a few ways</summary>
-        public static void TestSort(int[] data)
+        public static void TestSort(int[] data, int parallelism = -1)
         {
             int[] copy1 = (int[])data.Clone();
-            ParallelMemorySortExtensions.ParallelSort<int>(copy1, (i, j) => i.CompareTo(j), minimumSubspanSize: 1);
+            ParallelMemorySortExtensions.ParallelSort<int>(copy1, (i, j) => i.CompareTo(j), minimumSubspanSize: 1, parallelism: parallelism);
             ConfirmSorted(copy1);
 
             int[] copy2 = (int[])data.Clone();
-            ParallelMemorySortExtensions.ParallelSort<int>(copy2, (i, j) => i.CompareTo(j), minimumSubspanSize: 3);
+            ParallelMemorySortExtensions.ParallelSort<int>(copy2, (i, j) => i.CompareTo(j), minimumSubspanSize: 3, parallelism: parallelism);
             ConfirmSorted(copy2);
         }
 
@@ -74,6 +74,22 @@ namespace Test.Tool.Analyzers
         public void TestRandomSort()
         {
             TestSort(new int[] { 8, 4, 3, 5, 6, 1, 9, 2, 7 });
+        }
+
+        [Theory]
+        [InlineData(1)]
+        [InlineData(2)]
+        [InlineData(3)]
+        [InlineData(4)]
+        [InlineData(5)]
+        [InlineData(6)]
+        [InlineData(7)]
+        [InlineData(8)]
+        [InlineData(16)]
+        [InlineData(20)]
+        public void TestSortParallelism(int parallelism)
+        {
+            TestSort(new int[] { 8, 4, 3, 5, 6, 1, 9, 2, 7 }, parallelism);
         }
     }
 }

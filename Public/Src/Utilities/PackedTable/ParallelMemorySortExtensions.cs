@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.ContractsLight;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
@@ -23,17 +24,17 @@ namespace BuildXL.Utilities.PackedTable
         /// <summary>
         /// Sort this Span.
         /// </summary>
-        public static void ParallelSort<T>(this Memory<T> memory, IComparer<T> comparer, int minimumSubspanSize = 1024)
+        public static void ParallelSort<T>(this Memory<T> memory, IComparer<T> comparer, int minimumSubspanSize = 1024, int parallelism = -1)
         {
-            new ParallelSortHelper<T>(memory, minimumSubspanSize).Sort(s => s.Sort(comparer), (i, j) => comparer.Compare(i, j));
+            new ParallelSortHelper<T>(memory, minimumSubspanSize, parallelism).Sort(s => s.Sort(comparer), (i, j) => comparer.Compare(i, j));
         }
 
         /// <summary>
         /// Sort this Span.
         /// </summary>
-        public static void ParallelSort<T>(this Memory<T> memory, Comparison<T> comparison, int minimumSubspanSize = 1024)
+        public static void ParallelSort<T>(this Memory<T> memory, Comparison<T> comparison, int minimumSubspanSize = 1024, int parallelism = -1)
         {
-            new ParallelSortHelper<T>(memory, minimumSubspanSize).Sort(s => s.Sort(comparison), comparison);
+            new ParallelSortHelper<T>(memory, minimumSubspanSize, parallelism).Sort(s => s.Sort(comparison), comparison);
         }
 
         /// <summary>
@@ -69,7 +70,7 @@ namespace BuildXL.Utilities.PackedTable
             /// </summary>
             private readonly List<int> subspanSortedIndices;
 
-            internal ParallelSortHelper(Memory<T> memory, int minimumSubspanSize)
+            internal ParallelSortHelper(Memory<T> memory, int minimumSubspanSize, int parallelism = -1)
             {
                 if (memory.IsEmpty)
                 {
@@ -80,15 +81,21 @@ namespace BuildXL.Utilities.PackedTable
                     throw new ArgumentOutOfRangeException($"Minimum subspan size {minimumSubspanSize} must be greater than 0");
                 }
 
+                // Overridable for testing purposes
+                if (parallelism == -1)
+                {
+                    parallelism = Environment.ProcessorCount;
+                }
+
                 this.minimumSubspanSize = minimumSubspanSize;
                 this.memory = memory;
 
                 // What subspan size do we want?
                 int length = memory.Length;
                 int minimumSizedSubspanCount = (int)Math.Ceiling((float)length / minimumSubspanSize);
-                if (minimumSizedSubspanCount > Environment.ProcessorCount)
+                if (minimumSizedSubspanCount > parallelism)
                 {
-                    subspanCount = Environment.ProcessorCount;
+                    subspanCount = parallelism;
                 }
                 else
                 {
@@ -97,6 +104,13 @@ namespace BuildXL.Utilities.PackedTable
 
                 elementsPerSubspan = (int)Math.Ceiling((float)memory.Length / subspanCount);
 
+                // Depending on elementsPerSubspan, for small numbers we may have picked too many subspans. Decrease if necessary
+                subspanCount = (int)Math.Ceiling((float)length / elementsPerSubspan);
+
+                // Ensure there are not too many or too few subspans
+                Contract.Assert(subspanCount * elementsPerSubspan >= length, "Not enough subspans to hold data");
+                Contract.Assert(subspanCount * elementsPerSubspan <= length + elementsPerSubspan, "Too many subspans");
+                
                 // List of the start index in each subspan (e.g. how many elements of that subspan have been merged).
                 subspanStartOffsets = new List<int>(subspanCount);
                 // Sorted list of subspan indices, ordered by first item of each subspan.

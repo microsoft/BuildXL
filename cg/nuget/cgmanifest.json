@@ -96,7 +96,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Bond.CSharp",
-          "Version": "8.0.0"
+          "Version": "10.0.0"
         }
       }
     },
@@ -123,7 +123,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Bond.Core.CSharp",
-          "Version": "8.0.0"
+          "Version": "10.0.0"
         }
       }
     },
@@ -132,7 +132,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Bond.Runtime.CSharp",
-          "Version": "8.0.0"
+          "Version": "10.0.0"
         }
       }
     },

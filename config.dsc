@@ -69,11 +69,11 @@ config({
 
             packages: [
                 { id: "NLog", version: "4.7.7" },
-                { id: "Bond.Core.CSharp", version: "8.0.0" },
-                { id: "Bond.CSharp", version: "8.0.0" },
+                { id: "Bond.Core.CSharp", version: "10.0.0" },
+                { id: "Bond.CSharp", version: "10.0.0" },
                 { id: "Bond.CSharp.osx-x64", version: "8.0.0", osSkip: [ "unix" ] },
                 { id: "Bond.CSharp.linux-x64", version: "8.0.0", osSkip: [ "macOS" ] },
-                { id: "Bond.Runtime.CSharp", version: "8.0.0" },
+                { id: "Bond.Runtime.CSharp", version: "10.0.0" },
                 { id: "CLAP", version: "4.6" },
                 { id: "CLAP-DotNetCore", version: "4.6" },
 

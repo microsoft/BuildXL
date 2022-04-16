@@ -24,20 +24,31 @@ jobs:
   # see https://docs.microsoft.com/en-us/azure/devops/pipelines/release/caching?view=azure-devops for how the Cache task works
   - task: Cache@2
     inputs:
-      # this means that we'll get a cache hit against the first successful build where the content of 'cgmanifest.json' was the same
-      key: '"nuget" | "1" | ./cg/nuget/cgmanifest.json'
+      # we'll get a cache hit against the first successful build where the content of 'cgmanifest.json' was the same
+      key: '"nuget" | "1" | "$(Agent.OS)" | ./cg/nuget/cgmanifest.json'
+      # if no cache entry is already associated with 'key', the most recent cache entry associated with the key prefix below (if any) will be restored
+      restoreKeys: |
+        "nuget" | "1" | "$(Agent.OS)"
+        "nuget" | "1"
       # downloading/uploading the content of this folder (~4GB) takes 0.5-2 minutes, while restoring all NuGets from BuildXL takes 5-8 minutes
       path: Out/frontend/Nuget
     displayName: Cache NuGet packages
+    continueOnError: true
+    timeoutInMinutes: 10
 
   - task: Cache@2
     inputs:
-      # this means that we'll get a cache hit against the first successful build done with the same LKG against the same branch
-      key: '"bxl" | "1" | "$(BxlMatrixArgs)" | ./Shared/Scripts/BuildXLLkgVersion.cmd | "$(Build.SourceBranch)"'
-      # this means even if the branch is different we'll get a "partial" cache hit against the first successful build done with the same LKG
-      restoreKeys: '"bxl" | "1" | "$(BxlMatrixArgs)" | ./Shared/Scripts/BuildXLLkgVersion.cmd'
+      key: '"bxl" | "1" | "$(Agent.OS)" | "$(BxlMatrixArgs)" | "$(Build.SourceBranch)" | "$(Build.SourceVersion)"'
+      # if no cache entry is already associated with 'key', the most recent cache entry associated with the key prefix below (if any) will be restored
+      restoreKeys: |
+        "bxl" | "1" | "$(Agent.OS)" | "$(BxlMatrixArgs)" | "$(Build.SourceBranch)" 
+        "bxl" | "1" | "$(Agent.OS)" | "$(BxlMatrixArgs)"
+        "bxl" | "1" | "$(Agent.OS)"
+        "bxl" | "1"
       path: Out/Cache.noindex
     displayName: Cache BuildXL's cache dir
+    continueOnError: true
+    timeoutInMinutes: 10
 
   - task: UseDotNet@2
     displayName: Use .NET Core sdk 6.x

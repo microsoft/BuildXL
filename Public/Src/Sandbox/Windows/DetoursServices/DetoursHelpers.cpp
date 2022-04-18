@@ -505,7 +505,7 @@ void WriteToInternalErrorsFile(PCWSTR format, ...)
                 va_list args;
                 va_start(args, format);
                 std::wstring errorMessage = DebugStringFormatArgs(format, args);
-                WriteFile(openedFile, errorMessage.c_str(), (DWORD) errorMessage.length(), nullptr, nullptr);
+                WriteFile(openedFile, errorMessage.c_str(), (DWORD)(errorMessage.length() * sizeof(wchar_t)), nullptr, nullptr);
                 va_end(args);
                 CloseHandle(openedFile);
 

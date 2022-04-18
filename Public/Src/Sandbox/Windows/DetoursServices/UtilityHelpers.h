@@ -12,6 +12,13 @@
 struct CaseInsensitiveStringComparer : public std::binary_function<std::wstring, std::wstring, bool> {
     bool operator()(const std::wstring& lhs, const std::wstring& rhs) const {
         if (lhs.length() == rhs.length()) {
+            
+            // If the strings happen to be identical, then we can just return
+            if (lhs.data() == rhs.data())
+            {
+                return true;
+            }
+
             return std::equal(rhs.begin(), rhs.end(), lhs.begin(),
                 [](const wchar_t a, const wchar_t b)
                 {
@@ -36,6 +43,12 @@ struct CaseInsensitiveStringLessThan : public std::binary_function<std::wstring,
     bool operator()(const std::wstring& lhs, const std::wstring& rhs) const {
         if (lhs.length() == rhs.length())
         {
+            // If the strings happen to be identical, then we can just return
+            if (lhs.data() == rhs.data())
+            {
+                return false;
+            }
+
             // Paths in the same process tend to share a significant prefix in common. Starting backwards
             // has a better chance to hit a difference first
             auto result = std::lexicographical_compare(rhs.rbegin(), rhs.rend(), lhs.rbegin(), lhs.rend(),

@@ -49,15 +49,15 @@ bool PathTree::TryInsert(const std::wstring& path)
     return true;
 }
 
-TreeNode* PathTree::Append(std::wstring& atom, TreeNode* node, bool isIntermediate)
+TreeNode* PathTree::Append(const std::wstring& atom, TreeNode* node, bool isIntermediate)
 {
     // First check if the node is already there
-    auto search = node->children.find(atom);
-    if (search != node->children.end())
+    std::pair<std::wstring, TreeNode*> search;
+    if (node->children.find(atom, search))
     {
         // If the node being appended is not an intermediate, that overrides the existing node flag
-        (search->second)->intermediate &= isIntermediate;
-        return search->second;
+        (search.second)->intermediate &= isIntermediate;
+        return search.second;
     }
 
     // It is not there. Create it and add it as a child of the given node
@@ -95,7 +95,6 @@ void PathTree::RetrieveAndRemoveAllDescendants(const std::wstring& path, std::ve
         normalizedPath.append(it->first);
     }
 
-
     // Pop all the descendants of the leaf node and build the descendant collection
     RetrieveAndRemoveAllDescendants(normalizedPath, nodeTrace.back().second, descendants);
 
@@ -128,7 +127,7 @@ void PathTree::RetrieveAndRemoveAllDescendants(const std::wstring& path, TreeNod
 {
     std::vector<TreeNode*> nodesToDelete;
 
-    for (auto iter = node->children.begin(); iter != node->children.end(); iter++)
+    auto retrieve = [this, &path, node, &descendants, &nodesToDelete](std::pair<std::wstring, TreeNode*>* iter)
     {
         // Add the path atom to the path.
         std::wstring descendant(path);
@@ -147,8 +146,11 @@ void PathTree::RetrieveAndRemoveAllDescendants(const std::wstring& path, TreeNod
         RetrieveAndRemoveAllDescendants(descendant, iter->second, descendants);
 
         nodesToDelete.push_back(iter->second);
-    }
 
+    };
+
+    node->children.forEach(retrieve);
+    
     for (auto iter = nodesToDelete.begin(); iter != nodesToDelete.end(); iter++)
     {
         delete *iter;
@@ -159,12 +161,14 @@ void PathTree::RetrieveAndRemoveAllDescendants(const std::wstring& path, TreeNod
 
 void PathTree::RemoveAllDescendants(TreeNode* node)
 {
-    for (auto iter = node->children.begin(); iter != node->children.end(); iter++)
+    auto remove = [this](std::pair<std::wstring, TreeNode*>* iter)
     {
         RemoveAllDescendants(iter->second);
 
         delete iter->second;
-    }
+    };
+
+    node->children.forEach(remove);
 
     node->children.clear();
 }
@@ -185,15 +189,14 @@ bool PathTree::TryFind(const std::wstring& path, std::vector<std::pair<std::wstr
 
     for (unsigned int i = 0; i < elements.size(); i++)
     {
-        auto search = currentNode->children.find(elements[i]);
-
-        if (search == currentNode->children.end())
+        std::pair<std::wstring, TreeNode*> search;
+        if (!currentNode->children.find(elements[i], search))
         {
             return false;
         }
 
-        currentNode = search->second;
-        nodeTrace.push_back(std::make_pair(search->first, currentNode));
+        nodeTrace.push_back(search);
+        currentNode = search.second;
     }
 
     return true;
@@ -213,11 +216,13 @@ std::wstring PathTree::ToDebugString(TreeNode* node, std::wstring indent)
         node = m_root;
     }
 
-    for (auto iter = node->children.begin(); iter != node->children.end(); iter++)
+    auto append = [&result, &indent, this](std::pair<std::wstring, TreeNode*>* iter)
     {
         result.append(indent + iter->first + (!iter->second->intermediate ? L"*" : L"") + L"\r\n");
         result.append(ToDebugString(iter->second, indent + L"\t"));
-    }
+    };
+
+    node->children.forEach(append);
 
     return result;
 }

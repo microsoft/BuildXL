@@ -6,6 +6,7 @@
 // If these tests become more widespread, consider integrating it with the corresponding boost .lib, also distributed as part of the framework
 #include <boost/test/included/unit_test.hpp>
 
+#define _DO_NOT_EXPORT
 // This is currently a hack to organize tests into multiple files/suites.
 // Ideally, the separation should be like 
 //   https://www.boost.org/doc/libs/1_69_0/libs/test/doc/html/boost_test/adv_scenarios/single_header_customizations/multiple_translation_units.html
@@ -15,3 +16,4 @@
 #include "PathTreeTests.h"
 #include "StringOperationsTests.h"
 #include "ResolvedPathCacheTests.h"
+#include "TreeNodeTests.h"

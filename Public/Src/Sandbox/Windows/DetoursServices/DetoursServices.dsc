@@ -40,7 +40,8 @@ namespace Core {
         f`SubstituteProcessExecution.h`,
         f`FilesCheckedForAccess.h`,
         f`ResolvedPathCache.h`,
-        f`PathTree.h`
+        f`PathTree.h`,
+        f`TreeNode.h`
     ];
 
     @@public export const includes = Transformer.sealPartialDirectory(d`.`, headers);
@@ -92,7 +93,8 @@ namespace Core {
                 f`SendReport.cpp`,
                 f`DetouredProcessInjector.cpp`,
                 f`SubstituteProcessExecution.cpp`,
-                f`PathTree.cpp`
+                f`PathTree.cpp`,
+                f`TreeNode.cpp`
             ],
 
             exports: [
@@ -121,6 +123,7 @@ namespace Core {
             {name: "TEST"}],
         includes: [
             f`PathTree.h`,
+            f`TreeNode.h`,
             f`stdafx.h`,
             f`stdafx-win.h`,
             f`targetver.h`,
@@ -138,7 +141,8 @@ namespace Core {
         sources: [
             f`Assertions.cpp`,
             f`StringOperations.cpp`,
-            f`PathTree.cpp`
+            f`PathTree.cpp`,
+            f`TreeNode.cpp`
         ],
         libraries: [
             ...importFrom("WindowsSdk").UM.standardLibs,
@@ -173,7 +177,8 @@ namespace Core {
                 f`DetouredProcessInjector.cpp`,
                 f`SubstituteProcessExecution.cpp`,
                 f`FilesCheckedForAccess.cpp`,
-                f`PathTree.cpp`
+                f`PathTree.cpp`,
+                f`TreeNode.cpp`
             ],
 
             exports: [

@@ -5,19 +5,14 @@
 
 #pragma warning(disable: 4710 5045)
 
-#define EXPORT __declspec( dllexport )
+#if defined(_DO_NOT_EXPORT)
+#define EXPORT
+#else
+#define EXPORT __declspec(dllexport)
+#endif
 
-#include <map>
-#include <stack>
 #include "UtilityHelpers.h"
-
-// A node in a PathTree
-struct TreeNode {
-    // Edges to children, with the path atom that leads to it
-    std::map<std::wstring, TreeNode*, CaseInsensitiveStringLessThan> children;
-    // Whether the node is an intermediate node or it represents a path that was explicitly inserted
-    bool intermediate;
-};
+#include "TreeNode.h"
 
 // An n-ary tree where nodes are path atoms. Drive letters are at the root and traces in the tree represent paths.
 // This class is not thread safe
@@ -47,7 +42,7 @@ public:
 
 private:
     // Adds an edge from the given node with the provided atom
-    TreeNode* Append(std::wstring& atom, TreeNode* node, bool isIntermediate);
+    TreeNode* Append(const std::wstring& atom, TreeNode* node, bool isIntermediate);
 
     // Tries to find the provided path in the current tree. On success, returns the trace in the tree that leads to the
     // path final atom

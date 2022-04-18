@@ -192,9 +192,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
                 Configuration.AzureBlobStorageMasterElectionMechanismConfiguration,
                 Configuration.PrimaryMachineLocation,
                 Clock);
-            if (Dependencies.RoleObserver.TryGetInstance(out var observer))
+
+            if (Dependencies.RoleObserver.TryGetInstance(out var observer)
+                || Configuration.ObservableMasterElectionMechanismConfiguration.IsBackgroundEnabled)
             {
-                return new ObservableMasterElectionMechanism(masterElectionMechanism, observer);
+                return new ObservableMasterElectionMechanism(
+                    Configuration.ObservableMasterElectionMechanismConfiguration,
+                    masterElectionMechanism,
+                    Clock,
+                    observer);
             }
             else
             {

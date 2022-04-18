@@ -151,7 +151,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
                 tracer,
                 async context =>
                 {
-                    using var storage = AzuriteStorageProcess.CreateAndStartEmpty(_fixture, TestGlobal.Logger, clock);
+                    using var storage = AzuriteStorageProcess.CreateAndStartEmpty(_fixture, TestGlobal.Logger);
 
                     configuration ??= new BlobFolderStorageConfiguration();
                     configuration.Credentials = new AzureBlobStorageCredentials(connectionString: storage.ConnectionString);

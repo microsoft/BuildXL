@@ -4,6 +4,7 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
+using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Secrets;
@@ -11,6 +12,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.Host.Configuration;
+using BuildXL.Utilities.Tasks;
 using OperationContext = BuildXL.Cache.ContentStore.Tracing.Internal.OperationContext;
 
 #nullable enable
@@ -51,6 +53,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private MasterElectionState _lastElection = MasterElectionState.DefaultWorker;
 
+        private readonly SemaphoreSlim _roleMutex = TaskUtilities.CreateMutex();
+
         public AzureBlobStorageMasterElectionMechanism(
             AzureBlobStorageMasterElectionMechanismConfiguration configuration,
             MachineLocation primaryMachineLocation,
@@ -70,9 +74,19 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         public Role Role => _lastElection.Role;
 
+        protected override async Task<BoolResult> ShutdownCoreAsync(OperationContext context)
+        {
+            await ReleaseRoleIfNecessaryAsync(context).IgnoreFailure();
+
+            return await base.ShutdownCoreAsync(context);
+        }
+
         public async Task<Result<MasterElectionState>> GetRoleAsync(OperationContext context)
         {
+            using var releaser = await _roleMutex.AcquireAsync(context.Token);
+
             var r = await UpdateRoleAsync(context, tryUpdateLease: TryCreateOrExtendLease);
+
             if (r.Succeeded)
             {
                 _lastElection = r.Value;
@@ -81,12 +95,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return r;
         }
 
-        public async Task<Result<Role>> ReleaseRoleIfNecessaryAsync(OperationContext context, bool shuttingDown = false)
+        public async Task<Result<Role>> ReleaseRoleIfNecessaryAsync(OperationContext context)
         {
             if (!_configuration.IsMasterEligible)
             {
                 return Result.Success(Role.Worker);
             }
+
+            using var releaser = await _roleMutex.AcquireAsync(context.Token);
 
             var r = await UpdateRoleAsync(context, tryUpdateLease: TryReleaseLeaseIfHeld);
             if (r.Succeeded)
@@ -165,7 +181,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             next = current;
 
-            if (!_configuration.IsMasterEligible)
+            if (!_configuration.IsMasterEligible || ShutdownStarted)
             {
                 // Not eligible to take master lease.
                 return false;

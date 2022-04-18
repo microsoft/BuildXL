@@ -153,7 +153,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
             var context = new Context(logger);
             var operationContext = new OperationContext(context);
 
-            using var azureStorage = AzuriteStorageProcess.CreateAndStartEmpty(_fixture, TestGlobal.Logger, clock);
+            using var azureStorage = AzuriteStorageProcess.CreateAndStartEmpty(_fixture, TestGlobal.Logger);
 
             var fileName = ThreadSafeRandom.RandomAlphanumeric(20);
             var configuration = new BlobClusterStateStorageConfiguration()

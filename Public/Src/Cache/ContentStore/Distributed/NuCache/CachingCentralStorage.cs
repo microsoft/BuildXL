@@ -46,7 +46,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         protected FileSystemContentStoreInternal PrivateCas { get; }
 
         /// <inheritdoc />
-        protected override Tracer Tracer { get; } = new Tracer(nameof(DistributedCentralStorage));
+        protected override Tracer Tracer { get; } = new Tracer(nameof(CachingCentralStorage));
 
         /// <inheritdoc />
         protected override string PreprocessStorageId(string storageId) => storageId;

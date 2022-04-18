@@ -97,7 +97,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
             var tracingContext = new Context(TestGlobal.Logger);
             var context = new OperationContext(tracingContext);
 
-            using var storage = AzuriteStorageProcess.CreateAndStartEmpty(_fixture, TestGlobal.Logger, clock);
+            using var storage = AzuriteStorageProcess.CreateAndStartEmpty(_fixture, TestGlobal.Logger);
 
             var configuration = new AzureBlobStorageCheckpointRegistryConfiguration()
             {

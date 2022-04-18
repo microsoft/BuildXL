@@ -27,7 +27,6 @@ namespace ContentStoreTest.Distributed.Redis
     public sealed class AzuriteStorageProcess : IDisposable
     {
         private DisposableDirectory _tempDirectory;
-        private IClock _clock;
         private PassThroughFileSystem _fileSystem;
         private ILogger _logger;
 
@@ -51,12 +50,11 @@ namespace ContentStoreTest.Distributed.Redis
         {
         }
 
-        private void Init(ILogger logger, IClock clock, LocalRedisFixture storageFixture)
+        private void Init(ILogger logger, LocalRedisFixture storageFixture)
         {
             _fileSystem = new PassThroughFileSystem(logger);
             _logger = logger;
             _tempDirectory = new DisposableDirectory(_fileSystem, "StorageTests");
-            _clock = clock;
             _storageFixture = storageFixture;
             _disposed = false;
 
@@ -74,10 +72,9 @@ namespace ContentStoreTest.Distributed.Redis
         /// </summary>
         public static AzuriteStorageProcess CreateAndStartEmpty(
             LocalRedisFixture storageFixture,
-            ILogger logger,
-            IClock clock)
+            ILogger logger)
         {
-            return CreateAndStart(storageFixture, logger, clock);
+            return CreateAndStart(storageFixture, logger);
         }
 
         /// <summary>
@@ -85,8 +82,7 @@ namespace ContentStoreTest.Distributed.Redis
         /// </summary>
         public static AzuriteStorageProcess CreateAndStart(
             LocalRedisFixture storageFixture,
-            ILogger logger,
-            IClock clock)
+            ILogger logger)
         {
             logger.Debug($"Fixture '{storageFixture.Id}' has {storageFixture.DatabasePool.ObjectsInPool} available storage databases.");
             var instance = storageFixture.EmulatorPool.GetInstance();
@@ -99,7 +95,7 @@ namespace ContentStoreTest.Distributed.Redis
                 throw new ObjectDisposedException("instance", "The instance is already closed!");
             }
 
-            result.Init(logger, clock, storageFixture);
+            result.Init(logger, storageFixture);
             try
             {
                 result.Start();

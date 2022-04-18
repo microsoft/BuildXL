@@ -58,6 +58,12 @@ namespace BuildXL.Utilities.Tasks
         public Task<TResult> Task => m_tcs.Task;
 
         /// <summary>
+        /// Gets the <see cref="TaskCompletionSource{TResult}"/> created
+        /// by this <see cref="TaskSourceSlim{TResult}"/>.
+        /// </summary>
+        public TaskCompletionSource<TResult> CompletionSource => m_tcs;
+
+        /// <summary>
         /// Transitions the underlying
         /// <see cref="T:System.Threading.Tasks.Task{TResult}"/> into the 
         /// <see cref="System.Threading.Tasks.TaskStatus.RanToCompletion">RanToCompletion</see>

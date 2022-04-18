@@ -3,12 +3,14 @@
 
 using System;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed;
 using BuildXL.Cache.ContentStore.Distributed.MetadataService;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
+using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using BuildXL.Cache.Host.Configuration;
@@ -143,24 +145,53 @@ namespace ContentStoreTest.Distributed.Sessions
                 });
         }
 
-        [Fact]
-        public Task TestServicePutAndRetrieveOnDifferentMachinesWithRecovery()
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public async Task TestServicePutAndRetrieveOnDifferentMachinesWithRecovery(bool masterSwitch)
         {
+            // Suppress async fixer
+            await Task.CompletedTask;
+
+            // Accelerate time in tests (2s => 1minute) to allow "quickly" changing the master after expirt
+            TestClock.TimerQueueEnabled = true;
+            using var timer = new Timer(_ =>
+                {
+                    TestClock.UtcNow += TimeSpan.FromMinutes(1);
+                },
+                null,
+                period: TimeSpan.FromSeconds(2),
+                dueTime: TimeSpan.FromSeconds(0.5));
+
             _overrideScenarioName = Guid.NewGuid().ToString();
             UseGrpcServer = true;
 
             ConfigureWithOneMaster(
                 overrideDistributed: d =>
                 {
+                    if (masterSwitch)
+                    {
+                        // On first iteration machine 0 is master.
+                        // On second iteration, both machines may be master machines
+                        d.IsMasterEligible = d.TestIteration == d.TestMachineIndex;
+                    }
+
+                    d.HeartbeatIntervalMinutes = 1;
+                    d.EnableIndependentBackgroundMasterElection = true;
                     d.ContentMetadataEnableResilience = true;
                     d.ContentMetadataStoreMode = ContentMetadataStoreMode.Distributed;
                     d.ContentMetadataPersistInterval = "1000s";
                     d.CreateCheckpointIntervalMinutes = 10;
+                },
+                overrideRedis: r =>
+                {
+                    r.InlinePostInitialization = false;
                 });
 
             PutResult putResult = null;
+            PutResult putResult2 = null;
 
-            return RunTestAsync(
+            await RunTestAsync(
                 3,
                 async context =>
                 {
@@ -177,10 +208,14 @@ namespace ContentStoreTest.Distributed.Sessions
                     if (context.Iteration == 0)
                     {
                         putResult = await workerSession0.PutRandomAsync(context.StoreContexts[worker0], ContentHashType, false, ContentByteCount, Token).ShouldBeSuccess();
+                        await context.GetContentMetadataService().CreateCheckpointAsync(context).ShouldBeSuccess();
+                        await masterStore.CreateCheckpointAsync(context).ShouldBeSuccess();
+                        putResult2 = await workerSession0.PutRandomAsync(context.StoreContexts[worker0], ContentHashType, false, ContentByteCount, Token).ShouldBeSuccess();
                     }
                     else if (context.Iteration == 1)
                     {
                         await OpenStreamAndDisposeAsync(workerSession1, context.StoreContexts[worker1], putResult.ContentHash);
+                        await OpenStreamAndDisposeAsync(workerSession1, context.StoreContexts[worker1], putResult2.ContentHash);
                     }
                 },
                 iterations: 2);

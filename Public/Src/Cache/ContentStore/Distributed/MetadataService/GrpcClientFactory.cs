@@ -63,22 +63,28 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             return handleResult.ThrowIfFailure();
         }
 
-        private async Task<Result<MachineLocation>> GetMasterLocationAsync(OperationContext context)
+        private Task<Result<MachineLocation>> GetMasterLocationAsync(OperationContext context)
         {
-            var masterElectionState = await _masterElectionMechanism.GetRoleAsync(context);
-            if (masterElectionState.Succeeded)
-            {
-                if (!masterElectionState.Value.Master.IsValid)
+            return context.PerformOperationAsync<Result<MachineLocation>>(
+                Tracer,
+                async () =>
                 {
-                    return new ErrorResult("Unknown master");
-                }
+                    var masterElectionState = await _masterElectionMechanism.GetRoleAsync(context);
+                    if (masterElectionState.Succeeded)
+                    {
+                        if (!masterElectionState.Value.Master.IsValid)
+                        {
+                            return new ErrorResult("Unknown master");
+                        }
 
-                return masterElectionState.Value.Master;
-            }
-            else
-            {
-                return new ErrorResult(masterElectionState);
-            }
+                        return masterElectionState.Value.Master;
+                    }
+                    else
+                    {
+                        return new ErrorResult(masterElectionState);
+                    }
+                },
+                extraEndMessage: r => $"Master={r.GetValueOrDefault()}");
         }
 
         public async Task<TResult> UseAsync<TResult>(OperationContext context, Func<T, Task<TResult>> operation)

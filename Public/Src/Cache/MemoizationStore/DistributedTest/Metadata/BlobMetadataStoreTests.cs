@@ -41,7 +41,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
 
         protected override IMemoizationStore CreateStore(DisposableDirectory testDirectory)
         {
-            var instance = AzuriteStorageProcess.CreateAndStartEmpty(_redis, _logger, _clock);
+            var instance = AzuriteStorageProcess.CreateAndStartEmpty(_redis, _logger);
             _databasesToDispose.Add(instance);
 
             var config = new BlobMetadataStoreConfiguration()

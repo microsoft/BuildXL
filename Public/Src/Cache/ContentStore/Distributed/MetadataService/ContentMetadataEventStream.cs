@@ -430,10 +430,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                 block = _currentBlock;
                 _currentBlock.Add(logEvent);
-                Analysis.IgnoreResult(_currentBlock.WriteAheadCommitCancellation.Token.Register(() =>
+
+                logEvent.CancellationRegistration = _currentBlock.WriteAheadCommitCancellation.Token.Register(static (completion) =>
                 {
-                    logEvent.Completion.TrySetResult(false);
-                }));
+                    ((TaskCompletionSource<bool>)completion).TrySetResult(false);
+                },
+                logEvent.Completion.CompletionSource);
+
                 return true;
             }
         }
@@ -580,6 +583,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             public TaskSourceSlim<bool> Completion { get; set; } = TaskSourceSlim.Create<bool>();
 
+            public CancellationTokenRegistration? CancellationRegistration { get; set; }
+
             public ReadOnlyMemory<byte> GetBytes()
             {
                 var buffer = Stream.GetBuffer();
@@ -588,6 +593,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             public void Reset()
             {
+                CancellationRegistration?.Dispose();
                 Stream.SetLength(0);
                 Completion = TaskSourceSlim.Create<bool>();
             }

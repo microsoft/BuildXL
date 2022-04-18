@@ -167,7 +167,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
             if (!_localStorages.TryGetValue((context.TraceId, index), out var localDatabase))
             {
-                localDatabase = AzuriteStorageProcess.CreateAndStartEmpty(_redis, TestGlobal.Logger, SystemClock.Instance);
+                localDatabase = AzuriteStorageProcess.CreateAndStartEmpty(_redis, TestGlobal.Logger);
                 _localStorages.TryAdd((context.TraceId, index), localDatabase);
             }
 
@@ -232,8 +232,22 @@ namespace ContentStoreTest.Distributed.Sessions
                 ContentMetadataStorageProcess = StorageProcess;
             }
 
+            var verboseOperationLogging = new OperationLoggingConfiguration()
+            {
+                ErrorsOnly = false,
+                StopMessage = true,
+            };
+
             var settings = new TestDistributedContentSettings()
             {
+                LogManager = new LogManagerConfiguration()
+                {
+                    Logs =
+                    {
+                        ["ResilientGlobalCacheService.*"] = verboseOperationLogging,
+                        ["RedisWriteAheadEventStorage.*"] = verboseOperationLogging,
+                    }
+                },
                 PreventRedisUsage = DisableRedis,
                 TestMachineIndex = index,
                 TestIteration = iteration,

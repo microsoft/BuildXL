@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Threading;
+using BuildXL.Cache.ContentStore.Distributed.MetadataService;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
 using BuildXL.Cache.ContentStore.Distributed.Redis;
@@ -130,7 +131,11 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// <nodoc />
         public AzureBlobStorageMasterElectionMechanismConfiguration? AzureBlobStorageMasterElectionMechanismConfiguration { get; set; } = null;
 
+        /// <nodoc />
         public BlobClusterStateStorageConfiguration? BlobClusterStateStorageConfiguration { get; set; } = null;
+
+        /// <nodoc />
+        public ObservableMasterElectionMechanismConfiguration ObservableMasterElectionMechanismConfiguration { get; } = new ObservableMasterElectionMechanismConfiguration();
 
         /// <summary>
         /// Gets the connection string used by the redis global store.

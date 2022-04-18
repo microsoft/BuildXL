@@ -441,7 +441,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             result &= await Database.ShutdownAsync(context);
 
-            result &= await _masterElectionMechanism.ReleaseRoleIfNecessaryAsync(context, shuttingDown: true);
             CurrentRole = null;
 
             result &= await _masterElectionMechanism.ShutdownAsync(context);
@@ -468,7 +467,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         internal async Task ReleaseRoleIfNecessaryAsync(OperationContext operationContext)
         {
-            CurrentRole = await _masterElectionMechanism.ReleaseRoleIfNecessaryAsync(operationContext, shuttingDown: false).ThrowIfFailureAsync();
+            CurrentRole = await _masterElectionMechanism.ReleaseRoleIfNecessaryAsync(operationContext).ThrowIfFailureAsync();
         }
 
         /// <summary>

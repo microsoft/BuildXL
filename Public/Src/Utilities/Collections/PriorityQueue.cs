@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 
@@ -60,6 +61,14 @@ namespace BuildXL.Utilities.Collections
         /// Initializes a new instance of the <see cref="PriorityQueue{T}"/> class.
         /// </summary>
         public PriorityQueue(int capacity, IComparer<T> comparer)
+            : this(capacity, comparer.Compare)
+        {
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="PriorityQueue{T}"/> class.
+        /// </summary>
+        public PriorityQueue(int capacity, Comparison<T> comparer)
         {
             _heap = new T[capacity > 0 ? capacity : DefaultCapacity];
             _count = 0;
@@ -112,7 +121,7 @@ namespace BuildXL.Utilities.Collections
             while (index > 0)
             {
                 int parentIndex = HeapParent(index);
-                if (_comparer.Compare(value, _heap[parentIndex]) < 0)
+                if (_comparer(value, _heap[parentIndex]) < 0)
                 {
                     // value is a better match than the parent node so exchange
                     // places to preserve the "heap" property.
@@ -153,7 +162,7 @@ namespace BuildXL.Utilities.Collections
                 {
                     int rightChild = HeapRightFromLeft(leftChild);
                     int bestChild =
-                        (rightChild < _count && _comparer.Compare(_heap[rightChild], _heap[leftChild]) < 0) ?
+                        (rightChild < _count && _comparer(_heap[rightChild], _heap[leftChild]) < 0) ?
                             rightChild : leftChild;
 
                     // Promote bestChild to fill the gap left by parent.
@@ -174,7 +183,7 @@ namespace BuildXL.Utilities.Collections
                 while (index > 0)
                 {
                     int parentIndex = HeapParent(index);
-                    if (_comparer.Compare(value, _heap[parentIndex]) < 0)
+                    if (_comparer(value, _heap[parentIndex]) < 0)
                     {
                         // value is a better match than the parent node so exchange
                         // places to preserve the "heap" property.
@@ -225,6 +234,6 @@ namespace BuildXL.Utilities.Collections
         private const int DefaultCapacity = 6;
         private T[] _heap;
         private int _count;
-        private readonly IComparer<T> _comparer;
+        private readonly Comparison<T> _comparer;
     }
 }

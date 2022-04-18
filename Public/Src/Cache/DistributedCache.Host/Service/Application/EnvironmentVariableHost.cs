@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Secrets;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Cache.Host.Configuration;
 using BuildXL.Cache.Host.Service.Internal;
 using Microsoft.WindowsAzure.Storage;
 using OperationContext = BuildXL.Cache.ContentStore.Tracing.Internal.OperationContext;
@@ -20,16 +21,18 @@ namespace BuildXL.Cache.Host.Service
     /// </summary>
     public class EnvironmentVariableHost : IDistributedCacheServiceHost
     {
+        private readonly string _exposedSecretsFileName;
         private Result<RetrievedSecrets> _secrets;
         private readonly CrossProcessSecretsCommunicationKind _secretsCommunicationKind;
         private readonly Context _tracingContext;
 
         public CancellationTokenSource TeardownCancellationTokenSource { get; } = new CancellationTokenSource();
 
-        public EnvironmentVariableHost(Context context, CrossProcessSecretsCommunicationKind secretsCommunicationKind = CrossProcessSecretsCommunicationKind.Environment)
+        public EnvironmentVariableHost(Context context, CrossProcessSecretsCommunicationKind secretsCommunicationKind = CrossProcessSecretsCommunicationKind.Environment, string exposedSecretsFileName = null)
         {
             _secretsCommunicationKind = secretsCommunicationKind;
             _tracingContext = context;
+            _exposedSecretsFileName = exposedSecretsFileName;
         }
 
         /// <inheritdoc />
@@ -77,7 +80,7 @@ namespace BuildXL.Cache.Host.Service
             else if (_secretsCommunicationKind == CrossProcessSecretsCommunicationKind.MemoryMappedFile)
             {
                 // 'ReadExposedSecrets' returns a disposable object, but the secrets obtained here are long-lived.
-                RetrievedSecrets secrets = InterProcessSecretsCommunicator.ReadExposedSecrets(new OperationContext(_tracingContext));
+                RetrievedSecrets secrets = InterProcessSecretsCommunicator.ReadExposedSecrets(new OperationContext(_tracingContext), fileName: _exposedSecretsFileName);
                 return Task.FromResult(secrets);
             }
             else

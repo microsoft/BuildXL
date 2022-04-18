@@ -202,7 +202,7 @@ namespace BuildXL.Launcher.Server
             /// ASP.Net core application host is used to parse command line.
             /// </summary>
             public ServiceHost(string[] commandLineArgs, DistributedCacheServiceConfiguration configuration, HostParameters hostParameters, Context context, CrossProcessSecretsCommunicationKind secretsCommunicationKind = CrossProcessSecretsCommunicationKind.Environment)
-                : base(context, secretsCommunicationKind)
+                : base(context, secretsCommunicationKind, configuration.DistributedContentSettings?.OutOfProcCacheSettings?.InterProcessSecretsCommunicationFileName)
             {
                 HostParameters = hostParameters;
                 ServiceConfiguration = configuration;

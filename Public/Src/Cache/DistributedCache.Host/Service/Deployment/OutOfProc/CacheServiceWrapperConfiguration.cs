@@ -94,6 +94,11 @@ namespace BuildXL.Cache.Host.Service.OutOfProc
         public bool UseInterProcSecretsCommunication { get; }
 
         /// <summary>
+        /// An optional file name used for inter-process secrets communication.
+        /// </summary>
+        public string? InterProcessSecretsFileName { get; set; }
+
+        /// <summary>
         /// Additional environment variables that will be set for the child process.
         /// </summary>
         public IReadOnlyDictionary<string, string> EnvironmentVariables { get; }

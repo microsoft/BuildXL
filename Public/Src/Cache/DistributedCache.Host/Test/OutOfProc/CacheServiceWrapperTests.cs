@@ -23,7 +23,7 @@ namespace BuildXL.Cache.Host.Configuration.Test
     public class CacheServiceWrapperTests : TestBase
     {
         public CacheServiceWrapperTests(ITestOutputHelper output = null)
-            : base(TestGlobal.Logger)
+            : base(TestGlobal.Logger, output)
         {
         }
 
@@ -115,6 +115,20 @@ namespace BuildXL.Cache.Host.Configuration.Test
             // The mock process is configured to respect the shutdown so the kill action should not be called.
             killActionWasCalled.Should().BeFalse();
             host.ChildProcessExitedDescription.Should().BeNullOrEmpty("ChildProcessExit callback should not be called during a normal shutdown.");
+        }
+
+        [Fact(Skip = "For manual testing only")]
+        public async Task Stress()
+        {
+            // This test shows if the there are any issues with running multiple tests in parallel.
+            for (int i = 0; i < 10; i++)
+            {
+                var t1 = Task.Run(ChildProcessExitedIsCalledOnProcessExit);
+                var t2 = Task.Run(ChildProcessExitedIsCalledOnProcessExit);
+                var t3 = Task.Run(TestProcessIsKillIfNotExitGracefully);
+                var t4 = Task.Run(ShutdownFailsWithTimeoutIfKillGotStuck);
+                await Task.WhenAll(t1, t2, t3, t4);
+            }
         }
 
         [Fact]
@@ -228,6 +242,8 @@ namespace BuildXL.Cache.Host.Configuration.Test
                    {
                        ShutdownTimeout = shutdownTimeout ?? TimeSpan.FromSeconds(5),
                        ProcessTerminationTimeout = terminationTimeout ?? TimeSpan.FromSeconds(1),
+                       // Using unique memory-mapped file name to avoid test failures when the tests run in parallel.
+                       InterProcessSecretsFileName = Guid.NewGuid().ToString()
                    };
 
             AbsolutePath createEmpty(string path)

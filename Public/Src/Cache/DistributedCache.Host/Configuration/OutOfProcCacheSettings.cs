@@ -34,6 +34,11 @@ namespace BuildXL.Cache.Host.Configuration
         public bool UseInterProcSecretsCommunication { get; set; } = false;
 
         /// <summary>
+        /// An optional file name used for inter-process secrets communication.
+        /// </summary>
+        public string? InterProcessSecretsCommunicationFileName { get; set; }
+
+        /// <summary>
         /// Additional environment variables passed to the launched out-of-proc CaSaaS.
         /// </summary>
         public Dictionary<string, string> EnvironmentVariables { get; set; } = new Dictionary<string, string>();

@@ -1,7 +1,9 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.Secrets;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
@@ -50,9 +52,11 @@ namespace BuildXL.Cache.Host.Test
 
             var context = new OperationContext(new Context(Logger));
 
-            using var secretsExposer = InterProcessSecretsCommunicator.Expose(context, originalSecrets);
+            // Using a unique file name to avoid issues when running the tests in parallel.
+            var fileName = Guid.NewGuid().ToString();
+            using var secretsExposer = InterProcessSecretsCommunicator.Expose(context, originalSecrets, fileName);
 
-            using var readSecrets = InterProcessSecretsCommunicator.ReadExposedSecrets(context, pollingIntervalInSeconds: 10_000);
+            using var readSecrets = InterProcessSecretsCommunicator.ReadExposedSecrets(context, pollingIntervalInSeconds: 10_000, fileName: fileName);
 
             AssertSecretsAreEqual(originalSecrets, readSecrets);
 

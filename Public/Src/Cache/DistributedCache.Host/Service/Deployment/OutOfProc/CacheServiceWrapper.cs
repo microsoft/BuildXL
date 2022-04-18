@@ -194,7 +194,7 @@ namespace BuildXL.Cache.Host.Service.OutOfProc
 
             if (_configuration.UseInterProcSecretsCommunication)
             {
-                _interProcessSecretsCommunicator = InterProcessSecretsCommunicator.Expose(context, _secrets);
+                _interProcessSecretsCommunicator = InterProcessSecretsCommunicator.Expose(context, _secrets, _configuration.InterProcessSecretsFileName);
             }
             else
             {

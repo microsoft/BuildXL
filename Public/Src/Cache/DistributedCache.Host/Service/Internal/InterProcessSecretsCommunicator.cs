@@ -22,8 +22,6 @@ namespace BuildXL.Cache.Host.Service.Internal
 
         public static MemoryMappedFile CreateMemoryMappedFileWithContent(string fileName, string content)
         {
-            // CreateNew(fileName, FileSize, MemoryMappedFileAccess.ReadWrite)
-            //var file = MemoryMappedFile.CreateFromFile(fileName, FileMode.Create, null, FileSize, MemoryMappedFileAccess.ReadWrite);
             var file = MemoryMappedFile.CreateNew(fileName, FileSize, MemoryMappedFileAccess.ReadWrite);
 
             try
@@ -88,7 +86,7 @@ namespace BuildXL.Cache.Host.Service.Internal
         /// <remarks>
         /// The secrets are available for another process until the resulting value is disposed.
         /// </remarks>
-        public static IDisposable Expose(OperationContext context, RetrievedSecrets secrets, string? fileName = null)
+        public static IDisposable Expose(OperationContext context, RetrievedSecrets secrets, string? fileName)
         {
             string memoryMappedFileName = fileName ?? SecretsFileName;
 
@@ -163,7 +161,7 @@ namespace BuildXL.Cache.Host.Service.Internal
         /// <summary>
         /// Reads <see cref="MemoryMappedBasedRetrievedSecrets"/> from a memory mapped file and updates them automatically if the secrets get changed.
         /// </summary>
-        public static MemoryMappedBasedRetrievedSecrets ReadExposedSecrets(OperationContext context, string? fileName = null, int pollingIntervalInSeconds = 10)
+        public static MemoryMappedBasedRetrievedSecrets ReadExposedSecrets(OperationContext context, string? fileName, int pollingIntervalInSeconds = 10)
         {
             string memoryMappedFileName = fileName ?? SecretsFileName;
 

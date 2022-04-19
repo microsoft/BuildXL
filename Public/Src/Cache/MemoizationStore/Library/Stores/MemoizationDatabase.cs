@@ -38,7 +38,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         /// Performs a compare exchange operation on metadata, while ensuring all invariants are kept. If the
         /// fingerprint is not present, then it is inserted.
         /// </summary>
-        public Task<Result<bool>> CompareExchange(
+        public Task<Result<bool>> CompareExchangeAsync(
             OperationContext context,
             StrongFingerprint strongFingerprint,
             string expectedReplacementToken,
@@ -119,5 +119,13 @@ namespace BuildXL.Cache.MemoizationStore.Stores
 
         /// <nodoc />
         protected abstract Task<Result<LevelSelectors>> GetLevelSelectorsCoreAsync(OperationContext context, Fingerprint weakFingerprint, int level);
+
+        /// <inheritdoc />
+        public virtual Task<BoolResult> IncorporateStrongFingerprintsAsync(
+            OperationContext context,
+            IEnumerable<Task<StrongFingerprint>> strongFingerprints)
+        {
+            return BoolResult.SuccessTask;
+        }
     }
 }

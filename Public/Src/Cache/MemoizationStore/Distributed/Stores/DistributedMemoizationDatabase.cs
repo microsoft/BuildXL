@@ -2,15 +2,18 @@
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.MemoizationStore.Interfaces.Results;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Cache.MemoizationStore.Stores;
+using BuildXL.Utilities.Tasks;
 
 namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
 {
@@ -42,7 +45,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
             ContentHashListWithDeterminism expected, 
             ContentHashListWithDeterminism replacement)
         {
-            var result = await _sharedDatabase.CompareExchange(context, strongFingerprint, replacementToken, expected, replacement);
+            var result = await _sharedDatabase.CompareExchangeAsync(context, strongFingerprint, replacementToken, expected, replacement);
             if (!result.Succeeded || !result.Value)
             {
                 return result;
@@ -115,6 +118,15 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
             {
                 return await _sharedDatabase.GetLevelSelectorsAsync(context, weakFingerprint, level - 1);
             }
+        }
+
+        /// <inheritdoc />
+        public override async Task<BoolResult> IncorporateStrongFingerprintsAsync(OperationContext context, IEnumerable<Task<StrongFingerprint>> strongFingerprints)
+        {
+            var localTask = _localDatabase.IncorporateStrongFingerprintsAsync(context, strongFingerprints);
+            var remoteTask = _sharedDatabase.IncorporateStrongFingerprintsAsync(context, strongFingerprints);
+            await TaskUtilities.SafeWhenAll(localTask, remoteTask);
+            return (await localTask) & (await remoteTask);
         }
 
         /// <inheritdoc />

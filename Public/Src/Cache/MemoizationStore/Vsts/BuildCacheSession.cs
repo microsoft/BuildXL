@@ -20,7 +20,6 @@ using BuildXL.Cache.MemoizationStore.Interfaces.Results;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Cache.MemoizationStore.Tracing;
 using BuildXL.Cache.MemoizationStore.Vsts.Adapters;
-using BuildXL.Cache.MemoizationStore.Vsts.Internal;
 using BuildXL.Cache.MemoizationStore.VstsInterfaces;
 
 namespace BuildXL.Cache.MemoizationStore.Vsts
@@ -28,7 +27,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
     /// <summary>
     ///     ICacheSession for BuildCacheCache.
     /// </summary>
-    public class BuildCacheSession : BuildCacheReadOnlySession, ICacheSession, ICachePublisher
+    public class BuildCacheSession : BuildCacheReadOnlySession, ICacheSession
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="BuildCacheSession"/> class.

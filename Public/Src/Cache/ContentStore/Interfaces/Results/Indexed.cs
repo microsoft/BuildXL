@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System.Diagnostics.ContractsLight;
+using System.Threading.Tasks;
 
 namespace BuildXL.Cache.ContentStore.Interfaces.Results
 {
@@ -53,6 +54,13 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// </summary>
         public static Indexed<T> WithIndex<T>(this T item, int index)
         {
+            return new Indexed<T>(item, index);
+        }
+
+        /// <nodoc />
+        public static async Task<Indexed<T>> WithIndexAsync<T>(this Task<T> task, int index)
+        {
+            var item = await task;
             return new Indexed<T>(item, index);
         }
     }

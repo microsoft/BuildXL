@@ -241,7 +241,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Test
         [Theory]
         [InlineData(RocksDbContentMetadataDatabase.Columns.Metadata)]
         [InlineData(RocksDbContentMetadataDatabase.Columns.MetadataHeaders)]
-        public Task ReplacingContentHashListSucceedsWhenDatabaseInconsistent(RocksDbContentMetadataDatabase.Columns removedColumn)
+        public virtual Task ReplacingContentHashListSucceedsWhenDatabaseInconsistent(RocksDbContentMetadataDatabase.Columns removedColumn)
         {
             UseGrpcServer = true;
             DisableRedis = true;
@@ -328,7 +328,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Test
 
 
         [Fact]
-        public Task BasicDistributedAddAndGetRedisBackCompat()
+        public virtual Task BasicDistributedAddAndGetRedisBackCompat()
         {
             UseGrpcServer = true;
 

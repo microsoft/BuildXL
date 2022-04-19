@@ -1005,6 +1005,13 @@ namespace BuildXL
                             "serverMaxIdleTimeInMinutes",
                             opt =>
                             configuration.ServerMaxIdleTimeInMinutes = CommandLineUtilities.ParseInt32Option(opt, 1, int.MaxValue)),
+                        OptionHandlerFactory.CreateOption(
+                            "setEnv",
+                            opt =>
+                            {
+                                var kvp = CommandLineUtilities.ParseKeyValuePair(opt);
+                                Environment.SetEnvironmentVariable(kvp.Key, kvp.Value);
+                            }),
                         OptionHandlerFactory.CreateBoolOption(
                             "skipHashSourceFile",
                             sign =>

@@ -72,7 +72,7 @@ namespace BuildXL.Cache.ContentStore.Utils
         /// <summary>
         /// Creates a cancellable operation context with a cancellation token that is triggered when a given token is canceled or shutdown is requested.
         /// </summary>
-        protected CancellableOperationContext TrackShutdown(Context context, CancellationToken token)
+        protected CancellableOperationContext TrackShutdown(Context context, CancellationToken token = default)
             => new CancellableOperationContext(new OperationContext(context, token), ShutdownStartedCancellationToken);
 
         private string GetComponentMessage()

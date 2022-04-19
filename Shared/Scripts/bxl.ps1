@@ -440,6 +440,7 @@ function Get-CacheConfig {
             Assembly = "BuildXL.Cache.MemoizationStoreAdapter";
             Type = "BuildXL.Cache.MemoizationStoreAdapter.BlobCacheFactory";
             CacheId = "L3Cache";
+            LocalCachePath = (Join-Path $cacheDirectory "blobL3Cache");
             CacheLogPath = "[BuildXLSelectedLogPath].Remote.log";
         };
     }

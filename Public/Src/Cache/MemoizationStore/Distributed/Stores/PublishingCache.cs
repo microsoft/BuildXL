@@ -24,10 +24,12 @@ using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
 {
     /// <summary>
-    /// Cache which acts on a local cache but also publishes content hash lists to a remote cache.
+    /// This implementation wraps a "local" cache and provides asynchronous publishing capabilities for a "remote"
+    /// cache.
     /// </summary>
     public class PublishingCache<TInner> : StartupShutdownBase,
-        IPublishingCache, IContentStore, IStreamStore,
+        IPublishingCache,
+        IContentStore, IStreamStore,
         IRepairStore, ICopyRequestHandler, IPushFileHandler,
         IComponentWrapper<TInner>
         where TInner : ICache, IContentStore, IStreamStore, IRepairStore, ICopyRequestHandler, IPushFileHandler
@@ -76,11 +78,15 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
 
         /// <inheritdoc />
         public virtual CreateSessionResult<IReadOnlyCacheSession> CreateReadOnlySession(Context context, string name, ImplicitPin implicitPin)
-            => ((ICache)_local).CreateReadOnlySession(context, name, implicitPin);
+        {
+            return ((ICache)_local).CreateReadOnlySession(context, name, implicitPin);
+        }
 
         /// <inheritdoc />
         public virtual CreateSessionResult<ICacheSession> CreateSession(Context context, string name, ImplicitPin implicitPin)
-            => ((ICache)_local).CreateSession(context, name, implicitPin);
+        {
+            return ((ICache)_local).CreateSession(context, name, implicitPin);
+        }
 
         /// <inheritdoc />
         public CreateSessionResult<ICacheSession> CreatePublishingSession(Context context, string name, ImplicitPin implicitPin, PublishingCacheConfiguration? config, string pat)
@@ -108,43 +114,68 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
 
         /// <inheritdoc />
         public IAsyncEnumerable<StructResult<StrongFingerprint>> EnumerateStrongFingerprints(Context context)
-            => _local.EnumerateStrongFingerprints(context);
+        {
+            return _local.EnumerateStrongFingerprints(context);
+        }
 
         /// <inheritdoc />
         public Task<GetStatsResult> GetStatsAsync(Context context)
-            => ((ICache)_local).GetStatsAsync(context);
+        {
+            return ((ICache)_local).GetStatsAsync(context);
+        }
 
         /// <inheritdoc />
         CreateSessionResult<IReadOnlyContentSession> IContentStore.CreateReadOnlySession(Context context, string name, ImplicitPin implicitPin)
-            => ((IContentStore)_local).CreateReadOnlySession(context, name, implicitPin);
+        {
+            return ((IContentStore)_local).CreateReadOnlySession(context, name, implicitPin);
+        }
 
         /// <inheritdoc />
         CreateSessionResult<IContentSession> IContentStore.CreateSession(Context context, string name, ImplicitPin implicitPin)
-            => ((IContentStore)_local).CreateSession(context, name, implicitPin);
+        {
+            return ((IContentStore)_local).CreateSession(context, name, implicitPin);
+        }
 
         /// <inheritdoc />
         public Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash, DeleteContentOptions? deleteOptions)
-            => _local.DeleteAsync(context, contentHash, deleteOptions);
+        {
+            return _local.DeleteAsync(context, contentHash, deleteOptions);
+        }
 
         /// <inheritdoc />
-        public void PostInitializationCompleted(Context context, BoolResult result) => _local.PostInitializationCompleted(context, result);
+        public void PostInitializationCompleted(Context context, BoolResult result)
+        {
+            _local.PostInitializationCompleted(context, result);
+        }
 
         /// <inheritdoc />
-        public Task<OpenStreamResult> StreamContentAsync(Context context, ContentHash contentHash) => _local.StreamContentAsync(context, contentHash);
+        public Task<OpenStreamResult> StreamContentAsync(Context context, ContentHash contentHash)
+        {
+            return _local.StreamContentAsync(context, contentHash);
+        }
 
         /// <inheritdoc />
-        public Task<BoolResult> RemoveFromTrackerAsync(Context context) => _local.RemoveFromTrackerAsync(context);
+        public Task<BoolResult> RemoveFromTrackerAsync(Context context)
+        {
+            return _local.RemoveFromTrackerAsync(context);
+        }
 
         /// <inheritdoc />
         public Task<BoolResult> HandleCopyFileRequestAsync(Context context, ContentHash hash, CancellationToken token)
-            => _local.HandleCopyFileRequestAsync(context, hash, token);
+        {
+            return _local.HandleCopyFileRequestAsync(context, hash, token);
+        }
 
         /// <inheritdoc />
         public Task<PutResult> HandlePushFileAsync(Context context, ContentHash hash, FileSource source, CancellationToken token)
-            => _local.HandlePushFileAsync(context, hash, source, token);
+        {
+            return _local.HandlePushFileAsync(context, hash, source, token);
+        }
 
         /// <inheritdoc />
         public bool CanAcceptContent(Context context, ContentHash hash, out RejectionReason rejectionReason)
-            => _local.CanAcceptContent(context, hash, out rejectionReason);
+        {
+            return _local.CanAcceptContent(context, hash, out rejectionReason);
+        }
     }
 }

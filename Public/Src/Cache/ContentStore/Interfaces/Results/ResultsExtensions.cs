@@ -88,6 +88,19 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
             
         }
 
+        /// <nodoc />
+        public static BoolResult And(this IEnumerable<BoolResult> results)
+        {
+            var result = BoolResult.Success;
+
+            foreach (var r in results)
+            {
+                result &= r;
+            }
+
+            return result;
+        }
+
         /// <summary>
         /// Helper for transforming Task{T} to Task{Result{T}}
         /// </summary>

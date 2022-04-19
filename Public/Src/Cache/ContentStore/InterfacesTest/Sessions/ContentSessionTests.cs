@@ -40,6 +40,12 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Sessions
         /// </remarks>
         protected virtual bool RunBulkMethodTests => true;
 
+        /// <summary>
+        /// Gets a value indicating whether to run tests that assume eviction will clear the cache. This is useful for
+        /// testing stores that aren't necessarily local, and therefore don't follow the same storage behaviors.
+        /// </summary>
+        protected virtual bool RunEvictionBasedTests => true;
+
         protected ContentSessionTests(Func<IAbsFileSystem> createFileSystemFunc, ILogger logger, bool canHibernate = true, ITestOutputHelper output = null)
             : base(createFileSystemFunc, logger, output)
         {
@@ -200,6 +206,11 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Sessions
         [Fact]
         public async Task OpenStreamImplicitlyPins()
         {
+            if (!RunEvictionBasedTests)
+            {
+                return;
+            }
+
             using (var directory = new DisposableDirectory(FileSystem))
             {
                 // Put some random content into the store in one session.
@@ -226,6 +237,11 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Sessions
         [Fact]
         public async Task OpenStreamDoesNotPin()
         {
+            if (!RunEvictionBasedTests)
+            {
+                return;
+            }
+
             using (var directory = new DisposableDirectory(FileSystem))
             {
                 // Put some random content into the store in one session.
@@ -369,6 +385,11 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Sessions
         [Fact]
         public async Task PlaceFileImplicitlyPins()
         {
+            if (!RunEvictionBasedTests)
+            {
+                return;
+            }
+
             using (var directory = new DisposableDirectory(FileSystem))
             {
                 // Put some random content into the store in one session.
@@ -401,6 +422,11 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Sessions
         [Fact]
         public async Task PlaceFileDoesNotPin()
         {
+            if (!RunEvictionBasedTests)
+            {
+                return;
+            }
+
             using (var directory = new DisposableDirectory(FileSystem))
             {
                 // Put some random content into the store in one session.
@@ -445,6 +471,11 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Sessions
         [InlineData(false)]
         public Task PutFileImplicitlyPins(bool provideHash)
         {
+            if (!RunEvictionBasedTests)
+            {
+                return Task.CompletedTask;
+            }
+
             return RunTestAsync(ImplicitPin.PutAndGet, null, async (context, session) =>
             {
                 var pr1 = await session.PutRandomFileAsync(
@@ -463,6 +494,11 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Sessions
         [InlineData(false)]
         public Task PutFileDoesNotPin(bool provideHash)
         {
+            if (!RunEvictionBasedTests)
+            {
+                return Task.CompletedTask;
+            }
+
             return RunTestAsync(ImplicitPin.None, null, async (context, session) =>
             {
                 var pr1 = await session.PutRandomFileAsync(
@@ -480,6 +516,11 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Sessions
         [InlineData(false)]
         public Task PutStreamImplicitlyPins(bool provideHash)
         {
+            if (!RunEvictionBasedTests)
+            {
+                return Task.CompletedTask;
+            }
+
             return RunTestAsync(ImplicitPin.PutAndGet, null, async (context, session) =>
             {
                 var pr1 = await session.PutRandomAsync(context, ContentHashType, provideHash, ContentByteCount, Token).ShouldBeSuccess();
@@ -496,6 +537,11 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Sessions
         [InlineData(false)]
         public Task PutStreamDoesNotPin(bool provideHash)
         {
+            if (!RunEvictionBasedTests)
+            {
+                return Task.CompletedTask;
+            }
+
             return RunTestAsync(ImplicitPin.None, null, async (context, session) =>
             {
                 var pr1 = await session.PutRandomAsync(context, ContentHashType, provideHash, ContentByteCount, Token).ShouldBeSuccess();

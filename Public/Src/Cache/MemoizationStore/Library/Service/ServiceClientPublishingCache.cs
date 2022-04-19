@@ -7,8 +7,6 @@ using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
-using BuildXL.Cache.ContentStore.Service;
-using BuildXL.Cache.ContentStore.Sessions;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.MemoizationStore.Interfaces.Caches;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
@@ -18,7 +16,7 @@ namespace BuildXL.Cache.MemoizationStore.Service
     /// <summary>
     /// Cache whose sessions trigger L3 publishing in the service.
     /// </summary>
-    public class ServiceClientPublishingCache : ServiceClientCache
+    public class ServiceClientPublishingCache : ServiceClientCache, IPublishingCache
     {
         private readonly PublishingCacheConfiguration _publishingConfig;
         private readonly string _pat;
@@ -44,14 +42,33 @@ namespace BuildXL.Cache.MemoizationStore.Service
             string name,
             ImplicitPin implicitPin)
         {
+            return CreatePublishingSession(context, name, implicitPin, _publishingConfig, _pat);
+        }
+
+        /// <inheritdoc />
+        public CreateSessionResult<ICacheSession> CreatePublishingSession(
+            Context context,
+            string name,
+            ImplicitPin implicitPin,
+            PublishingCacheConfiguration publishingConfig,
+            string pat)
+        {
             var operationContext = OperationContext(context);
             return operationContext.PerformOperation(
                 Tracer,
                 () =>
                 {
                     Tracer.Info(context, $"Creating cache service client session with name=[{name}] and publishing enabled. {nameof(ICacheSession.AddOrGetContentHashListAsync)} calls to the session will trigger publishing in the service.");
-                    var session = new ServiceClientPublishingCacheSession(name, implicitPin, Logger, FileSystem, SessionTracer, Configuration, _publishingConfig, _pat); ;
-                    return new CreateSessionResult<ICacheSession>(session);
+
+                    return new CreateSessionResult<ICacheSession>(new ServiceClientPublishingCacheSession(
+                        name,
+                        implicitPin,
+                        Logger,
+                        FileSystem,
+                        SessionTracer,
+                        Configuration,
+                        publishingConfig,
+                        pat));
                 });
         }
     }

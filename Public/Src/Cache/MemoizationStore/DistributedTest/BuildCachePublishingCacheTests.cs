@@ -2,11 +2,9 @@
 // Licensed under the MIT License.
 
 #if MICROSOFT_INTERNAL
-using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
@@ -16,13 +14,12 @@ using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing;
+using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.MemoizationStore.Interfaces.Caches;
 using BuildXL.Cache.MemoizationStore.Interfaces.Results;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Cache.MemoizationStore.Vsts;
-using BuildXL.Cache.MemoizationStore.Vsts.Internal;
-using FluentAssertions;
 using Xunit;
 
 namespace BuildXL.Cache.MemoizationStore.Test.Sessions
@@ -60,30 +57,30 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
                 return new Result<IPublishingSession>(contentSessionResult);
             }
 
-            return new Result<IPublishingSession>(new BuildCacheTestPublishingSession(buildCacheConfig, name, pat, contentSessionResult.Session, FileSystem, PublishingGate));
+            var configuration = new BuildCachePublishingSessionConfiguration()
+            {
+                BuildCacheConfiguration = buildCacheConfig,
+                PersonalAccessToken = pat,
+                SessionName = name,
+            };
+            return new Result<IPublishingSession>(new BuildCacheTestPublishingSession(configuration, contentSessionResult.Session, FingerprintPublishingGate, ContentPublishingGate));
         }
 
         private class BuildCacheTestPublishingSession : BuildCachePublishingSession
         {
             public BuildCacheTestPublishingSession(
-                BuildCacheServiceConfiguration config,
-                string name,
-                string pat,
+                BuildCachePublishingSessionConfiguration configuration,
                 IContentSession contentSource,
-                IAbsFileSystem fileSystem,
-                SemaphoreSlim publishingGate)
-                : base(config, name, pat, contentSource, fileSystem, publishingGate)
+                SemaphoreSlim fingerprintPublishingGate,
+                SemaphoreSlim contentPublishingGate)
+                : base(configuration, contentSource, fingerprintPublishingGate, contentPublishingGate)
             {
             }
 
-            protected override ICachePublisher CreatePublisher(
-                string sessionName,
-                BuildCacheServiceConfiguration config,
-                string pat,
-                Context context)
+            protected override Task<ICachePublisher> CreateCachePublisherCoreAsync(
+                OperationContext context, BuildCachePublishingSessionConfiguration configuration)
             {
-                sessionName.Should().NotBeNull();
-                return new DummyPublisher(config.ForceUpdateOnAddContentHashList);
+                return Task.FromResult<ICachePublisher>(new DummyPublisher(configuration.BuildCacheConfiguration.ForceUpdateOnAddContentHashList));
             }
         }
 
@@ -127,6 +124,11 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
                 }
 
                 return Task.FromResult(new AddOrGetContentHashListResult(_storedHashLists[strongFingerprint]));
+            }
+
+            public Task<BoolResult> IncorporateStrongFingerprintsAsync(OperationContext context, IEnumerable<Task<StrongFingerprint>> strongFingerprints)
+            {
+                return BoolResult.SuccessTask;
             }
 
             public Task<IEnumerable<Task<Indexed<PinResult>>>> PinAsync(Context context, IReadOnlyList<ContentHash> contentHashes, CancellationToken cts, UrgencyHint urgencyHint = UrgencyHint.Nominal)

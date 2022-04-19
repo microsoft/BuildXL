@@ -3,50 +3,54 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.IO;
+using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using System.Web;
 using BuildXL.Cache.ContentStore.Distributed.MetadataService;
+using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Secrets;
-using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.Host.Configuration;
 using BuildXL.Cache.MemoizationStore.Interfaces.Results;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
+using BuildXL.Utilities.Tasks;
 using OperationContext = BuildXL.Cache.ContentStore.Tracing.Internal.OperationContext;
 
 #nullable enable
 
-namespace BuildXL.Cache.ContentStore.Distributed.NuCache
+namespace BuildXL.Cache.MemoizationStore.Stores
 {
+    /// <nodoc />
     public class BlobMetadataStoreConfiguration : IBlobFolderStorageConfiguration
     {
+        /// <nodoc />
         public AzureBlobStorageCredentials? Credentials { get; set; }
 
+        /// <nodoc />
         public string ContainerName { get; set; } = "metadatastore";
 
+        /// <nodoc />
         public string FolderName { get; set; } = "memoization";
 
-        /// <summary>
-        /// WARNING: must be longer than the heartbeat interval
-        /// </summary>
-        public TimeSpan LeaseExpiryTime { get; set; } = TimeSpan.FromMinutes(5);
-
+        /// <nodoc />
         public TimeSpan StorageInteractionTimeout { get; set; } = TimeSpan.FromSeconds(10);
 
+        /// <nodoc />
         public RetryPolicyConfiguration RetryPolicy { get; set; } = BlobFolderStorage.DefaultRetryPolicy;
     }
 
-    public class BlobMetadataStore : StartupShutdownComponentBase, IMetadataStore
+    /// <nodoc />
+    public class AzureBlobStorageMetadataStore : StartupShutdownComponentBase, IMetadataStoreWithIncorporation
     {
-        protected override Tracer Tracer { get; } = new Tracer(nameof(BlobMetadataStore));
+        /// <nodoc />
+        protected override Tracer Tracer { get; } = new Tracer(nameof(AzureBlobStorageMetadataStore));
 
         private const string SelectorPattern = @"chl.(?<hash>[^_]+)_(?<output>\w+)\.blob";
         private readonly BlobMetadataStoreConfiguration _configuration;
@@ -55,7 +59,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private readonly Regex _regex = new Regex(SelectorPattern);
 
-        public BlobMetadataStore(
+        /// <nodoc />
+        public AzureBlobStorageMetadataStore(
             BlobMetadataStoreConfiguration configuration)
         {
             Contract.RequiresNotNull(configuration.Credentials);
@@ -66,6 +71,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             LinkLifetime(_storage);
         }
 
+        /// <nodoc />
         public Task<Result<bool>> CompareExchangeAsync(OperationContext context, StrongFingerprint strongFingerprint, SerializedMetadataEntry replacement, string expectedReplacementToken)
         {
             return _storage.CompareUpdateContentAsync(
@@ -79,6 +85,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 attempt: 0);
         }
 
+        /// <nodoc />
         public Task<Result<LevelSelectors>> GetLevelSelectorsAsync(OperationContext context, Fingerprint weakFingerprint, int level)
         {
             return context.PerformOperationAsync(
@@ -96,6 +103,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 });
         }
 
+        /// <nodoc />
         public Task<Result<SerializedMetadataEntry>> GetContentHashListAsync(OperationContext context, StrongFingerprint strongFingerprint)
         {
             return context.PerformOperationAsync(
@@ -103,7 +111,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 async () =>
                 {
                     var name = GetName(strongFingerprint);
-                    var state = await _storage.ReadStateAsync<byte[]>(context, name, stream =>
+                    var state = await _storage.ReadStateAsync(context, name, stream =>
                     {
                         return new ValueTask<byte[]>(stream.ToArray());
                     }).ThrowIfFailureAsync();
@@ -113,6 +121,24 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         ReplacementToken = state.ETag,
                         Data = state.Value
                     });
+                });
+        }
+
+        /// <nodoc />
+        public Task<BoolResult> IncorporateStrongFingerprintsAsync(OperationContext context, IEnumerable<Task<StrongFingerprint>> strongFingerprints)
+        {
+            return context.PerformOperationAsync(
+                Tracer,
+                async () =>
+                {
+                    var tasks = strongFingerprints
+                        .Select(async strongFingerprintTask =>
+                        {
+                            var strongFingerprint = await strongFingerprintTask;
+                            return await _storage.TouchAsync(context, GetName(strongFingerprint));
+                        });
+
+                    return (await TaskUtilities.SafeWhenAll(tasks)).And();
                 });
         }
 

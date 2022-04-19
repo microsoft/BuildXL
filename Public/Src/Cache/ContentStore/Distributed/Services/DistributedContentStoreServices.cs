@@ -129,7 +129,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
                             GlobalCacheService = GlobalCacheService.UnsafeGetServiceDefinition().AsOptional<IGlobalCacheService>(),
                             ColdStorage = ColdStorage,
                             RoleObserver = RoleObserver
-                        }
+                        },
                     },
                     Arguments.RedisContentLocationStoreConfiguration);
             });

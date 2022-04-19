@@ -27,7 +27,7 @@ using OperationContext = BuildXL.Cache.ContentStore.Tracing.Internal.OperationCo
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
-    internal interface IBlobFolderStorageConfiguration
+    public interface IBlobFolderStorageConfiguration
     {
         public AzureBlobStorageCredentials? Credentials { get; set; }
 
@@ -43,7 +43,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     /// <summary>
     /// Represents a full or relative blob path
     /// </summary>
-    internal record struct BlobName(string Name, bool IsRelative)
+    public record struct BlobName(string Name, bool IsRelative)
     {
         public static implicit operator BlobName(string fileName)
         {
@@ -61,7 +61,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     /// <summary>
     /// Helper methods for manipulating a blob
     /// </summary>
-    internal class BlobFolderStorage : StartupShutdownSlimBase
+    public class BlobFolderStorage : StartupShutdownSlimBase
     {
         public static RetryPolicyConfiguration DefaultRetryPolicy { get; } = new RetryPolicyConfiguration()
         {
@@ -463,6 +463,26 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             {
                 return _container.GetBlockBlobReference(fileName.Name);
             }
+        }
+
+        public Task<BoolResult> TouchAsync(OperationContext context, BlobName fileName)
+        {
+            return context.PerformOperationWithTimeoutAsync(Tracer, async context =>
+                {
+                    var reference = GetBlockBlobReference(fileName);
+
+                    // This should update last access time in blob storage
+                    await reference.FetchAttributesAsync(
+                        accessCondition: null,
+                        options: DefaultBlobStorageRequestOptions,
+                        operationContext: null,
+                        cancellationToken: context.Token);
+
+                    return BoolResult.Success;
+                },
+                traceOperationStarted: false,
+                extraEndMessage: _ => $"FileName=[{GetDisplayPath(fileName)}]",
+                timeout: _configuration.StorageInteractionTimeout);
         }
 
         /// <summary>

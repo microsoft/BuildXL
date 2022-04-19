@@ -7,18 +7,13 @@ using BuildXL.Cache.ContentStore.InterfacesTest.Time;
 using ContentStoreTest.Test;
 using BuildXL.Cache.MemoizationStore.Interfaces.Stores;
 using BuildXL.Cache.MemoizationStore.InterfacesTest.Sessions;
-using System;
 using ContentStoreTest.Distributed.Redis;
-using BuildXL.Cache.ContentStore.Distributed.Redis;
-using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
-using BuildXL.Cache.MemoizationStore.Distributed.Stores;
 using Xunit;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using Xunit.Abstractions;
 using BuildXL.Cache.MemoizationStore.Stores;
-using BuildXL.Cache.ContentStore.Distributed.NuCache;
 
 namespace BuildXL.Cache.MemoizationStore.Test.Sessions
 {
@@ -49,7 +44,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
                 Credentials = new ContentStore.Interfaces.Secrets.AzureBlobStorageCredentials(instance.ConnectionString)
             };
 
-            var store = new BlobMetadataStore(config);
+            var store = new AzureBlobStorageMetadataStore(config);
 
             return new DatabaseMemoizationStore(new MetadataStoreMemoizationDatabase(store));
         }

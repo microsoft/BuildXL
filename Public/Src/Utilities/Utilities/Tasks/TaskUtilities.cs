@@ -107,6 +107,22 @@ namespace BuildXL.Utilities.Tasks
             return SafeWhenAll((IEnumerable<Task<TResult>>)tasks);
         }
 
+
+        /// <summary>
+        /// This is a variant of Task.WhenAll which ensures that all exceptions thrown by the tasks are
+        /// propagated back through a single <see cref="AggregateException"/>. This is necessary because
+        /// the default awaiter (as used by 'await') only takes the *first* exception inside of a task's
+        /// aggregate exception. All BuildXL code should use this method instead of the standard WhenAll.
+        /// </summary>
+        /// <exception cref="System.AggregateException">Thrown when any of the tasks failed.</exception>
+        public static Task SafeWhenAll(params Task[] tasks)
+        {
+            Contract.Requires(tasks != null);
+
+            return SafeWhenAll((IEnumerable<Task>)tasks);
+        }
+
+
         /// <summary>
         /// Creates a task that will complete when all of the <see cref="T:System.Threading.Tasks.Task" /> objects in an enumerable collection have completed or when the <paramref name="cancellationToken"/> is triggered.
         /// </summary>

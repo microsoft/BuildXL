@@ -107,26 +107,6 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
         }
 
         /// <summary>
-        ///     Content Stores:
-        ///         - <see cref="ServiceClientContentStore"/>
-        ///     Memoization Stores:
-        ///         - <see cref="CreateInProcessLocalMemoizationStoreFactory(ILogger, IClock, MemoizationStoreConfiguration)"/>
-        /// </summary>
-        public static LocalCache CreateRpcContentStoreInProcMemoizationStoreCache(ILogger logger,
-            AbsolutePath rootPath,
-            ServiceClientContentStoreConfiguration serviceClientContentStoreConfiguration,
-            MemoizationStoreConfiguration memoizationStoreConfiguration,
-            IClock clock = null)
-        {
-            var fileSystem = new PassThroughFileSystem(logger);
-            clock = clock ?? SystemClock.Instance;
-
-            Func<IContentStore> remoteContentStoreFactory = () => new ServiceClientContentStore(logger, fileSystem, serviceClientContentStoreConfiguration);
-            var localMemoizationStoreFactory = CreateInProcessLocalMemoizationStoreFactory(logger, clock, memoizationStoreConfiguration);
-            return new LocalCache(fileSystem, remoteContentStoreFactory, localMemoizationStoreFactory, LoadPersistentCacheGuid(rootPath, fileSystem));
-        }
-
-        /// <summary>
         ///     Both content and metadata are entirely backed by an out-of-proc cache.
         /// </summary>
         public static ICache CreateRpcCache(
@@ -135,6 +115,25 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
         {
             var fileSystem = new PassThroughFileSystem(logger);
             return new ServiceClientCache(logger, fileSystem, serviceClientCacheConfiguration);
+        }
+
+        /// <summary>
+        ///     Both content and metadata are entirely backed by an out-of-proc L2 cache, and asynchronously published to an L3 cache
+        /// </summary>
+        public static ICache CreatePublishingRpcCache(
+            ILogger logger,
+            ServiceClientContentStoreConfiguration serviceClientCacheConfiguration,
+            PublishingCacheConfiguration publishingConfiguration,
+            string personalAccessToken)
+        {
+            var fileSystem = new PassThroughFileSystem(logger);
+
+            return new ServiceClientPublishingCache(
+                logger,
+                fileSystem,
+                serviceClientCacheConfiguration,
+                publishingConfiguration,
+                personalAccessToken);
         }
 
         private LocalCache(IAbsFileSystem fileSystem, Func<IContentStore> contentStoreFunc, Func<IMemoizationStore> memoizationStoreFunc, Guid id)

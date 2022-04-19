@@ -54,7 +54,7 @@ namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Sessions
         protected static readonly CancellationToken Token = CancellationToken.None;
         protected readonly IAbsFileSystem FileSystem;
         protected readonly ILogger Logger;
-        private const ImplicitPin ImplicitPinPolicy = ImplicitPin.None;
+        protected const ImplicitPin ImplicitPinPolicy = ImplicitPin.None;
         private const int ContentByteCount = 100;
         private bool _disposed;
 
@@ -1124,7 +1124,7 @@ namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Sessions
             return RunReadOnlySessionTestAsync(context, funcAsync, CreateCache);
         }
 
-        protected Task RunReadOnlySessionTestAsync(
+        protected virtual Task RunReadOnlySessionTestAsync(
             Context context, Func<IReadOnlyCacheSession, Task> funcAsync, Func<DisposableDirectory, ICache> createCacheFunc)
         {
             return RunTestAsync(
@@ -1148,15 +1148,20 @@ namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Sessions
                 createCacheFunc);
         }
 
-        protected async Task RunTestAsync(Context context, ICache cache, Func<ICacheSession, Task> funcAsync)
+        protected virtual async Task RunTestAsync(Context context, ICache cache, Func<ICacheSession, Task> funcAsync)
         {
-            var createSessionResult = cache.CreateSession(context, Name, ImplicitPinPolicy).ShouldBeSuccess();
+            var createSessionResult = CreateSession(context, cache).ShouldBeSuccess();
             using (var session = createSessionResult.Session)
             {
                 await session.StartupAsync(context).ShouldBeSuccess();
                 await funcAsync(session);
                 await session.ShutdownAsync(context).ShouldBeSuccess();
             }
+        }
+
+        protected virtual CreateSessionResult<ICacheSession> CreateSession(Context context, ICache cache)
+        {
+            return cache.CreateSession(context, Name, ImplicitPinPolicy);
         }
 
         private Task RunTestAsync(Context context, Func<ICache, ICacheSession, Task> funcAsync)

@@ -31,6 +31,7 @@ using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.Host.Service.OutOfProc;
 using BuildXL.Utilities.ConfigurationHelpers;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
+using BuildXL.Cache.ContentStore.Distributed.Blobs;
 
 namespace BuildXL.Cache.Host.Service.Internal
 {
@@ -178,9 +179,22 @@ namespace BuildXL.Cache.Host.Service.Internal
 #if MICROSOFT_INTERNAL
                     if (distributedSettings.EnablePublishingCache)
                     {
+                        IPublishingStore remotePublishingStore;
+                        if (distributedSettings.EnableBlobPublishingCache)
+                        {
+                            remotePublishingStore = new AzureBlobStoragePublishingStore(distributedCache);
+                        }
+                        else
+                        {
+                            remotePublishingStore = new BuildCachePublishingStore(
+                                contentSource: distributedCache,
+                                _fileSystem,
+                                distributedSettings.PublishingConcurrencyLimit);
+                        }
+
                         cacheToReturn = new PublishingCache<OneLevelCache>(
                             local: distributedCache,
-                            remote: new BuildCachePublishingStore(contentSource: distributedCache, _fileSystem, distributedSettings.PublishingConcurrencyLimit),
+                            remote: remotePublishingStore,
                             Guid.NewGuid());
                     }
 #endif
@@ -245,12 +259,26 @@ namespace BuildXL.Cache.Host.Service.Internal
                             passContentToMemoization: true);
 
                         ICache cacheToReturn = distributedCache;
+
 #if MICROSOFT_INTERNAL
                         if (distributedSettings.EnablePublishingCache)
                         {
+                            IPublishingStore remotePublishingStore;
+                            if (distributedSettings.EnableBlobPublishingCache)
+                            {
+                                remotePublishingStore = new AzureBlobStoragePublishingStore(distributedCache);
+                            }
+                            else
+                            {
+                                remotePublishingStore = new BuildCachePublishingStore(
+                                    contentSource: distributedCache,
+                                    _fileSystem,
+                                    distributedSettings.PublishingConcurrencyLimit);
+                            }
+
                             cacheToReturn = new PublishingCache<DistributedOneLevelCache>(
                                 local: distributedCache,
-                                remote: new BuildCachePublishingStore(contentSource: distributedCache, _fileSystem, distributedSettings.PublishingConcurrencyLimit),
+                                remote: remotePublishingStore,
                                 Guid.NewGuid());
                         }
 #endif

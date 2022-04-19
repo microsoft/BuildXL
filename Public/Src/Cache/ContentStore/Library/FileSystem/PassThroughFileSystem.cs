@@ -34,6 +34,8 @@ namespace BuildXL.Cache.ContentStore.FileSystem
         private const string SequentialScanOnOpenStreamThresholdEnvVariableName = "CloudStore" + SequentialScanOnOpenStreamThreshold;
         private const long DefaultSequentialScanOnOpenThreshold = 100 * 1024 * 1024;
 
+        public static PassThroughFileSystem Default { get; } = new PassThroughFileSystem();
+
         /// <summary>
         ///     File size, over which FileOptions.SequentialScan is used to open files.
         /// </summary>

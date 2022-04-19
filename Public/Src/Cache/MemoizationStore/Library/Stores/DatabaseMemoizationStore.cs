@@ -122,6 +122,15 @@ namespace BuildXL.Cache.MemoizationStore.Stores
             return result.Select(r => StructResult.FromResult(r));
         }
 
+        /// <inheritdoc />
+        public Task<BoolResult> IncorporateStrongFingerprintsAsync(
+            Context context,
+            IEnumerable<Task<StrongFingerprint>> strongFingerprints,
+            CancellationToken cts)
+        {
+            return Database.IncorporateStrongFingerprintsAsync(new OperationContext(context, cts), strongFingerprints);
+        }
+
         internal Task<GetContentHashListResult> GetContentHashListAsync(Context context, StrongFingerprint strongFingerprint, CancellationToken token, bool preferShared = false)
         {
             var ctx = new OperationContext(context, token);
@@ -177,7 +186,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
                         // Replace if incoming has better determinism or some content for the existing
                         // entry is missing. The entry could have changed since we fetched the old value
                         // earlier, hence, we need to check it hasn't.
-                        var exchanged = await Database.CompareExchange(
+                        var exchanged = await Database.CompareExchangeAsync(
                            ctx,
                            strongFingerprint,
                            replacementToken,

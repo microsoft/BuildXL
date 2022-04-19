@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.FileSystem;
@@ -16,6 +17,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Tracing;
+using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.MemoizationStore.Distributed.Stores;
 using BuildXL.Cache.MemoizationStore.Interfaces.Caches;
@@ -47,12 +49,16 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
         protected override ICache CreateCache(DisposableDirectory testDirectory)
         {
             var contentStore = CreateInnerCache(testDirectory);
-            return new PublishingCacheWrapper<LocalCache>(contentStore, CreatePublishingStore(new CacheToContentStore(contentStore)), Guid.NewGuid(), () => CreateConfiguration(publishAsynchronously: false));
+            return new PublishingCacheWrapper<LocalCache>(
+                cacheId: Guid.NewGuid(),
+                localCache: contentStore,
+                remotePublishingStore: CreatePublishingStore(new CacheToContentStore(contentStore)),
+                configFactory: () => CreateConfiguration(publishAsynchronously: false));
         }
 
         protected abstract IPublishingStore CreatePublishingStore(IContentStore contentStore);
 
-        private LocalCache CreateInnerCache(DisposableDirectory testDirectory)
+        protected LocalCache CreateInnerCache(DisposableDirectory testDirectory)
         {
             var otherTest = new LocalCacheWithSingleCasTests();
             return (LocalCache)otherTest.PublicCreateCache(testDirectory);
@@ -103,21 +109,34 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
     /// <summary>
     /// Used to be able to test all session features as if publishing has been specified.
     /// </summary>
-    internal class PublishingCacheWrapper<T> : PublishingCache<T>
-        where T : ICache, IContentStore, IStreamStore, IRepairStore, ICopyRequestHandler, IPushFileHandler
+    internal class PublishingCacheWrapper<TCache> : PublishingCache<TCache>
+        where TCache : ICache, IContentStore, IStreamStore, IRepairStore, ICopyRequestHandler, IPushFileHandler
     {
-        private Func<PublishingCacheConfiguration> _configFactory;
+        private readonly Func<PublishingCacheConfiguration> _configFactory;
+        private readonly string _pat;
 
         /// <nodoc />
-        public PublishingCacheWrapper(T local, IPublishingStore remote, Guid id, Func<PublishingCacheConfiguration> configFactory) : base(local, remote, id)
+        public PublishingCacheWrapper(
+            Guid cacheId,
+            TCache localCache,
+            IPublishingStore remotePublishingStore,
+            Func<PublishingCacheConfiguration> configFactory,
+            string pat = null) : base(localCache, remotePublishingStore, cacheId)
         {
+            pat ??= Guid.NewGuid().ToString();
+            _pat = pat;
             _configFactory = configFactory;
         }
 
         /// <inheritdoc />
         public override CreateSessionResult<IReadOnlyCacheSession> CreateReadOnlySession(Context context, string name, ImplicitPin implicitPin)
         {
-            var sessionResult = base.CreatePublishingSession(context, name, implicitPin, _configFactory(), pat: Guid.NewGuid().ToString());
+            var sessionResult = CreatePublishingSession(
+                context,
+                name,
+                implicitPin,
+                _configFactory(),
+                pat: _pat);
 
             if (!sessionResult.Succeeded)
             {
@@ -129,7 +148,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
 
         /// <inheritdoc />
         public override CreateSessionResult<ICacheSession> CreateSession(Context context, string name, ImplicitPin implicitPin)
-            => base.CreatePublishingSession(context, name, implicitPin, _configFactory(), pat: Guid.NewGuid().ToString());
+            => base.CreatePublishingSession(context, name, implicitPin, _configFactory(), pat: _pat);
     }
 
     internal class BlockingPublishingStore : StartupShutdownSlimBase, IPublishingStore
@@ -152,9 +171,9 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
 
             protected override Tracer Tracer { get; } = new Tracer(nameof(BlockingPublishingSession));
 
-            public async Task<BoolResult> PublishContentHashListAsync(Context context, StrongFingerprint fingerprint, ContentHashListWithDeterminism contentHashList, CancellationToken token)
+            public async Task<BoolResult> PublishContentHashListAsync(OperationContext context, StrongFingerprint fingerprint, ContentHashListWithDeterminism contentHashList)
             {
-                var winningTask = await Task.WhenAny(_store.TaskCompletionSource.Task, Task.Delay(Timeout.InfiniteTimeSpan, token));
+                var winningTask = await Task.WhenAny(_store.TaskCompletionSource.Task, Task.Delay(Timeout.InfiniteTimeSpan, context.Token));
 
                 if (winningTask == _store.TaskCompletionSource.Task)
                 {
@@ -164,6 +183,11 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
                 {
                     return new BoolResult(new TaskCanceledException());
                 }
+            }
+
+            public Task<BoolResult> IncorporateStrongFingerprintsAsync(OperationContext context, IEnumerable<Task<StrongFingerprint>> strongFingerprints)
+            {
+                return BoolResult.SuccessTask;
             }
         }
     }

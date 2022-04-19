@@ -247,7 +247,7 @@ namespace BuildXL.Cache.MemoizationStore.Sessions.Grpc
             {
                 return new CreateSessionResponse()
                 {
-                    ErrorMessage = $"Something went wrong while deserializing the session configuration. Exception=[{e}]",
+                    ErrorMessage = $"Something went wrong while deserializing the session configuration. Exception=[{e}] Configuration=[{request.SerializedConfig}]",
                 };
             }
 

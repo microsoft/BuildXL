@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.MetadataService;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
-using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
@@ -34,6 +33,18 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         public override Task<IEnumerable<Result<StrongFingerprint>>> EnumerateStrongFingerprintsAsync(OperationContext context)
         {
             throw new NotImplementedException("Enumerating all strong fingerprints is not supported");
+        }
+
+        /// <inheritdoc />
+        public override Task<BoolResult> IncorporateStrongFingerprintsAsync(OperationContext context, IEnumerable<Task<StrongFingerprint>> strongFingerprints)
+        {
+            // Ugly hack to workaround GCS dependency on IMetadataStore
+            if (_store is IMetadataStoreWithIncorporation store)
+            {
+                return store.IncorporateStrongFingerprintsAsync(context, strongFingerprints);
+            }
+
+            return BoolResult.SuccessTask;
         }
 
         /// <inheritdoc />

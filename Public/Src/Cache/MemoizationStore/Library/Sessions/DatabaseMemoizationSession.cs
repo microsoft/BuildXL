@@ -54,7 +54,7 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
             CancellationToken cts,
             UrgencyHint urgencyHint)
         {
-            return BoolResult.SuccessTask;
+            return MemoizationStore.IncorporateStrongFingerprintsAsync(context, strongFingerprints, cts);
         }
     }
 }

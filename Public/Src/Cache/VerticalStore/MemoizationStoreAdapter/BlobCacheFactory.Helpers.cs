@@ -2,17 +2,15 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Diagnostics.CodeAnalysis;
-using System.Diagnostics.ContractsLight;
+using BuildXL.Cache.ContentStore.Distributed.Blobs;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
+using BuildXL.Cache.ContentStore.FileSystem;
+using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
+using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.MemoizationStore.Interfaces.Caches;
 using BuildXL.Cache.MemoizationStore.Sessions;
 using BuildXL.Cache.MemoizationStore.Stores;
-using BuildXL.Utilities;
-using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 
 namespace BuildXL.Cache.MemoizationStoreAdapter
 {
@@ -27,15 +25,33 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                 ContainerName = cacheConfig.ContainerName
             };
 
-            var store = new BlobMetadataStore(config);
+            var store = new AzureBlobStorageMetadataStore(config);
 
             var memoizationStore = new DatabaseMemoizationStore(new MetadataStoreMemoizationDatabase(store))
             {
                 OptimizeWrites = true
             };
 
+            var localFileSystemContentStore = new FileSystemContentStore(
+                fileSystem: PassThroughFileSystem.Default,
+                clock: SystemClock.Instance,
+                rootPath: new AbsolutePath(cacheConfig.LocalCachePath),
+                configurationModel: new ConfigurationModel(
+                    inProcessConfiguration: new ContentStoreConfiguration(maxSizeQuota: new MaxSizeQuota("10GB")),
+                    selection: ConfigurationSelection.RequireAndUseInProcessConfiguration),
+                distributedStore: null,
+                settings: null,
+                coldStorage: null);
+
+            // TODO: we should propagate settings here
+            var contentStore = new AzureBlobStorageContentStore(new AzureBlobStorageContentStoreConfiguration()
+            {
+                Credentials = new ContentStore.Interfaces.Secrets.AzureBlobStorageCredentials(connectionString),
+                ContainerName = cacheConfig.ContainerName
+            }, () => localFileSystemContentStore);
+
             var innerCache = new OneLevelCache(
-                contentStoreFunc: () => new ReadOnlyEmptyContentStore(),
+                contentStoreFunc: () => contentStore,
                 memoizationStoreFunc: () => memoizationStore,
                 id: Guid.NewGuid(),
                 passContentToMemoization: false);

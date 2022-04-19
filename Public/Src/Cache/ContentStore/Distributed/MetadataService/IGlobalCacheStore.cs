@@ -72,4 +72,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         /// <nodoc />
         Task<Result<SerializedMetadataEntry>> GetContentHashListAsync(OperationContext context, StrongFingerprint strongFingerprint);
     }
+
+    public interface IMetadataStoreWithIncorporation : IMetadataStore
+    {
+        Task<BoolResult> IncorporateStrongFingerprintsAsync(OperationContext context, IEnumerable<Task<StrongFingerprint>> strongFingerprints);
+    }
 }

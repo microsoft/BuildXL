@@ -41,6 +41,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             [DefaultValue("BlobCacheFactoryConnectionString")]
             public string ConnectionStringEnvironmentVariableName { get; set; }
 
+
             /// <nodoc />
             [DefaultValue("blobcache")]
             public string ContainerName { get; set; }
@@ -56,6 +57,11 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             /// </summary>
             [DefaultValue(0)]
             public uint LogFlushIntervalSeconds { get; set; }
+
+            /// <summary>
+            /// Cache to store temporary files
+            /// </summary>
+            public string LocalCachePath { get; set; }
 
             /// <nodoc />
             public Config()

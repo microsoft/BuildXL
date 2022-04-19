@@ -301,7 +301,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
                 var endDateTime = DateTime.UtcNow + TimeToKeepContent;
                 await BlobStoreHttpClient.UploadAndReferenceBlobWithRetriesAsync(
                     contentHash.ToBlobIdentifier(),
-                    stream,
+                    stream!,
                     new BlobReference(endDateTime),
                     context,
                     context.Token);

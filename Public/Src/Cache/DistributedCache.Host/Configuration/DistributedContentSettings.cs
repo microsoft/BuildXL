@@ -986,6 +986,9 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public bool EnablePublishingCache { get; set; } = false;
 
+        [DataMember]
+        public bool EnableBlobPublishingCache { get; set; } = false;
+
         #endregion
 
         /// <summary>

@@ -327,6 +327,8 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 Tracer,
                 async () =>
                 {
+                    Tracer.Info(context, $"Creating session with serialized configuration: {serializedConfig ?? "null"}");
+
                     CreateSessionResponse response = await CreateSessionAsyncInternalAsync(context, name, cacheName, implicitPin, serializedConfig, pat);
                     if (string.IsNullOrEmpty(response.ErrorMessage))
                     {

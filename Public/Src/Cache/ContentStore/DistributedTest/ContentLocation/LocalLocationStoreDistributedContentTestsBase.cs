@@ -487,7 +487,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
             public Task<RetrievedSecrets> RetrieveSecretsAsync(List<RetrieveSecretsRequest> requests, CancellationToken token)
             {
-                return Task.FromResult(new RetrievedSecrets(requests.ToDictionary(r => r.Name, r => (Secret)new PlainTextSecret(_secrets[r.Name]))));
+                return Task.FromResult(new RetrievedSecrets(requests.GroupBy(r => r.Name).Select(g => g.First()).ToDictionary(r => r.Name, r => (Secret)new PlainTextSecret(_secrets[r.Name]))));
             }
 
             public void OnStartedService() { }

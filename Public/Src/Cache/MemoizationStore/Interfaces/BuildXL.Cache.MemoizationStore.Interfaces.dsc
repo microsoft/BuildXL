@@ -14,6 +14,7 @@ namespace Interfaces {
             ContentStore.UtilitiesCore.dll,
             ContentStore.Hashing.dll,
             ContentStore.Interfaces.dll,
+            ContentStore.Library.dll,
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Collections.dll,
             ...BuildXLSdk.bclAsyncPackages,

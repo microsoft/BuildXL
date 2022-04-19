@@ -277,6 +277,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test
 
             public int ExitCode { get; set; }
 
+            public DateTime? ExitTime { get; set; }
+
+            public bool WaitForExit(TimeSpan timeout) => false;
+
             public int Id { get; } = 12;
 
             public bool HasExited { get; set; }

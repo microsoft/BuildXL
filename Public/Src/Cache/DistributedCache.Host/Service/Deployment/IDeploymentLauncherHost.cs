@@ -74,6 +74,11 @@ namespace BuildXL.Cache.Host.Service
         int ExitCode { get; }
 
         /// <summary>
+        /// The exit time of the process, null if the process is still running.
+        /// </summary>
+        DateTime? ExitTime { get; }
+
+        /// <summary>
         /// The id of the process
         /// </summary>
         int Id { get; }
@@ -82,6 +87,11 @@ namespace BuildXL.Cache.Host.Service
         /// Indicates if the process has exited
         /// </summary>
         bool HasExited { get; }
+
+        /// <summary>
+        /// Blocks the current thread until the process exits.
+        /// </summary>
+        bool WaitForExit(TimeSpan timeout);
     }
 
     /// <summary>

@@ -4,6 +4,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Service;
 using BuildXL.Cache.ContentStore.Tracing;
@@ -52,7 +53,7 @@ namespace BuildXL.Cache.Host.Service
                 () =>
                 {
                     _process.Start(context);
-                    _process.Exited += () => OnExited(context, "Process Exited");
+                    _process.Exited += () => OnExited(context, "ProcessExited");
                     return Result.Success(_process.Id);
                 },
                 traceOperationStarted: true,
@@ -104,6 +105,7 @@ namespace BuildXL.Cache.Host.Service
 
                     // Trying to shut down the service gracefully and ignoring the error, because its already being traced).
                     await _lifetimeManager.GracefulShutdownServiceAsync(nestedContext, ServiceId).IgnoreFailure();
+                    EnsureProcessExitSourceIsSetOnProcessExit(context.WithoutCancellationToken(), totalTimeout);
 
                     // Waiting for the process exit task. It should be set to completion either by a graceful shutdown,
                     // or by calling Kill method.
@@ -111,7 +113,24 @@ namespace BuildXL.Cache.Host.Service
                 },
                 timeout: totalTimeout,
                 extraStartMessage: $"ProcessId={ProcessId}, ServiceId={ServiceId}",
-                extraEndMessage: r => $"ProcessId={ProcessId}, ServiceId={ServiceId}, ExitCode={r.GetValueOrDefault(-1)}, AlreadyExited={alreadyExited}");
+                extraEndMessage: r => $"ProcessId={ProcessId}, ServiceId={ServiceId}, ExitTime={_process.ExitTime}, ExitCode={r.GetValueOrDefault(-1)}, AlreadyExited={alreadyExited}");
+        }
+
+        private void EnsureProcessExitSourceIsSetOnProcessExit(OperationContext context, TimeSpan timeout)
+        {
+            // In some cases the Exit even on a process is not called and the shutdown gets stuck.
+            // Creating a long-running task that will wait on process exit.
+            Task.Factory.StartNew(
+                () =>
+                {
+                    bool exitSuccessfully = _process.WaitForExit(timeout);
+                    if (exitSuccessfully)
+                    {
+                        OnExited(context, "WaitedForExit");
+                    }
+                },
+                TaskCreationOptions.LongRunning)
+                .FireAndForget(context);
         }
 
         private void Kill(OperationContext context)

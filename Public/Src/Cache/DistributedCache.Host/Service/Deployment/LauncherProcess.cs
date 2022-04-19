@@ -55,10 +55,16 @@ namespace BuildXL.Cache.Host.Service
         public int ExitCode => _process.ExitCode;
 
         /// <inheritdoc />
+        public DateTime? ExitTime => HasExited ? _process.ExitTime : null;
+
+        /// <inheritdoc />
         public int Id => _started ? _process.Id : -1;
 
         /// <inheritdoc />
         public bool HasExited => _process.HasExited;
+
+        /// <inheritdoc />
+        public bool WaitForExit(TimeSpan timeout) => _process.WaitForExit((int)timeout.TotalMilliseconds);
 
         /// <inheritdoc />
         public event Action Exited;

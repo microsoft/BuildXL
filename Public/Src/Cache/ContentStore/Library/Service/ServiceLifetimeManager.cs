@@ -148,8 +148,8 @@ namespace BuildXL.Cache.ContentStore.Service
                     // Wait for interrupted service to shutdown
                     return WaitForShutdownAsync(context, serviceId);
                 },
-                extraEndMessage: r => serviceId,
-                extraStartMessage: serviceId
+                extraEndMessage: r => "ServiceId=" + serviceId,
+                extraStartMessage: "ServiceId=" + serviceId
             );
         }
 
@@ -183,7 +183,7 @@ namespace BuildXL.Cache.ContentStore.Service
                     File.WriteAllText(ServiceActiveFile(serviceId), string.Empty);
                     return BoolResult.Success;
                 },
-                extraStartMessage: serviceId);
+                extraStartMessage: "ServiceId=" + serviceId);
         }
 
         /// <summary>
@@ -198,7 +198,7 @@ namespace BuildXL.Cache.ContentStore.Service
                     FileUtilities.DeleteFile(ServiceActiveFile(serviceId));
                     return BoolResult.Success;
                 },
-                extraStartMessage: serviceId);
+                extraStartMessage: "ServiceId=" + serviceId);
         }
 
         private FileStream Create(string path, FileShare share)

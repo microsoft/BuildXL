@@ -37,6 +37,19 @@ namespace BuildXL.Cache.Host.Configuration.Test
         public bool Started { get; private set; }
 
         /// <inheritdoc />
+        public DateTime? ExitTime { get; }
+
+        public Func<TimeSpan, bool> WaitForExitFunc;
+
+        /// <inheritdoc />
+        public bool WaitForExit(TimeSpan timeout)
+        {
+            return WaitForExitFunc?.Invoke(timeout) ?? false;
+        }
+
+        public bool CallOnExitWhenServiceStopped { get; set; } = true;
+
+        /// <inheritdoc />
         public void Start(OperationContext context)
         {
             Started = true;
@@ -56,7 +69,11 @@ namespace BuildXL.Cache.Host.Configuration.Test
                             _ =>
                             {
                                 _lifetimeManager.ServiceStopped(context, _serviceId).ThrowIfFailure();
-                                OnExited();
+
+                                if (CallOnExitWhenServiceStopped)
+                                {
+                                    OnExited();
+                                }
                             }).Forget();
                 }
             }

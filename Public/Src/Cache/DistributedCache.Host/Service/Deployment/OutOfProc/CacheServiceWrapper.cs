@@ -186,7 +186,8 @@ namespace BuildXL.Cache.Host.Service.OutOfProc
 
             var environment = new Dictionary<string, string>
                               {
-                                  _configuration.HostParameters.ToEnvironment(),
+                                  // Out-of-proc cache should propagate the ConfigurationId property to the child process.
+                                  _configuration.HostParameters.ToEnvironment(saveConfigurationId: true),
                                   _serviceLifetimeManager.GetDeployedInterruptableServiceVariables(_configuration.ServiceId),
                                   _configuration.EnvironmentVariables,
                                   CacheServiceWrapperConfiguration.DefaultDotNetEnvironmentVariables

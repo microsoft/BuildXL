@@ -117,7 +117,7 @@ namespace BuildXL.Cache.Host.Service
             // This is done for performance. See: https://github.com/NLog/NLog/wiki/performance#configure-nlog-to-not-scan-for-assemblies
             NLog.Config.ConfigurationItemFactory.Default = new NLog.Config.ConfigurationItemFactory(typeof(NLog.ILogger).GetTypeInfo().Assembly);
 
-            // This is needed for dependency ingestion. See: https://github.com/NLog/NLog/wiki/Dependency-injection-with-NLog
+            // This is needed for dependency injection. See: https://github.com/NLog/NLog/wiki/Dependency-injection-with-NLog
             // The issue is that we need to construct a log, which requires access to both our config and the host. It
             // seems too much to put it into the AzureBlobStorageLogTarget itself, so we do it here.
             var defaultConstructor = NLog.Config.ConfigurationItemFactory.Default.CreateInstance;
@@ -125,7 +125,7 @@ namespace BuildXL.Cache.Host.Service
             {
                 if (type == typeof(AzureBlobStorageLogTarget))
                 {
-                    var log = CreateAzureBlobStorageLogAsync(operationContext, arguments).Result;
+                    var log = CreateAzureBlobStorageLogAsync(operationContext, arguments).GetAwaiter().GetResult();
                     var target = new AzureBlobStorageLogTarget(log);
                     return target;
                 }
@@ -165,8 +165,8 @@ namespace BuildXL.Cache.Host.Service
                 configurationContent = configurationContent.Replace(replacement.Key, replacement.Value);
             }
 
-            var textreader = new StringReader(configurationContent);
-            var reader = XmlReader.Create(textreader);
+            var textReader = new StringReader(configurationContent);
+            var reader = XmlReader.Create(textReader);
 
             var configuration = new NLog.Config.XmlLoggingConfiguration(reader, arguments.LoggingSettings.NLogConfigurationPath);
 

@@ -21,42 +21,81 @@ namespace BuildXL.Cache.Host.Configuration
         public string Machine { get; set; } = System.Environment.MachineName;
         public string Region { get; set; }
         public string MachineFunction { get; set; }
+        public string ServiceVersion { get; set; }
+        public string ConfigurationId { get; set; }
 
         public Dictionary<string, string> Properties { get; set; } = new();
         public Dictionary<string, string[]> Flags { get; set; } = new();
 
-        public static HostParameters FromEnvironment()
+
+        /// <summary>
+        /// Creates and instance of <see cref="HostParameters"/> from the environment variables (unless <paramref name="testEnvironment"/> is not null, then this dictionary is used as a storage of environment variables).
+        /// </summary>
+        public static HostParameters FromEnvironment(IDictionary<string, string> testEnvironment = null)
         {
             var result = new HostParameters()
             {
-                ServiceDir = getValue("ServiceDir"),
-                Environment = getValue("Environment"),
-                Stamp = getValue("Stamp"),
-                Ring = getValue("Ring"),
-                Machine = getValue("Machine"),
-                Region = getValue("Region"),
-                MachineFunction = getValue("MachineFunction")
+                ServiceDir = getValueOrDefault(nameof(ServiceDir)),
+                Environment = getValueOrDefault(nameof(Environment)),
+                Stamp = getValueOrDefault(nameof(Stamp)),
+                Ring = getValueOrDefault(nameof(Ring)),
+                Machine = getValueOrDefault(nameof(Machine)),
+                Region = getValueOrDefault(nameof(Region)),
+                MachineFunction = getValueOrDefault(nameof(MachineFunction)),
+                ServiceVersion = getValueOrDefault(nameof(ServiceVersion)),
+                // Not using the default value for ConfigurationId.
+                ConfigurationId = getValue(nameof(ConfigurationId)),
             };
 
             return result;
 
+            string getValueOrDefault(string name)
+            {
+                string value = getValue(name);
+                
+                return !string.IsNullOrEmpty(value) ? value : "Default";
+            }
+
             string getValue(string name)
             {
-                var value = System.Environment.GetEnvironmentVariable(HostPrefix + name);
-                return !string.IsNullOrEmpty(value) ? value : "Default";
+                string value;
+                if (testEnvironment is not null)
+                {
+                    testEnvironment.TryGetValue(HostPrefix + name, out value);
+                }
+                else
+                {
+                    value = System.Environment.GetEnvironmentVariable(HostPrefix + name);
+                }
+
+                return string.IsNullOrEmpty(value) ? null : value;
             }
         }
 
-        public IDictionary<string, string> ToEnvironment()
+        /// <summary>
+        /// Stores the host parameter as environment variables.
+        /// </summary>
+        /// <remarks>
+        /// If <paramref name="saveConfigurationId"/> is true, then <see cref="ConfigurationId"/> is stored as well.
+        /// The separate is required because Launcher should not propagate the ConfigurationId, but the OutOfProc CaSaaS should.
+        /// </remarks>
+        public IDictionary<string, string> ToEnvironment(bool saveConfigurationId)
         {
             var env = new Dictionary<string, string>();
-            setValue("Environment", Environment);
-            setValue("Stamp", Stamp);
-            setValue("Ring", Ring);
-            setValue("Machine", Machine);
-            setValue("Region", Region);
-            setValue("MachineFunction", MachineFunction);
-            setValue("ServiceDir", ServiceDir);
+            if (saveConfigurationId)
+            {
+                setValue(nameof(ConfigurationId), ConfigurationId);
+            }
+
+            setValue(nameof(ServiceVersion), ServiceVersion);
+            setValue(nameof(MachineFunction), MachineFunction);
+            setValue(nameof(Environment), Environment);
+            setValue(nameof(Stamp), Stamp);
+            setValue(nameof(Ring), Ring);
+            setValue(nameof(Machine), Machine);
+            setValue(nameof(Region), Region);
+            setValue(nameof(MachineFunction), MachineFunction);
+            setValue(nameof(ServiceDir), ServiceDir);
 
             void setValue(string name, string value)
             {
@@ -86,6 +125,8 @@ namespace BuildXL.Cache.Host.Configuration
             Machine ??= telemetryProvider.MachineName;
             MachineFunction ??= telemetryProvider.APMachineFunction;
             Environment ??= telemetryProvider.APEnvironment;
+            ServiceVersion ??= telemetryProvider.ServiceVersion;
+            ConfigurationId ??= telemetryProvider.ConfigurationId;
         }
 
         public static HostParameters FromTelemetryProvider(ITelemetryFieldsProvider telemetryProvider)

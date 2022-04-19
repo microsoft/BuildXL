@@ -54,7 +54,7 @@ namespace BuildXL.Cache.Logging
 
         private readonly CloudBlobContainer _container;
 
-        private readonly IReadOnlyDictionary<string, string> _additionalBlobMetadata;
+        private readonly IReadOnlyDictionary<string, string>? _additionalBlobMetadata;
 
         /// <summary>
         /// Logs are pushed into this queue, and batched together for writing them into files on disk.
@@ -90,7 +90,7 @@ namespace BuildXL.Cache.Logging
             IAbsFileSystem fileSystem,
             ITelemetryFieldsProvider telemetryFieldsProvider,
             AzureBlobStorageCredentials credentials,
-            IReadOnlyDictionary<string, string> additionalBlobMetadata)
+            IReadOnlyDictionary<string, string>? additionalBlobMetadata)
             : this(configuration, context, clock, fileSystem, telemetryFieldsProvider,
                 credentials.CreateCloudBlobClient().GetContainerReference(configuration.ContainerName),
                 additionalBlobMetadata)
@@ -105,7 +105,7 @@ namespace BuildXL.Cache.Logging
             IAbsFileSystem fileSystem,
             ITelemetryFieldsProvider telemetryFieldsProvider,
             CloudBlobContainer container,
-            IReadOnlyDictionary<string, string> additionalBlobMetadata)
+            IReadOnlyDictionary<string, string>? additionalBlobMetadata)
         {
             _configuration = configuration;
 

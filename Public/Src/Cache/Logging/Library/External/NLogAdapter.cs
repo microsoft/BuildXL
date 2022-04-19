@@ -323,7 +323,7 @@ namespace BuildXL.Cache.Logging.External
 
             try
             {
-                _host.Error(exception, "An exception has occured and is unhandled. {0}", exitString);
+                _host.Error(exception, "An exception has occurred and is unhandled. {0}", exitString);
             }
             catch (Exception loggerException)
             {

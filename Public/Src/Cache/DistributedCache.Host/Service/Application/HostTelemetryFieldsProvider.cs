@@ -5,7 +5,6 @@ using System;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.Host.Configuration;
 
-// ReSharper disable once UnusedMember.Global
 namespace BuildXL.Cache.Host.Service
 {
     /// <summary>
@@ -19,7 +18,7 @@ namespace BuildXL.Cache.Host.Service
 
         public string ServiceName { get; set; } = "CacheService";
 
-        public string APEnvironment => "Unknown";
+        public string APEnvironment => _hostParameters.Environment;
 
         public string APCluster => "None";
 
@@ -27,13 +26,13 @@ namespace BuildXL.Cache.Host.Service
 
         public string MachineName => Environment.MachineName;
 
-        public string ServiceVersion => "None";
+        public string ServiceVersion => _hostParameters.ServiceVersion;
 
         public string Stamp => _hostParameters.Stamp;
 
         public string Ring => _hostParameters.Ring;
 
-        public string ConfigurationId { get; set; } = "None";
+        public string ConfigurationId => _hostParameters.ConfigurationId;
 
         public HostTelemetryFieldsProvider(HostParameters hostParameters) => _hostParameters = hostParameters;
     }

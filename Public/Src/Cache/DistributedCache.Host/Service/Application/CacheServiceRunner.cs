@@ -118,6 +118,11 @@ namespace BuildXL.Cache.Host.Service
                     out var configHash,
                     c => c);
 
+                // If the ConfigurationId was not propagated through the environment variables (for the Launcher case)
+                // we hash the config file and use the hash as the ConfigurationId.
+                // Otherwise we use the ConfigurationId propagated from the parent process.
+                hostParameters.ConfigurationId ??= configHash;
+
                 await ServiceLifetimeManager.RunDeployedInterruptableServiceAsync(context, async token =>
                 {
                     var hostInfo = new HostInfo(hostParameters.Stamp, hostParameters.Ring, new List<string>());
@@ -128,7 +133,7 @@ namespace BuildXL.Cache.Host.Service
                         logger: context.TracingContext.Logger,
                         host: host,
                         hostInfo: hostInfo,
-                        telemetryFieldsProvider: new HostTelemetryFieldsProvider(hostParameters) { ConfigurationId = configHash },
+                        telemetryFieldsProvider: new HostTelemetryFieldsProvider(hostParameters),
                         config,
                         token: token); ;
 

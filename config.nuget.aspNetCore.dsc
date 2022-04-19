@@ -5,14 +5,14 @@ const aspVersion = "2.2.0";
 
 // Versions used by framework reference packages for reference assemblies
 // and runtime assemblies respectively
-const aspRefVersion = "3.1.3";
-const aspRuntimeVersion = "3.1.20";
-
-const asp5Version = "5.0.0";
-const asp6Version = "6.0.0";
+const aspRefVersion = "3.1.10";
+const aspRuntimeVersion = "3.1.24";
 
 const asp5RefVersion = "5.0.0";
-const asp5RuntimeVersion = "5.0.11";
+const asp5RuntimeVersion = "5.0.16";
+
+const asp6RefVersion = "6.0.4";
+const asp6RuntimeVersion = "6.0.4";
 
 export const pkgs = [
     // aspnet web api
@@ -42,8 +42,8 @@ export const pkgs = [
     { id: "Microsoft.AspNetCore.App.Runtime.linux-x64", version: asp5RuntimeVersion, alias: "Microsoft.AspNetCore.App.Runtime.linux-x64.5.0.0" },
     { id: "Microsoft.AspNetCore.App.Runtime.osx-x64", version: asp5RuntimeVersion, alias: "Microsoft.AspNetCore.App.Runtime.osx-x64.5.0.0" },
 
-    { id: "Microsoft.AspNetCore.App.Ref", version: asp6Version, alias: "Microsoft.AspNetCore.App.Ref.6.0.0" },
-    { id: "Microsoft.AspNetCore.App.Runtime.win-x64", version: asp6Version, alias: "Microsoft.AspNetCore.App.Runtime.win-x64.6.0.0" },
-    { id: "Microsoft.AspNetCore.App.Runtime.linux-x64", version: asp6Version, alias: "Microsoft.AspNetCore.App.Runtime.linux-x64.6.0.0" },
-    { id: "Microsoft.AspNetCore.App.Runtime.osx-x64", version: asp6Version, alias: "Microsoft.AspNetCore.App.Runtime.osx-x64.6.0.0" },
+    { id: "Microsoft.AspNetCore.App.Ref", version: asp6RefVersion, alias: "Microsoft.AspNetCore.App.Ref.6.0.0" },
+    { id: "Microsoft.AspNetCore.App.Runtime.win-x64", version: asp6RuntimeVersion, alias: "Microsoft.AspNetCore.App.Runtime.win-x64.6.0.0" },
+    { id: "Microsoft.AspNetCore.App.Runtime.linux-x64", version: asp6RuntimeVersion, alias: "Microsoft.AspNetCore.App.Runtime.linux-x64.6.0.0" },
+    { id: "Microsoft.AspNetCore.App.Runtime.osx-x64", version: asp6RuntimeVersion, alias: "Microsoft.AspNetCore.App.Runtime.osx-x64.6.0.0" },
 ];

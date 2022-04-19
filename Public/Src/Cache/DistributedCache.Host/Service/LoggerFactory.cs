@@ -172,7 +172,7 @@ namespace BuildXL.Cache.Host.Service
 
             return new NLogAdapter(operationContext.TracingContext.Logger, configuration);
         }
-
+        
         private static async Task<AzureBlobStorageLog> CreateAzureBlobStorageLogAsync(OperationContext operationContext, LoggerFactoryArguments arguments)
         {
             var configuration = arguments.LoggingSettings.Configuration;

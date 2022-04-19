@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed;
 using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.Exceptions;
-using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
+using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
@@ -18,7 +18,9 @@ using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.Host.Configuration;
 using BuildXL.Cache.Host.Service.Internal;
+using BuildXL.Utilities;
 using BuildXL.Utilities.Tasks;
+using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 
 #nullable enable
 
@@ -102,7 +104,7 @@ namespace BuildXL.Cache.Host.Service
             // client's decision with our own.
             // The disposableToken helps ensure that we shutdown properly and all logs are sent to their final
             // destination.
-            var loggerReplacement = LoggerFactory.CreateReplacementLogger(arguments);
+            var loggerReplacement = LoggerFactory.CreateReplacementLogger(AdjustLoggingConfigurationIfNeeded(arguments));
             arguments.Logger = loggerReplacement.Logger;
             using var disposableToken = loggerReplacement.DisposableToken;
 
@@ -149,6 +151,40 @@ namespace BuildXL.Cache.Host.Service
                         .WithTimeoutAsync("Server shutdown", TimeSpan.FromMinutes(timeoutInMinutes));
                     ReportServiceStopped(context, host, result);
                 }
+            }
+        }
+
+        /// <summary>
+        /// For out-of-proc case the logging settings should be adjusted to avoid writing the logs for the parent and the child processes into the same file.
+        /// </summary>
+        /// <remarks>
+        /// This is a temporary work-around. The work-item for fixing it: 1939847
+        /// </remarks>
+        private static DistributedCacheServiceArguments AdjustLoggingConfigurationIfNeeded(DistributedCacheServiceArguments arguments)
+        {
+            bool isLaunchee = isLauncheeProcess();
+            var logFileReplacements = arguments.Configuration?.DistributedContentSettings?.OutOfProcCacheSettings?.NLogConfigurationReplacements;
+            var count = arguments.LoggingSettings?.NLogConfigurationReplacements.Count;
+
+            if (isLaunchee
+                && logFileReplacements?.Count > 0
+                && count is null or 0)
+            {
+                var replacementsAsString = string.Join(", ", logFileReplacements.Select((kvp, state) => $"[{kvp.Key}]: {kvp.Value}", 0));
+                arguments.Logger.Debug($"Adjusting logging configuration. LogFileReplacements: {replacementsAsString}");
+
+                // Adding the replacement configuration for the log file name if the launcher is enabled, and
+                // only if the replacement configuration is not set.
+                arguments.LoggingSettings!.NLogConfigurationReplacements = logFileReplacements;
+            }
+
+            return arguments;
+
+            static bool isLauncheeProcess()
+            {
+                // There is no simple way to separate if the current process is a launcher or a launchee.
+                // But we know that if the current process targeted the full framework, this is not a child process.
+                return OperatingSystemHelper.GetRuntimeFrameworkNameAndVersion().Contains("NETFramework");
             }
         }
 

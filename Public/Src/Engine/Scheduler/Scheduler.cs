@@ -3445,6 +3445,20 @@ namespace BuildXL.Scheduler
                 runnablePip?.Result != null &&
                 runnablePip.Result.Value.Status != PipResultStatus.UpToDate;
 
+            if (directDirtyDownStreams)
+            {
+                foreach (Edge outEdge in DirectedGraph.GetOutgoingEdges(nodeId))
+                {
+                    // We need to check to make sure the pip is dirty because we can't mark a pip direct dirty without it being dirty.
+                    // The scenario that this happens for is when a sealed directory is clean and not materialized, but the downstream pip is clean and materialized.
+                    if (!IsPipCleanMaterialized(outEdge.OtherNode.ToPipId()))
+                    {
+                        m_executionTimeDirectDirtiedNodes.Add(outEdge.OtherNode);
+                        IncrementalSchedulingState.PendingUpdates.MarkNodeMaterialization(outEdge.OtherNode, false);
+                    }
+                }
+            }
+
             foreach (Edge outEdge in ScheduledGraph.GetOutgoingEdges(nodeId))
             {
                 // Light edges do not propagate failure or ref-count changes.
@@ -3494,14 +3508,6 @@ namespace BuildXL.Scheduler
                 {
                     // if the current pip is not a frontier miss candidate, its dependents cannot be candidates
                     dependentPipRuntimeInfo.IsFrontierMissCandidate = false;
-                }
-
-                // We need to check to make sure the pip is dirty because we can't mark a pip direct dirty without it being dirty.
-                // The scenario that this happens for is when a sealed directory is clean and not materialized, but the downstream pip is clean and materialized.
-                if (directDirtyDownStreams && !IsPipCleanMaterialized(outEdge.OtherNode.ToPipId()))
-                {
-                    m_executionTimeDirectDirtiedNodes.Add(outEdge.OtherNode);
-                    IncrementalSchedulingState.PendingUpdates.MarkNodeMaterialization(outEdge.OtherNode, false);
                 }
 
                 if (!succeeded || result.Status == PipResultStatus.Skipped || shouldSkipDownstreamPipsDueToSucccessFast)

@@ -75,7 +75,8 @@ namespace BuildXL.Pips.Graph
         /// 98: Update search path filter computation to track visited files and directories separately in "BuildXL.Scheduler.Fingerprints.ObservedInputProcessor.ComputeSearchPathsAndFilter".
         /// 99: Alien file enumerations are cached
         /// 100: Alien file enumerations exclude untracked artifacts
+        /// 101: Direct dirty should apply to all pips, not just filtered pips
         /// </remarks>
-        TwoPhaseV2 = 100,
+        TwoPhaseV2 = 101,
     }
 }

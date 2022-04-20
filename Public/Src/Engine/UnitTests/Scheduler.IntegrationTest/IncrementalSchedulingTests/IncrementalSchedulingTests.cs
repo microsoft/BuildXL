@@ -5,6 +5,7 @@ using System;
 using System.IO;
 using BuildXL.Native.IO;
 using BuildXL.Pips;
+using BuildXL.Pips.Filter;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler;
 using BuildXL.Scheduler.IncrementalScheduling;
@@ -314,6 +315,56 @@ namespace IntegrationTest.BuildXL.Scheduler.IncrementalSchedulingTests
 
             // Due to membership change, pipA becomes dirty.
             RunScheduler().AssertScheduled(pipA.Process.PipId);
+        }
+
+        [Fact]
+        public void IncrementalSchedulingFilterTests()
+        {
+            // First build should build everything
+            // Second build changes Input A and filters to Pip A
+            // Third build doesn't change anything and filters to Pip B as well
+            // We must ensure the second build builds B.
+            // 
+            //       Input A
+            //        \|/
+            //         A
+            //        \|/
+            //      Output A
+            //        \|/
+            //         B
+            //        \|/
+            //      Output B
+
+            var fileInputA = CreateSourceFile();
+            FileArtifact outputA = CreateOutputFileArtifact();
+            var builderA = CreatePipBuilder(new Operation[]
+            {
+                Operation.ReadFile(fileInputA),
+                Operation.CopyFile(fileInputA, outputA)
+            }, description: "PipA");
+            var pipA = SchedulePipBuilder(builderA);
+            FileArtifact outputB = CreateOutputFileArtifact();
+
+            var builderB = CreatePipBuilder(new Operation[]
+            {
+                Operation.ReadFile(outputA),
+                Operation.WriteFile(outputB, "Hello World B!"),
+            }, description: "PipB");
+            var pipB = SchedulePipBuilder(builderB);
+
+            RunScheduler().AssertCacheMiss(pipA.Process.PipId, pipB.Process.PipId);
+            RunScheduler().AssertCacheHit(pipA.Process.PipId, pipB.Process.PipId);
+
+            ModifyFile(fileInputA);
+
+            var pipAFilter = new OutputFileFilter(outputA.Path, null, MatchMode.FilePath, false);
+            RunScheduler(filter: new RootFilter(pipAFilter, "output='OutputA'"))
+                .AssertCacheMiss(pipA.Process.PipId)
+                .AssertNotScheduled(pipB.Process.PipId);
+            var pipBFilter = new OutputFileFilter(outputB.Path, null, MatchMode.FilePath, false);
+            RunScheduler(filter: new RootFilter(pipBFilter, "output='OutputB'"))
+                .AssertCacheHit(pipA.Process.PipId)
+                .AssertCacheMiss(pipB.Process.PipId);
         }
 
         [Fact]

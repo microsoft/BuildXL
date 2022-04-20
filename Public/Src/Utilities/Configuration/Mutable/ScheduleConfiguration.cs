@@ -38,8 +38,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
             MaxIO = Math.Max(1, Environment.ProcessorCount / 4);
             MaxLightProcesses = 1000;
 
-            // Based on the benchmarks, the cache lookup limit is 2 times the number of logical cores.
-            MaxCacheLookup = Environment.ProcessorCount * 2;
+            // We decide the concurrency levels based on A/B testing results.
+            // https://microsoft.sharepoint.com/teams/toolsforeng/_layouts/15/Doc.aspx?sourcedoc={4e5aff6a-31c7-4054-a746-e590b865c585}&action=edit&wd=target%28Build%20Tools%2FBuildXL%2FBuildXL.one%7C10facd4f-4e15-4fe3-96ba-446f3fe6454e%2FA%5C%2FB%20testing%20for%20performance%7C6d58dc8f-df8f-49a5-9e70-07dcca89756b%2F%29&wdorigin=703
+            MaxCacheLookup = Environment.ProcessorCount; 
             MaxMaterialize = Environment.ProcessorCount;
             MaxSealDirs = Environment.ProcessorCount;
 

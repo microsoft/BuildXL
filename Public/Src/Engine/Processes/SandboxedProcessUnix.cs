@@ -464,7 +464,7 @@ namespace BuildXL.Processes
                 // so we must export the vars before entering chroot and then source them once inside.
                 const string BxlEnvFile = "bxl_pip_env.sh";
                 lines.Add($"export -p > '{info.RootJailInfo.Value.RootJail}/{BxlEnvFile}'");
-                lines.Add($"sudo chroot --userspec={userIdExpr()}:{groupIdExpr()} '{info.RootJailInfo.Value.RootJail}' {ShellExecutable} <<'{EofDelim}'");
+                lines.Add($"{info.RootJailInfo.Value.RootJailProgram} --userspec={userIdExpr()}:{groupIdExpr()} '{info.RootJailInfo.Value.RootJail}' {ShellExecutable} <<'{EofDelim}'");
                 lines.Add("set -e");
                 lines.Add($". /{BxlEnvFile}");
                 lines.Add($"cd \"{info.WorkingDirectory}\"");

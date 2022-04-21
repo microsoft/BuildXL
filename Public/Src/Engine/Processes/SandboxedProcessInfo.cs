@@ -317,7 +317,7 @@ namespace BuildXL.Processes
         /// Root jail information (can be null)
         /// </summary>
         /// <remarks>
-        /// Currently implemented for Mac/Linux only using <c>chroot</c> and requires NOPASSWD sudo privileges.
+        /// Currently implemented for Mac/Linux only.
         /// </remarks>
         public RootJailInfo? RootJailInfo { get; set; }
 

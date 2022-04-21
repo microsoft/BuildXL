@@ -39,6 +39,11 @@ namespace BuildXL.Processes
         /// </summary>
         public bool DisableAuditing { get; }
 
+        /// <summary>
+        /// Program to use to enter root jail. Defaults to <c>sudo chroot</c>, which requires NOPASSWD sudo privileges.
+        /// </summary>
+        public string RootJailProgram { get; init; } = "sudo chroot";
+
         /// <nodoc />
         public RootJailInfo(string rootJail, int? userId = null, int? groupId = null, bool disableSandboxing = false, bool disableAuditing = false)
         {
@@ -58,6 +63,7 @@ namespace BuildXL.Processes
             writer.Write(GroupId, (w, v) => w.WriteCompact(v));
             writer.Write(DisableSandboxing);
             writer.Write(DisableAuditing);
+            writer.Write(RootJailProgram);
         }
 
         /// <nodoc />
@@ -68,7 +74,10 @@ namespace BuildXL.Processes
                 userId: reader.ReadNullableStruct(r => r.ReadInt32Compact()),
                 groupId: reader.ReadNullableStruct(r => r.ReadInt32Compact()),
                 disableSandboxing: reader.ReadBoolean(),
-                disableAuditing: reader.ReadBoolean());
+                disableAuditing: reader.ReadBoolean())
+            {
+                RootJailProgram = reader.ReadString(),
+            };
         }
     }
 }

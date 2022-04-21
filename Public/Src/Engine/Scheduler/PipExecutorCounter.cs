@@ -1009,9 +1009,14 @@ namespace BuildXL.Scheduler
         ComputeIncrementalSchedulingStateDuration,
 
         /// <summary>
-        /// The number of pips skipped due to clean and materialized.
+        /// The number of pips skipped due to being materialized.
         /// </summary>
         IncrementalSkipPipDueToCleanMaterialized,
+
+        /// <summary>
+        /// The number of pips not skipped due to being non-materialized.
+        /// </summary>
+        CantIncrementalSkipProcessDueToNotMaterialized,
 
         /// <summary>
         /// The number of processes skipped due to clean and materialized.

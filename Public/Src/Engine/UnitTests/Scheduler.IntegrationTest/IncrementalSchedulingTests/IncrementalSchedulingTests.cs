@@ -480,6 +480,62 @@ namespace IntegrationTest.BuildXL.Scheduler.IncrementalSchedulingTests
             AssertVerboseEventLogged(LogEventId.PipIsIncrementallySkippedDueToCleanMaterialized, count: 1, allowMore: false);
         }
 
+
+        [Fact]
+        public void GraphAgnosticDirectDirtyTests()
+        {
+            // pipPInput -> Pip P -> pipPOutput -> Pip Q -> pipQOutput
+            // pipQInputFileInDirectory -> sealedDirectory -> Pip Q
+            // Goal is to make sure that when Pip Q is dirty but not direct dirty
+            //   that the file -> pip mapping between pipQInputFileInDirectory -> Pip Q still exists in the graph agnostic incremental scheduling state.
+
+            // Build P.
+            FileArtifact pipPInput = CreateSourceFile(SourceRoot);
+            ModifyFile(pipPInput, "f0");
+
+            FileArtifact pipPOutput = CreateOutputFileArtifact(root: ObjectRoot, "outFile");
+
+            var pOperations = new Operation[] { Operation.WriteFile(pipPOutput, "Pip P output file content") };
+            var pBuilder = CreatePipBuilder(pOperations, description: "Pip-P");
+            pBuilder.AddInputFile(pipPInput);
+            ProcessWithOutputs pWithOutputs = SchedulePipBuilder(pBuilder);
+
+            // Build Q.
+            FileArtifact pipQOutput = CreateOutputFileArtifact();
+            var pipQInputDirectory = CreateUniqueDirectory(SourceRoot);
+            var sealedDirectory = CreateAndScheduleSealDirectory(pipQInputDirectory, SealDirectoryKind.SourceTopDirectoryOnly);
+            var pipQInputFileInDirectory = CreateSourceFile(pipQInputDirectory);
+            ModifyFile(pipQInputFileInDirectory, "q0");
+
+            var qOperations = new Operation[] { Operation.CopyFile(pipPOutput, pipQOutput), Operation.ReadFile(pipQInputFileInDirectory, doNotInfer: true) };
+            var qBuilder = CreatePipBuilder(qOperations, description: "Pip-Q");
+            qBuilder.AddInputDirectory(sealedDirectory.Directory);
+            ProcessWithOutputs qWithOutputs = SchedulePipBuilder(qBuilder);
+
+            RunScheduler()
+                .AssertScheduled(pWithOutputs.Process.PipId, qWithOutputs.Process.PipId)
+                .AssertCacheMiss(pWithOutputs.Process.PipId, qWithOutputs.Process.PipId);
+            AssertVerboseEventLogged(LogEventId.PipIsIncrementallySkippedDueToCleanMaterialized, count: 0, allowMore: false);
+            RunScheduler()
+                .AssertNotScheduled(pWithOutputs.Process.PipId, qWithOutputs.Process.PipId);
+            AssertVerboseEventLogged(LogEventId.PipIsIncrementallySkippedDueToCleanMaterialized, count: 0, allowMore: false);
+            ModifyFile(pipPInput, "f0");
+            RunScheduler()
+                .AssertScheduled(pWithOutputs.Process.PipId, qWithOutputs.Process.PipId)
+                .AssertCacheHit(pWithOutputs.Process.PipId, qWithOutputs.Process.PipId);
+            // The seal directory and pip q are dirtied but skipped in the scheduler.
+            AssertVerboseEventLogged(LogEventId.PipIsIncrementallySkippedDueToCleanMaterialized, count: 2, allowMore: false);
+
+            // We want to make sure that the mapping from pipQInputFileInDirectory -> pipQ is still there, even though pip Q was skipped in the previous step.
+            ModifyFile(pipQInputFileInDirectory, "q1");
+            RunScheduler()
+                .AssertScheduled(pWithOutputs.Process.PipId, qWithOutputs.Process.PipId)
+                .AssertCacheMiss(qWithOutputs.Process.PipId)
+                .AssertCacheHit(pWithOutputs.Process.PipId);
+            // The seal directory and Pip p are skipped in the scheduler.
+            AssertVerboseEventLogged(LogEventId.PipIsIncrementallySkippedDueToCleanMaterialized, count: 2, allowMore: false);
+        }
+
         [Fact]
         public void IncrementalSchedulingIsRobustAgainstFileCreationMidBuild()
         {

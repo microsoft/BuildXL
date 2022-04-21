@@ -646,7 +646,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
                 ++m_stats.ChangedFilesCount;
                 m_stats.Samples.AddChangedPath(changedPathStr, changeReasons);
 
-                AddNodeToDirty(maybeImpactedProducer, changedPathStr, changeReasons, ChangedPathKind.StaticArtifact, m_stats.ChangedFilesCount);
+                AddNodeToDirectDirty(maybeImpactedProducer, changedPathStr, changeReasons, ChangedPathKind.StaticArtifact, m_stats.ChangedFilesCount);
 
                 if (PipGraph.PipTable.GetPipType(maybeImpactedProducer.ToPipId()) == PipType.HashSourceFile)
                 {
@@ -760,7 +760,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
 
                     foreach (var node in m_tempNodeIds)
                     {
-                        AddNodeToDirty(node, changedPathStr, changeReasons, pathChangeKind, usedChangeTypeCount);
+                        AddNodeToDirectDirty(node, changedPathStr, changeReasons, pathChangeKind, usedChangeTypeCount);
                     }
                 }
             }
@@ -821,14 +821,14 @@ namespace BuildXL.Scheduler.IncrementalScheduling
             }
         }
 
-        private void AddNodeToDirty(
+        private void AddNodeToDirectDirty(
             NodeId maybeImpactedNode,
             string changedPath,
             PathChanges pathChangeReasons,
             ChangedPathKind pathChangeKind,
             long changeTypeCount)
         {
-            if (!DirtyNodeTracker.IsNodeDirty(maybeImpactedNode))
+            if (!DirtyNodeTracker.IsNodeDirty(maybeImpactedNode) || DirtyNodeTracker.IsNodeMaterialized(maybeImpactedNode))
             {
                 if (m_nodesToDirectDirty.Add(maybeImpactedNode))
                 {
@@ -1079,6 +1079,17 @@ namespace BuildXL.Scheduler.IncrementalScheduling
                                 transitivelyDirtiedNodes.Add(node);
                             });
 
+                        Parallel.ForEach(
+                            m_nodesToDirectDirty,
+                            node =>
+                            {
+                                PipId pipId = node.ToPipId();
+                                if (TryGetPipStableId(pipId, out PipStableId pipStableId))
+                                {
+                                    DirectDirtyGraphAgnosticPip(pipStableId);
+                                }
+                            });
+
                         // Dirty graph-agnostic state corresponding to pips belonging the current pip graph.
                         Parallel.ForEach(
                             transitivelyDirtiedNodes.ToList(),
@@ -1118,7 +1129,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
                     {
                         Parallel.ForEach(
                             m_dirtiedPips.PipsOfOtherPipGraphsGetDirtiedAfterScan,
-                            p => DirtyGraphAgnosticPip(p));
+                            p => DirectDirtyGraphAgnosticPip(p));
                     }
 
                     Tracing.Logger.Log.IncrementalSchedulingPipsOfOtherPipGraphsGetDirtiedAfterScan(
@@ -1154,7 +1165,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
                                         break;
                                 }
 
-                                DirtyGraphAgnosticPip(o.Item1);
+                                DirectDirtyGraphAgnosticPip(o.Item1);
                             });
                     }
 
@@ -1287,7 +1298,32 @@ namespace BuildXL.Scheduler.IncrementalScheduling
                     }
                 });
 
-            // Step 4. Reflect the clean-and-materialized status from graph-inagnostic state to graph-agnostic state.
+            // Step 4. Reflect the materialized status from graph-inagnostic state to graph-agnostic state.
+            Parallel.ForEach(
+                DirtyNodeTracker.PendingUpdates.NodesWithChangedMaterializationStatus.ToList(),
+                nodeWithMaterializationStatus =>
+                {
+                    PipId pipId = nodeWithMaterializationStatus.Key.ToPipId();
+                    if (TryGetPipStableId(pipId, out PipStableId pipStableId))
+                    {
+                        // If Pip A was direct dirtied then it will not be in m_materializedPips.
+                        // If Pip A was run (cache miss), then it will be marked as materialized by the DirtyNodeTracker and should be added to m_materializedPips.
+                        //
+                        // If Pip B was not direct dirtied but an input Pip A was, then Pip B will still be in m_materializedPips.
+                        // If Pip A runs but Pip B does not due to the pip filter, then Pip B is not materialized and needs to removed from m_materializedPips.
+                        bool materialized = nodeWithMaterializationStatus.Value;
+                        if (materialized)
+                        {
+                            m_materializedPips.Add(pipStableId);
+                        }
+                        else
+                        {
+                            m_materializedPips.Remove(pipStableId);
+                        }
+                    }
+                });
+
+            // Step 4B. Reflect the clean status from graph-inagnostic state to graph-agnostic state.
             Parallel.ForEach(
                 DirtyNodeTracker.PendingUpdates.CleanNodes.ToList(),
                 cleanNode =>
@@ -1300,11 +1336,6 @@ namespace BuildXL.Scheduler.IncrementalScheduling
                         // Note that we use TryAdd to add clean state if necessary.
                         // Note also that we remove pips from the clean pips set during journal scanning or graph change processing. 
                         m_cleanPips.TryAdd(pipStableId, m_pipGraphSequenceNumber);
-
-                        if (DirtyNodeTracker.PendingUpdates.IsNodeMaterialized(cleanNode))
-                        {
-                            m_materializedPips.Add(pipStableId);
-                        }
                     }
                     else if (PipGraph.PipTable.GetPipType(pipId) == PipType.HashSourceFile)
                     {
@@ -1750,7 +1781,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
                     // (3) Unfortunately, the recorded producer is different from the current producer by their fingerprints.
 
                     // Pip producer has changed, dirty the graph-agnostic state for the recorded producer.
-                    DirtyGraphAgnosticPip(
+                    DirectDirtyGraphAgnosticPip(
                         existingProducerStableId,
                         cleanPips,
                         materializedPips,
@@ -1868,18 +1899,18 @@ namespace BuildXL.Scheduler.IncrementalScheduling
                        UpdateOutputPathProducer(
                            loggingContext,
                            internalPathTable,
-                           filePath, 
-                           fileAndProducingPip.Value, 
-                           pipGraph, 
-                           pipProducers, 
+                           filePath,
+                           fileAndProducingPip.Value,
+                           pipGraph,
+                           pipProducers,
                            cleanPips,
                            materializedPips,
-                           cleanSourceFiles, 
+                           cleanSourceFiles,
                            pipOrigins,
                            dynamicallyObservedFiles,
                            dynamicallyProbedFiles,
                            dynamicallyObservedEnumerations,
-                           savedIndexToGraphLogs, 
+                           savedIndexToGraphLogs,
                            dirtiedPipProducers);
                    }
 
@@ -1905,7 +1936,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
                            && pipOrigins.TryGetFingerprint(existingPipStableId, out ContentFingerprint existingPipFingerprint))
                        {
                            // Dirty the graph-agnostic state of the recorded producer.
-                           DirtyGraphAgnosticPip(
+                           DirectDirtyGraphAgnosticPip(
                                existingPipStableId,
                                cleanPips,
                                materializedPips,
@@ -1984,13 +2015,13 @@ namespace BuildXL.Scheduler.IncrementalScheduling
                     if (TryGetGraphPipId(pipGraph, pipOrigins, pipStableIdAndPipGraphSequenceNumber.Key, out PipId pipId))
                     {
                         if (IsPipCleanAcrossGraphs(
-                                loggingContext, 
-                                pipGraph, 
-                                pipGraph.GetPipFromPipId(pipId), 
-                                pipStableIdAndPipGraphSequenceNumber.Value, 
-                                internalPathTable, 
-                                cleanPips, 
-                                cleanSourceFiles, 
+                                loggingContext,
+                                pipGraph,
+                                pipGraph.GetPipFromPipId(pipId),
+                                pipStableIdAndPipGraphSequenceNumber.Value,
+                                internalPathTable,
+                                cleanPips,
+                                cleanSourceFiles,
                                 pipOrigins))
                         {
                             // If pip is still clean, it may only be tentatively clean because it can be made dirtied later.
@@ -2045,7 +2076,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
 
             dirtyNodeTracker.MarkNodesDirectDirty(
                 nodesToBeDirtied.Keys,
-                node => 
+                node =>
                 {
                     ++pipsOfCurrentGraphGetDirtiedDueToGraphChangeCount;
                     if (TryGetPipStableId(pipGraph, pipOrigins, node.ToPipId(), out PipStableId pipStableId))
@@ -2060,16 +2091,28 @@ namespace BuildXL.Scheduler.IncrementalScheduling
             stepStopwatch.Restart();
 
             Parallel.ForEach(
+                nodesToBeDirtied.Keys,
+                node =>
+                {
+                    if (TryGetPipStableId(pipGraph, pipOrigins, node.ToPipId(), out PipStableId pipStableId))
+                    {
+                        DirectDirtyGraphAgnosticPip(
+                            pipStableId,
+                            cleanPips,
+                            materializedPips,
+                            pipOrigins,
+                            pipProducers,
+                            dynamicallyObservedFiles,
+                            dynamicallyProbedFiles,
+                            dynamicallyObservedEnumerations);
+                    }
+                });
+
+            Parallel.ForEach(
                 transitiveDirties,
                 p => DirtyGraphAgnosticPip(
                         p,
-                        cleanPips,
-                        materializedPips,
-                        pipOrigins,
-                        pipProducers,
-                        dynamicallyObservedFiles,
-                        dynamicallyProbedFiles,
-                        dynamicallyObservedEnumerations));
+                        cleanPips));
 
             counters.AddToCounter(GraphChangeCounter.DirtyGraphAgnosticStateDuration, stepStopwatch.ElapsedMilliseconds);
             counters.AddToCounter(GraphChangeCounter.TotalGraphChangeProcessingDuration, sw.ElapsedMilliseconds);
@@ -2522,6 +2565,13 @@ namespace BuildXL.Scheduler.IncrementalScheduling
         {
             DirtyGraphAgnosticPip(
                 pipStableId,
+                m_cleanPips);
+        }
+
+        private void DirectDirtyGraphAgnosticPip(PipStableId pipStableId)
+        {
+            DirectDirtyGraphAgnosticPip(
+                pipStableId,
                 m_cleanPips,
                 m_materializedPips,
                 m_pipOrigins,
@@ -2531,7 +2581,13 @@ namespace BuildXL.Scheduler.IncrementalScheduling
                 m_dynamicallyObservedEnumerations);
         }
 
-        private static void DirtyGraphAgnosticPip(
+        /// <summary>
+        /// Clear state from a pip that has been directly invalidated by incremental scheduling and thus will not be skipped by the scheduler.
+        /// The mappings cleared here such as dynamicallyObservedFiles, dynamicallyProbedFiles, and dynamicallyObservedEnumerations are populated
+        /// when a cache check is done for a pip.  Therefore, we should only clear them when we are sure that cache check is going to happen.
+        /// Pips are dirtied recursively, but downstream dirtied pips can still be skipped if the upstream pips were cached.
+        /// </summary>
+        private static void DirectDirtyGraphAgnosticPip(
             PipStableId pipStableId,
             ConcurrentBigMap<PipStableId, PipGraphSequenceNumber> cleanPips,
             ConcurrentBigSet<PipStableId> materializedPips,
@@ -2548,6 +2604,20 @@ namespace BuildXL.Scheduler.IncrementalScheduling
             dynamicallyObservedFiles.ClearValue(pipStableId);
             dynamicallyProbedFiles.ClearValue(pipStableId);
             dynamicallyObservedEnumerations.ClearValue(pipStableId);
+        }
+
+        private static void DirtyGraphAgnosticPip(
+            PipStableId pipStableId,
+            ConcurrentBigMap<PipStableId, PipGraphSequenceNumber> cleanPips)
+        {
+            // pipOrigins and pipProducers could be safely removed here, as they are populated from the pip graph for every dirty node.
+            // They are not included just for perf and the fact that they are not needed to be removed.
+            // The values will only actually change on graph change (which calls DirectDirtyGraphAgnosticPip)
+
+            // dynamicallyObserved* are not safe to remove here because those values are populated when a pip is not skipped
+            // and only DirectDirtyGraphAgnosticPip pips are garenteeded to not be skipped.  If a new value for dynamicallyObserved*
+            // Is created for a downstream pip, it will simply overwrite what is already there.
+            cleanPips.TryRemove(pipStableId, out var _);
         }
 
         private enum ChangedPathKind

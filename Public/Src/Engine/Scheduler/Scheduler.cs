@@ -4367,6 +4367,8 @@ namespace BuildXL.Scheduler
                         }
                     }
 
+                    PipExecutionCounters.IncrementCounter(PipExecutorCounter.CantIncrementalSkipProcessDueToNotMaterialized);
+
                     // Contents of sealed directories get hashed by their consumer
                     if (pipType != PipType.SealDirectory)
                     {

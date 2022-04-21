@@ -85,6 +85,11 @@ namespace BuildXL.Scheduler
             private readonly ConcurrentDictionary<NodeId, bool> m_perpetuallyDirtyNodes = new ConcurrentDictionary<NodeId, bool>();
 
             /// <summary>
+            /// Nodes which have either been materialized (Node, true) or been removed from the materialization list (Node, false).
+            /// </summary>
+            public IEnumerable<KeyValuePair<NodeId, bool>> NodesWithChangedMaterializationStatus => m_materializedNodes;
+
+            /// <summary>
             /// Nodes marked clean.
             /// </summary>
             public IEnumerable<NodeId> CleanNodes => m_cleanNodes.Keys;
@@ -105,8 +110,13 @@ namespace BuildXL.Scheduler
             public void MarkNodeMaterialized(NodeId nodeId) => MarkNodeMaterialization(nodeId, true);
 
             /// <summary>
-            /// Marks node materialized or not, overwriting what was previously set.
+            /// Set whether a node is materialized or not.
             /// </summary>
+            /// <remarks>
+            /// If a pip has been run(cache miss) then it will likely be materialized.
+            /// If a pip has not been run because of a pip filter, but an input pip has
+            ///   then it will likely be marked non-materialized when it was materialized before the scheduler ran.
+            /// </remarks>
             public void MarkNodeMaterialization(NodeId nodeId, bool materialized) => m_materializedNodes[nodeId] = materialized;
 
             /// <summary>
@@ -118,11 +128,6 @@ namespace BuildXL.Scheduler
             /// Checks if node has been marked clean.
             /// </summary>
             public bool IsNodeClean(NodeId nodeId) => m_cleanNodes.ContainsKey(nodeId);
-
-            /// <summary>
-            /// Checks if node has been marked materialized.
-            /// </summary>
-            public bool IsNodeMaterialized(NodeId nodeId) => m_materializedNodes.TryGetValue(nodeId, out bool value) && value;
 
             /// <summary>
             /// Checks if node has been marked perpetually dirty.

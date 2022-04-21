@@ -229,7 +229,8 @@ namespace BuildXL.Processes
             process.StartInfo.RedirectStandardInput = true;
             if (info.RootJailInfo?.RootJail != null)
             {
-                process.StartInfo.WorkingDirectory = Path.Combine(info.RootJailInfo.Value.RootJail, info.WorkingDirectory.TrimStart(Path.DirectorySeparatorChar));
+                // the 'chroot' program will change the directory to what it's supposed to be
+                process.StartInfo.WorkingDirectory = "/";
             }
 
             return process;
@@ -464,7 +465,7 @@ namespace BuildXL.Processes
                 // so we must export the vars before entering chroot and then source them once inside.
                 const string BxlEnvFile = "bxl_pip_env.sh";
                 lines.Add($"export -p > '{info.RootJailInfo.Value.RootJail}/{BxlEnvFile}'");
-                lines.Add($"{info.RootJailInfo.Value.RootJailProgram} --userspec={userIdExpr()}:{groupIdExpr()} '{info.RootJailInfo.Value.RootJail}' {ShellExecutable} <<'{EofDelim}'");
+                lines.Add($"exec {info.RootJailInfo.Value.RootJailProgram} --userspec={userIdExpr()}:{groupIdExpr()} '{info.RootJailInfo.Value.RootJail}' {ShellExecutable} <<'{EofDelim}'");
                 lines.Add("set -e");
                 lines.Add($". /{BxlEnvFile}");
                 lines.Add($"cd \"{info.WorkingDirectory}\"");

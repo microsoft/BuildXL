@@ -16,6 +16,7 @@ namespace Test.BuildXL
             XAssert.IsTrue(StatisticsEventListener.ShouldSendStatisticToFinalStatistics("FileContentTable.NumContentMismatch"));
             XAssert.IsFalse(StatisticsEventListener.ShouldSendStatisticToFinalStatistics("PipCaching_HistoricWeakFingerprintLoadedCount"));
             XAssert.IsFalse(StatisticsEventListener.ShouldSendStatisticToFinalStatistics("PipCaching_HistoricWeakFingerprintLoaded_Count"));
+            XAssert.IsTrue(StatisticsEventListener.ShouldSendStatisticToFinalStatistics("ExecuteInfo.LimitingResourcePercentages_ConcurrencyLimit"));
         }
     }
 }

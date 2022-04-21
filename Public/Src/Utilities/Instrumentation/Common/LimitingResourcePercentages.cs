@@ -38,7 +38,7 @@ namespace BuildXL.Utilities.Instrumentation.Common
         /// <nodoc/>
         public void AddToStats(Dictionary<string, long> stats)
         {
-            string prefix = $"ExecuteInfo_{nameof(LimitingResourcePercentages)}_";
+            string prefix = $"ExecuteInfo.{nameof(LimitingResourcePercentages)}_";
             
             stats.Add($"{prefix}{nameof(GraphShape)}", GraphShape);
             stats.Add($"{prefix}{nameof(CPU)}", CPU);

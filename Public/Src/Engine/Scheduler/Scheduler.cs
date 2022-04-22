@@ -277,10 +277,9 @@ namespace BuildXL.Scheduler
         public int AvailableRemoteWorkersCount => Workers.Count(a => a.IsAvailable && a.IsRemote);
 
         /// <summary>
-        /// Contains the result of the set up processes (success or failure)
-        /// for remote workers in a distributed build. (see <see cref="RemoteWorkerBase.SetupCompletionTask"/>)
+        /// Contains set up tasks for remote workers in a distributed build. (see <see cref="RemoteWorkerBase.SetupCompletionTask"/>)
         /// </summary>
-        private Task<bool[]> m_workersSetupResultsTask;
+        private List<Task<bool>> m_workersSetupResultsTasks;
 
         /// <summary>
         /// Cached delegate for the main method which executes the pips
@@ -385,7 +384,7 @@ namespace BuildXL.Scheduler
                 worker.Start();
             }
 
-            m_workersSetupResultsTask = TaskUtilities.SafeWhenAll(m_remoteWorkers.Select(static w => w.SetupCompletionTask));
+            m_workersSetupResultsTasks = m_remoteWorkers.Select(static w => w.SetupCompletionTask).ToList();
 
             ExecutionLog?.WorkerList(new WorkerListEventData { Workers = m_workers.SelectArray(w => w.Name) });
         }
@@ -1752,26 +1751,55 @@ namespace BuildXL.Scheduler
 
         private async Task EnsureMinimumWorkersAsync(int minimumWorkers, int warningThreshold)
         {
-            Contract.Assert(m_workersSetupResultsTask != null, "Attachments completed task shouldn't be null");
+            Contract.Assert(m_workersSetupResultsTasks is not null, "Worker set up tasks shouldn't be null");
 
-            // Wait for all attachment requests to complete
-            var setUpResults = await m_workersSetupResultsTask;
+            var allSetupTasksCompletion = TaskUtilities.SafeWhenAll(m_workersSetupResultsTasks);
 
-            // Count all workers that were running at some point (including the local worker)
-            int everAvailableWorkers = 1 + setUpResults.Count(a => a);
-
-            if (!IsTerminating && (m_drainThread.IsAlive || EngineEnvironmentSettings.AlwaysEnsureMinimumWorkers))
+            while (true)
             {
-                if (everAvailableWorkers < minimumWorkers)
+                // If the build is done do not continue with the validation, unless explicitly configured
+                if ((!m_drainThread.IsAlive || IsTerminating) && !EngineEnvironmentSettings.AlwaysEnsureMinimumWorkers)
                 {
-                    Logger.Log.MinimumWorkersNotSatisfied(m_executePhaseLoggingContext, minimumWorkers, everAvailableWorkers);
-                    m_hasFailures = true;
-                    RequestTermination(cancelQueue: false);
+                    break;
                 }
-                else if (everAvailableWorkers < warningThreshold)
+
+                // Wait for all attachment requests to complete
+                bool allWorkerSetupsCompleted = allSetupTasksCompletion.IsCompleted;
+
+                var succesfullyAttachedSoFar = m_workersSetupResultsTasks
+                    .Where(t => t.IsCompleted)
+                    .Select(t => t.GetAwaiter().GetResult())
+                    .Count(b => b);
+
+                // Count all workers that were running at some point (including the local worker)
+                int everAvailableWorkers = 1 + succesfullyAttachedSoFar;            
+
+                if (everAvailableWorkers >= Math.Max(minimumWorkers, warningThreshold))
                 {
-                    Logger.Log.WorkerCountBelowWarningThreshold(m_executePhaseLoggingContext, warningThreshold, everAvailableWorkers);
+                    // The strongest condition is satisfied. No need to keep checking.
+                    break;
                 }
+
+                if (allWorkerSetupsCompleted)
+                {
+                    // All workers completed their attachment processes (either sucessfully or otherwise)
+                    if (everAvailableWorkers < minimumWorkers)
+                    {
+                        Logger.Log.MinimumWorkersNotSatisfied(m_executePhaseLoggingContext, minimumWorkers, everAvailableWorkers);
+                        m_hasFailures = true;
+                        RequestTermination(cancelQueue: false);
+                    }
+                    else if (everAvailableWorkers < warningThreshold)
+                    {
+                        Logger.Log.WorkerCountBelowWarningThreshold(m_executePhaseLoggingContext, warningThreshold, everAvailableWorkers);
+                    }
+
+                    // Validation is done
+                    break;
+                }
+
+                // Wait for a few seconds before checking again, but short-circuit if all attachments are completed
+                _ = await Task.WhenAny(allSetupTasksCompletion, Task.Delay(15_000));
             }
         }
 
@@ -6138,7 +6166,7 @@ namespace BuildXL.Scheduler
                     else
                     {
                         // No remote workers to wait for
-                        m_workersSetupResultsTask = Task.FromResult(Array.Empty<bool>());
+                        m_workersSetupResultsTasks = new ();
                     }
                 }
 

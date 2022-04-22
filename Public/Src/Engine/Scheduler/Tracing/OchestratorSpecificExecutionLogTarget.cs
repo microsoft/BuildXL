@@ -21,17 +21,10 @@ namespace BuildXL.Scheduler.Tracing
 
         private readonly int m_workerId;
 
-        private readonly bool m_tracerEnabled;
-
         /// <summary>
         /// Handle the events from workers
         /// </summary>
         public override bool CanHandleWorkerEvents => true;
-
-        /// <summary>
-        /// Tracks time when the tracer was last updated
-        /// </summary>
-        private DateTime m_tracerLastUpdated;
 
         /// <inheritdoc/>
         public override IExecutionLogTarget CreateWorkerTarget(uint workerId)
@@ -50,7 +43,6 @@ namespace BuildXL.Scheduler.Tracing
             m_loggingContext = loggingContext;
             m_scheduler = scheduler;
             m_workerId = workerId;
-            m_tracerEnabled = ((IPipExecutionEnvironment)m_scheduler).Configuration.Logging.LogTracer;
         }
 
         /// <inheritdoc/>
@@ -68,38 +60,6 @@ namespace BuildXL.Scheduler.Tracing
                 m_loggingContext,
                 pip.GetDescription(m_scheduler.Context),
                 descriptionFailure);
-        }
-
-        /// <inheritdoc/>
-        public override void StatusReported(StatusEventData data)
-        {
-            var worker = m_scheduler.Workers[m_workerId];
-
-            worker.ActualFreeMemoryMb = data.RamFreeMb;
-            worker.ActualFreeCommitMb = data.CommitFreeMb;
-            if (worker.IsRemote)
-            {
-                worker.TotalCommitMb = data.CommitUsedMb + data.CommitFreeMb;
-            }
-
-            if (m_tracerEnabled && DateTime.UtcNow > m_tracerLastUpdated.AddSeconds(EngineEnvironmentSettings.MinStepDurationSecForTracer))
-            {
-                LogPercentageCounter(worker, "CPU", data.CpuPercent, data.Time.Ticks);
-                LogPercentageCounter(worker, "RAM", data.RamPercent, data.Time.Ticks);
-                m_tracerLastUpdated = DateTime.UtcNow;
-            }
-        }
-
-        private void LogPercentageCounter(Worker worker, string name, int percentValue, long ticks)
-        {
-            if (worker.InitializedTracerCounters.TryAdd(name, 0))
-            {
-                // To show the counters nicely in the UI, we set percentage counters to 100 for very short time
-                // so that UI aligns the rest based on 100% instead of the maximum observed value
-                BuildXL.Tracing.Logger.Log.TracerCounterEvent(m_loggingContext, name, worker.Name, ticks, 100);
-            }
-
-            BuildXL.Tracing.Logger.Log.TracerCounterEvent(m_loggingContext, name, worker.Name, ticks, percentValue);
         }
     }
 }

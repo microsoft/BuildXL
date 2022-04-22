@@ -56,7 +56,14 @@ namespace BuildXL.Tracing
             else if (eventData.EventId == (int)LogEventId.Status)
             {
                 Contract.AssertNotNull(eventData.Payload);
-                var time = TimeSpanToString(TimeDisplay.Seconds, DateTime.UtcNow - BaseTime);
+
+                var t = DateTime.UtcNow - BaseTime;
+                var time = string.Format(
+                        CultureInfo.InvariantCulture,
+                        "{0}:{1:d02}:{2:d02}",
+                        (t.Days * 24) + t.Hours,
+                        t.Minutes,
+                        t.Seconds);
                 Output(eventData.Level, eventData, string.Format(CultureInfo.InvariantCulture, "{0},{1}", time.PadLeft(TimeHeaderText.Length), eventData.Payload[0]));
             }
         }

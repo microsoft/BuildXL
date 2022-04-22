@@ -240,6 +240,17 @@ namespace BuildXL.Utilities.Configuration
         /// so we don't want to fail any worker even if it won't do any work (except for materializations).
         /// </remarks>
         public static readonly Setting<TimeSpan?> MinimumWaitForRemoteWorker = CreateSetting("BuildXLMinimumWaitForRemoteWorkerMin", value => ParseTimeSpan(value, t => TimeSpan.FromMinutes(t)));
+
+        /// <summary>
+        /// If true, the orchestrator will validate that the minimum amount of workers participated in the build
+        /// even if the build successfully completed without them.
+        /// </summary>
+        /// <remarks>
+        /// This is useful in validation builds, where we want to make sure remote workers are attaching correctly
+        /// but are otherwise small enough that the orchestrator may complete the build
+        /// </remarks>
+        public static readonly Setting<bool> AlwaysEnsureMinimumWorkers = CreateSetting("BuildXLAlwaysEnsureMinimumWorkers", value => value == "1");
+
         #endregion
 
         #region Grpc related settings

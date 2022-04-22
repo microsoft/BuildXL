@@ -1755,7 +1755,7 @@ namespace BuildXL.Scheduler
             // Count all workers that were running at some point (including the local worker)
             int everAvailableWorkers = 1 + setUpResults.Count(a => a);
 
-            if (m_drainThread.IsAlive && !IsTerminating)
+            if (!IsTerminating && (m_drainThread.IsAlive || EngineEnvironmentSettings.AlwaysEnsureMinimumWorkers))
             {
                 if (everAvailableWorkers < minimumWorkers)
                 {

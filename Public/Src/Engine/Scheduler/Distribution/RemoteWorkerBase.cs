@@ -23,7 +23,7 @@ namespace BuildXL.Scheduler.Distribution
 
         /// <summary>
         /// Completes when the worker finishes the set up process 
-        /// (if successfull, the worker is in the Running state after this completes)
+        /// (if successful, the worker is in the Running state after this completes)
         /// true indicates success, false indicates failure at some step (either attachment or validation of cache connection)
         /// </summary>
         public abstract Task<bool> SetupCompletionTask { get; }

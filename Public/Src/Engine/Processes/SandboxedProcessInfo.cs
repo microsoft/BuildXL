@@ -347,11 +347,6 @@ namespace BuildXL.Processes
         public Action<string> StandardErrorObserver { get; set; }
 
         /// <summary>
-        /// Data needed for remote execution.
-        /// </summary>
-        public RemoteSandboxedProcessData RemoteSandboxedProcessData { get; set; }
-
-        /// <summary>
         /// Allowed surviving child processes.
         /// </summary>
         public string[] AllowedSurvivingChildProcessNames { get; set; }
@@ -580,7 +575,6 @@ namespace BuildXL.Processes
                 writer.Write(SidebandWriter, (w, v) => v.Serialize(w));
                 writer.Write(CreateJobObjectForCurrentProcess);
                 writer.WriteNullableString(DetoursFailureFile);
-                writer.Write(RemoteSandboxedProcessData, (w, v) => v.Serialize(w));
                 writer.Write(ExternalVMSandboxedProcessData, (w, v) => v.Serialize(w));
 
                 // File access manifest should be serialized the last.
@@ -628,7 +622,6 @@ namespace BuildXL.Processes
                 var sidebandWritter = reader.ReadNullable(r => SidebandWriter.Deserialize(r));
                 var createJobObjectForCurrentProcess = reader.ReadBoolean();
                 var detoursFailureFile = reader.ReadNullableString();
-                var remoteSandboxedProcessData = reader.ReadNullable(r => RemoteSandboxedProcessData.Deserialize(r));
                 var externalVMSandboxedProcessData = reader.ReadNullable(r => ExternalVMSandboxedProcessData.Deserialize(r));
 
                 var fam = reader.ReadNullable(r => FileAccessManifest.Deserialize(stream));
@@ -668,7 +661,6 @@ namespace BuildXL.Processes
                     StandardObserverDescriptor = standardObserverDescriptor,
                     RedirectedTempFolders = redirectedTempFolder,
                     DetoursFailureFile = detoursFailureFile,
-                    RemoteSandboxedProcessData = remoteSandboxedProcessData,
                     ExternalVMSandboxedProcessData = externalVMSandboxedProcessData,
                     NumRetriesPipeReadOnCancel = numRetriesPipeReadOnCancel,
                 };

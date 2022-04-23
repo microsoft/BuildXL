@@ -5,6 +5,8 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Pips.Operations;
+using BuildXL.Utilities;
 
 #nullable enable
 
@@ -54,6 +56,17 @@ namespace BuildXL.Processes.Remoting
         /// 
         /// This method should be called before calling <see cref="InitAsync"/>.
         /// </remarks>
-        void RegisterStaticDirectories(IEnumerable<string> staticDirectories);
+        void RegisterStaticDirectories(IEnumerable<AbsolutePath> staticDirectories);
+
+        /// <summary>
+        /// Gets files to materialize/pre-render for a process
+        /// </summary>
+        /// <param name="process">Process pip.</param>
+        /// <returns>Files that need to be materializes or pre-rendered.</returns>
+        /// <remarks>
+        /// Files to materialize may not be direct dependencies of the process. Those files may be specified as
+        /// part of a sealed directory that the process depends on.
+        /// </remarks>
+        Task<IEnumerable<AbsolutePath>> GetInputPredictionAsync(Process process);
     }
 }

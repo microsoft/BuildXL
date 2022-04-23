@@ -21,24 +21,20 @@ namespace BuildXL.Utilities
         /// <nodoc />
         public void Serialize(Stream stream)
         {
-            using (var writer = new BuildXLWriter(false, stream, true, true))
-            {
-                writer.Write(FailVmConnection);
-            }
+            using var writer = new BuildXLWriter(false, stream, true, true);
+            writer.Write(FailVmConnection);
         }
 
         /// <nodoc />
         public static SandboxedProcessExecutorTestHook Deserialize(Stream stream)
         {
-            using (var reader = new BuildXLReader(false, stream, true))
-            {
-                bool failVmConnection = reader.ReadBoolean();
+            using var reader = new BuildXLReader(false, stream, true);
+            bool failVmConnection = reader.ReadBoolean();
 
-                return new SandboxedProcessExecutorTestHook 
-                {
-                    FailVmConnection = failVmConnection
-                };
-            }
+            return new SandboxedProcessExecutorTestHook
+            {
+                FailVmConnection = failVmConnection
+            };
         }
 
         #endregion

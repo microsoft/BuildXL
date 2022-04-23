@@ -37,6 +37,11 @@ namespace BuildXL.SandboxedProcessExecutor
         public string SandboxedProcessExecutorTestHookFile { get; set; }
 
         /// <summary>
+        /// Path to file containing sideband data for process remoting.
+        /// </summary>
+        public string RemoteSandboxedProcessDataFile { get; set; }
+
+        /// <summary>
         /// Validates configuration.
         /// </summary>
         public bool Validate(out string errorMessage)

@@ -37,6 +37,7 @@ namespace BuildXL.Processes.Remoting
             LoggingContext loggingContext,
             PipExecutionContext executionContext,
             IConfiguration configuration,
+            IRemoteFilePredictor filePredictor,
             CounterCollection<SandboxedProcessFactory.SandboxedProcessCounters> counters)
         {
             if (s_preSetRemoteProcessManager != null)
@@ -45,7 +46,12 @@ namespace BuildXL.Processes.Remoting
             }
 
 #if FEATURE_ANYBUILD_PROCESS_REMOTING
-            IRemoteProcessManager remoteProcessManager = new AnyBuildRemoteProcessManager(loggingContext, executionContext, configuration, counters);
+            IRemoteProcessManager remoteProcessManager = new AnyBuildRemoteProcessManager(
+                loggingContext,
+                executionContext,
+                configuration,
+                filePredictor,
+                counters);
 #else
             IRemoteProcessManager remoteProcessManager = new NoRemotingRemoteProcessManager();
 #endif

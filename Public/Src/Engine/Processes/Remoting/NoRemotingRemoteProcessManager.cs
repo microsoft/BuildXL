@@ -1,9 +1,12 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
 
 #nullable enable
@@ -29,13 +32,16 @@ namespace BuildXL.Processes.Remoting
         }
 
         /// <inheritdoc/>
+        public Task<IEnumerable<AbsolutePath>> GetInputPredictionAsync(Process process) => Task.FromResult(Enumerable.Empty<AbsolutePath>());
+
+        /// <inheritdoc/>
         public IRemoteProcessManagerInstaller? GetInstaller() => null;
 
         /// <inheritdoc/>
         public Task InitAsync() => throw new BuildXLException(RemotingNotSupportedMessage);
 
         /// <inheritdoc/>
-        public void RegisterStaticDirectories(IEnumerable<string> staticDirectories)
+        public void RegisterStaticDirectories(IEnumerable<AbsolutePath> staticDirectories)
         {
         }
     }

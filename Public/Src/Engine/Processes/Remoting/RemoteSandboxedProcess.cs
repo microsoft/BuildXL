@@ -1,10 +1,8 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System;
 using System.Diagnostics.ContractsLight;
 using System.IO;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Interop;
@@ -21,7 +19,10 @@ namespace BuildXL.Processes.Remoting
     /// </remarks>
     public class RemoteSandboxedProcess : ExternalSandboxedProcess
     {
+        private const string RemoteSandboxedProcessDataFileName = "RemoteData";
+
         private IRemoteProcessPip m_remoteProcess;
+        private readonly RemoteSandboxedProcessData m_remoteData;
         private readonly IRemoteProcessManager m_remoteProcessManager;
         private readonly CancellationTokenSource m_killProcessCts = new ();
         private readonly CancellationTokenSource m_combinedCts;
@@ -47,11 +48,14 @@ namespace BuildXL.Processes.Remoting
         /// <inheritdoc />
         public override int? ExitCode => IsCompletedSuccessfully ? m_remoteProcess.Completion.Result.ExitCode : default;
 
+        private string RemoteSandboxedProcessDataFile => Path.Combine(WorkingDirectory, RemoteSandboxedProcessDataFileName);
+
         /// <summary>
         /// Creates an instance of <see cref="RemoteSandboxedProcess"/>.
         /// </summary>
         public RemoteSandboxedProcess(
             SandboxedProcessInfo sandboxedProcessInfo,
+            RemoteSandboxedProcessData remoteData,
             IRemoteProcessManager remoteProcessManager,
             ExternalToolSandboxedProcessExecutor tool,
             string externalSandboxedProcessDirectory,
@@ -61,6 +65,7 @@ namespace BuildXL.Processes.Remoting
             Contract.Requires(tool != null);
             Contract.Requires(remoteProcessManager.IsInitialized);
 
+            m_remoteData = remoteData;
             m_tool = tool;
             m_remoteProcessManager = remoteProcessManager;
             m_cancellationToken = cancellationToken;
@@ -73,9 +78,11 @@ namespace BuildXL.Processes.Remoting
             base.Start();
 
             SerializeSandboxedProcessInputFile(SandboxedProcessInfoFile, SandboxedProcessInfo.Serialize);
+            SerializeSandboxedProcessInputFile(RemoteSandboxedProcessDataFile, m_remoteData.TaggedSerialize);
+
             var remoteProcessInfo = new RemoteProcessInfo(
                 m_tool.ExecutablePath,
-                m_tool.CreateArguments(SandboxedProcessInfoFile, SandboxedProcessResultsFile),
+                m_tool.CreateArguments(SandboxedProcessInfoFile, SandboxedProcessResultsFile, remoteSandboxedProcessDataFile: RemoteSandboxedProcessDataFile),
                 SandboxedProcessInfo.WorkingDirectory,
                 SandboxedProcessInfo.EnvironmentVariables.ToDictionary());
 

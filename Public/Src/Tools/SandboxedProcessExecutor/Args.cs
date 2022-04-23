@@ -40,6 +40,10 @@ namespace BuildXL.SandboxedProcessExecutor
                 {
                     configuration.SandboxedProcessResultOutputFile = ParsePathOption(option);
                 }
+                else if (OptionEquals(option, "remoteSandboxedProcessData"))
+                {
+                    configuration.RemoteSandboxedProcessDataFile = ParsePathOption(option);
+                }
                 else if (OptionEquals(option, "enableTelemetry"))
                 {
                     configuration.EnableTelemetry = ParseBooleanOption(option);

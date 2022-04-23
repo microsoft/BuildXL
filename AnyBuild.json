@@ -1,4 +1,4 @@
 {
-    "DefaultClusterUri": "https://westus2.anybuild.microsoft.com/clusters/5cff1ffe-c438-4382-be19-140c0cd893ae",
-    "DefaultClusterName": "BuildXL1"
+  "DefaultClusterUri": "https://westus2.anybuild.microsoft.com/clusters/5cff1ffe-c438-4382-be19-140c0cd893ae",
+  "DefaultClusterName": "BuildXL1"
 }

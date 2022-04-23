@@ -1,10 +1,14 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Pips.Operations;
 using BuildXL.Processes.Remoting;
+using BuildXL.Utilities;
 
 namespace ExternalToolTest.BuildXL.Scheduler
 {
@@ -35,8 +39,10 @@ namespace ExternalToolTest.BuildXL.Scheduler
 
         public IRemoteProcessManagerInstaller GetInstaller() => null;
 
-        public void RegisterStaticDirectories(IEnumerable<string> staticDirectories)
+        public void RegisterStaticDirectories(IEnumerable<AbsolutePath> staticDirectories)
         {
         }
+
+        public Task<IEnumerable<AbsolutePath>> GetInputPredictionAsync(Process process) => Task.FromResult(Enumerable.Empty<AbsolutePath>());
     }
 }

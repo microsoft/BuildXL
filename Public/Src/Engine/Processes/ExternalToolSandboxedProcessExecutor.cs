@@ -55,18 +55,29 @@ namespace BuildXL.Processes
         public string CreateArguments(
             string sandboxedProcessInfoInputFile,
             string sandboxedProcessResultOutputFile,
-            string sandboxedProcessExecutorTestHookFile = null)
+            string sandboxedProcessExecutorTestHookFile = null,
+            string remoteSandboxedProcessDataFile = null)
         {
             Contract.Requires(!string.IsNullOrWhiteSpace(sandboxedProcessInfoInputFile));
             Contract.Requires(!string.IsNullOrWhiteSpace(sandboxedProcessResultOutputFile));
 
-            string args = $"/sandboxedProcessInfo:\"{sandboxedProcessInfoInputFile}\" /sandboxedProcessResult:\"{sandboxedProcessResultOutputFile}\"";
+            var argList = new List<string>
+            {
+                $"/sandboxedProcessInfo:\"{sandboxedProcessInfoInputFile}\"",
+                $"/sandboxedProcessResult:\"{sandboxedProcessResultOutputFile}\""
+            };
 
-            args = !string.IsNullOrWhiteSpace(sandboxedProcessExecutorTestHookFile)
-                ? $"{args} /testHook:\"{sandboxedProcessExecutorTestHookFile}\""
-                : args;
+            if (!string.IsNullOrWhiteSpace(remoteSandboxedProcessDataFile))
+            {
+                argList.Add($"/remoteSandboxedProcessData:\"{remoteSandboxedProcessDataFile}\"");
+            }
 
-            return args;
+            if (!string.IsNullOrWhiteSpace(sandboxedProcessExecutorTestHookFile))
+            {
+                argList.Add($"/testHook:\"{sandboxedProcessExecutorTestHookFile}\"");
+            }
+
+            return string.Join(" ", argList);
         }
     }
 }

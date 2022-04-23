@@ -7,15 +7,17 @@ using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.IO;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Native.IO;
 using BuildXL.Processes;
+using BuildXL.Processes.Remoting;
 using BuildXL.SandboxedProcessExecutor.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
+
+#nullable enable
 
 namespace BuildXL.SandboxedProcessExecutor
 {
@@ -24,12 +26,12 @@ namespace BuildXL.SandboxedProcessExecutor
         private const int ProcessRelauchCountMax = 5;
 
         private readonly Configuration m_configuration;
-        private readonly LoggingContext m_loggingContext = new LoggingContext("BuildXL.SandboxedProcessExecutor");
-        public readonly TrackingEventListener TrackingEventListener = new TrackingEventListener(Events.Log);
-        private readonly Stopwatch m_telemetryStopwatch = new Stopwatch();
-        private OutputErrorObserver m_outputErrorObserver;
-        private readonly ConsoleLogger m_logger = new ConsoleLogger();
-        private ISandboxConnection m_sandboxConnection = null;
+        private readonly LoggingContext m_loggingContext = new ("BuildXL.SandboxedProcessExecutor");
+        public readonly TrackingEventListener TrackingEventListener = new (Events.Log);
+        private readonly Stopwatch m_telemetryStopwatch = new ();
+        private OutputErrorObserver? m_outputErrorObserver;
+        private readonly ConsoleLogger m_logger = new ();
+        private ISandboxConnection? m_sandboxConnection = null;
         private const int ReportQueueSizeForKextMB = 1024;
         private readonly bool m_isRunningInCloudBuildVm = false;
 
@@ -53,7 +55,10 @@ namespace BuildXL.SandboxedProcessExecutor
             AppDomain.CurrentDomain.UnhandledException +=
                 (sender, eventArgs) =>
                 {
-                    HandleUnhandledFailure(eventArgs.ExceptionObject as Exception);
+                    if (eventArgs.ExceptionObject is Exception e)
+                    {
+                        HandleUnhandledFailure(e);
+                    }
                 };
 
             TelemetryStartup();
@@ -129,12 +134,23 @@ namespace BuildXL.SandboxedProcessExecutor
 
         internal ExitCode RunInternal()
         {
-            if (!TryReadSandboxedProcessInfo(out SandboxedProcessInfo sandboxedProcessInfo))
+            if (!TryReadSandboxedProcessInfo(out SandboxedProcessInfo? sandboxedProcessInfo))
             {
                 return ExitCode.FailedReadInput;
             }
 
-            if (!TryReadSandboxedProcessExecutorTestHook(out SandboxedProcessExecutorTestHook sandboxedProcessExecutorTestHook))
+            RemoteSandboxedProcessData? remoteSandboxedProcessData = null;
+
+            if (!string.IsNullOrEmpty(m_configuration.RemoteSandboxedProcessDataFile)
+                && !TryReadRemoteSandboxedProcessData(out remoteSandboxedProcessData))
+            {
+                return ExitCode.FailedReadInput;
+            }
+
+            SandboxedProcessExecutorTestHook? sandboxedProcessExecutorTestHook = null;
+
+            if (!string.IsNullOrEmpty(m_configuration.SandboxedProcessExecutorTestHookFile)
+                && !TryReadSandboxedProcessExecutorTestHook(out sandboxedProcessExecutorTestHook))
             {
                 return ExitCode.FailedReadInput;
             }
@@ -144,7 +160,7 @@ namespace BuildXL.SandboxedProcessExecutor
                 return ExitCode.VmConnectionError;
             }
 
-            Thread pingHost = null;
+            Thread? pingHost = null;
             if (m_isRunningInCloudBuildVm)
             {
                 pingHost = new Thread(DetectConnectionIssuesBetweenHostAndVm)
@@ -154,13 +170,13 @@ namespace BuildXL.SandboxedProcessExecutor
                 pingHost.Start();
             }
 
-            if (!TryPrepareSandboxedProcess(sandboxedProcessInfo))
+            if (!TryPrepareSandboxedProcess(sandboxedProcessInfo!, remoteSandboxedProcessData))
             {
                 return ExitCode.FailedSandboxPreparation;
             }
 
-            (ExitCode exitCode, SandboxedProcessResult result) executeResult;
-            using (sandboxedProcessInfo.SidebandWriter)
+            (ExitCode exitCode, SandboxedProcessResult? result) executeResult;
+            using (sandboxedProcessInfo!.SidebandWriter)
             {
                 executeResult = ExecuteAsync(sandboxedProcessInfo).GetAwaiter().GetResult();
                 sandboxedProcessInfo.SidebandWriter?.EnsureHeaderWritten();
@@ -184,7 +200,6 @@ namespace BuildXL.SandboxedProcessExecutor
 
             if (executeResult.result != null)
             {
-                PostProcessSandboxedProcessResult(sandboxedProcessInfo, executeResult.result);
                 LogSummary(executeResult.result);
 
                 if (m_configuration.PrintObservedAccesses)
@@ -204,27 +219,6 @@ namespace BuildXL.SandboxedProcessExecutor
         private void LogSummary(SandboxedProcessResult result)
         {
             m_logger.LogInfo($"Process exited with exit code '{result.ExitCode}' in {result.PrimaryProcessTimes.TotalWallClockTime.TotalMilliseconds} ms");
-        }
-
-        private void PostProcessSandboxedProcessResult(SandboxedProcessInfo info, SandboxedProcessResult result)
-        {
-            m_logger.LogInfo("Post processing sandboxed process result");
-
-            if (result.FileAccesses != null)
-            {
-                if (info.RemoteSandboxedProcessData != null)
-                {
-                    // TODO: Hack! Hack!
-                    //       This changes is done so that AnyBuild does not try to send untracked files as inputs/outputs.
-                    //       This changes the file accesses that BuildXL will see.
-                    //       Ideally, this filtration should be done in AnyBuild when processing the result of SandboxedProcessResult
-                    //       coming from this executor.
-                    HashSet<ReportedFileAccess> trackedAccesses = result
-                        .FileAccesses
-                        .Where(fa => !info.RemoteSandboxedProcessData.IsUntracked(fa.GetPath(info.PathTable))).ToHashSet();
-                    result.FileAccesses = trackedAccesses;
-                }
-            }
         }
 
         private void PrintObservedAccesses(PathTable pathTable, SandboxedProcessResult result)
@@ -249,9 +243,9 @@ namespace BuildXL.SandboxedProcessExecutor
             }
         }
 
-        private bool TryReadSandboxedProcessInfo(out SandboxedProcessInfo sandboxedProcessInfo)
+        private bool TryReadSandboxedProcessInfo(out SandboxedProcessInfo? sandboxedProcessInfo)
         {
-            SandboxedProcessInfo localSandboxedProcessInfo = null;
+            SandboxedProcessInfo? localSandboxedProcessInfo = null;
 
             string sandboxedProcessInfoPath = Path.GetFullPath(m_configuration.SandboxedProcessInfoInputFile);
             m_logger.LogInfo($"Reading sandboxed process info from '{sandboxedProcessInfoPath}'");
@@ -271,15 +265,30 @@ namespace BuildXL.SandboxedProcessExecutor
             return success;
         }
 
-        private bool TryReadSandboxedProcessExecutorTestHook(out SandboxedProcessExecutorTestHook sandboxedProcessExecutorTestHook)
+        private bool TryReadRemoteSandboxedProcessData(out RemoteSandboxedProcessData? remoteSandboxedProcessData)
         {
-            if (string.IsNullOrEmpty(m_configuration.SandboxedProcessExecutorTestHookFile))
-            {
-                sandboxedProcessExecutorTestHook = null;
-                return true;
-            }
+            RemoteSandboxedProcessData? localRemoteSandboxedProcessData = null;
 
-            SandboxedProcessExecutorTestHook localSandboxedProcessExecutorTestHook = null;
+            string remoteSandboxedProcessDataPath = Path.GetFullPath(m_configuration.RemoteSandboxedProcessDataFile);
+            m_logger.LogInfo($"Reading remote sandboxed process data from '{remoteSandboxedProcessDataPath}'");
+
+            bool success = Helpers.RetryOnFailure(
+                attempt =>
+                {
+                    using FileStream stream = File.OpenRead(remoteSandboxedProcessDataPath);
+                    localRemoteSandboxedProcessData = RemoteSandboxedProcessData.TaggedDeserialize(stream);
+                    return true;
+                },
+                onException: e => m_logger.LogError(e.ToStringDemystified()));
+
+            remoteSandboxedProcessData = localRemoteSandboxedProcessData;
+
+            return success;
+        }
+
+        private bool TryReadSandboxedProcessExecutorTestHook(out SandboxedProcessExecutorTestHook? sandboxedProcessExecutorTestHook)
+        {
+            SandboxedProcessExecutorTestHook? localSandboxedProcessExecutorTestHook = null;
 
             string sandboxedProcessTestHook = Path.GetFullPath(m_configuration.SandboxedProcessExecutorTestHookFile);
             m_logger.LogInfo($"Reading sandboxed process test hook from '{sandboxedProcessTestHook}'");
@@ -288,7 +297,6 @@ namespace BuildXL.SandboxedProcessExecutor
                 attempt => 
                 {
                     using FileStream stream = File.OpenRead(sandboxedProcessTestHook);
-                    // TODO: Custom DetoursEventListener?
                     localSandboxedProcessExecutorTestHook = SandboxedProcessExecutorTestHook.Deserialize(stream);
                     return true;
                 },
@@ -345,7 +353,7 @@ namespace BuildXL.SandboxedProcessExecutor
             }
         }
 
-        private bool TryPrepareSandboxedProcess(SandboxedProcessInfo info)
+        private bool TryPrepareSandboxedProcess(SandboxedProcessInfo info, RemoteSandboxedProcessData? remoteData)
         {
             Contract.Requires(info != null);
 
@@ -370,32 +378,14 @@ namespace BuildXL.SandboxedProcessExecutor
             info.StandardOutputObserver = m_outputErrorObserver.ObserveStandardOutputForWarning;
             info.StandardErrorObserver = m_outputErrorObserver.ObserveStandardErrorForWarning;
 
-            if (!TryPrepareWorkingDirectory(info) || !TryPrepareTemporaryDirectories(info) || !TryPreparePreCreatedDirectories(info) || !TryCleanStaleOuputs(info))
+            if (!TryPrepareWorkingDirectory(info) 
+                || !TryPrepareTemporaryDirectories(info, remoteData) 
+                || !TryCleanStaleOuputs(info))
             {
                 return false;
             }
 
             SetSandboxConnectionIfNeeded(info);
-
-            return true;
-        }
-
-        private bool TryPreparePreCreatedDirectories(SandboxedProcessInfo info)
-        {
-            if (info.RemoteSandboxedProcessData == null)
-            {
-                return true;
-            }
-
-            foreach (var dir in info.RemoteSandboxedProcessData.TempDirectories)
-            {
-                var result = EnsureDirectoryExists(dir);
-                if (!result.Succeeded)
-                {
-                    m_logger.LogError($"Failed to prepare pre-created directory '{dir}': {result.Failure.DescribeIncludingInnerFailures()}");
-                    return false;
-                }
-            }
 
             return true;
         }
@@ -479,7 +469,7 @@ namespace BuildXL.SandboxedProcessExecutor
             return true;
         }
 
-        private bool TryPrepareTemporaryDirectories(SandboxedProcessInfo info)
+        private bool TryPrepareTemporaryDirectories(SandboxedProcessInfo info, RemoteSandboxedProcessData? remoteData)
         {
             Contract.Requires(info != null);
 
@@ -510,12 +500,12 @@ namespace BuildXL.SandboxedProcessExecutor
                 }
             }
 
-            if (info.RemoteSandboxedProcessData == null)
+            if (remoteData == null)
             {
                 return true;
             }
 
-            foreach (var dir in info.RemoteSandboxedProcessData.TempDirectories)
+            foreach (var dir in remoteData.TempDirectories)
             {
                 var result = EnsureDirectoryExists(dir);
                 if (!result.Succeeded)
@@ -528,7 +518,7 @@ namespace BuildXL.SandboxedProcessExecutor
             return true;
         }
 
-        private async Task<(ExitCode, SandboxedProcessResult)> ExecuteAsync(SandboxedProcessInfo info)
+        private async Task<(ExitCode, SandboxedProcessResult?)> ExecuteAsync(SandboxedProcessInfo info)
         {
             m_logger.LogInfo($"Start execution: {info.GetCommandLine()}");
 
@@ -548,12 +538,14 @@ namespace BuildXL.SandboxedProcessExecutor
                     // The reason for this is currently unknown, however since the name for the failures file is
                     // created in SandboxedProcessPipExecutor.GetDetoursInternalErrorFilePath with a unique guid
                     // along with the pip hash it should be safe to dispose because the name is unique to this pip.
-                    if (System.Threading.Semaphore.TryOpenExisting(semaphoreName, out var existingSemaphore))
+#pragma warning disable CA1416 // Validate platform compatibility: Only run on Windows.
+                    if (Semaphore.TryOpenExisting(semaphoreName, out var existingSemaphore))
                     {
                         m_logger.LogInfo($"Disposing existing semaphore with name '{semaphoreName}'.");
                         // Calling dispose on this will allow us to create a new semaphore with the same name
                         existingSemaphore.Dispose();
                     }
+#pragma warning restore CA1416 // Validate platform compatibility
 
                     while (!fam.SetMessageCountSemaphore(semaphoreName))
                     {
@@ -575,35 +567,36 @@ namespace BuildXL.SandboxedProcessExecutor
                     }
                 }
 
-                using (Stream standardInputStream = TryOpenStandardInputStream(info, out bool succeedInOpeningStdIn))
+                using Stream? standardInputStream = TryOpenStandardInputStream(info, out bool succeedInOpeningStdIn);
+
+                if (!succeedInOpeningStdIn)
                 {
-                    if (!succeedInOpeningStdIn)
-                    {
-                        return (ExitCode.FailedSandboxPreparation, null);
-                    }
-
-                    using (StreamReader standardInputReader = standardInputStream == null ? null : new StreamReader(standardInputStream, CharUtilities.Utf8NoBomNoThrow))
-                    {
-                        info.StandardInputReader = standardInputReader;
-
-                        ISandboxedProcess process = await StartProcessAsync(info);
-
-                        if (process == null)
-                        {
-                            return (ExitCode.FailedStartProcess, null);
-                        }
-
-                        SandboxedProcessResult result = await process.GetResultAsync();
-
-                        // Patch result.
-                        result.WarningCount = m_outputErrorObserver.WarningCount;
-                        result.LastMessageCount = process.GetLastMessageCount();
-                        result.DetoursMaxHeapSize = process.GetDetoursMaxHeapSize();
-                        result.MessageCountSemaphoreCreated = info.FileAccessManifest.MessageCountSemaphore != null;
-
-                        return (ExitCode.Success, result);
-                    }
+                    return (ExitCode.FailedSandboxPreparation, null);
                 }
+
+                using StreamReader? standardInputReader = standardInputStream == null ? null : new StreamReader(standardInputStream, CharUtilities.Utf8NoBomNoThrow);
+                info.StandardInputReader = standardInputReader;
+
+                ISandboxedProcess? process = await StartProcessAsync(info);
+
+                if (process == null)
+                {
+                    return (ExitCode.FailedStartProcess, null);
+                }
+
+                SandboxedProcessResult result = await process.GetResultAsync();
+
+                // Patch result.
+                if (m_outputErrorObserver != null)
+                {
+                    result.WarningCount = m_outputErrorObserver.WarningCount;
+                }
+
+                result.LastMessageCount = process.GetLastMessageCount();
+                result.DetoursMaxHeapSize = process.GetDetoursMaxHeapSize();
+                result.MessageCountSemaphoreCreated = info.FileAccessManifest.MessageCountSemaphore != null;
+
+                return (ExitCode.Success, result);
             }
             finally
             {
@@ -611,9 +604,9 @@ namespace BuildXL.SandboxedProcessExecutor
             }
         }
 
-        private async Task<ISandboxedProcess> StartProcessAsync(SandboxedProcessInfo info)
+        private async Task<ISandboxedProcess?> StartProcessAsync(SandboxedProcessInfo info)
         {
-            ISandboxedProcess process = null;
+            ISandboxedProcess? process = null;
             bool shouldRelaunchProcess = true;
             int processRelaunchCount = 0;
 
@@ -662,7 +655,7 @@ namespace BuildXL.SandboxedProcessExecutor
             return process;
         }
 
-        private Stream TryOpenStandardInputStream(SandboxedProcessInfo info, out bool success)
+        private Stream? TryOpenStandardInputStream(SandboxedProcessInfo info, out bool success)
         {
             success = true;
 

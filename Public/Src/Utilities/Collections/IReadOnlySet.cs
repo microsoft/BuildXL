@@ -41,5 +41,11 @@ namespace BuildXL.Utilities.Collections
             : base(collection)
         {
         }
+
+        /// <nodoc/>
+        public ReadOnlyHashSet(IEnumerable<T> collection, IEqualityComparer<T> comparer)
+            : base(collection, comparer)
+        {
+        }
     }
 }

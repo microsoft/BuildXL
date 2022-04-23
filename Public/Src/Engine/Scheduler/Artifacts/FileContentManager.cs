@@ -907,8 +907,8 @@ namespace BuildXL.Scheduler.Artifacts
             Func<PipId, bool> shouldIncludeServiceFiles = null)
         {
             // Always include if no filter specified
-            shouldInclude = shouldInclude ?? (a => true);
-            shouldIncludeServiceFiles = shouldIncludeServiceFiles ?? (a => true);
+            shouldInclude ??= (a => true);
+            shouldIncludeServiceFiles ??= (a => true);
 
             using (PipArtifactsState state = GetPipArtifactsState())
             {

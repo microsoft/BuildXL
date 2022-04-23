@@ -11,11 +11,11 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using AnyBuild;
+using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
-using Newtonsoft.Json.Linq;
 using static BuildXL.Utilities.Tracing.CounterCollection;
 
 #nullable enable
@@ -32,8 +32,9 @@ namespace BuildXL.Processes.Remoting
         private readonly LoggingContext m_loggingContext;
         private readonly CounterCollection<SandboxedProcessFactory.SandboxedProcessCounters> m_counters;
         private readonly AsyncLazy<InitResult> m_initResultLazy;
-        private readonly List<string> m_staticDirectories = new ();
+        private readonly List<AbsolutePath> m_staticDirectories = new ();
         private readonly string m_remoteManagerDirectory;
+        private readonly IRemoteFilePredictor m_filePredictor;
 
         /// <inheritdoc/>
         public bool IsInitialized { get; private set; }
@@ -44,12 +45,14 @@ namespace BuildXL.Processes.Remoting
             LoggingContext loggingContext,
             PipExecutionContext executionContext,
             IConfiguration configuration,
+            IRemoteFilePredictor filePredictor,
             CounterCollection<SandboxedProcessFactory.SandboxedProcessCounters> counters)
         {
             m_loggingContext = loggingContext;
             m_executionContext = executionContext;
             m_configuration = configuration;
             m_counters = counters;
+            m_filePredictor = filePredictor;
             m_remoteManagerDirectory = Path.Combine(m_configuration.Layout.ExternalSandboxedProcessDirectory.ToString(m_executionContext.PathTable), nameof(AnyBuildRemoteProcessManager));
             m_initResultLazy = new AsyncLazy<InitResult>(InitCoreAsync);
         }
@@ -199,6 +202,12 @@ namespace BuildXL.Processes.Remoting
         {
             string localCacheDir = m_configuration.Layout.CacheDirectory.Combine(m_executionContext.PathTable, "AnyBuildLocalCache").ToString(m_executionContext.PathTable);
 
+            // Ensure local cache dir exists.
+            if (!Directory.Exists(localCacheDir))
+            {
+                Directory.CreateDirectory(localCacheDir);
+            }
+
             var args = new List<string>()
             {
                 $"--JsonConfigOverrides @\"{CreateJsonConfigOverrides()}\"",
@@ -230,6 +239,19 @@ namespace BuildXL.Processes.Remoting
                 Run = new
                 {
                     DisableDirectoryMetadataDedup = true,
+
+                    // FUTURE OPTIONS: Only enabled when they are available in AnyBuild.
+
+                    //// Using PLACEHOLDER for pre-rendering because using COPY causes error like:
+                    ////   error CS1504: Source file 'D:\a\_work\5\s\Public\Src\FrontEnd\MsBuild.Serialization\GraphSerializationSettings.cs' could not be opened
+                    ////   -- The process cannot access the file because another process has locked a portion of the file.
+                    // WinVfsPreRenderingMode = "PLACEHOLDER", // "COPY",
+                    // SubstSource = m_configuration.Logging.SubstSource.IsValid
+                    //     ? m_configuration.Logging.SubstSource.ToString(m_executionContext.PathTable)
+                    //     : null,
+                    // SubstTarget = m_configuration.Logging.SubstTarget.IsValid
+                    //     ? m_configuration.Logging.SubstTarget.ToString(m_executionContext.PathTable)
+                    //     : null
                 },
                 Agents = new
                 {
@@ -238,8 +260,17 @@ namespace BuildXL.Processes.Remoting
                 StaticDirs = new
                 {
                     DisablePostBuildAnalysis = true,
-                    Windows = OperatingSystemHelper.IsWindowsOS ? m_staticDirectories.ToArray() : Array.Empty<string>(),
-                    Linux = OperatingSystemHelper.IsLinuxOS ? m_staticDirectories.ToArray() : Array.Empty<string>()
+                    Windows = OperatingSystemHelper.IsWindowsOS 
+                        ? m_staticDirectories.Select(p => p.ToString(m_executionContext.PathTable)).ToArray()
+                        : Array.Empty<string>(),
+                    Linux = OperatingSystemHelper.IsLinuxOS
+                        ? m_staticDirectories.Select(p => p.ToString(m_executionContext.PathTable)).ToArray()
+                        : Array.Empty<string>()
+                },
+                ActionCache = new
+                {
+                    // TODO: Need to evaluate if we really need this big.
+                    MaxUploadSizeBytes = 1_500_000_000
                 }
             };
 
@@ -258,7 +289,10 @@ namespace BuildXL.Processes.Remoting
         public IRemoteProcessManagerInstaller? GetInstaller() => new AnyBuildInstaller(m_loggingContext);
 
         /// <inheritdoc/>
-        public void RegisterStaticDirectories(IEnumerable<string> staticDirectories) => m_staticDirectories.AddRange(staticDirectories);
+        public void RegisterStaticDirectories(IEnumerable<AbsolutePath> staticDirectories) => m_staticDirectories.AddRange(staticDirectories);
+
+        /// <inheritdoc/>
+        public Task<IEnumerable<AbsolutePath>> GetInputPredictionAsync(Process process) => m_filePredictor.GetInputPredictionAsync(process);
 
         // private static int GetUnusedPort()
         // {

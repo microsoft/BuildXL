@@ -421,7 +421,7 @@ namespace BuildXL.Processes
 
             if (runLocation == ProcessRunLocation.Remote)
             {
-                m_remoteSbDataBuilder = new RemoteSandboxedProcessData.Builder(m_pathTable);
+                m_remoteSbDataBuilder = new RemoteSandboxedProcessData.Builder(remoteProcessManager, pip, m_pathTable);
             }
         }
 
@@ -1136,9 +1136,19 @@ namespace BuildXL.Processes
 
                     Tracing.Logger.Log.PipProcessStartRemoteExecution(m_loggingContext, m_pip.SemiStableHash, m_pipDescription, externalSandboxedProcessExecutor.ExecutablePath);
 
+                    Contract.Assert(m_remoteSbDataBuilder != null);
+
+                    RemoteSandboxedProcessData remoteData = await m_remoteSbDataBuilder.BuildAsync();
+
                     process = await ExternalSandboxedProcess.StartAsync(
                         info,
-                        spi => new RemoteSandboxedProcess(spi, m_remoteProcessManager, externalSandboxedProcessExecutor, externalSandboxedProcessDirectory, cancellationToken));
+                        spi => new RemoteSandboxedProcess(
+                            spi,
+                            remoteData,
+                            m_remoteProcessManager,
+                            externalSandboxedProcessExecutor,
+                            externalSandboxedProcessDirectory,
+                            cancellationToken));
                 }
                 else if (m_sandboxConfig.AdminRequiredProcessExecutionMode == AdminRequiredProcessExecutionMode.ExternalTool)
                 {
@@ -1191,15 +1201,10 @@ namespace BuildXL.Processes
 
         private void PopulateRemoteSandboxedProcessData(SandboxedProcessInfo info)
         {
-            if (!SandboxedProcessShouldExecuteRemote)
-            {
-                return;
-            }
-
-            // <see cref="RemoteSandboxedProcessData"/> for the reason why one should not add output directories
-            // when populating remote data.
-
-            Contract.Assert(m_remoteSbDataBuilder != null);
+            Contract.Requires(SandboxedProcessShouldExecuteRemote);
+            Contract.Requires(m_remoteSbDataBuilder != null);
+            
+            m_remoteSbDataBuilder.SetProcessInfo(info);
 
             if (m_pip.TempDirectory.IsValid)
             {
@@ -1210,8 +1215,6 @@ namespace BuildXL.Processes
             {
                 m_remoteSbDataBuilder.AddTempDirectory(tempDir);
             }
-
-            info.RemoteSandboxedProcessData = m_remoteSbDataBuilder.Build();
 
             // Due to bug in ProjFs, process remoting requires using large buffer for doing enumeration.
             // BUG: https://microsoft.visualstudio.com/OS/_workitems/edit/38539442
@@ -2366,7 +2369,7 @@ namespace BuildXL.Processes
                 var processedPaths = processedPathWrapper.Instance;
                 using (var wrapper = Pools.GetAbsolutePathSet())
                 {
-                    var outputIds = wrapper.Instance;
+                    var outputFiles = wrapper.Instance;
 
                     foreach (FileArtifactWithAttributes attributedOutput in pip.FileOutputs)
                     {
@@ -2381,13 +2384,13 @@ namespace BuildXL.Processes
                                 output.Path,
                                 values: FileAccessPolicy.AllowAll | FileAccessPolicy.ReportAccess | FileAccessPolicy.AllowRealInputTimestamps, // Always report output file accesses, so we can validate that output was produced.
                                 mask: m_excludeReportAccessMask);
-                            outputIds.Add(output.Path);
+                            outputFiles.Add(output.Path);
 
                             AllowCreateDirectoryForDirectoriesOnPath(output.Path, processedPaths);
                         }
                     }
 
-                    AddStaticFileDependenciesToFileAccessManifest(wrapper, pip.Dependencies, allInputPathsUnderSharedOpaques);
+                    AddStaticFileDependenciesToFileAccessManifest(outputFiles, pip.Dependencies, allInputPathsUnderSharedOpaques);
                 }
 
                 var userProfilePath = AbsolutePath.Create(m_pathTable, s_userProfilePath);
@@ -2462,7 +2465,7 @@ namespace BuildXL.Processes
 
                 using (var wrapper = Pools.GetAbsolutePathSet())
                 {
-                    HashSet<AbsolutePath> directoryOutputIds = wrapper.Instance;
+                    HashSet<AbsolutePath> outputDirectories = wrapper.Instance;
 
                     foreach (DirectoryArtifact directory in pip.DirectoryOutputs)
                     {
@@ -2496,7 +2499,7 @@ namespace BuildXL.Processes
                         m_fileAccessManifest.AddScope(directoryPath, values: values, mask: mask);
                         AllowCreateDirectoryForDirectoriesOnPath(directoryPath, processedPaths);
 
-                        directoryOutputIds.Add(directoryPath);
+                        outputDirectories.Add(directoryPath);
                     }
 
                     // Directory artifact dependencies are supposed to be immutable. Therefore it is never okay to write, but it is safe to probe for non-existent files
@@ -2512,7 +2515,7 @@ namespace BuildXL.Processes
 
                         // If this directory dependency is also a directory output, then we don't set any additional policy, i.e.,
                         // we don't want to restrict writes.
-                        if (!directoryOutputIds.Contains(directory.Path))
+                        if (!outputDirectories.Contains(directory.Path))
                         {
                             // Directories here represent inputs, we want to apply the timestamp faking logic
                             var mask = DefaultMask;
@@ -2535,6 +2538,7 @@ namespace BuildXL.Processes
                             }
 
                             m_fileAccessManifest.AddScope(directory, mask: mask, values: values);
+                            m_remoteSbDataBuilder?.AddDirectoryDependency(directory.Path);
                         }
                     }
 
@@ -2762,13 +2766,12 @@ namespace BuildXL.Processes
             return sharedOpaqueRoot != AbsolutePath.Invalid;
         }
 
-        private void AddStaticFileDependenciesToFileAccessManifest(PooledObjectWrapper<HashSet<AbsolutePath>> wrapper, ReadOnlyArray<FileArtifact> fileDependencies, HashSet<AbsolutePath> allInputPathsUnderSharedOpaques)
+        private void AddStaticFileDependenciesToFileAccessManifest(HashSet<AbsolutePath> outputFiles, ReadOnlyArray<FileArtifact> fileDependencies, HashSet<AbsolutePath> allInputPathsUnderSharedOpaques)
         {
-            var outputIds = wrapper.Instance;
             foreach (FileArtifact dependency in fileDependencies)
             {
                 // Outputs have already been added with read-write access. We should not attempt to add a less permissive entry.
-                if (!outputIds.Contains(dependency.Path))
+                if (!outputFiles.Contains(dependency.Path))
                 {
                     AddStaticFileDependencyToFileAccessManifest(dependency, allInputPathsUnderSharedOpaques);
                 }
@@ -2797,6 +2800,7 @@ namespace BuildXL.Processes
                       (pathIsUnderSharedOpaque ?
                           ~FileAccessPolicy.AllowWrite:
                           FileAccessPolicy.MaskNothing));
+            m_remoteSbDataBuilder?.AddFileDependency(dependency.Path);
 
             allInputPaths.Add(path);
 
@@ -3411,6 +3415,8 @@ namespace BuildXL.Processes
                             PreparePathForDirectory(directoryPathStr, createIfNonExistent: true);
                         }
                     }
+
+                    m_remoteSbDataBuilder?.AddOutputDirectory(directoryOutput);
                 }
                 catch (BuildXLException ex)
                 {
@@ -5385,12 +5391,14 @@ namespace BuildXL.Processes
             }
 
             AbsolutePath parentDirectory = filePath.GetParent(m_pathTable);
-
+            
             if (outputDirectories == null || outputDirectories.Add(parentDirectory))
             {
                 // Ensure parent directory exists.
                 FileUtilities.CreateDirectory(parentDirectory.ToString(m_pathTable));
             }
+
+            m_remoteSbDataBuilder?.AddOutputDirectory(parentDirectory);
 
             return true;
         }

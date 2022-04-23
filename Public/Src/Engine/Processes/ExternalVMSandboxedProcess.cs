@@ -198,7 +198,7 @@ namespace BuildXL.Processes
                 Arguments = m_tool.CreateArguments(
                     SandboxedProcessInfoFile,
                     SandboxedProcessResultsFile,
-                    SandboxedProcessExecutorTestHook != null ? SandboxedProcessExecutorTestHookFile : null),
+                    sandboxedProcessExecutorTestHookFile: SandboxedProcessExecutorTestHook != null ? SandboxedProcessExecutorTestHookFile : null),
                 WorkingDirectory = WorkingDirectory
             };
 

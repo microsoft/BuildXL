@@ -1430,7 +1430,7 @@ namespace BuildXL.Scheduler
 
             ProcessInContainerManager = new ProcessInContainerManager(loggingContext, Context.PathTable);
             VmInitializer = vmInitializer;
-            RemoteProcessManager = RemoteProcessManagerFactory.Create(loggingContext, Context, configuration, SandboxedProcessFactory.Counters);
+            RemoteProcessManager = RemoteProcessManagerFactory.Create(loggingContext, Context, configuration, new RemoteFilePredictor(this, this, loggingContext), Counters);
             m_perPipPerformanceInfoStore = new PerProcessPipPerformanceInformationStore(configuration.Logging.MaxNumPipTelemetryBatches, configuration.Logging.AriaIndividualMessageSizeLimitBytes);
 
             ReparsePointAccessResolver = new ReparsePointResolver(context, directoryTranslator);
@@ -6238,7 +6238,7 @@ namespace BuildXL.Scheduler
                 .Where(s => s.SealDirectoryKind == SealDirectoryKind.SourceAllDirectories)
                 .Select(s => s.DirectoryRoot);
 
-            RemoteProcessManager.RegisterStaticDirectories(readOnlyAll.Concat(allDirSourceSealedDirs).Distinct().Select(p => p.ToString(Context.PathTable)));
+            RemoteProcessManager.RegisterStaticDirectories(readOnlyAll.Concat(allDirSourceSealedDirs).Distinct());
         }
 
         private void PopulateModuleWorkerMapping(IEnumerable<NodeId> nodesToSchedule)

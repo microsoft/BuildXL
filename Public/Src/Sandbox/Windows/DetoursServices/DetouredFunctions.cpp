@@ -36,7 +36,7 @@ using std::wstring;
 #define _MAX_EXTENDED_PATH_LENGTH 32768 // see https://docs.microsoft.com/en-us/cpp/c-runtime-library/path-field-limits?view=vs-2019
 #define _MAX_EXTENDED_DIR_LENGTH (_MAX_EXTENDED_PATH_LENGTH - _MAX_DRIVE - _MAX_FNAME - _MAX_EXT - 4)
 
-#define NTQUERYDIRECTORYFILE_MIN_BUFFER_SIZE 2048
+#define NTQUERYDIRECTORYFILE_MIN_BUFFER_SIZE 4096
 
 static bool IgnoreFullReparsePointResolvingForPath(const PolicyResult& policyResult)
 {

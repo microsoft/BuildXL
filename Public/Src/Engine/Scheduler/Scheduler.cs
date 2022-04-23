@@ -2772,6 +2772,12 @@ namespace BuildXL.Scheduler
         /// </summary>
         private void PerformEarlyReleaseWorker(long numProcessPipsPending, long numProcessPipsAllocatedSlots)
         {
+            if (Workers.Where(w => w.EverAvailable).Count() < m_configuration.Distribution.MinimumWorkers)
+            {
+                // Don't release if minimum workers is not satisfied
+                return;
+            }
+
             long numProcessPipsWaiting = numProcessPipsPending - numProcessPipsAllocatedSlots;
 
             // Try releasing the remote worker which has the lowest acquired slots for process execution.

@@ -22,8 +22,8 @@ In order to use the new bits, DeploymentConfiguration.json file (https://cloudbu
 $userName = $env:USERNAME;
 $dateTime = (get-date -Format "yyyyMMdd.HHmm");
 $version = "0.1.0-$dateTime.$userName"
-
-.\bxl -Minimal -DeployConfig Release -SharedCacheMode Disable /q:Release /q:ReleaseDotNet6 /q:ReleaseLinux /q:ReleaseDotNetCoreMac out\bin\release\cache\* /p:[BuildXL.Branding]SemanticVersion=$version /p:[BuildXL.Branding]SourceIdentification='1'
+# Release -> .net 6, ReleaseDotNetCore -> .NET Core App 3.1
+.\bxl -Minimal -DeployConfig Release -SharedCacheMode Disable /q:Release /q:ReleaseDotNetCore /q:ReleaseLinux /q:ReleaseDotNetCoreMac out\bin\release\cache\* /p:[BuildXL.Branding]SemanticVersion=$version /p:[BuildXL.Branding]SourceIdentification='1'
 .\dropout $version cloudbuild ' ' true
 
 

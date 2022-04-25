@@ -117,6 +117,11 @@ namespace BuildXL.Engine.Cache.Plugin.CacheCore
                 hashElement: new global::BuildXL.Cache.Interfaces.Hash(strongFingerprint.Hash),
                 cacheId: "Thin Air");
 
+            if (m_cache.IsClosed)
+            {
+                return (CacheEntry?)null;
+            }
+
             Possible<CasEntries, Failure> maybeEntry = await PerformFingerprintCacheOperationAsync(() => m_cache.GetCacheEntryAsync(reconstructedStrongFingerprint), nameof(TryGetCacheEntryAsync));
 
             if (maybeEntry.Succeeded)

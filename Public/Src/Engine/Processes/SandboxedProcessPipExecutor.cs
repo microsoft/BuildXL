@@ -234,7 +234,7 @@ namespace BuildXL.Processes
         public static readonly string StdOutputsDirNameInLog = "StdOutputs";
 
         private readonly ProcessRunLocation m_runLocation = ProcessRunLocation.Default;
-        private readonly RemoteSandboxedProcessData.Builder m_remoteSbDataBuilder;
+        private readonly RemoteDataBuilder m_remoteSbDataBuilder;
 
         /// <summary>
         /// Creates an executor for a process pip. Execution can then be started with <see cref="RunAsync" />.
@@ -421,7 +421,7 @@ namespace BuildXL.Processes
 
             if (runLocation == ProcessRunLocation.Remote)
             {
-                m_remoteSbDataBuilder = new RemoteSandboxedProcessData.Builder(remoteProcessManager, pip, m_pathTable);
+                m_remoteSbDataBuilder = new RemoteDataBuilder(remoteProcessManager, pip, m_pathTable);
             }
         }
 
@@ -1138,7 +1138,7 @@ namespace BuildXL.Processes
 
                     Contract.Assert(m_remoteSbDataBuilder != null);
 
-                    RemoteSandboxedProcessData remoteData = await m_remoteSbDataBuilder.BuildAsync();
+                    RemoteData remoteData = await m_remoteSbDataBuilder.BuildAsync();
 
                     process = await ExternalSandboxedProcess.StartAsync(
                         info,

@@ -1,0 +1,38 @@
+syntax = "proto3";
+package BuildXL.Processes.Remoting;
+
+// Remote data that the remoting tool will use to optimize process remoting
+// by using the data for file/directory access prediction.
+message RemoteData
+{
+    // Process executable.
+    string Executable = 1;
+
+    // Process arguments.
+    string Arguments = 2;
+
+    // Working directory.
+    string WorkingDirectory = 3;
+
+    // Environment variables.
+    map<string, string> EnvironmentVariables = 4;
+
+    // File dependencies. These dependencies can be obtained
+    // from static dependencies or from dynamic ones, e.g., through metadata cache.
+    repeated string FileDependencies = 5;
+
+    // Directory dependencies.
+    repeated string DirectoryDependencies = 6;
+
+    // Output directories.
+    repeated string OutputDirectories = 7;
+
+    // Temporary directories.
+    repeated string TempDirectories = 8;
+
+    // Untracked scopes.
+    repeated string UntrackedScopes = 9;
+
+    // Untracked paths.
+    repeated string UntrackedPaths = 10;
+}

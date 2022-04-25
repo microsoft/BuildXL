@@ -139,7 +139,7 @@ namespace BuildXL.SandboxedProcessExecutor
                 return ExitCode.FailedReadInput;
             }
 
-            RemoteSandboxedProcessData? remoteSandboxedProcessData = null;
+            RemoteData? remoteSandboxedProcessData = null;
 
             if (!string.IsNullOrEmpty(m_configuration.RemoteSandboxedProcessDataFile)
                 && !TryReadRemoteSandboxedProcessData(out remoteSandboxedProcessData))
@@ -265,9 +265,9 @@ namespace BuildXL.SandboxedProcessExecutor
             return success;
         }
 
-        private bool TryReadRemoteSandboxedProcessData(out RemoteSandboxedProcessData? remoteSandboxedProcessData)
+        private bool TryReadRemoteSandboxedProcessData(out RemoteData? remoteSandboxedProcessData)
         {
-            RemoteSandboxedProcessData? localRemoteSandboxedProcessData = null;
+            RemoteData? localRemoteSandboxedProcessData = null;
 
             string remoteSandboxedProcessDataPath = Path.GetFullPath(m_configuration.RemoteSandboxedProcessDataFile);
             m_logger.LogInfo($"Reading remote sandboxed process data from '{remoteSandboxedProcessDataPath}'");
@@ -276,7 +276,7 @@ namespace BuildXL.SandboxedProcessExecutor
                 attempt =>
                 {
                     using FileStream stream = File.OpenRead(remoteSandboxedProcessDataPath);
-                    localRemoteSandboxedProcessData = RemoteSandboxedProcessData.TaggedDeserialize(stream);
+                    localRemoteSandboxedProcessData = RemoteDataExtensions.Deserialize(stream);
                     return true;
                 },
                 onException: e => m_logger.LogError(e.ToStringDemystified()));
@@ -353,7 +353,7 @@ namespace BuildXL.SandboxedProcessExecutor
             }
         }
 
-        private bool TryPrepareSandboxedProcess(SandboxedProcessInfo info, RemoteSandboxedProcessData? remoteData)
+        private bool TryPrepareSandboxedProcess(SandboxedProcessInfo info, RemoteData? remoteData)
         {
             Contract.Requires(info != null);
 
@@ -469,7 +469,7 @@ namespace BuildXL.SandboxedProcessExecutor
             return true;
         }
 
-        private bool TryPrepareTemporaryDirectories(SandboxedProcessInfo info, RemoteSandboxedProcessData? remoteData)
+        private bool TryPrepareTemporaryDirectories(SandboxedProcessInfo info, RemoteData? remoteData)
         {
             Contract.Requires(info != null);
 

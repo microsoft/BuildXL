@@ -6,6 +6,7 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Interop;
+using Google.Protobuf;
 
 namespace BuildXL.Processes.Remoting
 {
@@ -22,7 +23,7 @@ namespace BuildXL.Processes.Remoting
         private const string RemoteSandboxedProcessDataFileName = "RemoteData";
 
         private IRemoteProcessPip m_remoteProcess;
-        private readonly RemoteSandboxedProcessData m_remoteData;
+        private readonly RemoteData m_remoteData;
         private readonly IRemoteProcessManager m_remoteProcessManager;
         private readonly CancellationTokenSource m_killProcessCts = new ();
         private readonly CancellationTokenSource m_combinedCts;
@@ -55,7 +56,7 @@ namespace BuildXL.Processes.Remoting
         /// </summary>
         public RemoteSandboxedProcess(
             SandboxedProcessInfo sandboxedProcessInfo,
-            RemoteSandboxedProcessData remoteData,
+            RemoteData remoteData,
             IRemoteProcessManager remoteProcessManager,
             ExternalToolSandboxedProcessExecutor tool,
             string externalSandboxedProcessDirectory,
@@ -78,7 +79,7 @@ namespace BuildXL.Processes.Remoting
             base.Start();
 
             SerializeSandboxedProcessInputFile(SandboxedProcessInfoFile, SandboxedProcessInfo.Serialize);
-            SerializeSandboxedProcessInputFile(RemoteSandboxedProcessDataFile, m_remoteData.TaggedSerialize);
+            SerializeSandboxedProcessInputFile(RemoteSandboxedProcessDataFile, m_remoteData.Serialize);
 
             var remoteProcessInfo = new RemoteProcessInfo(
                 m_tool.ExecutablePath,

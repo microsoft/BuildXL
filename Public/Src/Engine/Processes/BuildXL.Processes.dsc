@@ -5,14 +5,19 @@ import * as Managed from "Sdk.Managed";
 import * as Shared from "Sdk.Managed.Shared";
 import * as SysMng from "System.Management";
 import * as MacServices from "BuildXL.Sandbox.MacOS";
+import * as GrpcSdk from "Sdk.Protocols.Grpc";
 
 namespace Processes {
 
     @@public
     export const dll = BuildXLSdk.library({
         assemblyName: "BuildXL.Processes",
-
-        sources: globR(d`.`, "*.cs"),
+        sources: [
+            ...globR(d`.`, "*.cs"),
+            ...GrpcSdk.generateCSharp({
+                    proto: [f`Remoting/Proto/Remote.proto`]
+                }).sources
+            ],
         generateLogs: true,
         references: [
             ...addIf(BuildXLSdk.isFullFramework,
@@ -44,6 +49,7 @@ namespace Processes {
             ...addIfLazy(BuildXLSdk.Flags.isMicrosoftInternal, () => [
                   importFrom("AnyBuild.SDK").pkg,
             ]),
+            ...importFrom("BuildXL.Cache.ContentStore").getProtobufPackages(false),
         ],
         internalsVisibleTo: [
             "Test.BuildXL.Engine",

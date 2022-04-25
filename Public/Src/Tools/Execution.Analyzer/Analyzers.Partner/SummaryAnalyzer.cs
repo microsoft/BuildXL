@@ -1877,6 +1877,7 @@ namespace BuildXL.Execution.Analyzer
                 case ExecutionEventId.ProcessExecutionMonitoringReported:
                 case ExecutionEventId.DependencyViolationReported:
                 case ExecutionEventId.PipExecutionStepPerformanceReported:
+                case ExecutionEventId.ResourceUsageReported:
                 case ExecutionEventId.PipCacheMiss:
                     return false;
                 default:

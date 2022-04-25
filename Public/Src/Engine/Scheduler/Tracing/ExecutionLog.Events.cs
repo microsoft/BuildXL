@@ -100,6 +100,11 @@ namespace BuildXL.Scheduler.Tracing
         void PipCacheMiss(PipCacheMissEventData data);
 
         /// <summary>
+        /// Resource and PipQueue usage is reported
+        /// </summary>
+        void StatusReported(StatusEventData data);
+
+        /// <summary>
         /// Single event giving build invocation information that contains configuration details usefull for analyzers.
         /// </summary>
         void BxlInvocation(BxlInvocationEventData data);
@@ -175,6 +180,11 @@ namespace BuildXL.Scheduler.Tracing
         /// See <see cref="IExecutionLogTarget.PipExecutionStepPerformanceReported"/>
         /// </summary>
         PipExecutionStepPerformanceReported = 8,
+
+        /// <summary>
+        /// See <see cref="IExecutionLogTarget.StatusReported"/>
+        /// </summary>
+        ResourceUsageReported = 9,
 
         /// <summary>
         /// See <see cref="IExecutionLogTarget.ProcessFingerprintComputation"/>
@@ -278,6 +288,14 @@ namespace BuildXL.Scheduler.Tracing
                 (data, target) => target.PipExecutionStepPerformanceReported(data));
 
         /// <summary>
+        /// Event description for <see cref="IExecutionLogTarget.DependencyViolationReported"/>
+        /// </summary>
+        public static readonly ExecutionLogEventMetadata<StatusEventData> ResourceUsageReported =
+            new ExecutionLogEventMetadata<StatusEventData>(
+                ExecutionEventId.ResourceUsageReported,
+                (data, target) => target.StatusReported(data));
+
+        /// <summary>
         /// Event description for <see cref="IExecutionLogTarget.BxlInvocation"/>
         /// </summary>
         // $Rename: Due to telemetry backend scripts this cannot be renamed to BuildXL
@@ -340,6 +358,7 @@ namespace BuildXL.Scheduler.Tracing
                                                                                      BuildSessionConfiguration,
                                                                                      DependencyViolationReported,
                                                                                      PipExecutionStepPerformanceReported,
+                                                                                     ResourceUsageReported,
                                                                                      ProcessFingerprintComputation,
                                                                                      PipCacheMiss,
                                                                                      PipExecutionDirectoryOutputs,
@@ -1201,6 +1220,250 @@ namespace BuildXL.Scheduler.Tracing
             DirectoryOutputs = reader.ReadReadOnlyArray(
                 r =>
                     (reader.ReadDirectoryArtifact(), r.ReadReadOnlyArray(r2 => r2.ReadFileArtifact())));
+        }
+    }
+
+    /// <summary>
+    /// Information about dependency analysis violation
+    /// </summary>
+    [SuppressMessage("Microsoft.Performance", "CA1815:OverrideEqualsAndOperatorEqualsOnValueTypes")]
+    public struct StatusEventData : IExecutionLogEventData<StatusEventData>
+    {
+        /// <summary>
+        /// Time of the usage snapshot
+        /// </summary>
+        public DateTime Time;
+
+        /// <summary>
+        /// Cpu usage percent
+        /// </summary>
+        public int CpuPercent;
+
+        /// <summary>
+        /// Disk usage percents
+        /// </summary>
+        public int[] DiskPercents;
+
+        /// <summary>
+        /// Disk queue depths
+        /// </summary>
+        public int[] DiskQueueDepths;
+
+        /// <summary>
+        /// Available Disk space in Gigabyte
+        /// </summary>
+        public int[] DiskAvailableSpaceGb;
+
+        /// <summary>
+        /// Ram usage percent
+        /// </summary>
+        public int RamPercent;
+
+        /// <nodoc />
+        public int AfterRamPercent;
+
+        /// <summary>
+        /// Ram utilization in MB
+        /// </summary>
+        public int RamUsedMb;
+
+        /// <summary>
+        /// Available Ram in MB
+        /// </summary>
+        public int RamFreeMb;
+
+        /// <nodoc />
+        public int AfterRamFreeMb;
+
+        /// <summary>
+        /// Percentage of available commit used. Note if the machine has an expandable page file, this is based on the
+        /// current size not necessarily the maximum size. So even if this hits 100%, the machine may still be able to
+        /// commit more as the page file expands.
+        /// </summary>
+        public int CommitPercent;
+
+        /// <summary>
+        /// The machine's total commit in MB
+        /// </summary>
+        public int CommitUsedMb;
+
+        /// <summary>
+        /// Available Commit in MB
+        /// </summary>
+        public int CommitFreeMb;
+
+        /// <summary>
+        /// CPU utilization of the current process
+        /// </summary>
+        public int ProcessCpuPercent;
+
+        /// <summary>
+        /// Working set in MB of the current process
+        /// </summary>
+        public int ProcessWorkingSetMB;
+
+        /// <summary>
+        /// Number of waiting items in the CPU dispatcher
+        /// </summary>
+        public int CpuWaiting;
+
+        /// <summary>
+        /// Number of running items in the CPU dispatcher
+        /// </summary>
+        public int CpuRunning;
+
+        /// <summary>
+        /// Number of running pips in the CPU dispatcher
+        /// </summary>
+        public int CpuRunningPips;
+
+        /// <summary>
+        /// Concurrency limit in the IP dispatcher
+        /// </summary>
+        public int IoCurrentMax;
+
+        /// <summary>
+        /// Number of waiting items in the IO dispatcher
+        /// </summary>
+        public int IoWaiting;
+
+        /// <summary>
+        /// Number of running items in the IO dispatcher
+        /// </summary>
+        public int IoRunning;
+
+        /// <summary>
+        /// Number of waiting items in the CacheLookup dispatcher
+        /// </summary>
+        public int LookupWaiting;
+
+        /// <summary>
+        /// Number of running items in the CacheLookup dispatcher
+        /// </summary>
+        public int LookupRunning;
+
+        /// <summary>
+        /// Number of processes running under PipExecutor
+        /// </summary>
+        public int RunningPipExecutorProcesses;
+
+        /// <summary>
+        /// Number of OS processes physically running (doesn't include children processes, just the main pip process).
+        /// </summary>
+        public int RunningProcesses;
+
+        /// <summary>
+        /// Number of pips succeeded for each type
+        /// </summary>
+        public long[] PipsSucceededAllTypes;
+
+        /// <summary>
+        /// LimitingResource heuristic during the sample
+        /// </summary>
+        public ExecutionSampler.LimitingResource LimitingResource;
+
+        /// <summary>
+        /// Factor of how much less frequently the status update time gets compared to what is expected. A value of 1 means
+        /// it is fired exactly at the expected rate. 2 means it is trigged twice as slowly as expected. Etc.
+        /// </summary>
+        public int UnresponsivenessFactor;
+
+        /// <summary>
+        /// Number of process pips that have not completed yet
+        /// </summary>
+        public long ProcessPipsPending;
+
+        /// <summary>
+        /// Number of process pips allocated a slot on workers (including localworker)
+        /// </summary>
+        public long ProcessPipsAllocatedSlots;
+        
+        /// <inheritdoc />
+        public ExecutionLogEventMetadata<StatusEventData> Metadata => ExecutionLogMetadata.ResourceUsageReported;
+
+        /// <inheritdoc />
+        public void Serialize(BinaryLogger.EventWriter writer)
+        {
+            writer.Write(Time);
+
+            writer.Write(CpuPercent);
+
+            writer.Write(DiskPercents, (w, e) => w.WriteCompact(e));
+            writer.Write(DiskQueueDepths, (w, e) => w.WriteCompact(e));
+            writer.Write(DiskAvailableSpaceGb, (w, e) => w.WriteCompact(e));
+
+            writer.Write(RamPercent);
+            writer.Write(ProcessCpuPercent);
+            writer.Write(ProcessWorkingSetMB);
+
+            writer.Write(CpuWaiting);
+            writer.Write(CpuRunning);
+            writer.Write(CpuRunningPips);
+
+            writer.Write(IoCurrentMax);
+            writer.Write(IoWaiting);
+            writer.Write(IoRunning);
+
+            writer.Write(LookupWaiting);
+            writer.Write(LookupRunning);
+
+            writer.Write(RunningPipExecutorProcesses);
+            writer.Write(RunningProcesses);
+
+            writer.Write(PipsSucceededAllTypes.Length);
+            foreach (var pipsSucceeded in PipsSucceededAllTypes)
+            {
+                writer.Write(pipsSucceeded);
+            }
+
+            writer.Write(RamUsedMb);
+            writer.Write(RamFreeMb);
+            writer.Write(CommitPercent);
+            writer.Write(CommitUsedMb);
+            writer.Write(CommitFreeMb);
+        }
+
+        /// <inheritdoc />
+        public void DeserializeAndUpdate(BinaryLogReader.EventReader reader)
+        {
+            Time = reader.ReadDateTime();
+
+            CpuPercent = reader.ReadInt32();
+
+            DiskPercents = reader.ReadArray(r => r.ReadInt32Compact());
+            DiskQueueDepths = reader.ReadArray(r => r.ReadInt32Compact());
+            DiskAvailableSpaceGb = reader.ReadArray(r => r.ReadInt32Compact());
+
+            RamPercent = reader.ReadInt32();
+            ProcessCpuPercent = reader.ReadInt32();
+            ProcessWorkingSetMB = reader.ReadInt32();
+
+            CpuWaiting = reader.ReadInt32();
+            CpuRunning = reader.ReadInt32();
+            CpuRunningPips = reader.ReadInt32();
+
+            IoCurrentMax = reader.ReadInt32();
+            IoWaiting = reader.ReadInt32();
+            IoRunning = reader.ReadInt32();
+
+            LookupWaiting = reader.ReadInt32();
+            LookupRunning = reader.ReadInt32();
+
+            RunningPipExecutorProcesses = reader.ReadInt32();
+            RunningProcesses = reader.ReadInt32();
+
+            var pipTypeLength = reader.ReadInt32();
+            PipsSucceededAllTypes = new long[pipTypeLength];
+            for (int i = 0; i < PipsSucceededAllTypes.Length; i++)
+            {
+                PipsSucceededAllTypes[i] = reader.ReadInt64();
+            }
+
+            RamUsedMb = reader.ReadInt32();
+            RamFreeMb = reader.ReadInt32();
+            CommitPercent = reader.ReadInt32();
+            CommitUsedMb = reader.ReadInt32();
+            CommitFreeMb = reader.ReadInt32();
         }
     }
 

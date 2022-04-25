@@ -650,6 +650,7 @@ namespace BuildXL.Execution.Analyzer
                 case ExecutionEventId.DependencyViolationReported:
 
                     return true;
+                case ExecutionEventId.ResourceUsageReported:
                 case ExecutionEventId.PipExecutionPerformance:
                 case ExecutionEventId.BuildSessionConfiguration:
                 case ExecutionEventId.DirectoryMembershipHashed:
@@ -1001,6 +1002,7 @@ namespace BuildXL.Execution.Analyzer
                     case ExecutionEventId.ProcessExecutionMonitoringReported:
                     case ExecutionEventId.PipExecutionPerformance:
 
+                    case ExecutionEventId.ResourceUsageReported:
                     case ExecutionEventId.BuildSessionConfiguration:
                     case ExecutionEventId.DirectoryMembershipHashed:
                     case ExecutionEventId.ObservedInputs:

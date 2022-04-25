@@ -87,7 +87,7 @@ namespace BuildXL.Cache.ContentStore.Utils
 
     internal class MachinePerformanceCollector
     {
-        private readonly PerformanceCollector _collector = new PerformanceCollector(collectionFrequency: TimeSpan.FromMinutes(1), logWmiCounters: false);
+        private readonly PerformanceCollector _collector = new PerformanceCollector(collectionFrequency: TimeSpan.FromMinutes(1));
         private readonly PerformanceCollector.Aggregator _perfStatsAggregator;
 
         public MachinePerformanceCollector()

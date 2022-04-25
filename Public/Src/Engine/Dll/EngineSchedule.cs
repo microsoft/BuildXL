@@ -124,7 +124,7 @@ namespace BuildXL.Engine
         /// <summary>
         /// Update status interval
         /// </summary>
-        public const int UpdateStatusIntervalMs = 2_000;
+        public const int UpdateStatusIntervalMs = 2000;
 
         private EngineSchedule(
             EngineContext context,

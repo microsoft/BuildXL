@@ -145,6 +145,14 @@ namespace BuildXL.Scheduler.Tracing
         }
 
         /// <summary>
+        /// Resource and PipQueue usage is reported
+        /// </summary>
+        public virtual void StatusReported(StatusEventData data)
+        {
+            ReportUnhandledEvent(data);
+        }
+
+        /// <summary>
         /// Single event giving build invocation information that contains configuration details useful for analyzers.
         /// </summary>
         public virtual void BxlInvocation(BxlInvocationEventData data)

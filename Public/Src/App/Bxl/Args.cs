@@ -849,9 +849,6 @@ namespace BuildXL
                             "pathSetAugmentationMonitoring",
                             opt => cacheConfiguration.MonitorAugmentedPathSets = CommandLineUtilities.ParseInt32Option(opt, 0, int.MaxValue)),
                         OptionHandlerFactory.CreateOption(
-                            "perfCollectorFrequencyMs",
-                            opt => loggingConfiguration.PerfCollectorFrequencyMs = CommandLineUtilities.ParseInt32Option(opt, 1000, int.MaxValue)),
-                        OptionHandlerFactory.CreateOption(
                             "phase",
                             opt => engineConfiguration.Phase = CommandLineUtilities.ParseEnumOption<EnginePhases>(opt)),
                         OptionHandlerFactory.CreateBoolOption(

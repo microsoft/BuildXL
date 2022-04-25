@@ -786,7 +786,8 @@ namespace BuildXL.Processes
                     m_pip.Tags.Any(a => a.ToString(m_context.StringTable) == TagFilter.TriggerWorkerProcessStartFailed))
                 {
                     s_testRetryOccurred = true;
-                    return SandboxedProcessPipExecutionResult.FailureButRetryAble(SandboxedProcessPipExecutionStatus.ExecutionFailed,
+                    return SandboxedProcessPipExecutionResult.FailureButRetryAble(
+                        SandboxedProcessPipExecutionStatus.ExecutionFailed,
                         RetryInfo.GetDefault(RetryReason.ProcessStartFailure));
                 }
             }
@@ -804,7 +805,8 @@ namespace BuildXL.Processes
 
                 if (!PrepareTempDirectory(ref environmentVariables))
                 {
-                    return SandboxedProcessPipExecutionResult.FailureButRetryAble(SandboxedProcessPipExecutionStatus.PreparationFailed,
+                    return SandboxedProcessPipExecutionResult.FailureButRetryAble(
+                        SandboxedProcessPipExecutionStatus.PreparationFailed,
                         RetryInfo.GetDefault(RetryReason.TempDirectoryCleanupFailure));
                 }
 
@@ -1069,7 +1071,8 @@ namespace BuildXL.Processes
                             // See bug 1800258 for more context.
                             return SandboxedProcessPipExecutionResult.FailureButRetryAble(
                                 SandboxedProcessPipExecutionStatus.ExecutionFailed,
-                                RetryInfo.GetDefault(RetryReason.ProcessStartFailure), maxDetoursHeapSize: maxDetoursHeapSize);
+                                RetryInfo.GetDefault(RetryReason.ProcessStartFailure),
+                                maxDetoursHeapSize: maxDetoursHeapSize);
                         }
                     }
 
@@ -1664,7 +1667,7 @@ namespace BuildXL.Processes
             ReportedProcess azWatsonDeadProcess = m_sandboxConfig.RetryOnAzureWatsonExitCode && OperatingSystemHelper.IsWindowsOS
                 ? result.Processes?.FirstOrDefault(p => p.ExitCode == AzureWatsonExitCode)
                 : null;
-            bool exitedSuccessfullyAndGracefully = !canceled && exitedWithSuccessExitCode && (azWatsonDeadProcess == null);
+            bool exitedSuccessfullyAndGracefully = !canceled && exitedWithSuccessExitCode;
             bool exitedWithRetryAbleUserError = m_pip.RetryExitCodes.Contains(result.ExitCode) && m_remainingUserRetryCount > 0;
             long maxDetoursHeapSize = process.GetDetoursMaxHeapSize() + result.DetoursMaxHeapSize;
 
@@ -1784,6 +1787,17 @@ namespace BuildXL.Processes
             if (!canceled && result.SurvivingChildProcesses?.Any() == true)
             {
                 numSurvivingChildErrors = ReportSurvivingChildProcesses(result);
+            }
+
+            if (!canceled && azWatsonDeadProcess != null)
+            {
+                Tracing.Logger.Log.PipFinishedWithSomeProcessExitedWithAzureWatsonExitCode(
+                    loggingContext,
+                    m_pip.SemiStableHash,
+                    m_pipDescription,
+                    azWatsonDeadProcess.Path,
+                    azWatsonDeadProcess.ProcessArgs,
+                    azWatsonDeadProcess.ProcessId);
             }
 
             start = DateTime.UtcNow;
@@ -2001,9 +2015,9 @@ namespace BuildXL.Processes
                 status = SandboxedProcessPipExecutionStatus.Succeeded;
             }
 
-            if (azWatsonDeadProcess != null)
+            if (!mainProcessSuccess && !canceled && azWatsonDeadProcess != null)
             {
-                // Retry if there is a process (can be a child process) that exits with exit code 0xDEAD.
+                // Retry if main process failed and there is a process (can be a child process) that exits with exit code 0xDEAD.
                 Tracing.Logger.Log.PipRetryDueToExitedWithAzureWatsonExitCode(
                     m_loggingContext,
                     m_pip.SemiStableHash,
@@ -2051,6 +2065,7 @@ namespace BuildXL.Processes
                 unexpectedFileAccesses: fileAccessReportingContext,
                 encodedStandardOutput: loggingSuccess && shouldPersistStandardOutput ? GetEncodedStandardConsoleStream(result.StandardOutput) : null,
                 encodedStandardError: loggingSuccess && shouldPersistStandardError ? GetEncodedStandardConsoleStream(result.StandardError) : null,
+                // Treat Azure Watson dead process as an injected warning, so the process may not be cached if a warning is treated as an error.
                 numberOfWarnings: m_numWarnings,
                 primaryProcessTimes: primaryProcessTimes,
                 jobAccountingInformation: jobAccounting,
@@ -2064,6 +2079,7 @@ namespace BuildXL.Processes
                 containerConfiguration: m_containerConfiguration,
                 pipProperties: pipProperties,
                 timedOut: result.TimedOut,
+                hasAzureWatsonDeadProcess: azWatsonDeadProcess != null,
                 retryInfo: retryInfo,
                 createdDirectories: createdDirectories);
         }

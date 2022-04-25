@@ -91,6 +91,7 @@ namespace BuildXL.Processes
                 containerConfiguration: ContainerConfiguration.DisabledIsolation,
                 pipProperties: pipProperties,
                 timedOut: false,
+                hasAzureWatsonDeadProcess: false,
                 createdDirectories: null);
         }
 
@@ -120,6 +121,7 @@ namespace BuildXL.Processes
                 containerConfiguration: ContainerConfiguration.DisabledIsolation,
                 pipProperties: null,
                 timedOut: false,
+                hasAzureWatsonDeadProcess: false,
                 retryInfo: retryInfo,
                 createdDirectories: null);
         }
@@ -146,6 +148,7 @@ namespace BuildXL.Processes
                 containerConfiguration: result.ContainerConfiguration,
                 pipProperties: result.PipProperties,
                 timedOut: result.TimedOut,
+                hasAzureWatsonDeadProcess: result.HasAzureWatsonDeadProcess,
                 createdDirectories: result.CreatedDirectories);
         }
 
@@ -185,6 +188,7 @@ namespace BuildXL.Processes
                 containerConfiguration: containerConfiguration,
                 pipProperties: pipProperties,
                 timedOut: false,
+                hasAzureWatsonDeadProcess: false,
                 retryInfo: retryInfo ?? RetryInfo.GetDefault(RetryReason.UserSpecifiedExitCode),
                 createdDirectories: null);
         }
@@ -210,6 +214,7 @@ namespace BuildXL.Processes
                    result.ContainerConfiguration,
                    result.PipProperties,
                    result.TimedOut,
+                   result.HasAzureWatsonDeadProcess,
                    result.CreatedDirectories,
                    retryInfo: RetryInfo.GetDefault(RetryReason.MismatchedMessageCount));
 
@@ -345,6 +350,7 @@ namespace BuildXL.Processes
             ContainerConfiguration containerConfiguration,
             Dictionary<string, int> pipProperties,
             bool timedOut,
+            bool hasAzureWatsonDeadProcess,
             IReadOnlySet<AbsolutePath> createdDirectories,
             RetryInfo retryInfo = null)
         {
@@ -382,6 +388,7 @@ namespace BuildXL.Processes
             ContainerConfiguration = containerConfiguration;
             PipProperties = pipProperties;
             TimedOut = timedOut;
+            HasAzureWatsonDeadProcess = hasAzureWatsonDeadProcess;
             RetryInfo = retryInfo;
             CreatedDirectories = createdDirectories ?? CollectionUtilities.EmptySet<AbsolutePath>();
         }
@@ -410,5 +417,10 @@ namespace BuildXL.Processes
         /// Whether it is timedout
         /// </summary>
         public bool TimedOut { get; set; }
+
+        /// <summary>
+        /// Whether or not it has an Azure Watson dead process (can be a child process).
+        /// </summary>
+        public bool HasAzureWatsonDeadProcess { get; }
     }
 }

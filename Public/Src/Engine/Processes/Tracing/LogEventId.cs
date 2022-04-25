@@ -87,6 +87,7 @@ namespace BuildXL.Processes.Tracing
         PipStandardIOFailed = 316,
 
         PipRetryDueToExitedWithAzureWatsonExitCode = 317,
+        PipFinishedWithSomeProcessExitedWithAzureWatsonExitCode = 319,
 
         DuplicateWindowsEnvironmentVariableEncountered = 336,
 

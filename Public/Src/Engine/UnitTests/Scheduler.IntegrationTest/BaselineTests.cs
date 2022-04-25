@@ -1615,6 +1615,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             }
 
             AssertVerboseEventLogged(ProcessesLogEventId.PipRetryDueToExitedWithAzureWatsonExitCode, retryLogCount);
+            AssertWarningEventLogged(ProcessesLogEventId.PipFinishedWithSomeProcessExitedWithAzureWatsonExitCode, retryLogCount);
 
             if (shouldFail)
             {
@@ -1622,10 +1623,13 @@ namespace IntegrationTest.BuildXL.Scheduler
             }
         }
 
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
-        public void RetryPipForChildExitingWithAzWatsonDeadExitCode()
+        [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [InlineData(0)]
+        [InlineData(1)]
+        public void RetryPipForChildExitingWithAzWatsonDeadExitCode(int mainExitCode)
         {
             Configuration.Sandbox.RetryOnAzureWatsonExitCode = true;
+            bool mainProcessFailed = mainExitCode != 0;
 
             FileArtifact stateFile = FileArtifact.CreateOutputFile(ObjectRootPath.Combine(Context.PathTable, "stateFile.txt"));
 
@@ -1633,14 +1637,69 @@ namespace IntegrationTest.BuildXL.Scheduler
             {
                 Operation.WriteFile(CreateOutputFileArtifact()),
                 Operation.Spawn(Context.PathTable, true, Operation.SucceedOnRetry(stateFile,(int)SandboxedProcessPipExecutor.AzureWatsonExitCode, 2)),
-                Operation.SucceedWithExitCode(0)
+                Operation.SucceedWithExitCode(mainExitCode)
             };
             var builder = CreatePipBuilder(ops);
             builder.AddUntrackedFile(stateFile.Path);
 
             SchedulePipBuilder(builder);
-            RunScheduler().AssertSuccess();
-            AssertVerboseEventLogged(ProcessesLogEventId.PipRetryDueToExitedWithAzureWatsonExitCode, 2);
+
+            var result = RunScheduler();
+
+            if (mainProcessFailed)
+            {
+                result.AssertFailure();
+            }
+            else
+            {
+                result.AssertSuccess();
+            }
+            
+            AssertWarningEventLogged(ProcessesLogEventId.PipFinishedWithSomeProcessExitedWithAzureWatsonExitCode, mainProcessFailed ? 2 : 1);
+
+            if (mainProcessFailed)
+            {
+                AssertVerboseEventLogged(ProcessesLogEventId.PipRetryDueToExitedWithAzureWatsonExitCode, 2);
+                AssertErrorEventLogged(ProcessesLogEventId.PipProcessError);
+            }
+        }
+
+        [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [MemberData(nameof(TruthTable.GetTable), 1, MemberType = typeof(TruthTable))]
+        public void PipWithChildExitingWithAzWatsonDeadExitCodeIsNotCached(bool treatWarningsAsErrors)
+        {
+            Configuration.Sandbox.RetryOnAzureWatsonExitCode = true;
+            Configuration.Logging.TreatWarningsAsErrors = treatWarningsAsErrors;
+            
+            FileArtifact stateFile = FileArtifact.CreateOutputFile(ObjectRootPath.Combine(Context.PathTable, "stateFile.txt"));
+
+            var ops = new Operation[]
+            {
+                Operation.WriteFile(CreateOutputFileArtifact()),
+                Operation.Spawn(Context.PathTable, true, Operation.SucceedWithExitCode((int)SandboxedProcessPipExecutor.AzureWatsonExitCode)),
+                Operation.SucceedWithExitCode(0)
+            };
+            var builder = CreatePipBuilder(ops);
+            builder.AddUntrackedFile(stateFile.Path);
+
+            var pip = SchedulePipBuilder(builder);
+
+            RunScheduler().AssertCacheMiss(pip.Process.PipId);
+
+            AssertWarningEventLogged(ProcessesLogEventId.PipFinishedWithSomeProcessExitedWithAzureWatsonExitCode, 1);
+            AssertVerboseEventLogged(ProcessesLogEventId.PipRetryDueToExitedWithAzureWatsonExitCode, 0);
+
+            if (treatWarningsAsErrors)
+            {
+                RunScheduler().AssertCacheMiss(pip.Process.PipId);
+
+                AssertWarningEventLogged(ProcessesLogEventId.PipFinishedWithSomeProcessExitedWithAzureWatsonExitCode, 1);
+                AssertVerboseEventLogged(ProcessesLogEventId.PipRetryDueToExitedWithAzureWatsonExitCode, 0);
+            }
+            else
+            {
+                RunScheduler().AssertCacheHit(pip.Process.PipId);
+            }
         }
 
         [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]

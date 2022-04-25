@@ -756,6 +756,23 @@ namespace BuildXL.Processes.Tracing
             uint processId);
 
         [GeneratedEvent(
+            (int)LogEventId.PipFinishedWithSomeProcessExitedWithAzureWatsonExitCode,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipPrefix
+            + "Pip finished with some process (can be a child process) '{process} {args}' with pid '{processId}' exited with Azure Watson's 0xDEAD exit code. "
+            + "Pip will not be cached if warning is treated as an error.")]
+        public abstract void PipFinishedWithSomeProcessExitedWithAzureWatsonExitCode(
+            LoggingContext context,
+            long pipSemiStableHash,
+            string pipDescription,
+            string process,
+            string args,
+            uint processId);
+
+        [GeneratedEvent(
             (int)LogEventId.PipProcessStandardInputException,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,

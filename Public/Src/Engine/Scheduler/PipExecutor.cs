@@ -1489,7 +1489,7 @@ namespace BuildXL.Scheduler
                     {
                         Logger.Log.ScheduleProcessNotStoredToCacheDueToFileMonitoringViolations(operationContext, processDescription);
                     }
-                    else if (executionResult.NumberOfWarnings > 0 &&
+                    else if ((executionResult.NumberOfWarnings > 0 || executionResult.HasAzureWatsonDeadProcess) &&
                              ExtraFingerprintSalts.ArePipWarningsPromotedToErrors(configuration.Logging))
                     {
                         // Just like not caching errors, we also don't want to cache warnings that are promoted to errors

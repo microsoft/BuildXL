@@ -16,7 +16,7 @@ namespace Test.BuildXL.Utilities
     public sealed class TaskUtilitiesTests
     {
         [Fact]
-        public Task ToAwaitableCompletesWhenCanceled()
+        public Task ToAwaitable_CompletesWhenCanceled()
         {
             var cts = new CancellationTokenSource();
 
@@ -28,7 +28,7 @@ namespace Test.BuildXL.Utilities
         }
 
         [Fact]
-        public async Task WhenAllWithCancellationShouldNotCauseUnobservedTaskExceptions()
+        public async Task WhenAllWithCancellationAsync_ShouldNotCauseUnobservedTaskExceptions()
         {
             // This test checks that if the task awaited as part of WhenAllWithCancellationAsync call
             // fails, it should not cause any unobserved task errors.
@@ -61,7 +61,7 @@ namespace Test.BuildXL.Utilities
         }
         
         [Fact]
-        public async Task WhenAllWithCancellationPropagatesSingleExceptionCorrectly()
+        public async Task WhenAllWithCancellationAsync_PropagatesSingleExceptionCorrectly()
         {
             var task = Task.Run(() => throw new ApplicationException());
 
@@ -74,7 +74,7 @@ namespace Test.BuildXL.Utilities
         }
 
         [Fact]
-        public async Task WhenAllWithCancellationPropagatesSingleExceptionFromMultipleExceptions()
+        public async Task WhenAllWithCancellationAsync_PropagatesSingleExceptionFromMultipleExceptions()
         {
             var task1 = Task.Run(() => throw new ApplicationException("1"));
             var task2 = Task.Run(() => throw new ApplicationException("2"));
@@ -88,7 +88,7 @@ namespace Test.BuildXL.Utilities
         }
         
         [Fact]
-        public async Task WhenAllWithCancellationPropagatesCancellationCorrectly()
+        public async Task WhenAllWithCancellationAsync_PropagatesCancellationCorrectly()
         {
             var tcs = new CancellationTokenSource(TimeSpan.FromMilliseconds(10));
 
@@ -103,7 +103,7 @@ namespace Test.BuildXL.Utilities
         }
 
         [Fact]
-        public async Task SafeWhenAllPropagatesBothExceptions()
+        public async Task SafeWhenAll_PropagatesBothExceptions()
         {
             var task1 = Task.Run(() => throw new ApplicationException("1"));
             var task2 = Task.Run(() => throw new ApplicationException("2"));
@@ -122,7 +122,7 @@ namespace Test.BuildXL.Utilities
         }
 
         [Fact]
-        public Task SafeWhenAllWrapsSingleExceptionInAggregateException()
+        public Task SafeWhenAll_WrapsSingleExceptionInAggregateException()
         {
             var task1 = Task.Run(() => throw new ApplicationException("1"));
 
@@ -131,7 +131,7 @@ namespace Test.BuildXL.Utilities
         }
 
         [Fact]
-        public async Task WithTimeoutWorksProperlyWhenCancellationTokenIsTriggered()
+        public async Task WithTimeoutAsync_WorksProperlyWhenCancellationTokenIsTriggered()
         {
             bool cancellationRequested = false;
             var cts = new CancellationTokenSource();
@@ -163,7 +163,7 @@ namespace Test.BuildXL.Utilities
         }
 
         [Fact]
-        public async Task WithTimeoutShouldTriggerGivenCancellationTokenAndFailWithTimeoutException()
+        public async Task WithTimeoutAsync_ShouldTriggerGivenCancellationTokenAndFailWithTimeoutException()
         {
             bool cancellationRequested = false;
             var task = TaskUtilities.WithTimeoutAsync(
@@ -183,7 +183,7 @@ namespace Test.BuildXL.Utilities
         }
 
         [Fact]
-        public async Task WithTimeoutShouldFailWithTimeoutEvenWhenTheOriginalTokenIsCanceled()
+        public async Task WithTimeoutAsync_ShouldFailWithTimeoutEvenWhenTheOriginalTokenIsCanceled()
         {
             bool methodIsFinished = false;
             var cts = new CancellationTokenSource();
@@ -205,7 +205,7 @@ namespace Test.BuildXL.Utilities
         }
 
         [Fact]
-        public async Task FromException()
+        public async Task FromException_ReturnsTheRightException()
         {
             var toThrow = new BuildXLException("Got exception?");
             try
@@ -232,7 +232,7 @@ namespace Test.BuildXL.Utilities
         }
 
         [Fact]
-        public async Task SafeWhenAll()
+        public async Task SafeWhenAll_PropagatesAllExceptions()
         {
             try
             {
@@ -251,7 +251,7 @@ namespace Test.BuildXL.Utilities
         }
 
         [Fact]
-        public async Task SafeWhenAllGeneric()
+        public async Task SafeWhenAll_Generic()
         {
             try
             {
@@ -270,7 +270,94 @@ namespace Test.BuildXL.Utilities
         }
 
         [Fact]
-        public async Task TestParallelAlgorithmsCancellationTokenAsync()
+        public async Task Test_WhenDoneAsync_RespectsDegreeOfParallelism()
+        {
+            await Task.Yield();
+
+            // Making sure that WhenDoneAsync starts all the tasks
+            int degreeOfParallelism = 42;
+            int[] input = Enumerable.Range(0, degreeOfParallelism + 1).ToArray();
+
+            await ParallelAlgorithms.WhenDoneAsync(
+                degreeOfParallelism: 42,
+                cancellationToken: CancellationToken.None,
+                action: async (scheduleItem, item) =>
+                        {
+                            
+                            await Task.Yield();
+                        },
+                input);
+        }
+
+        [Fact]
+        public async Task Test_WhenDoneAsync_KeepsTheParallelism()
+        {
+            // This test makes sure that the 'WhenDoneAsync' runs all the correct degree of parallelism.
+            int degreeOfParallelism = 3;
+
+            int pendingCallbacks = 0;
+            int maxPendingCallbacks = 0;
+
+            var allItemsWereAddedTaskSource = TaskSourceSlim.Create<object>();
+
+            int warmUpLimit = 1000;
+
+            var random = new Random(42);
+
+            await ParallelAlgorithms.WhenDoneAsync(
+                degreeOfParallelism: degreeOfParallelism,
+                cancellationToken: default,
+                action: async (scheduler, item) =>
+                        {
+                            if (item == 42)
+                            {
+                                // Once we process some amount of items we want to add more items that taking longer time to process
+                                // in order to make sure all the processors are busy.
+                                for (int i = 0; i < degreeOfParallelism * 10; i++)
+                                {
+                                    // Scheduling a bunch of new work to process with the offset of 'warmUpLimit' to separate new work from the original work.
+                                    scheduler(warmUpLimit + i);
+                                }
+
+                                // Now we wait for all the other processors to get stuck and wait on the task completion source
+                                await ParallelAlgorithms.WaitUntilAsync(
+                                    () => pendingCallbacks == degreeOfParallelism - 1,
+                                    pollInterval: TimeSpan.FromMilliseconds(10),
+                                    timeout: TimeSpan.FromSeconds(1));
+
+                                // Waking up all the processors regardless of the wait result.
+                                // The test will fail in the assert section.
+                                allItemsWereAddedTaskSource.SetResult(null);
+                            }
+                            else
+                            {
+                                if (item < warmUpLimit)
+                                {
+                                    // This was an original item. We process it quickly without any other extra steps.
+                                    await Task.Delay(random.Next(minValue: 0, maxValue: 5));
+                                    return;
+                                }
+
+                                // Incrementing the number of pending callbacks to notify the producer about it.
+                                var currentPendingCallbacks = Interlocked.Increment(ref pendingCallbacks);
+
+                                ParallelAlgorithms.InterlockedMax(ref maxPendingCallbacks, currentPendingCallbacks);
+                                
+                                // Waiting for the signal that all the new items were added.
+                                await allItemsWereAddedTaskSource.Task;
+
+                                Interlocked.Decrement(ref pendingCallbacks);
+                            }
+                        },
+                items: Enumerable.Range(0, 50).ToArray());
+
+            // The maxPendingCallbacks can be 'degreeOfParallelism - 1' or to be equal to 'degreeOfParallelism'
+            // because we do add more work from a callback, meaning that one of the working tasks is occupying a slat as well.
+            Assert.InRange(maxPendingCallbacks, low: degreeOfParallelism - 1, high: degreeOfParallelism);
+        }
+        
+        [Fact]
+        public async Task Test_WhenDoneAsync_RespectsCancellation()
         {
             // cancel after 2 seconds
             var cts = new CancellationTokenSource();

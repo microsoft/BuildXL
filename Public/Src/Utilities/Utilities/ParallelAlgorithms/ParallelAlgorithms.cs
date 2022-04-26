@@ -5,9 +5,12 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading;
+using System.Threading.Channels;
 using System.Threading.Tasks;
+using BuildXL.Utilities.Tasks;
 
 namespace BuildXL.Utilities.ParallelAlgorithms
 {
@@ -122,27 +125,27 @@ namespace BuildXL.Utilities.ParallelAlgorithms
                 return;
             }
 
-            var queue = new ConcurrentQueue<T>(items);
-            int pending = queue.Count;
+            // The channel is unbounded, because we don't expect it to grow too much.
+            var channel = Channel.CreateUnbounded<T>(new UnboundedChannelOptions() { SingleReader = false, SingleWriter = false, });
+            
+            // Adding all the items to the channel.
+            foreach (var item in items)
+            {
+                channel.Writer.TryWrite(item);
+            }
 
-            // Semaphore count should equal the queue count to ensure completion (except on completion
-            // when release degreeOfParallelism count)
-            var semaphore = new SemaphoreSlim(pending, int.MaxValue);
+            // Using the number of pending items to understand when all the items were processed.
+            // Each processing callback can add more items to the processing queue, but if the number of pending
+            // items drops to 0, then it means that all the items were processed and the method is done.
+            int pending = items.Length;
 
-            // The number of pending items is increased via 'scheduleItem' delegate and
-            // decreased when the call back is finished.
-            // This is very important, because decreasing the number of items too early can lead
-            // to a race condition.
             ScheduleItem<T> scheduleItem = item =>
             {
+                // Need to increment the number of pending items before writing an item to the channel to avoid
+                // shutting down the processing due to a lack of item to process.
                 Interlocked.Increment(ref pending);
-
-                // NOTE: Enqueue MUST happen before releasing the semaphore
-                // to ensure WaitAsync below never returns when there is not
-                // a corresponding item in the queue to be dequeued. The only
-                // exception is on completion of all items.
-                queue.Enqueue(item);
-                semaphore.Release();
+                bool result = channel.Writer.TryWrite(item);
+                Contract.Assert(result, "Can't add an item to the channel.");
             };
 
             var tasks = new Task[degreeOfParallelism];
@@ -151,36 +154,24 @@ namespace BuildXL.Utilities.ParallelAlgorithms
                 tasks[i] = Task.Run(
                     async () =>
                     {
-                        while (!cancellationToken.IsCancellationRequested)
+                        // Using 'WaitToReadOrCanceledAsync' instead of 'channel.Writer.WaitToReadAsync',
+                        // because the latter throws 'OperationCanceledException' if the token is triggered,
+                        // but we just want to exit the loop in this case.
+                        while (await channel.WaitToReadOrCanceledAsync(cancellationToken).ConfigureAwait(false))
                         {
-                            try
+                            while (!cancellationToken.IsCancellationRequested && channel.Reader.TryRead(out var item))
                             {
-                                await semaphore.WaitAsync(cancellationToken);
-                            }
-                            catch (OperationCanceledException)
-                            {
-                                break;
-                            }
-
-                            try
-                            {
-                                if (queue.TryDequeue(out var item))
+                                try
                                 {
                                     await action(scheduleItem, item);
                                 }
-                                else
+                                finally
                                 {
-                                    return;
-                                }
-                            }
-                            finally
-                            {
-                                if (Interlocked.Decrement(ref pending) == 0)
-                                {
-                                    // Ensure all tasks are unblocked and can gracefully
-                                    // finish since there are at most degreeOfParallelism - 1 tasks
-                                    // waiting at this point
-                                    semaphore.Release(degreeOfParallelism);
+                                    if (Interlocked.Decrement(ref pending) == 0)
+                                    {
+                                        // No more items to process. We can complete the channel to break this loop for all the processing tasks.
+                                        channel.Writer.Complete();
+                                    }
                                 }
                             }
                         }
@@ -188,7 +179,47 @@ namespace BuildXL.Utilities.ParallelAlgorithms
                     cancellationToken);
             }
 
-            await Task.WhenAll(tasks);
+            await TaskUtilities.SafeWhenAll(tasks);
+        }
+
+        /// <summary>
+        /// Periodically calls the <paramref name="predicate"/> callback until it returns true or <paramref name="timeout"/> occurs.
+        /// </summary>
+        public static async Task<bool> WaitUntilAsync(Func<bool> predicate, TimeSpan pollInterval, TimeSpan timeout)
+        {
+            using var cts = new CancellationTokenSource(timeout);
+
+            while (true)
+            {
+                if (predicate())
+                {
+                    return true;
+                }
+
+                try
+                {
+                    await Task.Delay(pollInterval, cts.Token);
+                }
+                catch (OperationCanceledException)
+                {
+                    return false;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Updates the <paramref name="location"/> with <paramref name="value"/> if the <paramref name="value"/> is greater then the original value of <paramref name="location"/>.
+        /// </summary>
+        public static int InterlockedMax(ref int location, int value)
+        {
+            int initialValue, newValue;
+            do
+            {
+                initialValue = location;
+                newValue = Math.Max(initialValue, value);
+            }
+            while (Interlocked.CompareExchange(ref location, newValue, initialValue) != initialValue);
+            return initialValue;
         }
     }
 }

@@ -28,7 +28,8 @@ namespace Test.BuildXL.Utilities
 
             // Even though the task 't' is done, it still possible that the internal counter in ActionBlock was not yet decremented.
             // "waiting" until all the items are fully processed before calling 'RunAsync' to avoid 'ActionBlockIsFullException'.
-            await ActionBlockSlimTests.WaitUntilAsync(() => queue.PendingWorkItems == 0, TimeSpan.FromMilliseconds(1));
+            bool waitCompleted = await ParallelAlgorithms.WaitUntilAsync(() => queue.PendingWorkItems == 0, TimeSpan.FromMilliseconds(1), timeout: TimeSpan.FromSeconds(5));
+            Assert.True(waitCompleted);
 
             // should be fine now.
             await queue.RunAsync(() => { });

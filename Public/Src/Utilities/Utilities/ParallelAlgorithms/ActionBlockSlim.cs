@@ -437,7 +437,10 @@ namespace BuildXL.Utilities.ParallelAlgorithms
 
                         // Not using 'Reader.ReadAllAsync' because its not available in the version we use here.
                         // So we do what 'ReadAllAsync' does under the hood.
-                        while (await m_channel.Reader.WaitToReadAsync(cts.Token).ConfigureAwait(false))
+                        //
+                        // using 'WaitToReadOrCanceledAsync' instead of 'channel.Reader.WaitToReadAsync' to simply break
+                        // the execution when the token is triggered instead of throwing 'OperationCanceledException'
+                        while (await m_channel.WaitToReadOrCanceledAsync(cts.Token).ConfigureAwait(false))
                         {
                             while (!cts.Token.IsCancellationRequested && m_channel.Reader.TryRead(out var item))
                             {

@@ -29,7 +29,11 @@ namespace Test.BuildXL.Utilities
             Assert.Equal(1, actionBlock.PendingWorkItems);
 
             tcs.SetResult(null);
-            await WaitUntilAsync(() => actionBlock.PendingWorkItems == 0, TimeSpan.FromMilliseconds(1)).WithTimeoutAsync(TimeSpan.FromSeconds(5));
+            bool waitSucceeded = await ParallelAlgorithms.WaitUntilAsync(
+                () => actionBlock.PendingWorkItems == 0, 
+                TimeSpan.FromMilliseconds(1),
+                timeout: TimeSpan.FromSeconds(5));
+            Assert.True(waitSucceeded);
             
             Assert.Equal(0, actionBlock.PendingWorkItems);
 
@@ -57,7 +61,11 @@ namespace Test.BuildXL.Utilities
             Assert.Equal(1, actionBlock.PendingWorkItems);
 
             tcs.SetResult(null);
-            await WaitUntilAsync(() => actionBlock.PendingWorkItems == 0, TimeSpan.FromMilliseconds(1)).WithTimeoutAsync(TimeSpan.FromSeconds(5));
+            var waitSucceeded = await ParallelAlgorithms.WaitUntilAsync(
+                () => actionBlock.PendingWorkItems == 0, 
+                TimeSpan.FromMilliseconds(1),
+                timeout: TimeSpan.FromSeconds(5));
+            Assert.True(waitSucceeded);
 
             Assert.Equal(0, actionBlock.PendingWorkItems);
 
@@ -75,18 +83,55 @@ namespace Test.BuildXL.Utilities
             // Negative inputs denote cases where the item should not be added
             Assert.DoesNotContain(seenInputs, i => i < 0);
         }
-
-        internal static async Task WaitUntilAsync(Func<bool> predicate, TimeSpan waitInterval)
+        
+        [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [InlineData(true)]
+        [InlineData(false)]
+        public async Task CompletionAsync_Succeeded_When_CancellationToken_Is_Canceled(bool useChannelBasedImpl)
         {
-            while (true)
-            {
-                if (predicate())
-                {
-                    break;
-                }
 
-                await Task.Delay(waitInterval);
-            }
+            await Task.Yield();
+            var cts = new CancellationTokenSource();
+
+            var tcs = new TaskCompletionSource<object>();
+
+            var actionBlock = ActionBlockSlim.CreateWithAsyncAction<int>(
+                1,
+                input =>
+                {
+                    return tcs.Task;
+                },
+                capacityLimit: 1,
+                useChannelBasedImpl: useChannelBasedImpl,
+                cancellationToken: cts.Token);
+
+            cts.Cancel();
+            tcs.SetResult(null);
+
+            actionBlock.Complete();
+            await actionBlock.CompletionAsync();
+        }
+        
+        [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [InlineData(true)]
+        [InlineData(false)]
+        public async Task CompletionAsync_Succeeded_When_CancelPending_Is_True(bool useChannelBasedImpl)
+        {
+            await Task.Yield();
+            var tcs = new TaskCompletionSource<object>();
+
+            var actionBlock = ActionBlockSlim.CreateWithAsyncAction<int>(
+                1,
+                input =>
+                {
+                    return tcs.Task;
+                },
+                capacityLimit: 1,
+                useChannelBasedImpl: useChannelBasedImpl,
+                cancellationToken: CancellationToken.None);
+
+            actionBlock.Complete(cancelPending: true);
+            await actionBlock.CompletionAsync();
         }
 
         [Theory]

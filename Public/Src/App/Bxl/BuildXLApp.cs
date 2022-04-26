@@ -1603,7 +1603,8 @@ namespace BuildXL
                     buildViewModel,
                     m_configuration.UseCustomPipDescriptionOnConsole,
                     m_warningManager.GetState,
-                    initialFrequency
+                    initialFrequency,
+                    emitTargetErrorEvent: true
                 );
 
                 AddListener(listener);

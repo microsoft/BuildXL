@@ -52,6 +52,8 @@ namespace BuildXL
         private readonly int m_initialFrequencyMs;
         private int m_loggingFrequencyMs;
         private DateTime m_statusLogTime;
+        private bool m_emitTargetErrorEvent;
+
         /// <nodoc />
         public AzureDevOpsListener(
             Events eventSource,
@@ -61,7 +63,8 @@ namespace BuildXL
             bool useCustomPipDescription,
             [CanBeNull] WarningMapper warningMapper,
             int initialFrequencyMs,
-            int maxIssuesToLog = 100)
+            int maxIssuesToLog = 100,
+            bool emitTargetErrorEvent = false)
             : base(eventSource, baseTime, warningMapper: warningMapper, level: EventLevel.Verbose, captureAllDiagnosticMessages: false, timeDisplay: TimeDisplay.Seconds, useCustomPipDescription: useCustomPipDescription)
         {
             Contract.RequiresNotNull(console);
@@ -71,6 +74,7 @@ namespace BuildXL
             m_buildViewModel = buildViewModel;
             m_maxIssuesToLog = maxIssuesToLog;
             m_initialFrequencyMs = initialFrequencyMs;
+            m_emitTargetErrorEvent = emitTargetErrorEvent;
         }
 
         /// <inheritdoc />
@@ -219,15 +223,18 @@ namespace BuildXL
                 },
                 MaxErrorsToIncludeInSummary);
 
-                Tracing.CloudBuildEventSource.Log.TargetFailedEvent(new TargetFailedEvent
+                if (m_emitTargetErrorEvent)
                 {
-                    WorkerId = workerId,
-                    TargetId = semiStableHash,
-                    StdOutputPath = pipProcessErrorEventFields.OutputToLog,
-                    PipDescription = pipProcessErrorEventFields.PipDescription,
-                    ShortPipDescription = pipProcessErrorEventFields.ShortPipDescription,
-                    PipExecutionTimeMs = pipProcessErrorEventFields.PipExecutionTimeMs                    
-                });
+                    Tracing.CloudBuildEventSource.Log.TargetFailedEvent(new TargetFailedEvent
+                    {
+                        WorkerId = workerId,
+                        TargetId = semiStableHash,
+                        StdOutputPath = pipProcessErrorEventFields.OutputToLog,
+                        PipDescription = pipProcessErrorEventFields.PipDescription,
+                        ShortPipDescription = pipProcessErrorEventFields.ShortPipDescription,
+                        PipExecutionTimeMs = pipProcessErrorEventFields.PipExecutionTimeMs
+                    });
+                }
             }
         }
 

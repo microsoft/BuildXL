@@ -45,7 +45,8 @@ export function addCredScanCalls(rootDirectory : Directory, guardianToolRoot : S
             /*additionalOutputs*/undefined,
             /*untrackedPaths*/undefined,
             /*untrackedScopes*/[d`${packageDirectory.path}/nuget/Microsoft.Security.CredScan.Client.2.2.9.6-preview/lib/netcoreapp3.1/SRM`],
-            /*allowUndeclaredSourceReads*/false)
+            /*allowUndeclaredSourceReads*/false,
+            /*passThroughEnvironmentVariables*/undefined)
         );
     }
 

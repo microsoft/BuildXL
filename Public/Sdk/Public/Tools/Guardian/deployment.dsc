@@ -20,6 +20,7 @@ export const internalDeployment : Deployment.Definition = {
         f`Tool.Guardian.EsLint.dsc`,
         f`Tool.Guardian.PsScriptAnalyzer.dsc`,
         f`Tool.Guardian.FlawFinder.dsc`,
+        f`Tool.Guardian.PoliCheck.dsc`,
         {file: f`LiteralFiles/module.config.dsc.literal`, targetFileName: a`module.config.dsc`},
     ]
 };

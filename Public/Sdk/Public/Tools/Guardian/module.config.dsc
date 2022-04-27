@@ -10,6 +10,7 @@ module({
         ...addIf(Environment.getFlag("[Sdk.BuildXL]microsoftInternal") && Context.getCurrentHost().os === "win", f`Tool.Guardian.EsLint.dsc`),
         ...addIf(Environment.getFlag("[Sdk.BuildXL]microsoftInternal") && Context.getCurrentHost().os === "win", f`Tool.Guardian.CredScan.dsc`),
         ...addIf(Environment.getFlag("[Sdk.BuildXL]microsoftInternal") && Context.getCurrentHost().os === "win", f`Tool.Guardian.PsScriptAnalyzer.dsc`),
-        ...addIf(Environment.getFlag("[Sdk.BuildXL]microsoftInternal") && Context.getCurrentHost().os === "win", f`Tool.Guardian.FlawFinder.dsc`)
+        ...addIf(Environment.getFlag("[Sdk.BuildXL]microsoftInternal") && Context.getCurrentHost().os === "win", f`Tool.Guardian.FlawFinder.dsc`),
+        ...addIf(Environment.getFlag("[Sdk.BuildXL]microsoftInternal") && Context.getCurrentHost().os === "win", f`Tool.Guardian.PoliCheck.dsc`)
     ]
 });

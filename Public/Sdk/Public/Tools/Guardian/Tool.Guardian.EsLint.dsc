@@ -81,7 +81,8 @@ export function addGuardianEsLintCalls(rootDirectory : Directory, guardianToolRo
             // https://eslint.org/docs/user-guide/configuring/configuration-files#cascading-and-hierarchy
             packageJsonFiles.filter(file => file !== packageJsonFiles[packageIndex]),
             /*untrackedScopes*/[d`${Context.getMount("SourceRoot").path}/common/temp`],
-            /*allowUndeclaredSourceReads*/true)
+            /*allowUndeclaredSourceReads*/true,
+            /*passThroughEnvironmentVariables*/undefined)
         );
     }
 

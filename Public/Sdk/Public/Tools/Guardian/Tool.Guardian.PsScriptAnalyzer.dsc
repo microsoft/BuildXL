@@ -33,7 +33,8 @@ export function addPsscriptAnalyzerCalls(rootDirectory : Directory, guardianTool
         /*additionalOutputs*/undefined,
         /*untrackedPaths*/undefined,
         /*untrackedScopes*/undefined,
-        /*allowUndeclaredSourceReads*/false);
+        /*allowUndeclaredSourceReads*/false,
+        /*passThroughEnvironmentVariables*/undefined);
 }
 
 function psscriptAnalyzerConfiguration() : Object {

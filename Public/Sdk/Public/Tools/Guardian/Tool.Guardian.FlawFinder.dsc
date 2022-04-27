@@ -32,7 +32,8 @@ export function addFlawFinderCalls(rootDirectory : Directory, guardianToolRoot :
         /*additionalOutputs*/undefined,
         /*untrackedPaths*/undefined,
         /*untrackedScopes*/undefined,
-        /*allowUndeclaredSourceReads*/false);
+        /*allowUndeclaredSourceReads*/false,
+        /*passThroughEnvironmentVariables*/undefined);
 }
 
 function flawFinderConfiguration() : Object {

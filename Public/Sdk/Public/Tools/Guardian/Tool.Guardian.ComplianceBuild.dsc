@@ -61,7 +61,7 @@ export function runComplianceBuildOnEntireRepository(guardianToolRoot : StaticDi
         "Seal Guardian package directory"
     );
 
-    const supportedTools : Set<string> = Set.create<string>("credscan", "eslint", "psscriptanalyzer", "flawfinder");
+    const supportedTools : Set<string> = Set.create<string>("credscan", "eslint", "psscriptanalyzer", "flawfinder", "policheck");
     let toolsToRun : Set<string> = Set.empty<string>();
 
     if (Environment.hasVariable(enabledTools)) {
@@ -82,7 +82,8 @@ export function runComplianceBuildOnEntireRepository(guardianToolRoot : StaticDi
         ...(toolsToRun.contains("credscan") ? addCredScanCalls(guardianBuildRoot, guardianToolRoot, packageDirectory, guardianDrop, files) : []),
         ...(toolsToRun.contains("eslint") ? addGuardianEsLintCalls(guardianBuildRoot, guardianToolRoot, packageDirectory, guardianDrop, nodeToolRoot, nodeToolExe, files) : [] ),
         ...(toolsToRun.contains("psscriptanalyzer") ? [addPsscriptAnalyzerCalls(guardianBuildRoot, guardianToolRoot, packageDirectory, guardianDrop, files)] : []),
-        ...(toolsToRun.contains("flawfinder") ? [addFlawFinderCalls(guardianBuildRoot, guardianToolRoot, packageDirectory, guardianDrop, files)] : [])
+        ...(toolsToRun.contains("flawfinder") ? [addFlawFinderCalls(guardianBuildRoot, guardianToolRoot, packageDirectory, guardianDrop, files)] : []),
+        ...(toolsToRun.contains("policheck") ? [addPoliCheckCalls(guardianBuildRoot, guardianToolRoot, packageDirectory, guardianDrop, files)] : [])
     ];
 
     return guardianResults;
@@ -158,7 +159,8 @@ export function createGuardianCall(
     additionalOutputs: Transformer.Output[],
     untrackedPaths: (File | Directory)[],
     untrackedScopes: Directory[],
-    allowUndeclaredSourceReads: boolean)
+    allowUndeclaredSourceReads: boolean,
+    passThroughEnvironmentVariables: string[])
     : Transformer.ExecuteResult {
 
     const baselines = glob(complianceBaselineSuppressionLocation, "*.gdnbaselines");
@@ -187,7 +189,8 @@ export function createGuardianCall(
         additionalOutputs: additionalOutputs,
         untrackedPaths: untrackedPaths,
         untrackedScopes: untrackedScopes,
-        allowUndeclaredSourceReads: allowUndeclaredSourceReads
+        allowUndeclaredSourceReads: allowUndeclaredSourceReads,
+        passThroughEnvironmentVariables
     };
 
     const guardianResult = runGuardian(guardianArgs);

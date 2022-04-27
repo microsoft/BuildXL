@@ -319,7 +319,7 @@ config({{
                 var updatedRushJson = rushJson
                     .Replace(
                     "\"nodeSupportedVersionRange\": \">=12.13.0 <13.0.0 || >=14.15.0 <15.0.0\"",
-                    "\"nodeSupportedVersionRange\": \">=10.13.0 <=17.2.0\"")
+                    "\"nodeSupportedVersionRange\": \">=10.13.0 <=18.0.0\"")
                     .Replace(
                     "\"pnpmVersion\": \"2.15.1\"",
                     "\"pnpmVersion\": \"5.0.2\"");

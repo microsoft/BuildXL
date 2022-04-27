@@ -67,6 +67,17 @@ namespace BuildXL.Launcher.Server
             var secretsProviderKind = configuration.GetValue("secretsProviderKind", CrossProcessSecretsCommunicationKind.Environment);
             var context = new Context(logger);
 
+            if (!standalone)
+            {
+                // When the Ctrl+C is sent to a process in Windows, its actually being sent to a process group, i.e. to the process subtree.
+                // In a non-standalone mode the lifetime of the child process is handled via the custom lifetime management logic
+                // and the process should ignore the Ctrl+C event to avoid unexpected exits.
+                
+                // Using 'CancelKeyPress' instead of TreatControlCAsInput = true because the event handler disables both 'Ctrl+C' and 'Ctrl+Break',
+                // and TreatControlCAsInput only disables 'Ctrl+C' case.
+                System.Console.CancelKeyPress += (_, e) => e.Cancel = true;
+            }
+
             return CacheServiceRunner.RunCacheServiceAsync(
                 new OperationContext(context, token),
                 cacheConfigurationPath,

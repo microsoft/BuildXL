@@ -248,24 +248,6 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "EnvDTE",
-          "Version": "8.0.2"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "EnvDTE80",
-          "Version": "8.0.3"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
           "Name": "ErrorProne.NET.CoreAnalyzers",
           "Version": "0.3.1-beta.2"
         }
@@ -2202,15 +2184,6 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.VisualStudio.ComponentModelHost",
-          "Version": "16.0.189-g83e7c53a57"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.VisualStudio.ComponentModelHost",
           "Version": "17.0.255-preview-ga4c683bf62"
         }
       }
@@ -2302,24 +2275,6 @@
         "NuGet": {
           "Name": "Microsoft.VisualStudio.ProjectAggregator",
           "Version": "17.0.0-previews-3-31605-261"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.VisualStudio.ProjectAggregator",
-          "Version": "8.0.50728"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.VisualStudio.ProjectSystem",
-          "Version": "14.1.127-pre"
         }
       }
     },
@@ -2454,15 +2409,6 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.VisualStudio.Shell.Framework",
-          "Version": "15.8.28010"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.VisualStudio.Shell.Framework",
           "Version": "17.0.0-previews-3-31605-261"
         }
       }
@@ -2509,15 +2455,6 @@
         "NuGet": {
           "Name": "Microsoft.VisualStudio.Shell.Interop",
           "Version": "17.0.0-previews-3-31605-261"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.VisualStudio.Shell.Interop",
-          "Version": "7.10.6072"
         }
       }
     },
@@ -2662,15 +2599,6 @@
         "NuGet": {
           "Name": "Microsoft.VisualStudio.TextManager.Interop.9.0",
           "Version": "9.0.30730"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.VisualStudio.Threading",
-          "Version": "15.8.168"
         }
       }
     },
@@ -4525,24 +4453,6 @@
         "NuGet": {
           "Name": "TransientFaultHandling.Core",
           "Version": "5.1.1209.1"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "VSLangProj",
-          "Version": "7.0.3301"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "VSLangProj2",
-          "Version": "7.0.5001"
         }
       }
     },

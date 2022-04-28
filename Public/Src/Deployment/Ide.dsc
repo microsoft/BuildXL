@@ -9,19 +9,13 @@ namespace Ide {
 
     const deployment : Deployment.Definition = {
         contents: [
-            ...addIfLazy(Context.getCurrentHost().os === "win", () => [{
+            ...addIfLazy(Context.getCurrentHost().os === "win", () => [
+            ...addIfLazy(BuildXLSdk.Flags.isMicrosoftInternal, () => [{
                 file: importFrom("BuildXL.Ide.VsIntegration").withQualifier({
                     targetFramework: "net472",
                     targetRuntime: "win-x64"}
                     ).BuildXLVsPackage.vsix,
                 targetFileName: a`BuildXL.vs.vsix`,
-            },
-            ...addIfLazy(BuildXLSdk.Flags.isMicrosoftInternal, () => [{
-                file: importFrom("BuildXL.Ide.VsIntegration").withQualifier({
-                    targetFramework: "net472",
-                    targetRuntime: "win-x64"}
-                    ).BuildXLVsPackageDev17.vsix,
-                targetFileName: a`BuildXL.vs.Dev17.vsix`,
             }]),
             {
                 // Ones the migration to net5 is done the next line needs to be changed to net5.0

@@ -344,11 +344,8 @@ namespace BuildXL.VsPackage
         /// <param name="arguments">The event arguments</param>
         private void NavigateTo(object sender, EventArgs arguments)
         {
-#if Dev17
             var task = sender as TaskListItem;
-#else
-            var task = sender as Task;
-#endif
+
             if (task == null || string.IsNullOrEmpty(task.Document))
             {
                 // nothing to navigate to

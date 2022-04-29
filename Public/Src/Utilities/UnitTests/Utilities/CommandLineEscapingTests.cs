@@ -2,6 +2,8 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using BuildXL.Utilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
@@ -82,6 +84,208 @@ namespace Test.BuildXL.Utilities
                 XAssertEscapingCase(escapingCase.AsApplicationName, escapingCase.Value, CommandLineEscaping.EscapeAsCreateProcessApplicationName);
             }
         }
+
+#if NET_CORE
+
+        [Fact]
+        public void ParseEmptyStringReturnsZeroLengthList()
+        {
+            List<CommandLineEscaping.Arg> args = CommandLineEscaping.SplitArguments(string.Empty).ToList();
+            XAssert.AreEqual(0, args.Count);
+        }
+
+        [Theory]
+        [InlineData("\"\"")]
+        [InlineData(" \"\"")]
+        [InlineData("\"\" ")]
+        public void ParseEmptyArg(string param)
+        {
+            List<CommandLineEscaping.Arg> args = CommandLineEscaping.SplitArguments(param).ToList();
+            string msg = $"param: {param}";
+            XAssert.AreEqual(1, args.Count, msg);
+            XAssert.AreEqual(string.Empty, args[0].Value.ToString(), msg);
+        }
+
+        [Fact]
+        public void ParseTrailingEmptyArg()
+        {
+            const string param = "Arg1 \"\"";
+            List<CommandLineEscaping.Arg> args = CommandLineEscaping.SplitArguments(param).ToList();
+            string msg = $"param: {param}";
+            XAssert.AreEqual(2, args.Count, msg);
+            XAssert.AreEqual("Arg1", args[0].Value.ToString(), msg);
+            XAssert.AreEqual(string.Empty, args[1].Value.ToString(), msg);
+            XAssert.AreEqual("\"\"", args[1].Raw.ToString(), msg);
+        }
+
+        [Fact]
+        public void ParseLeadingEmptyArg()
+        {
+            const string param = "\"\" Arg2";
+            List<CommandLineEscaping.Arg> args = CommandLineEscaping.SplitArguments(param).ToList();
+            string msg = $"param: {param}";
+            XAssert.AreEqual(2, args.Count, msg);
+            XAssert.AreEqual(string.Empty, args[0].Value.ToString(), msg);
+            XAssert.AreEqual("\"\"", args[0].Raw.ToString(), msg);
+            XAssert.AreEqual("Arg2", args[1].Value.ToString(), msg);
+        }
+
+        [Theory]
+        [InlineData("param")]
+        [InlineData("param   ")]
+        [InlineData("    param   ")]
+        [InlineData("    param")]
+        [InlineData("\"param\"")]
+        [InlineData("\"param")]
+        [InlineData("pa\"r\"am")]
+        [InlineData("p\"a\"r\"a\"m")]
+        public void ParseQuotedParam(string param)
+        {
+            List<CommandLineEscaping.Arg> args = CommandLineEscaping.SplitArguments(param).ToList();
+            string msg = $"param: {param}";
+            XAssert.AreEqual(1, args.Count, msg);
+            XAssert.AreEqual("param", args[0].Value.ToString(), msg);
+            XAssert.AreEqual(param.Trim(), args[0].Raw.ToString(), msg);
+        }
+
+        [Theory]
+        [InlineData("\"one\\\"two\"", "one\"two")]
+        [InlineData("one\\\"two", "one\"two")]
+        public void ParseEscapedQuotes(string param, string expectedArg)
+        {
+            List<CommandLineEscaping.Arg> args = CommandLineEscaping.SplitArguments(param).ToList();
+            XAssert.AreEqual(1, args.Count);
+            XAssert.AreEqual(expectedArg, args[0].Value.ToString());
+            XAssert.AreEqual(param, args[0].Raw.ToString());
+        }
+
+        [Theory]
+        // from https://docs.microsoft.com/en-us/cpp/cpp/main-function-command-line-args?redirectedfrom=MSDN&view=msvc-170#results-of-parsing-command-lines
+        [InlineData(@"""abc"" d e",       "abc", "d", "e")]
+        [InlineData(@"a\\\""b c d""",    @"a\""b", "c", "d")]
+        [InlineData(@"a\\b d""e f""g h", @"a\\b", "de fg", "h")]
+        [InlineData(@"a\\\\""b c"" d e", @"a\\b c", "d", "e")]
+        // from https://docs.microsoft.com/en-us/cpp/c-language/parsing-c-command-line-arguments?redirectedfrom=MSDN&view=msvc-170
+        [InlineData(@"""a b c"" d e",       "a b c", "d", "e")]
+        [InlineData(@"""ab\""c"" ""\\"" d", "ab\"c", "\\", "d")]
+        public void ParseMsvcExamples(string param, string arg1, string arg2, string arg3)
+        {
+            List<string> args = CommandLineEscaping.SplitArguments(param, useWindowsRules: true).Select(t => t.Value.ToString()).ToList().ToList();
+            string msg = $"\nparams: {param}\nargs: " + string.Join("\n- ", args);
+            XAssert.AreEqual(arg1, args.FirstOrDefault(), msg);
+            XAssert.AreEqual(arg2, args.Skip(1).FirstOrDefault(), msg);
+            XAssert.AreEqual(arg3, args.Skip(2).FirstOrDefault(), msg);
+        }
+
+        // on Windows only: double quote while quoting escapes the second quote
+        [Theory]
+        [InlineData(true, @"a""b"""" c d", @"ab"" c d")]
+        [InlineData(false, @"a""b"""" c d", @"ab c d")]
+        [InlineData(true, "\"\"\"\"", "\"")]
+        [InlineData(false, "\"\"\"\"", "")]
+        public void ParseDoubleQuote(bool isWindows, string param, string expectedArg)
+        {
+            List<string> args = CommandLineEscaping.SplitArguments(param, isWindows).Select(m => m.Value.ToString()).ToList().ToList();
+            string msg = $"\nparams: {param}\nargs: " + string.Join("\n- ", args);
+            XAssert.AreEqual(expectedArg, args.FirstOrDefault(), msg);
+            XAssert.AreEqual(1, args.Count, msg);
+        }
+
+        [Fact]
+        public void ParseEscapedStuff()
+        {
+            const string param = "\"-DCMAKE_CFG_INTDIR=\\\".\\\"\" \"-D_DEBUG\" \"-D_GNU_SOURCE\"";
+            List<string> args = CommandLineEscaping.SplitArguments(param).Select(t => t.Value.ToString()).ToList().ToList();
+            string msg = $"\nparams: {param}\nargs: " + string.Join("|", args);
+            XAssert.AreEqual(3, args.Count, msg);
+            XAssert.AreEqual("-DCMAKE_CFG_INTDIR=\".\"", args[0], msg);
+            XAssert.AreEqual("-D_DEBUG", args[1], msg);
+            XAssert.AreEqual("-D_GNU_SOURCE", args[2], msg);
+        }
+
+        [Fact]
+        public void ParseEscapedSpaceOnLinux()
+        {
+            const string param = "one\\ two";
+            List<string> args = CommandLineEscaping.SplitArguments(param, useWindowsRules: false).Select(t => t.Value.ToString()).ToList().ToList();
+            string msg = $"\nparams: {param}\nargs: " + string.Join("|", args);
+            XAssert.AreEqual(1, args.Count, msg);
+            XAssert.AreEqual("one two", args[0], msg);
+        }
+
+        [Fact]
+        public void ParseQuotedParam()
+        {
+            const string param = "\"param\"";
+            List<CommandLineEscaping.Arg> args = CommandLineEscaping.SplitArguments(param).ToList();
+            XAssert.AreEqual(1, args.Count);
+            XAssert.AreEqual("param", args[0].Value.ToString());
+            XAssert.AreEqual(param, args[0].Raw.ToString());
+        }
+
+        [Fact]
+        public void ParseQuotedParamNoEndQuote()
+        {
+            const string param = "\"param";
+            List<CommandLineEscaping.Arg> args = CommandLineEscaping.SplitArguments(param).ToList();
+            XAssert.AreEqual(1, args.Count);
+            XAssert.AreEqual("param", args[0].Value.ToString());
+            XAssert.AreEqual(param, args[0].Raw.ToString());
+        }
+
+        [Fact]
+        public void ParseQuotedParamWithSpaces()
+        {
+            const string param = "\"param  1\"";
+            List<CommandLineEscaping.Arg> args = CommandLineEscaping.SplitArguments(param).ToList();
+            XAssert.AreEqual(1, args.Count);
+            XAssert.AreEqual("param  1", args[0].Value.ToString());
+            XAssert.AreEqual(param, args[0].Raw.ToString());
+        }
+
+        [Fact]
+        public void ParseParamsWithLotsOfWhitespace()
+        {
+            List<CommandLineEscaping.Arg> args = CommandLineEscaping.SplitArguments("param     1 2\t\t\t\t3").ToList();
+            XAssert.AreEqual(4, args.Count);
+            XAssert.AreEqual("param", args[0].Value.ToString());
+            XAssert.AreEqual("param", args[0].Raw.ToString());
+
+            XAssert.AreEqual("1", args[1].Value.ToString());
+            XAssert.AreEqual("1", args[1].Raw.ToString());
+
+            XAssert.AreEqual("2", args[2].Value.ToString());
+            XAssert.AreEqual("2", args[2].Raw.ToString());
+
+            XAssert.AreEqual("3", args[3].Value.ToString());
+            XAssert.AreEqual("3", args[3].Raw.ToString());
+        }
+
+        [Fact]
+        public void ParsingWithAndWithoutQuotes()
+        {
+            List<CommandLineEscaping.Arg> args =
+                CommandLineEscaping.SplitArguments("/b:abc -foo \"ba\"r   /bar:\"blah\" \"/q:quoted \"  /tail:\"Unclosed Quote").ToList();
+            XAssert.AreEqual(6, args.Count);
+            XAssert.AreEqual("/b:abc", args[0].Value.ToString());
+            XAssert.AreEqual("/b:abc", args[0].Raw.ToString());
+
+            XAssert.AreEqual("-foo", args[1].Value.ToString());
+            XAssert.AreEqual("-foo", args[1].Raw.ToString());
+
+            XAssert.AreEqual("bar", args[2].Value.ToString());
+            XAssert.AreEqual("\"ba\"r", args[2].Raw.ToString());
+
+            XAssert.AreEqual("/bar:blah", args[3].Value.ToString());
+            XAssert.AreEqual("/bar:\"blah\"", args[3].Raw.ToString());
+
+            XAssert.AreEqual("/q:quoted ", args[4].Value.ToString());
+            XAssert.AreEqual("\"/q:quoted \"", args[4].Raw.ToString());
+
+            XAssert.AreEqual("/tail:Unclosed Quote", args[5].Value.ToString());
+            XAssert.AreEqual("/tail:\"Unclosed Quote", args[5].Raw.ToString());
+        }
+#endif
 
         private static CommandLineEscapingTestCase Case(string value, string asWord = null, string asApplicationName = null)
         {

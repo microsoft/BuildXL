@@ -350,7 +350,7 @@ namespace Test.BuildXL.Engine
         private string ProduceFileUnderDirectory(string file, bool isDynamic, bool failOnExit, string dependencies = "", string exclusions = "", bool allowSourceRewrites = false, bool allowUndeclaredReads = false, string content = "hi")
         {
             var shellCommand = OperatingSystemHelper.IsUnixOS
-                ? $"-c 'echo {content}" // note we are opening single quotes in this case
+                ? $"-c \"echo {content}" // note we are opening single quotes in this case
                 : $"/C echo {content}";
 
             var artifactKind = isDynamic
@@ -373,7 +373,7 @@ namespace Test.BuildXL.Engine
                 // And we are closing the single quote here
                 if (OperatingSystemHelper.IsUnixOS)
                 {
-                    result += @", {value: {value: ""'"", kind: ArgumentKind.rawText}}";
+                    result += @", {value: {value: '""', kind: ArgumentKind.rawText}}";
                 }
 
                 return result;
@@ -392,7 +392,7 @@ const result = execute({{
     tool: {GetOsShellCmdToolDefinition()},
     workingDirectory: d`.`,
     arguments: [
-        {{ value: {{ value: ""{shellCommand}"", kind: ArgumentKind.rawText }}}},
+        {{ value: {{ value: '{shellCommand}', kind: ArgumentKind.rawText }}}},
         {{ value: '>' }},
         {{ value: {{ path: p`${{objDir}}/${{outFile}}`, kind: ArtifactKind.{artifactKind} }}}}
         {FailOnExitIfNeeded(failOnExit)}

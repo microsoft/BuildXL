@@ -446,7 +446,7 @@ namespace Test.BuildXL.Scheduler
             var argsBulder = builder.ArgumentsBuilder;
             using (argsBulder.StartFragment(PipDataFragmentEscaping.NoEscaping, env.PathTable.StringTable.Empty))
             {
-                argsBulder.Add(OperatingSystemHelper.IsUnixOS ? "-c ' /bin/cat" : "/D /C type ");
+                argsBulder.Add(OperatingSystemHelper.IsUnixOS ? "-c \" /bin/cat" : "/D /C type ");
             }
             argsBulder.Add(file);
             using (argsBulder.StartFragment(PipDataFragmentEscaping.NoEscaping, env.PathTable.StringTable.Empty))
@@ -458,7 +458,7 @@ namespace Test.BuildXL.Scheduler
             {
                 using (argsBulder.StartFragment(PipDataFragmentEscaping.NoEscaping, env.PathTable.StringTable.Empty))
                 {
-                    argsBulder.Add("'");
+                    argsBulder.Add("\"");
                 }
             }
 
@@ -1468,12 +1468,7 @@ namespace Test.BuildXL.Scheduler
             if (OperatingSystemHelper.IsUnixOS)
             {
                 pipDataBuilder.Add("-c");
-                using (pipDataBuilder.StartFragment(PipDataFragmentEscaping.NoEscaping, " "))
-                {
-                    pipDataBuilder.Add("'");
-                    pipDataBuilder.Add(argsData);
-                    pipDataBuilder.Add("'");
-                }
+                pipDataBuilder.Add(argsData.ToString(new PipFragmentRenderer(Context.PathTable)));
             }
             else
             {

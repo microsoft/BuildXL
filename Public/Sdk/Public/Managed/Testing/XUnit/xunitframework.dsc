@@ -133,12 +133,11 @@ function wrapInUntrackedCmd(executeArguments: Transformer.ExecuteArguments) : Tr
                 ...(runningInWindows ? [
                     Cmd.argument("/D"), Cmd.argument("/C")
                 ] : [
-                    Cmd.argument("-c"), Cmd.rawArgument("'"), Cmd.argument("chmod"), Cmd.argument("+x"), Cmd.argument(Artifact.input(executeArguments.tool.exe)), Cmd.rawArgument(";")
+                    Cmd.option("-c ", 'prog="$1"; shift; chmod +x "$prog"; "$prog" "$@"'),
+                    Cmd.rawArgument("--"),
                 ]),
-                Cmd.argument(Artifact.input(executeArguments.tool.exe)),
-                ...executeArguments.arguments,
-                ...addIf(!runningInWindows, Cmd.rawArgument("'"))
-            ].replaceWhenMerged(),
+                Cmd.argument(Artifact.input(executeArguments.tool.exe))
+            ].prependWhenMerged(),
 
             dependencies: staticDirectoryContents,
             tags: ["test", "telemetry:xUnitUntracked"]

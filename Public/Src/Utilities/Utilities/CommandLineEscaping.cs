@@ -1,7 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -13,6 +15,152 @@ namespace BuildXL.Utilities
     /// </summary>
     public static class CommandLineEscaping
     {
+#if NET_CORE
+        /// <summary>
+        /// An element in the array of arguments obtained by splitting a command line string.
+        /// </summary>
+        public readonly struct Arg
+        {
+            /// <summary>
+            /// Argument value.
+            /// </summary>
+            public ReadOnlyMemory<char> Value { get; init; }
+
+            /// <summary>
+            /// Span into the original command line string from which the argument was parsed.
+            /// </summary>
+            public ReadOnlyMemory<char> Raw { get; init; }
+        }
+
+        /// <summary>
+        /// Splits a command line string into individual arguments, using Windows or Unix C runtime rules.
+        /// 
+        /// See: https://docs.microsoft.com/en-us/cpp/c-language/parsing-c-command-line-arguments?redirectedfrom=MSDN&amp;view=msvc-170
+        /// </summary>
+        /// <param name="arguments">The command line to split into arguments.</param>
+        /// <param name="useWindowsRules">Whether to use Windows or Unix rules. Defaults to current platform's rules.</param>
+        /// <returns>Non-materialized enumerator, i.e., returning args as it goes, one at a time.</returns>
+        [SuppressMessage("Style", "SA1503: Braces should not be omitted", Justification = "It's ok")]
+        public static IEnumerable<Arg> SplitArguments(string arguments, bool? useWindowsRules = null)
+        {
+            if (arguments.Length == 0)
+            {
+                yield break;
+            }
+
+            using var sbHandle = Pools.GetStringBuilder();
+            StringBuilder currentArg = sbHandle.Instance;
+            ReadOnlyMemory<char> chars = arguments.AsMemory();
+            int currentArgStartIdx = 0;
+            int currentRawArgStartIdx;
+            bool quoting = false;
+            bool isWindows = useWindowsRules ?? OperatingSystemHelper.IsWindowsOS;
+
+            // Adds the char at position 'idx' in 'chars' to the current argument builder.
+            // Additionally remembers the starting index of the argument the first time a char is added to it.
+            void AddChar(int idx)
+            {
+                if (idx < chars.Length)
+                {
+                    if (currentArg.Length == 0) currentArgStartIdx = idx;
+                    currentArg.Append(chars.Span[idx]);
+                }
+            }
+
+            // Finishes the current argument. 
+            Arg FinishCurrentArg(int currentIndex)
+            {
+                // original raw string (from start index to current index)
+                ReadOnlyMemory<char> raw = arguments.AsMemory().Slice(currentRawArgStartIdx, length: currentIndex - currentRawArgStartIdx);
+
+                // check if we can return a ReadOnlyMemory slice straight from 'arguments' instead of materializing the string from 'currentArg'
+                bool matches = arguments.AsMemory().Slice(currentArgStartIdx).Span.StartsWith(currentArg.ToString().AsSpan(), StringComparison.Ordinal);
+                ReadOnlyMemory<char> parsedValue = matches
+                    ? arguments.AsMemory().Slice(currentArgStartIdx, length: currentArg.Length)
+                    : currentArg.ToString().AsMemory();
+                currentArg.Clear();
+                currentArgStartIdx = currentIndex;
+                return new Arg { Value = parsedValue, Raw = raw };
+            }
+
+            // returns the char at 'idx' if 'idx' is within bounds
+            char PeekChar(int idx) => idx < chars.Length ? chars.Span[idx] : '\0';
+
+            // returns true iff 'ch' is a whitespace character (not using char.IsWhiteSpace because it may include chars like \r and \n)
+            static bool IsWhiteSpace(char ch) => ch == ' ' || ch == '\t';
+
+            // returns true iff 'ch' is a backslash
+            static bool IsBackslash(char ch) => ch == '\\';
+
+            // increments 'idx' until the character at that position in 'arguments' is not a whitespace or 'idx' runs out of bounds
+            int SkipWhiteSpace(int idx) => SkipWhile(idx, IsWhiteSpace);
+
+            // increments 'idx' until 'pred' returns false for the character at that position in 'arguments' (or until 'idx' runs out of bounds)
+            int SkipWhile(int idx, Predicate<char> pred)
+            {
+                while (idx < chars.Length && pred(chars.Span[idx])) idx++;
+                return idx;
+            }
+
+            // returns whether the sequence of characters starting from 'idx' is a number of backslashes followed by a double quote
+            bool IsBackslashesFollowedByDoubleQuote(int idx)
+            {
+                idx = SkipWhile(idx, IsBackslash);
+                return idx < chars.Length && chars.Span[idx] == '"';
+            }
+
+            int i = currentRawArgStartIdx = SkipWhiteSpace(0);
+            while (i < chars.Length)
+            {
+                char currChar = chars.Span[i];
+                char nextChar = PeekChar(i + 1);
+                switch (quoting, currChar, nextChar, isWindows)
+                {
+                    // [Escape next char]
+                    //   - (Windows) a double quote escapes another double quote while quoting
+                    //   - (Linux) a backslash escapes a whitespace while not quoting
+                    //   - a backslash always escapes a double quote
+                    //   - a backslash escapes another backslash: always on Linux, only when followed by a double quote on Windows
+                    //     (example1: `a\\\"b` -> `a\"b` on both platforms)
+                    //     (example2: `a\\b` -> `a\\b` on Windows and `a\b` on Linux)
+                    case (quoting: true,  currChar: '"',  nextChar: '"', isWindows: true):
+                    case (quoting: false, currChar: '\\', nextChar: ' ', isWindows: false):
+                    case (quoting: _,     currChar: '\\', nextChar: '"', _):
+                    case (quoting: _,     currChar: '\\', nextChar: '\\', _) when (!isWindows || IsBackslashesFollowedByDoubleQuote(i + 1)):
+                        AddChar(i + 1);
+                        i += 2;
+                        break;
+                    // [End Quoting]
+                    case (quoting: true, currChar: '"', _, _):
+                        quoting = false;
+                        i++;
+                        break;
+                    // [Start Quoting]
+                    case (quoting: false, currChar: '"', _, _):
+                        quoting = true;
+                        i++;
+                        break;
+                    // [Finish Current Arg]
+                    case (quoting: false, currChar: _, _, _) when IsWhiteSpace(currChar):
+                        yield return FinishCurrentArg(i);
+                        currentRawArgStartIdx = i = SkipWhiteSpace(i + 1);
+                        break;
+                    // [Add current char to current arg]
+                    default: 
+                        AddChar(i);
+                        i++;
+                        break;
+                }
+            }
+
+            // consume any unfinished arg
+            if (!IsWhiteSpace(chars.Span[chars.Length - 1]))
+            {
+                yield return FinishCurrentArg(i);
+            }
+        }
+#endif
+
         /// <summary>
         /// Escapes the given application name (<paramref name="exe" />; for CreateProcess) and appends it to the
         /// <see cref="StringBuilder" />

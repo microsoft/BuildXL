@@ -20,8 +20,8 @@ namespace Test.BuildXL.Engine
         public void Rewrite()
         {
             var shellCmd = OperatingSystemHelper.IsUnixOS
-                ? (start: "-c \"", cmd: "x=$(/bin/cat", end: "); printf '%s\\\\n' $x \"")
-                : (start: "/d /c ", cmd: "type ", end: " ");
+                ? (shellStart: "-c \"", cmdStart: "x=$(/bin/cat", cmdEnd: "); printf '%s\\\\n' $x ", shellEnd: "\"")
+                : (shellStart: "/d /c ", cmdStart: "type ", cmdEnd: " ", shellEnd: " ");
 
             string spec = $@"
 import {{Artifact, Cmd, Tool, Transformer}} from 'Sdk.Transformers';
@@ -38,12 +38,13 @@ const step2 = execute({{
     tool: cmd,
     workingDirectory: d`.`,
     arguments: [
-        Cmd.rawArgument('{Escape(shellCmd.start)}'),
-        Cmd.rawArgument('{Escape(shellCmd.cmd)}'),
+        Cmd.rawArgument('{Escape(shellCmd.shellStart)}'),
+        Cmd.rawArgument('{Escape(shellCmd.cmdStart)}'),
         Cmd.argument(Artifact.none(step2OutputPath)),
-        Cmd.rawArgument('{Escape(shellCmd.end)}'),
+        Cmd.rawArgument('{Escape(shellCmd.cmdEnd)}'),
         Cmd.rawArgument(' >> '),
         Cmd.argument(Artifact.rewritten(step1, step2OutputPath)),
+        Cmd.rawArgument('{Escape(shellCmd.shellEnd)}'),
     ],
 }}).getOutputFile(step2OutputPath);
 
@@ -52,12 +53,13 @@ const step3 = execute({{
     tool: cmd,
     workingDirectory: d`.`,
     arguments: [
-        Cmd.rawArgument('{Escape(shellCmd.start)}'),
-        Cmd.rawArgument('{Escape(shellCmd.cmd)}'),
+        Cmd.rawArgument('{Escape(shellCmd.shellStart)}'),
+        Cmd.rawArgument('{Escape(shellCmd.cmdStart)}'),
         Cmd.argument(Artifact.none(step3OutputPath)),
-        Cmd.rawArgument('{Escape(shellCmd.end)}'),
+        Cmd.rawArgument('{Escape(shellCmd.cmdEnd)}'),
         Cmd.rawArgument(' >> '),
         Cmd.argument(Artifact.rewritten(step2, step3OutputPath)),
+        Cmd.rawArgument('{Escape(shellCmd.shellEnd)}'),
     ],
 }}).getOutputFile(step3OutputPath);
 
@@ -66,12 +68,13 @@ const step4 = execute({{
     tool: cmd,
     workingDirectory: d`.`,
     arguments: [
-        Cmd.rawArgument('{Escape(shellCmd.start)}'),
-        Cmd.rawArgument('{Escape(shellCmd.cmd)}'),
+        Cmd.rawArgument('{Escape(shellCmd.shellStart)}'),
+        Cmd.rawArgument('{Escape(shellCmd.cmdStart)}'),
         Cmd.argument(Artifact.none(step4OutputPath)),
-        Cmd.rawArgument('{Escape(shellCmd.end)}'),
+        Cmd.rawArgument('{Escape(shellCmd.cmdEnd)}'),
         Cmd.rawArgument(' >> '),
         Cmd.argument(Artifact.rewritten(step3, step4OutputPath)),
+        Cmd.rawArgument('{Escape(shellCmd.shellEnd)}'),
     ],
 }}).getOutputFile(step4OutputPath);
 ";

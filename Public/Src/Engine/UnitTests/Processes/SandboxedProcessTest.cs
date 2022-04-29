@@ -1218,7 +1218,7 @@ namespace Test.BuildXL.Processes
                     {
                         PipSemiStableHash = 0,
                         PipDescription = DiscoverCurrentlyExecutingXunitTestMethodFQN(),
-                        Arguments = $"/usr/bin/touch '{tempFileName}'",
+                        Arguments = $"/usr/bin/touch {tempFileName}",
                     };
                 info.FileAccessManifest.PipId = GetNextPipId();
                 info.FileAccessManifest.ReportFileAccesses = true;

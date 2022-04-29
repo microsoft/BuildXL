@@ -312,13 +312,19 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
     public class SerializedMetadataEntry
     {
         [ProtoMember(1)]
-        public byte[] Data { get; init; }
+        public byte[] Data { get; set; }
 
         [ProtoMember(2)]
         public string ReplacementToken { get; set; }
 
         [ProtoMember(3)]
         public long? SequenceNumber { get; set; }
+
+        /// <summary>
+        /// This field is set when data is stored externally
+        /// </summary>
+        [ProtoMember(4)]
+        public string ExternalDataStorageId { get; set; }
 
         public override string ToString()
         {

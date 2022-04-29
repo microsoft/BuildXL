@@ -203,6 +203,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// Configuration for RedisMemoizationDatabase/RedisMemoizationAdapter
         /// </summary>
         public RedisMemoizationConfiguration Memoization { get; set; } = new RedisMemoizationConfiguration();
+
+        /// <nodoc />
+        public MetadataStoreMemoizationDatabaseConfiguration MetadataStoreMemoization { get; set; } = new MetadataStoreMemoizationDatabaseConfiguration();
     }
 
     /// <summary>

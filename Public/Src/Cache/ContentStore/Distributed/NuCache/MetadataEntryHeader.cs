@@ -3,6 +3,7 @@
 
 using System;
 using System.Runtime.Serialization;
+using BuildXL.Cache.ContentStore.Distributed.MetadataService;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Utilities;
 using ProtoBuf;
@@ -33,5 +34,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         [ProtoMember(3)]
         public long SequenceNumber { get; set; }
+
+        /// <summary>
+        /// <see cref="SerializedMetadataEntry.ExternalDataStorageId"/>
+        /// </summary>
+        [ProtoMember(4)]
+        public string ExternalDataStorageId { get; set; }
     }
 }

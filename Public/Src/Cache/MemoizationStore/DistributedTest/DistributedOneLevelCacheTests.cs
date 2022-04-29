@@ -10,6 +10,7 @@ using BuildXL.Cache.ContentStore.Distributed;
 using BuildXL.Cache.ContentStore.Distributed.MetadataService;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.Stores;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
@@ -326,6 +327,98 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Test
                 });
         }
 
+        [Fact]
+        public virtual Task TestLargeContentHashLists()
+        {
+            UseGrpcServer = true;
+
+            ConfigureWithOneMaster(dcs =>
+            {
+                dcs.ContentMetadataStoreMode = dcs.TestIteration switch
+                {
+                    0 => ContentMetadataStoreMode.WriteBothPreferDistributed,
+                    1 => ContentMetadataStoreMode.Redis,
+                    2 => ContentMetadataStoreMode.Distributed,
+                    _ => throw new ArgumentOutOfRangeException()
+                };
+
+                dcs.MetadataEntryStorageThreshold = 10000;
+            });
+
+            var smallSf = StrongFingerprint.Random();
+            var largeSf = StrongFingerprint.Random();
+
+            ContentHashList smallContentHashList = new ContentHashList(
+                Enumerable.Range(0, 100).Select(_ => ContentHash.Random()).ToArray());
+
+            ContentHashList largeContentHashList = new ContentHashList(
+                Enumerable.Range(0, 10000).Select(_ => ContentHash.Random()).ToArray());
+
+            return RunTestAsync(
+                3,
+                async context =>
+                {
+                    var workerCaches = context.EnumerateWorkersIndices().Select(i => context.Sessions[i]).ToArray();
+                    var workerCache0 = workerCaches[0];
+
+                    async Task checkPresenceAsync(StrongFingerprint sf, ContentHashList contentHashList, bool expected)
+                    {
+                        if (expected)
+                        {
+                            var getResult = await workerCache0.GetContentHashListAsync(context, sf, Token).ShouldBeSuccess();
+                            Assert.Equal(contentHashList, getResult.ContentHashListWithDeterminism.ContentHashList);
+                        }
+                        else
+                        {
+                            var getResult = await workerCache0.GetContentHashListAsync(context, sf, Token).ShouldBeSuccess();
+                            Assert.Equal(null, getResult.ContentHashListWithDeterminism.ContentHashList);
+                        }
+                    }
+
+                    if (context.Iteration == 0)
+                    {
+                        var addResult = await workerCache0.AddOrGetContentHashListAsync(
+                            context,
+                            smallSf,
+                            new ContentHashListWithDeterminism(smallContentHashList, CacheDeterminism.None),
+                            Token).ShouldBeSuccess();
+                        Assert.Equal(null, addResult.ContentHashListWithDeterminism.ContentHashList);
+
+                        await checkPresenceAsync(smallSf, smallContentHashList, true);
+
+                        addResult = await workerCache0.AddOrGetContentHashListAsync(
+                            context,
+                            largeSf,
+                            new ContentHashListWithDeterminism(largeContentHashList, CacheDeterminism.None),
+                            Token).ShouldBeSuccess();
+                        Assert.Equal(null, addResult.ContentHashListWithDeterminism.ContentHashList);
+
+                        await checkPresenceAsync(largeSf, largeContentHashList, true);
+                    }
+                    else if (context.Iteration == 1)
+                    {
+                        // In legacy Redis mode.
+
+                        await checkPresenceAsync(smallSf, smallContentHashList, true);
+
+                        // Large content hash list should not be found in legacy Redis since it doesn't handle
+                        // externally stored blobs. It should silently return null.
+                        await checkPresenceAsync(largeSf, largeContentHashList, false);
+                    }
+                    else if (context.Iteration == 2)
+                    {
+                        // Using distributed metadata store
+                        await checkPresenceAsync(smallSf, smallContentHashList, true);
+                        await checkPresenceAsync(largeSf, largeContentHashList, true);
+
+                        // Clear storage. Then small should still be found, but large is missing but succeeds.
+                        await StorageProcess.ClearAsync();
+                        await checkPresenceAsync(smallSf, smallContentHashList, true);
+                        await checkPresenceAsync(largeSf, largeContentHashList, false);
+                    }
+                },
+                iterations: 3);
+        }
 
         [Fact]
         public virtual Task BasicDistributedAddAndGetRedisBackCompat()

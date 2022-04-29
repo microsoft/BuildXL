@@ -54,7 +54,10 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
                 {
                     if (_contentLocationStoreServices.Configuration.UseMemoizationContentMetadataStore)
                     {
-                        return new MetadataStoreMemoizationDatabase(_contentLocationStoreServices.GlobalCacheStore.Instance);
+                        return new MetadataStoreMemoizationDatabase(
+                            _contentLocationStoreServices.GlobalCacheStore.Instance,
+                            _contentLocationStoreServices.Configuration.MetadataStoreMemoization,
+                            _contentLocationStoreServices.CentralStorage.Instance as CentralStreamStorage);
                     }
                     else
                     {

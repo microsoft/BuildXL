@@ -986,6 +986,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 
                             return new SerializedMetadataEntry()
                             {
+                                ExternalDataStorageId = header.ExternalDataStorageId,
+                                SequenceNumber = header.SequenceNumber,
                                 ReplacementToken = header.ReplacementToken,
                                 Data = data,
                             };
@@ -1062,6 +1064,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                             LastAccessTimeUtc = lastAccessTimeUtc ?? Clock.UtcNow,
                             ReplacementToken = replacement.ReplacementToken,
                             SequenceNumber = replacement.SequenceNumber ?? 1,
+                            ExternalDataStorageId = replacement.ExternalDataStorageId
                         };
 
                         // Don't put if content hash list is null since this represents a touch which arrived before

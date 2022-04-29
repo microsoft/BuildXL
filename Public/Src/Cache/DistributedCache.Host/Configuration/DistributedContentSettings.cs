@@ -1226,6 +1226,9 @@ namespace BuildXL.Cache.Host.Configuration
         public bool ContentMetadataBatchVolatileWrites { get; set; } = true;
 
         [DataMember]
+        public int? MetadataEntryStorageThreshold { get; set; }
+
+        [DataMember]
         public EnumSetting<ContentMetadataStoreMode> ContentMetadataStoreMode { get; set; } = Configuration.ContentMetadataStoreMode.Redis;
 
         [DataMember]

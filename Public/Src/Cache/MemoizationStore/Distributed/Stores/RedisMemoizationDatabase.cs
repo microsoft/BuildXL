@@ -175,7 +175,8 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
                 if (secondaryMetadataBytes != null)
                 {
                     var secondaryMetadata = DeserializeMetadataEntry(secondaryMetadataBytes);
-                    if ((metadata?.LastAccessTimeUtc ?? DateTime.MinValue) < secondaryMetadata.LastAccessTimeUtc)
+                    if (secondaryMetadata.HasValue &&
+                        (metadata?.LastAccessTimeUtc ?? DateTime.MinValue) < secondaryMetadata.Value.LastAccessTimeUtc)
                     {
                         metadata = secondaryMetadata;
                         replacementToken = secondaryReplacementToken;
@@ -262,8 +263,13 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
             return _serializationPool.SerializePooled(metadata, (metadata, writer) => metadata.Serialize(writer));
         }
 
-        private MetadataEntry DeserializeMetadataEntry(ReadOnlyMemory<byte> bytes)
+        private MetadataEntry? DeserializeMetadataEntry(ReadOnlyMemory<byte> bytes)
         {
+            if (bytes.Length == 0)
+            {
+                return null;
+            }
+
             return _serializationPool.Deserialize(bytes, reader => MetadataEntry.Deserialize(reader));
         }
     }

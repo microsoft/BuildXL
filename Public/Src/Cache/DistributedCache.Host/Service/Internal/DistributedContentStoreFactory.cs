@@ -649,6 +649,9 @@ namespace BuildXL.Cache.Host.Service.Internal
             ApplyIfNotNull(_distributedSettings.RedisMemoizationDatabaseOperationTimeoutInSeconds, value => configuration.Memoization.OperationTimeout = TimeSpan.FromSeconds(value));
             ApplyIfNotNull(_distributedSettings.RedisMemoizationSlowOperationCancellationTimeoutInSeconds, value => configuration.Memoization.SlowOperationCancellationTimeout = TimeSpan.FromSeconds(value));
 
+
+            ApplyIfNotNull(_distributedSettings.MetadataEntryStorageThreshold, value => configuration.MetadataStoreMemoization.StorageMetadataEntrySizeThreshold = value);
+
             if (!string.IsNullOrEmpty(_distributedSettings.GlobalRedisSecretName))
             {
                 configuration.RedisGlobalStoreConnectionString = ((PlainTextSecret)GetRequiredSecret(_distributedSettings.GlobalRedisSecretName)).Secret;

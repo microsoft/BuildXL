@@ -16,6 +16,8 @@ namespace Distributed {
             ContentStore.Library.dll,
             Interfaces.dll,
             Library.dll,
+
+            importFrom("BuildXL.Cache.DistributedCache.Host").Configuration.dll,
             
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Collections.dll,

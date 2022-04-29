@@ -10,7 +10,6 @@ export const pkgs = [
     { id: "Microsoft.VisualStudio.Imaging", version: "15.8.28010", dependentPackageIdsToSkip: ["Microsoft.VisualStudio.Utilities"] }, // Have to cut this dependency because it is 46 only and this package is 45 compatible
     { id: "Microsoft.VisualStudio.LanguageServer.Protocol", version: "17.0.4103-g225b54d231" },
     { id: "Microsoft.VisualStudio.ProjectAggregator", version: "17.0.0-previews-3-31605-261" },
-    { id: "Microsoft.VisualStudio.ProjectSystem", version: "17.0.667-pre" },
     { id: "Microsoft.VisualStudio.SDK.EmbedInteropTypes", version: "15.0.26" },
     { id: "Microsoft.VisualStudio.SDK.VsixSuppression", version: "14.1.15" },
     { id: "Microsoft.VisualStudio.Shell.14.0", version: "14.3.25407", dependentPackageIdsToSkip: ["*"] }, // Have cut dependencies due to qualifier mismatches

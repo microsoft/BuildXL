@@ -91,6 +91,7 @@ export const pkgs = isMicrosoftInternal ? [
 
     // Part of VSSDK used by IDE/VsIntegration
     { id: "Microsoft.Internal.VisualStudio.Interop", version: "17.2.32405.191" },
+    { id: "Microsoft.VisualStudio.ProjectSystem", version: "17.3.74-pre" },
 ] : [
 
     // Artifact packages and dependencies in OSS
@@ -114,5 +115,6 @@ export const resolver = {
         f`Private/InternalSdk/BuildXL.Tracing.AriaTenantToken/module.config.dsc`,
         f`Private/InternalSdk/AnyBuild.SDK/module.config.dsc`,
         f`Private/InternalSdk/Microsoft.Internal.VisualStudio.Interop/module.config.dsc`,
+        f`Private/InternalSdk/Microsoft.VisualStudio.ProjectSystem/module.config.dsc`,
     ]
 };

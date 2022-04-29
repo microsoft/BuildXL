@@ -49,6 +49,7 @@ namespace BuildXL.VsPackage
         internal const string DominoPackageDir = "DominoPackageDir";
 
         internal const string DominoBuildFilterProp = "DominoBuildFilter";
+        internal const string CombinedDominoBuildFilterProp = "CombinedDominoBuildFilter";
         internal const string DominoSpecFileProp = "DominoSpecFile";
 
         internal const string DominoSolutionSettingsFileExtension = ".sln.dvs.props";

@@ -68,6 +68,7 @@ namespace BuildXL.VsPackage.VsProject
             m_idleTaskScheduler = (TaskScheduler)taskSchedulerService.GetTaskScheduler((uint)VsTaskRunContext.UIThreadBackgroundPriority);
             m_buildManager = new BuildManager(this);
             buildManagerHolder.BuildManager = m_buildManager;
+            BuildProvider.SetBuildManager(m_buildManager);
 
             IVsOutputWindowPane dominoDebugPane;
             outputWindow.GetPane(ref guid, out dominoDebugPane);

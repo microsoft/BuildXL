@@ -2283,7 +2283,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.VisualStudio.ProjectSystem",
-          "Version": "17.0.667-pre"
+          "Version": "17.3.74-pre"
         }
       }
     },

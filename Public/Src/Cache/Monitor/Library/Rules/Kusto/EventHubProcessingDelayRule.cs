@@ -32,11 +32,6 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
                 Error = TimeSpan.FromHours(1),
                 Fatal = TimeSpan.FromHours(2),
             };
-
-            public IcmThresholds<double> EventProcessingDelayIcmThresholdsInHours = new IcmThresholds<double>()
-            {
-                Sev2 = 2,
-            };
         }
 
         private readonly Configuration _configuration;
@@ -130,16 +125,6 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
                             stamp,
                             eventTimeUtc: now);
 
-                        await EmitIcmAsync(
-                            severity: 3,
-                            title: $"{stamp}: master event processing issues",
-                            stamp,
-                            machines: null,
-                            correlationIds: null,
-                            description: $"No events processed for at least `{_configuration.LookbackPeriod}`",
-                            eventTimeUtc: now,
-                            cacheTimeToLive: _configuration.LookbackPeriod);
-
                         return;
                     }
 
@@ -152,16 +137,6 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
                                 $"Master hasn't processed any events in the last `{_configuration.LookbackPeriod}`, but has `{result.OutstandingBatches.Value}` batches pending.",
                                 stamp,
                                 eventTimeUtc: now);
-
-                            await EmitIcmAsync(
-                                severity: 3,
-                                title: $"{stamp}: master event processing issues",
-                                stamp,
-                                machines: null,
-                                correlationIds: null,
-                                description: $"Master hasn't processed any events in the last `{_configuration.LookbackPeriod}`, but has `{result.OutstandingBatches.Value}` batches pending.",
-                                eventTimeUtc: now,
-                                cacheTimeToLive: _configuration.LookbackPeriod);
                         }
                     }
 
@@ -175,19 +150,6 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
                         $"EventHub processing delay `{delay}` above threshold `{threshold}`. Master is `{results[0].Machine}`",
                         stamp,
                         eventTimeUtc: results[0].PreciseTimeStamp);
-                });
-
-                await _configuration.EventProcessingDelayIcmThresholdsInHours.CheckAsync(delay.TotalHours, (severity, threshold) =>
-                {
-                    return EmitIcmAsync(
-                        severity: 3,
-                        title: $"{stamp}: master event processing issues",
-                        stamp,
-                        machines: new[] { results[0].Machine },
-                        correlationIds: null,
-                        description: $"EventHub processing delay `{delay}` above threshold `{threshold}`. Master is `{results[0].Machine}`",
-                        eventTimeUtc: now,
-                        cacheTimeToLive: _configuration.LookbackPeriod);
                 });
             }
         }

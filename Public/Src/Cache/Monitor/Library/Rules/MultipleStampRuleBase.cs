@@ -1,14 +1,15 @@
-﻿using System;
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
-using BuildXL.Cache.Monitor.App;
 using BuildXL.Cache.Monitor.App.Notifications;
 using BuildXL.Cache.Monitor.App.Rules;
 using BuildXL.Cache.Monitor.App.Scheduling;
-using BuildXL.Cache.Monitor.Library.IcM;
 
 namespace BuildXL.Cache.Monitor.Library.Rules
 {
@@ -52,28 +53,6 @@ namespace BuildXL.Cache.Monitor.Library.Rules
                 stamp,
                 message,
                 summary ?? message));
-        }
-
-        protected Task EmitIcmAsync(
-            int severity,
-            string title,
-            string stamp,
-            IEnumerable<string>? machines,
-            IEnumerable<string>? correlationIds,
-            string? description = null,
-            DateTime? eventTimeUtc = null,
-            TimeSpan? cacheTimeToLive = null)
-        {
-            // Do not create Sev3 or higher incidents for non-production environments
-            if (!_configuration.Environment.IsProduction())
-            {
-                severity = Math.Max(severity, 4);
-            }
-
-            title = string.Concat($"[{_configuration.Environment}/{stamp}] ", title);
-
-            var incident = new IcmIncident(stamp, _configuration.Environment.ToString(), machines, correlationIds, severity, description ?? title, title, eventTimeUtc, cacheTimeToLive);
-            return _configuration.IcmClient.EmitIncidentAsync(incident);
         }
 
         protected void GroupByStampAndCallHelper<T>(List<T> results, Func<T, string> stampSelector, Action<string, List<T>> helperFunc)

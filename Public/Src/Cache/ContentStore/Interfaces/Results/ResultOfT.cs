@@ -4,6 +4,7 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
+using System.Runtime.CompilerServices;
 
 namespace BuildXL.Cache.ContentStore.Interfaces.Results
 {
@@ -77,10 +78,15 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         [MaybeNull]
         public T Value
         {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
                 // Using Assert instead of Requires in order to skip message computation for successful cases.
-                Contract.Check(Succeeded)?.Assert($"The operation should succeed in order to get the resulting value. Failure: {ToString()}.");
+                if (!Succeeded)
+                {
+                    Contract.Assert(false, $"The operation should succeed in order to get the resulting value. Failure: {ToString()}.");
+                }
+                
                 return _result;
             }
         }

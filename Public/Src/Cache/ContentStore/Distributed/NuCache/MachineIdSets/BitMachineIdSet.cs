@@ -148,9 +148,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return GetValue(data, 0, index);
         }
 
-        /// <summary>
-        /// Enumerates the bits in the machine id set
-        /// </summary>
+        /// <inheritdoc />
         public override IEnumerable<MachineId> EnumerateMachineIds()
         {
             for (int i = Offset; i < Data.Length; i++)

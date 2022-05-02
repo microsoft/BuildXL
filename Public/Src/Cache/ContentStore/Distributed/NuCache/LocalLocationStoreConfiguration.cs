@@ -377,6 +377,17 @@ namespace BuildXL.Cache.ContentStore.Distributed
         public bool MachineListPrioritizeDesignatedLocations { get; set; }
 
         /// <summary>
+        /// If true, then all the locations would be resolved eagerly.
+        /// </summary>
+        /// <remarks>
+        /// This is important when the location resolution may fail.
+        /// In this case, the lazy <see cref="MachineList"/>'s enumeration will fail with an error and instead of getting an exception
+        /// in some cases its better to trace the unresolved locations
+        /// and used the resolved ones.
+        /// </remarks>
+        public bool ResolveMachineIdsEagerly { get; set; }
+
+        /// <summary>
         /// Whether to deprioritize the master in machine lists, so that it is the last element.
         /// </summary>
         public bool MachineListDeprioritizeMaster { get; set; }

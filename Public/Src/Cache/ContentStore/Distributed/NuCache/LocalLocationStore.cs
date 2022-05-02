@@ -218,6 +218,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             {
                 PrioritizeDesignatedLocations = Configuration.MachineListPrioritizeDesignatedLocations,
                 DeprioritizeMaster = Configuration.MachineListDeprioritizeMaster,
+                ResolveLocationsEagerly = Configuration.ResolveMachineIdsEagerly,
             };
 
             CheckpointManager = new CheckpointManager(Database, _checkpointRegistry, CentralStorage, Configuration.Checkpoint, Counters, checkpointObserver);
@@ -332,7 +333,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             await EventStore.StartupAsync(context).ThrowIfFailure();
 
-            MachineReputationTracker = new MachineReputationTracker(context, _clock, Configuration.ReputationTrackerConfiguration, ResolveMachineLocation, ClusterState);
+            MachineReputationTracker = new MachineReputationTracker(context, _clock, ClusterState, Configuration.ReputationTrackerConfiguration);
 
             // We need to detect what our previous exit state was in order to choose the appropriate recovery strategy.
             var fetchLastMachineStateResult = await UpdateClusterStateAsync(context, MachineState.Unknown);
@@ -397,16 +398,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
 
             return BoolResult.Success;
-        }
-
-        private MachineLocation ResolveMachineLocation(MachineId machineId)
-        {
-            if (ClusterState.TryResolve(machineId, out var result))
-            {
-                return result;
-            }
-
-            throw new InvalidOperationException($"Unable to resolve machine location for machine id '{machineId}'.");
         }
 
         /// <inheritdoc />
@@ -1107,9 +1098,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     new ContentHashWithSizeAndLocations(
                         contentHash,
                         entry.ContentSize,
-                        GetMachineList(contentHash, entry),
+                        GetMachineList(context.TracingContext, contentHash, entry),
                         entry,
-                        GetFilteredOutMachineList(contentHash, filteredOutMachines)));
+                        GetFilteredOutMachineList(context.TracingContext, contentHash, filteredOutMachines)));
             }
 
             // Machine locations are resolved lazily by MachineList.
@@ -1128,14 +1119,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return new GetBulkLocationsResult(results, origin);
         }
 
-        private IReadOnlyList<MachineLocation> GetMachineList(ContentHash hash, ContentLocationEntry entry)
+        private IReadOnlyList<MachineLocation> GetMachineList(Context context, ContentHash hash, ContentLocationEntry entry)
         {
             if (entry.IsMissing)
             {
                 return CollectionUtilities.EmptyArray<MachineLocation>();
             }
 
-            return new MachineList(
+            return MachineList.Create(
+                context,
                 entry.Locations,
                 MachineReputationTracker,
                 ClusterState,
@@ -1143,14 +1135,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 _machineListSettings);
         }
 
-        private IReadOnlyList<MachineLocation>? GetFilteredOutMachineList(ContentHash hash, List<MachineId>? machineIds)
+        private IReadOnlyList<MachineLocation>? GetFilteredOutMachineList(Context context, ContentHash hash, List<MachineId>? machineIds)
         {
             if (machineIds == null)
             {
                 return null;
             }
 
-            return new MachineList(
+            return MachineList.Create(
+                context,
                 MachineIdSet.Empty.SetExistence(MachineIdCollection.Create(machineIds), exists: true),
                 MachineReputationTracker,
                 ClusterState,

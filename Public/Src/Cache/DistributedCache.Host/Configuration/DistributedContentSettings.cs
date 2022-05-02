@@ -433,6 +433,9 @@ namespace BuildXL.Cache.Host.Configuration
         public bool DeprioritizeMasterOnCopies { get; set; } = false;
 
         [DataMember]
+        public bool ResolveMachineIdsEagerly { get; set; } = false;
+
+        [DataMember]
         [Validation.Range(0, int.MaxValue)]
         public int CopyAttemptsWithRestrictedReplicas { get; set; } = 0;
 

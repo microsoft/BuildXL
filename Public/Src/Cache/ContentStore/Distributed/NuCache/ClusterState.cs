@@ -32,12 +32,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <see cref="Read{T}"/> method uses this property value in a given callback and passes a copy of the
         /// object reference.
         /// </remarks>
-        private Result<ClusterStateInternal> ClusterStateInternal { get; set; }
+        private ClusterStateInternal _clusterStateInternal;
 
         private readonly ReadWriteLock _lock = ReadWriteLock.Create();
 
         /// <nodoc />
-        private ClusterState(ClusterStateInternal clusterStateInternal) => ClusterStateInternal = clusterStateInternal;
+        private ClusterState(ClusterStateInternal clusterStateInternal) => _clusterStateInternal = clusterStateInternal;
 
         /// <nodoc />
         public ClusterState(MachineId primaryMachineId, IReadOnlyList<MachineMapping> localMachineMappings)
@@ -61,32 +61,28 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </remarks>
         private Result<ClusterStateInternal> Mutate<TState>(Func<ClusterStateInternal, TState, Result<ClusterStateInternal>> mutation, TState state)
         {
-            Contract.Assert(ClusterStateInternal.Succeeded);
-
             using var token = _lock.AcquireWriteLock();
 
-            var newClusterState = mutation(ClusterStateInternal.Value, state);
+            var newClusterState = mutation(_clusterStateInternal, state);
             if (!newClusterState.Succeeded)
             {
                 return newClusterState;
             }
 
-            ClusterStateInternal = newClusterState;
-            return ClusterStateInternal;
+            _clusterStateInternal = newClusterState.Value;
+            return _clusterStateInternal;
         }
 
         /// <nodoc />
         private T Read<T>(Func<ClusterStateInternal, T> action)
         {
-            Contract.Assert(ClusterStateInternal.Succeeded);
-            return action(ClusterStateInternal.Value);
+            return action(_clusterStateInternal);
         }
 
         /// <nodoc />
         private TResult Read<TResult, TState>(Func<ClusterStateInternal, TState, TResult> action, TState state)
         {
-            Contract.Assert(ClusterStateInternal.Succeeded);
-            return action(ClusterStateInternal.Value, state);
+            return action(_clusterStateInternal, state);
         }
 
         /// <summary>
@@ -167,7 +163,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             machineLocation = result.MachineLocation;
             return result.Succeeded;
         }
-
+        
         /// <summary>
         /// Tries to resolve <see cref="MachineId"/> by <paramref name="machineLocation"/>.
         /// </summary>

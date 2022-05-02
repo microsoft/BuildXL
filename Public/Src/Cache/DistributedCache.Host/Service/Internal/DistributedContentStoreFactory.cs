@@ -226,6 +226,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                 PrimaryMachineLocation = OrderedResolvedCacheSettings[0].MachineLocation,
                 MachineListPrioritizeDesignatedLocations = _distributedSettings.PrioritizeDesignatedLocationsOnCopies,
                 MachineListDeprioritizeMaster = _distributedSettings.DeprioritizeMasterOnCopies,
+                ResolveMachineIdsEagerly = _distributedSettings.ResolveMachineIdsEagerly,
                 TouchContentHashLists = _distributedSettings.TouchContentHashLists,
                 UseMemoizationContentMetadataStore = _distributedSettings.UseMemoizationContentMetadataStore,
             };

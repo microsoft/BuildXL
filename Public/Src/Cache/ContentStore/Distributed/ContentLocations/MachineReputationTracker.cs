@@ -4,10 +4,11 @@
 using System;
 using System.Collections.Concurrent;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
-using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing;
+
+#nullable enable
 
 namespace BuildXL.Cache.ContentStore.Distributed
 {
@@ -41,6 +42,11 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// Error occurred when content was copied from the machine.
         /// </summary>
         Bad,
+
+        /// <summary>
+        /// A machine id is not known for the tracker.
+        /// </summary>
+        Unknown,
     }
 
     /// <summary>
@@ -75,8 +81,7 @@ namespace BuildXL.Cache.ContentStore.Distributed
         private readonly IClock _clock;
         private readonly MachineReputationTrackerConfiguration _configuration;
         private readonly ClusterState _clusterState;
-        private readonly Func<MachineId, MachineLocation> _machineLocationResolver;
-        private readonly ConcurrentDictionary<MachineLocation, ReputationState> _reputations = new ConcurrentDictionary<MachineLocation, ReputationState>();
+        private readonly ConcurrentDictionary<MachineId, ReputationState> _reputations = new ();
 
         private bool Enabled => _configuration.Enabled;
 
@@ -84,15 +89,13 @@ namespace BuildXL.Cache.ContentStore.Distributed
         public MachineReputationTracker(
             Context context,
             IClock clock,
-            MachineReputationTrackerConfiguration configuration,
-            Func<MachineId, MachineLocation> machineLocationResolver,
-            ClusterState clusterState = null)
+            ClusterState clusterState,
+            MachineReputationTrackerConfiguration? configuration = null)
         {
             _context = context;
             _clock = clock;
-            _configuration = configuration;
+            _configuration = configuration ?? new MachineReputationTrackerConfiguration();
             _clusterState = clusterState;
-            _machineLocationResolver = machineLocationResolver;
         }
 
         /// <summary>
@@ -105,44 +108,71 @@ namespace BuildXL.Cache.ContentStore.Distributed
                 return;
             }
 
-            var reputationState = _reputations.GetOrAdd(location, _ => new ReputationState());
-            string displayLocation = location.ToString();
+            if (_clusterState.TryResolveMachineId(location, out var machineId))
+            {
+                var reputationState = _reputations.GetOrAdd(machineId, _ => new ReputationState());
+                string displayLocation = location.ToString();
 
-            ChangeReputation(reputation, reputationState, displayLocation, reason: "");
+                ChangeReputation(reputation, reputationState, displayLocation, reason: "");
+            }
+            else
+            {
+                // The machine is unknown.
+                Tracer.Warning(_context, $"Can't change machine reputation for {location} because machine id resolution failed.");
+            }
+        }
+        
+        /// <summary>
+        /// Gets a current reputation for a given machine and resets the reputation if bad reputation expires.
+        /// </summary>
+        public virtual MachineReputation GetReputationByMachineLocation(MachineLocation machine)
+        {
+            if (_clusterState.TryResolveMachineId(machine, out var machineId))
+            {
+                return GetReputation(machineId);
+            }
+
+            // This is unknown machine. Don't fail here
+            return MachineReputation.Unknown;
         }
 
         /// <summary>
-        /// Gets a current reputation for a given machine and resets the reputation if bad reputation expires.
+        /// Gets a current reputation for a given machine id and resets the reputation if bad reputation expires.
         /// </summary>
-        public virtual MachineReputation GetReputation(MachineId machine) => GetReputation(_machineLocationResolver(machine));
-
-        /// <summary>
-        /// Gets a current reputation for a given machine and resets the reputation if bad reputation expires.
-        /// </summary>
-        public virtual MachineReputation GetReputation(MachineLocation machine)
+        /// <remarks>
+        /// Returns <see cref="MachineReputation.Good"/> if the <paramref name="machineId"/> is unknown.
+        /// </remarks>
+        public virtual MachineReputation GetReputation(MachineId machineId)
         {
             if (!Enabled)
             {
                 return MachineReputation.Good;
             }
 
-            if (_clusterState != null 
-                && _clusterState.TryResolveMachineId(machine, out var machineId))
+            if (_clusterState.IsMachineMarkedInactive(machineId) || _clusterState.IsMachineMarkedClosed(machineId))
             {
-                if (_clusterState.IsMachineMarkedInactive(machineId) || _clusterState.IsMachineMarkedClosed(machineId))
-                {
-                    return MachineReputation.Inactive;
-                }
+                return MachineReputation.Inactive;
             }
 
-            if (!_reputations.TryGetValue(machine, out var state))
+            if (!_reputations.TryGetValue(machineId, out var state))
             {
+                // If the reputation was never reported, consider that it's good.
                 return MachineReputation.Good;
             }
 
             if (state.ExpireTime < _clock.UtcNow)
             {
-                ChangeReputation(MachineReputation.Good, state, machine.ToString(), $" due to expiry (expire time: {state.ExpireTime}, current time: {_clock.UtcNow})");
+                string machineName;
+                if (_clusterState.TryResolve(machineId, out var machine))
+                {
+                    machineName = machine.ToString();
+                }
+                else
+                {
+                    machineName = machineId.ToString();
+                }
+
+                ChangeReputation(MachineReputation.Good, state, machineName, $" due to expiry (expire time: {state.ExpireTime}, current time: {_clock.UtcNow})");
                 return MachineReputation.Good;
             }
 

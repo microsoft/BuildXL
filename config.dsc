@@ -250,7 +250,7 @@ config({
                 { id: "Pipelines.Sockets.Unofficial", version: "2.2.0",
                     dependentPackageIdsToSkip: ["System.IO.Pipelines", "System.Runtime.CompilerServices.Unsafe", "Microsoft.Bcl.AsyncInterfaces"] },
                 { id: "System.Diagnostics.PerformanceCounter", version: "5.0.0" },
-                { id: "System.Threading.Channels", version: "5.0.0", dependentPackageIdsToSkip: ["System.Threading.Tasks.Extensions"] },
+                { id: "System.Threading.Channels", version: "6.0.0", dependentPackageIdsToSkip: ["System.Threading.Tasks.Extensions"] },
 
                 { id: "System.Linq.Async", version: "4.0.0"},
                 { id: "Polly", version: "7.2.1" },

@@ -35,7 +35,11 @@ namespace BuildXL.Utilities.Configuration.Mutable
             // As each major step runs in its own queue with a separate concurrency limit, we decided to revise using 1.25 multiplier.
             // After doing A/B testing on thousands of builds, using 1 instead of 1.25 multiplier decreases the load on the machine and improves the perf.
             MaxProcesses = Environment.ProcessorCount;
-            MaxIO = Math.Max(1, Environment.ProcessorCount / 4);
+
+            // Based on the A/B testing results, the concurrency limit for IO dispatcher did not help after 10. 
+            // https://microsoft.sharepoint.com/teams/toolsforeng/_layouts/15/Doc.aspx?sourcedoc={4e5aff6a-31c7-4054-a746-e590b865c585}&action=edit&wd=target%28Build%20Tools%2FBuildXL%2FBuildXL.one%7C10facd4f-4e15-4fe3-96ba-446f3fe6454e%2FA%5C%2FB%20testing%20for%20performance%7C6d58dc8f-df8f-49a5-9e70-07dcca89756b%2F%29&wdorigin=703
+            MaxIO = Math.Min(10, Math.Max(1, Environment.ProcessorCount / 4));
+
             MaxLightProcesses = 1000;
 
             // We decide the concurrency levels based on A/B testing results.

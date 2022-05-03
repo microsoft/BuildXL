@@ -16,7 +16,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
         /// <summary>
         /// A singleton cache for ContentHash expiry in backing content store.
         /// </summary>
-        public static BackingContentStoreExpiryCache Instance => new BackingContentStoreExpiryCache();
+        public static readonly BackingContentStoreExpiryCache Instance = new BackingContentStoreExpiryCache();
 
         private readonly ConcurrentDictionary<ContentHash, DateTime> _backingStoreExpiryCacheDictionary
             = new ConcurrentDictionary<ContentHash, DateTime>();

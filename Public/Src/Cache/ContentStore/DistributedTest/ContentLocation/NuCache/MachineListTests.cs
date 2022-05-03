@@ -183,7 +183,6 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
             sw = Stopwatch.StartNew();
             run(perfRunCount, lazySettings);
             var lazyDuration = sw.Elapsed;
-
             _output.WriteLine($"Eager: {eagerDuration}, Lazy: {lazyDuration}");
 
             bool run(int iterationCount, MachineList.Settings settings)
@@ -204,7 +203,6 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
 
                 return result;
             }
-            
 
             static void collectAndSleep(int delayMs)
             {

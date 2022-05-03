@@ -33,10 +33,27 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Utils
         }
 
         /// <summary>
-        ///     IEqualityComparer.GetHashCode.
-        ///     Must return the same hash codes for equal byte arrays.
-        ///     From the web - Bob Jenkins' Hash algorithm
+        /// IEqualityComparer.GetHashCode.
+        /// Must return the same hash codes for equal byte arrays.
+        /// NET6+ version uses HashCode.AddBytes and for the older runtimes - Bob Jenkins' Hash algorithm
         /// </summary>
+#if NET6_0_OR_GREATER
+        public int GetHashCode(byte[]? obj)
+        {
+            if (obj == null)
+            {
+                return 0;
+            }
+
+            // Using a new API available only in .net 6 for performance purposes.
+            // Unlike the custom implementation AddBytes uses vectorized instructions that gives 2-4x performance improvements
+            // without sacrificing the distribution of the hash codes.
+
+            var hashCode = new HashCode();
+            hashCode.AddBytes(obj.AsSpan());
+            return hashCode.ToHashCode();
+        }
+#else
         public int GetHashCode(byte[]? obj)
         {
             if (obj == null)
@@ -127,6 +144,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Utils
                 return (int)c;
             }
         }
+#endif
 
         // Bob Jenkins Hash algorithm - worker method.
         private static void Mix(ref uint a, ref uint b, ref uint c)

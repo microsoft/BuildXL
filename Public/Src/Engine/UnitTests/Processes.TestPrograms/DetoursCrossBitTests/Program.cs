@@ -465,7 +465,7 @@ namespace DetoursCrossBitTests
                 }
 
                 if (selfChild != null
-#if !NET_COREAPP
+#if !NETCOREAPP
                     && fileAccessDescription.Description.IndexOf("CreateFile(...", selfPrefix.Length, StringComparison.Ordinal) != -1
 #else                    
                     && fileAccessDescription.Description.IndexOf("GetFileAttributesEx(...", selfPrefix.Length, StringComparison.Ordinal) != -1

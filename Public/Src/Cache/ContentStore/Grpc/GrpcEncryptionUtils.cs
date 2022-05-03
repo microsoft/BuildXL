@@ -101,13 +101,13 @@ namespace BuildXL.Cache.ContentStore.Grpc
                 cng.Key.SetProperty(new CngProperty("Export Policy", exportValue, CngPropertyOptions.None));
 
                 //ExportPkcs8PrivateKey is not available for .net full framework so we use the following for full framework.
-#if !NET_COREAP
+#if !NETCOREAPP
                 loadedPrivateKey = cng.Key.Export(CngKeyBlobFormat.Pkcs8PrivateBlob);
 #endif
             }
 
             //ExportPkcs8PrivateKey is not available for .net full framework.
-#if NET_COREAPP
+#if NETCOREAPP
                 loadedPrivateKey = loadedRsa?.ExportPkcs8PrivateKey();
 #endif
 

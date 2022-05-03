@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-#if NET_COREAPP
+#if NETCOREAPP
 using System.IO.Enumeration;
 #endif
 using System;
@@ -190,7 +190,7 @@ namespace BuildXL.Native.IO.Unix
             Action<string /*filePath*/, string /*fileName*/, FileAttributes /*attributes*/, long /*fileSize*/> handleEntry,
             bool isEnumerationForDirectoryDeletion)
         {
-#if NET_COREAPP
+#if NETCOREAPP
             try
             {
                 GetFileFullPathsWithExtension(directoryPath).Any();

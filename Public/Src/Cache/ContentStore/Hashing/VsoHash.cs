@@ -58,7 +58,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
 
         private delegate void BlockReadComplete(Pool<byte[]>.PoolHandle blockBufferHandle, int blockLength, BlobBlockHash blockHash);
 
-#if NET_COREAPP
+#if NETCOREAPP
         public static BlobBlockHash HashBlock(byte[] block, int lengthToHash, int startIndex = 0)
         {
             var buffer = new byte[HashSize];
@@ -145,7 +145,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
                 return succeeded;
             }
         }
-#else // !NET_COREAPP
+#else // !NETCOREAPP
         public static BlobBlockHash HashBlock(byte[] block, int lengthToHash, int startIndex = 0)
         {
             using (var pageIdsHandle = PoolLocalPageIdsBuffer.Get())
@@ -674,7 +674,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
 
             private static readonly ArrayPool<byte> ArrayPool = ArrayPool<byte>.Shared;
 
-#if NET_COREAPP
+#if NETCOREAPP
             public void Update(byte[] currentBlockIdentifier)
             {
                 // TODO:if we want to enforce this we should implement BlobBlockHash.BlockSize (bug 1365340)
@@ -780,7 +780,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
                 //     throw new InvalidOperationException($"Non-final blocks must be of size {BlockSize}; but the given block has size {currentBlockSize}");
                 // }
 
-#if NET_COREAPP
+#if NETCOREAPP
                 UpdateInternal(currentBlockIdentifier.HashBytes, false);
 #else
                 UpdateInternal(currentBlockIdentifier, false);
@@ -796,7 +796,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
                 //     throw new InvalidOperationException("Blocks cannot be bigger than BlockSize.");
                 // }
 
-#if NET_COREAPP
+#if NETCOREAPP
                 UpdateInternal(currentBlockIdentifier.HashBytes, true);
 #else
                 UpdateInternal(currentBlockIdentifier, true);

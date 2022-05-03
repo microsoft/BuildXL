@@ -166,10 +166,10 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
                            using var memoryStream = new MemoryStream(content);
                            var h3 = contentHasher.GetContentHashAsync(memoryStream).GetAwaiter().GetResult();
                            Assert.Equal(h1, h3);
-#if NET_COREAPP
+#if NETCOREAPP
                            var h4 = contentHasher.GetContentHash(content.AsSpan());
                            Assert.Equal(h1, h4);
-#endif // NET_COREAPP
+#endif // NETCOREAPP
                        });
         }
 

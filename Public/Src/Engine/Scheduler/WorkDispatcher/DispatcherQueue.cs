@@ -17,7 +17,7 @@ namespace BuildXL.Scheduler.WorkDispatcher
     /// </summary>
     public class DispatcherQueue : IDisposable
     {
-#if NET_COREAPP_60
+#if NET6_0_OR_GREATER
         private sealed class ReverseIntegerComparer : IComparer<int>
         {
             /// <nodoc/>
@@ -112,7 +112,7 @@ namespace BuildXL.Scheduler.WorkDispatcher
         {
             Contract.Requires(!IsDisposed);
 
-#if NET_COREAPP_60
+#if NET6_0_OR_GREATER
             lock (m_lock)
             {
                 m_queue.Enqueue(runnablePip, runnablePip.Priority);
@@ -170,7 +170,7 @@ namespace BuildXL.Scheduler.WorkDispatcher
             if (NumQueued != 0)
             {
                 Interlocked.Decrement(ref m_numQueuedPips);
-#if NET_COREAPP_60
+#if NET6_0_OR_GREATER
                 lock (m_lock)
                 {
                     runnablePip = m_queue.Dequeue();

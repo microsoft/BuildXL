@@ -2063,7 +2063,7 @@ namespace BuildXL.Native.IO.Windows
         {
             Contract.Requires(!string.IsNullOrEmpty(appName));
 
-#if NET_CORE
+#if NETCOREAPP
             var homeFolder = Environment.GetEnvironmentVariable("LOCALAPPDATA");
             if (string.IsNullOrEmpty(homeFolder))
             {

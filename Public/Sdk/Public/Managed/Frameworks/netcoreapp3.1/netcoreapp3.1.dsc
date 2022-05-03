@@ -101,6 +101,11 @@ export const framework : Shared.Framework = {
     crossgenProvider: crossgenProvider,
 
     conditionalCompileDefines: [
+        "NET",
+        "NETCOREAPP",
+        "NETCOREAPP3_1_OR_GREATER",
+        
+        // Legacy symbols, not compatible with the official ones described here: https://docs.microsoft.com/en-us/dotnet/standard/frameworks
         "NET_CORE",
         "NET_COREAPP",
         "NET_COREAPP_31",

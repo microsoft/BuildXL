@@ -27,7 +27,7 @@ namespace BuildXL.Interop
         /// </summary>
         public static OperatingSystem CurrentOS()
         {
-#if NET_CORE
+#if NETCOREAPP
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
             {
                 return OperatingSystem.Unix;

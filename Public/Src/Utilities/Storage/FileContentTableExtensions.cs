@@ -92,7 +92,7 @@ namespace BuildXL.Storage
         /// </summary>
         /// <exception cref="BuildXLException">Thrown if accessing the local path specified by 'key' fails.</exception>
         public static async
-#if NET_COREAPP
+#if NETCOREAPP
                             ValueTask<VersionedFileIdentityAndContentInfoWithOrigin>
 #else
                             Task<VersionedFileIdentityAndContentInfoWithOrigin>
@@ -144,7 +144,7 @@ namespace BuildXL.Storage
         /// </summary>
         /// <exception cref="BuildXLException">Thrown if accessing the local path specified by 'key' fails.</exception>
         public static async
-#if NET_COREAPP
+#if NETCOREAPP
                             ValueTask<VersionedFileIdentityAndContentInfoWithOrigin>
 #else
                             Task<VersionedFileIdentityAndContentInfoWithOrigin>

@@ -1075,7 +1075,7 @@ namespace BuildXL
                         OptionHandlerFactory.CreateBoolOption(
                             "enableMemoryMappedBasedFileHashing",
                             sign => {
-#if NET_COREAPP
+#if NETCOREAPP
                                 if (sign)
                                 {
                                     ContentHashingUtilities.EnableMemoryMappedBasedFileHashing();
@@ -1084,8 +1084,8 @@ namespace BuildXL
                                 {
                                     ContentHashingUtilities.DisableMemoryMappedBasedFileHashing();
                                 }
-#endif // NET_COREAPP
-                                // if it's not NET_COREAPP - do nothing
+#endif // NETCOREAPP
+                                // if it's not NETCOREAPP - do nothing
                             }),
                         OptionHandlerFactory.CreateOption(
                             "traceInfo",

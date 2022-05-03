@@ -101,6 +101,13 @@ export const framework : Shared.Framework = {
     crossgenProvider: crossgenProvider,
 
     conditionalCompileDefines: [
+        "NET",
+        "NETCOREAPP",
+        "NETCOREAPP3_1_OR_GREATER",
+        "NET5_0_OR_GREATER",
+        "NET5_0", // This is not a standard symbol but csc.dsc relies on it.
+        
+        // Legacy symbols, not compatible with the official ones described here: https://docs.microsoft.com/en-us/dotnet/standard/frameworks
         "NET_CORE",
         "NET_COREAPP",
         "NET_COREAPP_50"

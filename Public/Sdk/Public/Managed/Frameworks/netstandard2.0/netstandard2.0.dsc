@@ -24,6 +24,11 @@ export const framework : Shared.Framework = {
     runtimeConfigStyle: "none",
     
     conditionalCompileDefines: [
+        "NETSTANDARD",
+        "NETSTANDARD2_0_OR_GREATER",
+        "NETSTANDARD2_0",
+        
+        // Legacy symbols, not compatible with the official ones described here: https://docs.microsoft.com/en-us/dotnet/standard/frameworks
         "NET_CORE",
         "NET_STANDARD",
         "NET_STANDARD_20",

@@ -47,7 +47,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// See <see cref="NumRetriesPipeReadOnCancel"/> for details. Having a high number of retry count has shown to mitigate the issue.
         /// </summary>
-#if NET_COREAPP_60
+#if NET6_0_OR_GREATER
         public const int DefaultPipeReadRetryOnCancellationCount = 10_000;
 #else
         public const int DefaultPipeReadRetryOnCancellationCount = 0;

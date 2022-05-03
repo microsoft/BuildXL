@@ -30,7 +30,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         ///     Calculate content hash of content in a file.
         /// </summary>
         /// <exception cref="FileNotFoundException">Throws if the file <paramref name="path"/> is not on disk.</exception>
-#if NET_COREAPP
+#if NETCOREAPP
         public static Task<ContentHash> CalculateHashAsync(this IAbsFileSystem fileSystem, AbsolutePath path, HashType hashType)
         {
             return Task.FromResult(fileSystem.OpenForHashing(path).ToFileStream().HashFile(hashType));
@@ -57,7 +57,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
                     tuple.mode,
                     tuple.fileShare,
                     tuple.options,
-#if NET_COREAPP
+#if NETCOREAPP
                     tuple.bufferSize).ToFileStream());
 #else
                     FileSystemDefaults.DefaultFileStreamBufferSize).ToFileStream());
@@ -69,12 +69,12 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// </summary>
         public static Task<ContentHash> CalculateHashAsync(this StreamWithLength stream, HashType hashType)
         {
-#if NET_COREAPP
+#if NETCOREAPP
             if (stream.Stream is FileStream fileStream)
             {
                 return Task.FromResult(fileStream.HashFile(hashType));
             }
-#endif // NET_COREAPP
+#endif // NETCOREAPP
 
             var hasher = HashInfoLookup.GetContentHasher(hashType);
             return hasher.GetContentHashAsync(stream);

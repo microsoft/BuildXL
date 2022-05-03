@@ -107,7 +107,7 @@ namespace BuildXL.Cache.Host.Test
         private const string DeploymentRoot = TestPathRoot + @"\root";
 
 #if RUNLAUNCHERTESTS
-#if NET_COREAPP
+#if NETCOREAPP
         [Fact]
 #endif
 #endif
@@ -150,7 +150,7 @@ namespace BuildXL.Cache.Host.Test
                     "--proxyconfigurationPath", SourceRoot + @"\ProxyConfiguration.json",
                     "--standalone", "true"
                 };
-#if NET_COREAPP
+#if NETCOREAPP
                 await DeploymentProgram.RunAsync(args, token);
 #endif
                 return 0;
@@ -208,7 +208,7 @@ namespace BuildXL.Cache.Host.Test
                 Environment.SetEnvironmentVariable(kvp.Key, kvp.Value);
             }
 
-#if NET_COREAPP
+#if NETCOREAPP
             return DeploymentProgram.RunAsync(new[]
             {
                 "--KeyVaultUri", KeyVaultUri,

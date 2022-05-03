@@ -1,7 +1,7 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-#if NET_COREAPP_60
+#if NET6_0_OR_GREATER
 
 using System;
 using System.Buffers;

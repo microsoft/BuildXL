@@ -262,11 +262,11 @@ export function getDotNetCoreVersion(cscArguments: Arguments): Shared.DotNetCore
         return "netcoreapp3.1";
     }
     
-    if (cscArguments.defines.some(e => e === "NET_COREAPP_50")) {
+    if (cscArguments.defines.some(e => e === "NET_COREAPP_50" || e === "NET5_0")) {
         return "net5.0";
     }
 
-    if (cscArguments.defines.some(e => e === "NET_COREAPP_60")) {
+    if (cscArguments.defines.some(e => e === "NET_COREAPP_60" || e === "NET6_0")) {
         return "net6.0";
     }
 

@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-#if NET_COREAPP
+#if NETCOREAPP
 
 using System;
 using System.Collections.Generic;

@@ -80,7 +80,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
             return HashInfoLookup.GetContentHasher(hashType).GetContentHash(content.Array!, content.Offset, content.Count);
         }
 
-#if NET_COREAPP
+#if NETCOREAPP
         /// <summary>
         /// Calculate content hash of content in a byte array.
         /// </summary>
@@ -135,6 +135,6 @@ namespace BuildXL.Cache.ContentStore.Hashing
             using var memoryMappedFileHandle = MemoryMappedFileHandle.CreateReadOnly(fileStream, leaveOpen: true);
             return hasher.GetContentHash(memoryMappedFileHandle.Content);
         }
-#endif // NET_COREAPP
+#endif // NETCOREAPP
     }
 }

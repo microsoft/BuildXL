@@ -30,9 +30,9 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// </summary>
         public abstract TimeSpan TimeSpentHashing { get; }
 
-#if !NET_COREAPP
+#if !NETCOREAPP
         /// <inheritdoc />
         public abstract ValueTask DisposeAsync();
-#endif
+#endif // !NETCOREAPP
     }
 }

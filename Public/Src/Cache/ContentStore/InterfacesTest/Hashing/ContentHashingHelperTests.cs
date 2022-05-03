@@ -39,7 +39,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
             var h2 = CalculateHashWithMemoryMappedFile(fileSystem, path, hashType);
             Assert.Equal(h1, h2);
 
-#if NET_COREAPP
+#if NETCOREAPP
             h2 = contentHasher.GetContentHash(content.AsSpan());
             Assert.Equal(h1, h2);
 #endif
@@ -56,7 +56,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
 
         private ContentHash CalculateHashWithMemoryMappedFile(IAbsFileSystem fileSystem, AbsolutePath path, HashType hashType)
         {
-#if NET_COREAPP
+#if NETCOREAPP
             using var file = fileSystem.OpenForHashing(path);
             
             return file.ToFileStream().HashFile(hashType);

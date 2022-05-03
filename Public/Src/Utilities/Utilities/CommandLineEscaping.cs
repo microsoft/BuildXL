@@ -15,7 +15,7 @@ namespace BuildXL.Utilities
     /// </summary>
     public static class CommandLineEscaping
     {
-#if NET_CORE
+#if NETCOREAPP
         /// <summary>
         /// An element in the array of arguments obtained by splitting a command line string.
         /// </summary>

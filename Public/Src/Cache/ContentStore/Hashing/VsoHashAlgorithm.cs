@@ -28,7 +28,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         private long _expectedInputLength = -1;
         private byte[]? _finalized;
 
-#if NET_COREAPP
+#if NETCOREAPP
         private readonly byte[] _hashBuffer = new byte[VsoHash.HashSize];
 #endif
 
@@ -78,7 +78,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
             }
         }
 
-#if NET_COREAPP
+#if NETCOREAPP
         /// <inheritdoc />
         protected override bool TryHashFinal(Span<byte> destination, out int bytesWritten)
         {
@@ -132,7 +132,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
 
             return finalizedBytes;
         }
-#endif //NET_COREAPP
+#endif //NETCOREAPP
 
         /// <inheritdoc />
         protected override void HashCore(byte[] array, int ibStart, int cbSize)
@@ -142,14 +142,14 @@ namespace BuildXL.Cache.ContentStore.Hashing
 
         private void HashBytes(ReadOnlySpan<byte> source)
         {
-#if NET_COREAPP // The following optimization is only available for .net core
+#if NETCOREAPP // The following optimization is only available for .net core
             _finalized ??= TryHashAllBytesWithNoCopy(source);
             if (_finalized is not null)
             {
                 // We managed to hash the entire source at one shot.
                 return;
             }
-#endif //NET_COREAPP
+#endif //NETCOREAPP
             // Can't hash the entire content. Hashing the current piece only.
             int startIndex = 0;
             var buffer = Buffer;
@@ -195,7 +195,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
             return _rollingId.Finalize(emptyBlockHash).Bytes;
         }
 
-#if NET_COREAPP
+#if NETCOREAPP
         private byte[] HashBlock(byte[] block, int lengthToHash)
         {
             VsoHash.HashBlockBytes(block, lengthToHash, _hashBuffer);
@@ -207,7 +207,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
             VsoHash.HashBlockBytes(block, _hashBuffer);
             return _hashBuffer;
         }
-#else // !NET_COREAPP
+#else // !NETCOREAPP
         private BlobBlockHash HashBlock(byte[] block, int lengthToHash)
         {
             return VsoHash.HashBlock(block, lengthToHash);

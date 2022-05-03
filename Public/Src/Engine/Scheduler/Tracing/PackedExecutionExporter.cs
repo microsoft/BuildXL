@@ -15,7 +15,7 @@ using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Utilities;
 using BuildXL.Utilities.ParallelAlgorithms;
-#if NET_CORE
+#if NETCOREAPP
 using BuildXL.Utilities.PackedExecution;
 using BuildXL.Utilities.PackedTable;
 #endif
@@ -29,7 +29,7 @@ namespace BuildXL.Scheduler.Tracing
     using B_PipId = Pips.PipId;
     using B_PipType = Pips.Operations.PipType;
 
-#if NET_CORE
+#if NETCOREAPP
     using P_PipId = Utilities.PackedExecution.PipId;
     using P_PipTable = Utilities.PackedExecution.PipTable;
     using P_PipType = Utilities.PackedExecution.PipType;
@@ -101,8 +101,7 @@ namespace BuildXL.Scheduler.Tracing
     /// </remarks>
     public class PackedExecutionExporter : ExecutionAnalyzerBase
     {
-#if NET_CORE
-
+#if NETCOREAPP
         #region Fields
 
         private readonly string m_outputDirectoryPath;
@@ -187,7 +186,7 @@ namespace BuildXL.Scheduler.Tracing
         public PackedExecutionExporter(PipGraph input, string outputDirectoryPath, bool threadSafe = true)
             : base(input)
         {
-#if NET_CORE
+#if NETCOREAPP
             m_outputDirectoryPath = outputDirectoryPath;
 
             m_packedExecution = new PackedExecution();
@@ -204,7 +203,7 @@ namespace BuildXL.Scheduler.Tracing
 #endif
         }
 
-#if !NET_CORE
+#if !NETCOREAPP
         /// <inheritdoc />
         public override int Analyze()
         {

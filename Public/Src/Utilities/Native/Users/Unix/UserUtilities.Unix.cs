@@ -11,7 +11,7 @@ namespace BuildXL.Native.Users.Unix
         /// <inheritdoc />
         public string CurrentUserName()
         {
-#if NET_CORE
+#if NETCOREAPP
             // This approximates what the WindowsIdentity implementation is returning eg. 'macbookpro\admin'
             return Environment.UserDomainName + "\\" + Environment.UserName;
 #else

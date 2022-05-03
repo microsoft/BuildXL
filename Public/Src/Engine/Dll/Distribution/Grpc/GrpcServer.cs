@@ -12,7 +12,7 @@ using System.Threading;
 using System.Collections.Generic;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Engine.Tracing;
-#if NET_COREAPP
+#if NETCOREAPP
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.AspNetCore.Builder;
@@ -35,7 +35,7 @@ namespace BuildXL.Engine.Distribution.Grpc
 
         private readonly CancellationTokenSource m_cancellationSource = new CancellationTokenSource();
 
-#if NET_COREAPP
+#if NETCOREAPP
         private Microsoft.Extensions.Hosting.IHost m_kestrelServer;
 #endif
 
@@ -98,7 +98,7 @@ namespace BuildXL.Engine.Distribution.Grpc
         /// </remarks>
         public Task StartKestrel(int port, Action<object> configure)
         {
-#if NET_COREAPP
+#if NETCOREAPP
             var hostBuilder = Host.CreateDefaultBuilder()
                 .ConfigureWebHostDefaults(webBuilder =>
                 {
@@ -151,7 +151,7 @@ namespace BuildXL.Engine.Distribution.Grpc
                 }
             }
 
-#if NET_COREAPP
+#if NETCOREAPP
             if (m_kestrelServer != null)
             {
                 m_cancellationSource.Cancel();

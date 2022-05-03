@@ -59,7 +59,7 @@ namespace BuildXL.Processes.Internal
 
             if (kind == Kind.Pipeline)
             {
-#if NET_COREAPP_60
+#if NET6_0_OR_GREATER
                 return new PipelineAsyncPipeReader(pipeStream, callback, encoding);
 #endif
             }
@@ -77,7 +77,7 @@ namespace BuildXL.Processes.Internal
         /// </remarks>
         private static Kind GetKind()
         {
-#if NET_COREAPP_60
+#if NET6_0_OR_GREATER
             if (string.IsNullOrEmpty(EngineEnvironmentSettings.SandboxAsyncPipeReaderKind.Value))
             {
                 return Kind.Legacy;

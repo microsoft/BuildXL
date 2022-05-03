@@ -19,7 +19,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Utils
         /// Indicates if ContentStore is running on Linux.
         /// </summary>
         public static readonly bool IsLinuxOS =
-#if NET_CORE
+#if NETCOREAPP
             RuntimeInformation.IsOSPlatform(OSPlatform.Linux);
 #else
             false;

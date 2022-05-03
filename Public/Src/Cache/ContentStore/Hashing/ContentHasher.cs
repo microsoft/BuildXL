@@ -170,7 +170,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
             return contentHash;
         }
 
-#if NET_COREAPP
+#if NETCOREAPP
         /// <inheritdoc />
         public ContentHash GetContentHash(ReadOnlySpan<byte> content)
         {
@@ -196,7 +196,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
                 Interlocked.Increment(ref _calls);
             }
         }
-#endif //NET_COREAPP
+#endif //NETCOREAPP
 
         /// <inheritdoc />
         public ContentHash GetContentHash(byte[] content)

@@ -150,7 +150,7 @@ namespace BuildXL.Utilities.Tracing
 
         private static int GetProcessorId()
         {
-#if NET_STANDARD_20 || NET_COREAPP
+#if NET_STANDARD_20 || NETCOREAPP
             if (OperatingSystemHelper.IsUnixOS)
             {
             // Net standard version is very weird, because Thread.GetCurrentProcessorId() is not exposed there

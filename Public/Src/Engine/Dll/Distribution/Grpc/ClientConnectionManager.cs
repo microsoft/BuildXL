@@ -17,7 +17,7 @@ using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using Grpc.Core;
 using static BuildXL.Engine.Distribution.RemoteWorker;
-#if NET_COREAPP_60
+#if NET6_0_OR_GREATER
 using Grpc.Net.Client;
 #endif
 
@@ -88,7 +88,7 @@ namespace BuildXL.Engine.Distribution.Grpc
         /// <summary>
         /// Channel State 
         /// </summary>
-#if NET_COREAPP_60
+#if NET6_0_OR_GREATER
         private ChannelState State => m_dotNetClientEnabled ? (ChannelState)(int)(((GrpcChannel)Channel).State) : ((Channel)Channel).State;
 #else
         private ChannelState State => ((Channel)Channel).State;
@@ -166,7 +166,7 @@ namespace BuildXL.Engine.Distribution.Grpc
                 return;
             }
 
-#if NET_COREAPP_60
+#if NET6_0_OR_GREATER
             var channelOptions = new GrpcChannelOptions
             {
                 MaxSendMessageSize = int.MaxValue,
@@ -191,7 +191,7 @@ namespace BuildXL.Engine.Distribution.Grpc
 #endif
         }
 
-#if NET_COREAPP_60
+#if NET6_0_OR_GREATER
         private void SetupChannelOptionsForEncryption(GrpcChannelOptions channelOptions)
         {
             var handler = new SocketsHttpHandler
@@ -310,7 +310,7 @@ namespace BuildXL.Engine.Distribution.Grpc
                     lastState = state;
                     if (m_dotNetClientEnabled)
                     {
-#if NET_COREAPP_60
+#if NET6_0_OR_GREATER
                         await ((GrpcChannel)Channel).WaitForStateChangedAsync((ConnectivityState)(int)state);
 #endif
                     }
@@ -556,7 +556,7 @@ namespace BuildXL.Engine.Distribution.Grpc
                 Logger.Log.GrpcTrace(m_loggingContext, $"Attempt to connect to {Channel.Target}. ChannelState {StateStr}. Operation {operation}");
                 if (m_dotNetClientEnabled)
                 {
-#if NET_COREAPP_60
+#if NET6_0_OR_GREATER
                     CancellationTokenSource source = new CancellationTokenSource();
                     source.CancelAfter(timeout);
                     await ((GrpcChannel)Channel).ConnectAsync(source.Token);

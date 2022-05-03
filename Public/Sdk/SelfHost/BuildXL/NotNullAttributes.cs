@@ -3,7 +3,7 @@
 
 namespace System.Diagnostics.CodeAnalysis
 {
-    #if !NET_COREAPP
+    #if !NETCOREAPP
     /// <summary>Specifies that null is allowed as an input even if the corresponding type disallows it.</summary>
     [System.AttributeUsage(System.AttributeTargets.Field | System.AttributeTargets.Parameter | System.AttributeTargets.Property, Inherited = false)]
     internal sealed class AllowNullAttribute : System.Attribute
@@ -101,7 +101,7 @@ namespace System.Diagnostics.CodeAnalysis
 
 #endif
 
-#if (!NET_COREAPP_50 && !NET_COREAPP_60)
+#if (!NET5_0_OR_GREATER)
     /// <summary>Specifies that the method or property will ensure that the listed field and property members have not-null values.</summary>
     [AttributeUsage(AttributeTargets.Method | AttributeTargets.Property, Inherited = false, AllowMultiple = true)]
     internal sealed class MemberNotNullAttribute : Attribute

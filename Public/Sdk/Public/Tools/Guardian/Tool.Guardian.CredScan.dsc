@@ -44,7 +44,7 @@ export function addCredScanCalls(rootDirectory : Directory, guardianToolRoot : S
             /*pathDirectories*/undefined,
             /*additionalOutputs*/undefined,
             /*untrackedPaths*/undefined,
-            /*untrackedScopes*/[d`${packageDirectory.path}/nuget/Microsoft.Security.CredScan.Client.2.2.9.6-preview/lib/netcoreapp3.1/SRM`],
+            /*untrackedScopes*/[d`${packageDirectory.path}/nuget/Microsoft.Security.CredScan.Client.2.2.7.8/lib/netcoreapp3.1/SRM`],
             /*allowUndeclaredSourceReads*/false,
             /*passThroughEnvironmentVariables*/undefined)
         );
@@ -61,7 +61,7 @@ function credScanConfiguration() : Object {
                 "fileVersion": "1.4",
                 "tool": {
                     "name": "CredScan",
-                    "version": "2.2.9.6-preview"
+                    "version": "2.2.7.8"
                 },
                 "arguments": {
                     "TargetDirectory": "$(WorkingDirectory)/guardian.TSV",

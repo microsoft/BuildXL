@@ -2698,8 +2698,8 @@ namespace BuildXL.Native.IO.Windows
                 {
                     var openResult = TryCreateOrOpenFile(
                         sourcePath,
-                        FileDesiredAccess.GenericRead,
-                        FileShare.Read | FileShare.Delete,
+                        0,
+                        FileShare.ReadWrite | FileShare.Delete,
                         FileMode.Open,
                         FileFlagsAndAttributes.FileFlagOpenReparsePoint | FileFlagsAndAttributes.FileFlagBackupSemantics,
                         out SafeFileHandle symlinkHandle);

@@ -11,6 +11,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using AnyBuild;
+using BuildXL.Native.IO;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
@@ -208,6 +209,11 @@ namespace BuildXL.Processes.Remoting
                 Directory.CreateDirectory(localCacheDir);
             }
 
+            // Due to its asynchronous nature in shutting down AnyBuild daemon, the subst may have already gone when AnyBuild daemon is shutting down the CAS.
+            // If we pass substed path as local cache dir, then the CAS may no longer find the cache dir anymore during shutdown.
+            // To address this issue, we pass the fully-resolved local cache directory path to AnyBuild daemon.
+            localCacheDir = FileUtilities.TryGetFinalPathNameByPath(localCacheDir, out string finalPath, out int _) ? finalPath : localCacheDir;
+
             var args = new List<string>()
             {
                 $"--JsonConfigOverrides @\"{CreateJsonConfigOverrides()}\"",
@@ -230,6 +236,13 @@ namespace BuildXL.Processes.Remoting
 
         private string CreateJsonConfigOverrides()
         {
+            string substSource = m_configuration.Logging.SubstSource.IsValid
+                ? m_configuration.Logging.SubstSource.ToString(m_executionContext.PathTable)
+                : string.Empty;
+            string substTarget = m_configuration.Logging.SubstTarget.IsValid
+                ? m_configuration.Logging.SubstTarget.ToString(m_executionContext.PathTable)
+                : string.Empty;
+
             var jsonConfigOverridesObj = new
             {
                 ProcessSubstitution = new
@@ -242,16 +255,11 @@ namespace BuildXL.Processes.Remoting
 
                     // FUTURE OPTIONS: Only enabled when they are available in AnyBuild.
 
-                    //// Using PLACEHOLDER for pre-rendering because using COPY causes error like:
-                    ////   error CS1504: Source file 'D:\a\_work\5\s\Public\Src\FrontEnd\MsBuild.Serialization\GraphSerializationSettings.cs' could not be opened
-                    ////   -- The process cannot access the file because another process has locked a portion of the file.
-                    // WinVfsPreRenderingMode = "PLACEHOLDER", // "COPY",
-                    // SubstSource = m_configuration.Logging.SubstSource.IsValid
-                    //     ? m_configuration.Logging.SubstSource.ToString(m_executionContext.PathTable)
-                    //     : null,
-                    // SubstTarget = m_configuration.Logging.SubstTarget.IsValid
-                    //     ? m_configuration.Logging.SubstTarget.ToString(m_executionContext.PathTable)
-                    //     : null
+                    // Using PLACEHOLDER for pre-rendering because using COPY causes error like:
+                    //   error CS1504: Source file 'D:\a\_work\5\s\Public\Src\FrontEnd\MsBuild.Serialization\GraphSerializationSettings.cs' could not be opened
+                    //   -- The process cannot access the file because another process has locked a portion of the file.
+                    PreRenderingMode = "Placeholder", // "COPY",
+                    Substs = !string.IsNullOrEmpty(substSource) && !string.IsNullOrEmpty(substTarget) ? $"{substSource};{substTarget}" : string.Empty
                 },
                 Agents = new
                 {

@@ -1,0 +1,3 @@
+These files are used by:
+- bxl.ps1 in order to retrieve the latest bxl.exe from the corresponding feed and bootstrap the build with the latest LKG. Nuget.exe and the checked-in credential provider are used to authenticate against the VSTS feed. 
+- bxl.ps1 script also sets NUGET_CREDENTIALPROVIDERS_PATH environment variable to point to this folder (if not previously set). That implies that the Nuget resolver, if configured, will also use this credential provider to authenticate.

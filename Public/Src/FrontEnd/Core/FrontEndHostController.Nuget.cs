@@ -52,6 +52,7 @@ namespace BuildXL.FrontEnd.Core
             string weakPackageFingerprint,
             PackageIdentity package,
             AbsolutePath packageTargetFolder,
+            AbsolutePath pathToNuspec,
             Func<Task<Possible<IReadOnlyList<RelativePath>>>> producePackage)
         {
             // Check if we can reuse a package that is layed out on disk already.
@@ -97,6 +98,7 @@ namespace BuildXL.FrontEnd.Core
                         weakPackageFingerprint,
                         package,
                         packageTargetFolder,
+                        pathToNuspec,
                         possiblePackageContents.Result),
                     justification: "Okay to ignore putting in cache failure, will happen next time"
                 );
@@ -354,7 +356,7 @@ namespace BuildXL.FrontEnd.Core
 
             // Saving package's hash file on disk.      
             // But we can do this only when the content is not empty.
-                var packagesContent = packageDescriptor.Contents.Select(k => k.Key).ToList();
+            var packagesContent = packageDescriptor.Contents.Select(k => k.Key).ToList();
 
             if (packagesContent.Count == 0)
             {
@@ -362,9 +364,6 @@ namespace BuildXL.FrontEnd.Core
                 m_logger.DownloadPackageFailedDueToInvalidCacheContents(loggingContext, friendlyName, additionalInfo);
                 return PackageDownloadResult.RecoverableError(package);
             }
-
-            var newPackageHash = new PackageHashFile(weakPackageFingerprintHash.Hash.ToHex(), weakPackageFingerprint, packagesContent);
-            TryUpdatePackageHashFile(loggingContext, package, packageHashFile, packageHash, newPackageHash);
 
             m_logger.PackageRestoredFromCache(loggingContext, package.GetFriendlyName());
 
@@ -394,11 +393,20 @@ namespace BuildXL.FrontEnd.Core
                 }
             }
 
+            // The hash file is stored as part of the package, so we have the package layout available there
+            var maybePackageHashFile = PackageHashFile.TryReadFrom(GetPackageHashFile(packageTargetFolder));
+
+            if (!maybePackageHashFile.Succeeded)
+            {
+                m_logger.DownloadPackageFailedDueToCacheError(loggingContext, friendlyName, maybePackageHashFile.Failure.Describe());
+                return PackageDownloadResult.RecoverableError(package);
+            }
+
             // Step: Return descriptor indicating it was successfully restored from the cache
             return PackageDownloadResult.FromCache(
                 package,
                 packageTargetFolder,
-                packageDescriptor.Contents.Select(c => RelativePath.Create(FrontEndContext.StringTable, c.Key)).ToList(),
+                maybePackageHashFile.Result.Content.Select(entry => RelativePath.Create(FrontEndContext.StringTable, entry)).ToList(),
                 weakPackageFingerprintHash.Hash.ToHex());
         }
 
@@ -407,6 +415,7 @@ namespace BuildXL.FrontEnd.Core
             string weakPackageFingerprint,
             PackageIdentity package,
             AbsolutePath packageTargetFolder,
+            AbsolutePath pathToNuspec,
             IReadOnlyList<RelativePath> packageContent)
         {
             var friendlyName = package.GetFriendlyName();
@@ -423,11 +432,22 @@ namespace BuildXL.FrontEnd.Core
             // Cache was already initialized
             var cache = await m_nugetCache;
 
-            // Step: Store all the files into the content cache
+            // Generate the hash file, since that is stored as part of the cache content
+            var weakPackageFingerprintHash = cache.GetDownloadFingerprint(weakPackageFingerprint);
+            // The content should have relative paths
+            var content = packageContents.Select(rp => rp.ToString(PathTable.StringTable)).ToList();
+            var newHash = new PackageHashFile(weakPackageFingerprintHash.Hash.ToHex(), weakPackageFingerprint, content);
+            var packageHashFile = GetPackageHashFile(packageTargetFolder);
+            TryUpdatePackageHashFile(loggingContext, package, packageHashFile, oldHash: null, newHash: newHash);
+
+            // Step: Store the nuspec and the hash file into the content cache
             var stringKeyedHashes = new List<StringKeyedHash>();
-            foreach (var relativePath in packageContents)
+            
+            foreach (var absolutePath in new[] { pathToNuspec, AbsolutePath.Create(PathTable, packageHashFile)})
             {
-                var targetFileLocation = packageTargetFolder.Combine(PathTable, relativePath).Expand(PathTable);
+                var targetFileLocation = absolutePath.Expand(PathTable);
+                var result = packageTargetFolder.TryGetRelative(PathTable, absolutePath, out var relativePath);
+                Contract.Assert(result);
 
                 ContentHash contentHash;
                 try
@@ -453,7 +473,6 @@ namespace BuildXL.FrontEnd.Core
                 }
             }
 
-            var weakPackageFingerprintHash = cache.GetDownloadFingerprint(weakPackageFingerprint);
             // Step: Create a descriptor and store that in the fingerprint store under the weak fingerprint.
             var cacheDescriptor = PackageDownloadDescriptor.Create(
                 friendlyName,
@@ -470,11 +489,6 @@ namespace BuildXL.FrontEnd.Core
             }
 
             m_logger.PackageNotFoundInCacheAndDownloaded(loggingContext, package.Id, package.Version, weakPackageFingerprintHash.Hash.ToHex(), weakPackageFingerprint);
-
-            // The content should have relative paths
-            var content = packageContents.Select(rp => rp.ToString(PathTable.StringTable)).ToList();
-            var newHash = new PackageHashFile(weakPackageFingerprintHash.Hash.ToHex(), weakPackageFingerprint, content);
-            TryUpdatePackageHashFile(loggingContext, package, GetPackageHashFile(packageTargetFolder), oldHash: null, newHash: newHash);
 
             return Unit.Void;
         }

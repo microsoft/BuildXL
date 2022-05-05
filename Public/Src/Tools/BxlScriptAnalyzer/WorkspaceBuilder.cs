@@ -218,7 +218,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer
                     Contract.AssertNotNull(frontEndEngineAbstraction);
 
                     AddConfigurationMounts(config, mountsTable);
-                    languageServiceEngine.SetMountsTable(mountsTable);
+                    languageServiceEngine.UpdateMountsTable(mountsTable);
                 }
 
                 if (frontEndEngineAbstraction == null)

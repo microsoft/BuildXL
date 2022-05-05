@@ -197,7 +197,7 @@ function execute(args: Transformer.ExecuteArguments): Transformer.ExecuteResult 
         }
 
 
-        protected void AddSdk(string sdkLocation)
+        protected void AddSdk(string relativeSdkLocation)
         {
             Configuration.Resolvers.Add(
                 new SourceResolverSettings
@@ -206,7 +206,7 @@ function execute(args: Transformer.ExecuteArguments): Transformer.ExecuteResult 
                     Modules = new List<DiscriminatingUnion<AbsolutePath, IInlineModuleDefinition>>
                               {
                                   new DiscriminatingUnion<AbsolutePath, IInlineModuleDefinition>(
-                                      AbsolutePath.Create(Context.PathTable, sdkLocation)),
+                                      AbsolutePath.Create(Context.PathTable, TestDeploymentDir).Combine(Context.PathTable, RelativePath.Create(Context.StringTable, relativeSdkLocation))),
                               },
                 });
         }

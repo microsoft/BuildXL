@@ -42,6 +42,12 @@ namespace BuildXL.FrontEnd.Script.Testing.Helper
             };
         }
 
+        /// <inheritdoc/>
+        public override AbsolutePath Translate(AbsolutePath path)
+        {
+            return path;
+        }
+
         /// <inheritdoc />
         public override bool TryGetFrontEndFile(AbsolutePath path, string frontEnd, out Stream stream)
         {

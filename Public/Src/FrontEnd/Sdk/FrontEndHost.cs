@@ -121,6 +121,7 @@ namespace BuildXL.FrontEnd.Sdk
             string weakPackageFingerprint,
             PackageIdentity package,
             AbsolutePath packageTargetFolder,
+            AbsolutePath pathToNuspec,
             Func<Task<Possible<IReadOnlyList<RelativePath>>>> producePackage);
 
         /// <summary>

@@ -499,5 +499,5 @@
 |                          | pause (2)                  | wait for signal                                                     |
 |                          | poll (2)                   | wait for some event on a file descriptor                            |
 |                          | ppoll (2)                  | wait for some event on a file descriptor                            |
-|                          | write (2)                  | write to a file descriptor                                          |
+| :white_check_mark:       | write (2)                  | write to a file descriptor                                          |
 |                          | sched_yield (2)            | yield the processor                                                 |

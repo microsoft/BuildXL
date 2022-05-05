@@ -479,7 +479,6 @@ namespace BuildXL.Processes
 
             // this additional round of escaping is needed because we are flushing the arguments to a shell script
             string escapedArguments = (EnsureQuoted(info.Arguments) ?? string.Empty)
-                .Replace(Environment.NewLine, "\\" + Environment.NewLine)
                 .Replace("$", "\\$")
                 .Replace("`", "\\`");
             string cmdLine = $"{CommandLineEscaping.EscapeAsCommandLineWord(info.FileName)} {escapedArguments} {redirectedStdin}";

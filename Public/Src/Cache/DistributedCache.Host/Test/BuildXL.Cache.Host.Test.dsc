@@ -19,7 +19,8 @@ namespace Test {
                 ],
             },
         },
-        skipTestRun: BuildXLSdk.restrictTestRunToSomeQualifiers,
+        // TODO: Enable this test.
+        skipTestRun: true, // BuildXLSdk.restrictTestRunToSomeQualifiers,
         assemblyBindingRedirects: BuildXLSdk.cacheBindingRedirects(),
         references: [
             ...addIfLazy(BuildXLSdk.isFullFramework, () => [

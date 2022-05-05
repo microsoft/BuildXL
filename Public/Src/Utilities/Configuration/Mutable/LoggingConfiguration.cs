@@ -61,6 +61,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 #if FEATURE_ARIA_TELEMETRY
             RemoteTelemetry = Configuration.RemoteTelemetry.EnabledAndNotify;
 #endif
+
+            PerfCollectorFrequencyMs = 5_000;
         }
 
         /// <nodoc />
@@ -133,6 +135,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             LogStatus = template.LogStatus;
             LogTracer = template.LogTracer;
             StatusFrequencyMs = template.StatusFrequencyMs;
+            PerfCollectorFrequencyMs = template.PerfCollectorFrequencyMs;
             StatusLog = pathRemapper.Remap(template.StatusLog);
             TraceLog = pathRemapper.Remap(template.TraceLog);
             CacheMissLog = pathRemapper.Remap(template.CacheMissLog);
@@ -350,6 +353,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public int StatusFrequencyMs { get; set; }
+
+        /// <inheritdoc />
+        public int PerfCollectorFrequencyMs { get; set; }
 
         /// <inheritdoc />
         public bool FailPipOnFileAccessError { get; set; }

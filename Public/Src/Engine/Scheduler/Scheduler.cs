@@ -603,6 +603,11 @@ namespace BuildXL.Scheduler
         private DateTime m_statusSnapshotLastUpdated;
 
         /// <summary>
+        /// Tracks time when the tracer was last updated
+        /// </summary>
+        private DateTime m_tracerLastUpdated;
+
+        /// <summary>
         /// Tracks time when ChooseWorkerCpu queue is unpaused last time.
         /// </summary>
         private DateTime m_chooseWorkerCpuLastUnpaused;
@@ -2586,9 +2591,6 @@ namespace BuildXL.Scheduler
                     ProcessPipsAllocatedSlots = numProcessPipsAllocatedSlots
                 };
 
-                // Send resource usage to the execution log
-                ExecutionLog?.StatusReported(data);
-
                 BuildXL.Tracing.Logger.Log.Status(m_executePhaseLoggingContext, m_statusRows.PrintRow(data));
 
                 if (DateTime.UtcNow > m_statusSnapshotLastUpdated.AddSeconds(StatusSnapshotInterval))
@@ -2639,7 +2641,26 @@ namespace BuildXL.Scheduler
                 {
                     m_schedulerCompletionExceptMaterializeOutputs.TrySetResult(true);
                 }
+
+                if (m_configuration.Logging.LogTracer && DateTime.UtcNow > m_tracerLastUpdated.AddSeconds(EngineEnvironmentSettings.MinStepDurationSecForTracer))
+                {
+                    LogPercentageCounter(LocalWorker, "CPU", data.CpuPercent, data.Time.Ticks);
+                    LogPercentageCounter(LocalWorker, "RAM", data.RamPercent, data.Time.Ticks);
+                    m_tracerLastUpdated = DateTime.UtcNow;
+                }
             }
+        }
+
+        private void LogPercentageCounter(Worker worker, string name, int percentValue, long ticks)
+        {
+            if (worker.InitializedTracerCounters.TryAdd(name, 0))
+            {
+                // To show the counters nicely in the UI, we set percentage counters to 100 for very short time
+                // so that UI aligns the rest based on 100% instead of the maximum observed value
+                BuildXL.Tracing.Logger.Log.TracerCounterEvent(m_loggingContext, name, worker.Name, ticks, 100);
+            }
+
+            BuildXL.Tracing.Logger.Log.TracerCounterEvent(m_loggingContext, name, worker.Name, ticks, percentValue);
         }
 
         /// <summary>

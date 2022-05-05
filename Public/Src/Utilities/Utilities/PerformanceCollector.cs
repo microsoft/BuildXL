@@ -102,19 +102,21 @@ namespace BuildXL.Utilities
         private readonly Func<(ulong? KernelTime, ulong? UserTime, ulong? NumProcesses)> m_queryJobObject;
         private DateTime m_jobObjectLastCollectedAt = DateTime.MinValue;
         private ulong m_jobObjectTotalTimeLastValue;
+        private readonly bool m_logWmiCounters;
 
         /// <summary>
         /// Creates a new PerformanceCollector with the specified collection frequency.
         /// </summary>
         [SuppressMessage("Microsoft.Reliability", "CA2000:DisposeObjectsBeforeLosingScope",
             Justification = "Handle is owned by PerformanceCollector and is disposed on its disposal")]
-        public PerformanceCollector(TimeSpan collectionFrequency, bool collectBytesHeld = false, Action<Exception> errorHandler = null, TestHooks testHooks = null, Func<(ulong?, ulong?, ulong?)> queryJobObject = null)
+        public PerformanceCollector(TimeSpan collectionFrequency, bool logWmiCounters = true, bool collectBytesHeld = false, Action<Exception> errorHandler = null, TestHooks testHooks = null, Func<(ulong?, ulong?, ulong?)> queryJobObject = null)
         {
             m_collectionFrequency = collectionFrequency;
             m_processorCount = Environment.ProcessorCount;
             m_collectHeldBytesFromGC = collectBytesHeld;
             m_testHooks = testHooks;
             m_queryJobObject = queryJobObject;
+            m_logWmiCounters = logWmiCounters;
 
             // Figure out which drives we want to get counters for
             List<(DriveInfo, SafeFileHandle, DISK_PERFORMANCE)> drives = new List<(DriveInfo, SafeFileHandle, DISK_PERFORMANCE)>();
@@ -169,6 +171,11 @@ namespace BuildXL.Utilities
 
         private async Task InitializeWMIAsync()
         {
+            if (!m_logWmiCounters)
+            {
+                return;
+            }
+
             await Task.Yield();
 
             m_wmiScope = new ManagementScope(string.Format("\\\\{0}\\root\\CIMV2", "."), null);
@@ -315,9 +322,9 @@ namespace BuildXL.Utilities
                             modifiedPagelistBytes: m_modifiedPagelistBytes,
                             jobObjectCpu: jobObjectCpu,
                             jobObjectProcesses: jobObjectProcesses,
-                            contextSwitchesPerSec: m_contextSwitchesPerSec, 
-                            processes: m_processes, 
-                            cpuQueueLength: m_cpuQueueLength, 
+                            contextSwitchesPerSec: m_contextSwitchesPerSec,
+                            processes: m_processes,
+                            cpuQueueLength: m_cpuQueueLength,
                             threads: m_threads);
                     }
                 }

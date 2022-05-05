@@ -326,9 +326,14 @@ namespace BuildXL.Utilities.Configuration
         AbsolutePath PluginLog { get; }
 
         /// <summary>
-        /// How frequently BuildXL needs to sample the usage of resources and queues.
+        /// How frequently BuildXL needs to call UpdateStatus
         /// </summary>
         int StatusFrequencyMs { get; }
+
+        /// <summary>
+        /// How frequently BuildXL needs to sample the usage of resources and queues.
+        /// </summary>
+        int PerfCollectorFrequencyMs { get; }
 
         /// <summary>
         /// Whether the Build is set not to fail pips on FileAccessError, but to continue the build.

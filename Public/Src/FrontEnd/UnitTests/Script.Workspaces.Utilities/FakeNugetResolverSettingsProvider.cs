@@ -86,6 +86,18 @@ namespace Test.DScript.Workspaces.Utilities
                 {
                     return new MalformedConfigurationFailure("An array literal is expected for NuGet credential providers");
                 }
+
+                var credentialProviders = expression.Cast<IArrayLiteralExpression>();
+                foreach (var element in credentialProviders.Elements)
+                {
+                    var elementResult = ParseNugetConfigurationFrom(element.As<IObjectLiteralExpression>());
+                    if (!elementResult.Succeeded)
+                    {
+                        return elementResult;
+                    }
+
+                    result.CredentialProviders.Add(elementResult.Result);
+                }
             }
 
             if (configurationExpression.TryFindAssignmentPropertyInitializer(NaiveConfigurationParsingUtilities.ToolUrlFieldName, out expression))

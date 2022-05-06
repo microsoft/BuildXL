@@ -179,9 +179,9 @@ export function evaluate(args: Arguments): Result {
         ],
         allowedSurvivingChildProcessNames: [
             "mspdbsrv.exe",
+            "VCTIP.exe",
             "conhost.exe",
-        ],
-        unsafe: { childProcessesToBreakawayFromSandbox: [a`vctip.exe`] }
+        ]
     });
 
     let midlOutput = <Midl.Result>{

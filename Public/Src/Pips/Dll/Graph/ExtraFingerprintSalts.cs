@@ -413,9 +413,9 @@ namespace BuildXL.Pips.Graph
         /// <summary>
         /// Add fields to fingerprint
         /// </summary>
-        public void AddFingerprint(IHashingHelper fingerprinter, bool bypassFingerprintSaltAndVersion)
+        public void AddFingerprint(IHashingHelper fingerprinter)
         {
-            if (!bypassFingerprintSaltAndVersion && !string.IsNullOrEmpty(FingerprintSalt))
+            if (!string.IsNullOrEmpty(FingerprintSalt))
             {
                 fingerprinter.Add(nameof(FingerprintSalt), FingerprintSalt);
             }
@@ -455,17 +455,14 @@ namespace BuildXL.Pips.Graph
                 fingerprinter.Add(nameof(ExplicitlyReportDirectoryProbes), 1);
             }
 
-            if (!bypassFingerprintSaltAndVersion)
-            {
-                fingerprinter.Add(nameof(FingerprintVersion), (int)FingerprintVersion);
-            }
+            fingerprinter.Add(nameof(FingerprintVersion), (int)FingerprintVersion);
         }
 
         private CalculatedFingerprintTuple ComputeWeakFingerprint()
         {
             using (var hasher = new CoreHashingHelper(true))
             {
-                AddFingerprint(hasher, bypassFingerprintSaltAndVersion: false);
+                AddFingerprint(hasher);
                 return new CalculatedFingerprintTuple(hasher.GenerateHash(), hasher.FingerprintInputText);
             }
         }

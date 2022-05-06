@@ -181,8 +181,6 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
         private SymbolAtom m_semaphoreInfoLimit;
         private SymbolAtom m_semaphoreInfoName;
         private SymbolAtom m_semaphoreInfoIncrementBy;
-        // Explicitly not exposed in DScript since bypassing the salts is not officially supported, and only used for internally scheduled pips
-        private SymbolAtom m_unsafeBypassFingerprintSalt;
 
         private CallSignature ExecuteSignature => CreateSignature(
             required: RequiredParameters(AmbientTypes.ExecuteArgumentsType),
@@ -334,7 +332,6 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             m_unsafeTrustStaticallyDeclaredAccesses = Symbol("trustStaticallyDeclaredAccesses");
             m_unsafeDisableFullReparsePointResolving = Symbol("disableFullReparsePointResolving");
             m_unsafeDisableSandboxing = Symbol("disableSandboxing");
-            m_unsafeBypassFingerprintSalt = Symbol("bypassFingerprintSalt");
 
             // Semaphore info.
             m_semaphoreInfoLimit = Symbol("limit");
@@ -1418,12 +1415,6 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             if (Converter.ExtractOptionalBoolean(unsafeOptionsObjLit, m_unsafeDisableSandboxing) == true)
             {
                 processBuilder.Options |= Process.Options.DisableSandboxing;
-            }
-
-            // UnsafeExecuteArguments.bypassFingerprintSalt
-            if (Converter.ExtractOptionalBoolean(unsafeOptionsObjLit, m_unsafeBypassFingerprintSalt) == true)
-            {
-                processBuilder.Options |= Process.Options.BypassFingerprintSalt;
             }
         }
 

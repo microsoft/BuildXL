@@ -839,11 +839,7 @@ interface UntrackingSettings {
 }
 
 interface NuGetConfiguration extends ToolConfiguration {
-    /**
-     * The download timeout, in minutes, for each NuGet download pip. Defaults to 20m.
-     * Equivalent to configuring timeoutInMilliseconds for the corresponding Transformers.ToolDefinition
-     */
-    downloadTimeoutMin?: number
+    credentialProviders?: ToolConfiguration[];
 }
 
 interface ScriptResolverDefaults {

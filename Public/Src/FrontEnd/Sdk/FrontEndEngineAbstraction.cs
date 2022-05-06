@@ -223,11 +223,6 @@ namespace BuildXL.FrontEnd.Sdk
         }
 
         /// <summary>
-        /// Translates an absolute path according to the defined translations
-        /// </summary>
-        public abstract AbsolutePath Translate(AbsolutePath path);
-
-        /// <summary>
         /// A simple IO based file system entry enumeration helper 
         /// </summary>
         protected static IEnumerable<AbsolutePath> EnumerateEntriesHelper(PathTable pathTable, AbsolutePath path, string pattern, bool recursive, bool directories, IFileSystem fileSystem)

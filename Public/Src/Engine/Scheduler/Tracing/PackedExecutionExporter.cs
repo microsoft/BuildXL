@@ -295,7 +295,7 @@ namespace BuildXL.Scheduler.Tracing
         {
             m_statistics.FileArtifactContentDecidedEventCount++;
             
-            if (data.FileArtifact.IsOutputFile && data.FileContentInfo.HasKnownLength)
+            if (data.FileContentInfo.HasKnownLength)
             {
                 m_statistics.FileArtifactOutputWithKnownLengthCount++;
 
@@ -828,15 +828,19 @@ namespace BuildXL.Scheduler.Tracing
                 var declaredInputFiles = pip.Dependencies.ToList();
                 var declaredInputDirs = pip.DirectoryDependencies.ToList();
 
-                // part 2: collect actual inputs                
-                ICollection<AbsolutePath> consumedPaths = data.StrongFingerprintComputations.Count == 0
+                // part 2: collect observed input paths
+                IEnumerable<AbsolutePath> observedInputPaths = data.StrongFingerprintComputations.Count == 0
                     ? s_noPaths
                     : data
                         .StrongFingerprintComputations[0]
                         .ObservedInputs
                         .Where(input => input.Type == ObservedInputType.FileContentRead || input.Type == ObservedInputType.ExistingFileProbe)
-                        .Select(input => input.Path)
-                        .ToList();
+                        .Select(input => input.Path);
+                // The ObservedInputs list has had the "declared inputs" explicitly removed.
+                // To BuildXL they are assumed to be consumed, but they are in the weak fingerprint, not in the strong fingerprint.
+                // There is no way at this location to know whether the declared inputs were actually consumed,
+                // but since a pip will be run based on a declared input changing, it's less misleading to include them.
+                ICollection<AbsolutePath> consumedPaths = declaredInputFiles.Select(x => x.Path).Union(observedInputPaths).ToList();
 
                 Interlocked.Add(
                     ref m_exporter.m_statistics.ProcessFingerprintComputedStrongFingerprintCount,

@@ -55,6 +55,11 @@ namespace BuildXL.Utilities.PackedExecution
         public SingleValueTable<FileId, PipId> FileProducer { get; private set; }
 
         /// <summary>The consumed file relation (from executed pips to the files they consumed).</summary>
+        /// <remarks>
+        /// This relation includes all of the DeclaredInputFiles, as well as any files that were actually observed to be read as inputs.
+        /// Note that without tracking all observed file accesses, we cannot be sure that all declared inputs were actually read by the pip.
+        /// But since any changes to declared inputs will result in the pip being re-executed, it's a conservative assumption that all declared inputs were consumed.
+        /// </remarks>
         public RelationTable<PipId, FileId> ConsumedFiles { get; private set; }
 
         /// <summary>The static input directory relation (from executed pips to their statically declared input directories).</summary>

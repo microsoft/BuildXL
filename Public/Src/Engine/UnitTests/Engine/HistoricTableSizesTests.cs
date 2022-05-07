@@ -43,6 +43,7 @@ namespace Test.BuildXL.Engine
         {
             var dataPoint1 = default(HistoricDataPoint);
             var dataPoint2 = new HistoricDataPoint(new TableStats(0, 1), new TableStats(2, 3), new TableStats(4, 5));
+            var dataPoint3 = new HistoricDataPoint(new TableStats(0, 1), new TableStats(2, 3), new TableStats(4, long.MaxValue));
 
             yield return new object[] { new HistoricTableSizes(new HistoricDataPoint[0]) };
             yield return new object[]
@@ -67,6 +68,15 @@ namespace Test.BuildXL.Engine
                                             dataPoint1,
                                             dataPoint2,
                                             dataPoint1
+                                        })
+            };
+            yield return new object[]
+            {
+                new HistoricTableSizes(new[]
+                                        {
+                                            dataPoint1,
+                                            dataPoint2,
+                                            dataPoint3
                                         })
             };
         }

@@ -261,7 +261,7 @@ namespace BuildXL.Engine
         {
             return new TableStats(
                 count: reader.ReadInt32Compact(),
-                sizeInBytes: reader.ReadInt32Compact());
+                sizeInBytes: reader.ReadInt64Compact());
         }
     }
 }

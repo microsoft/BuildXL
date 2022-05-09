@@ -97,6 +97,12 @@ namespace BuildXL.Cache.Host.Configuration
         public bool EnableAspNetCoreGrpc { get; set; }
 
         /// <summary>
+        /// Enables logging for ASP.Net core server
+        /// </summary>
+        [DataMember]
+        public bool EnableAspNetCoreLogging { get; set; }
+
+        /// <summary>
         /// Grpc port for backing cache service instance
         /// </summary>
         [DataMember]

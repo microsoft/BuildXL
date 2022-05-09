@@ -54,6 +54,7 @@ namespace ContentStoreTest.Distributed.Sessions
         {
             // Need to enable ASP.Net Core GRPC
             arguments.Configuration.DistributedContentSettings.EnableAspNetCoreGrpc = true;
+            arguments.Configuration.DistributedContentSettings.EnableAspNetCoreLogging = true;
 
             var server = new TestCacheServerWrapper(Host, arguments);
 

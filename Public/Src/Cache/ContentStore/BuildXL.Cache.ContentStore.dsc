@@ -115,7 +115,9 @@ export function getGrpcPackages(includeNetStandard: boolean) : Managed.ManagedNu
     return [
         ...getProtobufPackages(includeNetStandard),
         importFrom("Grpc.Core").pkg,
-        importFrom("Grpc.Core.Api").pkg,
+        BuildXLSdk.isDotNetCoreApp
+            ? importFrom("Grpc.Core.Api").withQualifier({ targetFramework: "netstandard2.1" }).pkg
+            : importFrom("Grpc.Core.Api").pkg,
         ...BuildXLSdk.bclAsyncPackages,
     ];
 }

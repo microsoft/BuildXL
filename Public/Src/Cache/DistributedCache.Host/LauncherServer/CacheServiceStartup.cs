@@ -226,8 +226,10 @@ namespace BuildXL.Launcher.Server
                             {
                                 l.ClearProviders();
 
-                                // This is left for future reference if ASP.NET logging needs to be enabled
-                                //l.AddProvider(new LoggingAdapter("ASPNET", context));
+                                if (configuration.DistributedContentSettings?.EnableAspNetCoreLogging == true)
+                                {
+                                    l.AddProvider(new LoggingAdapter("ASPNET", context));
+                                }
                             });
 
                             webBuilder.ConfigureKestrel(o =>

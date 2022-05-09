@@ -2446,7 +2446,7 @@ namespace BuildXL.Engine
                 {
                     locker.CreateRedirectionAndPreventDeletion(
                         layout.NormalizedBuildEngineDirectory.ToString(pathTable),
-                        layout.BuildEngineDirectory.ToString(pathTable),
+                        Directory.GetParent(AssemblyHelper.GetAssemblyLocation(Assembly.GetExecutingAssembly())).FullName,
                         deleteExisting: true,
                         deleteOnClose: false);
                 }

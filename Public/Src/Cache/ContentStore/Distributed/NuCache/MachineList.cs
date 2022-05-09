@@ -28,15 +28,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             /// <nodoc />
             public bool PrioritizeDesignatedLocations { get; init; }
 
-            /// <nodoc />
-            public bool DeprioritizeMaster { get; init; }
-
             /// <summary>
             /// See <see cref="LocalLocationStoreConfiguration.ResolveMachineIdsEagerly"/>
             /// </summary>
             public bool ResolveLocationsEagerly { get; init; }
         }
 
+        private readonly IMasterElectionMechanism _masterElectionMechanism;
         private readonly MachineReputationTracker _reputationTracker;
         private readonly ClusterState _clusterState;
         private readonly Settings _settings;
@@ -73,13 +71,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <nodoc />
-        public MachineList(MachineIdSet locations, MachineReputationTracker reputationTracker, ClusterState clusterState, ContentHash hash, Settings settings)
+        public MachineList(MachineIdSet locations, MachineReputationTracker reputationTracker, ClusterState clusterState, ContentHash hash, Settings settings, IMasterElectionMechanism masterElectionMechanism)
         {
             _locations = locations;
             _reputationTracker = reputationTracker;
             _clusterState = clusterState;
             _hash = hash;
             _settings = settings;
+            _masterElectionMechanism = masterElectionMechanism;
 
             // Capture the count rather than recomputing every time
             Count = locations.Count;
@@ -98,14 +97,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             MachineReputationTracker reputationTracker,
             ClusterState clusterState,
             ContentHash hash,
-            Settings settings)
+            Settings settings,
+            IMasterElectionMechanism masterElectionMechanism)
         {
             if (!settings.ResolveLocationsEagerly)
             {
-                return new MachineList(locations, reputationTracker, clusterState, hash, settings);
+                return new MachineList(locations, reputationTracker, clusterState, hash, settings, masterElectionMechanism);
             }
 
-            return ResolveMachineLocations(context, locations, reputationTracker, clusterState, hash, settings);
+            return ResolveMachineLocations(context, locations, reputationTracker, clusterState, hash, settings, masterElectionMechanism);
         }
 
         /// <inheritdoc />
@@ -127,8 +127,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 var resolvedMachineIds = new List<MachineId>(Count);
                 resolvedMachineIds.AddRange(_locations.EnumerateMachineIds());
 
-                var master = _clusterState.MasterMachineId;
-
+                var master = GetMasterMachineId(_clusterState, _masterElectionMechanism);
                 resolvedMachineIds = resolvedMachineIds
                     .OrderBy(id => GetMachinePriority(_settings, _clusterState, _reputationTracker, id, master, _hash))
                     .ToList();
@@ -138,12 +137,19 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         private static IReadOnlyList<MachineLocation> ResolveMachineLocations(
-            Context context, MachineIdSet locations, MachineReputationTracker reputationTracker, ClusterState clusterState, ContentHash hash, Settings settings)
+            Context context,
+            MachineIdSet locations,
+            MachineReputationTracker reputationTracker,
+            ClusterState clusterState,
+            ContentHash hash,
+            Settings settings,
+            IMasterElectionMechanism masterElectionMechanism)
         {
-            // Resolving the machine locations eagerly.
-            var master = clusterState.MasterMachineId;
+            var master = GetMasterMachineId(clusterState, masterElectionMechanism);
 
-            var sortedLocations = locations.EnumerateMachineIds().OrderBy(id => GetMachinePriority(settings, clusterState, reputationTracker, id, master, hash));
+            // Resolving the machine locations eagerly.
+            var sortedLocations = locations.EnumerateMachineIds()
+                .OrderBy(machineId => GetMachinePriority(settings, clusterState, reputationTracker, machineId, master, hash));
 
             var (resolvedLocations, unresolvedLocations) = resolveMachines(clusterState, sortedLocations, locations.Count);
 
@@ -177,16 +183,28 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
         }
 
+        private static MachineId GetMasterMachineId(ClusterState clusterState, IMasterElectionMechanism masterElectionMechanism)
+        {
+            var masterLocation = masterElectionMechanism.Master;
+            clusterState.TryResolveMachineId(masterLocation, out var master);
+            return master;
+        }
+
         /// <summary>
         /// Gets the priority for a given <paramref name="machineId"/>.
         /// </summary>
         private static int GetMachinePriority(
-            Settings settings, ClusterState clusterState, MachineReputationTracker reputationTracker, MachineId machineId, MachineId? master, ContentHash hash)
+            Settings settings,
+            ClusterState clusterState,
+            MachineReputationTracker reputationTracker,
+            MachineId machineId,
+            MachineId master,
+            ContentHash hash)
         {
             // This method won't throw/fail if the machine id is unknown.
 
-            // Send master to the back.
-            if (settings.DeprioritizeMaster && (master?.Equals(machineId) == true))
+            // Send master to the back. If there is no master, then the master's machine ID will be invalid
+            if (master.IsValid() && master.Equals(machineId) == true)
             {
                 return int.MaxValue;
             }

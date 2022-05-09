@@ -388,11 +388,6 @@ namespace BuildXL.Cache.ContentStore.Distributed
         public bool ResolveMachineIdsEagerly { get; set; }
 
         /// <summary>
-        /// Whether to deprioritize the master in machine lists, so that it is the last element.
-        /// </summary>
-        public bool MachineListDeprioritizeMaster { get; set; }
-
-        /// <summary>
         /// Indicates whether content hash lists should be touched after retrieval
         /// </summary>
         public bool TouchContentHashLists { get; set; }

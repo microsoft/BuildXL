@@ -110,9 +110,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <nodoc />
         public bool EnableBinManagerUpdates { get => Read(static c => c.EnableBinManagerUpdates); set => Mutate(static (c, value) => c.With(enableBinManagerUpdates: value), value).ThrowIfFailure(); }
 
-        /// <nodoc />
-        public MachineId? MasterMachineId => Read(static c => c.MasterMachineId);
-
         /// <summary>
         /// Returns a set of inactive machines.
         /// </summary>
@@ -207,9 +204,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         /// <remarks>This operation is used only by the master. The worker still may set BinManager via <see cref="BinManager"/> property.</remarks>
         internal void InitializeBinManagerIfNeeded(int locationsPerBin, IClock clock, TimeSpan expiryTime) => Mutate(static (clusterState, tpl) => clusterState.InitializeBinManagerIfNeeded(tpl.locationsPerBin, tpl.clock, tpl.expiryTime), (locationsPerBin, clock, expiryTime)).ThrowIfFailure();
-
-        /// <nodoc />
-        internal void SetMasterMachine(MachineLocation producer) => Mutate(static (clusterState, producer) => clusterState.SetMasterMachine(producer), producer).ThrowIfFailure();
 
         /// <nodoc />
         public int ApproximateNumberOfMachines() => Read((clusterState) => clusterState.ApproximateNumberOfMachines());

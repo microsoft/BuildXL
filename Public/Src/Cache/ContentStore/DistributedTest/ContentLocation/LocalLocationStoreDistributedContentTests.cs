@@ -1565,7 +1565,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     Assert.Equal(3, getBulkResult.ContentHashesInfo[0].Locations.Count);
 
                     // Location of the machine with bad reputation should be the last one in the list.
-                    Assert.Equal(firstLocation, getBulkResult.ContentHashesInfo[0].Locations[2]);
+                    Assert.Equal(firstLocation, getBulkResult.ContentHashesInfo[0].Locations[1]);
 
                     // Causing reputation to expire
                     TestClock.UtcNow += TimeSpan.FromHours(1);

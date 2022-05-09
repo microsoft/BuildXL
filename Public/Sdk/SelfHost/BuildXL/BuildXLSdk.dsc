@@ -339,7 +339,7 @@ export function executable(args: Arguments): Managed.Assembly {
                 publicKeyToken: "b03f5f7f11d50a3a",
                 culture: "neutral",
                 oldVersion: "0.0.0.0-1.5.0.0",
-                newVersion: "1.2.3.0",
+                newVersion: "1.5.0",
             },
             {
                 name: "Microsoft.ContentStoreInterfaces",
@@ -551,7 +551,20 @@ export function cacheBindingRedirects() {
                 oldVersion: "0.0.0.0-3.0.0.0",
                 newVersion: "3.0.0.0", // Corresponds to { id: "System.Text.Encodings.Web", version: "4.7.2" },
             },
-
+            {
+                name: "System.IO.Pipelines",
+                publicKeyToken: "cc7b13ffcd2ddd51",
+                culture: "neutral",
+                oldVersion: "0.0.0.0-6.0.0.0",
+                newVersion: "6.0.0.0", // Corresponds to { id: "System.IO.Pipelines", version: "6.0.2"...
+            },
+            {
+                name: "System.Threading.Channels",
+                publicKeyToken: "cc7b13ffcd2ddd51",
+                culture: "neutral",
+                oldVersion: "0.0.0.0-6.0.0.0",
+                newVersion: "6.0.0.0", // Corresponds to { id: "System.Threading.Channels", version: "6.0.0"...
+            },
         ];
 }
 

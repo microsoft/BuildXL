@@ -1321,10 +1321,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
             // Don't trace this case since it would add too much log traffic.
             var replicatedLocations = (info.Locations ?? CollectionUtilities.EmptyArray<MachineLocation>()).ToList();
+
             if (replicatedLocations.Count >= Settings.ProactiveCopyLocationsThreshold)
             {
                 SessionCounters[Counters.ProactiveCopiesSkipped].Increment();
                 return Task.FromResult(ProactiveCopyResult.CopyNotRequiredResult);
+            }
+
+            // By adding the master to replicatedLocations, it will be excluded from proactive replication
+            var masterLocation = _contentStore.LocalLocationStore?.MasterElectionMechanism.Master;
+            if (masterLocation is not null && masterLocation.Value.IsValid)
+            {
+                replicatedLocations.Add(masterLocation.Value);
             }
 
             return context.PerformOperationAsync(

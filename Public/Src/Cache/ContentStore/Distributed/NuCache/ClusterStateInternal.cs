@@ -72,12 +72,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <nodoc />
         public bool EnableBinManagerUpdates { get; private set; }
 
-        /// <nodoc />
-        public MachineLocation? MasterMachineLocation { get; private set; } = null;
-
-        /// <nodoc />
-        public MachineId? MasterMachineId { get; private set; } = null;
-
         #region Constructors
         /// <nodoc />
         internal ClusterStateInternal(MachineId primaryMachineId, IReadOnlyList<MachineMapping> localMachineMappings)
@@ -217,9 +211,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             IReadOnlyList<MachineMapping>? localMachineMappings = null,
             MachineId? primaryMachineId = null,
             BinManager? binManager = null,
-            bool? enableBinManagerUpdates = null,
-            MachineLocation? masterMachineLocation = null,
-            MachineId? masterMachineId = null)
+            bool? enableBinManagerUpdates = null)
         {
             ClusterStateInternal clone = (ClusterStateInternal)MemberwiseClone();
 
@@ -284,16 +276,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 clone.EnableBinManagerUpdates = enableBinManagerUpdates.Value;
             }
 
-            if (masterMachineLocation != null)
-            {
-                clone.MasterMachineLocation = masterMachineLocation;
-            }
-
-            if (masterMachineId != null)
-            {
-                clone.MasterMachineId = masterMachineId;
-            }
-
             return clone;
         }
 
@@ -311,13 +293,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 // Closed machines aren't included in the bin manager's update because they are expected to be back
                 // soon, so it doesn't make much sense to reorganize the stamp because of them.
                 var activeMachines = _idByLocationMap.Values.Except(updatedClusterState.InactiveMachines);
-
-                // Try to exclude the master from proactive operations to reduce load.
-                if (MasterMachineLocation.HasValue && _idByLocationMap.ContainsKey(MasterMachineLocation.Value))
-                {
-                    activeMachines = activeMachines.Except(new[] { _idByLocationMap[MasterMachineLocation.Value] });
-                }
-
                 var binManagerUpdateResult = BinManager.UpdateAll(activeMachines.ToArray(), updatedClusterState.InactiveMachines);
                 if (!binManagerUpdateResult)
                 {
@@ -363,24 +338,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         internal Result<ClusterStateInternal> InitializeBinManagerIfNeeded(int locationsPerBin, IClock clock, TimeSpan expiryTime)
         {
-            var startLocations = _idByLocationMap.Values;
-            if (MasterMachineLocation.HasValue && _idByLocationMap.ContainsKey(MasterMachineLocation.Value))
-            {
-                startLocations = startLocations.Except(new[] { _idByLocationMap[MasterMachineLocation.Value] }).ToArray();
-            }
 
-            return With(binManager: new BinManager(locationsPerBin, startLocations, clock, expiryTime));
+            return With(binManager: new BinManager(locationsPerBin, _idByLocationMap.Values, clock, expiryTime));
         }
 
-        /// <nodoc />
-        internal Result<ClusterStateInternal> SetMasterMachine(MachineLocation master)
-        {
-            var masterMachineId = TryResolveMachineId(master);
-            return With(
-                masterMachineLocation: master,
-                // WARNING: this doesn't update the masterMachineId to null if the lookup doesn't succeeds, just leaves it as-is.
-                masterMachineId: masterMachineId.Succeeded ? masterMachineId.MachineId : (MachineId?)null);
-        }
         #endregion
     }
 }

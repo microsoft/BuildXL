@@ -6,12 +6,16 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.InterfacesTest.Time;
+using BuildXL.Cache.ContentStore.Tracing;
+using BuildXL.Cache.ContentStore.Tracing.Internal;
+using BuildXL.Cache.ContentStore.Utils;
 using ContentStoreTest.Test;
 using FluentAssertions;
 using Xunit;
@@ -39,7 +43,6 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
             var amountMachines = 10;
             var settings = new MachineList.Settings()
             {
-                DeprioritizeMaster = false,
                 PrioritizeDesignatedLocations = false,
                 ResolveLocationsEagerly = resolveEagerly
             };
@@ -53,14 +56,14 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
             }
 
             tracker.ReportReputation(machines[0].Location, MachineReputation.Bad);
-            tracker.ReportReputation(machines[amountMachines - 1].Location, MachineReputation.Good);
+            tracker.ReportReputation(machines[amountMachines - 2].Location, MachineReputation.Good);
 
             // Because the machine list may be eager or lazy, we need to change the state before creating a list.
             var machineList = factory.Create(settings);
-            machineList[0].Should().Be(machines[amountMachines - 1].Location);
-            machineList[amountMachines - 1].Should().Be(machines[0].Location);
+            machineList[0].Should().Be(machines[amountMachines - 2].Location);
+            machineList[amountMachines - 1].Should().Be(machines[amountMachines - 1].Location);
 
-            for (var i = 1; i < amountMachines - 1; i++)
+            for (var i = 1; i < amountMachines - 2; i++)
             {
                 machineList[i].Should().Be(machines[i].Location);
             }
@@ -75,7 +78,6 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
             var designatedLocations = 3;
             var settings = new MachineList.Settings()
             {
-                DeprioritizeMaster = false,
                 PrioritizeDesignatedLocations = true,
                 ResolveLocationsEagerly = resolveEagerly
             };
@@ -107,18 +109,17 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
             var designatedLocations = 3;
             var settings = new MachineList.Settings()
             {
-                DeprioritizeMaster = true,
                 PrioritizeDesignatedLocations = false,
                 ResolveLocationsEagerly = resolveEagerly
             };
 
-            var factory = new MachineListFactory(_clock, amountMachines, designatedLocations);
+            var factory = new MachineListFactory(_clock, amountMachines, designatedLocations, master: 0);
             var (_, _, machines) = factory;
 
             var machineList = factory.Create(settings);
 
             // Master should be moved to the back.
-            machineList[amountMachines - 1].Should().Be(machines[0].Location);
+            machineList[amountMachines - 1].Should().Be(machines.First().Location);
             for (var i = 0; i < amountMachines - 1; i++)
             {
                 machineList[i].Should().Be(machines[i + 1].Location);
@@ -144,9 +145,12 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
             {
                 clusterState.AddMachine(mapping.Id, mapping.Location);
             }
-
-            clusterState.SetMasterMachine(machineMappings[0].Location);
             clusterState.InitializeBinManagerIfNeeded(locationsPerBin: designatedLocations, _clock, expiryTime: TimeSpan.FromSeconds(1));
+
+            var masterElectionMechanism = new MockMasterElectionMechanism()
+            {
+                Master = machineMappings[0].Location,
+            };
 
             var tracker = new MachineReputationTracker(context, _clock, clusterState);
 
@@ -192,7 +196,7 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
                 {
                     foreach (var machineIdSet in machineIdSets)
                     {
-                        var list = MachineList.Create(context, machineIdSet, tracker, clusterState, TestHash, settings);
+                        var list = MachineList.Create(context, machineIdSet, tracker, clusterState, TestHash, settings, masterElectionMechanism);
                         var l1 = list[0];
                         var l2 = list[1];
                         var l3 = list[2];
@@ -257,7 +261,6 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
             var designatedLocations = 3;
             var settings = new MachineList.Settings()
             {
-                DeprioritizeMaster = true,
                 PrioritizeDesignatedLocations = true,
                 ResolveLocationsEagerly = resolveEagerly
             };
@@ -273,7 +276,7 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
 
             var machineList = factory.Create(settings);
             // Master should be moved to the back.
-            machineList[amountMachines - 1].Should().Be(machines[0].Location);
+            machineList[amountMachines - 1].Should().Be(machines.Last().Location);
 
             // Designated locations should be pulled to the front.
             for (var i = 0; i < designatedLocations; i++)
@@ -306,7 +309,6 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
             var designatedLocations = 3;
             var settings = new MachineList.Settings()
             {
-                DeprioritizeMaster = true,
                 PrioritizeDesignatedLocations = true,
                 //Randomize = true,
                 ResolveLocationsEagerly = resolveEagerly
@@ -323,7 +325,7 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
 
             // Master should be moved to the back.
             var machineList = factory.Create(settings);
-            machineList[amountMachines - 1].Should().Be(machines[0].Location);
+            machineList[amountMachines - 1].Should().Be(machines.Last().Location);
 
             // Designated locations should be pulled to the front.
             for (var i = 0; i < designatedLocations; i++)
@@ -347,9 +349,30 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
             }
         }
 
+        private class MockMasterElectionMechanism : StartupShutdownSlimBase, IMasterElectionMechanism
+        {
+            protected override Tracer Tracer { get; } = new Tracer(nameof(MockMasterElectionMechanism));
+
+            public MachineLocation Master { get; set; }
+
+            public Role Role => throw new NotImplementedException();
+
+            public Task<BuildXL.Cache.ContentStore.Interfaces.Results.Result<MasterElectionState>> GetRoleAsync(OperationContext context)
+            {
+                throw new NotImplementedException();
+            }
+
+            public Task<BuildXL.Cache.ContentStore.Interfaces.Results.Result<Role>> ReleaseRoleIfNecessaryAsync(OperationContext context)
+            {
+                throw new NotImplementedException();
+            }
+        }
+
         private class MachineListFactory
         {
-            public MachineListFactory(ITestClock clock, int amountMachines, int designatedLocations)
+            public MockMasterElectionMechanism MasterElectionMechanism { get; }
+
+            public MachineListFactory(ITestClock clock, int amountMachines, int designatedLocations, int? master = null)
             {
                 Context = new Context(Logger);
 
@@ -361,13 +384,15 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
                 {
                     clusterState.AddMachine(mapping.Id, mapping.Location);
                 }
-
-                clusterState.SetMasterMachine(machineMappings[0].Location);
                 clusterState.InitializeBinManagerIfNeeded(locationsPerBin: designatedLocations, clock, expiryTime: TimeSpan.FromSeconds(1));
 
                 ClusterState = clusterState;
                 Tracker = new MachineReputationTracker(Context, clock, clusterState);
                 MachineMappings = machineMappings;
+                MasterElectionMechanism = new MockMasterElectionMechanism()
+                {
+                    Master = master != null ? machineMappings[master.Value].Location : machineMappings.Last().Location,
+                };
             }
 
             public ClusterState ClusterState { get; }
@@ -384,7 +409,7 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
             {
                 machineIds ??= MachineMappings.Select(m => m.Id).ToArray();
                 var machineIdSet = new ArrayMachineIdSet(machineIds.Select(id => (ushort)id.Index));
-                return  MachineList.Create(Context, machineIdSet, Tracker, ClusterState, TestHash, settings);
+                return  MachineList.Create(Context, machineIdSet, Tracker, ClusterState, TestHash, settings, MasterElectionMechanism);
             }
 
             public void Deconstruct(out ClusterState clusterState, out MachineReputationTracker tracker, out MachineMapping[] mappings)

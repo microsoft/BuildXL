@@ -436,9 +436,6 @@ namespace BuildXL.Cache.Host.Configuration
         public bool PrioritizeDesignatedLocationsOnCopies { get; set; } = false;
 
         [DataMember]
-        public bool DeprioritizeMasterOnCopies { get; set; } = false;
-
-        [DataMember]
         public bool ResolveMachineIdsEagerly { get; set; } = false;
 
         [DataMember]

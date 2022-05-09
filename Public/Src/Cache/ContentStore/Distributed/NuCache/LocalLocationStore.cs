@@ -97,7 +97,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private readonly ICheckpointRegistry _checkpointRegistry;
 
-        private readonly IMasterElectionMechanism _masterElectionMechanism;
+        public IMasterElectionMechanism MasterElectionMechanism { get; }
 
         // Fields that are initialized in StartupCoreAsync method.
         private Timer _heartbeatTimer;
@@ -183,7 +183,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             _clock = clock;
             Configuration = configuration;
             GlobalCacheStore = globalCacheStore;
-            _masterElectionMechanism = masterElectionMechanism;
+            MasterElectionMechanism = masterElectionMechanism;
             ClusterStateManager = clusterStateManager;
             _checkpointRegistry = checkpointRegistry;
             _coldStorage = coldStorage;
@@ -217,7 +217,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             _machineListSettings = new MachineList.Settings
             {
                 PrioritizeDesignatedLocations = Configuration.MachineListPrioritizeDesignatedLocations,
-                DeprioritizeMaster = Configuration.MachineListDeprioritizeMaster,
                 ResolveLocationsEagerly = Configuration.ResolveMachineIdsEagerly,
             };
 
@@ -323,7 +322,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             await ClusterStateManager.StartupAsync(context).ThrowIfFailureAsync();
 
-            await _masterElectionMechanism.StartupAsync(context).ThrowIfFailureAsync();
+            await MasterElectionMechanism.StartupAsync(context).ThrowIfFailureAsync();
 
             await GlobalCacheStore.StartupAsync(context).ThrowIfFailure();
 
@@ -434,7 +433,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             CurrentRole = null;
 
-            result &= await _masterElectionMechanism.ShutdownAsync(context);
+            result &= await MasterElectionMechanism.ShutdownAsync(context);
 
             result &= await ClusterStateManager.ShutdownAsync(context);
 
@@ -458,7 +457,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         internal async Task ReleaseRoleIfNecessaryAsync(OperationContext operationContext)
         {
-            CurrentRole = await _masterElectionMechanism.ReleaseRoleIfNecessaryAsync(operationContext).ThrowIfFailureAsync();
+            CurrentRole = await MasterElectionMechanism.ReleaseRoleIfNecessaryAsync(operationContext).ThrowIfFailureAsync();
         }
 
         /// <summary>
@@ -689,9 +688,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                         var checkpointState = await _checkpointRegistry.GetCheckpointStateAsync(context).ThrowIfFailureAsync();
 
-                        var leadershipState = await _masterElectionMechanism.GetRoleAsync(context).ThrowIfFailureAsync();
-
-                        ClusterState.SetMasterMachine(leadershipState.Master);
+                        var leadershipState = await MasterElectionMechanism.GetRoleAsync(context).ThrowIfFailureAsync();
 
                         if (_coldStorage != null)
                         {
@@ -1132,7 +1129,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 MachineReputationTracker,
                 ClusterState,
                 hash,
-                _machineListSettings);
+                _machineListSettings,
+                MasterElectionMechanism);
         }
 
         private IReadOnlyList<MachineLocation>? GetFilteredOutMachineList(Context context, ContentHash hash, List<MachineId>? machineIds)
@@ -1148,7 +1146,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 MachineReputationTracker,
                 ClusterState,
                 hash,
-                _machineListSettings);
+                _machineListSettings,
+                MasterElectionMechanism);
         }
 
         /// <summary>

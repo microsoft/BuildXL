@@ -33,7 +33,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
             var contentHashes = new List<ContentHash>();
 
-            int machineCount = 2;
+            int machineCount = 3;
             ConfigureWithOneMaster();
 
             return RunTestAsync(
@@ -65,7 +65,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
             var contentHashes = new List<ContentHash>();
 
-            int machineCount = 2;
+            int machineCount = 3;
             ConfigureWithOneMaster();
 
             return RunTestAsync(
@@ -248,7 +248,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 dcs.RestoreCheckpointAgeThresholdMinutes = 0;
             });
 
-            int machineCount = 3;
+            int machineCount = 4;
 
             var buildId = Guid.NewGuid().ToString();
 
@@ -298,7 +298,7 @@ namespace ContentStoreTest.Distributed.Sessions
             ProactiveCopyUsePreferredLocations = usePreferredLocations;
 
             // Master does not participate in proactive copies when using preferred locations.
-            var storeCount = usePreferredLocations ? 3 : 2;
+            var storeCount = usePreferredLocations ? 4 : 3;
 
             ConfigureWithOneMaster(dcs =>
             {
@@ -366,7 +366,7 @@ namespace ContentStoreTest.Distributed.Sessions
             ProactiveCopyUsePreferredLocations = usePreferredLocations;
 
             // Master does not participate in proactive copies when using preferred locations.
-            var storeCount = usePreferredLocations ? 3 : 2;
+            var storeCount = usePreferredLocations ? 4 : 3;
             var proactiveReplicationCopyLimit = 2;
 
             ConfigureWithOneMaster(dcs =>
@@ -447,7 +447,8 @@ namespace ContentStoreTest.Distributed.Sessions
             ProactiveCopyOnPins = true;
             ProactiveCopyUsePreferredLocations = usePreferredLocations;
 
-            int batchSize = 5;
+            int machineCount = usePreferredLocations ? 5 : 4;
+            int batchSize = machineCount;
 
             ConfigureWithOneMaster(dcs =>
             {
@@ -462,7 +463,7 @@ namespace ContentStoreTest.Distributed.Sessions
             List<ContentHash> putHashes = new List<ContentHash>();
 
             return RunTestAsync(
-                storeCount: 3,
+                storeCount: machineCount,
                 iterations: 2,
                 testFunc: async context =>
                 {
@@ -473,8 +474,8 @@ namespace ContentStoreTest.Distributed.Sessions
                     var otherSession = context.GetSession(workers[1]);
                     var counters = proactiveWorkerSession.SessionCounters;
 
-                    var ls = Enumerable.Range(0, 3).Select(n => context.GetLocationStore(n)).ToArray();
-                    var lls = Enumerable.Range(0, 3).Select(n => context.GetLocalLocationStore(n)).ToArray();
+                    var ls = Enumerable.Range(0, machineCount).Select(n => context.GetLocationStore(n)).ToArray();
+                    var lls = Enumerable.Range(0, machineCount).Select(n => context.GetLocalLocationStore(n)).ToArray();
 
                     async Task putInProactiveWorkerAsync()
                     {
@@ -538,7 +539,7 @@ namespace ContentStoreTest.Distributed.Sessions
             PutResult putResult = default;
 
             return RunTestAsync(
-                storeCount: 3,
+                storeCount: usePreferredLocations ? 4 : 3,
                 iterations: 2,
                 testFunc: async context =>
                 {

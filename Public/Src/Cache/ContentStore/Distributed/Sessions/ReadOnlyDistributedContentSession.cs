@@ -711,34 +711,43 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                     new TransformBlock<Indexed<ContentHashWithSizeAndLocations>, Indexed<PlaceFileResult>>(
                         async indexed =>
                         {
-                            var contentHashWithSizeAndLocations = indexed.Item;
                             PlaceFileResult result;
-
-                            if (!CanCopyContentHash(context, contentHashWithSizeAndLocations, isGlobal: origin == GetBulkOrigin.Global, out var useInRingMachineLocations, out var errorMessage))
+                            try
                             {
-                                result = new PlaceFileResult(PlaceFileResult.ResultCode.NotPlacedContentNotFound, errorMessage);
-                            }
-                            else
-                            {
-                                var copyResult = await TryCopyAndPutAsync(
-                                    context,
-                                    contentHashWithSizeAndLocations,
-                                    urgencyHint,
-                                    reason,
-                                    // We just traced all the hashes as a result of GetBulk call, no need to trace each individual hash.
-                                    trace: false,
-                                    // Using in-ring locations as well if the feature is on.
-                                    useInRingMachineLocations: useInRingMachineLocations);
+                                var contentHashWithSizeAndLocations = indexed.Item;
 
-                                if (!copyResult)
+                                if (!CanCopyContentHash(context, contentHashWithSizeAndLocations, isGlobal: origin == GetBulkOrigin.Global, out var useInRingMachineLocations, out var errorMessage))
                                 {
-                                    // For ColdStorage we should treat all errors as cache misses
-                                    result = origin != GetBulkOrigin.ColdStorage ? new PlaceFileResult(copyResult) : new PlaceFileResult(copyResult, PlaceFileResult.ResultCode.NotPlacedContentNotFound);
+                                    result = new PlaceFileResult(PlaceFileResult.ResultCode.NotPlacedContentNotFound, errorMessage);
                                 }
                                 else
                                 {
-                                    result = new PlaceFileResult(PlaceFileResult.ResultCode.PlacedWithMove, copyResult.ContentSize);
+                                    var copyResult = await TryCopyAndPutAsync(
+                                        context,
+                                        contentHashWithSizeAndLocations,
+                                        urgencyHint,
+                                        reason,
+                                        // We just traced all the hashes as a result of GetBulk call, no need to trace each individual hash.
+                                        trace: false,
+                                        // Using in-ring locations as well if the feature is on.
+                                        useInRingMachineLocations: useInRingMachineLocations);
+
+                                    if (!copyResult)
+                                    {
+                                        // For ColdStorage we should treat all errors as cache misses
+                                        result = origin != GetBulkOrigin.ColdStorage ? new PlaceFileResult(copyResult) : new PlaceFileResult(copyResult, PlaceFileResult.ResultCode.NotPlacedContentNotFound);
+                                    }
+                                    else
+                                    {
+                                        result = new PlaceFileResult(PlaceFileResult.ResultCode.PlacedWithMove, copyResult.ContentSize);
+                                    }
                                 }
+                            }
+                            catch (Exception e)
+                            {
+                                // The transform block should not fail with an exception otherwise the block's state will be changed to failed state and the exception
+                                // won't be propagated to the caller.
+                                result = new PlaceFileResult(e);
                             }
 
                             return result.WithIndex(indexed.Index);

@@ -377,7 +377,9 @@ export function runQTest(args: QTestArguments): Result {
         untrackedPaths: [
             ...addIf(qTestContextInfoFile !== undefined, qTestContextInfoFile),
             ...addIf(flakyFile !== undefined, flakyFile),
-            ...addIfLazy(args.qTestUntrackedPaths !== undefined, () => args.qTestUntrackedPaths)
+            ...addIfLazy(args.qTestUntrackedPaths !== undefined, () => args.qTestUntrackedPaths),
+            // QTest is probing the (symlinked on Windows) build engine directory
+            Context.getBuildEngineDirectory(),
         ],
         untrackedScopes: [
             // Untracking Recyclebin here to primarily unblock user scenarios that

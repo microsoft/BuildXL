@@ -1,6 +1,18 @@
 This page is a curated list of the release notes for releases after 0.20170619.4.0 and a manual copy of notable changes from each build before that. See the repo's commit history full details for what is included in each build.
 
 =======
+# 0.1.0-20220509.1.1 (Release [171893](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=171893&_a=release-pipeline-progress)) Released 5/11/2022
+-	Context.GetBuildEngineDirectory() returns a normalized engine path
+-	ExecutionLogSDK is now dotnet core only
+-	CredScan updated to 2.2.7.8
+-	Update Grpc.Net client to fix unobserved Task exceptions
+-	Various bug fixes
+
+# 0.1.0-20220429.3 (Release [167793](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=167793&_a=release-pipeline-progress)) Released 5/06/2022
+-	Eagerly ensure minimum workers
+-	Early worker release for COSINE builds
+-	Various fixes and improvements
+
 # 0.1.0-20220413.1 (Release [161474](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=161474&_a=release-pipeline-progress)) Released 4/20/2022
 -	Spanify StringTable GetExtension and RemoveExtension.
 -	Add Support for FlawFinder with Guardian.

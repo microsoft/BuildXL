@@ -76,5 +76,32 @@ namespace System.Diagnostics
 
             return exception.ToString();
         }
+        
+        /// <nodoc />
+        public static string DemystifyStackTrace(this Exception exception)
+        {
+            try
+            {
+                Analysis.IgnoreResult(exception.ToString(), "Need to trigger string computation first to materialized the stack trace");
+                var originalStacks = new Dictionary<Exception, string>();
+                exception.Demystify(originalStacks);
+
+                var result = exception.StackTrace;
+
+                foreach (var kvp in originalStacks)
+                {
+                    stackTraceString.SetValue(kvp.Key, kvp.Value);
+                }
+
+                return result;
+            }
+#pragma warning disable ERP022 // Processing exceptions shouldn't throw exceptions; if it fails
+            catch
+            {
+            }
+#pragma warning restore ERP022
+
+            return exception.ToString();
+        }
     }
 }

@@ -37,13 +37,24 @@ namespace BuildXL.Utilities
         {
             return exception.DemystifyToString();
         }
+        
+        /// <summary>
+        /// Creates a more readable string representation of the given exception.
+        /// </summary>
+        /// <remarks>
+        /// For more details, see: https://github.com/benaadams/Ben.Demystifier
+        /// </remarks>
+        public static string DemystifiedStackTrace(this Exception exception)
+        {
+            return exception.DemystifyStackTrace();
+        }
 
         /// <summary>
         /// Returns true if an exception is a recoverable IO exception.
         /// </summary>
         public static bool IsRecoverableIoException(this Exception exception)
         {
-            return exception is UnauthorizedAccessException || exception is SecurityException || exception is IOException || exception is Win32Exception;
+            return exception is UnauthorizedAccessException or SecurityException or IOException or Win32Exception;
         }
 
         /// <summary>

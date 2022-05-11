@@ -27,7 +27,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Results
             Assert.Contains(nameof(NullReferenceException), str);
             Assert.Contains(nameof(FooBar), str);
 
-            Assert.Contains(nameof(NullReferenceException), result.Diagnostics);
+            Assert.Contains(nameof(NullReferenceException), result.ErrorMessage);
             Assert.Contains(nameof(FooBar), result.Diagnostics);
         }
 
@@ -91,7 +91,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Results
             Assert.Contains(nameof(NullReferenceException), str);
 
             Assert.Contains("my diagnostics2", result.Diagnostics);
-            Assert.Contains(nameof(NullReferenceException), result.Diagnostics);
+            Assert.Contains(nameof(NullReferenceException), result.ErrorMessage);
 
             Assert.NotNull(result.Exception);
         }
@@ -112,11 +112,11 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Results
             Assert.Contains("My operation1", result.ErrorMessage);
             Assert.Contains("My operation2", result.ErrorMessage);
 
-            // Should be 4 occurrences of 'NullReferenceException' in the final string (one in the error message and one in the diagnostics).
-            Assert.Equal(5, str.Split(new string[] { nameof(NullReferenceException) }, StringSplitOptions.RemoveEmptyEntries).Count());
+            // Should be 2 occurrences of 'NullReferenceException' in the final string.
+            Assert.Equal(3, str.Split(new string[] { nameof(NullReferenceException) }, StringSplitOptions.RemoveEmptyEntries).Count());
 
             Assert.Contains(nameof(NullReferenceException), str);
-            Assert.Contains(nameof(NullReferenceException), result.Diagnostics);
+            Assert.Contains(nameof(NullReferenceException), result.ErrorMessage);
 
             Assert.NotNull(result.Exception);
             Assert.IsType(typeof(AggregateException), result.Exception);

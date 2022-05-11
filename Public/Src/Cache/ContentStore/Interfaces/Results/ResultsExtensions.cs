@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Runtime.ExceptionServices;
@@ -216,7 +217,6 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
             }
         }
 
-
         /// <summary>
         /// Maps result into different result type or propagates error to result type
         /// </summary>
@@ -250,6 +250,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         /// Throws <see cref="ResultPropagationException"/> if <paramref name="result"/> is not successful.
         /// </summary>
+        [StackTraceHidden]
         public static T ThrowIfFailure<T>(this Result<T> result)
         {
             if (!result.Succeeded)
@@ -263,6 +264,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         /// Throws <see cref="ResultPropagationException"/> if result is not successful.
         /// </summary>
+        [StackTraceHidden]
         public static async Task<T> ThrowIfFailureAsync<T>(this Task<Result<T>> task)
         {
             var result = await task;
@@ -272,6 +274,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         /// Throws <see cref="ResultPropagationException"/> if <paramref name="result"/> is not successful.
         /// </summary>
+        [StackTraceHidden]
         public static TResult ThrowIfFailure<TResult>(this TResult result) where TResult : ResultBase
         {
             if (!result.Succeeded)
@@ -285,6 +288,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         /// Throws <see cref="ResultPropagationException"/> if <paramref name="result"/> is not successful.
         /// </summary>
+        [StackTraceHidden]
         public static TResult RethrowIfFailure<TResult>(this TResult result) where TResult : ResultBase
         {
             if (!result.Succeeded)
@@ -303,6 +307,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         /// Awaits the task and throws <see cref="ResultPropagationException"/> if the result is not successful.
         /// </summary>
+        [StackTraceHidden]
         public static async Task<T> ThrowIfFailure<T>(this Task<T> task)
             where T : ResultBase
         {
@@ -315,6 +320,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// Awaits the task and throws the original exception that caused the original error.
         /// If the result is unsuccessful not because of an exception then <see cref="ResultPropagationException"/> is thrown.
         /// </summary>
+        [StackTraceHidden]
         public static async Task<T> RethrowIfFailure<T>(this Task<T> task)
             where T : ResultBase
         {
@@ -326,6 +332,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         /// Awaits the task and throws <see cref="ResultPropagationException"/> if the result is not successful but only when <paramref name="throwOnFailure"/> is true.
         /// </summary>
+        [StackTraceHidden]
         public static Task<T> ThrowIfNeededAsync<T>(this Task<T> task, bool throwOnFailure)
             where T : ResultBase
         {
@@ -335,6 +342,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         /// Throws <see cref="ResultPropagationException"/> if result is not successful.
         /// </summary>
+        [StackTraceHidden]
         public static void ThrowIfFailure<TResult>(this IEnumerable<TResult> results) where TResult : ResultBase
         {
             foreach (var result in results)
@@ -346,6 +354,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         /// Throws <see cref="ResultPropagationException"/> if result is not successful.
         /// </summary>
+        [StackTraceHidden]
         public static async Task<TResult> ThrowIfFailureAsync<TResult>(this Task<TResult> task) where TResult : ResultBase
         {
             var result = await task;
@@ -357,6 +366,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         /// Throws <see cref="ResultPropagationException"/> if result is not successful.
         /// </summary>
+        [StackTraceHidden]
         public static async Task ThrowIfFailureAsync<TResult>(this Task<TResult[]> task) where TResult : ResultBase
         {
             var result = await task;
@@ -366,6 +376,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         /// Awaits the task and throws <see cref="ResultPropagationException"/> if the result is not successful.
         /// </summary>
+        [StackTraceHidden]
         public static async Task<TResult> ThrowIfFailureAsync<T, TResult>(this Task<T> task, Func<T, TResult> resultSelector)
             where T : ResultBase
         {
@@ -411,6 +422,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <remarks>
         /// Unlike <see cref="Result{T}.Value"/>, this method will not throw contract violation if the result is not successful.
         /// </remarks>
+        [StackTraceHidden]
         public static T GetValueOrThrow<T>(this Result<T> result)
         {
             if (!result.Succeeded)

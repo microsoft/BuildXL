@@ -31,8 +31,8 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Results
 
             T result = CreateFrom(exception);
 
-            Assert.Contains("test", result.Diagnostics, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("InvalidOperationException", result.Diagnostics, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("test", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("InvalidOperationException", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
             Assert.Contains("  at", result.Diagnostics, StringComparison.OrdinalIgnoreCase);
         }
 
@@ -62,10 +62,10 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Results
 
             T result = CreateFrom(new AggregateException(exception1, exception2));
 
-            Assert.Contains("test1", result.Diagnostics, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("test2", result.Diagnostics, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("InvalidOperationException", result.Diagnostics, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("ArgumentException", result.Diagnostics, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("test1", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("test2", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("InvalidOperationException", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("ArgumentException", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
             Assert.Contains("  at", result.Diagnostics, StringComparison.OrdinalIgnoreCase);
         }
 

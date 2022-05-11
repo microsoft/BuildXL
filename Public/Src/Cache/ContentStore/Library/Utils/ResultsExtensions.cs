@@ -54,6 +54,8 @@ namespace BuildXL.Cache.ContentStore.Utils
         {
             // Ensure exception strings have demystified stack tracks
             Error.ExceptionToTextConverter = static ex => ex.ToStringDemystified();
+
+            Error.ExceptionStackTraceToTextConverter = static ex => ex.DemystifiedStackTrace();
         }
 
         /// <nodoc />

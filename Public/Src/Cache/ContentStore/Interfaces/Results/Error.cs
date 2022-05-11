@@ -5,7 +5,10 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
+using System.Linq;
 using System.Text;
+
+#nullable enable
 
 namespace BuildXL.Cache.ContentStore.Interfaces.Results
 {
@@ -15,19 +18,26 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
     /// <remarks>
     /// This is the union type: string ErrorMessage + (Exception | string diagnostics)?
     /// When the error is merged from two errors, then both <see cref="Exception"/> and <see cref="Diagnostics"/> properties can be not-null.
+    ///
+    /// If the instance is created from <see cref="Exception"/> then <see cref="ErrorMessage"/> property contains an exception's message(s) and
+    /// <see cref="Diagnostics"/> property contains a stack trace.
     /// </remarks>
     public sealed class Error : IEquatable<Error>
     {
-        private bool _hasLazyDiagnostics;
-        private string? _diagnostics;
+        private readonly Lazy<string>? _diagnostics;
 
         /// <summary>
-        /// Global preprocessor for error text for result errors. This allows for the exception string demystification code
+        /// A global preprocessor for error text for result errors. This allows for the exception string demystification code
         /// to be injected dynamically without requiring a dependency on BuildXL.Utilities. Generally adding new dependencies
         /// to this assembly is an involved process so this is here as a workaround.
         /// </summary>
         public static Func<Exception, string>? ExceptionToTextConverter { get; set; }
-        
+
+        /// <summary>
+        /// A helper function (similar to <see cref="ExceptionToTextConverter"/> that gets an exception's StackTrace in a pretty form.
+        /// </summary>
+        public static Func<Exception, string?> ExceptionStackTraceToTextConverter { get; set; } = static ex => ex.StackTrace;
+
         /// <summary>
         /// A message that describe an error.
         /// </summary>
@@ -48,30 +58,30 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <remarks>
         /// The message can be constructed on the fly from the <see cref="Exception"/> if the <see cref="Exception"/> is not null.
         /// </remarks>
-        public string? Diagnostics
-        {
-            get
-            {
-                if (Exception != null && _hasLazyDiagnostics)
-                {
-                    _diagnostics = CreateDiagnostics(Exception);
-                }
+        public string? Diagnostics => _diagnostics?.Value;
 
-                return _diagnostics;
-            }
+        private Error(string errorMessage, Exception? exception, Lazy<string>? lazyDiagnostics)
+        {
+            Contract.Requires(!string.IsNullOrEmpty(errorMessage));
+
+            (ErrorMessage, Exception, _diagnostics) = (errorMessage, exception, lazyDiagnostics);
         }
 
         private Error(string errorMessage, Exception? exception, string? diagnostics)
+            : this(errorMessage, exception, string.IsNullOrEmpty(diagnostics) ? null : new Lazy<string>(() => diagnostics!))
         {
-            (ErrorMessage, Exception, _diagnostics) = (NotNullOrEmpty(errorMessage), exception, diagnostics);
-            // The diagnostics message is constructed from the exception instance only when the diagnostics are not provided.
-            _hasLazyDiagnostics = diagnostics == null;
+            
         }
 
         /// <summary>
         /// Creates an error from with a given <paramref name="errorMessage"/> and <paramref name="exception"/>.
         /// </summary>
-        public static Error FromException(Exception exception, string? errorMessage) => new Error(GetErrorMessageFromException(errorMessage, exception), exception, diagnostics: null);
+        public static Error FromException(Exception exception, string? errorMessage = null)
+        {
+            var message = exception is ResultPropagationException rpe ? rpe.Message : GetErrorMessageFromException(errorMessage, exception);
+            var diagnostics = new Lazy<string>(() => CreateDiagnostics(exception));
+            return new Error(message, exception, diagnostics);
+        }
 
         /// <summary>
         /// Creates an error with a given <paramref name="errorMessage"/> and optional <paramref name="diagnostics"/>.
@@ -102,7 +112,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
             if (left.Exception != null && right.Exception != null)
             {
                 var exception = new AggregateException(left.Exception, right.Exception);
-                return new Error(message, exception, diagnostics: null);
+                return new Error(message, exception, lazyDiagnostics: null);
             }
 
             var diagnostics = ResultBase.Merge(left.Diagnostics, right.Diagnostics, separator);
@@ -114,7 +124,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <nodoc />
         public override int GetHashCode()
         {
-            return (ErrorMessage, Exception, _diagnostics).GetHashCode();
+            return (ErrorMessage, Exception, Diagnostics).GetHashCode();
         }
 
         /// <inheritdoc />
@@ -130,7 +140,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
                 return true;
             }
 
-            return (ErrorMessage, Exception, _diagnostics).Equals((other.ErrorMessage, other.Exception, other._diagnostics));
+            return (ErrorMessage, Exception, Diagnostics).Equals((other.ErrorMessage, other.Exception, other.Diagnostics));
         }
 
         /// <inheritdoc />
@@ -145,13 +155,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
             var sb = new StringBuilder();
             sb.Append($"Error=[{ErrorMessage}]");
 
-            if (Exception != null && _hasLazyDiagnostics)
-            {
-                // This is the case when both 'diagnostics' and 'exception' are provided.
-                // Need to trace them both.
-                sb.Append($", Exception=[{CreateDiagnostics(Exception)}]");
-            }
-            else if (Diagnostics != null)
+            if (!string.IsNullOrEmpty(Diagnostics))
             {
                 sb.Append($", Diagnostics=[{Diagnostics}]");
             }
@@ -164,45 +168,26 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// </summary>
         public bool IsCritical(bool isCanceled) => isCanceled ? ResultBase.IsCriticalForCancellation(Exception) : ResultBase.IsCritical(Exception);
 
-        private static string NotNullOrEmpty(string str)
-        {
-            Contract.Requires(!string.IsNullOrEmpty(str));
-            return str;
-        }
-
         private static string GetErrorMessageFromException(string? message, Exception exception)
         {
-            // NOTE: The use of Exception.Message is intentional here as
-            // the full exception string is captured in the ResultBase.Diagnostics
-            // property
+            // ErrorMessage contains only all the messages (included all the nested once)
             return string.IsNullOrEmpty(message)
-                ? $"{exception.GetType().Name}: {GetErrorMessageFromException(exception)}"
-                : $"{message}: {exception.GetType().Name}: {GetErrorMessageFromException(exception)}";
+                ? GetErrorMessageFromException(exception)
+                : $"{message}: {GetErrorMessageFromException(exception)}";
         }
 
         private static string CreateDiagnostics(Exception exception)
         {
-            if (exception is AggregateException aggregateException)
+            // Getting an enhanced stack trace for the current exception as well as all the nested once.
+            var sb = new StringBuilder();
+
+            sb.AppendLine("StackTrace: " + ExceptionStackTraceToTextConverter(exception));
+            foreach (var inner in EnumerateInnerExceptionsAndSelf(exception).Skip(1))
             {
-                var sb = new StringBuilder();
-                var i = 0;
-
-                foreach (var e in aggregateException.Flatten().InnerExceptions)
-                {
-                    if (i > 0)
-                    {
-                        sb.AppendLine();
-                    }
-
-                    sb.AppendLine("Exception #" + i);
-                    sb.Append(GetExceptionString(e));
-                    i++;
-                }
-
-                return sb.ToString();
+                sb.AppendLine($"{inner.GetType().Name}: {ExceptionStackTraceToTextConverter(inner)}");
             }
 
-            return GetExceptionString(exception);
+            return sb.ToString();
         }
 
         /// <summary>
@@ -211,28 +196,49 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// </summary>
         internal static string GetExceptionString(Exception ex)
         {
-            var processErrorText = ExceptionToTextConverter;
-            if (processErrorText != null)
-            {
-                return processErrorText(ex);
-            }
-
-            return ex.ToString();
+            return ExceptionToTextConverter?.Invoke(ex) ?? ex.ToString();
         }
 
         /// <summary>
-        /// Gets full log event message including inner exceptions from the given exception
+        /// Gets full log event message including inner exceptions from the given exception.
         /// </summary>
         private static string GetErrorMessageFromException(Exception exception)
         {
-            return string.Join(": " + Environment.NewLine, getExceptionMessages());
+            // The logic is very similar to one used AggregateException.Message implementation,
+            // the only difference is that this version also prints the type of an exception as well.
+            var sb = new StringBuilder();
 
-            IEnumerable<string> getExceptionMessages()
+            // Filtering out 'ResultPropagationException' because they don't add useful information in terms of messages.
+            foreach (var inner in EnumerateInnerExceptionsAndSelf(exception).Where(e => e is not ResultPropagationException))
             {
-                for (Exception? currentException = exception; currentException != null; currentException = currentException.InnerException)
+                sb.Append($"({inner.GetType().Name}: {inner.Message}) ");
+            }
+
+            // Removing an extra space added by the first or the nested Append calls.
+            sb.Length--;
+            return sb.ToString();
+        }
+
+        private static IEnumerable<Exception> EnumerateInnerExceptionsAndSelf(Exception? exception)
+        {
+            if (exception is null)
+            {
+                yield break;
+            }
+
+            yield return exception;
+
+            if (exception is AggregateException ae)
+            {
+                foreach (var e in ae.InnerExceptions.SelectMany(static e => EnumerateInnerExceptionsAndSelf(e)))
                 {
-                    yield return currentException.Message;
+                    yield return e;
                 }
+            }
+
+            foreach (var inner in EnumerateInnerExceptionsAndSelf(exception.InnerException))
+            {
+                yield return inner;
             }
         }
 

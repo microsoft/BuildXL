@@ -53,15 +53,47 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         }
 
         /// <summary>
+        /// The source of a successfully materialized file.
+        /// </summary>
+        public enum Source : byte
+        {
+            /// <summary>
+            /// Default zero value.
+            /// </summary>
+            Unknown,
+
+            /// <summary>
+            /// The file was present in the local cache ("L1").
+            /// </summary>
+            LocalCache,
+
+            /// <summary>
+            /// The file comes from the datacenter peer-to-peer cache ("L2").
+            /// </summary>
+            DatacenterCache,
+
+            /// <summary>
+            /// The file comes from backing store, i.e. Artifact Services or "L3".
+            /// </summary>
+            BackingStore,
+
+            /// <summary>
+            /// The file was obtained from the cold storage.
+            /// </summary>
+            ColdStorage,
+        }
+
+        /// <summary>
         ///     Initializes a new instance of the <see cref="PlaceFileResult" /> class.
         /// </summary>
-        public PlaceFileResult(ResultCode code, long fileSize = 0, DateTime? lastAccessTime = null)
+        public PlaceFileResult(ResultCode code, long fileSize = 0, DateTime? lastAccessTime = null, Source source = Source.Unknown)
         {
             Contract.Requires(code != ResultCode.Error);
 
             Code = code;
             FileSize = fileSize;
             LastAccessTime = lastAccessTime ?? DateTime.MinValue;
+            MaterializationSource = source;
         }
 
         /// <summary>
@@ -111,6 +143,23 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
             Code = code;
         }
 
+        /// <summary>
+        /// Creates a successful result for materialization operation.
+        /// </summary>
+        public static PlaceFileResult CreateSuccess(ResultCode code, long? fileSize, Source source, DateTime? lastAccessTime = null) =>
+            new (code, fileSize ?? 0, lastAccessTime, source);
+
+        /// <nodoc />
+        public static PlaceFileResult ContentNotFound { get; } = new (ResultCode.NotPlacedContentNotFound);
+
+        /// <nodoc />
+        public static PlaceFileResult CreateContentNotFound(string? errorMessage) => string.IsNullOrEmpty(errorMessage)
+            ? ContentNotFound
+            : new PlaceFileResult(ResultCode.NotPlacedContentNotFound, errorMessage!);
+
+        /// <nodoc />
+        public static PlaceFileResult AlreadyExists { get; } = new (ResultCode.NotPlacedAlreadyExists);
+
         /// <inheritdoc />
         public override Error? Error
         {
@@ -128,14 +177,41 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         public readonly ResultCode Code;
 
         /// <summary>
+        /// Gets the source of a successfully materialized file.
+        /// </summary>
+        /// <remarks>
+        /// The property is set only when the file was successfully materialized.
+        /// </remarks>
+        public Source MaterializationSource { get; }
+
+        /// <summary>
+        /// Creates a copy of the current operation with a given <paramref name="source"/> if <see cref="Code"/> is not <see cref="ResultCode.Error"/>.
+        /// </summary>
+        public PlaceFileResult WithMaterializationSource(Source source)
+        {
+            if (Code != ResultCode.Error)
+            {
+                var result = new PlaceFileResult(Code, FileSize, LastAccessTime, source);
+
+                if (Diagnostics is not null)
+                {
+                    result.SetDiagnosticsForSuccess(Diagnostics);
+                }
+
+            }
+
+            return this;
+        }
+
+        /// <summary>
         ///     Gets or sets size, in bytes, of the content.
         /// </summary>
-        public long FileSize { get; set; }
+        public long FileSize { get; }
 
         /// <summary>
         ///     Gets or set the last time the file was accessed locally.
         /// </summary>
-        public DateTime LastAccessTime { get; set; }
+        public DateTime LastAccessTime { get; }
 
         /// <summary>
         /// An optional additional information associated with the result.
@@ -152,7 +228,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// </summary>
         public bool IsPlaced()
         {
-            return Code == ResultCode.PlacedWithHardLink || Code == ResultCode.PlacedWithCopy || Code == ResultCode.PlacedWithMove;
+            return Code is ResultCode.PlacedWithHardLink or ResultCode.PlacedWithCopy or ResultCode.PlacedWithMove;
         }
 
         /// <inheritdoc />
@@ -168,7 +244,11 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         }
 
         /// <inheritdoc />
-        protected override string GetSuccessString() => $"{Code} Size={FileSize}{this.GetDiagnosticsMessageForTracing()}";
+        protected override string GetSuccessString()
+        {
+            var source = IsPlaced() ? $" Source={MaterializationSource}" : string.Empty;
+            return $"{Code} Size={FileSize}{source}{this.GetDiagnosticsMessageForTracing()}";
+        }
 
         /// <inheritdoc />
         protected override string GetErrorString()

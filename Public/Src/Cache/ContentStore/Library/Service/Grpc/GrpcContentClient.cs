@@ -266,7 +266,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                     }
                     else
                     {
-                        return new PlaceFileResult(resultCode, response.ContentSize);
+                        return PlaceFileResult.CreateSuccess(resultCode, response.ContentSize, (PlaceFileResult.Source)response.MaterializationSource, new DateTime(response.LastAccessTime));
                     }
                 });
         }

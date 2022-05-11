@@ -3,6 +3,7 @@
 
 using System;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.Utils;
 using Xunit;
 
 namespace BuildXL.Cache.ContentStore.InterfacesTest.Results
@@ -22,6 +23,18 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Results
         protected override PlaceFileResult CreateFrom(string errorMessage, string diagnostics)
         {
             return new PlaceFileResult(errorMessage, diagnostics);
+        }
+
+        [Fact]
+        public void WithMaterializationSourceKeepsSuccessDiagnostics()
+        {
+            var result = PlaceFileResult.CreateSuccess(PlaceFileResult.ResultCode.PlacedWithHardLink, 42, PlaceFileResult.Source.LocalCache);
+            const string successDiagnostics = "Success Diagnostics";
+            result.SetDiagnosticsForSuccess(successDiagnostics);
+
+            var newResult = result.WithMaterializationSource(PlaceFileResult.Source.DatacenterCache);
+
+            Assert.Equal(successDiagnostics, newResult.Diagnostics);
         }
 
         [Fact]

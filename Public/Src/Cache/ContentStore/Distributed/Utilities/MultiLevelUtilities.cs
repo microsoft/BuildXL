@@ -82,7 +82,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
                 }
                 else
                 {
-                    nextLevelIndices = nextLevelIndices ?? new List<int>();
+                    nextLevelIndices ??= new List<int>();
                     nextLevelIndices.Add(result.Index);
                 }
             }

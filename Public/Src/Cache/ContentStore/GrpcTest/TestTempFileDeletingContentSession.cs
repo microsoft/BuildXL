@@ -82,7 +82,7 @@ namespace ContentStoreTest.Grpc
         {
             // This implementation lies about success without creating the requested files (to simulate the file being deleted due to some race;
             // this generally happens if the service shuts down before the caller can read the temporary file it produced).
-            return Task.FromResult(new PlaceFileResult(PlaceFileResult.ResultCode.PlacedWithCopy, 100));
+            return Task.FromResult(PlaceFileResult.CreateSuccess(PlaceFileResult.ResultCode.PlacedWithCopy, 100, source: PlaceFileResult.Source.LocalCache));
         }
 
         public Task<IEnumerable<Task<Indexed<PinResult>>>> PinAsync(Context context, IReadOnlyList<ContentHash> contentHashes, CancellationToken cts, UrgencyHint urgencyHint = UrgencyHint.Nominal)
@@ -101,7 +101,7 @@ namespace ContentStoreTest.Grpc
         {
             // This implementation lies about success without creating the requested files (to simulate the file being deleted due to some race;
             // this generally happens if the service shuts down before the caller can read the temporary file it produced).
-            return Task.FromResult(hashesWithPaths.Select(hashWithPath => new PlaceFileResult(PlaceFileResult.ResultCode.PlacedWithCopy, 100)).AsIndexed().AsTasks());
+            return Task.FromResult(hashesWithPaths.Select(hashWithPath => PlaceFileResult.CreateSuccess(PlaceFileResult.ResultCode.PlacedWithCopy, 100, PlaceFileResult.Source.LocalCache)).AsIndexed().AsTasks());
         }
 
         public Task<PutResult> PutFileAsync(

@@ -303,7 +303,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 }
                 else
                 {
-                    return new PlaceFileResult(PlaceFileResult.ResultCode.PlacedWithCopy, putFileResult.ContentSize);
+                    return PlaceFileResult.CreateSuccess(PlaceFileResult.ResultCode.PlacedWithCopy, putFileResult.ContentSize, source: PlaceFileResult.Source.ColdStorage);
                 }
             }
         }

@@ -249,7 +249,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
             {
                 if (replacementMode != FileReplacementMode.ReplaceExisting && File.Exists(path.Path))
                 {
-                    return new PlaceFileResult(PlaceFileResult.ResultCode.NotPlacedAlreadyExists);
+                    return PlaceFileResult.AlreadyExists;
                 }
 
                 if (ImplicitPin.HasFlag(ImplicitPin.Get))
@@ -258,7 +258,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
                     if (!pinResult.Succeeded)
                     {
                         return pinResult.Code == PinResult.ResultCode.ContentNotFound
-                            ? new PlaceFileResult(PlaceFileResult.ResultCode.NotPlacedContentNotFound)
+                            ? PlaceFileResult.ContentNotFound
                             : new PlaceFileResult(pinResult);
                     }
                 }
@@ -269,12 +269,12 @@ namespace BuildXL.Cache.ContentStore.Vsts
                 var possibleLength =
                     await PlaceFileInternalAsync(context, contentHash, path.Path, fileMode).ConfigureAwait(false);
                 return possibleLength.HasValue
-                    ? new PlaceFileResult(PlaceFileResult.ResultCode.PlacedWithCopy, possibleLength.Value)
-                    : new PlaceFileResult(PlaceFileResult.ResultCode.NotPlacedContentNotFound);
+                    ? PlaceFileResult.CreateSuccess(PlaceFileResult.ResultCode.PlacedWithCopy, possibleLength.Value, source: PlaceFileResult.Source.BackingStore)
+                    : PlaceFileResult.ContentNotFound;
             }
             catch (IOException e) when (IsErrorFileExists(e))
             {
-                return new PlaceFileResult(PlaceFileResult.ResultCode.NotPlacedAlreadyExists);
+                return PlaceFileResult.AlreadyExists;
             }
             catch (Exception e)
             {

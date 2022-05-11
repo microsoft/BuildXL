@@ -75,11 +75,11 @@ namespace BuildXL.Cache.ContentStore.Stores
 
         /// <inheritdoc />
         protected override Task<PlaceFileResult> PlaceFileCoreAsync(OperationContext operationContext, ContentHash contentHash, AbsolutePath path, FileAccessMode accessMode, FileReplacementMode replacementMode, FileRealizationMode realizationMode, UrgencyHint urgencyHint, Counter retryCounter)
-            => Task.FromResult(new PlaceFileResult(PlaceFileResult.ResultCode.NotPlacedContentNotFound));
+            => Task.FromResult(PlaceFileResult.ContentNotFound);
 
         /// <inheritdoc />
         protected override Task<IEnumerable<Task<Indexed<PlaceFileResult>>>> PlaceFileCoreAsync(OperationContext operationContext, IReadOnlyList<ContentHashWithPath> hashesWithPaths, FileAccessMode accessMode, FileReplacementMode replacementMode, FileRealizationMode realizationMode, UrgencyHint urgencyHint, Counter retryCounter)
-            => Task.FromResult(hashesWithPaths.Select((hash, i) => Task.FromResult(new PlaceFileResult(PlaceFileResult.ResultCode.NotPlacedContentNotFound).WithIndex(i))));
+            => Task.FromResult(hashesWithPaths.Select((hash, i) => Task.FromResult(PlaceFileResult.ContentNotFound.WithIndex(i))));
 
         /// <inheritdoc />
         protected override Task<PutResult> PutFileCoreAsync(OperationContext operationContext, HashType hashType, AbsolutePath path, FileRealizationMode realizationMode, UrgencyHint urgencyHint, Counter retryCounter)

@@ -182,7 +182,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
             {
                 if (replacementMode == FileReplacementMode.SkipIfExists)
                 {
-                    return Task.FromResult(new PlaceFileResult(PlaceFileResult.ResultCode.NotPlacedAlreadyExists));
+                    return Task.FromResult(PlaceFileResult.AlreadyExists);
                 }
                 else if (replacementMode == FileReplacementMode.FailIfExists)
                 {

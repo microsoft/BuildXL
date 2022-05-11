@@ -97,7 +97,7 @@ namespace BuildXL.Cache.ContentStore.Vfs
             {
                 if (replacementMode == FileReplacementMode.SkipIfExists)
                 {
-                    return new PlaceFileResult(PlaceFileResult.ResultCode.NotPlacedAlreadyExists);
+                    return PlaceFileResult.AlreadyExists;
                 }
                 else if (replacementMode == FileReplacementMode.FailIfExists)
                 {

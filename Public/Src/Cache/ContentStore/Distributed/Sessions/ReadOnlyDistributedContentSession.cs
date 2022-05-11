@@ -579,10 +579,29 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 return MultiLevelUtilities.RunMultiLevelAsync(
                     fetchedContentInfo,
                     runFirstLevelAsync: args => FetchFromMultiLevelContentLocationStoreThenPutAsync(operationContext, args, urgencyHint, CopyReason.Place),
-                    runSecondLevelAsync: args => Inner.PlaceFileAsync(operationContext, args, accessMode, replacementMode, realizationMode, operationContext.Token, urgencyHint),
+                    runSecondLevelAsync: args => innerPlaceAsync(args),
                     // NOTE: We just use the first level result if the fetch using content location store fails because the place cannot succeed since the
                     // content will not have been put into the local CAS
                     useFirstLevelResult: result => !IsPlaceFileSuccess(result));
+            }
+
+            async Task<PlaceBulkResult> innerPlaceAsync(IReadOnlyList<ContentHashWithPath> input)
+            {
+                // When the content is obtained from remote we still have to place it from the local.
+                // So in order to return the right source of the file placement
+                // we have to place locally but change the source for each result.
+                var results = await Inner.PlaceFileAsync(operationContext, input, accessMode, replacementMode, realizationMode, operationContext.Token, urgencyHint);
+                var updatedResults = new List<Indexed<PlaceFileResult>>();
+                foreach (var resultTask in results)
+                {
+                    var result = await resultTask;
+                    updatedResults.Add(
+                        result.Item
+                            .WithMaterializationSource(PlaceFileResult.Source.DatacenterCache)
+                            .WithIndex(result.Index));
+                }
+
+                return updatedResults.AsTasks();
             }
         }
 
@@ -718,7 +737,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
                                 if (!CanCopyContentHash(context, contentHashWithSizeAndLocations, isGlobal: origin == GetBulkOrigin.Global, out var useInRingMachineLocations, out var errorMessage))
                                 {
-                                    result = new PlaceFileResult(PlaceFileResult.ResultCode.NotPlacedContentNotFound, errorMessage);
+                                    result = PlaceFileResult.CreateContentNotFound(errorMessage);
                                 }
                                 else
                                 {
@@ -739,7 +758,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                                     }
                                     else
                                     {
-                                        result = new PlaceFileResult(PlaceFileResult.ResultCode.PlacedWithMove, copyResult.ContentSize);
+                                        var source = origin == GetBulkOrigin.ColdStorage
+                                            ? PlaceFileResult.Source.ColdStorage
+                                            : PlaceFileResult.Source.DatacenterCache;
+                                        result = PlaceFileResult.CreateSuccess(PlaceFileResult.ResultCode.PlacedWithMove, copyResult.ContentSize, source);
                                     }
                                 }
                             }

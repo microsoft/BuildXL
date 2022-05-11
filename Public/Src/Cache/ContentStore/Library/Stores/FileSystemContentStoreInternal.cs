@@ -39,6 +39,7 @@ using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePa
 using FileInfo = BuildXL.Cache.ContentStore.Interfaces.FileSystem.FileInfo;
 using OperatingSystemHelper = BuildXL.Utilities.OperatingSystemHelper;
 using RelativePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.RelativePath;
+using static BuildXL.Cache.ContentStore.Interfaces.Results.PlaceFileResult.ResultCode;
 
 namespace BuildXL.Cache.ContentStore.Stores
 {
@@ -1986,9 +1987,10 @@ namespace BuildXL.Cache.ContentStore.Stores
                 var destinationPath = contentHashWithPath.Path;
 
                 // Check for file existing in the non-racing SkipIfExists case.
-                if ((replacementMode == FileReplacementMode.SkipIfExists || replacementMode == FileReplacementMode.FailIfExists) && FileSystem.FileExists(destinationPath))
+                // TODO STReadONlyServiceClientContentSession fails when the replacement mode is 'FailIfExists' and file does exist, why this is a success here?!?!?
+                if (replacementMode is FileReplacementMode.SkipIfExists or FileReplacementMode.FailIfExists && FileSystem.FileExists(destinationPath))
                 {
-                    return new PlaceFileResult(PlaceFileResult.ResultCode.NotPlacedAlreadyExists);
+                    return PlaceFileResult.CreateSuccess(NotPlacedAlreadyExists, fileSize: null, PlaceFileResult.Source.LocalCache);
                 }
 
                 // If this is the empty hash, then directly create an empty file.
@@ -1997,7 +1999,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 if (UseEmptyContentShortcut(contentHashWithPath.Hash))
                 {
                     FileSystem.CreateEmptyFile(contentHashWithPath.Path);
-                    return new PlaceFileResult(PlaceFileResult.ResultCode.PlacedWithCopy);
+                    return PlaceFileResult.CreateSuccess(PlacedWithCopy, fileSize: null, PlaceFileResult.Source.LocalCache);
                 }
 
                 // Lookup hash in content directory
@@ -2056,7 +2058,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                     if (code != PlaceFileResult.ResultCode.Unknown)
                     {
                         UnixHelpers.OverrideFileAccessMode(_settings.OverrideUnixFileAccessMode, destinationPath.Path);
-                        return new PlaceFileResult(code, contentSize)
+                        return PlaceFileResult.CreateSuccess(code, contentSize, PlaceFileResult.Source.LocalCache)
                             .WithLockAcquisitionDuration(contentHashHandle);
                     }
 
@@ -2064,23 +2066,26 @@ namespace BuildXL.Cache.ContentStore.Stores
                     var stopwatch = Stopwatch.StartNew();
                     try
                     {
-                        PlaceFileResult result;
+                        Result<PlaceFileResult.ResultCode> copyResult;
                         if (realizationMode == FileRealizationMode.CopyNoVerify)
                         {
-                            result = await CopyFileWithNoValidationAsync(
+                            copyResult = await CopyFileWithNoValidationAsync(
                                 context, contentHash, destinationPath, accessMode, replacementMode);
                         }
                         else
                         {
-                            result = await CopyFileAndValidateStreamAsync(
+                            copyResult = await CopyFileAndValidateStreamAsync(
                                 context, contentHash, destinationPath, accessMode, replacementMode);
                         }
 
-                        result.FileSize = contentSize;
-                        result.LastAccessTime = lastAccessTime;
                         UnixHelpers.OverrideFileAccessMode(_settings.OverrideUnixFileAccessMode, destinationPath.Path);
 
-                        return result
+                        if (!copyResult.Succeeded)
+                        {
+                            return new PlaceFileResult(copyResult);
+                        }
+
+                        return PlaceFileResult.CreateSuccess(copyResult.Value, contentSize, PlaceFileResult.Source.LocalCache, lastAccessTime)
                             .WithLockAcquisitionDuration(contentHashHandle);
                     }
                     finally
@@ -2096,7 +2101,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             }
         }
 
-        private async Task<PlaceFileResult> CopyFileWithNoValidationAsync(
+        private async Task<Result<PlaceFileResult.ResultCode>> CopyFileWithNoValidationAsync(
             Context context,
             ContentHash contentHash,
             AbsolutePath destinationPath,
@@ -2128,7 +2133,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                         }
                         else
                         {
-                            return new PlaceFileResult(e, $"Failed to place hash=[{contentHash.ToShortString()}] to path=[{destinationPath}]");
+                            return new (e, $"Failed to place hash=[{contentHash.ToShortString()}] to path=[{destinationPath}]");
                         }
                     }
 
@@ -2143,10 +2148,10 @@ namespace BuildXL.Cache.ContentStore.Stores
                 }
             }
 
-            return new PlaceFileResult(code);
+            return code;
         }
 
-        private async Task<PlaceFileResult> CopyFileAndValidateStreamAsync(
+        private async Task<Result<PlaceFileResult.ResultCode>> CopyFileAndValidateStreamAsync(
             Context context,
             ContentHash contentHash,
             AbsolutePath destinationPath,
@@ -2192,7 +2197,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                             }
                             else
                             {
-                                return new PlaceFileResult(e, $"Failed to place hash=[{contentHash.ToShortString()}] to path=[{destinationPath}]");
+                                return new (e, $"Failed to place hash=[{contentHash.ToShortString()}] to path=[{destinationPath}]");
                             }
                         }
                     }
@@ -2209,7 +2214,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 code = PlaceFileResult.ResultCode.PlacedWithCopy;
             }
 
-            return new PlaceFileResult(code);
+            return code;
         }
 
         private async Task<CreateHardLinkResult> PlaceLinkFromCacheAsync(

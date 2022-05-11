@@ -192,7 +192,7 @@ namespace BuildXL.Cache.ContentStore.Vfs
                             }
                         }
 
-                        return new PlaceFileResult(GetPlaceResultCode(placementData.RealizationMode, placementData.AccessMode), fileSize: pinResult.ContentSize /* Unknown */);
+                        return PlaceFileResult.CreateSuccess(GetPlaceResultCode(placementData.RealizationMode, placementData.AccessMode), fileSize: pinResult.ContentSize /* Unknown */, source: PlaceFileResult.Source.LocalCache);
                     },
                     caller: "PlaceVirtualFile",
                     extraEndMessage: r => $"Hash={placementData.Hash}");

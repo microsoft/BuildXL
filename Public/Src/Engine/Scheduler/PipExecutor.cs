@@ -4648,7 +4648,11 @@ namespace BuildXL.Scheduler
                     {
                         return false;
                     }
-                    
+
+                    if (environment.Context.CancellationToken.IsCancellationRequested)
+                    {
+                        return false;
+                    }
 
                     // We cannot enumerate over storeProcessOutputCompletionsByPath here
                     // because the order of such an enumeration is not deterministic.

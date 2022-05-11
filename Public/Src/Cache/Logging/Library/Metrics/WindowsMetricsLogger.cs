@@ -166,7 +166,7 @@ namespace BuildXL.Cache.Logging
             if (!success)
             {
                 Tracer.Error(_context,
-                    $"Fail to log metric value. {_logicalNameSpace}:{_metricName} ErrorCode: {error.ErrorCode} ErrorMessage: {error.ErrorMessage}");
+                    $"Fail to log metric value. MetricValue='{metricValue}', DimensionValues='{string.Join(", ", dimensionValues)}', {_logicalNameSpace}:{_metricName} ErrorCode: {error.ErrorCode} ErrorMessage: {error.ErrorMessage}");
             }
         }
     }

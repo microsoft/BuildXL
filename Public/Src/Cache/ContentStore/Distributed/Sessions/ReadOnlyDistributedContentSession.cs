@@ -26,7 +26,6 @@ using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Cache.ContentStore.Sessions;
 using BuildXL.Cache.ContentStore.Sessions.Internal;
-using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
@@ -535,8 +534,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                     retryCounter
                 ));
 
-            // We are trying tracing here we did not want to change the signature for PlaceFileCoreAsync, which is implemented in multiple locations
-            operationContext.TracingContext.Debug($"PlaceFileBulk, Gate.OccupiedCount={resultWithData.Metadata.GateOccupiedCount} Gate.Wait={resultWithData.Metadata.GateWaitTime.TotalMilliseconds}ms",
+            // We are tracing here because we did not want to change the signature for PlaceFileCoreAsync, which is implemented in multiple locations
+            operationContext.TracingContext.Debug(
+                $"PlaceFileBulk, Gate.OccupiedCount={resultWithData.Metadata.GateOccupiedCount} Gate.Wait={resultWithData.Metadata.GateWaitTime.TotalMilliseconds}ms Hashes.Count={hashesWithPaths.Count}",
                 component: nameof(ReadOnlyDistributedContentSession),
                 operation: "PlaceFileBulk");
 

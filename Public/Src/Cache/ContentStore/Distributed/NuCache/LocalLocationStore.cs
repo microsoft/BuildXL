@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.IO;
@@ -954,7 +955,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 string? filteredOutLocations = r.Succeeded ? r.GetShortHashesTraceStringForInactiveMachines() : null;
                 filteredOutLocations = filteredOutLocations != null ? $", Inactive: {filteredOutLocations}" : null;
 
-                var timeSinceLastRestore = _clock.UtcNow - _lastRestoreTime;
+                DateTime lastRestoreTime = _lastRestoreTime;
+                if (lastRestoreTime == default)
+                {
+                    // If the checkpoint was not restored, consider the start time as the time of the last restore.
+                    // This is not 100% correct, but good enough for diagnostics purposes.
+                    lastRestoreTime = Process.GetCurrentProcess().StartTime;
+                }
+
+                var timeSinceLastRestore = _clock.UtcNow - lastRestoreTime;
                 // Checking if the checkpoint is stale (only valid for the local case).
                 string isCheckpointStaleMessage =
                     r.Succeeded && origin == GetBulkOrigin.Local && timeSinceLastRestore > Configuration.LocationEntryExpiry

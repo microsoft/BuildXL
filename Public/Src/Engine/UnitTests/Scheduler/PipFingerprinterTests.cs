@@ -882,6 +882,7 @@ namespace Test.BuildXL.Scheduler
             bool preservePathSetCasing = source.Vary(p => p.PreservePathSetCasing);
             bool writingToStandardErrorFailsExecution = source.Vary(p => p.WritingToStandardErrorFailsExecution);
             bool disableFullReparsePointResolving = source.Vary(p => p.DisableFullReparsePointResolving);
+            bool bypassFingerprintSalt = source.Vary(p => p.BypassFingerprintSalt);
 
             Process.Options options = Process.Options.None;
             if (hasUntrackedChildProcesses)
@@ -938,6 +939,11 @@ namespace Test.BuildXL.Scheduler
             if (disableFullReparsePointResolving)
             {
                 options |= Process.Options.DisableFullReparsePointResolving;
+            }
+
+            if (bypassFingerprintSalt)
+            {
+                options |= Process.Options.BypassFingerprintSalt;
             }
 
             return new Process(

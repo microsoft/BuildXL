@@ -70,6 +70,11 @@ namespace BuildXL.Pips.Operations
         [PipCaching(FingerprintingRole = FingerprintingRole.None)]
         public abstract PipType PipType { get; }
 
+        /// <summary>
+        /// When set, the pip fingerprint is not sensitive to fingerprint salts. This excludes both EngineEnvironmentSettings.DebugFingerprintSalt and PipFingerprintingVersion.TwoPhaseV2
+        /// </summary>
+        public virtual bool BypassFingerprintSalt => false;
+
         /// <nodoc />
         internal Pip()
         {

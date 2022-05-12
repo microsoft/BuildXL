@@ -16,6 +16,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             Repositories = new Dictionary<string, string>();
             Packages = new List<INugetPackage>();
             DoNotEnforceDependencyVersions = false;
+            Configuration = new NugetConfiguration();
         }
 
         /// <nodoc />
@@ -25,7 +26,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             Contract.Assume(template != null);
             Contract.Assume(pathRemapper != null);
 
-            Configuration = template.Configuration == null ? null : new NugetConfiguration(template.Configuration);
+            Configuration = new NugetConfiguration(template.Configuration);
             Repositories = new Dictionary<string, string>(template.Repositories.Count);
             foreach (var kv in template.Repositories)
             {

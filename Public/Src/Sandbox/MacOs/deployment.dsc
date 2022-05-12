@@ -7,8 +7,6 @@ import * as SdkDeployment from "Sdk.Deployment";
 namespace Deployment {
     export declare const qualifier: {configuration: "debug" | "release"};
 
-    const pkgPath = d`${importFrom("runtime.osx-x64.BuildXL").Contents.all.root}/runtimes/osx-x64/native`;
-
     @@public
     export const macBinaryUsage = Context.getCurrentHost().os === "macOS"
         ? (BuildXLSdk.Flags.isValidatingOsxRuntime ? "package" : "build")
@@ -22,7 +20,9 @@ namespace Deployment {
             contents: macBinaryUsage === "none"
                 ? []
                 : macBinaryUsage === "package"
-                    ? [ SdkDeployment.createFromDisk(d`${pkgPath}/${qualifier.configuration}/BuildXLSandbox.kext`) ]
+                    ? [ SdkDeployment.createFromFilteredStaticDirectory(
+                            importFrom("runtime.osx-x64.BuildXL").Contents.all.ensureContents({subFolder: r`runtimes/osx-x64/native/${qualifier.configuration}/BuildXLSandbox.kext`}),
+                            r`.`)]
                     : [{
                         subfolder: a`Contents`,
                         contents: [
@@ -47,7 +47,9 @@ namespace Deployment {
             contents: macBinaryUsage === "none"
                 ? []
                 : macBinaryUsage === "package"
-                    ? [ SdkDeployment.createFromDisk(d`${pkgPath}/${qualifier.configuration}/BuildXLSandbox.kext.dSYM`) ]
+                    ? [ SdkDeployment.createFromFilteredStaticDirectory(
+                        importFrom("runtime.osx-x64.BuildXL").Contents.all.ensureContents({subFolder: r`runtimes/osx-x64/native/${qualifier.configuration}/BuildXLSandbox.kext.dSYM`}),
+                        r`.`)]
                     : [{
                         subfolder: a`Contents`,
                         contents: [
@@ -83,30 +85,34 @@ namespace Deployment {
 
     @@public
     export const sandboxMonitor: SdkDeployment.Definition = {
-        contents: [
+        contents: 
             macBinaryUsage === "build"
-                ? Sandbox.monitor
-                : f`${pkgPath}/${qualifier.configuration}/SandboxMonitor`
-        ]
+                ? [Sandbox.monitor]
+                : macBinaryUsage === "package" 
+                    ? [importFrom("runtime.osx-x64.BuildXL").Contents.all.getFile(r`runtimes/osx-x64/native/${qualifier.configuration}/SandboxMonitor`)]
+                    : []
     };
 
     @@public
     export const interopLibrary: SdkDeployment.Definition = {
         contents: macBinaryUsage === "build"
             ? [ Sandbox.libInterop, Sandbox.libDetours ]
-            : [
-                f`${pkgPath}/${qualifier.configuration}/libBuildXLInterop.dylib`,
-                f`${pkgPath}/${qualifier.configuration}/libBuildXLDetours.dylib`
-            ]
+            : macBinaryUsage === "package" 
+                ? [
+                    importFrom("runtime.osx-x64.BuildXL").Contents.all.getFile(r`runtimes/osx-x64/native/${qualifier.configuration}/libBuildXLInterop.dylib`),
+                    importFrom("runtime.osx-x64.BuildXL").Contents.all.getFile(r`runtimes/osx-x64/native/${qualifier.configuration}/libBuildXLDetours.dylib`)
+                ]
+                : []
     };
 
     @@public
     export const coreDumpTester: SdkDeployment.Definition = {
-        contents: [
+        contents: 
             macBinaryUsage === "build"
-                ? Sandbox.coreDumpTester
-                : f`${pkgPath}/${qualifier.configuration}/CoreDumpTester`
-        ]
+                ? [Sandbox.coreDumpTester]
+                : macBinaryUsage === "package" 
+                    ? [importFrom("runtime.osx-x64.BuildXL").Contents.all.getFile(r`runtimes/osx-x64/native/${qualifier.configuration}/CoreDumpTester`)]
+                    : []
     };
 
     @@public

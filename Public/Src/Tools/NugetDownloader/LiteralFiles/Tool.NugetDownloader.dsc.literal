@@ -1,0 +1,122 @@
+// Copyright (c) Microsoft. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
+import {Artifact, Cmd, Transformer, Tool} from "Sdk.Transformers";
+
+export declare const qualifier: {};
+
+const downloaderDefinition: Transformer.ToolDefinition = {
+    // CODESYNC: keep in sync with deployment at Public\Src\FrontEnd\Nuget\BuildXL.FrontEnd.Nuget.dsc
+    exe: Context.isWindowsOS()? f`${Context.getBuildEngineDirectory()}/NugetDownloader.exe` : f`${Context.getBuildEngineDirectory()}/NugetDownloader`,
+    description: "BuildXL NuGet downloader",
+    dependsOnWindowsDirectories: true,
+    dependsOnAppDataDirectory: true,
+    prepareTempDirectory: true,
+    untrackedDirectoryScopes: [
+        d`${Context.getMount("ProgramData").path}/Microsoft/NetFramework/BreadcrumbStore`,
+        ...addIfLazy(Context.isWindowsOS(), () => [d`${Context.getMount("LocalLow").path}/Microsoft/CryptnetUrlCache`]),
+        ...addIfLazy(Context.getCurrentHost().os === "macOS", () => [d`/dev/dtracehelper`, d`/private/var/run/mDNSResponder`, d`/private/var/folders`, d`/dev/tty`, d`/usr/share/zoneinfo`, d`/usr/share/icu`]),
+    ],
+};
+
+
+/**
+ * Arguments for downloading a NuGet package under a specified directory
+ */
+@@public
+export interface Arguments extends Transformer.RunnerArguments {
+    id: string;
+    version: string;
+    downloadDirectory: Directory;
+    extractedFiles: RelativePath[];
+    repositories: [string, string][];
+    credentialProviderPath?: File;
+    timeoutInMinutes?: number;
+}
+
+/**
+ * Downloads a NuGet package as specified in the arguments and returns the outputs that result of the execution in a static directory
+ */
+@@public
+export function downloadPackage(args: Arguments) : PartialStaticContentDirectory {
+
+    const arguments: Argument[] = [
+        Cmd.option("/id:", args.id),
+        Cmd.option("/version:", args.version),
+        Cmd.option("/downloadDirectory:", Artifact.none(args.downloadDirectory)),
+        Cmd.options("/repositories:", args.repositories.map(kvp => kvp[0] + "=" + kvp[1])),
+    ];
+
+    // NuGet extraction always injects a parent folder with the package id + version as the name
+    const directoryName = `${args.id}.${args.version}`;
+
+    // Build the list of expected outputs
+    const outputs : File[] = args.extractedFiles.map(relativePath => f`${args.downloadDirectory}/${directoryName}/${relativePath}`);
+
+    // In some cases the package is expected to be empty. In that case, don't run anything and just return an empty seal dir
+    if (outputs.length === 0)
+    {
+        return Transformer.sealPartialDirectory(d`${args.downloadDirectory.combine(directoryName)}`, []);
+    }
+
+    let tool = downloaderDefinition;
+
+    // The timeout is not available per-pip but at the tool level
+    if (args.timeoutInMinutes !== undefined) {
+        tool = tool.merge<Transformer.ToolDefinition>({
+            timeoutInMilliseconds: args.timeoutInMinutes * 60 * 1000,
+            // We could have a separate argument for this, but for now let's keep it simple
+            warningTimeoutInMilliseconds: args.timeoutInMinutes * 60 * 1000
+        });
+    }
+
+    // Nuget tries to read the user settings config file, and if it is not there, it creates it.
+    // The creation does not behave well with concurrent executions and write locks issues arise.
+    // Let's give each nuget pip a different app data directory
+    const redirectedAppData = Context.getTempDirectory("redirectedAppData");
+
+    const transformerExecuteArgs : Transformer.ExecuteArguments = {
+        description: `Downloading NuGet package '${args.id}.${args.version}'`,
+        tool: tool,
+        arguments: arguments,
+        workingDirectory: args.downloadDirectory,
+        tags: ["nuget", ...(args.tags || [])],
+        environmentVariables: [
+            ...addIf(args.credentialProviderPath !== undefined, {name: "NUGET_CREDENTIALPROVIDERS_PATH", value: args.credentialProviderPath}),
+            ...addIf(Environment.hasVariable("VSS_NUGET_EXTERNAL_FEED_ENDPOINTS"), {name: "VSS_NUGET_EXTERNAL_FEED_ENDPOINTS", value: Environment.getStringValue("VSS_NUGET_EXTERNAL_FEED_ENDPOINTS")}),
+            // On linux/mac the NuGet SDK needs this variable defined. It doesn't really matter where it is pointing to.
+            ...addIf(!Context.isWindowsOS(), {name: "DOTNET_CLI_HOME", value: redirectedAppData}),
+            {name: "AppData", value: redirectedAppData}
+        ],
+        outputs: outputs,
+        tempDirectory: redirectedAppData,
+        unsafe: <Transformer.UnsafeExecuteArguments>{
+            passThroughEnvironmentVariables: [ 
+                "LocalAppData",
+                "QAUTHMATERIALROOT",
+                "__CREDENTIAL_PROVIDER_LOG_DIR",
+                "__CLOUDBUILD_AUTH_HELPER_ROOT__",
+                "__CLOUDBUILD_AUTH_HELPER_CONFIG__",
+            ],
+            requireGlobalDependencies: false,
+            // The only child process this tool spawns is the credential provider process. This process may write log files that are hard to predict upfront.
+            hasUntrackedChildProcesses: true,
+            // This is to avoid a cache miss on a NuGet download due to changes on the nuget download tool (changes in downtream dependencies for the 
+            // most part, e.g. some framework dll that is changed because of some unrelated change in Bxl)
+            // This is a confidence vote since we own the nuget downloader tool. If for any reason the nuget pips need invalidation, that can
+            // be manually triggered by bumping the NuGet spec fingerprint version.
+            untrackedScopes: [Context.getBuildEngineDirectory()],
+            // Make NuGet pips so fingerprint salts (the general fingerprint V2 version and the debug salt passed with /p:BUILDXL_FINGERPRINT_SALT) are not
+            // included in the weak fingerprint. Observe this option is not exposed in DScript, so we are forcing the hand of the type checker with the cast above
+            // to not complain about this extra field (which will be picked up at runtime)
+            bypassFingerprintSalt: true
+        },
+        // This is to avoid DFAs under the credential provider directory, which is an arbitrarily specified directory that would need to
+        // be contained in a statically declared read mount otherwise
+        allowUndeclaredSourceReads: true,
+    };
+
+    const result = Transformer.execute(transformerExecuteArgs);
+
+    return Transformer.sealPartialDirectory(d`${args.downloadDirectory.combine(directoryName)}`, result.getOutputFiles());
+}

@@ -44,7 +44,7 @@ namespace Test.BuildXL.FrontEnd.Nuget
                     paths,
                     "testPackageHash"));
 
-            return NugetAnalyzedPackage.TryAnalyzeNugetPackage(m_context, m_monikers, XDocument.Parse(xml), packageOnDisk, packagesOnConfig, false);
+            return NugetAnalyzedPackage.TryAnalyzeNugetPackage(m_context, m_monikers, XDocument.Parse(xml), packageOnDisk, packagesOnConfig, false, AbsolutePath.Invalid);
         }
 
         public NugetAnalyzedPackage AnalyzePackageStub(Dictionary<string, INugetPackage> packagesOnConfig)
@@ -58,7 +58,7 @@ namespace Test.BuildXL.FrontEnd.Nuget
                     new PackageIdentity("nuget", nugetPackage.Id, nugetPackage.Version, nugetPackage.Alias),
                     packageFolder: AbsolutePath.Create(m_context.PathTable, X("/X/Pkgs/TestPkgStub/1.999"))));
 
-            return NugetAnalyzedPackage.TryAnalyzeNugetPackage(m_context, m_monikers, nuSpec: null, packageOnDisk, packagesOnConfig, false);
+            return NugetAnalyzedPackage.TryAnalyzeNugetPackage(m_context, m_monikers, nuSpec: null, packageOnDisk, packagesOnConfig, false, AbsolutePath.Invalid);
         }
     }
 }

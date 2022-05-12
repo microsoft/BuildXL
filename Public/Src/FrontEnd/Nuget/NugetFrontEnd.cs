@@ -41,7 +41,7 @@ namespace BuildXL.FrontEnd.Nuget
         public IReadOnlyCollection<string> SupportedResolvers { get; } = new[] { WorkspaceNugetModuleResolver.NugetResolverName };
 
         /// <inheritdoc />
-        public bool ShouldRestrictBuildParameters { get; } = true;
+        public bool ShouldRestrictBuildParameters { get; } = false;
 
         /// <inheritdoc />
         public void InitializeFrontEnd(FrontEndHost host, FrontEndContext context, IConfiguration configuration)

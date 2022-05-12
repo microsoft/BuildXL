@@ -20,6 +20,7 @@ using static BuildXL.Utilities.FormattableStringEx;
 using static BuildXL.Cache.ContentStore.Interfaces.FileSystem.VfsUtilities;
 using BuildXL.Utilities.Configuration;
 using System.Threading;
+using UrgencyHint = BuildXL.Cache.ContentStore.Interfaces.Sessions.UrgencyHint;
 
 namespace BuildXL.Engine.Cache.Plugin.CacheCore
 {

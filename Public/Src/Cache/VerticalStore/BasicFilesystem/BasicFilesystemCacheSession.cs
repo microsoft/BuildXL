@@ -10,6 +10,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ImplementationSupport;
 using BuildXL.Cache.Interfaces;
 using BuildXL.Native.IO;

@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ImplementationSupport;
 using BuildXL.Cache.Interfaces;
 using BuildXL.Utilities;

@@ -19,6 +19,7 @@ namespace InputListFilter {
             VerticalAggregator.dll,
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Cache.MemoizationStore").Interfaces.dll,
+            importFrom("BuildXL.Cache.ContentStore").Interfaces.dll,
             importFrom("BuildXL.Cache.ContentStore").Hashing.dll,
         ],
     });

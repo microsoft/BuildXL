@@ -3,6 +3,7 @@
 
 using System;
 using System.Diagnostics.Tracing;
+using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.Interfaces;
 
 namespace BuildXL.Cache.ImplementationSupport

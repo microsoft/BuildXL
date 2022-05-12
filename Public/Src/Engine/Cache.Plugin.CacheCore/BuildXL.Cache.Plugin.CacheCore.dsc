@@ -10,6 +10,7 @@ namespace Cache.Plugin.Core {
         references: [
             Cache.dll,
             importFrom("BuildXL.Cache.VerticalStore").Interfaces.dll,
+            importFrom("BuildXL.Cache.ContentStore").Interfaces.dll,
             importFrom("BuildXL.Cache.ContentStore").Hashing.dll,
             importFrom("BuildXL.Cache.ContentStore").UtilitiesCore.dll,
             importFrom("BuildXL.Cache.ContentStore").Interfaces.dll,

@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Utilities;
 
 namespace BuildXL.Cache.Interfaces.Test

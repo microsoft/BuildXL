@@ -15,6 +15,7 @@ namespace BasicFilesystem{
             Interfaces.dll,
             VerticalAggregator.dll,
             importFrom("BuildXL.Cache.ContentStore").Hashing.dll,
+            importFrom("BuildXL.Cache.ContentStore").Interfaces.dll,
             importFrom("BuildXL.Cache.ContentStore").UtilitiesCore.dll,
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Native.dll,

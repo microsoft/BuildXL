@@ -13,6 +13,7 @@ using BuildXL.Cache.Interfaces;
 using BuildXL.Native.IO;
 using BuildXL.Utilities;
 using System.Threading;
+using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 
 // ReSharper disable InconsistentNaming
 namespace BuildXL.Cache.VerticalAggregator

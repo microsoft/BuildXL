@@ -12,6 +12,7 @@ namespace VerticalAggregator {
             InMemory.dll,
             importFrom("BuildXL.Engine").Cache.dll,
             importFrom("BuildXL.Cache.ContentStore").Hashing.dll,
+            importFrom("BuildXL.Cache.ContentStore").Interfaces.dll,
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Native.dll,
             importFrom("BuildXL.Utilities").Configuration.dll,

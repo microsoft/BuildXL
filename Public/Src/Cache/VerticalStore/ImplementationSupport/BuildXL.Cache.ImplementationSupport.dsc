@@ -9,6 +9,7 @@ namespace ImplementationSupport {
         sources: globR(d`.`, "*.cs"),
         references: [
             Interfaces.dll,
+            importFrom("BuildXL.Cache.ContentStore").Interfaces.dll,
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Storage.dll,
             importFrom("BuildXL.Utilities").Collections.dll,

@@ -21,7 +21,6 @@ using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Tasks;
 using StrongFingerprint = BuildXL.Cache.Interfaces.StrongFingerprint;
-using UrgencyHint = BuildXL.Cache.Interfaces.UrgencyHint;
 
 namespace BuildXL.Cache.MemoizationStoreAdapter
 {

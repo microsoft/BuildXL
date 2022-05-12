@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.Interfaces;
 using BuildXL.Engine.Cache.Artifacts;
 using BuildXL.Engine.Cache.Fingerprints;

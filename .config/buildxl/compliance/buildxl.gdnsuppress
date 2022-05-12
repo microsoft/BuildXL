@@ -1,36 +1,38 @@
 {
-  "version": "1.0.0",
+  "version": "latest",
   "suppressionSets": {
     "default": {
       "name": "default",
-      "createdDate": "2021-07-27 20:58:16Z",
-      "lastUpdatedDate": "2021-07-27 20:58:16Z"
+      "createdDate": "2022-05-11 20:46:33Z",
+      "lastUpdatedDate": "2022-05-11 20:46:33Z"
     }
   },
   "results": {
-    "cf64d1c83cec0d8a518b16816a4d4dde5c0c5d00561c7a621ce847f903ee1118": {
-      "signature": "cf64d1c83cec0d8a518b16816a4d4dde5c0c5d00561c7a621ce847f903ee1118",
-      "target": "RunCheckInTestsWithPAT.ps1",
+    "58ecc03ca8e91e5a74ef3fc890d30079a8926af9fa8b5379053156446753dba8": {
+      "signature": "58ecc03ca8e91e5a74ef3fc890d30079a8926af9fa8b5379053156446753dba8",
+      "alternativeSignatures": [],
+      "target": "file:///B:/RunCheckInTestsWithPAT.ps1",
       "memberOf": [
         "default"
       ],
       "tool": "credscan",
       "ruleId": "CSCAN-GENERAL0060",
       "justification": null,
-      "createdDate": "2021-07-27 20:58:16Z",
+      "createdDate": "2022-05-11 20:46:33Z",
       "expirationDate": null,
       "type": null
     },
-    "303c3ff0be3d16992c73ced2c43aa19b7c8acfc1eedd235cda63c57ceb0d4f56": {
-      "signature": "303c3ff0be3d16992c73ced2c43aa19b7c8acfc1eedd235cda63c57ceb0d4f56",
-      "target": "Private/macOS/notarize.sh",
+    "93e71b623b4c517b79e08fd6e1fa5ed79d2bdd6dda1eb935763a44e0a71cd312": {
+      "signature": "93e71b623b4c517b79e08fd6e1fa5ed79d2bdd6dda1eb935763a44e0a71cd312",
+      "alternativeSignatures": [],
+      "target": "file:///B:/Private/macOS/notarize.sh",
       "memberOf": [
         "default"
       ],
       "tool": "credscan",
       "ruleId": "CSCAN-GENERAL0060",
       "justification": null,
-      "createdDate": "2021-07-27 20:58:16Z",
+      "createdDate": "2022-05-11 20:46:33Z",
       "expirationDate": null,
       "type": null
     }

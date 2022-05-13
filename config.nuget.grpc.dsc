@@ -5,21 +5,21 @@
 const protoVersion = "3.19.4";
 const protoToolsVersion = "3.19.4";
 
-const grpcVersion = "2.46.0-pre1";
+const grpcVersion = "2.46.0";
 
 export const pkgs = [
     // grpc
-    { id: "Grpc.Net.Client", version: grpcVersion, dependentPackageIdsToSkip: ["System.Diagnostics.DiagnosticSource", "Microsoft.Extensions.Logging.Abstractions"]}, 
-    { id: "Grpc.Net.Client.Web", version: grpcVersion, dependentPackageIdsToSkip: ["System.Diagnostics.DiagnosticSource", "Microsoft.Extensions.Logging.Abstractions"]},  
-    { id: "Grpc.Net.ClientFactory", version: grpcVersion, dependentPackageIdsToSkip: ["System.Diagnostics.DiagnosticSource", "Microsoft.Extensions.Http"]},  
-    { id: "Grpc.Net.Common", version: grpcVersion, dependentPackageIdsToSkip: ["System.Diagnostics.DiagnosticSource"]},
-    { id: "Grpc.AspNetCore.Server.ClientFactory", version: grpcVersion, dependentPackageIdsToSkip: ["System.Diagnostics.DiagnosticSource"]},
-    { id: "Grpc.AspNetCore.Server", version: grpcVersion, dependentPackageIdsToSkip: ["System.Diagnostics.DiagnosticSource"]},
-    { id: "Grpc.AspNetCore", version: grpcVersion, dependentPackageIdsToSkip: ["System.Diagnostics.DiagnosticSource"]},  
+    { id: "Grpc.Net.Client", version: grpcVersion}, 
+    { id: "Grpc.Net.Client.Web", version: grpcVersion},  
+    { id: "Grpc.Net.ClientFactory", version: grpcVersion},  
+    { id: "Grpc.Net.Common", version: grpcVersion},
+    { id: "Grpc.AspNetCore.Server.ClientFactory", version: grpcVersion},
+    { id: "Grpc.AspNetCore.Server", version: grpcVersion},
+    { id: "Grpc.AspNetCore", version: grpcVersion},  
 
-    { id: "Grpc.Core", version: grpcVersion, dependentPackageIdsToSkip: [ "System.Memory" ] },
-    { id: "Grpc.Core.Api", version: grpcVersion, dependentPackageIdsToSkip: [ "System.Memory" ] },
-    { id: "Grpc.Tools", version: grpcVersion },
+    { id: "Grpc.Core", version: "2.46.1", dependentPackageIdsToSkip: [ "System.Memory" ] },
+    { id: "Grpc.Core.Api", version: "2.46.1", dependentPackageIdsToSkip: [ "System.Memory" ] },
+    { id: "Grpc.Tools", version: "2.46.1" },
 
     // protobuf
     { id: "Google.Protobuf", version: protoVersion, dependentPackageIdsToSkip: [ "System.Memory" ] },

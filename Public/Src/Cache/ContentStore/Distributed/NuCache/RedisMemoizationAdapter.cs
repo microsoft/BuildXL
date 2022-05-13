@@ -139,7 +139,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return primaryResult ?? secondaryResult;
         }
 
-        /// <inheritdoc />
+        /// <nodoc />
         public async Task<Result<LevelSelectors>> GetLevelSelectorsAsync(OperationContext context, Fingerprint weakFingerprint, int level)
         {
             var weakFingerprintKey = GetKey(weakFingerprint);
@@ -159,7 +159,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private (Selector selector, bool isReplacementToken) DeserializeSelector(byte[] selectorBytes)
         {
-            return _serializationPool.Deserialize(selectorBytes, reader =>
+            return _serializationPool.Deserialize(selectorBytes.AsSpan(), reader =>
             {
                 var isReplacementToken = reader.ReadBoolean();
                 var selector = Selector.Deserialize(reader);

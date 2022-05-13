@@ -386,6 +386,14 @@ export function assembly(args: Arguments, targetType: Csc.TargetType) : Managed.
 @@public
 export function test(args: TestArguments) : TestResult {
     args = processTestArguments(args);
+    
+    // Most of the tests relying on spans and System.Memory package references an older version of System.Runtime.CompilerServices.Unsafe assembly.
+    if (args.assemblyBindingRedirects === undefined) {
+        args = Object.merge<Managed.TestArguments>({
+            assemblyBindingRedirects: bxlBindingRedirects()
+        }, args);
+    }
+
     let result = Managed.test(args);
 
     if (!args.skipTestRun) {
@@ -473,8 +481,26 @@ export function cacheTest(args: TestArguments) : TestResult {
  * Gets binding redirects required for running tests from the IDE.
  */
 @@public
+export function bxlBindingRedirects() {
+    return [
+            // Different packages reference different version of this assembly.
+            {
+                name: "System.Runtime.CompilerServices.Unsafe",
+                publicKeyToken: "b03f5f7f11d50a3a",
+                culture: "neutral",
+                oldVersion: "0.0.0.0-5.0.0.0",
+                newVersion: "5.0.0.0",  // Corresponds to: { id: "System.Runtime.CompilerServices.Unsafe", version: "5.0.0" },
+            },
+        ];
+}
+
+/**
+ * Gets binding redirects required for running tests from the IDE.
+ */
+@@public
 export function cacheBindingRedirects() {
     return [
+        ...bxlBindingRedirects(),
             // System.Memory 4.5.4 is a bit weird, because net461 version references System.Buffer.dll v.4.0.3.0
             // but System.Memory.dll from netstandard2.0 references System.Buffer.dll v.4.0.2.0!
             // And the rest of the world references System.Buffer.dll v.4.0.3.0
@@ -485,14 +511,6 @@ export function cacheBindingRedirects() {
                 culture: "neutral",
                 oldVersion: "0.0.0.0-5.0.0.0",
                 newVersion: "4.0.3.0", // Corresponds to: { id: "System.Buffers", version: "4.5.1" },
-            },
-            // Different packages reference different version of this assembly.
-            {
-                name: "System.Runtime.CompilerServices.Unsafe",
-                publicKeyToken: "b03f5f7f11d50a3a",
-                culture: "neutral",
-                oldVersion: "0.0.0.0-5.0.0.0",
-                newVersion: "5.0.0.0",  // Corresponds to: { id: "System.Runtime.CompilerServices.Unsafe", version: "5.0.0" },
             },
             {
                 name: "System.Numerics.Vectors",

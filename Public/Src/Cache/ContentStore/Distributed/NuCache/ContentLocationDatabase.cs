@@ -249,13 +249,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public class EnumerationFilter
         {
             /// <nodoc />
-            public Func<ReadOnlyMemory<byte>, bool> ShouldEnumerate { get; }
+            public delegate bool ShouldEnumerateFunc(ReadOnlySpan<byte> input);
+
+            /// <nodoc />
+            public ShouldEnumerateFunc ShouldEnumerate { get; }
 
             /// <nodoc />
             public ShortHash? StartingPoint { get; }
 
             /// <nodoc />
-            public EnumerationFilter(Func<ReadOnlyMemory<byte>, bool> shouldEnumerate, ShortHash? startingPoint) =>
+            public EnumerationFilter(ShouldEnumerateFunc shouldEnumerate, ShortHash? startingPoint) =>
                 (ShouldEnumerate, StartingPoint) = (shouldEnumerate, startingPoint);
         }
 
@@ -387,20 +390,21 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             ShortHash? lastHash = null;
             int maxHashFirstByteDifference = 0;
 
-            ContentStatisticMatrix contentStatistics = new ContentStatisticMatrix();
+            ContentStatisticMatrix contentStatistics = new();
 
             // Enumerate over all hashes...
             // NOTE: GC will query for the value itself and thereby get the value from the in memory cache if present.
             // It will NOT necessarily enumerate all keys in the in memory cache since they may be new keys but GC is
             // fine to just handle those on the next GC iteration.
-            foreach (var hash in EnumerateSortedKeysFromStorage(context))
+            foreach (var (hash, entryFromStorage) in EnumerateEntriesWithSortedKeys(context))
             {
+                var entry = entryFromStorage;
                 if (context.Token.IsCancellationRequested)
                 {
                     break;
                 }
 
-                if (!TryGetEntryCore(context, hash, out var entry))
+                if (entry is null)
                 {
                     continue;
                 }
@@ -941,13 +945,29 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <summary>
+        /// Deserialize <see cref="ContentLocationEntry"/> from an array of bytes.
+        /// </summary>
+        protected ContentLocationEntry DeserializeContentLocationEntry(ReadOnlySpan<byte> bytes)
+        {
+            // Please do not convert the delegate to a method group, because this code is called many times
+            // and method group allocates a delegate on each conversion to a delegate.
+            return SerializationPool.Deserialize(bytes, static reader => ContentLocationEntry.Deserialize(reader));
+        }
+
+        /// <inheritdoc cref="HasMachineId(System.ReadOnlySpan{byte},int)"/>
+        public bool HasMachineId(ReadOnlyMemory<byte> bytes, int machineId)
+        {
+            return HasMachineId(bytes.Span, machineId);
+        }
+
+        /// <summary>
         /// Returns true a byte array deserialized into <see cref="ContentLocationEntry"/> would have <paramref name="machineId"/> index set.
         /// </summary>
         /// <remarks>
         /// This is an optimization that allows the clients to "poke" inside the value stored in the database without full deserialization.
         /// The approach is very useful in reconciliation scenarios, when the client wants to obtain content location entries for the current machine only.
         /// </remarks>
-        public bool HasMachineId(ReadOnlyMemory<byte> bytes, int machineId)
+        public bool HasMachineId(ReadOnlySpan<byte> bytes, int machineId)
         {
             return SerializationPool.Deserialize(
                 bytes,

@@ -99,6 +99,22 @@ namespace BuildXL.Utilities
             var reader = pooledReader.Instance;
             return reader.Deserialize(bytes, deserializeFunc);
         }
+        
+        /// <nodoc />
+        public TResult Deserialize<TResult>(ReadOnlySpan<byte> bytes, Func<BuildXLReader, TResult> deserializeFunc)
+        {
+            using var pooledReader = m_readerPool.GetInstance();
+            var reader = pooledReader.Instance;
+            return reader.Deserialize(bytes, deserializeFunc);
+        }
+
+        /// <nodoc />
+        public TResult Deserialize<TResult, TState>(ReadOnlySpan<byte> bytes, TState state, Func<TState, BuildXLReader, TResult> deserializeFunc)
+        {
+            using var pooledReader = m_readerPool.GetInstance();
+            var reader = pooledReader.Instance;
+            return reader.Deserialize(bytes, state, deserializeFunc);
+        }
 
         /// <nodoc />
         public TResult Deserialize<TResult, TState>(ReadOnlyMemory<byte> bytes, TState state, Func<TState, BuildXLReader, TResult> deserializeFunc)

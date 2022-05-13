@@ -164,7 +164,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
                 return default;
             }
 
-            return _serializationPool.Deserialize(data, r => MetadataEntry.Deserialize(r)).ContentHashListWithDeterminism;
+            return _serializationPool.Deserialize(data.AsSpan(), static r => MetadataEntry.Deserialize(r)).ContentHashListWithDeterminism;
         }
     }
 }

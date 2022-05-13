@@ -132,7 +132,8 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                     }
                     catch (Exception ex)
                     {
-                        tcs.SetException(ex);
+                        // Theoretically, the error might happened after we changed the state of tcs, like if the 'resutls' variable is emppty.
+                        tcs.TrySetException(ex);
                         throw;
                     }
                 });

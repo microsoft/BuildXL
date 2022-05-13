@@ -58,7 +58,8 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
 
                     using (var reader = new BinaryReader(ms))
                     {
-                        var shortHash2 = new ShortHash(ReadOnlyFixedBytes.ReadFrom(reader, ShortHash.SerializedLength));
+                        var data = reader.ReadBytes(ShortHash.SerializedLength);
+                        var shortHash2 = ShortHash.FromBytes(data);
                         Assert.Equal(hashType, shortHash2.HashType);
                         Assert.Equal(shortHash1.ToString(), shortHash2.ToString());
                     }

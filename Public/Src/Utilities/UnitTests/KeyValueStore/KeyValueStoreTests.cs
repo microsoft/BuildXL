@@ -6,7 +6,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
-using BuildXL.Engine.Cache;
 using BuildXL.Engine.Cache.KeyValueStores;
 using BuildXL.Native.IO;
 using BuildXL.Utilities;
@@ -141,17 +140,7 @@ namespace Test.BuildXL.Engine.Cache
             {
                 XAssert.IsTrue(accessor.Use(store =>
                 {
-                    Exception? exception = null;
-                    try
-                    {
-                        store.Put(key1, value1);
-                    }
-                    catch (Exception e)
-                    {
-                        exception = e;
-                    }
-
-                    XAssert.IsNotNull(exception);
+                    XAssert.ThrowsAny(() => store.Put(key1, value1));
                 }).Succeeded);
             }
         }
@@ -165,23 +154,13 @@ namespace Test.BuildXL.Engine.Cache
             {
                 XAssert.IsTrue(accessor.Use(store =>
                 {
-                    Exception? exception = null;
-                    try
-                    {
-                        store.Put(key1, value1);
-                    }
-                    catch (Exception e)
-                    {
-                        exception = e;
-                    }
-
-                    XAssert.IsNotNull(exception);
+                    XAssert.ThrowsAny(() => store.Put(key1, value1));
                 }).Succeeded);
             }
         }
 
         [Fact]
-        public void RemoveNullKeyThroows()
+        public void RemoveNullKeyThrows()
         {
             string key1 = null!;
 
@@ -189,21 +168,10 @@ namespace Test.BuildXL.Engine.Cache
             {
                 XAssert.IsTrue(accessor.Use(store =>
                 {
-                    Exception? exception = null;
-                    try
-                    {
-                        store.Remove(key1);
-                    }
-                    catch (Exception e)
-                    {
-                        exception = e;
-                    }
-
-                    XAssert.IsNotNull(exception);
+                    XAssert.ThrowsAny(() => store.Remove(key1));
                 }).Succeeded);
             }
         }
-
 
         [Fact]
         public void GetNullKeyThrows()
@@ -214,17 +182,7 @@ namespace Test.BuildXL.Engine.Cache
             {
                 XAssert.IsTrue(accessor.Use(store =>
                 {
-                    Exception? exception = null;
-                    try
-                    {
-                        store.TryGetValue(key1, out var value);
-                    }
-                    catch (Exception e)
-                    {
-                        exception = e;
-                    }
-
-                    XAssert.IsNotNull(exception);
+                    XAssert.ThrowsAny(() => store.TryGetValue(key1, out var value));
                 }).Succeeded);
             }
         }
@@ -986,17 +944,7 @@ namespace Test.BuildXL.Engine.Cache
                             store.Put(key, value, columnFamilyName: column);
                         }
 
-                        Exception? exception = null;
-                        try
-                        {
-                            store.TryGetValue(key, out var v, columnFamilyName: changingColumn);
-                        }
-                        catch (Exception ex)
-                        {
-                            exception = ex;
-                        }
-
-                        XAssert.AreNotEqual(null, exception);
+                        XAssert.ThrowsAny(() => store.TryGetValue(key, out var v, columnFamilyName: changingColumn));
                     })
                 );
             }
@@ -1016,17 +964,7 @@ namespace Test.BuildXL.Engine.Cache
                             AssertEntryExists(store, key, value, column: column);
                         }
 
-                        Exception? exception = null;
-                        try
-                        {
-                            store.TryGetValue(key, out var v, columnFamilyName: changingKeyColumn);
-                        }
-                        catch (Exception ex)
-                        {
-                            exception = ex;
-                        }
-
-                        XAssert.AreNotEqual(null, exception);
+                        XAssert.ThrowsAny(() => store.TryGetValue(key, out var v, columnFamilyName: changingKeyColumn));
                     })
                 );
             }
@@ -1276,6 +1214,25 @@ namespace Test.BuildXL.Engine.Cache
             }
 
             XAssert.IsTrue(failureHandled);
+        }
+
+        [Fact]
+        public void PrefixLookupTests()
+        {
+            var random = new Random();
+            var arraySize = random.Next(0, 1000);
+            var data = new byte[arraySize];
+
+            var prefix = data.AsSpan(0, arraySize - 1);
+            Assert.False(RocksDbStore.StartsWith(data, prefix.ToArray()));
+            Assert.False(RocksDbStore.StartsWith(data.AsSpan(), prefix));
+            
+            Assert.True(RocksDbStore.StartsWith(prefix.ToArray(), data));
+            Assert.True(RocksDbStore.StartsWith(prefix, data));
+
+            // Checking that instance starts with itself
+            Assert.True(RocksDbStore.StartsWith(data, data));
+            Assert.True(RocksDbStore.StartsWith(data.AsSpan(), data));
         }
 
         private string LongRandomString()

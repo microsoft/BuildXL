@@ -370,6 +370,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Test
                         if (expected)
                         {
                             var getResult = await workerCache0.GetContentHashListAsync(context, sf, Token).ShouldBeSuccess();
+                            Assert.Equal(contentHashList?.Hashes?.Count, getResult.ContentHashListWithDeterminism.ContentHashList?.Hashes?.Count);
                             Assert.Equal(contentHashList, getResult.ContentHashListWithDeterminism.ContentHashList);
                         }
                         else

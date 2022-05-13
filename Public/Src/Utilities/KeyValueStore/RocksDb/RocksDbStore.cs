@@ -475,11 +475,33 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         /// <inheritdoc />
         public void Remove(string key, string? columnFamilyName = null)
         {
+            if (key is null)
+            {
+                throw new RocksDbSharpException("Attempt to remove an empty key");
+            }
+
             Remove(StringToBytes(key), columnFamilyName);
         }
 
         /// <inheritdoc />
         public void Remove(byte[] key, string? columnFamilyName = null)
+        {
+            if (key is null)
+            {
+                throw new RocksDbSharpException("Attempt to remove an empty key");
+            }
+
+            var columnFamilyInfo = GetColumnFamilyInfo(columnFamilyName);
+
+            using (var writeBatch = new WriteBatch())
+            {
+                AddDeleteOperation(writeBatch, columnFamilyInfo, key);
+                WriteInternal(writeBatch);
+            }
+        }
+        
+        /// <inheritdoc />
+        public void Remove(ReadOnlySpan<byte> key, string? columnFamilyName = null)
         {
             var columnFamilyInfo = GetColumnFamilyInfo(columnFamilyName);
 
@@ -495,7 +517,6 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         {
             RemoveBatch(keys, key => StringToBytes(key), columnFamilyNames: columnFamilyNames);
         }
-
 
         /// <inheritdoc />
         public void RemoveBatch(IEnumerable<byte[]> keys, IEnumerable<string?>? columnFamilyNames = null)
@@ -537,7 +558,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         /// Adds a delete operation for a key to a <see cref="WriteBatch"/>. These are not written
         /// to the store by this function, just added to the <see cref="WriteBatch"/>.
         /// </summary>
-        private void AddDeleteOperation(WriteBatch writeBatch, ColumnFamilyInfo columnFamilyInfo, byte[] key)
+        private void AddDeleteOperation(WriteBatch writeBatch, ColumnFamilyInfo columnFamilyInfo, ReadOnlySpan<byte> key)
         {
             writeBatch.Delete(key, columnFamilyInfo.Handle);
 
@@ -849,8 +870,94 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             return m_store.GetProperty(propertyName, GetColumnFamilyInfo(columnFamilyName).Handle);
         }
 
-        /// <inheritdoc />
-        public IEnumerable<KeyValuePair<byte[], byte[]>> PrefixSearch(byte[]? prefix = null, string? columnFamilyName = null)
+        /// <summary>
+        /// A callback-based for push-based prefix lookup (prefix search) implementation.
+        /// </summary>
+        /// <remarks>
+        /// When a callback returns false, the search is done.
+        /// </remarks>
+        public delegate bool ObserveKeyValuePairCallback<in TState>(TState state, ReadOnlySpan<byte> key, ReadOnlySpan<byte> value);
+        
+        /// <summary>
+        /// A callback-based for push-based prefix lookup (prefix search) implementation.
+        /// </summary>
+        /// <remarks>
+        /// When a callback returns false, the search is done.
+        /// </remarks>
+        public delegate bool ObserveKeyCallback<in TState>(TState state, ReadOnlySpan<byte> key);
+
+        /// <nodoc />
+        public void PrefixLookup<TState>(TState state, ReadOnlySpan<byte> prefix, string? columnFamilyName, ObserveKeyValuePairCallback<TState> observeCallback)
+        {
+            var columnFamilyInfo = GetColumnFamilyInfo(columnFamilyName);
+            var readOptions = new ReadOptions().SetTotalOrderSeek(true);
+
+            using (var iterator = m_store.NewIterator(columnFamilyInfo.Handle, readOptions))
+            {
+                if (prefix.Length == 0)
+                {
+                    iterator.SeekToFirst();
+                }
+                else
+                {
+                    iterator.Seek(prefix);
+                }
+
+                while (iterator.Valid())
+                {
+                    var key = iterator.Key();
+                    if (!StartsWith(prefix, key))
+                    {
+                        break;
+                    }
+
+                    if (!observeCallback(state, key, iterator.Value()))
+                    {
+                        break;
+                    }
+
+                    iterator.Next();
+                }
+            }
+        }
+        
+        /// <nodoc />
+        public void PrefixKeyLookup<TState>(TState state, ReadOnlySpan<byte> prefix, string? columnFamilyName, ObserveKeyCallback<TState> observeCallback)
+        {
+            var columnFamilyInfo = GetColumnFamilyInfo(columnFamilyName);
+            var readOptions = new ReadOptions().SetTotalOrderSeek(true);
+
+            using (var iterator = m_store.NewIterator(columnFamilyInfo.Handle, readOptions))
+            {
+                if (prefix.Length == 0)
+                {
+                    iterator.SeekToFirst();
+                }
+                else
+                {
+                    iterator.Seek(prefix);
+                }
+
+                while (iterator.Valid())
+                {
+                    var key = iterator.Key();
+                    if (!StartsWith(prefix, key))
+                    {
+                        break;
+                    }
+
+                    if (!observeCallback(state, key))
+                    {
+                        break;
+                    }
+
+                    iterator.Next();
+                }
+            }
+        }
+
+        /// <nodoc />
+        public IEnumerable<KeyValuePair<byte[], byte[]>> PrefixSearch(byte[]? prefix, string? columnFamilyName = null)
         {
             // TODO(jubayard): there are multiple ways to implement prefix search in RocksDB. In particular, they
             // have a prefix seek API (see: https://github.com/facebook/rocksdb/wiki/Prefix-Seek-API-Changes ).
@@ -884,7 +991,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                 }
             }
         }
-
+        
         /// <inheritdoc />
         public IterateDbContentResult IterateDbContent(
             Action<Iterator> onNextItem,
@@ -959,7 +1066,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         }
 
         /// <nodoc />
-        private static bool StartsWith(byte[]? prefix, byte[] key)
+        public static bool StartsWith(byte[]? prefix, byte[] key)
         {
             if (prefix == null || prefix.Length == 0)
             {
@@ -980,6 +1087,23 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             }
 
             return true;
+        }
+        
+        /// <nodoc />
+        public static bool StartsWith(ReadOnlySpan<byte> prefix, ReadOnlySpan<byte> key)
+        {
+            if (key.Length == 0)
+            {
+                return true;
+            }
+
+            if (prefix.Length > key.Length)
+            {
+                return false;
+            }
+
+            var prefixToSearch = key.Slice(start: 0, length: prefix.Length);
+            return prefix.SequenceEqual(prefixToSearch);
         }
 
         /// <inheritdoc />

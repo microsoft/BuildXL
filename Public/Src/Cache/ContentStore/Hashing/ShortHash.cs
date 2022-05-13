@@ -5,7 +5,6 @@ using System;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 using System.Text;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 
@@ -30,10 +29,10 @@ namespace BuildXL.Cache.ContentStore.Hashing
         public const int HashLength = SerializedLength - 1;
 
         /// <nodoc />
-        public ShortHash(ContentHash hash) : this(ToShortReadOnlyBytes(hash)) { }
+        public readonly ShortReadOnlyFixedBytes Value;
 
         /// <nodoc />
-        public ShortHash(ReadOnlyFixedBytes bytes) => Value = new ShortReadOnlyFixedBytes(ref bytes);
+        public ShortHash(ContentHash hash) : this(ToShortReadOnlyBytes(hash)) { }
 
         /// <nodoc />
         public ShortHash(ShortReadOnlyFixedBytes bytes) => Value = bytes;
@@ -50,9 +49,6 @@ namespace BuildXL.Cache.ContentStore.Hashing
                 throw new ArgumentException($"{serialized} is not a recognized content hash");
             }
         }
-
-        /// <nodoc />
-        public ShortReadOnlyFixedBytes Value { get; }
 
         /// <nodoc />
         public byte this[int index]
@@ -134,8 +130,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// </summary>
         public void Serialize(BinaryWriter writer)
         {
-            using var handle = ContentHashExtensions.ShortHashBytesArrayPool.Get();
-            Value.Serialize(writer, handle.Value);
+            Value.Serialize(writer);
         }
 
         private static unsafe ShortReadOnlyFixedBytes ToShortReadOnlyBytes(ContentHash hash)
@@ -147,7 +142,6 @@ namespace BuildXL.Cache.ContentStore.Hashing
             // It is safe to do so, because the 'result' variable resides on stack and can't be moved by GC.
 
             byte* ptr = (byte*)&result._bytes;
-            //hash.Serialize(new Span<byte>(ptr, SerializedLength), offset: 0, length: HashLength);
             hash.Serialize(new Span<byte>(ptr, SerializedLength), offset: 0, length: HashLength);
 
             return result;

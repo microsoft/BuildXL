@@ -109,7 +109,7 @@ namespace BuildXL.Utilities
 
             m_memoryStream.Position = 0;
 
-#if NETCOREAPP3_1
+#if NET_COREAPP
             m_memoryStream.Write(data);
 #else
             if (m_memoryStream.TryGetBuffer(out var segment) && segment.Count > data.Length)

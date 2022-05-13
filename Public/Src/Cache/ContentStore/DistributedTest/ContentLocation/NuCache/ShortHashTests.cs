@@ -2,9 +2,12 @@
 // Licensed under the MIT License.
 
 using System.Diagnostics.ContractsLight;
+using System.IO;
+using System.Runtime.InteropServices;
 using System.Text;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Utilities;
 using FluentAssertions;
 using Xunit;
 using Xunit.Abstractions;
@@ -16,6 +19,38 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
         private readonly ITestOutputHelper _helper;
 
         public ShortHashTests(ITestOutputHelper helper) => _helper = helper;
+
+        [Fact]
+        public void ShortHashBinaryRoundtrip()
+        {
+            using (var ms = new MemoryStream())
+            {
+                using (var writer = new BuildXLWriter(debug: false, ms, leaveOpen: false, logStats: false))
+                {
+                    var hash = ContentHash.Random(HashType.Vso0);
+                    var v1 = new ShortHash(hash);
+                    v1.Serialize(writer);
+                    ms.Position = 0;
+
+                    using (var reader = new BuildXLReader(debug: false, ms, leaveOpen: false))
+                    {
+                        var v2 = reader.ReadShortHash();
+                        Assert.Equal(v1, v2);
+                    }
+                }
+            }
+        }
+
+        [Fact]
+        public void TestMemoryMarshalRead()
+        {
+            var hash = ContentHash.Random(HashType.Vso0);
+            var shortHash = new ShortHash(hash);
+            var data = shortHash.ToByteArray();
+
+            var shortHash2 = MemoryMarshal.Read<ShortHash>(data);
+            shortHash2.Should().Be(shortHash);
+        }
 
         [Fact]
         public void TestToByteArray()

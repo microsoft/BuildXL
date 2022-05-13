@@ -13,6 +13,36 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
     public class ReadOnlyFixedBytesTests
     {
         [Fact]
+        public void FromSpanForMaxLength()
+        {
+            var bytes = Enumerable.Range(0, ReadOnlyFixedBytes.MaxLength).Select(i => (byte)i).ToArray();
+            var fixedBytes = ReadOnlyFixedBytes.FromSpan(bytes.AsSpan());
+
+            var fixedBytes2 = new ReadOnlyFixedBytes(bytes.AsSpan());
+            Assert.Equal(fixedBytes, fixedBytes2);
+        }
+
+        [Fact]
+        public void FromSpanForMaxLengthPlus()
+        {
+            var bytes = Enumerable.Range(0, ReadOnlyFixedBytes.MaxLength + 1).Select(i => (byte)i).ToArray();
+            var fixedBytes = ReadOnlyFixedBytes.FromSpan(bytes.AsSpan());
+
+            var fixedBytes2 = new ReadOnlyFixedBytes(bytes.AsSpan(0, ReadOnlyFixedBytes.MaxLength));
+            Assert.Equal(fixedBytes, fixedBytes2);
+        }
+
+        [Fact]
+        public void FromSpanForSmallLength()
+        {
+            var bytes = Enumerable.Range(0, ReadOnlyFixedBytes.MaxLength - 1).Select(i => (byte)i).ToArray();
+            var fixedBytes = ReadOnlyFixedBytes.FromSpan(bytes.AsSpan());
+
+            var fixedBytes2 = new ReadOnlyFixedBytes(bytes.AsSpan());
+            Assert.Equal(fixedBytes, fixedBytes2);
+        }
+
+        [Fact]
         public void ToHexTest()
         {
             var bytes = Enumerable.Range(0, ReadOnlyFixedBytes.MaxLength).Select(i => (byte)i).ToArray();
@@ -277,26 +307,28 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
             Assert.Equal(v1, v2);
         }
 
-        [Fact]
-        public void BinaryRoundtrip()
+        [Theory]
+        [InlineData(10)]
+        [InlineData(33)]
+        public void BinaryRoundtrip(int length)
         {
             using (var ms = new MemoryStream())
             {
                 using (var writer = new BinaryWriter(ms))
                 {
                     var v1 = ReadOnlyFixedBytes.Random();
-                    v1.Serialize(writer);
+                    v1.Serialize(writer, length);
                     ms.Position = 0;
 
                     using (var reader = new BinaryReader(ms))
                     {
                         var v2 = ReadOnlyFixedBytes.ReadFrom(reader);
-                        Assert.Equal(v1, v2);
+                        Assert.Equal(v1.ToHex(length), v2.ToHex(length));
                     }
                 }
             }
         }
-
+        
         [Fact]
         public void BinaryRoundtripWithBuffer()
         {

@@ -16,7 +16,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         public static ShortHash ReadShortHash(this BuildXLReader reader)
         {
-            return new ShortHash(ReadOnlyFixedBytes.ReadFrom(reader, ShortHash.SerializedLength));
+            // TODO: use pooled buffers in .net core,
+            // or even add an option to convert ShortHash to Span<byte> and use reader.Read(spanOfBytes);
+            // Work item: 1943555
+            var data = reader.ReadBytes(ShortHash.SerializedLength);
+            return ShortHash.FromBytes(data);
         }
 
         public static void Write(this BuildXLWriter writer, UnixTime value)

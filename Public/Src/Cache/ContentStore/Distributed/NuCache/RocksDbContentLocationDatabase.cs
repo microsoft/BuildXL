@@ -538,10 +538,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                                         }
                                         else
                                         {
-                                            byte[]? value = null;
-                                            if (valueFilter?.ShouldEnumerate?.Invoke(value = iterator.Value().ToArray()) == true)
+                                            var value = iterator.Value();
+                                            // 'null-filter' means that all the values should be provided.
+                                            if (valueFilter is null || valueFilter.ShouldEnumerate?.Invoke(value) == true)
                                             {
-                                                keyBuffer.Add((DeserializeKey(key), DeserializeContentLocationEntry(value!)));
+                                                keyBuffer.Add((DeserializeKey(key), DeserializeContentLocationEntry(value)));
                                             }
                                         }
 
@@ -590,8 +591,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         internal static ContentLocationEntry? TryGetEntryCoreHelper(ShortHash hash, RocksDbStore store, RocksDbContentLocationDatabase db)
         {
             ContentLocationEntry? result = null;
-            using var poolHandle = db.GetKey(hash);
-            if (store.TryGetPinnableValue(poolHandle.Value, out var span))
+            // hash.AsSpan is safe here.
+            if (store.TryGetPinnableValue(hash.AsSpanUnsafe(), out var span))
             {
                 result = db.DeserializeContentLocationEntry(span.Value);
             }
@@ -622,8 +623,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private static Unit SaveToDbHelper(ShortHash hash, ContentLocationEntry entry, RocksDbStore store, RocksDbContentLocationDatabase db)
         {
             using var value = db.SerializeContentLocationEntry(entry);
-            using var poolHandle = db.GetKey(hash);
-            store.Put(poolHandle.Value.AsSpan(), value);
+            // hash.AsSpan is safe here.
+            store.Put(hash.AsSpanUnsafe(), value);
 
             return Unit.Void;
         }
@@ -637,8 +638,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         // NOTE: This should remain static to avoid allocations in Delete
         private static Unit DeleteFromDbHelper(ShortHash hash, RocksDbStore store, RocksDbContentLocationDatabase db)
         {
-            using var key = db.GetKey(hash);
-            store.Remove(key.Value);
+            // hash.AsSpan is safe here.
+            store.Remove(hash.AsSpanUnsafe());
             return Unit.Void;
         }
 
@@ -750,13 +751,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             var status = _keyValueStore.Use(
                 static (store, state) =>
                 {
-                    foreach (var kvp in store.PrefixSearch((byte[]?)null, nameof(Columns.Metadata)))
+                    store.PrefixKeyLookup(
+                        state: state,
+                        Array.Empty<byte>(),
+                        nameof(Columns.Metadata),
+                        static (state, key) =>
                     {
-                        // TODO(jubayard): since this method only needs the keys and not the values, it wouldn't hurt
-                        // to make an alternative prefix search that doesn't even read the values from RocksDB.
-                        var strongFingerprint = state.@this.DeserializeStrongFingerprint(kvp.Key);
+                            var strongFingerprint = state.@this.DeserializeStrongFingerprint(key);
                         state.result.Add(Result.Success(strongFingerprint));
-                    }
+                            return true;
+                        });
 
                     return state.result;
                 }, (result: result, @this: this));
@@ -780,12 +784,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                     // This only works because the strong fingerprint serializes the weak fingerprint first. Hence,
                     // we know that all keys here are strong fingerprints that match the weak fingerprint.
-                    foreach (var kvp in store.PrefixSearch(key.ToArray(), columnFamilyName: nameof(Columns.Metadata)))
+                    store.PrefixLookup(
+                        state: state,
+                        prefix: key,
+                        columnFamilyName: nameof(Columns.Metadata),
+                        observeCallback: static (state, key, value) =>
                     {
-                        var strongFingerprint = state.db.DeserializeStrongFingerprint(kvp.Key);
-                        var timeUtc = state.db.DeserializeMetadataLastAccessTimeUtc(kvp.Value);
+                                             var strongFingerprint = state.db.DeserializeStrongFingerprint(key);
+                                             var timeUtc = state.db.DeserializeMetadataLastAccessTimeUtc(value);
                         state.selectors.Add((timeUtc, strongFingerprint.Selector));
+                                             return true;
                     }
+                        );
 
                     return Unit.Void;
                 }, (selectors: selectors, db: this, weakFingerprint: weakFingerprint));
@@ -829,6 +839,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return SerializationPool.Deserialize(bytes, static reader => StrongFingerprint.Deserialize(reader));
         }
 
+        private StrongFingerprint DeserializeStrongFingerprint(ReadOnlySpan<byte> bytes)
+        {
+            return SerializationPool.Deserialize(bytes, static reader => StrongFingerprint.Deserialize(reader));
+        }
+
         private PooledBuffer GetMetadataKey(StrongFingerprint strongFingerprint)
         {
             return SerializeStrongFingerprint(strongFingerprint);
@@ -851,7 +866,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
         }
 
-        private long DeserializeMetadataLastAccessTimeUtc(ReadOnlyMemory<byte> data)
+        private long DeserializeMetadataLastAccessTimeUtc(ReadOnlySpan<byte> data)
         {
             return SerializationPool.Deserialize(data, static reader => MetadataEntry.DeserializeLastAccessTimeUtc(reader));
         }
@@ -893,6 +908,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private MetadataGarbageCollectionOutput GarbageCollectMetadataWithMaximumEntriesStrategy(OperationContext context, RocksDbStore store)
         {
+            // This implementation still used the older and less efficient store.PrefixSearch that copies the keys and values
+            // for each iteration.
+            // But this implemnetation is not used in production right now, so it's not very important to change it as well.
+
             // The strategy here is to keep the top K elements by last access time (i.e. an LRU policy). This is
             // slightly worse than that, because our iterator will go stale as time passes: since we iterate over
             // a snapshot of the DB, we can't guarantee that an entry we remove is truly the one we should be
@@ -908,7 +927,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             var entries = new PriorityQueue<(long fileTimeUtc, byte[] strongFingerprint)>(
                 capacity: _configuration.MetadataGarbageCollectionMaximumNumberOfEntriesToKeep + 1,
                 comparer: Comparer<(long fileTimeUtc, byte[] strongFingerprint)>.Create((x, y) => x.fileTimeUtc.CompareTo(y.fileTimeUtc)));
-            foreach (var keyValuePair in store.PrefixSearch((byte[]?)null, nameof(Columns.Metadata)))
+
+            // Intentionally not using a callback-based version of the search (i.e. PrefixLookup) because we won't get too much benefits
+            // from it, but the implementation would be more complicated.
+            foreach (var keyValuePair in store.PrefixSearch(Array.Empty<byte>(), nameof(Columns.Metadata)))
             {
                 // NOTE(jubayard): the expensive part of this is iterating over the whole database; the less we
                 // take _while_ we do that, the better. An alternative is to compute a quantile sketch and remove
@@ -943,14 +965,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     }
                 }
 
-                if (!(strongFingerprintToRemove is null))
+                if (strongFingerprintToRemove is not null)
                 {
                     store.Remove(strongFingerprintToRemove, columnFamilyName: nameof(Columns.Metadata));
                     removedEntries++;
 
                     if (_configuration.MetadataGarbageCollectionLogEnabled)
                     {
-                        var strongFingerprint = DeserializeStrongFingerprint(strongFingerprintToRemove);
+                        var strongFingerprint = DeserializeStrongFingerprint(strongFingerprintToRemove.AsSpan());
                         NagleOperationTracer?.Enqueue((context, strongFingerprint, EntryOperation.RemoveMetadataEntry, OperationReason.GarbageCollect));
                     }
                 }
@@ -990,22 +1012,34 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             var lastAccessTimeSketch = new DDSketch();
             var strongFingerprintSizeSketch = new DDSketch();
             var metadataEntrySizeSketch = new DDSketch();
-            foreach (var keyValuePair in store.PrefixSearch((byte[]?)null, nameof(Columns.Metadata)))
-            {
-                context.Token.ThrowIfCancellationRequested();
 
-                var lastAccessTime = DateTime.FromFileTimeUtc(DeserializeMetadataLastAccessTimeUtc(keyValuePair.Value));
-                var lastAccessDelta = now - lastAccessTime;
+            store.PrefixLookup(
+                state: string.Empty,
+                prefix: ReadOnlySpan<byte>.Empty,
+                nameof(Columns.Metadata),
+                (state, key, value) =>
+                {
+                    if (context.Token.IsCancellationRequested)
+                    {
+                        return false;
+                    }
 
-                lastAccessTimeSketch.Insert(lastAccessDelta.TotalMinutes);
+                    var lastAccessTime = DateTime.FromFileTimeUtc(DeserializeMetadataLastAccessTimeUtc(value));
+                    var lastAccessDelta = now - lastAccessTime;
 
-                strongFingerprintSizeSketch.Insert(keyValuePair.Key.Length);
-                metadataEntrySizeSketch.Insert(keyValuePair.Value.Length);
+                    lastAccessTimeSketch.Insert(lastAccessDelta.TotalMinutes);
 
-                firstPassSumKeySize += (uint)keyValuePair.Key.Length;
-                firstPassSumValueSize += (uint)keyValuePair.Value.Length;
-                firstPassScannedEntries++;
-            }
+                    strongFingerprintSizeSketch.Insert(key.Length);
+                    metadataEntrySizeSketch.Insert(value.Length);
+
+                    firstPassSumKeySize += (uint)key.Length;
+                    firstPassSumValueSize += (uint)value.Length;
+                    firstPassScannedEntries++;
+
+                    return true;
+                });
+
+            context.Token.ThrowIfCancellationRequested();
 
             if (firstPassScannedEntries == 0)
             {
@@ -1057,38 +1091,44 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             ulong secondPassRemovedKeySize = 0;
             ulong secondPassRemovedValueSize = 0;
 
-            foreach (var keyValuePair in store.PrefixSearch((byte[]?)null, nameof(Columns.Metadata)))
-            {
-                if (context.Token.IsCancellationRequested)
+            store.PrefixLookup(
+                state: string.Empty,
+                prefix: ReadOnlySpan<byte>.Empty,
+                nameof(Columns.Metadata),
+                (state, key, value) =>
                 {
-                    // If the operation's been cancelled, we still want to trace what we have found thus far anyways.
-                    // Hence, we just break and throw afterwards.
-                    break;
-                }
-
-                var entry = (fileTimeUtc: DeserializeMetadataLastAccessTimeUtc(keyValuePair.Value), strongFingerprint: keyValuePair.Key);
-                if (entry.fileTimeUtc < keepCutOffFileTimeUtc)
-                {
-                    store.Remove(entry.strongFingerprint, columnFamilyName: nameof(Columns.Metadata));
-
-                    secondPassRemovedKeySize += (ulong)keyValuePair.Key.Length;
-                    secondPassRemovedValueSize += (ulong)keyValuePair.Value.Length;
-                    secondPassRemovedEntries++;
-
-                    if (_configuration.MetadataGarbageCollectionLogEnabled)
+                    if (context.Token.IsCancellationRequested)
                     {
-                        var strongFingerprint = DeserializeStrongFingerprint(entry.strongFingerprint);
-                        NagleOperationTracer?.Enqueue((context, strongFingerprint, EntryOperation.RemoveMetadataEntry, OperationReason.GarbageCollect));
+                        return false;
                     }
-                }
 
-                secondPassSumKeySize += (ulong)keyValuePair.Key.Length;
-                secondPassSumValueSize += (ulong)keyValuePair.Value.Length;
-                secondPassScannedEntries++;
-            }
+                    var fileTimeUtc = DeserializeMetadataLastAccessTimeUtc(value);
+                    var strongFingerprint = key;
 
+                    if (fileTimeUtc < keepCutOffFileTimeUtc)
+                    {
+                        store.Remove(strongFingerprint, columnFamilyName: nameof(Columns.Metadata));
+
+                        secondPassRemovedKeySize += (ulong)key.Length;
+                        secondPassRemovedValueSize += (ulong)value.Length;
+                        secondPassRemovedEntries++;
+
+                        if (_configuration.MetadataGarbageCollectionLogEnabled)
+                        {
+                            var fingerprint = DeserializeStrongFingerprint(strongFingerprint);
+                            NagleOperationTracer?.Enqueue((context, fingerprint, EntryOperation.RemoveMetadataEntry, OperationReason.GarbageCollect));
+                        }
+                    }
+
+                    secondPassSumKeySize += (ulong)key.Length;
+                    secondPassSumValueSize += (ulong)value.Length;
+                    secondPassScannedEntries++;
+
+                    return true;
+                });
+
+            // Not throwing if the cancellation was requested here, we trace first and fail at the end of the method.
             Tracer.Info(context, $"Second pass complete. ScannedEntries=[{secondPassScannedEntries}] RemovedEntries=[{secondPassRemovedEntries}] SumKeySize=[{secondPassSumKeySize}] SumValueSize=[{secondPassSumValueSize}] RemovedKeySize=[{secondPassRemovedValueSize}] RemovedValueSize=[{secondPassRemovedValueSize}] SizeBytes=[{sizeDatabaseBytes}] SizeRemovalBytes=[{sizeRemovalBytes}] FractionToKeep=[{fractionToKeep}] KeepCutOffMinutes=[{keepCutOffMinutes}] KeepCutOffDateTime=[{keepCutOffDateTime}]");
-
 
             var removedSizeBytes = secondPassRemovedKeySize + secondPassRemovedValueSize;
             var preGcSizeBytes = secondPassSumKeySize + secondPassSumValueSize;

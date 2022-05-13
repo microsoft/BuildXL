@@ -52,28 +52,40 @@ namespace BuildXL.Cache.ContentStore.Hashing
         public ReadOnlyFixedBytes(byte[] buffer, int length = MaxLength, int offset = 0)
         {
             Contract.Requires(buffer != null);
+
             // Unfortunately, we can not expect that the length is less then the MaxLength, because many existing clients do not respect it.
             var len = Math.Min(length, Math.Min(buffer.Length, MaxLength));
 
-            fixed (byte* d = &_bytes.FixedElementField)
-            {
-                Marshal.Copy(buffer, offset, (IntPtr)d, len);
-            }
+            this = FromSpan(buffer.AsSpan(offset, len));
         }
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="ReadOnlyFixedBytes"/> struct.
         /// </summary>
-        public ReadOnlyFixedBytes(ReadOnlySpan<byte> buffer, int length = MaxLength, int offset = 0)
+        public ReadOnlyFixedBytes(ReadOnlySpan<byte> source)
         {
             // Unfortunately, we can not expect that the length is less then the MaxLength, because many existing clients do not respect it.
-            var len = Math.Min(length, Math.Min(buffer.Length, MaxLength));
+            var len = Math.Min(source.Length, MaxLength);
 
             fixed (byte* d = &_bytes.FixedElementField)
             {
-                var span = new Span<byte>(((IntPtr)d).ToPointer(), len);
-                buffer.Slice(offset, len).CopyTo(span);
+                var span = new Span<byte>(d, len);
+                source.Slice(0, len).CopyTo(span);
             }
+        }
+
+        /// <summary>
+        /// Creates <see cref="ReadOnlyFixedBytes"/> instance from a sequence of bytes.
+        /// </summary>
+        public static ReadOnlyFixedBytes FromSpan(ReadOnlySpan<byte> source)
+        {
+            if (source.Length >= MaxLength)
+            {
+                // We can only re-interpret cast if the incoming length is greater (or equal) then the length of the output.
+                return MemoryMarshal.Read<ReadOnlyFixedBytes>(source);
+            }
+
+            return new ReadOnlyFixedBytes(source);
         }
 
         /// <summary>
@@ -158,13 +170,17 @@ namespace BuildXL.Cache.ContentStore.Hashing
         {
             get
             {
-                Contract.Requires(index >= 0 && index < MaxLength);
-
                 fixed (byte* p = &_bytes.FixedElementField)
                 {
                     return p[index];
                 }
             }
+        }
+
+        // This method is needed only to work-around the issue mentioned in 'AsSpan' documentation.
+        internal static ReadOnlySpan<byte> AsSpan(byte* data, int length)
+        {
+            return new ReadOnlySpan<byte>(data, length);
         }
 
         /// <summary>
@@ -183,19 +199,11 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <inheritdoc />
         public bool Equals(ReadOnlyFixedBytes other)
         {
-            // 'o' is implicitely fixed.
+            // other is fixed (lives on the stack), so we can safely use 'other.AsSpan'.
             byte* o = &other._bytes.FixedElementField;
             fixed (byte* p = &_bytes.FixedElementField)
             {
-                for (var i = 0; i < MaxLength; i++)
-                {
-                    if (p[i] != o[i])
-                    {
-                        return false;
-                    }
-                }
-
-                return true;
+                return AsSpan(p, MaxLength).SequenceEqual(AsSpan(o, MaxLength));
             }
         }
 
@@ -221,16 +229,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
             byte* o = &other._bytes.FixedElementField;
             fixed (byte* p = &_bytes.FixedElementField)
             {
-                for (var i = 0; i < MaxLength; i++)
-                {
-                    var compare = p[i].CompareTo(o[i]);
-                    if (compare != 0)
-                    {
-                        return compare;
-                    }
-                }
-
-                return 0;
+                return AsSpan(p, MaxLength).SequenceCompareTo(AsSpan(o, MaxLength));
             }
         }
 
@@ -305,11 +304,12 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// </summary>
         public void Serialize(byte[] buffer, int length = MaxLength, int offset = 0)
         {
-            var len = Math.Min(length, Math.Min(buffer.Length, MaxLength));
-
             fixed (byte* s = &_bytes.FixedElementField)
             {
-                Marshal.Copy((IntPtr)s, buffer, offset, len);
+                var len = Math.Min(length, Math.Min(buffer.Length, MaxLength));
+                var source = AsSpan(s, len);
+                var target = buffer.AsSpan(start: offset, length);
+                source.CopyTo(target);
             }
         }
 
@@ -322,7 +322,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
 
             fixed (byte* s = &_bytes.FixedElementField)
             {
-                new Span<byte>(s, len).CopyTo(buffer);
+                AsSpan(s, len).CopyTo(buffer);
             }
         }
 
@@ -331,10 +331,18 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// </summary>
         public void Serialize(BinaryWriter writer, int length = MaxLength)
         {
+#if NET_COREAPP
+            // BinaryWriter.Write(Span) is only available for .net core.
+            fixed (byte* s = &_bytes.FixedElementField)
+            {
+                writer.Write(AsSpan(s, length));
+            }
+#else
             // The byte arrays obtained from ContentHashBytesArrayPool are 1 byte larger than needed,
             // but this is totally fine, because Serialize method will write only the length number of bytes.
             using var pooledBuffer = ContentHashExtensions.ContentHashBytesArrayPool.Get();
             Serialize(writer, pooledBuffer.Value, index: 0, length);
+#endif
         }
 
         /// <summary>
@@ -342,14 +350,13 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// </summary>
         public void Serialize(BinaryWriter writer, byte[] buffer, int index = 0, int length = MaxLength)
         {
-            fixed (byte* p = &_bytes.FixedElementField)
+            fixed (byte* s = &_bytes.FixedElementField)
             {
-                var source = new Span<byte>(p, length);
-                var target = new Span<byte>(buffer, index, length);
+                var source = AsSpan(s, length);
+                var target = buffer.AsSpan(start: index, length: length);
                 source.CopyTo(target);
+                writer.Write(buffer, 0, length);
             }
-
-            writer.Write(buffer, 0, length);
         }
 
         /// <nodoc />
@@ -379,11 +386,16 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <nodoc />
         public long LeastSignificantLong(int length)
         {
-            fixed (byte* p = &_bytes.FixedElementField)
+            Contract.Requires(length >= sizeof(long), "Can't get least significant long when the length is less then 8.");
+            fixed (byte* s = &_bytes.FixedElementField)
             {
-                var span = new ReadOnlySpan<byte>(p, length);
-                var startIndex = span.Length - 8;
-                return BitConverter.ToInt64(span.ToArray(), startIndex);
+                var span = AsSpan(s, length);
+                span = span.Slice(span.Length - 8, length: 8);
+#if NET_COREAPP
+                return BitConverter.ToInt64(span);
+#else
+                return MemoryMarshal.Read<long>(span);
+#endif
             }
         }
     }

@@ -832,30 +832,38 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         {
             ContentLocationEntry? result = null;
 
-            using var keyHandle = hash.ToPooledByteArray();
-
             // TODO: We should evaluate whether compaction of entries is needed?
             // NOTE: We don't bother cleaning up entries since that's handled by the DB's garbage collection
 
             // 1. Retrieve machine ids from expanded entries
             Span<long> size = stackalloc long[1];
             List<MachineId>? machineIdsBuffer = null;
-            if (db.TryRead(store, keyHandle.Value, MemoryMarshal.AsBytes(size), Columns.ExpandedContent))
+
+            // AsSpan is safe here because 'hash' lives on the stack.
+            var key = hash.AsSpanUnsafe();
+            if (db.TryRead(store, key, MemoryMarshal.AsBytes(size), Columns.ExpandedContent))
             {
                 machineIdsBuffer = new List<MachineId>();
 
-                foreach (var kvp in db.PrefixSearch(store, keyHandle.Value, Columns.ExpandedContent))
-                {
-                    if (kvp.Key.Length == ExpandedContentEntryKey.SerializedLength)
+                db.PrefixKeyLookup(
+                    store,
+                    state: machineIdsBuffer,
+                    key,
+                    Columns.ExpandedContent,
+                    observeCallback: static (machineIdsBuffer, key) =>
                     {
-                        var entry = MemoryMarshal.Read<ExpandedContentEntryKey>(kvp.Key);
-                        machineIdsBuffer.Add(new MachineId(entry.MachineId));
-                    }
-                }
+                        if (key.Length == ExpandedContentEntryKey.SerializedLength)
+                        {
+                            var entry = MemoryMarshal.Read<ExpandedContentEntryKey>(key);
+                            machineIdsBuffer.Add(new MachineId(entry.MachineId));
+                        }
+
+                        return true;
+                    });
             }
 
             // 2. Read combined entry
-            if (db.TryGetPinnableValue(store, keyHandle.Value, out var data, Columns.Content))
+            if (db.TryGetPinnableValue(store, key, out var data, Columns.Content))
             {
                 result = db.DeserializeContentLocationEntry(data.Value);
             }
@@ -896,7 +904,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                 || store.TryReadValue(key, valueBuffer, NameOf(columns, GetFormerColumnGroup(columns))) >= 0;
         }
 
-        private bool TryGetPinnableValue(RocksDbStore store, byte[] key, [NotNullWhen(true)] out RocksDbPinnableSpan? value, Columns columns)
+        private bool TryGetPinnableValue(RocksDbStore store, ReadOnlySpan<byte> key, [NotNullWhen(true)] out RocksDbPinnableSpan? value, Columns columns)
         {
             return store.TryGetPinnableValue(key, out value, NameOf(columns))
                 || store.TryGetPinnableValue(key, out value, NameOf(columns, GetFormerColumnGroup(columns)));
@@ -931,7 +939,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         private static Unit SaveToDbHelper(ShortHash hash, ContentLocationEntry entry, RocksDbStore store, RocksDbContentMetadataDatabase db)
         {
             using var value = db.SerializeContentLocationEntry(entry);
-            store.Put(db.GetKey(hash).AsSpan(), value, db.NameOf(Columns.Content));
+
+            // AsSpan is safe, because 'hash' variable lives on the stack.
+            store.Put(hash.AsSpanUnsafe(), value, db.NameOf(Columns.Content));
 
             return Unit.Void;
         }
@@ -945,18 +955,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         // NOTE: This should remain static to avoid allocations in Delete
         private static Unit DeleteFromDbHelper(ShortHash hash, RocksDbStore store, RocksDbContentMetadataDatabase db)
         {
-            store.Remove(db.GetKey(hash), db.NameOf(Columns.Content));
+            // AsSpan usage is safe here.
+            store.Remove(hash.AsSpanUnsafe(), db.NameOf(Columns.Content));
             return Unit.Void;
-        }
-
-        private ShortHash DeserializeKey(byte[] key)
-        {
-            return new ShortHash(new ReadOnlyFixedBytes(key));
-        }
-
-        private byte[] GetKey(ShortHash hash)
-        {
-            return hash.ToByteArray();
         }
 
         /// <nodoc />
@@ -1089,13 +1090,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             var status = _keyValueStore.Use(
                 static (store, state) =>
                 {
-                    foreach (var kvp in store.PrefixSearch((byte[]?)null, nameof(Columns.Metadata)))
-                    {
-                        // TODO(jubayard): since this method only needs the keys and not the values, it wouldn't hurt
-                        // to make an alternative prefix search that doesn't even read the values from RocksDB.
-                        var strongFingerprint = state.@this.DeserializeStrongFingerprint(kvp.Key);
-                        state.result.Add(Result.Success(strongFingerprint));
-                    }
+                    store.PrefixKeyLookup(
+                        state,
+                        ReadOnlySpan<byte>.Empty,
+                        nameof(Columns.Metadata),
+                        static (state, key) =>
+                        {
+                            var strongFingerprint = state.@this.DeserializeStrongFingerprint(key);
+                            state.result.Add(Result.Success(strongFingerprint));
+                            return true;
+                        });
 
                     return state.result;
                 }, (result: result, @this: this));
@@ -1129,12 +1133,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 
                     // This only works because the strong fingerprint serializes the weak fingerprint first. Hence,
                     // we know that all keys here are strong fingerprints that match the weak fingerprint.
-                    foreach (var kvp in state.@this.PrefixSearch(store, key, Columns.MetadataHeaders))
-                    {
-                        var strongFingerprint = @this.DeserializeStrongFingerprint(kvp.Key);
-                        var timeUtc = @this.DeserializeMetadataEntryHeader(kvp.Value).LastAccessTimeUtc;
-                        state.selectors.Add((timeUtc, strongFingerprint.Selector));
-                    }
+                    state.@this.PrefixLookup(
+                        store,
+                        state,
+                        key,
+                        Columns.MetadataHeaders,
+                        static (state, key, value) =>
+                        {
+                            var strongFingerprint = state.@this.DeserializeStrongFingerprint(key);
+                            var timeUtc = state.@this.DeserializeMetadataEntryHeader(value).LastAccessTimeUtc;
+                            state.selectors.Add((timeUtc, strongFingerprint.Selector));
+                            return true;
+                        });
 
                     return Unit.Void;
                 }, (selectors: selectors, @this: this, weakFingerprint: weakFingerprint));
@@ -1149,10 +1159,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             return new Result<IReadOnlyList<Selector>>(selectors.SelectList(t => t.Selector));
         }
 
-        private IEnumerable<KeyValuePair<byte[], byte[]>> PrefixSearch(RocksDbStore store, byte[] key, Columns column)
+        private void PrefixLookup<TState>(RocksDbStore store, TState state, ReadOnlySpan<byte> key, Columns column, RocksDbStore.ObserveKeyValuePairCallback<TState> observeCallback)
         {
-            return store.PrefixSearch(key, columnFamilyName: NameOf(column))
-                .Concat(store.PrefixSearch(key, columnFamilyName: NameOf(column, GetFormerColumnGroup(column))));
+            store.PrefixLookup(state, key, columnFamilyName: NameOf(column), observeCallback);
+            store.PrefixLookup(state, key, columnFamilyName: NameOf(column, GetFormerColumnGroup(column)), observeCallback);
+        }
+
+        private void PrefixKeyLookup<TState>(RocksDbStore store, TState state, ReadOnlySpan<byte> key, Columns column, RocksDbStore.ObserveKeyCallback<TState> observeCallback)
+        {
+            store.PrefixKeyLookup(state, key, columnFamilyName: NameOf(column), observeCallback);
+            store.PrefixKeyLookup(state, key, columnFamilyName: NameOf(column, GetFormerColumnGroup(column)), observeCallback);
         }
 
         private byte[] SerializeWeakFingerprint(Fingerprint weakFingerprint)
@@ -1165,9 +1181,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             return SerializationPool.Serialize(strongFingerprint, static (instance, writer) => instance.Serialize(writer));
         }
 
-        private StrongFingerprint DeserializeStrongFingerprint(byte[] bytes)
+        private StrongFingerprint DeserializeStrongFingerprint(ReadOnlySpan<byte> data)
         {
-            return SerializationPool.Deserialize(bytes, static reader => StrongFingerprint.Deserialize(reader));
+            return SerializationPool.Deserialize(data, static reader => StrongFingerprint.Deserialize(reader));
         }
 
         private byte[] GetMetadataKey(StrongFingerprint strongFingerprint)

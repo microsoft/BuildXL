@@ -7,7 +7,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
-using System.Security.Cryptography;
 
 #pragma warning disable CS3008 // CLS
 
@@ -105,18 +104,18 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <summary>
         ///     Initializes a new instance of the <see cref="ContentHash" /> struct from byte array
         /// </summary>
-        public ContentHash(HashType hashType, ReadOnlySpan<byte> buffer, int offset = 0)
+        public ContentHash(HashType hashType, ReadOnlySpan<byte> buffer)
         {
             Contract.Requires(hashType != HashType.Unknown);
 
             int hashBytesLength = HashInfoLookup.Find(hashType).ByteLength;
-            if (buffer.Length < (hashBytesLength + offset))
+            if (buffer.Length < hashBytesLength)
             {
                 throw new ArgumentException($"Buffer undersized length=[{buffer.Length}] for hash type=[{hashType}]");
             }
 
             _hashType = hashType;
-            _bytes = new ReadOnlyFixedBytes(buffer, hashBytesLength, offset);
+            _bytes = new ReadOnlyFixedBytes(buffer.Slice(start: 0, length: hashBytesLength));
         }
 
         /// <summary>
@@ -141,7 +140,8 @@ namespace BuildXL.Cache.ContentStore.Hashing
             Contract.Requires(reader != null);
 
             _hashType = (HashType)reader.ReadByte();
-            _bytes = ReadOnlyFixedBytes.ReadFrom(reader);
+            var data = reader.ReadBytes(ReadOnlyFixedBytes.MaxLength);
+            _bytes = ReadOnlyFixedBytes.FromSpan(data);
         }
 
         /// <summary>
@@ -154,7 +154,8 @@ namespace BuildXL.Cache.ContentStore.Hashing
             Contract.Requires(reader != null);
 
             _hashType = hashType;
-            _bytes = ReadOnlyFixedBytes.ReadFrom(reader, ByteLength);
+            var data = reader.ReadBytes(ReadOnlyFixedBytes.MaxLength);
+            _bytes = ReadOnlyFixedBytes.FromSpan(data);
         }
 
         /// <summary>

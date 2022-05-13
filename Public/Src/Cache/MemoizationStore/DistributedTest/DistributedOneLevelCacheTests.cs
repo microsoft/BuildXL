@@ -3,7 +3,9 @@
 
 using System;
 using System.Collections.Generic;
+using System.Collections.Specialized;
 using System.ComponentModel;
+using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed;
@@ -16,6 +18,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
+using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Synchronization;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.Host.Configuration;
@@ -26,6 +29,7 @@ using BuildXL.Cache.MemoizationStore.Interfaces.Caches;
 using BuildXL.Cache.MemoizationStore.Interfaces.Results;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Cache.MemoizationStore.InterfacesTest.Results;
+using BuildXL.Cache.MemoizationStore.Service;
 using BuildXL.Cache.MemoizationStore.Sessions;
 using BuildXL.Utilities.Tasks;
 using ContentStoreTest.Distributed.Redis;
@@ -674,6 +678,137 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Test
                     sharedContentHashListResult.ContentHashListWithDeterminism.ContentHashList.Should().Be(newContentHashList); // Should get a new content hash list from the global store.
                     sharedContentHashListResult.Source.Should().Be(ContentHashListSource.Shared);
                 });
+        }
+
+        [Theory]
+        [MemberData(nameof(TruthTable.GetTable), 2, MemberType = typeof(TruthTable))]
+        public Task RespectAssociatedContentUrgencyHints(bool useGrpc, bool skipMode)
+        {
+            UseGrpcServer = useGrpc;
+            ConfigureWithOneMaster(dcs =>
+            {
+                dcs.RegisterHintHandling = skipMode
+                    ? RegisterHintHandling.SkipAndRegisterAssociatedContent
+                    : RegisterHintHandling.RegisterAssociatedContent;
+                dcs.TouchContentHashLists = true;
+            });
+
+            return RunTestAsync(
+                3,
+                async context =>
+                {
+                    var workerCache = useGrpc
+                        ? GetOrCreateClientSession(context, context.GetFirstWorkerIndex())
+                        : context.Sessions[context.GetFirstWorkerIndex()];
+
+                    // When not using skip mode, we need to skip registering content by bypassing the distributed cache
+                    var workerContent = skipMode ? (IContentSession)workerCache : context.GetFileSystemSession(context.GetFirstWorkerIndex());
+
+                    var masterStore = context.GetLocationStore(context.GetMasterIndex());
+
+                    var hashes = new List<ContentHash>();
+                    for (int i = 0; i < 4; i++)
+                    {
+                        BitVector32 bits = new BitVector32(i);
+                        var hash = await PutRandomAsync(context, workerContent, useFile: bits[1 << 0], provideHash: bits[1 << 1], urgencyHint: UrgencyHint.SkipRegisterContent)
+                            .SelectAsync(p => p.ContentHash)
+                            .ThrowIfFailureAsync();
+
+                        hashes.Add(hash);
+                    }
+
+                    var getBulkResult = await masterStore.GetBulkAsync(context, hashes, GetBulkOrigin.Global).ShouldBeSuccess();
+                    foreach (var entry in getBulkResult.ContentHashesInfo)
+                    {
+                        // Registration should be skipped so no locations should be found
+                        entry.Locations.Count.Should().Be(0);
+                    }
+
+                    var sf = StrongFingerprint.Random();
+                    sf = new StrongFingerprint(sf.WeakFingerprint, new Selector(hashes[0], sf.Selector.Output));
+
+                    var contentHashList = new ContentHashList(hashes.Skip(1).ToArray());
+
+                    var addResult = await workerCache.AddOrGetContentHashListAsync(
+                        context,
+                        sf,
+                        new ContentHashListWithDeterminism(contentHashList, CacheDeterminism.SinglePhaseNonDeterministic),
+                        Token).ShouldBeSuccess();
+
+                    addResult.ContentHashListWithDeterminism.ContentHashList.Should().BeNull();
+
+                    var afterContentHashListAddGetBulkResult = await masterStore.GetBulkAsync(context, hashes, GetBulkOrigin.Global).ShouldBeSuccess();
+                    foreach (var entry in afterContentHashListAddGetBulkResult.ContentHashesInfo)
+                    {
+                        // Registration should be skipped so no locations should be found
+                        entry.Locations.Count.Should().Be(1);
+                    }
+                });
+        }
+
+        private Task<PutResult> PutRandomAsync(TestContext context, IContentSession session, bool useFile, bool provideHash = false, UrgencyHint urgencyHint = UrgencyHint.Nominal)
+        {
+            if (useFile)
+            {
+                return session.PutRandomFileAsync(
+                    context,
+                    FileSystem,
+                    ContentHashType,
+                    provideHash,
+                    RandomContentByteCount,
+                    Token,
+                    urgencyHint).ShouldBeSuccess();
+            }
+
+            return session.PutRandomAsync(
+                context,
+                ContentHashType,
+                provideHash,
+                RandomContentByteCount,
+                Token,
+                urgencyHint).ShouldBeSuccess();
+        }
+
+        internal ICacheSession GetOrCreateClientSession(TestContext context, int idx)
+        {
+            Contract.Assert(UseGrpcServer);
+
+            var info = TestInfos[idx];
+            ref SessionAndStore client = ref info.ClientSesssion;
+            if (client == null)
+            {
+                var port = context.Ports[idx];
+                var localCasSettings = info.Arguments.Configuration.LocalCasSettings;
+                var clientSettings = localCasSettings.CasClientSettings;
+                var cache = new ServiceClientCache(
+                    Logger,
+                    FileSystem,
+                    new ServiceClientContentStoreConfiguration(
+                        cacheName: clientSettings.DefaultCacheName,
+                        rpcConfiguration: new BuildXL.Cache.ContentStore.Sessions.ServiceClientRpcConfiguration(port),
+                        scenario: localCasSettings.ServiceSettings.ScenarioName));
+
+                cache.StartupAsync(context.StoreContexts[idx]).GetAwaiter().GetResult().ShouldBeSuccess();
+
+                var session = cache.CreateSession(context.StoreContexts[idx], context.Sessions[idx].Name, context.ImplicitPin).ShouldBeSuccess().Session;
+
+                session.StartupAsync(context.StoreContexts[idx]).GetAwaiter().GetResult().ShouldBeSuccess();
+                client = new SessionAndStore(session, cache);
+            }
+
+            return client.Session;
+        }
+
+        protected override async Task CleanupTestRunAsync(TestContext context)
+        {
+            foreach (var info in TestInfos)
+            {
+                if (info.ClientSesssion is not null)
+                {
+                    await info.ClientSesssion.Session.ShutdownAsync(context.StoreContexts[info.Index]).ShouldBeSuccess();
+                    await info.ClientSesssion.Store.ShutdownAsync(context.StoreContexts[info.Index]).ShouldBeSuccess();
+                }
+            }
         }
 
         protected override CreateSessionResult<ICacheSession> CreateSession(ICache store, Context context, string name, ImplicitPin implicitPin)

@@ -434,6 +434,8 @@ namespace BuildXL.Cache.Host.Service.Internal
                 ProactiveCopyGetBulkBatchSize = distributedSettings.ProactiveCopyGetBulkBatchSize,
                 ProactiveCopyGetBulkInterval = TimeSpan.FromSeconds(distributedSettings.ProactiveCopyGetBulkIntervalSeconds),
                 ProactiveCopyMaxRetries = distributedSettings.ProactiveCopyMaxRetries,
+                RespectSkipRegisterContentHint = distributedSettings.RegisterHintHandling.Value == RegisterHintHandling.SkipAndRegisterAssociatedContent
+                    && distributedSettings.EnableDistributedCache // Only distributed cache supports registering associated content
             };
             ApplyIfNotNull(distributedSettings.GrpcCopyCompressionSizeThreshold, v => distributedContentStoreSettings.GrpcCopyCompressionSizeThreshold = v);
             ApplyEnumIfNotNull<CopyCompression>(distributedSettings.GrpcCopyCompressionAlgorithm, v => distributedContentStoreSettings.GrpcCopyCompressionAlgorithm = v);

@@ -100,6 +100,9 @@ namespace DistributedTest {
             importFrom("System.ServiceModel.Http").pkg,
             importFrom("System.ServiceModel.Primitives").pkg,
         ],
+        internalsVisibleTo: [
+            "BuildXL.Cache.MemoizationStore.Distributed.Test",
+        ],
         runtimeContent: [
             {
                 subfolder: r`redisServer`,

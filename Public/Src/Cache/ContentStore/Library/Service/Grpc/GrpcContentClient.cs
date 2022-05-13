@@ -64,7 +64,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         }
 
         /// <inheritdoc />
-        public async Task<OpenStreamResult> OpenStreamAsync(OperationContext operationContext, ContentHash contentHash)
+        public async Task<OpenStreamResult> OpenStreamAsync(OperationContext operationContext, ContentHash contentHash, UrgencyHint urgencyHint = UrgencyHint.Nominal)
         {
             var sessionContext = await CreateSessionContextAsync(operationContext);
             if (!sessionContext)
@@ -81,7 +81,8 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 tempPath,
                 FileAccessMode.ReadOnly,
                 FileReplacementMode.None,
-                FileRealizationMode.HardLink);
+                FileRealizationMode.HardLink,
+                urgencyHint);
 
             return OpenStream(operationContext, tempPath, placeFileResult);
         }
@@ -121,7 +122,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         }
 
         /// <inheritdoc />
-        public Task<PinResult> PinAsync(OperationContext context, ContentHash contentHash)
+        public Task<PinResult> PinAsync(OperationContext context, ContentHash contentHash, UrgencyHint urgencyHint = UrgencyHint.Nominal)
         {
             return PerformOperationAsync(
                 new OperationContext(context),
@@ -130,7 +131,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                     {
                         HashType = (int)contentHash.HashType,
                         ContentHash = contentHash.ToByteString(),
-                        Header = sessionContext.CreateHeader(),
+                        Header = sessionContext.CreateHeader(urgencyHint),
                     }),
                 response => UnpackPinResult(response.Header, response.Info)
                 );
@@ -139,7 +140,8 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <inheritdoc />
         public async Task<IEnumerable<Task<Indexed<PinResult>>>> PinAsync(
             OperationContext context,
-            IReadOnlyList<ContentHash> contentHashes)
+            IReadOnlyList<ContentHash> contentHashes,
+            UrgencyHint urgencyHint = UrgencyHint.Nominal)
         {
             if (contentHashes.Count == 0)
             {
@@ -152,7 +154,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             int i = 0;
             foreach (var chunk in contentHashes.GetPages(BatchSize))
             {
-                pinTasks.Add(PinBatchAsync(context, i, chunk.ToList()));
+                pinTasks.Add(PinBatchAsync(context, i, chunk.ToList(), urgencyHint));
                 i += BatchSize;
             }
 
@@ -160,7 +162,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             return pinResults;
         }
 
-        private async Task<IEnumerable<Task<Indexed<PinResult>>>> PinBatchAsync(Context context, int baseIndex, IReadOnlyList<ContentHash> chunk)
+        private async Task<IEnumerable<Task<Indexed<PinResult>>>> PinBatchAsync(Context context, int baseIndex, IReadOnlyList<ContentHash> chunk, UrgencyHint urgencyHint)
         {
             // This operation is quite different from others because there is no single header response.
             // So instead of using a common functionality we have handle this case separately.
@@ -174,7 +176,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             int sessionId = sessionContext.Value.SessionId;
 
             var pinResults = new List<Indexed<PinResult>>();
-            var bulkPinRequest = new PinBulkRequest { Header = new RequestHeader(context.TraceId, sessionId) };
+            var bulkPinRequest = new PinBulkRequest { Header = sessionContext.Value.CreateHeader(urgencyHint) };
             foreach (var contentHash in chunk)
             {
                 bulkPinRequest.Hashes.Add(
@@ -217,7 +219,8 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             AbsolutePath path,
             FileAccessMode accessMode,
             FileReplacementMode replacementMode,
-            FileRealizationMode realizationMode)
+            FileRealizationMode realizationMode,
+            UrgencyHint urgencyHint = UrgencyHint.Nominal)
         {
             var sessionContext = await CreateSessionContextAsync(context);
             if (!sessionContext)
@@ -225,7 +228,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 return new PlaceFileResult(sessionContext);
             }
 
-            return await PlaceFileAsync(context, sessionContext.Value, contentHash, path, accessMode, replacementMode, realizationMode);
+            return await PlaceFileAsync(context, sessionContext.Value, contentHash, path, accessMode, replacementMode, realizationMode, urgencyHint);
         }
 
         private Task<PlaceFileResult> PlaceFileAsync(
@@ -235,14 +238,15 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             AbsolutePath path,
             FileAccessMode accessMode,
             FileReplacementMode replacementMode,
-            FileRealizationMode realizationMode)
+            FileRealizationMode realizationMode,
+            UrgencyHint urgencyHint)
         {
             return PerformOperationAsync(
                 context,
                 _ => Client.PlaceFileAsync(
                     new PlaceFileRequest
                     {
-                        Header = context.CreateHeader(),
+                        Header = context.CreateHeader(urgencyHint),
                         HashType = (int)contentHash.HashType,
                         ContentHash = contentHash.ToByteString(),
                         Path = path.Path,
@@ -292,7 +296,8 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             OperationContext context,
             ContentHash contentHash,
             AbsolutePath path,
-            FileRealizationMode realizationMode)
+            FileRealizationMode realizationMode,
+            UrgencyHint urgencyHint = UrgencyHint.Nominal)
         {
             var sessionContext = await CreateSessionContextAsync(context);
 
@@ -301,7 +306,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 return new PutResult(sessionContext, contentHash);
             }
 
-            return await PutFileAsync(context, sessionContext.Value, contentHash, path, realizationMode);
+            return await PutFileAsync(context, sessionContext.Value, contentHash, path, realizationMode, urgencyHint);
         }
 
         private Task<PutResult> PutFileAsync(
@@ -309,14 +314,15 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             SessionContext context,
             ContentHash contentHash,
             AbsolutePath path,
-            FileRealizationMode realizationMode)
+            FileRealizationMode realizationMode,
+            UrgencyHint urgencyHint)
         {
             return PerformOperationAsync(
                 context,
                 sessionContext => Client.PutFileAsync(
                     new PutFileRequest
                     {
-                        Header = sessionContext.CreateHeader(),
+                        Header = sessionContext.CreateHeader(urgencyHint),
                         ContentHash = contentHash.ToByteString(),
                         HashType = (int)contentHash.HashType,
                         FileRealizationMode = (int)realizationMode,
@@ -341,7 +347,8 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             OperationContext context,
             HashType hashType,
             AbsolutePath path,
-            FileRealizationMode realizationMode)
+            FileRealizationMode realizationMode,
+            UrgencyHint urgencyHint = UrgencyHint.Nominal)
         {
             var sessionContext = await CreateSessionContextAsync(context);
             if (!sessionContext)
@@ -349,7 +356,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 return new PutResult(sessionContext, new ContentHash(hashType));
             }
 
-            return await PutFileAsync(context, sessionContext.Value, hashType, path, realizationMode);
+            return await PutFileAsync(context, sessionContext.Value, hashType, path, realizationMode, urgencyHint);
         }
 
         private Task<PutResult> PutFileAsync(
@@ -357,14 +364,15 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             SessionContext context,
             HashType hashType,
             AbsolutePath path,
-            FileRealizationMode realizationMode)
+            FileRealizationMode realizationMode,
+            UrgencyHint urgencyHint)
         {
             return PerformOperationAsync(
                 context,
                 sessionContext => Client.PutFileAsync(
                     new PutFileRequest
                     {
-                        Header = sessionContext.CreateHeader(),
+                        Header = sessionContext.CreateHeader(urgencyHint),
                         ContentHash = ByteString.Empty,
                         HashType = (int)hashType,
                         FileRealizationMode = (int)realizationMode,
@@ -385,25 +393,25 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         }
 
         /// <inheritdoc />
-        public Task<PutResult> PutStreamAsync(OperationContext context, ContentHash contentHash, Stream stream, bool createDirectory)
+        public Task<PutResult> PutStreamAsync(OperationContext context, ContentHash contentHash, Stream stream, bool createDirectory, UrgencyHint urgencyHint = UrgencyHint.Nominal)
         {
             return PutStreamInternalAsync(
                 context,
                 stream,
                 contentHash,
                 createDirectory: createDirectory,
-                (sessionContext, tempFile) => PutFileAsync(context, sessionContext, contentHash, tempFile, FileRealizationMode.HardLink));
+                (sessionContext, tempFile) => PutFileAsync(context, sessionContext, contentHash, tempFile, FileRealizationMode.HardLink, urgencyHint));
         }
 
         /// <inheritdoc />
-        public Task<PutResult> PutStreamAsync(OperationContext context, HashType hashType, Stream stream, bool createDirectory)
+        public Task<PutResult> PutStreamAsync(OperationContext context, HashType hashType, Stream stream, bool createDirectory, UrgencyHint urgencyHint = UrgencyHint.Nominal)
         {
             return PutStreamInternalAsync(
                 context,
                 stream,
                 new ContentHash(hashType),
                 createDirectory: createDirectory,
-                (sessionContext, tempFile) => PutFileAsync(context, sessionContext, hashType, tempFile, FileRealizationMode.HardLink));
+                (sessionContext, tempFile) => PutFileAsync(context, sessionContext, hashType, tempFile, FileRealizationMode.HardLink, urgencyHint));
         }
 
         /// <inheritdoc />
@@ -461,7 +469,12 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             }
         }
 
-        private async Task<PutResult> PutStreamInternalAsync(OperationContext context, Stream stream, ContentHash contentHash, bool createDirectory, Func<SessionContext, AbsolutePath, Task<PutResult>> putFileFunc)
+        private async Task<PutResult> PutStreamInternalAsync(
+            OperationContext context,
+            Stream stream,
+            ContentHash contentHash,
+            bool createDirectory,
+            Func<SessionContext, AbsolutePath, Task<PutResult>> putFileFunc)
         {
             var sessionContextResult = await CreateSessionContextAsync(context);
             if (!sessionContextResult)

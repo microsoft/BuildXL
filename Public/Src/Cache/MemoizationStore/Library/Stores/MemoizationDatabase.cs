@@ -62,6 +62,30 @@ namespace BuildXL.Cache.MemoizationStore.Stores
             ContentHashListWithDeterminism replacement);
 
         /// <summary>
+        /// Registers the associated content for the strong fingerprint and content hash list
+        /// </summary>
+        public Task<BoolResult> RegisterAssociatedContentAsync(
+            OperationContext context,
+            StrongFingerprint strongFingerprint,
+            ContentHashListWithDeterminism contentHashList)
+        {
+            return context.PerformOperationWithTimeoutAsync(
+                Tracer,
+                nestedContext => RegisterAssociatedContentCoreAsync(nestedContext, strongFingerprint, contentHashList),
+                extraEndMessage: result => $"StrongFingerprint=[{strongFingerprint}] ContentHashList=[{contentHashList.ToTraceString()}]",
+                timeout: _timeout);
+        }
+
+        /// <nodoc />
+        protected virtual Task<BoolResult> RegisterAssociatedContentCoreAsync(
+            OperationContext context,
+            StrongFingerprint strongFingerprint,
+            ContentHashListWithDeterminism contentHashList)
+        {
+            return BoolResult.SuccessTask;
+        }
+
+        /// <summary>
         /// Load a ContentHashList and the token used to replace it.
         /// </summary>
         public Task<ContentHashListResult> GetContentHashListAsync(OperationContext context, StrongFingerprint strongFingerprint, bool preferShared)

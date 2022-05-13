@@ -8,9 +8,12 @@ using BuildXL.Cache.ContentStore.Distributed.Services;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
+using BuildXL.Cache.Host.Configuration;
 using BuildXL.Cache.MemoizationStore.Sessions;
 using BuildXL.Cache.MemoizationStore.Stores;
 using BuildXL.Cache.MemoizationStore.Tracing;
+
+#nullable enable annotations
 
 namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
 {
@@ -66,10 +69,15 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
                     }
                 }
 
+                DistributedContentSettings? dcs = _contentLocationStoreServices.Dependencies.DistributedContentSettings.InstanceOrDefault();
                 MemoizationStore = new DatabaseMemoizationStore(
                     new DistributedMemoizationDatabase(
                         _contentLocationStoreServices.LocalLocationStore.Instance,
-                        getGlobalMemoizationDatabase()));
+                        getGlobalMemoizationDatabase()))
+                {
+                    OptimizeWrites = dcs?.OptimizeDistributedCacheWrites == true,
+                    RegisterAssociatedContent = dcs?.RegisterHintHandling.Value.HasFlag(RegisterHintHandling.RegisterAssociatedContent) == true
+                };
 
                 return await MemoizationStore.StartupAsync(context);
             });

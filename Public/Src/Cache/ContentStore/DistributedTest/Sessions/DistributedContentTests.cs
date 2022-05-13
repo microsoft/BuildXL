@@ -124,6 +124,7 @@ namespace ContentStoreTest.Distributed.Sessions
             public readonly IList<IStartupShutdownSlim> Servers;
             public readonly int[] Ports;
             public readonly int Iteration;
+            public ImplicitPin ImplicitPin { get; private set; }
 
             public virtual bool ShouldCreateContentSessions => true;
 
@@ -177,6 +178,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
             public virtual async Task StartupAsync(ImplicitPin implicitPin, int? storeToStartupLast, string buildId = null)
             {
+                ImplicitPin = implicitPin;
                 var startupResults = await TaskUtilities.SafeWhenAll(Servers.Select(async (server, index) =>
                 {
                     if (index == storeToStartupLast)
@@ -304,7 +306,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 return EnumerateWorkersIndices().Select(i => GetDistributedSession(i)).ToArray();
             }
 
-            internal FileSystemContentSession GetFileSystemSession(int idx, bool primary = true)
+            public FileSystemContentSession GetFileSystemSession(int idx, bool primary = true)
             {
                 return GetTypedSession<FileSystemContentSession>(idx, primary);
             }
@@ -884,6 +886,11 @@ namespace ContentStoreTest.Distributed.Sessions
         {
         }
 
+        protected virtual Task CleanupTestRunAsync(TestContext context)
+        {
+            return BoolResult.SuccessTask;
+        }
+
         public async Task RunTestAsync(
             int storeCount,
             Func<TestContext, Task> testFunc,
@@ -995,6 +1002,8 @@ namespace ContentStoreTest.Distributed.Sessions
                     }
 
                     await testFunc(testContext);
+
+                    await CleanupTestRunAsync(testContext);
 
                     await testContext.ShutdownAsync();
                 }

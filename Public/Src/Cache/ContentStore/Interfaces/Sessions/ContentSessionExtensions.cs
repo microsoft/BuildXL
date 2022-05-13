@@ -152,7 +152,8 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Sessions
             HashType hashType,
             bool provideHash,
             long size,
-            CancellationToken ct)
+            CancellationToken ct,
+            UrgencyHint urgencyHint = UrgencyHint.Nominal)
         {
             Contract.RequiresNotNull(session);
             Contract.RequiresNotNull(context);
@@ -166,11 +167,11 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Sessions
             {
                 if (!provideHash)
                 {
-                    return await session.PutStreamAsync(c, hashType, stream, ct).ConfigureAwait(false);
+                    return await session.PutStreamAsync(c, hashType, stream, ct, urgencyHint).ConfigureAwait(false);
                 }
 
                 var hash = HashInfoLookup.GetContentHasher(hashType).GetContentHash(data);
-                return await session.PutStreamAsync(c, hash, stream, ct).ConfigureAwait(false);
+                return await session.PutStreamAsync(c, hash, stream, ct, urgencyHint).ConfigureAwait(false);
             }
         }
 
@@ -201,7 +202,8 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Sessions
             HashType hashType,
             bool provideHash,
             long size,
-            CancellationToken ct)
+            CancellationToken ct,
+            UrgencyHint urgencyHint = UrgencyHint.Nominal)
         {
             Contract.RequiresNotNull(session);
             Contract.RequiresNotNull(context);
@@ -210,7 +212,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Sessions
             using (var directory = new DisposableDirectory(fileSystem))
             {
                 var path = directory.CreateRandomFileName();
-                return await session.PutRandomFileAsync(context, fileSystem, path, hashType, provideHash, size, ct);
+                return await session.PutRandomFileAsync(context, fileSystem, path, hashType, provideHash, size, ct, urgencyHint);
             }
         }
 
@@ -225,7 +227,8 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Sessions
             HashType hashType,
             bool provideHash,
             long size,
-            CancellationToken ct)
+            CancellationToken ct,
+            UrgencyHint urgencyHint = UrgencyHint.Nominal)
         {
             Contract.RequiresNotNull(session);
             Contract.RequiresNotNull(context);
@@ -239,11 +242,11 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Sessions
 
             if (!provideHash)
             {
-                return session.PutFileAsync(c, hashType, path, FileRealizationMode.Any, ct);
+                return session.PutFileAsync(c, hashType, path, FileRealizationMode.Any, ct, urgencyHint);
             }
 
             var hash = HashInfoLookup.GetContentHasher(hashType).GetContentHash(data);
-            return session.PutFileAsync(c, hash, path, FileRealizationMode.Any, ct);
+            return session.PutFileAsync(c, hash, path, FileRealizationMode.Any, ct, urgencyHint);
         }
     }
 }

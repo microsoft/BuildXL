@@ -55,6 +55,11 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         public bool OptimizeWrites { get; set; } = false;
 
         /// <summary>
+        /// Indicates calls to <see cref="AddOrGetContentHashListAsync"/> should register associated content for content hash lists
+        /// </summary>
+        public bool RegisterAssociatedContent { get; set; } = false;
+
+        /// <summary>
         ///     Initializes a new instance of the <see cref="DatabaseMemoizationStore"/> class.
         /// </summary>
         public DatabaseMemoizationStore(MemoizationDatabase database)
@@ -151,6 +156,12 @@ namespace BuildXL.Cache.MemoizationStore.Stores
 
             return ctx.PerformOperationAsync(_tracer, async () =>
             {
+                if (RegisterAssociatedContent)
+                {
+                    await Database.RegisterAssociatedContentAsync(ctx, strongFingerprint, contentHashListWithDeterminism)
+                        .ThrowIfFailureAsync();
+                }
+
                 // We do multiple attempts here because we have a "CompareExchange" RocksDB in the heart
                 // of this implementation, and this may fail if the database is heavily contended.
                 // Unfortunately, there is not much we can do at the time of writing to avoid this

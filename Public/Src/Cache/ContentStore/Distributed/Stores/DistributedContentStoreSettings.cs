@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling;
 using BuildXL.Cache.ContentStore.Distributed.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Distributed;
+using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using ContentStore.Grpc;
 
 namespace BuildXL.Cache.ContentStore.Distributed.Stores
@@ -241,5 +242,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         /// If true, the build id will be put into the cache as the file to prevent the removal of this information during reconciliation.
         /// </summary>
         public bool StoreBuildIdInCache { get; set; }
+
+        /// <summary>
+        /// If true, put calls with <see cref="UrgencyHint.SkipRegisterContent"/> do not register content.
+        /// </summary>
+        public bool RespectSkipRegisterContentHint { get; set; }
     }
 }

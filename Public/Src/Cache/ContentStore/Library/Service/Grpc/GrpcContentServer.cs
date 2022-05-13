@@ -832,7 +832,8 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                     PinResult pinResult = await session.PinAsync(
                         context.OperationContext,
                         request.ContentHash.ToContentHash((HashType)request.HashType),
-                        context.Token);
+                        context.Token,
+                        urgencyHint: (UrgencyHint)request.Header.UrgencyHint);
                     return new PinResponse
                     {
                         Header = new ResponseHeader(
@@ -877,7 +878,8 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                     List<Task<Indexed<PinResult>>> pinResults = (await session.PinAsync(
                         context.OperationContext,
                         pinList,
-                        context.Token)).ToList();
+                        context.Token,
+                        urgencyHint: (UrgencyHint)request.Header.UrgencyHint)).ToList();
                     var response = new PinBulkResponse();
                     try
                     {
@@ -939,7 +941,8 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                         (FileAccessMode)request.FileAccessMode,
                         FileReplacementMode.ReplaceExisting, // Hard-coded because the service can't tell if this is a retry (where the previous try may have left a partial file)
                         (FileRealizationMode)request.FileRealizationMode,
-                        token);
+                        token,
+                        urgencyHint: (UrgencyHint)request.Header.UrgencyHint);
                     return new PlaceFileResponse
                     {
                         Header =
@@ -977,7 +980,8 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                             (HashType)request.HashType,
                             new AbsolutePath(request.Path),
                             (FileRealizationMode)request.FileRealizationMode,
-                            context.Token);
+                            context.Token,
+                            urgencyHint: (UrgencyHint)request.Header.UrgencyHint);
                     }
                     else
                     {
@@ -986,7 +990,8 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                             request.ContentHash.ToContentHash((HashType)request.HashType),
                             new AbsolutePath(request.Path),
                             (FileRealizationMode)request.FileRealizationMode,
-                            context.Token);
+                            context.Token,
+                            urgencyHint: (UrgencyHint)request.Header.UrgencyHint);
                     }
 
                     return new PutFileResponse

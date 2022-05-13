@@ -1324,6 +1324,31 @@ namespace BuildXL.Cache.Host.Configuration
         public RetryPolicyConfiguration BlobClusterStateStorageRetryPolicy { get; set; }
 
         #endregion
+
+        [DataMember]
+        public bool OptimizeDistributedCacheWrites { get; set; }
+
+        [DataMember]
+        public EnumSetting<RegisterHintHandling> RegisterHintHandling { get; set; }
+    }
+
+    [Flags]
+    public enum RegisterHintHandling
+    {
+        /// <summary>
+        /// Ignore hints
+        /// </summary>
+        Ignore = 0,
+
+        /// <summary>
+        /// Respect register associated content hint
+        /// </summary>
+        RegisterAssociatedContent = 1,
+
+        /// <summary>
+        /// Respect skip register and register associated content hints
+        /// </summary>
+        SkipAndRegisterAssociatedContent = 1 << 1 | RegisterAssociatedContent
     }
 
     public enum CheckpointDistributionModes

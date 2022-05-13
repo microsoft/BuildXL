@@ -1184,6 +1184,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             LazyTouchEventOnly,
             SkippedDueToRecentAdd,
             SkippedDueToRedundantAdd,
+            SkippedDueToMissingLocalContent,
         }
 
         private enum RegisterCoreAction
@@ -1206,6 +1207,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     return RegisterCoreAction.Events;
                 case RegisterAction.SkippedDueToRecentAdd:
                 case RegisterAction.SkippedDueToRedundantAdd:
+                case RegisterAction.SkippedDueToMissingLocalContent:
                     return RegisterCoreAction.Skip;
                 default:
                     throw new ArgumentOutOfRangeException(nameof(action), action, $"Unexpected action '{action}'.");
@@ -1303,7 +1305,34 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Notifies a central store that content represented by <paramref name="contentHashes"/> is available on a current machine.
         /// </summary>
-        public async Task<BoolResult> RegisterLocalLocationAsync(OperationContext context, MachineId machineId, IReadOnlyList<ContentHashWithSize> contentHashes, bool touch)
+        public async Task<BoolResult> RegisterLocalContentAsync(OperationContext context, IReadOnlyList<ContentHash> contentHashes, bool touch)
+        {
+            if (HasResult(await PrepareForWriteAsync(contentHashes), out var result))
+            {
+                return result;
+            }
+
+            Contract.AssertNotNull(_localMachineId);
+
+            var hashes = contentHashes.SelectArray(hash => GetContentHashAndSize(context, hash));
+            return await RegisterLocalLocationAsync(context, _localMachineId.Value, hashes, touch, isRegisterLocalContent: true);
+        }
+
+        private ContentHashWithSize GetContentHashAndSize(OperationContext context, ContentHash hash)
+        {
+            long size = -1;
+            if (_localContentStore?.TryGetContentInfo(hash, out var info) == true)
+            {
+                size = info.Size;
+            }
+
+            return new ContentHashWithSize(hash, size);
+        }
+
+        /// <summary>
+        /// Notifies a central store that content represented by <paramref name="contentHashes"/> is available on a current machine.
+        /// </summary>
+        public async Task<BoolResult> RegisterLocalLocationAsync(OperationContext context, MachineId machineId, IReadOnlyList<ContentHashWithSize> contentHashes, bool touch, bool isRegisterLocalContent = false)
         {
             Contract.Requires(contentHashes != null);
 
@@ -1325,7 +1354,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     // Select which hashes are not already registered for the local machine and those which must eagerly go to the global store
                     foreach (var contentHash in contentHashes)
                     {
-                        var registerAction = GetRegisterAction(context, machineId, contentHash.Hash, now);
+                        var registerAction = (isRegisterLocalContent && contentHash.Size < 0)
+                            ? RegisterAction.SkippedDueToMissingLocalContent // this is a local content register where content was not found. Skip.
+                            : GetRegisterAction(context, machineId, contentHash.Hash, now);
                         actions.Add(registerAction);
 
                         var coreAction = ToCoreAction(registerAction);
@@ -1345,7 +1376,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     }
 
                     var registerActionsMessage = string.Join(", ", contentHashes.Select((c, i) => $"{new ShortHash(c.Hash)}={actions[i]}"));
-                    extraMessage = $"Register actions(Eager={eagerContentHashes.Count.ToString()}, Event={eventContentHashes.Count.ToString()}): [{registerActionsMessage}]";
+                    extraMessage = $"Register actions(Eager={eagerContentHashes.Count}, Event={eventContentHashes.Count}, Total={contentHashes.Count}): [{registerActionsMessage}]";
 
                     if (eventContentHashes.Count != 0)
                     {
@@ -1376,7 +1407,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 },
                 Counters[ContentLocationStoreCounters.RegisterLocalLocation],
                 traceOperationStarted: false,
-                extraEndMessage: _ => extraMessage);
+                extraEndMessage: _ => extraMessage,
+                caller: isRegisterLocalContent ? nameof(RegisterLocalContentAsync) : nameof(RegisterLocalLocationAsync));
         }
 
         /// <nodoc />

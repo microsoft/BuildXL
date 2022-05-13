@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Sessions;
@@ -657,7 +658,10 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             }
 
             /// <nodoc />
-            public RequestHeader CreateHeader() => new RequestHeader(TracingContext.TraceId, SessionId);
+            public RequestHeader CreateHeader(UrgencyHint urgencyHint = UrgencyHint.Nominal) => new RequestHeader(TracingContext.TraceId, SessionId)
+            {
+                UrgencyHint = (int)urgencyHint
+            };
         }
 
     }

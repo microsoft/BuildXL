@@ -60,6 +60,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             {
                 return PutCoreAsync(
                     operationContext,
+                    urgencyHint,
                     (decoratedStreamSession, wrapStream) => decoratedStreamSession.PutFileAsync(operationContext, path, hashType, realizationMode, operationContext.Token, urgencyHint, wrapStream),
                     session => session.PutFileAsync(operationContext, hashType, path, realizationMode, operationContext.Token, urgencyHint));
             });
@@ -80,6 +81,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             {
                 return PutCoreAsync(
                     operationContext,
+                    urgencyHint,
                     (decoratedStreamSession, wrapStream) => decoratedStreamSession.PutFileAsync(operationContext, path, contentHash, realizationMode, operationContext.Token, urgencyHint, wrapStream),
                     session => session.PutFileAsync(operationContext, contentHash, path, realizationMode, operationContext.Token, urgencyHint));
             });
@@ -108,6 +110,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         {
             return PutCoreAsync(
                 operationContext,
+                urgencyHint,
                 (decoratedStreamSession, wrapStream) => decoratedStreamSession.PutStreamAsync(operationContext, hashType, wrapStream(stream), operationContext.Token, urgencyHint),
                 session => session.PutStreamAsync(operationContext, hashType, stream, operationContext.Token, urgencyHint));
         }
@@ -122,6 +125,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         {
             return PutCoreAsync(
                 operationContext,
+                urgencyHint,
                 (decoratedStreamSession, wrapStream) => decoratedStreamSession.PutStreamAsync(operationContext, contentHash, wrapStream(stream), operationContext.Token, urgencyHint),
                 session => session.PutStreamAsync(operationContext, contentHash, stream, operationContext.Token, urgencyHint));
         }
@@ -132,6 +136,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         /// </summary>
         private async Task<PutResult> PutCoreAsync(
             OperationContext context,
+            UrgencyHint urgencyHint,
             Func<IDecoratedStreamContentSession, Func<Stream, Stream>, Task<PutResult>> putRecordedAsync,
             Func<IContentSession, Task<PutResult>> putAsync)
         {
@@ -166,7 +171,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             }
 
             // It is important to register location before requesting the proactive copy; otherwise, we can fail the proactive copy.
-            var registerResult = await RegisterPutAsync(context, UrgencyHint.Nominal, result);
+            var registerResult = await RegisterPutAsync(context, urgencyHint, result);
 
             // Only perform proactive copy to other machines if we succeeded in registering our location.
             if (registerResult && Settings.ProactiveCopyOnPut && Settings.ProactiveCopyMode != ProactiveCopyMode.Disabled)
@@ -199,7 +204,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
         private async Task<PutResult> RegisterPutAsync(OperationContext context, UrgencyHint urgencyHint, PutResult putResult)
         {
-            if (putResult.Succeeded)
+            if (putResult.Succeeded && ShouldRegister(urgencyHint))
             {
                 var updateResult = await ContentLocationStore.RegisterLocalLocationAsync(
                     context,
@@ -214,6 +219,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             }
 
             return putResult;
+        }
+
+        private bool ShouldRegister(UrgencyHint urgencyHint)
+        {
+            return !Settings.RespectSkipRegisterContentHint || urgencyHint != UrgencyHint.SkipRegisterContent;
         }
     }
 }

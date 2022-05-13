@@ -54,6 +54,7 @@ service ContentServer {
 message RequestHeader {
     int32 SessionId = 1;
     string TraceId = 2;
+    int32 UrgencyHint = 3;
 }
 
 message ResponseHeader {

@@ -49,7 +49,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
                 operationContext,
                 stream,
                 retryCounter,
-                args => RpcClient.PutStreamAsync(operationContext, hashType, args.putStream, args.createDirectory));
+                args => RpcClient.PutStreamAsync(operationContext, hashType, args.putStream, args.createDirectory, urgencyHint));
         }
 
         /// <inheritdoc />
@@ -60,7 +60,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
                 operationContext,
                 stream,
                 retryCounter,
-                args => RpcClient.PutStreamAsync(operationContext, contentHash, args.putStream, args.createDirectory));
+                args => RpcClient.PutStreamAsync(operationContext, contentHash, args.putStream, args.createDirectory, urgencyHint));
         }
 
         private async Task<PutResult> PutStreamCoreAsync(OperationContext operationContext, Stream stream, Counter retryCounter, Func<(Stream putStream, bool createDirectory), Task<PutResult>> putStreamAsync)
@@ -97,7 +97,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
         {
             return PerformRetries(
                 operationContext,
-                () => RpcClient.PutFileAsync(operationContext, hashType, path, realizationMode),
+                () => RpcClient.PutFileAsync(operationContext, hashType, path, realizationMode, urgencyHint),
                 retryCounter: retryCounter);
         }
 
@@ -112,7 +112,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
         {
             return PerformRetries(
                 operationContext,
-                () => RpcClient.PutFileAsync(operationContext, contentHash, path, realizationMode),
+                () => RpcClient.PutFileAsync(operationContext, contentHash, path, realizationMode, urgencyHint),
                 retryCounter: retryCounter);
         }
     }

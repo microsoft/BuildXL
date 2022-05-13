@@ -153,7 +153,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
         {
             return PerformRetries(
                 operationContext,
-                () => RpcClient.PinAsync(operationContext, contentHash),
+                () => RpcClient.PinAsync(operationContext, contentHash, urgencyHint),
                 retryCounter: retryCounter);
         }
 
@@ -163,7 +163,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
         {
             return PerformRetries(
                 operationContext,
-                () => RpcClient.OpenStreamAsync(operationContext, contentHash),
+                () => RpcClient.OpenStreamAsync(operationContext, contentHash, urgencyHint),
                 retryCounter: retryCounter);
         }
 
@@ -194,7 +194,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
 
             return PerformRetries(
                 operationContext,
-                () => RpcClient.PlaceFileAsync(operationContext, contentHash, path, accessMode, replacementMode, realizationMode),
+                () => RpcClient.PlaceFileAsync(operationContext, contentHash, path, accessMode, replacementMode, realizationMode, urgencyHint),
                 retryCounter: retryCounter);
         }
 
@@ -230,7 +230,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
                         Tracer.Debug(operationContext, $"{Tracer.Name}.PinBulk retry #{retry}");
                         retryCounter.Increment();
                     }
-                    return await RpcClient.PinAsync(operationContext, contentHashes);
+                    return await RpcClient.PinAsync(operationContext, contentHashes, urgencyHint);
                 }
                 finally
                 {

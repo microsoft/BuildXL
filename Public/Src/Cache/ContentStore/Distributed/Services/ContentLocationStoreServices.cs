@@ -26,6 +26,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
 
         /// <nodoc />
         public OptionalServiceDefinition<IRoleObserver> RoleObserver { get; init; }
+
+        /// <nodoc />
+        public OptionalServiceDefinition<DistributedContentSettings> DistributedContentSettings { get; init; }
     }
 
     /// <summary>

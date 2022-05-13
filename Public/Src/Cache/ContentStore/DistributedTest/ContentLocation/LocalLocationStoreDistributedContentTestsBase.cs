@@ -28,12 +28,14 @@ using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using BuildXL.Cache.ContentStore.Service;
+using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.Host.Configuration;
 using BuildXL.Cache.Host.Service;
 using BuildXL.Cache.Host.Service.Internal;
+using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using ContentStoreTest.Distributed.Redis;
 using ContentStoreTest.Test;
 using Xunit.Abstractions;
@@ -382,8 +384,8 @@ namespace ContentStoreTest.Distributed.Sessions
             );
 
             arguments.Overrides = TestInfos[index].Overrides;
-
             arguments = ModifyArguments(arguments);
+            TestInfos[index].Arguments = arguments;
 
             return CreateStore(context, arguments);
         }
@@ -437,7 +439,7 @@ namespace ContentStoreTest.Distributed.Sessions
             var persistentState = new MockPersistentEventStorageState();
             TestInfos = Enumerable.Range(0, storeCount).Select(i =>
             {
-                return new TestInfo()
+                return new TestInfo(i)
                 {
                     Overrides = new TestHostOverrides(this, i)
                     {
@@ -449,6 +451,8 @@ namespace ContentStoreTest.Distributed.Sessions
             base.InitializeTestRun(storeCount);
         }
 
+        public record SessionAndStore(ICacheSession Session, IStartupShutdownSlim Store);
+
         public class TestDistributedContentSettings : DistributedContentSettings
         {
             public int TestMachineIndex { get; set; }
@@ -456,8 +460,10 @@ namespace ContentStoreTest.Distributed.Sessions
             public int TestIteration { get; set; } = 0;
         }
 
-        protected class TestInfo
+        protected record TestInfo(int Index)
         {
+            public DistributedCacheServiceArguments Arguments;
+            public SessionAndStore ClientSesssion;
             public TestHostOverrides Overrides;
         }
 

@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing;
@@ -13,6 +14,7 @@ using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.MemoizationStore.Interfaces.Results;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Cache.MemoizationStore.Stores;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tasks;
 
 namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
@@ -58,6 +60,16 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
                     strongFingerprint, 
                     new MetadataEntry(replacement, _localLocationStore.EventStore.Clock.UtcNow))).ThrowIfFailure();
             return result;
+        }
+
+        /// <inheritdoc />
+        protected override Task<BoolResult> RegisterAssociatedContentCoreAsync(OperationContext context, StrongFingerprint strongFingerprint, ContentHashListWithDeterminism contentHashList)
+        {
+            var associatedHashes = strongFingerprint.Selector.ContentHash.IsZero()
+                ? contentHashList.ContentHashList.Hashes
+                : contentHashList.ContentHashList.Hashes.ConcatAsArray(new[] { strongFingerprint.Selector.ContentHash });
+
+            return _localLocationStore.RegisterLocalContentAsync(context, associatedHashes, touch: true);
         }
 
         /// <inheritdoc />

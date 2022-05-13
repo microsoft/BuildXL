@@ -30,17 +30,17 @@ namespace BuildXL.Cache.ContentStore.Service
         /// <summary>
         /// Ensure content does not get deleted.
         /// </summary>
-        Task<PinResult> PinAsync(OperationContext context, ContentHash contentHash);
+        Task<PinResult> PinAsync(OperationContext context, ContentHash contentHash, UrgencyHint urgencyHint = UrgencyHint.Nominal);
 
         /// <summary>
         /// Bulk pins content in the CAS.
         /// </summary>
-        Task<IEnumerable<Task<Indexed<PinResult>>>> PinAsync(OperationContext context, IReadOnlyList<ContentHash> contentHashes);
+        Task<IEnumerable<Task<Indexed<PinResult>>>> PinAsync(OperationContext context, IReadOnlyList<ContentHash> contentHashes, UrgencyHint urgencyHint = UrgencyHint.Nominal);
 
         /// <summary>
         /// Get content stream
         /// </summary>
-        Task<OpenStreamResult> OpenStreamAsync(OperationContext context, ContentHash contentHash);
+        Task<OpenStreamResult> OpenStreamAsync(OperationContext context, ContentHash contentHash, UrgencyHint urgencyHint = UrgencyHint.Nominal);
 
         /// <summary>
         /// Materialize content to the filesystem.
@@ -52,23 +52,24 @@ namespace BuildXL.Cache.ContentStore.Service
             AbsolutePath path,
             FileAccessMode accessMode,
             FileReplacementMode replacementMode,
-            FileRealizationMode realizationMode
+            FileRealizationMode realizationMode,
+            UrgencyHint urgencyHint = UrgencyHint.Nominal
         );
 
         /// <summary>
         /// Add content from a stream.
         /// </summary>
-        Task<PutResult> PutStreamAsync(OperationContext context, HashType hashType, Stream stream, bool createDirectory);
+        Task<PutResult> PutStreamAsync(OperationContext context, HashType hashType, Stream stream, bool createDirectory, UrgencyHint urgencyHint = UrgencyHint.Nominal);
 
         /// <summary>
         /// Add content from a stream.
         /// </summary>
-        Task<PutResult> PutStreamAsync(OperationContext context, ContentHash contentHash, Stream stream, bool createDirectory);
+        Task<PutResult> PutStreamAsync(OperationContext context, ContentHash contentHash, Stream stream, bool createDirectory, UrgencyHint urgencyHint = UrgencyHint.Nominal);
 
         /// <summary>
         /// Add content from a file.
         /// </summary>
-        Task<PutResult> PutFileAsync(OperationContext context, HashType hashType, AbsolutePath path, FileRealizationMode realizationMode);
+        Task<PutResult> PutFileAsync(OperationContext context, HashType hashType, AbsolutePath path, FileRealizationMode realizationMode, UrgencyHint urgencyHint = UrgencyHint.Nominal);
 
         /// <summary>
         /// Add content from a file.
@@ -77,7 +78,8 @@ namespace BuildXL.Cache.ContentStore.Service
             OperationContext context,
             ContentHash contentHash,
             AbsolutePath path,
-            FileRealizationMode realizationMode);
+            FileRealizationMode realizationMode,
+            UrgencyHint urgencyHint = UrgencyHint.Nominal);
 
         /// <summary>
         /// Remove given content from all sessions.

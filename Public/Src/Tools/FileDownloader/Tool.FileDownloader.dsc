@@ -21,7 +21,6 @@ namespace FileDownloader {
         sources: globR(d`.`, "Downloader*.cs"),
         references:[
             importFrom("Newtonsoft.Json").pkg,
-            importFrom("BuildXL.Utilities").VstsAuthentication.dll,
             importFrom("BuildXL.Utilities").Collections.dll,
             importFrom("BuildXL.Utilities").Native.dll,
             importFrom("BuildXL.Utilities.Instrumentation").Common.dll,

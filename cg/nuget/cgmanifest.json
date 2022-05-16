@@ -2769,25 +2769,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "NuGet.CommandLine",
-          "Version": "5.11.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "NuGet.Common",
-          "Version": "5.11.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "NuGet.Configuration",
-          "Version": "5.11.0"
+          "Version": "4.7.1"
         }
       }
     },
@@ -2796,25 +2778,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "NuGet.Frameworks",
-          "Version": "5.11.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "NuGet.Packaging",
-          "Version": "5.11.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "NuGet.Protocol",
-          "Version": "5.11.0"
+          "Version": "5.0.0"
         }
       }
     },
@@ -2823,7 +2787,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "NuGet.Versioning",
-          "Version": "5.11.0"
+          "Version": "4.6.0"
         }
       }
     },

@@ -31,7 +31,7 @@ namespace BuildXL.FrontEnd.Core
 
         // The file format change will force specs regeneration.
         // Change the version if the nuget spec generation has changed in a backward incompatible way.
-        private const string HashFileFormatVersion = "10";
+        private const string HashFileFormatVersion = "9";
 
         /// <summary>
         /// The minimal number of lines for the hash file.

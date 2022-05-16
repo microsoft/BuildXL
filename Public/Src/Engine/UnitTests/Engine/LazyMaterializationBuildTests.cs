@@ -35,6 +35,7 @@ namespace Test.BuildXL.Engine
     {
         private CacheInitializer m_cacheInitializer;
 
+
         /* The build used for tests in this class generate the following layout
          *
          * \HelloWorldFinal.exe.config (source)

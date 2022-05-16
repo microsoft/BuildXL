@@ -64,7 +64,7 @@ namespace Test.BuildXL.FrontEnd.Nuget
             var nugetResolver = CreateWorkspaceNugetResolverForTesting();
 
             var allPackages = new Dictionary<string, INugetPackage> { [packageOnDisk.Package.Id] = packageOnDisk.Package };
-            var analyzedPackage = nugetResolver.AnalyzeNugetPackage(packageOnDisk, AbsolutePath.Invalid, false);
+            var analyzedPackage = nugetResolver.AnalyzeNugetPackage(packageOnDisk, false);
 
             XAssert.IsTrue(analyzedPackage.Succeeded);
 
@@ -86,7 +86,7 @@ namespace Test.BuildXL.FrontEnd.Nuget
 
             var allPackages = new Dictionary<string, INugetPackage> { [packageOnDisk.Package.Id] = packageOnDisk.Package };
 
-            var analyzedPackage = nugetResolver.AnalyzeNugetPackage(packageOnDisk, AbsolutePath.Invalid, false);
+            var analyzedPackage = nugetResolver.AnalyzeNugetPackage(packageOnDisk, false);
 
             XAssert.IsTrue(analyzedPackage.Succeeded);
 
@@ -105,10 +105,10 @@ namespace Test.BuildXL.FrontEnd.Nuget
             var packageText = File.ReadAllText(packageDsc);
             XAssert.IsFalse(packageText.Contains("export * from"));
             XAssert.IsFalse(packageText.Contains("/Foo.Bar.dsc\""));
-            XAssert.IsTrue(packageText.Contains(@"id: ""Foo.Bar"""));
-            XAssert.IsTrue(packageText.Contains(@"version: ""1.2"""));
-            XAssert.IsTrue(packageText.Contains("r`Folder/a.txt`"));
-            XAssert.IsTrue(packageText.Contains("r`Folder/b.txt`"));
+            XAssert.IsTrue(packageText.Contains("/pkgs/Foo.Bar.1.2`"));
+            XAssert.IsTrue(packageText.Contains("packageRoot = d`"));
+            XAssert.IsTrue(packageText.Contains("f`${packageRoot}/Folder/a.txt`"));
+            XAssert.IsTrue(packageText.Contains("f`${packageRoot}/Folder/b.txt`"));
         }
 
         [Fact]
@@ -140,7 +140,7 @@ namespace Test.BuildXL.FrontEnd.Nuget
             var pathTable = m_testContext.PathTable;
             var packageOnDisk = CreateTestPackageOnDisk(includeScriptSpec: false, version: version);
             var nugetResolver = CreateWorkspaceNugetResolverForTesting();
-            var analyzedPackage = nugetResolver.AnalyzeNugetPackage(packageOnDisk, AbsolutePath.Invalid, false);
+            var analyzedPackage = nugetResolver.AnalyzeNugetPackage(packageOnDisk, false);
             XAssert.IsTrue(analyzedPackage.Succeeded);
             var allPackages = new Dictionary<string, NugetAnalyzedPackage> { [packageOnDisk.Package.Id] = analyzedPackage.Result };
             XAssert.IsTrue(analyzedPackage.Succeeded);
@@ -314,7 +314,7 @@ $@"module({{
         {
             var allPackages = packagesOnDisk.ToDictionary(kvp => kvp.Package.Id, kvp => kvp.Package);
 
-            var allAnalyzedPackages = packagesOnDisk.ToDictionary(package => package.Package.Id, package => resolver.AnalyzeNugetPackage(package, AbsolutePath.Invalid, false).Result);
+            var allAnalyzedPackages = packagesOnDisk.ToDictionary(package => package.Package.Id, package => resolver.AnalyzeNugetPackage(package, false).Result);
 
             resolver.SetDownloadedPackagesForTesting(allAnalyzedPackages);
 

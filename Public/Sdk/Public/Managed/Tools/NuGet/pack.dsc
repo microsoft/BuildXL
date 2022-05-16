@@ -14,8 +14,7 @@ export const tool : Transformer.ToolDefinition = {
     exe: Nuget.Contents.all.getFile(r`tools/NuGet.exe`),
     description: "NuGet pack",
     untrackedDirectoryScopes: [
-        d`${Context.getMount("ProgramData").path}/Nuget`,
-        ...addIfLazy(Context.isWindowsOS(), () => [d`${Context.getMount("ProgramFilesX86").path}/Nuget`]),
+        d`${Context.getMount("ProgramData").path}/Nuget`
     ],
     dependsOnWindowsDirectories: true,
     dependsOnAppDataDirectory: true,

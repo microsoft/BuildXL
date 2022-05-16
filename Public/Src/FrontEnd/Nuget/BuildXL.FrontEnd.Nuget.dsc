@@ -14,11 +14,9 @@ namespace Nuget {
         sources: globR(d`.`, "*.cs"),
         references: [
             ...addIf(BuildXLSdk.isFullFramework,
-                NetFx.Netstandard.dll,
-                NetFx.System.IO.Compression.dll,
                 NetFx.System.Xml.dll,
                 NetFx.System.Xml.Linq.dll,
-                NetFx.System.Net.Http.dll
+                NetFx.Netstandard.dll
             ),
             ...addIf(BuildXLSdk.isFullFramework,
                 importFrom("System.Memory").withQualifier({targetFramework: "netstandard2.0"}).pkg
@@ -35,7 +33,6 @@ namespace Nuget {
             importFrom("BuildXL.Engine").Processes.dll,
             importFrom("BuildXL.Pips").dll,
             importFrom("BuildXL.Utilities").dll,
-            importFrom("BuildXL.Utilities").VstsAuthentication.dll,
             importFrom("BuildXL.Utilities").Collections.dll,
             importFrom("BuildXL.Utilities").Configuration.dll,
             importFrom("BuildXL.Utilities").Interop.dll,
@@ -45,21 +42,12 @@ namespace Nuget {
             importFrom("BuildXL.Utilities").Script.Constants.dll,
 
             importFrom("Newtonsoft.Json").pkg,
-            importFrom("NuGet.Versioning").withQualifier({targetFramework: "netstandard2.0"}).pkg,
-            importFrom("NuGet.Protocol").withQualifier({targetFramework: "netstandard2.0"}).pkg,
-            importFrom("NuGet.Configuration").withQualifier({targetFramework: "netstandard2.0"}).pkg,
-            importFrom("NuGet.Common").withQualifier({targetFramework: "netstandard2.0"}).pkg,
-            importFrom("NuGet.Frameworks").withQualifier({targetFramework: "netstandard2.0"}).pkg,
-            importFrom("NuGet.Packaging").withQualifier({targetFramework: "netstandard2.0"}).pkg,
+            importFrom("NuGet.Versioning").pkg,
 
             ...BuildXLSdk.tplPackages,
         ],
-        runtimeContent: [
-            // Keep in sync with path at Public\Sdk\Public\Tools\NugetDownloader\Tool.NugetDownloader.dsc
-            importFrom("BuildXL.Tools").NugetDownloader.dll
-        ],
         internalsVisibleTo: [
             "Test.BuildXL.FrontEnd.Nuget"
-        ],
+        ]
     });
 }

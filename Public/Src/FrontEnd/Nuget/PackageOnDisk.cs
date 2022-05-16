@@ -68,9 +68,7 @@ namespace BuildXL.FrontEnd.Nuget
             out AbsolutePath nuSpecFile,
             out AbsolutePath moduleConfigFile)
         {
-            // The nuspec file is always at the root of the package.
-            nuSpecFile = packageDownloadResult.TargetLocation.Combine(pathTable, nuspecFileName);
-            
+            nuSpecFile = AbsolutePath.Invalid;
             moduleConfigFile = AbsolutePath.Invalid;
 
             foreach (var relativePath in packageDownloadResult.Contents)
@@ -79,7 +77,11 @@ namespace BuildXL.FrontEnd.Nuget
                 if (!relativePath.IsEmpty)
                 {
                     var fileName = relativePath.GetName();
-                    if (IsModuleConfigFileName(fileName, pathTable.StringTable))
+                    if (fileName.CaseInsensitiveEquals(pathTable.StringTable, nuspecFileName))
+                    {
+                        nuSpecFile = packageDownloadResult.TargetLocation.Combine(pathTable, relativePath);
+                    }
+                    else if (IsModuleConfigFileName(fileName, pathTable.StringTable))
                     {
                         moduleConfigFile = packageDownloadResult.TargetLocation.Combine(pathTable, relativePath);
                     }

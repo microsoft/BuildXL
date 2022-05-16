@@ -1,6 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
+
 namespace BuildXL.Utilities.Configuration.Mutable
 {
     /// <nodoc />
@@ -9,17 +12,21 @@ namespace BuildXL.Utilities.Configuration.Mutable
         /// <nodoc />
         public NugetConfiguration()
         {
-            DownloadTimeoutMin = 20;
+            CredentialProviders = new List<IArtifactLocation>();
         }
 
         /// <nodoc />
         public NugetConfiguration(INugetConfiguration template)
             : base(template)
         {
-            DownloadTimeoutMin = template.DownloadTimeoutMin;
+            CredentialProviders = new List<IArtifactLocation>(template.CredentialProviders);
         }
 
-        /// <inheritdoc/>
-        public int? DownloadTimeoutMin { get; set; }
+        /// <nodoc />
+        [SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly")]
+        public List<IArtifactLocation> CredentialProviders { get; set; }
+
+        /// <inheritdoc />
+        IReadOnlyList<IArtifactLocation> INugetConfiguration.CredentialProviders => CredentialProviders;
     }
 }

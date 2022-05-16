@@ -98,7 +98,7 @@ namespace Context {
      */
     interface CurrentHostInformation {
         /** The current Os type */
-        os: "win" | "macOS" | "unix";
+        os: "win" | "mac" | "unix";
         /** The current cpu architecture  */
         cpuArchitecture: "x64" | "x86";
         /** Wheter the current build is run with elevated permissions (admin/sudo) */

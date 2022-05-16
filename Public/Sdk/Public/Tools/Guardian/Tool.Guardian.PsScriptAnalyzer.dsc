@@ -9,8 +9,9 @@ export function addPsscriptAnalyzerCalls(rootDirectory : Directory, guardianTool
     const psscriptanalyzerWorkDir =  Context.getNewOutputDirectory("psscriptanalyzer");
 
     // Seal the root directory as psscriptanalyzer will try to access the whole directory
-    const sealRoot = Transformer.sealSourceDirectory(d`${rootDirectory.path}`, Transformer.SealSourceDirectoryOption.allDirectories);
-    const dependencies = [sealRoot, ...globR(d`${Context.getMount("ProgramFiles").path}/WindowsPowerShell/Modules`)];
+    const sealRoot = Transformer.sealSourceDirectory(rootDirectory, Transformer.SealSourceDirectoryOption.allDirectories);
+    const sealEnlistmentDataDir = Transformer.sealSourceDirectory(d`${Environment.getPathValue("BUILDXL_ENLISTMENT_DATA_DIR")}`, Transformer.SealSourceDirectoryOption.allDirectories);
+    const dependencies = [sealRoot, sealEnlistmentDataDir, ...globR(d`${Context.getMount("ProgramFiles").path}/WindowsPowerShell/Modules`)];
 
     // Use rootDirectory as the default directory
     const environmentVariables : Transformer.EnvironmentVariable[] = [

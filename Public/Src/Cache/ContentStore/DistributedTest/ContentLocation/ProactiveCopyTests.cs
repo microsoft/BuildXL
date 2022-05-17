@@ -437,7 +437,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 });
         }
 
-        [Theory]
+        [Theory(Skip = "Flaky test. Work item - 1950089")]
         [InlineData(true)]
         [InlineData(false)]
         public Task ProactiveCopyOnPinTest(bool usePreferredLocations)

@@ -1324,6 +1324,9 @@ namespace BuildXL
                         OptionHandlerFactory.CreateBoolOption(
                             "useCustomPipDescriptionOnConsole",
                             sign => loggingConfiguration.UseCustomPipDescriptionOnConsole = sign),
+                        OptionHandlerFactory.CreateOption(
+                            "adoConsoleMaxIssuesToLog",
+                            opt => loggingConfiguration.AdoConsoleMaxIssuesToLog = CommandLineUtilities.ParseInt32Option(opt, 1, int.MaxValue)),
                         OptionHandlerFactory.CreateBoolOption(
                             "useExtraThreadToDrainNtClose",
                             sign => sandboxConfiguration.UseExtraThreadToDrainNtClose = sign),

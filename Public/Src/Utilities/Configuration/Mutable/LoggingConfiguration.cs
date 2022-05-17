@@ -44,6 +44,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             LogTracer = true;
             FailPipOnFileAccessError = true;
             UseCustomPipDescriptionOnConsole = true;
+            AdoConsoleMaxIssuesToLog = 100;
             CacheMissAnalysisOption = CacheMissAnalysisOption.Disabled();
             CacheMissDiffFormat = CacheMissDiffFormat.CustomJsonDiff;
             AriaIndividualMessageSizeLimitBytes = (int)(0.8 * 1024 * 1024); // 0.8Mb out of Aria's current 1Mb max limit
@@ -146,6 +147,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             LogMemory = template.LogMemory;
             ReplayWarnings = template.ReplayWarnings;
             UseCustomPipDescriptionOnConsole = template.UseCustomPipDescriptionOnConsole;
+            AdoConsoleMaxIssuesToLog = template.AdoConsoleMaxIssuesToLog;
             CacheMissAnalysisOption = new CacheMissAnalysisOption(
                 template.CacheMissAnalysisOption.Mode,
                 new List<string>(template.CacheMissAnalysisOption.Keys),
@@ -368,6 +370,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public bool UseCustomPipDescriptionOnConsole { get; set; }
+
+        /// <inheritdoc/>
+        public int AdoConsoleMaxIssuesToLog { get; set; }
 
         /// <inheritdoc />
         public CacheMissAnalysisOption CacheMissAnalysisOption { get; set; }

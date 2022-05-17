@@ -22,6 +22,7 @@ namespace Test.BuildXL
 
         private int initialFrequencyMs = 10_000;
 
+        private int adoConsoleMaxIssuesToLog = 100;
         public DevOpsListenerTests(ITestOutputHelper output) : base(output){}
 
         [Fact]
@@ -34,7 +35,7 @@ namespace Test.BuildXL
             };
 
             using (var testElements = PipProcessErrorTestElement.Create(this))
-            using (AzureDevOpsListener listener = new AzureDevOpsListener(Events.Log, testElements.Console, DateTime.Now, testElements.ViewModel, false, null, initialFrequencyMs))
+            using (AzureDevOpsListener listener = new AzureDevOpsListener(Events.Log, testElements.Console, DateTime.Now, testElements.ViewModel, false, null, initialFrequencyMs, adoConsoleMaxIssuesToLog))
             {
                 listener.RegisterEventSource(global::BuildXL.Processes.ETWLogger.Log);
                 testElements.LogPipProcessError();
@@ -47,14 +48,15 @@ namespace Test.BuildXL
         [Fact]
         public void ValidateErrorCap()
         {
+            adoConsoleMaxIssuesToLog = 1;
             m_eventListener.RegisterEventSource(global::BuildXL.Processes.ETWLogger.Log);
             m_eventListener.NestedLoggerHandler += eventData =>
             {
                 m_eventFields = new PipProcessErrorEventFields(eventData.Payload, false);
             };
 
-            using (var testElements = PipProcessErrorTestElement.Create(this))
-            using (AzureDevOpsListener listener = new AzureDevOpsListener(Events.Log, testElements.Console, DateTime.Now, testElements.ViewModel, false, null, initialFrequencyMs, maxIssuesToLog: 1))
+            using (var testElements = PipProcessErrorTestElement.Create(this))                
+            using (AzureDevOpsListener listener = new AzureDevOpsListener(Events.Log, testElements.Console, DateTime.Now, testElements.ViewModel, false, null, initialFrequencyMs, adoConsoleMaxIssuesToLog))
             {
                 listener.RegisterEventSource(global::BuildXL.Processes.ETWLogger.Log);
 
@@ -89,7 +91,7 @@ namespace Test.BuildXL
             };
 
             using (var testElements = PipProcessErrorTestElement.Create(this))
-            using (AzureDevOpsListener listener = new AzureDevOpsListener(Events.Log, testElements.Console, DateTime.Now, testElements.ViewModel, false, null, initialFrequencyMs))
+            using (AzureDevOpsListener listener = new AzureDevOpsListener(Events.Log, testElements.Console, DateTime.Now, testElements.ViewModel, false, null, initialFrequencyMs, adoConsoleMaxIssuesToLog))
             {
                 listener.RegisterEventSource(global::BuildXL.Engine.ETWLogger.Log);
                 global::BuildXL.Engine.Tracing.Logger.Log.DistributionWorkerForwardedError(LoggingContext, new WorkerForwardedEvent()
@@ -181,7 +183,7 @@ namespace Test.BuildXL
             var console = new MockConsole();
             BuildViewModel viewModel = new BuildViewModel();
 
-            using (AzureDevOpsListener listener = new AzureDevOpsListener(Events.Log, console, DateTime.Now, viewModel, false, null, initialFrequencyMs))
+            using (AzureDevOpsListener listener = new AzureDevOpsListener(Events.Log, console, DateTime.Now, viewModel, false, null, initialFrequencyMs, adoConsoleMaxIssuesToLog))
             {
                 listener.RegisterEventSource(global::BuildXL.Engine.ETWLogger.Log);
                 global::BuildXL.Engine.Tracing.Logger.Log.DistributionWorkerForwardedError(LoggingContext, new WorkerForwardedEvent()
@@ -209,7 +211,7 @@ namespace Test.BuildXL
             var console = new MockConsole();
             BuildViewModel viewModel = new BuildViewModel();
 
-            using (AzureDevOpsListener listener = new AzureDevOpsListener(Events.Log, console, DateTime.Now, viewModel, false, null, initialFrequencyMs))
+            using (AzureDevOpsListener listener = new AzureDevOpsListener(Events.Log, console, DateTime.Now, viewModel, false, null, initialFrequencyMs, adoConsoleMaxIssuesToLog))
             {
                 listener.RegisterEventSource(global::BuildXL.Scheduler.ETWLogger.Log);
                 listener.RegisterEventSource(global::BuildXL.Pips.ETWLogger.Log);

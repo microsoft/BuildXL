@@ -39,7 +39,7 @@ namespace BuildXL
         /// <summary>
         /// The maximum number of AzureDevOps issues to log. Builds with too many issues can cause the UI to bog down.
         /// </summary>
-        private readonly int m_maxIssuesToLog;
+        private readonly int m_adoConsoleMaxIssuesToLog;
         private readonly IConsole m_console;
         private readonly BuildViewModel m_buildViewModel;
 
@@ -63,7 +63,7 @@ namespace BuildXL
             bool useCustomPipDescription,
             [CanBeNull] WarningMapper warningMapper,
             int initialFrequencyMs,
-            int maxIssuesToLog = 100,
+            int adoConsoleMaxIssuesToLog,
             bool emitTargetErrorEvent = false)
             : base(eventSource, baseTime, warningMapper: warningMapper, level: EventLevel.Verbose, captureAllDiagnosticMessages: false, timeDisplay: TimeDisplay.Seconds, useCustomPipDescription: useCustomPipDescription)
         {
@@ -72,7 +72,7 @@ namespace BuildXL
 
             m_console = console;
             m_buildViewModel = buildViewModel;
-            m_maxIssuesToLog = maxIssuesToLog;
+            m_adoConsoleMaxIssuesToLog = adoConsoleMaxIssuesToLog;
             m_initialFrequencyMs = initialFrequencyMs;
             m_emitTargetErrorEvent = emitTargetErrorEvent;
         }
@@ -305,11 +305,11 @@ namespace BuildXL
         private void LogIssueWithLimit(ref int counter, EventWrittenEventArgs eventData, string level)
         {
             int errorCount = Interlocked.Increment(ref counter);
-            if (errorCount < m_maxIssuesToLog + 1)
+            if (errorCount < m_adoConsoleMaxIssuesToLog + 1)
             {
                 LogAzureDevOpsIssue(eventData, level);
             }
-            else if (errorCount == m_maxIssuesToLog + 1)
+            else if (errorCount == m_adoConsoleMaxIssuesToLog + 1)
             {
                 m_console.WriteOutputLine(MessageLevel.Info, $"##vso[task.logIssue type={level};] Future messages of this level are truncated");
             }

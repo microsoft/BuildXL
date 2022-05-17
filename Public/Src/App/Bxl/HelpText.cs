@@ -853,6 +853,11 @@ namespace BuildXL
                 HelpLevel.Verbose);
 
             hw.WriteOption(
+                 "/adoConsoleMaxIssuesToLog:<max number of issues(errors and warnings) displayed on the ADO console>",
+                 Strings.HelpText_DisplayHelp_AdoConsoleMaxIssuesToLog,
+                 HelpLevel.Verbose);
+
+            hw.WriteOption(
                 "/treatAbsentDirectoryAsExistentUnderOpaque[+|-]",
                 Strings.HelpText_DisplayHelp_TreatAbsentDirectoryAsExistentUnderOpaque,
                 HelpLevel.Verbose);

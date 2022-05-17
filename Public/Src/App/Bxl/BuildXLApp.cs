@@ -1604,6 +1604,7 @@ namespace BuildXL
                     m_configuration.UseCustomPipDescriptionOnConsole,
                     m_warningManager.GetState,
                     initialFrequency,
+                    m_configuration.AdoConsoleMaxIssuesToLog,
                     emitTargetErrorEvent: true
                 );
 

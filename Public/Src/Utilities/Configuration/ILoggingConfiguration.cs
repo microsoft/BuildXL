@@ -351,6 +351,11 @@ namespace BuildXL.Utilities.Configuration
         bool UseCustomPipDescriptionOnConsole { get; }
 
         /// <summary>
+        /// Specifies the maximum number of issues(errors or warnings) to be displayed on the ADO console.
+        /// </summary>
+       public int AdoConsoleMaxIssuesToLog { get; }
+
+        /// <summary>
         /// On-the-fly cache miss analysis option
         /// </summary>
         CacheMissAnalysisOption CacheMissAnalysisOption { get; }

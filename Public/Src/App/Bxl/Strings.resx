@@ -1114,4 +1114,7 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   <data name="HelpText_DisplayHelp_ExplicitlyReportDirectoryProbes" xml:space="preserve">
     <value>When enabled, detours will explicitly report directory probes. Note that this may result in an increased amount of DFAs.</value>
   </data>
+  <data name="HelpText_DisplayHelp_AdoConsoleMaxIssuesToLog" xml:space="preserve">
+    <value>Specifies the maximum number of issues(errors and warnings) in the ADO console.</value>
+  </data>
 </root>

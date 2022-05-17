@@ -4,6 +4,11 @@ export namespace DropTool {
     @@public
     export const tool = toolTemplate.override<Transformer.ToolDefinition>({
         exe: f`bin/DropDaemon.exe`, 
-        runtimeDependencies: globR(d`bin`, "*.*")
+        runtimeDependencies: [
+            ...globR(d`bin`, "*.*"),
+            // In some circumstances the engine directory is a symlink, which is read to get to the final target containing
+            // the tool binaries
+            f`${Context.getBuildEngineDirectory().path}`
+        ]
     });
 }

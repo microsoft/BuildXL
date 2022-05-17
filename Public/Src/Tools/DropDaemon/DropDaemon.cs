@@ -474,6 +474,13 @@ namespace Tool.DropDaemon
             {
                 var daemon = dropDaemon as DropDaemon;
                 daemon.Logger.Info("[FINALIZE] Started finalizing all running drops.");
+                
+                // If a drop daemon was started but no drops were produced, there will be nothing for us to finalize.
+                if (daemon.m_vsoClients.Count == 0)
+                {
+                    daemon.Logger.Info("There are no active drops to finalize.");
+                    return IpcResult.Success();
+                }
 
                 // Build manifest logic is not a part of the FinalizeAsync/DoFinalize because daemon-wide finalization can be either triggered
                 // by a finalize call from BuildXL or by the logic in FinalizedByCreatorServicePipDaemon. We do not want to create manifests if

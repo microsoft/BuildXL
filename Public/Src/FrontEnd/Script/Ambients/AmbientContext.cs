@@ -257,12 +257,9 @@ namespace BuildXL.FrontEnd.Script.Ambients
         private static EvaluationResult GetBuildEngineDirectoryToBeDeprecated(Context context, ModuleLiteral env, EvaluationStackFrame args)
         {
             var pathTable = context.FrontEndContext.PathTable;
+            var executingEnginePath = AbsolutePath.Create(pathTable, AssemblyHelper.GetAssemblyLocation(Assembly.GetExecutingAssembly()));
 
-            var engineDirectory = context.FrontEndHost.Configuration.Layout.NormalizedBuildEngineDirectory.IsValid
-                ? context.FrontEndHost.Configuration.Layout.NormalizedBuildEngineDirectory
-                : context.FrontEndHost.Configuration.Layout.BuildEngineDirectory;
-
-            return EvaluationResult.Create(DirectoryArtifact.CreateWithZeroPartialSealId(engineDirectory));
+            return EvaluationResult.Create(DirectoryArtifact.CreateWithZeroPartialSealId(executingEnginePath.GetParent(pathTable)));
         }
 
         private static EvaluationResult GetTemplate(Context context, ModuleLiteral env, EvaluationStackFrame args)

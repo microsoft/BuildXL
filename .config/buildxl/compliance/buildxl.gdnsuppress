@@ -35,6 +35,370 @@
       "createdDate": "2022-05-11 20:46:33Z",
       "expirationDate": null,
       "type": null
+    },
+    "39bcd01420e48b59994e5928de3f741681520787e2d2d9b208fd6213f6051a96": {
+      "signature": "39bcd01420e48b59994e5928de3f741681520787e2d2d9b208fd6213f6051a96",
+      "alternativeSignatures": [],
+      "target": "file:///B:/Documentation/Wiki/Qualifiers.md",
+      "memberOf": [
+        "default"
+      ],
+      "tool": "policheck",
+      "ruleId": "203635",
+      "justification": null,
+      "createdDate": "2022-05-12 20:19:24Z",
+      "expirationDate": null,
+      "type": null
+    },
+    "413cb2cc61abc009eced5f2a5d37d8fe66bc32d2d79f34557d1b735ab1c45c3a": {
+      "signature": "413cb2cc61abc009eced5f2a5d37d8fe66bc32d2d79f34557d1b735ab1c45c3a",
+      "alternativeSignatures": [],
+      "target": "file:///B:/Documentation/Wiki/Release-Notes.md",
+      "memberOf": [
+        "default"
+      ],
+      "tool": "policheck",
+      "ruleId": "80411",
+      "justification": null,
+      "createdDate": "2022-05-12 20:19:24Z",
+      "expirationDate": null,
+      "type": null
+    },
+    "cdb0db601f693ba4546e3cfe98cad07f74b5ae8b792fabe4add51a57e83761ba": {
+      "signature": "cdb0db601f693ba4546e3cfe98cad07f74b5ae8b792fabe4add51a57e83761ba",
+      "alternativeSignatures": [],
+      "target": "file:///B:/Documentation/Wiki/Advanced-Features/Sealed-Directories.md",
+      "memberOf": [
+        "default"
+      ],
+      "tool": "policheck",
+      "ruleId": "79577",
+      "justification": null,
+      "createdDate": "2022-05-12 20:19:24Z",
+      "expirationDate": null,
+      "type": null
+    },
+    "9364b355060f04f20c77eebdff51049c3f87629974335c1a3c41954ee8bf7890": {
+      "signature": "9364b355060f04f20c77eebdff51049c3f87629974335c1a3c41954ee8bf7890",
+      "alternativeSignatures": [],
+      "target": "file:///B:/Documentation/Wiki/DScript/Qualifiers.md",
+      "memberOf": [
+        "default"
+      ],
+      "tool": "policheck",
+      "ruleId": "203635",
+      "justification": null,
+      "createdDate": "2022-05-12 20:19:24Z",
+      "expirationDate": null,
+      "type": null
+    },
+    "afb8457d194258d9811850a1a2f89fd1e39e0b1d7403b4e492c31d66830df8fe": {
+      "signature": "afb8457d194258d9811850a1a2f89fd1e39e0b1d7403b4e492c31d66830df8fe",
+      "alternativeSignatures": [],
+      "target": "file:///B:/Public/Src/Cache/Kusto/NLog.example.config",
+      "memberOf": [
+        "default"
+      ],
+      "tool": "policheck",
+      "ruleId": "80411",
+      "justification": null,
+      "createdDate": "2022-05-12 20:19:24Z",
+      "expirationDate": null,
+      "type": null
+    },
+    "0b91b0c42bc5f2778c36921faef9db657d3e20165d4d4cfbc8fe7221be91638a": {
+      "signature": "0b91b0c42bc5f2778c36921faef9db657d3e20165d4d4cfbc8fe7221be91638a",
+      "alternativeSignatures": [],
+      "target": "file:///B:/Public/Src/Cache/Kusto/NLog.example.config",
+      "memberOf": [
+        "default"
+      ],
+      "tool": "policheck",
+      "ruleId": "79459",
+      "justification": null,
+      "createdDate": "2022-05-12 20:19:24Z",
+      "expirationDate": null,
+      "type": null
+    },
+    "d9f052a1df254154390d91de54294a8c88072b19fbfbe13c708b6b183f7b38b6": {
+      "signature": "d9f052a1df254154390d91de54294a8c88072b19fbfbe13c708b6b183f7b38b6",
+      "alternativeSignatures": [],
+      "target": "file:///B:/Public/Src/Engine/Scheduler/ProcessResourceManager.cs",
+      "memberOf": [
+        "default"
+      ],
+      "tool": "policheck",
+      "ruleId": "80371",
+      "justification": null,
+      "createdDate": "2022-05-12 20:19:24Z",
+      "expirationDate": null,
+      "type": null
+    },
+    "5d0d4a0e8e1aa492a953ef474cfb542af0b6b2016cfd363652e76953c45bb7ff": {
+      "signature": "5d0d4a0e8e1aa492a953ef474cfb542af0b6b2016cfd363652e76953c45bb7ff",
+      "alternativeSignatures": [],
+      "target": "file:///B:/Public/Src/Engine/Scheduler/Scheduler.cs",
+      "memberOf": [
+        "default"
+      ],
+      "tool": "policheck",
+      "ruleId": "80034",
+      "justification": null,
+      "createdDate": "2022-05-12 20:19:24Z",
+      "expirationDate": null,
+      "type": null
+    },
+    "14b27f77e962fddd9d00b2b7ffa9372de4e64e1ebdeace8770bd3aa060aad3a3": {
+      "signature": "14b27f77e962fddd9d00b2b7ffa9372de4e64e1ebdeace8770bd3aa060aad3a3",
+      "alternativeSignatures": [],
+      "target": "file:///B:/Public/Src/Tools/Execution.Analyzer/AnalysisMode.cs",
+      "memberOf": [
+        "default"
+      ],
+      "tool": "policheck",
+      "ruleId": "80411",
+      "justification": null,
+      "createdDate": "2022-05-12 20:19:24Z",
+      "expirationDate": null,
+      "type": null
+    },
+    "aa7f39305fb0191b0236417dc9b13fce5448fd513abefa0ad2716d781097d499": {
+      "signature": "aa7f39305fb0191b0236417dc9b13fce5448fd513abefa0ad2716d781097d499",
+      "alternativeSignatures": [],
+      "target": "file:///B:/Public/Src/Tools/Execution.Analyzer/Args.cs",
+      "memberOf": [
+        "default"
+      ],
+      "tool": "policheck",
+      "ruleId": "80411",
+      "justification": null,
+      "createdDate": "2022-05-12 20:19:24Z",
+      "expirationDate": null,
+      "type": null
+    },
+    "13f5ba2d4e9a02cf8fba8ebd5c2a58ec699a4d565bff48304d31f8d96d938118": {
+      "signature": "13f5ba2d4e9a02cf8fba8ebd5c2a58ec699a4d565bff48304d31f8d96d938118",
+      "alternativeSignatures": [],
+      "target": "file:///B:/Public/Src/Utilities/Configuration/IModuleConfiguration.cs",
+      "memberOf": [
+        "default"
+      ],
+      "tool": "policheck",
+      "ruleId": "80411",
+      "justification": null,
+      "createdDate": "2022-05-12 20:19:24Z",
+      "expirationDate": null,
+      "type": null
+    },
+    "9742832e83ae164347d104d7f9eb841b40f072512b58ebf5788c9e0b31da1aab": {
+      "signature": "9742832e83ae164347d104d7f9eb841b40f072512b58ebf5788c9e0b31da1aab",
+      "alternativeSignatures": [],
+      "target": "file:///B:/Public/Src/Cache/VerticalStore/VerticalAggregator/VerticalCacheAggregatorSession.cs",
+      "memberOf": [
+        "default"
+      ],
+      "tool": "policheck",
+      "ruleId": "79577",
+      "justification": null,
+      "createdDate": "2022-05-12 20:19:23Z",
+      "expirationDate": null,
+      "type": null
+    },
+    "cf77a2ae5fff28d12ed9f5b1afbed7ead055968e79b826a6d8274ce5ea79bcd5": {
+      "signature": "cf77a2ae5fff28d12ed9f5b1afbed7ead055968e79b826a6d8274ce5ea79bcd5",
+      "alternativeSignatures": [],
+      "target": "file:///B:/Public/Src/Engine/UnitTests/Scheduler.IntegrationTest/AllowlistTests.cs",
+      "memberOf": [
+        "default"
+      ],
+      "tool": "policheck",
+      "ruleId": "80411",
+      "justification": null,
+      "createdDate": "2022-05-12 20:19:23Z",
+      "expirationDate": null,
+      "type": null
+    },
+    "d512792199e0a4f44c421173735242918d55c72d46a9d72740bd317a83a14018": {
+      "signature": "d512792199e0a4f44c421173735242918d55c72d46a9d72740bd317a83a14018",
+      "alternativeSignatures": [],
+      "target": "file:///B:/Public/Src/FrontEnd/UnitTests/Script.Ambients/AmbientXmlTests.cs",
+      "memberOf": [
+        "default"
+      ],
+      "tool": "policheck",
+      "ruleId": "79670",
+      "justification": null,
+      "createdDate": "2022-05-12 20:19:23Z",
+      "expirationDate": null,
+      "type": null
+    },
+    "c39866c23fb2aca6dbfe2c1ea864d8465dd9ae515fc3ea980ca70e8e0406df74": {
+      "signature": "c39866c23fb2aca6dbfe2c1ea864d8465dd9ae515fc3ea980ca70e8e0406df74",
+      "alternativeSignatures": [],
+      "target": "file:///B:/Public/Src/Tools/Execution.Analyzer/Analyzers.Partner/AllowlistAnalyzer.cs",
+      "memberOf": [
+        "default"
+      ],
+      "tool": "policheck",
+      "ruleId": "80411",
+      "justification": null,
+      "createdDate": "2022-05-12 20:19:23Z",
+      "expirationDate": null,
+      "type": null
+    },
+    "2ea8245da7169a5c8e8c84a33f2305c5d3d72ab3eefbf92a43adf9f0aac82dc1": {
+      "signature": "2ea8245da7169a5c8e8c84a33f2305c5d3d72ab3eefbf92a43adf9f0aac82dc1",
+      "alternativeSignatures": [],
+      "target": "file:///B:/Public/Src/Utilities/Configuration/Mutable/ModuleConfiguration.cs",
+      "memberOf": [
+        "default"
+      ],
+      "tool": "policheck",
+      "ruleId": "80411",
+      "justification": null,
+      "createdDate": "2022-05-12 20:19:23Z",
+      "expirationDate": null,
+      "type": null
+    },
+    "79e7e708cc3343d6ff6fc58162d21a08d1c92e66db7c32bd2ad6094b13ab3b08": {
+      "signature": "79e7e708cc3343d6ff6fc58162d21a08d1c92e66db7c32bd2ad6094b13ab3b08",
+      "alternativeSignatures": [],
+      "target": "file:///B:/Public/Src/Cache/ContentStore/Distributed/Redis/RedisDatabaseAdapter.cs",
+      "memberOf": [
+        "default"
+      ],
+      "tool": "policheck",
+      "ruleId": "80241",
+      "justification": null,
+      "createdDate": "2022-05-12 20:19:23Z",
+      "expirationDate": null,
+      "type": null
+    },
+    "75e2131f4e85806a830158963ef4f858befe5f7fb7b922258fade48b101a7ad9": {
+      "signature": "75e2131f4e85806a830158963ef4f858befe5f7fb7b922258fade48b101a7ad9",
+      "alternativeSignatures": [],
+      "target": "file:///B:/Public/Src/Cache/VerticalStore/UnitTests/VerticalAggregator/VerticalAggregatorBaseTests.cs",
+      "memberOf": [
+        "default"
+      ],
+      "tool": "policheck",
+      "ruleId": "202278",
+      "justification": null,
+      "createdDate": "2022-05-12 20:19:23Z",
+      "expirationDate": null,
+      "type": null
+    },
+    "835a8c24611e7c9ebf4ee2cb8bcff2dfac79b188c88223711d5d5fbd7befabdf": {
+      "signature": "835a8c24611e7c9ebf4ee2cb8bcff2dfac79b188c88223711d5d5fbd7befabdf",
+      "alternativeSignatures": [],
+      "target": "file:///B:/Public/Src/FrontEnd/Script/Ambients/Transformers/AmbientTransformer.Process.cs",
+      "memberOf": [
+        "default"
+      ],
+      "tool": "policheck",
+      "ruleId": "80411",
+      "justification": null,
+      "createdDate": "2022-05-12 20:19:23Z",
+      "expirationDate": null,
+      "type": null
+    },
+     "f7d3f408c8bffb0a71b9946175c79c116ba4a03799e085e1096cd3c88a469244": {
+      "signature": "f7d3f408c8bffb0a71b9946175c79c116ba4a03799e085e1096cd3c88a469244",
+      "alternativeSignatures": [],
+      "target": "file:///B:/Public/Src/FrontEnd/TypeScript.Net/TypeScript.Net/TypeScriptImpl/emitter.ts",
+      "memberOf": [
+        "default"
+      ],
+      "tool": "policheck",
+      "ruleId": "212450",
+      "justification": null,
+      "createdDate": "2022-05-12 20:19:18Z",
+      "expirationDate": null,
+      "type": null
+    },
+    "d00f09bf8f2282c52358d422111916a38bc7e3345d29dd16ec45d00fa0a2fc5d": {
+      "signature": "d00f09bf8f2282c52358d422111916a38bc7e3345d29dd16ec45d00fa0a2fc5d",
+      "alternativeSignatures": [],
+      "target": "file:///B:/Public/Src/FrontEnd/TypeScript.Net/TypeScript.Net.UnitTests/Libs/lib.d.ts",
+      "memberOf": [
+        "default"
+      ],
+      "tool": "policheck",
+      "ruleId": "80242",
+      "justification": null,
+      "createdDate": "2022-05-12 20:19:28Z",
+      "expirationDate": null,
+      "type": null
+    },
+    "57bf61c06eba68273a47b0c86286a807e8bcc184666f1711ecf36233c1e45d28": {
+      "signature": "57bf61c06eba68273a47b0c86286a807e8bcc184666f1711ecf36233c1e45d28",
+      "alternativeSignatures": [],
+      "target": "file:///B:/Public/Src/FrontEnd/TypeScript.Net/TypeScript.Net.UnitTests/Libs/lib.dom.d.ts",
+      "memberOf": [
+        "default"
+      ],
+      "tool": "policheck",
+      "ruleId": "80242",
+      "justification": null,
+      "createdDate": "2022-05-12 20:19:28Z",
+      "expirationDate": null,
+      "type": null
+    },
+    "e918efef6fcc01c16b3acc8b7bd8c228c0796f3bedf93e1e081fd6b7edbe6406": {
+      "signature": "e918efef6fcc01c16b3acc8b7bd8c228c0796f3bedf93e1e081fd6b7edbe6406",
+      "alternativeSignatures": [],
+      "target": "file:///B:/Public/Src/FrontEnd/TypeScript.Net/TypeScript.Net.UnitTests/Libs/lib.es6.d.ts",
+      "memberOf": [
+        "default"
+      ],
+      "tool": "policheck",
+      "ruleId": "80242",
+      "justification": null,
+      "createdDate": "2022-05-12 20:19:28Z",
+      "expirationDate": null,
+      "type": null
+    },
+    "2af5f689134ca341758f6ce4e0bbb709671c15907c8521b1304e43c972215bb9": {
+      "signature": "2af5f689134ca341758f6ce4e0bbb709671c15907c8521b1304e43c972215bb9",
+      "alternativeSignatures": [],
+      "target": "file:///B:/Public/Src/FrontEnd/TypeScript.Net/TypeScript.Net.UnitTests/Libs/lib.es7.d.ts",
+      "memberOf": [
+        "default"
+      ],
+      "tool": "policheck",
+      "ruleId": "80242",
+      "justification": null,
+      "createdDate": "2022-05-12 20:19:28Z",
+      "expirationDate": null,
+      "type": null
+    },
+    "b41f1f30d2f07307507eaa829a3cdc802428eb274938f5e3380137e83b65f227": {
+      "signature": "b41f1f30d2f07307507eaa829a3cdc802428eb274938f5e3380137e83b65f227",
+      "alternativeSignatures": [],
+      "target": "file:///B:/Public/Src/FrontEnd/TypeScript.Net/TypeScript.Net.UnitTests/TypeChecking/SymbolInformationTests.cs",
+      "memberOf": [
+        "default"
+      ],
+      "tool": "policheck",
+      "ruleId": "79577",
+      "justification": null,
+      "createdDate": "2022-05-12 20:19:28Z",
+      "expirationDate": null,
+      "type": null
+    },
+    "c00879013ff3ee01c20750990de12b883cd5a9e3c74c761cafea1c50eedfc3a3": {
+      "signature": "c00879013ff3ee01c20750990de12b883cd5a9e3c74c761cafea1c50eedfc3a3",
+      "alternativeSignatures": [],
+      "target": "file:///B:/Public/Src/FrontEnd/UnitTests/Script.Ast/Interpretation/Transformers/CommandLineArgumentsConverterTests.cs",
+      "memberOf": [
+        "default"
+      ],
+      "tool": "policheck",
+      "ruleId": "79577",
+      "justification": null,
+      "createdDate": "2022-05-12 20:19:18Z",
+      "expirationDate": null,
+      "type": null
     }
   }
 }

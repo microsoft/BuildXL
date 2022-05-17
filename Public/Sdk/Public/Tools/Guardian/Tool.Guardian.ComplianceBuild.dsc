@@ -8,6 +8,7 @@ import * as Drop from "Sdk.Drop";
 // Compliance build specific Environment variables
 export const directoriesNamesToIgnore = "[Tool.Guardian]complianceIgnoreDirectories";
 export const filesPerCredScanCall = "[Tool.Guardian]complianceFilesPerCredScanCall";
+export const filesPerPolicheckCall = "[Tool.Guardian]complianceFilesPerPolicheckCall";
 const logLevel = "[Tool.Guardian]complianceLogLevel";
 const enabledTools = "[Tool.Guardian]enabledTools";
 
@@ -83,7 +84,7 @@ export function runComplianceBuildOnEntireRepository(guardianToolRoot : StaticDi
         ...(toolsToRun.contains("eslint") ? addGuardianEsLintCalls(guardianBuildRoot, guardianToolRoot, packageDirectory, guardianDrop, nodeToolRoot, nodeToolExe, files) : [] ),
         ...(toolsToRun.contains("psscriptanalyzer") ? [addPsscriptAnalyzerCalls(guardianBuildRoot, guardianToolRoot, packageDirectory, guardianDrop, files)] : []),
         ...(toolsToRun.contains("flawfinder") ? [addFlawFinderCalls(guardianBuildRoot, guardianToolRoot, packageDirectory, guardianDrop, files)] : []),
-        ...(toolsToRun.contains("policheck") ? [addPoliCheckCalls(guardianBuildRoot, guardianToolRoot, packageDirectory, guardianDrop, files)] : [])
+        ...(toolsToRun.contains("policheck") ? addPoliCheckCalls(guardianBuildRoot, guardianToolRoot, packageDirectory, guardianDrop, files) : [])
     ];
 
     return guardianResults;

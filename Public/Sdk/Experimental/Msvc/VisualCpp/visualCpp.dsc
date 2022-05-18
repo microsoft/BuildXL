@@ -77,7 +77,7 @@ function createMsvcTool(exe: PathAtom, description: string) : Transformer.ToolDe
 
 /** 
  * When building internally, returns the VisualCppTools.Internal.VS2017Layout package.
- * When building externally, search for the Visual Studio 2017 build tools directory.
+ * When building externally, search for the Visual Studio 2019 build tools directory.
  */
 function getMsvcPackage() : StaticDirectory {
     // The VisualCppTools.Community.VS2017Layout package has been deprecated for external users.
@@ -114,6 +114,6 @@ function getMsvcPackage() : StaticDirectory {
             }
         }
 
-        Contract.fail(`Prerequisite Visual Studio 2017 build tools not found at any of the following locations: '${buildToolsDirectories}'. Please see BuildXL/Documentation/Wiki/DeveloperGuide.md on how to acquire these tools for building externally.`);
+        Contract.fail(`Prerequisite Visual Studio 2019 build tools not found at any of the following locations: '${buildToolsDirectories}'. Please see BuildXL/Documentation/Wiki/DeveloperGuide.md on how to acquire these tools for building externally.`);
     }
 }

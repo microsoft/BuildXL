@@ -2459,7 +2459,7 @@ namespace BuildXL
                 var executeAndCancelledExecuteDuration = schedulerInfo.ExecuteProcessDurationMs + schedulerInfo.CanceledProcessExecuteDurationMs;
 
                 int percentagesTotal = 0;
-                telemetryTagPerformanceSummary = string.Join(Environment.NewLine, elapsedTimesByTelemetryTag.Select(
+                telemetryTagPerformanceSummary = string.Join(Environment.NewLine, elapsedTimesByTelemetryTag.OrderByDescending(tag => tag.Value.Ticks).Select(
                     elapedTime =>
                     {
                         var computedPercentages = ComputeTimePercentage((long)elapedTime.Value.TotalMilliseconds, executeAndCancelledExecuteDuration);

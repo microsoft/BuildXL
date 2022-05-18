@@ -63,5 +63,6 @@ namespace Execution.Analyzer {
         ],
         internalsVisibleTo: ["Test.Tool.Analyzers"],
         defineConstants: addIf(BuildXLSdk.Flags.isVstsArtifactsEnabled, "FEATURE_VSTS_ARTIFACTSERVICES"),
+        gcHeapCount: 3
     });
 }

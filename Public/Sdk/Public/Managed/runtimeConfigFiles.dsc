@@ -21,7 +21,8 @@ namespace RuntimeConfigFiles {
         runtimeBinaryName: string | PathAtom,
         references: Shared.Reference[],
         runtimeContentToSkip: Deployment.DeployableItem[],
-        appConfig: File
+        appConfig: File,
+        gcHeapCount?: number
         ) : File[] {
 
         const runtimeConfigFolder = Context.getNewOutputDirectory("runtimeConfigFolder");
@@ -47,7 +48,7 @@ namespace RuntimeConfigFiles {
 
                 return [
                     createDependenciesJson(framework, deploymentStyle, assemblyName, runtimeBinaryName, references, runtimeContentToSkip),
-                    createRuntimeConfigJson(framework, deploymentStyle, assemblyName, runtimeConfigFolder),
+                    createRuntimeConfigJson(framework, deploymentStyle, assemblyName, runtimeConfigFolder, gcHeapCount),
                 ];
             case "none":
                 return [];
@@ -204,7 +205,8 @@ namespace RuntimeConfigFiles {
         framework: Shared.Framework, 
         deploymentStyle: Shared.ApplicationDeploymentStyle, 
         assemblyName: string, 
-        runtimeConfigFolder: Directory
+        runtimeConfigFolder: Directory,
+        heapCount?: number
     ): File {
 
         const frameworkRuntimeOptions = deploymentStyle === "frameworkDependent" ? {
@@ -223,8 +225,15 @@ namespace RuntimeConfigFiles {
             },
         };
 
+        const heapCountOptions = heapCount !== undefined ? {
+            configProperties: {
+                "System.GC.HeapCount": heapCount,
+            },
+        } : {};
+
+
         let options = {
-            runtimeOptions: Object.merge(gcRuntimeOptions, frameworkRuntimeOptions)
+            runtimeOptions: Object.merge(gcRuntimeOptions, frameworkRuntimeOptions, heapCountOptions)
         };
 
         return Json.write(p`${runtimeConfigFolder}/${assemblyName + ".runtimeconfig.json"}`, options, '"');

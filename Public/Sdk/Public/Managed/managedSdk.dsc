@@ -169,7 +169,7 @@ export function assembly(args: Arguments, targetType: Csc.TargetType) : Result {
 
     if (args.deployRuntimeConfigFile)
     {
-        runtimeConfigFiles = RuntimeConfigFiles.createFiles(framework, args.deploymentStyle, name, runtimeBinary.binary.name, references, args.runtimeContentToSkip, appConfig);
+        runtimeConfigFiles = RuntimeConfigFiles.createFiles(framework, args.deploymentStyle, name, runtimeBinary.binary.name, references, args.runtimeContentToSkip, appConfig, args.gcHeapCount);
     }
 
     let deploymentResult = processDeploymentStyle(args, targetType, framework, cscResult);
@@ -516,6 +516,9 @@ export interface Arguments {
 
     /** Whether to run crossgen tool on the produced assembly (if the target framework allows for it) */
     runCrossgenIfSupported?: boolean;
+
+    /** Number of heaps to use for ServerGC. */
+    gcHeapCount?: number;
 }
 
 @@public

@@ -69,7 +69,7 @@ namespace BuildXL.Tools.CredentialProvider
 
         private static void EmitErrorOutput(string errorText)
         {
-            Console.Out.WriteLine("Error:  " + errorText);
+            Console.Error.WriteLine("Error:  " + errorText);
         }
     }
 }

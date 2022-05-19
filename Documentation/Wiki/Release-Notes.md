@@ -1,6 +1,13 @@
 This page is a curated list of the release notes for releases after 0.20170619.4.0 and a manual copy of notable changes from each build before that. See the repo's commit history full details for what is included in each build.
 
 =======
+# 0.1.0-202200517.1 (Release [174531](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=174531&_a=release-pipeline-progress)) Released 5/19/2022
+-	Make ADO message limit configurable
+-	Udate grpc.core packages
+-	Performance improvements for RocksDB
+-	Ctrl-c related crash fix
+-	Various bug fixes
+
 # 0.1.0-20220509.1.1 (Release [171893](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=171893&_a=release-pipeline-progress)) Released 5/11/2022
 -	Context.GetBuildEngineDirectory() returns a normalized engine path
 -	ExecutionLogSDK is now dotnet core only

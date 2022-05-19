@@ -83,7 +83,7 @@ export function isDotNetCore(targetFramework: TargetFrameworks.AllFrameworks) : 
 
 namespace TargetFrameworks {
     @@public
-    export type DesktopTargetFrameworks = "net451" | "net461" | "net462" | "net472";
+    export type DesktopTargetFrameworks = "net472";
 
     @@public
     export type CoreClrTargetFrameworks = "netcoreapp2.2" | "netcoreapp3.1" | "net5.0" | "net6.0";

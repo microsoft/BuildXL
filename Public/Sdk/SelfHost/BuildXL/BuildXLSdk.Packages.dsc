@@ -38,18 +38,23 @@ export const systemMemoryDeployment = getSystemMemoryPackages(true);
 // This is meant to be used only when declaring NuGet packages' dependencies. In that particular case, you should be
 // calling this function with includeNetStandard: false
 @@public 
-export function getSystemMemoryPackages(includeNetStandard: boolean) : Managed.ManagedNugetPackage[] {
+export function getSystemMemoryPackages(includeNetStandard: boolean) : (Managed.ManagedNugetPackage | Managed.Assembly)[] {
+    return [
+        ...(!isDotNetCoreApp && includeNetStandard ? [
+            $.withQualifier({targetFramework: "net472"}).NetFx.Netstandard.dll,
+        ] : []),
+        ...getSystemMemoryPackagesWithoutNetStandard()
+    ];
+}
+
+@@public 
+export function getSystemMemoryPackagesWithoutNetStandard() : Managed.ManagedNugetPackage[] {
     return [
         ...(isDotNetCoreApp ? [] : [
             importFrom("System.Memory").withQualifier({targetFramework: "netstandard2.0"}).pkg,
             importFrom("System.Buffers").withQualifier({targetFramework: "netstandard2.0"}).pkg,
             importFrom("System.Runtime.CompilerServices.Unsafe").withQualifier({targetFramework: "netstandard2.0"}).pkg,
             importFrom("System.Numerics.Vectors").withQualifier({targetFramework: "netstandard2.0"}).pkg,
-            ...(includeNetStandard ? [
-                // It works to reference .NET472 all the time because netstandard.dll targets .NET4 so it's safe for .NET462 to do so.
-                $.withQualifier({targetFramework: "net472"}).NetFx.Netstandard.dll,
-            ]
-            : []),
         ]
         ),
     ];

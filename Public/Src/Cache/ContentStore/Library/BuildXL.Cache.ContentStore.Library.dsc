@@ -26,8 +26,7 @@ namespace Library {
             ),
 
             ...BuildXLSdk.systemThreadingTasksDataflowPackageReference,
-            // Using System.Memory only for .net472, and not for net462
-            ...addIf(qualifier.targetFramework !== "net462", systemMemoryPackage),
+            systemMemoryPackage,
             
             ...importFrom("BuildXL.Utilities").Native.securityDlls,
             UtilitiesCore.dll,

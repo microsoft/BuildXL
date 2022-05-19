@@ -17,8 +17,8 @@ namespace VfsLibrary {
             Hashing.dll,
             Library.dll,
             Interfaces.dll,
-            qualifier.targetFramework === "netstandard2.0" ?
-                importFrom("Microsoft.Windows.ProjFS").withQualifier({ targetFramework: "net461" }).pkg 
+                        qualifier.targetFramework === "netstandard2.0" ?
+                importFrom("Microsoft.Windows.ProjFS").withQualifier({ targetFramework: "net472" }).pkg 
                 : importFrom("Microsoft.Windows.ProjFS").pkg,
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Branding.dll,

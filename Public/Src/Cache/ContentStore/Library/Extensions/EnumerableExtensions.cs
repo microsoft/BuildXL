@@ -36,16 +36,8 @@ namespace BuildXL.Cache.ContentStore.Extensions
         /// <nodoc />
         public static IEnumerable<T> AppendItem<T>(this IEnumerable<T> sequence, T item)
         {
-#if NET_FRAMEWORK_462 // This is just temporary until vpack upgrades to net472
-                var tmp = new List<T>();
-                tmp.AddRange(sequence);
-                tmp.Add(item);
-                return tmp;
-#else
             // Add build id hash to hashes so build ring machines can be updated
             return sequence.Append(item);
-#endif
-
         }
 
         /// <summary>

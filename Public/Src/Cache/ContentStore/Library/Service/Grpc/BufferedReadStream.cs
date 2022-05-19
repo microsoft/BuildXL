@@ -100,14 +100,9 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
         private void CopyToBuffer(ByteString storage, byte[] buffer, int copyCount, int writePointer)
         {
-#if NET_FRAMEWORK_462
-            // Using less efficient version for Net462
-            Array.Copy(storage.ToByteArray(), _readPointer, buffer, writePointer, copyCount);
-#else
             storage.Span.Slice(_readPointer, copyCount)
                 .CopyTo(
                     buffer.ToSpan(writePointer, copyCount));
-#endif
         }
 
         public override int Read(byte[] buffer, int offset, int count) => ReadAsync(buffer, offset, count).GetAwaiter().GetResult();
@@ -134,8 +129,6 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
     internal static class SpanExtensions
     {
-#if !NET_FRAMEWORK_462
         public static Span<T> ToSpan<T>(this T[] array, int start, int length) => new Span<T>(array, start, length);
-#endif
     }
 }

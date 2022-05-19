@@ -80,9 +80,6 @@ config({
                 { id: "RuntimeContracts", version: "0.3.0" }, // Be very careful with updating this version, because CloudBuild and other repository needs to be updated as wwell
                 { id: "RuntimeContracts.Analyzer", version: "0.3.2" }, // The versions are different because the analyzer has higher version for now.
 
-                { id: "Microsoft.NETFramework.ReferenceAssemblies.net451", version: "1.0.0", osSkip: [ "macOS", "unix" ] },
-                { id: "Microsoft.NETFramework.ReferenceAssemblies.net461", version: "1.0.0", osSkip: [ "macOS", "unix" ] },
-                { id: "Microsoft.NETFramework.ReferenceAssemblies.net462", version: "1.0.0" },
                 { id: "Microsoft.NETFramework.ReferenceAssemblies.net472", version: "1.0.0" },
 
                 { id: "System.Diagnostics.DiagnosticSource", version: "4.5.1" },

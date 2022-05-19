@@ -49,7 +49,7 @@ namespace Processes {
             ...addIfLazy(BuildXLSdk.Flags.isMicrosoftInternal, () => [
                   importFrom("AnyBuild.SDK").pkg,
             ]),
-            ...importFrom("BuildXL.Cache.ContentStore").getProtobufPackages(false),
+            ...importFrom("BuildXL.Cache.ContentStore").getProtobufPackages(),
         ],
         internalsVisibleTo: [
             "Test.BuildXL.Engine",

@@ -5,6 +5,7 @@ import * as BuildXLSdk from "Sdk.BuildXL";
 import * as Deployment from "Sdk.Deployment";
 import * as MemoizationStore from "BuildXL.Cache.MemoizationStore";
 import * as Managed from "Sdk.Managed";
+import * as Nuget from "Sdk.Managed.Tools.NuGet";
 
 export declare const qualifier : BuildXLSdk.AllSupportedQualifiers;
 
@@ -55,9 +56,16 @@ export const kustoPackages = [
 
 // Need to exclude netstandard.dll reference when calling this function for creating a nuget package.
 @@public
-export function getSerializationPackages(includeNetStandard: boolean) : Managed.ManagedNugetPackage[] {
+export function getSerializationPackages(includeNetStandard: boolean) : (Managed.ManagedNugetPackage | Managed.Assembly)[] {
     return [
-        ... (getSystemTextJson(includeNetStandard)),
+        ...getSystemTextJson(includeNetStandard),
+        ...getSerializationPackagesWithoutNetStandard()
+    ];
+}
+
+@@public
+export function getSerializationPackagesWithoutNetStandard() : (Managed.ManagedNugetPackage)[] {
+    return [
         ...(BuildXLSdk.isFullFramework ? [
             importFrom("System.Runtime.CompilerServices.Unsafe").withQualifier({ targetFramework: "netstandard2.0" }).pkg,
         ] : []),
@@ -70,13 +78,19 @@ export function getSerializationPackages(includeNetStandard: boolean) : Managed.
 }
 
 @@public
-export function getSystemTextJson(includeNetStandard: boolean) : Managed.ManagedNugetPackage[] {
+export function getSystemTextJson(includeNetStandard: boolean) : (Managed.ManagedNugetPackage | Managed.Assembly)[] {
     return [
         ...(includeNetStandard && BuildXLSdk.isFullFramework ? [
             BuildXLSdk.withQualifier({targetFramework: "net472"}).NetFx.Netstandard.dll,
         ] : [
         ]),
+        ...getSystemTextJsonWithoutNetStandard(),
+    ];
+}
 
+@@public
+export function getSystemTextJsonWithoutNetStandard() : Managed.ManagedNugetPackage[] {
+    return [
         ...addIf(
             qualifier.targetFramework !== "net5.0" && qualifier.targetFramework !== "net6.0",
             importFrom("System.Text.Json").withQualifier({targetFramework: "netstandard2.0"}).pkg),
@@ -84,38 +98,37 @@ export function getSystemTextJson(includeNetStandard: boolean) : Managed.Managed
 }
 
 @@public
-export function getProtobufPackages(includeNetStandard: boolean) : Managed.ManagedNugetPackage[] {
+export function getProtobufPackages() : Managed.ManagedNugetPackage[] {
     return [
-        ...(BuildXLSdk.isFullFramework && includeNetStandard ? [
-                NetFx.System.IO.dll,
-
-                ...(qualifier.targetFramework === "net462" ? [
-                    // HACK: Net462 doesn't ship with netstandard dlls, so we fetch them from Net472 instead. This
-                    // may not work.
-                    importFrom("Sdk.Managed.Frameworks.Net472").withQualifier({targetFramework: "net472"}).NetFx.Netstandard.dll
-                ] : [
-                    NetFx.Netstandard.dll,
-                ])
-            ] : []
-        ),
-
-        BuildXLSdk.isFullFramework || qualifier.targetFramework === "netstandard2.0" ?
+       BuildXLSdk.isFullFramework || qualifier.targetFramework === "netstandard2.0" ?
             importFrom("System.Memory").withQualifier({ targetFramework: "netstandard2.0" }).pkg 
             : importFrom("System.Memory").pkg,
         BuildXLSdk.isFullFramework || qualifier.targetFramework === "netstandard2.0" ?
             importFrom("System.Buffers").withQualifier({ targetFramework: "netstandard2.0" }).pkg 
             : importFrom("System.Buffers").pkg,
 
-        importFrom("Google.Protobuf").pkg,
+        importFrom("Google.Protobuf").pkg, 
     ];
 }
 
 @@public
-export function getGrpcPackages(includeNetStandard: boolean) : Managed.ManagedNugetPackage[] {
+export function getGrpcPackages(includeNetStandard: boolean) : (Managed.ManagedNugetPackage | Managed.Assembly)[] {
     return [
-        ...getProtobufPackages(includeNetStandard),
+        ...(BuildXLSdk.isFullFramework && includeNetStandard ? [
+                NetFx.System.IO.dll,
+                NetFx.Netstandard.dll
+            ] : []
+        ),
+        ...getGrpcPackagesWithoutNetStandard()
+    ];
+}
+
+@@public
+export function getGrpcPackagesWithoutNetStandard() : Managed.ManagedNugetPackage[] {
+    return [
+        ...getProtobufPackages(),
         importFrom("Grpc.Core").pkg,
-        BuildXLSdk.isDotNetCoreApp
+         BuildXLSdk.isDotNetCoreApp
             ? importFrom("Grpc.Core.Api").withQualifier({ targetFramework: "netstandard2.1" }).pkg
             : importFrom("Grpc.Core.Api").pkg,
         ...BuildXLSdk.bclAsyncPackages,
@@ -123,7 +136,7 @@ export function getGrpcPackages(includeNetStandard: boolean) : Managed.ManagedNu
 }
 
 @@public
-export function getGrpcAspNetCorePackages() : Managed.ManagedNugetPackage[] {
+export function getGrpcAspNetCorePackages() : (Managed.ManagedNugetPackage | Managed.Assembly)[] {
     return [
         ...addIfLazy(BuildXLSdk.isDotNetCoreBuild, () => [
                   importFrom("Grpc.Net.Common").pkg,
@@ -145,7 +158,7 @@ export function getGrpcAspNetCorePackages() : Managed.ManagedNugetPackage[] {
 }
 
 @@public
-export function getProtobufNetPackages(includeNetStandard: boolean) : Managed.ManagedNugetPackage[] {
+export function getProtobufNetPackages(includeNetStandard: boolean) : (Managed.ManagedNugetPackage | Managed.Assembly)[] {
     return [
         ...getGrpcPackages(includeNetStandard),
         importFrom("protobuf-net.Core").pkg,

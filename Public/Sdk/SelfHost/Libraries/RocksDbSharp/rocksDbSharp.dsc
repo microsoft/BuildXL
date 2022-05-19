@@ -18,7 +18,15 @@ const managedPackage = importFrom("RocksDbSharpSigned").pkg;
 // This is meant to be used only when declaring NuGet packages' dependencies. In that particular case, you should be
 // calling this function with includeNetStandard: false
 @@public
-export function getRocksDbPackages(includeNetStandard: boolean): Managed.ManagedNugetPackage[] {
+export function getRocksDbPackages(includeNetStandard: boolean): (Managed.ManagedNugetPackage | Managed.Assembly)[] {
+    return [
+        ...getRocksDbPackagesWithoutNetStandard(),
+        ...BuildXLSdk.getSystemMemoryPackages(includeNetStandard),
+    ];
+}
+
+@@public
+export function getRocksDbPackagesWithoutNetStandard(): Managed.ManagedNugetPackage[] {
     return [
         managedPackage.override<Managed.ManagedNugetPackage>({
             // Rename the package so that we declare the proper nuget dependency.
@@ -35,7 +43,7 @@ export function getRocksDbPackages(includeNetStandard: boolean): Managed.Managed
             }
         }),
 
-        ...BuildXLSdk.getSystemMemoryPackages(includeNetStandard),
+        ...BuildXLSdk.getSystemMemoryPackagesWithoutNetStandard(),
     ];
 }
 

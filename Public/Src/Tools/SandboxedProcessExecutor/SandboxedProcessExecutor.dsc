@@ -26,7 +26,7 @@ namespace SandboxedProcessExecutor {
             importFrom("BuildXL.Utilities.Instrumentation").Common.dll,
             importFrom("BuildXL.Utilities.Instrumentation").Tracing.dll,
             importFrom("BuildXL.Engine").Processes.dll,
-            ...importFrom("BuildXL.Cache.ContentStore").getProtobufPackages(false),
+            ...importFrom("BuildXL.Cache.ContentStore").getProtobufPackages(),
         ],
     });
 }

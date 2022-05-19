@@ -16,11 +16,6 @@ namespace NugetPackages {
         targetRuntime: "win-x64"
     };
 
-    const net462PackageQualifer = {
-        targetFramework: "net462",
-        targetRuntime: "win-x64"
-    };
-
     const netcoreApp31PackageQualifer = {
         targetFramework: "netcoreapp3.1",
         targetRuntime: "win-x64"
@@ -102,7 +97,6 @@ namespace NugetPackages {
         id: buildXLUtilitiesIdentity.id,
         assemblies: [
             // BuildXL.Utilities
-            importFrom("BuildXL.Utilities").withQualifier(net462PackageQualifer).dll,
             importFrom("BuildXL.Utilities").withQualifier(net472PackageQualifer).dll,
             importFrom("BuildXL.Utilities").withQualifier(netcoreApp31PackageQualifer).dll,
             importFrom("BuildXL.Utilities").withQualifier(net5PackageQualifer).dll,
@@ -110,7 +104,6 @@ namespace NugetPackages {
             importFrom("BuildXL.Utilities").withQualifier(netstandard20PackageQualifer).dll,
 
             // BuildXL.Utilities.Branding
-            importFrom("BuildXL.Utilities").withQualifier(net462PackageQualifer).Branding.dll,
             importFrom("BuildXL.Utilities").withQualifier(net472PackageQualifer).Branding.dll,
             importFrom("BuildXL.Utilities").withQualifier(netcoreApp31PackageQualifer).Branding.dll,
             importFrom("BuildXL.Utilities").withQualifier(net5PackageQualifer).Branding.dll,
@@ -118,7 +111,6 @@ namespace NugetPackages {
             importFrom("BuildXL.Utilities").withQualifier(netstandard20PackageQualifer).Branding.dll,
 
             // BuildXL.Collections
-            importFrom("BuildXL.Utilities").withQualifier(net462PackageQualifer).Collections.dll,
             importFrom("BuildXL.Utilities").withQualifier(net472PackageQualifer).Collections.dll,
             importFrom("BuildXL.Utilities").withQualifier(netcoreApp31PackageQualifer).Collections.dll,
             importFrom("BuildXL.Utilities").withQualifier(net5PackageQualifer).Collections.dll,
@@ -126,7 +118,6 @@ namespace NugetPackages {
             importFrom("BuildXL.Utilities").withQualifier(netstandard20PackageQualifer).Collections.dll,
 
             // BuildXL.Interop
-            importFrom("BuildXL.Utilities").withQualifier(net462PackageQualifer).Interop.dll,
             importFrom("BuildXL.Utilities").withQualifier(net472PackageQualifer).Interop.dll,
             importFrom("BuildXL.Utilities").withQualifier(netcoreApp31PackageQualifer).Interop.dll,
             importFrom("BuildXL.Utilities").withQualifier(net5PackageQualifer).Interop.dll,
@@ -134,7 +125,6 @@ namespace NugetPackages {
             importFrom("BuildXL.Utilities").withQualifier(netstandard20PackageQualifer).Interop.dll,
 
             // BuildXL.KeyValueStore
-            importFrom("BuildXL.Utilities").withQualifier(net462PackageQualifer).KeyValueStore.dll,
             importFrom("BuildXL.Utilities").withQualifier(net472PackageQualifer).KeyValueStore.dll,
             importFrom("BuildXL.Utilities").withQualifier(netcoreApp31PackageQualifer).KeyValueStore.dll,
             importFrom("BuildXL.Utilities").withQualifier(net5PackageQualifer).KeyValueStore.dll,
@@ -142,7 +132,6 @@ namespace NugetPackages {
             importFrom("BuildXL.Utilities").withQualifier(netstandard20PackageQualifer).KeyValueStore.dll,
 
             // BuildXL.Native
-            importFrom("BuildXL.Utilities").withQualifier(net462PackageQualifer).Native.dll,
             importFrom("BuildXL.Utilities").withQualifier(net472PackageQualifer).Native.dll,
             importFrom("BuildXL.Utilities").withQualifier(netcoreApp31PackageQualifer).Native.dll,
             importFrom("BuildXL.Utilities").withQualifier(net5PackageQualifer).Native.dll,
@@ -150,7 +139,6 @@ namespace NugetPackages {
             importFrom("BuildXL.Utilities").withQualifier(netstandard20PackageQualifer).Native.dll,
 
             // BuildXL.Configuration
-            importFrom("BuildXL.Utilities").withQualifier(net462PackageQualifer).Configuration.dll,
             importFrom("BuildXL.Utilities").withQualifier(net472PackageQualifer).Configuration.dll,
             importFrom("BuildXL.Utilities").withQualifier(netcoreApp31PackageQualifer).Configuration.dll,
             importFrom("BuildXL.Utilities").withQualifier(net5PackageQualifer).Configuration.dll,
@@ -159,7 +147,6 @@ namespace NugetPackages {
 
             // BuildXL.SBOMUtilities
             ...addIf(BuildXLSdk.Flags.isMicrosoftInternal, 
-                importFrom("BuildXL.Utilities").withQualifier(net462PackageQualifer).SBOMUtilities.dll,
                 importFrom("BuildXL.Utilities").withQualifier(net472PackageQualifer).SBOMUtilities.dll,
                 importFrom("BuildXL.Utilities").withQualifier(netcoreApp31PackageQualifer).SBOMUtilities.dll,
                 importFrom("BuildXL.Utilities").withQualifier(net5PackageQualifer).SBOMUtilities.dll,
@@ -168,7 +155,6 @@ namespace NugetPackages {
             ),
 
             // BuildXL.Instrumentation.Common
-            importFrom("BuildXL.Utilities.Instrumentation").Common.withQualifier(net462PackageQualifer).dll,
             importFrom("BuildXL.Utilities.Instrumentation").Common.withQualifier(net472PackageQualifer).dll,
             importFrom("BuildXL.Utilities.Instrumentation").Common.withQualifier(netcoreApp31PackageQualifer).dll,
             importFrom("BuildXL.Utilities.Instrumentation").Common.withQualifier(net5PackageQualifer).dll,
@@ -176,7 +162,6 @@ namespace NugetPackages {
             importFrom("BuildXL.Utilities.Instrumentation").Common.withQualifier(netstandard20PackageQualifer).dll,
 
             // BuildXL.Instrumentation.Tracing
-            importFrom("BuildXL.Utilities.Instrumentation").Tracing.withQualifier(net462PackageQualifer).dll,
             importFrom("BuildXL.Utilities.Instrumentation").Tracing.withQualifier(net472PackageQualifer).dll,
             importFrom("BuildXL.Utilities.Instrumentation").Tracing.withQualifier(netcoreApp31PackageQualifer).dll,
             importFrom("BuildXL.Utilities.Instrumentation").Tracing.withQualifier(net5PackageQualifer).dll,
@@ -185,7 +170,6 @@ namespace NugetPackages {
 
             // BuildXL.Utilities.Authentication
             ...addIf(BuildXLSdk.Flags.isMicrosoftInternal, 
-                importFrom("BuildXL.Utilities").withQualifier(net462PackageQualifer).Authentication.dll,
                 importFrom("BuildXL.Utilities").withQualifier(net472PackageQualifer).Authentication.dll,
                 importFrom("BuildXL.Utilities").withQualifier(netcoreApp31PackageQualifer).Authentication.dll,
                 importFrom("BuildXL.Utilities").withQualifier(net5PackageQualifer).Authentication.dll,
@@ -364,20 +348,20 @@ namespace NugetPackages {
             importFrom("Microsoft.Azure.Amqp").withQualifier(net472PackageQualifer).pkg,
             importFrom("System.Threading.Tasks.Dataflow").withQualifier(net472PackageQualifer).pkg,
             ...BuildXLSdk.withQualifier(net472PackageQualifer).bclAsyncPackages,
-            ...importFrom("BuildXL.Cache.ContentStore").withQualifier(net472PackageQualifer).getGrpcPackages(false),
+            ...importFrom("BuildXL.Cache.ContentStore").withQualifier(net472PackageQualifer).getGrpcPackagesWithoutNetStandard(),
             // Including the following reference is the most correct thing to do, but it causes a conflict in NuGet 
             // because we reference things inconsistently. If someone depends on the ProtoBuf.Net functionality, they 
             // must themselves refer to the required packages.
             // ...importFrom("BuildXL.Cache.ContentStore").withQualifier(net472PackageQualifer).getProtobufNetPackages(false),
             ...importFrom("BuildXL.Cache.ContentStore").withQualifier(net472PackageQualifer).redisPackages,
-            ...importFrom("BuildXL.Cache.ContentStore").withQualifier(net472PackageQualifer).getSerializationPackages(false),
-            ...importFrom("BuildXL.Cache.ContentStore").withQualifier(net472PackageQualifer).getSystemTextJson(false),
+            ...importFrom("BuildXL.Cache.ContentStore").withQualifier(net472PackageQualifer).getSerializationPackagesWithoutNetStandard(),
+            ...importFrom("BuildXL.Cache.ContentStore").withQualifier(net472PackageQualifer).getSystemTextJsonWithoutNetStandard(),
             importFrom("Microsoft.VisualStudio.Services.ArtifactServices.Shared").withQualifier(net472PackageQualifer).pkg,
             importFrom("Microsoft.VisualStudio.Services.ArtifactServices.Shared").withQualifier(netcoreApp31PackageQualifer).pkg,
             importFrom("Microsoft.VisualStudio.Services.ArtifactServices.Shared").withQualifier(net5PackageQualifer).pkg,
             importFrom("Microsoft.VisualStudio.Services.ArtifactServices.Shared").withQualifier(net6PackageQualifer).pkg,
             importFrom("Microsoft.VisualStudio.Services.BlobStore.Client").withQualifier(net472PackageQualifer).pkg,
-            ...importFrom("Sdk.Selfhost.RocksDbSharp").withQualifier(net472PackageQualifer).getRocksDbPackages(false),
+            ...importFrom("Sdk.Selfhost.RocksDbSharp").withQualifier(net472PackageQualifer).getRocksDbPackagesWithoutNetStandard(),
             importFrom("NLog").withQualifier(net472PackageQualifer).pkg,
             importFrom("Polly").withQualifier(net472PackageQualifer).pkg,
             importFrom("Polly.Contrib.WaitAndRetry").withQualifier(net472PackageQualifer).pkg,

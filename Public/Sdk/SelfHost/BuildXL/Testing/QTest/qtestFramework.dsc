@@ -96,9 +96,6 @@ function runMultipleQTests(args: TestRunArguments) : File[]
 
 function getQTestDotNetFramework() : Qtest.QTestDotNetFramework {
     switch (qualifier.targetFramework) {
-        case "net451":
-            return Qtest.QTestDotNetFramework.framework45;
-        case "net461":
         case "net472":
             return Qtest.QTestDotNetFramework.framework46;
         case "netstandard2.0":

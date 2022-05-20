@@ -59,7 +59,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.MetadataService
             });
         }
 
-        [Fact]
+        [Fact(Skip = "Flaky test. Work item - 1950089")]
         public Task EntriesExpireAfterExpiryTest()
         {
             var lifetime = TimeSpan.FromSeconds(1);

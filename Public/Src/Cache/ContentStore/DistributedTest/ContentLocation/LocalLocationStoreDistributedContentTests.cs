@@ -2223,7 +2223,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 });
         }
 
-        [Theory]
+        [Theory(Skip = "Flaky test. Work item - 1950089")]
         [InlineData(0, true)]
         [InlineData(10, false)]
         public Task DistributedCentralStorageFallbacksToBlobOnTimeoutTest(double? copyTimeoutSeconds, bool shouldFetchFromFallback)

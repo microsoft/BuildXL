@@ -46,7 +46,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.MetadataService
             _redisFixture = redis;
         }
 
-        [Fact]
+        [Fact(Skip = "Flaky test. Work item - 1950089")]
         public Task UndefinedRoleDoesNotAnswerRequestsTest()
         {
             return RunTest(async (context, service, iteration) =>
@@ -63,7 +63,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.MetadataService
             });
         }
 
-        [Fact]
+        [Fact(Skip = "Flaky test. Work item - 1950089")]
         public Task SimpleRegisterAndGetTest()
         {
             return RunTest(async (context, service, iteration) =>
@@ -88,7 +88,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.MetadataService
             });
         }
 
-        [Fact]
+        [Fact(Skip = "Flaky test. Work item - 1950089")]
         public Task SimpleBlobPutAndGetTest()
         {
             return RunTest(async (context, service, iteration) =>
@@ -121,7 +121,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.MetadataService
             });
         }
 
-        [Fact]
+        [Fact(Skip = "Flaky test. Work item - 1950089")]
         public Task CheckpointMaxAgeIsRespected()
         {
             var clock = new MemoryClock();

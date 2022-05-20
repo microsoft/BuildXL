@@ -49,7 +49,9 @@ namespace BuildXL.Cache.ContentStore.Stores
             AbsolutePath rootPath,
             ConfigurationModel configurationModel,
             NagleQueue<ContentHash> nagleQueue,
+#pragma warning disable IDE0060 // Remove unused parameter
             RefCountdown sensitiveSessionCount,
+#pragma warning restore IDE0060 // Remove unused parameter
             DistributedEvictionSettings distributedEvictionSettings,
             bool checkFiles,
             TrimBulkAsync trimBulkAsync)

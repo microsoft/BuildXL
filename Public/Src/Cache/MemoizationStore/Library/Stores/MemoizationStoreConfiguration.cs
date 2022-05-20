@@ -32,7 +32,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         /// <inheritdoc />
         public override IMemoizationStore CreateStore(ILogger logger, IClock clock)
         {
-            return new RocksDbMemoizationStore(logger, clock, this);
+            return new RocksDbMemoizationStore(clock, this);
         }
     }
 }

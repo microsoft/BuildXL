@@ -66,7 +66,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <summary>
         /// Create and return SSL credentials from user certificate, else null
         /// </summary>
-        private ChannelCredentials? TryGetSecureChannelCredentials(Context context, GrpcCopyClientConfiguration? config, out string? hostName)
+        private ChannelCredentials? TryGetSecureChannelCredentials(Context context, out string? hostName)
         {
             var encryptionCertificateName = Environment.GetEnvironmentVariable("__CACHE_ENCRYPTION_CERT_SUBJECT__");
             var keyCertPairResult = GrpcEncryptionUtils.TryGetSecureChannelCredentials(encryptionCertificateName, out hostName);
@@ -102,7 +102,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             {
                 try
                 {
-                    channelCreds = TryGetSecureChannelCredentials(context, _configuration, out var hostName) ?? ChannelCredentials.Insecure;
+                    channelCreds = TryGetSecureChannelCredentials(context, out var hostName) ?? ChannelCredentials.Insecure;
                     if (channelCreds != ChannelCredentials.Insecure)
                     {
                         options.Add(new ChannelOption(ChannelOptions.SslTargetNameOverride, hostName));                        

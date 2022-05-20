@@ -68,7 +68,7 @@ namespace BuildXL.Cache.Host.Service
             if (_secretsCommunicationKind == CrossProcessSecretsCommunicationKind.Environment)
             {
                 // Default mode for the launcher
-                return RetrieveSecretsCoreAsync(requests, token);
+                return RetrieveSecretsCoreAsync(requests);
             }
             else if (_secretsCommunicationKind == CrossProcessSecretsCommunicationKind.EnvironmentSingleEntry)
             {
@@ -101,7 +101,7 @@ namespace BuildXL.Cache.Host.Service
             return RetrievedSecretsSerializer.Deserialize(variable);
         }
 
-        private Task<RetrievedSecrets> RetrieveSecretsCoreAsync(List<RetrieveSecretsRequest> requests, CancellationToken token)
+        private Task<RetrievedSecrets> RetrieveSecretsCoreAsync(List<RetrieveSecretsRequest> requests)
         {
             var secrets = new Dictionary<string, Secret>();
 

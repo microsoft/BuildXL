@@ -50,7 +50,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
 
             configMutator?.Invoke(memoConfig.Database);
 
-            return new RocksDbMemoizationStore(Logger, _clock, memoConfig);
+            return new RocksDbMemoizationStore(_clock, memoConfig);
         }
 
         [Fact]

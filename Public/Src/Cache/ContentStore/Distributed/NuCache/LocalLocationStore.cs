@@ -285,7 +285,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             return ContentLocationEventStore.Create(
                 configuration.EventStore,
-                new ContentLocationDatabaseAdapter(Database, ClusterState),
+                new ContentLocationDatabaseAdapter(Database),
                 configuration.PrimaryMachineLocation.ToString(),
                 CentralStorage,
                 configuration.Checkpoint.WorkingDirectory / "reconciles" / subfolder,
@@ -383,7 +383,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             Analysis.IgnoreResult(
                 postInitializationTask.ContinueWith(
-                    t =>
+                    _ =>
                     {
                         // It is very important to explicitly trace when the post initialization is done,
                         // because only after that the service can process the requests.
@@ -2335,7 +2335,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             private readonly ContentLocationDatabase _database;
 
             /// <nodoc />
-            public ContentLocationDatabaseAdapter(ContentLocationDatabase database, ClusterState clusterState)
+            public ContentLocationDatabaseAdapter(ContentLocationDatabase database)
             {
                 _database = database;
             }

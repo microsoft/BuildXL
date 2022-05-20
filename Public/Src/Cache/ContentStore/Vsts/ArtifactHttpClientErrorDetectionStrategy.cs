@@ -178,7 +178,9 @@ namespace BuildXL.Cache.ContentStore.Vsts
             return await task;
         }
 
+#pragma warning disable IDE0060 // Remove unused parameter
         private static void Ignore(object value)
+#pragma warning restore IDE0060 // Remove unused parameter
         {
         }
     }

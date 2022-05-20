@@ -328,7 +328,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                         FileRealizationMode = (int)realizationMode,
                         Path = path.Path
                     },
-                    options: this.GetCallOptions(Configuration.Deadline, operationContext.Token)),
+                    options: GetCallOptions(Configuration.Deadline, operationContext.Token)),
                 response =>
                 {
                     if (!response.Header.Succeeded)

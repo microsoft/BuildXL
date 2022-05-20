@@ -77,7 +77,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         /// </summary>
         internal readonly IContentLocationStore ContentLocationStore;
 
-        private ColdStorage? _coldStorage;
+        private readonly ColdStorage? _coldStorage;
 
         /// <summary>
         /// The machine location for the current cache.
@@ -386,11 +386,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             // Default pin action
             var pinTask = Workflows.RunWithFallback(
                     contentHashes,
-                    hashes => intermediateResult == null ? Inner.PinAsync(operationContext, hashes, operationContext.Token, urgencyHint) : Task.FromResult(intermediateResult),
+                hashes => intermediateResult == null
+                    ? Inner.PinAsync(operationContext, hashes, operationContext.Token, urgencyHint)
+                    : Task.FromResult(intermediateResult),
                     hashes => _remotePinner(operationContext, hashes, succeedWithOneLocation: false, urgencyHint),
                     result => result.Succeeded,
                     // Exclude the empty hash because it is a special case which is hard coded for place/openstream/pin.
-                    async hits => await UpdateContentTrackerWithLocalHitsAsync(operationContext, hits.Where(x => !contentHashes[x.Index].IsEmptyHash()).Select(x => new ContentHashWithSizeAndLastAccessTime(contentHashes[x.Index], x.Item.ContentSize, x.Item.LastAccessTime)).ToList(), urgencyHint));
+                async hits => await UpdateContentTrackerWithLocalHitsAsync(
+                    operationContext,
+                    hits.Where(x => !contentHashes[x.Index].IsEmptyHash()).Select(
+                        x => new ContentHashWithSizeAndLastAccessTime(contentHashes[x.Index], x.Item.ContentSize, x.Item.LastAccessTime)).ToList(),
+                    urgencyHint));
 
             // Initiate a proactive copy if just pinned content is under-replicated
             if (Settings.ProactiveCopyOnPin && Settings.ProactiveCopyMode != ProactiveCopyMode.Disabled)
@@ -403,7 +409,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 // Fire off the default pin action, but do not await the result.
                 //
                 // Creating a new OperationContext instance without existing 'CancellationToken',
-                // because the operation we triggerred that stored in 'pinTask' can outlive the lifetime of the current instance.
+                // because the operation we trigerred that stored in 'pinTask' can outlive the lifetime of the current instance.
                 // And we don't want the PerformNonResultOperationAsync to fail because the current instance is shut down (or disposed).
                 new OperationContext(operationContext.TracingContext).PerformNonResultOperationAsync(
                     Tracer,
@@ -501,8 +507,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                     accessMode,
                     replacementMode,
                     realizationMode,
-                    urgencyHint,
-                    retryCounter
+                    urgencyHint
                 ));
 
             var result = await resultWithData.Result.SingleAwaitIndexed();
@@ -530,8 +535,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                     accessMode,
                     replacementMode,
                     realizationMode,
-                    urgencyHint,
-                    retryCounter
+                    urgencyHint
                 ));
 
             // We are tracing here because we did not want to change the signature for PlaceFileCoreAsync, which is implemented in multiple locations
@@ -549,8 +553,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             FileAccessMode accessMode,
             FileReplacementMode replacementMode,
             FileRealizationMode realizationMode,
-            UrgencyHint urgencyHint,
-            Counter retryCounter)
+            UrgencyHint urgencyHint)
         {
             return Workflows.RunWithFallback(
                 hashesWithPaths,
@@ -605,7 +608,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             }
         }
 
-        private Task<ResultWithMetaData<PlaceBulkResult>> PerformPlaceFileGatedOperationAsync(OperationContext operationContext, Func<Task<PlaceBulkResult>> func, bool bulkPlace = true)
+        private Task<ResultWithMetaData<PlaceBulkResult>> PerformPlaceFileGatedOperationAsync(OperationContext operationContext, Func<Task<PlaceBulkResult>> func)
         {
             return PutAndPlaceFileGate.GatedOperationAsync(async (timeWaiting, currentCount) =>
            {
@@ -718,7 +721,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 if (!getBulkResult.Succeeded || !getBulkResult.ContentHashesInfo.Any())
                 {
                     return hashesWithPaths.Select(
-                            p => new PlaceFileResult(
+                            _ => new PlaceFileResult(
                                 getBulkResult,
                                 PlaceFileResult.ResultCode.NotPlacedContentNotFound,
                                 "Metadata records not found in content location store"))
@@ -781,7 +784,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 copyFilesLocallyBlock.PostAll(getBulkResult.ContentHashesInfo.AsIndexed());
                 var copyFilesLocally =
                     await Task.WhenAll(
-                        Enumerable.Range(0, getBulkResult.ContentHashesInfo.Count).Select(i => copyFilesLocallyBlock.ReceiveAsync(context.Token)));
+                        Enumerable.Range(0, getBulkResult.ContentHashesInfo.Count).Select(_ => copyFilesLocallyBlock.ReceiveAsync(context.Token)));
                 copyFilesLocallyBlock.Complete();
 
                 var updateResults = await UpdateContentTrackerWithNewReplicaAsync(
@@ -1277,7 +1280,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 // Nothing to do.
                 return BoolTask.True;
             }
-
 
             IReadOnlyList<ContentHashWithSize> hashesToEagerUpdate = contentHashesWithInfo.Select(x => new ContentHashWithSize(x.Hash, x.Size)).ToList();
 

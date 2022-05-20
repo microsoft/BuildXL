@@ -139,19 +139,17 @@ namespace BuildXL.Cache.ContentStore.Hashing
             }
 
             /// <nodoc />
-            [SuppressMessage("Microsoft.Usage", "CA1801:ReviewUnusedParameters", MessageId = "right")]
-            [SuppressMessage("Microsoft.Usage", "CA1801:ReviewUnusedParameters", MessageId = "left")]
-            [SuppressMessage("ReSharper", "UnusedParameter.Global")]
+#pragma warning disable IDE0060 // Remove unused parameter
             public static bool operator ==(Session left, Session right)
+#pragma warning restore IDE0060 // Remove unused parameter
             {
                 throw new InvalidOperationException();
             }
 
             /// <nodoc />
-            [SuppressMessage("Microsoft.Usage", "CA1801:ReviewUnusedParameters", MessageId = "right")]
-            [SuppressMessage("Microsoft.Usage", "CA1801:ReviewUnusedParameters", MessageId = "left")]
-            [SuppressMessage("ReSharper", "UnusedParameter.Global")]
+#pragma warning disable IDE0060 // Remove unused parameter
             public static bool operator !=(Session left, Session right)
+#pragma warning restore IDE0060 // Remove unused parameter
             {
                 throw new InvalidOperationException();
             }

@@ -133,8 +133,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blobs
                 // If we fail to download into the local content session, we will just return that the content has not
                 // been found.
                 tryConvertRecoveryError: r => new OpenStreamResult(
-                    OpenStreamResult.ResultCode.ContentNotFound,
-                    errorMessage: "Failed to obtain content from Azure Storage"));
+                                             other: r,
+                                             code: OpenStreamResult.ResultCode.ContentNotFound,
+                                             message: "Failed to obtain content from Azure Storage"));
         }
 
         protected override Task<PlaceFileResult> PlaceFileCoreAsync(
@@ -162,8 +163,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blobs
                 // If we fail to download into the local content session, we will just return that the content has not
                 // been found.
                 tryConvertRecoveryError: r => new PlaceFileResult(
-                    PlaceFileResult.ResultCode.NotPlacedContentNotFound,
-                    errorMessage: "Failed to obtain content from Azure Storage"));
+                                             other: r,
+                                             code: PlaceFileResult.ResultCode.NotPlacedContentNotFound,
+                                             message: "Failed to obtain content from Azure Storage"));
         }
 
         protected override async Task<IEnumerable<Task<Indexed<PlaceFileResult>>>> PlaceFileCoreAsync(

@@ -2,7 +2,6 @@
 // Licensed under the MIT License.
 
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
-using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 
 namespace BuildXL.Cache.MemoizationStore.Stores
@@ -16,14 +15,14 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         public RocksDbContentLocationDatabase RocksDbDatabase { get; }
 
         /// <nodoc />
-        public RocksDbMemoizationStore(ILogger logger, IClock clock, RocksDbMemoizationStoreConfiguration config) 
-            : this(logger, new RocksDbMemoizationDatabase(config, clock))
+        public RocksDbMemoizationStore(IClock clock, RocksDbMemoizationStoreConfiguration config) 
+            : this(new RocksDbMemoizationDatabase(config, clock))
         {
             // Do nothing. Just delegates to other constructor to allow capturing created database
         }
 
         /// <nodoc />
-        public RocksDbMemoizationStore(ILogger logger, RocksDbMemoizationDatabase database)
+        public RocksDbMemoizationStore(RocksDbMemoizationDatabase database)
             : base(database)
         {
             RocksDbDatabase = (RocksDbContentLocationDatabase)database.Database;

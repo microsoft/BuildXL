@@ -19,7 +19,9 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         public ContentHashListWithDeterminism ContentHashListWithDeterminism { get; set; }
 
         [OnDeserialized]
+#pragma warning disable IDE0060 // Remove unused parameter
         private void Deserialize(StreamingContext context)
+#pragma warning restore IDE0060 // Remove unused parameter
         {
             {
                 using var stream = new MemoryStream(_strongFingerprint);
@@ -35,7 +37,9 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         }
 
         [OnSerializing]
+#pragma warning disable IDE0060 // Remove unused parameter
         private void Serialize(StreamingContext context)
+#pragma warning restore IDE0060 // Remove unused parameter
         {
             {
                 using var stream = new MemoryStream();

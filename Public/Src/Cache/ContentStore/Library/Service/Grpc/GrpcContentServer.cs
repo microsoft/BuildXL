@@ -257,7 +257,9 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         }
 
         /// <nodoc />
+#pragma warning disable IDE0060 // Remove unused parameter
         private Task<HelloResponse> HelloAsync(HelloRequest request, CancellationToken token)
+#pragma warning restore IDE0060 // Remove unused parameter
         {
             return Task.FromResult(
                 new HelloResponse

@@ -371,13 +371,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             foreach (var (container, shardId) in _containers)
             {
-                await foreach (var entry in listForContainer(container, shardId))
+                await foreach (var entry in listForContainer(container))
                 {
                     yield return entry;
                 }
             }
 
-            async IAsyncEnumerable<DerivedCheckpointInformation> listForContainer(CloudBlobContainer container, int shardId)
+            async IAsyncEnumerable<DerivedCheckpointInformation> listForContainer(CloudBlobContainer container)
             {
                 BlobContinuationToken? continuation = null;
                 while (!context.Token.IsCancellationRequested)
@@ -415,8 +415,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             context.PerformOperationAsync(Tracer, () =>
             {
                 return _gcGate.DeduplicatedOperationAsync(
-                    (timeWaiting, currentCount) => GarbageCollectCoreAsync(context, container, shardId),
-                    (timeWaiting, currentCount) => BoolResult.SuccessTask,
+                    (_, _) => GarbageCollectCoreAsync(context, container, shardId),
+                    (_, _) => BoolResult.SuccessTask,
                     token: context.Token);
             },
             traceOperationStarted: false).FireAndForget(context);

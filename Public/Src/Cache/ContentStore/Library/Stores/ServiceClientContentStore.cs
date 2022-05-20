@@ -75,7 +75,9 @@ namespace BuildXL.Cache.ContentStore.Stores
             ServiceClientRpcConfiguration rpcConfiguration,
             uint retryIntervalSeconds,
             uint retryCount,
+#pragma warning disable IDE0060 // Remove unused parameter
             Sensitivity sensitivity, // Not used. Left for backward compatibility.
+#pragma warning restore IDE0060 // Remove unused parameter
             string? scenario = null)
             : this(
                   logger,

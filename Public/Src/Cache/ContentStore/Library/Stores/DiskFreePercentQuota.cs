@@ -78,7 +78,9 @@ namespace BuildXL.Cache.ContentStore.Stores
         ///     Hook method invoked after the object has been deserialized.
         /// </summary>
         [OnDeserialized]
+#pragma warning disable IDE0060 // Remove unused parameter
         private void OnDeserialized(StreamingContext context)
+#pragma warning restore IDE0060 // Remove unused parameter
         {
             try
             {

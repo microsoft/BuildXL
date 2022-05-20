@@ -323,9 +323,9 @@ namespace BuildXL.Cache.ContentStore.Service
             }
         }
 
-        private ServerCredentials? TryGetEncryptedCredentials(Context context, GrpcCoreServerOptions? grpcCoreServerOptions)
+        private ServerCredentials? TryGetEncryptedCredentials(Context context)
         {
-            /// CODESYNC: The Environment Variable below is set by ContentAddressableStoreService in CloudBuild
+            // CODESYNC: The Environment Variable below is set by ContentAddressableStoreService in CloudBuild
             string? encryptionCertificateName = Environment.GetEnvironmentVariable("__CACHE_ENCRYPTION_CERT_SUBJECT__");
             var keyCertPairResult = GrpcEncryptionUtils.TryGetSecureChannelCredentials(encryptionCertificateName, out _);
 
@@ -360,7 +360,7 @@ namespace BuildXL.Cache.ContentStore.Service
             {
                 try
                 {
-                    ServerCredentials? serverSSLCreds = TryGetEncryptedCredentials(context, grpcCoreServerOptions);
+                    ServerCredentials? serverSSLCreds = TryGetEncryptedCredentials(context);
                     if (serverSSLCreds != null)
                     {
                         _grpcServer.Ports.Add(new ServerPort(IPAddress.Any.ToString(), config.EncryptedGrpcPort, serverSSLCreds));

@@ -3,12 +3,12 @@
 
 using System;
 using System.Diagnostics;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed;
 using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.Exceptions;
-using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
@@ -170,7 +170,7 @@ namespace BuildXL.Cache.Host.Service
                 && logFileReplacements?.Count > 0
                 && count is null or 0)
             {
-                var replacementsAsString = string.Join(", ", logFileReplacements.Select((kvp, state) => $"[{kvp.Key}]: {kvp.Value}", 0));
+                var replacementsAsString = string.Join(", ", logFileReplacements.Select(kvp => $"[{kvp.Key}]: {kvp.Value}"));
                 arguments.Logger.Debug($"Adjusting logging configuration. LogFileReplacements: {replacementsAsString}");
 
                 // Adding the replacement configuration for the log file name if the launcher is enabled, and

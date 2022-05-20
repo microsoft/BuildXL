@@ -161,7 +161,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                                     while (writeBehindStream.Position != writeBehindStream.Length)
                                     {
                                         foundBlocks++;
-                                        foreach (var item in LogBlock.ReadBlockEventsWithHeader(context, writeBehindReader, out blockId))
+                                        foreach (var item in LogBlock.ReadBlockEventsWithHeader(writeBehindReader, out blockId))
                                         {
                                             operationReadEvents++;
                                             eventCount++;
@@ -199,7 +199,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                                             bytes = writeAheadStream.Length;
                                             totalBytes += bytes;
                                             using var writeAheadReader = BuildXLReader.Create(writeAheadStream);
-                                            foreach (var item in LogBlock.ReadBlockEvents(context, writeAheadReader, readBlock.Length))
+                                            foreach (var item in LogBlock.ReadBlockEvents(writeAheadReader, readBlock.Length))
                                             {
                                                 operationReadEvents++;
                                                 eventCount++;
@@ -278,7 +278,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     return _writeBehindEventStorage.AppendAsync(context, block.QualifiedBlockId, stream);
                 },
                 extraStartMessage: msg,
-                extraEndMessage: r => msg);
+                extraEndMessage: _ => msg);
         }
 
         private async Task WriteAheadCommitLoopAsync(OperationContext context, LogBlock block)
@@ -551,16 +551,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 _eventsStartPosition = (int)stream.Position;
             }
 
-            public static IEnumerable<ServiceRequestBase> ReadBlockEventsWithHeader(OperationContext context, BuildXLReader reader, out int blockId)
+            public static IEnumerable<ServiceRequestBase> ReadBlockEventsWithHeader(BuildXLReader reader, out int blockId)
             {
                 blockId = reader.ReadInt32();
                 var blockByteLength = reader.ReadInt32();
                 var blockEventCount = reader.ReadInt32();
 
-                return ReadBlockEvents(context, reader, blockByteLength, blockEventCount);
+                return ReadBlockEvents(reader, blockByteLength, blockEventCount);
             }
 
-            public static IEnumerable<ServiceRequestBase> ReadBlockEvents(OperationContext context, BuildXLReader reader, int blockEventByteLength, int? blockEventCount = null)
+            public static IEnumerable<ServiceRequestBase> ReadBlockEvents(BuildXLReader reader, int blockEventByteLength, int? blockEventCount = null)
             {
                 int readEvents = 0;
                 long start = reader.BaseStream.Position;

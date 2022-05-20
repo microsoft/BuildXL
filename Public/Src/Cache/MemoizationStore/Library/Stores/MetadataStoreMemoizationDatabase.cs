@@ -135,7 +135,8 @@ namespace BuildXL.Cache.MemoizationStore.Stores
 
             var result = await _store.CompareExchangeAsync(context, strongFingerprint, entry, expectedReplacementToken);
 
-            if (diagnostics != null)
+            // Setting a success diagnostics only if the result is successful.
+            if (result && diagnostics != null)
             {
                 result.SetDiagnosticsForSuccess(diagnostics);
             }

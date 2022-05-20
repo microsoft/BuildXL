@@ -10,14 +10,14 @@ import * as Managed from "Sdk.Managed";
 namespace PrivateWdg {
     export declare const qualifier : {
         configuration: "debug" | "release";
-        targetFramework: "net6.0",
+        targetFramework: "net472",
         targetRuntime: "win-x64"
     };
 
     const deployment : Deployment.Definition = {
         contents: [
             {
-                subfolder: r`bxlaslibrary/net6.0`,
+                subfolder: r`bxlaslibrary/net472`,
                 contents: [
                     importFrom("Private.Wdg").deployment,
 

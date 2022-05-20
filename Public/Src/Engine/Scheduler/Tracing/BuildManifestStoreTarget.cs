@@ -44,7 +44,7 @@ namespace BuildXL.Scheduler.Tracing
             {
                 foreach (var manifestHash in entry.BuildManifestHashes)
                 {
-                    m_pipTwoPhaseCache.TryStoreBuildManifestHash(entry.AzureArtifactsHash, manifestHash);
+                    m_pipTwoPhaseCache.TryStoreRemappedContentHash(entry.AzureArtifactsHash, manifestHash);
                 }
             }
         }

@@ -483,16 +483,16 @@ namespace BuildXL.Scheduler.Cache
         /// <remarks>
         /// The operation is only applicable to <see cref="HistoricMetadataCache"/>.
         /// </remarks>
-        public virtual void TryStoreBuildManifestHash(ContentHash contentHash, ContentHash buildManifestContentHash)
+        public virtual void TryStoreRemappedContentHash(ContentHash contentHash, ContentHash remappedContentHash)
         {
         }
 
         /// <summary>
-        /// Given a hash, tries to get a corresponding build manifest hash from cache. If the hash cannot be find, returns an invalid ContentHash.
+        /// Given a hash, tries to get a corresponding mapped hash from cache. If the hash cannot be find, returns an invalid ContentHash.
         /// </summary>
         /// <remarks>
         /// The operation is only applicable to <see cref="HistoricMetadataCache"/>.
         /// </remarks>
-        public virtual ContentHash TryGetBuildManifestHash(ContentHash contentHash, HashType hashType) => default;
+        public virtual ContentHash TryGetMappedContentHash(ContentHash contentHash, HashType hashType) => default;
     }
 }

@@ -58,6 +58,8 @@ namespace Tool.DropDaemon
 
         private const string DropClientLogDirectoryName = "DropClient";
 
+        private const HashType DefaultHashTypeForRecomputingContentHash = HashType.Vso0;
+
         /// <nodoc/>
         public const string DropDLogPrefix = "(DropD) ";
 
@@ -1376,12 +1378,24 @@ namespace Tool.DropDaemon
                     I($"Directory counts don't match: #directories = {directoryPaths.Length}, #directoryIds = {directoryIds.Length}, #dropPaths = {directoryDropPaths.Length}, #directoryFilters = {directoryFilters.Length}, #directoryApplyFilterToRelativePath = {directoryFilterUseRelativePath.Length}, #directoryRelativePathReplace = {directoryRelativePathsReplaceSerialized.Length}"));
             }
 
+            FileContentInfo[] parsedContentInfos = new FileContentInfo[files.Length];
+
             using (var pooledSb = Pools.GetStringBuilder())
             {
                 var sb = pooledSb.Instance;
                 for (int i = 0; i < files.Length; i++)
                 {
                     sb.AppendFormat("{0}|{1}|{2}|{3}{4}", files[i], fileIds[i], hashes[i], dropPaths[i], Environment.NewLine);
+
+                    Possible<FileContentInfo> parsedResult = await ParseFileContentAsync(daemon, hashes[i], fileIds[i], files[i]);
+                    if (parsedResult.Succeeded)
+                    {
+                        parsedContentInfos[i] = parsedResult.Result;
+                    }
+                    else
+                    {
+                        return new IpcResult(IpcResultStatus.ExecutionError, parsedResult.Failure.Describe());
+                    }
                 }
 
                 for (int i = 0; i < directoryPaths.Length; i++)
@@ -1412,7 +1426,7 @@ namespace Tool.DropDaemon
                     fullDropName,
                     filePath: files[i],
                     fileId: fileIds[i],
-                    fileContentInfo: FileContentInfo.Parse(hashes[i]),
+                    fileContentInfo: parsedContentInfos[i],
                     relativeDropPath: dropPaths[i]))
                 .ToLookup(f => WellKnownContentHashUtilities.IsAbsentFileHash(f.Hash));
 
@@ -1460,6 +1474,28 @@ namespace Tool.DropDaemon
             }
 
             return await AddDropItemsAsync(daemon, dropFileItemsKeyedByIsAbsent[false].Concat(groupedDirectoriesContent[false]));
+        }
+
+        private static async Task<Possible<FileContentInfo>> ParseFileContentAsync(DropDaemon daemon, string serialized, string fileId, string filePath)
+        {
+            var contentInfo = FileContentInfo.Parse(serialized);
+            var file = BuildXL.Ipc.ExternalApi.FileId.Parse(fileId);
+            Possible<RecomputeContentHashEntry> hash;
+            if (!IsDropCompatibleHashing(contentInfo.Hash.HashType))
+            {
+                hash = await daemon.ApiClient.RecomputeContentHashFiles(file, DefaultHashTypeForRecomputingContentHash.ToString(), new RecomputeContentHashEntry(filePath, contentInfo.Hash));
+                if (!hash.Succeeded)
+                {
+                    return new Failure<string>(hash.Failure?.Describe() ?? "Response to send recompute content hash indicates a failure");
+                }
+
+                return new FileContentInfo(hash.Result.Hash, contentInfo.Length);
+            }
+            else
+            {
+                return contentInfo;
+            }
+
         }
 
         private static Possible<RelativePathReplacementArguments[]> InitializeRelativePathReplacementArguments(string[] serializedValues)
@@ -1548,13 +1584,20 @@ namespace Tool.DropDaemon
                 // directory name for a Windows file system, it is a valid name for a drop and it doesn't get resolved properly
                 var resolvedDropPath = dropPath == "." ? string.Empty : I($"{dropPath}/");
                 var remoteFileName = I($"{resolvedDropPath}{GetRelativePath(directoryPath, file.FileName, relativePathReplacementArgs).Replace('\\', '/')}");
+                var fileId = BuildXL.Ipc.ExternalApi.FileId.ToString(file.Artifact);
+
+                var parsedFileContentInfoResult = await ParseFileContentAsync(daemon, file.ContentInfo.Render(), fileId, file.FileName);
+                if (!parsedFileContentInfoResult.Succeeded)
+                {
+                    return (null, parsedFileContentInfoResult.Failure.Describe());
+                }
 
                 dropItemForBuildXLFiles.Add(new DropItemForBuildXLFile(
                     daemon.ApiClient,
                     fullyQualifiedDropName,
                     file.FileName,
-                    BuildXL.Ipc.ExternalApi.FileId.ToString(file.Artifact),
-                    file.ContentInfo,
+                    fileId,
+                    parsedFileContentInfoResult.Result,
                     remoteFileName));
             }
 
@@ -1777,6 +1820,24 @@ namespace Tool.DropDaemon
             }
 
             public static RelativePathReplacementArguments Invalid => new RelativePathReplacementArguments(null, null);
+        }
+
+        private static bool IsDropCompatibleHashing(HashType hashType)
+        {
+            switch (hashType)
+            {
+                case HashType.Vso0:
+                case HashType.Dedup64K:
+                case HashType.Dedup1024K:
+                case HashType.DedupNode:
+                case HashType.DedupSingleChunk:
+                case HashType.MD5:
+                case HashType.SHA1:
+                case HashType.SHA256:
+                    return true;
+                default:
+                    return false;
+            }
         }
     }
 }

@@ -33,8 +33,8 @@ namespace BuildXL.Scheduler
     /// </summary>
     public sealed class ApiServer : IIpcOperationExecutor, IDisposable
     {
-        private const int GetBuildManifestHashFromLocalFileRetryMultiplierMs = 200; // Worst-case delay = 12.4 sec. Math.Pow(2, retryAttempt) * GetBuildManifestHashFromLocalFileRetryMultiplierMs
-        private const int GetBuildManifestHashFromLocalFileRetryLimit = 6;          // Starts from 0, retry multiplier is applied upto (GetBuildManifestHashFromLocalFileRetryLimit - 1)
+        private const int GetRequestedHashFromLocalFileRetryMultiplierMs = 200; // Worst-case delay = 12.4 sec. Math.Pow(2, retryAttempt) * GetRequestedHashFromLocalFileRetryMultiplierMs
+        private const int GetRequestedHashFromLocalFileRetryLimit = 6;          // Starts from 0, retry multiplier is applied upto (GetRequestedHashFromLocalFileRetryLimit - 1)
 
         private readonly FileContentManager m_fileContentManager;
         private readonly PipTwoPhaseCache m_pipTwoPhaseCache;
@@ -45,11 +45,13 @@ namespace BuildXL.Scheduler
         private readonly ServiceManager m_serviceManger;
         private readonly ConcurrentBigMap<ContentHash, IReadOnlyList<ContentHash>> m_inMemoryBuildManifestStore;
         private readonly ConcurrentBigMap<string, long> m_receivedStatistics;
-        private readonly bool m_verifyFileContentOnBuildManifestHashComputation;
+        private readonly bool m_verifyFileContentOnRequestedHashComputation;
         private LoggingContext m_loggingContext;
         // Build manifest requires HistoricMetadataCache. If it's not available, we need to log a warning on the
         // first build manifest API call. 
         private int m_historicMetadataCacheCheckComplete = 0;
+
+        private ObjectPool<List<HashType>> m_hashTypePoolForHashComputation;
 
         /// <summary>
         /// Counters for all ApiServer related statistics.
@@ -60,6 +62,11 @@ namespace BuildXL.Scheduler
         /// Counters for all Build Manifest related statistics within ApiServer.
         /// </summary>
         public static readonly CounterCollection<BuildManifestCounters> ManifestCounters = new CounterCollection<BuildManifestCounters>();
+
+        /// <summary>
+        /// Counters for recomputing content hash related statistics within ApiServer.
+        /// </summary>
+        private readonly CounterCollection<RecomputeContentHashCounters> m_computingContentHashCounters = new CounterCollection<RecomputeContentHashCounters>();
 
         /// <nodoc />
         public ApiServer(
@@ -90,7 +97,8 @@ namespace BuildXL.Scheduler
             m_pipTwoPhaseCache = pipTwoPhaseCache;
             m_inMemoryBuildManifestStore = new ConcurrentBigMap<ContentHash, IReadOnlyList<ContentHash>>();
             m_receivedStatistics = new ConcurrentBigMap<string, long>();
-            m_verifyFileContentOnBuildManifestHashComputation = verifyFileContentOnBuildManifestHashComputation;
+            m_verifyFileContentOnRequestedHashComputation = verifyFileContentOnBuildManifestHashComputation;
+            m_hashTypePoolForHashComputation = Pools.CreateListPool<HashType>();
         }
 
         /// <summary>
@@ -127,6 +135,7 @@ namespace BuildXL.Scheduler
         {
             Counters.LogAsStatistics("ApiServer", m_loggingContext);
             ManifestCounters.LogAsStatistics("ApiServer.BuildManifest", m_loggingContext);
+            m_computingContentHashCounters.LogAsStatistics("ApiServer.ReComputingContentHash", m_loggingContext);
             Logger.Log.BulkStatistic(m_loggingContext, m_receivedStatistics.ToDictionary(kvp => kvp.Key, kvp => kvp.Value));
         }
 
@@ -137,7 +146,7 @@ namespace BuildXL.Scheduler
                 foreach (var manifestHash in manifestHashes)
                 {
                     ManifestCounters.IncrementCounter(BuildManifestCounters.InternalHashToHashCacheWriteCount);
-                    m_pipTwoPhaseCache.TryStoreBuildManifestHash(hash, manifestHash);
+                    m_pipTwoPhaseCache.TryStoreRemappedContentHash(hash, manifestHash);
                 }
             }
         }
@@ -165,7 +174,7 @@ namespace BuildXL.Scheduler
                 foreach (var hashType in ContentHashingUtilities.BuildManifestHashTypes)
                 {
                     ManifestCounters.IncrementCounter(BuildManifestCounters.InternalHashToHashCacheReadCount);
-                    var buildManifestHash = m_pipTwoPhaseCache.TryGetBuildManifestHash(identifyingHash, hashType);
+                    var buildManifestHash = m_pipTwoPhaseCache.TryGetMappedContentHash(identifyingHash, hashType);
                     if (!buildManifestHash.IsValid)
                     {
                         // This means that we will recompute all the hashes if any single one of them is missing.
@@ -183,28 +192,28 @@ namespace BuildXL.Scheduler
             }
         }
 
-        private async Task<Possible<IReadOnlyList<ContentHash>>> TryGetBuildManifestHashFromLocalFileAsync(string fullFilePath, ContentHash hash, IList<HashType> requestedTypes, int retryAttempt = 0)
+        private async Task<Possible<IReadOnlyList<ContentHash>>> TryGetRequestedHashFromLocalFileAsync(string fullFilePath, ContentHash hash, IList<HashType> requestedTypes, int retryAttempt = 0)
         {
             Contract.Assert(requestedTypes.Count > 0, "Must request at least one hash type");
             var result = new List<ContentHash>();
-            if (retryAttempt >= GetBuildManifestHashFromLocalFileRetryLimit)
+            if (retryAttempt >= GetRequestedHashFromLocalFileRetryLimit)
             {
-                string message = $"GetBuildManifestHashFromLocalFileRetryLimit exceeded at path '{fullFilePath}'";
+                string message = $"GetRequestedHashFromLocalFileRetryLimit exceeded at path '{fullFilePath}'";
                 Tracing.Logger.Log.ApiServerForwardedIpcServerMessage(m_loggingContext, "BuildManifest", message);
                 return new Failure<string>(message);
             }
 
             if (retryAttempt > 0)
             {
-                await Task.Delay(TimeSpan.FromMilliseconds(Math.Pow(2, retryAttempt) * GetBuildManifestHashFromLocalFileRetryMultiplierMs));
+                await Task.Delay(TimeSpan.FromMilliseconds(Math.Pow(2, retryAttempt) * GetRequestedHashFromLocalFileRetryMultiplierMs));
             }
 
             if (!File.Exists(fullFilePath))
             {
-                Tracing.Logger.Log.ApiServerForwardedIpcServerMessage(m_loggingContext, "BuildManifest", $"Local file not found at path '{fullFilePath}' while computing BuildManifest Hash. Trying other methods to obtain hash.");
+                Tracing.Logger.Log.ApiServerForwardedIpcServerMessage(m_loggingContext, "RequestedHashComputation", $"Local file not found at path '{fullFilePath}' while computing BuildManifest Hash. Trying other methods to obtain hash.");
                 return new Failure<string>($"File doesn't exist: '{fullFilePath}'");
             }
-            
+
             var hashers = new HashingStream[requestedTypes.Count - 1];
             HashingStream validationStream = null;
             try
@@ -212,7 +221,7 @@ namespace BuildXL.Scheduler
                 using var fs = FileUtilities.CreateFileStream(fullFilePath, FileMode.Open, FileAccess.Read, FileShare.Delete | FileShare.Read, FileOptions.SequentialScan).AssertHasLength();
 
                 // If enabled, create a hashing stream for content validation. Using HashType.Unknown uses the default hashtype
-                validationStream = m_verifyFileContentOnBuildManifestHashComputation ? ContentHashingUtilities.GetContentHasher(HashType.Unknown).CreateReadHashingStream(fs) : null;
+                validationStream = m_verifyFileContentOnRequestedHashComputation ? ContentHashingUtilities.GetContentHasher(HashType.Unknown).CreateReadHashingStream(fs) : null;
 
                 // Create a series of nested ReadHashingStream so we compute all the hashes in parallel
                 StreamWithLength outerStream = validationStream?.AssertHasLength() ?? fs;
@@ -234,20 +243,20 @@ namespace BuildXL.Scheduler
                     result.Add(hashers[i].GetContentHash());
                 }
 
-                if (m_verifyFileContentOnBuildManifestHashComputation)
+                if (m_verifyFileContentOnRequestedHashComputation)
                 {
                     var actualHash = validationStream.GetContentHash();
                     if (hash != actualHash)
                     {
-                        return new Failure<string>($"Unexpected file content during build manifest hash computation. Path: '{fullFilePath}', expected hash '{hash}', actual hash '{actualHash}'.");
+                        return new Failure<string>($"Unexpected file content during requested hash computation. Path: '{fullFilePath}', expected hash '{hash}', actual hash '{actualHash}'.");
                     }
                 }
             }
             catch (Exception ex) when (ex is BuildXLException || ex is IOException)
             {
-                Tracing.Logger.Log.ApiServerForwardedIpcServerMessage(m_loggingContext, "BuildManifest",
-                    $"Local file found at path '{fullFilePath}' but threw exception while computing BuildManifest Hash. Retry attempt {retryAttempt} out of {GetBuildManifestHashFromLocalFileRetryLimit}. Exception: {ex}");
-                return await TryGetBuildManifestHashFromLocalFileAsync(fullFilePath, hash, requestedTypes, retryAttempt + 1);
+                Tracing.Logger.Log.ApiServerForwardedIpcServerMessage(m_loggingContext, "RequestedHashComputation",
+                    $"Local file found at path '{fullFilePath}' but threw exception while computing requested Hash. Retry attempt {retryAttempt} out of {GetRequestedHashFromLocalFileRetryLimit}. Exception: {ex}");
+                return await TryGetRequestedHashFromLocalFileAsync(fullFilePath, hash, requestedTypes, retryAttempt + 1);
             }
             finally
             {
@@ -257,7 +266,7 @@ namespace BuildXL.Scheduler
                     hashers[i]?.Dispose();
                 }
             }
-            
+
             return result;
         }
 
@@ -274,7 +283,7 @@ namespace BuildXL.Scheduler
                 return new Failure<string>($"Unable to materialize file: '{buildManifestEntry.FullFilePath}' with hash: '{buildManifestEntry.Hash.Serialize()}'. Failure: {materializeResult.Payload}");
             }
 
-            return await TryGetBuildManifestHashFromLocalFileAsync(buildManifestEntry.FullFilePath, buildManifestEntry.Hash, requestedTypes);
+            return await TryGetRequestedHashFromLocalFileAsync(buildManifestEntry.FullFilePath, buildManifestEntry.Hash, requestedTypes);
         }
 
         async Task<IIpcResult> IIpcOperationExecutor.ExecuteAsync(int id, IIpcOperation op)
@@ -354,6 +363,14 @@ namespace BuildXL.Scheduler
             if (reportServicePipIsReady != null)
             {
                 var result = await ExecuteCommandWithStats(ExecuteReportServicePipIsReadyAsync, reportServicePipIsReady, ApiServerCounters.TotalServicePipIsReadyCalls);
+                return new Possible<IIpcResult>(result);
+            }
+
+            var rehashCommand = cmd as RecomputeContentHashCommand;
+            if (rehashCommand != null)
+            {
+                var result = await ExecuteRecomputeContentHashAsync(rehashCommand);
+                m_computingContentHashCounters.IncrementCounter(RecomputeContentHashCounters.TotalNumberOfRecomputingHashCalls);
                 return new Possible<IIpcResult>(result);
             }
 
@@ -484,7 +501,7 @@ namespace BuildXL.Scheduler
             }
 
             // (2) Attempt hash read from cache
-            if(TryGetBuildManifestHashesAsync(buildManifestEntry.Hash, out var buildManifestHashes))
+            if (TryGetBuildManifestHashesAsync(buildManifestEntry.Hash, out var buildManifestHashes))
             {
                 m_inMemoryBuildManifestStore.TryAdd(buildManifestEntry.Hash, buildManifestHashes);
                 return new Tracing.BuildManifestEntry(dropName, buildManifestEntry.RelativePath, buildManifestEntry.Hash, buildManifestHashes);
@@ -616,6 +633,79 @@ namespace BuildXL.Scheduler
             m_serviceManger.ReportServiceIsReady(cmd.ProcessId, cmd.ProcessName);
 
             return Task.FromResult(IpcResult.Success(cmd.RenderResult(true)));
+        }
+
+        private async Task<IIpcResult> ExecuteRecomputeContentHashAsync(RecomputeContentHashCommand cmd)
+        {
+            Contract.Requires(cmd != null);
+            await Task.Yield();
+
+            if (!Enum.TryParse(cmd.RequestedHashType, out HashType requestedHashType))
+            {
+                new IpcResult(IpcResultStatus.ExecutionError, $"{cmd.RequestedHashType} is an unknown hash type");
+            }
+
+            var hash = m_pipTwoPhaseCache.TryGetMappedContentHash(cmd.Entry.Hash, requestedHashType);
+
+            string errorMessage = "";
+            if (!hash.IsValid)
+            {
+                // If not existed in cache, then materialize the file and compute its contenthash
+                MaterializeFileCommand materializeCommand = new MaterializeFileCommand(cmd.File, cmd.Entry.FullPath);
+                IIpcResult materializeResult = await ExecuteMaterializeFileAsync(materializeCommand);
+                if (!materializeResult.Succeeded)
+                {
+                    errorMessage = $"Unable to materialize file: '{cmd.Entry.FullPath}' with hash: '{cmd.Entry.Hash.Serialize()}'. Failure: {materializeResult.Payload}";
+                }
+                else
+                {
+                    Possible<IReadOnlyList<ContentHash>> computedHashResult;
+                    try
+                    {
+                        using (m_computingContentHashCounters.StartStopwatch(RecomputeContentHashCounters.HashComputationDuration))
+                        {
+                            using (var requestedHashListinstance = m_hashTypePoolForHashComputation.GetInstance())
+                            {
+                                var requestedHashList = requestedHashListinstance.Instance;
+                                requestedHashList.Add(requestedHashType);
+                                computedHashResult = await TryGetRequestedHashFromLocalFileAsync(cmd.Entry.FullPath, cmd.Entry.Hash, requestedHashList);
+                            }
+                        }
+
+                        if (!computedHashResult.Succeeded || !computedHashResult.Result[0].IsValid)
+                        {
+                            errorMessage = "Recomputed hash failed or returned hash is invalid";
+                        }
+                        else
+                        {
+                            var computedHash = computedHashResult.Result[0];
+                            m_pipTwoPhaseCache.TryStoreRemappedContentHash(cmd.Entry.Hash, computedHash);
+                            var entry = new RecomputeContentHashEntry(cmd.Entry.FullPath, computedHash);
+                            return IpcResult.Success(cmd.RenderResult(entry));
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        errorMessage = $"Unable to recompute the content hash with hashtype {requestedHashType}  for file: '{cmd.Entry.FullPath}' '. Failure: {e}";
+                    }
+                }
+            }
+            else
+            {
+                m_computingContentHashCounters.IncrementCounter(RecomputeContentHashCounters.TotalNumberOfRecomputingHashHits);
+                if (hash.IsValid && hash.HashType != requestedHashType)
+                {
+                    m_computingContentHashCounters.IncrementCounter(RecomputeContentHashCounters.TotalHashFileFailures);
+                    errorMessage = $"Get unexpected hash type from cache in recomputing content hash: {hash.HashType}";
+                }
+                else
+                {
+                    var entry = new RecomputeContentHashEntry(cmd.Entry.FullPath, hash);
+                    return IpcResult.Success(cmd.RenderResult(entry));
+                }
+            }
+            m_computingContentHashCounters.IncrementCounter(RecomputeContentHashCounters.TotalHashFileFailures);
+            return new IpcResult(IpcResultStatus.ExecutionError, errorMessage);
         }
 
         private Possible<Command> TryDeserialize(string operation)
@@ -758,5 +848,35 @@ namespace BuildXL.Scheduler
         /// </summary>
         [CounterType(CounterType.Numeric)]
         TotalHashFileFailures,
+    }
+
+    /// <summary>
+    /// Counters for recomputing content hash related statistics within ApiServer.
+    /// </summary>
+    public enum RecomputeContentHashCounters
+    {
+        /// <summary>
+        /// Number of failed file hash computations
+        /// </summary>
+        [CounterType(CounterType.Numeric)]
+        TotalHashFileFailures,
+
+        /// <summary>
+        /// Time spent computing hashes for files
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        HashComputationDuration,
+
+        /// <summary>
+        /// Number of calls to recomputing hash
+        /// </summary>
+        [CounterType(CounterType.Numeric)]
+        TotalNumberOfRecomputingHashCalls,
+
+        /// <summary>
+        /// Number of recomputing hash calls are cached
+        /// </summary>
+        [CounterType(CounterType.Numeric)]
+        TotalNumberOfRecomputingHashHits,
     }
 }

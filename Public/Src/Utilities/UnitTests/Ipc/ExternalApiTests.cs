@@ -146,6 +146,29 @@ namespace Test.BuildXL.Ipc
         }
 
         [Fact]
+        public async Task TestRecomputeContentHashCommandAsync()
+        {
+            string fullPath = X("/a/b");
+            string hashType = "vso";
+            RecomputeContentHashEntry recomputehashEntry = new RecomputeContentHashEntry(fullPath, ContentHash.Random());
+
+            ContentHash expectedHash = ContentHash.Random();
+            using var apiClient = CreateApiClient(ipcOperation =>
+            {
+                var cmd = (RecomputeContentHashCommand)Command.Deserialize(ipcOperation.Payload);
+                XAssert.AreEqual(hashType, cmd.RequestedHashType);
+                XAssert.IsTrue(recomputehashEntry.Hash.Equals(cmd.Entry.Hash));
+                XAssert.AreEqual(recomputehashEntry.FullPath, cmd.Entry.FullPath);
+                return IpcResult.Success(cmd.RenderResult(new RecomputeContentHashEntry(fullPath, expectedHash)));
+            });
+
+            var maybeResult = await apiClient.RecomputeContentHashFiles(FileArtifact.Invalid, hashType, recomputehashEntry);
+            XAssert.PossiblySucceeded(maybeResult);
+            XAssert.IsTrue(expectedHash.Equals(maybeResult.Result.Hash));
+            XAssert.AreEqual(fullPath, maybeResult.Result.FullPath);
+        }
+
+        [Fact]
         public async Task TestHashContentStreamAsync()
         {
             StreamWithLength stream = new MemoryStream(Encoding.UTF8.GetBytes("SampleString")).AssertHasLength();

@@ -77,6 +77,14 @@ namespace BuildXL.Ipc.ExternalApi
         }
 
         /// <summary>
+        /// Compute the content hash with different hashing algorithm for a file
+        /// </summary>
+        public Task<Possible<RecomputeContentHashEntry>> RecomputeContentHashFiles(FileArtifact file, string requestedhashType, RecomputeContentHashEntry entry)
+        {
+            return ExecuteCommand(new RecomputeContentHashCommand(file, requestedhashType, entry));
+        }
+
+        /// <summary>
         /// Log a verbose or warning message on BuildXL side
         /// </summary>
         public Task<Possible<bool>> LogMessage(string message, bool isWarning = false)

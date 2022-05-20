@@ -55,9 +55,9 @@ namespace BuildXL.Scheduler.Cache
         public static byte TimeToLive => (byte)(EngineEnvironmentSettings.HistoricMetadataCacheDefaultTimeToLive.Value ?? 5);
 
         /// <summary>
-        /// Time-to-live for build manifest hashes.
+        /// Time-to-live for computed content hashes.
         /// </summary>
-        public const int BuildManifestHashTimeToLive = 10;
+        public const int ComputedContentHashTimeToLive = 10;
 
         private static readonly Task<Possible<Unit>> s_genericSuccessTask = Task.FromResult(new Possible<Unit>(Unit.Void));
 
@@ -178,7 +178,7 @@ namespace BuildXL.Scheduler.Cache
         }
 
         private readonly Lazy<KeyValueStoreAccessor> m_storeAccessor;
-        private int m_activeBuildManifestHashColumnIndex;
+        private int m_activeContentHashMappingColumnIndex;
 
         /// <nodoc/>
         public HistoricMetadataCache(
@@ -209,7 +209,7 @@ namespace BuildXL.Scheduler.Cache
             m_retainedContentHashCodes = new ConcurrentBigSet<int>();
 
             Age = 0;
-            m_activeBuildManifestHashColumnIndex = -1;
+            m_activeContentHashMappingColumnIndex = -1;
 
             TaskSourceSlim<Unit> prepareCompletion = TaskSourceSlim.Create<Unit>();
             m_loadTask = new Lazy<Task>(() => ExecuteLoadTask(prepareAsync, prepareCompletion));
@@ -722,38 +722,38 @@ namespace BuildXL.Scheduler.Cache
         }
 
         /// <inheritdoc/>
-        public override void TryStoreBuildManifestHash(ContentHash contentHash, ContentHash buildManifestContentHash)
+        public override void TryStoreRemappedContentHash(ContentHash contentHash, ContentHash remappedContentHash)
         {
             EnsureLoadedAsync().GetAwaiter().GetResult();
 
             StoreAccessor?.Use(database =>
             {
-                using var key = GetBuildManifestHashKey(contentHash, buildManifestContentHash.HashType);
-                if (!database.TryGetValue(key.Value, out var existingValue, StoreColumnNames.BuildManifestHashes[m_activeBuildManifestHashColumnIndex]))
+                using var key = GetRemappingContentHashKey(contentHash, remappedContentHash.HashType);
+                if (!database.TryGetValue(key.Value, out var existingValue, StoreColumnNames.ContentHashMappingColumn[m_activeContentHashMappingColumnIndex]))
                 {
-                    using var value = buildManifestContentHash.ToPooledByteArray();
+                    using var value = remappedContentHash.ToPooledByteArray();
                     // While we are checking both columns, we are storing only into the active one.
-                    database.Put(key.Value, value.Value, StoreColumnNames.BuildManifestHashes[m_activeBuildManifestHashColumnIndex]);
+                    database.Put(key.Value, value.Value, StoreColumnNames.ContentHashMappingColumn[m_activeContentHashMappingColumnIndex]);
                 }
             });
         }
 
         private readonly ObjectPool<HashingHelper> m_hashingPool;
 
-        internal static readonly ByteArrayPool BuildManifestKeyArrayPool = new(ContentHash.SerializedLength + 1);
+        internal static readonly ByteArrayPool ContentMappingKeyArrayPool = new(ContentHash.SerializedLength + 1);
 
         /// <summary>
-        /// Store the build manifest hashes in the same column but with different keys
+        /// Get key to store mapped content hash
         /// </summary>
-        private ByteArrayPool.PoolHandle GetBuildManifestHashKey(ContentHash contentHash, HashType hashType)
+        private ByteArrayPool.PoolHandle GetRemappingContentHashKey(ContentHash contentHash, HashType targetHashType)
         {
-            var handle = BuildManifestKeyArrayPool.Get();
+            var handle = ContentMappingKeyArrayPool.Get();
             byte[] buffer = handle.Value;
 
             // Store the hash type in the first byte
             unchecked
             {
-                buffer[0] = (byte)hashType;
+                buffer[0] = (byte)targetHashType;
             }
 
             contentHash.Serialize(buffer, offset: 1);
@@ -761,7 +761,7 @@ namespace BuildXL.Scheduler.Cache
         }
 
         /// <inheritdoc/>
-        public override ContentHash TryGetBuildManifestHash(ContentHash contentHash, HashType hashType)
+        public override ContentHash TryGetMappedContentHash(ContentHash contentHash, HashType hashType)
         {
             EnsureLoadedAsync().GetAwaiter().GetResult();
 
@@ -770,19 +770,19 @@ namespace BuildXL.Scheduler.Cache
             ContentHash foundHash = default;
             StoreAccessor?.Use(database =>
             {
-                Contract.Assert(m_activeBuildManifestHashColumnIndex >= 0, "Build manifest column is not initialized");
-                using var key = GetBuildManifestHashKey(contentHash, hashType);
+                Contract.Assert(m_activeContentHashMappingColumnIndex >= 0, "Build manifest column is not initialized");
+                using var key = GetRemappingContentHashKey(contentHash, hashType);
                 Contract.Assert(key.Value != null, $"ByteArray was null for ContentHash");
 
                 // First, check the active column. If the hash is not there, check the other column.
-                if (database.TryGetValue(key.Value, out var value, StoreColumnNames.BuildManifestHashes[m_activeBuildManifestHashColumnIndex]))
+                if (database.TryGetValue(key.Value, out var value, StoreColumnNames.ContentHashMappingColumn[m_activeContentHashMappingColumnIndex]))
                 {
                     foundHash = new ContentHash(value);
                 }
-                else if (database.TryGetValue(key.Value, out value, StoreColumnNames.BuildManifestHashes[(m_activeBuildManifestHashColumnIndex + 1) % 2]))
+                else if (database.TryGetValue(key.Value, out value, StoreColumnNames.ContentHashMappingColumn[(m_activeContentHashMappingColumnIndex + 1) % 2]))
                 {
                     // need to update the active column
-                    database.Put(key.Value, value, StoreColumnNames.BuildManifestHashes[m_activeBuildManifestHashColumnIndex]);
+                    database.Put(key.Value, value, StoreColumnNames.ContentHashMappingColumn[m_activeContentHashMappingColumnIndex]);
                     foundHash = new ContentHash(value);
                 }
             });
@@ -927,7 +927,7 @@ namespace BuildXL.Scheduler.Cache
                 }
             }
 
-            m_activeBuildManifestHashColumnIndex = ComputeBuildManifestActiveColumnIndex(Age);
+            m_activeContentHashMappingColumnIndex = ComputeContentHashMappingActiveColumnIndex(Age);
             Counters.AddToCounter(PipCachingCounter.HistoricMetadataLoadedAge, Age);
         }
 
@@ -1137,11 +1137,11 @@ namespace BuildXL.Scheduler.Cache
 
         private void PrepareBuildManifestColumn(RocksDbStore database)
         {
-            if (m_activeBuildManifestHashColumnIndex != ComputeBuildManifestActiveColumnIndex(Age - 1))
+            if (m_activeContentHashMappingColumnIndex != ComputeContentHashMappingActiveColumnIndex(Age - 1))
             {
                 // The active column has changed, need to clean it before its first use.
-                database.DropColumnFamily(StoreColumnNames.BuildManifestHashes[m_activeBuildManifestHashColumnIndex]);
-                database.CreateColumnFamily(StoreColumnNames.BuildManifestHashes[m_activeBuildManifestHashColumnIndex]);
+                database.DropColumnFamily(StoreColumnNames.ContentHashMappingColumn[m_activeContentHashMappingColumnIndex]);
+                database.CreateColumnFamily(StoreColumnNames.ContentHashMappingColumn[m_activeContentHashMappingColumnIndex]);
             }
         }
 
@@ -1149,7 +1149,7 @@ namespace BuildXL.Scheduler.Cache
 
         private KeyValueStoreAccessor OpenStore()
         {
-            Contract.Assert(StoreColumnNames.BuildManifestHashes.Length == 2);
+            Contract.Assert(StoreColumnNames.ContentHashMappingColumn.Length == 2);
 
             var keyTrackedColumns = new string[]
             {
@@ -1159,7 +1159,7 @@ namespace BuildXL.Scheduler.Cache
             var possibleAccessor = KeyValueStoreAccessor.OpenWithVersioning(
                 StoreLocation,
                 FormatVersion,
-                additionalColumns: StoreColumnNames.BuildManifestHashes,
+                additionalColumns: StoreColumnNames.ContentHashMappingColumn,
                 additionalKeyTrackedColumns: keyTrackedColumns,
                 failureHandler: (f) => HandleStoreFailure(f.Failure),
                 onFailureDeleteExistingStoreAndRetry: true);
@@ -1191,9 +1191,9 @@ namespace BuildXL.Scheduler.Cache
         /// Given the age of the cache, computes the index of the build manifest column that
         /// should be used for storing new build manifest hashes.
         /// 
-        /// Essentially, we alternating between two columns every <see cref="BuildManifestHashTimeToLive"/> number of builds.
+        /// Essentially, we alternating between two columns every <see cref="ComputedContentHashTimeToLive"/> number of builds.
         /// </summary>
-        private static int ComputeBuildManifestActiveColumnIndex(int age) => age >= 0 ? (age / BuildManifestHashTimeToLive) % 2 : 0;
+        private static int ComputeContentHashMappingActiveColumnIndex(int age) => age >= 0 ? (age / ComputedContentHashTimeToLive) % 2 : 0;
 
         private readonly struct StoreColumnNames
         {
@@ -1204,7 +1204,7 @@ namespace BuildXL.Scheduler.Cache
             public static string Content = "Content";
 
             /// <summary>
-            /// We use two columns for storing hash -> build manifest hash map. This way we don't need to track the TTL of
+            /// We use two columns for storing (contentHash, targetHashType) -> contentHash map. This way we don't need to track the TTL of
             /// individual entries; instead, all entries in a column sort of share the same TTL. 
             /// 
             /// On look up, we check both columns. If entry is found only on the non-active column, we copy it to the active one.
@@ -1213,7 +1213,11 @@ namespace BuildXL.Scheduler.Cache
             /// On active column change, we clear the new active column. So any entries that have not been accessed (i.e., copied
             /// to the other column) will be evicted.
             /// </summary>
-            public static string[] BuildManifestHashes = { "BuildManifestHash_1", "BuildManifestHash_2" };
+            /// <remark>
+            /// Change the column name can logically drop current columns which is bad 
+            /// TODO: rename column to be more generic when bump format version in future
+            /// </remark>
+            public static string[] ContentHashMappingColumn = { "BuildManifestHash_1", "BuildManifestHash_2" };
         }
 
         private static byte[] StringToBytes(string str)

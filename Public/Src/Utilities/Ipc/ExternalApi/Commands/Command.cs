@@ -76,6 +76,8 @@ namespace BuildXL.Ipc.ExternalApi.Commands
                         return GenerateBuildManifestFileListCommand.InternalDeserialize(reader);
                     case nameof(ReportServicePipIsReadyCommand):
                         return ReportServicePipIsReadyCommand.InternalDeserialize(reader);
+                    case nameof(RecomputeContentHashCommand):
+                        return RecomputeContentHashCommand.InternalDeserialize(reader);
                     default:
                         throw new ArgumentException("unrecognized command type name: " + typeName);
                 }

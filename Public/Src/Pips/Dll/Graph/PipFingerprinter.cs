@@ -173,7 +173,7 @@ namespace BuildXL.Pips.Graph
             Contract.Requires(fingerprinter != null);
             Contract.Requires(pip != null);
 
-            fingerprinter.AddNested(PipFingerprintField.ExecutionAndFingerprintOptions, fp => m_extraFingerprintSalts.AddFingerprint(fp));
+            fingerprinter.AddNested(PipFingerprintField.ExecutionAndFingerprintOptions, fp => m_extraFingerprintSalts.AddFingerprint(fp, pip.BypassFingerprintSalt));
 
             // Fingerprints must change when outputs are hashed with a different algorithm.
             fingerprinter.Add(PipFingerprintField.ContentHashAlgorithmName, s_outputContentHashAlgorithmName);

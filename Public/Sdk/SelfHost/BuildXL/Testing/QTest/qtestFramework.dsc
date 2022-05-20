@@ -181,9 +181,9 @@ function runTest(args : TestRunArguments) : File[] {
         testAssembly: args.testDeployment.primaryFile.path,
         qTestType: Qtest.QTestType.msTest_latest,
         qTestDirToDeploy: args.testDeployment.contents,
-        qTestAdapterPath: Transformer.sealDirectory({
+        qTestAdapterPath: Transformer.sealPartialDirectory({
             root: testAdapterPath, 
-            files: globR(testAdapterPath, "*")
+            files: rootTestAdapterPath.contents.filter(f => f.path.isWithin(testAdapterPath)),
         }),
         qTestDotNetFramework: getQTestDotNetFramework(),
         qTestPlatform: Qtest.QTestPlatform.x64,

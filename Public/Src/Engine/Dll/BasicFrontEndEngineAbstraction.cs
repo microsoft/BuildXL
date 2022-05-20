@@ -23,10 +23,24 @@ namespace BuildXL.Engine
         {
         }
 
-        /// <nodoc />
-        public void SetMountsTable(MountsTable mountsTable)
+        /// <summary>
+        /// Adds all the mounts specified in the given mounts table
+        /// </summary>
+        public void UpdateMountsTable(MountsTable mountsTable)
         {
-            m_customMountsTable = mountsTable.AllMountsSoFar.ToDictionary(mount => mount.Name.ToString(m_pathTable.StringTable), mount => mount);
+            var allMounts = mountsTable.AllMountsSoFar.ToDictionary(mount => mount.Name.ToString(m_pathTable.StringTable), mount => mount);
+
+            if (m_customMountsTable == null)
+            {
+                m_customMountsTable = allMounts;
+            }
+            else
+            {
+                foreach (var mount in allMounts)
+                {
+                    m_customMountsTable[mount.Key] = mount.Value;
+                }
+            }
         }
 
         /// <summary>
@@ -41,7 +55,7 @@ namespace BuildXL.Engine
                 return false;
             }
 
-            SetMountsTable(mountsTable);
+            UpdateMountsTable(mountsTable);
 
             return true;
         }

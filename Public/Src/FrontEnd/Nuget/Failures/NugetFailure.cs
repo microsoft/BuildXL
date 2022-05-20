@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.Linq;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using TypeScript.Net.Extensions;
@@ -21,13 +22,21 @@ namespace BuildXL.FrontEnd.Nuget
         public readonly FailureType Type;
 
         /// <nodoc />
-        public readonly Exception Exception;
+        public readonly string Message;
 
         /// <nodoc />
         public NugetFailure(FailureType failureType, Exception e = null)
         {
             Type = failureType;
-            Exception = e;
+
+            Message = GetAllMessages(e);
+        }
+
+        /// <nodoc />
+        public NugetFailure(FailureType failureType, string message)
+        {
+            Type = failureType;
+            Message = message;
         }
 
         /// <nodoc />
@@ -58,20 +67,28 @@ namespace BuildXL.FrontEnd.Nuget
         }
 
         /// <summary>
-        /// Nuget.exe failed to restore a package.
+        /// Nuget invocation failure
         /// </summary>
-        public static NugetFailure CreateNugetInvocationFailure(INugetPackage package, int exitCode, string stdOut, string stdErr)
+        public static NugetFailure CreateNugetInvocationFailure(INugetPackage package, Exception e)
         {
-            Contract.Requires(package != null);
-            Contract.Requires(exitCode != 0);
+            return CreateNugetInvocationFailure(package, GetAllMessages(e));
+        }
+
+        /// <summary>
+        /// Nuget invocation failure
+        /// </summary>
+        public static NugetFailure CreateNugetInvocationFailure(INugetPackage package, string message)
+        {
+            Contract.RequiresNotNull(package);
+            Contract.RequiresNotNull(message);
 
             // If the stdOut has the following text: 'NotFound http' or 'WARNING: Unable to find version', it means that the package name or version are not found.
-            if (stdOut.Contains("NotFound http") || stdOut.Contains("WARNING: Unable to find version"))
+            if (message.Contains("NotFound http") || message.Contains("WARNING: Unable to find version"))
             {
                 return new CanNotFindPackageFailure(package);
             }
 
-            return new NugetFailedWithNonZeroExitCodeFailure(package, exitCode, stdOut, stdErr);
+            return new NugetInvocationFailure(package, message);
         }
 
         /// <summary>
@@ -89,10 +106,10 @@ namespace BuildXL.FrontEnd.Nuget
         {
             if (Package != null)
             {
-                return I($"Failed to retrieve nuget package '{Package.Id}' version '{Package.Version}' due to {Type.ToString()}. {Exception?.ToStringDemystified()}");
+                return I($"Failed to retrieve nuget package '{Package.Id}' version '{Package.Version}' due to {Type.ToString()}. {Message}");
             }
 
-            return I($"Failed to process nuget packages due to {Type.ToString()}. {Exception?.ToStringDemystified()}");
+            return I($"Failed to process nuget packages due to {Type.ToString()}. {Message}");
         }
 
         /// <inheritdoc />
@@ -111,28 +128,13 @@ namespace BuildXL.FrontEnd.Nuget
         public enum FailureType
         {
             /// <nodoc />
-            FetchNugetExe,
-
-            /// <nodoc />
             FetchCredentialProvider,
-
-            /// <nodoc />
-            WriteConfigFile,
 
             /// <nodoc />
             WriteSpecFile,
 
             /// <nodoc />
             CleanTargetFolder,
-
-            /// <nodoc />
-            NugetFailedWithNonZeroExitCode,
-
-            /// <nodoc />
-            NugetFailedWithIoException,
-
-            /// <nodoc />
-            ListPackageContents,
 
             /// <nodoc />
             ReadNuSpecFile,
@@ -160,6 +162,37 @@ namespace BuildXL.FrontEnd.Nuget
 
             /// <nodoc />
             UnhandledError,
+
+            /// <nodoc/>
+            NoBaseAddressForRepository,
+        }
+
+        private static string GetAllMessages(Exception e)
+        {
+            if (e is null)
+            {
+                return string.Empty;
+            }
+
+            if (e is AggregateException aggregateException)
+            {
+                return string.Join(Environment.NewLine, aggregateException.Flatten().InnerExceptions.SelectMany(ie => GetInnerExceptions(ie)).Select(ex => ex.Message));
+            }
+            else
+            {
+                return string.Join(Environment.NewLine, GetInnerExceptions(e).Select(e => e.Message));
+            }
+        }
+
+        private static IEnumerable<Exception> GetInnerExceptions(Exception ex)
+        {
+            var innerException = ex;
+            do
+            {
+                yield return innerException;
+                innerException = innerException.InnerException;
+            }
+            while (innerException != null);
         }
     }
 }

@@ -15,7 +15,7 @@ export const pkgs = isMicrosoftInternal ? [
     { id: "BuildXL.DeviceMap", version: "0.0.1" },
 
     // Metrics library used by .net core CaSaaS
-    {id: "Microsoft.Cloud.InstrumentationFramework.NetStd", version: "1.2.1011530001"},
+    {id: "Microsoft.Cloud.InstrumentationFramework", version: "3.3.8.1"},
 
     // Runtime dependencies used for macOS deployments
     { id: "runtime.osx-x64.BuildXL", version: "3.8.99" },

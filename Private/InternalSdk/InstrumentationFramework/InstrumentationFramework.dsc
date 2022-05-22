@@ -15,4 +15,4 @@ namespace Contents {
 }
 
 @@public
-export const pkg: Managed.ManagedNugetPackage = {contents: Contents.all, dependencies: [], name: 'Microsoft.Cloud.InstrumentationFramework.NetStd', version: '0.0.0.0', compile: [], runtime: [], deploy: undefined};
+export const pkg: Managed.ManagedNugetPackage = {contents: Contents.all, dependencies: [], name: 'Microsoft.Cloud.InstrumentationFramework', version: '0.0.0.0', compile: [], runtime: [], deploy: undefined};

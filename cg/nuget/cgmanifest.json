@@ -1184,8 +1184,8 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "Microsoft.Cloud.InstrumentationFramework.NetStd",
-          "Version": "1.2.1011530001"
+          "Name": "Microsoft.Cloud.InstrumentationFramework",
+          "Version": "3.3.8.1"
         }
       }
     },

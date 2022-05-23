@@ -3,8 +3,6 @@
 
 import * as DetoursServices from "BuildXL.Sandbox.Windows";
 import * as Xml from "Sdk.Xml";
-import * as Deployment from "Sdk.Deployment";
-import {Transformer} from "Sdk.Transformers";
 
 namespace Engine {
 
@@ -25,34 +23,8 @@ namespace Engine {
         },
     ];
 
-    // We generate specs as if the compilers package was source files, but point it to the downloaded NuGet
-    const compilerSpecsDir = Context.getNewOutputDirectory("compilers-specs");
-    const microsoftNetCompilerSpec = Transformer.writeAllText(p`${compilerSpecsDir}/module.config.bm`, 
-        "module({name: 'Microsoft.Net.Compilers', version: '4.0.1', nameResolutionSemantics: NameResolutionSemantics.implicitProjectReferences});");
-    const specFile = Transformer.writeAllLines(p`${compilerSpecsDir}/package.dsc`, [
-        "import {Transformer} from 'Sdk.Transformers';",
-        "namespace Contents {",
-            "export declare const qualifier: {};",
-            "@@public export const all: StaticDirectory = Transformer.sealPartialDirectory(d`package`, globR(d`package`, '*'));",
-        "}"
-    ]);
-
-    // Deploy the compilers package plus the specs that refer to it
-    const deployable : Deployment.Definition = {
-        contents: [
-            {
-                subfolder: a`compilers`,
-                contents: [
-                    {
-                         subfolder: a`package`, 
-                         contents: [importFrom('Microsoft.Net.Compilers').Contents.all]
-                    }, 
-                    specFile, 
-                    microsoftNetCompilerSpec
-                ]
-            }
-        ]
-    };
+    // Update the value of this variable if you change the version of Microsoft.Net.Compilers in config.dsc.
+    const microsoftNetCompilerSpec = f`${Context.getMount("FrontEnd").path}/Nuget/specs/Microsoft.Net.Compilers/4.0.1/module.config.bm`;
 
     @@public
     export const categoriesToRunInParallel = [
@@ -75,11 +47,12 @@ namespace Engine {
             },
             parallelGroups: categoriesToRunInParallel,
             testRunData: {
-                MicrosoftNetCompilersSdkLocation: "compilers/module.config.bm",
+                MicrosoftNetCompilersSdkLocation: microsoftNetCompilerSpec,
             },
             tools: {
                 exec: {
                     dependencies: [
+                        microsoftNetCompilerSpec,
                         importFrom("Microsoft.Net.Compilers").Contents.all,
                         importFrom("Microsoft.NETCore.Compilers").Contents.all,
                     ]
@@ -114,7 +87,6 @@ namespace Engine {
         ],
         runtimeContent: [
             ...libsUsedForTesting,
-            deployable
         ],
     });
 }

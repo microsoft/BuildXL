@@ -24,6 +24,33 @@ namespace BuildXL.FrontEnd.Nuget.Tracing
         public static Logger Log { get; } = new LoggerImpl();
 
         [GeneratedEvent(
+            (ushort)LogEventId.LaunchingNugetExe,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.Diagnostics,
+            EventTask = (ushort)Tasks.Parser,
+            Message = "Package nuget://{id}/{version} is being restored by launching nuget.exe with commandline: {commandline}")]
+        public abstract void LaunchingNugetExe(LoggingContext context, string id, string version, string commandline);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.CredentialProviderRequiresToolUrl,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (ushort)(Keywords.UserMessage | Keywords.UserError),
+            EventTask = (ushort)Tasks.Parser,
+            Message = "CredentialProviders for the Nuget resolver are required to specify ToolUrl. '{toolName}' does not do so.")]
+        public abstract void CredentialProviderRequiresToolUrl(LoggingContext context, string toolName);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.NugetDownloadInvalidHash,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (ushort)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Parser,
+            Message = "Configured downloadHash '{hash}' for tool '{toolName}' is invalid. Attempt to download tool without hash guard.")]
+        public abstract void NugetDownloadInvalidHash(LoggingContext context, string toolName, string hash);
+
+        [GeneratedEvent(
             (ushort)LogEventId.NugetFailedToCleanTargetFolder,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
@@ -33,13 +60,74 @@ namespace BuildXL.FrontEnd.Nuget.Tracing
         public abstract void NugetFailedToCleanTargetFolder(LoggingContext context, string id, string version, string targetLocation, string message);
 
         [GeneratedEvent(
-            (ushort)LogEventId.NugetInspectionInitialization,
+            (ushort)LogEventId.NugetFailedWithNonZeroExitCode,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (ushort)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Parser,
+            Message =
+                "Package nuget://{id}/{version} could not be downloaded because nuget.exe failed with exit code '{exitcode}'. \r\nTools output:\r\n{output}\r\nSee the buildxl log for more details.")]
+        public abstract void NugetFailedWithNonZeroExitCode(LoggingContext context, string id, string version, int exitcode, string output);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.NugetFailedDueToSomeWellKnownIssue,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (ushort)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Parser,
+            Message =
+                "Package nuget://{id}/{version} could not be restored. {message}\r\nSee the buildxl log for more details.")]
+        public abstract void NugetFailedDueToSomeWellKnownIssue(LoggingContext context, string id, string version, string message);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.NugetFailedWithNonZeroExitCodeDetailed,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (ushort)Keywords.UserMessage,
             EventTask = (ushort)Tasks.Parser,
-            Message = "Nuget inspection info: {message}")]
-        public abstract void NuGetInspectionInitializationInfo(LoggingContext context, string message);
+            Message =
+                "Package nuget://{id}/{version} could not be downloaded because nuget.exe failed with exit code '{exitcode}'. The standard output was:\r\n{stdOut}\r\n. The standard Error was:\r\n{stdErr}")]
+        public abstract void NugetFailedWithNonZeroExitCodeDetailed(
+            LoggingContext context,
+            string id,
+            string version,
+            int exitcode,
+            string stdOut,
+            string stdErr);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.NugetFailedToListPackageContents,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (ushort)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Parser,
+            Message =
+                "Package nuget://{id}/{version} could not be downloaded because we could not list the content of the folder '{packageFolder}': {message}")]
+        public abstract void NugetFailedToListPackageContents(LoggingContext context, string id, string version, string packageFolder, string message);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.NugetFailedToWriteConfigurationFile,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (ushort)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Parser,
+            Message = "Could not be write configuration file to '{configFile}': {message}")]
+        public abstract void NugetFailedToWriteConfigurationFile(LoggingContext context, string configFile, string message);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.NugetFailedToWriteConfigurationFileForPackage,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (ushort)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Parser,
+            Message =
+                "Package nuget://{id}/{version} could not be processed because we could not write configuration file to '{configFile}': {message}")]
+        public abstract void NugetFailedToWriteConfigurationFileForPackage(
+            LoggingContext context,
+            string id,
+            string version,
+            string configFile,
+            string message);
 
         [GeneratedEvent(
             (ushort)LogEventId.NugetFailedToWriteSpecFileForPackage,
@@ -82,6 +170,21 @@ namespace BuildXL.FrontEnd.Nuget.Tracing
         public abstract void NugetFailedNuSpecFileNotFound(LoggingContext context, string id, string version, string expectedPath);
 
         [GeneratedEvent(
+        (ushort)LogEventId.NugetFailedWithInvalidNuSpecXml,
+        EventGenerators = EventGenerators.LocalOnly,
+        EventLevel = Level.Error,
+        Keywords = (ushort)(Keywords.UserMessage | Keywords.UserError),
+        EventTask = (ushort)Tasks.Parser,
+        Message =
+            "Package nuget://{id}/{version} could not be processed because the nuspec file at: '{nuspecFile}' has unexpected xml contents: {illegalXmlElement}")]
+        public abstract void NugetFailedWithInvalidNuSpecXml(
+                    LoggingContext context,
+                    string id,
+                    string version,
+                    string nuspecFile,
+                    string illegalXmlElement);
+
+        [GeneratedEvent(
             (ushort)LogEventId.NugetPackageVersionIsInvalid,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
@@ -89,6 +192,16 @@ namespace BuildXL.FrontEnd.Nuget.Tracing
             EventTask = (int)Tasks.Engine,
             Message = "Invalid nuget version '{version}' found in config.dsc for package '{packageName}'. Expected version format is 'A.B.C.D'.")]
         public abstract void ConfigNugetPackageVersionIsInvalid(LoggingContext context, string version, string packageName);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.NugetLaunchFailed,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (ushort)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Parser,
+            Message =
+                "Package nuget://{id}/{version} could not be downloaded because nuget.exe could not be launched: {message}")]
+        public abstract void NugetLaunchFailed(LoggingContext context, string id, string version, string message);
 
         [GeneratedEvent(
             (ushort)LogEventId.NugetStatistics,
@@ -105,7 +218,7 @@ namespace BuildXL.FrontEnd.Nuget.Tracing
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,
             EventTask = (ushort)Tasks.Parser,
-            Message = "Inspecting NuGet packages ({packagesDownloadedCount} of {totalPackagesCount} done).",
+            Message = "Restoring NuGet packages ({packagesDownloadedCount} of {totalPackagesCount} done).",
             Keywords = (int)Keywords.UserMessage | (int)Keywords.Overwritable)]
         public abstract void NugetPackageDownloadedCount(LoggingContext context, long packagesDownloadedCount, long totalPackagesCount);
 
@@ -114,7 +227,7 @@ namespace BuildXL.FrontEnd.Nuget.Tracing
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,
             EventTask = (ushort)Tasks.Parser,
-            Message = "Inspected {totalPackagesCount} NuGet packages in {totalMilliseconds}ms.",
+            Message = "Restored {totalPackagesCount} NuGet packages in {totalMilliseconds}ms.",
             Keywords = (int)Keywords.UserMessage | (int)Keywords.Overwritable)]
         public abstract void NugetPackagesAreRestored(LoggingContext context, long totalPackagesCount, long totalMilliseconds);
 
@@ -141,7 +254,7 @@ namespace BuildXL.FrontEnd.Nuget.Tracing
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Parser,
-            Message = "Package nuget://{id}/{version} could not be inspected because of an unhandled error '{error}'.",
+            Message = "Package nuget://{id}/{version} could not be restored because of an unhandled error '{error}'.",
             Keywords = (int)Keywords.UserMessage | (int)Keywords.Overwritable)]
         public abstract void NugetUnhandledError(LoggingContext context, string id, string version, string error);
 
@@ -151,7 +264,7 @@ namespace BuildXL.FrontEnd.Nuget.Tracing
             EventLevel = Level.Informational,
             EventTask = (ushort)Tasks.Parser,
             Message =
-                "Inspecting NuGet packages ({packagesDownloadedCount} of {totalPackagesCount} done). Remaining {packagesToDownloadDetail}",
+                "Restoring NuGet packages ({packagesDownloadedCount} of {totalPackagesCount} done). Remaining {packagesToDownloadDetail}",
             Keywords = (int)Keywords.UserMessage | (int)Keywords.OverwritableOnly)]
         public abstract void NugetPackageDownloadedCountWithDetails(LoggingContext context, long packagesDownloadedCount,
             long totalPackagesCount, string packagesToDownloadDetail);

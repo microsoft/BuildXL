@@ -65,12 +65,6 @@ namespace BuildXL.FrontEnd.Sdk
             };
         }
 
-        /// <inheritdoc/>
-        public override AbsolutePath Translate(AbsolutePath path)
-        {
-            return path;
-        }
-
         /// <summary>
         /// This method is not implemented.
         /// </summary>
@@ -92,7 +86,7 @@ namespace BuildXL.FrontEnd.Sdk
                 return false;
             }
 
-            stream = m_fileSystem.OpenText(AbsolutePath.Create(m_pathTable, physicalPath)).BaseStream;
+            stream =  m_fileSystem.OpenText(AbsolutePath.Create(m_pathTable, physicalPath)).BaseStream;
 
             return true;
         }

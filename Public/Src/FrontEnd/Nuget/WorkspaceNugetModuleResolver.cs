@@ -62,8 +62,6 @@ namespace BuildXL.FrontEnd.Nuget
 
         private const string SpecGenerationVersionFileSuffix = ".version";
 
-        private const string NugetCredentialProviderEnv = "NUGET_CREDENTIALPROVIDERS_PATH";
-
         private NugetFrameworkMonikers m_nugetFrameworkMonikers;
 
         // These are set during Initialize
@@ -84,6 +82,8 @@ namespace BuildXL.FrontEnd.Nuget
         private NugetResolverOutputLayout m_resolverOutputLayout;
         private IConfiguration m_configuration;
 
+        private readonly Lazy<AbsolutePath> m_nugetToolFolder;
+
         /// <inheritdoc />
         public string Kind => KnownResolverKind.NugetResolverKind;
 
@@ -101,6 +101,10 @@ namespace BuildXL.FrontEnd.Nuget
             m_embeddedSpecsResolver = new WorkspaceSourceModuleResolver(stringTable, statistics, logger: null);
 
             m_useMonoBasedNuGet = OperatingSystemHelper.IsUnixOS;
+
+            m_nugetToolFolder = new Lazy<AbsolutePath>(
+                () => m_host.GetFolderForFrontEnd(NugetResolverName).Combine(PathTable, "nuget"),
+                LazyThreadSafetyMode.ExecutionAndPublication);
         }
 
         /// <inheritdoc/>
@@ -389,58 +393,21 @@ namespace BuildXL.FrontEnd.Nuget
 
         private Task<Possible<NugetGenerationResult>> DownloadPackagesAndGenerateSpecsIfNeededInternal()
         {
-            return m_nugetGenerationResult.GetOrCreate(this, @this => Task.FromResult(@this.DownloadPackagesAndGenerateSpecs()));
+            return m_nugetGenerationResult.GetOrCreate(this, @this => @this.DownloadPackagesAndGenerateSpecsAsync());
         }
 
-        private Possible<AbsolutePath> TryResolveCredentialProvider()
+        private AbsolutePath GetNugetToolFolder()
         {
-            if (!m_host.Engine.TryGetBuildParameter(NugetCredentialProviderEnv, nameof(NugetFrontEnd), out string credentialProvidersPaths))
-            {
-                return new NugetFailure(NugetFailure.FailureType.FetchCredentialProvider, $"Environment variable {NugetCredentialProviderEnv} is not set");
-            }
-            
-            // Here we do something slightly simpler than what NuGet does and just look for the first credential
-            // provider we can find
-            AbsolutePath credentialProviderPath = AbsolutePath.Invalid;
-            foreach (string path in credentialProvidersPaths.Split(new[] { Path.PathSeparator }, StringSplitOptions.RemoveEmptyEntries))
-            {
-                if (!AbsolutePath.TryCreate(m_context.PathTable, path, out var absolutePath))
-                {
-                    break;
-                }    
-
-                // Use the engine to enumerate, since the result of the enumeration should be sensitive
-                // to the graph building process
-                credentialProviderPath = m_host.Engine.EnumerateFiles(absolutePath, "CredentialProvider*.exe").FirstOrDefault();
-                if (credentialProviderPath.IsValid)
-                {
-                    break;
-                }
-            }
-
-            if (!credentialProviderPath.IsValid)
-            {
-                return new NugetFailure(NugetFailure.FailureType.FetchCredentialProvider, $"Unable to authenticate using a credential provider: Credential provider was not found under '{credentialProvidersPaths}'.");
-            }
-
-            // We want to rebuild the build graph if the credential provider changed. Running the whole auth process under detours sounds like too much,
-            // let's just read the credential provider main .exe so presence/hash gets recorded instead.
-            m_host.Engine.TryGetFrontEndFile(credentialProviderPath, nameof(NugetFrontEnd), out _);
-
-            return m_host.Engine.Translate(credentialProviderPath);
+            return m_nugetToolFolder.Value;
         }
 
-        private Possible<NugetGenerationResult> DownloadPackagesAndGenerateSpecs()
+        private AbsolutePath GetNugetConfigPath()
         {
-            var maybeCredentialProviderPath = TryResolveCredentialProvider();
+            return GetNugetToolFolder().Combine(PathTable, "NuGet.config");
+        }
 
-            var nugetInspector = new NugetPackageInspector(
-                m_resolverSettings.Repositories.Select(kvp => (kvp.Key, new Uri(kvp.Value))), 
-                PathTable.StringTable,
-                () => maybeCredentialProviderPath.Then(path => path.ToString(PathTable)),
-                m_context.CancellationToken,
-                m_context.LoggingContext);
-
+        private async Task<Possible<NugetGenerationResult>> DownloadPackagesAndGenerateSpecsAsync()
+        {
             // Log if the full package restore is requested.
             if (m_configuration.FrontEnd.ForcePopulatePackageCache())
             {
@@ -462,6 +429,26 @@ namespace BuildXL.FrontEnd.Nuget
 
             using (var nugetEndToEndStopWatch = m_statistics.EndToEnd.Start())
             {
+                var possiblePaths = await TryDownloadNugetAsync(m_resolverSettings.Configuration, GetNugetToolFolder());
+                if (!possiblePaths.Succeeded)
+                {
+                    Logger.Log.NugetFailedDownloadPackagesAndGenerateSpecs(m_context.LoggingContext, possiblePaths.Failure.DescribeIncludingInnerFailures());
+                    return possiblePaths.Failure;
+                }
+
+                var possibleNugetConfig = CreateNuGetConfig(m_repositories);
+
+                var possibleNuGetConfig = TryWriteXmlConfigFile(
+                    package: null,
+                    targetFile: GetNugetConfigPath(),
+                    xmlDoc: possibleNugetConfig.Result);
+
+                if (!possibleNuGetConfig.Succeeded)
+                {
+                    Logger.Log.NugetFailedDownloadPackagesAndGenerateSpecs(m_context.LoggingContext, possibleNuGetConfig.Failure.DescribeIncludingInnerFailures());
+                    return possibleNuGetConfig.Failure;
+                }
+
                 // Will contain all packages successfully downloaded and analyzed
                 var restoredPackagesById = new Dictionary<string, NugetAnalyzedPackage>();
 
@@ -481,32 +468,16 @@ namespace BuildXL.FrontEnd.Nuget
                     {
                         var aggregateResult = new Possible<NugetAnalyzedPackage>[nugetProgress.Length];
 
-                        if (!m_host.Engine.TryGetBuildParameter(NugetCredentialProviderEnv, nameof(NugetFrontEnd), out string allCredentialProviderPaths))
-                        {
-                            allCredentialProviderPaths = string.Empty;
-                        }
-
-                        var loopState = Parallel.For(fromInclusive: 0,
+                        Parallel.For(fromInclusive: 0,
                             toExclusive: aggregateResult.Length,
                             new ParallelOptions()
                             {
                                 MaxDegreeOfParallelism = concurrencyLevel,
                                 CancellationToken = m_context.CancellationToken,
                             },
-                            (index, state) =>
+                            (index) =>
                             {
-                                aggregateResult[index] = TryInspectPackageAsync(
-                                    nugetProgress[index], 
-                                    maybeCredentialProviderPath.Succeeded ? maybeCredentialProviderPath.Result : AbsolutePath.Invalid, 
-                                    allCredentialProviderPaths, 
-                                    nugetInspector).GetAwaiter().GetResult();
-
-                                // Let's not schedule more work in the parallel for if one of the inspections failed
-                                if (!aggregateResult[index].Succeeded)
-                                {
-                                    state.Break();
-                                }
-
+                                aggregateResult[index] = TryRestorePackageAsync(nugetProgress[index], possiblePaths.Result).GetAwaiter().GetResult();
                                 return;
                             });
 
@@ -534,16 +505,6 @@ namespace BuildXL.FrontEnd.Nuget
                             }
                             else
                             {
-                                // If the package result is null, that means there was at least one failure and the parallel for ended prematurely, but the failure
-                                // happened after the current index
-                                if (packageResult.Result == null)
-                                {
-                                    // There should be at least one failure and the loop state should not be completed
-                                    Contract.Assert(!loopState.IsCompleted);
-                                    // Just skip this iteration. The failure is ahead of the current index and we'll eventually reach it
-                                    continue;
-                                }
-
                                 packageResult.Result.NugetName = nugetPackage.Package.Id;
                                 restoredPackagesById[packageResult.Result.ActualId] = packageResult.Result;
                             }
@@ -588,12 +549,12 @@ namespace BuildXL.FrontEnd.Nuget
             {
                 if (m_configuration.DoesSourceDiskDriveHaveSeekPenalty(PathTable))
                 {
-                    nugetConcurrency = Environment.ProcessorCount;
+                    nugetConcurrency = Environment.ProcessorCount / 2;
                     message = I($"Lowering restore package concurrency to {nugetConcurrency} because a source drive is on HDD.");
                 }
                 else
                 {
-                    nugetConcurrency = Math.Min(128, Environment.ProcessorCount * 4);
+                    nugetConcurrency = Math.Min(16, Environment.ProcessorCount * 2);
                     message = I($"Increasing restore package concurrency to {nugetConcurrency} because a source drive is on SSD.");
                 }
             }
@@ -603,11 +564,9 @@ namespace BuildXL.FrontEnd.Nuget
             return nugetConcurrency;
         }
 
-        private async Task<Possible<NugetAnalyzedPackage>> TryInspectPackageAsync(
+        private async Task<Possible<NugetAnalyzedPackage>> TryRestorePackageAsync(
             NugetProgress progress,
-            AbsolutePath selectedCredentialProviderPath,
-            string allCredentialProviderPaths,
-            NugetPackageInspector nugetInspector)
+            IReadOnlyList<AbsolutePath> credentialProviderPaths)
         {
             progress.StartRunning();
 
@@ -620,9 +579,11 @@ namespace BuildXL.FrontEnd.Nuget
                 var layout = NugetPackageOutputLayout.Create(
                     PathTable,
                     package,
+                    nugetTool: credentialProviderPaths[0],
+                    nugetConfig: GetNugetConfigPath(),
                     resolverLayout: m_resolverOutputLayout);
 
-                var possiblePkg = await TryInpectPackageWithCache(package, progress, layout, allCredentialProviderPaths, nugetInspector);
+                var possiblePkg = await TryRestorePackageWithCache(package, progress, layout, credentialProviderPaths);
 
                 if (!possiblePkg.Succeeded)
                 {
@@ -635,7 +596,6 @@ namespace BuildXL.FrontEnd.Nuget
 
                 var analyzedPackage = AnalyzeNugetPackage(
                     possiblePkg.Result,
-                    selectedCredentialProviderPath,
                     m_resolverSettings.DoNotEnforceDependencyVersions);
                 if (!analyzedPackage.Succeeded)
                 {
@@ -820,6 +780,60 @@ namespace BuildXL.FrontEnd.Nuget
             return true;
         }
 
+        private Possible<XDocument, NugetFailure> CreateNuGetConfig(IReadOnlyDictionary<string, string> repositories)
+        {
+            XElement credentials = null;
+            if (m_useMonoBasedNuGet)
+            {
+                var localNuGetConfigPath = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                    ".config",
+                    "NuGet",
+                    "NuGet.Config");
+
+                try
+                {
+                    // Sadly nuget goes all over the disk to chain configs, but when it comes to the credentials it decides not to properly merge them.
+                    // So for now we have to hack and read the credentials from the users profile and stick them in the local config....
+                    if (FileUtilities.Exists(localNuGetConfigPath))
+                    {
+                        ExceptionUtilities.HandleRecoverableIOException(
+                            () =>
+                            {
+                                var doc = XDocument.Load(localNuGetConfigPath);
+                                credentials = doc.Element("configuration")?.Element("packageSourceCredentials");
+                            },
+                            e => throw new BuildXLException($"Failed to load nuget config {localNuGetConfigPath}", e));
+                    }
+                }
+                catch (BuildXLException e)
+                {
+                    Logger.Log.NugetFailedToWriteConfigurationFile(
+                        m_context.LoggingContext,
+                        localNuGetConfigPath,
+                        e.LogEventMessage);
+                    return new NugetFailure(NugetFailure.FailureType.WriteConfigFile, e.InnerException);
+                }
+            }
+
+            return new XDocument(
+                new XElement(
+                    "configuration",
+                    new XElement(
+                        "packageRestore",
+                        new XElement("clear"),
+                        new XElement("add", new XAttribute("key", "enabled"), new XAttribute("value", "True"))),
+                    new XElement(
+                        "disabledPackageSources",
+                        new XElement("clear")),
+                    credentials,
+                    new XElement(
+                        "packageSources",
+                        new XElement("clear"),
+                        repositories.Select(
+                            kv => new XElement("add", new XAttribute("key", kv.Key), new XAttribute("value", kv.Value))))));
+        }
+
         private Possible<AbsolutePath> TryWriteSourceFile(INugetPackage package, AbsolutePath targetFile, ISourceFile sourceFile)
         {
             Contract.Requires(package != null);
@@ -852,6 +866,45 @@ namespace BuildXL.FrontEnd.Nuget
                     targetFilePath,
                     e.LogEventMessage);
                 return new NugetFailure(package, NugetFailure.FailureType.WriteSpecFile, e.InnerException);
+            }
+
+            m_host.Engine.RecordFrontEndFile(targetFile, NugetResolverName);
+
+            return targetFile;
+        }
+
+        private Possible<AbsolutePath> TryWriteXmlConfigFile(INugetPackage package, AbsolutePath targetFile, XDocument xmlDoc)
+        {
+            var targetFilePath = targetFile.ToString(PathTable);
+
+            try
+            {
+                FileUtilities.CreateDirectory(Path.GetDirectoryName(targetFilePath));
+                ExceptionUtilities.HandleRecoverableIOException(
+                    () =>
+                    xmlDoc.Save(targetFilePath, SaveOptions.DisableFormatting),
+                    e =>
+                    {
+                        throw new BuildXLException("Cannot save document", e);
+                    });
+            }
+            catch (BuildXLException e)
+            {
+                if (package == null)
+                {
+                    Logger.Log.NugetFailedToWriteConfigurationFile(m_context.LoggingContext, targetFilePath, e.LogEventMessage);
+                }
+                else
+                {
+                    Logger.Log.NugetFailedToWriteConfigurationFileForPackage(
+                        m_context.LoggingContext,
+                        package.Id,
+                        package.Version,
+                        targetFilePath,
+                        e.LogEventMessage);
+                }
+
+                return new NugetFailure(package, NugetFailure.FailureType.WriteConfigFile, e.InnerException);
             }
 
             m_host.Engine.RecordFrontEndFile(targetFile, NugetResolverName);
@@ -955,9 +1008,8 @@ namespace BuildXL.FrontEnd.Nuget
 
             // No-op if the directory exists
             FileUtilities.CreateDirectory(packageSpecDirStr);
-            
-            var nugetSpecGenerator = new NugetSpecGenerator(PathTable, analyzedPackage, m_resolverSettings.Repositories, 
-                m_configuration.Layout.SourceDirectory, m_resolverSettings.Configuration.DownloadTimeoutMin);
+
+            var nugetSpecGenerator = new NugetSpecGenerator(PathTable, analyzedPackage);
 
             var possibleProjectFile = TryWriteSourceFile(
                 analyzedPackage.PackageOnDisk.Package,
@@ -992,7 +1044,6 @@ namespace BuildXL.FrontEnd.Nuget
 
         internal Possible<NugetAnalyzedPackage> AnalyzeNugetPackage(
             PackageOnDisk packageOnDisk,
-            AbsolutePath credentialProviderPath,
             bool doNotEnforceDependencyVersions)
         {
             Contract.Requires(packageOnDisk != null);
@@ -1006,7 +1057,7 @@ namespace BuildXL.FrontEnd.Nuget
             }
 
             var result = NugetAnalyzedPackage.TryAnalyzeNugetPackage(m_context, m_nugetFrameworkMonikers, maybeNuspecXdoc.Result,
-                packageOnDisk, m_packageRegistry.AllPackagesById, doNotEnforceDependencyVersions, credentialProviderPath);
+                packageOnDisk, m_packageRegistry.AllPackagesById, doNotEnforceDependencyVersions);
 
             if (result == null)
             {
@@ -1068,7 +1119,8 @@ namespace BuildXL.FrontEnd.Nuget
             }
         }
 
-        private string CreateRestoreFingerPrint(INugetPackage package, string credentialProviderPaths)
+
+        private string CreateRestoreFingerPrint(INugetPackage package, IEnumerable<AbsolutePath> credentialProviderPaths)
         {
             var fingerprintParams = new List<string>
                                     {
@@ -1078,7 +1130,7 @@ namespace BuildXL.FrontEnd.Nuget
                                     };
             if (credentialProviderPaths != null)
             {
-                fingerprintParams.Add("cred=" + credentialProviderPaths);
+                fingerprintParams.Add("cred=" + UppercaseSortAndJoinStrings(credentialProviderPaths.Select(p => p.ToString(PathTable))));
             }
 
             return  "nuget://" + string.Join("&", fingerprintParams);
@@ -1097,12 +1149,11 @@ namespace BuildXL.FrontEnd.Nuget
             return  restoreFingerPrint + "&" + string.Join("&", fingerprintParams);
         }
 
-        private async Task<Possible<PackageOnDisk>> TryInpectPackageWithCache(
+        private async Task<Possible<PackageOnDisk>> TryRestorePackageWithCache(
             INugetPackage package,
             NugetProgress progress,
             NugetPackageOutputLayout layout,
-            string credentialProviderPaths,
-            NugetPackageInspector nugetInspector)
+            IEnumerable<AbsolutePath> credentialProviderPaths)
         {
             var packageRestoreFingerprint = CreateRestoreFingerPrint(package, credentialProviderPaths);
             var identity = PackageIdentity.Nuget(package.Id, package.Version, package.Alias);
@@ -1114,23 +1165,10 @@ namespace BuildXL.FrontEnd.Nuget
                     packageRestoreFingerprint,
                     identity,
                     layout.PackageFolder,
-                    layout.PathToNuspec,
-                    async () =>
+                    () =>
                     {
                         progress.StartDownloadFromNuget();
-                        
-                        // We want to delay initialization until the first inspection that is actually needed
-                        // Initializing the inspector involves resolving the index service for each specified repository
-                        if (!await nugetInspector.IsInitializedAsync())
-                        {
-                            var initResult = await nugetInspector.TryInitAsync();
-                            if (!initResult.Succeeded)
-                            {
-                                return initResult.Failure;
-                            }
-                        }
-
-                        return await TryInspectPackage(package, layout, nugetInspector);
+                        return TryDownloadPackage(package, layout, credentialProviderPaths);
                     });
 
             return maybePackage.Then(downloadResult =>
@@ -1145,71 +1183,34 @@ namespace BuildXL.FrontEnd.Nuget
             return string.Join(",", values.Select(s => s.ToUpperInvariant()).OrderBy(s => s));
         }
 
-        private async Task<Possible<IReadOnlyList<RelativePath>>> TryInspectPackage(
-            INugetPackage package, 
-            NugetPackageOutputLayout layout, 
-            NugetPackageInspector nugetInspector)
+        private async Task<Possible<IReadOnlyList<RelativePath>>> TryDownloadPackage(
+            INugetPackage package, NugetPackageOutputLayout layout, IEnumerable<AbsolutePath> credentialProviderPaths)
         {
+            var xmlConfigResult = TryWriteXmlConfigFile(package, layout.PackagesConfigFile, GetPackagesXml(package));
+            if (!xmlConfigResult.Succeeded)
+            {
+                return xmlConfigResult.Failure;
+            }
+
             var cleanUpResult = TryCleanupPackagesFolder(package, layout);
             if (!cleanUpResult.Succeeded)
             {
                 return cleanUpResult.Failure;
             }
 
-            // Inspect the package (get nuspec and layout)
-            var maybeInspectedPackage = await nugetInspector.TryInspectAsync(package);
-            if (!maybeInspectedPackage.Succeeded)
+            var nugetExeResult = await TryLaunchNugetExeAsync(package, layout, credentialProviderPaths);
+            if (!nugetExeResult.Succeeded)
             {
-                return maybeInspectedPackage.Failure;
+                return nugetExeResult.Failure;
             }
 
-            var inspectedPackage = maybeInspectedPackage.Result;
-
-            // Serialize the nuspec to disk. In this way we can also use the bxl cache to avoid
-            // downloading this content again. The hash file will contain the layout, which is serialized
-            // later
-            try 
+            var contentResult = TryEnumerateDirectory(package, layout.PackageDirectory);
+            if (!contentResult.Succeeded)
             {
-#if NET_FRAMEWORK
-                return ExceptionUtilities.HandleRecoverableIOException(
-                   () =>
-#else
-                return await ExceptionUtilities.HandleRecoverableIOException(
-                   async () =>
-#endif
-                   {
-                       FileUtilities.CreateDirectoryWithRetry(layout.PackageFolder.ToString(PathTable));
-                       
-                       // XML files need to be serialized with the right enconding, so let's use XDocument
-                       // for that
-                       var xdocument = XDocument.Parse(inspectedPackage.Nuspec);
-
-                       using (var nuspec = new FileStream(layout.PathToNuspec.ToString(PathTable), FileMode.Create))
-                       {
-#if NET_FRAMEWORK
-                           xdocument.Save(nuspec);
-#else
-                           await xdocument.SaveAsync(nuspec, SaveOptions.None, m_context.CancellationToken);
-#endif
-                       }
-
-                       return new Possible<IReadOnlyList<RelativePath>>(inspectedPackage.Content);
-                   },
-                   e =>
-                   {
-                       throw new BuildXLException("Cannot write package's nuspec file to disk", e);
-                   });
+                return contentResult.Failure;
             }
-            catch (BuildXLException e)
-            {
-                Logger.Log.NugetFailedToWriteSpecFileForPackage(
-                    m_context.LoggingContext,
-                    package.Id,
-                    package.Version,
-                    layout.PathToNuspec.ToString(PathTable),
-                    e.LogEventMessage);
-                return new NugetFailure(package, NugetFailure.FailureType.WriteSpecFile, e.InnerException);
-            }
+
+            return contentResult.Result;
         }
 
         private Possible<Unit> TryCleanupPackagesFolder(INugetPackage package, NugetPackageOutputLayout layout)
@@ -1254,6 +1255,466 @@ namespace BuildXL.FrontEnd.Nuget
             }
         }
 
+        private async Task<Possible<Unit>> TryLaunchNugetExeAsync(INugetPackage package, NugetPackageOutputLayout layout, IEnumerable<AbsolutePath> credentialProviderPaths)
+        {
+            var fileAccessManifest = GenerateFileAccessManifest(layout, credentialProviderPaths);
+
+            var buildParameters = BuildParameters
+                .GetFactory()
+                .PopulateFromEnvironment();
+
+            var tool = layout.NugetTool.ToString(PathTable);
+
+            var argumentsBuilder = new StringBuilder();
+            if (m_useMonoBasedNuGet)
+            {
+                argumentsBuilder.AppendFormat("\"{0}\"", tool);
+                argumentsBuilder.Append(" ");
+
+                if (!buildParameters.ToDictionary().TryGetValue("MONO_HOME", out var monoHome))
+                {
+                    return new NugetFailure(package, NugetFailure.FailureType.MissingMonoHome);
+                }
+
+                tool = Path.Combine(monoHome, "mono");
+            }
+
+            // TODO:escape quotes properly
+            argumentsBuilder
+                .AppendFormat("restore \"{0}\"", layout.PackagesConfigFile.ToString(PathTable))
+                .AppendFormat(" -OutputDirectory \"{0}\"", layout.PackageRootFolder.ToString(PathTable))
+                .Append(" -Verbosity detailed")
+                .AppendFormat(" -ConfigFile  \"{0}\"", layout.NugetConfig.ToString(PathTable))
+                .Append(" -PackageSaveMode nuspec")
+                .Append(" -NoCache")
+                // Currently we have to hack nuget to MsBuild version 4 which should come form the current CLR.
+                .Append(" -MsBuildVersion 4");
+
+            if (!m_host.Configuration.Interactive)
+            {
+                // Prevent Nuget from showing any UI when not in interactive mode
+                argumentsBuilder.Append(" -NonInteractive");
+            }
+
+            var arguments = argumentsBuilder.ToString();
+
+            Logger.Log.LaunchingNugetExe(m_context.LoggingContext, package.Id, package.Version, tool + " " + arguments);
+            try
+            {
+                // For NugetFrontEnd always create a new ConHost process.
+                // The NugetFrontEnd is normally executed only once, so the overhead is low.
+                // Also the NugetFrontEnd is a really long running process, so creating the ConHost is relatively
+                // very cheap. It provides guarantee if the process pollutes the ConHost env,
+                // it will not affect the server ConHost.
+                var info =
+                    new SandboxedProcessInfo(
+                        m_context.PathTable,
+                        new NugetFileStorage(layout.PackageTmpDirectory),
+                        tool,
+                        fileAccessManifest,
+                        disableConHostSharing: true,
+                        ContainerConfiguration.DisabledIsolation,
+                        loggingContext: m_context.LoggingContext,
+                        sandboxConnection: m_useMonoBasedNuGet ? new SandboxConnectionFake() : null)
+                    {
+                        Arguments = arguments,
+                        WorkingDirectory = layout.TempDirectory.ToString(PathTable),
+                        PipSemiStableHash = 0,
+                        PipDescription = "NuGet FrontEnd",
+                        EnvironmentVariables = GetNugetEnvironmentVariables(),
+                        Timeout = TimeSpan.FromMinutes(20), // Limit the time nuget has to download each nuget package
+                    };
+
+                return await RetryOnFailure(
+                    runNuget: async () =>
+                    {
+                        var process = await SandboxedProcessFactory.StartAsync(info, forceSandboxing: !m_useMonoBasedNuGet);
+                        var result = await process.GetResultAsync();
+                        return (result, result.ExitCode == 0);
+                    },
+                    onError: async result =>
+                    {
+                        // Log the result before trying again
+                        var (stdOut, stdErr) = await GetStandardOutAndError(result);
+
+                        Logger.Log.NugetFailedWithNonZeroExitCodeDetailed(
+                            m_context.LoggingContext,
+                            package.Id,
+                            package.Version,
+                            result.ExitCode,
+                            stdOut,
+                            stdErr);
+
+                        return (stdOut, stdErr);
+                    },
+                    onFinalFailure: (exitCode, stdOut, stdErr) =>
+                    {
+                        // Give up and fail
+                        return NugetFailure.CreateNugetInvocationFailure(package, exitCode, stdOut, stdErr);
+                    });
+            }
+            catch (BuildXLException e)
+            {
+                Logger.Log.NugetLaunchFailed(m_context.LoggingContext, package.Id, package.Version, e.LogEventMessage);
+                return new NugetFailure(package, NugetFailure.FailureType.NugetFailedWithIoException);
+            }
+            catch (Exception e)
+            {
+                return new NugetFailure(package, NugetFailure.FailureType.NugetFailedWithIoException, e);
+            }
+
+            async Task<(string stdOut, string stdErr)> GetStandardOutAndError(SandboxedProcessResult result)
+            {
+                try
+                {
+                    await result.StandardOutput.SaveAsync();
+                    var stdOut = await result.StandardOutput.ReadValueAsync();
+
+                    await result.StandardError.SaveAsync();
+                    var stdErr = await result.StandardError.ReadValueAsync();
+
+                    return (stdOut, stdErr);
+                }
+                catch (BuildXLException e)
+                {
+                    return (e.LogEventMessage, string.Empty);
+                }
+            }
+
+            BuildParameters.IBuildParameters GetNugetEnvironmentVariables()
+            {
+                // the environment variable names below should use the casing appropriate for the target OS
+                // (on Windows it won't matter, but on Unix-like systems, including Cygwin environment on Windows,
+                // it matters, and has to be all upper-cased). See also doc comment for IBuildParameters.Select
+                return buildParameters
+                .Select(
+                    new[]
+                    {
+                        "ComSpec",
+                        "PATH",
+                        "PATHEXT",
+                        "NUMBER_OF_PROCESSORS",
+                        "OS",
+                        "PROCESSOR_ARCHITECTURE",
+                        "PROCESSOR_IDENTIFIER",
+                        "PROCESSOR_LEVEL",
+                        "PROCESSOR_REVISION",
+                        "SystemDrive",
+                        "SystemRoot",
+                        "SYSTEMTYPE",
+                        "NUGET_CREDENTIALPROVIDERS_PATH",
+                        "__CLOUDBUILD_AUTH_HELPER_CONFIG__",
+                        "__Q_DPAPI_Secrets_Dir",
+
+                        // Nuget Credential Provider env variables
+                        "1ESSHAREDASSETS_BUILDXL_FEED_PAT",
+                        "CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT",
+
+                        // Auth material needed for low-privilege build.
+                        "QAUTHMATERIALROOT",
+
+                        // Used by the artifacts credential provider. See here for more information on how this variable is configured - https://github.com/microsoft/artifacts-credprovider#azure-devops-server
+                        "VSS_NUGET_EXTERNAL_FEED_ENDPOINTS"
+                    })
+                .Override(
+                    new Dictionary<string, string>()
+                    {
+                        {"TMP", layout.TempDirectoryAsString},
+                        {"TEMP", layout.TempDirectoryAsString},
+                        {"NUGET_PACKAGES", layout.TempDirectoryAsString},
+                        {"NUGET_ROOT", layout.TempDirectoryAsString},
+                    });
+            }
+        }
+
+        private class SandboxConnectionFake : ISandboxConnection
+        {
+            public SandboxKind Kind => SandboxKind.MacOsKext;
+
+            public int NumberOfKextConnections => 1;
+
+            public ulong MinReportQueueEnqueueTime { get; set; }
+
+            public TimeSpan CurrentDrought
+            {
+                get
+                {
+                    var nowNs = Sandbox.GetMachAbsoluteTime();
+                    var minReportTimeNs = MinReportQueueEnqueueTime;
+                    return TimeSpan.FromTicks(nowNs > minReportTimeNs ? (long)((nowNs - minReportTimeNs) / 100) : 0);
+                }
+            }
+
+            public void Dispose() { }
+
+            public bool IsInTestMode => true;
+
+            public bool NotifyUsage(uint cpuUsage, uint availableRamMB) { return true; }
+
+            public bool NotifyPipStarted(LoggingContext loggingContext, FileAccessManifest fam, SandboxedProcessUnix process) { return true; }
+
+            public IEnumerable<(string, string)> AdditionalEnvVarsToSet(long pipId)
+            {
+                return Enumerable.Empty<(string, string)>();
+            }
+
+            public void NotifyPipProcessTerminated(long pipId, int processId) { }
+
+            public void NotifyRootProcessExited(long pipId, SandboxedProcessUnix process) { }
+
+            public bool NotifyPipFinished(long pipId, SandboxedProcessUnix process) { return true; }
+
+            public void ReleaseResources() { }
+        }
+
+        private static async Task<Possible<Unit>> RetryOnFailure(
+            Func<Task<(SandboxedProcessResult result, bool isPassed)>> runNuget,
+            Func<SandboxedProcessResult, Task<(string, string)>> onError,
+            Func<int, string, string, Possible<Unit>> onFinalFailure,
+            int retryCount = MaxRetryCount,
+            int retryDelayMs = RetryDelayMs)
+        {
+            Contract.Assert(retryCount >= 1, "Maximum retry count must be greater than or equal to one. Found " + retryCount);
+
+            var pass = false;
+            var iteration = 1;
+
+            while (!pass)
+            {
+                var tuple = await runNuget();
+                var result = tuple.result;
+                pass = tuple.isPassed;
+
+                if (!pass)
+                {
+                    var (stdOut, stdErr) = await onError(result);
+
+                    if (iteration >= retryCount)
+                    {
+                        return onFinalFailure(result.ExitCode, stdOut, stdErr);
+                    }
+
+                    // Try again!
+                    iteration++;
+
+                    await Task.Delay(retryDelayMs);
+                }
+            }
+
+            return Unit.Void;
+        }
+
+        private FileAccessManifest GenerateFileAccessManifest(NugetPackageOutputLayout layout, IEnumerable<AbsolutePath> credentialProviderPaths)
+        {
+            var fileAccessManifest = new FileAccessManifest(PathTable)
+            {
+                // TODO: If this is set to true, then NuGet will fail if TMG Forefront client is running.
+                //                 Filtering out in SandboxedProcessReport won't work because Detours already blocks the access to FwcWsp.dll.
+                //                 Almost all machines in Office run TMG Forefront client.
+                //                 So far for WDG, FailUnexpectedFileAccesses is false due to allowlists.
+                //                 As a consequence, the file access manifest below gets nullified.
+                FailUnexpectedFileAccesses = false,
+                ReportFileAccesses = true,
+                MonitorNtCreateFile = true,
+                MonitorZwCreateOpenQueryFile = true,
+            };
+
+            fileAccessManifest.AddScope(layout.TempDirectory, FileAccessPolicy.MaskAll, FileAccessPolicy.AllowAllButSymlinkCreation);
+            fileAccessManifest.AddScope(layout.PackageRootFolder, FileAccessPolicy.MaskAll, FileAccessPolicy.AllowAllButSymlinkCreation);
+            if (!OperatingSystemHelper.IsUnixOS)
+            {
+                fileAccessManifest.AddScope(
+                    AbsolutePath.Create(PathTable, SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.Windows)),
+                    FileAccessPolicy.MaskAll,
+                    FileAccessPolicy.AllowAllButSymlinkCreation);
+            }
+
+            fileAccessManifest.AddPath(layout.NugetTool, values: FileAccessPolicy.AllowRead, mask: FileAccessPolicy.MaskNothing);
+            fileAccessManifest.AddPath(layout.NugetToolExeConfig, values: FileAccessPolicy.AllowReadIfNonexistent, mask: FileAccessPolicy.MaskNothing);
+            fileAccessManifest.AddPath(layout.NugetConfig, values: FileAccessPolicy.AllowRead, mask: FileAccessPolicy.MaskNothing);
+            fileAccessManifest.AddPath(layout.PackagesConfigFile, values: FileAccessPolicy.AllowRead, mask: FileAccessPolicy.MaskNothing);
+
+            // Nuget is picky
+            fileAccessManifest.AddScope(layout.ResolverFolder, FileAccessPolicy.MaskAll, FileAccessPolicy.AllowAllButSymlinkCreation);
+
+            // Nuget fails if it can't access files in the users (https://github.com/NuGet/Home/issues/2676) profile.
+            // We'll have to explicitly set all config in our nuget.config file and override anything the user can set and allow the read here.
+            var roamingAppDataNuget = AbsolutePath.Create(PathTable, SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.ApplicationData)).Combine(PathTable, "NuGet");
+            fileAccessManifest.AddScope(roamingAppDataNuget, FileAccessPolicy.MaskAll, FileAccessPolicy.AllowAllButSymlinkCreation);
+
+            var localAppDataNuget = AbsolutePath.Create(PathTable, SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.LocalApplicationData)).Combine(PathTable, "NuGet");
+            fileAccessManifest.AddScope(localAppDataNuget, FileAccessPolicy.MaskAll, FileAccessPolicy.AllowAllButSymlinkCreation);
+
+            // Nuget also probes in ProgramData on the machine.
+            var commonAppDataNuget = AbsolutePath.Create(PathTable, SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.CommonApplicationData)).Combine(PathTable, "NuGet");
+            fileAccessManifest.AddScope(commonAppDataNuget, FileAccessPolicy.MaskAll, FileAccessPolicy.AllowAllButSymlinkCreation);
+
+            foreach (var providerPath in credentialProviderPaths)
+            {
+                fileAccessManifest.AddPath(providerPath, values: FileAccessPolicy.AllowRead, mask: FileAccessPolicy.MaskNothing);
+                fileAccessManifest.AddPath(
+                    providerPath.ChangeExtension(PathTable, PathAtom.Create(PathTable.StringTable, ".exe.config")),
+                    values: FileAccessPolicy.AllowRead,
+                    mask: FileAccessPolicy.MaskNothing);
+            }
+
+            return fileAccessManifest;
+        }
+
+        private static XDocument GetPackagesXml(INugetPackage package)
+        {
+
+            var version = package.Version;
+            var plusIndex = version.IndexOf('+');
+            if (plusIndex > 0)
+            {
+                version = version.Substring(0, plusIndex);
+            }
+            return new XDocument(
+                new XElement(
+                    "packages",
+                    new XElement(
+                        "package",
+                        new XAttribute("id", package.Id),
+                        new XAttribute("version", version))));
+        }
+
+        private Possible<List<RelativePath>, NugetFailure> TryEnumerateDirectory(INugetPackage package, string packagePath)
+        {
+            var enumerateDirectoryResult = EnumerateDirectoryRecursively(packagePath, out var contents);
+
+            if (!enumerateDirectoryResult.Succeeded)
+            {
+                var message = enumerateDirectoryResult.GetNativeErrorMessage();
+                Logger.Log.NugetFailedToListPackageContents(m_context.LoggingContext, package.Id, package.Version, packagePath, message);
+                return new NugetFailure(package, NugetFailure.FailureType.ListPackageContents, enumerateDirectoryResult.CreateExceptionForError());
+            }
+
+            return contents;
+        }
+
+        private EnumerateDirectoryResult EnumerateDirectoryRecursively(string packagePath, out List<RelativePath> resultingContent)
+        {
+            resultingContent = new List<RelativePath>();
+            return EnumerateDirectoryRecursively(RelativePath.Empty, resultingContent);
+
+            EnumerateDirectoryResult EnumerateDirectoryRecursively(RelativePath relativePath, List<RelativePath> contents)
+            {
+                var result = FileUtilities.EnumerateDirectoryEntries(
+                    Path.Combine(packagePath, relativePath.ToString(m_context.StringTable)),
+                    (name, attr) =>
+                    {
+                        var nestedRelativePath = relativePath.Combine(PathAtom.Create(m_context.StringTable, name));
+                        if ((attr & FileAttributes.Directory) != 0)
+                        {
+                            EnumerateDirectoryRecursively(nestedRelativePath, contents);
+                        }
+                        else
+                        {
+                            contents.Add(nestedRelativePath);
+                        }
+                    });
+
+                return result;
+            }
+        }
+
+        private async Task<Possible<AbsolutePath[]>> TryDownloadNugetAsync(INugetConfiguration configuration, AbsolutePath targetFolder)
+        {
+            configuration = configuration ?? new NugetConfiguration();
+
+            var downloads = new Task<Possible<ContentHash>>[1 + configuration.CredentialProviders.Count];
+            var paths = new AbsolutePath[downloads.Length];
+
+            var nugetTargetLocation = targetFolder.Combine(m_context.PathTable, "nuget.exe");
+
+            var nugetLocation = configuration.ToolUrl;
+            if (string.IsNullOrEmpty(nugetLocation))
+            {
+                var version = configuration.Version ?? "latest";
+                nugetLocation = string.Format(CultureInfo.InvariantCulture, "https://dist.nuget.org/win-x86-commandline/{0}/nuget.exe", version);
+            }
+
+            TryGetExpectedContentHash(configuration, out var expectedHash);
+
+            downloads[0] = m_host.DownloadFile(nugetLocation, nugetTargetLocation, expectedHash, NugetResolverName);
+            paths[0] = nugetTargetLocation;
+
+            for (var i = 0; i < configuration.CredentialProviders.Count; i++)
+            {
+                var credentialProvider = configuration.CredentialProviders[i];
+                var credentialProviderName = NugetResolverName + ".credentialProvider." + i.ToString(CultureInfo.InvariantCulture);
+
+                TryGetExpectedContentHash(credentialProvider, out var expectedProviderHash);
+
+                var toolUrl = credentialProvider.ToolUrl;
+                if (string.IsNullOrEmpty(toolUrl))
+                {
+                    // TODO: Have better provenance for configuration values.
+                    Logger.Log.CredentialProviderRequiresToolUrl(m_context.LoggingContext, credentialProviderName);
+                    return new NugetFailure(NugetFailure.FailureType.FetchCredentialProvider);
+                }
+
+                var fileNameStart = toolUrl.LastIndexOfAny(new[] { '/', '\\' });
+                var fileName = fileNameStart >= 0 ? toolUrl.Substring(fileNameStart + 1) : toolUrl;
+                var targetLocation = targetFolder.Combine(m_context.PathTable, fileName);
+                downloads[i + 1] = m_host.DownloadFile(toolUrl, targetLocation, expectedProviderHash, credentialProviderName);
+                paths[i + 1] = targetLocation;
+            }
+
+            var results = await Task.WhenAll(downloads);
+
+            foreach (var result in results)
+            {
+                if (!result.Succeeded)
+                {
+                    return result.Failure;
+                }
+            }
+
+            return paths;
+        }
+
+        /// <nodoc />
+        private bool TryGetExpectedContentHash(IArtifactLocation artifactLocation, out ContentHash? expectedHash)
+        {
+            expectedHash = null;
+            if (!string.IsNullOrEmpty(artifactLocation.Hash))
+            {
+                if (!ContentHash.TryParse(artifactLocation.Hash, out var contentHash))
+                {
+                    // TODO: better provenance for configuration settings.
+                    Logger.Log.NugetDownloadInvalidHash(
+                        m_context.LoggingContext,
+                        "nuget.exe",
+                        artifactLocation.Hash);
+                    return false;
+                }
+
+                expectedHash = contentHash;
+            }
+
+            return true;
+        }
+
+        /// <nodoc />
+        private sealed class NugetFileStorage : ISandboxedProcessFileStorage
+        {
+            private readonly string m_directory;
+
+            /// <nodoc />
+            public NugetFileStorage(string directory)
+            {
+                m_directory = directory;
+            }
+
+            /// <inheritdoc />
+            public string GetFileName(SandboxedProcessFile file)
+            {
+                return Path.Combine(m_directory, file.DefaultFileName());
+            }
+        }
+
         /// <summary>
         /// Helper class that holds all folders required for a nuget resolver
         /// </summary>
@@ -1292,30 +1753,50 @@ namespace BuildXL.FrontEnd.Nuget
         {
             private readonly NugetResolverOutputLayout m_resolverLayout;
 
-            public NugetPackageOutputLayout(PathTable pathTable, INugetPackage package, NugetResolverOutputLayout resolverLayout)
+            public NugetPackageOutputLayout(PathTable pathTable, INugetPackage package, AbsolutePath nugetTool, AbsolutePath nugetConfig, NugetResolverOutputLayout resolverLayout)
             {
                 m_resolverLayout = resolverLayout;
+                Package = package;
+                NugetTool = nugetTool;
+                NugetConfig = nugetConfig;
 
                 var idAndVersion = package.Id + "." + package.Version;
 
+                NugetToolExeConfig = nugetTool.ChangeExtension(pathTable, PathAtom.Create(pathTable.StringTable, ".exe.config"));
                 // All the folders should include version to avoid potential race conditions during nuget execution.
                 PackageFolder = PackageRootFolder.Combine(pathTable, idAndVersion);
                 PackageDirectory = PackageFolder.ToString(pathTable);
                 PackageTmpDirectory = TempDirectory.Combine(pathTable, idAndVersion).ToString(pathTable);
-                PathToNuspec = PackageFolder.Combine(pathTable, $"{package.Id}.nuspec");
+                PackagesConfigFile = ConfigRootFolder.Combine(pathTable, idAndVersion).Combine(pathTable, "packages.config");
             }
 
             public static NugetPackageOutputLayout Create(PathTable pathTable, INugetPackage package,
-                NugetResolverOutputLayout resolverLayout)
+                AbsolutePath nugetTool, AbsolutePath nugetConfig, NugetResolverOutputLayout resolverLayout)
             {
-                return new NugetPackageOutputLayout(pathTable, package, resolverLayout);
+                return new NugetPackageOutputLayout(pathTable, package, nugetTool, nugetConfig, resolverLayout);
             }
+
+            public INugetPackage Package { get; }
+
+            public AbsolutePath ResolverFolder => m_resolverLayout.ResolverFolder;
+
+            public string ResolverDirectory => m_resolverLayout.ResolverDirectory;
+
+            public AbsolutePath NugetTool { get; }
+
+            public AbsolutePath NugetToolExeConfig { get; }
+
+            public AbsolutePath NugetConfig { get; }
 
             public AbsolutePath TempDirectory => m_resolverLayout.TempDirectory;
 
+            public string TempDirectoryAsString => m_resolverLayout.TempDirectoryAsString;
+
             public AbsolutePath PackageRootFolder => m_resolverLayout.PackageRootFolder;
 
-            public AbsolutePath PathToNuspec { get; }
+            public AbsolutePath ConfigRootFolder => m_resolverLayout.ConfigRootFolder;
+
+            public AbsolutePath PackagesConfigFile { get; }
 
             public AbsolutePath PackageFolder { get; }
 

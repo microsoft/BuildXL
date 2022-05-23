@@ -842,10 +842,6 @@ namespace BuildXL.Pips.Operations
         /// </summary>
         public bool HasSharedOpaqueDirectoryOutputs => DirectoryOutputs.Any(d => d.IsSharedOpaque);
 
-        /// <inheritdoc/>
-        [PipCaching(FingerprintingRole = FingerprintingRole.Semantic)]
-        public override bool BypassFingerprintSalt => (ProcessOptions & Options.BypassFingerprintSalt) != 0;
-
         /// <summary>
         /// What policy to apply when merging redirected outputs back
         /// </summary>

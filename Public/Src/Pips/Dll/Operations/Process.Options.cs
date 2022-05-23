@@ -182,11 +182,6 @@ namespace BuildXL.Pips.Operations
             /// Whether to disable sandboxing for this process
             /// </summary>
             DisableSandboxing = 1 << 21,
-
-            /// <summary>
-            /// When set, the pip fingerprint is not sensitive to fingerprint salts. This excludes both <see cref="EngineEnvironmentSettings.DebugFingerprintSalt"/> and PipFingerprintingVersion.TwoPhaseV2
-            /// </summary>
-            BypassFingerprintSalt = 1 << 22,
         }
     }
 }

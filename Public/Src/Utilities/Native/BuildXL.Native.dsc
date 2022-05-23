@@ -51,7 +51,7 @@ namespace Native {
     export const nativeLinux = [
         ...addIfLazy(qualifier.targetRuntime === "linux-x64", () =>
         [
-            ...importFrom("runtime.linux-x64.BuildXL").Contents.all.ensureContents({subFolder: r`runtimes/linux-x64/native/${qualifier.configuration}`}).getContent()
+            ...globR(d`${importFrom("runtime.linux-x64.BuildXL").Contents.all.root}/runtimes/linux-x64/native/${qualifier.configuration}`, "*.so")
         ]),
     ];
 

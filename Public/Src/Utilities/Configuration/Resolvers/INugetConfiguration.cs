@@ -11,8 +11,8 @@ namespace BuildXL.Utilities.Configuration
     public partial interface INugetConfiguration : IArtifactLocation
     {
         /// <summary>
-        /// The download timeout, in minutes, for each NuGet download pip
+        /// Optional credential helper to use for NuGet
         /// </summary>
-        int? DownloadTimeoutMin { get; }
+        IReadOnlyList<IArtifactLocation> CredentialProviders { get; }
     }
 }

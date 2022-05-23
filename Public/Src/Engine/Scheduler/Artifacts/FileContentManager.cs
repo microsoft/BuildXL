@@ -722,11 +722,20 @@ namespace BuildXL.Scheduler.Artifacts
 
                 foreach (FileArtifactWithAttributes faa in contents)
                 {
-                    artifacts.Add(faa.ToFileArtifact());
+                    var fileArtifact = faa.ToFileArtifact();
+                    artifacts.Add(fileArtifact);
 
                     if (faa.IsUndeclaredFileRewrite)
                     {
                         m_allowedFileRewriteOutputs.Add(faa.Path);
+                    }
+
+                    // TODO: Shared opaques get their contents from detours and thus report files that don't actually exist.
+                    // Reporting non-existent files via ReportDynamicOutputFile can create a disallowed file access instead of an absent path probe.
+                    // This should be modified to determine whether the file actually exists or not.
+                    if (!directoryArtifact.IsSharedOpaque &&  faa.FileExistence == FileExistence.Required)
+                    {
+                        m_host.ReportDynamicOutputFile(fileArtifact);
                     }
                 }
 

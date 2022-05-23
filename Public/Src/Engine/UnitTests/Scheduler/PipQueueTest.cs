@@ -512,6 +512,12 @@ namespace Test.BuildXL.Scheduler
                 XAssert.AreEqual(expected, trackedFileContentInfo.Hash, "Wrong hash reported for an output");
             }
 
+            /// <inheritdoc />
+            public void ReportDynamicOutputFile(FileArtifact path)
+            {
+                // Do nothing.
+            }
+
 
             public void ReportMaterializedArtifact(in FileOrDirectoryArtifact artifact)
             {

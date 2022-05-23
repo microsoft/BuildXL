@@ -522,6 +522,12 @@ namespace Test.BuildXL.Scheduler.Utils
         }
 
         /// <inheritdoc />
+        public void ReportDynamicOutputFile(FileArtifact path)
+        {
+            // Do nothing.
+        }
+
+        /// <inheritdoc />
         public void ReportMaterializedArtifact(in FileOrDirectoryArtifact artifact)
         {
             // Do nothing.

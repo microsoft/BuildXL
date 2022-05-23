@@ -6,6 +6,7 @@ using System.IO;
 using BuildXL.Native.IO;
 using BuildXL.Pips;
 using BuildXL.Pips.Filter;
+using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler;
 using BuildXL.Scheduler.IncrementalScheduling;
@@ -80,7 +81,7 @@ namespace IntegrationTest.BuildXL.Scheduler.IncrementalSchedulingTests
             }
 
             RunScheduler().AssertNotScheduled(pip.PipId);
-            
+
             // Create /absentDirectory/newFile
             CreateSourceFile(ArtifactToString(absentDirectory));
             RunScheduler().AssertNotScheduled(pip.PipId);
@@ -255,18 +256,18 @@ namespace IntegrationTest.BuildXL.Scheduler.IncrementalSchedulingTests
             var pipC = SchedulePipBuilder(builderC);
 
             var result = RunScheduler().AssertScheduled(
-                pipA.Process.PipId, 
-                pipB.Process.PipId, 
+                pipA.Process.PipId,
+                pipB.Process.PipId,
                 pipC.Process.PipId);
 
             // Due to pipB that changed the directory membership, pipA gets dirty, and thus pipB and pipC becomes dirty as well.
             RunScheduler().AssertScheduled(
-                pipA.Process.PipId, 
-                pipB.Process.PipId, 
+                pipA.Process.PipId,
+                pipB.Process.PipId,
                 pipC.Process.PipId);
             RunScheduler().AssertNotScheduled(
-                pipA.Process.PipId, 
-                pipB.Process.PipId, 
+                pipA.Process.PipId,
+                pipB.Process.PipId,
                 pipC.Process.PipId);
         }
 
@@ -664,13 +665,13 @@ namespace IntegrationTest.BuildXL.Scheduler.IncrementalSchedulingTests
             var inputF = CreateSourceFile(directoryPath);
             var inputG = CreateSourceFile(directoryPath);
             var inputH = triggerFileInsideDirectory ? CreateSourceFile(directoryPath) : CreateSourceFile();
-            
+
             // file h points to path to f.
             ModifyFile(inputH, ArtifactToString(inputF));
 
             var outputX = CreateOutputFileArtifact();
-            var pipBuilderA = CreatePipBuilder(new[] { 
-                Operation.ReadFileFromOtherFile(inputH, doNotInfer: triggerFileInsideDirectory), 
+            var pipBuilderA = CreatePipBuilder(new[] {
+                Operation.ReadFileFromOtherFile(inputH, doNotInfer: triggerFileInsideDirectory),
                 Operation.WriteFile(outputX) });
             pipBuilderA.AddInputDirectory(sealedDirectory.Directory);
             var processA = SchedulePipBuilder(pipBuilderA).Process;
@@ -703,11 +704,11 @@ namespace IntegrationTest.BuildXL.Scheduler.IncrementalSchedulingTests
         {
             var probedInput = CreateSourceFile();
 
-            var process = CreateAndSchedulePipBuilder(new[] 
+            var process = CreateAndSchedulePipBuilder(new[]
             {
                 Operation.Probe(probedInput),
-                Operation.ReadFile(CreateSourceFile()), 
-                Operation.WriteFile(CreateOutputFileArtifact()) 
+                Operation.ReadFile(CreateSourceFile()),
+                Operation.WriteFile(CreateOutputFileArtifact())
             }).Process;
 
             RunScheduler().AssertCacheMiss(process.PipId);
@@ -977,7 +978,7 @@ namespace IntegrationTest.BuildXL.Scheduler.IncrementalSchedulingTests
                 RunScheduler(runNameOrDescription: "2nd Run").AssertCacheMiss(process.PipId);
 
                 var runResult = RunScheduler(runNameOrDescription: "3rd Run");
-                
+
                 if (runPosixDeleteFirst)
                 {
                     runResult.AssertNotScheduled(process.PipId);
@@ -991,6 +992,54 @@ namespace IntegrationTest.BuildXL.Scheduler.IncrementalSchedulingTests
             {
                 FileUtilities.PosixDeleteMode = originalPosixDeleteMode;
             }
+        }
+
+        [Fact]
+        public void EnumeratingOpaqueSubDirectoryShouldNotCauseRebuild()
+        {
+            var outputDirectory = CreateOutputDirectoryArtifact();
+            var subDir = outputDirectory.Path.Combine(Context.PathTable, @"subdir");
+            var outputFileInSubDir = CreateOutputFileArtifact(subDir.Combine(Context.PathTable, @"nested"));
+            var sourceFileA = CreateSourceFile();
+            var sourceFileB = CreateSourceFile();
+
+            var builderA = CreatePipBuilder(new[]
+            {
+                Operation.ReadFile(sourceFileA),
+                Operation.WriteFile(outputFileInSubDir, doNotInfer: true)
+            });
+            builderA.AddOutputDirectory(outputDirectory, SealDirectoryKind.Opaque);
+
+            var processA = SchedulePipBuilder(builderA).Process;
+
+            var builderB = CreatePipBuilder(new[]
+            {
+                Operation.ReadFile(sourceFileB),
+                Operation.EnumerateDir(OutputDirectory.Create(subDir), doNotInfer: true),
+                Operation.WriteFile(CreateOutputFileArtifact())
+            });
+
+            builderB.AddInputDirectory(outputDirectory);
+
+            var processB = SchedulePipBuilder(builderB).Process;
+
+            ModifyFile(sourceFileB, "content");
+
+            RunScheduler(runNameOrDescription: "1st Run")
+                .AssertCacheMiss(processA.PipId)
+                .AssertCacheMiss(processB.PipId);
+
+            RunScheduler(runNameOrDescription: "2nd Run")
+                .AssertNotScheduled(processA.PipId)
+                .AssertNotScheduled(processB.PipId);
+
+            ModifyFile(sourceFileB, "content");
+
+            // If the directory enumeration isn't properly registered, then processB will see an absent path probe for subdir and it will cache miss.
+            RunScheduler(runNameOrDescription: "3rd Run")
+                .AssertNotScheduled(processA.PipId)
+                .AssertScheduled(processB.PipId)
+                .AssertCacheHit(processB.PipId);
         }
 
         protected string ReadAllText(FileArtifact file) => File.ReadAllText(ArtifactToString(file));

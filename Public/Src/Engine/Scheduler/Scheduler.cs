@@ -7136,6 +7136,12 @@ namespace BuildXL.Scheduler
         }
 
         [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]
+        void IFileContentManagerHost.ReportDynamicOutputFile(FileArtifact artifact)
+        {
+            State.FileSystemView.ReportOutputFileSystemExistence(artifact.Path, PathExistence.ExistsAsFile);
+        }
+
+        [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]
         void IFileContentManagerHost.ReportContent(FileArtifact artifact, in FileMaterializationInfo trackedFileContentInfo, PipOutputOrigin origin)
         {
             // NOTE: Artifacts may be materialized as absent path so we need to check here

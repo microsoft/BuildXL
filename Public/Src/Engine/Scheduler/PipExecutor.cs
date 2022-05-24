@@ -3375,12 +3375,18 @@ namespace BuildXL.Scheduler
 
                     foreach (var dynamicOutputFileAndInfo in cacheHitData.DynamicDirectoryContents[i])
                     {
+                        var fileExistence = WellKnownContentHashUtilities.IsAbsentFileHash(dynamicOutputFileAndInfo.fileMaterializationInfo.FileContentInfo.Hash) ?
+                                FileExistence.Temporary :
+                                FileExistence.Required;
                         fileList.Add(FileArtifactWithAttributes.Create(
                             dynamicOutputFileAndInfo.fileArtifact,
-                            FileExistence.Required,
+                            fileExistence,
                             dynamicOutputFileAndInfo.fileMaterializationInfo.IsUndeclaredFileRewrite));
 
-                        existenceAssertions.Remove(dynamicOutputFileAndInfo.fileArtifact);
+                        if (fileExistence == FileExistence.Required)
+                        {
+                            existenceAssertions.Remove(dynamicOutputFileAndInfo.fileArtifact);
+                        }
                     }
 
                     // There are some outputs that were asserted as belonging to the opaque that were not found

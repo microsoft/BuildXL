@@ -83,7 +83,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
             }, elideStartup: true);
         }
 
-        [Theory(Skip = "The test is flaky. ")]
         [InlineData(10, 10, 60)] // This typically takes <30s
         [InlineData(1024, 1, 180)] // This typically takes <1m
         public Task ConcurrentReadModifyWriteEventuallyFinishes(int numTasks, int numIncrementsPerTask, double maxDurationSeconds)
@@ -153,7 +152,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
                 {
                     using var storage = AzuriteStorageProcess.CreateAndStartEmpty(_fixture, TestGlobal.Logger);
 
-                    configuration ??= new BlobFolderStorageConfiguration();
+                    configuration ??= new BlobFolderStorageConfiguration()
+                    {
+                        RetryPolicy = new RetryPolicyConfiguration()
+                        {
+                            RetryPolicy = StandardRetryPolicy.ExponentialSpread,
+                            MinimumRetryWindow = TimeSpan.FromMilliseconds(1),
+                            MaximumRetryWindow = TimeSpan.FromMilliseconds(30),
+                            WindowJitter = 1.0,
+                        },
+                    };
+
                     configuration.Credentials = new AzureBlobStorageCredentials(connectionString: storage.ConnectionString);
                     var blobFolderStorage = new BlobFolderStorage(tracer, configuration);
 

@@ -986,7 +986,7 @@ namespace ContentStoreTest.Distributed.Sessions
                         {
                             var localStore = testContext.GetLocationStore(i);
 
-                            var state = (await localStore.LocalLocationStore.UpdateClusterStateAsync(testContext, MachineState.Unknown).ShouldBeSuccess()).Value;
+                            var state = (await localStore.LocalLocationStore.SetMachineStateAsync(testContext, MachineState.Unknown).ShouldBeSuccess()).Value;
                             if (state == MachineState.Closed)
                             {
                                 await localStore.ReconcileAsync(testContext, force: true).ShouldBeSuccess();

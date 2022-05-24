@@ -81,8 +81,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
     [ProtoInclude(14, typeof(GetContentHashListRequest))]
     [ProtoInclude(15, typeof(CompareExchangeRequest))]
     [ProtoInclude(16, typeof(GetLevelSelectorsRequest))]
-    [ProtoInclude(17, typeof(HeartbeatMachineRequest))]
-    [ProtoInclude(18, typeof(GetClusterUpdatesRequest))]
+    // WARNING: 17 and 18 are reserved for past backwards-compatibility
     public abstract record ServiceRequestBase
     {
         public virtual RpcMethodId MethodId => RpcMethodId.None;
@@ -113,8 +112,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
     [ProtoInclude(14, typeof(GetContentHashListResponse))]
     [ProtoInclude(15, typeof(CompareExchangeResponse))]
     [ProtoInclude(16, typeof(GetLevelSelectorsResponse))]
-    [ProtoInclude(17, typeof(HeartbeatMachineResponse))]
-    [ProtoInclude(18, typeof(GetClusterUpdatesResponse))]
+    // WARNING: 17 and 18 are reserved for past backwards-compatibility
     public record ServiceResponseBase
     {
         public virtual RpcMethodId MethodId => RpcMethodId.None;
@@ -347,71 +345,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         public override string ToString()
         {
             return $"Id=[{MachineId}] Name=[{Name}] Location=[{Location}]";
-        }
-    }
-
-    [ProtoContract]
-    public record HeartbeatMachineRequest : ServiceRequestBase
-    {
-        public override RpcMethodId MethodId => RpcMethodId.Heartbeat;
-
-        [ProtoMember(1)]
-        public MachineId MachineId { get; set; }
-
-        [ProtoMember(2)]
-        public MachineLocation Location { get; init; }
-
-        [ProtoMember(3)]
-        public string Name { get; set; }
-
-        [ProtoMember(4)]
-        public DateTime? HeartbeatTime { get; set; }
-
-        [ProtoMember(5)]
-        public MachineState DeclaredMachineState { get; init; }
-    }
-
-    [ProtoContract]
-    public record HeartbeatMachineResponse : ServiceResponseBase
-    {
-        public override RpcMethodId MethodId => RpcMethodId.Heartbeat;
-
-        [ProtoMember(1)]
-        public bool Added { get; init; }
-
-        [ProtoMember(2)]
-        public MachineState PriorState { get; init; }
-
-        [ProtoMember(3)]
-        public Format<BitMachineIdSet> InactiveMachines { get; init; }
-
-        [ProtoMember(4)]
-        public Format<BitMachineIdSet> ClosedMachines { get; init; }
-    }
-
-    [ProtoContract]
-    public record GetClusterUpdatesRequest : ServiceRequestBase
-    {
-        public override RpcMethodId MethodId => RpcMethodId.GetClusterUpdates;
-
-        [ProtoMember(1)]
-        public int MaxMachineId { get; init; }
-    }
-
-    [ProtoContract]
-    public record GetClusterUpdatesResponse : ServiceResponseBase
-    {
-        public override RpcMethodId MethodId => RpcMethodId.GetClusterUpdates;
-
-        [ProtoMember(1)]
-        public Dictionary<MachineId, MachineLocation> UnknownMachines { get; init; }
-
-        [ProtoMember(2)]
-        public int MaxMachineId { get; init; }
-
-        public override string ToString()
-        {
-            return $"MaxMachineId=[{MaxMachineId}] UnknownMachines=[{UnknownMachines?.Count}]";
         }
     }
 }

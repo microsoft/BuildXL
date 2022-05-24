@@ -213,26 +213,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
 
         private ClusterStateManager CreateClusterStateManager()
         {
-            IClusterStateStorage storage;
-            if (Configuration.BlobClusterStateStorageConfiguration is not null)
-            {
-                var configuration = Configuration.BlobClusterStateStorageConfiguration;
-                var secondaryStorage = new BlobClusterStateStorage(configuration, Clock);
-                if (!configuration.Standalone)
-                {
-                    storage = new TransitionalClusterStateStorage(RedisGlobalStore.Instance, secondaryStorage);
-                }
-                else
-                {
-                    storage = secondaryStorage;
-                }
-            }
-            else
-            {
-                storage = RedisGlobalStore.Instance;
-            }
-
-            return new ClusterStateManager(Configuration, storage, Clock);
+            Contract.Assert(Configuration.BlobClusterStateStorageConfiguration is not null);
+            return new ClusterStateManager(Configuration, new BlobClusterStateStorage(Configuration.BlobClusterStateStorageConfiguration, Clock), Clock);
         }
 
         private RedisGlobalStore CreateRedisGlobalStore(Context context)

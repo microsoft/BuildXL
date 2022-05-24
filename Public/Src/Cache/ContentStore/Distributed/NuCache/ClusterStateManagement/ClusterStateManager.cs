@@ -1,18 +1,15 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System;
-using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Distributed.MetadataService;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Utils;
 using OperationContext = BuildXL.Cache.ContentStore.Tracing.Internal.OperationContext;
-using BuildXL.Cache.ContentStore.Distributed.Tracing;
-using BuildXL.Utilities.Tasks;
+using System.Collections.Generic;
+using System.Diagnostics.ContractsLight;
 
 #nullable enable
 
@@ -26,13 +23,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private readonly IClock _clock;
 
-        public ClusterState ClusterState { get; private set; } = ClusterState.CreateForTest();
+        private readonly BlobClusterStateStorage _storage;
 
-        private readonly IClusterStateStorage _storage;
+        public ClusterState ClusterState { get; private set; } = ClusterState.CreateForTest();
 
         public ClusterStateManager(
             LocalLocationStoreConfiguration configuration,
-            IClusterStateStorage storage,
+            BlobClusterStateStorage storage,
             IClock? clock = null)
         {
             _configuration = configuration;
@@ -44,16 +41,40 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             await _storage.StartupAsync(context).ThrowIfFailureAsync();
 
-            var machineLocations = (new[] { _configuration.PrimaryMachineLocation }).Concat(_configuration.AdditionalMachineLocations);
-            var machineMappings = (await TaskUtilities.SafeWhenAll(machineLocations.Select(machineLocation => RegisterMachineAsync(context, machineLocation).ThrowIfFailureAsync()))).ToList();
-            Contract.Assert(machineMappings.Count > 0, "Cluster State needs at least 1 machine mapping to function");
+            var machineLocations = (new[] { _configuration.PrimaryMachineLocation }).Concat(_configuration.AdditionalMachineLocations).ToArray();
 
-            var machineMappingsString = string.Join(", ", machineMappings.Select(m => m.ToString()));
-            Tracer.Info(context, $"Initializing Cluster State with machine mappings: {machineMappingsString}");
+            MachineMapping[] machineMappings;
+            ClusterStateMachine currentState;
+            if (_configuration.DistributedContentConsumerOnly)
+            {
+                currentState = await _storage.ReadState(context).ThrowIfFailureAsync();
+                machineMappings = machineLocations.Select(machineLocation => new MachineMapping(MachineId.Invalid, machineLocation)).ToArray();
+            }
+            else
+            {
+                (currentState, machineMappings) = await RegisterMachinesAsync(context, machineLocations).ThrowIfFailureAsync();
+            }
 
-            ClusterState = new ClusterState(machineMappings[0].Id, machineMappings);
+            foreach (var mapping in machineMappings)
+            {
+                Tracer.Info(context, $"Machine mapping created. Mapping=[{mapping}]");
+            }
+
+            var initialState = new ClusterState(machineMappings[0].Id, machineMappings);
+            initialState.Update(context, currentState).ThrowIfFailure();
+            ClusterState = initialState;
 
             return BoolResult.Success;
+        }
+
+        private Task<Result<(ClusterStateMachine State, MachineMapping[] MachineMappings)>> RegisterMachinesAsync(OperationContext context, IReadOnlyList<MachineLocation> machineLocations)
+        {
+            return context.PerformOperationAsync(Tracer, async () =>
+            {
+                var registerMachinesResponse = await _storage.RegisterMachinesAsync(context, new BlobClusterStateStorage.RegisterMachineInput(machineLocations)).ThrowIfFailureAsync();
+
+                return Result.Success((registerMachinesResponse.State, registerMachinesResponse.MachineMappings));
+            });
         }
 
         protected override async Task<BoolResult> ShutdownCoreAsync(OperationContext context)
@@ -63,156 +84,64 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return BoolResult.Success;
         }
 
-        internal Task<Result<MachineMapping>> RegisterMachineAsync(OperationContext context, MachineLocation machineLocation)
+        /// <remarks>
+        /// Used for testing only. DO NOT USE OUTSIDE TESTS.
+        /// </remarks>
+        internal async Task<Result<MachineMapping>> RegisterMachineForTestsAsync(OperationContext context, MachineLocation machineLocation)
         {
-            Contract.Requires(machineLocation.IsValid, $"Specified machine location `{machineLocation}` can't be registered because it is invalid");
-
-            if (_configuration.DistributedContentConsumerOnly)
+            return (await RegisterMachinesAsync(context, new[] { machineLocation })).Then(result =>
             {
-                return Task.FromResult(Result.Success(new MachineMapping(machineLocation, MachineId.Invalid)));
-            }
-
-            return _storage.RegisterMachineAsync(context, machineLocation);
+                ClusterState.Update(context, result.State).ThrowIfFailure();
+                return Result.Success(result.MachineMappings[0]);
+            });
         }
 
-        public Task<Result<MachineState>> UpdateClusterStateAsync(
+        public Task<Result<MachineState>> HeartbeatAsync(
             OperationContext context,
-            MachineState machineState = MachineState.Unknown,
-            ClusterState? clusterState = null,
-            Role? currentRole = null)
+            MachineState machineState)
         {
-            clusterState ??= ClusterState;
-
-            // Due to initialization issues the instance level ClusterState still can be null.
-            if (clusterState is null)
-            {
-                return Task.FromResult(Result.FromErrorMessage<MachineState>("Failed to update cluster state because the existing cluster state is null."));
-            }
-
-            var startMaxMachineId = clusterState.MaxMachineId;
-
-            int postDbMaxMachineId = startMaxMachineId;
-            int postGlobalMaxMachineId = startMaxMachineId;
-
+            // This is a weird method because it is meant to:
+            //  1. Update the remote representation of cluster state with the current machine state
+            //  2. Update the local representation of the cluster state
+            //  3. Change or return the current machine state for this machine
             return context.PerformOperationAsync(
                 Tracer,
                 async () =>
                 {
-                    var updateResult = await UpdateClusterStateCoreAsync(context, clusterState, machineState);
-                    postGlobalMaxMachineId = clusterState.MaxMachineId;
+                    var localMachineIds = ClusterState.LocalMachineMappings.Select(machineMapping => machineMapping.Id).ToArray();
 
-                    if (currentRole == Role.Master && _configuration.UseBinManager)
+                    if (_configuration.DistributedContentConsumerOnly || localMachineIds.Length == 0)
                     {
-                        Tracer.Info(context, $"Initializing bin manager");
-                        clusterState.InitializeBinManagerIfNeeded(locationsPerBin: _configuration.ProactiveCopyLocationsThreshold, _clock, expiryTime: _configuration.PreferredLocationsExpiryTime);
-                    }
+                        var currentState = await _storage.ReadState(context).ThrowIfFailureAsync();
+                        ClusterState.Update(context, currentState).ThrowIfFailure();
 
-                    return updateResult;
+                        // When in consumer-only mode, we should never update the remote representation of the cluster
+                        // state. We will instead just return whatever came in.
+                        return Result.Success(machineState);
+                    }
+                    else
+                    {
+                        var heartbeatResponse = await _storage.HeartbeatAsync(context, new BlobClusterStateStorage.HeartbeatInput(localMachineIds, machineState)).ThrowIfFailureAsync();
+                        Contract.Assert(heartbeatResponse.PriorRecords.Length == localMachineIds.Length, "Mismatch between number of requested heartbeats and actual heartbeats. This should never happen.");
+
+                        ClusterState.Update(context, heartbeatResponse.State).ThrowIfFailure();
+
+                        var priorRecord = heartbeatResponse.PriorRecords[0];
+                        if (!priorRecord.IsOpen())
+                        {
+                            ClusterState.LastInactiveTime = priorRecord.LastHeartbeatTimeUtc;
+                        }
+
+                        if (priorRecord.State != machineState)
+                        {
+                            Tracer.Debug(context, $"Machine state changed from {priorRecord.State} to {machineState}");
+                        }
+
+                        return Result.Success(priorRecord.State);
+                    }
                 },
-                extraEndMessage: result => $"[MaxMachineId=({startMaxMachineId} -> (Db={postDbMaxMachineId}, Global={postGlobalMaxMachineId}))]");
-        }
-
-        private async Task<Result<MachineState>> UpdateClusterStateCoreAsync(
-            OperationContext context,
-            ClusterState clusterState,
-            MachineState machineState)
-        {
-            var heartbeatResponse = await CallHeartbeatAsync(context, clusterState, machineState);
-
-            var updates = await _storage.GetClusterUpdatesAsync(context, new GetClusterUpdatesRequest()
-            {
-                MaxMachineId = clusterState.MaxMachineId
-            }).ThrowIfFailureAsync();
-
-            BitMachineIdSet inactiveMachineIdSet = heartbeatResponse.InactiveMachines;
-            BitMachineIdSet closedMachineIdSet = heartbeatResponse.ClosedMachines;
-
-            Contract.Assert(inactiveMachineIdSet != null, "inactiveMachineIdSet != null");
-            Contract.Assert(closedMachineIdSet != null, "closedMachineIdSet != null");
-
-            if (updates.MaxMachineId != clusterState.MaxMachineId)
-            {
-                Tracer.Debug(context, $"Retrieved unknown machines from ({clusterState.MaxMachineId}, {updates.MaxMachineId}]");
-                if (updates.UnknownMachines != null)
-                {
-                    foreach (var item in updates.UnknownMachines)
-                    {
-                        context.LogMachineMapping(Tracer, item.Key, item.Value);
-                    }
-                }
-            }
-
-            if (updates.UnknownMachines != null)
-            {
-                clusterState.AddUnknownMachines(updates.MaxMachineId, updates.UnknownMachines);
-            }
-
-            clusterState.SetMachineStates(inactiveMachineIdSet, closedMachineIdSet).ThrowIfFailure();
-
-            Tracer.Debug(context, $"Inactive machines: Count={inactiveMachineIdSet.Count}, [{string.Join(", ", inactiveMachineIdSet)}]");
-            Tracer.TrackMetric(context, "InactiveMachineCount", inactiveMachineIdSet.Count);
-
-            if (!_configuration.DistributedContentConsumerOnly)
-            {
-                foreach (var machineMapping in clusterState.LocalMachineMappings)
-                {
-                    if (!clusterState.TryResolveMachineId(machineMapping.Location, out var machineId))
-                    {
-                        return Result.FromErrorMessage<MachineState>($"Invalid cluster state on machine {machineMapping}. (Missing location {machineMapping.Location})");
-                    }
-                    else if (machineId != machineMapping.Id)
-                    {
-                        Tracer.Warning(context, $"Machine id mismatch for location {machineMapping.Location}. Registered id: {machineMapping.Id}. Cluster state id: {machineId}. Updating registered id with cluster state id.");
-                        machineMapping.Id = machineId;
-                    }
-
-                    if (updates.MaxMachineId < machineMapping.Id.Index)
-                    {
-                        return Result.FromErrorMessage<MachineState>($"Invalid cluster state on machine {machineMapping} (max machine id={updates.MaxMachineId})");
-                    }
-                }
-            }
-
-            return heartbeatResponse.PriorState;
-        }
-
-        public async Task<HeartbeatMachineResponse> CallHeartbeatAsync(
-            OperationContext context,
-            ClusterState clusterState,
-            MachineState machineState)
-        {
-            // There is very low concurrency here, machines have 1 or 2 local machine mappings
-            var responses = await TaskUtilities.SafeWhenAll(clusterState.LocalMachineMappings.Select(async m =>
-            {
-                var response = await _storage.HeartbeatAsync(context, new HeartbeatMachineRequest()
-                {
-                    MachineId = m.Id,
-                    Location = m.Location,
-                    Name = Environment.MachineName,
-                    DeclaredMachineState = machineState
-                }).ThrowIfFailureAsync();
-
-                var priorState = response.PriorState;
-
-                if (priorState != machineState)
-                {
-                    Tracer.Debug(context, $"Machine {m} state changed from {priorState} to {machineState}");
-                }
-
-                if (priorState == MachineState.DeadUnavailable || priorState == MachineState.DeadExpired)
-                {
-                    clusterState.LastInactiveTime = _clock.UtcNow;
-                }
-
-                return response;
-            }));
-
-            return responses.FirstOrDefault() ?? new HeartbeatMachineResponse()
-            {
-                PriorState = MachineState.Unknown,
-                InactiveMachines = BitMachineIdSet.EmptyInstance,
-                ClosedMachines = BitMachineIdSet.EmptyInstance
-            };
+                extraStartMessage: $"MachineState=[{machineState}]",
+                extraEndMessage: _ => $"MachineState=[{machineState}]");
         }
     }
 }

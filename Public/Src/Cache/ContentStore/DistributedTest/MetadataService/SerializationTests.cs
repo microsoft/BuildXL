@@ -188,24 +188,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.MetadataService
         }
 
         [Fact]
-        public void HeartbeatMachineResponse()
-        {
-            var model = MetadataServiceSerializer.TypeModel;
-
-            var obj = new HeartbeatMachineResponse()
-            {
-                PriorState = MachineState.Closed,
-                InactiveMachines = BitMachineIdSet.EmptyInstance.SetExistenceBit(new MachineId(32), true)
-            };
-
-            var deserialized = Roundtrip(model, obj);
-
-            deserialized.PriorState.Should().Be(MachineState.Closed);
-            deserialized.InactiveMachines.Value[32].Should().BeTrue();
-            deserialized.InactiveMachines.Value.Count.Should().Be(1);
-        }
-
-        [Fact]
         public void GetLevelSelectorsResponseRoundTrip()
         {
             var model = MetadataServiceSerializer.TypeModel;

@@ -317,10 +317,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 EnablePublishingCache = EnablePublishingCache,
 
                 GrpcCopyClientConnectOnStartup = true,
-        };
-
-            settings.UseBlobClusterStateStorage = false;
-            settings.BlobClusterStateStorageStandalone = false;
+            };
 
             if (ProactiveCopyLocationThreshold.HasValue)
             {

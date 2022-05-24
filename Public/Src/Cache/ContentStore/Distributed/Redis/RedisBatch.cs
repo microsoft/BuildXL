@@ -10,11 +10,9 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
-using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tasks;
 #if MICROSOFT_INTERNAL
 using Microsoft.Caching.Redis;
@@ -48,21 +46,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// -- ({ { key, value, lastAccessTime }[], deletedKeys, actualDeletedKeysCount }) GetOrClean(string[] keys, long maximumEmptyLastAccessTime, bool whatif)
         /// </summary>
         private static readonly string GetOrClean = GetEmbeddedResourceFile("BuildXL.Cache.ContentStore.Distributed.Redis.Scripts.GetOrClean.lua");
-
-        /// <summary>
-        /// -- (int: machineId, bool: isAdded) GetOrAddMachine(string clusterStateKey, string machineLocation)
-        /// </summary>
-        private static readonly string GetOrAddMachine = GetEmbeddedResourceFile("BuildXL.Cache.ContentStore.Distributed.Redis.Scripts.GetOrAddMachine.lua");
-
-        /// <summary>
-        /// -- (MachineState: priorState, BitSet: inactiveMachineBitSet, BitSet: expiredBitSet) Heartbeat(string clusterStateKey, int machineId, MachineStatus declaredState, long currentTime, long recomputeExpiryInterval, long machineExpiryInterval)
-        /// </summary>
-        private static readonly string Heartbeat = GetEmbeddedResourceFile("BuildXL.Cache.ContentStore.Distributed.Redis.Scripts.Heartbeat.lua");
-
-        /// <summary>
-        /// -- (int: maxMachineId, HashEntry[]: unknownMachines) GetUnknownMachines(string clusterStateKey, int maxKnownMachineId)
-        /// </summary>
-        private static readonly string GetUnknownMachines = GetEmbeddedResourceFile("BuildXL.Cache.ContentStore.Distributed.Redis.Scripts.GetUnknownMachines.lua");
 
         /// <summary>
         /// -- ({ nextCursor, key[] }) Scan(string cursor, int entryCount)
@@ -172,26 +155,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             AddOperation(key, operation).FireAndForget(context, batch: this, operationName);
         }
 
-        /// <nodoc />
-        public async Task<(int machineId, bool isAdded)> GetOrAddMachineAsync(string clusterStateKey, string machineLocation, DateTime currentTime)
-        {
-            var redisOperation =
-                new RedisOperationAndResult<RedisResult>(
-                    batch =>
-                        batch.ScriptEvaluateAsync(
-                            GetOrAddMachine,
-                            new RedisKey[] { clusterStateKey },
-                            new RedisValue[]
-                            {
-                                machineLocation,
-                                GetUnixTimeSecondsFromDateTime(currentTime)
-                            }));
-            _redisOperations.Add(redisOperation);
-            var result = await redisOperation.FinalTaskResult.Task;
-            var arrayResult = (RedisResult[])result;
-            return (machineId: (int)arrayResult[0], isAdded: ((int)arrayResult[1]) != 0);
-        }
-
         /// -- bool CompareExchange(string: weakFingerprintKey, byte[]: selectorFieldName, byte[] tokenFieldName, string expectedToken, byte[] contentHashList)
         /// <inheritdoc />
         public async Task<bool> CompareExchangeAsync(string weakFingerprintKey, RedisValue selectorFieldName, RedisValue tokenFieldName, string expectedToken, RedisValue contentHashList, string newReplacementToken)
@@ -213,73 +176,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             _redisOperations.Add(redisOperation);
             bool result = (bool)await redisOperation.FinalTaskResult.Task;
             return result;
-        }
-
-        /// <nodoc />
-        public async Task<(int maxMachineId, Dictionary<MachineId, MachineLocation> unknownMachines)> GetUnknownMachinesAsync(
-            string clusterStateKey,
-            int maxKnownMachineId)
-        {
-            var redisOperation =
-                new RedisOperationAndResult<RedisResult>(
-                    batch =>
-                        batch.ScriptEvaluateAsync(
-                            GetUnknownMachines,
-                            new RedisKey[] { clusterStateKey },
-                            new RedisValue[]
-                            {
-                                maxKnownMachineId,
-                            }));
-            _redisOperations.Add(redisOperation);
-            var result = await redisOperation.FinalTaskResult.Task;
-            var arrayResult = (RedisResult[])result;
-            var maxMachineId = (int)arrayResult[0];
-            var unknownMachines = new Dictionary<MachineId, MachineLocation>();
-            foreach (RedisResult[] entry in (RedisResult[])arrayResult[1])
-            {
-                int machineId = (int)entry[0];
-                var locationData = (byte[])entry[1];
-                unknownMachines.Add(new MachineId(machineId), new MachineLocation(locationData));
-            }
-
-            return (maxMachineId, unknownMachines);
-        }
-
-        /// <nodoc />
-        public async Task<(MachineState priorState, BitMachineIdSet inactiveMachineIdSet, BitMachineIdSet closedMachineIdSet)> HeartbeatAsync(
-            string clusterStateKey,
-            int machineId,
-            MachineState declaredState,
-            DateTime currentTime,
-            TimeSpan recomputeInterval,
-            TimeSpan machineActiveToClosedInterval,
-            TimeSpan machineActiveToExpiredInterval)
-        {
-            var redisOperation =
-                new RedisOperationAndResult<RedisResult>(
-                    batch =>
-                        batch.ScriptEvaluateAsync(
-                            Heartbeat,
-                            new RedisKey[] { clusterStateKey },
-                            new RedisValue[]
-                            {
-                                machineId,
-                                (int)declaredState,
-                                GetUnixTimeSecondsFromDateTime(currentTime),
-                                (long)recomputeInterval.TotalSeconds,
-                                (long)machineActiveToClosedInterval.TotalSeconds,
-                                (long)machineActiveToExpiredInterval.TotalSeconds
-                            }));
-
-            _redisOperations.Add(redisOperation);
-            var result = await redisOperation.FinalTaskResult.Task;
-            var arrayResult = (RedisResult[])result;
-            var priorState = (MachineState)(int)arrayResult[0];
-            var inactiveMachinesData = (byte[])arrayResult[1] ?? CollectionUtilities.EmptyArray<byte>();
-            var inactiveMachineIdSet = new BitMachineIdSet(inactiveMachinesData, 0);
-            var closedMachinesData = (byte[])arrayResult[2] ?? CollectionUtilities.EmptyArray<byte>();
-            var closedMachineIdSet = new BitMachineIdSet(closedMachinesData, 0);
-            return (priorState, inactiveMachineIdSet, closedMachineIdSet);
         }
 
         /// <inheritdoc />

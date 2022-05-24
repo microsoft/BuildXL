@@ -37,16 +37,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Tracing
         private static readonly string _totalContentSizeMetricName = "TotalContentSize";
 
         /// <nodoc />
-        public static void LogMachineMapping(
-            this OperationContext context,
-            Tracer tracer,
-            MachineId machineId,
-            MachineLocation location)
-        {
-            tracer.Debug(context, $"{tracer.Name}: Machine mapping: Id:{machineId}, Location:{location}");
-        }
-
-        /// <nodoc />
         public static void GarbageCollectionFinished(
             this Tracer tracer,
             OperationContext context,

@@ -178,7 +178,7 @@ namespace ContentStoreTest.Distributed.Stores
                 {
                     var machineId = new MachineId(i);
                     var machineLocation = new MachineLocation(i.ToString());
-                    clusterState.AddMachine(machineId, machineLocation);
+                    clusterState.AddMachineForTest(context, machineId, machineLocation);
                 }
 
                 var contentHashes = new List<ContentHashWithPath>();
@@ -213,7 +213,7 @@ namespace ContentStoreTest.Distributed.Stores
                 ClusterState clusterState = ClusterState.CreateForTest();
                 for (int i = 0; i <= 10; i++)
                 {
-                    clusterState.AddMachine(new MachineId(i), new MachineLocation(i.ToString()));
+                    clusterState.AddMachineForTest(context, new MachineId(i), new MachineLocation(i.ToString()));
                 }
                 var result = await store.UpdateRingAsync(context, clusterState).ShouldBeSuccess();
 

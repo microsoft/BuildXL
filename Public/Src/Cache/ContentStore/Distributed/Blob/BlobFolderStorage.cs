@@ -162,8 +162,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public Task<Result<(TState NextState, TResult Result)>> ReadModifyWriteAsync<TState, TResult>(
             OperationContext context,
             BlobName fileName,
-            Func<TState, (TState NextState, TResult Result)> transform,
-            Func<TState>? defaultValue = null)
+            Func<TState, (TState NextState, TResult Result)> transform)
             where TState : new()
         {
             return ReadModifyWriteAsync<TState, TResult>(context, fileName, current =>
@@ -253,8 +252,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// Reads the given object from the json blob
         /// </summary>
         public Task<Result<TState>> ReadAsync<TState>(OperationContext context, BlobName fileName)
+            where TState : new()
         {
-            return ReadStateAsync<TState>(context, fileName).AsAsync(s => s.Value)!;
+            return ReadStateAsync<TState>(context, fileName).AsAsync(state => state.Value ?? new TState())!;
         }
 
         /// <summary>
@@ -305,7 +305,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return ReadStateAsync(context, fileName, stream => JsonUtilities.JsonDeserializeAsync<TState>(stream));
         }
 
-        public Task<Result<State<TState>>> ReadStateAsync<TState>(OperationContext context, BlobName fileName, Func<MemoryStream, ValueTask<TState>> readAsync)
+        public Task<Result<State<TState>>> ReadStateAsync<TState>(
+            OperationContext context,
+            BlobName fileName,
+            Func<MemoryStream, ValueTask<TState>> readAsync)
         {
             long length = -1;
             return context.PerformOperationWithTimeoutAsync(

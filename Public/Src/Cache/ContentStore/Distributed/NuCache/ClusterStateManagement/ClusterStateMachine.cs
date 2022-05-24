@@ -262,21 +262,5 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             return Result.FromErrorMessage<MachineRecord>($"Failed to find machine id `{machineId}`");
         }
-
-        public BitMachineIdSet InactiveMachinesToBitMachineIdSet()
-        {
-            return BitMachineIdSet.Create(
-                Records
-                .Where(r => r.State == MachineState.DeadExpired || r.State == MachineState.DeadUnavailable)
-                .Select(r => r.Id));
-        }
-
-        public BitMachineIdSet ClosedMachinesToBitMachineIdSet()
-        {
-            return BitMachineIdSet.Create(
-                Records
-                .Where(r => r.State == MachineState.Closed)
-                .Select(r => r.Id));
-        }
     }
 }

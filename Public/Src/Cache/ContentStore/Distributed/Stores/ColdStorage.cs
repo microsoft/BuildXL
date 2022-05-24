@@ -387,10 +387,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
 
             SortedList<long, RingNode> sortedMachines = new SortedList<long, RingNode>();
 
-            IReadOnlyList<MachineLocation> machineLocations = clusterState.Locations;
-
             MachineId machineId;
-            foreach (var machine in machineLocations)
+            foreach (var machine in clusterState.Locations)
             {
                 // We use the machineId to place it in the virtual ring
                 bool success = clusterState.TryResolveMachineId(machine, out machineId);

@@ -5,6 +5,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Collections;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
@@ -69,6 +70,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         /// <nodoc />
         public MachineIdSet Remove(MachineId machine) => SetExistence(MachineIdCollection.Create(machine), exists: false);
+
+        /// <nodoc />
+        public bool Contains(MachineId machine) => this[machine];
 
         /// <summary>
         /// Enumerates the bits in the machine id set

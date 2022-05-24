@@ -134,16 +134,16 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
             var eagerSettings = new MachineList.Settings() { ResolveLocationsEagerly = true };
             var lazySettings = eagerSettings with { ResolveLocationsEagerly = false };
 
-            var context = new Context(Logger);
+            var context = new OperationContext(new Context(Logger));
 
             var machines = Enumerable.Range(1, amountMachines).Select(n => (ushort)n).ToArray();
 
             // Skipping the first 2 machine to fail machine resolution.
-            var machineMappings = machines.Select(m => new MachineMapping(new MachineLocation(m.ToString()), new MachineId(m))).ToArray();
+            var machineMappings = machines.Select(m => new MachineMapping(new MachineId(m), new MachineLocation(m.ToString()))).ToArray();
             var clusterState = new ClusterState(primaryMachineId: default, machineMappings);
             foreach (var mapping in machineMappings)
             {
-                clusterState.AddMachine(mapping.Id, mapping.Location);
+                clusterState.AddMachineForTest(context, mapping.Id, mapping.Location);
             }
             clusterState.InitializeBinManagerIfNeeded(locationsPerBin: designatedLocations, _clock, expiryTime: TimeSpan.FromSeconds(1));
 
@@ -374,15 +374,15 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
 
             public MachineListFactory(ITestClock clock, int amountMachines, int designatedLocations, int? master = null)
             {
-                Context = new Context(Logger);
+                Context = new OperationContext(new Context(Logger));
 
                 this.MachineIds = Enumerable.Range(1, amountMachines).Select(n => (ushort)n).ToArray();
 
-                var machineMappings = MachineIds.Select(m => new MachineMapping(new MachineLocation(m.ToString()), new MachineId(m))).ToArray();
+                var machineMappings = MachineIds.Select(m => new MachineMapping(new MachineId(m), new MachineLocation(m.ToString()))).ToArray();
                 var clusterState = new ClusterState(primaryMachineId: default, machineMappings);
                 foreach (var mapping in machineMappings)
                 {
-                    clusterState.AddMachine(mapping.Id, mapping.Location);
+                    clusterState.AddMachineForTest(Context, mapping.Id, mapping.Location);
                 }
                 clusterState.InitializeBinManagerIfNeeded(locationsPerBin: designatedLocations, clock, expiryTime: TimeSpan.FromSeconds(1));
 
@@ -403,7 +403,7 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
 
             public ushort[] MachineIds { get; }
 
-            public Context Context { get; }
+            public OperationContext Context { get; }
 
             public IReadOnlyList<MachineLocation> Create(MachineList.Settings settings, MachineId[] machineIds = null)
             {

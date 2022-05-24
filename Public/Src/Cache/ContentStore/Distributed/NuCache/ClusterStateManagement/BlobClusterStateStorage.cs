@@ -6,7 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Distributed.MetadataService;
+using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Secrets;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
@@ -31,14 +31,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         public TimeSpan StorageInteractionTimeout { get; set; } = TimeSpan.FromSeconds(10);
 
-        public bool Standalone { get; set; } = false;
-
         public ClusterStateRecomputeConfiguration RecomputeConfiguration { get; set; } = new ClusterStateRecomputeConfiguration();
 
         public RetryPolicyConfiguration RetryPolicy { get; set; } = BlobFolderStorage.DefaultRetryPolicy;
     }
 
-    public class BlobClusterStateStorage : StartupShutdownComponentBase, IClusterStateStorage, ISecondaryClusterStateStorage
+    public class BlobClusterStateStorage : StartupShutdownComponentBase
     {
         protected override Tracer Tracer { get; } = new Tracer(nameof(BlobClusterStateStorage));
 
@@ -59,101 +57,79 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             LinkLifetime(_storage);
         }
 
-        public Task<Result<MachineMapping>> RegisterMachineAsync(OperationContext context, MachineLocation machineLocation)
+        public record RegisterMachineInput(IReadOnlyList<MachineLocation> MachineLocations);
+
+        public record RegisterMachineOutput(ClusterStateMachine State, MachineMapping[] MachineMappings);
+
+        public Task<Result<RegisterMachineOutput>> RegisterMachinesAsync(OperationContext context, RegisterMachineInput request)
         {
             return context.PerformOperationAsync(Tracer, async () =>
             {
-                var (_, assignedMachineId) = await _storage.ReadModifyWriteAsync<ClusterStateMachine, MachineId>(context, _configuration.FileName, current =>
+                var (currentState, assignedMachineIds) = await _storage.ReadModifyWriteAsync<ClusterStateMachine, MachineId[]>(context, _configuration.FileName, currentState =>
                 {
                     var now = _clock.UtcNow;
-                    var next = current;
-                    if (!current.TryResolveMachineId(machineLocation, out var machineId))
+
+                    MachineId[] assignedMachineIds = new MachineId[request.MachineLocations.Count];
+                    foreach (var entry in request.MachineLocations.AsIndexed())
                     {
-                        (next, machineId) = current.RegisterMachine(machineLocation, now);
+                        if (currentState.TryResolveMachineId(entry.Item, out var machineId))
+                        {
+                            assignedMachineIds[entry.Index] = machineId;
+                        }
+                        else
+                        {
+                            (currentState, assignedMachineIds[entry.Index]) = currentState.RegisterMachine(entry.Item, now);
+                        }
                     }
 
-                    next = next.Recompute(_configuration.RecomputeConfiguration, now);
-                    return (next, machineId);
+                    currentState = currentState.Recompute(_configuration.RecomputeConfiguration, now);
+                    return (currentState, assignedMachineIds);
                 }).ThrowIfFailureAsync();
 
-                return Result.Success(new MachineMapping(machineLocation, assignedMachineId));
+                var machineMappings = request.MachineLocations
+                    .Zip(assignedMachineIds, (machineLocation, machineId) => new MachineMapping(machineId, machineLocation))
+                    .ToArray();
+
+                return Result.Success(new RegisterMachineOutput(currentState, machineMappings));
             },
-            traceOperationStarted: false,
-            extraEndMessage: r => $"Mapping=[{r.ToStringOr($"(Id: Failure, Location: {machineLocation})")}]");
+            traceOperationStarted: false);
         }
 
-        public Task<BoolResult> ForceRegisterMachineAsync(OperationContext context, MachineMapping mapping)
+        public record HeartbeatInput(IReadOnlyList<MachineId> MachineIds, MachineState MachineState);
+
+        public record HeartbeatOutput(ClusterStateMachine State, MachineRecord[] PriorRecords);
+
+        public Task<Result<HeartbeatOutput>> HeartbeatAsync(OperationContext context, HeartbeatInput request)
         {
             return context.PerformOperationAsync(Tracer, async () =>
             {
-                await _storage.ReadModifyWriteAsync<ClusterStateMachine>(context, _configuration.FileName, current =>
+                var (currentState, priorMachineRecords) = await _storage.ReadModifyWriteAsync<ClusterStateMachine, MachineRecord[]>(context, _configuration.FileName, currentState =>
                 {
                     var now = _clock.UtcNow;
-                    var next = current.ForceRegisterMachine(mapping.Id, mapping.Location, now);
-                    next = next.Recompute(_configuration.RecomputeConfiguration, now);
 
-                    return next;
-                }).ThrowIfFailureAsync();
-
-                return BoolResult.Success;
-            },
-            traceOperationStarted: false,
-            extraEndMessage: _ =>
-            {
-                return $"Mapping=[{mapping}]";
-            });
-        }
-
-        public Task<Result<HeartbeatMachineResponse>> HeartbeatAsync(OperationContext context, HeartbeatMachineRequest request)
-        {
-            return context.PerformOperationAsync(Tracer, async () =>
-            {
-                var now = _clock.UtcNow;
-                request.HeartbeatTime ??= now;
-
-                var (currentState, priorStatus) = await _storage.ReadModifyWriteAsync<ClusterStateMachine, MachineRecord>(context, _configuration.FileName, current =>
-                {
-                    var (next, priorStatus) = current.Heartbeat(request.MachineId, request.HeartbeatTime!.Value, request.DeclaredMachineState).ThrowIfFailure();
-                    next = next.Recompute(_configuration.RecomputeConfiguration, now);
-
-                    return (next, priorStatus);
-                }).ThrowIfFailureAsync();
-
-                return Result.Success(new HeartbeatMachineResponse()
-                {
-                    Added = false,
-                    PriorState = priorStatus.State,
-                    InactiveMachines = currentState.InactiveMachinesToBitMachineIdSet(),
-                    ClosedMachines = currentState.ClosedMachinesToBitMachineIdSet(),
-                });
-            },
-            traceOperationStarted: false,
-            extraEndMessage: r => $"Request=[{request}] Response=[{r.ToStringOr("Error")}]");
-        }
-
-        public Task<Result<GetClusterUpdatesResponse>> GetClusterUpdatesAsync(OperationContext context, GetClusterUpdatesRequest request)
-        {
-            return context.PerformOperationAsync(Tracer, async () =>
-            {
-                var clusterState = await _storage.ReadAsync<ClusterStateMachine>(context, _configuration.FileName).ThrowIfFailureAsync();
-                if (clusterState is null || request.MaxMachineId >= clusterState.NextMachineId)
-                {
-                    return Result.Success(new GetClusterUpdatesResponse()
+                    var priorMachineRecords = new MachineRecord[request.MachineIds.Count];
+                    foreach (var entry in request.MachineIds.AsIndexed())
                     {
-                        UnknownMachines = new Dictionary<MachineId, MachineLocation>(),
-                        MaxMachineId = Math.Max(request.MaxMachineId, (clusterState?.NextMachineId ?? 1) - 1),
-                    });
-                }
+                        (currentState, priorMachineRecords[entry.Index]) = currentState.Heartbeat(entry.Item, now, request.MachineState).ThrowIfFailure();
+                    }
 
-                return Result.Success(new GetClusterUpdatesResponse()
-                {
-                    UnknownMachines = clusterState.Records.Where(r => r.Id.Index > request.MaxMachineId)
-                                                          .ToDictionary(r => r.Id, r => r.Location),
-                    MaxMachineId = clusterState.NextMachineId - 1,
-                });
+                    currentState = currentState.Recompute(_configuration.RecomputeConfiguration, now);
+
+                    return (currentState, priorMachineRecords);
+                }).ThrowIfFailureAsync();
+
+                return Result.Success(new HeartbeatOutput(currentState, priorMachineRecords));
             },
-            traceOperationStarted: false,
-            extraEndMessage: r => $"Request=[{request}] Response=[{r.ToStringOr("Error")}]");
+            traceOperationStarted: false);
+        }
+
+        public Task<Result<ClusterStateMachine>> ReadState(OperationContext context)
+        {
+            return context.PerformOperationAsync(Tracer, () =>
+            {
+                return _storage.ReadAsync<ClusterStateMachine>(context, _configuration.FileName);
+            },
+            traceOperationStarted: false);
         }
     }
 }

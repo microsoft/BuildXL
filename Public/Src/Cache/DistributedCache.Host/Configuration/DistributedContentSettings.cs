@@ -170,8 +170,6 @@ namespace BuildXL.Cache.Host.Configuration
             MemoizationContentMetadataStoreModeOverride = Configuration.ContentMetadataStoreMode.Distributed;
             LocationContentMetadataStoreModeOverride = Configuration.ContentMetadataStoreMode.Distributed;
             BlobContentMetadataStoreModeOverride = Configuration.ContentMetadataStoreMode.Distributed;
-            UseBlobClusterStateStorage = true;
-            BlobClusterStateStorageStandalone = true;
             UseBlobVolatileStorage = true;
             ContentMetadataUseBlobCheckpointRegistry = true;
             ContentMetadataUseBlobCheckpointRegistryStandalone = true;
@@ -1309,16 +1307,10 @@ namespace BuildXL.Cache.Host.Configuration
         #region Azure Blob Storage-based Cluster State
 
         [DataMember]
-        public bool UseBlobClusterStateStorage { get; set; } = false;
-
-        [DataMember]
         public string BlobClusterStateStorageFileName { get; set; }
 
         [DataMember]
         public TimeSpanSetting? BlobClusterStateStorageStorageInteractionTimeout { get; set; }
-
-        [DataMember]
-        public bool? BlobClusterStateStorageStandalone { get; set; }
 
         [DataMember]
         public RetryPolicyConfiguration BlobClusterStateStorageRetryPolicy { get; set; }

@@ -34,7 +34,7 @@ using StackExchange.Redis;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
-    public sealed partial class RedisGlobalStore : StartupShutdownSlimBase, IGlobalCacheStore, IClusterStateStorage, ReplicatedRedisHashKey.IReplicatedKeyHost
+    public sealed partial class RedisGlobalStore : StartupShutdownSlimBase, IGlobalCacheStore, ReplicatedRedisHashKey.IReplicatedKeyHost
     {
         public override bool AllowMultipleStartupAndShutdowns => true;
 
@@ -321,102 +321,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         #endregion Operations
-
-        #region Cluster State Management
-
-        public Task<Result<MachineMapping>> RegisterMachineAsync(OperationContext context, MachineLocation machineLocation)
-        {
-            return context.PerformOperationAsync(Tracer, async () =>
-            {
-                if (Configuration.DistributedContentConsumerOnly)
-                {
-                    return Result.Success(new MachineMapping(machineLocation, new MachineId(0)));
-                }
-
-                // Get the local machine id
-                var machineIdAndIsAdded = await _clusterStateKey.UseNonConcurrentReplicatedHashAsync(
-                    context,
-                    Configuration.RetryWindow,
-                    RedisOperation.StartupGetOrAddLocalMachine,
-                    (batch, key) => batch.GetOrAddMachineAsync(key, machineLocation.ToString(), _clock.UtcNow),
-                    timeout: Configuration.ClusterRedisOperationTimeout)
-                    .ThrowIfFailureAsync();
-
-                Tracer.Debug(context, $"Assigned machine id={machineIdAndIsAdded.machineId}, location={machineLocation}, isAdded={machineIdAndIsAdded.isAdded}.");
-
-                return Result.Success(new MachineMapping(machineLocation, new MachineId(machineIdAndIsAdded.machineId)));
-            },
-            traceOperationStarted: false,
-            extraEndMessage: r =>
-            {
-                if (r.Succeeded)
-                {
-                    return $"MachineLocation=[{r.Value.Location}] MachineId=[{r.Value.Id}]";
-                }
-                else
-                {
-                    return $"MachineLocation=[{machineLocation}]";
-                }
-            });
-        }
-
-        public Task<Result<HeartbeatMachineResponse>> HeartbeatAsync(OperationContext context, HeartbeatMachineRequest request)
-        {
-            return context.PerformOperationAsync(
-                Tracer,
-                () =>
-                {
-                    return _clusterStateKey.UseNonConcurrentReplicatedHashAsync(
-                        context, Configuration.RetryWindow, RedisOperation.UpdateClusterState, async (batch, key) =>
-                        {
-                            (MachineState priorState, BitMachineIdSet inactiveMachineIdSet, BitMachineIdSet closedMachineIdSet) = await batch.HeartbeatAsync(
-                                key,
-                                request.MachineId.Index,
-                                // When readonly, specify Unknown which does not update state
-                                Configuration.DistributedContentConsumerOnly ? MachineState.Unknown : request.DeclaredMachineState,
-                                _clock.UtcNow,
-                                Configuration.MachineStateRecomputeInterval,
-                                Configuration.MachineActiveToClosedInterval,
-                                Configuration.MachineActiveToExpiredInterval);
-
-                            return Result.Success(new HeartbeatMachineResponse()
-                            {
-                                PriorState = priorState,
-                                InactiveMachines = inactiveMachineIdSet,
-                                ClosedMachines = closedMachineIdSet
-                            });
-                        },
-                        timeout: Configuration.ClusterRedisOperationTimeout).ThrowIfFailureAsync();
-
-                },
-                Counters[GlobalStoreCounters.UpdateClusterState]);
-        }
-
-        public Task<Result<GetClusterUpdatesResponse>> GetClusterUpdatesAsync(OperationContext context, GetClusterUpdatesRequest request)
-        {
-            return context.PerformOperationAsync(
-                Tracer,
-                () =>
-                {
-                    return _clusterStateKey.UseNonConcurrentReplicatedHashAsync(
-                        context, Configuration.RetryWindow, RedisOperation.UpdateClusterState, async (batch, key) =>
-                        {
-                            var getUnknownMachinesResult = await batch.GetUnknownMachinesAsync(
-                                key,
-                                request.MaxMachineId);
-
-                            return Result.Success(new GetClusterUpdatesResponse()
-                            {
-                                UnknownMachines = getUnknownMachinesResult.unknownMachines,
-                                MaxMachineId = getUnknownMachinesResult.maxMachineId
-                            });
-                        },
-                        timeout: Configuration.ClusterRedisOperationTimeout).ThrowIfFailureAsync();
-                },
-                Counters[GlobalStoreCounters.UpdateClusterState]);
-        }
-
-        #endregion
 
         #region Blobs in Redis
 

@@ -336,7 +336,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             MachineReputationTracker = new MachineReputationTracker(context, _clock, ClusterState, Configuration.ReputationTrackerConfiguration);
 
             // We need to detect what our previous exit state was in order to choose the appropriate recovery strategy.
-            var fetchLastMachineStateResult = await UpdateClusterStateAsync(context, MachineState.Unknown);
+            var fetchLastMachineStateResult = await SetMachineStateAsync(context, MachineState.Unknown);
             var lastMachineState = MachineState.Unknown;
             if (fetchLastMachineStateResult.Succeeded)
             {
@@ -423,7 +423,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             _heartbeatTimer?.Dispose();
 
-            await UpdateClusterStateAsync(context, _heartbeatMachineState).IgnoreFailure();
+            await SetMachineStateAsync(context, _heartbeatMachineState).IgnoreFailure();
 
             if (EventStore != null)
             {
@@ -491,7 +491,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                         // Local database should be immutable on workers and only master is responsible for collecting stale records
                         await Database.SetDatabaseModeAsync(isDatabaseWriteable: newRole == Role.Master || Configuration.MasterThroughputCheckMode);
+
                         ClusterState.EnableBinManagerUpdates = newRole == Role.Master;
+                        if (newRole == Role.Master && Configuration.UseBinManager)
+                        {
+                            Tracer.Info(context, $"Initializing bin manager");
+                            ClusterState.InitializeBinManagerIfNeeded(
+                                locationsPerBin: Configuration.ProactiveCopyLocationsThreshold,
+                                _clock,
+                                expiryTime: Configuration.PreferredLocationsExpiryTime);
+                        }
                     }
 
                     // Set the current role to the newly acquired role
@@ -530,7 +539,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                     if (Configuration.Checkpoint.UpdateClusterStateInterval is null || ShouldSchedule(Configuration.Checkpoint.UpdateClusterStateInterval.Value, _lastClusterStateUpdate))
                     {
-                        var updateResult = await UpdateClusterStateAsync(context, machineState: _heartbeatMachineState);
+                        var updateResult = await SetMachineStateAsync(context, machineState: _heartbeatMachineState);
                         if (!updateResult)
                         {
                             return updateResult;
@@ -588,12 +597,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
 
-        public Task<Result<MachineState>> UpdateClusterStateAsync(
-            OperationContext context,
-            MachineState machineState = MachineState.Unknown,
-            ClusterState clusterState = null)
+        public Task<Result<MachineState>> SetMachineStateAsync(OperationContext context, MachineState machineState)
         {
-            return ClusterStateManager.UpdateClusterStateAsync(context, machineState, clusterState, CurrentRole);
+            return ClusterStateManager.HeartbeatAsync(context, machineState);
         }
 
         private Result<bool> ShouldRestoreCheckpoint(OperationContext context, DateTime checkpointCreationTime)
@@ -615,13 +621,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             // anyways if the bucketing allows.
             var result = context.PerformOperation(Tracer, () =>
             {
-                var activeMachines = ClusterState.ApproximateNumberOfMachines();
-                Contract.Assert(activeMachines >= 1);
+                var openMachines = ClusterState.OpenMachines.Count;
+                Contract.Assert(openMachines >= 1);
 
                 return Result.Success(RestoreCheckpointPacemaker.ShouldRestoreCheckpoint(
                     Configuration.PrimaryMachineLocation.Data,
                     Configuration.Checkpoint.PacemakerNumberOfBuckets ?? 0,
-                    activeMachines,
+                    openMachines,
                     checkpointCreationTime,
                     Configuration.Checkpoint.CreateCheckpointInterval));
             }, messageFactory: r =>
@@ -1115,7 +1121,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             {
                 // Update cluster. Query global to ensure that we have all machines ids (even those which may not be added
                 // to local db yet.)
-                var result = await UpdateClusterStateAsync(context, machineState: MachineState.Unknown);
+                var result = await SetMachineStateAsync(context, machineState: MachineState.Unknown);
                 if (!result)
                 {
                     return new GetBulkLocationsResult(result);
@@ -2283,7 +2289,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     // Instead we need to mark the machine as untrusted.
                     SetHeartbeatMachineStateIfAllowed(MachineState.DeadUnavailable);
 
-                    await ClusterStateManager.CallHeartbeatAsync(context, ClusterState, _heartbeatMachineState);
+                    await ClusterStateManager.HeartbeatAsync(context, _heartbeatMachineState).ThrowIfFailureAsync();
 
                     return BoolResult.Success;
                 });

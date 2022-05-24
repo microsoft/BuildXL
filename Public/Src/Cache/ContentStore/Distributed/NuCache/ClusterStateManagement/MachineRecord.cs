@@ -33,5 +33,20 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             return this with { State = nextState, LastHeartbeatTimeUtc = nowUtc };
         }
+
+        public bool IsOpen()
+        {
+            return State == MachineState.Open;
+        }
+
+        public bool IsClosed()
+        {
+            return State == MachineState.Closed;
+        }
+
+        public bool IsInactive()
+        {
+            return State == MachineState.DeadExpired || State == MachineState.DeadUnavailable;
+        }
     }
 }

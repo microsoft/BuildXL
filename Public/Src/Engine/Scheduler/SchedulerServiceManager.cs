@@ -92,7 +92,8 @@ namespace BuildXL.Scheduler
             foreach (var outgoingEdge in m_pipGraph.DataflowGraph.GetOutgoingEdges(pip.PipId.ToNodeId()))
             {
                 var otherPipId = outgoingEdge.OtherNode.ToPipId();
-                if (m_pipGraph.PipTable.GetServiceInfo(otherPipId).Kind == ServicePipKind.None)
+                if (m_pipGraph.PipTable.GetServiceInfo(otherPipId).Kind == ServicePipKind.None
+                    && !m_pipGraph.PipTable.GetPipType(otherPipId).IsMetaPip())
                 {
                     return true;
                 }

@@ -92,6 +92,12 @@ namespace BuildXL.Execution.Analyzer
                 return false;
             }
 
+            var streamProvider = StreamProvider;
+            if (cachedGraphDirectory != null && cachedGraphDirectory.EndsWith(".zip", System.StringComparison.OrdinalIgnoreCase) && File.Exists(cachedGraphDirectory))
+            {
+                streamProvider = new ZipFileSystemStreamProvider(cachedGraphDirectory);
+            }
+
             // Dummy logger that nothing listens to but is needed for cached graph API
             LoggingContext loggingContext = new LoggingContext("BuildXL.Execution.Analyzer");
 
@@ -109,7 +115,7 @@ namespace BuildXL.Execution.Analyzer
                 ))
             {
                 listener.RegisterEventSource(BuildXL.Engine.ETWLogger.Log);
-                CachedGraph = CachedGraph.LoadAsync(CachedGraphDirectory, loggingContext, preferLoadingEngineCacheInMemory: true, readStreamProvider: StreamProvider).GetAwaiter().GetResult();
+                CachedGraph = CachedGraph.LoadAsync(CachedGraphDirectory, loggingContext, preferLoadingEngineCacheInMemory: true, readStreamProvider: streamProvider).GetAwaiter().GetResult();
             }
             if (CachedGraph == null)
             {

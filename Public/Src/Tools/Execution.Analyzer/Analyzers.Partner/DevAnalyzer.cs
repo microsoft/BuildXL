@@ -4,7 +4,9 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using BuildXL.Pips;
+using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities;
@@ -81,15 +83,38 @@ namespace BuildXL.Execution.Analyzer
         {
             m_writer = new StreamWriter(OutputFilePath);
 
-            SpecPath = AbsolutePath.Create(PathTable, @"d:\dbs\el\o8\Build\ProductBuild\liblet_officewebserviceapi_droidx86_ship\build.dsc");
-            DirectoryPath = AbsolutePath.Create(PathTable, @"d:\dbs\cx\o8\androidsdk.24.0.4");
-            foreach (var producer in PipGraph.GetProducingPips(SpecPath))
-            {
-                m_writer.WriteLine(GetDescription(producer));
-                m_writer.WriteLine();
-            }
+            var path = AbsolutePath.Create(PathTable, @"D:\dbs\el\omr\Build\DominoTemp\Obj\3\a\boyzvbglg4tncpv23bkcqbww\dropd-addartifacts\dropd-addartifacts-stdout.txt");
+
+            var producers = PipGraph.GetProducingPips(path).ToArray();
+
+            var ipcPip = producers.OfType<IpcPip>().FirstOrDefault();
+
+            var outputFile = ipcPip.OutputFile.Path;
+            bool isOutput = path == outputFile;
+
+            bool hasConsumers = HasRealConsumers(ipcPip);
+
+            var consumers = PipGraph.GetConsumingPips(path).ToArray();
+
+            var dependents = PipGraph.RetrievePipImmediateDependents(ipcPip);
+
 
             // GetPathProducers(path);
+        }
+
+        public bool HasRealConsumers(IpcPip pip)
+        {
+            foreach (var outgoingEdge in PipGraph.DataflowGraph.GetOutgoingEdges(pip.PipId.ToNodeId()))
+            {
+                var otherPipId = outgoingEdge.OtherNode.ToPipId();
+                if (PipGraph.PipTable.GetServiceInfo(otherPipId).Kind == ServicePipKind.None)
+                {
+                    var other = GetPip(otherPipId);
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         public override void FileArtifactContentDecided(FileArtifactContentDecidedEventData data)

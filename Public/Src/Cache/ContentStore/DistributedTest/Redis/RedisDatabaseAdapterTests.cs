@@ -92,9 +92,9 @@ namespace ContentStoreTest.Distributed.Redis
             // and the second one will fail with connectivity issue, will cause the restart of the multiplexer,
             // and will cancel all the existing operations 9including the first one).
 
-            var task1 = ExecuteGetCheckpointInfoAsync(context, dbAdapter);
+            var task1 = runRandomRedisOpAsync(dbAdapter, context);
             failWithRedisConnectionErrorOnce = true;
-            var task2 = ExecuteGetCheckpointInfoAsync(context, dbAdapter);
+            var task2 = runRandomRedisOpAsync(dbAdapter, context);
 
             Output.WriteLine("Waiting for the redis operations to finish.");
             await Task.WhenAll(task1, task2);
@@ -105,6 +105,12 @@ namespace ContentStoreTest.Distributed.Redis
 
             var cancelledCount = results.Count(r => r.IsCancelled);
             cancelledCount.Should().Be(1, $"Should have 1 cancellation. Results: {string.Join(Environment.NewLine, results.Select(r => r.ToString()))}");
+
+            async Task<BoolResult> runRandomRedisOpAsync(RedisDatabaseAdapter dbAdapter, OperationContext context)
+            {
+                var tracer = new Tracer("Tracer");
+                return await dbAdapter.ExecuteBatchAsResultAsync(context, tracer, b => b.HashGetAllAsync("AA"), RedisOperation.Batch);
+            }
         }
 
         [Fact]
@@ -137,14 +143,8 @@ namespace ContentStoreTest.Distributed.Redis
             testDb.HashGetAllAsyncTask = taskCompletionSource.Task;
             cts.Cancel();
             // Using timeout to avoid hangs in the tests if something is wrong with the logic.
-            var result = await ExecuteGetCheckpointInfoAsync(context, dbAdapter).WithTimeoutAsync(TimeSpan.FromSeconds(1));
+            var result = await ExecuteBatchAsync(dbAdapter, context).WithTimeoutAsync(TimeSpan.FromSeconds(1));
             result.IsCancelled.Should().BeTrue();
-        }
-
-        private static Task<Result<(RedisCheckpointInfo[] checkpoints, DateTime epochStartCursor)>> ExecuteGetCheckpointInfoAsync(OperationContext context, RedisDatabaseAdapter dbAdapter)
-        {
-            var tracer = new Tracer("Tracer");
-            return dbAdapter.ExecuteBatchAsResultAsync(context, tracer, b => b.GetCheckpointsInfoAsync("Key", DateTime.UtcNow), RedisOperation.Batch);
         }
 
         [Fact]
@@ -355,7 +355,15 @@ namespace ContentStoreTest.Distributed.Redis
             connectionCount.Should().Be(3);
         }
 
-        private static Task<BoolResult> ExecuteBatchAsync(RedisDatabaseAdapter dbAdapter) => dbAdapter.ExecuteBatchOperationAsync(new Context(TestGlobal.Logger), dbAdapter.CreateBatchOperation(RedisOperation.All), default);
+        private static Task<BoolResult> ExecuteBatchAsync(RedisDatabaseAdapter dbAdapter, OperationContext? context = null)
+        {
+            if (context is null)
+            {
+                context = new OperationContext(new Context(TestGlobal.Logger), default);
+            }
+
+            return dbAdapter.ExecuteBatchOperationAsync(context.Value, dbAdapter.CreateBatchOperation(RedisOperation.All), context.Value.Token);
+        }
 
         private static RedisKey GetKey(RedisKey key)
         {

@@ -171,8 +171,6 @@ namespace BuildXL.Cache.Host.Configuration
             LocationContentMetadataStoreModeOverride = Configuration.ContentMetadataStoreMode.Distributed;
             BlobContentMetadataStoreModeOverride = Configuration.ContentMetadataStoreMode.Distributed;
             UseBlobVolatileStorage = true;
-            ContentMetadataUseBlobCheckpointRegistry = true;
-            ContentMetadataUseBlobCheckpointRegistryStandalone = true;
         }
 
         /// <summary>
@@ -1174,12 +1172,6 @@ namespace BuildXL.Cache.Host.Configuration
 
         [DataMember]
         public string ContentMetadataBlobSecretName { get; set; }
-
-        [DataMember]
-        public bool ContentMetadataUseBlobCheckpointRegistry { get; set; }
-
-        [DataMember]
-        public bool ContentMetadataUseBlobCheckpointRegistryStandalone { get; set; }
 
         [DataMember]
         public bool UseBlobCheckpointLegacyFormat { get; set; } = true;

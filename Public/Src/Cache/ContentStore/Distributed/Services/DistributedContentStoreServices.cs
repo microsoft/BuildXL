@@ -88,7 +88,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
 
         internal IServiceDefinition<ICheckpointRegistry> CacheServiceCheckpointRegistry { get; }
 
-        internal OptionalServiceDefinition<AzureBlobStorageCheckpointRegistry> CacheServiceBlobCheckpointRegistry { get;  }
+        internal IServiceDefinition<AzureBlobStorageCheckpointRegistry> CacheServiceBlobCheckpointRegistry { get;  }
 
         internal DistributedContentStoreServices(DistributedContentStoreServicesArguments arguments)
         {
@@ -135,13 +135,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
                     Arguments.RedisContentLocationStoreConfiguration);
             });
 
-            CacheServiceBlobCheckpointRegistry = CreateOptional(
-                () => DistributedContentSettings.ContentMetadataUseBlobCheckpointRegistry,
-                () => CreateCacheServiceBlobCheckpointRegistry());
-
             RedisWriteAheadEventStorage = Create(() => CreateRedisWriteAheadEventStorage());
 
-            CacheServiceCheckpointRegistry = Create(() => CreateCacheServiceCheckpointRegistry());
+            CacheServiceCheckpointRegistry = Create(() => CreateCacheServiceBlobCheckpointRegistry());
         }
 
         private GlobalCacheServiceConfiguration CreateGlobalCacheServiceConfiguration()
@@ -219,25 +215,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
             storageRegistry.WorkaroundTracer = new Tracer("ContentMetadataAzureBlobStorageCheckpointRegistry");
 
             return storageRegistry;
-        }
-
-        internal ICheckpointRegistry CreateCacheServiceCheckpointRegistry()
-        {
-            if (CacheServiceBlobCheckpointRegistry.TryGetInstance(out var storageRegistry))
-            {
-                if (DistributedContentSettings.ContentMetadataUseBlobCheckpointRegistryStandalone)
-                {
-                    return storageRegistry;
-                }
-                else
-                {
-                    return new TransitioningCheckpointRegistry(RedisWriteAheadEventStorage.Instance, storageRegistry);
-                }
-            }
-            else
-            {
-                return RedisWriteAheadEventStorage.Instance;
-            }
         }
 
         private GlobalCacheService CreateGlobalCacheService()

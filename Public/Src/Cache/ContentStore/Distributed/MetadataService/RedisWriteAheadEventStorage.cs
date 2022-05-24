@@ -51,11 +51,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
     /// - Reading reads directly from PREFIX:LogId:LogBlockId
     /// - Garbage collection reads from PREFIX:LogEntryList and removes all mentioned entries
     /// </summary>
-    /// <remarks>
-    /// This class implements both <see cref="IWriteAheadEventStorage"/> and <see cref="ICheckpointRegistry"/> because
-    /// it is used as the checkpoint registry for the metadata service.
-    /// </remarks>
-    internal class RedisWriteAheadEventStorage : StartupShutdownSlimBase, IWriteAheadEventStorage, ICheckpointRegistry
+    internal class RedisWriteAheadEventStorage : StartupShutdownSlimBase, IWriteAheadEventStorage
     {
         private static readonly Regex GcListHashKeyRegex = new Regex(@"(?<logId>[0-9]+):(?<logBlockId>[0-9]+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
@@ -74,8 +70,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         private readonly IClock _clock;
 
         private readonly string _gcRedisKey;
-
-        private readonly string _checkpointRegistryKey;
 
         public RedisWriteAheadEventStorage(RedisVolatileEventStorageConfiguration configuration, IRedisDatabaseFactory redisDatabaseFactory, IClock? clock = null)
             : this(configuration, clock)
@@ -97,7 +91,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             _configuration = configuration;
             _clock = clock ?? SystemClock.Instance;
             _gcRedisKey = $"{_configuration.KeyPrefix}:LogEntryList";
-            _checkpointRegistryKey = $"{_configuration.KeyPrefix}:CheckpointRegistry";
         }
 
         protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
@@ -254,57 +247,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         internal static string CreateGcListHashKey(BlockReference cursor)
         {
             return $"{cursor.LogId}:{cursor.LogBlockId}";
-        }
-
-        public Task<BoolResult> RegisterCheckpointAsync(OperationContext context, CheckpointState checkpointState)
-        {
-            var msg = checkpointState.ToString();
-
-            return context.PerformOperationAsync(Tracer, async () =>
-            {
-                var json = JsonUtilities.JsonSerialize(checkpointState);
-
-                await _redisDatabaseAdapter!.ExecuteBatchAsync(
-                    context,
-                    batch => batch.AddOperation(string.Empty, batch => batch.StringSetAsync(_checkpointRegistryKey, json)),
-                    RedisOperation.All);
-
-                return BoolResult.Success;
-            },
-            extraStartMessage: msg,
-            extraEndMessage: _ => msg);
-        }
-
-        public Task<Result<CheckpointState>> GetCheckpointStateAsync(OperationContext context)
-        {
-            return context.PerformOperationAsync(Tracer, async () =>
-            {
-                var json = await _redisDatabaseAdapter!.ExecuteBatchAsync(
-                    context,
-                    batch => batch.AddOperation(string.Empty, batch => batch.StringGetAsync(_checkpointRegistryKey)),
-                    RedisOperation.All);
-
-                if (json.IsNullOrEmpty)
-                {
-                    return CheckpointState.CreateUnavailable(default);
-                }
-
-                var checkpointState = JsonUtilities.JsonDeserialize<CheckpointState>(json);
-                return Result.Success(checkpointState);
-            });
-        }
-
-        public Task<BoolResult> ClearCheckpointsAsync(OperationContext context)
-        {
-            return context.PerformOperationAsync(Tracer, async () =>
-            {
-                await _redisDatabaseAdapter!.ExecuteBatchAsync(
-                    context,
-                    batch => batch.AddOperation(string.Empty, batch => batch.KeyDeleteAsync(_checkpointRegistryKey)),
-                    RedisOperation.All);
-
-                return BoolResult.Success;
-            });
         }
     }
 }

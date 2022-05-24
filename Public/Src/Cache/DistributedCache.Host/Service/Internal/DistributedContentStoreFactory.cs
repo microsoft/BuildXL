@@ -83,12 +83,9 @@ namespace BuildXL.Cache.Host.Service.Internal
             switch (_distributedSettings.CheckpointDistributionMode.Value)
             {
                 case CheckpointDistributionModes.Transitional:
-                    _distributedSettings.ContentMetadataUseBlobCheckpointRegistry = true;
                     _distributedSettings.UseBlobCheckpointLegacyFormat = false;
                     break;
                 case CheckpointDistributionModes.Proxy:
-                    _distributedSettings.ContentMetadataUseBlobCheckpointRegistry = true;
-                    _distributedSettings.ContentMetadataUseBlobCheckpointRegistryStandalone = true;
                     _distributedSettings.UseBlobCheckpointLegacyFormat = false;
                     break;
             }

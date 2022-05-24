@@ -12,6 +12,7 @@ using BuildXL.Cache.ContentStore.Distributed.Redis;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.Interfaces.Secrets;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
@@ -183,9 +184,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.MetadataService
 
             clock ??= SystemClock.Instance;
 
+            using var azureStorage = AzuriteStorageProcess.CreateAndStartEmpty(_redisFixture, TestGlobal.Logger);
+
+            var primaryMachineLocation = default(MachineLocation);
+
             var contentMetadataServiceConfiguration = new GlobalCacheServiceConfiguration()
             {
-                Checkpoint = new CheckpointManagerConfiguration(TestRootDirectoryPath / "CheckpointManager", default(MachineLocation)),
+                Checkpoint = new CheckpointManagerConfiguration(TestRootDirectoryPath / "CheckpointManager", primaryMachineLocation),
                 EventStream = new ContentMetadataEventStreamConfiguration(),
             };
             modifyConfig?.Invoke(contentMetadataServiceConfiguration);
@@ -228,11 +233,21 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.MetadataService
                     Database = rocksdbContentMetadataDatabaseConfiguration,
                 });
 
-                var storage = new MockCentralStorage(centralStorage);
+
+                var azureBlobStorageCheckpointRegistryConfiguration = new AzureBlobStorageCheckpointRegistryConfiguration()
+                {
+                    Credentials = new AzureBlobStorageCredentials(azureStorage.ConnectionString),
+                    ContainerName = "gcsRegistry",
+                    FolderName = "checkpointRegistry",
+                };
+                var blobCheckpointRegistry = new AzureBlobStorageCheckpointRegistry(azureBlobStorageCheckpointRegistryConfiguration, default(MachineLocation), clock);
+
+                var blobCentralStorage = new BlobCentralStorage(new BlobCentralStoreConfiguration(new AzureBlobStorageCredentials(azureStorage.ConnectionString), "gcsCheckpoints", "key"));
+
                 var checkpointManager = new CheckpointManager(
                     rocksDbContentMetadataStore.Database,
-                    redisVolatileEventStorage,
-                    storage,
+                    blobCheckpointRegistry,
+                    blobCentralStorage,
                     contentMetadataServiceConfiguration.Checkpoint,
                     new CounterCollection<ContentLocationStoreCounters>());
                 var resilientContentMetadataService = new ResilientGlobalCacheService(
@@ -240,7 +255,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.MetadataService
                     checkpointManager,
                     rocksDbContentMetadataStore,
                     contentMetadataEventStream,
-                    storage,
+                    blobCentralStorage,
                     clock);
 
                 await resilientContentMetadataService.StartupAsync(operationContext).ThrowIfFailure();

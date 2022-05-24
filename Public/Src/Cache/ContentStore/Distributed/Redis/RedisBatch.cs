@@ -33,16 +33,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         internal const string EpochStartCursorFieldName = "EpochStartCursor";
 
         /// <summary>
-        /// (int slotNumber) AddCheckpoint(string checkpointsKey, string checkpointId, long sequenceNumber, long checkpointCreationTime, string machineName, int maxSlotCount)
-        /// </summary>
-        private static readonly string AddCheckpoint = GetEmbeddedResourceFile("BuildXL.Cache.ContentStore.Distributed.Redis.Scripts.AddCheckpoint.lua");
-
-        /// <summary>
-        /// (int: machineId, string: replacedMachineName) AcquireSlot(string slotsKey, string machineName, long currentTime, long machineExpiryTime, int slotCount)
-        /// </summary>
-        private static readonly string AcquireSlot = GetEmbeddedResourceFile("BuildXL.Cache.ContentStore.Distributed.Redis.Scripts.AcquireSlot.lua");
-
-        /// <summary>
         /// -- ({ { key, value, lastAccessTime }[], deletedKeys, actualDeletedKeysCount }) GetOrClean(string[] keys, long maximumEmptyLastAccessTime, bool whatif)
         /// </summary>
         private static readonly string GetOrClean = GetEmbeddedResourceFile("BuildXL.Cache.ContentStore.Distributed.Redis.Scripts.GetOrClean.lua");
@@ -227,6 +217,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         }
 
         /// <inheritdoc />
+        public Task<HashEntry[]> HashGetAllAsync(string key, CommandFlags commandFlags = CommandFlags.None)
+        {
+            var redisOperation = new RedisOperationAndResult<HashEntry[]>(batch => batch.HashGetAllAsync(key, commandFlags));
+            _redisOperations.Add(redisOperation);
+            return redisOperation.FinalTaskResult.Task;
+        }
+
+        /// <inheritdoc />
         public async Task<ScanResult> ScanAsync(RedisKey shardKey, RedisValue cursor, int entryCount)
         {
             var redisOperation =
@@ -308,89 +306,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             var redisOperation = new RedisOperationAndResult<RedisValue[]>(batch => batch.SetMembersAsync(key));
             _redisOperations.Add(redisOperation);
             return redisOperation.FinalTaskResult.Task;
-        }
-
-        /// <inheritdoc />
-        public async Task<int> AddCheckpointAsync(string checkpointsKey, RedisCheckpointInfo checkpointInfo, int maxSlotCount)
-        {
-            var redisOperation =
-                new RedisOperationAndResult<RedisResult>(
-                    batch =>
-                        batch.ScriptEvaluateAsync(
-                            AddCheckpoint,
-                            new RedisKey[] { checkpointsKey },
-                            new RedisValue[]
-                            {
-                                checkpointInfo.CheckpointId,
-                                checkpointInfo.SequenceNumber,
-                                checkpointInfo.CheckpointCreationTime.ToFileTimeUtc(),
-                                checkpointInfo.MachineName,
-                                maxSlotCount
-                            }));
-            _redisOperations.Add(redisOperation);
-            var result = await redisOperation.FinalTaskResult.Task;
-            return (int)result;
-        }
-
-        /// <inheritdoc />
-        public async Task<RedisAcquireMasterRoleResult?> AcquireMasterRoleAsync(
-            string masterRoleRegistryKey,
-            string machineName,
-            DateTime currentTime,
-            TimeSpan leaseExpiryTime,
-            int slotCount,
-            bool release)
-        {
-            var redisOperation =
-                new RedisOperationAndResult<RedisResult>(
-                    batch =>
-                        batch.ScriptEvaluateAsync(
-                            AcquireSlot,
-                            new RedisKey[] { masterRoleRegistryKey },
-                            new RedisValue[]
-                            {
-                                machineName,
-                                GetUnixTimeSecondsFromDateTime(currentTime),
-                                GetUnixTimeSecondsFromDateTime(currentTime - leaseExpiryTime),
-                                slotCount,
-                                (int)(release ? SlotStatus.Released : SlotStatus.Acquired)
-                            }));
-            _redisOperations.Add(redisOperation);
-            var result = await redisOperation.FinalTaskResult.Task;
-            if (result.IsNull)
-            {
-                return null;
-            }
-
-            var results = (RedisResult[])result;
-            if (results.Length < 4)
-            {
-                return null;
-            }
-
-            return new RedisAcquireMasterRoleResult((int)results[0], (string)results[1], GetDateTimeFromUnixTimeSeconds((long)results[2]), (SlotStatus)(long)results[3]);
-        }
-
-        /// <inheritdoc />
-        public async Task<(RedisCheckpointInfo[] checkpoints, DateTime epochStartCursor)> GetCheckpointsInfoAsync(string checkpointsKey, DateTime currentTime)
-        {
-            var redisOperation =
-                new RedisOperationAndResult<(HashEntry[] entries, RedisValue epochStartCursor)>(
-                    async batch =>
-                    {
-                        var entriesTask = batch.HashGetAllAsync(checkpointsKey);
-                        var setTask = batch.HashSetAsync(checkpointsKey, EpochStartCursorFieldName, GetUnixTimeSecondsFromDateTime(currentTime), When.NotExists);
-                        var getTask = batch.HashGetAsync(checkpointsKey, EpochStartCursorFieldName);
-
-                        await Task.WhenAll(entriesTask, setTask, getTask);
-                        var entries = await entriesTask;
-                        var epochStartCursor = await getTask;
-                        return (entries, epochStartCursor);
-                    });
-            _redisOperations.Add(redisOperation);
-            var result = await redisOperation.FinalTaskResult.Task;
-
-            return (RedisCheckpointInfo.ParseCheckpoints(result.entries), GetDateTimeFromUnixTimeSeconds((long)result.epochStartCursor));
         }
 
         private long GetUnixTimeSecondsFromDateTime(DateTime preciseDateTime)

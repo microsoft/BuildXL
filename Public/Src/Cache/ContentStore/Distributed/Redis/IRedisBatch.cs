@@ -152,27 +152,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         Task<bool> CompareExchangeAsync(string weakFingerprintKey, RedisValue selectorFieldName, RedisValue tokenFieldName, string expectedToken, RedisValue contentHashList, string newReplacementToken);
 
         /// <summary>
-        /// Adds a checkpoint to the given <paramref name="checkpointsKey"/> with the associated data and returns the slot number where the checkpoint was stored.
-        /// </summary>
-        Task<int> AddCheckpointAsync(string checkpointsKey, RedisCheckpointInfo checkpointInfo, int maxSlotCount);
-
-        /// <summary>
-        /// Attempts to acquire a master role for a machine
-        /// </summary>
-        Task<RedisAcquireMasterRoleResult?> AcquireMasterRoleAsync(
-            string masterRoleRegistryKey,
-            string machineName,
-            DateTime currentTime,
-            TimeSpan leaseExpiryTime,
-            int masterCount,
-            bool release);
-
-        /// <summary>
-        /// Gets all checkpoints given the key of the checkpoints hash map in redis.
-        /// </summary>
-        Task<(RedisCheckpointInfo[] checkpoints, DateTime epochStartCursor)> GetCheckpointsInfoAsync(string checkpointsKey, DateTime currentTime);
-
-        /// <summary>
         /// Executes the currently created batch operation and returns a task that completes when the batch is done.
         /// </summary>
         Task ExecuteBatchOperationAndGetCompletion(Context context, IDatabase database, CancellationToken token = default);

@@ -71,7 +71,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <remarks>
         /// Used only for tests.
         /// </remarks>
-        public IReadOnlySet<MachineId> ClosedMachines => (IReadOnlySet<MachineId>)_clusterStateCache.ClosedMachines;
+        public IReadOnlyCollection<MachineId> ClosedMachines => _clusterStateCache.ClosedMachines;
 
         /// <nodoc />
         public IEnumerable<MachineLocation> Locations => _clusterStateCache.RecordsByMachineLocation.Keys;

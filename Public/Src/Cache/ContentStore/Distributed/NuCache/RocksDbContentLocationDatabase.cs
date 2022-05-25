@@ -22,7 +22,6 @@ using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore.Sketching;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
-using BuildXL.Engine.Cache;
 using BuildXL.Engine.Cache.KeyValueStores;
 using BuildXL.Native.IO;
 using BuildXL.Utilities;
@@ -706,7 +705,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return _keyValueStore.Use(
                 store =>
                 {
-                    lock (_metadataLocks[key.Buffer.Span[0]])
+                    lock (_metadataLocks[GetMetadataLockIndex(strongFingerprint)])
                     {
                         if (store.TryGetPinnableValue(key, out var pinnableSpan, nameof(Columns.Metadata)))
                         {
@@ -822,36 +821,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     return SerializationPool.Deserialize(stream, static reader => ContentLocationEntry.Deserialize(reader));
                 }
             }
-        }
-
-        private PooledBuffer SerializeWeakFingerprint(Fingerprint weakFingerprint)
-        {
-            return SerializationPool.SerializePooled(weakFingerprint, static (instance, writer) => instance.Serialize(writer));
-        }
-
-        private PooledBuffer SerializeStrongFingerprint(StrongFingerprint strongFingerprint)
-        {
-            return SerializationPool.SerializePooled(strongFingerprint, static (instance, writer) => instance.Serialize(writer));
-        }
-
-        private StrongFingerprint DeserializeStrongFingerprint(ReadOnlyMemory<byte> bytes)
-        {
-            return SerializationPool.Deserialize(bytes, static reader => StrongFingerprint.Deserialize(reader));
-        }
-
-        private StrongFingerprint DeserializeStrongFingerprint(ReadOnlySpan<byte> bytes)
-        {
-            return SerializationPool.Deserialize(bytes, static reader => StrongFingerprint.Deserialize(reader));
-        }
-
-        private PooledBuffer GetMetadataKey(StrongFingerprint strongFingerprint)
-        {
-            return SerializeStrongFingerprint(strongFingerprint);
-        }
-
-        private PooledBuffer SerializeMetadataEntry(MetadataEntry value)
-        {
-            return SerializationPool.SerializePooled(value, static (instance, writer) => instance.Serialize(writer));
         }
 
         private MetadataEntry DeserializeMetadataEntry(RocksDbPinnableSpan span)

@@ -72,8 +72,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             .EnumerateValues()
             .ToDictionary(c => c, _ => new ColumnMetadata(group: ColumnGroup.One, lastGcTimeUtc: DateTime.MinValue));
 
-        private string? _storeLocation;
-
         private enum StoreSlot
         {
             Slot1,
@@ -185,8 +183,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             var clean = _configuration.CleanOnInitialize;
 
             // We backup the logs right before loading the first DB we load
-            var storeLocation = GetStoreLocation(activeSlot);
-
             var result = Load(context, activeSlot, clean);
 
             var reload = false;
@@ -315,7 +311,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                     }
 
                     _activeSlot = activeSlot;
-                    _storeLocation = storeLocation;
                 }
 
                 return possibleStore.Succeeded ? BoolResult.Success : new BoolResult($"Failed to initialize a RocksDb store at {storeLocation}:", possibleStore.Failure.DescribeIncludingInnerFailures());
@@ -762,7 +757,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                                     sizeSpan[0] = size;
                                     batch.Put(key: MemoryMarshal.AsBytes(hashSpan), value: TrimTrailingZeros(MemoryMarshal.AsBytes(sizeSpan)), columnHandle);
 
-
                                     // [ShortHash][MachineId] -> {}
                                     entrySpan[0] = new ExpandedContentEntryKey(hash, (ushort)state.machine.Index);
                                     batch.Put(key: MemoryMarshal.AsBytes(entrySpan), value: ReadOnlySpan<byte>.Empty, columnHandle);
@@ -892,7 +886,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             }
         }
 
-        private bool TryGetValue(RocksDbStore store, byte[] key, [NotNullWhen(true)] out byte[]? value, Columns columns)
+        private bool TryGetValue(RocksDbStore store, ReadOnlySpan<byte> key, [NotNullWhen(true)] out byte[]? value, Columns columns)
         {
             return store.TryGetValue(key, out value, NameOf(columns))
                 || store.TryGetValue(key, out value, NameOf(columns, GetFormerColumnGroup(columns)));
@@ -910,7 +904,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                 || store.TryGetPinnableValue(key, out value, NameOf(columns, GetFormerColumnGroup(columns)));
         }
 
-        private bool TryGetValue(RocksDbStore store, byte[] key, [NotNullWhen(true)] out byte[]? value, [NotNullWhen(true)] out ColumnGroup resolvedGroup, Columns columns)
+        private bool TryGetValue(RocksDbStore store, ReadOnlySpan<byte> key, [NotNullWhen(true)] out byte[]? value, out ColumnGroup resolvedGroup, Columns columns)
         {
             return store.TryGetValue(key, out value, NameOf(columns, out resolvedGroup))
                 || store.TryGetValue(key, out value, NameOf(columns, out resolvedGroup, GetFormerColumnGroup(columns)));
@@ -965,14 +959,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         {
             // This method calls _keyValueStore.Use with non-static lambda, because this code is complicated
             // and not as perf critical as other places.
-            var key = GetMetadataKey(strongFingerprint);
+            using var keyHolder = GetMetadataKey(strongFingerprint);
+            var key = keyHolder.Buffer;
             var result = _keyValueStore.Use(
                 store =>
                 {
-                    using (_metadataLocks[strongFingerprint.WeakFingerprint[0]].AcquireReadLock())
+                    using (_metadataLocks[GetMetadataLockIndex(strongFingerprint)].AcquireReadLock())
                     {
-                        if (TryGetValue(store, key, out var headerData, Columns.MetadataHeaders)
-                            && TryGetValue(store, key, out var data, out var dataGroup, Columns.Metadata))
+                        if (TryGetValue(store, key.Span, out var headerData, Columns.MetadataHeaders)
+                            && TryGetValue(store, key.Span, out var data, out var dataGroup, Columns.Metadata))
                         {
                             var header = DeserializeMetadataEntryHeader(headerData);
 
@@ -983,7 +978,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 
                             // Ensure updated header goes to same group as data so there is not a case where
                             // data comes from different group than metadata
-                            store.Put(key.AsSpan(), serializedHeader, NameOf(Columns.MetadataHeaders, dataGroup));
+                            store.Put(key.Span, serializedHeader, NameOf(Columns.MetadataHeaders, dataGroup));
 
                             return new SerializedMetadataEntry()
                             {
@@ -1014,6 +1009,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         /// </summary>
         private readonly ReaderWriterLockSlim[] _metadataLocks = Enumerable.Range(0, byte.MaxValue + 1).Select(s => new ReaderWriterLockSlim()).ToArray();
 
+        /// <inheritdoc />
         public override Possible<bool> TryUpsert(OperationContext context, StrongFingerprint strongFingerprint, ContentHashListWithDeterminism replacement, Func<MetadataEntry, bool> shouldReplace, DateTime? lastAccessTimeUtc)
         {
             throw new NotImplementedException();
@@ -1030,9 +1026,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             return _keyValueStore.Use(
                 store =>
                 {
-                    var key = GetMetadataKey(strongFingerprint);
-
-                    using (_metadataLocks[strongFingerprint.WeakFingerprint[0]].AcquireWriteLock())
+                    using var keyHandle = GetMetadataKey(strongFingerprint);
+                    var key = keyHandle.Buffer;
+                    
+                    using (_metadataLocks[GetMetadataLockIndex(strongFingerprint)].AcquireWriteLock())
                     {
                         MetadataEntryHeader header = default;
 
@@ -1041,8 +1038,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                         // here to ensure we can replace if Metadata and MetadataHeaders are out of sync. 
                         Span<byte> dataSpan = stackalloc byte[1];
 
-                        if (TryGetValue(store, key, out var headerData, Columns.MetadataHeaders)
-                            && TryRead(store, key, dataSpan, Columns.Metadata))
+                        if (TryGetValue(store, key.Span, out var headerData, Columns.MetadataHeaders)
+                            && TryRead(store, key.Span, dataSpan, Columns.Metadata))
                         {
                             header = DeserializeMetadataEntryHeader(headerData);
 
@@ -1072,11 +1069,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                         // the initial put for the content hash list.
                         if (replacement.Data != null)
                         {
-                            store.Put(key, replacement.Data, NameOf(Columns.Metadata));
+                            store.Put(key.Span, replacement.Data, NameOf(Columns.Metadata));
                         }
 
                         using var serializedHeader = SerializeMetadataEntryHeader(header);
-                        store.Put(key.AsSpan(), serializedHeader, NameOf(Columns.MetadataHeaders));
+                        store.Put(key.Span, serializedHeader, NameOf(Columns.MetadataHeaders));
                     }
 
                     return true;
@@ -1169,26 +1166,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         {
             store.PrefixKeyLookup(state, key, columnFamilyName: NameOf(column), observeCallback);
             store.PrefixKeyLookup(state, key, columnFamilyName: NameOf(column, GetFormerColumnGroup(column)), observeCallback);
-        }
-
-        private byte[] SerializeWeakFingerprint(Fingerprint weakFingerprint)
-        {
-            return SerializationPool.Serialize(weakFingerprint, static (instance, writer) => instance.Serialize(writer));
-        }
-
-        private byte[] SerializeStrongFingerprint(StrongFingerprint strongFingerprint)
-        {
-            return SerializationPool.Serialize(strongFingerprint, static (instance, writer) => instance.Serialize(writer));
-        }
-
-        private StrongFingerprint DeserializeStrongFingerprint(ReadOnlySpan<byte> data)
-        {
-            return SerializationPool.Deserialize(data, static reader => StrongFingerprint.Deserialize(reader));
-        }
-
-        private byte[] GetMetadataKey(StrongFingerprint strongFingerprint)
-        {
-            return SerializeStrongFingerprint(strongFingerprint);
         }
 
         private PooledBuffer SerializeMetadataEntryHeader(MetadataEntryHeader value)

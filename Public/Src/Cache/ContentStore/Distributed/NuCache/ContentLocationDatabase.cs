@@ -981,5 +981,48 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     return MachineIdSet.HasMachineId(reader, localIndex);
                 });
         }
+
+        /// <nodoc />
+        protected PooledBuffer SerializeWeakFingerprint(Fingerprint weakFingerprint)
+        {
+            return SerializationPool.SerializePooled(weakFingerprint, static (instance, writer) => instance.Serialize(writer));
+        }
+
+        /// <nodoc />
+        protected PooledBuffer SerializeStrongFingerprint(StrongFingerprint strongFingerprint)
+        {
+            return SerializationPool.SerializePooled(strongFingerprint, static (instance, writer) => instance.Serialize(writer));
+        }
+
+        /// <nodoc />
+        protected StrongFingerprint DeserializeStrongFingerprint(ReadOnlyMemory<byte> bytes)
+        {
+            return SerializationPool.Deserialize(bytes, static reader => StrongFingerprint.Deserialize(reader));
+        }
+
+        /// <nodoc />
+        protected StrongFingerprint DeserializeStrongFingerprint(ReadOnlySpan<byte> bytes)
+        {
+            return SerializationPool.Deserialize(bytes, static reader => StrongFingerprint.Deserialize(reader));
+        }
+
+        /// <nodoc />
+        protected PooledBuffer GetMetadataKey(StrongFingerprint strongFingerprint)
+        {
+            return SerializeStrongFingerprint(strongFingerprint);
+        }
+
+        /// <nodoc />
+        protected PooledBuffer SerializeMetadataEntry(MetadataEntry value)
+        {
+            return SerializationPool.SerializePooled(value, static (instance, writer) => instance.Serialize(writer));
+        }
+
+        /// <nodoc />
+        protected byte GetMetadataLockIndex(StrongFingerprint strongFingerprint)
+        {
+            // Using the first byte of a weak fingerprint, and not the first byte of the key, because the first byte of the key is length.
+            return strongFingerprint.WeakFingerprint[0];
+        }
     }
 }

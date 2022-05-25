@@ -1,6 +1,16 @@
 This page is a curated list of the release notes for releases after 0.20170619.4.0 and a manual copy of notable changes from each build before that. See the repo's commit history full details for what is included in each build.
 
 =======
+# 0.1.0-202200523.0 (Release [176841](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=176841&_a=release-pipeline-progress)) Released 5/25/2022
+- Register enumerated files with the output file system so that directory enumerations are properly detected
+- Rehash dropped files when necessary
+- Remove net462 support
+- Sort telemetry tags by time taken
+- Allow configuring servergc heap count and set it to 3 for bxlanalyzer
+- Don't fail finalization call when no drops were created
+- [Guardian] Fix policheck timeout issue and infrastructure error
+- [Guardian] Add Policheck gdnsuppress
+
 # 0.1.0-202200517.1 (Release [174531](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=174531&_a=release-pipeline-progress)) Released 5/19/2022
 -	Make ADO message limit configurable
 -	Udate grpc.core packages

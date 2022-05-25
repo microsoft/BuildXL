@@ -412,6 +412,8 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// Whether to filter out inactive machines in <see cref="LocalLocationStore"/> or rely on the old behavior when the filtering was happening on the database level only.
         /// </summary>
         public bool ShouldFilterInactiveMachinesInLocalLocationStore { get; set; } = false;
+
+        public LocalLocationStoreSettings Settings { get; set; } = new();
     }
 
     /// <summary>

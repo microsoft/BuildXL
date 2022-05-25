@@ -272,6 +272,8 @@ namespace BuildXL.Cache.Host.Service.Internal
 
             ApplyIfNotNull(_distributedSettings.ShouldFilterInactiveMachinesInLocalLocationStore, v => redisConfig.ShouldFilterInactiveMachinesInLocalLocationStore = v);
 
+            ApplyIfNotNull(_distributedSettings.LocationStoreSettings, v => redisConfig.Settings = v);
+
             redisConfig.ReputationTrackerConfiguration.Enabled = _distributedSettings.IsMachineReputationEnabled;
 
             if (_distributedSettings.IsContentLocationDatabaseEnabled)

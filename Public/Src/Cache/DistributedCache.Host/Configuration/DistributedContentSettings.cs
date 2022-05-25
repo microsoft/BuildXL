@@ -1314,6 +1314,9 @@ namespace BuildXL.Cache.Host.Configuration
 
         [DataMember]
         public EnumSetting<RegisterHintHandling> RegisterHintHandling { get; set; }
+
+        [DataMember]
+        public LocalLocationStoreSettings LocationStoreSettings { get; set; } = new();
     }
 
     [Flags]

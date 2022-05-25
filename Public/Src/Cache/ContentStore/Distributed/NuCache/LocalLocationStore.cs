@@ -1004,6 +1004,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 Tracer,
                 async () =>
                 {
+                    if (Configuration.Settings.GlobalGetBulkLocationDelay != null)
+                    {
+                        await _clock.Delay(Configuration.Settings.GlobalGetBulkLocationDelay.Value, context.Token);
+                    }
+
                     var entries = await GlobalCacheStore.GetBulkAsync(context, contentHashes.SelectList(c => new ShortHash(c)));
                     if (!entries)
                     {
@@ -1352,6 +1357,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 Tracer,
                 async () =>
                 {
+                    if (Configuration.Settings.RegisterLocationDelay != null)
+                    {
+                        await _clock.Delay(Configuration.Settings.RegisterLocationDelay.Value, context.Token);
+                    }
+
                     var eventContentHashes = new List<ShortHashWithSize>(contentHashes.Count);
                     var eagerContentHashes = new List<ShortHashWithSize>(contentHashes.Count);
                     var actions = new List<RegisterAction>(contentHashes.Count);

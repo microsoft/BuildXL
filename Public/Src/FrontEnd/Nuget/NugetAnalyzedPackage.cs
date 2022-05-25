@@ -38,6 +38,14 @@ namespace BuildXL.FrontEnd.Nuget
 
         /// <nodoc />
         public MultiValueDictionary<Moniker, INugetPackage> DependenciesPerFramework { get; }
+        
+        /// <summary>
+        /// Credential provider path that is used to retrieve the package
+        /// </summary>
+        /// <remarks>
+        /// AbsolutePath.Invalid if none is to be used
+        /// </remarks>
+        public AbsolutePath CredentialProviderPath { get; }
 
         /// <nodoc />
         public bool IsManagedPackage { get; set; }
@@ -129,7 +137,8 @@ namespace BuildXL.FrontEnd.Nuget
             NugetFrameworkMonikers nugetFrameworkMonikers,
             PackageOnDisk packageOnDisk,
             Dictionary<string, INugetPackage> packagesOnConfig,
-            bool doNotEnforceDependencyVersions)
+            bool doNotEnforceDependencyVersions,
+            AbsolutePath credentialProviderPath)
         {
             m_context = context;
             PackageOnDisk = packageOnDisk;
@@ -142,6 +151,7 @@ namespace BuildXL.FrontEnd.Nuget
             AssemblyToTargetFramework = new MultiValueDictionary<PathAtom, NugetTargetFramework>();
             m_dependencies = new List<INugetPackage>();
             DependenciesPerFramework = new MultiValueDictionary<PathAtom, INugetPackage>();
+            CredentialProviderPath = credentialProviderPath;
         }
 
         /// <summary>
@@ -156,13 +166,14 @@ namespace BuildXL.FrontEnd.Nuget
             [CanBeNull] XDocument nuSpec,
             PackageOnDisk packageOnDisk,
             Dictionary<string, INugetPackage> packagesOnConfig,
-            bool doNotEnforceDependencyVersions)
+            bool doNotEnforceDependencyVersions,
+            AbsolutePath credentialProviderPath)
         {
             Contract.Requires(context != null);
             Contract.Requires(packageOnDisk != null);
 
             var analyzedPackage = new NugetAnalyzedPackage(context, nugetFrameworkMonikers, packageOnDisk,
-                packagesOnConfig, doNotEnforceDependencyVersions);
+                packagesOnConfig, doNotEnforceDependencyVersions, credentialProviderPath);
 
             analyzedPackage.ParseManagedSemantics();
             if (nuSpec != null && !analyzedPackage.TryParseDependenciesFromNuSpec(nuSpec))

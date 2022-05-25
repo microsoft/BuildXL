@@ -93,6 +93,7 @@ namespace BuildXL.Engine
         private readonly MountsTable m_mountsTable;
 
         private readonly LoggingContext m_loggingContext;
+        private readonly DirectoryTranslator m_directoryTranslator;
 
         /// <summary>
         /// Creates an instance of <see cref="FrontEndEngineImplementation"/>.
@@ -130,6 +131,7 @@ namespace BuildXL.Engine
             m_snapshotCollector = snapshotCollector;
             GetTimerUpdatePeriod = timerUpdatePeriod;
             Layout = configuration.Layout;
+            m_directoryTranslator = directoryTranslator;
 
             if (ShouldUseSpecCache(configuration))
             {
@@ -182,6 +184,12 @@ namespace BuildXL.Engine
                         requestCompletionSource.SetException(e);
                     }
                 });
+        }
+
+        /// <inheritdoc/>
+        public override AbsolutePath Translate(AbsolutePath path)
+        {
+            return m_directoryTranslator?.Translate(path, PathTable) ?? path;
         }
 
         private bool ShouldUseSpecCache(IConfiguration configuration)

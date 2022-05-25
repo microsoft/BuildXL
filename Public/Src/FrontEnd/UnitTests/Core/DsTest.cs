@@ -30,6 +30,7 @@ using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Native.IO;
 using BuildXL.Pips.Filter;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.Utilities.Instrumentation.Common;
@@ -1074,6 +1075,8 @@ namespace Test.BuildXL.FrontEnd.Core
             frontEndFactory.InitializeFrontEnds(controller, FrontEndContext, engine.Configuration);
 
             var frontEndEngineAbstraction = new BasicFrontEndEngineAbstraction(FrontEndContext.PathTable, engineContext.FileSystem, engine.Configuration);
+            frontEndEngineAbstraction.TryPopulateWithDefaultMountsTable(LoggingContext, engineContext, engine.Configuration, CollectionUtilities.EmptyDictionary<string, string>());
+
             controller.SetState(frontEndEngineAbstraction, GetPipGraph(), config);
 
             var evaluationFilter = fileToProcess.IsValid ? EvaluationFilter.FromSingleSpecPath(FrontEndContext.SymbolTable, FrontEndContext.PathTable, fileToProcess) : EvaluationFilter.Empty;

@@ -752,6 +752,26 @@ if ($env:BUILDXL_ADDITIONAL_DEFAULTS)
 [string[]]$DominoArguments = @($DominoArguments |% { $_.Replace("#singlequote#", "'").Replace("#openparens#", "(").Replace("#closeparens#", ")"); })
 [string[]]$DominoArguments = $AdditionalBuildXLArguments + $DominoArguments;
 
+# The MS internal build needs authentication. When not running on ADO use the configured cred provider
+# to prompt for credentials as a way to guarantee the auth token will be cached for the subsequent build.
+# This may prompt an interactive pop-up/console. ADO pipelines already configure the corresponding env vars 
+# so there is no need to do this on that case. Once the token is cached, launching the provider shouldn't need
+# any user interaction
+if ($isMicrosoftInternal -and (-not ($DominoArguments -like '*/ado*'))) {
+    # Search for the provider executable under ther specified directory
+    $credProvider = Get-ChildItem $Nuget_CredentialProviders_Path\* -File -Include CredentialProvider*.exe | Select-Object -First 1
+
+    # Launch the provider making sure we allow for UI (C option) and that the token gets redacted from the console (R option)
+    $p = Start-Process -FilePath $credProvider -NoNewWindow -Wait -PassThru -ArgumentList "-U https://pkgs.dev.azure.com/cloudbuild/_packaging/BuildXL.Selfhost/nuget/v3/index.json -V Information -C -R";
+
+    if (-not ($p.ExitCode -eq 0))
+    {
+        Log-Error "Failed authentication using the specified credential provider.";
+        $host.SetShouldExit($p.ExitCode);
+        return $p.ExitCode;
+    }
+}
+
 if ($NoSubst) {
     $bxlExitCode = Run-ProcessWithoutNormalizedPath $useDeployment.domino $DominoArguments;
 } else {

@@ -14,6 +14,8 @@ using TypeScript.Net.Extensions;
 using TypeScript.Net.Types;
 using static TypeScript.Net.DScript.SyntaxFactory;
 using static BuildXL.FrontEnd.Nuget.SyntaxFactoryEx;
+using BuildXL.FrontEnd.Sdk;
+using BuildXL.FrontEnd.Script.Literals;
 
 namespace BuildXL.FrontEnd.Nuget
 {
@@ -25,22 +27,31 @@ namespace BuildXL.FrontEnd.Nuget
         private readonly PathTable m_pathTable;
         private readonly PackageOnDisk m_packageOnDisk;
         private readonly NugetAnalyzedPackage m_analyzedPackage;
-
+        private readonly IReadOnlyDictionary<string, string> m_repositories;
         private readonly NugetFrameworkMonikers m_nugetFrameworkMonikers;
-
+        private readonly AbsolutePath m_sourceDirectory;
         private readonly PathAtom m_xmlExtension;
         private readonly PathAtom m_pdbExtension;
+        private readonly int? m_timeoutInMinutes;
 
         /// <summary>Current spec generation format version</summary>
-        public const int SpecGenerationFormatVersion = 11;
+        public const int SpecGenerationFormatVersion = 12;
 
         /// <nodoc />
-        public NugetSpecGenerator(PathTable pathTable, NugetAnalyzedPackage analyzedPackage)
+        public NugetSpecGenerator(
+            PathTable pathTable, 
+            NugetAnalyzedPackage analyzedPackage, 
+            IReadOnlyDictionary<string, string> repositories,
+            AbsolutePath sourceDirectory,
+            int? timeoutInMinutes = null)
         {
             m_pathTable = pathTable;
             m_analyzedPackage = analyzedPackage;
+            m_repositories = repositories;
             m_packageOnDisk = analyzedPackage.PackageOnDisk;
             m_nugetFrameworkMonikers = new NugetFrameworkMonikers(pathTable.StringTable);
+            m_sourceDirectory = sourceDirectory;
+            m_timeoutInMinutes = timeoutInMinutes;
 
             m_xmlExtension = PathAtom.Create(pathTable.StringTable, ".xml");
             m_pdbExtension = PathAtom.Create(pathTable.StringTable, ".pdb");
@@ -53,13 +64,13 @@ namespace BuildXL.FrontEnd.Nuget
         /// The generated format is:
         /// [optional] import of managed sdk core
         /// [optional] qualifier declaration
-        /// const packageRoot = d`absolute path to the package roo`;
         /// @@public
-        /// export const contents: StaticDirectory = Transformer.sealDirectory(
-        ///    packageRoot,
-        ///    [
-        ///       f`${packageRoot}/file`,
-        ///    ]);
+        /// export const contents: StaticDirectory = NuGetDownloader.downloadPackage(
+        ///    {
+        ///     id: "package ID",
+        ///     version: "X.XX",
+        ///     ...
+        ///    }
         /// @@public
         /// export const pkg: NugetPackage = {contents ...};
         /// </remarks>
@@ -68,8 +79,8 @@ namespace BuildXL.FrontEnd.Nuget
         {
             var sourceFileBuilder = new SourceFileBuilder();
 
-            // 0. Import {Transformer} from "Sdk.Transformers" to be able to seal directories
-            sourceFileBuilder.Statement(ImportDeclaration(new [] { "Transformer" }, "Sdk.Transformers"));
+            // 0. Import * as NugetDownloader from "BuildXL.Tools.NugetDownloader" to be able to download NuGet packages
+            sourceFileBuilder.Statement(ImportDeclaration("NugetDownloader", "BuildXL.Tools.NugetDownloader"));
 
             // 1. Optional import of managed sdk.
             if (analyzedPackage.IsManagedPackage)
@@ -88,12 +99,7 @@ namespace BuildXL.FrontEnd.Nuget
                     .SemicolonAndBlankLine();
             }
 
-            // 3. Declare a public directory that points to the package root, for convenience reasons
-            sourceFileBuilder
-                .Statement(new VariableDeclarationBuilder().Name("packageRoot").Initializer(PropertyAccess("Contents", "packageRoot")).Build())
-                .SemicolonAndBlankLine();
-
-            // Create a sealed directory declaration with all the package content
+            // Create a seal directory declaration with all the package content
             sourceFileBuilder
                 .Statement(CreatePackageContents())
                 .SemicolonAndBlankLine();
@@ -279,24 +285,59 @@ namespace BuildXL.FrontEnd.Nuget
 
         private IStatement CreatePackageContents()
         {
-            var relativepath = "../../../pkgs/" + m_packageOnDisk.Package.Id + "." + m_packageOnDisk.Package.Version;
+            // Arguments for calling the nuget downloader SDK
+            var downloadCallArgs = new List<(string, IExpression expression)>(4) 
+            {
+                    ("id", new LiteralExpression(m_analyzedPackage.Id)),
+                    ("version", new LiteralExpression(m_analyzedPackage.Version)),
+                    ("downloadDirectory", Identifier("outputDir")),
+                    ("extractedFiles", new ArrayLiteralExpression(m_analyzedPackage.PackageOnDisk.Contents
+                        .Select(relativePath => PathLikeLiteral(InterpolationKind.RelativePathInterpolation, relativePath.ToString(m_pathTable.StringTable, PathFormat.Script))))),
+                    ("repositories", new ArrayLiteralExpression(m_repositories.Select(kvp => new ArrayLiteralExpression(new LiteralExpression(kvp.Key), new LiteralExpression(kvp.Value)))))
+            };
+
+            // If a credential provider was used to inspect the package, pass it as an argument to be able to retrieve it.
+            if (m_analyzedPackage.CredentialProviderPath.IsValid)
+            {
+                // If the credential provider is within the source tree, express it in terms of a mount, so the generated
+                // spec is more resilient to cache hits across machines
+                IExpression path;
+                if (m_sourceDirectory.TryGetRelative(m_pathTable, m_analyzedPackage.CredentialProviderPath, out var relativeCredentialProviderPath))
+                {
+                    path = PathLikeLiteral(
+                        InterpolationKind.FileInterpolation, 
+                        new PropertyAccessExpression(new CallExpression(new PropertyAccessExpression("Context", "getMount"), new LiteralExpression("SourceRoot")), "path") , 
+                        "/" + relativeCredentialProviderPath.ToString(m_pathTable.StringTable, PathFormat.Script));
+                }
+                else
+                {
+                    path = PathLikeLiteral(InterpolationKind.FileInterpolation, m_analyzedPackage.CredentialProviderPath.ToString(m_pathTable, PathFormat.Script));
+                }
+                
+                downloadCallArgs.Add(("credentialProviderPath", path));
+            }
+
+            if (m_timeoutInMinutes != null)
+            {
+                downloadCallArgs.Add(("timeoutInMinutes", new LiteralExpression(m_timeoutInMinutes.Value)));
+            }
 
             return new ModuleDeclaration(
                 "Contents",
 
                 Qualifier(new TypeLiteralNode()),
-                PathLikeConstVariableDeclaration("packageRoot", InterpolationKind.DirectoryInterpolation, relativepath, Visibility.Export),
+
+                new VariableDeclarationBuilder().Name("outputDir").Visibility(Visibility.None).Type(new TypeReferenceNode("Directory")).Initializer(
+                    new CallExpression(new PropertyAccessExpression("Context", "getNewOutputDirectory"), new LiteralExpression("nuget"))).Build(),
+                
                 new VariableDeclarationBuilder()
                     .Name("all")
                     .Visibility(Visibility.Public)
                     .Type(new TypeReferenceNode("StaticDirectory"))
                     .Initializer(
-                        new CallExpression(
-                            new PropertyAccessExpression("Transformer", "sealDirectory"),
-                            new Identifier("packageRoot"),
-                            new ArrayLiteralExpression(
-                                m_packageOnDisk.Contents.OrderBy(path => path.ToString(m_pathTable.StringTable)).Select(GetFileExpressionForPath)
-                                    .ToArray())))
+                                new CallExpression(
+                                        new PropertyAccessExpression("NugetDownloader", "downloadPackage"),
+                                        ObjectLiteral(downloadCallArgs.ToArray())))
                     .Build()
             );
         }
@@ -377,11 +418,10 @@ namespace BuildXL.FrontEnd.Nuget
 
         private IExpression GetFileExpressionForPath(RelativePath relativePath)
         {
-            // f`{packageRoot}/relativePath`
-            return PathLikeLiteral(
-                InterpolationKind.FileInterpolation,
-                Identifier("packageRoot"),
-                "/" + relativePath.ToString(m_pathTable.StringTable, PathFormat.Script));
+            // all.assertExistence(r`relativePath`)
+            return new CallExpression(new PropertyAccessExpression("Contents", "all", "getFile"), PathLikeLiteral(
+                InterpolationKind.RelativePathInterpolation,
+                relativePath.ToString(m_pathTable.StringTable, PathFormat.Script)));
         }
 
         private IExpression CreateSimpleBinary(RelativePath binaryFile)

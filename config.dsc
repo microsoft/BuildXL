@@ -38,11 +38,10 @@ config({
             ]
         },
         {
+            // The credential provider should be set by defining the env variable NUGET_CREDENTIALPROVIDERS_PATH.
             kind: "Nuget",
 
-            // This configuration pins people to a specific version of nuget
-            // The credential provider should be set by defining the env variable NUGET_CREDENTIALPROVIDERS_PATH.  TODO: It can be alternatively pinned here,
-            // but when it fails to download (e.g. from a share) the build is aborted. Consider making the failure non-blocking.
+            // TODO: remove once the new LKG gets deployed, nuget.exe is not used anymore
             configuration: {
                 toolUrl: "https://dist.nuget.org/win-x86-commandline/v4.9.4/NuGet.exe",
                 hash: "VSO0:17E8C8C0CDCCA3A6D1EE49836847148C4623ACEA5E6E36E10B691DA7FDC4C39200"
@@ -60,10 +59,7 @@ config({
                   }
                 : {
                     "buildxl-selfhost" : "https://pkgs.dev.azure.com/ms/BuildXL/_packaging/BuildXL.Selfhost/nuget/v3/index.json",
-                    "nuget.org" : "http://api.nuget.org/v3/index.json",
-                    "roslyn-tools" : "https://dotnet.myget.org/F/roslyn-tools/api/v3/index.json",
-                    "msbuild" : "https://dotnet.myget.org/F/msbuild/api/v3/index.json",
-                    "dotnet-core" : "https://dotnet.myget.org/F/dotnet-core/api/v3/index.json",
+                    "nuget.org" : "https://api.nuget.org/v3/index.json",
                     "dotnet-arcade" : "https://dotnetfeed.blob.core.windows.net/dotnet-core/index.json",
                   },
 
@@ -161,9 +157,13 @@ config({
                 { id: "System.Threading.Tasks.Dataflow", version: "4.9.0" },
 
                 // Nuget
-                { id: "NuGet.CommandLine", version: "4.7.1" },
-                { id: "NuGet.Versioning", version: "4.6.0" }, // Can't use the latest becuase nuget extracts to folder with metadata which we don't support yet.
-                { id: "NuGet.Frameworks", version: "5.0.0"}, // needed for qtest on .net core
+                { id: "NuGet.Packaging", version: "5.11.0", dependentPackageIdsToSkip: ["System.Security.Cryptography.ProtectedData", "System.Security.Cryptography.Pkcs"] },
+                { id: "NuGet.Configuration", version: "5.11.0", dependentPackageIdsToSkip: ["System.Security.Cryptography.ProtectedData"] },
+                { id: "NuGet.Common", version: "5.11.0" },
+                { id: "NuGet.Protocol", version: "5.11.0" },
+                { id: "NuGet.Versioning", version: "5.11.0" }, 
+                { id: "NuGet.CommandLine", version: "5.11.0" },
+                { id: "NuGet.Frameworks", version: "5.11.0"}, // needed for qtest on .net core
 
                 // ProjFS (virtual file system)
                 { id: "Microsoft.Windows.ProjFS", version: "1.2.19351.1" },

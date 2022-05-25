@@ -113,8 +113,10 @@ REM *********************************
 	
 	REM We'll conditionally set the credential provider if not set on the machine.
 	REM If not set we will set it to the local one in the enlistment but iwth the b-drive substitution
+	REM The location below is where the powershell script for the artifacts credential provider places the binaries
 	if NOT DEFINED NUGET_CREDENTIALPROVIDERS_PATH (
-		set NUGET_CREDENTIALPROVIDERS_PATH=%TOOLROOT%
+		ECHO NUGET_CREDENTIALPROVIDERS_PATH not set. Setting it to %USERPROFILE%\.nuget\plugins\netfx\CredentialProvider.Microsoft\
+		set NUGET_CREDENTIALPROVIDERS_PATH=%USERPROFILE%\.nuget\plugins\netfx\CredentialProvider.Microsoft\
 	)
 	goto :EOF
 
@@ -130,6 +132,10 @@ REM *********************************
 	IF "%~1"=="" ECHO ERROR: %~nx0 %%1 must be a variable name in which to store the init hash& GOTO :EOF
 
 	SET _hash=0
+	REM Change this salt whenever the init script has to be forced to re-run
+	SET _salt=1
+
+	SET _hash ^^= 0x$%_salt%
 	FOR /F %%I IN ('%TOOLROOT%\crc.exe %SCRIPTROOT%')            DO SET /A _hash ^^= 0x%%I
 	FOR /F %%I IN ('%TOOLROOT%\crc.exe %TOOLROOT%')              DO SET /A _hash ^^= 0x%%I
 	SET "%~1=%_hash%-%~dp0-%[Sdk.BuildXL]microsoftInternal%"

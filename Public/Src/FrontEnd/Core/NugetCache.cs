@@ -132,7 +132,7 @@ namespace BuildXL.FrontEnd.Core
         private static ContentFingerprint CreateDownloadFingerprint(string baseText)
         {
             // In case something in the cached Bond data becomes incompatible, we must not match.
-            const string VersionText = ", BondDataVersion=2;FingerprintVersion=1";
+            const string VersionText = ", BondDataVersion=2;FingerprintVersion=5";
             var fingerprint = FingerprintUtilities.Hash(baseText + VersionText);
             return new ContentFingerprint(fingerprint);
         }

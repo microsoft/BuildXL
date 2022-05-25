@@ -33,7 +33,7 @@ namespace BuildXL.Utilities.Configuration
         public const bool DefaultForcePopulatePackageCache = false;
 
         /// <nodoc/>
-        public const bool DefaultRespectWeakFingerprint = false;
+        public const bool DefaultRespectWeakFingerprint = true;
 
         /// <nodoc/>
         public const bool DefaultForceGenerateNuGetSpecs = false;

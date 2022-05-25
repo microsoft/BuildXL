@@ -145,11 +145,12 @@ namespace BuildXL.Ide.LanguageServer.UnitTests
                 .OrderBy(ci => ci.Label)
                 .ToArray();
 
-            Assert.Equal(1, completionItems.Length);
+            Assert.Equal(2, completionItems.Length);
 
             // TODO: Change to just BuildXL.DScript check after April 15, 2019 when deployed bits have updated.
             Assert.True(completionItems[0].Label == "BuildXL.DScript.LanguageServer.UnitTests.Data.Module" ||
                         completionItems[0].Label == "BuildXLScript.LanguageServer.UnitTests.Data.Module");
+            Assert.True(completionItems[1].Label == "BuildXL.Tools.NugetDownloader");
         }
 
         [Fact]

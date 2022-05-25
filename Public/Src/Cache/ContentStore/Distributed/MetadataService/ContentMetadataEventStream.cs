@@ -53,7 +53,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private readonly ReaderWriterLockSlim _lock = new ReaderWriterLockSlim(LockRecursionPolicy.NoRecursion);
 
-        private readonly IWriteAheadEventStorage _writeAheadEventStorage;
+        internal IWriteAheadEventStorage WriteAheadEventStorage { get; }
+
         private readonly IWriteBehindEventStorage _writeBehindEventStorage;
 
         private readonly ObjectPool<LogEvent> _eventPool = new ObjectPool<LogEvent>(() => new LogEvent(), e => e.Reset());
@@ -72,11 +73,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             IWriteBehindEventStorage persistentStorage)
         {
             _configuration = configuration;
-            _writeAheadEventStorage = volatileStorage;
+            WriteAheadEventStorage = volatileStorage;
             _writeBehindEventStorage = persistentStorage;
 
             LinkLifetime(_writeBehindEventStorage);
-            LinkLifetime(_writeAheadEventStorage);
+            LinkLifetime(WriteAheadEventStorage);
 
             // Start the write behind commit loop which commits log events to write behind
             // storage at a specified interval
@@ -102,7 +103,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 var nextLogId = new CheckpointLogId(logId.Value + 1);
                 await _writeBehindEventStorage.GarbageCollectAsync(context, nextLogId).ThrowIfFailure();
 
-                await _writeAheadEventStorage.GarbageCollectAsync(context, new BlockReference()
+                await WriteAheadEventStorage.GarbageCollectAsync(context, new BlockReference()
                 {
                     LogId = nextLogId,
                 }).IgnoreFailure();
@@ -191,7 +192,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                                         operationReadEvents = 0;
                                         blockId++;
                                         bytes = 0;
-                                        var writeAheadResult = await _writeAheadEventStorage.ReadAsync(context, (logId, blockId)).ThrowIfFailureAsync();
+                                        var writeAheadResult = await WriteAheadEventStorage.ReadAsync(context, (logId, blockId)).ThrowIfFailureAsync();
                                         if (writeAheadResult.TryGetValue(out var readBlock))
                                         {
                                             foundBlocks++;
@@ -249,7 +250,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
             else
             {
-                await _writeAheadEventStorage.AppendAsync(context, block.QualifiedBlockId, logEvent.GetBytes())
+                await WriteAheadEventStorage.AppendAsync(context, block.QualifiedBlockId, logEvent.GetBytes())
                     .FireAndForgetErrorsAsync(context);
             }
 
@@ -260,7 +261,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             return context.PerformOperationAsync(Tracer, async () =>
             {
-                var r1 = _writeAheadEventStorage.GarbageCollectAsync(context, BlockReference.MaxValue);
+                var r1 = WriteAheadEventStorage.GarbageCollectAsync(context, BlockReference.MaxValue);
                 var r2 = _writeBehindEventStorage.GarbageCollectAsync(context, CheckpointLogId.MaxValue);
                 await Task.WhenAll(r1, r2);
                 return (await r1) & (await r2);
@@ -309,7 +310,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     continue;
                 }
 
-                await _writeAheadEventStorage.AppendAsync(context, block.QualifiedBlockId, writeAheadCommit.GetBytes())
+                await WriteAheadEventStorage.AppendAsync(context, block.QualifiedBlockId, writeAheadCommit.GetBytes())
                     .FireAndForgetErrorsAsync(context);
 
                 foreach (var completion in block.PendingWriteAheadLogEvents)

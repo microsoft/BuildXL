@@ -142,14 +142,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         /// If the method returns <code>true</code> then <paramref name="retryReason"/> contains a reason why to do that
         /// and <paramref name="errorMessage"/> contains a non-null (and not empty) error message.
         /// </remarks>
-        internal bool ShouldRetry(out RetryReason retryReason, out string errorMessage)
+        internal bool ShouldRetry(out RetryReason retryReason, out string errorMessage, bool isShutdown = false)
         {
             errorMessage = null;
             retryReason = RetryReason.Invalid;
 
             try
             {
-                if (ShutdownStarted)
+                if (ShutdownStarted && !isShutdown)
                 {
                     retryReason = RetryReason.ShutdownStarted;
                     return true;
@@ -232,13 +232,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 
         protected override async Task<BoolResult> ShutdownCoreAsync(OperationContext context)
         {
-            if (!ShouldRetry(out _, out _))
+            if (!ShouldRetry(out var retryReason, out var errorMessage, isShutdown: true))
             {
                 // Stop logging
                 _eventStream.SetIsLogging(false);
 
                 // Seal the log
                 await _eventStream.CompleteOrChangeLogAsync(context);
+            }
+            else
+            {
+                Tracer.Debug(context, $"Could not seal log: Reason=[{retryReason}] Error=[{errorMessage}]", "ShutdownSealLogFailure");
             }
 
             return await base.ShutdownCoreAsync(context);

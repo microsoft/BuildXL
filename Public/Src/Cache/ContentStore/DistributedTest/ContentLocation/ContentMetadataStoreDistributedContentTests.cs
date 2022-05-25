@@ -146,9 +146,11 @@ namespace ContentStoreTest.Distributed.Sessions
         }
 
         [Theory]
-        [InlineData(false)]
-        [InlineData(true)]
-        public async Task TestServicePutAndRetrieveOnDifferentMachinesWithRecovery(bool masterSwitch)
+        [InlineData(false, false)]
+        [InlineData(false, true)]
+        [InlineData(true, false)]
+        [InlineData(true, true)]
+        public async Task TestServicePutAndRetrieveOnDifferentMachinesWithRecovery(bool masterSwitch, bool ensureSealedWriteBehind)
         {
             // Suppress async fixer
             await Task.CompletedTask;
@@ -202,6 +204,8 @@ namespace ContentStoreTest.Distributed.Sessions
 
                     var masterStore = context.GetLocalLocationStore(master);
 
+                    var gcs = context.GetContentMetadataService();
+
                     var workerSession0 = sessions[worker0];
                     var workerSession1 = sessions[worker1];
 
@@ -211,6 +215,13 @@ namespace ContentStoreTest.Distributed.Sessions
                         await context.GetContentMetadataService().CreateCheckpointAsync(context).ShouldBeSuccess();
                         await masterStore.CreateCheckpointAsync(context).ShouldBeSuccess();
                         putResult2 = await workerSession0.PutRandomAsync(context.StoreContexts[worker0], ContentHashType, false, ContentByteCount, Token).ShouldBeSuccess();
+
+                        if (ensureSealedWriteBehind)
+                        {
+                            // Clear the write ahead event storage
+                            // so write behind storage must be used
+                            await gcs.EventStream.WriteAheadEventStorage.GarbageCollectAsync(context, BlockReference.MaxValue).ShouldBeSuccess();
+                        }
                     }
                     else if (context.Iteration == 1)
                     {

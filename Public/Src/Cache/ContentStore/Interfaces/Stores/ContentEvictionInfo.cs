@@ -87,7 +87,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Stores
         /// </summary>
         public static OrderResult OrderAges(TimeSpan age1, TimeSpan age2, bool reverse)
         {
-            return Order(age1, age2, greatestFirst: !reverse);
+            return age1.Order(age2, greatestFirst: !reverse);
         }
 
         /// <nodoc />

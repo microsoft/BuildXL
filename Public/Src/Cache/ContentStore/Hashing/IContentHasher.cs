@@ -79,7 +79,6 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <returns>The content hash of the byte array.</returns>
         ContentHash GetContentHash(byte[] content);
 
-#if NETCOREAPP
         /// <summary>
         ///     Computes a hash from the given byte readonly span of bytes.
         /// </summary>
@@ -87,7 +86,6 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// The underlying API is only available in .net core, that's why this API is also available only for .net core.
         /// </remarks>
         ContentHash GetContentHash(ReadOnlySpan<byte> content);
-#endif // NETCOREAPP
 
         /// <summary>
         ///     Computes a hash from the given byte array

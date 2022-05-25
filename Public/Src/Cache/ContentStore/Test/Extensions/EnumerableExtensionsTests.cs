@@ -20,6 +20,26 @@ namespace ContentStoreTest.Extensions
         }
 
         [Fact]
+        public void TestPseudoRandomEnumerate()
+        {
+            for (int length = 0; length < 1024; length++)
+            {
+                var randomRange = EnumerableExtensions.PseudoRandomEnumerate(length).ToArray();
+
+                var sortedRange = Enumerable.Range(0, length).ToArray();
+
+                // Technically, there is a possibility that the random range will match the sorted
+                // range. Use a high enough length so that possibility is excluded.
+                if (length > 10)
+                {
+                    Assert.NotEqual(sortedRange, randomRange);
+                }
+
+                Assert.Equal(sortedRange, randomRange.OrderBy(i => i));
+            }
+        }
+
+        [Fact]
         public async Task ParallelForEachActionAsync()
         {
             var flags = new bool[Size];

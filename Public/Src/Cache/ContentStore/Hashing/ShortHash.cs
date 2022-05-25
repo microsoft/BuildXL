@@ -5,6 +5,7 @@ using System;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Text;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 
@@ -135,16 +136,9 @@ namespace BuildXL.Cache.ContentStore.Hashing
 
         private static unsafe ShortReadOnlyFixedBytes ToShortReadOnlyBytes(ContentHash hash)
         {
-            var result = new ShortReadOnlyFixedBytes();
-
-            // Bypassing the readonliness of the struct.
-            // Can't use 'MemoryMarshal.AsBytes' here, because that method is not available for 472.
-            // It is safe to do so, because the 'result' variable resides on stack and can't be moved by GC.
-
-            byte* ptr = (byte*)&result._bytes;
-            hash.Serialize(new Span<byte>(ptr, SerializedLength), offset: 0, length: HashLength);
-
-            return result;
+            Span<ShortReadOnlyFixedBytes> result = stackalloc ShortReadOnlyFixedBytes[1];
+            hash.Serialize(MemoryMarshal.AsBytes(result), offset: 0, length: HashLength);
+            return result[0];
         }
 
         /// <inheritdoc />

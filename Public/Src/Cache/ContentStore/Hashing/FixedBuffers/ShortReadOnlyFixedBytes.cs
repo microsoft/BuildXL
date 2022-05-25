@@ -4,6 +4,7 @@
 using System;
 using System.Diagnostics.ContractsLight;
 using System.IO;
+using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Text;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
@@ -34,20 +35,28 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <nodoc />
         public ShortReadOnlyFixedBytes(byte[] buffer, int length = MaxLength, int offset = 0)
         {
-            var len = Math.Min(length, Math.Min(buffer.Length, MaxLength));
+            var len = Math.Min(length, Math.Min(buffer.Length - offset, MaxLength));
             this = FromSpan(buffer.AsSpan(start: offset, len));
         }
 
         /// <nodoc />
         public ShortReadOnlyFixedBytes(ReadOnlySpan<byte> source)
         {
-            // Unfortunately, we can not expect that the length is less then the MaxLength, because many existing clients do not respect it.
-            var len = Math.Min(source.Length, MaxLength);
-
-            fixed (byte* d = &_bytes.FixedElementField)
+            if (source.Length >= MaxLength)
             {
-                var span = new Span<byte>(d, len);
-                source.Slice(0, len).CopyTo(span);
+                // We can only re-interpret cast if the incoming length is greater (or equal) than the length of the output.
+                this = MemoryMarshal.Read<ShortReadOnlyFixedBytes>(source);
+            }
+            else
+            {
+                _bytes = default;
+                var len = Math.Min(source.Length, MaxLength);
+
+                fixed (byte* d = &_bytes.FixedElementField)
+                {
+                    var span = new Span<byte>(d, len);
+                    source.Slice(0, len).CopyTo(span);
+                }
             }
         }
 
@@ -56,12 +65,6 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// </summary>
         public static ShortReadOnlyFixedBytes FromSpan(ReadOnlySpan<byte> source)
         {
-            if (source.Length >= MaxLength)
-            {
-                // We can only re-interpret cast if the incoming length is greater (or equal) than the length of the output.
-                return MemoryMarshal.Read<ShortReadOnlyFixedBytes>(source);
-            }
-
             return new ShortReadOnlyFixedBytes(source);
         }
 
@@ -89,6 +92,11 @@ namespace BuildXL.Cache.ContentStore.Hashing
             return new ReadOnlySpan<byte>(data, length);
         }
 
+        private static ReadOnlySpan<uint> AsIntSpan(byte* data)
+        {
+            return new ReadOnlySpan<uint>(data, 3);
+        }
+
         /// <summary>
         ///     Gets get the hash value packed in a byte array.
         /// </summary>
@@ -109,7 +117,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
             var o = &other._bytes.FixedElementField;
             fixed (byte* p = &_bytes.FixedElementField)
             {
-                return AsSpan(p, length: MaxLength).SequenceEqual(AsSpan(o, length: MaxLength));
+                return AsIntSpan(p).SequenceEqual(AsIntSpan(o));
             }
         }
 
@@ -133,6 +141,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <inheritdoc />
         public int CompareTo(ShortReadOnlyFixedBytes other)
         {
+            // other is fixed (lives on the stack), so we can safely use 'other.AsSpan'.
             var o = &other._bytes.FixedElementField;
             fixed (byte* p = &_bytes.FixedElementField)
             {

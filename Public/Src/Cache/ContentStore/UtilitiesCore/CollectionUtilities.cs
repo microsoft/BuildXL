@@ -123,18 +123,47 @@ namespace BuildXL.Cache.ContentStore.UtilitiesCore.Internal
             }
         }
 
+        /// <summary>
+        /// Comverts a integer comparison result (from <see cref="IComparer{T}.Compare(T, T)"/> or <see cref="IComparer{T}.Compare(T, T)"/>) to
+        /// an <see cref="OrderResult"/> value or null if equivalent
+        /// </summary>
+        public static OrderResult? ToChainOrderResult(int compareResult)
+        {
+            if (compareResult == 0)
+            {
+                return null;
+            }
+            else
+            {
+                return compareResult < 0 ? OrderResult.PreferFirst : OrderResult.PreferSecond;
+            }
+        }
+
         /// <nodoc />
         public static int ToCompareResult(this OrderResult orderResult) => (int)orderResult;
 
+        /// <nodoc />
+        public static int ToCompareResult(this OrderResult? orderResult) => (int)(orderResult ?? OrderResult.Equal);
+
         /// <summary>
-        /// Compare two operands and returns true if two instances are equivalent.
+        /// Compare two operands and returns order.
         /// </summary>
-        public static OrderResult Order<T>(T x1, T x2, bool greatestFirst = false)
+        public static OrderResult Order<T>(this T x1, T x2, bool greatestFirst = false)
             where T : IComparable<T>
         {
             return ToOrderResult(greatestFirst
                 ? x2.CompareTo(x1)
                 : x1.CompareTo(x2));
+        }
+
+        /// <summary>
+        /// Compare two operands and returns order or null if equivalent.
+        /// </summary>
+        public static int? ChainCompareTo<T>(this T x1, T x2, bool greatestFirst = false)
+            where T : IComparable<T>
+        {
+            var comparisonResult = x1.CompareTo(x2);
+            return comparisonResult == 0 ? null : comparisonResult;
         }
     }
 }

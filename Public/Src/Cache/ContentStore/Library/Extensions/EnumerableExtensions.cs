@@ -5,9 +5,12 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
+using BuildXL.Cache.ContentStore.UtilitiesCore;
+using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 
 namespace BuildXL.Cache.ContentStore.Extensions
@@ -159,6 +162,61 @@ namespace BuildXL.Cache.ContentStore.Extensions
         {
             var block = new ActionBlock<T>(item => { dictionary[getKey(item)] = getValue(item); }, AllProcessors);
             return block.PostAllAndComplete(items);
+        }
+
+        /// <summary>
+        /// Pseudorandomly enumerates the range from [0, <paramref name="length"/>)
+        /// </summary>
+        public static IEnumerable<int> PseudoRandomEnumerate(int length)
+        {
+            var offset = ThreadSafeRandom.Generator.Next(0, length);
+            var current = ThreadSafeRandom.Generator.Next(0, length);
+            for (int i = 0; i < length; i++)
+            {
+                yield return (current + offset) % length;
+                current = PseudoRandomNextIndex(current, length);
+            }
+        }
+
+        /// <summary>
+        /// Gets a unique, pseudorandom value between [0, length).
+        ///
+        /// for a collection of the  given bin based on the Linear congruential generator
+        /// See https://en.wikipedia.org/wiki/Linear_congruential_generator
+        /// 
+        /// X_{n+1}= (a * X_{n} + c) mod m
+        /// where m is the modulus
+        /// where a is the multiplier
+        /// where c is the increment
+        /// 
+        /// Values are chosen such that each bin has a unique next bin (i.e. no two bins have the same next bin).
+        /// This implies that every bin is the backup of some other bin. The following properties ensure this:
+        /// See wikipedia article section 4.
+        /// 1. m and c are relatively prime,
+        /// 2. a-1 is divisible by all prime factors of m,
+        /// 3. a-1 is divisible by 4 if m is divisible by 4.
+        /// </summary>
+        public static int PseudoRandomNextIndex(int current, int length)
+        {
+            Contract.Requires(Utilities.Range.IsValid(current, length));
+            uint m = EqualOrGreaterPowerOfTwo(length); // the modulus
+            const uint A = 1664525; // the multiplier
+            const uint C = 1013904223; // the increment
+
+            uint x = (uint)current;
+            do
+            {
+                x = unchecked(((A * x) + C) % m);
+            }
+            while (x >= length);
+
+            return (int)x;
+        }
+
+        private static uint EqualOrGreaterPowerOfTwo(int length)
+        {
+            uint powerOfTwo = Bits.HighestBitSet((uint)length);
+            return powerOfTwo == length ? powerOfTwo : powerOfTwo * 2;
         }
     }
 }

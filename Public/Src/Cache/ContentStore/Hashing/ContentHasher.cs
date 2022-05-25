@@ -11,6 +11,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
+using System.Runtime.CompilerServices;
 
 #pragma warning disable CS3001 // CLS
 #pragma warning disable CS3002
@@ -170,7 +171,6 @@ namespace BuildXL.Cache.ContentStore.Hashing
             return contentHash;
         }
 
-#if NETCOREAPP
         /// <inheritdoc />
         public ContentHash GetContentHash(ReadOnlySpan<byte> content)
         {
@@ -184,9 +184,14 @@ namespace BuildXL.Cache.ContentStore.Hashing
 
                     // We know that the hash size is always small, so its always safe to stackalloc the hash.
                     Span<byte> hashOutput = stackalloc byte[Info.ByteLength];
+#if NETCOREAPP
                     hasher.TryComputeHash(content, hashOutput, out _);
+#else
+                    UnsafeComputeHashFromSpan(hasher, content, hashOutput);
+#endif //NETCOREAPP
 
-                    return new ContentHash(Info.HashType, hashOutput.ToArray());
+
+                    return new ContentHash(Info.HashType, hashOutput);
                 }
             }
             finally
@@ -196,7 +201,20 @@ namespace BuildXL.Cache.ContentStore.Hashing
                 Interlocked.Increment(ref _calls);
             }
         }
-#endif //NETCOREAPP
+
+#if !NETCOREAPP
+        /// <summary>
+        /// Computes hash for a span on full framework/.net standard 2.0 where hash algorithm does not support span operations
+        /// </summary>
+        private unsafe void UnsafeComputeHashFromSpan(HashAlgorithm hasher, ReadOnlySpan<byte> content, Span<byte> hashOutput)
+        {
+            void* ptr = Unsafe.AsPointer(ref Unsafe.AsRef(in content[0]));
+            using var unmanagedStream = new UnmanagedMemoryStream((byte*)ptr, content.Length);
+
+            var hash = hasher.ComputeHash(unmanagedStream);
+            hash.CopyTo(hashOutput);
+        }
+#endif //!NETCOREAPP
 
         /// <inheritdoc />
         public ContentHash GetContentHash(byte[] content)

@@ -9,7 +9,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
     /// <summary>
     /// Represents a point in time, defined as an approximation of the number of seconds elapsed since 00:00:00 Jan 1 1970.
     /// </summary>
-    public readonly struct UnixTime : IEquatable<UnixTime>, IComparer<UnixTime>
+    public readonly struct UnixTime : IEquatable<UnixTime>, IComparable<UnixTime>
     {
         /// <nodoc />
         public static readonly UnixTime Zero = new UnixTime(0);
@@ -33,13 +33,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
         public override int GetHashCode() => Value.GetHashCode();
 
         /// <inheritdoc />
-        public int Compare(UnixTime x, UnixTime y)
+        public int CompareTo(UnixTime other)
         {
-            return x.Value.CompareTo(y.Value);
+            return Value.CompareTo(other.Value);
         }
 
         /// <nodoc />
         public DateTime ToDateTime() => DateTimeUtilities.FromUnixTime(Value);
+
+        /// <nodoc />
+        public static TimeSpan operator -(UnixTime left, UnixTime right) => TimeSpan.FromSeconds(left.Value - right.Value);
 
         /// <nodoc />
         public static bool operator ==(UnixTime left, UnixTime right) => left.Equals(right);

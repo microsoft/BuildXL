@@ -253,8 +253,22 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         [StackTraceHidden]
         public static T ThrowIfFailure<T>(this Result<T> result)
         {
+            return ThrowIfFailure(result, unwrap: false);
+        }
+
+        /// <summary>
+        /// Throws <see cref="ResultPropagationException"/> or original exception (unwrap is true) if <paramref name="result"/> is not successful.
+        /// </summary>
+        [StackTraceHidden]
+        public static T ThrowIfFailure<T>(this Result<T> result, bool unwrap)
+        {
             if (!result.Succeeded)
             {
+                if (unwrap)
+                {
+                    result.RethrowIfFailure();
+                }
+
                 throw new ResultPropagationException(result);
             }
 
@@ -265,10 +279,19 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// Throws <see cref="ResultPropagationException"/> if result is not successful.
         /// </summary>
         [StackTraceHidden]
-        public static async Task<T> ThrowIfFailureAsync<T>(this Task<Result<T>> task)
+        public static Task<T> ThrowIfFailureAsync<T>(this Task<Result<T>> task)
+        {
+            return ThrowIfFailureAsync(task, unwrap: false);
+        }
+
+        /// <summary>
+        /// Throws <see cref="ResultPropagationException"/> if result is not successful.
+        /// </summary>
+        [StackTraceHidden]
+        public static async Task<T> ThrowIfFailureAsync<T>(this Task<Result<T>> task, bool unwrap)
         {
             var result = await task;
-            return result.ThrowIfFailure();
+            return result.ThrowIfFailure(unwrap);
         }
 
         /// <summary>

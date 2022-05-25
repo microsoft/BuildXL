@@ -276,7 +276,7 @@ namespace Test.BuildXL.Storage
             XAssert.IsFalse(File.Exists(testFile));
         }
 
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true, requiresAdmin: true)]
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true, requiresAdmin: true, Skip = "Flaky test.")]
         public void DeleteFileWithLongPathWithoutPermissions()
         {
             string parentDirectory = GetFullPath("reallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallylongpath");

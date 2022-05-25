@@ -25,6 +25,19 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
             }
         }
 
+        [Fact]
+        public void TestInPlaceSortedDedupe()
+        {
+            var range = Enumerable.Range(0, 100).ToArray();
+            var rangeWithDuplicates = range.Concat(new[] { 0, 0, 0, 20, 20, 41, 42, 43, 43 }).OrderBy(i => i).ToArray();
+
+            Assert.NotEqual(range, rangeWithDuplicates);
+
+            var deduplicatedRange = NuCacheCollectionUtilities.InPlaceSortedDedupe(rangeWithDuplicates.AsSpan(), (i, j) => i == j);
+
+            Assert.Equal(range, deduplicatedRange.ToArray());
+        }
+
         private void TestRandomSplitInterleaveHelper()
         {
             var list = Enumerable.Range(0, 100).ToList();

@@ -156,6 +156,33 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
         }
 
+        public static Span<T> InPlaceSortedDedupe<T>(this Span<T> span, Func<T, T, bool> areEqual)
+        {
+            bool hasDuplicates = false;
+            int cursorIndex = 0;
+            ref var cursor = ref span[cursorIndex];
+            for (int i = 1; i < span.Length; i++)
+            {
+                var current = span[i];
+                if (!areEqual(cursor, current))
+                {
+                    cursorIndex++;
+                    cursor = ref span[cursorIndex];
+
+                    if (hasDuplicates)
+                    {
+                        cursor = current;
+                    }
+                }
+                else
+                {
+                    hasDuplicates = true;
+                }
+            }
+
+            return span.Slice(0, cursorIndex + 1);
+        }
+
         public static IEnumerable<T> SortedUnique<T, TComparable>(this IEnumerable<T> items, Func<T, TComparable> getComparable)
             where TComparable : IComparable<TComparable>
         {

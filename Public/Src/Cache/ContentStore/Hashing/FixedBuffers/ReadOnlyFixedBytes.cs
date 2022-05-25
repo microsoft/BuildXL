@@ -54,7 +54,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
             Contract.Requires(buffer != null);
 
             // Unfortunately, we can not expect that the length is less then the MaxLength, because many existing clients do not respect it.
-            var len = Math.Min(length, Math.Min(buffer.Length, MaxLength));
+            var len = Math.Min(length, Math.Min(buffer.Length - offset, MaxLength));
 
             this = FromSpan(buffer.AsSpan(offset, len));
         }

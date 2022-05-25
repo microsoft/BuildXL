@@ -16,6 +16,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
         /// </summary>
         public static readonly DateTime UnixEpoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
+        public static readonly DateTime CompactTimeEpoch = new DateTime(2010, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
         public static long ToUnixTimeSeconds(this DateTime preciseDateTime)
         {
             if (preciseDateTime == DateTime.MinValue)
@@ -44,6 +46,36 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
             }
 
             return UnixEpoch.AddSeconds(unixTimeSeconds);
+        }
+
+        public static uint ToCompactTimeMinutes(this DateTime preciseDateTime)
+        {
+            if (preciseDateTime == DateTime.MinValue)
+            {
+                return 0;
+            }
+
+            if (preciseDateTime.Kind != DateTimeKind.Utc)
+            {
+                throw new ArgumentException("preciseDateTime must be UTC");
+            }
+
+            return (uint)(preciseDateTime - CompactTimeEpoch).TotalMinutes;
+        }
+
+        public static CompactTime ToCompactTime(this DateTime preciseDateTime)
+        {
+            return new CompactTime(preciseDateTime.ToCompactTimeMinutes());
+        }
+
+        public static DateTime FromCompactTime(uint compactTimeMinutes)
+        {
+            if (compactTimeMinutes == 0)
+            {
+                return DateTime.MinValue;
+            }
+
+            return CompactTimeEpoch.AddMinutes(compactTimeMinutes);
         }
     }
 }

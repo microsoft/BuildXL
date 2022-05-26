@@ -9,6 +9,7 @@ using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
 using Newtonsoft.Json;
+using System.Collections.Generic;
 
 namespace Test.BuildXL.Utilities
 {
@@ -18,30 +19,33 @@ namespace Test.BuildXL.Utilities
     [TestClassIfSupported(requiresWindowsBasedOperatingSystem: true)]
     public class CredentialProviderHelperTests : XunitBuildXLTest
     {
+        private static readonly Dictionary<CredentialHelperType, object> s_outputMap = new Dictionary<CredentialHelperType, object>()
+        {
+            // [SuppressMessage("Microsoft.Security", "CS002:SecretInNextLine", Justification="Not a real password, testing the json output format")]
+            { CredentialHelperType.Cloudbuild, new GenericAuthOutput() { Username = "", Password = "testValue", Message = "" } },
+            { CredentialHelperType.MicrosoftAuthenticationCLI, new AzureAuthOutput() { User = "", DisplayName = "", Token = "testValue", ExpirationDate = "" } }
+        };
+
         public CredentialProviderHelperTests(ITestOutputHelper output)
             : base(output)
         {
         }
 
-        [Fact]
-        public void TestSuccessfulPatAcquisition()
+        [Theory]
+        [InlineData(CredentialHelperType.Cloudbuild)]
+        [InlineData(CredentialHelperType.MicrosoftAuthenticationCLI)]
+        public void TestSuccessfulTokenAcquisition(CredentialHelperType outputType)
         {
             var outStream = new StringBuilder();
-            var testAuthOutput = new AuthOutput()
-            {
-                Username="",
-                Password="testPassword",
-                Message=""
-            };
-            var serialized = JsonConvert.SerializeObject(testAuthOutput);
-            var credHelper = CredentialProviderHelper.CreateInstanceForTesting(m => outStream.AppendLine(m), CmdHelper.OsShellExe, $"/d /c echo {serialized}");
+            var serialized = JsonConvert.SerializeObject(s_outputMap[outputType]);
+            var credHelper = CredentialProviderHelper.CreateInstanceForTesting(m => outStream.AppendLine(m), CmdHelper.OsShellExe, $"/d /c echo {serialized}", outputType);
 
-            var result = credHelper.AcquirePatAsync(new Uri("https://foo"), PatType.CacheReadWrite).Result;
+            var result = credHelper.AcquireTokenAsync(new Uri("https://foo"), PatType.CacheReadWrite).Result;
 
             XAssert.IsTrue(result.Result == CredentialHelperResultType.Success);
             XAssert.IsTrue(outStream.ToString().Contains("Credentials were successfully retrieved from provider"));
-            XAssert.IsTrue(outStream.ToString().Contains("testPassword"));
-            XAssert.IsNotNull(result.Pat);
+            XAssert.IsFalse(string.IsNullOrEmpty(result.Token));
+            XAssert.AreEqual(result.Token, "testValue");
         }
 
         [Theory]
@@ -50,25 +54,25 @@ namespace Test.BuildXL.Utilities
         public void TestBadCredentialHelperPath(bool emptyPath)
         {
             var outStream = new StringBuilder();
-            var credHelper = CredentialProviderHelper.CreateInstanceForTesting(m => outStream.AppendLine(m), emptyPath ? "" : "badPath", "");
+            var credHelper = CredentialProviderHelper.CreateInstanceForTesting(m => outStream.AppendLine(m), emptyPath ? "" : "badPath", "", CredentialHelperType.Cloudbuild);
 
-            var result = credHelper.AcquirePatAsync(new Uri("https://foo"), PatType.CacheReadWrite).Result;
+            var result = credHelper.AcquireTokenAsync(new Uri("https://foo"), PatType.CacheReadWrite).Result;
 
             XAssert.IsTrue(result.Result == CredentialHelperResultType.NoCredentialProviderSpecified);
-            XAssert.IsNull(result.Pat);
+            XAssert.IsTrue(string.IsNullOrEmpty(result.Token));
         }
 
         [Fact]
         public void TestBadExitCode()
         {
             var outStream = new StringBuilder();
-            var credHelper = CredentialProviderHelper.CreateInstanceForTesting(m => outStream.AppendLine(m), CmdHelper.OsShellExe, "/d /c exit 1");
+            var credHelper = CredentialProviderHelper.CreateInstanceForTesting(m => outStream.AppendLine(m), CmdHelper.OsShellExe, "/d /c exit 1", CredentialHelperType.Cloudbuild);
 
-            var result = credHelper.AcquirePatAsync(new Uri("https://foo"), PatType.CacheReadWrite).Result;
+            var result = credHelper.AcquireTokenAsync(new Uri("https://foo"), PatType.CacheReadWrite).Result;
 
             XAssert.IsTrue(result.Result == CredentialHelperResultType.BadStatusCodeReturned);
             XAssert.IsTrue(outStream.ToString().Contains("Credential provider execution failed with exit code 1"));
-            XAssert.IsNull(result.Pat);
+            XAssert.IsTrue(string.IsNullOrEmpty(result.Token));
         }
     }
 }

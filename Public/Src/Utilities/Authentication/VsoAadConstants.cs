@@ -10,10 +10,13 @@ namespace BuildXL.Utilities.Authentication
     public class VsoAadConstants
     {
         /// <summary>
-        /// Constant value to target Azure DevOps
+        /// Constant resource value to target Azure DevOps
+        /// </summary>
+        public const string ResourceId = "499b84ac-1321-427f-aa17-267ca6975798";
+        /// <summary>
         /// MSAL scope representation of the VSO service principal
         /// </summary>
-        public const string Scope = "499b84ac-1321-427f-aa17-267ca6975798/.default";
+        public const string Scope = $"{ResourceId}/.default";
         /// <summary>
         /// Visual Studio IDE client ID originally provisioned by Azure Tools.
         /// </summary>

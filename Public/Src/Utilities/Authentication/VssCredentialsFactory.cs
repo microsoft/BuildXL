@@ -34,7 +34,7 @@ namespace BuildXL.Utilities.Authentication
         /// <param name="helper">Credential provider helper class to be used if a credential provider is required for authentication. Can be null.</param>
         /// <param name="logger">Logger</param>
         public VssCredentialsFactory(string pat, CredentialProviderHelper helper, Action<string> logger)
-            : this(CredentialProviderHelper.ConvertStringPatToSecureStringPat(pat), credentials: null, helper, logger) { }
+            : this(ConvertStringToSecureString(pat), credentials: null, helper, logger) { }
 
         /// <summary>
         /// VssCredentialsFactory Constructor
@@ -93,12 +93,22 @@ namespace BuildXL.Utilities.Authentication
             // Only supported on Windows.
             if (m_credentialHelper != null && OperatingSystemHelper.IsWindowsOS)
             {
-                var credentialHelperResult = await m_credentialHelper.AcquirePatAsync(baseUri, patType);
+                var credentialHelperResult = await m_credentialHelper.AcquireTokenAsync(baseUri, patType);
 
                 if (credentialHelperResult.Result == CredentialHelperResultType.Success)
                 {
-                    m_logger("[VssCredentialsFactory] PAT acquired from credential provider.");
-                    return GetPatCredentials(credentialHelperResult.Pat);
+                    m_logger($"[VssCredentialsFactory] {credentialHelperResult.CredentialType} acquired from credential provider.");
+                    
+                    switch (credentialHelperResult.CredentialType)
+                    {
+                        case CredentialType.PersonalAccessToken:
+                            return GetPatCredentials(ConvertStringToSecureString(credentialHelperResult.Token));
+                        case CredentialType.AadToken:
+                            return new VssAadCredential(new VssAadToken(VsoAadConstants.TokenType, credentialHelperResult.Token));
+                        default:
+                            m_logger($"[VssCredentialsFactory] Unsupported credential type returned by credential helper: {credentialHelperResult.CredentialType}.");
+                            break;
+                    }
                 }
             }
 
@@ -224,6 +234,25 @@ namespace BuildXL.Utilities.Authentication
         public VssCredentials GetPatCredentials(SecureString pat)
         {
             return new VssBasicCredential(new NetworkCredential(string.Empty, pat));
+        }
+
+        /// <summary>
+        /// Converts a string into a SecureString.
+        /// </summary>
+        public static SecureString ConvertStringToSecureString(string token)
+        {
+            if (!string.IsNullOrWhiteSpace(token))
+            {
+                var secureStringToken = new SecureString();
+                foreach (var c in token)
+                {
+                    secureStringToken.AppendChar(c);
+                }
+
+                return secureStringToken;
+            }
+
+            return null;
         }
     }
 }

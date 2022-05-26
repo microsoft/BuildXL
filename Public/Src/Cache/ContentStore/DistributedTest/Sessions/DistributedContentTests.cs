@@ -176,7 +176,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 return new Context(Context, nestedContextId, componentName: _tracer.Name);
             }
 
-            public virtual async Task StartupAsync(ImplicitPin implicitPin, int? storeToStartupLast, string buildId = null)
+            public virtual async Task StartupAsync(ImplicitPin implicitPin, int? storeToStartupLast, string buildId = null, int? insideRingBuilderCount = null)
             {
                 ImplicitPin = implicitPin;
                 var startupResults = await TaskUtilities.SafeWhenAll(Servers.Select(async (server, index) =>
@@ -200,7 +200,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
                 if (ShouldCreateContentSessions)
                 {
-                    Sessions = Stores.Select((store, id) => _testInstance.CreateSession(store, Context, GetSessionName(id, buildId), implicitPin).Session).ToList();
+                    Sessions = Stores.Select((store, id) => _testInstance.CreateSession(store, Context, GetSessionName(id, (insideRingBuilderCount == null || id < insideRingBuilderCount.Value) ? buildId : null), implicitPin).Session).ToList();
                     await TaskUtilities.SafeWhenAll(Sessions.Select(async (session, index) => await session.StartupAsync(StoreContexts[index])));
                 }
             }
@@ -900,8 +900,10 @@ namespace ContentStoreTest.Distributed.Sessions
             bool ensureLiveness = true,
             int? storeToStartupLast = null,
             TestFileCopier testCopier = null,
-            string buildId = null)
+            string buildId = null,
+            int? insideRingBuilderCount = null)
         {
+
             var context = new Context(Logger);
             var startIndex = outerContext?.Stores.Count ?? 0;
             var indexedDirectories = Enumerable.Range(0, storeCount)
@@ -977,7 +979,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
                     var testContext = ConfigureTestContext(new TestContext(this, context, testFileCopier, indexedDirectories.Select(p => p.Directory).ToList(), stores, iteration, ports));
 
-                    await testContext.StartupAsync(implicitPin, storeToStartupLast, buildId);
+                    await testContext.StartupAsync(implicitPin, storeToStartupLast, buildId, insideRingBuilderCount);
 
                     // This mode is meant to make sure that all machines are alive and ready to go
                     if (ensureLiveness)

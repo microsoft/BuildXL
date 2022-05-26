@@ -58,7 +58,7 @@ namespace ContentStoreTest.Distributed.Sessions
         }
 
         [Fact]
-        public Task ProactiveCopyRetryTest()
+        public Task ProactiveCopyOutsideRingRetriesTest()
         {
             EnableProactiveCopy = true;
             ProactiveCopyRetries = 2;
@@ -85,13 +85,55 @@ namespace ContentStoreTest.Distributed.Sessions
 
                     // Proactive copy should have replicated the content.
                     getBulkResult1.ContentHashesInfo[0].Locations.Count.Should().Be(2);
-
                     var counters = sessions[0].GetCounters().ToDictionaryIntegral();
                     counters["ProactiveCopyRetries.Count"].Should().Be(ProactiveCopyRetries);
                     counters["ProactiveCopyOutsideRingRetries.Count"].Should().Be(ProactiveCopyRetries);
                 },
                 testCopier: new ErrorReturningTestFileCopier(errorsToReturn: ProactiveCopyRetries, failingResult: PushFileResult.ServerUnavailable()),
                 implicitPin: ImplicitPin.None);
+        }
+
+        [Fact]
+        public Task ProactiveCopyParallelRingRetriesTest()
+        {
+            EnableProactiveCopy = true;
+            ProactiveCopyMode = ProactiveCopyMode.Both;
+            ProactiveCopyOnPuts = true;
+            ProactiveCopyOnPins = true;
+            //ProactiveCopyLocationThreshold = 4; 
+            ProactiveCopyRetries = 2;
+
+            var contentHashes = new List<ContentHash>();
+
+            int machineCount = 6;
+            ConfigureWithOneMaster();
+
+            var buildId = Guid.NewGuid().ToString();
+
+            return RunTestAsync(
+                machineCount,
+                async context =>
+                {
+                    var masterStore = context.GetMaster();
+                    var defaultFileSize = (Config.MaxSizeQuota.Hard / 4) + 1;
+
+                    var sessions = context.EnumerateWorkersIndices().Select(i => context.GetDistributedSession(i)).ToArray();
+                    var putResult1 = await sessions[0].PutRandomAsync(context, HashType.Vso0, false, defaultFileSize, Token).ShouldBeError();
+
+                    var counters = sessions[0].GetCounters().ToDictionaryIntegral();
+
+                    // All retries must fail
+                    // Individually Inside and Outside Ring retries must equal to ProactiveCopyRetries
+                    // Potential total retry will be 2 * ProactiveCopyRetries
+                    counters["ProactiveCopyInsideRingRetries.Count"].Should().Be(ProactiveCopyRetries);
+                    counters["ProactiveCopyOutsideRingRetries.Count"].Should().Be(ProactiveCopyRetries);
+                    counters["ProactiveCopyRetries.Count"].Should().Be(2 * ProactiveCopyRetries);
+                },
+                // testCopier fails for very large number of times so that retries fail enough number of times
+                testCopier: new ErrorReturningTestFileCopier(errorsToReturn: 99 * ProactiveCopyRetries, failingResult: PushFileResult.ServerUnavailable()),
+                implicitPin: ImplicitPin.None,
+                buildId: buildId,
+                insideRingBuilderCount: 3);
         }
 
         [Theory]
@@ -219,13 +261,12 @@ namespace ContentStoreTest.Distributed.Sessions
                     counters["ProactiveCopy_InsideRingFullyReplicated.Count"].Should().Be(0);
 
                     // Pin the content. Should fail the proactive copy because there re no more build-ring machines available.
-                    await sessions[0].PinAsync(context, hash, CancellationToken.None).ShouldBeError();
+                    var pin = await sessions[0].PinAsync(context, hash, CancellationToken.None).ShouldBeError();
 
                     getBulkResult = await masterStore.GetBulkAsync(context, hash, GetBulkOrigin.Global).ShouldBeSuccess();
                     getBulkResult.ContentHashesInfo[0].Locations.Count.Should().Be(2);
 
                     counters = sessions[0].GetCounters().ToDictionaryIntegral();
-                    counters["ProactiveCopy_InsideRingCopies.Count"].Should().Be(2);
                     counters["ProactiveCopy_InsideRingFullyReplicated.Count"].Should().Be(1);
                 },
                 implicitPin: ImplicitPin.None,
@@ -274,12 +315,13 @@ namespace ContentStoreTest.Distributed.Sessions
                     // We used to have an issue when a designated machine was inside the ring and we tried pushing to the same machine twice.
                     var workerSession = context.GetDistributedSession(workerIndex);
                     int contentCount = 10;
+                    
                     for (int i = 0; i < contentCount; i++)
                     {
                         var putResult = await workerSession.PutRandomAsync(context, HashType.Vso0, false, ContentByteCount, Token).ShouldBeSuccess();
-
                         var masterResult = await ls[workerIndex].GetBulkAsync(context, new[] { putResult.ContentHash }, Token, UrgencyHint.Nominal, GetBulkOrigin.Global).ShouldBeSuccess();
-                        masterResult.ContentHashesInfo[0].Locations.Count.Should().Be(3);
+                        var ringMachinesCount = workerSession.GetInRingActiveMachines().Count();
+                        masterResult.ContentHashesInfo[0].Locations.Count.Should().Be(machineCount- ringMachinesCount);
                     }
                 },
                 implicitPin: ImplicitPin.None,
@@ -471,9 +513,10 @@ namespace ContentStoreTest.Distributed.Sessions
                     var workers = context.EnumerateWorkersIndices().ToList();
                     var master = context.GetMasterIndex();
                     var proactiveWorkerSession = context.GetDistributedSession(workers[0]);
+                    
                     var otherSession = context.GetSession(workers[1]);
                     var counters = proactiveWorkerSession.SessionCounters;
-
+                    
                     var ls = Enumerable.Range(0, machineCount).Select(n => context.GetLocationStore(n)).ToArray();
                     var lls = Enumerable.Range(0, machineCount).Select(n => context.GetLocalLocationStore(n)).ToArray();
 
@@ -497,9 +540,9 @@ namespace ContentStoreTest.Distributed.Sessions
                         var masterResult = await context.GetLocationStore(master)
                             .GetBulkAsync(context, putHashes, Token, UrgencyHint.Nominal, GetBulkOrigin.Local).ShouldBeSuccess();
                         masterResult.ContentHashesInfo[0].Locations.Count.Should().Be(2);
-
+                        var ringMachinesCount = proactiveWorkerSession.GetInRingActiveMachines().Count();
                         // Only hashes from second batch should be proactively copied after pin
-                        counters[ProactiveCopy_OutsideRingFromPreferredLocations].Value.Should().Be((usePreferredLocations && afterProactiveCopy) ? batchSize : 0);
+                        counters[ProactiveCopy_OutsideRingFromPreferredLocations].Value.Should().Be((usePreferredLocations && afterProactiveCopy) ? batchSize - ringMachinesCount : 0);
                     }
 
                     if (context.Iteration == 0)
@@ -722,6 +765,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
                     var counters = sessions[0].GetCounters().ToDictionaryIntegral();
                     counters["ProactiveCopyInsideRingRetries.Count"].Should().Be(ProactiveCopyRetries);
+                    // ProactiveCopyRetries count must be same as ProactiveCopyInsideRingRetries as outsidecopy is a success and shouldn't increment counter
                     counters["ProactiveCopyRetries.Count"].Should().Be(ProactiveCopyRetries);
                 },
                 implicitPin: ImplicitPin.None,

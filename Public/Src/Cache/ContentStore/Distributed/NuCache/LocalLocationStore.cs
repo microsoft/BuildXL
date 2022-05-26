@@ -133,7 +133,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         public ClusterStateManager ClusterStateManager { get; private set; }
         internal ClusterState ClusterState => ClusterStateManager.ClusterState;
-        private DateTime _lastClusterStateUpdate;
 
         private readonly SemaphoreSlim _databaseInvalidationGate = new SemaphoreSlim(1);
 
@@ -537,15 +536,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         _lastCheckpointTime = _lastRestoreTime;
                     }
 
-                    if (Configuration.Checkpoint.UpdateClusterStateInterval is null || ShouldSchedule(Configuration.Checkpoint.UpdateClusterStateInterval.Value, _lastClusterStateUpdate))
+                    if (Configuration.Checkpoint.UpdateClusterStateInterval is null || ShouldSchedule(Configuration.Checkpoint.UpdateClusterStateInterval.Value, ClusterState.LastUpdateTimeUtc))
                     {
                         var updateResult = await SetMachineStateAsync(context, machineState: _heartbeatMachineState);
                         if (!updateResult)
                         {
                             return updateResult;
                         }
-
-                        _lastClusterStateUpdate = _clock.UtcNow;
                     }
 
                     if (newRole == Role.Master)

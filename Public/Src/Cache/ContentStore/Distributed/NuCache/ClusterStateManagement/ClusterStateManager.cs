@@ -61,7 +61,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
 
             var initialState = new ClusterState(machineMappings[0].Id, machineMappings);
-            initialState.Update(context, currentState).ThrowIfFailure();
+            initialState.Update(context, currentState, nowUtc: _clock.UtcNow).ThrowIfFailure();
             ClusterState = initialState;
 
             return BoolResult.Success;
@@ -91,7 +91,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             return (await RegisterMachinesAsync(context, new[] { machineLocation })).Then(result =>
             {
-                ClusterState.Update(context, result.State).ThrowIfFailure();
+                ClusterState.Update(context, result.State, nowUtc: _clock.UtcNow).ThrowIfFailure();
                 return Result.Success(result.MachineMappings[0]);
             });
         }
@@ -113,7 +113,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     if (_configuration.DistributedContentConsumerOnly || localMachineIds.Length == 0)
                     {
                         var currentState = await _storage.ReadState(context).ThrowIfFailureAsync();
-                        ClusterState.Update(context, currentState).ThrowIfFailure();
+                        ClusterState.Update(context, currentState, nowUtc: _clock.UtcNow).ThrowIfFailure();
 
                         // When in consumer-only mode, we should never update the remote representation of the cluster
                         // state. We will instead just return whatever came in.
@@ -124,7 +124,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         var heartbeatResponse = await _storage.HeartbeatAsync(context, new BlobClusterStateStorage.HeartbeatInput(localMachineIds, machineState)).ThrowIfFailureAsync();
                         Contract.Assert(heartbeatResponse.PriorRecords.Length == localMachineIds.Length, "Mismatch between number of requested heartbeats and actual heartbeats. This should never happen.");
 
-                        ClusterState.Update(context, heartbeatResponse.State).ThrowIfFailure();
+                        ClusterState.Update(context, heartbeatResponse.State, nowUtc: _clock.UtcNow).ThrowIfFailure();
 
                         var priorRecord = heartbeatResponse.PriorRecords[0];
                         if (!priorRecord.IsOpen())

@@ -33,6 +33,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         #region Local Machine
 
         /// <summary>
+        /// Most recent time the ClusterState was updated with information from the remote storage
+        /// </summary>
+        public DateTime LastUpdateTimeUtc { get; private set; } = DateTime.MinValue;
+
+        /// <summary>
         /// The time at which the machine was last in an inactive state
         /// </summary>
         public DateTime LastInactiveTime { get; set; }
@@ -233,7 +238,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             LocalMachineMappings = localMachineMappings;
         }
 
-        public BoolResult Update(OperationContext context, ClusterStateMachine stateMachine)
+        public BoolResult Update(OperationContext context, ClusterStateMachine stateMachine, DateTime? nowUtc = null)
         {
             // This is an operation just for performance tracking purposes (i.e., if this takes too long, it'd be
             // interesting to know).
@@ -259,6 +264,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                             .ToList();
 
                         BinManager.UpdateAll(distributionMachines, nextCache.InactiveMachines).TraceIfFailure(context);
+                    }
+
+                    if (nowUtc is not null)
+                    {
+                        LastUpdateTimeUtc = nowUtc.Value;
                     }
                 }
 

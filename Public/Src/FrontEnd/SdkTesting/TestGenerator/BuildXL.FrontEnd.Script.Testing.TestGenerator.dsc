@@ -13,21 +13,21 @@ namespace TestGeneratorDeployment {
             ...addIfLazy(Context.getCurrentHost().os === "win", () => [{
                 subfolder: a`Win`,
                 contents: $.withQualifier({
-                    targetFramework: "netcoreapp3.1",
+                    targetFramework: Managed.TargetFrameworks.DefaultTargetFramework,
                     targetRuntime: "win-x64"
                 }).TestGenerator.deploymentContents
             }]),
             ...addIfLazy(Context.getCurrentHost().os === "macOS", () => [{
                 subfolder: a`MacOs`,
                 contents: $.withQualifier({
-                    targetFramework: "netcoreapp3.1",
+                    targetFramework: Managed.TargetFrameworks.DefaultTargetFramework,
                     targetRuntime: "osx-x64"
                 }).TestGenerator.deploymentContents
             }]),
             ...addIfLazy(Context.getCurrentHost().os === "unix", () => [{
                 subfolder: a`Linux`,
                 contents: $.withQualifier({
-                    targetFramework: "netcoreapp3.1",
+                    targetFramework: Managed.TargetFrameworks.DefaultTargetFramework,
                     targetRuntime: "linux-x64"
                 }).TestGenerator.deploymentContents
             }])

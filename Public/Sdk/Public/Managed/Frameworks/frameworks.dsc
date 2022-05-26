@@ -10,10 +10,6 @@ export const framework : Shared.Framework = (() => {
     switch (qualifier.targetFramework) {
         case "net472":
             return importFrom("Sdk.Managed.Frameworks.Net472").framework;
-        case "netcoreapp3.1":
-            return importFrom("Sdk.Managed.Frameworks.NetCoreApp3.1").framework;
-        case "net5.0":
-            return importFrom("Sdk.Managed.Frameworks.Net5.0").framework;
         case "net6.0":
             return importFrom("Sdk.Managed.Frameworks.Net6.0").framework;
         case "netstandard2.0":

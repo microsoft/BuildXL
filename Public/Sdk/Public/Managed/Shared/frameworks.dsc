@@ -74,19 +74,22 @@ export type ApplicationDeploymentStyle = "frameworkDependent" | "selfContained";
 export type RuntimeVersion = "win-x64" | "osx-x64" | "linux-x64";
 
 @@public
-export type DotNetCoreVersion = "netcoreapp3.1" | "net5.0" | "net6.0";
+export type DotNetCoreVersion = "net6.0";
 
 @@public
 export function isDotNetCore(targetFramework: TargetFrameworks.AllFrameworks) : targetFramework is DotNetCoreVersion {
-    return targetFramework === 'netcoreapp3.1' || targetFramework === 'net5.0' || targetFramework === 'net6.0';
+    return targetFramework === 'net6.0';
 }
 
 namespace TargetFrameworks {
     @@public
+    export const DefaultTargetFramework = "net6.0";
+    
+    @@public
     export type DesktopTargetFrameworks = "net472";
 
     @@public
-    export type CoreClrTargetFrameworks = "netcoreapp2.2" | "netcoreapp3.1" | "net5.0" | "net6.0";
+    export type CoreClrTargetFrameworks = "net6.0";
 
     @@public
     export type StandardTargetFrameworks = "netstandard2.0";
@@ -126,22 +129,21 @@ namespace TargetFrameworks {
         @@public
         export interface Current extends Qualifier {
             configuration: "debug" | "release";
-            targetFramework: "netcoreapp3.1" | "net5.0",
+            targetFramework: "net6.0",
             targetRuntime: "win-x64" | "osx-x64" | "linux-x64",
         }
 
         @@public
         export interface CurrentWithStandard extends Qualifier {
             configuration: "debug" | "release";
-            targetFramework: "netcoreapp3.1" | "net5.0" | "netstandard2.0",
+            targetFramework: "net6.0" | "netstandard2.0",
             targetRuntime: "win-x64" | "osx-x64" | "linux-x64",
         }
 
         @@public
         export const current : Current = {
             configuration: qualifier.configuration,
-            // Switch to .net5 once the migration is over.
-            targetFramework: "netcoreapp3.1",
+            targetFramework: "net6.0",
             targetRuntime: 
                 Context.getCurrentHost().os === "win"   ? "win-x64" : 
                 Context.getCurrentHost().os === "macOS" ? "osx-x64" :

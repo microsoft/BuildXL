@@ -26,7 +26,7 @@ namespace Cache {
             {
                 subfolder: r`Monitor`,
                 contents: [
-                    ...addIfLazy(qualifier.targetFramework === "net6.0",
+                    ...addIfLazy(qualifier.targetFramework === BuildXLSdk.TargetFrameworks.DefaultTargetFramework,
                         () => [importFrom("BuildXL.Cache.Monitor").Default.deployment]
                     ),
                 ]

@@ -31,7 +31,7 @@ namespace VBCSCompilerLogger {
             importFrom("System.Numerics.Vectors").withQualifier({targetFramework: "netstandard2.0"}).pkg,
         ],
         runtimeContentToSkip: [
-            importFrom("System.Collections.Immutable").pkg,
+            importFrom("System.Collections.Immutable").withQualifier({targetFramework: "netstandard2.0"}).pkg,
             importFrom("System.Memory").pkg,
         ]
     });

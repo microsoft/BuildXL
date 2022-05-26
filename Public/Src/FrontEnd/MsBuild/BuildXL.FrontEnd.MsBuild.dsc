@@ -48,7 +48,7 @@ namespace MsBuild {
             {
                 subfolder: r`tools/vbcslogger/dotnetcore`,
                 contents: [importFrom("BuildXL.Tools").VBCSCompilerLogger
-                    .withQualifier({ targetFramework: "net5.0" }).dll]
+                    .withQualifier({ targetFramework: Managed.TargetFrameworks.DefaultTargetFramework }).dll]
             },
             {
                 subfolder: r`tools`,

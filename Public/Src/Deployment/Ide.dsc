@@ -18,16 +18,15 @@ namespace Ide {
                 targetFileName: a`BuildXL.vs.vsix`,
             }]),
             {
-                // Ones the migration to net5 is done the next line needs to be changed to net5.0
                 file: importFrom("BuildXL.Ide").withQualifier({
-                    targetFramework:"netcoreapp3.1",
+                    targetFramework: BuildXLSdk.TargetFrameworks.DefaultTargetFramework,
                     targetRuntime: "win-x64"}
                     ).LanguageService.Server.vsix,
                 targetFileName: a`BuildXL.vscode.win.vsix`,
             }]),
             {
                 file: importFrom("BuildXL.Ide").withQualifier({
-                    targetFramework:"netcoreapp3.1",
+                    targetFramework: BuildXLSdk.TargetFrameworks.DefaultTargetFramework,
                     targetRuntime: "osx-x64"}
                     ).LanguageService.Server.vsix,
                 targetFileName: a`BuildXL.vscode.osx.vsix`,

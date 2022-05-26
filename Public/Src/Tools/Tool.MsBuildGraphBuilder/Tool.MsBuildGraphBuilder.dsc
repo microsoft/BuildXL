@@ -23,7 +23,7 @@ namespace MsBuildGraphBuilder {
             importFrom("BuildXL.Utilities").Collections.dll,
             importFrom("BuildXL.Utilities").Native.dll,
             importFrom("BuildXL.Utilities.Instrumentation").Common.dll,
-            ...addIf(BuildXLSdk.isFullFramework, importFrom("System.Collections.Immutable").pkg),
+            ...addIf(BuildXLSdk.isFullFramework, importFrom("System.Collections.Immutable.ForVBCS").pkg),
             ...addIf(BuildXLSdk.isFullFramework, importFrom("System.Threading.Tasks.Dataflow").pkg),
             importFrom("Microsoft.Build.Prediction").pkg,
             NetFx.System.Threading.Tasks.dll,
@@ -36,6 +36,7 @@ namespace MsBuildGraphBuilder {
             // don't add msbuild dlls because assembly resolvers will resolve msbuild from other MSBuild installations
             ...MSBuild.msbuildReferences,
             importFrom("System.Collections.Immutable").pkg,
+            importFrom("System.Memory").pkg,
         ],
         internalsVisibleTo: [
             "Test.Tool.ProjectGraphBuilder",
@@ -59,7 +60,7 @@ namespace MsBuildGraphBuilder {
             {
                 subfolder: r`dotnetcore`,
                 contents: [
-                        $.withQualifier({ targetFramework: "netcoreapp3.1" })
+                        $.withQualifier({ targetFramework: "net6.0" })
                         .MsBuildGraphBuilder.exe
                     ]
             }

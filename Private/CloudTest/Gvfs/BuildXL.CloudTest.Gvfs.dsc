@@ -8,7 +8,7 @@ import {Transformer} from "Sdk.Transformers";
 export interface GvfsTestQualifer extends Qualifier
 {
     configuration: "debug" | "release";
-    targetFramework: "netcoreapp3.1";
+    targetFramework: "net6.0";
     targetRuntime: "win-x64";
 }
 

@@ -9,7 +9,7 @@ echo Performing build with LKG to populate shared cache
 echo .
 
 	REM Perform initial build schedule-only build with graph caching disabled to publish nuget packages
-	call %~dp0\..\..\bxl.cmd /q:Release /q:Debug /q:DebugDotNetCore /q:ReleaseDotNetCore /exp:incrementalscheduling- /cacheGraph- /forcePopulatePackageCache -All -SharedCacheMode ConsumeAndPublish /phase:Schedule
+	call %~dp0\..\..\bxl.cmd /q:Release /q:Debug /exp:incrementalscheduling- /cacheGraph- /forcePopulatePackageCache -All -SharedCacheMode ConsumeAndPublish /phase:Schedule
 	if %ERRORLEVEL% NEQ 0 (
 		echo. 1>&2
 		echo --------------------------------------------------------------- 1>&2
@@ -27,7 +27,7 @@ echo .
 	SET TF_BUILD_BUILDNUMBER=
 	
 	REM Perform actual build to cache pips
-	call %~dp0\..\..\bxl.cmd /q:Release /q:Debug /q:DebugDotNetCore /q:ReleaseDotNetCore /exp:incrementalscheduling- -All -SharedCacheMode ConsumeAndPublish /logsDirectory:Out\Logs\PopulateSharedCache
+	call %~dp0\..\..\bxl.cmd /q:Release /q:Debug /exp:incrementalscheduling- -All -SharedCacheMode ConsumeAndPublish /logsDirectory:Out\Logs\PopulateSharedCache
 	if %ERRORLEVEL% NEQ 0 (
 		echo. 1>&2
 		echo --------------------------------------------------------------- 1>&2

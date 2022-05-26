@@ -15,7 +15,7 @@ namespace Common {
         nullable: true,
         skipDefaultReferences: true,
         references: [
-            ...addIf(qualifier.targetFramework === "net6.0",
+            ...addIf(qualifier.targetFramework === Managed.TargetFrameworks.DefaultTargetFramework,
                 importFrom("Microsoft.Applications.Events.Server").pkg)
         ],
         runtimeContent: [

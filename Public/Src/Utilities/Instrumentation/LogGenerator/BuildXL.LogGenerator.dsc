@@ -3,7 +3,7 @@
 import * as Deployment from "Sdk.Deployment";
 
 namespace LogGenerator {
-    export declare const qualifier: BuildXLSdk.NetStandardQualifier;
+    export declare const qualifier: BuildXLSdk.DefaultQualifier;
 
     @@public
     export const dll = BuildXLSdk.library({

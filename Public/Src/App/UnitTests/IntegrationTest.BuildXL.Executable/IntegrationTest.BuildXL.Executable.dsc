@@ -11,8 +11,7 @@ namespace IntegrationTest.BuildXL.Executable {
 
     export declare const qualifier : {
         configuration: "debug" | "release",
-        // Once the migration to net5 is done the next line needs to be changed to net5.0
-        targetFramework: "netcoreapp3.1",
+        targetFramework: "net6.0",
         targetRuntime: "win-x64"
     };
 

@@ -26,7 +26,6 @@ export const redisPackages = [
         : [
             importFrom("System.IO.Pipelines").pkg,            
             ...(BuildXLSdk.isDotNetCoreApp ? [] : [
-                // Don't need to add Unsafe for netcoreapp3.1 or net5.0
                 importFrom("System.Runtime.CompilerServices.Unsafe").pkg,
             ]),
             importFrom("Pipelines.Sockets.Unofficial").pkg,
@@ -92,7 +91,7 @@ export function getSystemTextJson(includeNetStandard: boolean) : (Managed.Manage
 export function getSystemTextJsonWithoutNetStandard() : Managed.ManagedNugetPackage[] {
     return [
         ...addIf(
-            qualifier.targetFramework !== "net5.0" && qualifier.targetFramework !== "net6.0",
+            qualifier.targetFramework !== "net6.0",
             importFrom("System.Text.Json").withQualifier({targetFramework: "netstandard2.0"}).pkg),
     ];
 }

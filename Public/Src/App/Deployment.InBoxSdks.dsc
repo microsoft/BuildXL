@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+import * as Managed from "Sdk.Managed";
+
 const sdkRoot = Context.getMount("SdkRoot").path;
 
 @@public
@@ -49,7 +51,7 @@ function createSdkDeploymentDefinition(serverDeployment: boolean, minimalDeploym
                                 subfolder: "Sdk.Drop",
                                 contents: [ 
                                     importFrom("BuildXL.Tools.DropDaemon").withQualifier({
-                                        targetFramework: "net6.0",
+                                        targetFramework: Managed.TargetFrameworks.DefaultTargetFramework,
                                         targetRuntime: "win-x64"
                                     }).selectDeployment(evaluationOnly)
                                 ]
@@ -58,7 +60,7 @@ function createSdkDeploymentDefinition(serverDeployment: boolean, minimalDeploym
                                 subfolder: "Sdk.Symbols",
                                 contents: [
                                         importFrom("BuildXL.Tools.SymbolDaemon").withQualifier({
-                                            targetFramework: "net6.0",
+                                            targetFramework: Managed.TargetFrameworks.DefaultTargetFramework,
                                             targetRuntime: "win-x64"
                                         }).selectDeployment(evaluationOnly)
                                 ]
@@ -67,7 +69,7 @@ function createSdkDeploymentDefinition(serverDeployment: boolean, minimalDeploym
                                 subfolder: "Sdk.Materialization",
                                 contents: [
                                     importFrom("BuildXL.Tools.MaterializationDaemon").withQualifier({
-                                        targetFramework: "net6.0",
+                                        targetFramework: Managed.TargetFrameworks.DefaultTargetFramework,
                                         targetRuntime: "win-x64"
                                     }).selectDeployment(evaluationOnly)
                                 ]

@@ -42,8 +42,7 @@ export const defaultArgs: Arguments = {
     outputFile: undefined,
     references: [],
     sources: [],
-    // Once the migration to net5 is done, the following must be changed to net5.0
-    targetFramework: "netcoreapp3.1",
+    targetFramework: "net6.0",
     targetRuntime: "win-x64",
 };
 

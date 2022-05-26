@@ -51,7 +51,7 @@ namespace LanguageService.Server {
                 // not during graph construction. This saves a lot of Mb's to keep us under the size limmit of the marketplace
                 excludedDeployableItems: [
                     importFrom("BuildXL.Tools").VBCSCompilerLogger.withQualifier({ targetFramework: "net472" }).dll,
-                    importFrom("BuildXL.Tools").VBCSCompilerLogger.withQualifier({ targetFramework: "net5.0" }).dll,
+                    importFrom("BuildXL.Tools").VBCSCompilerLogger.withQualifier({ targetFramework: "net6.0" }).dll,
                 ]
             }),
         });

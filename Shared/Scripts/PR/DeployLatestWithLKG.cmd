@@ -22,7 +22,7 @@ if EXIST %ENLISTMENTROOT%\Out\Selfhost (
 set start=%time%
 set "stepName=Build BuildXL using LKG"
 call %PRROOT%\Utilities\StatusMessage.cmd %stepName%
-call %PRROOT%\Utilities\RunBxl.cmd "-Use LKG -Deploy RunCheckinTests /q:Debug /q:DebugDotNetCore /f:output='%ENLISTMENTROOT%\Out\Bin\debug\net472\*'oroutput='%ENLISTMENTROOT%\Out\Bin\debug\win-x64\*' /logOutput:FullOutputOnError /p:RetryXunitTests=1 /processRetries:3 /enableLazyOutputs- /TraceInfo:RunCheckinTests=LKG /useCustomPipDescriptionOnConsole-"
+call %PRROOT%\Utilities\RunBxl.cmd "-Use LKG -Deploy RunCheckinTests /q:Debug /f:output='%ENLISTMENTROOT%\Out\Bin\debug\net472\*'oroutput='%ENLISTMENTROOT%\Out\Bin\debug\win-x64\*' /logOutput:FullOutputOnError /p:RetryXunitTests=1 /processRetries:3 /enableLazyOutputs- /TraceInfo:RunCheckinTests=LKG /useCustomPipDescriptionOnConsole-"
 if %ERRORLEVEL% NEQ 0 (
     call %PRROOT%\Utilities\Error.cmd 
     exit /b 1

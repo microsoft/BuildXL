@@ -34,34 +34,6 @@ namespace Helpers {
     }
 
     function getRuntimePackagesContent(version: DotNetCoreVersion, host: Context.CurrentHostInformation) : StaticDirectory {
-        if (version === 'netcoreapp3.1')
-        {
-            switch (host.os) {
-                case "win":
-                    return importFrom("DotNet-Runtime.win-x64").extracted;
-                case "macOS":
-                    return importFrom("DotNet-Runtime.osx-x64").extracted;
-                case "unix":
-                    return importFrom("DotNet-Runtime.linux-x64").extracted;
-                default:
-                    Contract.fail(`The current DotNetCore Runtime package doesn't support the current target runtime: ${host.os}. Ensure you run on a supported OS -or- update the DotNet-Runtime package to have the version embdded.`);
-            }
-        }
-        
-        if (version === 'net5.0')
-        {
-            switch (host.os) {
-                case "win":
-                    return importFrom("DotNet-Runtime-5.win-x64").extracted;
-                case "macOS":
-                    return importFrom("DotNet-Runtime-5.osx-x64").extracted;
-                case "unix":
-                    return importFrom("DotNet-Runtime-5.linux-x64").extracted;
-                default:
-                    Contract.fail(`The current DotNetCore Runtime package doesn't support the current target runtime: ${host.os}. Ensure you run on a supported OS -or- update the DotNet-Runtime package to have the version embdded.`);
-            }
-        }
-        
         if (version === 'net6.0')
         {
             switch (host.os) {
@@ -84,16 +56,10 @@ namespace Helpers {
         return getDotNetCoreToolTemplate(version);
     }
 
-    const toolTemplate = getDotNetCoreToolTemplate("netcoreapp3.1");
-
-    const tool5Template = getDotNetCoreToolTemplate("net5.0");
-
     const tool6Template = getDotNetCoreToolTemplate("net6.0");
 
     function getCachedDotNetCoreToolTemplate(dotNetCoreVersion: DotNetCoreVersion) {
         switch (dotNetCoreVersion) {
-            case "netcoreapp3.1": return toolTemplate;
-            case "net5.0": return tool5Template;
             case "net6.0": return tool6Template;
             default: Contract.fail(`Unknown .NET Core version '${dotNetCoreVersion}'.`);
         }

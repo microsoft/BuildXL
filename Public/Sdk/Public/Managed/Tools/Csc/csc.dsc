@@ -253,24 +253,16 @@ export function compile(inputArgs: Arguments) : Result {
 }
 
 /**
- * The function returns .net core version, like 'netcoreapp3.1', 'net5.0' or 'net6.0'.
+ * The function returns .net core version.
  * 
  * The function looks into the defined constants because this module is qualifier agnostic.
  */
 export function getDotNetCoreVersion(cscArguments: Arguments): Shared.DotNetCoreVersion {
-    if (!cscArguments.defines) {
-        return "netcoreapp3.1";
-    }
-    
-    if (cscArguments.defines.some(e => e === "NET_COREAPP_50" || e === "NET5_0")) {
-        return "net5.0";
-    }
-
     if (cscArguments.defines.some(e => e === "NET_COREAPP_60" || e === "NET6_0")) {
         return "net6.0";
     }
-
-    return "netcoreapp3.1";
+    
+    return undefined;
 }
 
 /**

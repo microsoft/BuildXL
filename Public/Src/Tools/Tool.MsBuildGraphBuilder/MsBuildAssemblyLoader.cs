@@ -73,6 +73,7 @@ namespace MsBuildGraphBuilderTool
 
             m_optionalAssemblyNames = new[]
             {
+                SystemCollectionsImmutable,
                 CompilerServicesUnsafe,
                 NumericsVectors,
                 SystemMemory

@@ -16,7 +16,7 @@ call %PRROOT%\Utilities\PrepareEnvironment.cmd
 set start=%time%
 set "stepName=Build full BuildXL using deployment"
 call %PRROOT%\Utilities\StatusMessage.cmd %stepName%
-call %PRROOT%\Utilities\RunBxl.cmd "-Use RunCheckInTests -All /logOutput:FullOutputOnError /p:RetryXunitTests=1 /processRetries:3 /q:DebugDotNetCore /q:DebugDotNet5 /q:ReleaseDotNetCore /q:DebugDotNetCoreMac /q:ReleaseDotNetCoreMac /p:FeatureUploadSymbolsAndDrops=1 /TraceInfo:RunCheckinTests=NewBits"
+call %PRROOT%\Utilities\RunBxl.cmd "-Use RunCheckInTests -All /logOutput:FullOutputOnError /p:RetryXunitTests=1 /processRetries:3 /q:DebugDotNet5 /q:DebugDotNetCoreMac /q:ReleaseDotNetCoreMac /p:FeatureUploadSymbolsAndDrops=1 /TraceInfo:RunCheckinTests=NewBits"
 if %ERRORLEVEL% NEQ 0 (
     call %PRROOT%\Utilities\Error.cmd 
     exit /b 1

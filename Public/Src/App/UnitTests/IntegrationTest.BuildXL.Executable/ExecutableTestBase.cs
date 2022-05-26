@@ -143,7 +143,7 @@ namespace IntegrationTest.BuildXL.Executable
         public ExecutableTestBase(ITestOutputHelper output) : base(output)
         {
 #region pre-existing paths
-            TestBinRoot = Path.GetDirectoryName(new Uri(System.Reflection.Assembly.GetExecutingAssembly().CodeBase).AbsolutePath);
+            TestBinRoot = Path.GetDirectoryName(new Uri(System.Reflection.Assembly.GetExecutingAssembly().Location).AbsolutePath);
             BxlAnalyzerExecutable = Path.Combine(TestBinRoot, ArtifactNames.BxlAnalyzerExe);
 
             TestBxlDeploymentRoot = TestBinRoot;

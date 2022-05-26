@@ -72,7 +72,7 @@ param(
     [ValidateSet("Release", "Debug")]
     [string]$DeployConfig = "Debug", # must match defaultQualifier.configuration in config.dsc 
 
-    [ValidateSet("net472", "netcoreapp3.1", "net5.0", "win-x64", "osx-x64")]
+    [ValidateSet("net472", "win-x64", "osx-x64")]
     [string]$DeployRuntime = "win-x64", # must correspond to defaultQualifier.targetFramework in config.dsc 
 
     [Parameter(Mandatory=$false)]
@@ -296,7 +296,7 @@ if ($Vs -or $VsAll) {
         $AdditionalBuildXLArguments += "/q:Debug /q:DebugNet472";
     } else {
         # by default (-vs) we build only .NET Core and only projects targeting one of the .NET Core frameworks
-        $AdditionalBuildXLArguments += "/q:Debug /vsTargetFramework:netcoreapp3.0 /vsTargetFramework:netcoreapp3.1 /vsTargetFramework:netstandard2.0 /vsTargetFramework:netstandard2.1 /vsTargetFramework:net6.0";
+        $AdditionalBuildXLArguments += "/q:Debug /vsTargetFramework:netstandard2.0 /vsTargetFramework:netstandard2.1 /vsTargetFramework:net6.0";
     }
 }
 
@@ -585,12 +585,6 @@ if ($DeployConfig -eq "Release") {
     if ($DeployRuntime -eq "net472") {
         $AdditionalBuildXLArguments += "/q:ReleaseNet472"
     }
-    elseif ($DeployRuntime -eq "netcoreapp3.1") {
-        $AdditionalBuildXLArguments += "/q:ReleaseDotNetCore"
-    }
-    elseif ($DeployRuntime -eq "net5.0") {
-        $AdditionalBuildXLArguments += "/q:ReleaseDotNet5"
-    }
     elseif ($DeployRuntime -eq "osx-x64") {
         $AdditionalBuildXLArguments += "/q:ReleaseDotNetCoreMac"
     }
@@ -603,12 +597,6 @@ if ($DeployConfig -eq "Release") {
 } else {
     if ($DeployRuntime -eq "net472") {
         $AdditionalBuildXLArguments += "/q:DebugNet472"
-    }
-    elseif ($DeployRuntime -eq "netcoreapp3.1") {
-        $AdditionalBuildXLArguments += "/q:ReleaseDotNetCore"
-    }
-    elseif ($DeployRuntime -eq "net5.0") {
-        $AdditionalBuildXLArguments += "/q:DebugDotNet5"
     }
     elseif ($DeployRuntime -eq "osx-x64") {
         $AdditionalBuildXLArguments += "/q:DebugDotNetCoreMac"
@@ -698,7 +686,7 @@ if (!$skipFilter) {
 
     if ($Minimal) {
         # filtering by core deployment.
-        $AdditionalBuildXLArguments += "/f:(output='$($useDeployment.buildDir)\*'or(output='out\bin\$DeployConfig\Sdk\*')or($CacheOutputFilter))and~($CacheLongRunningFilter)ortag='protobufgenerator'"
+        $AdditionalBuildXLArguments += "/f:(output='$($useDeployment.buildDir)\*'or(output='out\bin\$DeployConfig\Sdk\*')or($CacheOutputFilter))and~($CacheLongRunningFilter)"
     }
 
     if ($Cache) {

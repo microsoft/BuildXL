@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+import * as Managed from "Sdk.Managed";
 import * as BuildXLSdk from "Sdk.BuildXL";
 import * as Deployment from "Sdk.Deployment";
 
@@ -33,15 +34,6 @@ namespace BuildXL {
             ...addIfLazy(qualifier.targetRuntime === "win-x64", () => [{
                 subfolder: r`tools`,
                 contents: [
-                    // Temporarily excluding the viewer since we are reaching the nuget limit size
-                    // ...addIf(!BuildXLSdk.Flags.genVSSolution && BuildXLSdk.Flags.buildBuildXLExplorer,
-                    //     {
-                    //         subfolder: r`bxp-server`,
-                    //         contents: [
-                    //             importFrom("BuildXL.Explorer").Server.withQualifier({targetFramework: "netcoreapp3.1"}).exe
-                    //         ]
-                    //     }
-                    // ),
                     {
                         subfolder: r`CMakeNinja`,
                         contents: [
@@ -58,7 +50,7 @@ namespace BuildXL {
     @@public
     export const deployed = BuildXLSdk.DeploymentHelpers.deploy({
         definition: deployment,
-        targetLocation: (qualifier.targetFramework === "net6.0") // If targetFramework is not a default one (net6.0), then we put it in a separate directory.
+        targetLocation: (qualifier.targetFramework === Managed.TargetFrameworks.DefaultTargetFramework) // If targetFramework is not a default one (net6.0), then we put it in a separate directory.
         ? r`${qualifier.configuration}/${qualifier.targetRuntime}`
         : r`${qualifier.configuration}/${qualifier.targetFramework}/${qualifier.targetRuntime}`,
     });

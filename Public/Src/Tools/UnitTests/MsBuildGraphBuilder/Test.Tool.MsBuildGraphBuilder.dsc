@@ -24,9 +24,13 @@ namespace Test.Tool.MsBuildGraphBuilder {
             ...MSBuild.msbuildRuntimeContent.filter(
                 dep => typeof dep === "File" || 
                     (dep.name !== "System.Numerics.Vectors" && 
-                    dep.name !== "System.Runtime.CompilerServices.Unsafe")),
-
+                    dep.name !== "System.Runtime.CompilerServices.Unsafe" && 
+                    dep.name !== "System.Collections.Immutable.dll")),
             ...MSBuild.msbuildReferences,
+        ],
+        runtimeContentToSkip: [
+            ...addIf(BuildXLSdk.isFullFramework, importFrom("System.Buffers").pkg),
+            ...addIf(BuildXLSdk.isFullFramework, importFrom("System.Memory").pkg)
         ]
     });
 }

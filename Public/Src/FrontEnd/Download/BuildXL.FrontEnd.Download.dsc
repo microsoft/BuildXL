@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+import * as Managed from "Sdk.Managed";
+
 namespace Download {
     @@public
     export const dll = BuildXLSdk.library({
@@ -34,7 +36,7 @@ namespace Download {
         runtimeContent:[
             importFrom("BuildXL.Tools").FileDownloader.withQualifier({
                 configuration : qualifier.configuration, 
-                targetFramework: "netcoreapp3.1", 
+                targetFramework: Managed.TargetFrameworks.DefaultTargetFramework, 
                 targetRuntime: qualifier.targetRuntime }).deployment
         ],
     });

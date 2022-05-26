@@ -64,8 +64,6 @@ function getSymstoreX64Libs() : File[] {
     
     switch (qualifier.targetFramework)
     {
-        case "netcoreapp3.1":
-        case "net5.0":
         case "net6.0":
             return importFrom("Microsoft.Windows.Debuggers.SymstoreInterop").Contents.all.getFiles(
                 [

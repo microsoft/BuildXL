@@ -59,7 +59,7 @@ namespace npmPackages {
                     subfolder: r`build/win-x64`,
                     contents: [
                                 importFrom("BuildXL.App").withQualifier({
-                                    targetFramework: "netcoreapp3.1",
+                                    targetFramework: Managed.TargetFrameworks.DefaultTargetFramework,
                                     targetRuntime: "win-x64",
                                     configuration: qualifier.configuration}).minimalDeployment,
                               ]

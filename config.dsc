@@ -153,7 +153,7 @@ config({
                 { id: "Newtonsoft.Json", version: "12.0.3" },
                 { id: "Newtonsoft.Json.Bson", version: "1.0.1" },
                 { id: "System.Reflection.Metadata", version: "1.6.0" },
-                { id: "System.Reflection.Metadata", version: "5.0.0", alias: "System.Reflection.Metadata.ForVBCS" },
+                { id: "System.Reflection.Metadata", version: "5.0.0", alias: "System.Reflection.Metadata.ForVBCS", dependentPackageIdsToSkip: ["System.Collections.Immutable"] },
                 { id: "System.Threading.Tasks.Dataflow", version: "4.9.0" },
 
                 // Nuget
@@ -303,17 +303,19 @@ config({
                 { id: "Microsoft.TeamFoundation.DistributedTask.Common.Contracts", version: "16.137.0-preview"},
 
                 // MSBuild. These should be used for compile references only, as at runtime one can only practically use MSBuilds from Visual Studio / dotnet CLI
-                { id: "Microsoft.Build", version: "16.5.0",
-                    dependentPackageIdsToSkip: ["System.Threading.Tasks.Dataflow", "System.Memory"], // These are overwritten in the deployment by DataflowForMSBuild and SystemMemoryForMSBuild since it doesn't work with the versions we use in larger buildxl.
+                { id: "Microsoft.Build", version: "17.0.0",
+                    dependentPackageIdsToSkip: ["System.Threading.Tasks.Dataflow", "System.Memory", "System.Text.Json", "System.Collections.Immutable"], // These are overwritten in the deployment by DataflowForMSBuild and SystemMemoryForMSBuild since it doesn't work with the versions we use in larger buildxl.
                 },
-                { id: "Microsoft.Build.Runtime", version: "16.5.0",
-                    dependentPackageIdsToSkip: ["System.Threading.Tasks.Dataflow"],
+                { id: "Microsoft.Build.Runtime", version: "17.0.0",
+                    dependentPackageIdsToSkip: ["System.Threading.Tasks.Dataflow", "System.Memory"],
                 },
-                { id: "Microsoft.Build.Tasks.Core", version: "16.5.0",
-                    dependentPackageIdsToSkip: ["System.Threading.Tasks.Dataflow"],
+                { id: "Microsoft.Build.Tasks.Core", version: "17.0.0",
+                    dependentPackageIdsToSkip: ["System.Threading.Tasks.Dataflow", "System.Memory", "System.Collections.Immutable"],
                 },
-                { id: "Microsoft.Build.Utilities.Core", version: "16.5.0"},
-                { id: "Microsoft.Build.Framework", version: "16.5.0"},
+                { id: "Microsoft.Build.Utilities.Core", version: "17.0.0", dependentPackageIdsToSkip: ["System.Threading.Tasks.Dataflow", "System.Memory", "System.Text.Json", "System.Collections.Immutable"]},
+                { id: "Microsoft.Build.Framework", version: "17.0.0", dependentPackageIdsToSkip: ["System.Threading.Tasks.Dataflow", "System.Memory", "System.Text.Json"]},
+                { id: "Microsoft.NET.StringTools", version: "1.0.0", dependentPackageIdsToSkip: ["System.Memory", "System.Text.Json"]},
+
                 { id: "System.Resources.Extensions", version: "4.6.0-preview9.19411.4",
                     dependentPackageIdsToSkip: ["System.Memory"]},
 
@@ -576,16 +578,6 @@ config({
                 targetFramework: "net472",
                 targetRuntime: "win-x64",
             },
-            DebugDotNetCore: {
-                configuration: "debug",
-                targetFramework: "netcoreapp3.1",
-                targetRuntime: "win-x64",
-            },
-            DebugDotNet5: {
-                configuration: "debug",
-                targetFramework: "net5.0",
-                targetRuntime: "win-x64",
-            },
             DebugDotNet6: {
                 configuration: "debug",
                 targetFramework: "net6.0",
@@ -613,16 +605,6 @@ config({
                 targetRuntime: "win-x64",
             },
 
-            ReleaseDotNetCore: {
-                configuration: "release",
-                targetFramework: "netcoreapp3.1",
-                targetRuntime: "win-x64",
-            },
-            ReleaseDotNet5: {
-                configuration: "release",
-                targetFramework: "net5.0",
-                targetRuntime: "win-x64",
-            },  
             ReleaseDotNet6: {
                 configuration: "release",
                 targetFramework: "net6.0",

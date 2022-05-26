@@ -50,11 +50,10 @@ namespace Test.MsBuild {
         runtimeContent: [
             // We need both the full framework and dotnet core versions of MSBuild, plus dotnet.exe for the dotnet core case
             ...importFrom("Sdk.Selfhost.MSBuild").withQualifier({targetFramework: "net472"}).deployment,
-            ...importFrom("Sdk.Selfhost.MSBuild").withQualifier({targetFramework: "net5.0"}).deployment,
+            ...importFrom("Sdk.Selfhost.MSBuild").withQualifier({targetFramework: "net6.0"}).deployment,
             {
                 subfolder: "dotnet",
-                // Still need to use netcoreapp3.1 because this is the version that dotnet core msbuild will be run against.
-                contents: Frameworks.Helpers.getDotNetToolTemplate('netcoreapp3.1').dependencies
+                contents: Frameworks.Helpers.getDotNetToolTemplate('net6.0').dependencies
             },
             {
                 subfolder: a`tools`,

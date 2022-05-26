@@ -75,12 +75,12 @@ namespace BuildXL.Pips.Operations
         /// <summary>
         /// Helper method to crate a dummy test version of the modulepip.
         /// </summary>
-        public static ModulePip CreateForTesting(StringTable stringTable, AbsolutePath specPath, ModuleId? moduleId = null)
+        public static ModulePip CreateForTesting(StringTable stringTable, AbsolutePath specPath, ModuleId? moduleId = null, StringId? moduleName = null)
         {
-            var moduleName = StringId.Create(stringTable, "TestModule");
+            moduleName = moduleName ?? StringId.Create(stringTable, "TestModule");
             return new ModulePip(
-                module: moduleId ?? ModuleId.Create(moduleName),
-                identity: moduleName,
+                module: moduleId ?? ModuleId.Create(moduleName.Value),
+                identity: moduleName.Value,
                 version: StringId.Invalid,
                 location: new LocationData(specPath, 0, 0),
                 resolverKind: StringId.Create(stringTable, "TestResolver"),

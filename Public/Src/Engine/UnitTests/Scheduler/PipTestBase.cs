@@ -700,6 +700,17 @@ namespace Test.BuildXL.Scheduler
             return CreateProvenance(StringId.Invalid, specPath: specPath);
         }
 
+        protected PipProvenance CreateProvenance(string moduleName)
+        {
+            return CreateProvenance(
+                Context,
+                PipGraphBuilder,
+                StringId.Invalid,
+                CreateUniquePath("spec", SourceRoot),
+                PipValuePrefix + (m_pipFreshId++).ToString(CultureInfo.InvariantCulture),
+                moduleName: moduleName);
+        }
+
         protected PipProvenance CreateProvenance(StringId usage, AbsolutePath? specPath = null)
         {
             return CreateProvenance(
@@ -725,12 +736,15 @@ namespace Test.BuildXL.Scheduler
             IMutablePipGraph pipGraph,
             StringId usage,
             AbsolutePath specFile,
-            string valueName)
+            string valueName,
+            string moduleName = "module")
         {
+            var moduleNameId = StringId.Create(context.StringTable, moduleName);
+
             var provenance = new PipProvenance(
                 0,
-                ModuleId.Invalid,
-                StringId.Invalid,
+                ModuleId.Create(moduleNameId),
+                moduleNameId,
                 FullSymbol.Create(context.SymbolTable, valueName),
                 new LocationData(specFile, 1, 1),
                 QualifierId.Unqualified,
@@ -746,7 +760,7 @@ namespace Test.BuildXL.Scheduler
 
         public static void AddMetaPips(PipExecutionContext context, PipProvenance provenance, IMutablePipGraph pipGraph)
         {
-            var modulePip = ModulePip.CreateForTesting(context.StringTable, provenance.Token.Path);
+            var modulePip = ModulePip.CreateForTesting(context.StringTable, provenance.Token.Path, provenance.ModuleId, provenance.ModuleName);
             var locationData = new LocationData(provenance.Token.Path, 0, 0);
 
             pipGraph.AddModule(modulePip);

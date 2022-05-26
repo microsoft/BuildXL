@@ -45,6 +45,36 @@ namespace Test.BuildXL.Scheduler
         }
 
         [Fact]
+        public void TestModuleFilter()
+        {
+
+            FileArtifact output1 = CreateOutputFileArtifact();
+            FileArtifact output2 = CreateOutputFileArtifact();
+
+            Process p1 = CreateAndScheduleProcess(
+                dependencies: new[] { CreateSourceFile() },
+                outputs: new[] { output1 },
+                provenance: CreateProvenance("Module1"));
+
+            Process p2 = CreateAndScheduleProcess(
+               dependencies: new[] { CreateSourceFile() },
+               outputs: new[] { output2 },
+               provenance: CreateProvenance("Module2"));
+
+            var graph = PipGraphBuilder.Build();
+            Assert.NotNull(graph);
+
+            var outputs1 = graph.FilterOutputs(new RootFilter(CreateModuleFilter("Module1")));
+            AssertSetEquals(new HashSet<FileOrDirectoryArtifact> { FileOrDirectoryArtifact.Create(output1) }, outputs1);
+
+            var outputs2 = graph.FilterOutputs(new RootFilter(CreateModuleFilter("Module2").Negate()));
+            AssertSetEquals(new HashSet<FileOrDirectoryArtifact> { FileOrDirectoryArtifact.Create(output1) }, outputs2);
+
+            var outputs3 = graph.FilterOutputs(new RootFilter(CreateModuleFilter("Module3")));
+            Assert.Empty(outputs3);
+        }
+
+        [Fact]
         public void TestBinaryFilter()
         {
             FileArtifact output = CreateOutputFileArtifact();
@@ -131,6 +161,7 @@ namespace Test.BuildXL.Scheduler
                 new BinaryFilter(CreateTagFilter("T5"), FilterOperator.Or, CreateTagFilter("T6")).Negate(), p1));
         }
 
+        //001
         [Fact]
         public void TestOutputFilter()
         {
@@ -1152,6 +1183,11 @@ namespace Test.BuildXL.Scheduler
         private TagFilter CreateTagFilter(string tag)
         {
             return new TagFilter(StringId.Create(Context.PathTable.StringTable, tag));
+        }
+
+        private ModuleFilter CreateModuleFilter(string moduleName)
+        {
+            return new ModuleFilter(StringId.Create(Context.PathTable.StringTable, moduleName));
         }
 
         private MultiTagsOrFilter CreateMultiTagsFilter(params string[] tags)

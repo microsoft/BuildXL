@@ -61,9 +61,9 @@ namespace BuildXL.Pips.Filter
                     if (context.GetPipType(pipId) == PipType.Module)
                     {
                         var modulePip = (ModulePip)context.HydratePip(pipId);
-                        if (m_modules.Contains(modulePip.Identity))
+                        if (m_modules.Contains(modulePip.Identity) ^ negate)
                         {
-                            localPips.Add(pipId);
+                             localPips.Add(pipId);                            
                         }
                     }
                 });

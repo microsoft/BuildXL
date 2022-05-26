@@ -80,16 +80,6 @@ namespace BuildXL.Cache.Host.Service.Internal
                 _distributedSettings.DisableRedis();
             }
 
-            switch (_distributedSettings.CheckpointDistributionMode.Value)
-            {
-                case CheckpointDistributionModes.Transitional:
-                    _distributedSettings.UseBlobCheckpointLegacyFormat = false;
-                    break;
-                case CheckpointDistributionModes.Proxy:
-                    _distributedSettings.UseBlobCheckpointLegacyFormat = false;
-                    break;
-            }
-
             _keySpace = string.IsNullOrWhiteSpace(_arguments.Keyspace) ? RedisContentLocationStoreConstants.DefaultKeySpace : _arguments.Keyspace;
             _fileSystem = arguments.FileSystem;
             _secretRetriever = new DistributedCacheSecretRetriever(arguments);
@@ -743,7 +733,6 @@ namespace BuildXL.Cache.Host.Service.Internal
                 ContainerName = _arguments.HostInfo.AppendRingSpecifierIfNeeded("checkpoints", _distributedSettings.UseRingIsolation),
                 FolderName = "checkpointRegistry",
                 KeySpacePrefix = epoch,
-                WriteLegacyFormat = _distributedSettings.UseBlobCheckpointLegacyFormat
             };
 
             ApplyIfNotNull(_distributedSettings.BlobCheckpointRegistryGarbageCollectionTimeout, v => azureBlobStorageCheckpointRegistryConfiguration.GarbageCollectionTimeout = v);

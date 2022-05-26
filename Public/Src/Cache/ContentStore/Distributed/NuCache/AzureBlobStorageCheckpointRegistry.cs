@@ -66,8 +66,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         public int CheckpointContentFanOut { get; set; } = 5;
 
-        public bool WriteLegacyFormat { get; set; } = true;
-
         public RetryPolicyConfiguration RetryPolicy { get; set; } = BlobFolderStorage.DefaultRetryPolicy;
     }
 
@@ -199,14 +197,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 {
                     var blobName = GenerateBlobName();
                     checkpointState.Consumers.TryAdd(_primaryMachineLocation);
-                    if (_configuration.WriteLegacyFormat)
-                    {
-                        return _storage.WriteAsync(context, blobName, JsonSerializer.Serialize(checkpointState, _jsonSerializerOptions));
-                    }
-                    else
-                    {
-                        return _storage.WriteAsync(context, blobName, checkpointState);
-                    }
+                    return _storage.WriteAsync(context, blobName, checkpointState);
                 },
                 traceOperationStarted: false,
                 extraStartMessage: msg,

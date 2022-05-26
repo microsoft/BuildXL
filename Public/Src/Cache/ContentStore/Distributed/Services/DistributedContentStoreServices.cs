@@ -203,7 +203,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
                 FolderName = "checkpointRegistry" + DistributedContentSettings.KeySpacePrefix,
                 ContainerName = DistributedContentSettings.ContentMetadataBlobCheckpointRegistryContainerName,
                 KeySpacePrefix = DistributedContentSettings.KeySpacePrefix,
-                WriteLegacyFormat = DistributedContentSettings.UseBlobCheckpointLegacyFormat
             };
 
             ApplyIfNotNull(DistributedContentSettings.BlobCheckpointRegistryFanout, v => storageRegistryConfiguration.CheckpointContentFanOut = v);

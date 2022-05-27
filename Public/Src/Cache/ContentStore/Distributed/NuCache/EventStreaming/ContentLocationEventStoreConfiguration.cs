@@ -22,11 +22,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         public TimeSpan EventNagleInterval { get; set; } = TimeSpan.FromMinutes(2);
 
         /// <summary>
-        /// If this unsafe flag is set, all the messages are accepted, regardless of <see cref="Epoch"/> value.
-        /// </summary>
-        public bool IgnoreEpoch { get; set; }
-
-        /// <summary>
         /// An epoch used for reseting event processing.
         /// </summary>
         public string Epoch { get; set; } = string.Empty;
@@ -95,8 +90,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
             string eventHubName,
             string eventHubConnectionString,
             string consumerGroupName,
-            string epoch,
-            bool ignoreEpoch = false)
+            string epoch)
         {
             Contract.Requires(!string.IsNullOrEmpty(eventHubName));
             Contract.Requires(!string.IsNullOrEmpty(eventHubConnectionString));
@@ -106,7 +100,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
             EventHubConnectionString = eventHubConnectionString;
             ConsumerGroupName = consumerGroupName;
             Epoch = epoch ?? string.Empty;
-            IgnoreEpoch = ignoreEpoch;
         }
 
         /// <summary>
@@ -124,6 +117,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         /// Creates another configuration instance with a given <paramref name="consumerGroupName"/>.
         /// </summary>
         public EventHubContentLocationEventStoreConfiguration WithConsumerGroupName(string consumerGroupName)
-            => new EventHubContentLocationEventStoreConfiguration(EventHubName, EventHubConnectionString, consumerGroupName, Epoch, IgnoreEpoch);
+            => new EventHubContentLocationEventStoreConfiguration(EventHubName, EventHubConnectionString, consumerGroupName, Epoch);
     }
 }

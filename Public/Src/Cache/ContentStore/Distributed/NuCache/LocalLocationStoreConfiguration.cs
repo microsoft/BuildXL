@@ -393,17 +393,6 @@ namespace BuildXL.Cache.ContentStore.Distributed
         public bool TouchContentHashLists { get; set; }
 
         /// <summary>
-        /// If this unsafe option is true, then the system works in a special benchmark-like mode:
-        /// i.e. the instance will process the events but it want create the checkpoints.
-        /// </summary>
-        public bool MasterThroughputCheckMode { get; set; } = false;
-
-        /// <summary>
-        /// The start cursor position in Event Hub stream.
-        /// </summary>
-        public DateTime? EventHubCursorPosition { get; set; }
-
-        /// <summary>
         /// Whether to create a separate Redis connection for blob operations.
         /// </summary>
         public bool UseSeparateConnectionForRedisBlobs { get; set; } = false;

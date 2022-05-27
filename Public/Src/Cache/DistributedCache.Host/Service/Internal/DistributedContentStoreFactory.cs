@@ -35,7 +35,6 @@ using BuildXL.Cache.ContentStore.Distributed.Services;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 using BandwidthConfiguration = BuildXL.Cache.ContentStore.Distributed.BandwidthConfiguration;
 using static BuildXL.Utilities.ConfigurationHelper;
-using BuildXL.Cache.ContentStore.Utils;
 
 namespace BuildXL.Cache.Host.Service.Internal
 {
@@ -255,8 +254,6 @@ namespace BuildXL.Cache.Host.Service.Internal
             ApplyIfNotNull(_distributedSettings.EvictionMinAgeMinutes, v => redisConfig.EvictionMinAge = TimeSpan.FromMinutes(v));
             ApplyIfNotNull(_distributedSettings.RetryWindowSeconds, v => redisConfig.RetryWindow = TimeSpan.FromSeconds(v));
 
-            ApplyIfNotNull(_distributedSettings.Unsafe_MasterThroughputCheckMode, v => redisConfig.MasterThroughputCheckMode = v);
-            ApplyIfNotNull(_distributedSettings.Unsafe_EventHubCursorPosition, v => redisConfig.EventHubCursorPosition = v);
             ApplyIfNotNull(_distributedSettings.RedisGetBlobTimeoutMilliseconds, v => redisConfig.BlobTimeout = TimeSpan.FromMilliseconds(v));
             ApplyIfNotNull(_distributedSettings.RedisGetCheckpointStateTimeoutInSeconds, v => redisConfig.ClusterRedisOperationTimeout = TimeSpan.FromSeconds(v));
 
@@ -703,14 +700,12 @@ namespace BuildXL.Cache.Host.Service.Internal
 
             EventHubContentLocationEventStoreConfiguration eventStoreConfiguration;
             string epoch = _keySpace + _distributedSettings.EventHubEpoch;
-            bool ignoreEpoch = _distributedSettings.Unsafe_IgnoreEpoch ?? false;
 
             eventStoreConfiguration = new EventHubContentLocationEventStoreConfiguration(
                 eventHubName: _distributedSettings.EventHubName,
                 eventHubConnectionString: _distributedSettings.EventHubConnectionString ?? ((PlainTextSecret)GetRequiredSecret(_distributedSettings.EventHubSecretName)).Secret,
                 consumerGroupName: _distributedSettings.EventHubConsumerGroupName,
-                epoch: epoch,
-                ignoreEpoch: ignoreEpoch);
+                epoch: epoch);
 
             dbConfig.Epoch = eventStoreConfiguration.Epoch;
 

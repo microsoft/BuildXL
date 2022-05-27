@@ -1009,15 +1009,6 @@ namespace BuildXL.Cache.Host.Configuration
         public TimeSpan? LogMachineStatsInterval { get; set; }
 
         [DataMember]
-        public bool? Unsafe_MasterThroughputCheckMode { get; set; }
-
-        [DataMember]
-        public DateTime? Unsafe_EventHubCursorPosition { get; set; }
-
-        [DataMember]
-        public bool? Unsafe_IgnoreEpoch { get; set; }
-
-        [DataMember]
         public bool? TraceServiceGrpcOperations { get; set; }
 
         #endregion

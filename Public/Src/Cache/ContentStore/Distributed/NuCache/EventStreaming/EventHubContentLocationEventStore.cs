@@ -352,8 +352,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                             counters[ReceivedEventBatchCount].Increment();
                             CacheActivityTracker.AddValue(CaSaaSActivityTrackingCounters.ProcessedEventHubMessages, value: 1);
 
-                            if (!_configuration.IgnoreEpoch &&
-                                (!foundEpochFilter || !string.Equals(eventFilter as string, _configuration.Epoch)))
+                            if (!foundEpochFilter || !string.Equals(eventFilter as string, _configuration.Epoch))
                             {
                                 counters[FilteredEvents].Increment();
                                 continue;

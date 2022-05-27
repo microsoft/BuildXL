@@ -391,11 +391,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             Database.DatabaseInvalidated = OnContentLocationDatabaseInvalidation;
 
-            if (Configuration.MasterThroughputCheckMode)
-            {
-                Tracer.Warning(context, $"Running the system in master throughput check mode! EventHubCursorPosition={Configuration.EventHubCursorPosition}");
-            }
-
             return BoolResult.Success;
         }
 
@@ -488,17 +483,19 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         // Saving a global information about the new role of a current service.
                         LoggerExtensions.ChangeRole(newRole.ToString());
 
-                        // Local database should be immutable on workers and only master is responsible for collecting stale records
-                        await Database.SetDatabaseModeAsync(isDatabaseWriteable: newRole == Role.Master || Configuration.MasterThroughputCheckMode);
-
-                        ClusterState.EnableBinManagerUpdates = newRole == Role.Master;
-                        if (newRole == Role.Master && Configuration.UseBinManager)
+                        if (newRole == Role.Master)
                         {
-                            Tracer.Info(context, $"Initializing bin manager");
-                            ClusterState.InitializeBinManagerIfNeeded(
-                                locationsPerBin: Configuration.ProactiveCopyLocationsThreshold,
-                                _clock,
-                                expiryTime: Configuration.PreferredLocationsExpiryTime);
+                            // Local database should be immutable on workers and only master is responsible for collecting stale records
+                            await Database.SetDatabaseModeAsync(isDatabaseWriteable: true);
+                            ClusterState.EnableBinManagerUpdates = true;
+                            if (Configuration.UseBinManager)
+                            {
+                                Tracer.Info(context, $"Initializing bin manager");
+                                ClusterState.InitializeBinManagerIfNeeded(
+                                    locationsPerBin: Configuration.ProactiveCopyLocationsThreshold,
+                                    _clock,
+                                    expiryTime: Configuration.PreferredLocationsExpiryTime);
+                            }
                         }
                     }
 
@@ -510,12 +507,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                     // Restore if this is a worker and we should restore
                     shouldRestore |= newRole == Role.Worker && ShouldRestoreCheckpoint(context, checkpointState.CheckpointTime).ThrowIfFailure();
-
-                    if (Configuration.MasterThroughputCheckMode)
-                    {
-                        // Don't restore the checkpoint in the throughput check mode.
-                        shouldRestore = false;
-                    }
 
                     BoolResult result;
 
@@ -550,11 +541,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         // Start receiving events from the given checkpoint
                         result = EventStore.StartProcessing(context, checkpointState.StartSequencePoint);
                     }
-                    else if (Configuration.MasterThroughputCheckMode)
-                    {
-                        var cursor = Configuration.EventHubCursorPosition ?? _clock.UtcNow;
-                        result = EventStore.StartProcessing(context, new EventSequencePoint(cursor));
-                    }
                     else
                     {
                         // Stop receiving events.
@@ -566,7 +552,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         return result;
                     }
 
-                    if (newRole == Role.Master && !Configuration.MasterThroughputCheckMode)
+                    if (newRole == Role.Master)
                     {
                         // Only create a checkpoint if the machine is currently a master machine and was a master machine
                         if (ShouldSchedule(Configuration.Checkpoint.CreateCheckpointInterval, _lastCheckpointTime))

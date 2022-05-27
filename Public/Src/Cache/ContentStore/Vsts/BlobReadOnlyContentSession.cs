@@ -314,12 +314,19 @@ namespace BuildXL.Cache.ContentStore.Vsts
         private async Task<IEnumerable<Task<Indexed<PinResult>>>> UpdateBlobStoreAsync(OperationContext context, IReadOnlyList<ContentHash> contentHashes, DateTime endDateTime)
         {
             // Convert missing content hashes to blob Ids
-            var blobIds = contentHashes.Select(contentHash => contentHash.ToBlobIdentifier()).ToList();
+            var blobIds = new BlobIdentifier[contentHashes.Count];
+            for (int i = 0; i < contentHashes.Count; i++)
+            {
+                blobIds[i] = contentHashes[i].ToBlobIdentifier();
+            }
 
             // Call TryReference on the blob ids
-            var references = blobIds.Distinct().ToDictionary(
-                blobIdentifier => blobIdentifier,
-                _ => (IEnumerable<BlobReference>)new[] { new BlobReference(endDateTime) });
+            Dictionary<BlobIdentifier, IEnumerable<BlobReference>> references = new(blobIds.Length);
+            var blobReferences = new[] { new BlobReference(endDateTime) };
+            foreach (var blobId in blobIds)
+            {
+                references[blobId] = blobReferences;
+            }
 
             // TODO: In groups of 1000 (bug 1365340)
             var referenceResults = await ArtifactHttpClientErrorDetectionStrategy.ExecuteWithTimeoutAsync(

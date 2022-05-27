@@ -332,8 +332,7 @@ ssize_t BxlObserver::read_path_for_fd(int fd, char *buf, size_t bufsiz)
 {
     char procPath[100] = {0};
     sprintf(procPath, "/proc/self/fd/%d", fd);
-    ssize_t result = real_readlink(procPath, buf, bufsiz);
-    return result;
+    return real_readlink(procPath, buf, bufsiz);
 }
 
 void BxlObserver::reset_fd_table_entry(int fd)
@@ -379,7 +378,7 @@ std::string BxlObserver::normalize_path_at(int dirfd, const char *pathname, int 
     size_t len = 0;
 
     // if relative path --> resolve it against dirfd
-    if (*pathname != '/' && *pathname != '~')
+    if (*pathname != '/')
     {
         if (dirfd == AT_FDCWD)
         {
@@ -432,7 +431,11 @@ static char* find_prev_slash(char *pStr)
 // resolve any intermediate directory symlinks
 void BxlObserver::resolve_path(char *fullpath, bool followFinalSymlink)
 {
-    assert(fullpath[0] == '/');
+    if (fullpath == NULL || fullpath[0] != '/')
+    {
+        LOG_DEBUG("Not an absolute path: %s", fullpath);
+        return;
+    }
 
     unordered_set<string> visited;
 

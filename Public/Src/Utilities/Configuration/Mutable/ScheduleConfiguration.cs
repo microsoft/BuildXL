@@ -33,17 +33,18 @@ namespace BuildXL.Utilities.Configuration.Mutable
             // In the past, we decided to use 1.25 * logicalCores to determine the concurrency for the process pips. 
             // However, at that time, cachelookup, materialization, and other non-execute steps were all taking a slot from that. 
             // As each major step runs in its own queue with a separate concurrency limit, we decided to revise using 1.25 multiplier.
-            // After doing A/B testing on thousands of builds, using 1 instead of 1.25 multiplier decreases the load on the machine and improves the perf.
-            MaxProcesses = Environment.ProcessorCount;
+            // After doing A/B testing on thousands of builds, using 0.9 instead of 1.25 multiplier decreases the load on the machine and improves the perf:
+            // https://github.com/microsoft/BuildXL/blob/master/Documentation/Specs/SchedulerPerfExperiments.md
+            MaxProcesses = (int)Math.Ceiling(0.9 * Environment.ProcessorCount);
 
             // Based on the A/B testing results, the concurrency limit for IO dispatcher did not help after 10. 
-            // https://microsoft.sharepoint.com/teams/toolsforeng/_layouts/15/Doc.aspx?sourcedoc={4e5aff6a-31c7-4054-a746-e590b865c585}&action=edit&wd=target%28Build%20Tools%2FBuildXL%2FBuildXL.one%7C10facd4f-4e15-4fe3-96ba-446f3fe6454e%2FA%5C%2FB%20testing%20for%20performance%7C6d58dc8f-df8f-49a5-9e70-07dcca89756b%2F%29&wdorigin=703
+            // https://github.com/microsoft/BuildXL/blob/master/Documentation/Specs/SchedulerPerfExperiments.md
             MaxIO = Math.Min(10, Math.Max(1, Environment.ProcessorCount / 4));
 
             MaxLightProcesses = 1000;
 
             // We decide the concurrency levels based on A/B testing results.
-            // https://microsoft.sharepoint.com/teams/toolsforeng/_layouts/15/Doc.aspx?sourcedoc={4e5aff6a-31c7-4054-a746-e590b865c585}&action=edit&wd=target%28Build%20Tools%2FBuildXL%2FBuildXL.one%7C10facd4f-4e15-4fe3-96ba-446f3fe6454e%2FA%5C%2FB%20testing%20for%20performance%7C6d58dc8f-df8f-49a5-9e70-07dcca89756b%2F%29&wdorigin=703
+            // https://github.com/microsoft/BuildXL/blob/master/Documentation/Specs/SchedulerPerfExperiments.md
             MaxCacheLookup = Environment.ProcessorCount; 
             MaxMaterialize = Environment.ProcessorCount;
             MaxSealDirs = Environment.ProcessorCount;

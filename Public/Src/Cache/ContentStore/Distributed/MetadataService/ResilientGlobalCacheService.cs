@@ -213,6 +213,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             LinkLifetime(_checkpointManager);
 
             RunInBackground(nameof(CreateCheckpointLoopAsync), CreateCheckpointLoopAsync, fireAndForget: true);
+
+            store.Database.DatabaseInvalidated = OnDatabaseInvalidated;
+        }
+
+        private void OnDatabaseInvalidated(OperationContext context, Failure<Exception> exception)
+        {
+            // In the GCS case, we don't want to release the role when we encounter corruption. The reason for that is
+            // that, as master, we may have acknowledged a number of requests and written them down to the log. In that
+            // case, it is best for us to shutdown gracefully so those requests get properly persisted.
+            LifetimeManager.RequestTeardown(context, "GCS database has been invalidated");
         }
 
         protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
@@ -254,6 +264,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             {
                 return;
             }
+
+            // This function gets called by the role observer, so we can potentially hang master election operations if we don't yield and wind up waiting
+            await Task.Yield();
 
             _lastSuccessfulHeartbeat = _clock.UtcNow;
             if (_role != role)

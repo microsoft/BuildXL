@@ -150,51 +150,6 @@ namespace ContentStoreTest.Distributed.Sessions
             Output.WriteLine($"Reconcile by {sw.ElapsedMilliseconds}ms. Added: {reconcile.addedContent.Count}, removed: {reconcile.removedContent.Count}");
         }
 
-        [Fact(Skip = "For manual testing only")]
-        public Task ReconciliationOverRealStorage()
-        {
-            var checkpointsKey = Guid.NewGuid().ToString();
-            // Copy and paste a real connection string here.
-            var storageConnectionString = string.Empty;
-            // Consider updating this directory if you want to keep data between invocations.
-            var workingDirectory = TestRootDirectoryPath;
-            var configuration = new LocalDiskCentralStoreConfiguration(
-                workingDirectory,
-                checkpointsKey);
-            var blobStoreConfiguration = new BlobCentralStoreConfiguration(
-                credentials: new AzureBlobStorageCredentials(storageConnectionString),
-                containerName: "checkpoints",
-                checkpointsKey: checkpointsKey);
-            var producerMachineLocation = new MachineLocation();
-
-            ConfigureWithOneMaster(s =>
-            {
-                s.ReconcileMode = ReconciliationMode.Once.ToString();
-                s.AzureStorageSecretName = Host.StoreSecret("StorageName", storageConnectionString);
-            });
-
-            return RunTestAsync(
-                2,
-                async context =>
-                {
-                    var master = context.GetMaster();
-                    var worker = context.GetFirstWorker();
-                    var workerId = worker.LocalLocationStore.ClusterState.PrimaryMachineId;
-
-                    var workerSession = context.Sessions[context.GetFirstWorkerIndex()];
-
-                    var checkpointState = new CheckpointState(
-                        EventSequencePoint.Parse("24382354"),
-                        "MD5:8C4856EA13F6AD59B65D8F6781D2A2F9||DCS||incrementalCheckpoints/24382354.10a0ca0f-d63f-4992-a088-f67bd00abd8a.checkpointInfo.txt|Incremental",
-                        DateTime.Now,
-                        producerMachineLocation);
-                    // Next heartbeat workers to restore checkpoint
-                    await worker.LocalLocationStore.ProcessStateAsync(new OperationContext(context), checkpointState, new MasterElectionState(producerMachineLocation, Role.Worker), inline: true, forceRestore: true).ShouldBeSuccess();
-                    var reconcileResult = await worker.ReconcileAsync(context).ShouldBeSuccess();
-                    Output.WriteLine($"Reconcile result: {reconcileResult}");
-                });
-        }
-
         private static IEnumerable<(ShortHash hash, long size)> GetSortedDatabaseEntriesWithLocalLocationOld(OperationContext context, RocksDbContentLocationDatabase db, int index)
         {
             // Originally, this was db.EnumerateSortedKeys(context), but that method is since private. This is left

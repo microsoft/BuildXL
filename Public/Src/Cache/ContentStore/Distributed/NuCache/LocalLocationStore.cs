@@ -458,7 +458,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Restore checkpoint.
         /// </summary>
-        internal async Task<BoolResult> ProcessStateAsync(OperationContext context, CheckpointState checkpointState, MasterElectionState masterElectionState, bool inline, bool forceRestore = false)
+        internal async Task<BoolResult> ProcessStateAsync(OperationContext context, bool inline, bool forceRestore = false)
         {
             var operationResult = await RunOutOfBandAsync(
                 Configuration.InlinePostInitialization || inline,
@@ -470,6 +470,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     {
                         forceRestore = true;
                         _forceRestoreOnNextProcessState = false;
+                    }
+
+                    var checkpointState = await _checkpointRegistry.GetCheckpointStateAsync(context).ThrowIfFailureAsync();
+
+                    var masterElectionState = await MasterElectionMechanism.GetRoleAsync(context).ThrowIfFailureAsync();
+
+                    if (_coldStorage != null)
+                    {
+                        // We update the ColdStorage consistent-hashing ring on every heartbeat in case the cluster state has changed 
+                        _coldStorage.UpdateRingAsync(context, ClusterState).FireAndForget(context);
                     }
 
                     var oldRole = CurrentRole;
@@ -676,17 +686,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                             return true;
                         }
 
-                        var checkpointState = await _checkpointRegistry.GetCheckpointStateAsync(context).ThrowIfFailureAsync();
-
-                        var leadershipState = await MasterElectionMechanism.GetRoleAsync(context).ThrowIfFailureAsync();
-
-                        if (_coldStorage != null)
-                        {
-                            // We update the ColdStorage consistent-hashing ring on every heartbeat in case the cluster state has changed 
-                            _coldStorage.UpdateRingAsync(context, ClusterState).FireAndForget(context);
-                        }
-
-                        await ProcessStateAsync(context, checkpointState, leadershipState, inline, forceRestore).ThrowIfFailureAsync();
+                        await ProcessStateAsync(context, inline, forceRestore).ThrowIfFailureAsync();
 
                         return false;
                     }
@@ -2318,14 +2318,25 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     return;
                 }
 
-                Tracer.Error(context, $"Content location database has been invalidated. Forcing a restore from the last checkpoint. Error: {failure.DescribeIncludingInnerFailures()}");
+                if (CurrentRole == Role.Master)
+                {
+                    // All of these log, and we really want to make sure we don't fail
+                    await SetMachineStateAsync(context, MachineState.DeadUnavailable).IgnoreFailure();
+                    await MasterElectionMechanism.ReleaseRoleIfNecessaryAsync(context).IgnoreFailure();
+                    LifetimeManager.RequestTeardown(context, "Content location database has been invalidated");
+                }
+                else
+                {
+                    Tracer.Error(context, $"Content location database has been invalidated. Forcing a restore from the last checkpoint. Error: {failure.DescribeIncludingInnerFailures()}");
 
-                // Ensure restore is forced even if there is an outstanding heartbeat ongoing and the requested heartbeat on the next
-                // line is skipped
-                _forceRestoreOnNextProcessState = true;
+                    // Ensure restore is forced even if there is an outstanding heartbeat ongoing and the requested heartbeat on the next
+                    // line is skipped
+                    _forceRestoreOnNextProcessState = true;
 
-                // We can safely ignore errors, because there is nothing more we can do here.
-                await HeartbeatAsync(context, forceRestore: true).IgnoreFailure();
+                    // We can safely ignore errors, because there is nothing more we can do here. Any requests that are
+                    // coming in are likely to be failing
+                    await HeartbeatAsync(context, forceRestore: true).IgnoreFailure();
+                }
             }
         }
 

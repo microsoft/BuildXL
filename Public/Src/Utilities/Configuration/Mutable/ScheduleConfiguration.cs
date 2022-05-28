@@ -98,8 +98,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
             ProcessMustRunLocalTags = new List<string>();
             RemotingThresholdMultiplier = 1.5;
 
-            // Based on telemetry P85 of waiting time is 2s.
-            RemoteAgentWaitTimeSec = 2.0;
+            // Based on telemetry P90 of waiting time is 3s.
+            RemoteAgentWaitTimeSec = 3.0;
         }
 
         /// <nodoc />

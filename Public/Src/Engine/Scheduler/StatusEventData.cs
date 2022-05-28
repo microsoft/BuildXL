@@ -129,6 +129,26 @@ namespace BuildXL.Scheduler
         public int RunningPipExecutorProcesses;
 
         /// <summary>
+        /// Number of processes that are currently running in remote agents.
+        /// </summary>
+        public int RunningRemotelyPipExecutorProcesses;
+
+        /// <summary>
+        /// Number of processes that are currently running in locally in the presence of remoting capability.
+        /// </summary>
+        public int RunningLocallyPipExecutorProcesses;
+
+        /// <summary>
+        /// Number of processes that have run in remote agents.
+        /// </summary>
+        public int TotalRunRemotelyProcesses;
+
+        /// <summary>
+        /// Number of processes that have run locally in the presence of remoting capability.
+        /// </summary>
+        public int TotalRunLocallyProcesses;
+
+        /// <summary>
         /// Number of OS processes physically running (doesn't include children processes, just the main pip process).
         /// </summary>
         public int RunningProcesses;

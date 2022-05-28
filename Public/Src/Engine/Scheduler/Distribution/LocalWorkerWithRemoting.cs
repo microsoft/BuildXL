@@ -1,6 +1,8 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -21,6 +23,7 @@ namespace BuildXL.Scheduler.Distribution
         private readonly int m_remotingThreshold;
         private readonly HashSet<StringId> m_processCanRunRemoteTags;
         private readonly HashSet<StringId> m_processMustRunLocalTags;
+        private int m_currentToRunLocalCount = 0;
         private int m_currentRunLocalCount = 0;
         private int m_currentRunRemoteCount = 0;
         private int m_totalRunRemote = 0;
@@ -31,6 +34,11 @@ namespace BuildXL.Scheduler.Distribution
         /// The number of processes currently being executed remotely.
         /// </summary>
         public int CurrentRunRemoteCount => Volatile.Read(ref m_currentRunRemoteCount);
+
+        /// <summary>
+        /// The number of processes currently being executed locally.
+        /// </summary>
+        public int CurrentRunLocalCount => Volatile.Read(ref m_currentRunLocalCount);
 
         /// <summary>
         /// Total number of processes that have been executed remotely.
@@ -56,6 +64,9 @@ namespace BuildXL.Scheduler.Distribution
 
         private readonly ISandboxConfiguration m_sandboxConfig;
 
+        private readonly ConcurrentStack<int> m_localThreads = new ();
+        private readonly ConcurrentStack<int> m_remoteThreads = new ();
+
         /// <summary>
         /// Constructor.
         /// </summary>
@@ -67,11 +78,22 @@ namespace BuildXL.Scheduler.Distribution
             PipExecutionContext pipExecutionContext)
             : base(scheduleConfig, pipQueue, detoursListener, pipExecutionContext)
         {
-            m_localExecutionSemaphore = new SemaphoreSlim(scheduleConfig.MaxProcesses, scheduleConfig.MaxProcesses);
-            m_remotingThreshold = (int)(scheduleConfig.MaxProcesses * scheduleConfig.RemotingThresholdMultiplier);
-            m_processCanRunRemoteTags = scheduleConfig.ProcessCanRunRemoteTags.Select(t => StringTable.AddString(t)).ToHashSet();
-            m_processMustRunLocalTags = scheduleConfig.ProcessMustRunLocalTags.Select(t => StringTable.AddString(t)).ToHashSet();
+            int localMaxProcess = scheduleConfig.MaxProcesses;
+            m_localExecutionSemaphore = new SemaphoreSlim(localMaxProcess, localMaxProcess);
+            m_remotingThreshold = (int)(localMaxProcess * scheduleConfig.RemotingThresholdMultiplier);
+            m_processCanRunRemoteTags = scheduleConfig.ProcessCanRunRemoteTags.Select(StringTable.AddString).ToHashSet();
+            m_processMustRunLocalTags = scheduleConfig.ProcessMustRunLocalTags.Select(StringTable.AddString).ToHashSet();
             m_sandboxConfig = sandboxConfig;
+
+            for (int tid = localMaxProcess - 1; tid >= 0; --tid)
+            {
+                m_localThreads.Push(tid);
+            }
+
+            for (int tid = scheduleConfig.EffectiveMaxProcesses - 1; tid >= 0; --tid)
+            {
+                m_remoteThreads.Push(tid);
+            }
         }
 
         /// <inheritdoc />
@@ -84,7 +106,7 @@ namespace BuildXL.Scheduler.Distribution
             }
 
             // Assume that the process is going to run locally (prefer local).
-            int runLocalCount = Interlocked.Increment(ref m_currentRunLocalCount);
+            int runLocalCount = Interlocked.Increment(ref m_currentToRunLocalCount);
 
             // Run local criteria:
             // - the process is forced to run locally, i.e., run location == ProcessRunLocation.Local, or
@@ -107,11 +129,18 @@ namespace BuildXL.Scheduler.Distribution
                 
                 await m_localExecutionSemaphore.WaitAsync();
 
-                Interlocked.Increment(ref m_totalRunLocally);
-
+                Interlocked.Increment(ref m_currentRunLocalCount);
+                
                 if (processRunnable.ExecutionResult?.RetryInfo?.RetryReason == RetryReason.RemoteFallback)
                 {
                     Interlocked.Increment(ref m_totalRemoteFallbackRetryLocally);
+                }
+
+                int tid = -1;
+                if (processRunnable.IncludeInTracer)
+                {
+                    m_localThreads.TryPop(out tid);
+                    processRunnable.ThreadId = tid;
                 }
 
                 try
@@ -122,15 +151,29 @@ namespace BuildXL.Scheduler.Distribution
                 {
                     m_localExecutionSemaphore.Release();
                     Interlocked.Decrement(ref m_currentRunLocalCount);
+                    Interlocked.Decrement(ref m_currentToRunLocalCount);
+                    Interlocked.Increment(ref m_totalRunLocally);
+
+                    if (tid != -1)
+                    {
+                        m_localThreads.Push(tid);
+                    }
                 }
             }
             else
             {
                 // Retract the assumption that the process is going to run locally.
-                Interlocked.Decrement(ref m_currentRunLocalCount);
+                Interlocked.Decrement(ref m_currentToRunLocalCount);
+
                 processRunnable.RunLocation = ProcessRunLocation.Remote;
                 Interlocked.Increment(ref m_currentRunRemoteCount);
-                Interlocked.Increment(ref m_totalRunRemote);
+
+                int tid = -1;
+                if (processRunnable.IncludeInTracer)
+                {
+                    m_remoteThreads.TryPop(out tid);
+                    processRunnable.ThreadId = tid;
+                }
 
                 try
                 {
@@ -139,6 +182,12 @@ namespace BuildXL.Scheduler.Distribution
                 finally
                 {
                     Interlocked.Decrement(ref m_currentRunRemoteCount);
+                    Interlocked.Increment(ref m_totalRunRemote);
+
+                    if (tid != -1)
+                    {
+                        m_remoteThreads.Push(tid);
+                    }
                 }
             }
         }

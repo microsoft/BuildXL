@@ -2301,6 +2301,10 @@ namespace BuildXL.Scheduler
                 },
                 { "Running PipExecutor Processes", data => data.RunningPipExecutorProcesses },
                 { "Running Processes", data => data.RunningProcesses },
+                { "Running Process Remotely", data => data.RunningRemotelyPipExecutorProcesses },
+                { "Running Process Locally", data => data.RunningLocallyPipExecutorProcesses },
+                { "Total Run Process Remotely", data => data.TotalRunRemotelyProcesses },
+                { "Total Run Process Locally", data => data.TotalRunLocallyProcesses },
                 { "PipTable.ReadCount", data => m_pipTable.Reads },
                 { "PipTable.ReadDurationMs", data => m_pipTable.ReadsMilliseconds },
                 { "PipTable.WriteCount", data => m_pipTable.Writes },
@@ -2559,13 +2563,15 @@ namespace BuildXL.Scheduler
                     }
                 }
 
+                LocalWorkerWithRemoting workerWithRemoting = LocalWorker as LocalWorkerWithRemoting;
+
                 var data = new StatusEventData
                 {
                     Time = DateTime.UtcNow,
                     CpuPercent = m_perfInfo.CpuUsagePercentage,
-                    DiskPercents = m_perfInfo.DiskUsagePercentages ?? new int[0],
-                    DiskQueueDepths = m_perfInfo.DiskQueueDepths ?? new int[0],
-                    DiskAvailableSpaceGb = m_perfInfo.DiskAvailableSpaceGb ?? new int[0],
+                    DiskPercents = m_perfInfo.DiskUsagePercentages ?? Array.Empty<int>(),
+                    DiskQueueDepths = m_perfInfo.DiskQueueDepths ?? Array.Empty<int>(),
+                    DiskAvailableSpaceGb = m_perfInfo.DiskAvailableSpaceGb ?? Array.Empty<int>(),
                     ProcessCpuPercent = m_perfInfo.ProcessCpuPercentage,
                     ProcessWorkingSetMB = m_perfInfo.ProcessWorkingSetMB,
                     RamPercent = m_perfInfo.RamUsagePercentage ?? 0,
@@ -2584,6 +2590,10 @@ namespace BuildXL.Scheduler
                     LookupRunning = PipQueue.GetNumAcquiredSlotsByKind(DispatcherKind.CacheLookup),
                     LimitingResource = limitingResource,
                     RunningPipExecutorProcesses = LocalWorker.RunningPipExecutorProcesses.Count,
+                    RunningRemotelyPipExecutorProcesses = workerWithRemoting?.CurrentRunRemoteCount ?? 0,
+                    RunningLocallyPipExecutorProcesses = workerWithRemoting?.CurrentRunLocalCount ?? 0,
+                    TotalRunRemotelyProcesses = workerWithRemoting?.TotalRunRemote ?? 0,
+                    TotalRunLocallyProcesses = workerWithRemoting?.TotalRunLocally ?? 0,
                     RunningProcesses = LocalWorker.RunningProcesses,
                     PipsSucceededAllTypes = m_pipStateCountersSnapshots.SelectArray(a => a.DoneCount),
                     UnresponsivenessFactor = m_unresponsivenessFactor,
@@ -3962,10 +3972,11 @@ namespace BuildXL.Scheduler
                 if (runnablePip.IncludeInTracer && (long)runnablePip.StepDuration.TotalSeconds > EngineEnvironmentSettings.MinStepDurationSecForTracer)
                 {
                     var durationMs = (long)runnablePip.StepDuration.TotalMilliseconds;
+                    string workerName = runnablePip.Worker.Name + (runnablePip is ProcessRunnablePip proc && proc.RunLocation == ProcessRunLocation.Remote ? "(Remote)" : string.Empty);
                     BuildXL.Tracing.Logger.Log.TracerCompletedEvent(runnablePip.OperationContext,
                         runnablePip.FormattedSemiStableHash,
                         runnablePip.Step.ToString(),
-                        runnablePip.Worker.Name + " - " + DecideDispatcherKind(runnablePip),
+                        workerName + " - " + DecideDispatcherKind(runnablePip),
                         runnablePip.ThreadId,
                         runnablePip.StepStartTime.Ticks,
                         durationMs,

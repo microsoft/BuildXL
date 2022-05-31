@@ -36,6 +36,12 @@ namespace BuildXL.Utilities.VstsAuthentication
         // Microsoft authority
         private const string Authority = $"https://login.windows.net/microsoft.com";
 
+        // On non-Windows OS-es the nuget credential provider may not be executed concurrently (otherwise the following exception happens: 
+        // System.PlatformNotSupportedException: Wait operations on multiple wait handles including a named synchronization primitive are not supported on this platform.")
+        private static readonly SemaphoreSlim g_authProviderSemaphore = OperatingSystemHelper.IsWindowsOS
+            ? null
+            : new SemaphoreSlim(1);
+
         /// <summary>
         /// Creates a collection of <see cref="SourceRepository"/> given a collection of URIs
         /// </summary>
@@ -249,66 +255,79 @@ namespace BuildXL.Utilities.VstsAuthentication
         {
             var failureCommon = $"Unable to authenticate using a credential provider for '{uri}':";
 
-            using (var process = Process.Start(processInfo))
+            // on Linux/Mac only one call to the credential provider may happen at a time
+            if (g_authProviderSemaphore != null)
             {
-                if (process == null)
-                {
-                    // The process was not started
-                    return new AuthenticationFailure($"{failureCommon} Could not start credential provider process '{credentialProviderPath}'.");
-                }
+                await g_authProviderSemaphore.WaitAsync();
+            }
 
-                try
+            try
+            {
+                using (var process = Process.Start(processInfo))
                 {
-#pragma warning disable AsyncFixer02 // WaitForExitAsync should be used instead
-                    if (!process.WaitForExit(60 * 1000))
+                    if (process == null)
                     {
-                        Kill(process);
-                        return new AuthenticationFailure($"{failureCommon} Credential provider execution '{credentialProviderPath}' failed due to timeout. The credential provider call didn't finish within 60 seconds.");
+                        // The process was not started
+                        return new AuthenticationFailure($"{failureCommon} Could not start credential provider process '{credentialProviderPath}'.");
                     }
 
-                    // Give time for the Async event handlers to finish by calling WaitForExit again.
-                    // if the first one succeeded
-                    // Note: Read remarks from https://msdn.microsoft.com/en-us/library/ty0d8k56(v=vs.110).aspx
-                    // for reason.
-                    process.WaitForExit();
-#pragma warning restore AsyncFixer02
-                }
-                catch (Exception e) when (e is SystemException || e is Win32Exception)
-                {
-                    return new AuthenticationFailure($"{failureCommon} Credential provider execution '{credentialProviderPath}' failed. Error: {e.Message}");
-                }
-
-                // Check whether the authorization succeeded
-                if (process.ExitCode == 0)
-                {
                     try
                     {
-                        // The response should be a well-formed JSON with a 'password' entry representing the PAT
-                        var response = (JObject)await JToken.ReadFromAsync(new JsonTextReader(process.StandardOutput), cancellationToken);
-                        var pat = response.GetValue("Password");
-
-                        if (pat == null)
+    #pragma warning disable AsyncFixer02 // WaitForExitAsync should be used instead
+                        if (!process.WaitForExit(60 * 1000))
                         {
-                            return new AuthenticationFailure($"{failureCommon} Could not find a 'password' entry in the JSON response of '{credentialProviderPath}'.");
+                            Kill(process);
+                            return new AuthenticationFailure($"{failureCommon} Credential provider execution '{credentialProviderPath}' failed due to timeout. The credential provider call didn't finish within 60 seconds.");
                         }
 
-                        // We got a PAT back. Create an authentication header with a base64 encoding of the retrieved PAT
-                        return (response.GetValue("Username")?.ToString(), pat.ToString());
-
+                        // Give time for the Async event handlers to finish by calling WaitForExit again.
+                        // if the first one succeeded
+                        // Note: Read remarks from https://msdn.microsoft.com/en-us/library/ty0d8k56(v=vs.110).aspx
+                        // for reason.
+                        process.WaitForExit();
+    #pragma warning restore AsyncFixer02
                     }
-                    catch (JsonReaderException)
+                    catch (Exception e) when (e is SystemException || e is Win32Exception)
                     {
-                        // The JSON is malformed. If we were already forcing JSON, then that's an error. Otherwise, we try again but now forcing JSON
-                        if (jsonWasForced)
-                        {
-                            return new AuthenticationFailure($"{failureCommon} The credential provider '{credentialProviderPath}' response is not a well-formed JSON.");
-                        }
-
-                        return await TryGetAuthenticationCredentialsAsync(uri, credentialProviderPath, cancellationToken, isRetry, forceJson: true);
+                        return new AuthenticationFailure($"{failureCommon} Credential provider execution '{credentialProviderPath}' failed. Error: {e.Message}");
                     }
-                }
 
-                return new AuthenticationFailure($"{failureCommon} The credential provider '{credentialProviderPath}' returned a non-succesful exit code: {process.ExitCode}. Details: {await process.StandardError.ReadToEndAsync()}");
+                    // Check whether the authorization succeeded
+                    if (process.ExitCode == 0)
+                    {
+                        try
+                        {
+                            // The response should be a well-formed JSON with a 'password' entry representing the PAT
+                            var response = (JObject)await JToken.ReadFromAsync(new JsonTextReader(process.StandardOutput), cancellationToken);
+                            var pat = response.GetValue("Password");
+
+                            if (pat == null)
+                            {
+                                return new AuthenticationFailure($"{failureCommon} Could not find a 'password' entry in the JSON response of '{credentialProviderPath}'.");
+                            }
+
+                            // We got a PAT back. Create an authentication header with a base64 encoding of the retrieved PAT
+                            return (response.GetValue("Username")?.ToString(), pat.ToString());
+
+                        }
+                        catch (JsonReaderException)
+                        {
+                            // The JSON is malformed. If we were already forcing JSON, then that's an error. Otherwise, we try again but now forcing JSON
+                            if (jsonWasForced)
+                            {
+                                return new AuthenticationFailure($"{failureCommon} The credential provider '{credentialProviderPath}' response is not a well-formed JSON.");
+                            }
+
+                            return await TryGetAuthenticationCredentialsAsync(uri, credentialProviderPath, cancellationToken, isRetry, forceJson: true);
+                        }
+                    }
+
+                    return new AuthenticationFailure($"{failureCommon} The credential provider '{credentialProviderPath}' returned a non-succesful exit code: {process.ExitCode}. Details: {await process.StandardError.ReadToEndAsync()}");
+                }
+            }
+            finally
+            {
+                g_authProviderSemaphore?.Release();
             }
         }
 

@@ -255,6 +255,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
                 {
                     var volatileConfig = configuration.PersistentEventStorage with
                     {
+                        Credentials = DistributedContentSettings.GlobalCacheWriteAheadBlobSecretName != null
+                            ? Arguments.Secrets.GetStorageCredentials(new[] { DistributedContentSettings.GlobalCacheWriteAheadBlobSecretName })[0]
+                            : configuration.PersistentEventStorage.Credentials,
                         ContainerName = "volatileeventstorage"
                     };
 

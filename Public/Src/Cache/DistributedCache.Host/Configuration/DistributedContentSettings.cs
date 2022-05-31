@@ -1165,6 +1165,9 @@ namespace BuildXL.Cache.Host.Configuration
         public string ContentMetadataBlobSecretName { get; set; }
 
         [DataMember]
+        public string GlobalCacheWriteAheadBlobSecretName { get; set; }
+
+        [DataMember]
         public string ContentMetadataBlobCheckpointRegistryContainerName { get; set; } = "contentmetadata";
 
         [DataMember]

@@ -68,6 +68,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                     $"{nameof(_distributedSettings.GlobalRedisSecretName)}: {_distributedSettings.GlobalRedisSecretName}, " +
                     $"{nameof(_distributedSettings.SecondaryGlobalRedisSecretName)}: {_distributedSettings.SecondaryGlobalRedisSecretName}, " +
                     $"{nameof(_distributedSettings.ContentMetadataRedisSecretName)}: {_distributedSettings.ContentMetadataRedisSecretName}, " +
+                    $"{nameof(_distributedSettings.GlobalCacheWriteAheadBlobSecretName)}: {_distributedSettings.GlobalCacheWriteAheadBlobSecretName}, " +
                     $"{nameof(_distributedSettings.ContentMetadataBlobSecretName)}: {_distributedSettings.ContentMetadataBlobSecretName}");
 
                 // Create the credentials requests
@@ -98,6 +99,7 @@ namespace BuildXL.Cache.Host.Service.Internal
 
                 var azureBlobStorageCredentialsKind = _distributedSettings.AzureBlobStorageUseSasTokens ? SecretKind.SasToken : SecretKind.PlainText;
                 addOptionalSecret(_distributedSettings.ContentMetadataBlobSecretName, azureBlobStorageCredentialsKind);
+                addOptionalSecret(_distributedSettings.GlobalCacheWriteAheadBlobSecretName, azureBlobStorageCredentialsKind);
 
                 // Ask the host for credentials
                 var retryPolicy = CreateSecretsRetrievalRetryPolicy(_distributedSettings);

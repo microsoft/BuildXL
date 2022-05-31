@@ -44,6 +44,17 @@ namespace BuildXL.SandboxedProcessExecutor
                 {
                     configuration.RemoteSandboxedProcessDataFile = ParsePathOption(option);
                 }
+                else if (OptionEquals(option, "remoteArgSalt"))
+                {
+                    // Remoting engine can use command-line argument to perform cache operation.
+                    // For example, in AnyBuild although Action cache is most-likely disabled, AnyBuild
+                    // service can use the command-line argument to get cached historic information for VFS pre-rendering.
+                    // To avoid getting a cache hit, without modifying/re-deploying AnyBuild service we can use this option to make
+                    // the command-line argument different.
+
+                    // Simply eat up the string salt.
+                    ParseStringOption(option);
+                }
                 else if (OptionEquals(option, "enableTelemetry"))
                 {
                     configuration.EnableTelemetry = ParseBooleanOption(option);
@@ -79,9 +90,9 @@ namespace BuildXL.SandboxedProcessExecutor
             return true;
         }
 
-        private bool OptionEquals(Option option, string name) => option.Name.Equals(name, StringComparison.OrdinalIgnoreCase);
+        private static bool OptionEquals(Option option, string name) => option.Name.Equals(name, StringComparison.OrdinalIgnoreCase);
 
-        private void WriteHelp()
+        private static void WriteHelp()
         {
             HelpWriter writer = new HelpWriter();
             writer.WriteBanner("Tool for executing and monitoring process in a sandbox");
@@ -89,8 +100,10 @@ namespace BuildXL.SandboxedProcessExecutor
             writer.WriteLine("");
             writer.WriteLine("/sandboxedProcessInfo:<file>             -- Sandboxed process info input file [short: /i]");
             writer.WriteLine("/sandboxedProcessResult:<file>           -- Sandboxed process result output file [short: /r]");
+            writer.WriteLine("/remoteSandboxedProcessData:<file>       -- Sideband data for process remoting");
+            writer.WriteLine("/remoteArgSalt:<string>                  -- Salt to make the command-line argument different");
             writer.WriteLine("/enableTelemetry[+/-]                    -- Enable telemetry [default: false]");
-            writer.WriteLine("/showObservedAccesses[+/-]               -- Show observed file/directory accesses [default: false]");
+            writer.WriteLine("/printObservedAccesses[+/-]              -- Print observed file/directory accesses [default: false]");
             writer.WriteLine("                                            ReportedFileAccesses in file manifest must be set to true");
             writer.WriteLine("/help                                    -- Print help message and exit [short: /?]");
         }

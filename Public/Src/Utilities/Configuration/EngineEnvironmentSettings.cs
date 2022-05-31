@@ -132,6 +132,18 @@ namespace BuildXL.Utilities.Configuration
         public static readonly Setting<bool> AnyBuildSkipClientVersionCheck = CreateSetting("BUILDXL_ANYBUILD_SKIP_VERSION_CHECK", value => value == "1");
 
         /// <summary>
+        /// Salt for process remoting purpose.
+        /// </summary>
+        /// <remarks>
+        /// Remoting engine can use command-line argument to perform caching operation.
+        /// For example, in AnyBuild although Action cache is most-likely disabled, AnyBuild
+        /// service can use the command-line argument to get cached historic information for VFS pre-rendering.
+        /// To avoid getting a cache hit, we can use this setting to add an option to the remoted command that makes the remoted command
+        /// different.
+        /// </remarks>
+        public static readonly Setting<string> ProcessRemotingSalt = CreateSetting("BUILDXL_PROCESS_REMOTING_SALT", value => value);
+
+        /// <summary>
         /// Indicates whether the application should fail fast on null reference exceptions
         /// </summary>
         public static readonly Setting<bool> FailFastOnNullReferenceException = CreateSetting("FailFastOnNullReferenceException", value => value == "1");

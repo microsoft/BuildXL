@@ -1,12 +1,13 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Interop;
-using Google.Protobuf;
+using BuildXL.Utilities.Configuration;
 
 namespace BuildXL.Processes.Remoting
 {
@@ -21,6 +22,7 @@ namespace BuildXL.Processes.Remoting
     public class RemoteSandboxedProcess : ExternalSandboxedProcess
     {
         private const string RemoteSandboxedProcessDataFileName = "RemoteData";
+        private const int Version = 0;
 
         private IRemoteProcessPip m_remoteProcess;
         private readonly RemoteData m_remoteData;
@@ -83,7 +85,11 @@ namespace BuildXL.Processes.Remoting
 
             var remoteProcessInfo = new RemoteProcessInfo(
                 m_tool.ExecutablePath,
-                m_tool.CreateArguments(SandboxedProcessInfoFile, SandboxedProcessResultsFile, remoteSandboxedProcessDataFile: RemoteSandboxedProcessDataFile),
+                m_tool.CreateArguments(
+                    SandboxedProcessInfoFile,
+                    SandboxedProcessResultsFile,
+                    remoteSandboxedProcessDataFile: RemoteSandboxedProcessDataFile,
+                    remoteArgSalt: GetSalt()),
                 SandboxedProcessInfo.WorkingDirectory,
                 SandboxedProcessInfo.EnvironmentVariables.ToDictionary());
 
@@ -154,5 +160,14 @@ namespace BuildXL.Processes.Remoting
                 error: StdErr,
                 hint: hint);
         }
+
+        private static string GetSalt() =>
+            Version.ToString() +
+            (string.IsNullOrEmpty(EngineEnvironmentSettings.ProcessRemotingSalt.Value) 
+                ? string.Empty 
+                : "__" +
+                  (string.Equals(EngineEnvironmentSettings.ProcessRemotingSalt.Value, "*", StringComparison.Ordinal) 
+                    ? Guid.NewGuid().ToString()
+                    : EngineEnvironmentSettings.ProcessRemotingSalt.Value));
     }
 }

@@ -56,7 +56,8 @@ namespace BuildXL.Processes
             string sandboxedProcessInfoInputFile,
             string sandboxedProcessResultOutputFile,
             string sandboxedProcessExecutorTestHookFile = null,
-            string remoteSandboxedProcessDataFile = null)
+            string remoteSandboxedProcessDataFile = null,
+            string remoteArgSalt = null)
         {
             Contract.Requires(!string.IsNullOrWhiteSpace(sandboxedProcessInfoInputFile));
             Contract.Requires(!string.IsNullOrWhiteSpace(sandboxedProcessResultOutputFile));
@@ -70,6 +71,11 @@ namespace BuildXL.Processes
             if (!string.IsNullOrWhiteSpace(remoteSandboxedProcessDataFile))
             {
                 argList.Add($"/remoteSandboxedProcessData:\"{remoteSandboxedProcessDataFile}\"");
+            }
+
+            if (!string.IsNullOrWhiteSpace(remoteArgSalt))
+            {
+                argList.Add($"/remoteArgSalt:\"{remoteArgSalt}\"");
             }
 
             if (!string.IsNullOrWhiteSpace(sandboxedProcessExecutorTestHookFile))

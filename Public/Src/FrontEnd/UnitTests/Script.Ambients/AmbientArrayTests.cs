@@ -10,6 +10,7 @@ using Xunit.Abstractions;
 using static BuildXL.Utilities.FormattableStringEx;
 using static Test.DScript.Ast.Interpretation.ArrayLiteralEqualityComparer;
 using System.Linq;
+using BuildXL.Utilities;
 
 namespace Test.DScript.Ast.Interpretation
 {
@@ -398,8 +399,8 @@ namespace M {{
         }
 
         [Theory]
-        [InlineData("[{}, {a: 1}]", "Expecting type(s) 'number or string'")]
-        [InlineData("[[], {a: 1}]", "Expecting type(s) 'number or string'")]
+        [InlineData("[{}, {a: 1}]", "Expecting type(s) 'number, string, Path, File, Directory or StaticDirectory'")]
+        [InlineData("[[], {a: 1}]", "Expecting type(s) 'number, string, Path, File, Directory or StaticDirectory'")]
         [InlineData("[1, '2']", "Expecting type(s) 'number'", "but got '2' of type 'string'")]
         [InlineData("['1', 2]", "Expecting type(s) 'string'", "but got '2' of type 'number'")]
         public void TestSortFailUnexpectedType(string array, string expectedError1, string expectedError2 = "")
@@ -416,6 +417,19 @@ namespace M {{
             string spec = I($"namespace M {{ export const x = {array}.sort({func}); }}");
             TestResult result = EvaluateSpec(spec, new[] { "M.x" });
             result.ExpectErrorMessageSubstrings(new[] { expectedError });
+        }
+
+        /// <summary>
+        /// No specific dependencies on Windows OSs, it just makes the test easier to write (no specific behavior on non-Windows OSs either)
+        /// </summary>
+        [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [InlineData("[p`C:/a/b`, p`C:/a/a`, p`C:/a/c`]", new[] { "C:/a/a", "C:/a/b", "C:/a/c" })]
+        [InlineData("[p`C:/b`, p`C:/a/a`, p`C:/a/c`]", new[] { "C:/a/a", "C:/a/c", "C:/b"})]
+        [InlineData("[p`C:/mscordaccore.dll`, p`C:/mscordaccore_amd64_amd64_4.700.19.56402.dll`]", new[] { "C:/mscordaccore.dll", "C:/mscordaccore_amd64_amd64_4.700.19.56402.dll" })]
+        public void TestSortPaths(string array, string[] expectedResult)
+        {
+            var expectedPaths = expectedResult.Select(p => AbsolutePath.Create(PathTable, p)).ToArray();
+            TestSort(array, expectedPaths.Cast<object>().ToArray());
         }
 
         private void TestSort(string array, object[] expectedResult, string cmpFunc = "")

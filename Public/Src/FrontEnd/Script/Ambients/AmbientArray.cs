@@ -10,6 +10,7 @@ using BuildXL.FrontEnd.Script.Literals;
 using BuildXL.FrontEnd.Script.Statements;
 using BuildXL.FrontEnd.Script.Types;
 using BuildXL.FrontEnd.Script.Values;
+using BuildXL.Pips;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using LineInfo = TypeScript.Net.Utilities.LineInfo;
@@ -782,10 +783,14 @@ namespace BuildXL.FrontEnd.Script.Ambients
                 {
                     sortedArray = receiver.Values.OrderBy(e => Converter.ExpectString(e, context: new ConversionContext(objectCtx: e)), Comparer<string>.Default);
                 }
+                else if (firstValue is AbsolutePath || firstValue is FileArtifact || firstValue is DirectoryArtifact || firstValue is StaticDirectory) 
+                {
+                    sortedArray = receiver.Values.OrderBy(e => Converter.ExpectPath(e, strict: false, context: new ConversionContext(objectCtx: e)), context.PathTable.ExpandedPathComparer);
+                }
                 else
                 {
                     throw Converter.CreateException(
-                        expectedTypes: new[] { typeof(int), typeof(string) },
+                        expectedTypes: new[] { typeof(int), typeof(string), typeof(AbsolutePath), typeof(FileArtifact), typeof(DirectoryArtifact), typeof(StaticDirectory) },
                         value: firstElem,
                         context: new ConversionContext(pos: 1, objectCtx: receiver));
                 }

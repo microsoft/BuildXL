@@ -3495,8 +3495,10 @@ namespace BuildXL.Scheduler
         {
             var pipId = runnablePip.PipId;
             var nodeId = pipId.ToNodeId();
+            var processPip = (runnablePip.Pip as Process);
+            var isSucceedFastPip = PipGraph.IsSucceedFast(pipId);
 
-            bool shouldSkipDownstreamPipsDueToSucccessFast = runnablePip.PipType == PipType.Process && (runnablePip.Pip as Process).SucceedFastExitCodes.Contains(result.ExitCode);
+            bool shouldSkipDownstreamPipsDueToSucccessFast = isSucceedFastPip && processPip.SucceedFastExitCodes.Contains(result.ExitCode);
             if (shouldSkipDownstreamPipsDueToSucccessFast)
             {
                 Interlocked.Increment(ref m_pipSkippingDownstreamDueToSuccessFast);
@@ -3508,7 +3510,9 @@ namespace BuildXL.Scheduler
             bool directDirtyDownStreams =
                 IncrementalSchedulingState?.DirtyNodeTracker != null &&
                 runnablePip?.Result != null &&
-                runnablePip.Result.Value.Status != PipResultStatus.UpToDate;
+                runnablePip.Result.Value.Status != PipResultStatus.UpToDate &&
+                (runnablePip.Result.Value.Status != PipResultStatus.Skipped) &&
+                (!m_configuration.Schedule.StopDirtyOnSucceedFastPips || !isSucceedFastPip);
 
             if (directDirtyDownStreams)
             {

@@ -722,6 +722,8 @@ namespace IntegrationTest.BuildXL.Scheduler.IncrementalSchedulingTests
         [MemberData(nameof(TruthTable.GetTable), 2, MemberType = typeof(TruthTable))]
         public void SucceedFastPipsShouldNotCauseOverSchedule(bool useSucceedFast, bool enableStopOnDirtySucceedFast)
         {
+            // inputA -> processA (succeedFast if useSucceedFast) -> outputX -> processB -> outputY
+            // inputC -> processC (NOT succeedFast) -> outputZ               -> processB
             Configuration.Schedule.StopDirtyOnSucceedFastPips = enableStopOnDirtySucceedFast;
             var inputA = CreateSourceFile();
             var outputX = CreateOutputFileArtifact();
@@ -730,17 +732,61 @@ namespace IntegrationTest.BuildXL.Scheduler.IncrementalSchedulingTests
                 Operation.WriteFile(outputX),
                 Operation.SucceedWithExitCode(useSucceedFast ? 3 : 0)},
                 tags: null,
-                description: null,
+                description: "Pip A",
                 environmentVariables: null,
                 succeedFastExitCodes: useSucceedFast ? new int[] { 3 } : null);
             var processA = SchedulePipBuilder(pipBuilderA).Process;
 
+            var inputC = CreateSourceFile();
+            var outputZ = CreateOutputFileArtifact();
+            var pipBuilderC = CreatePipBuilder(new[] {
+                Operation.ReadFile(inputC),
+                Operation.WriteFile(outputZ) },
+                tags: null,
+                description: "Pip C",
+                environmentVariables: null);
+            var processC = SchedulePipBuilder(pipBuilderC).Process;
+
             var outputY = CreateOutputFileArtifact();
-            var pipBuilderB = CreatePipBuilder(new[] { Operation.ReadFile(outputX), Operation.WriteFile(outputY) });
+            var pipBuilderB = CreatePipBuilder(new[] { Operation.ReadFile(outputX), Operation.ReadFile(outputZ), Operation.WriteFile(outputY) }, description: "Pip B");
             var processB = SchedulePipBuilder(pipBuilderB).Process;
 
+            ModifyFile(inputC, "InputCContent");
             var schedulerResult = RunScheduler();
+            AssertVerboseEventLogged(LogEventId.PipIsIncrementallySkippedDueToCleanMaterialized, count: 0, allowMore: false);
             schedulerResult.AssertCacheMiss(processA.PipId);
+            schedulerResult.AssertCacheMiss(processC.PipId);
+            if (useSucceedFast)
+            {
+                schedulerResult.AssertPipResultStatus((processB.PipId, PipResultStatus.Skipped));
+            }
+            else
+            {
+                schedulerResult.AssertCacheMiss(processB.PipId);
+            }
+
+            schedulerResult = RunScheduler();
+            schedulerResult.AssertCacheHit(processA.PipId);
+            schedulerResult.AssertCacheHit(processC.PipId);
+            if (useSucceedFast)
+            {
+                // Pip A and Pip C are skipped in the scheduler.
+                AssertVerboseEventLogged(LogEventId.PipIsIncrementallySkippedDueToCleanMaterialized, count: 2, allowMore: false);
+                schedulerResult.AssertCacheMiss(processB.PipId);
+            }
+            else
+            {
+                AssertVerboseEventLogged(LogEventId.PipIsIncrementallySkippedDueToCleanMaterialized, count: 0, allowMore: false);
+                schedulerResult.AssertCacheHit(processB.PipId);
+            }
+
+            ModifyFile(inputA, "InputAContent");
+            ModifyFile(inputC, "InputCContent");
+            schedulerResult = RunScheduler();
+
+            AssertVerboseEventLogged(LogEventId.PipIsIncrementallySkippedDueToCleanMaterialized, count: 0, allowMore: false);
+            schedulerResult.AssertCacheMiss(processA.PipId);
+            schedulerResult.AssertCacheHit(processC.PipId);
 
             // If useSucceedFast is set, since processA returns the succeed fast code of 3, the build exits before getting to process B.
             if (useSucceedFast)
@@ -756,51 +802,65 @@ namespace IntegrationTest.BuildXL.Scheduler.IncrementalSchedulingTests
             schedulerResult = RunScheduler();
             schedulerResult.AssertCacheHit(processA.PipId);
 
-            if (useSucceedFast)
+            if (useSucceedFast && enableStopOnDirtySucceedFast)
+            {
+                schedulerResult.AssertCacheHit(processB.PipId);
+                AssertVerboseEventLogged(LogEventId.PipIsIncrementallySkippedDueToCleanMaterialized, count: 3, allowMore: false);
+            }
+            else if (useSucceedFast)
             {
                 schedulerResult.AssertCacheMiss(processB.PipId);
+                // Pip A and C are skipped
+                AssertVerboseEventLogged(LogEventId.PipIsIncrementallySkippedDueToCleanMaterialized, count: 2, allowMore: false);
             }
             else
             {
+                AssertVerboseEventLogged(LogEventId.PipIsIncrementallySkippedDueToCleanMaterialized, count: 0, allowMore: false);
                 schedulerResult.AssertCacheHit(processB.PipId);
             }
 
 
             // Modifying f should make A scheduled, but B should not be scheduled because stopDirtyOnSucceedFast is set.
-            ModifyFile(inputA);
+            ModifyFile(inputA, "InputAContent");
 
             schedulerResult = RunScheduler();
             schedulerResult.AssertScheduled(processA.PipId);
-            schedulerResult.AssertCacheMiss(processA.PipId);
+            schedulerResult.AssertCacheHit(processA.PipId);
 
             if (useSucceedFast && enableStopOnDirtySucceedFast)
             {
                 schedulerResult.AssertNotScheduled(processB.PipId);
+                AssertVerboseEventLogged(LogEventId.PipIsIncrementallySkippedDueToCleanMaterialized, count: 0, allowMore: false);
             }
             else
             {
                 schedulerResult.AssertScheduled(processB.PipId);
+                schedulerResult.AssertCacheHit(processB.PipId);
+
+                // C and B are skipped by the scheduler
+                AssertVerboseEventLogged(LogEventId.PipIsIncrementallySkippedDueToCleanMaterialized, count: 2, allowMore: false);
             }
 
+            // Modifying inputA to the same content and inputc to the same content
+            // should make A scheduled but cached, C scheduled but cached,
+            // and B should be scheduled but skipped if stopDirtyOnSucceedFast is set.
+            ModifyFile(inputA, "InputAContent");
+            ModifyFile(inputC, "InputCContent");
             schedulerResult = RunScheduler();
-
-            // If use succeed fast and not stop on dirty pips, pip B is run this time, meaning pip A is scheduled and cache hit.
-            if (useSucceedFast && !enableStopOnDirtySucceedFast)
-            {
-                schedulerResult.AssertScheduled(processA.PipId);
-                schedulerResult.AssertCacheHit(processA.PipId);
-                schedulerResult.AssertScheduled(processB.PipId);
-                schedulerResult.AssertCacheMiss(processB.PipId);
-            }
-            else
-            {
-                schedulerResult.AssertNotScheduled(processA.PipId);
-            }
+            schedulerResult.AssertScheduled(processA.PipId);
+            schedulerResult.AssertCacheHit(processA.PipId);
+            schedulerResult.AssertCacheHit(processC.PipId);
+            schedulerResult.AssertScheduled(processB.PipId);
+            schedulerResult.AssertCacheHit(processB.PipId);
+            // Pip B is skipped by the scheduler
+            AssertVerboseEventLogged(LogEventId.PipIsIncrementallySkippedDueToCleanMaterialized, count: 1, allowMore: false);
 
             // Run scheduler so incremental scheduling is up to date.
             schedulerResult = RunScheduler();
             schedulerResult.AssertNotScheduled(processA.PipId);
             schedulerResult.AssertNotScheduled(processB.PipId);
+            schedulerResult.AssertNotScheduled(processC.PipId);
+            AssertVerboseEventLogged(LogEventId.PipIsIncrementallySkippedDueToCleanMaterialized, count: 0, allowMore: false);
 
             // Test changing the flag to make sure it can switch properly
             Configuration.Schedule.StopDirtyOnSucceedFastPips = !enableStopOnDirtySucceedFast;
@@ -816,6 +876,8 @@ namespace IntegrationTest.BuildXL.Scheduler.IncrementalSchedulingTests
             }
             else
             {
+                // Pip C is skipped by the scheduler.
+                AssertVerboseEventLogged(LogEventId.PipIsIncrementallySkippedDueToCleanMaterialized, count: 1, allowMore: false);
                 schedulerResult.AssertScheduled(processB.PipId);
             }
         }

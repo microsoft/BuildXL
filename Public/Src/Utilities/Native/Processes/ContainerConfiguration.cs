@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Text;
+using BuildXL.Native.Processes.Windows;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using static BuildXL.Utilities.FormattableStringEx;
@@ -54,6 +55,11 @@ namespace BuildXL.Processes.Containers
         public IReadOnlySet<ExpandedAbsolutePath> BindFltExcludedPaths { get; }
 
         /// <summary>
+        /// Additional flags to pass for BindFlt filter configuration.
+        /// </summary>
+        public NativeContainerUtilities.BfSetupFilterFlags BindFltFlags { get; }
+
+        /// <summary>
         /// No isolation
         /// </summary>
         public static ContainerConfiguration DisabledIsolation = new ContainerConfiguration(
@@ -69,7 +75,8 @@ namespace BuildXL.Processes.Containers
             IReadOnlyDictionary<ExpandedAbsolutePath, IReadOnlyList<ExpandedAbsolutePath>> redirectedDirectories,
             IReadOnlyDictionary<AbsolutePath, IReadOnlyList<ExpandedAbsolutePath>> originalDirectories,
             bool enableWciFilter = true,
-            IReadOnlySet<ExpandedAbsolutePath> bindFltExcludedPaths = null)
+            IReadOnlySet<ExpandedAbsolutePath> bindFltExcludedPaths = null,
+            NativeContainerUtilities.BfSetupFilterFlags bindFltFlags = NativeContainerUtilities.BfSetupFilterFlags.None)
         {
             Contract.Requires(redirectedDirectories.Count == 0 || pathTable != null);
             Contract.Requires(redirectedDirectories != null);
@@ -80,6 +87,7 @@ namespace BuildXL.Processes.Containers
             OriginalDirectories = originalDirectories;
             EnableWciFilter = enableWciFilter;
             BindFltExcludedPaths = bindFltExcludedPaths ?? CollectionUtilities.EmptySet<ExpandedAbsolutePath>();
+            BindFltFlags = bindFltFlags;
         }
 
         /// <summary>

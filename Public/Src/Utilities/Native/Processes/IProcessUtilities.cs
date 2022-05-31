@@ -13,6 +13,7 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Text;
+using BuildXL.Native.Processes.Windows;
 using BuildXL.Utilities;
 using JetBrains.Annotations;
 using Microsoft.Win32.SafeHandles;
@@ -111,6 +112,7 @@ namespace BuildXL.Native.Processes
             IReadOnlyDictionary<ExpandedAbsolutePath, IReadOnlyList<ExpandedAbsolutePath>> redirectedDirectories,
             bool enableWciFilter,
             IEnumerable<string> bindFltExclusions,
+            NativeContainerUtilities.BfSetupFilterFlags bindFltFlags,
             out IEnumerable<string> warnings);
 
         /// <summary><see cref="ProcessUtilities.TryCleanUpContainer"/></summary>

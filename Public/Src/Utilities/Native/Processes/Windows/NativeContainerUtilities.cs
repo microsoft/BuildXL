@@ -131,10 +131,51 @@ namespace BuildXL.Native.Processes.Windows
         [Flags]
         public enum BfSetupFilterFlags : long
         {
+            None = 0x0,
+        
             BINDFLT_FLAG_READ_ONLY_MAPPING = 0x00000001,
+
+            /// <summary>
+            /// Generates a merged binding, mapping target entries to the virtualization root.
+            /// </summary>
             BINDFLT_FLAG_MERGED_BIND_MAPPING = 0x00000002,
+
+            /// <summary>
+            /// Use the binding mapping attached to the mapped-in job object instead of the default global mapping.
+            /// </summary>
             BINDFLT_FLAG_USE_CURRENT_SILO_MAPPING = 0x00000004,
+
             BINDFLT_FLAG_REPARSE_ON_FILES = 0x00000008,
+
+            /// <summary>
+            /// Skips checks on file/dir creation inside a non-merged, read-only mapping.
+            /// Only usable when READ_ONLY_MAPPING is set.
+            /// </summary>
+            BINDFLT_FLAG_SKIP_SHARING_CHECK = 0x00000010,
+
+            BINDFLT_FLAG_CLOUD_FILES_ECPS = 0x00000020,
+
+            /// <summary>
+            /// Tells bindflt to fail mapping with STATUS_INVALID_PARAMETER if a mapping produces
+            /// multiple targets.
+            /// </summary>
+            BINDFLT_FLAG_NO_MULTIPLE_TARGETS = 0x00000040,
+
+            /// <summary>
+            /// Turns on caching by asserting that the backing store for name mappings is immutable.
+            /// </summary>
+            BINDFLT_FLAG_IMMUTABLE_BACKING = 0x00000080,
+
+            BINDFLT_FLAG_PREVENT_CASE_SENSITIVE_BINDING = 0x00000100,
+
+            /// <summary>
+            /// Tells bindflt to fail with STATUS_OBJECT_PATH_NOT_FOUND when a mapping is being added
+            /// but its parent paths (ancestors) have not already been added.
+            /// </summary>
+            BINDFLT_FLAG_EMPTY_VIRT_ROOT = 0x00000200,
+
+            BINDFLT_FLAG_NO_REPARSE_ON_ROOT = 0x10000000,
+            BINDFLT_FLAG_BATCHED_REMOVE_MAPPINGS = 0x20000000,
         }
 
         /// <summary>

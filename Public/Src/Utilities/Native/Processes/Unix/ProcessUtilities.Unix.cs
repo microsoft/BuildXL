@@ -9,6 +9,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using BuildXL.Interop.Unix;
 using BuildXL.Native.IO;
+using BuildXL.Native.Processes.Windows;
 using BuildXL.Utilities;
 using JetBrains.Annotations;
 using Microsoft.Win32.SafeHandles;
@@ -167,6 +168,7 @@ namespace BuildXL.Native.Processes.Unix
             IReadOnlyDictionary<ExpandedAbsolutePath, IReadOnlyList<ExpandedAbsolutePath>> redirectedDirectories,
             bool enableWciFilter,
             IEnumerable<string> bindFltExclusions,
+            NativeContainerUtilities.BfSetupFilterFlags bindFltFlags,
             out IEnumerable<string> warnings)
             => throw new NotImplementedException();
 

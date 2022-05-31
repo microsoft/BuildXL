@@ -82,12 +82,13 @@ namespace BuildXL.Native.Processes.Windows
             }
         }
 
-        /// <summary><see cref="ProcessUtilities.AttachContainerToJobObject(IntPtr, IReadOnlyDictionary{ExpandedAbsolutePath, IReadOnlyList{ExpandedAbsolutePath}}, bool, IEnumerable{string}, out IEnumerable{string})"/></summary>   
+        /// <summary><see cref="ProcessUtilities.AttachContainerToJobObject(IntPtr, IReadOnlyDictionary{ExpandedAbsolutePath, IReadOnlyList{ExpandedAbsolutePath}}, bool, IEnumerable{string}, NativeContainerUtilities.BfSetupFilterFlags, out IEnumerable{string})"/></summary>
         public void AttachContainerToJobObject(
             IntPtr hJob,
             IReadOnlyDictionary<ExpandedAbsolutePath, IReadOnlyList<ExpandedAbsolutePath>> redirectedDirectories,
             bool enableWciFilter,
             IEnumerable<string> bindFltExclusions,
+            NativeContainerUtilities.BfSetupFilterFlags bindFltFlags,
             out IEnumerable<string> warnings)
         {
             try
@@ -105,7 +106,14 @@ namespace BuildXL.Native.Processes.Windows
                 NativeContainerUtilities.WcDestroyDescription(description);
 
                 var wciRetries = new List<string>();
-                ConfigureContainer(hJob, redirectedDirectories, enableWciFilter, wciRetries, bindFltExclusions);
+
+                // USE_CURRENT_SILO_MAPPING has to be passed when WCI and Bind are configured for the same silo (job object).
+                if (enableWciFilter)
+                {
+                    bindFltFlags |= NativeContainerUtilities.BfSetupFilterFlags.BINDFLT_FLAG_USE_CURRENT_SILO_MAPPING;
+                }
+                
+                ConfigureContainer(hJob, redirectedDirectories, enableWciFilter, wciRetries, bindFltExclusions, bindFltFlags);
 
                 warnings = wciRetries;
             }
@@ -141,7 +149,8 @@ namespace BuildXL.Native.Processes.Windows
             IReadOnlyDictionary<ExpandedAbsolutePath, IReadOnlyList<ExpandedAbsolutePath>> mapping,
             bool enableWciFilter,
             List<string> wciRetries,
-            IEnumerable<string> bindFltExclusions)
+            IEnumerable<string> bindFltExclusions,
+            NativeContainerUtilities.BfSetupFilterFlags bindFltFlags)
         {
             foreach (var kvp in mapping)
             {
@@ -153,7 +162,11 @@ namespace BuildXL.Native.Processes.Windows
                     ConfigureWciFilter(hJob, sourcePaths, destinationPath, wciRetries);
                 }
 
-                ConfigureBindFilter(hJob, sourcePaths, destinationPath, bindFltExclusions);
+                // Configure only those exclusions that fit under any of the source paths.
+                IEnumerable<string> sourceSpecificExclusions = bindFltExclusions
+                    .Where(e => sourcePaths.Any(s => e.StartsWith(s.ExpandedPath, StringComparison.OrdinalIgnoreCase)));
+
+                ConfigureBindFilter(hJob, sourcePaths, destinationPath, sourceSpecificExclusions, bindFltFlags);
             }
         }
 
@@ -227,19 +240,21 @@ namespace BuildXL.Native.Processes.Windows
             {
                 throw new NativeWin32Exception(Marshal.GetLastWin32Error(), I($"Unable to setup the WCI filter for source paths '{string.Join(Environment.NewLine, sourcePaths)}' to destination path '{destinationPath}'."));
             }
-
-            
         }
 
-        private static void ConfigureBindFilter(IntPtr hJob, IReadOnlyCollection<ExpandedAbsolutePath> sourcePaths, string targetPath, IEnumerable<string> exclusionPaths)
+        private static void ConfigureBindFilter(
+            IntPtr hJob,
+            IReadOnlyCollection<ExpandedAbsolutePath> sourcePaths,
+            string targetPath,
+            IEnumerable<string> exclusionPaths,
+            NativeContainerUtilities.BfSetupFilterFlags bindFltFlags)
         {
             string[] exclusionsForMapping = exclusionPaths.ToArray();
             foreach (ExpandedAbsolutePath sourcePath in sourcePaths)
             {
                 var hresult = NativeContainerUtilities.BfSetupFilter(
                     hJob,
-                    // This flag has to be passed when WCI and Bind are configured for the same silo
-                    NativeContainerUtilities.BfSetupFilterFlags.BINDFLT_FLAG_USE_CURRENT_SILO_MAPPING,
+                    bindFltFlags,
                     sourcePath.ExpandedPath,
                     targetPath,
                     exclusionsForMapping,

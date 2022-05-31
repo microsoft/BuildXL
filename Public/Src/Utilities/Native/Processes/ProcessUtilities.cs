@@ -13,6 +13,7 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Text;
+using BuildXL.Native.Processes.Windows;
 using BuildXL.Utilities;
 using Microsoft.Win32.SafeHandles;
 
@@ -305,6 +306,7 @@ namespace BuildXL.Native.Processes
         /// <param name="redirectedDirectories">The collection of source paths to be virtualize to destination paths</param>
         /// <param name="enableWciFilter">Enables WCI filter for input virtualization</param>
         /// <param name="bindFltExclusions">Paths to not apply the bindflt path transformation to.</param>
+        /// <param name="bindFltFlags">Flags used to configure the Windows BindFlt driver.</param>
         /// <param name="warnings">Any warnings that happened during the creation of the container. The container was created successfully regardless of these.</param>
         /// <exception cref="BuildXLException">If any unrecoverable error occurs when setting up the container</exception>
         public static void AttachContainerToJobObject(
@@ -312,8 +314,9 @@ namespace BuildXL.Native.Processes
             IReadOnlyDictionary<ExpandedAbsolutePath, IReadOnlyList<ExpandedAbsolutePath>> redirectedDirectories,
             bool enableWciFilter,
             IEnumerable<string> bindFltExclusions,
+            NativeContainerUtilities.BfSetupFilterFlags bindFltFlags,
             out IEnumerable<string> warnings)
-            => s_nativeMethods.AttachContainerToJobObject(hJob, redirectedDirectories, enableWciFilter, bindFltExclusions, out warnings);
+            => s_nativeMethods.AttachContainerToJobObject(hJob, redirectedDirectories, enableWciFilter, bindFltExclusions, bindFltFlags, out warnings);
 
         /// <summary>
         /// Tries to cleans up the already attached Helium container to the given job object for all the volumes

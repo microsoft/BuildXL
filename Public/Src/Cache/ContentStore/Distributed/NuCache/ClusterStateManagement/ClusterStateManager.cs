@@ -15,7 +15,7 @@ using System.Diagnostics.ContractsLight;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
-    public class ClusterStateManager : StartupShutdownSlimBase
+    public class ClusterStateManager : StartupShutdownComponentBase
     {
         protected override Tracer Tracer { get; } = new Tracer(nameof(ClusterStateManager));
 
@@ -35,6 +35,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             _configuration = configuration;
             _storage = storage;
             _clock = clock ?? SystemClock.Instance;
+
+            RunInBackground(nameof(BackgroundUpdateAsync), BackgroundUpdateAsync, fireAndForget: true);
         }
 
         protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
@@ -64,7 +66,43 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             initialState.Update(context, currentState, nowUtc: _clock.UtcNow).ThrowIfFailure();
             ClusterState = initialState;
 
-            return BoolResult.Success;
+            return await base.StartupCoreAsync(context);
+        }
+        protected override async Task<BoolResult> ShutdownCoreAsync(OperationContext context)
+        {
+
+            var result = await base.ShutdownCoreAsync(context);
+            result &= await _storage.ShutdownAsync(context);
+
+            return result;
+        }
+
+        private async Task<BoolResult> BackgroundUpdateAsync(OperationContext startupContext)
+        {
+            // The loop will stop running when shutdown starts
+            using var cancellableContext = startupContext.WithCancellationToken(ShutdownStartedCancellationToken);
+            var context = cancellableContext.Context;
+
+            var updateFrequency = _configuration.Checkpoint!.UpdateClusterStateInterval;
+            while (true)
+            {
+                context.Token.ThrowIfCancellationRequested();
+
+                // Wait until it's the right time to update
+                var nextUpdateTime = ClusterState.LastUpdateTimeUtc + updateFrequency;
+                var now = _clock.UtcNow;
+                if (nextUpdateTime > now)
+                {
+                    await Task.Delay(nextUpdateTime - now, context.Token);
+
+                    // Something else may have updated before we did
+                    continue;
+                }
+
+                // This loop will never update the state of the machine, only refresh the local view of the remote
+                // cluster state and update the last heartbeat time in the remote.
+                await HeartbeatAsync(context, MachineState.Unknown).IgnoreFailure();
+            }
         }
 
         private Task<Result<(ClusterStateMachine State, MachineMapping[] MachineMappings)>> RegisterMachinesAsync(OperationContext context, IReadOnlyList<MachineLocation> machineLocations)
@@ -75,13 +113,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                 return Result.Success((registerMachinesResponse.State, registerMachinesResponse.MachineMappings));
             });
-        }
-
-        protected override async Task<BoolResult> ShutdownCoreAsync(OperationContext context)
-        {
-            await _storage.ShutdownAsync(context).ThrowIfFailureAsync();
-
-            return BoolResult.Success;
         }
 
         /// <remarks>
@@ -108,6 +139,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 Tracer,
                 async () =>
                 {
+                    if (machineState != MachineState.Unknown)
+                    {
+                        ClusterState.CurrentState = machineState;
+                    }
+
                     var localMachineIds = ClusterState.LocalMachineMappings.Select(machineMapping => machineMapping.Id).ToArray();
 
                     if (_configuration.DistributedContentConsumerOnly || localMachineIds.Length == 0)

@@ -153,12 +153,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private const string EventProcessingDelayKey = "LocalLocationStore.EventProcessingDelay";
 
-        /// <summary>
-        /// This is the machine state reported during heartbeat. Initialized as <see cref="MachineState.Unknown"/> in
-        /// order to avoid updates at first.
-        /// </summary>
-        private MachineState _heartbeatMachineState = MachineState.Unknown;
-
         private readonly MachineList.Settings _machineListSettings;
 
         private readonly ColdStorage? _coldStorage;
@@ -335,14 +329,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             MachineReputationTracker = new MachineReputationTracker(context, _clock, ClusterState, Configuration.ReputationTrackerConfiguration);
 
             // We need to detect what our previous exit state was in order to choose the appropriate recovery strategy.
-            var fetchLastMachineStateResult = await SetMachineStateAsync(context, MachineState.Unknown);
+            var fetchLastMachineStateResult = await SetOrGetMachineStateAsync(context, MachineState.Unknown);
             var lastMachineState = MachineState.Unknown;
             if (fetchLastMachineStateResult.Succeeded)
             {
                 lastMachineState = fetchLastMachineStateResult.Value;
             }
 
-            SetHeartbeatMachineStateIfAllowed(lastMachineState switch
+            await SetOrGetMachineStateAsync(context, lastMachineState switch
             {
                 // Here, when we set a Closed state, it means we will wait until the next heartbeat after
                 // reconciliation finishes before announcing ourselves as open.
@@ -363,7 +357,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 MachineState.Closed => MachineState.Open,
 
                 _ => throw new NotImplementedException($"Unknown machine state: {lastMachineState}"),
-            });
+            }).IgnoreFailure();
 
             // Configuring a heartbeat timer. The timer is used differently by a master and by a worker.
             _heartbeatTimer = new Timer(
@@ -413,11 +407,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             // Cancel any ongoing reconciliation cycles, and has to be before we set the machine state as closed, because reconciliation completion can set the state as open.
             await CancelCurrentReconciliationAsync(context);
 
-            SetHeartbeatMachineStateIfAllowed(MachineState.Closed);
+            await SetOrGetMachineStateAsync(context, MachineState.Closed).IgnoreFailure();
 
             _heartbeatTimer?.Dispose();
-
-            await SetMachineStateAsync(context, _heartbeatMachineState).IgnoreFailure();
 
             if (EventStore != null)
             {
@@ -537,15 +529,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         _lastCheckpointTime = _lastRestoreTime;
                     }
 
-                    if (Configuration.Checkpoint.UpdateClusterStateInterval is null || ShouldSchedule(Configuration.Checkpoint.UpdateClusterStateInterval.Value, ClusterState.LastUpdateTimeUtc))
-                    {
-                        var updateResult = await SetMachineStateAsync(context, machineState: _heartbeatMachineState);
-                        if (!updateResult)
-                        {
-                            return updateResult;
-                        }
-                    }
-
                     if (newRole == Role.Master)
                     {
                         // Start receiving events from the given checkpoint
@@ -589,10 +572,26 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return operationResult;
         }
 
-
-        public Task<Result<MachineState>> SetMachineStateAsync(OperationContext context, MachineState machineState)
+        public Task<Result<MachineState>> SetOrGetMachineStateAsync(OperationContext context, MachineState proposedState)
         {
-            return ClusterStateManager.HeartbeatAsync(context, machineState);
+            if (proposedState != MachineState.Unknown)
+            {
+                var currentState = ClusterState.CurrentState;
+                switch (currentState)
+                {
+                    // The in-memory state can only ever be one of these two if the machine is set up for reimaging. In
+                    // these cases, we don't want to actually change state of the currently running process no matter what
+                    case MachineState.DeadExpired:
+                    case MachineState.DeadUnavailable:
+                        Tracer.Warning(context, $"Attempt to transition from state `{currentState}` to `{proposedState}`, which is invalid. Transition will not happen.");
+                        proposedState = MachineState.Unknown;
+                        break;
+                    default:
+                        break;
+                }
+            }
+
+            return ClusterStateManager.HeartbeatAsync(context, proposedState);
         }
 
         private Result<bool> ShouldRestoreCheckpoint(OperationContext context, DateTime checkpointCreationTime)
@@ -1109,7 +1108,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             {
                 // Update cluster. Query global to ensure that we have all machines ids (even those which may not be added
                 // to local db yet.)
-                var result = await SetMachineStateAsync(context, machineState: MachineState.Unknown);
+                var result = await SetOrGetMachineStateAsync(context, proposedState: MachineState.Unknown);
                 if (!result)
                 {
                     return new GetBulkLocationsResult(result);
@@ -1886,26 +1885,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             if (result.Succeeded)
             {
-                SetHeartbeatMachineStateIfAllowed(MachineState.Open);
+                await SetOrGetMachineStateAsync(context, MachineState.Open).IgnoreFailure();
             }
 
             return result;
-        }
-
-        private void SetHeartbeatMachineStateIfAllowed(MachineState proposedState)
-        {
-            Contract.Requires(proposedState != MachineState.Unknown, "Machines can't set themselves to unknown state");
-
-            switch (_heartbeatMachineState)
-            {
-                // The in-memory state can only ever be one of these two if the machine is set up for reimaging. In
-                // these cases, we don't want to actually change state of the currently running process no matter what
-                case MachineState.DeadExpired:
-                case MachineState.DeadUnavailable:
-                    return;
-            }
-
-            _heartbeatMachineState = proposedState;
         }
 
         private async Task SendReconciliationEventsAsync(
@@ -1992,7 +1975,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 if (data.ReachedEnd || epochChange)
                 {
                     Tracer.Info(context, $"Setting machine state to Open. ReachedEnd=[{data.ReachedEnd}] EpochChange=[{epochChange}]");
-                    SetHeartbeatMachineStateIfAllowed(MachineState.Open);
+                    await SetOrGetMachineStateAsync(context, MachineState.Open).IgnoreFailure();
                 }
 
                 // We do not call MarkReconciled, because we do not check whether reconciliation is up to date to skip reconciliation
@@ -2280,9 +2263,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                     // TODO: Setting machine state to DeadUnavailable is too aggressive as the machine may not shutdown immediately.
                     // Instead we need to mark the machine as untrusted.
-                    SetHeartbeatMachineStateIfAllowed(MachineState.DeadUnavailable);
-
-                    await ClusterStateManager.HeartbeatAsync(context, _heartbeatMachineState).ThrowIfFailureAsync();
+                    await SetOrGetMachineStateAsync(context, MachineState.DeadUnavailable).IgnoreFailure();
 
                     return BoolResult.Success;
                 });
@@ -2321,7 +2302,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 if (CurrentRole == Role.Master)
                 {
                     // All of these log, and we really want to make sure we don't fail
-                    await SetMachineStateAsync(context, MachineState.DeadUnavailable).IgnoreFailure();
+                    await SetOrGetMachineStateAsync(context, MachineState.DeadUnavailable).IgnoreFailure();
                     await MasterElectionMechanism.ReleaseRoleIfNecessaryAsync(context).IgnoreFailure();
                     LifetimeManager.RequestTeardown(context, "Content location database has been invalidated");
                 }

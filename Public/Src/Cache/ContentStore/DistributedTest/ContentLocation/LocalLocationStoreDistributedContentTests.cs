@@ -1792,17 +1792,6 @@ namespace ContentStoreTest.Distributed.Sessions
             ConfigureWithOneMaster(dcs =>
             {
                 dcs.DistributedContentConsumerOnly = dcs.TestMachineIndex == consumerIndex;
-            },
-            rcs =>
-            {
-                if (rcs.DistributedContentConsumerOnly)
-                {
-                    // Update cluster state should be disabled by default for consumer only nodes
-                    rcs.Checkpoint.UpdateClusterStateInterval.Should().Be(Timeout.InfiniteTimeSpan);
-
-                    // Override to re-enable so test updates cluster state during heartbeat
-                    rcs.Checkpoint.UpdateClusterStateInterval = null;
-                }
             });
 
             return RunTestAsync(
@@ -2624,7 +2613,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
                     // Add time so worker machine is inactive
                     TestClock.UtcNow += _configurations[context.GetMasterIndex()].MachineActiveToExpiredInterval + TimeSpan.FromSeconds(1);
-                    await master.LocalLocationStore.HeartbeatAsync(context).ShouldBeSuccess();
+                    await master.LocalLocationStore.SetOrGetMachineStateAsync(context, MachineState.Unknown).ShouldBeSuccess();
 
                     masterResult = await master.GetBulkAsync(
                         context,
@@ -2677,11 +2666,11 @@ namespace ContentStoreTest.Distributed.Sessions
                     TestClock.UtcNow += TimeSpan.FromSeconds(1);
 
                     // Call heartbeat first to ensure last heartbeat time is up to date but then call remove from tracker to ensure marked unavailable
-                    await worker0.LocalLocationStore.HeartbeatAsync(context).ShouldBeSuccess();
+                    await worker0.LocalLocationStore.SetOrGetMachineStateAsync(context, MachineState.Unknown).ShouldBeSuccess();
                     await workerContentStore.RemoveFromTrackerAsync(context).ShouldBeSuccess();
 
                     // Heartbeat the master to ensure set of inactive machines is updated
-                    await master.LocalLocationStore.HeartbeatAsync(context).ShouldBeSuccess();
+                    await master.LocalLocationStore.SetOrGetMachineStateAsync(context, MachineState.Unknown).ShouldBeSuccess();
 
                     masterResult = await master.GetBulkAsync(
                         context,
@@ -2699,7 +2688,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     master.LocalLocationStore.Database.Counters[ContentLocationDatabaseCounters.TotalNumberOfCollectedEntries].Value.Should().Be(1, "After GC, the entry with only a location from the expired machine should be collected");
 
                     // Heartbeat worker to switch back to active state
-                    await worker0.LocalLocationStore.HeartbeatAsync(context).ShouldBeSuccess();
+                    await worker0.LocalLocationStore.SetOrGetMachineStateAsync(context, MachineState.Unknown).ShouldBeSuccess();
 
                     // Insert random file in session 0
                     var putResult1 = await workerSession.PutRandomAsync(context, ContentHashType, false, ContentByteCount, Token).ShouldBeSuccess();
@@ -3212,24 +3201,24 @@ namespace ContentStoreTest.Distributed.Sessions
                     var ctx = new OperationContext(context);
 
                     var lls = worker.LocalLocationStore;
-                    var state = (await lls.SetMachineStateAsync(ctx, MachineState.Unknown).ShouldBeSuccess()).Value;
+                    var state = (await lls.SetOrGetMachineStateAsync(ctx, MachineState.Unknown).ShouldBeSuccess()).Value;
                     state.Should().Be(MachineState.Open);
 
                     // Once the worker finishes reconciliation and heartbeats, the machine should be open
                     await worker.ReconcileAsync(ctx, force: false).ShouldBeSuccess();
                     await worker.LocalLocationStore.HeartbeatAsync(ctx, inline: true).ShouldBeSuccess();
-                    state = (await lls.SetMachineStateAsync(ctx, MachineState.Unknown).ShouldBeSuccess()).Value;
+                    state = (await lls.SetOrGetMachineStateAsync(ctx, MachineState.Unknown).ShouldBeSuccess()).Value;
                     state.Should().Be(MachineState.Open);
 
                     // Invalidate leads to unavailable
                     var workerPrimaryMachineId = worker.LocalLocationStore.ClusterState.PrimaryMachineId;
                     await worker.LocalLocationStore.InvalidateLocalMachineAsync(ctx, workerPrimaryMachineId).ShouldBeSuccess();
-                    state = (await lls.SetMachineStateAsync(ctx, MachineState.Unknown).ShouldBeSuccess()).Value;
+                    state = (await lls.SetOrGetMachineStateAsync(ctx, MachineState.Unknown).ShouldBeSuccess()).Value;
                     state.Should().Be(MachineState.DeadUnavailable);
 
                     // Keep the same state after heartbeat!
                     await worker.LocalLocationStore.HeartbeatAsync(ctx, inline: true).ShouldBeSuccess();
-                    state = (await lls.SetMachineStateAsync(ctx, MachineState.Unknown).ShouldBeSuccess()).Value;
+                    state = (await lls.SetOrGetMachineStateAsync(ctx, MachineState.Unknown).ShouldBeSuccess()).Value;
                     state.Should().Be(MachineState.DeadUnavailable);
                 });
         }
@@ -3272,8 +3261,8 @@ namespace ContentStoreTest.Distributed.Sessions
                     // Shutting down the entire store to avoid issue with double shut down.
                     await context.Servers[workerIndex].ShutdownAsync(ctx).ShouldBeSuccess();
 
-                    // Reload cluster state from Redis
-                    await master.LocalLocationStore.HeartbeatAsync(ctx, inline: true).ShouldBeSuccess();
+                    // Reload cluster state
+                    await master.LocalLocationStore.SetOrGetMachineStateAsync(ctx, MachineState.Unknown).ShouldBeSuccess();
                     master.LocalLocationStore.ClusterState.ClosedMachines.Contains(workerPrimaryMachineId).Should().BeTrue();
                 });
         }
@@ -3314,17 +3303,17 @@ namespace ContentStoreTest.Distributed.Sessions
                     await worker.ReconcileAsync(ctx, force: true).ShouldBeSuccess();
                     await worker.LocalLocationStore.HeartbeatAsync(ctx, inline: true).ShouldBeSuccess();
 
-                    var workerState = (await worker.LocalLocationStore.SetMachineStateAsync(ctx, MachineState.Unknown)).ShouldBeSuccess().Value;
+                    var workerState = (await worker.LocalLocationStore.SetOrGetMachineStateAsync(ctx, MachineState.Unknown)).ShouldBeSuccess().Value;
                     workerState.Should().Be(MachineState.Open);
 
                     var workerPrimaryMachineId = worker.LocalLocationStore.ClusterState.PrimaryMachineId;
 
                     TestClock.UtcNow += _configurations[context.GetMasterIndex()].MachineActiveToExpiredInterval + TimeSpan.FromSeconds(1);
-                    await master.LocalLocationStore.SetMachineStateAsync(
+                    await master.LocalLocationStore.SetOrGetMachineStateAsync(
                         ctx,
                         MachineState.Unknown).ShouldBeSuccess();
 
-                    workerState = (await worker.LocalLocationStore.SetMachineStateAsync(ctx, MachineState.Unknown)).ShouldBeSuccess().Value;
+                    workerState = (await worker.LocalLocationStore.SetOrGetMachineStateAsync(ctx, MachineState.Unknown)).ShouldBeSuccess().Value;
                     workerState.Should().Be(MachineState.DeadExpired);
                     master.LocalLocationStore.ClusterState.ClosedMachines.Contains(workerPrimaryMachineId).Should().BeFalse();
                     master.LocalLocationStore.ClusterState.InactiveMachines.Contains(workerPrimaryMachineId).Should().BeTrue();
@@ -3361,20 +3350,20 @@ namespace ContentStoreTest.Distributed.Sessions
                     await worker.ReconcileAsync(ctx, force: true).ShouldBeSuccess();
                     await worker.LocalLocationStore.HeartbeatAsync(ctx, inline: true).ShouldBeSuccess();
 
-                    var workerState = (await worker.LocalLocationStore.SetMachineStateAsync(ctx, MachineState.Unknown)).ShouldBeSuccess().Value;
+                    var workerState = (await worker.LocalLocationStore.SetOrGetMachineStateAsync(ctx, MachineState.Unknown)).ShouldBeSuccess().Value;
                     workerState.Should().Be(MachineState.Open);
 
                     var workerPrimaryMachineId = worker.LocalLocationStore.ClusterState.PrimaryMachineId;
 
                     // Move time forward and check that this machine transitions to closed when the master does heartbeat
                     TestClock.UtcNow += _configurations[context.GetMasterIndex()].MachineActiveToClosedInterval + TimeSpan.FromSeconds(1);
-                    await master.LocalLocationStore.SetMachineStateAsync(
+                    await master.LocalLocationStore.SetOrGetMachineStateAsync(
                         ctx,
                         MachineState.Unknown).ShouldBeSuccess();
                     master.LocalLocationStore.ClusterState.ClosedMachines.Contains(workerPrimaryMachineId).Should().BeTrue();
                     master.LocalLocationStore.ClusterState.InactiveMachines.Contains(workerPrimaryMachineId).Should().BeFalse();
 
-                    workerState = (await worker.LocalLocationStore.SetMachineStateAsync(ctx, MachineState.Unknown)).ShouldBeSuccess().Value;
+                    workerState = (await worker.LocalLocationStore.SetOrGetMachineStateAsync(ctx, MachineState.Unknown)).ShouldBeSuccess().Value;
                     workerState.Should().Be(MachineState.Closed);
                 });
         }

@@ -606,7 +606,7 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// <summary>
         /// The interval by which LLS' heartbeat will update the cluster state. Default is to do it on every heartbeat.
         /// </summary>
-        public TimeSpan? UpdateClusterStateInterval { get; set; }
+        public TimeSpan UpdateClusterStateInterval { get; set; } = TimeSpan.FromMinutes(1);
 
         /// <summary>
         /// Whether to enable the ability of machines to restore at a given interval.

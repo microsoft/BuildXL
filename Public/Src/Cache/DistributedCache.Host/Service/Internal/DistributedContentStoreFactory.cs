@@ -626,11 +626,6 @@ namespace BuildXL.Cache.Host.Service.Internal
             ApplyIfNotNull(_distributedSettings.DistributedContentConsumerOnly, value =>
             {
                 configuration.DistributedContentConsumerOnly = value;
-                if (value)
-                {
-                    // If consumer only, override default to disable updating cluster state
-                    checkpointConfiguration.UpdateClusterStateInterval ??= Timeout.InfiniteTimeSpan;
-                }
             });
             ApplyIfNotNull(_distributedSettings.IncrementalCheckpointDegreeOfParallelism, value => configuration.Checkpoint.IncrementalCheckpointDegreeOfParallelism = value);
 

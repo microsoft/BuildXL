@@ -43,6 +43,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public DateTime LastInactiveTime { get; set; }
 
         /// <summary>
+        /// The self-determined state of the machine as of the current time.
+        /// </summary>
+        /// <remarks>
+        /// This can be out of sync with what other machines believe the state is.
+        /// </remarks>
+        public MachineState CurrentState { get; set; } = MachineState.Unknown;
+
+        /// <summary>
         /// The machine id representing the primary CAS instance on the machine. 
         /// In multi-drive scenarios where one CAS instance is on SSD and others are on HDD
         /// this should correspond to the SSD CAS instance.

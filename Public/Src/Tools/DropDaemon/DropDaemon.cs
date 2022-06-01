@@ -804,7 +804,7 @@ namespace Tool.DropDaemon
                 }
 
                 var sbomPackageName = string.IsNullOrEmpty(dropConfig.SbomPackageName) ? FullyQualifiedDropName(dropConfig) : dropConfig.SbomPackageName;
-                var metadata = m_bsiMetadataExtractor.ProduceSbomMetadata(BuildEnvironmentName.BuildXL, sbomPackageName, dropConfig.SbomPackageVersion);
+                var metadata = m_bsiMetadataExtractor.ProduceSbomMetadata("BuildXL", sbomPackageName, dropConfig.SbomPackageVersion);
 
                 // Create a temporary directory to be the root path of SBOM generation 
                 // We should create a different directory for each drop, so we use the drop name as part of the path.

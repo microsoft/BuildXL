@@ -31,16 +31,16 @@ namespace Test.BuildXL.Utilities
 
             if (useStaticMethod)
             {
-                metadata = BsiMetadataExtractor.ProduceSbomMetadata(path, BuildEnvironmentName.BuildXL, packageName, packageVersion);
+                metadata = BsiMetadataExtractor.ProduceSbomMetadata(path, "BuildXL", packageName, packageVersion);
             }
             else
             {
                 var bsiHelper = new BsiMetadataExtractor(path);
-                _ = bsiHelper.ProduceSbomMetadata(BuildEnvironmentName.BuildXL, "someOtherPackageName");
-                metadata = bsiHelper.ProduceSbomMetadata(BuildEnvironmentName.BuildXL, packageName, packageVersion);
+                _ = bsiHelper.ProduceSbomMetadata("BuildXL", "someOtherPackageName");
+                metadata = bsiHelper.ProduceSbomMetadata("BuildXL", packageName, packageVersion);
             }
 
-            XAssert.AreEqual(BuildEnvironmentName.BuildXL, metadata.BuildEnvironmentName);
+            XAssert.AreEqual("BuildXL", metadata.BuildEnvironmentName);
             XAssert.AreEqual(packageName, metadata.PackageName);
             XAssert.AreEqual(SampleBranch, metadata.Branch);
             XAssert.AreEqual(SampleBuildQueueName, metadata.BuildName);
@@ -59,7 +59,7 @@ namespace Test.BuildXL.Utilities
             XAssert.AreEqual(Uri.IsWellFormedUriString(jsonUri, UriKind.Absolute), isValid);
             var path = Path.GetTempFileName();
             File.WriteAllText(path, SampleBsiJson(jsonUri));
-            var metadata = BsiMetadataExtractor.ProduceSbomMetadata(path, BuildEnvironmentName.BuildXL, "packageName", "1.0");
+            var metadata = BsiMetadataExtractor.ProduceSbomMetadata(path, "BuildXL", "packageName", "1.0");
             XAssert.IsTrue(Uri.IsWellFormedUriString(metadata.RepositoryUri, UriKind.Absolute));
         }
 
@@ -68,8 +68,8 @@ namespace Test.BuildXL.Utilities
         {
             var path = Path.GetTempFileName();
             File.WriteAllText(path, "{ }");
-            var metadata = BsiMetadataExtractor.ProduceSbomMetadata(path, BuildEnvironmentName.BuildXL, "packageName", "1.0");
-            XAssert.AreEqual(BuildEnvironmentName.BuildXL, metadata.BuildEnvironmentName);
+            var metadata = BsiMetadataExtractor.ProduceSbomMetadata(path, "BuildXL", "packageName", "1.0");
+            XAssert.AreEqual("BuildXL", metadata.BuildEnvironmentName);
             XAssert.AreEqual("packageName", metadata.PackageName);
             XAssert.IsNull(metadata.Branch);
             XAssert.IsNull(metadata.BuildName);
@@ -83,7 +83,7 @@ namespace Test.BuildXL.Utilities
         {
             var path = Path.GetTempFileName();
             File.WriteAllText(path, @"{ ""foo }");
-            Assert.Throws<DeserializationException>(() => BsiMetadataExtractor.ProduceSbomMetadata(path, BuildEnvironmentName.BuildXL, "packageName", "1.0"));
+            Assert.Throws<DeserializationException>(() => BsiMetadataExtractor.ProduceSbomMetadata(path, "BuildXL", "packageName", "1.0"));
         }
 
         // Text extracted from an actual bsi.json, with most fields trimmed down. 

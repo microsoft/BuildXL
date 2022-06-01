@@ -1635,7 +1635,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.ManifestInterface",
-          "Version": "2.0.99"
+          "Version": "2.1.35"
         }
       }
     },
@@ -2022,7 +2022,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Parsers.ManifestGenerator",
-          "Version": "2.0.99"
+          "Version": "2.1.35"
         }
       }
     },
@@ -2031,7 +2031,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Parsers.SPDX22SBOMParser",
-          "Version": "2.0.99"
+          "Version": "2.1.35"
         }
       }
     },
@@ -2067,7 +2067,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.SBOM.Adapters",
-          "Version": "2.0.99"
+          "Version": "2.1.35"
         }
       }
     },
@@ -2076,7 +2076,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.SBOMCore",
-          "Version": "2.0.99"
+          "Version": "2.1.35"
         }
       }
     },
@@ -2085,7 +2085,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Sbom.Contracts",
-          "Version": "2.0.99"
+          "Version": "2.1.35"
         }
       }
     },

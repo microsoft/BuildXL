@@ -56,7 +56,7 @@ namespace BuildXL.Cache.InputListFilter
             bool checkMustNot = Cache.MustNotIncludeRegex != null;
 
             // Try to get the observed inputs from the CasHash given
-            var possibleStream = await GetStreamAsync(casElement, urgencyHint, activityId);
+            var possibleStream = await GetStreamAsync(casElement, (OperationHints)urgencyHint, activityId);
             if (!possibleStream.Succeeded)
             {
                 // If we could not get a stream to the CasEntery in the fingerprint.

@@ -313,7 +313,7 @@ namespace BuildXL.Cache.BasicFilesystem
             }
         }
 
-        public IEnumerable<Task<Possible<StrongFingerprint, Failure>>> EnumerateStrongFingerprints(WeakFingerprintHash weak, UrgencyHint urgencyHint, Guid activityId)
+        public IEnumerable<Task<Possible<StrongFingerprint, Failure>>> EnumerateStrongFingerprints(WeakFingerprintHash weak, OperationHints hints, Guid activityId)
         {
             Contract.Requires(!IsClosed);
 
@@ -321,7 +321,7 @@ namespace BuildXL.Cache.BasicFilesystem
             {
                 using (var eventing = new EnumerateStrongFingerprintsActivity(BasicFilesystemCache.EventSource, activityId, this))
                 {
-                    eventing.Start(weak, urgencyHint);
+                    eventing.Start(weak, hints.Urgency);
 
                     // It's possible the cache could encounter an IO error when attempting to enumerate the fingerprints.
                     // This shouldn't be a fatal error. we just want to catch and record it, then continue on.
@@ -362,7 +362,7 @@ namespace BuildXL.Cache.BasicFilesystem
             }
         }
 
-        public async Task<Possible<CasEntries, Failure>> GetCacheEntryAsync(StrongFingerprint strong, UrgencyHint urgencyHint, Guid activityId)
+        public async Task<Possible<CasEntries, Failure>> GetCacheEntryAsync(StrongFingerprint strong, OperationHints hints, Guid activityId)
         {
             Contract.Requires(!IsClosed);
             Contract.Requires(strong != null);
@@ -371,7 +371,7 @@ namespace BuildXL.Cache.BasicFilesystem
             {
                 using (var eventing = new GetCacheEntryActivity(BasicFilesystemCache.EventSource, activityId, this))
                 {
-                    eventing.Start(strong, urgencyHint);
+                    eventing.Start(strong, hints.Urgency);
 
                     var result = await m_cache.ReadCacheEntryAsync(strong);
                     if (result.Succeeded)
@@ -386,7 +386,7 @@ namespace BuildXL.Cache.BasicFilesystem
             }
         }
 
-        public Task<Possible<string, Failure>> PinToCasAsync(CasHash hash, CancellationToken cancellationToken, UrgencyHint urgencyHint, Guid activityId)
+        public Task<Possible<string, Failure>> PinToCasAsync(CasHash hash, CancellationToken cancellationToken, OperationHints hints, Guid activityId)
         {
             Contract.Requires(!IsClosed);
 
@@ -396,7 +396,7 @@ namespace BuildXL.Cache.BasicFilesystem
                 {
                     using (var eventing = new PinToCasActivity(BasicFilesystemCache.EventSource, activityId, this))
                     {
-                        eventing.Start(hash, urgencyHint);
+                        eventing.Start(hash, hints.Urgency);
 
                         if (!m_pinnedToCas.ContainsKey(hash))
                         {
@@ -423,20 +423,20 @@ namespace BuildXL.Cache.BasicFilesystem
             });
         }
 
-        public async Task<Possible<string, Failure>[]> PinToCasAsync(CasEntries casEntries, CancellationToken cancellationToken, UrgencyHint urgencyHint, Guid activityId)
+        public async Task<Possible<string, Failure>[]> PinToCasAsync(CasEntries casEntries, CancellationToken cancellationToken, OperationHints hints, Guid activityId)
         {
             Contract.Requires(!IsClosed);
             Contract.Requires(casEntries.IsValid);
 
             using (var eventing = new PinToCasMultipleActivity(BasicFilesystemCache.EventSource, activityId, this))
             {
-                eventing.Start(casEntries, urgencyHint);
+                eventing.Start(casEntries, hints.Urgency);
 
                 // First, initiate all of the operations
                 var taskValues = new Task<Possible<string, Failure>>[casEntries.Count];
                 for (int i = 0; i < casEntries.Count; i++)
                 {
-                    taskValues[i] = PinToCasAsync(casEntries[i], cancellationToken, urgencyHint, activityId);
+                    taskValues[i] = PinToCasAsync(casEntries[i], cancellationToken, hints, activityId);
                 }
 
                 // Now await them all (since they can run in parallel
@@ -455,7 +455,7 @@ namespace BuildXL.Cache.BasicFilesystem
             CasHash hash,
             string filename,
             FileState fileState,
-            UrgencyHint urgencyHint,
+            OperationHints hints,
             Guid activityId,
             CancellationToken cancellationToken)
         {
@@ -466,7 +466,7 @@ namespace BuildXL.Cache.BasicFilesystem
             {
                 using (var eventing = new ProduceFileActivity(BasicFilesystemCache.EventSource, activityId, this))
                 {
-                    eventing.Start(hash, filename, fileState, urgencyHint);
+                    eventing.Start(hash, filename, fileState, hints);
 
                     try
                     {
@@ -485,7 +485,7 @@ namespace BuildXL.Cache.BasicFilesystem
             }
         }
 
-        public async Task<Possible<StreamWithLength, Failure>> GetStreamAsync(CasHash hash, UrgencyHint urgencyHint, Guid activityId)
+        public async Task<Possible<StreamWithLength, Failure>> GetStreamAsync(CasHash hash, OperationHints hints, Guid activityId)
         {
             Contract.Requires(!IsClosed);
 
@@ -493,7 +493,7 @@ namespace BuildXL.Cache.BasicFilesystem
             {
                 using (var eventing = new GetStreamActivity(BasicFilesystemCache.EventSource, activityId, this))
                 {
-                    eventing.Start(hash, urgencyHint);
+                    eventing.Start(hash, hints);
 
                     try
                     {

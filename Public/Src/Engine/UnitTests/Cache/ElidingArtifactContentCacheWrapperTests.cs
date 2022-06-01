@@ -121,14 +121,14 @@ namespace Test.BuildXL.Engine.Cache
                 return hash;
             }
 
-            public Task<Possible<ContentAvailabilityBatchResult, Failure>> TryLoadAvailableContentAsync(IReadOnlyList<ContentHash> hashes, CancellationToken cancellationToken)
+            public Task<Possible<ContentAvailabilityBatchResult, Failure>> TryLoadAvailableContentAsync(IReadOnlyList<ContentHash> hashes, CancellationToken cancellationToken, global::BuildXL.Cache.ContentStore.Interfaces.Sessions.OperationHints hints = default)
             {
                 foreach (var hash in hashes)
                 {
                     m_hashLoadCounts.AddOrUpdate(hash, 1, (k, v) => v + 1);
                 }
 
-                return m_cache.TryLoadAvailableContentAsync(hashes, CancellationToken.None);
+                return m_cache.TryLoadAvailableContentAsync(hashes, CancellationToken.None, hints);
             }
 
             public Task<Possible<Unit, Failure>> TryMaterializeAsync(FileRealizationMode fileRealizationModes, ExpandedAbsolutePath path, ContentHash contentHash, CancellationToken cancellationToken)

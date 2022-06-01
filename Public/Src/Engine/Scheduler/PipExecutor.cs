@@ -13,6 +13,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using OperationHints = BuildXL.Cache.ContentStore.Interfaces.Sessions.OperationHints;
 using BuildXL.Engine.Cache.Artifacts;
 using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Engine.Cache.Fingerprints.TwoPhase;
@@ -2174,7 +2175,8 @@ namespace BuildXL.Scheduler
         public static async Task<RunnableFromCacheResult> TryCheckProcessRunnableFromCacheAsync(
             ProcessRunnablePip processRunnable,
             PipExecutionState.PipScopeState state,
-            CacheableProcess cacheableProcess)
+            CacheableProcess cacheableProcess,
+            bool avoidRemoteLookups = false)
         {
             BoxRef<PipCacheMissEventData> pipCacheMiss = new PipCacheMissEventData
             {
@@ -2208,7 +2210,8 @@ namespace BuildXL.Scheduler
                     processFingerprintComputationResult,
                     strongFingerprintComputationList,
                     canAugmentWeakFingerprint: processRunnable.Process.AugmentWeakFingerprintPathSetThreshold(processRunnable.Environment.Configuration.Cache) > 0,
-                    isWeakFingerprintAugmented: false);
+                    isWeakFingerprintAugmented: false,
+                    avoidRemoteLookups: avoidRemoteLookups);
 
                 processFingerprintComputationResult.Value.StrongFingerprintComputations = strongFingerprintComputationList.SelectArray(s => s.Value);
 
@@ -2252,7 +2255,8 @@ namespace BuildXL.Scheduler
             BoxRef<ProcessFingerprintComputationEventData> processFingerprintComputationResult,
             List<BoxRef<ProcessStrongFingerprintComputationData>> strongFingerprintComputationList,
             bool canAugmentWeakFingerprint,
-            bool isWeakFingerprintAugmented)
+            bool isWeakFingerprintAugmented,
+            bool avoidRemoteLookups)
         {
             Contract.Requires(processRunnable != null);
             Contract.Requires(cacheableProcess != null);
@@ -2332,7 +2336,8 @@ namespace BuildXL.Scheduler
                     refLocality = null;
                 }
                 else
-                {
+                {                  
+
                     // Chapter 1: Determine Strong Fingerprint
                     // First, we will evaluate a sequence of (path set, strong fingerprint) pairs.
                     // Each path set generates a particular strong fingerprint based on local build state (input hashes);
@@ -2345,6 +2350,7 @@ namespace BuildXL.Scheduler
                     // So, this is assigned at most once for entry into Chapter 2.
                     PublishedEntryRef? maybeUsableEntryRef = null;
                     ObservedPathSet? maybePathSet = null;
+                    OperationHints hints = new() { AvoidRemote = avoidRemoteLookups };
 
                     // Set if we find a usable entry.
                     refLocality = null;
@@ -2359,7 +2365,7 @@ namespace BuildXL.Scheduler
                         Dictionary<ContentHash, Tuple<BoxRef<ProcessStrongFingerprintComputationData>, ObservedInputProcessingResult, ObservedPathSet>> strongFingerprintCache =
                             strongFingerprintCacheWrapper.Instance;
 
-                        foreach (Task<Possible<PublishedEntryRef, Failure>> batchPromise in cache.ListPublishedEntriesByWeakFingerprint(operationContext, weakFingerprint))
+                        foreach (Task<Possible<PublishedEntryRef, Failure>> batchPromise in cache.ListPublishedEntriesByWeakFingerprint(operationContext, weakFingerprint, hints))
                         {
                             if (environment.Context.CancellationToken.IsCancellationRequested)
                             {
@@ -2413,7 +2419,8 @@ namespace BuildXL.Scheduler
                                         environment,
                                         description,
                                         weakFingerprint,
-                                        entryRef.PathSetHash);
+                                        entryRef.PathSetHash,
+                                        avoidRemoteLookups);
                                 }
 
                                 ++numPathSetsDownloaded;
@@ -2571,7 +2578,8 @@ namespace BuildXL.Scheduler
                                     processFingerprintComputationResult,
                                     strongFingerprintComputationList,
                                     canAugmentWeakFingerprint: false,
-                                    isWeakFingerprintAugmented: true);
+                                    isWeakFingerprintAugmented: true,
+                                    avoidRemoteLookups: avoidRemoteLookups);
 
                                 string keepAliveResult = "N/A";
 
@@ -2586,7 +2594,8 @@ namespace BuildXL.Scheduler
                                             cacheableProcess.Process,
                                             weakFingerprint,
                                             entryRef.PathSetHash,
-                                            entryRef.StrongFingerprint);
+                                            entryRef.StrongFingerprint, 
+                                            hints);
 
                                         keepAliveResult = fetchAugmentingPathSetEntryResult.Succeeded
                                             ? (fetchAugmentingPathSetEntryResult.Result == null ? "Missing" : "Success")
@@ -2635,7 +2644,8 @@ namespace BuildXL.Scheduler
                                     cacheableProcess.Process,
                                     weakFingerprint,
                                     usableEntryRef.PathSetHash,
-                                    usableEntryRef.StrongFingerprint);
+                                    usableEntryRef.StrongFingerprint,
+                                    hints);
 
                             if (entryFetchResult.Succeeded)
                             {
@@ -3192,9 +3202,10 @@ namespace BuildXL.Scheduler
             IPipExecutionEnvironment environment,
             string processDescription,
             WeakContentFingerprint weakFingerprint,
-            ContentHash pathSetHash)
+            ContentHash pathSetHash,
+            bool avoidRemoteLookups)
         {
-            var maybePathSet = await environment.State.Cache.TryRetrievePathSetAsync(operationContext, weakFingerprint, pathSetHash);
+            var maybePathSet = await environment.State.Cache.TryRetrievePathSetAsync(operationContext, weakFingerprint, pathSetHash, avoidRemoteLookups);
 
             if (!maybePathSet.Succeeded)
             {

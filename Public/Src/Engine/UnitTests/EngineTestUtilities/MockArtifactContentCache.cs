@@ -1,7 +1,6 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
@@ -16,6 +15,7 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tasks;
 using static BuildXL.Utilities.FormattableStringEx;
+using OperationHints = BuildXL.Cache.ContentStore.Interfaces.Sessions.OperationHints;
 
 namespace Test.BuildXL.EngineTestUtilities
 {
@@ -395,7 +395,7 @@ namespace Test.BuildXL.EngineTestUtilities
         }
 
         /// <inheritdoc />
-        public Task<Possible<ContentAvailabilityBatchResult, Failure>> TryLoadAvailableContentAsync(IReadOnlyList<ContentHash> hashes, CancellationToken cancellationToken)
+        public Task<Possible<ContentAvailabilityBatchResult, Failure>> TryLoadAvailableContentAsync(IReadOnlyList<ContentHash> hashes, CancellationToken cancellationToken, OperationHints hints)
         {
             return Task.Run<Possible<ContentAvailabilityBatchResult, Failure>>(
                 () =>

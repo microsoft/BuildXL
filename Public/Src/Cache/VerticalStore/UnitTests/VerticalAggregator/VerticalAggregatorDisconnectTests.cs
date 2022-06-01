@@ -45,16 +45,7 @@ namespace BuildXL.Cache.Tests
         /// <param name="writeThroughCasData">If the VerticalAggregator should force write through of CAS data.</param>
         /// <returns>A VerticalCacheAggregator </returns>
         internal static string NewWrappedRemoteCache(string cacheId, bool strictMetadataCasCoupling, bool writeThroughCasData)
-        {
-            TestInMemory memTests = new TestInMemory();
-            string localCacheString = memTests.NewCache(cacheId + VerticalAggregatorBaseTests.LocalMarker, strictMetadataCasCoupling);
-            string remoteCacheString = memTests.NewCache(cacheId + VerticalAggregatorBaseTests.RemoteMarker, strictMetadataCasCoupling, authoritative: true);
-
-            remoteCacheString = TestCallbackCache.FormatNewCacheConfig(remoteCacheString);
-
-            string vertCacheConfig = VerticalAggregatorBaseTests.NewCacheString(cacheId, localCacheString, remoteCacheString, false, false, writeThroughCasData);
-            return vertCacheConfig;
-        }
+            => NewWrappedCache(cacheId, strictMetadataCasCoupling, writeThroughCasData, wrapLocal: false, wrapRemote: true);
 
         /// <summary>
         /// Returns the config string for a VerticalCacheAggregator that has a local cache wrapped by the CallbackCacheWrapper using the InMemoryCache as the local and remote
@@ -65,12 +56,31 @@ namespace BuildXL.Cache.Tests
         /// <param name="writeThroughCasData">If the VerticalAggregator should force write through of CAS data.</param>
         /// <returns>A VerticalCacheAggregator </returns>
         internal static string NewWrappedLocalCache(string cacheId, bool strictMetadataCasCoupling, bool writeThroughCasData)
+            => NewWrappedCache(cacheId, strictMetadataCasCoupling, writeThroughCasData, wrapLocal: true, wrapRemote: false);
+
+        /// <summary>
+        /// Returns the config string for a VerticalCacheAggregator that has both the local and the remote caches
+        /// wrapped by the CallbackCacheWrapper using the InMemoryCache as the local and remote backing stores
+        /// </summary>
+        /// <param name="cacheId">Id of the cache.</param>
+        /// <param name="strictMetadataCasCoupling">If the cache should require a strick metadata CAS coupling.</param>
+        /// <param name="writeThroughCasData">If the VerticalAggregator should force write through of CAS data.</param>
+        /// <returns>A VerticalCacheAggregator </returns>
+        internal static string NewWrappedCache(string cacheId, bool strictMetadataCasCoupling, bool writeThroughCasData, bool wrapLocal, bool wrapRemote)
         {
             TestInMemory memTests = new TestInMemory();
             string localCacheString = memTests.NewCache(cacheId + VerticalAggregatorBaseTests.LocalMarker, strictMetadataCasCoupling);
             string remoteCacheString = memTests.NewCache(cacheId + VerticalAggregatorBaseTests.RemoteMarker, strictMetadataCasCoupling, authoritative: true);
 
-            localCacheString = TestCallbackCache.FormatNewCacheConfig(localCacheString);
+            if (wrapLocal)
+            {
+                localCacheString = TestCallbackCache.FormatNewCacheConfig(localCacheString);
+            }
+
+            if (wrapRemote)
+            {
+                remoteCacheString = TestCallbackCache.FormatNewCacheConfig(remoteCacheString);
+            }
 
             string vertCacheConfig = VerticalAggregatorBaseTests.NewCacheString(cacheId, localCacheString, remoteCacheString, false, false, writeThroughCasData);
             return vertCacheConfig;
@@ -78,7 +88,7 @@ namespace BuildXL.Cache.Tests
 
         private static void PoisonROSession(CallbackCacheReadOnlySessionWrapper cacheSession)
         {
-            cacheSession.EnumerateStrongFingerprintsCallback = (WeakFingerprintHash weak, UrgencyHint hint, Guid activityId, ICacheReadOnlySession wrappedSession) =>
+            cacheSession.EnumerateStrongFingerprintsCallback = (WeakFingerprintHash weak, OperationHints hints, Guid activityId, ICacheReadOnlySession wrappedSession) =>
             {
                 XAssert.Fail("Remote Cache was called when disconnected (EnumerateStrongFingerprints)");
                 return null;
@@ -96,13 +106,13 @@ namespace BuildXL.Cache.Tests
                 return null;
             };
 
-            cacheSession.PinToCasAsyncCallback = (CasHash hash, UrgencyHint urgencyHint, Guid activityId, CancellationToken cancellationToken, ICacheReadOnlySession wrappedSession) =>
+            cacheSession.PinToCasAsyncCallback = (CasHash hash, OperationHints hints, Guid activityId, CancellationToken cancellationToken, ICacheReadOnlySession wrappedSession) =>
             {
                 XAssert.Fail("Remote Cache was called when disconnected (PinToCasAsync)");
                 return null;
             };
 
-            cacheSession.PinToCasMultipleAsyncCallback = (CasEntries hashes, UrgencyHint urgencyHint, Guid activityId, CancellationToken cancellationToken, ICacheReadOnlySession wrappedSession) =>
+            cacheSession.PinToCasMultipleAsyncCallback = (CasEntries hashes, OperationHints hints, Guid activityId, CancellationToken cancellationToken, ICacheReadOnlySession wrappedSession) =>
             {
                 XAssert.Fail("Remote Cache was called when disconnected (PinToCasMultiple)");
                 return null;

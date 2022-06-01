@@ -112,33 +112,33 @@ namespace BuildXL.Cache.Interfaces.Test
             }
         }
 
-        public Func<WeakFingerprintHash, UrgencyHint, Guid, ICacheReadOnlySession, IEnumerable<Task<Possible<StrongFingerprint, Failure>>>> EnumerateStrongFingerprintsCallback;
+        public Func<WeakFingerprintHash, OperationHints, Guid, ICacheReadOnlySession, IEnumerable<Task<Possible<StrongFingerprint, Failure>>>> EnumerateStrongFingerprintsCallback;
 
-        public IEnumerable<Task<Possible<StrongFingerprint, Failure>>> EnumerateStrongFingerprints(WeakFingerprintHash weak, UrgencyHint urgencyHint, Guid activityId)
+        public IEnumerable<Task<Possible<StrongFingerprint, Failure>>> EnumerateStrongFingerprints(WeakFingerprintHash weak, OperationHints hints, Guid activityId)
         {
             var callback = EnumerateStrongFingerprintsCallback;
             if (callback != null)
             {
-                return callback(weak, urgencyHint, activityId, m_realSession);
+                return callback(weak, hints, activityId, m_realSession);
             }
             else
             {
-                return m_realSession.EnumerateStrongFingerprints(weak, urgencyHint, activityId);
+                return m_realSession.EnumerateStrongFingerprints(weak, hints, activityId);
             }
         }
 
         public Func<StrongFingerprint, UrgencyHint, Guid, ICacheReadOnlySession, Task<Possible<CasEntries, Failure>>> GetCacheEntryAsyncCallback;
 
-        public Task<Possible<CasEntries, Failure>> GetCacheEntryAsync(StrongFingerprint strong, UrgencyHint urgencyHint, Guid activityId)
+        public Task<Possible<CasEntries, Failure>> GetCacheEntryAsync(StrongFingerprint strong, OperationHints hints, Guid activityId)
         {
             var callback = GetCacheEntryAsyncCallback;
             if (callback != null)
             {
-                return callback(strong, urgencyHint, activityId, m_realSession);
+                return callback(strong, hints.Urgency, activityId, m_realSession);
             }
             else
             {
-                return m_realSession.GetCacheEntryAsync(strong, urgencyHint, activityId);
+                return m_realSession.GetCacheEntryAsync(strong, hints, activityId);
             }
         }
 
@@ -159,46 +159,46 @@ namespace BuildXL.Cache.Interfaces.Test
 
         public Func<CasHash, UrgencyHint, Guid, ICacheReadOnlySession, Task<Possible<StreamWithLength, Failure>>> GetStreamAsyncCallback;
 
-        public Task<Possible<StreamWithLength, Failure>> GetStreamAsync(CasHash hash, UrgencyHint urgencyHint, Guid activityId)
+        public Task<Possible<StreamWithLength, Failure>> GetStreamAsync(CasHash hash, OperationHints hints, Guid activityId)
         {
             var callback = GetStreamAsyncCallback;
             if (callback != null)
             {
-                return callback(hash, urgencyHint, activityId, m_realSession);
+                return callback(hash, hints, activityId, m_realSession);
             }
             else
             {
-                return m_realSession.GetStreamAsync(hash, urgencyHint, activityId);
+                return m_realSession.GetStreamAsync(hash, hints, activityId);
             }
         }
 
-        public Func<CasEntries, UrgencyHint, Guid, CancellationToken, ICacheReadOnlySession, Task<Possible<string, Failure>[]>> PinToCasMultipleAsyncCallback;
+        public Func<CasEntries, OperationHints, Guid, CancellationToken, ICacheReadOnlySession, Task<Possible<string, Failure>[]>> PinToCasMultipleAsyncCallback;
 
-        public Task<Possible<string, Failure>[]> PinToCasAsync(CasEntries hashes, CancellationToken cancellationToken, UrgencyHint urgencyHint, Guid activityId)
+        public Task<Possible<string, Failure>[]> PinToCasAsync(CasEntries hashes, CancellationToken cancellationToken, OperationHints hints, Guid activityId)
         {
             var callback = PinToCasMultipleAsyncCallback;
             if (callback != null)
             {
-                return callback(hashes, urgencyHint, activityId, cancellationToken, m_realSession);
+                return callback(hashes, hints, activityId, cancellationToken, m_realSession);
             }
             else
             {
-                return m_realSession.PinToCasAsync(hashes, cancellationToken, urgencyHint, activityId);
+                return m_realSession.PinToCasAsync(hashes, cancellationToken, hints, activityId);
             }
         }
 
-        public Func<CasHash, UrgencyHint, Guid, CancellationToken, ICacheReadOnlySession, Task<Possible<string, Failure>>> PinToCasAsyncCallback;
+        public Func<CasHash, OperationHints, Guid, CancellationToken, ICacheReadOnlySession, Task<Possible<string, Failure>>> PinToCasAsyncCallback;
 
-        public Task<Possible<string, Failure>> PinToCasAsync(CasHash hash, CancellationToken cancellationToken, UrgencyHint urgencyHint, Guid activityId)
+        public Task<Possible<string, Failure>> PinToCasAsync(CasHash hash, CancellationToken cancellationToken, OperationHints hints, Guid activityId)
         {
             var callback = PinToCasAsyncCallback;
             if (callback != null)
             {
-                return callback(hash, urgencyHint, activityId, cancellationToken, m_realSession);
+                return callback(hash, hints, activityId, cancellationToken, m_realSession);
             }
             else
             {
-                return m_realSession.PinToCasAsync(hash, cancellationToken, urgencyHint, activityId);
+                return m_realSession.PinToCasAsync(hash, cancellationToken, hints, activityId);
             }
         }
 
@@ -230,7 +230,7 @@ namespace BuildXL.Cache.Interfaces.Test
             CasHash hash,
             string filename,
             FileState fileState,
-            UrgencyHint urgencyHint,
+            OperationHints hints,
             Guid activityId,
             CancellationToken cancellationToken)
         {
@@ -241,7 +241,7 @@ namespace BuildXL.Cache.Interfaces.Test
                     hash,
                     filename,
                     fileState,
-                    urgencyHint,
+                    hints,
                     activityId,
                     cancellationToken,
                     m_realSession);
@@ -252,7 +252,7 @@ namespace BuildXL.Cache.Interfaces.Test
                     hash,
                     filename,
                     fileState,
-                    urgencyHint,
+                    hints,
                     activityId,
                     cancellationToken);
             }

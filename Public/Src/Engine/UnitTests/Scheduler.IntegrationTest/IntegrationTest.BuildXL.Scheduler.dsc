@@ -23,6 +23,7 @@ namespace Scheduler.IntegrationTest {
             EngineTestUtilities.dll,
             importFrom("BuildXL.Cache.ContentStore").Hashing.dll,
             importFrom("BuildXL.Cache.ContentStore").UtilitiesCore.dll,
+            importFrom("BuildXL.Cache.ContentStore").Interfaces.dll,
             importFrom("BuildXL.Engine").Cache.dll,
             importFrom("BuildXL.App").Main.exe,
             importFrom("BuildXL.Engine").Engine.dll,

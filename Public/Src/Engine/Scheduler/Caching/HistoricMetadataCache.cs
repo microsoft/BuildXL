@@ -10,6 +10,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
+using OperationHints = BuildXL.Cache.ContentStore.Interfaces.Sessions.OperationHints;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Engine.Cache;
 using BuildXL.Engine.Cache.Artifacts;
@@ -277,7 +278,8 @@ namespace BuildXL.Scheduler.Cache
         /// <inheritdoc/>
         public override IEnumerable<Task<Possible<PublishedEntryRef, Failure>>> ListPublishedEntriesByWeakFingerprint(
             OperationContext operationContext,
-            WeakContentFingerprint weak)
+            WeakContentFingerprint weak,
+            OperationHints hints = default)
         {
             EnsureLoadedAsync().GetAwaiter().GetResult();
 
@@ -306,7 +308,7 @@ namespace BuildXL.Scheduler.Cache
             Counters.DecrementCounter(PipCachingCounter.HistoricWeakFingerprintHits);
             Counters.IncrementCounter(PipCachingCounter.HistoricWeakFingerprintMisses);
 
-            foreach (var entry in base.ListPublishedEntriesByWeakFingerprint(operationContext, weak))
+            foreach (var entry in base.ListPublishedEntriesByWeakFingerprint(operationContext, weak, hints))
             {
                 yield return entry;
             }
@@ -319,7 +321,8 @@ namespace BuildXL.Scheduler.Cache
             Pip pip,
             WeakContentFingerprint weakFingerprint,
             ContentHash pathSetHash,
-            StrongContentFingerprint strongFingerprint)
+            StrongContentFingerprint strongFingerprint,
+            OperationHints hints)
         {
             await EnsureLoadedAsync();
 
@@ -340,7 +343,7 @@ namespace BuildXL.Scheduler.Cache
                 return new CacheEntry(metadataHash, OriginatingCacheId, new ContentHash[] { metadataHash });
             }
 
-            var result = await base.TryGetCacheEntryAsync(pip, weakFingerprint, pathSetHash, strongFingerprint);
+            var result = await base.TryGetCacheEntryAsync(pip, weakFingerprint, pathSetHash, strongFingerprint, hints);
             if (result.Succeeded && result.Result.HasValue)
             {
                 Counters.IncrementCounter(PipCachingCounter.HistoricCacheEntryMisses);
@@ -419,7 +422,7 @@ namespace BuildXL.Scheduler.Cache
         }
 
         /// <inheritdoc/>
-        protected override async Task<Possible<StreamWithLength>> TryLoadAndOpenPathSetStreamAsync(ContentHash pathSetHash)
+        protected override async Task<Possible<StreamWithLength>> TryLoadAndOpenPathSetStreamAsync(ContentHash pathSetHash, bool avoidRemoteLookups = false)
         {
             await EnsureLoadedAsync();
 
@@ -429,7 +432,7 @@ namespace BuildXL.Scheduler.Cache
                 return (new MemoryStream(content.Array, content.Offset, content.Count, writable: false)).WithLength();
             }
 
-            var possiblyOpened = await base.TryLoadAndOpenPathSetStreamAsync(pathSetHash);
+            var possiblyOpened = await base.TryLoadAndOpenPathSetStreamAsync(pathSetHash, avoidRemoteLookups);
             if (possiblyOpened.Succeeded)
             {
                 Counters.IncrementCounter(PipCachingCounter.HistoricPathSetMisses);

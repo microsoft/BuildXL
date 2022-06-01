@@ -914,6 +914,13 @@ namespace BuildXL
                         OptionHandlerFactory.CreateOption(
                             "remoteAgentWaitTimeSec",
                             opt => schedulingConfiguration.RemoteAgentWaitTimeSec = CommandLineUtilities.ParseDoubleOption(opt, double.MinValue, double.MaxValue)),
+                        OptionHandlerFactory.CreateBoolOption(
+                            "remoteCacheCutoff",
+                            opt => schedulingConfiguration.RemoteCacheCutoff = opt
+                        ),OptionHandlerFactory.CreateOption(
+                            "remoteCacheCutoffLength",
+                            opt => schedulingConfiguration.RemoteCacheCutoffLength = CommandLineUtilities.ParseInt32Option(opt, 0, int.MaxValue)
+                        ),
                         OptionHandlerFactory.CreateBoolOptionWithValue(
                             "remoteTelemetry",
                             (opt, sign) =>

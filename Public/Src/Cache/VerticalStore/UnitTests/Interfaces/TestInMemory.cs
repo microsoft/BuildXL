@@ -74,6 +74,16 @@ namespace BuildXL.Cache.Tests
             });
         }
 
+        public static Task ClearFingerprints(ICache cache)
+        {
+            return Task.Run(() =>
+            {
+                MemCache mem = cache as MemCache;
+                XAssert.IsNotNull(mem, "Invalid cache passed to TestInMemory.ClearFingerprints test method");
+                mem.Fingerprints.Clear();
+            });
+        }
+
         /// <nodoc/>
         [Fact]
         public async Task FailToCreateCache()

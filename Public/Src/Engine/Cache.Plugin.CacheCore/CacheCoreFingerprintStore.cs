@@ -40,7 +40,7 @@ namespace BuildXL.Engine.Cache.Plugin.CacheCore
         }
 
         /// <inheritdoc />
-        public IEnumerable<Task<Possible<PublishedEntryRef, Failure>>> ListPublishedEntriesByWeakFingerprint(WeakContentFingerprint weak)
+        public IEnumerable<Task<Possible<PublishedEntryRef, Failure>>> ListPublishedEntriesByWeakFingerprint(WeakContentFingerprint weak, OperationHints hints = default)
         {
             WeakFingerprintHash cacheCoreWeakFingerprint = new WeakFingerprintHash(new Hash(weak.Hash));
 
@@ -48,7 +48,7 @@ namespace BuildXL.Engine.Cache.Plugin.CacheCore
             //       of a local and remote cache, but isn't general.
             PublishedEntryRefLocality currentLocality = PublishedEntryRefLocality.Local;
 
-            foreach (Task<Possible<StrongFingerprint, Failure>> entryPromise in m_cache.EnumerateStrongFingerprints(cacheCoreWeakFingerprint))
+            foreach (Task<Possible<StrongFingerprint, Failure>> entryPromise in m_cache.EnumerateStrongFingerprints(cacheCoreWeakFingerprint, hints))
             {
                 if (entryPromise.IsCompleted && entryPromise.Result.Succeeded && entryPromise.Result.Result is StrongFingerprintSentinel)
                 {
@@ -87,7 +87,8 @@ namespace BuildXL.Engine.Cache.Plugin.CacheCore
         public async Task<Possible<CacheEntry?, Failure>> TryGetCacheEntryAsync(
             WeakContentFingerprint weakFingerprint,
             ContentHash pathSetHash,
-            StrongContentFingerprint strongFingerprint)
+            StrongContentFingerprint strongFingerprint, 
+            OperationHints hints = default)
         {
             // TODO: We need a different side channel for prefetching etc. other than strong fingerprint subclasses.
             //              - Given aggregation of multiple *closely aligned* stores as the common case,
@@ -123,7 +124,7 @@ namespace BuildXL.Engine.Cache.Plugin.CacheCore
                 return (CacheEntry?)null;
             }
 
-            Possible<CasEntries, Failure> maybeEntry = await PerformFingerprintCacheOperationAsync(() => m_cache.GetCacheEntryAsync(reconstructedStrongFingerprint), nameof(TryGetCacheEntryAsync));
+            Possible<CasEntries, Failure> maybeEntry = await PerformFingerprintCacheOperationAsync(() => m_cache.GetCacheEntryAsync(reconstructedStrongFingerprint, hints), nameof(TryGetCacheEntryAsync));
 
             if (maybeEntry.Succeeded)
             {

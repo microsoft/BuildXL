@@ -41,6 +41,7 @@ using static BuildXL.Utilities.FormattableStringEx;
 using Process = BuildXL.Pips.Operations.Process;
 using WriteFilePip = BuildXL.Pips.Operations.WriteFile;
 using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;
+using OperationHints = BuildXL.Cache.ContentStore.Interfaces.Sessions.OperationHints;
 
 namespace Test.BuildXL.Scheduler
 {
@@ -3514,7 +3515,7 @@ EXIT /b 3
             return new PublishedEntryRef(M_pathSetHash, M_strongFingerprint, "foobar", PublishedEntryRefLocality.Remote);
         }
 
-        public IEnumerable<Task<Possible<PublishedEntryRef, Failure>>> ListPublishedEntriesByWeakFingerprint(WeakContentFingerprint weak)
+        public IEnumerable<Task<Possible<PublishedEntryRef, Failure>>> ListPublishedEntriesByWeakFingerprint(WeakContentFingerprint weak, OperationHints hints)
         {
             yield return GetOne();
         }
@@ -3522,7 +3523,8 @@ EXIT /b 3
         public Task<Possible<CacheEntry?, Failure>> TryGetCacheEntryAsync(
             WeakContentFingerprint weakFingerprint,
             ContentHash pathSetHash,
-            StrongContentFingerprint strongFingerprint)
+            StrongContentFingerprint strongFingerprint,
+            OperationHints hints = default)
         {
             return Task.FromResult(new Possible<CacheEntry?, Failure>(M_cacheEntry));
         }

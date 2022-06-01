@@ -4,6 +4,7 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 
@@ -43,7 +44,7 @@ namespace BuildXL.Engine.Cache.Fingerprints.TwoPhase
         }
 
         /// <inheritdoc />
-        public IEnumerable<Task<Possible<PublishedEntryRef, Failure>>> ListPublishedEntriesByWeakFingerprint(WeakContentFingerprint weak)
+        public IEnumerable<Task<Possible<PublishedEntryRef, Failure>>> ListPublishedEntriesByWeakFingerprint(WeakContentFingerprint weak, OperationHints hints = default)
         {
             Node node;
             if (m_entries.TryGetValue(weak, out node))
@@ -63,7 +64,7 @@ namespace BuildXL.Engine.Cache.Fingerprints.TwoPhase
         }
 
         /// <inheritdoc />
-        public Task<Possible<CacheEntry?, Failure>> TryGetCacheEntryAsync(WeakContentFingerprint weakFingerprint, ContentHash pathSetHash, StrongContentFingerprint strongFingerprint)
+        public Task<Possible<CacheEntry?, Failure>> TryGetCacheEntryAsync(WeakContentFingerprint weakFingerprint, ContentHash pathSetHash, StrongContentFingerprint strongFingerprint, OperationHints hints = default)
         {
             Node node;
             if (m_entries.TryGetValue(weakFingerprint, out node))

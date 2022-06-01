@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Utilities;
 
 namespace BuildXL.Engine.Cache.Fingerprints.TwoPhase
@@ -16,13 +17,13 @@ namespace BuildXL.Engine.Cache.Fingerprints.TwoPhase
     public sealed class EmptyTwoPhaseFingerprintStore : ITwoPhaseFingerprintStore
     {
         /// <inheritdoc />
-        public IEnumerable<Task<Possible<PublishedEntryRef, Failure>>> ListPublishedEntriesByWeakFingerprint(WeakContentFingerprint weak)
+        public IEnumerable<Task<Possible<PublishedEntryRef, Failure>>> ListPublishedEntriesByWeakFingerprint(WeakContentFingerprint weak, OperationHints hints = default)
         {
             return Enumerable.Empty<Task<Possible<PublishedEntryRef, Failure>>>();
         }
 
         /// <inheritdoc />
-        public Task<Possible<CacheEntry?, Failure>> TryGetCacheEntryAsync(WeakContentFingerprint weakFingerprint, ContentHash pathSetHash, StrongContentFingerprint strongFingerprint)
+        public Task<Possible<CacheEntry?, Failure>> TryGetCacheEntryAsync(WeakContentFingerprint weakFingerprint, ContentHash pathSetHash, StrongContentFingerprint strongFingerprint, OperationHints hints = default)
         {
             return Task.FromResult(new Possible<CacheEntry?, Failure>(result: null));
         }

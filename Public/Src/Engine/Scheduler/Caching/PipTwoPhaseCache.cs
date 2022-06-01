@@ -23,6 +23,7 @@ using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using static BuildXL.Utilities.FormattableStringEx;
 using static BuildXL.Tracing.Diagnostics;
+using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 
 namespace BuildXL.Scheduler.Cache
 {
@@ -253,14 +254,14 @@ namespace BuildXL.Scheduler.Cache
         /// </summary>
         public virtual async Task<Possible<ObservedPathSet>> TryRetrievePathSetAsync(
             OperationContext operationContext,
-
             // TODO: Do we need this fingerprint given that the path set hash is provided by this interface in the first place
             WeakContentFingerprint weakFingerprint,
-            ContentHash pathSetHash)
+            ContentHash pathSetHash,
+            bool avoidRemoteLookups = false)
         {
             using (operationContext.StartOperation(PipExecutorCounter.TryLoadPathSetFromContentCacheDuration))
             {
-                Possible<StreamWithLength> maybePathSetStream = await TryLoadAndOpenPathSetStreamAsync(pathSetHash);
+                Possible<StreamWithLength> maybePathSetStream = await TryLoadAndOpenPathSetStreamAsync(pathSetHash, avoidRemoteLookups);
                 if (!maybePathSetStream.Succeeded)
                 {
                     return maybePathSetStream.Failure;
@@ -283,9 +284,9 @@ namespace BuildXL.Scheduler.Cache
         /// <summary>
         /// Loads the path set stream
         /// </summary>
-        protected virtual async Task<Possible<StreamWithLength>> TryLoadAndOpenPathSetStreamAsync(ContentHash pathSetHash)
+        protected virtual async Task<Possible<StreamWithLength>> TryLoadAndOpenPathSetStreamAsync(ContentHash pathSetHash, bool avoidRemoteLookups = false)
         {
-            Possible<StreamWithLength> maybePathSetStream = await TryLoadContentAndOpenStreamAsync(pathSetHash);
+            Possible<StreamWithLength> maybePathSetStream = await TryLoadContentAndOpenStreamAsync(pathSetHash, avoidRemoteLookups);
             if (!maybePathSetStream.Succeeded)
             {
                 return maybePathSetStream.Failure;
@@ -309,12 +310,12 @@ namespace BuildXL.Scheduler.Cache
         /// Combined load+open. This assumes that the named content is probably available (e.g. named in a cache entry)
         /// and so soft misses are promoted to failures.
         /// </summary>
-        protected virtual async Task<Possible<StreamWithLength>> TryLoadContentAndOpenStreamAsync(ContentHash contentHash)
+        protected virtual async Task<Possible<StreamWithLength>> TryLoadContentAndOpenStreamAsync(ContentHash contentHash, bool avoidRemoteLookups)
         {
             if (!EngineEnvironmentSettings.SkipExtraneousPins)
             {
                 Possible<ContentAvailabilityBatchResult> maybeAvailable =
-                    await ArtifactContentCache.TryLoadAvailableContentAsync(new[] { contentHash }, Context.CancellationToken);
+                    await ArtifactContentCache.TryLoadAvailableContentAsync(new[] { contentHash }, Context.CancellationToken, new () { AvoidRemote = avoidRemoteLookups });
                 if (!maybeAvailable.Succeeded)
                 {
                     return maybeAvailable.Failure;
@@ -333,13 +334,13 @@ namespace BuildXL.Scheduler.Cache
         /// <summary>
         /// See <see cref="ITwoPhaseFingerprintStore.ListPublishedEntriesByWeakFingerprint"/>
         /// </summary>
-        public virtual IEnumerable<Task<Possible<PublishedEntryRef, Failure>>> ListPublishedEntriesByWeakFingerprint(OperationContext operationContext, WeakContentFingerprint weak)
+        public virtual IEnumerable<Task<Possible<PublishedEntryRef, Failure>>> ListPublishedEntriesByWeakFingerprint(OperationContext operationContext, WeakContentFingerprint weak, OperationHints hints)
         {
             IEnumerator<Task<Possible<PublishedEntryRef, Failure>>> enumerator;
 
             using (operationContext.StartOperation(PipExecutorCounter.CacheQueryingWeakFingerprintDuration))
             {
-                enumerator = TwoPhaseFingerprintStore.ListPublishedEntriesByWeakFingerprint(weak).GetEnumerator();
+                enumerator = TwoPhaseFingerprintStore.ListPublishedEntriesByWeakFingerprint(weak, hints).GetEnumerator();
             }
 
             while (true)
@@ -368,9 +369,10 @@ namespace BuildXL.Scheduler.Cache
             Pip pip,
             WeakContentFingerprint weakFingerprint,
             ContentHash pathSetHash,
-            StrongContentFingerprint strongFingerprint)
+            StrongContentFingerprint strongFingerprint,
+            OperationHints hints)
         {
-            var result = await TwoPhaseFingerprintStore.TryGetCacheEntryAsync(weakFingerprint, pathSetHash, strongFingerprint);
+            var result = await TwoPhaseFingerprintStore.TryGetCacheEntryAsync(weakFingerprint, pathSetHash, strongFingerprint, hints);
 
             if (result.Succeeded &&
                 ETWLogger.Log.IsEnabled(EventLevel.Verbose, Keywords.Diagnostics))

@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Storage;
 using BuildXL.Utilities;
 
@@ -28,7 +29,7 @@ namespace BuildXL.Engine.Cache.Fingerprints.TwoPhase
         /// results are incomplete (the consumer is still free to use any matching candidate that was returned).
         /// Consumers are permitted to await multiple batch-tasks in parallel.
         /// </summary>
-        IEnumerable<Task<Possible<PublishedEntryRef, Failure>>> ListPublishedEntriesByWeakFingerprint(WeakContentFingerprint weak);
+        IEnumerable<Task<Possible<PublishedEntryRef, Failure>>> ListPublishedEntriesByWeakFingerprint(WeakContentFingerprint weak, OperationHints hints = default);
 
         /// <summary>
         /// Attempts to find a cache entry for a strong fingerprint, which *may* have been discovered via <see cref="ListPublishedEntriesByWeakFingerprint"/>.
@@ -38,7 +39,8 @@ namespace BuildXL.Engine.Cache.Fingerprints.TwoPhase
         Task<Possible<CacheEntry?, Failure>> TryGetCacheEntryAsync(
             WeakContentFingerprint weakFingerprint,
             ContentHash pathSetHash,
-            StrongContentFingerprint strongFingerprint);
+            StrongContentFingerprint strongFingerprint, 
+            OperationHints hints = default);
 
         /// <summary>
         /// Attempts to add a new entry. As with querying for entries, this has two phases:

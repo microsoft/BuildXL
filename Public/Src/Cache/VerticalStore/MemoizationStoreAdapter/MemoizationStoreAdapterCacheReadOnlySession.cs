@@ -117,7 +117,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
 
         /// <inheritdoc />
         public IEnumerable<Task<Possible<StrongFingerprint, Failure>>> EnumerateStrongFingerprints(
-             WeakFingerprintHash weak, UrgencyHint urgencyHint, Guid activityId)
+             WeakFingerprintHash weak, OperationHints hints, Guid activityId)
         {
             // TODO: Extend IAsyncEnumerable up through EnumerateStrongFingerprints
             var tcs = TaskSourceSlim.Create<IEnumerable<GetSelectorResult>>();
@@ -148,7 +148,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         }
 
         /// <inheritdoc />
-        public async Task<Possible<CasEntries, Failure>> GetCacheEntryAsync(StrongFingerprint strong, UrgencyHint urgencyHint, Guid activityId)
+        public async Task<Possible<CasEntries, Failure>> GetCacheEntryAsync(StrongFingerprint strong, OperationHints hints, Guid activityId)
         {
             var hashListResult = await ReadOnlyCacheSession.GetContentHashListAsync(
                 new Context(Logger),
@@ -175,14 +175,14 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         }
 
         /// <inheritdoc />
-        public async Task<Possible<string, Failure>> PinToCasAsync(CasHash hash, CancellationToken cancellationToken, UrgencyHint urgencyHint, Guid activityId)
+        public async Task<Possible<string, Failure>> PinToCasAsync(CasHash hash, CancellationToken cancellationToken, OperationHints hints, Guid activityId)
         {
-            var result = await ReadOnlyCacheSession.PinAsync(new Context(Logger), hash.ToMemoization(), cancellationToken);
+            var result = await ReadOnlyCacheSession.PinAsync(new Context(Logger), hash.ToMemoization(), cancellationToken, hints.Urgency);
             return result.FromMemoization(hash, CacheId);
         }
 
         /// <inheritdoc />
-        public async Task<Possible<string, Failure>[]> PinToCasAsync(CasEntries hashes, CancellationToken cancellationToken, UrgencyHint urgencyHint, Guid activityId)
+        public async Task<Possible<string, Failure>[]> PinToCasAsync(CasEntries hashes, CancellationToken cancellationToken, OperationHints hints, Guid activityId)
         {
             List<ContentHash> contentHashes = hashes.Select(hash => hash.ToContentHash()).ToList();
             IEnumerable<Task<Indexed<PinResult>>> resultSet = await ReadOnlyCacheSession.PinAsync(new Context(Logger), contentHashes, cancellationToken);
@@ -204,7 +204,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             CasHash hash,
             string filename,
             FileState fileState,
-            UrgencyHint urgencyHint,
+            OperationHints hints,
             Guid activityId,
             CancellationToken cancellationToken)
         {
@@ -236,7 +236,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
 
         /// <inheritdoc />
         [SuppressMessage("Microsoft.Naming", "CA2204:Literals should be spelled correctly")]
-        public async Task<Possible<StreamWithLength, Failure>> GetStreamAsync(CasHash hash, UrgencyHint urgencyHint, Guid activityId)
+        public async Task<Possible<StreamWithLength, Failure>> GetStreamAsync(CasHash hash, OperationHints hints, Guid activityId)
         {
             var result = await ReadOnlyCacheSession.OpenStreamAsync(new Context(Logger), hash.ToMemoization(), CancellationToken.None);
             switch (result.Code)

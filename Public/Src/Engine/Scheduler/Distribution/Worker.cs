@@ -885,7 +885,8 @@ namespace BuildXL.Scheduler.Distribution
         public virtual Task<(RunnableFromCacheResult, PipResultStatus)> CacheLookupAsync(
             ProcessRunnablePip runnablePip,
             PipExecutionState.PipScopeState state,
-            CacheableProcess cacheableProcess)
+            CacheableProcess cacheableProcess,
+            bool avoidRemoteLookups = true)
         {
             Contract.Requires(runnablePip.Step == PipExecutionStep.CacheLookup);
             throw Contract.AssertFailure(I($"CacheLookupAsync is not supported for worker {Name}"));

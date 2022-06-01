@@ -11,6 +11,7 @@ namespace EngineTestUtilities {
         references: [
             importFrom("BuildXL.Cache.ContentStore").Hashing.dll,
             importFrom("BuildXL.Cache.ContentStore").UtilitiesCore.dll,
+            importFrom("BuildXL.Cache.ContentStore").Interfaces.dll,
             importFrom("BuildXL.Engine").Cache.dll,  
             importFrom("BuildXL.Engine").Engine.dll,
             importFrom("BuildXL.Engine").Processes.dll,

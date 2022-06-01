@@ -3618,6 +3618,21 @@ namespace BuildXL.Scheduler
                     }
                 }
 
+                if (pipRuntimeInfo.Result == PipExecutionLevel.Executed)
+                {
+                    // If the pip was executed (i.e. not a cache hit) we consider it part of a path of misses
+                    // and we inform the dependent so it can update the length of its maximal path of misses
+                    // We only increment the path length when a process pip is executed: metadata pips
+                    // don't contribute to the length but still propagate the fact that there are consecutive misses
+                    int upstreamLongestMissChain = pipRuntimeInfo.UpstreamCacheMissLongestChain;
+                    if (runnablePip.PipType == PipType.Process)
+                    {
+                        upstreamLongestMissChain++;
+                    }
+
+                    dependentPipRuntimeInfo.InformDependencyCacheMissChain(upstreamLongestMissChain);
+                }
+
                 // Decrement reference count and possibly queue the pip (even if it is doomed to be skipped).
                 var readyToSchedule = dependentPipRuntimeInfo.DecrementRefCount();
 
@@ -4561,11 +4576,25 @@ namespace BuildXL.Scheduler
                     var process = processRunnable.Process;
                     var pipScope = State.GetScope(process);
                     var cacheableProcess = pipScope.GetCacheableProcess(process, environment);
+                    var pipRunTimeInfo = GetPipRuntimeInfo(pipId);
 
+                    // Avoid querying the remote cache if this pip is part of a chain
+                    // of two consecutive cache misses.
+                    // We assume that this will probably be also a miss so we don't want to
+                    // spend time through the network.
+                    var avoidRemoteCache = m_scheduleConfiguration.RemoteCacheCutoff && 
+                                            pipRunTimeInfo.UpstreamCacheMissLongestChain >= m_scheduleConfiguration.RemoteCacheCutoffLength; 
+                    
                     var tupleResult = await worker.CacheLookupAsync(
                         processRunnable,
                         pipScope,
-                        cacheableProcess);
+                        cacheableProcess,
+                        avoidRemoteCache);
+
+                    if (avoidRemoteCache)
+                    {
+                        PipExecutionCounters.IncrementCounter(PipExecutorCounter.TotalCacheLookupsAvoidingRemote);
+                    }
 
                     var cacheResult = tupleResult.Item1;
                     if (cacheResult == null)
@@ -4588,7 +4617,6 @@ namespace BuildXL.Scheduler
                         Contract.Assert(cacheResult.CacheMissType != PipCacheMissType.Invalid, $"Must have valid cache miss reason");
                         environment.Counters.IncrementCounter((PipExecutorCounter)cacheResult.CacheMissType);
 
-                        var pipRunTimeInfo = GetPipRuntimeInfo(pipId);
                         if (pipRunTimeInfo.IsFrontierMissCandidate)
                         {
                             environment.Counters.IncrementCounter(((PipExecutorCounter)cacheResult.CacheMissType).ToFrontierPipCacheMissCounter());

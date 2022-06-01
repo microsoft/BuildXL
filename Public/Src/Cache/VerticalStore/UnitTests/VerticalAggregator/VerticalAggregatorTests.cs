@@ -290,7 +290,7 @@ namespace BuildXL.Cache.VerticalAggregator.Test
 
             m_sessionExceptionInducers.Add(SessionAPIs.EnumerateStrongFingerprintsCallback, (CallbackCacheSessionWrapper targetSession) =>
             {
-                targetSession.EnumerateStrongFingerprintsCallback = (WeakFingerprintHash weak, UrgencyHint urgencyHint, Guid activityId, ICacheReadOnlySession wrappedSession) =>
+                targetSession.EnumerateStrongFingerprintsCallback = (WeakFingerprintHash weak, OperationHints hints, Guid activityId, ICacheReadOnlySession wrappedSession) =>
                 {
                     // Any error should work.
                     throw new TestException();
@@ -320,7 +320,7 @@ namespace BuildXL.Cache.VerticalAggregator.Test
 
             m_sessionExceptionInducers.Add(SessionAPIs.PinToCasAsyncCallback, (CallbackCacheSessionWrapper targetSession) =>
             {
-                targetSession.PinToCasAsyncCallback = (CasHash hash, UrgencyHint urgencyHint, Guid activityId, CancellationToken cancellationToken, ICacheReadOnlySession wrappedSession) =>
+                targetSession.PinToCasAsyncCallback = (CasHash hash, OperationHints hints, Guid activityId, CancellationToken cancellationToken, ICacheReadOnlySession wrappedSession) =>
                 {
                     // Any error should work.
                     throw new TestException();
@@ -330,7 +330,7 @@ namespace BuildXL.Cache.VerticalAggregator.Test
 
             m_sessionExceptionInducers.Add(SessionAPIs.PinToCasMultipleAsyncCallback, (CallbackCacheSessionWrapper targetSession) =>
             {
-                targetSession.PinToCasMultipleAsyncCallback = (CasEntries hashes, UrgencyHint urgencyHint, Guid activityId, CancellationToken cancellationToken, ICacheReadOnlySession wrappedSession) =>
+                targetSession.PinToCasMultipleAsyncCallback = (CasEntries hashes, OperationHints hints, Guid activityId, CancellationToken cancellationToken, ICacheReadOnlySession wrappedSession) =>
                 {
                     // Any error should work.
                     throw new TestException();
@@ -349,7 +349,7 @@ namespace BuildXL.Cache.VerticalAggregator.Test
 
             m_readOnlySessionExceptionInducers.Add(SessionAPIs.EnumerateStrongFingerprintsCallback, (CallbackCacheReadOnlySessionWrapper targetSession) =>
             {
-                targetSession.EnumerateStrongFingerprintsCallback = (WeakFingerprintHash weak, UrgencyHint urgencyHint, Guid activityId, ICacheReadOnlySession wrappedSession) =>
+                targetSession.EnumerateStrongFingerprintsCallback = (WeakFingerprintHash weak, OperationHints hints, Guid activityId, ICacheReadOnlySession wrappedSession) =>
                 {
                     // Any error should work.
                     throw new TestException();
@@ -379,7 +379,7 @@ namespace BuildXL.Cache.VerticalAggregator.Test
 
             m_readOnlySessionExceptionInducers.Add(SessionAPIs.PinToCasAsyncCallback, (CallbackCacheReadOnlySessionWrapper targetSession) =>
             {
-                targetSession.PinToCasAsyncCallback = (CasHash hash, UrgencyHint urgencyHint, Guid activityId, CancellationToken cancellationToken, ICacheReadOnlySession wrappedSession) =>
+                targetSession.PinToCasAsyncCallback = (CasHash hash, OperationHints hints, Guid activityId, CancellationToken cancellationToken, ICacheReadOnlySession wrappedSession) =>
                 {
                     // Any error should work.
                     throw new TestException();
@@ -389,7 +389,7 @@ namespace BuildXL.Cache.VerticalAggregator.Test
 
             m_readOnlySessionExceptionInducers.Add(SessionAPIs.PinToCasMultipleAsyncCallback, (CallbackCacheReadOnlySessionWrapper targetSession) =>
             {
-                targetSession.PinToCasMultipleAsyncCallback = (CasEntries hashes, UrgencyHint urgencyHint, Guid activityId, CancellationToken cancellationToken, ICacheReadOnlySession wrappedSession) =>
+                targetSession.PinToCasMultipleAsyncCallback = (CasEntries hashes, OperationHints hints, Guid activityId, CancellationToken cancellationToken, ICacheReadOnlySession wrappedSession) =>
                 {
                     // Any error should work.
                     throw new TestException();
@@ -441,7 +441,7 @@ namespace BuildXL.Cache.VerticalAggregator.Test
 
             m_sessionFailureInducers.Add(SessionAPIs.EnumerateStrongFingerprintsCallback, (CallbackCacheSessionWrapper targetSession) =>
             {
-                targetSession.EnumerateStrongFingerprintsCallback = (WeakFingerprintHash weak, UrgencyHint urgencyHint, Guid activityId, ICacheReadOnlySession wrappedSession) =>
+                targetSession.EnumerateStrongFingerprintsCallback = (WeakFingerprintHash weak, OperationHints hints, Guid activityId, ICacheReadOnlySession wrappedSession) =>
                 {
                     // Any error should work.
                     return new Task<Possible<StrongFingerprint, Failure>>[] { Task.FromResult(new Possible<StrongFingerprint, Failure>(new TestInducedFailure("(EnumerateStrongFingerprints)"))) };
@@ -471,7 +471,7 @@ namespace BuildXL.Cache.VerticalAggregator.Test
 
             m_sessionFailureInducers.Add(SessionAPIs.PinToCasAsyncCallback, (CallbackCacheSessionWrapper targetSession) =>
             {
-                targetSession.PinToCasAsyncCallback = (CasHash hash, UrgencyHint urgencyHint, Guid activityId, CancellationToken cancellationToken, ICacheReadOnlySession wrappedSession) =>
+                targetSession.PinToCasAsyncCallback = (CasHash hash, OperationHints hints, Guid activityId, CancellationToken cancellationToken, ICacheReadOnlySession wrappedSession) =>
                 {
                     // Any error should work.
                     return Task.FromResult(new Possible<string, Failure>(new TestInducedFailure("(PinToCas)")));
@@ -481,7 +481,7 @@ namespace BuildXL.Cache.VerticalAggregator.Test
 
             m_sessionFailureInducers.Add(SessionAPIs.PinToCasMultipleAsyncCallback, (CallbackCacheSessionWrapper targetSession) =>
             {
-                targetSession.PinToCasMultipleAsyncCallback = (CasEntries hashes, UrgencyHint urgencyHint, Guid activityId, CancellationToken cancellationToken, ICacheReadOnlySession wrappedSession) =>
+                targetSession.PinToCasMultipleAsyncCallback = (CasEntries hashes, OperationHints hints, Guid activityId, CancellationToken cancellationToken, ICacheReadOnlySession wrappedSession) =>
                 {
                     // Any error should work.
                     return Task.FromResult(new Possible<string, Failure>[] { new TestInducedFailure("(PinToCasMultiple)") });
@@ -501,7 +501,7 @@ namespace BuildXL.Cache.VerticalAggregator.Test
 
             m_readOnlySessionFailureInducers.Add(SessionAPIs.EnumerateStrongFingerprintsCallback, (CallbackCacheReadOnlySessionWrapper targetSession) =>
             {
-                targetSession.EnumerateStrongFingerprintsCallback = (WeakFingerprintHash weak, UrgencyHint urgencyHint, Guid activityId, ICacheReadOnlySession wrappedSession) =>
+                targetSession.EnumerateStrongFingerprintsCallback = (WeakFingerprintHash weak, OperationHints hints, Guid activityId, ICacheReadOnlySession wrappedSession) =>
                 {
                     // Any error should work.
                     return new Task<Possible<StrongFingerprint, Failure>>[] { Task.FromResult(new Possible<StrongFingerprint, Failure>(new TestInducedFailure("(EnumerateStrongFingerprints)"))) };
@@ -531,7 +531,7 @@ namespace BuildXL.Cache.VerticalAggregator.Test
 
             m_readOnlySessionFailureInducers.Add(SessionAPIs.PinToCasAsyncCallback, (CallbackCacheReadOnlySessionWrapper targetSession) =>
             {
-                targetSession.PinToCasAsyncCallback = (CasHash hash, UrgencyHint urgencyHint, Guid activityId, CancellationToken cancellationToken, ICacheReadOnlySession wrappedSession) =>
+                targetSession.PinToCasAsyncCallback = (CasHash hash, OperationHints hints, Guid activityId, CancellationToken cancellationToken, ICacheReadOnlySession wrappedSession) =>
                 {
                     // Any error should work.
                     return Task.FromResult(new Possible<string, Failure>(new TestInducedFailure("(PinToCas)")));
@@ -541,7 +541,7 @@ namespace BuildXL.Cache.VerticalAggregator.Test
 
             m_readOnlySessionFailureInducers.Add(SessionAPIs.PinToCasMultipleAsyncCallback, (CallbackCacheReadOnlySessionWrapper targetSession) =>
             {
-                targetSession.PinToCasMultipleAsyncCallback = (CasEntries hashes, UrgencyHint urgencyHint, Guid activityId, CancellationToken cancellationToken, ICacheReadOnlySession wrappedSession) =>
+                targetSession.PinToCasMultipleAsyncCallback = (CasEntries hashes, OperationHints hints, Guid activityId, CancellationToken cancellationToken, ICacheReadOnlySession wrappedSession) =>
                 {
                     // Any error should work.
                     return Task.FromResult(new Possible<string, Failure>[] { new TestInducedFailure("(PinToCasMultiple)") });
@@ -969,7 +969,7 @@ namespace BuildXL.Cache.VerticalAggregator.Test
                     return Task.FromResult<Possible<StreamWithLength, Failure>>("Corrupted!".AsStream());
                 }
 
-                return realSession.GetStreamAsync(hash, hint, guid);
+                return realSession.GetStreamAsync(hash, (OperationHints)hint, guid);
             };
 
             session.ProduceFileAsyncCallback = (hash, filename, fileState, hint, guid, cancellationToken, realSession) =>
@@ -983,7 +983,7 @@ namespace BuildXL.Cache.VerticalAggregator.Test
                     return Task.FromResult<Possible<string, Failure>>(filename);
                 }
 
-                return realSession.ProduceFileAsync(hash, filename, fileState, hint, guid, cancellationToken);
+                return realSession.ProduceFileAsync(hash, filename, fileState, (OperationHints)hint, guid, cancellationToken: cancellationToken);
             };
 
             session.ValidateContentAsyncCallback = (hash, hint, guid, realSession) =>
@@ -1029,7 +1029,7 @@ namespace BuildXL.Cache.VerticalAggregator.Test
                                     return Task.FromResult<Possible<StreamWithLength, Failure>>(new ProduceStreamFailure(realSession1.CacheId, hash1));
                                 }
 
-                                return realSession1.GetStreamAsync(hash1, hint1, guid1);
+                                return realSession1.GetStreamAsync(hash1, (OperationHints)hint1, guid1);
                             };
 
                             session.ProduceFileAsyncCallback = (hash1, filename1, fileState1, hint1, guid1, cancellationToken, realSession1) =>
@@ -1039,7 +1039,7 @@ namespace BuildXL.Cache.VerticalAggregator.Test
                                     return Task.FromResult<Possible<string, Failure>>(new ProduceFileFailure(realSession1.CacheId, hash1, filename1));
                                 }
 
-                                return realSession1.ProduceFileAsync(hash1, filename1, fileState1, hint1, guid1, cancellationToken);
+                                return realSession1.ProduceFileAsync(hash1, filename1, fileState1, (OperationHints)hint1, guid1, cancellationToken: cancellationToken);
                             };
                             break;
 
@@ -1261,6 +1261,187 @@ namespace BuildXL.Cache.VerticalAggregator.Test
             await session.PinToCasAsync(new CasEntries(new CasHash[0]), CancellationToken.None);
         }
 
+        [Fact]
+        public async Task StrongFingerprintEnumerationHonorsOperationHints()
+        {
+            string testName = "StrongFpEnumerationHonorsOperationHints";
+            string testCacheId = MakeCacheId(testName);
+
+            // L1 + L3 cache.
+            TestInMemory memoryCache = new TestInMemory();
+            string configL1 = memoryCache.NewCache(testCacheId + "L1", false);
+            string configL3 = memoryCache.NewCache(testCacheId + "L3", true, authoritative: true);
+            string vertConfig = NewCacheString(testCacheId, configL1, configL3, false, false, false);
+
+            ICache testCache = await CacheFactory.InitializeCacheAsync(vertConfig).SuccessAsync();
+            VerticalAggregator.VerticalCacheAggregator cache = testCache as VerticalAggregator.VerticalCacheAggregator;
+
+            string testSessionId = "Session1-" + testCacheId;
+            ICacheSession session = await CreateSessionAsync(testCache, testSessionId);
+
+            VerticalCacheAggregatorSession vSession = session as VerticalCacheAggregatorSession;
+            XAssert.IsNotNull(vSession, "Where is our vertical aggregator session?");
+
+            // Get some pip data into the cache
+            FullCacheRecord cacheRecord = await FakeBuild.DoPipAsync(session, "TestPip");
+
+            var sfp = cacheRecord.StrongFingerprint;
+
+            // Remove the fingerprints from the local cache
+            await TestInMemory.ClearFingerprints(cache.LocalCache);
+
+            // With the default operation hints, this should still be a hit, as the remote cache is queried
+            bool sfpHit = false;
+            foreach (var t in session.EnumerateStrongFingerprints(sfp.WeakFingerprint))
+            {
+                var maybeFp = await t;
+                maybeFp.Success("Enumeration should succeed");
+                sfpHit = sfpHit || maybeFp.Result.Equals(sfp);
+            }
+
+            XAssert.IsTrue(sfpHit);
+
+            // If the remote cache is avoided, we shouldn't find anything after clearing the local cache:
+            OperationHints hints = new OperationHints() { AvoidRemote = true };
+            sfpHit = false;
+            foreach (var t in session.EnumerateStrongFingerprints(sfp.WeakFingerprint, hints))
+            {
+                var maybeFp = await t;
+                maybeFp.Success("Enumeration should succeed");
+                sfpHit = sfpHit || maybeFp.Result.Equals(sfp);
+            }
+
+            XAssert.IsFalse(sfpHit);
+        }
+
+        /// <nodoc/>
+        [Fact]
+        public async Task GetCacheEntryHonorsOperationHints()
+        {
+            string testName = "GetCacheEntryHonorsOperationHints";
+            string testCacheId = MakeCacheId(testName);
+
+            // L1 + L3 cache
+            TestInMemory memoryCache = new TestInMemory();
+            string configL1 = memoryCache.NewCache(testCacheId + "L1", false);
+            string configL3 = memoryCache.NewCache(testCacheId + "L3", true, authoritative: true);
+            string vertConfig = NewCacheString(testCacheId, configL1, configL3, false, false, false);
+
+            ICache testCache = await CacheFactory.InitializeCacheAsync(vertConfig).SuccessAsync();
+            VerticalAggregator.VerticalCacheAggregator cache = testCache as VerticalAggregator.VerticalCacheAggregator;
+
+            string testSessionId = "Session1-" + testCacheId;
+            ICacheSession session = await CreateSessionAsync(testCache, testSessionId);
+
+            VerticalCacheAggregatorSession vSession = session as VerticalCacheAggregatorSession;
+            XAssert.IsNotNull(vSession, "Where is our vertical aggregator session?");
+
+            // Get some pip data into the cache
+            FullCacheRecord cacheRecord = await FakeBuild.DoPipAsync(session, "TestPip");
+
+            // Remove the entry from the local cache
+            await TestInMemory.ClearFingerprints(cache.LocalCache);
+            var sfp = cacheRecord.StrongFingerprint;
+
+            // With the default operation hints, this should still be a hit, as the remote cache is queried
+            (await session.GetCacheEntryAsync(sfp)).Success("We should get a result while using the remote cache");
+
+            // Clear again - the last call to GetCacheEntry populates the local cache
+            await TestInMemory.ClearFingerprints(cache.LocalCache); 
+            // If the remote cache is avoided, we shouldn't find anything after clearing the local cache:
+            OperationHints hints = new OperationHints() { AvoidRemote = true };
+
+            XAssert.IsFalse((await session.GetCacheEntryAsync(sfp, hints)).Succeeded,
+                "We should not find the entry when avoiding the remote cache");
+        }
+
+
+        [Theory]
+        [InlineData(SessionAPIs.PinToCasMultipleAsyncCallback)]
+        [InlineData(SessionAPIs.PinToCasAsyncCallback)]
+        [InlineData(SessionAPIs.GetCacheEntryAsyncCallback)]
+        [InlineData(SessionAPIs.EnumerateStrongFingerprintsCallback)]
+        public async Task OperationHintsAreRespected(SessionAPIs sessionApiToCheck)
+        {
+            string testCacheId = "OperationHintsAreRespected";
+            ICache testCache = await InitializeCacheAsync(VerticalAggregatorDisconnectTests.NewWrappedCache(testCacheId, false, false, wrapLocal: true, wrapRemote: true)).SuccessAsync();
+            VerticalAggregator.VerticalCacheAggregator vertCache = VerticalAggregatorDisconnectTests.UnwrapVerticalCache(testCache);
+
+
+            ICacheSession session = await testCache.CreateSessionAsync().SuccessAsync();
+            CallbackCacheSessionWrapper remoteSessionWrapper = VerticalAggregatorDisconnectTests.UnwrapRemoteSession(session);
+            CallbackCacheSessionWrapper localSessionWrapper = VerticalAggregatorDisconnectTests.UnwrapLocalSession(session);
+
+            ICacheSession localSession = await vertCache.LocalCache.CreateSessionAsync().SuccessAsync();
+
+            // Get some pip data into the cache...
+            FullCacheRecord cacheRecord = await FakeBuild.DoPipAsync(localSession, "Test Pip");
+
+            // Inducing a failure in the local will trigger the fallback-to-remote logic.
+            if (sessionApiToCheck == SessionAPIs.GetCacheEntryAsyncCallback)
+            {
+                // In this case we want specifically to fail with a NoMatchingFingerprintFailure
+                // Any other failure makes the method fail fast instead of falling back to the remote cache
+                localSessionWrapper.GetCacheEntryAsyncCallback =
+                    (sfp, _, _, _) => Task.FromResult(new Possible<CasEntries, Failure>(
+                        new NoMatchingFingerprintFailure(sfp, new TestInducedFailure("GetCacheEntry"))));
+            }
+            else
+            {
+                // For the other APIs any failure gets us the behavior we want
+                InduceFailures(sessionApiToCheck, localSessionWrapper);
+            }
+
+            // We also induce exceptions in the remote. If the (AvoidRemote = true) hint is honored, the
+            // operation carried out below should fail but not throw an exception.
+            InduceExceptions(sessionApiToCheck, remoteSessionWrapper);
+
+            foreach (var avoidRemote in new[] { true, false })
+            {
+                var hints = new OperationHints() { AvoidRemote = avoidRemote };
+
+                bool exceptionThrown = false;
+                try
+                {
+                    switch (sessionApiToCheck)
+                    {
+                        case SessionAPIs.PinToCasMultipleAsyncCallback:
+                            _ = await session.PinToCasAsync(cacheRecord.CasEntries, default, hints);
+                            break;
+                        case SessionAPIs.PinToCasAsyncCallback:
+                            _ = await session.PinToCasAsync(cacheRecord.CasEntries[0], default, hints);
+                            break;
+                        case SessionAPIs.GetCacheEntryAsyncCallback:
+                            _ = await session.GetCacheEntryAsync(cacheRecord.StrongFingerprint, hints);
+                            break;
+                        case SessionAPIs.EnumerateStrongFingerprintsCallback:
+                            foreach (var t in session.EnumerateStrongFingerprints(cacheRecord.StrongFingerprint.WeakFingerprint, hints))
+                            {
+                                _ = await t;
+                            }
+                            break;
+                        default:
+                            XAssert.Fail("Unknown test case");
+                            break;
+                    }
+                }
+                catch (TestException)
+                {
+                    exceptionThrown = true;
+                }
+
+                if (avoidRemote)
+                {
+                    XAssert.IsFalse(exceptionThrown, "No exception should be thrown if the AvoidRemote hint is honored");
+                }
+                else
+                {
+                    // Let's check that this is the case to avoid a regression in coverage of this test.
+                    XAssert.IsTrue(exceptionThrown, "We expect an exception to be thrown when AvoidRemote = false");
+                }
+            }
+        }
+
 #if !FEATURE_SAFE_PROCESS_HANDLE
         [Fact]
         public async Task BadStreamDoesntCauseException()
@@ -1282,7 +1463,7 @@ namespace BuildXL.Cache.VerticalAggregator.Test
 
             sessionWrapper.GetStreamAsyncCallback = async (casHash, urgencyHint, activityId, realSession) =>
             {
-                Stream realStream = await realSession.GetStreamAsync(casHash, urgencyHint, activityId).SuccessAsync();
+                Stream realStream = await realSession.GetStreamAsync(casHash, (OperationHints)urgencyHint, activityId).SuccessAsync();
 
                 BadStreamWrapper badStream = new BadStreamWrapper(realStream);
 

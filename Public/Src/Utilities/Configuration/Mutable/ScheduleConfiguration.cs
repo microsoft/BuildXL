@@ -100,6 +100,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
             // Based on telemetry P90 of waiting time is 3s.
             RemoteAgentWaitTimeSec = 3.0;
+
+            RemoteCacheCutoffLength = 2;
         }
 
         /// <nodoc />
@@ -194,6 +196,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
             StopDirtyOnSucceedFastPips = template.StopDirtyOnSucceedFastPips;
             CpuResourceAware = template.CpuResourceAware;
+
+            RemoteCacheCutoff = template.RemoteCacheCutoff;
+            RemoteCacheCutoffLength = template.RemoteCacheCutoffLength;
         }
 
         /// <inheritdoc />
@@ -474,6 +479,12 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public double RemoteAgentWaitTimeSec { get; set; }
+
+        /// <inheritdoc />
+        public int RemoteCacheCutoffLength { get; set; }
+
+        /// <inheritdoc />
+        public bool RemoteCacheCutoff { get; set; }
 
         private int NumOfRemoteAgentLeasesValue => NumOfRemoteAgentLeases ?? 2 * MaxProcesses;
 

@@ -6,6 +6,7 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Tasks;
 
@@ -46,7 +47,7 @@ namespace BuildXL.Engine.Cache.Artifacts
         /// The returned batch result will contain an entry for all requested hashes, in the same order as <paramref name="hashes"/>
         /// (for each <c>i</c>, <c>hashes[i] == batchResult.Results[i].Hash</c>).
         /// </summary>
-        Task<Possible<ContentAvailabilityBatchResult, Failure>> TryLoadAvailableContentAsync(IReadOnlyList<ContentHash> hashes, CancellationToken cancellationToken);
+        Task<Possible<ContentAvailabilityBatchResult, Failure>> TryLoadAvailableContentAsync(IReadOnlyList<ContentHash> hashes, CancellationToken cancellationToken, OperationHints hints = default);
 
         /// <summary>
         /// Attempts to open a read-only stream for content. The content should have previously been stored or loaded.

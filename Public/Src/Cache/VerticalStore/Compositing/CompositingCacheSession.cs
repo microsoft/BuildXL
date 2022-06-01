@@ -51,8 +51,9 @@ namespace BuildXL.Cache.Compositing
 
                 // Then check the determinism bit...
                 var testStrongFingerprint = new StrongFingerprint(weak, casElement, hashElement, Cache.CacheId);
+                var hints = new OperationHints() { Urgency = urgencyHint };
 
-                var existRecordCheck = await m_metadataSession.GetCacheEntryAsync(testStrongFingerprint, urgencyHint, eventing.Id);
+                var existRecordCheck = await m_metadataSession.GetCacheEntryAsync(testStrongFingerprint, hints, eventing.Id);
                 if (existRecordCheck.Succeeded)
                 {
                     // There's an existing record, so we need the rules for determinism upgrade / downgrade. Which are complicated by the existance
@@ -80,7 +81,7 @@ namespace BuildXL.Cache.Compositing
                     bool foundAllFiles = true;
 
                     // TODO [pgunasekara]: Add a cancellation token here
-                    var pinCheck = await m_casSession.PinToCasAsync(existRecordCheck.Result, CancellationToken.None, urgencyHint, eventing.Id);
+                    var pinCheck = await m_casSession.PinToCasAsync(existRecordCheck.Result, CancellationToken.None, hints, eventing.Id);
 
                     foreach (var oneOutput in pinCheck)
                     {

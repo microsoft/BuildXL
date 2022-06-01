@@ -1406,7 +1406,13 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Total number of processes that ran locally on worker capable of remoting.
         /// </summary>
-        TotalRunLocallyProcessesOnRemotingWorker
+        TotalRunLocallyProcessesOnRemotingWorker,
+
+        /// <summary>
+        /// When the remote cache cutoff feature is enabled (/remoteCacheCutoff), 
+        /// the number of cache lookups that avoided querying the remote cache
+        /// </summary>
+        TotalCacheLookupsAvoidingRemote,
     }
 
     /// <summary>

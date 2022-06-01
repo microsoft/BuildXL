@@ -21,6 +21,7 @@ using static BuildXL.Cache.ContentStore.Interfaces.FileSystem.VfsUtilities;
 using BuildXL.Utilities.Configuration;
 using System.Threading;
 using UrgencyHint = BuildXL.Cache.ContentStore.Interfaces.Sessions.UrgencyHint;
+using OperationHints = BuildXL.Cache.ContentStore.Interfaces.Sessions.OperationHints;
 
 namespace BuildXL.Engine.Cache.Plugin.CacheCore
 {
@@ -52,7 +53,7 @@ namespace BuildXL.Engine.Cache.Plugin.CacheCore
         }
 
         /// <inheritdoc />
-        public async Task<Possible<ContentAvailabilityBatchResult, Failure>> TryLoadAvailableContentAsync(IReadOnlyList<ContentHash> hashes, CancellationToken cancellationToken)
+        public async Task<Possible<ContentAvailabilityBatchResult, Failure>> TryLoadAvailableContentAsync(IReadOnlyList<ContentHash> hashes, CancellationToken cancellationToken, OperationHints hints = default)
         {
             string opName = nameof(TryLoadAvailableContentAsync);
 

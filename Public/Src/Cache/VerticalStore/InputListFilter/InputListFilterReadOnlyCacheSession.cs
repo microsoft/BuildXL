@@ -36,14 +36,14 @@ namespace BuildXL.Cache.InputListFilter
             return m_session.CloseAsync(activityId);
         }
 
-        public IEnumerable<Task<Possible<StrongFingerprint, Failure>>> EnumerateStrongFingerprints(WeakFingerprintHash weak, UrgencyHint urgencyHint, Guid activityId)
+        public IEnumerable<Task<Possible<StrongFingerprint, Failure>>> EnumerateStrongFingerprints(WeakFingerprintHash weak, OperationHints hints, Guid activityId)
         {
-            return m_session.EnumerateStrongFingerprints(weak, urgencyHint, activityId);
+            return m_session.EnumerateStrongFingerprints(weak, hints, activityId);
         }
 
-        public Task<Possible<CasEntries, Failure>> GetCacheEntryAsync(StrongFingerprint strong, UrgencyHint urgencyHint, Guid activityId)
+        public Task<Possible<CasEntries, Failure>> GetCacheEntryAsync(StrongFingerprint strong, OperationHints hints, Guid activityId)
         {
-            return m_session.GetCacheEntryAsync(strong, urgencyHint, activityId);
+            return m_session.GetCacheEntryAsync(strong, hints, activityId);
         }
 
         public Task<Possible<CacheSessionStatistics[], Failure>> GetStatisticsAsync(Guid activityId)
@@ -56,24 +56,24 @@ namespace BuildXL.Cache.InputListFilter
             return m_session.ValidateContentAsync(hash, urgencyHint, activityId);
         }
 
-        public Task<Possible<StreamWithLength, Failure>> GetStreamAsync(CasHash hash, UrgencyHint urgencyHint, Guid activityId)
+        public Task<Possible<StreamWithLength, Failure>> GetStreamAsync(CasHash hash, OperationHints hints, Guid activityId)
         {
-            return m_session.GetStreamAsync(hash, urgencyHint, activityId);
+            return m_session.GetStreamAsync(hash, hints, activityId);
         }
 
-        public Task<Possible<string, Failure>[]> PinToCasAsync(CasEntries hashes, CancellationToken cancellationToken, UrgencyHint urgencyHint, Guid activityId)
+        public Task<Possible<string, Failure>[]> PinToCasAsync(CasEntries hashes, CancellationToken cancellationToken, OperationHints hints, Guid activityId)
         {
-            return m_session.PinToCasAsync(hashes, cancellationToken, urgencyHint, activityId);
+            return m_session.PinToCasAsync(hashes, cancellationToken, hints, activityId);
         }
 
-        public Task<Possible<string, Failure>> PinToCasAsync(CasHash hash, CancellationToken cancellationToken, UrgencyHint urgencyHint, Guid activityId)
+        public Task<Possible<string, Failure>> PinToCasAsync(CasHash hash, CancellationToken cancellationToken, OperationHints hints, Guid activityId)
         {
-            return m_session.PinToCasAsync(hash, cancellationToken, urgencyHint, activityId);
+            return m_session.PinToCasAsync(hash, cancellationToken, hints, activityId);
         }
 
-        public Task<Possible<string, Failure>> ProduceFileAsync(CasHash hash, string filename, FileState fileState, UrgencyHint urgencyHint, Guid activityId, CancellationToken cancellationToken)
+        public Task<Possible<string, Failure>> ProduceFileAsync(CasHash hash, string filename, FileState fileState, OperationHints hints, Guid activityId, CancellationToken cancellationToken)
         {
-            return m_session.ProduceFileAsync(hash, filename, fileState, urgencyHint, activityId, cancellationToken);
+            return m_session.ProduceFileAsync(hash, filename, fileState, hints, activityId, cancellationToken);
         }
     }
 }

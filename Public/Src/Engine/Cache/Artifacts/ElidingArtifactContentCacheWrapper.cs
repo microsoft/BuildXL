@@ -11,11 +11,12 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tasks;
 using static BuildXL.Utilities.FormattableStringEx;
+using OperationHints = BuildXL.Cache.ContentStore.Interfaces.Sessions.OperationHints;
 
 namespace BuildXL.Engine.Cache.Artifacts
 {
     /// <summary>
-    /// Artifact content cache wrapper which elides calls to <see cref="TryLoadAvailableContentAsync(System.Collections.Generic.IReadOnlyList{BuildXL.Cache.ContentStore.Hashing.ContentHash}, CancellationToken)"/> to prevent duplicate calls
+    /// Artifact content cache wrapper which elides calls to <see cref="TryLoadAvailableContentAsync(System.Collections.Generic.IReadOnlyList{BuildXL.Cache.ContentStore.Hashing.ContentHash}, CancellationToken, BuildXL.Cache.ContentStore.Interfaces.Sessions.OperationHints)"/> to prevent duplicate calls
     /// for the same hash to the inner cache.
     /// NOTE: Concurrent requests for the same hash may not be elided.
     /// </summary>
@@ -39,7 +40,7 @@ namespace BuildXL.Engine.Cache.Artifacts
         }
 
         /// <inheritdoc />
-        public async Task<Possible<ContentAvailabilityBatchResult, Failure>> TryLoadAvailableContentAsync(IReadOnlyList<ContentHash> hashes, CancellationToken cancellationToken)
+        public async Task<Possible<ContentAvailabilityBatchResult, Failure>> TryLoadAvailableContentAsync(IReadOnlyList<ContentHash> hashes, CancellationToken cancellationToken, OperationHints hints = default)
         {
             using (var hashAvailabilityMapWrapper = m_hashAvailabilityMapPool.GetInstance())
             using (var hashListWrapper = m_hashListPool.GetInstance())
@@ -53,7 +54,7 @@ namespace BuildXL.Engine.Cache.Artifacts
                 if (uniqueUnknownAvailabilityHashes.Count != 0)
                 {
                     // Only query inner cache if there are hashes whose availabilty is unknown
-                    var possibleBatchResult = await m_innerCache.TryLoadAvailableContentAsync(uniqueUnknownAvailabilityHashes, cancellationToken);
+                    var possibleBatchResult = await m_innerCache.TryLoadAvailableContentAsync(uniqueUnknownAvailabilityHashes, cancellationToken, hints);
                     if (!possibleBatchResult.Succeeded)
                     {
                         // If not successful just return the result

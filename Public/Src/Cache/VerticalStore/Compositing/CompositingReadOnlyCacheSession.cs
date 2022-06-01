@@ -65,25 +65,25 @@ namespace BuildXL.Cache.Compositing
             return new AggregateFailure(metadataPossible.Failure, casPossible.Failure);
         }
 
-        public IEnumerable<Task<Possible<StrongFingerprint, Failure>>> EnumerateStrongFingerprints(WeakFingerprintHash weak, UrgencyHint urgencyHint, Guid activityId)
+        public IEnumerable<Task<Possible<StrongFingerprint, Failure>>> EnumerateStrongFingerprints(WeakFingerprintHash weak, OperationHints hints, Guid activityId)
         {
             using (var eventing = new EnumerateStrongFingerprintsActivity(CompositingCache.EventSource, activityId, this))
             {
-                eventing.Start(weak, urgencyHint);
+                eventing.Start(weak, hints.Urgency);
 
-                var ret = m_metadataSession.EnumerateStrongFingerprints(weak, urgencyHint, eventing.Id);
+                var ret = m_metadataSession.EnumerateStrongFingerprints(weak, hints, eventing.Id);
                 eventing.Stop();
                 return ret;
             }
         }
 
-        public async Task<Possible<CasEntries, Failure>> GetCacheEntryAsync(StrongFingerprint strong, UrgencyHint urgencyHint, Guid activityId)
+        public async Task<Possible<CasEntries, Failure>> GetCacheEntryAsync(StrongFingerprint strong, OperationHints hints, Guid activityId)
         {
             using (var eventing = new GetCacheEntryActivity(CompositingCache.EventSource, activityId, this))
             {
-                eventing.Start(strong, urgencyHint);
+                eventing.Start(strong, hints.Urgency);
 
-                return eventing.Returns(await m_metadataSession.GetCacheEntryAsync(strong, urgencyHint, eventing.Id));
+                return eventing.Returns(await m_metadataSession.GetCacheEntryAsync(strong, hints, eventing.Id));
             }
         }
 
@@ -125,22 +125,22 @@ namespace BuildXL.Cache.Compositing
             return Task.FromResult(new Possible<ValidateContentStatus, Failure>(ValidateContentStatus.NotSupported));
         }
 
-        public async Task<Possible<StreamWithLength, Failure>> GetStreamAsync(CasHash hash, UrgencyHint urgencyHint, Guid activityId)
+        public async Task<Possible<StreamWithLength, Failure>> GetStreamAsync(CasHash hash, OperationHints hints, Guid activityId)
         {
             using (var eventing = new GetStreamActivity(CompositingCache.EventSource, activityId, this))
             {
-                eventing.Start(hash, urgencyHint);
-                return eventing.Returns(await m_casSession.GetStreamAsync(hash, urgencyHint, eventing.Id));
+                eventing.Start(hash, hints);
+                return eventing.Returns(await m_casSession.GetStreamAsync(hash, hints, eventing.Id));
             }
         }
 
-        public async Task<Possible<string, Failure>[]> PinToCasAsync(CasEntries hashes, CancellationToken cancellationToken, UrgencyHint urgencyHint, Guid activityId)
+        public async Task<Possible<string, Failure>[]> PinToCasAsync(CasEntries hashes, CancellationToken cancellationToken, OperationHints hints, Guid activityId)
         {
             using (var eventing = new PinToCasMultipleActivity(CompositingCache.EventSource, activityId, this))
             {
-                eventing.Start(hashes, urgencyHint);
+                eventing.Start(hashes, hints.Urgency);
 
-                var results = await m_casSession.PinToCasAsync(hashes, cancellationToken, urgencyHint, eventing.Id);
+                var results = await m_casSession.PinToCasAsync(hashes, cancellationToken, hints, eventing.Id);
 
                 for (int i = 0; i < results.Length; i++)
                 {
@@ -154,13 +154,13 @@ namespace BuildXL.Cache.Compositing
             }
         }
 
-        public async Task<Possible<string, Failure>> PinToCasAsync(CasHash hash, CancellationToken cancellationToken, UrgencyHint urgencyHint, Guid activityId)
+        public async Task<Possible<string, Failure>> PinToCasAsync(CasHash hash, CancellationToken cancellationToken, OperationHints hints, Guid activityId)
         {
             using (var eventing = new PinToCasActivity(CompositingCache.EventSource, activityId, this))
             {
-                eventing.Start(hash, urgencyHint);
+                eventing.Start(hash, hints.Urgency);
 
-                var result = await m_casSession.PinToCasAsync(hash, cancellationToken, urgencyHint, eventing.Id);
+                var result = await m_casSession.PinToCasAsync(hash, cancellationToken, hints, eventing.Id);
                 if (result.Succeeded)
                 {
                     PinnedToCas.TryAdd(hash, 0);
@@ -170,12 +170,12 @@ namespace BuildXL.Cache.Compositing
             }
         }
 
-        public async Task<Possible<string, Failure>> ProduceFileAsync(CasHash hash, string filename, FileState fileState, UrgencyHint urgencyHint, Guid activityId, CancellationToken cancellationToken)
+        public async Task<Possible<string, Failure>> ProduceFileAsync(CasHash hash, string filename, FileState fileState, OperationHints hints, Guid activityId, CancellationToken cancellationToken)
         {
             using (var eventing = new ProduceFileActivity(CompositingCache.EventSource, activityId, this))
             {
-                eventing.Start(hash, filename, fileState, urgencyHint);
-                return eventing.Returns(await m_casSession.ProduceFileAsync(hash, filename, fileState, urgencyHint, activityId, cancellationToken));
+                eventing.Start(hash, filename, fileState, hints);
+                return eventing.Returns(await m_casSession.ProduceFileAsync(hash, filename, fileState, hints, activityId, cancellationToken));
             }
         }
     }

@@ -224,11 +224,12 @@ namespace BuildXL.Scheduler.Distribution
         public override async Task<(RunnableFromCacheResult, PipResultStatus)> CacheLookupAsync(
             ProcessRunnablePip runnablePip,
             PipExecutionState.PipScopeState state,
-            CacheableProcess cacheableProcess)
+            CacheableProcess cacheableProcess,
+            bool avoidRemoteLookups = false)
         {
             using (OnPipExecutionStarted(runnablePip))
             {
-                var cacheResult = await PipExecutor.TryCheckProcessRunnableFromCacheAsync(runnablePip, state, cacheableProcess);
+                var cacheResult = await PipExecutor.TryCheckProcessRunnableFromCacheAsync(runnablePip, state, cacheableProcess, avoidRemoteLookups);
 
                 return ValueTuple.Create(cacheResult, cacheResult == null ? PipResultStatus.Failed : PipResultStatus.Succeeded);
             }

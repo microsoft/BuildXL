@@ -160,7 +160,8 @@ namespace Test.BuildXL.Scheduler
                     process1,
                     weakFingerprint1,
                     storedPathSet1.Result,
-                    strongFingerprint1);
+                    strongFingerprint1,
+                    hints: default);
 
                 Assert.False(retrievePathSet1Task.IsCompleted, "Before load task completes. TryRetrievePathSetAsync operations should block");
                 Assert.False(retrievdMetadata1Task.IsCompleted, "Before load task completes. TryRetrieveMetadataAsync operations should block");

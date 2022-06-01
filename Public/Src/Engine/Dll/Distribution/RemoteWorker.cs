@@ -744,7 +744,8 @@ namespace BuildXL.Engine.Distribution
         public override async Task<(RunnableFromCacheResult, PipResultStatus)> CacheLookupAsync(
             ProcessRunnablePip runnablePip,
             PipExecutionState.PipScopeState state,
-            CacheableProcess cacheableProcess)
+            CacheableProcess cacheableProcess,
+            bool shouldSkipRemoteCache = false)
         {
             ExecutionResult result = await ExecutePipRemotelyAsync(runnablePip);
             if (result.Result.IndicatesFailure())

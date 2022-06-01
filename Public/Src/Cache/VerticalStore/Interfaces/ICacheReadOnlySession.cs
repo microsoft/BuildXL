@@ -80,7 +80,7 @@ namespace BuildXL.Cache.Interfaces
         /// match the given weak fingerprint.
         /// </summary>
         /// <param name="weak">The weak fingerprint</param>
-        /// <param name="urgencyHint">Optional hint as to how urgent this request is</param>
+        /// <param name="hints">Optional hints for this request</param>
         /// <param name="activityId">Guid that identifies the parent of this call for tracing.</param>
         /// <returns>
         /// An enumeration of Tasks that contain the potential cache Strong Fingerprints
@@ -97,13 +97,13 @@ namespace BuildXL.Cache.Interfaces
         /// next request for more in the enumeration may be to obtain L2
         /// data.
         /// </remarks>
-        IEnumerable<Task<Possible<StrongFingerprint, Failure>>> EnumerateStrongFingerprints([CanBeNull]WeakFingerprintHash weak, UrgencyHint urgencyHint = UrgencyHint.Nominal, Guid activityId = default(Guid));
+        IEnumerable<Task<Possible<StrongFingerprint, Failure>>> EnumerateStrongFingerprints([CanBeNull]WeakFingerprintHash weak, OperationHints hints = default, Guid activityId = default(Guid));
 
         /// <summary>
         /// Get the unique cache entry that matches the Strong Fingerprint
         /// </summary>
         /// <param name="strong">The strong fingerprint</param>
-        /// <param name="urgencyHint">Optional hint as to how urgent this request is</param>
+        /// <param name="hints">Optional operation hints</param>
         /// <param name="activityId">Guid that identifies the parent of this call for tracing.</param>
         /// <returns>
         /// A list of CasHash that is in the order that was
@@ -113,7 +113,7 @@ namespace BuildXL.Cache.Interfaces
         /// This may fail for various reasons but likely due to cache misses or
         /// cache connectivity problems
         /// </remarks>
-        Task<Possible<CasEntries, Failure>> GetCacheEntryAsync([NotNull]StrongFingerprint strong, UrgencyHint urgencyHint = UrgencyHint.Nominal, Guid activityId = default(Guid));
+        Task<Possible<CasEntries, Failure>> GetCacheEntryAsync([NotNull] StrongFingerprint strong, OperationHints hints = default, Guid activityId = default(Guid));
 
         /// <summary>
         /// Given a CAS Hash, ensure that the entry is available and kept available
@@ -121,13 +121,13 @@ namespace BuildXL.Cache.Interfaces
         /// </summary>
         /// <param name="hash">CAS Hash entry</param>
         /// <param name="cancellationToken">Cancellation token for this operation.</param>
-        /// <param name="urgencyHint">Optional hint as to how urgent this request is</param>
+        /// <param name="hints">Optional operation hints</param>
         /// <returns>
         /// If success, the CAS Hash entry is now available and the CacheIdentifier
         /// may be used to log explains where it came from.
         /// </returns>
         /// <param name="activityId">Guid that identifies the parent of this call for tracing.</param>
-        Task<Possible<string, Failure>> PinToCasAsync(CasHash hash, CancellationToken cancellationToken, UrgencyHint urgencyHint = UrgencyHint.Nominal, Guid activityId = default(Guid));
+        Task<Possible<string, Failure>> PinToCasAsync(CasHash hash, CancellationToken cancellationToken, OperationHints hints = default, Guid activityId = default(Guid));
 
         /// <summary>
         /// Given an array of CAS Hash, ensure that the entries are available and kept
@@ -135,7 +135,7 @@ namespace BuildXL.Cache.Interfaces
         /// </summary>
         /// <param name="hashes">Array of CAS Hashes</param>
         /// <param name="cancellationToken">Cancellation token for this operation.</param>
-        /// <param name="urgencyHint">Optional hint as to how urgent this request is</param>
+        /// <param name="hints">Optional hints for this operation</param>
         /// <returns>
         /// If success, the CAS Hash entries are now available locally and the CacheIdentifiers
         /// explains where they came from.  (Including already local content returning
@@ -151,7 +151,7 @@ namespace BuildXL.Cache.Interfaces
         /// the result of a GetCacheEntry() to then choose to ensure all are available.
         /// </remarks>
         /// <param name="activityId">Guid that identifies the parent of this call for tracing.</param>
-        Task<Possible<string, Failure>[]> PinToCasAsync(CasEntries hashes, CancellationToken cancellationToken, UrgencyHint urgencyHint = UrgencyHint.Nominal, Guid activityId = default(Guid));
+        Task<Possible<string, Failure>[]> PinToCasAsync(CasEntries hashes, CancellationToken cancellationToken, OperationHints hints = default, Guid activityId = default(Guid));
 
         /// <summary>
         /// Given a CAS Hash that is local, map it to the given filename
@@ -159,7 +159,7 @@ namespace BuildXL.Cache.Interfaces
         /// <param name="hash">The CAS hash of the file</param>
         /// <param name="filename">Filename of the file to produce</param>
         /// <param name="fileState">Provides information on what state the build engine requires the files is in when produced.</param>
-        /// <param name="urgencyHint">Optional hint as to how urgent this request is</param>
+        /// <param name="hints">Optional operation hints</param>
         /// <param name="activityId">Guid that identifies the parent of this call for tracing.</param>
         /// <param name="cancellationToken">Cancellation token for this call.</param>
         /// <returns>The filename or a failure</returns>
@@ -168,9 +168,9 @@ namespace BuildXL.Cache.Interfaces
         /// </remarks>
         Task<Possible<string, Failure>> ProduceFileAsync(
             CasHash hash,
-            [NotNull]string filename,
+            [NotNull] string filename,
             FileState fileState,
-            UrgencyHint urgencyHint = UrgencyHint.Nominal,
+            OperationHints hints = default,
             Guid activityId = default(Guid),
             CancellationToken cancellationToken = default(CancellationToken));
 
@@ -178,12 +178,12 @@ namespace BuildXL.Cache.Interfaces
         /// Open a read-only stream on the given CasHash
         /// </summary>
         /// <param name="hash">The CAS Hash entry</param>
-        /// <param name="urgencyHint">Optional hint as to how urgent this request is</param>
+        /// <param name="hints"></param>
         /// <param name="activityId">Guid that identifies the parent of this call for tracing.</param>
         /// <returns>
         /// A read-only stream of the contents in the CAS Hash entry
         /// </returns>
-        Task<Possible<StreamWithLength, Failure>> GetStreamAsync(CasHash hash, UrgencyHint urgencyHint = UrgencyHint.Nominal, Guid activityId = default(Guid));
+        Task<Possible<StreamWithLength, Failure>> GetStreamAsync(CasHash hash, OperationHints hints = default, Guid activityId = default(Guid));
 
         /// <summary>
         /// Get a dictionary of name/value pairs of cache session activity statistics

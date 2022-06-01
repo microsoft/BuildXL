@@ -201,7 +201,7 @@ namespace BuildXL.Cache.InMemory
             return await Cache.CloseSessionAsync(m_sessionId, SessionEntries.Keys);
         }
 
-        public IEnumerable<Task<Possible<StrongFingerprint, Failure>>> EnumerateStrongFingerprints(WeakFingerprintHash weak, UrgencyHint urgencyHint, Guid activityId)
+        public IEnumerable<Task<Possible<StrongFingerprint, Failure>>> EnumerateStrongFingerprints(WeakFingerprintHash weak, OperationHints hints, Guid activityId)
         {
             ConcurrentDictionary<StrongFingerprint, FullCacheRecord> strongFingerprints;
             if (Cache.Fingerprints.TryGetValue(weak, out strongFingerprints))
@@ -213,7 +213,7 @@ namespace BuildXL.Cache.InMemory
             }
         }
 
-        public Task<Possible<CasEntries, Failure>> GetCacheEntryAsync(StrongFingerprint strong, UrgencyHint urgencyHint, Guid activityId)
+        public Task<Possible<CasEntries, Failure>> GetCacheEntryAsync(StrongFingerprint strong, OperationHints hints, Guid activityId)
         {
             return Task.Run(() =>
             {
@@ -241,7 +241,7 @@ namespace BuildXL.Cache.InMemory
             });
         }
 
-        public Task<Possible<string, Failure>> PinToCasAsync(CasHash hash, CancellationToken cancellationToken, UrgencyHint urgencyHint, Guid activityId)
+        public Task<Possible<string, Failure>> PinToCasAsync(CasHash hash, CancellationToken cancellationToken, OperationHints hints, Guid activityId)
         {
             return Task.Run(() =>
             {
@@ -259,13 +259,13 @@ namespace BuildXL.Cache.InMemory
             });
         }
 
-        public async Task<Possible<string, Failure>[]> PinToCasAsync(CasEntries casEntries, CancellationToken cancellationToken, UrgencyHint urgencyHint, Guid activityId)
+        public async Task<Possible<string, Failure>[]> PinToCasAsync(CasEntries casEntries, CancellationToken cancellationToken, OperationHints hints, Guid activityId)
         {
             Possible<string, Failure>[] retValues = new Possible<string, Failure>[casEntries.Count];
 
             for (int i = 0; i < casEntries.Count; i++)
             {
-                retValues[i] = await PinToCasAsync(casEntries[i], cancellationToken, urgencyHint, activityId);
+                retValues[i] = await PinToCasAsync(casEntries[i], cancellationToken, hints, activityId);
             }
 
             return retValues;
@@ -275,11 +275,11 @@ namespace BuildXL.Cache.InMemory
             CasHash hash,
             string filename,
             FileState fileState,
-            UrgencyHint urgencyHint,
+            OperationHints hints,
             Guid activityId,
             CancellationToken cancellationToken)
         {
-            Possible<StreamWithLength, Failure> casStream = await GetStreamAsync(hash, urgencyHint, activityId);
+            Possible<StreamWithLength, Failure> casStream = await GetStreamAsync(hash, hints, activityId);
 
             if (!casStream.Succeeded)
             {
@@ -303,7 +303,7 @@ namespace BuildXL.Cache.InMemory
         }
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Reliability", "CA2000:DisposeObjectsBeforeLosingScope")]
-        public Task<Possible<StreamWithLength, Failure>> GetStreamAsync(CasHash hash, UrgencyHint urgencyHint, Guid activityId)
+        public Task<Possible<StreamWithLength, Failure>> GetStreamAsync(CasHash hash, OperationHints hints, Guid activityId)
         {
             return Task.Run(() =>
             {
@@ -313,6 +313,7 @@ namespace BuildXL.Cache.InMemory
                 }
 
                 byte[] fileBytes;
+
 
                 if (!Cache.CasStorage.TryGetValue(hash, out fileBytes))
                 {

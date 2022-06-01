@@ -9,6 +9,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
+using OperationHints = BuildXL.Cache.ContentStore.Interfaces.Sessions.OperationHints;
 using BuildXL.Engine.Cache.Artifacts;
 using BuildXL.Engine.Cache.Tracing;
 using BuildXL.Native.IO;
@@ -1044,7 +1045,7 @@ namespace Test.BuildXL.Engine.Cache
                 }
             }
 
-            public Task<Possible<ContentAvailabilityBatchResult, Failure>> TryLoadAvailableContentAsync(IReadOnlyList<ContentHash> hashes, CancellationToken cancellationToken)
+            public Task<Possible<ContentAvailabilityBatchResult, Failure>> TryLoadAvailableContentAsync(IReadOnlyList<ContentHash> hashes, CancellationToken cancellationToken, OperationHints hints = default)
             {
                 return ContentCache.TryLoadAvailableContentAsync(hashes, CancellationToken.None);
             }

@@ -131,7 +131,7 @@ namespace BuildXL.Cache.VerticalAggregator
                         if (!casEntries.Determinism.IsSinglePhaseNonDeterministic && !bypassRemoteCache)
                         {
                             var sfp = new StrongFingerprint(weak, inputList, hashOfInputListContents, m_cacheId);
-                            var remoteOperation = await m_remoteROSession.GetCacheEntryAsync(sfp, urgencyHint, eventing.Id);
+                            var remoteOperation = await m_remoteROSession.GetCacheEntryAsync(sfp, new OperationHints() { Urgency = urgencyHint }, eventing.Id);
                             if ((!remoteOperation.Succeeded) && (remoteOperation.Failure.GetType() != typeof(NoMatchingFingerprintFailure)))
                             {
                                 // We can drop this error and move on. This GetCacheEntry is a performance optimization to prevent trying to
@@ -516,15 +516,15 @@ namespace BuildXL.Cache.VerticalAggregator
         }
 
         /// <inheritdoc/>
-        public IEnumerable<Task<Possible<StrongFingerprint, Failure>>> EnumerateStrongFingerprints(WeakFingerprintHash weak, UrgencyHint urgencyHint, Guid activityId)
+        public IEnumerable<Task<Possible<StrongFingerprint, Failure>>> EnumerateStrongFingerprints(WeakFingerprintHash weak, OperationHints hints, Guid activityId)
         {
             using (var counters = m_sessionCounters.EnumerateStrongFingerprintsCounter())
             {
                 using (var eventing = new EnumerateStrongFingerprintsActivity(VerticalCacheAggregator.EventSource, activityId, this))
                 {
-                    eventing.Start(weak, urgencyHint);
+                    eventing.Start(weak, hints.Urgency);
 
-                    foreach (var oneEntry in m_localSession.EnumerateStrongFingerprints(weak, urgencyHint, eventing.Id))
+                    foreach (var oneEntry in m_localSession.EnumerateStrongFingerprints(weak, hints, eventing.Id))
                     {
                         counters.YieldReturnLocal();
                         yield return oneEntry;
@@ -535,9 +535,9 @@ namespace BuildXL.Cache.VerticalAggregator
                     counters.YieldReturnSenintel();
                     yield return Task.FromResult(new Possible<StrongFingerprint, Failure>(StrongFingerprintSentinel.Instance));
 
-                    if (!m_cache.RemoteCache.IsDisconnected)
+                    if (!m_cache.RemoteCache.IsDisconnected && !hints.AvoidRemote)
                     {
-                        foreach (var oneEntry in m_remoteROSession.EnumerateStrongFingerprints(weak, urgencyHint, eventing.Id))
+                        foreach (var oneEntry in m_remoteROSession.EnumerateStrongFingerprints(weak, hints, eventing.Id))
                         {
                             counters.YieldReturnRemote();
                             yield return oneEntry;
@@ -550,7 +550,7 @@ namespace BuildXL.Cache.VerticalAggregator
         }
 
         /// <inheritdoc/>
-        public async Task<Possible<CasEntries, Failure>> GetCacheEntryAsync(StrongFingerprint strong, UrgencyHint urgencyHint, Guid activityId)
+        public async Task<Possible<CasEntries, Failure>> GetCacheEntryAsync(StrongFingerprint strong, OperationHints hints, Guid activityId)
         {
             using (var counters = m_sessionCounters.GetCacheEntryCounter())
             {
@@ -558,10 +558,10 @@ namespace BuildXL.Cache.VerticalAggregator
                 {
                     try
                     {
-                        eventing.Start(strong, urgencyHint);
+                        eventing.Start(strong, hints.Urgency);
 
                         // First check the local cache.
-                        var localResult = await m_localSession.GetCacheEntryAsync(strong, urgencyHint, eventing.Id);
+                        var localResult = await m_localSession.GetCacheEntryAsync(strong, hints, eventing.Id);
 
                         // Avoid using Remote Cache for Build Manifest
                         if (strong.Equals(StrongContentFingerprint.BuildManifestFingerprintMarker))
@@ -594,9 +594,20 @@ namespace BuildXL.Cache.VerticalAggregator
                             return eventing.Returns(failure);
                         }
 
+                        // If we are avoiding remote lookups, just return the local result
+                        if (hints.AvoidRemote)
+                        {
+                            if (localResult.Succeeded)
+                            {
+                                counters.CacheHitLocal();
+                            }
+
+                            return eventing.Returns(localResult);
+                        }
+
                         CasEntries finalEntries;
 
-                        var remoteResult = await m_remoteROSession.GetCacheEntryAsync(strong, urgencyHint, eventing.Id);
+                        var remoteResult = await m_remoteROSession.GetCacheEntryAsync(strong, hints, eventing.Id);
                         if (remoteResult.Succeeded)
                         {
                             // If the local result also had been successful, we're querying the remote to attempt to recover determinism.
@@ -639,7 +650,7 @@ namespace BuildXL.Cache.VerticalAggregator
                             // each else clause and a single return point at the bottom. This made it happy.
                             if (!m_remoteContentIsReadOnly)
                             {
-                                var copyResult = await CopyCASFilesIfNeededAsync(m_localSession, m_remoteSession, urgencyHint, filesToCopy.ToArray(), true, eventing, counters.CopyStats);
+                                var copyResult = await CopyCASFilesIfNeededAsync(m_localSession, m_remoteSession, hints.Urgency, filesToCopy.ToArray(), true, eventing, counters.CopyStats);
                                 if (!copyResult.Succeeded)
                                 {
                                     eventing.Write(copyResult.Failure.ToETWFormat());
@@ -662,7 +673,7 @@ namespace BuildXL.Cache.VerticalAggregator
                                 strong.CasElement,
                                 strong.HashElement,
                                 localEntries.Determinism.IsDeterministicTool || !localEntries.Determinism.IsDeterministic ? localEntries : new CasEntries(localEntries),
-                                urgencyHint, eventing.Id);
+                                hints.Urgency, eventing.Id);
                             if (!remoteAddResult.Succeeded)
                             {
                                 var failure = new RemoteCacheFailure(m_cacheId, FailureConstants.FailureRemoteAdd, remoteAddResult.Failure);
@@ -705,7 +716,7 @@ namespace BuildXL.Cache.VerticalAggregator
                             strong.CasElement,
                             strong.HashElement,
                             retCasEntries,
-                            urgencyHint,
+                            hints.Urgency,
                             eventing.Id);
                         if (!localAdd.Succeeded)
                         {
@@ -751,16 +762,16 @@ namespace BuildXL.Cache.VerticalAggregator
         }
 
         /// <inheritdoc/>
-        public async Task<Possible<StreamWithLength, Failure>> GetStreamAsync(CasHash hash, UrgencyHint urgencyHint, Guid activityId)
+        public async Task<Possible<StreamWithLength, Failure>> GetStreamAsync(CasHash hash, OperationHints hints, Guid activityId)
         {
             using (var counters = m_sessionCounters.GetStreamCounter())
             {
                 using (var eventing = new GetStreamActivity(VerticalCacheAggregator.EventSource, activityId, this))
                 {
-                    eventing.Start(hash, urgencyHint);
+                    eventing.Start(hash, hints);
                     try
                     {
-                        var localStream = await m_localSession.GetStreamAsync(hash, urgencyHint, eventing.Id);
+                        var localStream = await m_localSession.GetStreamAsync(hash, hints, eventing.Id);
                         if (localStream.Succeeded)
                         {
                             counters.HitLocal();
@@ -768,7 +779,7 @@ namespace BuildXL.Cache.VerticalAggregator
                         }
 
                         // NOTE: Avoid checking for existence in local session since GetStream already failed.
-                        var hashLocal = await CopyCASFileIfNeededAsync(hash, m_remoteROSession, m_localSession, urgencyHint, true, eventing, counters.CopyStats, false);
+                        var hashLocal = await CopyCASFileIfNeededAsync(hash, m_remoteROSession, m_localSession, hints, true, eventing, counters.CopyStats, false);
 
                         if (!hashLocal.Succeeded)
                         {
@@ -785,7 +796,7 @@ namespace BuildXL.Cache.VerticalAggregator
                             return localStream;
                         }
 
-                        var ret = await m_localSession.GetStreamAsync(hash, urgencyHint, eventing.Id);
+                        var ret = await m_localSession.GetStreamAsync(hash, hints, eventing.Id);
                         if (ret.Succeeded)
                         {
                             counters.HitRemote();
@@ -879,7 +890,7 @@ namespace BuildXL.Cache.VerticalAggregator
                         }
 
                         // Copy it to the target.
-                        var sourceStreamResult = await sourceSession.GetStreamAsync(hash, urgencyHint, eventing.Id);
+                        var sourceStreamResult = await sourceSession.GetStreamAsync(hash, (OperationHints)urgencyHint, eventing.Id);
                         if (!sourceStreamResult.Succeeded)
                         {
                             // An upload could fail at this point because the source wasn't pinned. Since we don't know if the file copy is an upload or a download, we'll
@@ -1036,7 +1047,7 @@ namespace BuildXL.Cache.VerticalAggregator
 
                     // TODO [pgunasekara]: Add a cancellation token here
                     // First thing we do is pin/publish the CAS items to the remote cache.
-                    Possible<string, Failure>[] pinResults = await targetSession.PinToCasAsync(casHashes, CancellationToken.None, urgencyHint);
+                    Possible<string, Failure>[] pinResults = await targetSession.PinToCasAsync(casHashes, CancellationToken.None);
                     bool allPinsFailed = pinResults.Length == 1 && !pinResults[0].Succeeded;
                     for (int i = 0; i < casHashes.Length; i++)
                     {
@@ -1076,11 +1087,11 @@ namespace BuildXL.Cache.VerticalAggregator
         }
 
         /// <inheritdoc/>
-        public async Task<Possible<string, Failure>[]> PinToCasAsync(CasEntries casEntries, CancellationToken cancellationToken, UrgencyHint urgencyHint, Guid activityId)
+        public async Task<Possible<string, Failure>[]> PinToCasAsync(CasEntries casEntries, CancellationToken cancellationToken, OperationHints hints, Guid activityId)
         {
             using (var eventing = new PinToCasMultipleActivity(VerticalCacheAggregator.EventSource, activityId, this))
             {
-                eventing.Start(casEntries, urgencyHint);
+                eventing.Start(casEntries, hints.Urgency);
                 try
                 {
                     Possible<string, Failure>[] retValues = new Possible<string, Failure>[casEntries.Count];
@@ -1096,7 +1107,7 @@ namespace BuildXL.Cache.VerticalAggregator
                     {
                         try
                         {
-                            Possible<string, Failure>[] localResultSet = await m_localSession.PinToCasAsync(casEntries, cancellationToken, urgencyHint, eventing.Id);
+                            Possible<string, Failure>[] localResultSet = await m_localSession.PinToCasAsync(casEntries, cancellationToken, hints, eventing.Id);
 
                             int remoteCheckCount = 0;
                             for (int i = 0; i < localResultSet.Length; i++)
@@ -1106,12 +1117,16 @@ namespace BuildXL.Cache.VerticalAggregator
                                     counters.PinHitLocal();
                                     retValues[i] = localResultSet[i];
                                 }
+                                else if (hints.AvoidRemote)
+                                {
+                                    counters.PinMiss();
+                                }
                                 else
                                 {
                                     remoteCheckCount++;
                                 }
                             }
-
+                            
                             if (remoteCheckCount > 0)
                             {
                                 CasHash[] hashes = new CasHash[remoteCheckCount];
@@ -1131,7 +1146,7 @@ namespace BuildXL.Cache.VerticalAggregator
                                 Possible<string, Failure>[] remotePins = await m_remoteROSession.PinToCasAsync(
                                     remotePinCheck,
                                     cancellationToken,
-                                    urgencyHint,
+                                    hints,
                                     eventing.Id);
                                 for (int i = 0; i < remotePins.Length; i++)
                                 {
@@ -1166,17 +1181,17 @@ namespace BuildXL.Cache.VerticalAggregator
         }
 
         /// <inheritdoc/>
-        public async Task<Possible<string, Failure>> PinToCasAsync(CasHash hash, CancellationToken cancellationToken, UrgencyHint urgencyHint, Guid activityId)
+        public async Task<Possible<string, Failure>> PinToCasAsync(CasHash hash, CancellationToken cancellationToken, OperationHints hints, Guid activityId)
         {
             using (var counters = m_sessionCounters.PinToCasCounter())
             {
                 using (var eventing = new PinToCasActivity(VerticalCacheAggregator.EventSource, activityId, this))
                 {
-                    eventing.Start(hash, urgencyHint);
+                    eventing.Start(hash, hints.Urgency);
 
                     try
                     {
-                        var localResult = await m_localSession.PinToCasAsync(hash, cancellationToken, urgencyHint, eventing.Id);
+                        var localResult = await m_localSession.PinToCasAsync(hash, cancellationToken, hints, eventing.Id);
 
                         if (localResult.Succeeded)
                         {
@@ -1184,11 +1199,21 @@ namespace BuildXL.Cache.VerticalAggregator
                             return eventing.Returns(localResult);
                         }
 
+                        if (hints.AvoidRemote)
+                        {
+                            if (!localResult.Succeeded)
+                            {
+                                counters.PinMiss();
+                            }
+
+                            return eventing.Returns(localResult);
+                        }
+
                         // TODO: We should filter the return code for a miss, but at this time, we don't get a consistent return back from all known caches.
                         // BasicFileSystem will return a UnPinnedCasEntryFailure if we try to get content that hasn't been pinned, even if the content is not in the cache.
                         // In fact, this is by design as it will prevent a remote access for items that are not pinned.  It does mean that we give you a different
                         // message which is to be clear about the cause but this is by design.  Note also that InMemory does the same thing to show that behavior.
-                        var result = await m_remoteROSession.PinToCasAsync(hash, cancellationToken, urgencyHint, eventing.Id);
+                        var result = await m_remoteROSession.PinToCasAsync(hash, cancellationToken, hints, eventing.Id);
                         if (!result.Succeeded)
                         {
                             counters.PinMiss();
@@ -1221,7 +1246,7 @@ namespace BuildXL.Cache.VerticalAggregator
             CasHash hash,
             string filename,
             FileState fileState,
-            UrgencyHint urgencyHint,
+            OperationHints hints,
             Guid activityId,
             CancellationToken cancellationToken)
         {
@@ -1231,7 +1256,7 @@ namespace BuildXL.Cache.VerticalAggregator
                 {
                     try
                     {
-                        eventing.Start(hash, filename, fileState, urgencyHint);
+                        eventing.Start(hash, filename, fileState, hints);
 
                         // TODO: Remove this once the remote properly handles the directory's nonexistence
                         // NOTE: There are unit tests that validate this behavior but the VSTS cache does not
@@ -1242,7 +1267,7 @@ namespace BuildXL.Cache.VerticalAggregator
                         bool secondTry = false;
                         while (true)
                         {
-                            var localResult = await m_localSession.ProduceFileAsync(hash, filename, fileState, urgencyHint, eventing.Id, cancellationToken);
+                            var localResult = await m_localSession.ProduceFileAsync(hash, filename, fileState, hints, eventing.Id, cancellationToken);
                             if (localResult.Succeeded)
                             {
                                 counters.HitLocal();
@@ -1250,7 +1275,7 @@ namespace BuildXL.Cache.VerticalAggregator
                             }
 
                             // Download to the final location.
-                            var remoteProduceFileResult = await m_remoteROSession.ProduceFileAsync(hash, filename, fileState, urgencyHint, activityId, cancellationToken);
+                            var remoteProduceFileResult = await m_remoteROSession.ProduceFileAsync(hash, filename, fileState, hints, activityId, cancellationToken);
 
                             if (!remoteProduceFileResult.Succeeded)
                             {
@@ -1271,7 +1296,7 @@ namespace BuildXL.Cache.VerticalAggregator
                             // If we ever decide that we can always trust Remote.ProduceFile (not likely),
                             // then passing the hash here might be a nice optimization, allowing the local AddToCas to short-cut
                             // if it already has content with the passed hash.
-                            var localAddResult = await m_localSession.AddToCasAsync(filename, fileState, null, urgencyHint, eventing.Id);
+                            var localAddResult = await m_localSession.AddToCasAsync(filename, fileState, null, hints, eventing.Id);
                             if (!localAddResult.Succeeded)
                             {
                                 counters.CopyStats.FileTransitFailed();
@@ -1332,7 +1357,7 @@ namespace BuildXL.Cache.VerticalAggregator
                                 return eventing.StopFailure(ret);
                             }
 
-                            var validateResult = await m_remoteROSession.ValidateContentAsync(hash, urgencyHint, eventing.Id);
+                            var validateResult = await m_remoteROSession.ValidateContentAsync(hash, hints, eventing.Id);
 
                             if (!validateResult.Succeeded)
                             {

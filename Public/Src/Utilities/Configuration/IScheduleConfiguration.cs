@@ -514,5 +514,16 @@ namespace BuildXL.Utilities.Configuration
         /// Whether Cpu resource determines the scheduling behavior
         /// </summary>
         bool CpuResourceAware { get; }
+
+        /// <summary>
+        /// Whether to enable the remote cache cut-off feature, which avoids lookups to the remote cache
+        /// after a number of consecutive cache misses in a dependency chain
+        /// </summary>
+        public bool RemoteCacheCutoff { get; set; }
+
+        /// <summary>
+        /// Number of consecutive cache misses in a dependency chain before avoiding the remote cache
+        /// </summary>
+        public int RemoteCacheCutoffLength { get; set; }
     }
 }

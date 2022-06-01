@@ -45,6 +45,16 @@ namespace BuildXL.Pips
         private int m_refCount;
 
         /// <summary>
+        /// The length of the longest chain of upstream dependencies in the dependency graph 
+        /// (starting from a direct dependency), that were cache misses. 
+        /// </summary>
+        /// <remarks>
+        /// Used for remote cache-lookup skipping heuristics
+        /// </remarks>
+        private int m_upstreamMissesLongestChain;
+
+
+        /// <summary>
         /// The pip priority - currently based on the critical path.
         /// </summary>
         private int m_priority;
@@ -224,6 +234,31 @@ namespace BuildXL.Pips
         }
 
         #endregion
+
+        #region Cache miss history
+
+        /// <summary>
+        /// The length of the maximal consecutive-cache-miss upstream chain (starting from
+        /// a direct dependency)
+        /// </summary>
+        public int UpstreamCacheMissLongestChain => m_upstreamMissesLongestChain;
+
+        /// <summary>
+        /// Updates this pip's upstream cache miss chain from the information of a direct dependency 
+        /// (including it, if it's a miss) and updates its own. 
+        /// </summary>
+        public void InformDependencyCacheMissChain(int directDependencyChainLength)
+        {
+            int currentChain, newMaxChain;
+            do
+            {
+                currentChain = m_upstreamMissesLongestChain;
+                newMaxChain = Math.Max(currentChain, directDependencyChainLength);
+            }
+            while (currentChain != Interlocked.CompareExchange(ref m_upstreamMissesLongestChain, newMaxChain, currentChain));
+        }
+        #endregion
+
 
         /// <summary>
         /// Whether the pip is impacted by uncacheability

@@ -1,6 +1,15 @@
 This page is a curated list of the release notes for releases after 0.20170619.4.0 and a manual copy of notable changes from each build before that. See the repo's commit history full details for what is included in each build.
 
 =======
+# 0.1.0-20220527.6 (Release [178572](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=178572&_a=release-pipeline-progress)) Released 6/1/2022
+-	Stop materializing IPC pip outputs due to value pip dependencies
+-	NuGet resolver changes reapplied after some fixes
+-	Add support for AzureAuth
+-	Scrub stale packages by default on ADO builds
+-	Removed netcoreapp3.1 and net5.0 qualifiers
+-	Change maxProcMultiplier to 0.9 by default
+-	Some bug fixes and optimizations
+
 # 0.1.0-202200523.0 (Release [176841](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=176841&_a=release-pipeline-progress)) Released 5/25/2022
 - Register enumerated files with the output file system so that directory enumerations are properly detected
 - Rehash dropped files when necessary

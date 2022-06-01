@@ -382,6 +382,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         // be inactive, and removing hashes with no locations.
         private BoolResult GarbageCollectContentCore(OperationContext context)
         {
+            var durationStopwatch = StopwatchSlim.Start();
+
             // Counters for work done.
             long removedEntries = 0;
             long totalEntries = 0;
@@ -508,7 +510,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             Tracer.GarbageCollectionFinished(
                 context,
-                Counters[ContentLocationDatabaseCounters.GarbageCollectContent].Duration,
+                durationStopwatch.Elapsed,
                 totalEntries,
                 removedEntries,
                 Counters[ContentLocationDatabaseCounters.TotalNumberOfCollectedEntries].Value,

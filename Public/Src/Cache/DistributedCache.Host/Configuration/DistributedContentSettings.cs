@@ -1273,6 +1273,9 @@ namespace BuildXL.Cache.Host.Configuration
         public TimeSpanSetting? BlobMasterElectionLeaseExpiryTime { get; set; }
 
         [DataMember]
+        public bool? BlobMasterElectionReleaseLeaseOnShutdown { get; set; }
+
+        [DataMember]
         public TimeSpanSetting? BlobMasterElectionStorageInteractionTimeout { get; set; }
 
         [DataMember]

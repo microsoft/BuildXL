@@ -747,6 +747,7 @@ namespace BuildXL.Cache.Host.Service.Internal
 
             ApplyIfNotNull(_distributedSettings.BlobMasterElectionFileName, v => azureBlobStorageMasterElectionMechanismConfiguration.FileName = v);
             ApplyIfNotNull(_distributedSettings.BlobMasterElectionLeaseExpiryTime, v => azureBlobStorageMasterElectionMechanismConfiguration.LeaseExpiryTime = v);
+            ApplyIfNotNull(_distributedSettings.BlobMasterElectionReleaseLeaseOnShutdown, v => azureBlobStorageMasterElectionMechanismConfiguration.ReleaseLeaseOnShutdown = v);
             ApplyIfNotNull(_distributedSettings.BlobMasterElectionStorageInteractionTimeout, v => azureBlobStorageMasterElectionMechanismConfiguration.StorageInteractionTimeout = v);
             ApplyIfNotNull(_distributedSettings.BlobMasterElectionRetryPolicy, v => azureBlobStorageMasterElectionMechanismConfiguration.RetryPolicy = v);
 

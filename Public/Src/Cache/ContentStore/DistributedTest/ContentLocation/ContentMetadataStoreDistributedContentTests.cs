@@ -183,6 +183,8 @@ namespace ContentStoreTest.Distributed.Sessions
                     d.ContentMetadataEnableResilience = true;
                     d.ContentMetadataStoreMode = ContentMetadataStoreMode.Distributed;
                     d.ContentMetadataPersistInterval = "1000s";
+                    d.BlobMasterElectionReleaseLeaseOnShutdown = true;
+                    d.BlobMasterElectionLeaseExpiryTime = TimeSpan.FromMinutes(5);
                     d.CreateCheckpointIntervalMinutes = 10;
                 },
                 overrideRedis: r =>

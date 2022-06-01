@@ -32,11 +32,19 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public bool IsMasterEligible { get; set; } = true;
 
         /// <summary>
-        /// WARNING: must be longer than the heartbeat interval
+        /// Maximum lease duration when not refreshing.
         /// </summary>
-        public TimeSpan LeaseExpiryTime { get; set; } = TimeSpan.FromMinutes(5);
+        /// <remarks>
+        /// WARNING: must be longer than the heartbeat interval (<see cref="DistributedContentSettings.HeartbeatIntervalMinutes"/>)
+        ///
+        /// The value is set to 10m because that's rough worst-case estimate of how long it takes CASaaS to reboot in
+        /// highly-loaded production stamps, including offline time (i.e., the maximum tolerated offline time).
+        /// </remarks>
+        public TimeSpan LeaseExpiryTime { get; set; } = TimeSpan.FromMinutes(10);
 
         public TimeSpan StorageInteractionTimeout { get; set; } = TimeSpan.FromSeconds(10);
+
+        public bool ReleaseLeaseOnShutdown { get; set; } = false;
 
         public RetryPolicyConfiguration RetryPolicy { get; set; } = BlobFolderStorage.DefaultRetryPolicy;
     }
@@ -76,7 +84,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         protected override async Task<BoolResult> ShutdownCoreAsync(OperationContext context)
         {
-            await ReleaseRoleIfNecessaryAsync(context).IgnoreFailure();
+            if (_configuration.ReleaseLeaseOnShutdown)
+            {
+                await ReleaseRoleIfNecessaryAsync(context).IgnoreFailure();
+            }
 
             return await base.ShutdownCoreAsync(context);
         }

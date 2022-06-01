@@ -420,6 +420,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             CurrentRole = null;
 
+            var state = ClusterState.CurrentState;
+            if (state == MachineState.DeadUnavailable || state == MachineState.DeadExpired)
+            {
+                // This only happens when we're shutting down for repairs. If we're the master, it's important that we
+                // release the role so as to allow another machine to pick up the role while this machine gets repaired
+                await MasterElectionMechanism.ReleaseRoleIfNecessaryAsync(context).IgnoreFailure();
+            }
+
             result &= await MasterElectionMechanism.ShutdownAsync(context);
 
             result &= await ClusterStateManager.ShutdownAsync(context);

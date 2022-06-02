@@ -7,6 +7,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
+using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 
 #nullable enable
 
@@ -30,9 +31,12 @@ namespace BuildXL.Cache.Host.Service
         {
             var jsonOptions = new JsonSerializerOptions();
             jsonOptions.WriteIndented = true;
-            jsonOptions.Converters.Add(new TimeSpanConverter());
             jsonOptions.Converters.Add(new AbsolutePathConverter());
-            jsonOptions.Converters.Add(new JsonStringEnumConverter());
+            foreach (var converter in DeploymentUtilities.ConfigurationSerializationOptions.Converters)
+            {
+                jsonOptions.Converters.Add(converter);
+            }
+
             var jsonString = JsonSerializer.Serialize(config, jsonOptions);
 
             foreach (var sensitiveProperty in CheckSensitiveProperties)
@@ -50,17 +54,9 @@ namespace BuildXL.Cache.Host.Service
         /// <nodoc />
         public static void TraceConfiguration<T>(T? config, ILogger logger)
         {
-            logger.Debug($"JSON serialized of {typeof(T)}: {(config is null ? "null" : ConfigToString(config))}");
-        }
-    }
-
-    internal class TimeSpanConverter : JsonConverter<TimeSpan>
-    {
-        public override TimeSpan Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) => default;
-
-        public override void Write(Utf8JsonWriter writer, TimeSpan value, JsonSerializerOptions options)
-        {
-            writer.WriteStringValue(value.ToString());
+            // Create a context to get structured logging support
+            var context = new Context(logger);
+            context.Debug(config is null ? "null" : ConfigToString(config), nameof(ConfigurationPrinter), $"{nameof(TraceConfiguration)}.{typeof(T).Name}");
         }
     }
 

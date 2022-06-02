@@ -801,10 +801,18 @@ namespace ContentStoreTest.Distributed.Sessions
                 implicitPin: ImplicitPin.None);
         }
 
-        [Fact]
-        public Task RegisterLocalLocationToGlobalRedisTest()
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public Task RegisterLocalLocationToGlobalRedisTest(bool testNagle)
         {
-            ConfigureWithOneMaster();
+            ConfigureWithOneMaster(d =>
+            {
+                if (testNagle)
+                {
+                    d.LocationStoreSettings.GlobalRegisterNagleInterval = "5ms";
+                }
+            });
 
             return RunTestAsync(
                 3,
@@ -822,13 +830,12 @@ namespace ContentStoreTest.Distributed.Sessions
                     var globalResult = await store1.GetBulkAsync(context, new[] { hash }, Token, UrgencyHint.Nominal, GetBulkOrigin.Global).ShouldBeSuccess();
                     globalResult.ContentHashesInfo[0].Locations.Should().NotBeNullOrEmpty();
 
-                    var redisStore0 = context.GetServices(0).RedisGlobalStore.Instance;
+                    var globalStore0 = context.GetServices(0).RedisGlobalStore.Instance;
                     var clusterStateMgr0 = store0.LocalLocationStore.ClusterStateManager;
 
                     int registerContentCount = 5;
                     int registerMachineCount = 300;
                     HashSet<MachineId> ids = new HashSet<MachineId>();
-                    List<MachineLocation> locations = new List<MachineLocation>();
                     List<ContentHashWithSize> content = Enumerable.Range(0, 40).Select(i => RandomContentWithSize()).ToList();
 
                     content.Add(new ContentHashWithSize(ContentHash.Random(), -1));
@@ -837,17 +844,32 @@ namespace ContentStoreTest.Distributed.Sessions
 
                     for (int i = 0; i < registerMachineCount; i++)
                     {
-                        var location = new MachineLocation((TestRootDirectoryPath / "redis" / i.ToString()).ToString());
-                        locations.Add(location);
-                        var mapping = await clusterStateMgr0.RegisterMachineForTestsAsync(context, location).ThrowIfFailureAsync();
-                        var id = mapping.Id;
-                        ids.Should().NotContain(id);
-                        ids.Add(id);
+                        MachineId id;
+
+                        if (testNagle)
+                        {
+                            id = clusterStateMgr0.ClusterState.LocalMachineMappings[0].Id;
+                        }
+                        else
+                        {
+                            var location = new MachineLocation((TestRootDirectoryPath / "redis" / i.ToString()).ToString());
+                            var mapping = await clusterStateMgr0.RegisterMachineForTestsAsync(context, location).ThrowIfFailureAsync();
+                            id = mapping.Id;
+                            ids.Should().NotContain(id);
+                            ids.Add(id);
+                        }
 
                         List<ContentHashWithSize> machineContent = Enumerable.Range(0, registerContentCount)
                             .Select(_ => content[ThreadSafeRandom.Generator.Next(content.Count)]).ToList();
 
-                        await redisStore0.RegisterLocationAsync(context, id, machineContent.SelectList(c => (ShortHashWithSize)c), true).ShouldBeSuccess();
+                        if (testNagle)
+                        {
+                            await store0.RegisterLocalLocationAsync(context, machineContent, true).ShouldBeSuccess();
+                        }
+                        else
+                        {
+                            await globalStore0.RegisterLocationAsync(context, id, machineContent.SelectList(c => (ShortHashWithSize)c), true).ShouldBeSuccess();
+                        }
 
                         foreach (var item in machineContent)
                         {
@@ -855,7 +877,7 @@ namespace ContentStoreTest.Distributed.Sessions
                             locationIds.Add(id);
                         }
 
-                        var getBulkResult = await redisStore0.GetBulkAsync(context, machineContent.SelectList(c => (ShortHash)c.Hash)).ShouldBeSuccess();
+                        var getBulkResult = await globalStore0.GetBulkAsync(context, machineContent.SelectList(c => (ShortHash)c.Hash)).ShouldBeSuccess();
                         IReadOnlyList<ContentLocationEntry> entries = getBulkResult.Value;
 
                         entries.Count.Should().Be(machineContent.Count);
@@ -872,7 +894,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     {
                         var globalGetBulkResult = await store1.GetBulkAsync(context, page.SelectList(c => c.Hash), Token, UrgencyHint.Nominal, GetBulkOrigin.Global).ShouldBeSuccess();
 
-                        var redisGetBulkResult = await redisStore0.GetBulkAsync(context, page.SelectList(c => (ShortHash)c.Hash)).ShouldBeSuccess();
+                        var redisGetBulkResult = await globalStore0.GetBulkAsync(context, page.SelectList(c => (ShortHash)c.Hash)).ShouldBeSuccess();
 
                         var infos = globalGetBulkResult.ContentHashesInfo;
                         var entries = redisGetBulkResult.Value;

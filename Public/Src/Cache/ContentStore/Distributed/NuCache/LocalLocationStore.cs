@@ -9,6 +9,7 @@ using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -151,6 +152,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private const string EventProcessingDelayKey = "LocalLocationStore.EventProcessingDelay";
 
+        private readonly ResultNagleQueue<IReadOnlyList<ShortHashWithSize>, (BoolResult Result, string TraceId)>? _registerNagleQueue;
+
         private readonly MachineList.Settings _machineListSettings;
 
         private readonly ColdStorage? _coldStorage;
@@ -179,6 +182,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             ClusterStateManager = clusterStateManager;
             _checkpointRegistry = checkpointRegistry;
             _coldStorage = coldStorage;
+
+            if (configuration.Settings.GlobalRegisterNagleInterval?.Value is TimeSpan nagleInterval)
+            {
+                _registerNagleQueue = new(
+                    configuration.Settings.GlobalRegisterNagleParallelism,
+                    nagleInterval,
+                    RedisContentLocationStoreConstants.DefaultBatchSize);
+            }
 
             _recentlyAddedHashes = new VolatileSet<ShortHash>(clock);
             _recentlyTouchedHashes = new VolatileSet<ShortHash>(clock);
@@ -368,6 +379,31 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             Database.DatabaseInvalidated = OnContentLocationDatabaseInvalidation;
 
+            _registerNagleQueue?.Start(async batch =>
+            {
+                var results = new (BoolResult, string)[batch.Count];
+                var hashes = new List<ShortHashWithSize>();
+                int resultCount = 0;
+                var resultsMemory = results.AsMemory();
+                for (int i = 0; i < batch.Count; i++)
+                {
+                    hashes.AddRange(batch[i]);
+                    resultCount++;
+
+                    if (i == (batch.Count - 1)
+                        || hashes.Count >= RedisContentLocationStoreConstants.DefaultBatchSize)
+                    {
+                        var registerContext = context.CreateNested(Tracer.Name, nameof(RegisterLocalLocationAsync));
+                        var result = await GlobalRegisterAsync(registerContext, _localMachineId.Value, hashes, touch: true);
+                        resultsMemory.Span.Slice(0, resultCount).Fill((result, registerContext.TracingContext.TraceId));
+                        resultsMemory = resultsMemory.Slice(resultCount);
+                        resultCount = 0;
+                    }
+                }
+
+                return results;
+            });
+
             return BoolResult.Success;
         }
 
@@ -375,6 +411,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         protected override async Task<BoolResult> ShutdownComponentAsync(OperationContext context)
         {
             Tracer.Info(context, "Shutting down local location store.");
+
+            _registerNagleQueue?.Dispose();
 
             BoolResult result = BoolResult.Success;
             if (_postInitialization.postInitializationStarted)
@@ -1306,7 +1344,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
 
             string extraMessage = string.Empty;
-            return await context.PerformOperationAsync(
+            return await context.PerformOperationAsync<BoolResult>(
                 Tracer,
                 async () =>
                 {
@@ -1350,13 +1388,27 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     if (eventContentHashes.Count != 0)
                     {
                         // Send add events
+                        Tracer.TrackMetric(context, "RegisterEventCalls", 1);
+                        Tracer.TrackMetric(context, "RegisterEventHashes", eventContentHashes.Count);
                         EventStore.AddLocations(context, machineId, eventContentHashes, touch).ThrowIfFailure();
                     }
 
                     if (eagerContentHashes.Count != 0)
                     {
                         // Update global store
-                        await GlobalCacheStore.RegisterLocationAsync(context, machineId, eagerContentHashes, touch).ThrowIfFailure();
+                        Tracer.TrackMetric(context, "RegisterEagerCalls", 1);
+                        Tracer.TrackMetric(context, "RegisterEagerHashes", eagerContentHashes.Count);
+                        if (_registerNagleQueue != null && _localMachineId.Value == machineId)
+                        {
+                            var (result, traceId) = await _registerNagleQueue.EnqueueAsync(eagerContentHashes);
+                            extraMessage = $"TraceId=[{traceId}] {extraMessage}";
+                            result.ThrowIfFailure();
+
+                        }
+                        else
+                        {
+                            await GlobalRegisterAsync(context, machineId, eagerContentHashes, touch).ThrowIfFailure();
+                        }
                     }
 
                     // Register all recently added hashes so subsequent operations do not attempt to re-add
@@ -1378,6 +1430,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 traceOperationStarted: false,
                 extraEndMessage: _ => extraMessage,
                 caller: isRegisterLocalContent ? nameof(RegisterLocalContentAsync) : nameof(RegisterLocalLocationAsync));
+        }
+
+        private ValueTask<BoolResult> GlobalRegisterAsync(OperationContext context, MachineId machineId, IReadOnlyList<ShortHashWithSize> eagerContentHashes, bool touch)
+        {
+            Tracer.TrackMetric(context, "RegisterEagerGlobalCalls", 1);
+            Tracer.TrackMetric(context, "RegisterEagerGlobalHashes", eagerContentHashes.Count);
+            return GlobalCacheStore.RegisterLocationAsync(context, machineId, eagerContentHashes, touch);
         }
 
         /// <nodoc />

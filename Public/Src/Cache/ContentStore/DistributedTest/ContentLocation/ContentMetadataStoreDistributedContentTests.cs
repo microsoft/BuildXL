@@ -40,6 +40,7 @@ namespace ContentStoreTest.Distributed.Sessions
             ConfigureWithOneMaster(
                 overrideDistributed: d =>
                 {
+                    d.LocationStoreSettings.GlobalRegisterNagleInterval = "5ms";
                     d.ContentMetadataStoreMode = d.TestMachineIndex switch
                     {
                         0 => ContentMetadataStoreMode.Redis,

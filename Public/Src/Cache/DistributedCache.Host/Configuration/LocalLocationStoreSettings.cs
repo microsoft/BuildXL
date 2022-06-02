@@ -15,6 +15,16 @@ namespace BuildXL.Cache.Host.Configuration
     public record LocalLocationStoreSettings
     {
         /// <summary>
+        /// Time interval for nagle RegisterLocation operations against global store
+        /// </summary>
+        public TimeSpanSetting? GlobalRegisterNagleInterval { get; set; }
+
+        /// <summary>
+        /// Degree of parallelism for nagle RegisterLocation operations against global store
+        /// </summary>
+        public int GlobalRegisterNagleParallelism { get; set; } = 1;
+
+        /// <summary>
         /// Controls delay for RegisterLocation operation to allow for throttling
         /// </summary>
         public TimeSpanSetting? RegisterLocationDelay { get; set; }

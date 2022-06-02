@@ -1,13 +1,13 @@
-// Copyright (c) Microsoft Corporation.
+﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Serialization;
 
-namespace BuildXL.Cache.ContentStore.Distributed.NuCache
+namespace BuildXL.Cache.ContentStore.Utils
 {
-    internal static class SerializationExtensions
+    public static class SerializationExtensions
     {
         public static void Write(this BuildXLWriter writer, in ShortHash value)
         {
@@ -31,6 +31,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public static UnixTime ReadUnixTime(this BuildXLReader reader)
         {
             return new UnixTime(reader.ReadInt64Compact());
+        }
+
+        public static UnixTime ReadUnixTime(ref this SpanReader reader)
+        {
+            return new UnixTime(reader.ReadInt64Compact());
+        }
+
+        public static ContentHash ReadContentHash(ref this SpanReader reader)
+        {
+            var result = ContentHash.FromSpan(reader.ReadSpan(ContentHash.SerializedLength));
+            return result;
         }
     }
 }

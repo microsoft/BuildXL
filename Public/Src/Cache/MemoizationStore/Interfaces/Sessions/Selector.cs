@@ -7,6 +7,7 @@ using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Serialization;
 using StructUtilities = BuildXL.Cache.ContentStore.Interfaces.Utils.StructUtilities;
 
 namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
@@ -61,6 +62,18 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
 
             var contentHash = new ContentHash(reader);
             var output = ContentHashList.ReadNullableArray(reader);
+
+            return new Selector(contentHash, output);
+        }
+
+        /// <summary>
+        ///     Initializes a new instance of the <see cref="Selector" /> struct.
+        /// </summary>
+        public static Selector Deserialize(ref SpanReader reader)
+        {
+            var contentHash = ContentHash.FromSpan(reader.ReadSpan(ContentHash.SerializedLength));
+
+            var output = ContentHashList.ReadNullableArray(ref reader);
 
             return new Selector(contentHash, output);
         }

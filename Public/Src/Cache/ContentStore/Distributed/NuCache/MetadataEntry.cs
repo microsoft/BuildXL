@@ -4,10 +4,10 @@
 using System;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Serialization;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
-
     /// <summary>
     /// Metadata entry for memoization stores.
     /// </summary>
@@ -36,6 +36,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             var lastUpdateTimeUtc = reader.ReadInt64Compact();
             var contentHashListWithDeterminism = ContentHashListWithDeterminism.Deserialize(reader);
+            return new MetadataEntry(contentHashListWithDeterminism, DateTime.FromFileTimeUtc(lastUpdateTimeUtc));
+        }
+
+        /// <nodoc />
+        public static MetadataEntry Deserialize(ref SpanReader reader)
+        {
+            var lastUpdateTimeUtc = reader.ReadInt64Compact();
+            var contentHashListWithDeterminism = ContentHashListWithDeterminism.Deserialize(ref reader);
             return new MetadataEntry(contentHashListWithDeterminism, DateTime.FromFileTimeUtc(lastUpdateTimeUtc));
         }
 

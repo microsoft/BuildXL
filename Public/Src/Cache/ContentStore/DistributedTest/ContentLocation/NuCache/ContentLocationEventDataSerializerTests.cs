@@ -26,6 +26,7 @@ using BuildXL.Cache.ContentStore.UtilitiesCore;
 using System.IO;
 using System.Threading;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
+using BuildXL.Cache.ContentStore.Utils;
 
 namespace ContentStoreTest.Distributed.ContentLocation.NuCache
 {

@@ -8,7 +8,9 @@ using System.Linq;
 using System.Text;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
+using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Serialization;
 
 namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
 {
@@ -248,6 +250,21 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
             return new ContentHashList(contentHashes, payload);
         }
 
+        /// <summary>
+        ///     Initializes a new instance of the <see cref="ContentHashList" /> class from its binary representation.
+        /// </summary>
+        public static ContentHashList Deserialize(ref SpanReader reader)
+        {
+            var contentHashes = reader.ReadArray((ref SpanReader source) => source.ReadContentHash());
+            var payload = ReadNullableArray(ref reader);
+            return new ContentHashList(contentHashes, payload);
+        }
+
+        private static ContentHash ReadContentHash(ref SpanReader reader)
+        {
+            var result = ContentHash.FromSpan(reader.ReadSpan(ContentHash.SerializedLength));
+            return result;
+        }
 
         /// <nodoc />
         public static void WriteNullableArray(byte[] array, BuildXLWriter writer)
@@ -265,6 +282,19 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
 
         /// <nodoc />
         public static byte[] ReadNullableArray(BuildXLReader reader)
+        {
+            var payloadLength = reader.ReadInt32Compact();
+            byte[] payload = null;
+            if (payloadLength >= 0)
+            {
+                payload = reader.ReadBytes(payloadLength);
+            }
+
+            return payload;
+        }
+
+        /// <nodoc />
+        public static byte[] ReadNullableArray(ref SpanReader reader)
         {
             var payloadLength = reader.ReadInt32Compact();
             byte[] payload = null;

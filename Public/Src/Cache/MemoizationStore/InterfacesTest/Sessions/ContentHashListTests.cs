@@ -143,28 +143,28 @@ namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Sessions
         public void SerializeRoundtrip()
         {
             var value = ContentHashList.Random();
-            Utilities.TestSerializationRoundtrip(value, value.Serialize, ContentHashList.Deserialize);
+            Utilities.TestSerializationRoundtrip(value, value.Serialize, ContentHashList.Deserialize, source => ContentHashList.Deserialize(ref source));
         }
 
         [Fact]
         public void SerializeRoundtripNonNullPayload()
         {
             var value = ContentHashList.Random(payload: new byte[] { 1, 2, 3 });
-            Utilities.TestSerializationRoundtrip(value, value.Serialize, ContentHashList.Deserialize);
+            Utilities.TestSerializationRoundtrip(value, value.Serialize, ContentHashList.Deserialize, source => ContentHashList.Deserialize(ref source));
         }
 
         [Fact]
         public void SerializeWithDeterminismRoundtrip()
         {
             var value = new ContentHashListWithDeterminism(ContentHashList.Random(), CacheDeterminism.None);
-            Utilities.TestSerializationRoundtrip(value, value.Serialize, ContentHashListWithDeterminism.Deserialize);
+            Utilities.TestSerializationRoundtrip(value, value.Serialize, ContentHashListWithDeterminism.Deserialize, source => ContentHashListWithDeterminism.Deserialize(ref source));
         }
 
         [Fact]
         public void SerializeWithDeterminismRoundtripNoContentHashList()
         {
             var value = new ContentHashListWithDeterminism(null, CacheDeterminism.None);
-            Utilities.TestSerializationRoundtrip(value, value.Serialize, ContentHashListWithDeterminism.Deserialize);
+            Utilities.TestSerializationRoundtrip(value, value.Serialize, ContentHashListWithDeterminism.Deserialize, source => ContentHashListWithDeterminism.Deserialize(ref source));
         }
     }
 }

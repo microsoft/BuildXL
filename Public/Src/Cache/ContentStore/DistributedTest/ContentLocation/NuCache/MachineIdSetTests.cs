@@ -1,10 +1,12 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.IO;
 using System.Linq;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Serialization;
 using FluentAssertions;
 using Xunit;
 
@@ -130,11 +132,17 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
                 }
 
                 memoryStream.Position = 0;
-
+                MachineIdSet readFromBinaryReader;
                 using (var reader = BuildXLReader.Create(memoryStream))
                 {
-                    return MachineIdSet.Deserialize(reader);
+                    readFromBinaryReader = MachineIdSet.Deserialize(reader);
                 }
+
+                var data = memoryStream.ToArray().AsSpan().AsReader();
+                MachineIdSet readFromSpan = MachineIdSet.Deserialize(ref data);
+                Assert.Equal(readFromBinaryReader, readFromSpan);
+
+                return readFromSpan;
             }
         }
 

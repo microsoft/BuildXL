@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Serialization;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
@@ -22,7 +23,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Returns an empty machine set.
         /// </summary>
-        internal static readonly BitMachineIdSet EmptyInstance = new BitMachineIdSet(new byte[0], 0);
+        internal static readonly BitMachineIdSet EmptyInstance = new BitMachineIdSet(Array.Empty<byte>(), 0);
 
         /// <summary>
         /// Bitmask used to determine location ID.
@@ -139,11 +140,21 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return new BitMachineIdSet(data, 0);
         }
 
-        internal static bool HasMachineIdCore(BuildXLReader reader, int index)
+        internal static MachineIdSet DeserializeCore(ref SpanReader reader)
         {
             var count = reader.ReadInt32Compact();
 
             var data = reader.ReadBytes(count);
+
+            return new BitMachineIdSet(data, 0);
+        }
+
+        internal static bool HasMachineIdCore(ReadOnlySpan<byte> source, int index)
+        {
+            var reader = source.AsReader();
+            var count = reader.ReadInt32Compact();
+
+            var data = reader.ReadSpan(count);
 
             return GetValue(data, 0, index);
         }
@@ -214,7 +225,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <nodoc />
-        public static bool GetValue(byte[] data, int offset, int index)
+        public static bool GetValue(ReadOnlySpan<byte> data, int offset, int index)
         {
             int dataIndex = offset + index / 8;
 
@@ -227,7 +238,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             // It means that 0b10000010 is translated into machines 0 and 6, but not 1 and 7.
             return (data[dataIndex] & (1 << (7 - (index % 8)))) != 0;
         }
-
+        
         private static void SetValue(byte[] data, int offset, int index, bool value)
         {
             int dataIndex = offset + index / 8;

@@ -333,6 +333,17 @@ namespace BuildXL.Cache.ContentStore.Hashing
         }
 
         /// <summary>
+        /// Creates an instance of <see cref="ContentHash"/> from a sequence of bytes.
+        /// </summary>
+        public static ContentHash FromSpan(ReadOnlySpan<byte> source)
+        {
+            Contract.Requires(!source.IsEmpty);
+            var hashType = (HashType)source[0];
+            var fixedBytes = ReadOnlyFixedBytes.FromSpan(source.Slice(start: 1));
+            return FromFixedBytes(hashType, fixedBytes);
+        }
+
+        /// <summary>
         ///     Serialize only the hash bytes to a buffer.
         /// </summary>
         public void SerializeHashBytes(byte[] buffer, int offset = 0)

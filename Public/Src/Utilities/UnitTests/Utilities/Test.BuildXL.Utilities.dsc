@@ -16,6 +16,13 @@ namespace Core {
             },
         },
         references: [
+            // This is needed for 'FluentAssersions' running on a full framework.
+            ...addIf(BuildXLSdk.isFullFramework,
+                NetFx.System.Xml.dll,
+                NetFx.System.Xml.Linq.dll,
+                NetFx.System.Runtime.Serialization.dll,
+                NetFx.Netstandard.dll
+            ),
             importFrom("BuildXL.Cache.ContentStore").Hashing.dll,
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Native.dll,
@@ -31,6 +38,7 @@ namespace Core {
                 BuildXLSdk.isFullFramework,
                 BuildXLSdk.withQualifier({targetFramework: qualifier.targetFramework}).NetFx.Netstandard.dll
             ),
+            ...BuildXLSdk.fluentAssertionsWorkaround
         ],
         assemblyBindingRedirects: BuildXLSdk.cacheBindingRedirects()
     });

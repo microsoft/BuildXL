@@ -3,7 +3,7 @@
 
 using System;
 
-namespace BuildXL.Cache.ContentStore.Distributed.Utilities
+namespace BuildXL.Cache.ContentStore.Utils
 {
     /// <summary>
     /// Represents a point in time, defined as an approximation of the number of minutes elapsed since 00:00:00 Jan 1 2010.
@@ -24,7 +24,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
         public bool Equals(CompactTime other) => Value == other.Value;
 
         /// <inheritdoc />
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj is CompactTime hash && Equals(hash);
         }

@@ -44,7 +44,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         /// <summary>
         /// Empty value.
         /// </summary>
-        private static readonly byte[] s_emptyValue = new byte[0];
+        private static readonly byte[] s_emptyValue = Array.Empty<byte>();
 
         private readonly Snapshot? m_snapshot;
 
@@ -465,7 +465,9 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             return m_store.Get(key, valueBuffer, GetColumnFamilyInfo(columnFamilyName).Handle, readOptions: m_readOptions);
         }
 
-        /// <inheritdoc />
+        /// <summary>
+        /// Gets the pinned value for a given <paramref name="key"/>.
+        /// </summary>
         public bool TryGetPinnableValue(ReadOnlySpan<byte> key, [NotNullWhen(true)] out RocksDbPinnableSpan? value, string? columnFamilyName = null)
         {
             value = m_store.UnsafeGetPinnable(key, GetColumnFamilyInfo(columnFamilyName).Handle, readOptions: m_readOptions);
@@ -499,7 +501,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                 WriteInternal(writeBatch);
             }
         }
-        
+
         /// <inheritdoc />
         public void Remove(ReadOnlySpan<byte> key, string? columnFamilyName = null)
         {
@@ -877,7 +879,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         /// When a callback returns false, the search is done.
         /// </remarks>
         public delegate bool ObserveKeyValuePairCallback<in TState>(TState state, ReadOnlySpan<byte> key, ReadOnlySpan<byte> value);
-        
+
         /// <summary>
         /// A callback-based for push-based prefix lookup (prefix search) implementation.
         /// </summary>
@@ -920,7 +922,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                 }
             }
         }
-        
+
         /// <nodoc />
         public void PrefixKeyLookup<TState>(TState state, ReadOnlySpan<byte> prefix, string? columnFamilyName, ObserveKeyCallback<TState> observeCallback)
         {
@@ -991,7 +993,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                 }
             }
         }
-        
+
         /// <inheritdoc />
         public IterateDbContentResult IterateDbContent(
             Action<Iterator> onNextItem,
@@ -1088,7 +1090,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
 
             return true;
         }
-        
+
         /// <nodoc />
         public static bool StartsWith(ReadOnlySpan<byte> prefix, ReadOnlySpan<byte> key)
         {

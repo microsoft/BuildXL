@@ -7,6 +7,7 @@ using System.Text;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Serialization;
 using StructUtilities = BuildXL.Cache.ContentStore.Interfaces.Utils.StructUtilities;
 
 namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
@@ -59,6 +60,17 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
 
             var weakFingerprint = Fingerprint.Deserialize(reader);
             var selector = Selector.Deserialize(reader);
+            return new StrongFingerprint(weakFingerprint, selector);
+        }
+
+        /// <summary>
+        ///     Initializes a new instance of the <see cref="StrongFingerprint" /> struct from its binary
+        ///     representation.
+        /// </summary>
+        public static StrongFingerprint Deserialize(ref SpanReader reader)
+        {
+            var weakFingerprint = Fingerprint.Deserialize(ref reader);
+            var selector = Selector.Deserialize(ref reader);
             return new StrongFingerprint(weakFingerprint, selector);
         }
 

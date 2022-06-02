@@ -1,6 +1,10 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+
+
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
@@ -19,14 +23,12 @@ using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using BuildXL.Cache.ContentStore.InterfacesTest.Time;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
+using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using ContentStoreTest.Test;
 using FluentAssertions;
 using Xunit;
 using Xunit.Abstractions;
-
-#nullable enable
-
 namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
 {
     public sealed class EventHubContentLocationEventStoreTests : TestBase

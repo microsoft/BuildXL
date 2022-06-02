@@ -4,6 +4,7 @@
 using System;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Serialization;
 using StructUtilities = BuildXL.Cache.ContentStore.Interfaces.Utils.StructUtilities;
 
 namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
@@ -61,6 +62,22 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
 
             var writeContentHashList = reader.ReadBoolean();
             var contentHashList = writeContentHashList ? ContentHashList.Deserialize(reader) : null;
+
+            var length = reader.ReadInt32();
+            var determinismBytes = reader.ReadBytes(length);
+            var determinism = CacheDeterminism.Deserialize(determinismBytes);
+
+            return new ContentHashListWithDeterminism(contentHashList, determinism);
+        }
+
+        /// <summary>
+        ///     Initializes a new instance of the <see cref="ContentHashListWithDeterminism"/> struct from its binary
+        ///     representation.
+        /// </summary>
+        public static ContentHashListWithDeterminism Deserialize(ref SpanReader reader)
+        {
+            var writeContentHashList = reader.ReadBoolean();
+            var contentHashList = writeContentHashList ? ContentHashList.Deserialize(ref reader) : null;
 
             var length = reader.ReadInt32();
             var determinismBytes = reader.ReadBytes(length);

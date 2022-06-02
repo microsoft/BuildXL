@@ -2,12 +2,13 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using BuildXL.Cache.ContentStore.Distributed.Utilities;
+using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Serialization;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
@@ -123,6 +124,19 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             var size = reader.ReadInt64Compact();
             var locations = MachineIdSet.Deserialize(reader);
+            var creationTimeUtc = reader.ReadUnixTime();
+            var lastAccessTimeOffset = reader.ReadInt64Compact();
+            var lastAccessTime = new UnixTime(creationTimeUtc.Value + lastAccessTimeOffset);
+            return Create(locations, size, lastAccessTime, creationTimeUtc);
+        }
+
+        /// <summary>
+        /// Builds an instance from a binary stream.
+        /// </summary>
+        public static ContentLocationEntry Deserialize(ref SpanReader reader)
+        {
+            var size = reader.ReadInt64Compact();
+            var locations = MachineIdSet.Deserialize(ref reader);
             var creationTimeUtc = reader.ReadUnixTime();
             var lastAccessTimeOffset = reader.ReadInt64Compact();
             var lastAccessTime = new UnixTime(creationTimeUtc.Value + lastAccessTimeOffset);

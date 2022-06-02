@@ -28,6 +28,7 @@ using BuildXL.Engine.Cache.KeyValueStores;
 using BuildXL.Native.IO;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Serialization;
 using BuildXL.Utilities.Tasks;
 using RocksDbSharp;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
@@ -857,10 +858,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             }
 
             // 2. Read combined entry
-            if (db.TryGetPinnableValue(store, key, out var data, Columns.Content))
-            {
-                result = db.DeserializeContentLocationEntry(data.Value);
-            }
+            db.TryDeserializeValue(store, key, Columns.Content, static reader => ContentLocationEntry.Deserialize(ref reader), out result);
 
             // Merge results
             if (machineIdsBuffer?.Count > 0)
@@ -870,20 +868,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             }
 
             return result;
-        }
-
-        private ContentLocationEntry DeserializeContentLocationEntry(RocksDbPinnableSpan span)
-        {
-            // Please do not convert the delegate to a method group, because this code is called many times
-            // and method group allocates a delegate on each conversion to a delegate.
-            using (span)
-            {
-                unsafe
-                {
-                    using var stream = new UnmanagedMemoryStream((byte*)span.ValuePtr.ToPointer(), (long)span.LengthPtr);
-                    return SerializationPool.Deserialize(stream, static reader => ContentLocationEntry.Deserialize(reader));
-                }
-            }
         }
 
         private bool TryGetValue(RocksDbStore store, ReadOnlySpan<byte> key, [NotNullWhen(true)] out byte[]? value, Columns columns)
@@ -898,10 +882,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                 || store.TryReadValue(key, valueBuffer, NameOf(columns, GetFormerColumnGroup(columns))) >= 0;
         }
 
-        private bool TryGetPinnableValue(RocksDbStore store, ReadOnlySpan<byte> key, [NotNullWhen(true)] out RocksDbPinnableSpan? value, Columns columns)
+        private bool TryDeserializeValue<TResult>(RocksDbStore store, ReadOnlySpan<byte> key, Columns columns, DeserializeValue<TResult> deserializer, [NotNullWhen(true)] out TResult? result)
         {
-            return store.TryGetPinnableValue(key, out value, NameOf(columns))
-                || store.TryGetPinnableValue(key, out value, NameOf(columns, GetFormerColumnGroup(columns)));
+            return TryDeserializeValue(store, key, NameOf(columns), deserializer, out result)
+                   || TryDeserializeValue(store, key, NameOf(columns, GetFormerColumnGroup(columns)), deserializer, out result);
         }
 
         private bool TryGetValue(RocksDbStore store, ReadOnlySpan<byte> key, [NotNullWhen(true)] out byte[]? value, out ColumnGroup resolvedGroup, Columns columns)
@@ -966,11 +950,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                 {
                     using (_metadataLocks[GetMetadataLockIndex(strongFingerprint)].AcquireReadLock())
                     {
-                        if (TryGetValue(store, key.Span, out var headerData, Columns.MetadataHeaders)
+                        if (TryDeserializeValue(store, key.Span, Columns.MetadataHeaders, static reader => DeserializeMetadataEntryHeader(reader.Remaining), out var header)
                             && TryGetValue(store, key.Span, out var data, out var dataGroup, Columns.Metadata))
                         {
-                            var header = DeserializeMetadataEntryHeader(headerData);
-
                             // Update last access time in database
                             header.LastAccessTimeUtc = Clock.UtcNow;
 
@@ -1138,7 +1120,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                         static (state, key, value) =>
                         {
                             var strongFingerprint = state.@this.DeserializeStrongFingerprint(key);
-                            var timeUtc = state.@this.DeserializeMetadataEntryHeader(value).LastAccessTimeUtc;
+                            var timeUtc = DeserializeMetadataEntryHeader(value).LastAccessTimeUtc;
                             state.selectors.Add((timeUtc, strongFingerprint.Selector));
                             return true;
                         });
@@ -1173,7 +1155,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             return SerializationPool.SerializePooled(value, static (instance, writer) => MetadataServiceSerializer.TypeModel.Serialize(writer.BaseStream, instance));
         }
 
-        private MetadataEntryHeader DeserializeMetadataEntryHeader(ReadOnlySpan<byte> data)
+        private static MetadataEntryHeader DeserializeMetadataEntryHeader(ReadOnlySpan<byte> data)
         {
             return MetadataServiceSerializer.TypeModel.Deserialize<MetadataEntryHeader>((ReadOnlySpan<byte>)data);
         }

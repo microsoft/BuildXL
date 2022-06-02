@@ -46,7 +46,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             ShortHash? startingPoint)
         {
             var filter = new ContentLocationDatabase.EnumerationFilter(
-                rawValue => database.HasMachineId(rawValue, currentMachineId.Index),
+                rawValue => ContentLocationDatabase.HasMachineId(rawValue, currentMachineId.Index),
                 startingPoint);
 
             foreach (var (key, entry) in database.EnumerateEntriesWithSortedKeys(context, filter))

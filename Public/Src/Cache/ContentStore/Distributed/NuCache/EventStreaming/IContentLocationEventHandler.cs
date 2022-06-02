@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
+using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming

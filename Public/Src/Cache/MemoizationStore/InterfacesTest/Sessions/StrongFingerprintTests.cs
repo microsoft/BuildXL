@@ -76,14 +76,14 @@ namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Sessions
         public void SerializeRoundtrip()
         {
             var value = StrongFingerprint.Random();
-            Utilities.TestSerializationRoundtrip(value, value.Serialize, StrongFingerprint.Deserialize);
+            Utilities.TestSerializationRoundtrip(value, value.Serialize, StrongFingerprint.Deserialize, source => StrongFingerprint.Deserialize(ref source));
         }
 
         [Fact]
         public void WeakFingerprintIsSerializedFirst()
         {
             var value = StrongFingerprint.Random();
-            Utilities.TestSerializationRoundtrip(value.WeakFingerprint, value.Serialize, Fingerprint.Deserialize);
+            Utilities.TestSerializationRoundtrip(value.WeakFingerprint, value.Serialize, Fingerprint.Deserialize, source => Fingerprint.Deserialize(ref source));
         }
     }
 }

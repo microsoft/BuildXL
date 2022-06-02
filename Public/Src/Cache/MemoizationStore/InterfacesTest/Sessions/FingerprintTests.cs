@@ -2,7 +2,6 @@
 // Licensed under the MIT License.
 
 using System;
-using System.IO;
 using System.Linq;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
@@ -257,7 +256,7 @@ namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Sessions
         public void BinaryRoundtrip()
         {
             var value = Fingerprint.Random();
-            Utilities.TestSerializationRoundtrip(value, value.Serialize, Fingerprint.Deserialize);
+            Utilities.TestSerializationRoundtrip(value, value.Serialize, Fingerprint.Deserialize, spanDeserializer: data => Fingerprint.Deserialize(ref data));
         }
 
         [Fact]
@@ -265,7 +264,8 @@ namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Sessions
         {
             var value = Fingerprint.Random();
             Utilities.TestSerializationRoundtrip(value, value.SerializeBytes,
-                reader => new Fingerprint(value.Length, reader));
+                reader => new Fingerprint(value.Length, reader),
+                source => Fingerprint.Deserialize(value.Length, ref source));
         }
     }
 }

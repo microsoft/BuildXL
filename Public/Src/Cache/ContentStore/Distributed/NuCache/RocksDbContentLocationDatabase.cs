@@ -27,7 +27,6 @@ using BuildXL.Native.IO;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tasks;
-using RocksDbSharp;
 using static BuildXL.Cache.ContentStore.Distributed.Tracing.TracingStructuredExtensions;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 
@@ -589,13 +588,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         // NOTE: This should remain static to avoid allocations in TryGetEntryCore
         internal static ContentLocationEntry? TryGetEntryCoreHelper(ShortHash hash, RocksDbStore store, RocksDbContentLocationDatabase db)
         {
-            ContentLocationEntry? result = null;
-            // hash.AsSpan is safe here.
-            if (store.TryGetPinnableValue(hash.AsSpanUnsafe(), out var span))
-            {
-                result = db.DeserializeContentLocationEntry(span.Value);
-            }
-
+            TryDeserializeValue(
+                store,
+                hash.AsSpanUnsafe(),
+                columnFamilyName: null,
+                static reader => ContentLocationEntry.Deserialize(ref reader),
+                out ContentLocationEntry? result);
             return result;
         }
 
@@ -663,17 +661,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             var status = _keyValueStore.Use(
                 store =>
                 {
-                    if (store.TryGetPinnableValue(key, out var pinnableSpan, nameof(Columns.Metadata)))
+                    if (TryDeserializeValue(store, key, nameof(Columns.Metadata), static reader => MetadataEntry.Deserialize(ref reader), out result)
+                        && !_configuration.OpenReadOnly && IsDatabaseWriteable && touch)
                     {
-                        result = DeserializeMetadataEntry(pinnableSpan.Value);
-
-                        if (!_configuration.OpenReadOnly && IsDatabaseWriteable && touch)
-                        {
-                            // Update the time, only if no one else has changed it in the mean time. We don't
-                            // really care if this succeeds or not, because if it doesn't it only means someone
-                            // else changed the stored value before this operation but after it was read.
-                            Analysis.IgnoreResult(this.CompareExchange(context, strongFingerprint, result.Value.ContentHashListWithDeterminism, result.Value.ContentHashListWithDeterminism));
-                        }
+                        // Update the time, only if no one else has changed it in the mean time. We don't
+                        // really care if this succeeds or not, because if it doesn't it only means someone
+                        // else changed the stored value before this operation but after it was read.
+                        Analysis.IgnoreResult(this.CompareExchange(context, strongFingerprint, result.Value.ContentHashListWithDeterminism, result.Value.ContentHashListWithDeterminism));
 
                         // TODO(jubayard): since we are inside the ContentLocationDatabase, we can validate that all
                         // hashes exist. Moreover, we can prune content.
@@ -707,10 +701,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 {
                     lock (_metadataLocks[GetMetadataLockIndex(strongFingerprint)])
                     {
-                        if (store.TryGetPinnableValue(key, out var pinnableSpan, nameof(Columns.Metadata)))
+                        if (TryDeserializeValue(store, key, nameof(Columns.Metadata), static reader => MetadataEntry.Deserialize(ref reader), out var current))
                         {
-                            MetadataEntry current = DeserializeMetadataEntry(pinnableSpan.Value);
-
                             if (!shouldReplace(current))
                             {
                                 if (lastAccessTimeUtc != null)
@@ -807,32 +799,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return new Result<IReadOnlyList<Selector>>(selectors
                 .OrderByDescending(entry => entry.TimeUtc)
                 .Select(entry => entry.Selector).ToList());
-        }
-
-        private ContentLocationEntry DeserializeContentLocationEntry(RocksDbPinnableSpan span)
-        {
-            // Please do not convert the delegate to a method group, because this code is called many times
-            // and method group allocates a delegate on each conversion to a delegate.
-            using (span)
-            {
-                unsafe
-                {
-                    using var stream = new UnmanagedMemoryStream((byte*)span.ValuePtr.ToPointer(), (long)span.LengthPtr);
-                    return SerializationPool.Deserialize(stream, static reader => ContentLocationEntry.Deserialize(reader));
-                }
-            }
-        }
-
-        private MetadataEntry DeserializeMetadataEntry(RocksDbPinnableSpan span)
-        {
-            using (span)
-            {
-                unsafe
-                {
-                    using var stream = new UnmanagedMemoryStream((byte*)span.ValuePtr.ToPointer(), (long)span.LengthPtr);
-                    return SerializationPool.Deserialize(stream, static reader => MetadataEntry.Deserialize(reader));
-                }
-            }
         }
 
         private long DeserializeMetadataLastAccessTimeUtc(ReadOnlySpan<byte> data)

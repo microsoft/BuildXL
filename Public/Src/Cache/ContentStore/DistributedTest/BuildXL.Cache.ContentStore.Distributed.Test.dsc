@@ -36,6 +36,7 @@ namespace DistributedTest {
     export const dll = BuildXLSdk.cacheTest({
         assemblyName: "BuildXL.Cache.ContentStore.Distributed.Test",
         sources: globR(d`.`, "*.cs"),
+        allowUnsafeBlocks: true,
         runTestArgs: {
                 // Need to untrack the test output directory, because redis server tries to write some pdbs.
                 untrackTestDirectory: true,
@@ -52,7 +53,7 @@ namespace DistributedTest {
                     ],
                 },
             },
-        skipTestRun: BuildXLSdk.restrictTestRunToSomeQualifiers,
+        //skipTestRun: BuildXLSdk.restrictTestRunToSomeQualifiers,
         assemblyBindingRedirects: BuildXLSdk.cacheBindingRedirects(),
         references: [
             ...addIf(BuildXLSdk.isFullFramework, importFrom("System.Collections.Immutable").pkg),

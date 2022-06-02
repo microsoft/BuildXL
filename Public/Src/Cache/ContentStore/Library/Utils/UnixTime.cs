@@ -2,9 +2,8 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Collections.Generic;
 
-namespace BuildXL.Cache.ContentStore.Distributed.Utilities
+namespace BuildXL.Cache.ContentStore.Utils
 {
     /// <summary>
     /// Represents a point in time, defined as an approximation of the number of seconds elapsed since 00:00:00 Jan 1 1970.
@@ -24,7 +23,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
         public bool Equals(UnixTime other) => Value == other.Value;
 
         /// <inheritdoc />
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj is UnixTime hash && Equals(hash);
         }

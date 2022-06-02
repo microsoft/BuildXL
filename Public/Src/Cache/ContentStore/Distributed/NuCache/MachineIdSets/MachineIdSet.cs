@@ -1,11 +1,13 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Serialization;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
@@ -118,17 +120,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Returns true if deserialized instance would have a machine id with a given index.
         /// </summary>
-        public static bool HasMachineId(BuildXLReader reader, int index)
+        public static bool HasMachineId(ReadOnlySpan<byte> source, int index)
         {
+            var reader = source.AsReader();
             var format = (SetFormat)reader.ReadByte();
 
             if (format == SetFormat.Bits)
             {
-                return BitMachineIdSet.HasMachineIdCore(reader, index);
+                return BitMachineIdSet.HasMachineIdCore(reader.Remaining, index);
             }
             else
             {
-                return ArrayMachineIdSet.HasMachineIdCore(reader, index);
+                return ArrayMachineIdSet.HasMachineIdCore(reader.Remaining, index);
             }
         }
 
@@ -144,6 +147,21 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             else
             {
                 return ArrayMachineIdSet.DeserializeCore(reader);
+            }
+        }
+
+        /// <nodoc />
+        public static MachineIdSet Deserialize(ref SpanReader reader)
+        {
+            var format = (SetFormat)reader.ReadByte();
+
+            if (format == SetFormat.Bits)
+            {
+                return BitMachineIdSet.DeserializeCore(ref reader);
+            }
+            else
+            {
+                return ArrayMachineIdSet.DeserializeCore(ref reader);
             }
         }
 

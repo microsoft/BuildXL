@@ -1,6 +1,10 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+
+
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
@@ -9,6 +13,7 @@ using System.Linq;
 using System.Numerics;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Distributed.MetadataService;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.InMemory;
 using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.Hashing;
@@ -22,16 +27,15 @@ using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.MemoizationStore.Interfaces.Results;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
+using BuildXL.Engine.Cache.KeyValueStores;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Serialization;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using static BuildXL.Cache.ContentStore.Distributed.Tracing.TracingStructuredExtensions;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 using TaskExtensions = BuildXL.Cache.ContentStore.Interfaces.Extensions.TaskExtensions;
-
-#nullable enable
-
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
     /// <summary>
@@ -939,25 +943,23 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Deserialize <see cref="ContentLocationEntry"/> from an array of bytes.
         /// </summary>
-        protected ContentLocationEntry DeserializeContentLocationEntry(ReadOnlyMemory<byte> bytes)
+        protected static ContentLocationEntry DeserializeContentLocationEntry(ReadOnlyMemory<byte> bytes)
         {
-            // Please do not convert the delegate to a method group, because this code is called many times
-            // and method group allocates a delegate on each conversion to a delegate.
-            return SerializationPool.Deserialize(bytes, static reader => ContentLocationEntry.Deserialize(reader));
+            var spanReader = bytes.Span.AsReader();
+            return ContentLocationEntry.Deserialize(ref spanReader);
         }
 
         /// <summary>
         /// Deserialize <see cref="ContentLocationEntry"/> from an array of bytes.
         /// </summary>
-        protected ContentLocationEntry DeserializeContentLocationEntry(ReadOnlySpan<byte> bytes)
+        protected static ContentLocationEntry DeserializeContentLocationEntry(ReadOnlySpan<byte> bytes)
         {
-            // Please do not convert the delegate to a method group, because this code is called many times
-            // and method group allocates a delegate on each conversion to a delegate.
-            return SerializationPool.Deserialize(bytes, static reader => ContentLocationEntry.Deserialize(reader));
+            var spanReader = bytes.AsReader();
+            return ContentLocationEntry.Deserialize(ref spanReader);
         }
 
         /// <inheritdoc cref="HasMachineId(System.ReadOnlySpan{byte},int)"/>
-        public bool HasMachineId(ReadOnlyMemory<byte> bytes, int machineId)
+        public static bool HasMachineId(ReadOnlyMemory<byte> bytes, int machineId)
         {
             return HasMachineId(bytes.Span, machineId);
         }
@@ -969,19 +971,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// This is an optimization that allows the clients to "poke" inside the value stored in the database without full deserialization.
         /// The approach is very useful in reconciliation scenarios, when the client wants to obtain content location entries for the current machine only.
         /// </remarks>
-        public bool HasMachineId(ReadOnlySpan<byte> bytes, int machineId)
+        public static bool HasMachineId(ReadOnlySpan<byte> bytes, int machineId)
         {
-            return SerializationPool.Deserialize(
-                bytes,
-                machineId,
-                static (localIndex, reader) =>
-                {
-                    // It is very important for this lambda to be non-capturing, because it will be called
-                    // many times.
-                    // Avoiding allocations here severely affect performance during reconciliation.
-                    _ = reader.ReadInt64Compact();
-                    return MachineIdSet.HasMachineId(reader, localIndex);
-                });
+            var reader = bytes.AsReader();
+            _ = reader.ReadInt64Compact();
+            return MachineIdSet.HasMachineId(reader.Remaining, machineId);
         }
 
         /// <nodoc />
@@ -1025,6 +1019,24 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             // Using the first byte of a weak fingerprint, and not the first byte of the key, because the first byte of the key is length.
             return strongFingerprint.WeakFingerprint[0];
+        }
+
+        protected delegate TResult DeserializeValue<out TResult>(SpanReader reader);
+
+        protected static bool TryDeserializeValue<TResult>(RocksDbStore store, ReadOnlySpan<byte> key, string? columnFamilyName, DeserializeValue<TResult> deserializer, [NotNullWhen(true)] out TResult? result)
+        {
+            result = default;
+            if (!store.TryGetPinnableValue(key, out var pinnedValue, columnFamilyName))
+            {
+                return false;
+            }
+
+            using (pinnedValue)
+            {
+                var spanReader = pinnedValue.Value.UnsafePin().AsReader();
+                result = deserializer(spanReader)!;
+                return true;
+            }
         }
     }
 }

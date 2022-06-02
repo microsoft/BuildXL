@@ -95,14 +95,14 @@ namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Sessions
         public void SerializeRoundtrip()
         {
             var v = Selector.Random();
-            Utilities.TestSerializationRoundtrip(v, v.Serialize, Selector.Deserialize);
+            Utilities.TestSerializationRoundtrip(v, v.Serialize, Selector.Deserialize, data => Selector.Deserialize(ref data));
         }
 
         [Fact]
         public void NullOutputSerializeRoundtrip()
         {
             var v = Selector.Random(outputLengthBytes: 0);
-            Utilities.TestSerializationRoundtrip(v, v.Serialize, Selector.Deserialize);
+            Utilities.TestSerializationRoundtrip(v, v.Serialize, Selector.Deserialize, data => Selector.Deserialize(ref data));
         }
     }
 }

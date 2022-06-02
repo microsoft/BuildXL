@@ -6,6 +6,7 @@ using System.Diagnostics.ContractsLight;
 using System.IO;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
+using BuildXL.Utilities.Serialization;
 
 namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
 {
@@ -196,6 +197,25 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
             Contract.Requires(reader != null);
             var length = reader.ReadByte();
             var buffer = ReadOnlyFixedBytes.ReadFrom(reader, length);
+            return new Fingerprint(buffer, length);
+        }
+
+        /// <summary>
+        ///     Initializes a new instance of the <see cref="Fingerprint"/> struct.
+        /// </summary>
+        public static Fingerprint Deserialize(ref SpanReader reader)
+        {
+            var length = reader.ReadByte();
+            var buffer = ReadOnlyFixedBytes.FromSpan(reader.ReadSpan(length: length));
+            return new Fingerprint(buffer, length);
+        }
+
+        /// <summary>
+        ///     Initializes a new instance of the <see cref="Fingerprint"/> struct.
+        /// </summary>
+        public static Fingerprint Deserialize(int length, ref SpanReader reader)
+        {
+            var buffer = ReadOnlyFixedBytes.FromSpan(reader.ReadSpan(length));
             return new Fingerprint(buffer, length);
         }
 

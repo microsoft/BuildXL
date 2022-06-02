@@ -7,6 +7,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Utilities;
 using FluentAssertions;
 using Xunit;

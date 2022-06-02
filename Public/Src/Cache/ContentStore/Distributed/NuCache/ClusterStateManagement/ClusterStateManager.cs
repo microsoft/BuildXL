@@ -36,13 +36,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             _storage = storage;
             _clock = clock ?? SystemClock.Instance;
 
+            LinkLifetime(_storage);
+
             RunInBackground(nameof(BackgroundUpdateAsync), BackgroundUpdateAsync, fireAndForget: true);
         }
 
-        protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
+        protected override async Task<BoolResult> StartupComponentAsync(OperationContext context)
         {
-            await _storage.StartupAsync(context).ThrowIfFailureAsync();
-
             var machineLocations = (new[] { _configuration.PrimaryMachineLocation }).Concat(_configuration.AdditionalMachineLocations).ToArray();
 
             MachineMapping[] machineMappings;
@@ -66,15 +66,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             initialState.Update(context, currentState, nowUtc: _clock.UtcNow).ThrowIfFailure();
             ClusterState = initialState;
 
-            return await base.StartupCoreAsync(context);
-        }
-        protected override async Task<BoolResult> ShutdownCoreAsync(OperationContext context)
-        {
-
-            var result = await base.ShutdownCoreAsync(context);
-            result &= await _storage.ShutdownAsync(context);
-
-            return result;
+            return BoolResult.Success;
         }
 
         private async Task<BoolResult> BackgroundUpdateAsync(OperationContext startupContext)

@@ -79,11 +79,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         #endregion IDistributedContentCopierHost Members
 
         /// <inheritdoc />
-        protected override Task<BoolResult> ShutdownCoreAsync(OperationContext context)
+        protected override Task<BoolResult> ShutdownComponentAsync(OperationContext context)
         {
             _copierWorkingDirectory.Dispose();
 
-            return base.ShutdownCoreAsync(context);
+            return BoolResult.SuccessTask;
         }
 
         /// <inheritdoc />

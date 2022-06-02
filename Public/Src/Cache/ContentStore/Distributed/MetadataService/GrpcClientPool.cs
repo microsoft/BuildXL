@@ -69,16 +69,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             _clock = clock;
         }
 
-        protected override Task<BoolResult> StartupCoreAsync(OperationContext context)
+        protected override Task<BoolResult> StartupComponentAsync(OperationContext context)
         {
             _pool = new ResourcePool<MachineLocation, ConnectionHandle>(context, _configuration, k => new ConnectionHandle(k, _configuration), _clock);
-            return base.StartupCoreAsync(context);
+            return BoolResult.SuccessTask;
         }
 
-        protected override Task<BoolResult> ShutdownCoreAsync(OperationContext context)
+        protected override Task<BoolResult> ShutdownComponentAsync(OperationContext context)
         {
             _pool.Dispose();
-            return base.ShutdownCoreAsync(context);
+            return BoolResult.SuccessTask;
         }
 
         public Task<TResult> UseAsync<TResult>(OperationContext context, MachineLocation key, Func<ConnectionHandle, Task<TResult>> operation)

@@ -17,7 +17,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     /// <summary>
     /// Base implementation of a central storage for binary content.
     /// </summary>
-    public abstract class CentralStorage : StartupShutdownBase
+    public abstract class CentralStorage : StartupShutdownComponentBase
     {
         /// <inheritdoc />
         public override bool AllowMultipleStartupAndShutdowns => true;

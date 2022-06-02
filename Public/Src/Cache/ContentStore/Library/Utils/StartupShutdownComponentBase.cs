@@ -24,11 +24,14 @@ namespace BuildXL.Cache.ContentStore.Utils
     /// </summary>
     public abstract class StartupShutdownComponentBase : StartupShutdownBase
     {
+        /// <inheritdoc />
+        public override bool AllowMultipleStartupAndShutdowns => true;
+
         /// <summary>
         /// A list of nested components eligible for shutdown
         /// (i.e. the components for which StartupAsync method was called regardless of the result of that call).
         /// </summary>
-        private readonly List<IStartupShutdownSlim> _shutdownEligibleComponents = new();
+        private readonly Stack<IStartupShutdownSlim> _shutdownEligibleComponents = new();
         private readonly List<IStartupShutdownSlim> _nestedComponents = new();
 
         [MemberNotNullWhen(true, nameof(StartupLogger), nameof(StartupContext))]
@@ -52,6 +55,14 @@ namespace BuildXL.Cache.ContentStore.Utils
             }
         }
 
+        /// <inheritdoc cref="LinkLifetime" />
+        public T Link<T>(T nestedComponent)
+            where T : IStartupShutdownSlim
+        {
+            LinkLifetime(nestedComponent);
+            return nestedComponent;
+        }
+
         /// <summary>
         /// Runs the requested operation in background.
         /// NOTE: Must be called before Startup.
@@ -65,7 +76,7 @@ namespace BuildXL.Cache.ContentStore.Utils
         }
 
         /// <inheritdoc />
-        protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
+        protected sealed override async Task<BoolResult> StartupCoreAsync(OperationContext context)
         {
             StartupContext = context;
             StartupLogger = context.TracingContext.Logger;
@@ -74,16 +85,16 @@ namespace BuildXL.Cache.ContentStore.Utils
             // Background operations need to run after startup is finished
             foreach (var nestedComponent in _nestedComponents.Where(n => n is not BackgroundOperation))
             {
-                _shutdownEligibleComponents.Add(nestedComponent);
+                _shutdownEligibleComponents.Push(nestedComponent);
                 await nestedComponent.StartupAsync(context).ThrowIfFailureAsync();
             }
 
-            await base.StartupCoreAsync(context).ThrowIfFailureAsync();
+            await StartupComponentAsync(context).ThrowIfFailureAsync();
 
             // Background operations need to run after startup is finished
             foreach (var nestedComponent in _nestedComponents.Where(n => n is BackgroundOperation))
             {
-                _shutdownEligibleComponents.Add(nestedComponent);
+                _shutdownEligibleComponents.Push(nestedComponent);
                 await nestedComponent.StartupAsync(context).ThrowIfFailureAsync();
             }
 
@@ -91,7 +102,7 @@ namespace BuildXL.Cache.ContentStore.Utils
         }
 
         /// <inheritdoc />
-        protected override async Task<BoolResult> ShutdownCoreAsync(OperationContext context)
+        protected sealed override async Task<BoolResult> ShutdownCoreAsync(OperationContext context)
         {
             var success = BoolResult.Success;
 
@@ -104,7 +115,7 @@ namespace BuildXL.Cache.ContentStore.Utils
                 success &= await nestedComponent.ShutdownAsync(context);
             }
 
-            success &= await base.ShutdownCoreAsync(context);
+            success &= await ShutdownComponentAsync(context);
 
             foreach (var nestedComponent in _shutdownEligibleComponents.Where(n => n is not BackgroundOperation))
             {
@@ -112,6 +123,22 @@ namespace BuildXL.Cache.ContentStore.Utils
             }
 
             return success;
+        }
+
+        /// <summary>
+        /// Component startup which runs after all dependent components but before any background operations
+        /// </summary>
+        protected virtual Task<BoolResult> StartupComponentAsync(OperationContext context)
+        {
+            return BoolResult.SuccessTask;
+        }
+
+        /// <summary>
+        /// Component shutdown which runs after all background operations but before any dependent components
+        /// </summary>
+        protected virtual Task<BoolResult> ShutdownComponentAsync(OperationContext context)
+        {
+            return BoolResult.SuccessTask;
         }
     }
 }

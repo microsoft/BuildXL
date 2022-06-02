@@ -28,6 +28,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         public LocalClient(MachineLocation location, TClient client)
             : this(location, () => client)
         {
+            LinkLifetime(client as IStartupShutdownSlim);
         }
 
         public LocalClient(MachineLocation location, Func<TClient> clientFactory)
@@ -35,26 +36,5 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             Location = location;
             _lazyClient = new Lazy<TClient>(clientFactory);
         }
-
-        protected override Task<BoolResult> StartupCoreAsync(OperationContext context)
-        {
-            if (Client is IStartupShutdownSlim component)
-            {
-                return component.StartupAsync(context);
-            }
-
-            return base.StartupCoreAsync(context);
-        }
-
-        protected override Task<BoolResult> ShutdownCoreAsync(OperationContext context)
-        {
-            if (Client is IStartupShutdownSlim component)
-            {
-                return component.ShutdownAsync(context);
-            }
-
-            return base.ShutdownCoreAsync(context);
-        }
-
     }
 }

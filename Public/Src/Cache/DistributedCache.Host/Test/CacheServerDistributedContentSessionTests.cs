@@ -183,15 +183,20 @@ namespace ContentStoreTest.Distributed.Sessions
                 };
             }
 
-            protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
+            public override async Task<BoolResult> StartupAsync(Context context)
             {
-                await base.StartupCoreAsync(context).ThrowIfFailureAsync();
-
-                Host.StartupStartedSignal.SetResult(true);
+                var result = await base.StartupAsync(context);
 
                 await Host.StartupCompletedSignal.Task;
 
-                return BoolResult.Success;
+                return result;
+            }
+
+            protected override Task<BoolResult> StartupComponentAsync(OperationContext context)
+            {
+                Host.StartupStartedSignal.SetResult(true);
+
+                return BoolResult.SuccessTask;
             }
 
             protected override Tracer Tracer { get; } = new Tracer(nameof(TestCacheServerWrapper));

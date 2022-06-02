@@ -58,10 +58,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             RunInBackground(nameof(PeriodicGetRoleAsync), PeriodicGetRoleAsync, fireAndForget: true);
         }
 
-        protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
+        protected override async Task<BoolResult> StartupComponentAsync(OperationContext context)
         {
-            await base.StartupCoreAsync(context).ThrowIfFailureAsync();
-
             if (_configuration.GetRoleOnStartup)
             {
                 await GetRoleAsync(context).FireAndForgetErrorsAsync(context);

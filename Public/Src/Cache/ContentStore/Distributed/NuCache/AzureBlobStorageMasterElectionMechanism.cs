@@ -82,14 +82,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         public Role Role => _lastElection.Role;
 
-        protected override async Task<BoolResult> ShutdownCoreAsync(OperationContext context)
+        protected override async Task<BoolResult> ShutdownComponentAsync(OperationContext context)
         {
             if (_configuration.ReleaseLeaseOnShutdown)
             {
                 await ReleaseRoleIfNecessaryAsync(context).IgnoreFailure();
             }
 
-            return await base.ShutdownCoreAsync(context);
+            return BoolResult.Success;
         }
 
         public async Task<Result<MasterElectionState>> GetRoleAsync(OperationContext context)

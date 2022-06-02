@@ -53,7 +53,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     /// <remarks>
     /// Local location store is a mediator between a content location database and a central store.
     /// </remarks>
-    public sealed class LocalLocationStore : StartupShutdownBase
+    public sealed class LocalLocationStore : StartupShutdownComponentBase
     {
         /// <inheritdoc />
         protected override Tracer Tracer { get; } = new Tracer(nameof(LocalLocationStore));
@@ -82,7 +82,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public MachineReputationTracker MachineReputationTracker { get; private set; }
 
         /// <nodoc />
-        public ContentLocationEventStore EventStore { get; private set; }
+        public ContentLocationEventStore EventStore { get; }
 
         private readonly IClock _clock;
 
@@ -91,10 +91,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <nodoc />
         public CentralStorage CentralStorage { get; }
 
-        private readonly CentralStorage _innerCentralStorage;
-
         // The (optional) distributed central storage which wraps the inner central storage
-        internal DistributedCentralStorage DistributedCentralStorage { get; }
+        internal DistributedCentralStorage DistributedCentralStorage => CentralStorage as DistributedCentralStorage;
 
         private readonly ICheckpointRegistry _checkpointRegistry;
 
@@ -190,19 +188,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             Contract.Assert(Configuration.IsValidForLls());
 
-            _innerCentralStorage = Configuration.CentralStore.CreateCentralStorage();
-
             if (Configuration.DistributedCentralStore != null)
             {
                 distributedCentralStorage ??= new DistributedCentralStorage(
                     Configuration.DistributedCentralStore,
                     new DistributedCentralStorageLocationStoreAdapter(this),
                     copier,
-                    fallbackStorage: _innerCentralStorage,
+                    fallbackStorage: centralStorage,
                     clock: _clock);
             }
 
-            DistributedCentralStorage = distributedCentralStorage;
             CentralStorage = distributedCentralStorage ?? centralStorage;
 
             Configuration.Database.TouchFrequency = configuration.TouchFrequency;
@@ -215,6 +210,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             };
 
             CheckpointManager = new CheckpointManager(Database, _checkpointRegistry, CentralStorage, Configuration.Checkpoint, Counters, checkpointObserver);
+            EventStore = CreateEventStore(Configuration, subfolder: "main");
+
+            LinkLifetime(CentralStorage);
+            LinkLifetime(CheckpointManager);
+            LinkLifetime(ClusterStateManager);
+            LinkLifetime(MasterElectionMechanism);
+            LinkLifetime(GlobalCacheStore);
+            LinkLifetime(Database);
+            LinkLifetime(EventStore);
         }
 
         internal void PostInitialization(MachineId machineId, ILocalContentStore localContentStore)
@@ -303,29 +307,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <inheritdoc />
-        protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
+        protected override async Task<BoolResult> StartupComponentAsync(OperationContext context)
         {
-            await _innerCentralStorage.StartupAsync(context).ThrowIfFailure();
-
-            if (DistributedCentralStorage != null)
-            {
-                await DistributedCentralStorage.StartupAsync(context).ThrowIfFailure();
-            }
-
-            await CheckpointManager.StartupAsync(context).ThrowIfFailureAsync();
-
-            await ClusterStateManager.StartupAsync(context).ThrowIfFailureAsync();
-
-            await MasterElectionMechanism.StartupAsync(context).ThrowIfFailureAsync();
-
-            await GlobalCacheStore.StartupAsync(context).ThrowIfFailure();
-
-            EventStore = CreateEventStore(Configuration, subfolder: "main");
-
-            await Database.StartupAsync(context).ThrowIfFailure();
-
-            await EventStore.StartupAsync(context).ThrowIfFailure();
-
             MachineReputationTracker = new MachineReputationTracker(context, _clock, ClusterState, Configuration.ReputationTrackerConfiguration);
 
             // We need to detect what our previous exit state was in order to choose the appropriate recovery strategy.
@@ -389,7 +372,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <inheritdoc />
-        protected override async Task<BoolResult> ShutdownCoreAsync(OperationContext context)
+        protected override async Task<BoolResult> ShutdownComponentAsync(OperationContext context)
         {
             Tracer.Info(context, "Shutting down local location store.");
 
@@ -411,13 +394,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             _heartbeatTimer?.Dispose();
 
-            if (EventStore != null)
-            {
-                result &= await EventStore.ShutdownAsync(context);
-            }
-
-            result &= await Database.ShutdownAsync(context);
-
             CurrentRole = null;
 
             var state = ClusterState.CurrentState;
@@ -427,21 +403,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 // release the role so as to allow another machine to pick up the role while this machine gets repaired
                 await MasterElectionMechanism.ReleaseRoleIfNecessaryAsync(context).IgnoreFailure();
             }
-
-            result &= await MasterElectionMechanism.ShutdownAsync(context);
-
-            result &= await ClusterStateManager.ShutdownAsync(context);
-
-            result &= await GlobalCacheStore.ShutdownAsync(context);
-
-            result &= await CheckpointManager.ShutdownAsync(context);
-
-            if (DistributedCentralStorage != null)
-            {
-                result &= await DistributedCentralStorage.ShutdownAsync(context);
-            }
-
-            result &= await _innerCentralStorage.ShutdownAsync(context);
 
             return result;
         }
@@ -806,6 +767,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             // Only skip if this is the first restore and it is sufficiently recent
             // NOTE: _lastRestoreTime will be set since skipping this operation will return successful result.
             var shouldSkipRestore = _lastRestoreTime == default
+                // Master should always get the latest checkpoint
+                && CurrentRole != Role.Master
                 && latestCheckpoint != null
                 && Configuration.Checkpoint.RestoreCheckpointAgeThreshold != default
                 && latestCheckpoint.Value.checkpointTime.IsRecent(_clock.UtcNow, Configuration.Checkpoint.RestoreCheckpointAgeThreshold);

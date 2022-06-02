@@ -37,6 +37,11 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         {
             _ownsDatabase = ownsDatabase;
             Database = database;
+
+            if (ownsDatabase)
+            {
+                LinkLifetime(Database);
+            }
         }
 
         /// <inheritdoc />
@@ -67,32 +72,15 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         }
 
         /// <inheritdoc />
-        protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
+        protected override async Task<BoolResult> StartupComponentAsync(OperationContext context)
         {
             if (!_ownsDatabase)
             {
                 return BoolResult.Success;
             }
 
-            var result = await Database.StartupAsync(context);
-            if (!result)
-            {
-                return result;
-            }
-
             await Database.SetDatabaseModeAsync(isDatabaseWriteable: true);
             return BoolResult.Success;
-        }
-
-        /// <inheritdoc />
-        protected override Task<BoolResult> ShutdownCoreAsync(OperationContext context)
-        {
-            if (!_ownsDatabase)
-            {
-                return BoolResult.SuccessTask;
-            }
-
-            return Database.ShutdownAsync(context);
         }
     }
 }

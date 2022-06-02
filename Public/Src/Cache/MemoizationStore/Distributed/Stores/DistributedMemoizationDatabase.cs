@@ -37,6 +37,9 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
             _localDatabase = new RocksDbMemoizationDatabase(localLocationStore.Database, ownsDatabase: false);
             _sharedDatabase = sharedDatabase;
             _localLocationStore = localLocationStore;
+
+            LinkLifetime(_sharedDatabase);
+            LinkLifetime(_localDatabase);
         }
 
         /// <inheritdoc />
@@ -139,23 +142,6 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
             var remoteTask = _sharedDatabase.IncorporateStrongFingerprintsAsync(context, strongFingerprints);
             await TaskUtilities.SafeWhenAll(localTask, remoteTask);
             return (await localTask) & (await remoteTask);
-        }
-
-        /// <inheritdoc />
-        protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
-        {
-            await _sharedDatabase.StartupAsync(context).ThrowIfFailure();
-            await _localDatabase.StartupAsync(context).ThrowIfFailure();
-            return BoolResult.Success;
-        }
-
-        /// <inheritdoc />
-        protected override async Task<BoolResult> ShutdownCoreAsync(OperationContext context)
-        {
-            var success = BoolResult.Success;
-            success &= await _localDatabase.ShutdownAsync(context);
-            success &= await _sharedDatabase.ShutdownAsync(context);
-            return success;
         }
     }
 }

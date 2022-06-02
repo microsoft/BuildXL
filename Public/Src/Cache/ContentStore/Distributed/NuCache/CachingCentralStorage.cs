@@ -79,22 +79,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     TraceFileSystemContentStoreDiagnosticMessages = Configuration.TraceFileSystemContentStoreDiagnosticMessages,
                     SelfCheckSettings = Configuration.SelfCheckSettings,
                 });
-        }
 
-        /// <inheritdoc />
-        protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
-        {
-            await PrivateCas.StartupAsync(context).ThrowIfFailure();
-
-            return await base.StartupCoreAsync(context);
-        }
-
-        /// <inheritdoc />
-        protected override async Task<BoolResult> ShutdownCoreAsync(OperationContext context)
-        {
-            await PrivateCas.ShutdownAsync(context).ThrowIfFailure();
-
-            return await base.ShutdownCoreAsync(context);
+            LinkLifetime(fallbackStorage);
+            LinkLifetime(PrivateCas);
         }
 
         /// <inheritdoc />

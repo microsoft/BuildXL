@@ -225,10 +225,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             LifetimeManager.RequestTeardown(context, "GCS database has been invalidated");
         }
 
-        protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
+        protected override Task<BoolResult> StartupComponentAsync(OperationContext context)
         {
-            await base.StartupCoreAsync(context).ThrowIfFailureAsync();
-
             if (_configuration?.MaxOperationConcurrency != null)
             {
                 var maxConcurrency = _configuration.MaxOperationConcurrency.Value;
@@ -237,10 +235,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                 _concurrencyLimitingQueue = new ActionQueue(maxConcurrency, maxQueueLength);
             }
 
-            return BoolResult.Success;
+            return BoolResult.SuccessTask;
         }
 
-        protected override async Task<BoolResult> ShutdownCoreAsync(OperationContext context)
+        protected override async Task<BoolResult> ShutdownComponentAsync(OperationContext context)
         {
             if (!ShouldRetry(out var retryReason, out var errorMessage, isShutdown: true))
             {
@@ -255,7 +253,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                 Tracer.Debug(context, $"Could not seal log: Reason=[{retryReason}] Error=[{errorMessage}]", "ShutdownSealLogFailure");
             }
 
-            return await base.ShutdownCoreAsync(context);
+            return BoolResult.Success;
         }
 
         public async Task OnRoleUpdatedAsync(OperationContext context, Role role)

@@ -84,11 +84,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             RunInBackground(nameof(WriteBehindCommitLoopAsync), WriteBehindCommitLoopAsync, fireAndForget: true);
         }
 
-        protected override Task<BoolResult> ShutdownCoreAsync(OperationContext context)
+        protected override Task<BoolResult> ShutdownComponentAsync(OperationContext context)
         {
             // Stop logging
             SetIsLogging(false);
-            return base.ShutdownCoreAsync(context);
+            return BoolResult.SuccessTask;
         }
 
         public Task<Result<CheckpointLogId>> BeforeCheckpointAsync(OperationContext context)

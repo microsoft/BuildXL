@@ -60,11 +60,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blobs
             }
         }
 
-        protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
+        protected override async Task<BoolResult> StartupComponentAsync(OperationContext context)
         {
-            await base.StartupCoreAsync(context).ThrowIfFailure();
-            await EnsureContainerExists(context).ThrowIfFailure();
-            return BoolResult.Success;
+            return await EnsureContainerExists(context);
         }
 
         internal Task<Result<bool>> EnsureContainerExists(OperationContext context)

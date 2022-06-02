@@ -45,6 +45,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         private readonly int _maxDegreeOfParallelismForIncorporateRequests;
         private readonly int _maxFingerprintsPerIncorporateRequest;
         private readonly BuildCacheCacheTracer _tracer;
+        private readonly BackingContentStoreConfiguration _backingContentStoreConfiguration;
         private ContentHashListAdapterFactory _contentHashListAdapterFactory;
         private readonly bool _overrideUnixFileAccessMode;
         private readonly bool _enableEagerFingerprintIncorporation;
@@ -65,14 +66,10 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         /// <summary>
         ///     Initializes a new instance of the <see cref="BuildCacheCache"/> class.
         /// </summary>
-        /// <param name="fileSystem">Filesystem used to read/write files.</param>
+        /// <param name="backingStoreConfiguration">Configuration for backing content store.</param>
         /// <param name="cacheNamespace">the namespace of the cache that is communicated with.</param>
         /// <param name="buildCacheHttpClientFactory">Factory for creatign a backing BuildCache http client.</param>
-        /// <param name="backingContentStoreHttpClientFactory">Factory for creating a backing store http client.</param>
         /// <param name="maxFingerprintSelectorsToFetch">Maximum number of selectors to enumerate.</param>
-        /// <param name="timeToKeepUnreferencedContent">Initial time-to-live for unreferenced content.</param>
-        /// <param name="pinInlineThreshold">Maximum time-to-live to inline pin calls.</param>
-        /// <param name="ignorePinThreshold">Minimum time-to-live to ignore pin calls.</param>
         /// <param name="minimumTimeToKeepContentHashLists">Minimum time-to-live for created or referenced ContentHashLists.</param>
         /// <param name="rangeOfTimeToKeepContentHashLists">Range of time beyond the minimum for the time-to-live of created or referenced ContentHashLists.</param>
         /// <param name="logger">A logger for tracing.</param>
@@ -83,23 +80,17 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         /// <param name="writeThroughContentStoreFunc">Optional write-through store to allow writing-behind to BlobStore</param>
         /// <param name="sealUnbackedContentHashLists">If true, the client will attempt to seal any unbacked ContentHashLists that it sees.</param>
         /// <param name="useBlobContentHashLists">use blob based content hash lists.</param>
-        /// <param name="useDedupStore">If true, gets content through DedupStore. If false, gets content from BlobStore.</param>
         /// <param name="overrideUnixFileAccessMode">If true, overrides default Unix file access modes.</param>
         /// <param name="enableEagerFingerprintIncorporation"><see cref="BuildCacheServiceConfiguration.EnableEagerFingerprintIncorporation"/></param>
         /// <param name="inlineFingerprintIncorporationExpiry"><see cref="BuildCacheServiceConfiguration.InlineFingerprintIncorporationExpiryHours"/></param>
         /// <param name="eagerFingerprintIncorporationNagleInterval"><see cref="BuildCacheServiceConfiguration.EagerFingerprintIncorporationNagleIntervalMinutes"/></param>
         /// <param name="eagerFingerprintIncorporationNagleBatchSize"><see cref="BuildCacheServiceConfiguration.EagerFingerprintIncorporationNagleBatchSize"/></param>
-        /// <param name="downloadBlobsUsingHttpClient"><see cref="BuildCacheServiceConfiguration.DownloadBlobsUsingHttpClient"/></param>
         /// <param name="forceUpdateOnAddContentHashList">Whether to force an update and ignore existing CHLs when adding.</param>
         public BuildCacheCache(
-            IAbsFileSystem fileSystem,
+            BackingContentStoreConfiguration backingStoreConfiguration,
             string cacheNamespace,
             IBuildCacheHttpClientFactory buildCacheHttpClientFactory,
-            IArtifactHttpClientFactory backingContentStoreHttpClientFactory,
             int maxFingerprintSelectorsToFetch,
-            TimeSpan timeToKeepUnreferencedContent,
-            TimeSpan pinInlineThreshold,
-            TimeSpan ignorePinThreshold,
             TimeSpan minimumTimeToKeepContentHashLists,
             TimeSpan rangeOfTimeToKeepContentHashLists,
             ILogger logger,
@@ -111,38 +102,28 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             Func<IContentStore> writeThroughContentStoreFunc = null,
             bool sealUnbackedContentHashLists = false,
             bool useBlobContentHashLists = false,
-            bool useDedupStore = false,
             bool overrideUnixFileAccessMode = false,
             bool enableEagerFingerprintIncorporation = false,
             TimeSpan inlineFingerprintIncorporationExpiry = default,
             TimeSpan eagerFingerprintIncorporationNagleInterval = default,
-            int eagerFingerprintIncorporationNagleBatchSize = 100,
-            bool downloadBlobsUsingHttpClient = false)
+            int eagerFingerprintIncorporationNagleBatchSize = 100)
         {
-            Contract.Requires(fileSystem != null);
+            Contract.Requires(backingStoreConfiguration != null);
+            Contract.Requires(backingStoreConfiguration.FileSystem != null);
             Contract.Requires(buildCacheHttpClientFactory != null);
-            Contract.Requires(backingContentStoreHttpClientFactory != null);
+            Contract.Requires(backingStoreConfiguration.ArtifactHttpClientFactory != null);
 
-            _fileSystem = fileSystem;
+            _fileSystem = backingStoreConfiguration.FileSystem;
             _cacheNamespace = cacheNamespace;
             _buildCacheHttpClientFactory = buildCacheHttpClientFactory;
             _tracer = new BuildCacheCacheTracer(logger, nameof(BuildCacheCache));
 
-            _backingContentStore = new BackingContentStore(
-                new BackingContentStoreConfiguration()
-                {
-                    FileSystem = fileSystem,
-                    ArtifactHttpClientFactory = backingContentStoreHttpClientFactory,
-                    TimeToKeepContent = timeToKeepUnreferencedContent,
-                    PinInlineThreshold = pinInlineThreshold,
-                    IgnorePinThreshold = ignorePinThreshold,
-                    UseDedupStore = useDedupStore,
-                    DownloadBlobsUsingHttpClient = downloadBlobsUsingHttpClient
-                });
+            _backingContentStoreConfiguration = backingStoreConfiguration;
+            _backingContentStore = new BackingContentStore(backingStoreConfiguration);
 
             _manuallyExtendContentLifetime = false;
 
-            if (useDedupStore)
+            if (backingStoreConfiguration.UseDedupStore)
             {
                 // Guaranteed content is only available for BlobSessions. (bug 144396)
                 _sealUnbackedContentHashLists = false;
@@ -383,7 +364,10 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                         _eagerFingerprintIncorporationNagleInterval,
                         _eagerFingerprintIncorporationNagleBatchSize,
                         _manuallyExtendContentLifetime,
-                        _forceUpdateOnAddContentHashList));
+                        _forceUpdateOnAddContentHashList)
+                    {
+                        RequiredContentKeepUntil = _backingContentStoreConfiguration.RequiredContentKeepUntil
+                    });
             });
         }
 
@@ -435,7 +419,10 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                         _eagerFingerprintIncorporationNagleInterval,
                         _eagerFingerprintIncorporationNagleBatchSize,
                         _manuallyExtendContentLifetime,
-                        _forceUpdateOnAddContentHashList));
+                        _forceUpdateOnAddContentHashList)
+                    {
+                        RequiredContentKeepUntil = _backingContentStoreConfiguration.RequiredContentKeepUntil
+                    });
             });
         }
 

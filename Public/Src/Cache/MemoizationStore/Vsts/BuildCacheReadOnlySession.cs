@@ -103,11 +103,16 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         private readonly TimeSpan _eagerFingerprintIncorporationInterval;
         private readonly int _eagerFingerprintIncorporationBatchSize;
 
+        /// <inheritdoc cref="BackingContentStoreConfiguration.RequiredContentKeepUntil"/>
+        internal TimeSpan? RequiredContentKeepUntil { get; init; }
+
         /// <summary>
         ///     Background tracker for handling the upload/sealing of unbacked metadata.
         /// </summary>
         // ReSharper disable once InconsistentNaming
         protected BackgroundTaskTracker _taskTracker;
+
+        private readonly BackingContentStoreExpiryCache _expiryCache = new BackingContentStoreExpiryCache();
 
         /// <summary>
         ///     Keep track of all the fingerprints that need to be incorporated later
@@ -650,7 +655,8 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                         await TrackFingerprintAsync(
                             context,
                             strongFingerprint,
-                            contentHashListWithDeterminism.Determinism.ExpirationUtc).ConfigureAwait(false);
+                            contentHashListWithDeterminism.Determinism.ExpirationUtc,
+                            contentHashListWithDeterminism.ContentHashList).ConfigureAwait(false);
                         return new GetContentHashListResult(contentHashListWithDeterminism);
                     }
 
@@ -678,7 +684,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
 
                     SealIfNecessaryAfterGet(context, strongFingerprint, response);
 
-                    await TrackFingerprintAsync(context, strongFingerprint, response.GetRawExpirationTimeUtc());
+                    await TrackFingerprintAsync(context, strongFingerprint, response.GetRawExpirationTimeUtc(), unpackResult.ContentHashListWithDeterminism.ContentHashList);
                     return new GetContentHashListResult(unpackResult.ContentHashListWithDeterminism);
                 },
                 traceOperationStarted: true,
@@ -687,8 +693,21 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         }
 
         /// <nodoc />
-        protected async Task TrackFingerprintAsync(Context context, StrongFingerprint strongFingerprint, DateTime? expirationUtc)
+        protected async Task TrackFingerprintAsync(Context context, StrongFingerprint strongFingerprint, DateTime? expirationUtc, ContentHashList hashes)
         {
+            if (expirationUtc != null)
+            {
+                _expiryCache.AddExpiry(strongFingerprint.Selector.ContentHash, expirationUtc.Value);
+
+                if (hashes != null)
+                {
+                    foreach (var hash in hashes.Hashes)
+                    {
+                        _expiryCache.AddExpiry(hash, expirationUtc.Value);
+                    }
+                }
+            }
+
             // Currently we have 3 ways for fingerprint incorporation:
             // 1. Inline incorporation: If eager fingerprint incorporation enabled and
             //                          the entry will expire in _inlineFingerprintIncorporationExpiry time.
@@ -779,31 +798,52 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         /// <inheritdoc />
         public Task<IEnumerable<Task<Indexed<PinResult>>>> PinAsync(Context context, IReadOnlyList<ContentHash> contentHashes, CancellationToken cts, UrgencyHint urgencyHint = UrgencyHint.Nominal)
         {
-            if (WriteThroughContentSession != null)
-            {
-                return Workflows.RunWithFallback(
-                    contentHashes,
-                    hashes => WriteThroughContentSession.PinAsync(context, hashes, cts, urgencyHint),
-                    hashes => BackingContentSession.PinAsync(context, hashes, cts, urgencyHint),
-                    result => result.Succeeded);
-            }
-
-            return BackingContentSession.PinAsync(context, contentHashes, cts, urgencyHint);
+            return PinHelperAsync(contentHashes, (session, hashes) => session.PinAsync(context, hashes, cts, urgencyHint));
         }
 
         /// <inheritdoc />
         public Task<IEnumerable<Task<Indexed<PinResult>>>> PinAsync(Context context, IReadOnlyList<ContentHash> contentHashes, PinOperationConfiguration config)
         {
-            if (WriteThroughContentSession != null)
-            {
-                return Workflows.RunWithFallback(
-                    contentHashes,
-                    hashes => WriteThroughContentSession.PinAsync(context, hashes, config),
-                    hashes => BackingContentSession.PinAsync(context, hashes, config),
-                    result => result.Succeeded);
-            }
+            return PinHelperAsync(contentHashes, (session, hashes) => session.PinAsync(context, hashes, config));
+        }
 
-            return BackingContentSession.PinAsync(context, contentHashes, config);
+        private Task<IEnumerable<Task<Indexed<PinResult>>>> PinHelperAsync(
+            IReadOnlyList<ContentHash> contentHashes,
+            Func<IReadOnlyContentSession, IReadOnlyList<ContentHash>, Task<IEnumerable<Task<Indexed<PinResult>>>>> pinAsync)
+        {
+            var requiredExpiry = DateTime.UtcNow + RequiredContentKeepUntil;
+            return Workflows.RunWithFallback(
+                    contentHashes,
+                    hashes =>
+                    {
+                        return Task.FromResult(hashes.Select(hash => CheckExpiryCache(hash, requiredExpiry)).ToList().AsIndexedTasks());
+                    },
+                    hashes =>
+                    {
+                        if (WriteThroughContentSession == null)
+                        {
+                            return pinAsync(BackingContentSession, hashes);
+                        }
+
+                        return Workflows.RunWithFallback(
+                            hashes,
+                            hashes => pinAsync(WriteThroughContentSession, hashes),
+                            hashes => pinAsync(BackingContentSession, hashes),
+                            result => result.Succeeded);
+                    },
+                    result => result.Succeeded);
+        }
+
+        private PinResult CheckExpiryCache(ContentHash hash, DateTime? requiredExpiry)
+        {
+            if (requiredExpiry != null && _expiryCache.TryGetExpiry(hash, out var expiry) && (expiry >= requiredExpiry))
+            {
+                return PinResult.Success;
+            }
+            else
+            {
+                return PinResult.ContentNotFound;
+            }
         }
 
         /// <inheritdoc />
@@ -859,7 +899,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                             "Inconsistent BuildCache service response. Unbacked values should never override backed values.");
                 }
 
-                await TrackFingerprintAsync(context, strongFingerprint, contentHashListResponse.GetRawExpirationTimeUtc()).ConfigureAwait(false);
+                await TrackFingerprintAsync(context, strongFingerprint, contentHashListResponse.GetRawExpirationTimeUtc(), contentHashListToReturn).ConfigureAwait(false);
                 return new AddOrGetContentHashListResult(new ContentHashListWithDeterminism(contentHashListToReturn, determinismToReturn));
             }
             catch (Exception e)

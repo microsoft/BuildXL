@@ -21,7 +21,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
         private readonly ConcurrentDictionary<ContentHash, DateTime> _backingStoreExpiryCacheDictionary
             = new ConcurrentDictionary<ContentHash, DateTime>();
 
-        private BackingContentStoreExpiryCache()
+        public BackingContentStoreExpiryCache()
         {
         }
 

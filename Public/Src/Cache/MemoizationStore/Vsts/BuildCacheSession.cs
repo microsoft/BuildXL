@@ -191,7 +191,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                         {
                             SealIfNecessaryAfterUnbackedAddOrGet(context, strongFingerprint, contentHashListWithDeterminism, response);
 
-                            await TrackFingerprintAsync(context, strongFingerprint, rawExpiration).ConfigureAwait(false);
+                            await TrackFingerprintAsync(context, strongFingerprint, rawExpiration, hashes: contentHashListToReturn).ConfigureAwait(false);
                             return new AddOrGetContentHashListResult(
                                 new ContentHashListWithDeterminism(contentHashListToReturn, determinismToReturn));
                         }
@@ -209,7 +209,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                     Tracer.Warning(
                         context,
                         $"Lost the AddOrUpdate race {addLimit} times against unbacked values. Returning as though the add succeeded for now.");
-                    await TrackFingerprintAsync(context, strongFingerprint, rawExpiration).ConfigureAwait(false);
+                    await TrackFingerprintAsync(context, strongFingerprint, rawExpiration, hashes: null).ConfigureAwait(false);
                     return new AddOrGetContentHashListResult(new ContentHashListWithDeterminism(null, CacheDeterminism.None));
 
                 },
@@ -283,7 +283,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                     var strongFingerprint = await strongFingerprintTask.ConfigureAwait(false);
 
                     // The Incorporate API currently does allow passing the expiration, so we can't pass it here.
-                    await TrackFingerprintAsync(context, strongFingerprint, expirationUtc: null).ConfigureAwait(false);
+                    await TrackFingerprintAsync(context, strongFingerprint, expirationUtc: null, hashes: null).ConfigureAwait(false);
                 }
 
                 return BoolResult.Success;

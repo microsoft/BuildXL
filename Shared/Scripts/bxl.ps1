@@ -131,6 +131,9 @@ param(
     [switch]$UseVfs = $false,
 
     [Parameter(Mandatory=$false)]
+    [switch]$SkipExtraPins = $false,
+
+    [Parameter(Mandatory=$false)]
     [switch]$UseBlobL3 = $false,
 
     [string]$VsoAccount = "mseng",
@@ -433,6 +436,10 @@ function Get-CacheConfig {
     <# TODO: After unifying flags, remove if statement and hard-code dummy value into remoteCache #>
     if ($UseDedupStore) {
         $remoteCache.Add("UseDedupStore", $true);
+    }
+
+    if ($SkipExtraPins) {
+        $remoteCache.Add("RequiredContentKeepUntilHours", 1);
     }
 
     if ($UseBlobL3) {

@@ -51,5 +51,10 @@ namespace BuildXL.Cache.ContentStore.Vsts
         /// downloads using basic http requests.
         /// </remarks>
         public bool DownloadBlobsUsingHttpClient { get; set; }
+
+        /// <summary>
+        /// Specifies threshold over which pins can be satisfied using prequeried information (i.e. content hash list expiry)
+        /// </summary>
+        public TimeSpan? RequiredContentKeepUntil { get; set; }
     }
 }

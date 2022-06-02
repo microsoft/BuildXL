@@ -100,14 +100,17 @@ namespace BuildXL.Cache.MemoizationStore.VstsTest
                     new ConfigurationModel(new ContentStoreConfiguration(new MaxSizeQuota("100MB"))));
 
             return new BuildCacheCache(
-                fileSystem,
+                new BackingContentStoreConfiguration()
+                {
+                    FileSystem = fileSystem,
+                    ArtifactHttpClientFactory = backingContentStoreHttpClientFactory,
+                    TimeToKeepContent = TimeSpan.FromDays(BuildCacheServiceConfiguration.DefaultDaysToKeepUnreferencedContent),
+                    PinInlineThreshold = TimeSpan.FromMinutes(BuildCacheServiceConfiguration.DefaultPinInlineThresholdMinutes),
+                    IgnorePinThreshold = TimeSpan.FromMinutes(BuildCacheServiceConfiguration.DefaultIgnorePinThresholdHours)
+                },
                 cacheNamespace,
                 buildCacheHttpClientFactory,
-                backingContentStoreHttpClientFactory,
                 BuildCacheServiceConfiguration.DefaultMaxFingerprintSelectorsToFetch,
-                TimeSpan.FromDays(BuildCacheServiceConfiguration.DefaultDaysToKeepUnreferencedContent),
-                TimeSpan.FromMinutes(BuildCacheServiceConfiguration.DefaultPinInlineThresholdMinutes),
-                TimeSpan.FromMinutes(BuildCacheServiceConfiguration.DefaultIgnorePinThresholdHours),
                 expiryMinimum.GetValueOrDefault(TimeSpan.FromDays(BuildCacheServiceConfiguration.DefaultDaysToKeepContentBags)),
                 expiryRange.GetValueOrDefault(TimeSpan.FromDays(BuildCacheServiceConfiguration.DefaultRangeOfDaysToKeepContentBags)),
                 logger,
@@ -224,7 +227,7 @@ namespace BuildXL.Cache.MemoizationStore.VstsTest
             StrongFingerprint freshFingerprint = await PublishValueForRandomStrongFingerprintAsync(
                 context, cacheNamespace, initialBackingOption, freshExpiryMinimum, expiryRange);
 
-            IEnumerable<StrongFingerprint> fingerprints = new[] {staleFingerprint, freshFingerprint};
+            IEnumerable<StrongFingerprint> fingerprints = new[] { staleFingerprint, freshFingerprint };
 
             TimeSpan testExpiryMinimum = TimeSpan.FromDays(5);
             TimeSpan testExpiryRange = TimeSpan.FromDays(7);

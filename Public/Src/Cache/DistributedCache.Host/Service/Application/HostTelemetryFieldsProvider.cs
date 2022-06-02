@@ -20,7 +20,7 @@ namespace BuildXL.Cache.Host.Service
 
         public string APEnvironment => _hostParameters.Environment;
 
-        public string APCluster => "None";
+        public string APCluster { get; set; } = "None";
 
         public string APMachineFunction => _hostParameters.MachineFunction;
 

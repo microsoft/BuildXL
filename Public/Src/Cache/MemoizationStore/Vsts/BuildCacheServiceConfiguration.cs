@@ -173,6 +173,12 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         public int IgnorePinThresholdHours { get; set; } = DefaultIgnorePinThresholdHours;
 
         /// <summary>
+        /// Gets or sets required amount of time content is required to be persisted to satisfy pin.
+        /// </summary>
+        [DataMember]
+        public double RequiredContentKeepUntilHours { get; set; } = -1;
+
+        /// <summary>
         /// Gets or sets the minimum number of days to keep content bags and referenced content.
         /// </summary>
         [DataMember]

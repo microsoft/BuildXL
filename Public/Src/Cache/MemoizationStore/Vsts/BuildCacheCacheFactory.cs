@@ -36,14 +36,20 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
 
             var domain = new ByteDomainId(cacheConfig.DomainId);
             return new BuildCacheCache(
-                fileSystem,
+                new BackingContentStoreConfiguration()
+                {
+                    FileSystem = fileSystem,
+                    ArtifactHttpClientFactory = new BackingContentStoreHttpClientFactory(new Uri(cacheConfig.CacheServiceContentEndpoint), vssCredentialsFactory, TimeSpan.FromMinutes(cacheConfig.HttpSendTimeoutMinutes), domain, cacheConfig.UseAad),
+                    TimeToKeepContent = TimeSpan.FromDays(cacheConfig.DaysToKeepUnreferencedContent),
+                    PinInlineThreshold = TimeSpan.FromMinutes(cacheConfig.PinInlineThresholdMinutes),
+                    IgnorePinThreshold = TimeSpan.FromHours(cacheConfig.IgnorePinThresholdHours),
+                    UseDedupStore = cacheConfig.UseDedupStore,
+                    DownloadBlobsUsingHttpClient = cacheConfig.DownloadBlobsUsingHttpClient,
+                    RequiredContentKeepUntil = cacheConfig.RequiredContentKeepUntilHours >= 0 ? TimeSpan.FromHours(cacheConfig.RequiredContentKeepUntilHours) : null
+                },
                 cacheConfig.CacheNamespace,
                 new BuildCacheHttpClientFactory(new Uri(cacheConfig.CacheServiceFingerprintEndpoint), vssCredentialsFactory, TimeSpan.FromMinutes(cacheConfig.HttpSendTimeoutMinutes), cacheConfig.UseAad),
-                new BackingContentStoreHttpClientFactory(new Uri(cacheConfig.CacheServiceContentEndpoint), vssCredentialsFactory, TimeSpan.FromMinutes(cacheConfig.HttpSendTimeoutMinutes), domain, cacheConfig.UseAad),
                 cacheConfig.MaxFingerprintSelectorsToFetch,
-                TimeSpan.FromDays(cacheConfig.DaysToKeepUnreferencedContent),
-                TimeSpan.FromMinutes(cacheConfig.PinInlineThresholdMinutes),
-                TimeSpan.FromHours(cacheConfig.IgnorePinThresholdHours),
                 TimeSpan.FromDays(cacheConfig.DaysToKeepContentBags),
                 TimeSpan.FromDays(cacheConfig.RangeOfDaysToKeepContentBags),
                 logger,
@@ -55,13 +61,11 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                 writeThroughContentStoreFunc,
                 cacheConfig.SealUnbackedContentHashLists,
                 cacheConfig.UseBlobContentHashLists,
-                cacheConfig.UseDedupStore,
                 cacheConfig.OverrideUnixFileAccessMode,
                 cacheConfig.EnableEagerFingerprintIncorporation,
                 TimeSpan.FromHours(cacheConfig.InlineFingerprintIncorporationExpiryHours),
                 TimeSpan.FromMinutes(cacheConfig.EagerFingerprintIncorporationNagleIntervalMinutes),
-                cacheConfig.EagerFingerprintIncorporationNagleBatchSize,
-                downloadBlobsUsingHttpClient: cacheConfig.DownloadBlobsUsingHttpClient);
+                cacheConfig.EagerFingerprintIncorporationNagleBatchSize);
         }
     }
 }

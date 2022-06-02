@@ -124,8 +124,8 @@ namespace RuntimeConfigFiles {
             const fullyQualifiedRuntimeDescription = runtimeName + "/" + framework.runtimeConfigVersion;
 
             const runtimeContent = framework.runtimeContentProvider(qualifier.targetRuntime);
-            const runtimeContentLibraries = runtimeContent.filter(file => file.path.toString().contains("/lib/")).sort((a, b) => a.path.toString().localeCompare(b.path.toString()));
-            const runtimeContentNative = runtimeContent.filter(file => file.path.toString().contains("/native/")).sort((a, b) => a.path.toString().localeCompare(b.path.toString()));
+            const runtimeContentLibraries = runtimeContent.filter(file => file.path.toString().contains("/lib/")).sort();
+            const runtimeContentNative = runtimeContent.filter(file => file.path.toString().contains("/native/")).sort();
             const libMarker = "lib/" + qualifier.targetFramework;
             const runtimeMarker = "native/";
 

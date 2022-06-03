@@ -23,7 +23,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
     /// <summary>
     /// Creates <see cref="IContentLocationStore"/> instance backed by Local Location Store.
     /// </summary>
-    public class ContentLocationStoreFactory : StartupShutdownBase, IContentLocationStoreFactory
+    public class ContentLocationStoreFactory : StartupShutdownComponentBase, IContentLocationStoreFactory
     {
         /// <inheritdoc />
         public override bool AllowMultipleStartupAndShutdowns => true;
@@ -79,11 +79,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             Arguments = arguments;
             Configuration = configuration;
             Services = new ContentLocationStoreServices(arguments, configuration);
+
+            LinkLifetime(Services.BlobContentLocationRegistry.InstanceOrDefault());
         }
 
         /// <inheritdoc />
         public Task<IContentLocationStore> CreateAsync(MachineLocation localMachineLocation, ILocalContentStore? localContentStore)
         {
+            if (localContentStore != null && Services.BlobContentLocationRegistry.TryGetInstance(out var registry))
+            {
+                registry.SetLocalContentStore(localContentStore);
+            }
+
             IContentLocationStore contentLocationStore = new TransitioningContentLocationStore(
                 Configuration,
                 Services.LocalLocationStore.Instance,
@@ -94,7 +101,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         }
 
         /// <inheritdoc />
-        protected override Task<BoolResult> StartupCoreAsync(OperationContext context)
+        protected override Task<BoolResult> StartupComponentAsync(OperationContext context)
         {
             Tracer.TraceStartupConfiguration(context, Configuration);
             return BoolResult.SuccessTask;

@@ -19,6 +19,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     {
         protected override Tracer Tracer { get; } = new Tracer(nameof(ClusterStateManager));
 
+        public override bool AllowMultipleStartupAndShutdowns => true;
+
         private readonly LocalLocationStoreConfiguration _configuration;
 
         private readonly IClock _clock;

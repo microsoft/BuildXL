@@ -82,7 +82,11 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Time
             else
             {
                 var completion = new SemaphoreSlim(0, 1);
-                _timerQueue.Push((UtcNow + interval, completion));
+                lock (_lock)
+                {
+                    _timerQueue.Push((UtcNow + interval, completion));
+                }
+
                 return completion.WaitAsync(token);
             }
         }

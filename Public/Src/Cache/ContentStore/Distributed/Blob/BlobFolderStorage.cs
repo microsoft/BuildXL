@@ -43,7 +43,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     /// <summary>
     /// Represents a full or relative blob path
     /// </summary>
-    public record struct BlobName(string Name, bool IsRelative)
+    public record struct BlobName(string Name, bool IsRelative, DateTimeOffset? SnapshotTime = null)
     {
         public static implicit operator BlobName(string fileName)
         {
@@ -55,6 +55,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public override string ToString()
         {
             return Name;
+        }
+
+        public string ToDisplayName()
+        {
+            return SnapshotTime == null ? Name : $"{Name}?snapshot={SnapshotTime.Value:o}";
         }
     }
 
@@ -84,7 +89,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private const string AlwaysEtag = "*";
 
-        private static readonly BlobRequestOptions DefaultBlobStorageRequestOptions = new BlobRequestOptions()
+        internal static readonly BlobRequestOptions DefaultBlobStorageRequestOptions = new BlobRequestOptions()
         {
             RetryPolicy = new Microsoft.WindowsAzure.Storage.RetryPolicies.ExponentialRetry(),
         };
@@ -140,6 +145,29 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     return $"{msg} Created=[{r.Value}]";
                 },
                 timeout: _configuration.StorageInteractionTimeout);
+        }
+
+        public Task<T> UseBlockBlobAsync<T>(
+            OperationContext context,
+            BlobName fileName,
+            Func<OperationContext, BlobWrapper, Task<T>> useAsync,
+            [CallerMemberName] string? caller = null,
+            Func<T, string>? endMessageSuffix = null,
+            TimeSpan? timeout = null)
+            where T : ResultBase
+        {
+            return context.PerformOperationWithTimeoutAsync(
+                Tracer,
+                context =>
+                {
+                    var blob = GetBlockBlobReference(fileName);
+                    var wrapperBlob = new BlobWrapper(blob, fileName, context.Token, DefaultBlobStorageRequestOptions);
+                    return useAsync(context, wrapperBlob);
+                },
+                extraEndMessage: r => $"FileName=[{GetDisplayPath(fileName)}]{endMessageSuffix?.Invoke(r)}",
+                traceOperationStarted: false,
+                caller: caller,
+                timeout: timeout ?? _configuration.StorageInteractionTimeout);
         }
 
         public record State<TState>(string? ETag = null, TState? Value = default);
@@ -245,7 +273,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private string GetDisplayPath(BlobName fileName)
         {
             var rootPath = fileName.IsRelative ? _directoryPath : _containerPath;
-            return $"{rootPath}/{fileName.Name}";
+            return $"{rootPath}/{fileName.ToDisplayName()}";
         }
 
         /// <summary>
@@ -460,11 +488,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             if (fileName.IsRelative)
             {
-                return Directory.GetBlockBlobReference(fileName.Name);
+                return Directory.GetBlockBlobReference(fileName.Name, fileName.SnapshotTime);
             }
             else
             {
-                return _container.GetBlockBlobReference(fileName.Name);
+                return _container.GetBlockBlobReference(fileName.Name, fileName.SnapshotTime);
             }
         }
 

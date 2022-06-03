@@ -28,7 +28,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private readonly object _clusterUpdateLock = new object();
 
-        private QueryableClusterState _clusterStateCache = new QueryableClusterState(new ClusterStateMachine());
+        private QueryableClusterState _clusterStateCache;
 
         #region Local Machine
 
@@ -66,6 +66,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         #region Read-Only Machine Management
 
+        /// <summary>
+        /// The machine record representing the primary CAS instance on the machine. 
+        /// In multi-drive scenarios where one CAS instance is on SSD and others are on HDD
+        /// this should correspond to the SSD CAS instance.
+        ///
+        /// May be null if machine does not participate in distributed content tracking
+        /// </summary>
+        public MachineRecord? PrimaryMachineRecord => _clusterStateCache.PrimaryMachineRecord;
+
         public MachineIdSet OpenMachines => _clusterStateCache.OpenMachinesSet;
 
         /// <summary>
@@ -88,6 +97,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         /// <nodoc />
         public IEnumerable<MachineLocation> Locations => _clusterStateCache.RecordsByMachineLocation.Keys;
+
+        /// <nodoc />
+        public IEnumerable<MachineRecord> Records => _clusterStateCache.RecordsByMachineLocation.Values;
+
+        /// <nodoc />
+        public IEnumerable<MachineRecord> LiveRecords => _clusterStateCache.RecordsByMachineLocation.Values.Where(r => !r.IsInactive());
 
         /// <summary>
         /// Gets whether a machine is marked inactive
@@ -244,6 +259,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             PrimaryMachineId = primaryMachineId;
             LocalMachineMappings = localMachineMappings;
+            _clusterStateCache = new QueryableClusterState(new ClusterStateMachine(), PrimaryMachineId);
         }
 
         public BoolResult Update(OperationContext context, ClusterStateMachine stateMachine, DateTime? nowUtc = null)
@@ -259,7 +275,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 lock (_clusterUpdateLock)
                 {
                     prevCache = _clusterStateCache;
-                    nextCache = new QueryableClusterState(stateMachine);
+                    nextCache = new QueryableClusterState(stateMachine, PrimaryMachineId);
                     _clusterStateCache = nextCache;
 
                     if (EnableBinManagerUpdates && BinManager != null)
@@ -351,6 +367,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     {
         public ClusterStateMachine ClusterStateMachine { get; }
 
+        public MachineRecord? PrimaryMachineRecord { get; }
+
         public ImmutableDictionary<MachineId, MachineRecord> RecordsByMachineId { get; }
 
         public ImmutableDictionary<MachineLocation, MachineRecord> RecordsByMachineLocation { get; }
@@ -369,7 +387,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         public BitMachineIdSet InactiveMachinesSet { get; }
 
-        public QueryableClusterState(ClusterStateMachine stateMachine)
+        public QueryableClusterState(ClusterStateMachine stateMachine, MachineId primaryMachineId)
         {
             ClusterStateMachine = stateMachine;
 
@@ -377,6 +395,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             // frequency.
             RecordsByMachineId = stateMachine.Records.ToImmutableDictionary(record => record.Id);
             RecordsByMachineLocation = stateMachine.Records.ToImmutableDictionary(record => record.Location);
+
+            PrimaryMachineRecord = RecordsByMachineId.GetOrDefault(primaryMachineId);
 
             OpenMachines = stateMachine.Records
                 .Where(record => record.IsOpen())

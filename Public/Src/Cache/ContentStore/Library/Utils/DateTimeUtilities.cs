@@ -39,6 +39,16 @@ namespace BuildXL.Cache.ContentStore.Utils
             return null;
         }
 
+        /// <summary>
+        /// Converts a given <paramref name="timeString"/> to <see cref="DateTime"/>.
+        /// </summary>
+        public static bool TryParseReadableTimestamp(string timeString, out DateTime time)
+        {
+            var result = FromReadableTimestamp(timeString);
+            time = result.HasValue ? result.Value : default;
+            return result.HasValue;
+        }
+
         /// <nodoc />
         public static bool IsRecent(this DateTime lastAccessTime, DateTime now, TimeSpan recencyInterval)
         {

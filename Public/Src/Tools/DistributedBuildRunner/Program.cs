@@ -390,7 +390,7 @@ namespace Tool.DistributedBuildRunner
             // If we are the ones killing the process, do not kill others
             if (!crashWorker && s_killSurvivingProcessesAfterTimeout)
             {
-                cancellationTokenSource.CancelAfter(TimeSpan.FromSeconds(30));
+                cancellationTokenSource.CancelAfter(TimeSpan.FromSeconds(120));
             }
 
             return !loggedError;

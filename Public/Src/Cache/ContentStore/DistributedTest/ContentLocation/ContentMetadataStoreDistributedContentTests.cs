@@ -156,7 +156,7 @@ namespace ContentStoreTest.Distributed.Sessions
             // Suppress async fixer
             await Task.CompletedTask;
 
-            // Accelerate time in tests (2s => 1minute) to allow "quickly" changing the master after expirt
+            // Accelerate time in tests (2s => 1minute) to allow "quickly" changing the master after expiry
             TestClock.TimerQueueEnabled = true;
             using var timer = new Timer(_ =>
                 {
@@ -187,6 +187,11 @@ namespace ContentStoreTest.Distributed.Sessions
                     d.BlobMasterElectionReleaseLeaseOnShutdown = true;
                     d.BlobMasterElectionLeaseExpiryTime = TimeSpan.FromMinutes(5);
                     d.CreateCheckpointIntervalMinutes = 10;
+
+                    d.LocationStoreSettings = new LocalLocationStoreSettings()
+                    {
+                        EnableBlobContentLocationRegistry = true
+                    };
                 },
                 overrideRedis: r =>
                 {

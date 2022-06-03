@@ -133,7 +133,7 @@ namespace BuildXL.Cache.ContentStore.Distributed
             // TODO: Keep the segments in the AbsolutePath object?
             // TODO: Indexable structure?
             var segments = sourcePath.GetSegments();
-            Contract.Assert(segments.Count >= 4);
+            Contract.Assert(segments.Count >= 1);
 
             string host = GetHostName(sourcePath.IsLocal, segments);
 

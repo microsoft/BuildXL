@@ -22,7 +22,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
             var nowUtc = _clock.UtcNow;
             MachineId machineId;
 
-            var machineLocation = new MachineLocation("node1");
+            var machineLocation = new MachineLocation(@"\\node1\dir");
 
             (clusterState, machineId) = clusterState.RegisterMachine(machineLocation, nowUtc);
             machineId.Index.Should().Be(MachineId.MinValue);

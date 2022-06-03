@@ -19,9 +19,18 @@ namespace BuildXL.Cache.MemoizationStore.VstsInterfaces
         /// 1) opaque bag with serialized bytes that can be transferred to the consumer.
         /// 2) a set of download URIs for content for the blobs that are contained by the content bag.
         /// </summary>
+        /// <remarks>
+        /// When `includeDownloadUris` is `true`, `BlobContentHashListResponse.BlobDownloadUris` is populated with
+        /// SAS URIs to download the content referenced in the CHL. Otherwise, the cache will have to call
+        /// BlobStore to get the download Uris.  Setting this to `true` is most helpful when the client will end up
+        /// needing to download all the content.  Right now, it's basically always helpful because the cache will
+        /// make point queries for each and every blob in CHL, so a CHL of 1000 files could end up with 1000
+        /// round-trips to AzDO.
+        /// </remarks>
         Task<BlobContentHashListResponse> GetContentHashListAsync(
             string cacheNamespace,
-            StrongFingerprint strongFingerprint);
+            StrongFingerprint strongFingerprint,
+            bool includeDownloadUris);
 
         /// <summary>
         /// Adds a content bag to the L3 cache store. Adding a content bag also means

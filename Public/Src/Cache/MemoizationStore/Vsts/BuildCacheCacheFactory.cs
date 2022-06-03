@@ -58,6 +58,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                 cacheConfig.MaxFingerprintsPerIncorporateRequest,
                 domain,
                 cacheConfig.ForceUpdateOnAddContentHashList,
+                cacheConfig.IncludeDownloadUris,
                 writeThroughContentStoreFunc,
                 cacheConfig.SealUnbackedContentHashLists,
                 cacheConfig.UseBlobContentHashLists,

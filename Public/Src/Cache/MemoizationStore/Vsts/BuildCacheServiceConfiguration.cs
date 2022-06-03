@@ -283,7 +283,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         /// <remarks>
         /// if the flag is set, then fingerprints will be incorporated (i.e. the ttl will be updated) eagerly within
         /// the operations that gets or touches the fingerprints (like GetContentHashList).
-        /// 
+        ///
         /// Currently we have 3 ways for fingerprint incorporation:
         /// 1. Inline incorporation: If eager fingerprint incorporation enabled (<see cref="EnableEagerFingerprintIncorporation"/> is true) and
         ///                          the entry will expire in <see cref="InlineFingerprintIncorporationExpiryHours"/> time.
@@ -327,5 +327,11 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         /// <nodoc />
         [DataMember]
         public bool ForceUpdateOnAddContentHashList { get; set; } = false;
+
+        /// <summary>
+        /// Whether to request URIs from L3 when retreiving CHLs.
+        /// </summary>
+        [DataMember]
+        public bool IncludeDownloadUris { get; set; } = true;
     }
 }

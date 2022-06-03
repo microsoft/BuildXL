@@ -115,7 +115,8 @@ namespace BuildXL.Cache.BuildCacheAdapter
                 IgnorePinThresholdHours = IgnorePinThresholdHours,
                 PinInlineThresholdMinutes = PinInlineThresholdMinutes,
                 DomainId = DomainId,
-                DownloadBlobsUsingHttpClient = DownloadBlobsUsingHttpClient
+                DownloadBlobsUsingHttpClient = DownloadBlobsUsingHttpClient,
+                IncludeDownloadUris = IncludeDownloadUris,
             };
         }
     }

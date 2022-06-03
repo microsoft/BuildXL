@@ -51,7 +51,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
         /// <summary>
         /// Creates a contenthashlistadapter for a particular session.
         /// </summary>
-        public IContentHashListAdapter Create(IContentSession contentSession)
+        public IContentHashListAdapter Create(IContentSession contentSession, bool includeDownloadUris)
         {
             ItemBuildCacheHttpClient itemBasedClient = BuildCacheHttpClient as ItemBuildCacheHttpClient;
 
@@ -60,7 +60,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
                 return new ItemBuildCacheContentHashListAdapter(itemBasedClient);
             }
 
-            return new BlobBuildCacheContentHashListAdapter((IBlobBuildCacheHttpClient)BuildCacheHttpClient, contentSession);
+            return new BlobBuildCacheContentHashListAdapter((IBlobBuildCacheHttpClient)BuildCacheHttpClient, contentSession, includeDownloadUris);
         }
 
         /// <inheritdoc />

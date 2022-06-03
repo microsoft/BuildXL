@@ -34,14 +34,16 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
 
         private readonly IBlobBuildCacheHttpClient _buildCacheHttpClient;
         private readonly IContentSession _blobContentSession;
+        private readonly bool _includeDownloadUris;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="BlobBuildCacheContentHashListAdapter"/> class.
         /// </summary>
-        public BlobBuildCacheContentHashListAdapter(IBlobBuildCacheHttpClient buildCacheHttpClient, IContentSession blobContentSession)
+        public BlobBuildCacheContentHashListAdapter(IBlobBuildCacheHttpClient buildCacheHttpClient, IContentSession blobContentSession, bool includeDownloadUris)
         {
             _buildCacheHttpClient = buildCacheHttpClient;
             _blobContentSession = blobContentSession;
+            _includeDownloadUris = includeDownloadUris;
         }
 
         /// <inheritdoc />
@@ -108,7 +110,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
                     BlobContentHashListResponse blobResponse = await ArtifactHttpClientErrorDetectionStrategy.ExecuteWithTimeoutAsync(
                             context,
                             "GetContentHashList",
-                            innerCts => _buildCacheHttpClient.GetContentHashListAsync(cacheNamespace, strongFingerprint),
+                            innerCts => _buildCacheHttpClient.GetContentHashListAsync(cacheNamespace, strongFingerprint, _includeDownloadUris),
                             CancellationToken.None)
                         .ConfigureAwait(false);
 

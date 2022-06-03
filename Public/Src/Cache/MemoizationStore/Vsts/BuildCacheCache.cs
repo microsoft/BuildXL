@@ -53,6 +53,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         private readonly TimeSpan _eagerFingerprintIncorporationNagleInterval;
         private readonly int _eagerFingerprintIncorporationNagleBatchSize;
         private readonly bool _forceUpdateOnAddContentHashList;
+        private readonly bool _includeDownloadUris;
 
         /// <summary>
         /// BuildCache may be unable to pin the content for us when we want the content to be backed.
@@ -86,6 +87,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         /// <param name="eagerFingerprintIncorporationNagleInterval"><see cref="BuildCacheServiceConfiguration.EagerFingerprintIncorporationNagleIntervalMinutes"/></param>
         /// <param name="eagerFingerprintIncorporationNagleBatchSize"><see cref="BuildCacheServiceConfiguration.EagerFingerprintIncorporationNagleBatchSize"/></param>
         /// <param name="forceUpdateOnAddContentHashList">Whether to force an update and ignore existing CHLs when adding.</param>
+        /// <param name="includeDownloadUris">Whether to request URIs from L3 when retreiving CHLs.</param>
         public BuildCacheCache(
             BackingContentStoreConfiguration backingStoreConfiguration,
             string cacheNamespace,
@@ -99,6 +101,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             int maxFingerprintsPerIncorporateRequest,
             IDomainId domain,
             bool forceUpdateOnAddContentHashList,
+            bool includeDownloadUris,
             Func<IContentStore> writeThroughContentStoreFunc = null,
             bool sealUnbackedContentHashLists = false,
             bool useBlobContentHashLists = false,
@@ -165,6 +168,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             _eagerFingerprintIncorporationNagleInterval = eagerFingerprintIncorporationNagleInterval;
             _eagerFingerprintIncorporationNagleBatchSize = eagerFingerprintIncorporationNagleBatchSize;
             _forceUpdateOnAddContentHashList = forceUpdateOnAddContentHashList;
+            _includeDownloadUris = includeDownloadUris;
         }
 
         /// <inheritdoc />
@@ -347,7 +351,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                         implicitPin,
                         _cacheNamespace,
                         Id,
-                        _contentHashListAdapterFactory.Create(backingContentSessionResult.Session),
+                        _contentHashListAdapterFactory.Create(backingContentSessionResult.Session, _includeDownloadUris),
                         backingContentSessionResult.Session,
                         _maxFingerprintSelectorsToFetch,
                         _minimumTimeToKeepContentHashLists,
@@ -402,7 +406,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                         implicitPin,
                         _cacheNamespace,
                         Id,
-                        _contentHashListAdapterFactory.Create(backingContentSessionResult.Session),
+                        _contentHashListAdapterFactory.Create(backingContentSessionResult.Session, _includeDownloadUris),
                         backingContentSessionResult.Session,
                         _maxFingerprintSelectorsToFetch,
                         _minimumTimeToKeepContentHashLists,

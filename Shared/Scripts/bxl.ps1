@@ -131,7 +131,7 @@ param(
     [switch]$UseVfs = $false,
 
     [Parameter(Mandatory=$false)]
-    [switch]$SkipExtraPins = $false,
+    [switch]$SkipExtraPins = $true,
 
     [Parameter(Mandatory=$false)]
     [switch]$UseBlobL3 = $false,

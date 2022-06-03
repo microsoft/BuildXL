@@ -119,6 +119,7 @@ namespace BuildXL.Cache.MemoizationStore.VstsTest
                 20,
                 new ByteDomainId(BuildCacheServiceConfiguration.DefaultDomainId),
                 forceUpdateOnAddContentHashList: false,
+                includeDownloadUris: true,
                 writeThroughContentStoreFunc,
                 backingOption == BackingOption.WriteBehind,
                 storageOption == StorageOption.Blob);

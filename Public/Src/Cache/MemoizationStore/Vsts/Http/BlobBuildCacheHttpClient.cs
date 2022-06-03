@@ -32,6 +32,11 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Http
                 { "ContentBagNotFoundException", typeof(ContentBagNotFoundException) }
             };
 
+        private static readonly IEnumerable<KeyValuePair<string, string>> IncludeDownloadUrisParams = new Dictionary<string, string>
+            {
+                { "includeDownloadUris", "true" }
+            };
+
         /// <summary>
         /// Initializes a new instance of the <see cref="BlobBuildCacheHttpClient"/> class.
         /// </summary>
@@ -102,7 +107,8 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Http
         /// <inheritdoc />
         public Task<BlobContentHashListResponse> GetContentHashListAsync(
             string cacheNamespace,
-            StrongFingerprint strongFingerprint)
+            StrongFingerprint strongFingerprint,
+            bool includeDownloadUris)
         {
             var routeValues = new
             {
@@ -111,9 +117,11 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Http
                 selectorContentHash = strongFingerprint.Selector.ContentHash.ToHex(),
                 selectorOutput = strongFingerprint.Selector.Output?.ToHex() ?? BuildCacheResourceIds.NoneSelectorOutput
             };
+
             return GetAsync<BlobContentHashListResponse>(
                 BuildCacheResourceIds.BlobContentHashListResourceId,
-                routeValues);
+                routeValues,
+                queryParameters: includeDownloadUris ? IncludeDownloadUrisParams : null);
         }
 
         /// <inheritdoc />

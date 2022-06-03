@@ -37,8 +37,9 @@ namespace IntegrationTest.BuildXL.Scheduler
         /// </summary>
         /// <remarks>
         /// TODO: This test failed on Linux. This test passes when `Analysis.IgnoreResult(e.ToArray())` in the enumerate operation is removed.
+        /// TODO: This test is flaky on Mac. Fails on the "Set of paths is not changing" assertion sometimes
         /// </remarks>
-        [TheoryIfSupported(requiresWindowsOrMacOperatingSystem: true)]
+        [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)]
         [InlineData(true)]
         [InlineData(false)]
         public void AugmentedWeakFingerprint(bool augmentWeakFingerprint)
@@ -146,7 +147,7 @@ namespace IntegrationTest.BuildXL.Scheduler
                 // Weak fingerprint should not change since file B should not be in the augmenting path set
                 Assert.Equal(expected: orderedWeakFingerprints.Last(), actual: weakFingerprint);
 
-                // Set of paths is not changing
+                // Set of paths is not changing - TODO: This assertion is flaky on the Mac validation.
                 Assert.Equal(expected: orderedPathSetHashes.Last(), actual: pathSetHash);
 
                 Assert.True(addedStrongFingerprint, "New strong fingerprint should be computed since file B has unique content");

@@ -53,6 +53,7 @@ config({
                     // manually from "BuildXL.Selfhost" feed into some folder, and specify
                     // that folder as the value of "MyInternal" feed below.
                     // "MyInternal": "E:/BuildXLInternalRepos/NuGetInternal",
+                    // CODESYNC: bxl.sh, Shared\Scripts\bxl.ps1
                     "BuildXL.Selfhost": "https://pkgs.dev.azure.com/cloudbuild/_packaging/BuildXL.Selfhost/nuget/v3/index.json",
                     // Note: From a compliance point of view it is important that MicrosoftInternal has a single feed.
                     // If you need to consume packages make sure they are upstreamed in that feed.

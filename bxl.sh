@@ -176,6 +176,52 @@ function deployBxl { # (fromDir, toDir)
     print_info "Successfully deployed developer build from $fromDir to: $toDir; use it with the '--use-dev' flag now."
 }
 
+function installCredProvider() {
+
+    local dotnetLocation="$(which dotnet)"
+
+    if [[ -z $dotnetLocation ]]; then
+        print_error "Did not find dotnet. Please ensure dotnet is installed per: https://docs.microsoft.com/en-us/dotnet/core/install/linux and is accessable in your PATH"
+        return 1
+    fi
+
+    local destinationFolder="$HOME/.nuget"
+    local credentialProvider="$destinationFolder/plugins/netcore/CredentialProvider.Microsoft/"
+    local credentialProviderExe="$credentialProvider/CredentialProvider.Microsoft.exe"
+
+    export NUGET_CREDENTIALPROVIDERS_PATH="$credentialProvider"
+    
+    if [ -f "$credentialProviderExe" ];
+    then
+        print_info "Credential provider already installed under $destinationFolder"
+        return;
+    fi
+
+    # Download the artifacts credential provider
+    wget -c https://github.com/microsoft/artifacts-credprovider/releases/download/v1.0.0/Microsoft.NuGet.CredentialProvider.tar.gz -O - | tar -xz -C $destinationFolder
+
+    # Remove the .exe, since we want to replace it with a script that runs on Mac/Linux
+    rm "$credentialProviderExe"
+
+    # Create a new .exe with the shape of a script that calls dotnet against the dotnetcore dll
+    echo "#!/bin/bash" >  "$credentialProviderExe"
+    echo "exec $dotnetLocation $credentialProvider/CredentialProvider.Microsoft.dll \"\$@\"" >> "$credentialProviderExe"
+
+    chmod u+x "$credentialProviderExe"
+}
+
+function launchCredProvider() {
+    local credProviderPath=$(find "$NUGET_CREDENTIALPROVIDERS_PATH" -name "CredentialProvider*.exe" -type f | head -n 1)
+
+    if [[ -z $credProviderPath ]]; then
+        print_error "Did not find a credential provider under $NUGET_CREDENTIALPROVIDERS_PATH"
+        exit 1
+    fi
+
+    # CODESYNC: config.dsc. The URI needs to match the (single) feed used for the internal build
+    $credProviderPath -U https://pkgs.dev.azure.com/cloudbuild/_packaging/BuildXL.Selfhost/nuget/v3/index.json -V Information -C -R
+ }
+
 # allow this script to be sourced, in which case we shouldn't execute anything
 if [[ "$0" != "${BASH_SOURCE[0]}" ]]; then 
     return 0
@@ -213,6 +259,27 @@ if [[ -n "$arg_UseDev" ]]; then
     export BUILDXL_BIN=$MY_DIR/Out/Selfhost/Dev
 elif [[ -z "$BUILDXL_BIN" ]]; then
     getLkg
+fi
+
+# if the nuget credential provider is not configured (and the build is an internal one, which is where it is needed)
+# download and install the artifacts credential provider
+if [[ (! -n $NUGET_CREDENTIALPROVIDERS_PATH) && -n "$arg_Internal" ]];then
+    installCredProvider
+fi
+
+# The internal build needs authentication. When not running on ADO use the configured cred provider
+# to prompt for credentials as a way to guarantee the auth token will be cached for the subsequent build.
+# This may prompt an interactive pop-up/console. ADO pipelines already configure the corresponding env vars 
+# so there is no need to do this on that case. Once the token is cached, launching the provider shouldn't need
+# any user interaction
+# TF_BUILD is an environment variable that is always present on ADO builds. So we use it to detect that case.
+if [[ -n "$arg_Internal" &&  ! -n "$TF_BUILD" ]];then
+    launchCredProvider
+fi
+
+# Make sure we pass the credential provider as an env var to bxl invocation
+if [[ -n $NUGET_CREDENTIALPROVIDER_PATH ]];then
+    arg_Positional+=("/p:NUGET_CREDENTIALPROVIDERS_PATH=$NUGET_CREDENTIALPROVIDERS_PATH")
 fi
 
 compileWithBxl ${arg_Positional[@]}

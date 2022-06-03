@@ -765,6 +765,7 @@ if ($isMicrosoftInternal -and (-not ($DominoArguments -like '*/ado*'))) {
     $credProvider = Get-ChildItem $Nuget_CredentialProviders_Path\* -File -Include CredentialProvider*.exe | Select-Object -First 1
 
     # Launch the provider making sure we allow for UI (C option) and that the token gets redacted from the console (R option)
+    # CODESYNC: config.dsc. The URI needs to match the (single) feed used for the internal build
     $p = Start-Process -FilePath $credProvider -NoNewWindow -Wait -PassThru -ArgumentList "-U https://pkgs.dev.azure.com/cloudbuild/_packaging/BuildXL.Selfhost/nuget/v3/index.json -V Information -C -R";
 
     if (-not ($p.ExitCode -eq 0))

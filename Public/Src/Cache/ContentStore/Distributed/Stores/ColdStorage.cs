@@ -95,12 +95,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
 
             _rootPath = coldStorageSettings.GetAbsoulutePath();
 
-            ConfigurationModel configurationModel
-                = new ConfigurationModel(new ContentStoreConfiguration(new MaxSizeQuota(coldStorageSettings.CacheSizeQuotaString!)));
-
-            ContentStoreSettings contentStoreSettings = FromColdStorageSettings(coldStorageSettings);
-
-            _store = new FileSystemContentStore(fileSystem, SystemClock.Instance, _rootPath, configurationModel, null, contentStoreSettings, null);
+            _store = CreateContentStoreFromColdStorageSettings(coldStorageSettings);
 
             HashType hashType;
             if (!Enum.TryParse<HashType>(coldStorageSettings.ConsistentHashingHashType, true, out hashType))
@@ -116,6 +111,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             _ring = new RingNode[0]; 
         }
 
+        private IContentStore CreateContentStoreFromColdStorageSettings(ColdStorageSettings coldStorageSettings)
+        {
+            if (coldStorageSettings.RocksDbEnabled)
+            {
+                return new RocksDbFileSystemContentStore();
+            }
+            ConfigurationModel configurationModel = new ConfigurationModel(new ContentStoreConfiguration(new MaxSizeQuota(coldStorageSettings.CacheSizeQuotaString!)));
+            ContentStoreSettings contentStoreSettings = FromColdStorageSettings(coldStorageSettings);
+            return new FileSystemContentStore(_fileSystem, SystemClock.Instance, _rootPath, configurationModel, null, contentStoreSettings, null);
+        }
         private static ContentStoreSettings FromColdStorageSettings(ColdStorageSettings settings)
         {
             var result = new ContentStoreSettings()

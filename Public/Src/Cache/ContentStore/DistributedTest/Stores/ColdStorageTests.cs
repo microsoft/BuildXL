@@ -43,12 +43,16 @@ namespace ContentStoreTest.Distributed.Stores
         {
         }
 
-        protected async Task RunTestAsync(Func<OperationContext, ColdStorage, DisposableDirectory, Task> funcAsync)
+        protected async Task RunTestAsync(Func<OperationContext, ColdStorage, DisposableDirectory, Task> funcAsync, bool rocksDbEnabled = false)
         {
             var context = new OperationContext(new Context(Logger));
             var directory = new DisposableDirectory(FileSystem);
 
             ColdStorageSettings coldStorageSettings = new ColdStorageSettings(directory.Path.Path, "1MB");
+            if (rocksDbEnabled)
+            {
+                coldStorageSettings.RocksDbEnabled = true;
+            }
 
             TestDistributedContentCopier copier = DistributedContentCopierTests.CreateMocks(
                 new MemoryFileSystem(TestSystemClock.Instance),
@@ -91,6 +95,7 @@ namespace ContentStoreTest.Distributed.Stores
         {
             return RunTestAsync(async (context, store, directory) =>
              {
+
                  var originalPath = directory.Path / "original.txt";
                  var fileContents = GetRandomFileContents();
 

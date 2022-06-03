@@ -9,6 +9,8 @@ namespace BuildXL.Cache.Host.Configuration
     [DataContract]
     public class ColdStorageSettings
     {
+        [DataMember]
+        public bool RocksDbEnabled { get; set; } = false;
 
         [DataMember]
         public string? CacheRootPath { get; set; }

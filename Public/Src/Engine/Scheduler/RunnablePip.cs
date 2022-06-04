@@ -485,15 +485,19 @@ namespace BuildXL.Scheduler
 
             Performance.Executed(step, duration);
 
-            Environment.State.ExecutionLog?.PipExecutionStepPerformanceReported(new PipExecutionStepPerformanceEventData
+            // There are too many of these events and they bloat the xlg (100GB+ is possible)
+            if (step != PipExecutionStep.ChooseWorkerCpu && step != PipExecutionStep.ChooseWorkerCacheLookup)
             {
-                PipId = PipId,
-                StartTime = startTime,
-                Duration = duration,
-                Dispatcher = DispatcherKind,
-                Step = step,
-                IncludeInRunningTime = includeInRunningTime
-            });
+                Environment.State.ExecutionLog?.PipExecutionStepPerformanceReported(new PipExecutionStepPerformanceEventData
+                {
+                    PipId = PipId,
+                    StartTime = startTime,
+                    Duration = duration,
+                    Dispatcher = DispatcherKind,
+                    Step = step,
+                    IncludeInRunningTime = includeInRunningTime
+                });
+            }
         }
 
         /// <summary>

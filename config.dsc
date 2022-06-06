@@ -540,20 +540,20 @@ config({
                 // NodeJs
                 {
                     moduleName: "NodeJs.win-x64",
-                    url: "https://nodejs.org/dist/v18.0.0/node-v18.0.0-win-x64.zip",
-                    hash: "VSO0:F611F2D923D947596B007298351F79EA4786E2729C7E32275D178EE9A1C8050C00",
+                    url: "https://nodejs.org/dist/v18.3.0/node-v18.3.0-win-x64.zip",
+                    hash: "VSO0:AEABD74C344D3DE10CB5CD0E2FE49E6210E066F4EB982A86627B8E54156F3C8200",
                     archiveType: "zip",
                 },
                 {
                     moduleName: "NodeJs.osx-x64",
-                    url: "https://nodejs.org/dist/v18.0.0/node-v18.0.0-darwin-x64.tar.gz",
-                    hash: "VSO0:776F07C051E7FCCC5E4525187F9F0D25AEC2F970953DCB59E67ADB751A56C63A00",
+                    url: "https://nodejs.org/dist/v18.3.0/node-v18.3.0-darwin-x64.tar.gz",
+                    hash: "VSO0:0E2D521D3E250F3969D529303E15D260D6E465FADC2DEA20215DED422CAE2EC600",
                     archiveType: "tgz",
                 },
                 {
                     moduleName: "NodeJs.linux-x64",
-                    url: "https://nodejs.org/dist/v18.0.0/node-v18.0.0-linux-x64.tar.gz",
-                    hash: "VSO0:EAE4CC97CE3C276E5B673AF9E205A9BA8B5967815E0A329D5FFC403B1E24D18F00",
+                    url: "https://nodejs.org/dist/v18.3.0/node-v18.3.0-linux-x64.tar.gz",
+                    hash: "VSO0:6CD39D92AC462BC97A2B445A7A1A3ACB5A3851AEF9C63AC7CC9F067DD067D38300",
                     archiveType: "tgz",
                 }
             ],

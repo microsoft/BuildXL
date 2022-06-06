@@ -1703,6 +1703,37 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        public void TimeoutPipWithChildExitingWithAzWatsonDeadExitCodeIsNotRetried()
+        {
+            Configuration.Sandbox.RetryOnAzureWatsonExitCode = true;
+
+            var dirToCreate = FileArtifact.CreateOutputFile(ObjectRootPath.Combine(Context.PathTable, "sentinel"));
+            FileArtifact stateFile = FileArtifact.CreateOutputFile(ObjectRootPath.Combine(Context.PathTable, "stateFile.txt"));
+            FileArtifact stateFile2 = FileArtifact.CreateOutputFile(ObjectRootPath.Combine(Context.PathTable, "stateFile2.txt"));
+
+            ProcessBuilder builder = CreatePipBuilder(new[] {
+                Operation.ReadFile(CreateSourceFile()),
+                Operation.Spawn(Context.PathTable, true, Operation.SucceedOnRetry(stateFile,(int)SandboxedProcessPipExecutor.AzureWatsonExitCode, 1)),
+                Operation.Spawn(Context.PathTable, true, Operation.CreateDirOnRetry(stateFile2,dirToCreate)),
+                Operation.WaitUntilPathExists(dirToCreate, doNotInfer: true),    // Would block only the first time, causing a timeout
+                Operation.WriteFile(CreateOutputFileArtifact()) });
+            
+            builder.Timeout = TimeSpan.FromSeconds(1);  // Will timeout on WaitUntilPathExists
+
+            builder.AddUntrackedFile(stateFile.Path);
+            builder.AddUntrackedFile(stateFile2.Path);
+
+            SchedulePipBuilder(builder);
+            RunScheduler().AssertFailure(); // Should fail due to timeout - no retry
+
+            AllowWarningEventMaybeLogged(ProcessesLogEventId.PipFailedToCreateDumpFile);    // We don't care
+            Assert.False(Directory.Exists(dirToCreate.Path.ToString(Context.PathTable)));   // No retry means the directory won't exist            
+            AssertWarningEventLogged(ProcessesLogEventId.PipFinishedWithSomeProcessExitedWithAzureWatsonExitCode, count: 1);
+            AssertErrorEventLogged(ProcessesLogEventId.PipProcessTookTooLongError, count: 1);
+            AssertErrorEventLogged(ProcessesLogEventId.PipProcessError, count: 1);
+        }
+
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public void TestSpecialTempOutputFile()
         {
             FileArtifact input = CreateSourceFile();

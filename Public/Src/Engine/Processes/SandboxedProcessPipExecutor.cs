@@ -2015,7 +2015,7 @@ namespace BuildXL.Processes
                 status = SandboxedProcessPipExecutionStatus.Succeeded;
             }
 
-            if (!mainProcessSuccess && !canceled && azWatsonDeadProcess != null)
+            if (!mainProcessSuccess && !result.TimedOut && !canceled && azWatsonDeadProcess != null)
             {
                 // Retry if main process failed and there is a process (can be a child process) that exits with exit code 0xDEAD.
                 Tracing.Logger.Log.PipRetryDueToExitedWithAzureWatsonExitCode(

@@ -235,6 +235,11 @@ namespace Test.BuildXL.Executables.TestProcess
             WaitUntilFileExists,
 
             /// <summary>
+            /// Waits until a given path (file or directory) is found on disk
+            /// </summary>
+            WaitUntilPathExists,
+
+            /// <summary>
             /// A read file access informed to detours without doing any real IO
             /// </summary>
             AugmentedReadFile,
@@ -530,6 +535,9 @@ namespace Test.BuildXL.Executables.TestProcess
                         return;
                     case Type.WaitUntilFileExists:
                         DoWaitUntilFileExists();
+                        return;
+                    case Type.WaitUntilPathExists:
+                        DoWaitUntilPathExists();
                         return;
                     case Type.AugmentedReadFile:
                         DoAugmentedReadFile();
@@ -971,11 +979,19 @@ namespace Test.BuildXL.Executables.TestProcess
         }
 
         /// <summary>
-        /// Waits until <paramref name="path"/> exists on disk.
+        /// Waits until <paramref name="path"/> exists on disk as a file.
         /// </summary>
         public static Operation WaitUntilFileExists(FileArtifact path, bool doNotInfer = false)
         {
             return new Operation(Type.WaitUntilFileExists, path, doNotInfer: doNotInfer);
+        }
+
+        /// <summary>
+        /// Waits until <paramref name="path"/> exists on disk.
+        /// </summary>
+        public static Operation WaitUntilPathExists(FileArtifact path, bool doNotInfer = false)
+        {
+            return new Operation(Type.WaitUntilPathExists, path, doNotInfer: doNotInfer);
         }
 
         /*** FILESYSTEM OPERATION FUNCTIONS ***/
@@ -1557,6 +1573,20 @@ namespace Test.BuildXL.Executables.TestProcess
             {
                 var maybeExistence = FileUtilities.TryProbePathExistence(PathAsString, followSymlink: false);
                 if (!maybeExistence.Succeeded || maybeExistence.Result == PathExistence.ExistsAsFile)
+                {
+                    return;
+                }
+
+                Thread.Sleep(TimeSpan.FromMilliseconds(500));
+            }
+        }
+
+        private void DoWaitUntilPathExists()
+        {
+            while (true)
+            {
+                var maybeExistence = FileUtilities.TryProbePathExistence(PathAsString, followSymlink: false);
+                if (maybeExistence.Succeeded && maybeExistence.Result != PathExistence.Nonexistent)
                 {
                     return;
                 }

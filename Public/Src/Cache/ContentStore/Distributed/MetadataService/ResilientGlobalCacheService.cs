@@ -198,7 +198,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             CheckpointManager checkpointManager,
             RocksDbContentMetadataStore store,
             ContentMetadataEventStream eventStream,
-            IStreamStorage streamStorage,
             IClock clock = null)
             : base(store)
         {
@@ -208,7 +207,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             _eventStream = eventStream;
             _clock = clock ?? SystemClock.Instance;
 
-            LinkLifetime(streamStorage);
             LinkLifetime(_eventStream);
             LinkLifetime(_checkpointManager);
 

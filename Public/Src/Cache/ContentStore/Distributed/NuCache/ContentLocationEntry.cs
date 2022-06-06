@@ -127,6 +127,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             var creationTimeUtc = reader.ReadUnixTime();
             var lastAccessTimeOffset = reader.ReadInt64Compact();
             var lastAccessTime = new UnixTime(creationTimeUtc.Value + lastAccessTimeOffset);
+            if (size == -1 && lastAccessTime == default)
+            {
+                return ContentLocationEntry.Missing;
+            }
+
             return Create(locations, size, lastAccessTime, creationTimeUtc);
         }
 

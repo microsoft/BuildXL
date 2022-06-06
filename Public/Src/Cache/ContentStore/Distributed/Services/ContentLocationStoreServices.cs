@@ -30,6 +30,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
 
         /// <nodoc />
         public OptionalServiceDefinition<DistributedContentSettings> DistributedContentSettings { get; init; }
+
+        /// <nodoc />
+        public OptionalServiceDefinition<CheckpointManager> GlobalCacheCheckpointManager { get; init; }
     }
 
     /// <summary>
@@ -80,9 +83,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
         public IServiceDefinition<CentralStorage> CentralStorage { get; }
 
         /// <nodoc />
-        public OptionalServiceDefinition<DistributedCentralStorage> DistributedCentralStorage { get; }
-
-        /// <nodoc />
         public IServiceDefinition<AzureBlobStorageCheckpointRegistry> CheckpointRegistry { get; }
 
         /// <nodoc />
@@ -119,11 +119,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
                 () => Dependencies.DistributedContentSettings.InstanceOrDefault()?.LocationStoreSettings?.EnableBlobContentLocationRegistry == true,
                 () => CreateBlobContentLocationRegistry());
 
-            // LLS creates DistributedCentralStorage internally if not specified since the internally
-            // created variant depends on LLS for location tracking.
-            DistributedCentralStorage = CreateOptional(
-                () => configuration.DistributedCentralStore?.IsCheckpointAware == true,
-                () => CreateDistributedCentralStorage());
         }
 
         private BlobContentLocationRegistry CreateBlobContentLocationRegistry()
@@ -155,19 +150,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
                 ClusterStateManager.Instance,
                 CheckpointRegistry.Instance,
                 CentralStorage.Instance,
-                DistributedCentralStorage.InstanceOrDefault(),
-                Dependencies?.ColdStorage.InstanceOrDefault(),
-                checkpointObserver: Configuration.DistributedCentralStore?.TrackCheckpointConsumers == true ? CheckpointRegistry.Instance : null);
-        }
-
-        private DistributedCentralStorage CreateDistributedCentralStorage()
-        {
-            return new DistributedCentralStorage(
-                Configuration.DistributedCentralStore!,
-                CheckpointRegistry.Instance,
-                Copier,
-                fallbackStorage: CentralStorage.Instance,
-                Clock);
+                Dependencies?.ColdStorage.InstanceOrDefault());
         }
 
         private CentralStorage CreateCentralStorage()

@@ -27,6 +27,9 @@ namespace BuildXL.Cache.Host.Service.Internal
     public class MultiplexedContentStore : StartupShutdownBase, IContentStore, IRepairStore, IStreamStore, ICopyRequestHandler, IPushFileHandler, ILocalContentStore
     {
         /// <nodoc />
+        public override bool AllowMultipleStartupAndShutdowns => true;
+
+        /// <nodoc />
         public Dictionary<string, IContentStore> DrivesWithContentStore { get; }
 
         public string PreferredCacheDrive { get; }

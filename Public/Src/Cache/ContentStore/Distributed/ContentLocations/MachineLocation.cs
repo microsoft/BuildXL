@@ -36,15 +36,6 @@ namespace BuildXL.Cache.ContentStore.Distributed
         public string Path { get; init; }
 
         /// <nodoc />
-        public MachineLocation(byte[] data)
-        {
-            Contract.Requires(data != null);
-
-            Data = data;
-            Path = Encoding.UTF8.GetString(data);
-        }
-
-        /// <nodoc />
         public MachineLocation(string data)
         {
             Contract.Requires(data != null);

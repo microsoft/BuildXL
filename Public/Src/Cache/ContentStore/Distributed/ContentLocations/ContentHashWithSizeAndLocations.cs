@@ -53,6 +53,11 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// </summary>
         public ContentLocationEntry? Entry { get; }
 
+        /// <summary>
+        /// The content location origin
+        /// </summary>
+        public GetBulkOrigin? Origin { get; set; }
+
         /// <nodoc />
         public ContentHashWithSizeAndLocations(ContentHash contentHash, long size = -1)
         {
@@ -61,13 +66,20 @@ namespace BuildXL.Cache.ContentStore.Distributed
         }
 
         /// <nodoc />
-        public ContentHashWithSizeAndLocations(ContentHash contentHash, long size, IReadOnlyList<MachineLocation> locations, ContentLocationEntry? entry = null, IReadOnlyList<MachineLocation>? filteredOutLocations = null)
+        public ContentHashWithSizeAndLocations(
+            ContentHash contentHash,
+            long size,
+            IReadOnlyList<MachineLocation> locations,
+            ContentLocationEntry? entry = null,
+            IReadOnlyList<MachineLocation>? filteredOutLocations = null,
+            GetBulkOrigin? origin = null)
         {
             ContentHash = contentHash;
             Size = size;
             Locations = locations;
             Entry = entry;
             FilteredOutInactiveMachineLocations = filteredOutLocations;
+            Origin = origin;
         }
 
         /// <summary>
@@ -78,7 +90,12 @@ namespace BuildXL.Cache.ContentStore.Distributed
             Contract.Requires(left.ContentHash == right.ContentHash);
             Contract.Requires(left.Size == -1 || right.Size == -1 || right.Size == left.Size);
             var finalList = (left.Locations ?? Enumerable.Empty<MachineLocation>()).Union(right.Locations ?? Enumerable.Empty<MachineLocation>());
-            return new ContentHashWithSizeAndLocations(left.ContentHash, Math.Max(left.Size, right.Size), finalList.ToList(), ContentLocationEntry.MergeEntries(left.Entry, right.Entry));
+            return new ContentHashWithSizeAndLocations(
+                left.ContentHash,
+                Math.Max(left.Size, right.Size),
+                finalList.ToList(),
+                ContentLocationEntry.MergeEntries(left.Entry, right.Entry),
+                origin: left.Origin ?? right.Origin);
         }
 
         /// <inheritdoc />

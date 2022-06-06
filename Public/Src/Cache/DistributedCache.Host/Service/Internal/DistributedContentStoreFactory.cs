@@ -562,11 +562,7 @@ namespace BuildXL.Cache.Host.Service.Internal
 
             configuration.Checkpoint = new CheckpointConfiguration(
                 localCacheRoot,
-                configuration.PrimaryMachineLocation)
-            {
-                StoreJsonData = _distributedSettings.CheckpointDistributionMode.Value
-                    != CheckpointDistributionModes.Legacy
-            };
+                configuration.PrimaryMachineLocation);
 
             if (_distributedSettings.IsMasterEligible)
             {
@@ -678,7 +674,6 @@ namespace BuildXL.Cache.Host.Service.Internal
                     MaxSimultaneousCopies = _distributedSettings.CentralStorageMaxSimultaneousCopies,
                     ProactiveCopyCheckpointFiles = _distributedSettings.ProactiveCopyCheckpointFiles,
                     InlineCheckpointProactiveCopies = _distributedSettings.InlineCheckpointProactiveCopies,
-                    CheckpointDistributionMode = _distributedSettings.CheckpointDistributionMode.Value
                 };
 
                 if (_distributedSettings.UseSelfCheckSettingsForDistributedCentralStorage)

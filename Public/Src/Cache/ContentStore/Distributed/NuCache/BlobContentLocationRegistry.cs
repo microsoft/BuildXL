@@ -15,6 +15,7 @@ using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Secrets;
+using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using BuildXL.Cache.ContentStore.Stores;
@@ -106,6 +107,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             LinkLifetime(Storage);
             LinkLifetime(clusterStateManager);
+            LinkLifetime(localContentStore as IStartupShutdownSlim);
 
             _putBlockRetryPolicy = RetryPolicyFactory.GetExponentialPolicy(shouldRetry: ex => IsPreconditionFailedError(ex));
 
@@ -123,7 +125,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         internal void SetLocalContentStore(ILocalContentStore localContentStore)
         {
             Contract.Requires(localContentStore != null);
+            Contract.Requires(!StartupStarted);
             _localContentStore = localContentStore;
+            LinkLifetime(localContentStore as IStartupShutdownSlim);
         }
 
         /// <summary>

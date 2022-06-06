@@ -37,11 +37,5 @@ namespace BuildXL.Cache.ContentStore.Utils
         {
             return new UnixTime(reader.ReadInt64Compact());
         }
-
-        public static ContentHash ReadContentHash(ref this SpanReader reader)
-        {
-            var result = ContentHash.FromSpan(reader.ReadSpan(ContentHash.SerializedLength));
-            return result;
-        }
     }
 }

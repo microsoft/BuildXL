@@ -10,11 +10,13 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
+using BuildXL.Cache.ContentStore.Distributed.Redis;
 using BuildXL.Cache.ContentStore.Distributed.Sessions;
 using BuildXL.Cache.ContentStore.Extensions;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
+using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
@@ -24,6 +26,7 @@ using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
+using BuildXL.Cache.Host.Configuration;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
@@ -35,7 +38,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
     /// <summary>
     /// A store that is based on content locations for opaque file locations.
     /// </summary>
-    public class DistributedContentStore : StartupShutdownBase, IContentStore, IRepairStore, IDistributedLocationStore, IStreamStore, ICopyRequestHandler, IPushFileHandler, IDeleteFileHandler, IDistributedContentCopierHost
+    public class DistributedContentStore : StartupShutdownComponentBase,
+        IContentStore,
+        IRepairStore,
+        IDistributedLocationStore,
+        IStreamStore,
+        ICopyRequestHandler,
+        IPushFileHandler,
+        IDeleteFileHandler,
+        IDistributedContentCopierHost,
+        IDistributedContentCopierHost2
     {
         // Used for testing.
         internal enum Counters
@@ -55,29 +67,28 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         /// </summary>
         public MachineLocation LocalMachineLocation { get; }
 
-        internal IContentLocationStoreFactory ContentLocationStoreFactory { get; }
+        internal ContentLocationStoreFactory ContentLocationStoreFactory { get; }
         private readonly ContentStoreTracer _tracer = new ContentStoreTracer(nameof(DistributedContentStore));
         private readonly IClock _clock;
 
         private DateTime? _lastEvictedEffectiveLastAccessTime;
-
-        /// <summary>
-        /// Flag for testing using local Redis instance.
-        /// </summary>
-        internal bool DisposeContentLocationStoreFactory = true;
 
         internal IContentStore InnerContentStore { get; }
 
         /// <inheritdoc />
         protected override Tracer Tracer => _tracer;
 
-        private IContentLocationStore? _contentLocationStore;
+        private readonly IContentLocationStore _contentLocationStore;
 
         public ColdStorage? ColdStorage { get; }
 
         internal IContentLocationStore ContentLocationStore => NotNull(_contentLocationStore, nameof(_contentLocationStore));
 
         private readonly DistributedContentStoreSettings _settings;
+
+        private readonly CheckpointManager? GlobalCacheCheckpointManager;
+
+        private CachingCentralStorage[] _cachingStorages = new CachingCentralStorage[0];
 
         /// <summary>
         /// Task source that is set to completion state when the system is fully initialized.
@@ -91,12 +102,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         private Lazy<Task<Result<ReadOnlyDistributedContentSession>>>? _proactiveCopySession;
         internal Lazy<Task<Result<ReadOnlyDistributedContentSession>>> ProactiveCopySession => NotNull(_proactiveCopySession, nameof(_proactiveCopySession));
 
+        private readonly DistributedContentSettings? _distributedContentSettings;
+
         /// <nodoc />
         public DistributedContentStore(
             MachineLocation localMachineLocation,
             AbsolutePath localCacheRoot,
             Func<IDistributedLocationStore, IContentStore> innerContentStoreFunc,
-            IContentLocationStoreFactory contentLocationStoreFactory,
+            ContentLocationStoreFactory contentLocationStoreFactory,
             DistributedContentStoreSettings settings,
             DistributedContentCopier distributedCopier,
             ColdStorage coldStorage,
@@ -115,6 +128,30 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             ColdStorage = coldStorage;
 
             InnerContentStore = innerContentStoreFunc(this);
+            _contentLocationStore = contentLocationStoreFactory.Create(LocalMachineLocation, InnerContentStore as ILocalContentStore);
+
+            if (contentLocationStoreFactory.Services.BlobContentLocationRegistry.TryGetInstance(out var registry)
+                && InnerContentStore is ILocalContentStore localContentStore)
+            {
+                registry.SetLocalContentStore(localContentStore);
+                LinkLifetime(registry);
+            }
+
+            GlobalCacheCheckpointManager = contentLocationStoreFactory.Services.Dependencies.GlobalCacheCheckpointManager.InstanceOrDefault();
+            _distributedContentSettings = contentLocationStoreFactory.Services.Dependencies.DistributedContentSettings.InstanceOrDefault();
+
+            LinkLifetime(_distributedCopier);
+
+            // Initializing inner store before initializing LocalLocationStore because LocalLocationStore may use inner
+            // store for reconciliation purposes
+
+            // NOTE: We initialize the inner content store before the factory because it is possible for a machine's
+            // drive to have no quota leftover, in which case LLS will fail to start. If the drive is full and eviction
+            // needs to happen, then it'll do so without updating LLS. The expectation is that the reconciliation will
+            // fix these cases over time.
+            LinkLifetime(InnerContentStore);
+            LinkLifetime(GlobalCacheCheckpointManager);
+            LinkLifetime(_contentLocationStore);
         }
 
         [return: NotNull]
@@ -129,6 +166,54 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         void IDistributedContentCopierHost.ReportReputation(MachineLocation location, MachineReputation reputation)
         {
             ContentLocationStore.MachineReputationTracker.ReportReputation(location, reputation);
+        }
+
+        string IDistributedContentCopierHost2.ReportCopyResult(OperationContext context, ContentLocation info, CopyFileResult result)
+        {
+            if (_distributedContentSettings?.EnableGlobalCacheLocationStoreValidation != true
+                || GlobalCacheCheckpointManager == null
+                || LocalLocationStore == null
+                || !LocalLocationStore.ClusterState.TryResolveMachineId(info.Machine, out var machineId))
+            {
+                return "";
+            }
+
+            bool isPresentInGcs = GlobalCacheCheckpointManager.Database.TryGetEntry(context, info.Hash, out var entry) && entry.Locations.Contains(machineId);
+
+            OperationKind originToKind(GetBulkOrigin? origin)
+            {
+                if (origin == null)
+                {
+                    return OperationKind.None;
+                }
+
+                return origin.Value switch
+                {
+                    GetBulkOrigin.Local => OperationKind.InProcessOperation,
+                    GetBulkOrigin.Global => OperationKind.OutOfProcessOperation,
+                    _ => OperationKind.Startup
+                };
+            }
+
+            var presence = isPresentInGcs ? "GcsContains" : "GcsMissing";
+            // Directly calls IOperationLogger interface because we don't want to log a message, just surface a complex metric
+            if (context.TracingContext.Logger is IOperationLogger logger)
+            {
+                // Represent various aspects as parameters in operation so
+                // they show up as separate dimensions on the metric in MDM.
+                logger.OperationFinished(new OperationResult(
+                    message: "",
+                    operationName: presence,
+                    tracerName: $"{nameof(DistributedContentStore)}.{nameof(IDistributedContentCopierHost2.ReportCopyResult)}",
+                    status: result.GetStatus(),
+                    duration: result.Duration,
+                    operationKind: originToKind(info.Origin),
+                    exception: result.Exception,
+                    operationId: context.TracingContext.TraceId,
+                    severity: Severity.Debug));
+            }
+
+            return $"IsPresentInGcs=[{isPresentInGcs}]";
         }
 
         private Task<Result<ReadOnlyDistributedContentSession>> CreateCopySession(Context context)
@@ -151,6 +236,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         /// <inheritdoc />
         public override Task<BoolResult> StartupAsync(Context context)
         {
+            ContentLocationStoreFactory.TraceConfiguration(context);
+
             var startupTask = base.StartupAsync(context);
 
             _proactiveCopySession = new Lazy<Task<Result<ReadOnlyDistributedContentSession>>>(() => CreateCopySession(context));
@@ -172,23 +259,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         }
 
         /// <inheritdoc />
-        protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
+        protected override async Task<BoolResult> StartupComponentAsync(OperationContext context)
         {
-            await _distributedCopier.StartupAsync(context).ThrowIfFailure();
-
-            // Initializing inner store before initializing LocalLocationStore because LocalLocationStore may use inner
-            // store for reconciliation purposes
-            await InnerContentStore.StartupAsync(context).ThrowIfFailure();
-
-            // NOTE: We initialize the inner content store before the factory because it is possible for a machine's
-            // drive to have no quota leftover, in which case LLS will fail to start. If the drive is full and eviction
-            // needs to happen, then it'll do so without updating LLS. The expectation is that the reconciliation will
-            // fix these cases over time.
-            await ContentLocationStoreFactory.StartupAsync(context).ThrowIfFailure();
-
-            _contentLocationStore = await ContentLocationStoreFactory.CreateAsync(LocalMachineLocation, InnerContentStore as ILocalContentStore);
-
-            await _contentLocationStore.StartupAsync(context).ThrowIfFailure();
+            _cachingStorages = new[]
+            {
+                LocalLocationStore?.CentralStorage,
+                GlobalCacheCheckpointManager?.Storage
+            }.OfType<CachingCentralStorage>().ToArray();
 
             if (_settings.EnableProactiveReplication
                 && _contentLocationStore is TransitioningContentLocationStore tcs
@@ -344,7 +421,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         }
 
         /// <inheritdoc />
-        protected override async Task<BoolResult> ShutdownCoreAsync(OperationContext context)
+        protected override async Task<BoolResult> ShutdownComponentAsync(OperationContext context)
         {
             var results = new List<(string operation, BoolResult result)>();
 
@@ -358,24 +435,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 }
             }
 
-            var innerResult = await InnerContentStore.ShutdownAsync(context);
-            results.Add((nameof(InnerContentStore), innerResult));
-
-            if (_contentLocationStore != null)
-            {
-                var locationStoreResult = await _contentLocationStore.ShutdownAsync(context);
-                results.Add((nameof(_contentLocationStore), locationStoreResult));
-            }
-
-            var factoryResult = await ContentLocationStoreFactory.ShutdownAsync(context);
-            results.Add((nameof(ContentLocationStoreFactory), factoryResult));
-
             _copierWorkingDirectory.Dispose();
 
-            var copierResult = await _distributedCopier.ShutdownAsync(context);
-            results.Add((nameof(_distributedCopier), copierResult));
-
-            return ShutdownErrorCompiler(results);
+            return BoolResult.Success;
         }
 
         /// <inheritdoc />
@@ -467,33 +529,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             return BoolResult.Success;
         }
 
-        /// <summary>
-        /// Determines if final BoolResult is success or error.
-        /// </summary>
-        private static BoolResult ShutdownErrorCompiler(IReadOnlyList<(string operation, BoolResult result)> results)
-        {
-            var sb = new StringBuilder();
-            foreach (var (operation, result) in results)
-            {
-                if (!result)
-                {
-                    // TODO: Consider compiling Item2's Diagnostics into the final result's Diagnostics instead of ErrorMessage (bug 1365340)
-                    sb.Append($"{operation}: {result} ");
-                }
-            }
-
-            return sb.Length != 0 ? new BoolResult(sb.ToString()) : BoolResult.Success;
-        }
-
         /// <nodoc />
         protected override void DisposeCore()
         {
             InnerContentStore.Dispose();
-
-            if (DisposeContentLocationStoreFactory)
-            {
-                ContentLocationStoreFactory.Dispose();
-            }
         }
 
         /// <nodoc />
@@ -582,35 +621,20 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         /// </summary>
         public LocalLocationStore? LocalLocationStore => (_contentLocationStore as TransitioningContentLocationStore)?.LocalLocationStore;
 
-        /// <summary>
-        /// Checks the LLS <see cref="DistributedCentralStorage"/> for the content if available and returns
-        /// the storage instance if content is found
-        /// </summary>
-        private bool CheckLlsForContent(ContentHash desiredContent, [NotNullWhen(true)] out DistributedCentralStorage? storage)
-        {
-            if (_contentLocationStore is TransitioningContentLocationStore tcs
-                && tcs.LocalLocationStore.DistributedCentralStorage != null
-                && tcs.LocalLocationStore.DistributedCentralStorage.HasContent(desiredContent))
-            {
-                storage = tcs.LocalLocationStore.DistributedCentralStorage;
-                return true;
-            }
-
-            storage = default;
-            return false;
-        }
-
         /// <inheritdoc />
         public async Task<OpenStreamResult> StreamContentAsync(Context context, ContentHash contentHash)
         {
-            // NOTE: Checking LLS for content needs to happen first since the query to the inner stream store result
-            // is used even if the result is fails.
-            if (CheckLlsForContent(contentHash, out var storage))
+            foreach (var cachingStorage in _cachingStorages)
             {
-                var result = await storage.StreamContentAsync(context, contentHash);
-                if (result.Succeeded)
+                // NOTE: Checking LLS/GCS central storage for content needs to happen first since the query to the inner stream store result
+                // is used even if the result is fails.
+                if (cachingStorage.HasContent(contentHash))
                 {
-                    return result;
+                    var result = await cachingStorage.StreamContentAsync(context, contentHash);
+                    if (result.Succeeded)
+                    {
+                        return result;
+                    }
                 }
             }
 

@@ -255,7 +255,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.MetadataService
                     checkpointManager,
                     rocksDbContentMetadataStore,
                     contentMetadataEventStream,
-                    blobCentralStorage,
                     clock);
 
                 await resilientContentMetadataService.StartupAsync(operationContext).ThrowIfFailure();

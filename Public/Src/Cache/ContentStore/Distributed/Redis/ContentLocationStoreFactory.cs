@@ -11,6 +11,7 @@ using BuildXL.Cache.ContentStore.Distributed.Stores;
 using BuildXL.Cache.ContentStore.Distributed.Tracing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
+using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
@@ -23,16 +24,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
     /// <summary>
     /// Creates <see cref="IContentLocationStore"/> instance backed by Local Location Store.
     /// </summary>
-    public class ContentLocationStoreFactory : StartupShutdownComponentBase, IContentLocationStoreFactory
+    public class ContentLocationStoreFactory
     {
-        /// <inheritdoc />
-        public override bool AllowMultipleStartupAndShutdowns => true;
-
-        /// <inheritdoc />
-        protected override Tracer Tracer { get; } = new ContentSessionTracer(nameof(ContentLocationStoreFactory));
-
         // https://github.com/StackExchange/StackExchange.Redis/blob/master/Docs/Basics.md
         // Maintain the same connection multiplexer to reuse across sessions
+
+        /// <nodoc />
+        private Tracer Tracer { get; } = new Tracer(nameof(ContentLocationStoreFactory));
 
         /// <nodoc />
         protected IClock Clock => Arguments.Clock;
@@ -46,7 +44,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// <nodoc />
         protected readonly RedisContentLocationStoreConfiguration Configuration;
 
-        protected ContentLocationStoreFactoryArguments Arguments { get; }
+        protected internal ContentLocationStoreFactoryArguments Arguments { get; }
 
         /// <nodoc />
         public ContentLocationStoreServices Services { get; }
@@ -79,32 +77,20 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             Arguments = arguments;
             Configuration = configuration;
             Services = new ContentLocationStoreServices(arguments, configuration);
-
-            LinkLifetime(Services.BlobContentLocationRegistry.InstanceOrDefault());
         }
 
-        /// <inheritdoc />
-        public Task<IContentLocationStore> CreateAsync(MachineLocation localMachineLocation, ILocalContentStore? localContentStore)
+        public IContentLocationStore Create(MachineLocation localMachineLocation, ILocalContentStore? localContentStore)
         {
-            if (localContentStore != null && Services.BlobContentLocationRegistry.TryGetInstance(out var registry))
-            {
-                registry.SetLocalContentStore(localContentStore);
-            }
-
-            IContentLocationStore contentLocationStore = new TransitioningContentLocationStore(
+            return new TransitioningContentLocationStore(
                 Configuration,
                 Services.LocalLocationStore.Instance,
                 localMachineLocation,
                 localContentStore);
-
-            return Task.FromResult(contentLocationStore);
         }
 
-        /// <inheritdoc />
-        protected override Task<BoolResult> StartupComponentAsync(OperationContext context)
+        public void TraceConfiguration(Context context)
         {
             Tracer.TraceStartupConfiguration(context, Configuration);
-            return BoolResult.SuccessTask;
         }
     }
 }

@@ -91,6 +91,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
         public T GetRequiredInstance() => InstanceOrDefault() ?? throw new Exception("Service not available");
 
         /// <summary>
+        /// Gets whether the service available
+        /// </summary>
+        public bool IsAvailable => _serviceDefinition?.IsAvailable == true;
+
+        /// <summary>
         /// Attempts to get instance of service if it is available
         /// </summary>
         public bool TryGetInstance([NotNullWhen(true)] out T? instance)

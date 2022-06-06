@@ -14,6 +14,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using BuildXL.Cache.Host.Configuration;
+using BuildXL.Cache.Host.Service;
 using ContentStoreTest.Distributed.Redis;
 using Xunit;
 using Xunit.Abstractions;
@@ -30,6 +31,12 @@ namespace ContentStoreTest.Distributed.Sessions
             ITestOutputHelper output)
             : base(redis, output)
         {
+        }
+
+        protected override DistributedCacheServiceArguments ModifyArguments(DistributedCacheServiceArguments arguments)
+        {
+            arguments.Configuration.DistributedContentSettings.EnableGlobalCacheLocationStoreValidation = true;
+            return base.ModifyArguments(arguments);
         }
 
         [Fact]

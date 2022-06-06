@@ -255,7 +255,7 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         /// </summary>
         public static ContentHashList Deserialize(ref SpanReader reader)
         {
-            var contentHashes = reader.ReadArray((ref SpanReader source) => source.ReadContentHash());
+            var contentHashes = reader.ReadArray(static (ref SpanReader source) => ReadContentHash(ref source));
             var payload = ReadNullableArray(ref reader);
             return new ContentHashList(contentHashes, payload);
         }

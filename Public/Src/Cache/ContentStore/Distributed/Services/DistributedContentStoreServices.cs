@@ -67,10 +67,19 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
         private RedisContentLocationStoreConfiguration RedisContentLocationStoreConfiguration => Arguments.RedisContentLocationStoreConfiguration;
 
         /// <nodoc />
-        public OptionalServiceDefinition<GlobalCacheServiceConfiguration> GlobalCacheServiceConfiguration { get; }
+        public IServiceDefinition<GlobalCacheServiceConfiguration> GlobalCacheServiceConfiguration { get; }
 
         /// <nodoc />
         public OptionalServiceDefinition<GlobalCacheService> GlobalCacheService { get; }
+
+        /// <nodoc />
+        public IServiceDefinition<CheckpointManager> GlobalCacheCheckpointManager { get; }
+
+        /// <nodoc />
+        public IServiceDefinition<CentralStreamStorage> GlobalCacheStreamStorage { get; }
+
+        /// <nodoc />
+        public IServiceDefinition<RocksDbContentMetadataStore> RocksDbContentMetadataStore { get; }
 
         /// <nodoc />
         public OptionalServiceDefinition<ColdStorage> ColdStorage { get; }
@@ -97,13 +106,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
             bool isGlobalCacheServiceEnabled = DistributedContentSettings.IsMasterEligible
                 && RedisContentLocationStoreConfiguration.AllContentMetadataStoreModeFlags.HasAnyFlag(ContentMetadataStoreModeFlags.Distributed);
 
-            GlobalCacheServiceConfiguration = CreateOptional(
-                () => isGlobalCacheServiceEnabled,
-                () => CreateGlobalCacheServiceConfiguration());
+            GlobalCacheServiceConfiguration = Create(() => CreateGlobalCacheServiceConfiguration());
+            GlobalCacheServiceConfiguration = Create(() => CreateGlobalCacheServiceConfiguration());
 
             GlobalCacheService = CreateOptional(
                 () => isGlobalCacheServiceEnabled,
                 () => CreateGlobalCacheService());
+
+            GlobalCacheCheckpointManager = Create(() => CreateGlobalCacheCheckpointManager());
+
+            GlobalCacheStreamStorage = Create(() => CreateGlobalCacheStreamStorage());
+
+            RocksDbContentMetadataStore = Create(() => CreateRocksDbContentMetadataStore());
 
             RoleObserver = CreateOptional<IRoleObserver>(
                 () => isGlobalCacheServiceEnabled && GlobalCacheService.InstanceOrDefault() is ResilientGlobalCacheService,
@@ -129,7 +143,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
                             GlobalCacheService = GlobalCacheService.UnsafeGetServiceDefinition().AsOptional<IGlobalCacheService>(),
                             ColdStorage = ColdStorage,
                             RoleObserver = RoleObserver,
-                            DistributedContentSettings = CreateOptional(() => true, () => DistributedContentSettings)
+                            DistributedContentSettings = CreateOptional(() => true, () => DistributedContentSettings),
+                            GlobalCacheCheckpointManager = GlobalCacheCheckpointManager.AsOptional()
                         },
                     },
                     Arguments.RedisContentLocationStoreConfiguration);
@@ -177,7 +192,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
         {
             Contract.Assert(!DistributedContentSettings.PreventRedisUsage, "Attempt to use Redis when it is disabled");
 
-            var configuration = GlobalCacheServiceConfiguration.GetRequiredInstance();
             var clock = Arguments.Clock;
 
             var redisVolatileEventStorageConfiguration = new RedisVolatileEventStorageConfiguration()
@@ -216,12 +230,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
             return storageRegistry;
         }
 
-        private GlobalCacheService CreateGlobalCacheService()
+        private CentralStreamStorage CreateGlobalCacheStreamStorage()
         {
-            var primaryCacheRoot = Arguments.PrimaryCacheRoot;
-            var configuration = GlobalCacheServiceConfiguration.GetRequiredInstance();
+            var configuration = GlobalCacheServiceConfiguration.Instance;
+            return configuration.CentralStorage.CreateCentralStorage();
+        }
+
+        private RocksDbContentMetadataStore CreateRocksDbContentMetadataStore()
+        {
+            var configuration = GlobalCacheServiceConfiguration.Instance;
             var clock = Arguments.Clock;
-            CentralStreamStorage centralStreamStorage = configuration.CentralStorage.CreateCentralStorage();
+            var primaryCacheRoot = Arguments.PrimaryCacheRoot;
 
             var dbConfig = new RocksDbContentMetadataDatabaseConfiguration(primaryCacheRoot / "cms")
             {
@@ -244,9 +263,78 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
                     Database = dbConfig,
                 });
 
+            return store;
+        }
+
+        private CheckpointManager CreateGlobalCacheCheckpointManager()
+        {
+            var configuration = GlobalCacheServiceConfiguration.Instance;
+            var clock = Arguments.Clock;
+
+            CentralStorage centralStorage = GlobalCacheStreamStorage.Instance;
+
+            var blobCheckpointRegistry = CacheServiceCheckpointRegistry.Instance as AzureBlobStorageCheckpointRegistry;
+
+            if (RedisContentLocationStoreConfiguration.DistributedCentralStore != null)
+            {
+                var metadataConfig = RedisContentLocationStoreConfiguration.DistributedCentralStore with
+                {
+                    CacheRoot = configuration.Checkpoint.WorkingDirectory
+                };
+
+                if (!GlobalCacheService.IsAvailable
+                    && DistributedContentSettings.EnableGlobalCacheLocationStoreValidation
+                    && DistributedContentSettings.GlobalCacheBackgroundRestore)
+                {
+                    // Restore checkpoints in checkpoint manager when GCS is unavailable since
+                    // GCS is the normal driver of checkpoint restore
+                    configuration.Checkpoint.RestoreCheckpoints = true;
+
+                    // We can use LLS for checkpoint file distribution on GCS-INeligible machines
+                    // On GCS-eligible machines there can be a cycle of GCS (RestoreCheckpoint) => LLS (GetBulkGlobal) => GCS
+                    var dcs = new DistributedCentralStorage(
+                        metadataConfig,
+                        new DistributedCentralStorageLocationStoreAdapter(() => ContentLocationStoreServices.Instance.LocalLocationStore.Instance),
+                        Arguments.DistributedContentCopier,
+                        fallbackStorage: centralStorage,
+                        clock);
+
+                    centralStorage = dcs;
+                }
+                else
+                {
+                    var cachingCentralStorage = new CachingCentralStorage(
+                        metadataConfig,
+                        centralStorage,
+                        Arguments.DistributedContentCopier.FileSystem);
+
+                    centralStorage = cachingCentralStorage;
+                }
+            }
+
+            var checkpointManager = new CheckpointManager(
+                    RocksDbContentMetadataStore.Instance.Database,
+                    CacheServiceCheckpointRegistry.Instance,
+                    centralStorage,
+                    configuration.Checkpoint,
+                    new CounterCollection<ContentLocationStoreCounters>());
+
+            // This is done to ensure logging in Kusto is shown under a separate component. The need for this comes
+            // from the fact that CheckpointManager per-se is used in our Kusto dashboards and monitoring queries to
+            // mean "LLS' checkpoint"
+            checkpointManager.WorkaroundTracer = new Tracer($"MetadataServiceCheckpointManager");
+
+            return checkpointManager;
+        }
+
+        private GlobalCacheService CreateGlobalCacheService()
+        {
+            var configuration = GlobalCacheServiceConfiguration.Instance;
+            var clock = Arguments.Clock;
+
             if (!DistributedContentSettings.ContentMetadataEnableResilience)
             {
-                return new GlobalCacheService(store);
+                return new GlobalCacheService(RocksDbContentMetadataStore.Instance);
             }
             else
             {
@@ -268,54 +356,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
                     volatileEventStorage = RedisWriteAheadEventStorage.Instance;
                 }
 
-                CentralStorage centralStorage = centralStreamStorage;
-
-                var blobCheckpointRegistry = CacheServiceCheckpointRegistry.Instance as AzureBlobStorageCheckpointRegistry;
-
-                if (RedisContentLocationStoreConfiguration.DistributedCentralStore != null)
-                {
-                    var metadataConfig = RedisContentLocationStoreConfiguration.DistributedCentralStore with
-                    {
-                        CacheRoot = configuration.Checkpoint.WorkingDirectory
-                    };
-
-                    if (DistributedContentSettings.CheckpointDistributionMode.Value == CheckpointDistributionModes.Proxy
-                        && blobCheckpointRegistry != null)
-                    {
-                        var dcs = new DistributedCentralStorage(
-                            metadataConfig,
-                            blobCheckpointRegistry,
-                            Arguments.DistributedContentCopier,
-                            fallbackStorage: centralStorage,
-                            clock);
-
-                        centralStorage = dcs;
-                    }
-                    else
-                    {
-                        var cachingCentralStorage = new CachingCentralStorage(
-                            metadataConfig,
-                            centralStorage,
-                            Arguments.DistributedContentCopier.FileSystem);
-
-                        centralStorage = cachingCentralStorage;
-                    }
-                }
+                var checkpointManager = GlobalCacheCheckpointManager.Instance;
 
                 var persistentEventStorage = Arguments.Overrides.Override(new BlobWriteBehindEventStorage(configuration.PersistentEventStorage));
-
-                var checkpointManager = new CheckpointManager(
-                    store.Database,
-                    CacheServiceCheckpointRegistry.Instance,
-                    centralStorage,
-                    configuration.Checkpoint,
-                    new CounterCollection<ContentLocationStoreCounters>(),
-                    checkpointObserver: RedisContentLocationStoreConfiguration.DistributedCentralStore?.TrackCheckpointConsumers == true ? blobCheckpointRegistry : null);
-
-                // This is done to ensure logging in Kusto is shown under a separate component. The need for this comes
-                // from the fact that CheckpointManager per-se is used in our Kusto dashboards and monitoring queries to
-                // mean "LLS' checkpoint"
-                checkpointManager.WorkaroundTracer = new Tracer($"MetadataServiceCheckpointManager");
 
                 var eventStream = new ContentMetadataEventStream(
                     configuration.EventStream,
@@ -325,9 +368,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
                 var service = new ResilientGlobalCacheService(
                     configuration,
                     checkpointManager,
-                    store,
+                    RocksDbContentMetadataStore.Instance,
                     eventStream,
-                    centralStreamStorage,
                     clock);
 
                 return service;

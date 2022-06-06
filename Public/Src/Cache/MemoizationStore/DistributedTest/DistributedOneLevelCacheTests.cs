@@ -346,17 +346,20 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Test
                     _ => throw new ArgumentOutOfRangeException()
                 };
 
-                dcs.MetadataEntryStorageThreshold = 10000;
+                dcs.MetadataEntryStorageThreshold = 1000;
             });
 
             var smallSf = StrongFingerprint.Random();
             var largeSf = StrongFingerprint.Random();
 
             ContentHashList smallContentHashList = new ContentHashList(
+                Enumerable.Range(0, 10).Select(_ => ContentHash.Random()).ToArray());
+
+            ContentHashList largeContentHashListReplaced = new ContentHashList(
                 Enumerable.Range(0, 100).Select(_ => ContentHash.Random()).ToArray());
 
             ContentHashList largeContentHashList = new ContentHashList(
-                Enumerable.Range(0, 10000).Select(_ => ContentHash.Random()).ToArray());
+                Enumerable.Range(0, 100).Select(_ => ContentHash.Random()).ToArray());
 
             return RunTestAsync(
                 3,
@@ -394,7 +397,25 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Test
                         addResult = await workerCache0.AddOrGetContentHashListAsync(
                             context,
                             largeSf,
-                            new ContentHashListWithDeterminism(largeContentHashList, CacheDeterminism.None),
+                            new ContentHashListWithDeterminism(smallContentHashList, CacheDeterminism.SinglePhaseNonDeterministic),
+                            Token).ShouldBeSuccess();
+                        Assert.Equal(null, addResult.ContentHashListWithDeterminism.ContentHashList);
+
+                        await checkPresenceAsync(largeSf, smallContentHashList, true);
+
+                        addResult = await workerCache0.AddOrGetContentHashListAsync(
+                            context,
+                            largeSf,
+                            new ContentHashListWithDeterminism(largeContentHashListReplaced, CacheDeterminism.SinglePhaseNonDeterministic),
+                            Token).ShouldBeSuccess();
+                        Assert.Equal(null, addResult.ContentHashListWithDeterminism.ContentHashList);
+
+                        await checkPresenceAsync(largeSf, largeContentHashListReplaced, true);
+
+                        addResult = await workerCache0.AddOrGetContentHashListAsync(
+                            context,
+                            largeSf,
+                            new ContentHashListWithDeterminism(largeContentHashList, CacheDeterminism.SinglePhaseNonDeterministic),
                             Token).ShouldBeSuccess();
                         Assert.Equal(null, addResult.ContentHashListWithDeterminism.ContentHashList);
 

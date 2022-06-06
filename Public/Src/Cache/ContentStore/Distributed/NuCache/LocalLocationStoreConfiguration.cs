@@ -475,23 +475,6 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// Whether to inline proactive copies done for checkpoint files or to do them asynchronously.
         /// </summary>
         public bool InlineCheckpointProactiveCopies { get; set; } = false;
-
-        /// <summary>
-        /// Indicates whether <see cref="DistributedCentralStorage"/> uses checkpoint propagation aware behavior
-        /// where it waits for known checkpoint files to complete
-        /// </summary>
-        public CheckpointDistributionModes CheckpointDistributionMode { get; set; } = CheckpointDistributionModes.Legacy;
-
-        /// <summary>
-        /// Indicates whether <see cref="DistributedCentralStorage"/> uses checkpoint propagation aware behavior
-        /// where it waits for known checkpoint files to complete
-        /// </summary>
-        public bool IsCheckpointAware => CheckpointDistributionMode == CheckpointDistributionModes.Proxy;
-
-        /// <summary>
-        /// Indicates whether checkpoint consumers are tracked in checkpoint state
-        /// </summary>
-        public bool TrackCheckpointConsumers => CheckpointDistributionMode != CheckpointDistributionModes.Legacy;
     }
 
     /// <summary>
@@ -558,6 +541,11 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// </summary>
         public TimeSpan CreateCheckpointInterval { get; set; } = TimeSpan.FromMinutes(5);
 
+        /// <summary>
+        /// The interval by which the checkpoint manager applies checkpoints to the local database.
+        /// </summary>
+        public TimeSpan RestoreCheckpointInterval { get; set; } = TimeSpan.FromMinutes(10);
+
         /// <nodoc />
         public int IncrementalCheckpointDegreeOfParallelism { get; set; } = 1;
 
@@ -569,7 +557,13 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// <summary>
         /// Indicates whether to store checkpoint manifest as json instead of legacy format
         /// </summary>
-        public bool StoreJsonData { get; set; }
+        public bool StoreJsonData { get; set; } = true;
+
+        /// <summary>
+        /// Gets whether the checkpoint manager has a timer loop to restore checkpoints. This is normally handled by
+        /// the database owner (i.e. LLS or GCS). But is provided as an option for the case where GCS DB is synced to workers.
+        /// </summary>
+        public bool RestoreCheckpoints { get; set; }
     }
 
     /// <summary>
@@ -592,11 +586,6 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// The interval for heartbeats.
         /// </summary>
         public TimeSpan HeartbeatInterval { get; set; } = TimeSpan.FromMinutes(1);
-
-        /// <summary>
-        /// The interval by which the checkpoint manager applies checkpoints to the local database.
-        /// </summary>
-        public TimeSpan RestoreCheckpointInterval { get; set; } = TimeSpan.FromMinutes(10);
 
         /// <summary>
         /// Age threshold after which we should eagerly restore checkpoint blocking the caller.

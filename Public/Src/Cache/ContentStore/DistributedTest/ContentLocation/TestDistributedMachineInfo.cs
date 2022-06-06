@@ -25,6 +25,9 @@ namespace ContentStoreTest.Distributed
         public ILocalContentStore LocalContentStore => this;
         public MachineId LocalMachineId { get; }
 
+        /// <nodoc />
+        public override bool AllowMultipleStartupAndShutdowns => true;
+
         protected override Tracer Tracer { get; } = new Tracer(nameof(TestDistributedMachineInfo));
 
         private readonly AbsolutePath _localContentDirectoryPath;

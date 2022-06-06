@@ -67,6 +67,12 @@ namespace BuildXL.Cache.ContentStore.Utils
             return value.ToCompactTime();
         }
 
+        /// <nodoc />
+        public static implicit operator CompactTime(UnixTime value)
+        {
+            return value.ToDateTime().ToCompactTime();
+        }
+
         /// <inheritdoc />
         public override string ToString()
         {

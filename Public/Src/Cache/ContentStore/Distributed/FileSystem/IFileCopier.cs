@@ -3,6 +3,7 @@
 
 using System.IO;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
@@ -37,34 +38,13 @@ namespace BuildXL.Cache.ContentStore.Distributed
     /// <summary>
     /// Represents a location of content on a machine
     /// </summary>
-    [StructGenerators.StructRecord]
-    public readonly partial struct ContentLocation
+    public readonly record struct ContentLocation(
+        MachineLocation Machine,
+        ContentHash Hash,
+        long? Size,
+        GetBulkOrigin? Origin,
+        bool FromRing = false)
     {
-        /// <nodoc />
-        public MachineLocation Machine { get; }
-
-        /// <nodoc />
-        public ContentHash Hash { get; }
-
-        /// <summary>
-        /// If true, then the location is not a real location obtained from the local or the global store, but just a machine from the build ring.
-        /// </summary>
-        public bool FromRing { get; }
-
-        /// <summary>
-        /// Optional length size of the content.
-        /// </summary>
-        public long? Size { get; }
-
-        /// <nodoc />
-        public ContentLocation(MachineLocation machine, ContentHash hash, long? size, bool fromRing = false)
-        {
-            Machine = machine;
-            Hash = hash;
-            Size = size;
-            FromRing = fromRing;
-        }
-
         /// <inheritdoc />
         public override string ToString() => Machine.ToString();
     }

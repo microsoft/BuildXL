@@ -38,6 +38,10 @@ namespace BuildXL.Cache.ContentStore.Distributed
 
             ContentHashesInfo = contentHashesInfo;
             Origin = origin;
+            foreach (var item in contentHashesInfo)
+            {
+                item.Origin = origin;
+            }
         }
 
         /// <summary>

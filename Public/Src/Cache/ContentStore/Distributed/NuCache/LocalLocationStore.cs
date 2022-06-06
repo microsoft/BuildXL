@@ -168,9 +168,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             ClusterStateManager clusterStateManager,
             ICheckpointRegistry checkpointRegistry,
             CentralStorage centralStorage,
-            DistributedCentralStorage? distributedCentralStorage,
-            ColdStorage? coldStorage,
-            ICheckpointObserver? checkpointObserver)
+            ColdStorage? coldStorage)
         {
             Contract.RequiresNotNull(clock);
             Contract.RequiresNotNull(configuration);
@@ -201,7 +199,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             if (Configuration.DistributedCentralStore != null)
             {
-                distributedCentralStorage ??= new DistributedCentralStorage(
+                centralStorage = new DistributedCentralStorage(
                     Configuration.DistributedCentralStore,
                     new DistributedCentralStorageLocationStoreAdapter(this),
                     copier,
@@ -209,7 +207,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     clock: _clock);
             }
 
-            CentralStorage = distributedCentralStorage ?? centralStorage;
+            CentralStorage = centralStorage;
 
             Configuration.Database.TouchFrequency = configuration.TouchFrequency;
             Database = ContentLocationDatabase.Create(clock, Configuration.Database, () => ClusterState.InactiveMachineList);
@@ -220,7 +218,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 ResolveLocationsEagerly = Configuration.ResolveMachineIdsEagerly,
             };
 
-            CheckpointManager = new CheckpointManager(Database, _checkpointRegistry, CentralStorage, Configuration.Checkpoint, Counters, checkpointObserver);
+            CheckpointManager = new CheckpointManager(Database, _checkpointRegistry, CentralStorage, Configuration.Checkpoint, Counters);
             EventStore = CreateEventStore(Configuration, subfolder: "main");
 
             LinkLifetime(CentralStorage);

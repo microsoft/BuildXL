@@ -473,7 +473,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                     }
                 }
 
-                var sourcePath = new ContentLocation(location, hashInfo.ContentHash, hashInfo.NullableSize, fromRing: request.IsExtraMachineLocationIndex(replicaIndex));
+                var sourcePath = new ContentLocation(
+                    location,
+                    hashInfo.ContentHash,
+                    hashInfo.NullableSize,
+                    hashInfo.Origin,
+                    FromRing: request.IsExtraMachineLocationIndex(replicaIndex));
 
                 var tempLocation = AbsolutePath.CreateRandomFileName(workingFolder);
 
@@ -549,7 +554,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                                 $"BandwidthOptions=[{options.BandwidthConfiguration?.ToString() ?? "null"}] " +
                                 $"Compression=[{options.CompressionHint.ToString()}] " +
                                 (result.HeaderResponseTime.HasValue ? $"HeaderResponseTime={result.HeaderResponseTime} " : string.Empty) +
-                                (result.MinimumSpeedInMbPerSec.HasValue ? $"minBandwidthSpeed={result.MinimumSpeedInMbPerSec.Value}MiB/s " : string.Empty),
+                                (result.MinimumSpeedInMbPerSec.HasValue ? $"minBandwidthSpeed={result.MinimumSpeedInMbPerSec.Value}MiB/s " : string.Empty) +
+                                request.Host.ReportCopyResult(context, sourcePath, result),
                             caller: "RemoteCopyFile",
                             counter: _counters[DistributedContentCopierCounters.RemoteCopyFile]);
 

@@ -55,7 +55,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private readonly AbsolutePath _checkpointStagingDirectory;
 
-        private CounterCollection<ContentLocationStoreCounters> Counters { get; }
+        internal CounterCollection<ContentLocationStoreCounters> Counters { get; }
 
         private readonly CheckpointManagerConfiguration _configuration;
 
@@ -81,6 +81,36 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             LinkLifetime(CheckpointRegistry);
             LinkLifetime(_checkpointObserver);
             LinkLifetime(Storage);
+
+            if (_configuration.RestoreCheckpoints)
+            {
+                RunInBackground(nameof(RestoreCheckpointLoopAsync), RestoreCheckpointLoopAsync, fireAndForget: true);
+            }
+        }
+
+        private async Task<BoolResult> RestoreCheckpointLoopAsync(OperationContext context)
+        {
+            while (!context.Token.IsCancellationRequested)
+            {
+                await PeriodicRestoreCheckpointAsync(context);
+
+                await Task.Delay(_configuration.RestoreCheckpointInterval, context.Token);
+            }
+
+            return BoolResult.Success;
+        }
+
+        private Task PeriodicRestoreCheckpointAsync(OperationContext context)
+        {
+            return context.PerformOperationAsync(
+                Tracer,
+                async () =>
+                {
+                    var checkpointState = await CheckpointRegistry.GetCheckpointStateAsync(context).ThrowIfFailureAsync();
+
+                    return await RestoreCheckpointAsync(context, checkpointState);
+                })
+                .IgnoreFailure();
         }
 
         private record DatabaseStats

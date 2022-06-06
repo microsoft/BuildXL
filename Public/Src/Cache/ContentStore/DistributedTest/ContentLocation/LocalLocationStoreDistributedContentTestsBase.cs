@@ -286,7 +286,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
                 RetryIntervalForCopiesMs = DistributedContentSessionTests.DefaultRetryIntervalsForTest.Select(t => (int)t.TotalMilliseconds).ToArray(),
 
-                RedisBatchPageSize = 1,
+                RedisBatchPageSize = 100,
                 CheckLocalFiles = true,
 
                 // Tests disable reconciliation by default

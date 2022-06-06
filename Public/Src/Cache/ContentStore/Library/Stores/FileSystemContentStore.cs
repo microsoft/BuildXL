@@ -29,6 +29,9 @@ namespace BuildXL.Cache.ContentStore.Stores
     {
         private const string Component = nameof(FileSystemContentStore);
 
+        /// <nodoc />
+        public override bool AllowMultipleStartupAndShutdowns => true;
+
         private readonly DirectoryLock _directoryLock;
         private readonly ContentStoreTracer _tracer = new ContentStoreTracer(nameof(FileSystemContentStore));
 

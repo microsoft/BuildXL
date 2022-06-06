@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
@@ -22,19 +23,31 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
     /// </summary>
     internal class DistributedCentralStorageLocationStoreAdapter : DistributedCentralStorage.ILocationStore
     {
-        public ClusterState ClusterState => _store.ClusterState;
-        public DistributedCentralStoreConfiguration Configuration => _store.Configuration.DistributedCentralStore!;
+        public ClusterState ClusterState => Store.ClusterState;
+        public DistributedCentralStoreConfiguration Configuration => Store.Configuration.DistributedCentralStore!;
         public Tracer Tracer { get; } = new Tracer(nameof(DistributedCentralStorageLocationStoreAdapter));
 
         // Randomly generated seed for use when computing derived hash represent fake content for tracking
         // which machines have started copying a particular piece of content
         private const uint _startedCopyHashSeed = 1006063109;
 
-        private readonly LocalLocationStore _store;
+        private LocalLocationStore Store => _lazyStore.Value;
+
+        private readonly Lazy<LocalLocationStore> _lazyStore;
 
         public DistributedCentralStorageLocationStoreAdapter(LocalLocationStore store)
+            : this(() => store)
         {
-            _store = store;
+        }
+
+        /// <summary>
+        /// Lazy constructor for use when LLS is not available during construction. This is the case for
+        /// GCS because LLS depends on GCS  for construction (to talk to in-proc GCS as global store)
+        /// but GCS might need LLS for distributed central storage.
+        /// </summary>
+        public DistributedCentralStorageLocationStoreAdapter(Func<LocalLocationStore> getStore)
+        {
+            _lazyStore = new Lazy<LocalLocationStore>(getStore);
         }
 
         public Result<MachineLocation> GetRandomMachineLocation()
@@ -44,12 +57,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
 
         public ValueTask<BoolResult> RegisterLocalLocationAsync(OperationContext context, IReadOnlyList<ContentHashWithSize> contentInfo)
         {
-            return _store.GlobalCacheStore.RegisterLocationAsync(context, ClusterState.PrimaryMachineId, contentInfo.SelectList(c => (ShortHashWithSize)c), touch: false);
+            return Store.GlobalCacheStore.RegisterLocationAsync(context, ClusterState.PrimaryMachineId, contentInfo.SelectList(c => (ShortHashWithSize)c), touch: false);
         }
 
         private Task<GetBulkLocationsResult> GetBulkCoreAsync(OperationContext context, IReadOnlyList<ContentHash> contentHashes)
         {
-            return _store.GetBulkFromGlobalAsync(context, ClusterState.PrimaryMachineId, contentHashes);
+            return Store.GetBulkFromGlobalAsync(context, ClusterState.PrimaryMachineId, contentHashes);
         }
 
         public async Task<GetBulkLocationsResult> GetBulkAsync(OperationContext context, ContentHash hash)

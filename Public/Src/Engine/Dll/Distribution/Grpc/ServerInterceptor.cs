@@ -4,6 +4,7 @@
 using System;
 using System.Diagnostics;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Grpc;
 using BuildXL.Engine.Distribution.Grpc;
 using BuildXL.Engine.Tracing;
 using BuildXL.Utilities.Configuration;
@@ -27,11 +28,11 @@ namespace BuildXL.Engine.Distribution
         {
             m_loggingContext = loggingContext;
             m_invocationId = invocationId;
-            m_encryptionEnabled = EngineEnvironmentSettings.GrpcEncryptionEnabled;
+            m_encryptionEnabled = GrpcSettings.EncryptionEnabled;
 
             if (m_encryptionEnabled)
             {
-                m_token = GrpcEncryptionUtil.TryGetTokenBuildIdentityToken(EngineEnvironmentSettings.CBBuildIdentityTokenPath);
+                m_token = GrpcEncryptionUtils.TryGetTokenBuildIdentityToken(EngineEnvironmentSettings.CBBuildIdentityTokenPath);
             }
         }
 

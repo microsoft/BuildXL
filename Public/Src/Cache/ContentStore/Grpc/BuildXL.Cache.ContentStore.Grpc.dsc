@@ -25,6 +25,7 @@ namespace Grpc {
 
             ...addIf(!BuildXLSdk.isDotNetCoreBuild, NetFx.System.Security.dll),
             Interfaces.dll,
+            importFrom("Newtonsoft.Json").pkg,
         ],
         tools: {
             csc: {

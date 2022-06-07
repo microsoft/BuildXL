@@ -17,6 +17,8 @@ using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using Grpc.Core;
 using static BuildXL.Engine.Distribution.RemoteWorker;
+using BuildXL.Cache.ContentStore.Grpc;
+
 #if NET6_0_OR_GREATER
 using Grpc.Net.Client;
 #endif
@@ -125,7 +127,7 @@ namespace BuildXL.Engine.Distribution.Grpc
                 {
                     string certSubjectName = EngineEnvironmentSettings.CBBuildUserCertificateName;
 
-                    if (GrpcEncryptionUtil.TryGetPublicAndPrivateKeys(certSubjectName, out string publicCertificate, out string privateKey, out string hostName) &&
+                    if (GrpcEncryptionUtils.TryGetPublicAndPrivateKeys(certSubjectName, out string publicCertificate, out string privateKey, out string hostName, out string errorMessage) &&
                         publicCertificate != null &&
                         privateKey != null &&
                         hostName != null)
@@ -152,7 +154,7 @@ namespace BuildXL.Engine.Distribution.Grpc
                     }
                     else
                     {
-                        Logger.Log.GrpcAuthWarningTrace(m_loggingContext, $"Could not extract public certificate and private key from '{certSubjectName}'. Server will be started without ssl.");
+                        Logger.Log.GrpcAuthWarningTrace(m_loggingContext, $"Could not extract public certificate and private key from '{certSubjectName}'. Server will be started without ssl. Error message: '{errorMessage}'");
                     }
                 }
 
@@ -207,7 +209,7 @@ namespace BuildXL.Engine.Distribution.Grpc
 
             try
             {
-                certificate = GrpcEncryptionUtil.TryGetBuildUserCertificate(certSubjectName);
+                certificate = GrpcEncryptionUtils.TryGetEncryptionCertificate(certSubjectName, out string error);
             }
             catch (Exception e)
             {
@@ -223,8 +225,23 @@ namespace BuildXL.Engine.Distribution.Grpc
 
             handler.SslOptions.ClientCertificates = new X509CertificateCollection { certificate };
 
+            string buildUserCertificateChainsPath = EngineEnvironmentSettings.CBBuildUserCertificateChainsPath.Value;
+
             handler.SslOptions.RemoteCertificateValidationCallback =
-                (requestMessage, certificate, chain, errors) => GrpcEncryptionUtil.ValidateBuildUserCertificate(requestMessage, certificate, chain, errors);
+                (requestMessage, certificate, chain, errors) =>
+            {
+                if (buildUserCertificateChainsPath != null)
+                {
+                    if (!GrpcEncryptionUtils.TryValidateCertificate(buildUserCertificateChainsPath, chain, out string errorMessage))
+                    {
+                        Logger.Log.GrpcAuthWarningTrace(m_loggingContext, $"Certificate is not validated: '{errorMessage}'.");
+                        return false;
+                    }
+                }
+
+                // If the path for the chains is not provided, we will not validate the certificate.
+                return true;
+            };
 
             channelOptions.HttpHandler = handler;
 
@@ -238,7 +255,7 @@ namespace BuildXL.Engine.Distribution.Grpc
         {
             string buildIdentityTokenLocation = EngineEnvironmentSettings.CBBuildIdentityTokenPath;
 
-            string token = GrpcEncryptionUtil.TryGetTokenBuildIdentityToken(buildIdentityTokenLocation);
+            string token = GrpcEncryptionUtils.TryGetTokenBuildIdentityToken(buildIdentityTokenLocation);
 
             if (token == null)
             {

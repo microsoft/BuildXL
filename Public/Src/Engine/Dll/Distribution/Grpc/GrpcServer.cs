@@ -12,6 +12,7 @@ using System.Threading;
 using System.Collections.Generic;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Engine.Tracing;
+using BuildXL.Cache.ContentStore.Grpc;
 #if NETCOREAPP
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -64,7 +65,7 @@ namespace BuildXL.Engine.Distribution.Grpc
             if (GrpcSettings.EncryptionEnabled)
             {
                 string certSubjectName = EngineEnvironmentSettings.CBBuildUserCertificateName;
-                if (GrpcEncryptionUtil.TryGetPublicAndPrivateKeys(certSubjectName, out string publicCertificate, out string privateKey, out var _) &&
+                if (GrpcEncryptionUtils.TryGetPublicAndPrivateKeys(certSubjectName, out string publicCertificate, out string privateKey, out var _, out string errorMessage) &&
                     publicCertificate != null &&
                     privateKey != null)
                 {
@@ -77,7 +78,7 @@ namespace BuildXL.Engine.Distribution.Grpc
                 }
                 else
                 {
-                    Logger.Log.GrpcAuthWarningTrace(m_loggingContext, $"Could not extract public certificate and private key from '{certSubjectName}'. Server will be started without ssl.");
+                    Logger.Log.GrpcAuthWarningTrace(m_loggingContext, $"Could not extract public certificate and private key from '{certSubjectName}'. Server will be started without ssl. Error message: '{errorMessage}'.");
                 }
             }
 

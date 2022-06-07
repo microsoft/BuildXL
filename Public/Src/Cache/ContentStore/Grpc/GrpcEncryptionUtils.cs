@@ -9,6 +9,8 @@ using System.Security.Cryptography;
 using System.Diagnostics.ContractsLight;
 using Grpc.Core;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using System.Net.Security;
+using Newtonsoft.Json;
 
 #nullable enable
 
@@ -16,8 +18,6 @@ namespace BuildXL.Cache.ContentStore.Grpc
 {
     /// <summary>
     /// Utility methods needed to enable encryption and authentication for gRPC-using services in CloudBuild
-    /// Duplicated from BXL.Engine, avoiding adding a commong dependency between BXL Engine and Cache.
-    /// Also, this should work with fullframework as well.
     /// </summary>
     public static class GrpcEncryptionUtils
     {
@@ -40,7 +40,7 @@ namespace BuildXL.Cache.ContentStore.Grpc
 
             if (certificates.Count < 1)
             {
-                error += $"Found Zero certificates by Certificate Name: {certSubjectName}";
+                error += $"Found Zero certificates by Certificate Name: {certSubjectName}. ";
                 return null;
             }
 
@@ -62,8 +62,6 @@ namespace BuildXL.Cache.ContentStore.Grpc
             }
 
             error += "Certificate not in valid timespan. ";
-
-
             return null;
         }
 
@@ -108,7 +106,7 @@ namespace BuildXL.Cache.ContentStore.Grpc
 
             //ExportPkcs8PrivateKey is not available for .net full framework.
 #if NETCOREAPP
-                loadedPrivateKey = loadedRsa?.ExportPkcs8PrivateKey();
+            loadedPrivateKey = loadedRsa?.ExportPkcs8PrivateKey();
 #endif
 
             Contract.Assert(loadedPrivateKey is not null, "loadedPrivateKey variable should be populated at this point.");
@@ -160,6 +158,60 @@ namespace BuildXL.Cache.ContentStore.Grpc
             {
                 return Result.FromException<KeyCertificatePair>(e, "Failed to get Encryption Certificate.");
             }
+        }
+
+        /// <summary>
+        /// Validate the BuildUser certificate 
+        /// </summary>
+        public static bool TryValidateCertificate(string certificateChainsPath, X509Chain chain, out string errorMessage)
+        {
+            errorMessage = string.Empty;
+
+            if (!File.Exists(certificateChainsPath))
+            {
+                errorMessage += $"File is not found: '{certificateChainsPath}'.";
+                return false;
+            }
+
+            string jsonContent = File.ReadAllText(certificateChainsPath);
+            var cmdSettingsFile = JsonConvert.DeserializeObject<CompliantBuildCmdAgentSettings>(jsonContent);
+
+            foreach (CertificateChainValidationElement issuerChain in cmdSettingsFile.ValidClientAuthenticationChains)
+            {
+                try
+                {
+                    if (issuerChain.Validate(chain, false, out errorMessage))
+                    {
+                        return true;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    errorMessage += ex;
+                    return false;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Return the decrypted contents of the build identity token in the given location
+        /// </summary>
+        public static string? TryGetTokenBuildIdentityToken(string buildIdentityTokenLocation)
+        {
+            if (File.Exists(buildIdentityTokenLocation))
+            {
+#if NETCOREAPP
+                var bytes = File.ReadAllBytes(buildIdentityTokenLocation);
+                byte[] clearText = ProtectedData.Unprotect(bytes, null, DataProtectionScope.LocalMachine);
+                var fullToken = Encoding.UTF8.GetString(clearText);
+                // Only the first part of the token matches between machines in the same build.
+                return fullToken.Split('.')[0];
+#endif
+            }
+
+            return null;
         }
     }
 }

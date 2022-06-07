@@ -288,7 +288,7 @@ namespace BuildXL.Utilities.Configuration
         /// <remarks>
         /// Default disabled
         /// </remarks>
-        public static readonly Setting<bool> GrpcDotNetClientEnabled = CreateSetting("BuildXLGrpcDotNetClientEnabled", value => value == "1");
+        public static readonly Setting<bool> GrpcDotNetClientEnabled = CreateSetting("BuildXLGrpcDotNetClientEnabled", value => string.IsNullOrWhiteSpace(value) || value == "1");
 
         /// <summary>
         /// Whether grpc encryption is enabled.
@@ -296,7 +296,7 @@ namespace BuildXL.Utilities.Configuration
         /// <remarks>
         /// Default disabled
         /// </remarks>
-        public static readonly Setting<bool> GrpcEncryptionEnabled = CreateSetting("BuildXLGrpcEncryptionEnabled", value => value == "1");
+        public static readonly Setting<bool> GrpcEncryptionEnabled = CreateSetting("BuildXLGrpcEncryptionEnabled", value => string.IsNullOrWhiteSpace(value) || value == "1");
 
         /// <summary>
         /// Whether new kestrel server is enabled for grpc.
@@ -337,9 +337,14 @@ namespace BuildXL.Utilities.Configuration
         public static readonly Setting<string> CBBuildIdentityTokenPath = CreateSetting("CB_BUILDIDENTITYTOKEN_PATH", value => value);
 
         /// <summary>
-        /// Authorization token location in AutoPilot machines at CloudBuild 
+        /// BuildUser certificate name 
         /// </summary>
         public static readonly Setting<string> CBBuildUserCertificateName = CreateSetting("CB_BUILDUSERCERTIFICATE_NAME", value => value);
+
+        /// <summary>
+        /// The file containing the authority chains of the build user certificate
+        /// </summary>
+        public static readonly Setting<string> CBBuildUserCertificateChainsPath = CreateSetting("CB_BUILDUSERCERTIFICATECHAINS_PATH", value => value);
 
         /// <summary>
         /// The amount of concurrency to allow for input/output materialization

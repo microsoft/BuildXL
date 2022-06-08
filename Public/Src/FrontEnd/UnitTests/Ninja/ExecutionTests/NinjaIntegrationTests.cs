@@ -257,6 +257,35 @@ namespace Test.BuildXL.FrontEnd.Ninja
             Assert.Equal(responseFileContent, contents);
         }
 
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void BuildWithAdditionalOutputDirectory(bool declareAdditionalOutput)
+        {
+            // The build will create an output file outside of the project root that we declare as the 'standard' cone for outputs
+            var extraneousDirectory = Path.Combine(SourceRoot, "ExtraneousOutputs");
+            var extraneousOutput = Path.Combine(extraneousDirectory, "foo.txt");
+            var project = CreateProjectWithExtraneousWrite("first.txt", "second.txt", extraneousOutput);
+
+            var additionalOutputDirectories = declareAdditionalOutput ? new[] { $"p`{extraneousDirectory}`" } : null;
+            var config = BuildAndGetConfiguration(project, additionalOutputDirectories: additionalOutputDirectories);
+
+            var engineResult = RunEngineWithConfig(config);
+            if (declareAdditionalOutput)
+            {
+                Assert.True(engineResult.IsSuccess);
+            }
+            else
+            {
+                // If the extraneous directory is not declared as an additional output, the build should fail with monitoring violations
+                Assert.False(engineResult.IsSuccess);
+                AssertVerboseEventLogged(global::BuildXL.Processes.Tracing.LogEventId.PipProcessDisallowedFileAccess, count: 1);
+                AssertErrorEventLogged(global::BuildXL.Scheduler.Tracing.LogEventId.FileMonitoringError, count: 1);
+                AssertErrorEventLogged(global::BuildXL.Processes.Tracing.LogEventId.PipProcessError, count: 1);
+                AssertVerboseEventLogged(global::BuildXL.Scheduler.Tracing.LogEventId.DependencyViolationUndeclaredOutput, count: 1);
+            }
+        }
+
         // Check whether a pip (which produced secondPipOutput) is reachable from another pip (which has to produce firstPipOutput)
         private void AssertReachability(List<Pip> processPips, PipGraph pipGraph, string firstPipOutput, string secondPipOutput)
         {

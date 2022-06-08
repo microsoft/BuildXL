@@ -29,6 +29,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             SpecFile = pathRemapper.Remap(template.SpecFile);
             RemoveAllDebugFlags = template.RemoveAllDebugFlags;
             Environment = template.Environment;
+            AdditionalOutputDirectories = template.AdditionalOutputDirectories;
         }
 
         /// <inheritdoc />
@@ -53,5 +54,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public IReadOnlyDictionary<string, EnvironmentData> Environment { get; set; }
+
+        /// <inheritdoc />
+        public IReadOnlyList<DiscriminatingUnion<AbsolutePath, RelativePath>> AdditionalOutputDirectories { get; set; }
     }
 }

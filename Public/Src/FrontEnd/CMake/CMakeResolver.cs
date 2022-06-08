@@ -87,15 +87,19 @@ namespace BuildXL.FrontEnd.CMake
         {
             NinjaGraphWithModuleDefinition result = m_cMakeWorkspaceResolver.ComputedGraph.Result;
             IReadOnlyCollection<NinjaNode> filteredNodes = result.Graph.Nodes;
-            var graphConstructor = new NinjaPipGraphBuilder(m_context, m_host, ModuleDef, 
-                m_cMakeWorkspaceResolver.EmbeddedNinjaWorkspaceResolver.ProjectRoot, 
-                m_cMakeWorkspaceResolver.EmbeddedNinjaWorkspaceResolver.SpecFile, 
-                qualifierId, 
-                m_frontEndName, 
-                m_cMakeResolverSettings.RemoveAllDebugFlags ?? false,
-                m_cMakeWorkspaceResolver.EmbeddedNinjaWorkspaceResolver.UserDefinedEnvironment,
-                m_cMakeWorkspaceResolver.EmbeddedNinjaWorkspaceResolver.UserDefinedPassthroughVariables,
-                m_cMakeResolverSettings.UntrackingSettings);
+            var graphConstructor = new NinjaPipGraphBuilder(m_context, m_host, ModuleDef,
+                m_cMakeWorkspaceResolver.EmbeddedNinjaWorkspaceResolver.ProjectRoot,
+                m_cMakeWorkspaceResolver.EmbeddedNinjaWorkspaceResolver.SpecFile,
+                qualifierId,
+                m_frontEndName,
+                new NinjaPipConstructionSettings()
+                {
+                    SuppressDebugFlags = m_cMakeResolverSettings.RemoveAllDebugFlags ?? false,
+                    UserDefinedEnvironment = m_cMakeWorkspaceResolver.EmbeddedNinjaWorkspaceResolver.UserDefinedEnvironment,
+                    UserDefinedPassthroughVariables = m_cMakeWorkspaceResolver.EmbeddedNinjaWorkspaceResolver.UserDefinedPassthroughVariables,
+                    UntrackingSettings = m_cMakeResolverSettings.UntrackingSettings,
+                });
+
             return graphConstructor.TrySchedulePips(filteredNodes, qualifierId);
         }
 

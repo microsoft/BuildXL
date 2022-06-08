@@ -138,10 +138,14 @@ namespace Test.BuildXL.FrontEnd.Ninja.Infrastructure
                     qualifierId,
                     resolverSettings.Root,
                     resolverSettings.SpecFile,
-                    resolverSettings.RemoveAllDebugFlags ?? false,
-                    environment,
-                    passthroughEnv,
-                    resolverSettings);
+                    new ()
+                    {
+                        SuppressDebugFlags = resolverSettings.RemoveAllDebugFlags ?? false,
+                        UserDefinedEnvironment = environment,
+                        UserDefinedPassthroughVariables = passthroughEnv,
+                        UntrackingSettings = resolverSettings,
+                        AdditionalOutputDirectories = resolverSettings.AdditionalOutputDirectories
+                    });
 
                 var schedulingResults = new Dictionary<NinjaNode, (bool, Process)>();
 

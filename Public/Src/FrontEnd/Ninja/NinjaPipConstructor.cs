@@ -16,6 +16,7 @@ using BuildXL.Native.IO;
 using BuildXL.Pips;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
+using BuildXL.Processes;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
@@ -37,13 +38,12 @@ namespace BuildXL.FrontEnd.Ninja
         private readonly ModuleDefinition m_moduleDefinition;
         private readonly AbsolutePath m_projectRoot;
         private readonly AbsolutePath m_specPath;
-        private readonly bool m_suppressDebugFlags;
 
         private readonly PipConstructionHelper m_pipConstructionHelper;
         private readonly ConcurrentDictionary<NinjaNode, ProcessOutputs> m_processOutputs = new ConcurrentDictionary<NinjaNode, ProcessOutputs>();
         private readonly ConcurrentDictionary<AbsolutePath, FileArtifact> m_outputFileArtifacts = new ConcurrentDictionary<AbsolutePath, FileArtifact>();
         private readonly ConcurrentDictionary<string, AbsolutePath> m_exeLocations = new ConcurrentDictionary<string, AbsolutePath>();
-        private readonly IUntrackingSettings m_untrackingSettings;
+        private readonly NinjaPipConstructionSettings m_settings;
 
 
         /// <summary>
@@ -59,10 +59,8 @@ namespace BuildXL.FrontEnd.Ninja
             ModuleDefinition moduleDefinition, 
             QualifierId qualifierId, 
             AbsolutePath projectRoot, 
-            AbsolutePath specPath, bool suppressDebugFlags,
-            IEnumerable<KeyValuePair<string, string>> userDefinedEnvironment,
-            IEnumerable<string> userDefinedPassthroughVariables,
-            IUntrackingSettings untrackingSettings)
+            AbsolutePath specPath,
+            NinjaPipConstructionSettings settings)
         {
             Contract.Requires(context != null);
             Contract.Requires(frontEndHost != null);
@@ -75,15 +73,14 @@ namespace BuildXL.FrontEnd.Ninja
             m_moduleDefinition = moduleDefinition;
             m_projectRoot = projectRoot;
             m_specPath = specPath;
-            m_suppressDebugFlags = suppressDebugFlags;
-            m_untrackingSettings = untrackingSettings;
+            m_settings = settings;
             m_pipConstructionHelper = GetPipConstructionHelperForModule(m_projectRoot, moduleDefinition, qualifierId);
             m_frontEndName = frontEndName;
             m_manuallyDroppedDependenciesPath = m_frontEndHost.Configuration.Layout.BuildEngineDirectory
                                                     .Combine(m_context.PathTable, RelativePath.Create(m_context.StringTable, @"tools\CMakeNinjaPipEnvironment"));
 
 
-            PrepareEnvironment(userDefinedEnvironment, userDefinedPassthroughVariables, out m_userDefinedEnvironment, out m_userDefinedPassthroughVariables);
+            PrepareEnvironment(settings.UserDefinedEnvironment, settings.UserDefinedPassthroughVariables, out m_userDefinedEnvironment, out m_userDefinedPassthroughVariables);
         }
 
         internal bool TrySchedulePip(NinjaNode node, QualifierId qualifierId, out Process process)
@@ -240,6 +237,9 @@ namespace BuildXL.FrontEnd.Ninja
             }
 
             processBuilder.AddOutputDirectory(DirectoryArtifact.CreateWithZeroPartialSealId(m_projectRoot), SealDirectoryKind.SharedOpaque);
+            
+            // Add additional output directories configured in the main config file
+            PipConstructionUtilities.AddAdditionalOutputDirectories(processBuilder, m_settings.AdditionalOutputDirectories, m_projectRoot, m_context.PathTable);
         }
 
         private bool TryConfigureProcessBuilder(ProcessBuilder processBuilder, NinjaNode node, QualifierId qualifierId)
@@ -321,9 +321,9 @@ namespace BuildXL.FrontEnd.Ninja
             processBuilder.AddUntrackedProgramDataDirectories();
             processBuilder.AddUntrackedAppDataDirectories();
 
-            if (m_untrackingSettings != null)
+            if (m_settings.UntrackingSettings != null)
             {
-                PipConstructionUtilities.UntrackUserConfigurableArtifacts(m_context.PathTable, projectRoot, m_moduleDefinition.Specs.Select(spec => spec.GetParent(m_context.PathTable)), processBuilder, m_untrackingSettings);
+                PipConstructionUtilities.UntrackUserConfigurableArtifacts(m_context.PathTable, projectRoot, m_moduleDefinition.Specs.Select(spec => spec.GetParent(m_context.PathTable)), processBuilder, m_settings.UntrackingSettings);
             }
 
             var programFilesDirectoryArtifact = DirectoryArtifact.CreateWithZeroPartialSealId(AbsolutePath.Create(m_context.PathTable, Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles)));
@@ -491,13 +491,13 @@ namespace BuildXL.FrontEnd.Ninja
         {
             // Remove /Zi, /ZI, and put /Z7 in its place (or nothing if we want to suppress everything)
             // If m_suppressDebugFlags, this will be deleted anyway so don't do it
-            if (!m_suppressDebugFlags)
+            if (!m_settings.SuppressDebugFlags)
             {
-                args = s_pdbOutputArgumentRegex.Replace(args, m_suppressDebugFlags ? " " : " /Z7 ", 1);
+                args = s_pdbOutputArgumentRegex.Replace(args, m_settings.SuppressDebugFlags ? " " : " /Z7 ", 1);
             }
 
             // Remove other /Zi /ZI, /MPx, /FS
-            var removeArgsRegex = m_suppressDebugFlags ? s_allDebugOptionsRegex : s_allMspdbsrvRelevantOptionsRegex;
+            var removeArgsRegex = m_settings.SuppressDebugFlags ? s_allDebugOptionsRegex : s_allMspdbsrvRelevantOptionsRegex;
             return removeArgsRegex.Replace(args, " ");
         }
 

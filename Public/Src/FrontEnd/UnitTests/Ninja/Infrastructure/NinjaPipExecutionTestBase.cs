@@ -62,7 +62,8 @@ namespace Test.BuildXL.FrontEnd.Ninja
             bool includeProjectRoot = true,
             bool includeSpecFile = true,
             IEnumerable<(string Key, string Value)> environment = null,
-            IEnumerable<string> passthroughs = null)
+            IEnumerable<string> passthroughs = null,
+            IEnumerable<string> additionalOutputDirectories = null)
         {
             var environmentDict = (environment == null && passthroughs == null) ? null : new Dictionary<string, DiscriminatingUnion<string, UnitValue>>();
 
@@ -81,8 +82,15 @@ namespace Test.BuildXL.FrontEnd.Ninja
                     environmentDict.Add(p, new DiscriminatingUnion<string, UnitValue>(UnitValue.Unit));
                 }
             }
+
+            string additionalDirs = null;
+            if (additionalOutputDirectories != null)
+            {
+                additionalDirs = $"[{string.Join(",", additionalOutputDirectories)}]";
+            }
+
             return base.Build()
-                .Configuration(NinjaPrelude(targets: spec.Targets, includeProjectRoot: includeProjectRoot, includeSpecFile: includeSpecFile, environment: environmentDict))
+                .Configuration(NinjaPrelude(targets: spec.Targets, includeProjectRoot: includeProjectRoot, includeSpecFile: includeSpecFile, environment: environmentDict, additionalOutputDirectories: additionalDirs))
                 .AddSpec(Path.Combine(SourceRoot, DefaultProjectRoot, DefaultSpecFileName), spec.Content)
                 .PersistSpecsAndGetConfiguration();
         }
@@ -190,6 +198,22 @@ build all: phony {secondOutput}
             return new NinjaSpec(content, new[] { "all" });
         }
 
+        protected NinjaSpec CreateProjectWithExtraneousWrite(string outputUnderCone, string secondOutputUnderCone, string outputPathOutsideOfCone)
+        {
+            var content =
+                $@"rule ruleA
+    command = {CMD} /C ""echo foo > {outputPathOutsideOfCone} && echo bar > $out""
+
+rule ruleB
+    command = {CMD} /C ""COPY $in {secondOutputUnderCone}""
+
+build {outputUnderCone}: ruleA
+build {secondOutputUnderCone} : ruleB {outputUnderCone}
+
+build all: phony {secondOutputUnderCone}
+";
+            return new NinjaSpec(content, new[] { "all" });
+        }
 
         protected NinjaSpec CreateProjectThatCopiesResponseFile(string output, string responseFile, string responseFileContent)
         {
@@ -240,7 +264,8 @@ build install: phony {dummyFile}
             IEnumerable<string> targets = null,
             bool includeProjectRoot = true,
             bool includeSpecFile = true,
-            Dictionary<string, DiscriminatingUnion<string, UnitValue>> environment = null) => $@"
+            Dictionary<string, DiscriminatingUnion<string, UnitValue>> environment = null,
+            string additionalOutputDirectories = null) => $@"
 config({{
     resolvers: [
         {{
@@ -248,6 +273,7 @@ config({{
             targets: [{ ExpandTargetsOrGetDefault(targets)} ],
             {(includeSpecFile ? "specFile: f`" + (specFile ?? DefaultSpecFileLocation) + "`," : "")}
             {(includeProjectRoot ? "root: d`" + (projectRoot ?? DefaultProjectRoot) + "`," : "")}
+            {(additionalOutputDirectories != null ? $"additionalOutputDirectories: {additionalOutputDirectories}," : string.Empty)}
             {DictionaryToExpression("environment", environment)}
             moduleName: ""DefaultModule""
         }},

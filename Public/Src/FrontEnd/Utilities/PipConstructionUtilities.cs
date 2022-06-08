@@ -8,6 +8,7 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using BuildXL.Pips.Builders;
+using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
@@ -171,5 +172,33 @@ namespace BuildXL.FrontEnd.Utilities
 
             return hashBytes.ToHex();
         }
+        
+        /// <nodoc />
+        public static void AddAdditionalOutputDirectories(ProcessBuilder processBuilder, IReadOnlyList<DiscriminatingUnion<AbsolutePath, RelativePath>> directories, AbsolutePath root, PathTable pathTable)
+        {
+            if (directories == null)
+            {
+                return;
+            }
+
+            foreach (DiscriminatingUnion<AbsolutePath, RelativePath> directoryUnion in directories)
+            {
+                object directory = directoryUnion.GetValue();
+                if (directory is AbsolutePath absolutePath)
+                {
+                    Contract.Assert(absolutePath.IsValid);
+                    processBuilder.AddOutputDirectory(DirectoryArtifact.CreateWithZeroPartialSealId(absolutePath), SealDirectoryKind.SharedOpaque);
+                }
+                else
+                {
+                    // The specified relative path is interpreted relative to the specified root
+                    var relative = (RelativePath)directory;
+                    Contract.Assert(relative.IsValid);
+                    AbsolutePath absoluteDirectory = root.Combine(pathTable, relative);
+                    processBuilder.AddOutputDirectory(DirectoryArtifact.CreateWithZeroPartialSealId(absoluteDirectory), SealDirectoryKind.SharedOpaque);
+                }
+            }
+        }
+
     }
 }

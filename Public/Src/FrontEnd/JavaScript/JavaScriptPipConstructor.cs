@@ -344,7 +344,7 @@ namespace BuildXL.FrontEnd.JavaScript
             }
 
             // Add additional output directories configured in the main config file
-            AddAdditionalOutputDirectories(processBuilder, project.ProjectFolder);
+            PipConstructionUtilities.AddAdditionalOutputDirectories(processBuilder, m_resolverSettings.AdditionalOutputDirectories, project.ProjectFolder, PathTable);
         }
 
         private void ComputeTransitiveDependenciesFor(JavaScriptProject project, HashSet<JavaScriptProject> accumulatedDependencies)
@@ -489,29 +489,6 @@ namespace BuildXL.FrontEnd.JavaScript
                 default:
                     Contract.Assert(false, $"Unexpected argument '{value.GetType()}'");
                     break;
-            }
-        }
-
-        private void AddAdditionalOutputDirectories(ProcessBuilder processBuilder, AbsolutePath projectFolder)
-        {
-            if (m_resolverSettings.AdditionalOutputDirectories == null)
-            {
-                return;
-            }
-
-            foreach (DiscriminatingUnion<AbsolutePath, RelativePath> directoryUnion in m_resolverSettings.AdditionalOutputDirectories)
-            {
-                object directory = directoryUnion.GetValue();
-                if (directory is AbsolutePath absolutePath)
-                {
-                    processBuilder.AddOutputDirectory(DirectoryArtifact.CreateWithZeroPartialSealId(absolutePath), SealDirectoryKind.SharedOpaque);
-                }
-                else
-                {
-                    // The specified relative path is interpreted relative to the project directory folder
-                    AbsolutePath absoluteDirectory = projectFolder.Combine(PathTable, (RelativePath)directory);
-                    processBuilder.AddOutputDirectory(DirectoryArtifact.CreateWithZeroPartialSealId(absoluteDirectory), SealDirectoryKind.SharedOpaque);
-                }
             }
         }
 

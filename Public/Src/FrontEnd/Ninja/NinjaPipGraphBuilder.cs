@@ -24,10 +24,7 @@ namespace BuildXL.FrontEnd.Ninja
             AbsolutePath specPath,
             QualifierId qualifierId,
             string frontEndName,
-            bool suppressDebugFlags,
-            IEnumerable<KeyValuePair<string, string>> userDefinedEnvironment,
-            IEnumerable<string> userDefinedPassthroughVariables,
-            IUntrackingSettings untrackingSettings)
+            NinjaPipConstructionSettings constructionSettings)
         {
             Contract.Requires(context != null);
             Contract.Requires(frontEndHost != null);
@@ -35,7 +32,7 @@ namespace BuildXL.FrontEnd.Ninja
             Contract.Requires(projectRoot.IsValid);
             Contract.Requires(specPath.IsValid);
             Contract.Requires(!string.IsNullOrEmpty(frontEndName));
-            m_pipConstructor = new NinjaPipConstructor(context, frontEndHost, frontEndName, moduleDefinition, qualifierId, projectRoot, specPath, suppressDebugFlags, userDefinedEnvironment, userDefinedPassthroughVariables, untrackingSettings);
+            m_pipConstructor = new NinjaPipConstructor(context, frontEndHost, frontEndName, moduleDefinition, qualifierId, projectRoot, specPath, constructionSettings);
         }
 
 

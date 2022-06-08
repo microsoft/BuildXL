@@ -492,6 +492,9 @@ namespace BuildXL.FrontEnd.MsBuild
             {
                 processBuilder.AddOutputDirectory(DirectoryArtifact.CreateWithZeroPartialSealId(sharedOutputDirectory), SealDirectoryKind.SharedOpaque);
             }
+
+            // Add user-defined additional output directories
+            PipConstructionUtilities.AddAdditionalOutputDirectories(processBuilder, m_resolverSettings.AdditionalOutputDirectories, Root, m_context.PathTable);
         }
 
         /// <summary>
@@ -512,15 +515,6 @@ namespace BuildXL.FrontEnd.MsBuild
             foreach (AbsolutePath outputDirectory in project.PredictedOutputFolders)
             {
                 sharedOutputDirectories.Add(outputDirectory);
-            }
-
-            // Add user-defined additional output directories
-            if (m_resolverSettings.AdditionalOutputDirectories != null)
-            {
-                foreach(AbsolutePath additionalOutputDirectory in m_resolverSettings.AdditionalOutputDirectories)
-                {
-                    sharedOutputDirectories.Add(additionalOutputDirectory);
-                }
             }
 
             // Collapse all shared opaque directories to find common ancestors. For the most part, this should result in just the

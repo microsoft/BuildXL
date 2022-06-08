@@ -25,11 +25,6 @@ namespace BuildXL.Utilities.Configuration
         AbsolutePath RootTraversal { get; }
 
         /// <summary>
-        /// Output directories to be added in addition to the ones BuildXL predicts
-        /// </summary>
-        IReadOnlyList<DirectoryArtifact> AdditionalOutputDirectories { get; }
-
-        /// <summary>
         /// Whether pips scheduled by this resolver should run in an isolated container.
         /// </summary>
         bool RunInContainer { get; }

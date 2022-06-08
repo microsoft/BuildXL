@@ -175,7 +175,7 @@ interface MsBuildResolver extends ResolverBase, UntrackingSettings {
     /**
      * Build-wide output directories to be added in addition to the ones BuildXL predicts.
      */
-    additionalOutputDirectories?: Directory[];
+    additionalOutputDirectories?: (Path | RelativePath)[];
 
     /**
      * Whether pips scheduled by this resolver should run in an isolated container
@@ -699,7 +699,7 @@ interface NinjaResolver extends ResolverBase, UntrackingSettings {
      */
     root?: Directory;
 
-    /* The build file, typically build.ninja. If null, f`${projectRoot}/build.ninja` is used */
+    /* The build file, typically build.ninja. If null, f`${root}/build.ninja` is used */
     specFile?: File;
 
     /**
@@ -723,6 +723,12 @@ interface NinjaResolver extends ResolverBase, UntrackingSettings {
      * variable won't cause a rebuild.
      */
     environment?: Map<string, (PassthroughEnvironmentVariable | EnvironmentData)>;
+
+    /**
+     * Collection of additional output directories pips may write to.
+     * If a relative path is provided, it will be interpreted relative to the build's root.
+     */
+    additionalOutputDirectories?: (Path | RelativePath)[];
 
     /**
      * Remove all flags involved with the output of debug information (PDB files).

@@ -39,6 +39,14 @@ namespace BuildXL.Utilities.Configuration
         IReadOnlyDictionary<string, EnvironmentData> Environment { get; }
 
         /// <summary>
+        /// Collection of additional output directories pips may write to
+        /// </summary>
+        /// <remarks>
+        /// If a relative path is provided, it will be interpreted relative to every project root
+        /// </remarks>
+        IReadOnlyList<DiscriminatingUnion<AbsolutePath, RelativePath>> AdditionalOutputDirectories { get; }
+
+        /// <summary>
         /// For debugging purposes. If this field is true, the JSON representation of the project graph file is not deleted
         /// </summary>
         bool? KeepProjectGraphFile { get; }

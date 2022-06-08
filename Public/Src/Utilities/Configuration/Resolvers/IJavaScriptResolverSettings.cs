@@ -20,14 +20,6 @@ namespace BuildXL.Utilities.Configuration
         DiscriminatingUnion<FileArtifact, IReadOnlyList<DirectoryArtifact>> NodeExeLocation { get; }
 
         /// <summary>
-        /// Collection of additional output directories pips may write to
-        /// </summary>
-        /// <remarks>
-        /// If a relative path is provided, it will be interpreted relative to every project root
-        /// </remarks>
-        IReadOnlyList<DiscriminatingUnion<AbsolutePath, RelativePath>> AdditionalOutputDirectories { get; }
-
-        /// <summary>
         /// Extra dependencies that can be specified for selected projects. 
         /// </summary>
         /// <remarks>

@@ -70,7 +70,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
         public string ModuleName { get; set; }
 
         /// <inheritdoc/>
-        public IReadOnlyList<DirectoryArtifact> AdditionalOutputDirectories { get; set; }
+        public IReadOnlyList<DiscriminatingUnion<AbsolutePath, RelativePath>> AdditionalOutputDirectories { get; set; }
 
         /// <inheritdoc/>
         public IReadOnlyList<DiscriminatingUnion<DirectoryArtifact, RelativePath>> UntrackedDirectoryScopes { get; set; }

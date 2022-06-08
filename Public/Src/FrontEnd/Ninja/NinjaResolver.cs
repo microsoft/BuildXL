@@ -91,17 +91,21 @@ namespace BuildXL.FrontEnd.Ninja
             IReadOnlyCollection<NinjaNode> filteredNodes = result.Graph.Nodes;
 
             var graphConstructor = new NinjaPipGraphBuilder(
-                m_context, 
-                m_host, 
-                ModuleDef, 
-                m_ninjaWorkspaceResolver.ProjectRoot, 
-                m_ninjaWorkspaceResolver.SpecFile, 
-                qualifierId, 
-                m_frontEndName, 
-                m_ninjaResolverSettings.RemoveAllDebugFlags ?? false,
-                m_ninjaWorkspaceResolver.UserDefinedEnvironment,
-                m_ninjaWorkspaceResolver.UserDefinedPassthroughVariables,
-                m_ninjaResolverSettings);
+                m_context,
+                m_host,
+                ModuleDef,
+                m_ninjaWorkspaceResolver.ProjectRoot,
+                m_ninjaWorkspaceResolver.SpecFile,
+                qualifierId,
+                m_frontEndName,
+                new()
+                {
+                    SuppressDebugFlags = m_ninjaResolverSettings.RemoveAllDebugFlags ?? false,
+                    UserDefinedEnvironment = m_ninjaWorkspaceResolver.UserDefinedEnvironment,
+                    UserDefinedPassthroughVariables = m_ninjaWorkspaceResolver.UserDefinedPassthroughVariables,
+                    UntrackingSettings = m_ninjaResolverSettings,
+                    AdditionalOutputDirectories = m_ninjaResolverSettings.AdditionalOutputDirectories
+                });
 
             return graphConstructor.TrySchedulePips(filteredNodes, qualifierId);
         }

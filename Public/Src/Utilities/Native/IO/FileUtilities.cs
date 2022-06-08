@@ -201,7 +201,7 @@ namespace BuildXL.Native.IO
             return s_fileSystem.EnumerateDirectoryEntries(directoryPath, enumerateDirectory, pattern, directoriesToSkipRecursively, recursive, accumulators);
         }
 
-        /// <see cref="IFileUtilities.FindAllOpenHandlesInDirectory(string, HashSet{string})"/>
+        /// <see cref="IFileUtilities.FindAllOpenHandlesInDirectory(string, HashSet{string},Func{String, bool})"/>
         public static string FindAllOpenHandlesInDirectory(string directoryPath, HashSet<string> pathsPossiblyPendingDelete = null) =>
             s_fileUtilities.FindAllOpenHandlesInDirectory(directoryPath, pathsPossiblyPendingDelete);
 

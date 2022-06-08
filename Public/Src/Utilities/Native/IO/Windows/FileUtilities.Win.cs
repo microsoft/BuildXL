@@ -275,7 +275,7 @@ namespace BuildXL.Native.IO.Windows
                     // recursion, we can assume that any directories in deletedPaths were successfully emptied. Otherwise,
                     // we would have thrown an exception for those already.
                     throw new BuildXLException(FileUtilitiesMessages.DeleteDirectoryContentsFailed + directoryPath +
-                        " Directory contents: " + Environment.NewLine + FindAllOpenHandlesInDirectory(directoryPath, pathsEnumeratedForDeletion));
+                        " Directory contents: " + Environment.NewLine + FindAllOpenHandlesInDirectory(directoryPath, pathsEnumeratedForDeletion, shouldDelete));
                 }
 
                 return remainingChildCount;
@@ -431,7 +431,7 @@ namespace BuildXL.Native.IO.Windows
         }
 
         /// <inheritdoc />
-        public string FindAllOpenHandlesInDirectory(string directoryPath, HashSet<string> pathsPossiblyPendingDelete = null)
+        public string FindAllOpenHandlesInDirectory(string directoryPath, HashSet<string> pathsPossiblyPendingDelete = null, Func<string, bool> shouldDelete = null)
         {
             pathsPossiblyPendingDelete = pathsPossiblyPendingDelete ?? new HashSet<string>();
             using (var builderPool = Pools.GetStringBuilder())
@@ -443,6 +443,12 @@ namespace BuildXL.Native.IO.Windows
                     (directoryName, filePath, attributes) =>
                     {
                         string fullPath = directoryName + Path.DirectorySeparatorChar + filePath;
+
+                        if (shouldDelete != null && !shouldDelete(fullPath))
+                        {
+                            return;
+                        }
+
                         builder.AppendLine(fullPath);
 
                         if (TryFindOpenHandlesToFile(fullPath, out var diagnosticInfo))

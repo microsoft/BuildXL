@@ -155,7 +155,7 @@ namespace BuildXL.Native.IO.Unix
         }
 
         /// <inheritdoc />
-        public string FindAllOpenHandlesInDirectory(string directoryPath, HashSet<string> pathsPossiblyPendingDelete = null) => throw new NotImplementedException();
+        public string FindAllOpenHandlesInDirectory(string directoryPath, HashSet<string> pathsPossiblyPendingDelete = null, Func<string, bool> shouldDelete = null) => throw new NotImplementedException();
 
         /// <inheritdoc />
         public Possible<string, DeletionFailure> TryDeleteFile(

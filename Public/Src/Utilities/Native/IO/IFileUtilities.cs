@@ -89,11 +89,13 @@ namespace BuildXL.Native.IO
         /// Any paths within the directory that are known to be deleted, but may be in the pending
         /// delete state; see remarks.
         /// </param>
+        /// <param name="shouldDelete">
+        /// </param>
         /// <remarks>
         /// In the case that the path is pending deletion, no open handles will be reported, even
         /// if there is a handle open somewhere preventing the delete from completing.
         /// </remarks>
-        string FindAllOpenHandlesInDirectory(string directoryPath, HashSet<string> pathsPossiblyPendingDelete = null);
+        string FindAllOpenHandlesInDirectory(string directoryPath, HashSet<string> pathsPossiblyPendingDelete = null, Func<string, bool> shouldDelete = null);
 
         #endregion
 

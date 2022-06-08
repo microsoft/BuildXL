@@ -9,13 +9,15 @@ const downloaderDefinition: Transformer.ToolDefinition = {
     // CODESYNC: keep in sync with deployment at Public\Src\FrontEnd\Nuget\BuildXL.FrontEnd.Nuget.dsc
     exe: Context.isWindowsOS()? f`${Context.getBuildEngineDirectory()}/NugetDownloader.exe` : f`${Context.getBuildEngineDirectory()}/NugetDownloader`,
     description: "BuildXL NuGet downloader",
-    dependsOnWindowsDirectories: true,
+    dependsOnCurrentHostOSDirectories: true,
     dependsOnAppDataDirectory: true,
     prepareTempDirectory: true,
     untrackedDirectoryScopes: [
         d`${Context.getMount("ProgramData").path}/Microsoft/NetFramework/BreadcrumbStore`,
         ...addIfLazy(Context.isWindowsOS(), () => [d`${Context.getMount("LocalLow").path}/Microsoft/CryptnetUrlCache`]),
         ...addIfLazy(Context.getCurrentHost().os === "macOS", () => [d`/dev/dtracehelper`, d`/private/var/run/mDNSResponder`, d`/private/var/folders`, d`/dev/tty`, d`/usr/share/zoneinfo`, d`/usr/share/icu`]),
+        // For non-windows OS we use a named mutex to control the credential provider concurrency. The mutex translates into a file created under /tmp.
+        ...addIfLazy(!Context.isWindowsOS(), () => [d`/tmp/.dotnet/shm`]),
         d`${Context.getMount("UserProfile").path}/.dotnet/corefx/cryptography`
     ],
 };

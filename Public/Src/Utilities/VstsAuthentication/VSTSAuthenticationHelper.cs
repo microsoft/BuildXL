@@ -38,9 +38,10 @@ namespace BuildXL.Utilities.VstsAuthentication
 
         // On non-Windows OS-es the nuget credential provider may not be executed concurrently (otherwise the following exception happens: 
         // System.PlatformNotSupportedException: Wait operations on multiple wait handles including a named synchronization primitive are not supported on this platform.")
-        private static readonly SemaphoreSlim g_authProviderSemaphore = OperatingSystemHelper.IsWindowsOS
+        // The credential provider is used in both a multi-threaded and multi-process scenario, so use a named muted that covers both cases
+        private static readonly AsyncMutex g_authProviderMutex = OperatingSystemHelper.IsWindowsOS
             ? null
-            : new SemaphoreSlim(1);
+            : new AsyncMutex("Global\\BuildXL_CredentialProviderMutex");
 
         /// <summary>
         /// Creates a collection of <see cref="SourceRepository"/> given a collection of URIs
@@ -64,10 +65,10 @@ namespace BuildXL.Utilities.VstsAuthentication
         /// For the repositories identified as VSTS ones, credential provider authentication is performed
         /// </remarks>
         public static async Task<Possible<IReadOnlyCollection<SourceRepository>>> TryCreateSourceRepositories(
-            IEnumerable<(string repositoryName, Uri repositoryUri)> repositories, 
+            IEnumerable<(string repositoryName, Uri repositoryUri)> repositories,
             Func<Possible<string>> discoverCredentialProvider,
             CancellationToken cancellationToken,
-            StringBuilder logger, 
+            StringBuilder logger,
             bool isRetry)
         {
             Contract.RequiresNotNull(repositories);
@@ -98,7 +99,7 @@ namespace BuildXL.Utilities.VstsAuthentication
                     {
                         var maybePackageSourceCredential = maybeCredentials
                             .Then(credentials => new PackageSourceCredential(uriAsString, credentials.username, credentials.pat, true, string.Empty));
-                        
+
                         if (maybePackageSourceCredential.Succeeded)
                         {
                             logger.AppendLine($"Authentication successfully acquired for {uri.AbsoluteUri}");
@@ -155,9 +156,9 @@ namespace BuildXL.Utilities.VstsAuthentication
                         catch (TaskCanceledException)
                         {
                             logger.AppendLine($"Request for {uri.AbsoluteUri} timed out. Retries left: {retries}");
-                            
+
                             retries--;
-                            
+
                             // The service seems to be unavailable. Let the pipeline deal with the unavailability, since it will likely result in a better error message
                             if (retries == 0)
                             {
@@ -197,7 +198,7 @@ namespace BuildXL.Utilities.VstsAuthentication
         }
 
         /// <summary>
-        /// <see cref="TryGetAuthenticationCredentialsAsync(Uri, string, CancellationToken, bool, bool)"/>
+        /// <see cref="TryGetAuthenticationCredentialsAsync(Uri, string, CancellationToken, bool)"/>
         /// </summary>
         /// <remarks>
         /// The credential provider is discovered by searching under the paths specified in NUGET_CREDENTIALPROVIDERS_PATH environment variable
@@ -220,19 +221,19 @@ namespace BuildXL.Utilities.VstsAuthentication
         /// Observe the link above is for nuget specifically, but the authentication here is used for VSTS feeds in general
         /// </remarks>
         public static Task<Possible<(string username, string pat)>> TryGetAuthenticationCredentialsAsync(
-            Uri uri, 
-            string credentialProviderPath, 
+            Uri uri,
+            string credentialProviderPath,
             CancellationToken cancellationToken,
-            bool isRetry,
-            bool forceJson = false)
+            bool isRetry)
         {
+            var isWindowsCredentialProvider = Path.GetFileNameWithoutExtension(credentialProviderPath) == "CredentialProvider.Microsoft";
+
             // Call the provider with the requested URI in non-interactive mode.
-            // Some credential providers support specifying JSON as the output format. We first try without this option (some other providers will fail if specified)
-            // but if the provider succeeds but we can't recognize the output as a JSON one, we try again with this option set
+            // The Windows Credential Provider needs a -F JSON option as the output format in order to get a JSON object as the output (other providers don't support it, but produce JSON as the default)
             var processInfo = new ProcessStartInfo
             {
                 FileName = credentialProviderPath,
-                Arguments = $"-Uri {uri.AbsoluteUri} -NonInteractive {(isRetry? "-IsRetry" : string.Empty)} {(forceJson? "-F JSON" : string.Empty)}",
+                Arguments = $"-Uri {uri.AbsoluteUri} -NonInteractive {(isRetry ? "-IsRetry" : string.Empty)} {(isWindowsCredentialProvider ? "-F JSON" : string.Empty)}",
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 WindowStyle = ProcessWindowStyle.Hidden,
@@ -242,23 +243,32 @@ namespace BuildXL.Utilities.VstsAuthentication
                 StandardErrorEncoding = Encoding.UTF8
             };
 
-            return RunCredentialProvider(uri, credentialProviderPath, processInfo, forceJson, isRetry, cancellationToken);
+            return RunCredentialProvider(uri, credentialProviderPath, processInfo, isRetry, cancellationToken);
         }
 
         private static async Task<Possible<(string username, string pat)>> RunCredentialProvider(
             Uri uri,
-            string credentialProviderPath, 
-            ProcessStartInfo processInfo, 
-            bool jsonWasForced,
+            string credentialProviderPath,
+            ProcessStartInfo processInfo,
             bool isRetry,
             CancellationToken cancellationToken)
         {
             var failureCommon = $"Unable to authenticate using a credential provider for '{uri}':";
 
             // on Linux/Mac only one call to the credential provider may happen at a time
-            if (g_authProviderSemaphore != null)
+            if (g_authProviderMutex != null)
             {
-                await g_authProviderSemaphore.WaitAsync();
+                try
+                {
+                    await g_authProviderMutex.WaitOneAsync(cancellationToken);
+                }
+                catch (AbandonedMutexException)
+                {
+                    // An abandoned mutex means there was a previous crash that prevented the mutex release.
+                    // The mutex is now acquired and there shouldn't be any further consequences since this mutex is
+                    // only used to prevent concurrent executions of the credential provider. Therefore, we just 
+                    // ignore the exception
+                }
             }
 
             try
@@ -273,7 +283,7 @@ namespace BuildXL.Utilities.VstsAuthentication
 
                     try
                     {
-    #pragma warning disable AsyncFixer02 // WaitForExitAsync should be used instead
+#pragma warning disable AsyncFixer02 // WaitForExitAsync should be used instead
                         if (!process.WaitForExit(60 * 1000))
                         {
                             Kill(process);
@@ -285,7 +295,7 @@ namespace BuildXL.Utilities.VstsAuthentication
                         // Note: Read remarks from https://msdn.microsoft.com/en-us/library/ty0d8k56(v=vs.110).aspx
                         // for reason.
                         process.WaitForExit();
-    #pragma warning restore AsyncFixer02
+#pragma warning restore AsyncFixer02
                     }
                     catch (Exception e) when (e is SystemException || e is Win32Exception)
                     {
@@ -312,13 +322,8 @@ namespace BuildXL.Utilities.VstsAuthentication
                         }
                         catch (JsonReaderException)
                         {
-                            // The JSON is malformed. If we were already forcing JSON, then that's an error. Otherwise, we try again but now forcing JSON
-                            if (jsonWasForced)
-                            {
-                                return new AuthenticationFailure($"{failureCommon} The credential provider '{credentialProviderPath}' response is not a well-formed JSON.");
-                            }
-
-                            return await TryGetAuthenticationCredentialsAsync(uri, credentialProviderPath, cancellationToken, isRetry, forceJson: true);
+                            // The JSON is malformed
+                            return new AuthenticationFailure($"{failureCommon} The credential provider '{credentialProviderPath}' response is not a well-formed JSON.");
                         }
                     }
 
@@ -327,7 +332,7 @@ namespace BuildXL.Utilities.VstsAuthentication
             }
             finally
             {
-                g_authProviderSemaphore?.Release();
+                g_authProviderMutex?.ReleaseMutex();
             }
         }
 
@@ -366,13 +371,13 @@ namespace BuildXL.Utilities.VstsAuthentication
                 string directory = path;
 
                 // In some cases the entry can point directly to the credential .exe. Let's treat that uniformly and enumerate its parent directory
-                if (FileUtilities.TryProbePathExistence(path, followSymlink: false) is var maybeExistence && 
-                    maybeExistence.Succeeded && 
-                    maybeExistence.Result == PathExistence.ExistsAsFile) 
+                if (FileUtilities.TryProbePathExistence(path, followSymlink: false) is var maybeExistence &&
+                    maybeExistence.Succeeded &&
+                    maybeExistence.Result == PathExistence.ExistsAsFile)
                 {
                     directory = Directory.GetParent(path).FullName;
                 }
-                
+
                 credentialProviderPath = Directory.EnumerateFiles(directory, "CredentialProvider*.exe", SearchOption.TopDirectoryOnly).FirstOrDefault();
                 if (credentialProviderPath != null)
                 {

@@ -132,7 +132,16 @@ namespace BuildXL.Native.Streams.Unix
                             pinnedBuffer[i] = buffer[i];
                         }
 
-                        result = new FileAsyncIOResult(FileAsyncIOStatus.Succeeded, bytesTransferred: bytesRead, error: NativeIOConstants.ErrorSuccess);
+                        // Files under proc and sys are part of pseudo file systems. The length reported by the underlying stream in these cases
+                        // do not always reflect actual content that can be read. When no bytes are read from the stream, we treat that as an EOF
+                        if (bytesRead == 0)
+                        {
+                            result = new FileAsyncIOResult(FileAsyncIOStatus.Failed, bytesTransferred: 0, error: NativeIOConstants.ErrorHandleEof);
+                        }
+                        else
+                        {
+                            result = new FileAsyncIOResult(FileAsyncIOStatus.Succeeded, bytesTransferred: bytesRead, error: NativeIOConstants.ErrorSuccess);
+                        }
                     }
                     catch (Exception ex)
                     {

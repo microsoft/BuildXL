@@ -31,6 +31,7 @@ namespace Core {
             importFrom("BuildXL.Utilities").Collections.dll,
             importFrom("BuildXL.Utilities").Configuration.dll,
             importFrom("Newtonsoft.Json").pkg,
+            AsyncMutexClient.exe,
             ...BuildXLSdk.systemMemoryDeployment,
             ...addIf(BuildXLSdk.Flags.isMicrosoftInternal, importFrom("BuildXL.Utilities").SBOMUtilities.dll),
             ...addIf(BuildXLSdk.Flags.isMicrosoftInternal, importFrom("Microsoft.Sbom.Contracts").pkg),
@@ -39,6 +40,9 @@ namespace Core {
                 BuildXLSdk.withQualifier({targetFramework: qualifier.targetFramework}).NetFx.Netstandard.dll
             ),
             ...BuildXLSdk.fluentAssertionsWorkaround
+        ],
+        runtimeContent: [
+            AsyncMutexClient.exe,
         ],
         assemblyBindingRedirects: BuildXLSdk.cacheBindingRedirects()
     });

@@ -13,5 +13,8 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Caches
     {
         /// <nodoc />
         Result<IPublishingSession> CreateSession(Context context, string name, PublishingCacheConfiguration config, string pat);
+
+        /// <nodoc />
+        bool IsValidConfigurationType(PublishingCacheConfiguration config);
     }
 }

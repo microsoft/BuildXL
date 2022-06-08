@@ -29,7 +29,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         /// <summary>
         /// Configuration for <see cref="MemoizationStoreCacheFactory"/>.
         /// </summary>
-        public sealed class Config : MemoizationStore.Interfaces.Caches.PublishingCacheConfiguration
+        public sealed class Config
         {
             /// <summary>
             /// The Id of the cache instance

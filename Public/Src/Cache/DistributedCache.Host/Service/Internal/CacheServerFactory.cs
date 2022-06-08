@@ -179,23 +179,7 @@ namespace BuildXL.Cache.Host.Service.Internal
 #if MICROSOFT_INTERNAL
                     if (distributedSettings.EnablePublishingCache)
                     {
-                        IPublishingStore remotePublishingStore;
-                        if (distributedSettings.EnableBlobPublishingCache)
-                        {
-                            remotePublishingStore = new AzureBlobStoragePublishingStore(distributedCache);
-                        }
-                        else
-                        {
-                            remotePublishingStore = new BuildCachePublishingStore(
-                                contentSource: distributedCache,
-                                _fileSystem,
-                                distributedSettings.PublishingConcurrencyLimit);
-                        }
-
-                        cacheToReturn = new PublishingCache<OneLevelCache>(
-                            local: distributedCache,
-                            remote: remotePublishingStore,
-                            Guid.NewGuid());
+                        cacheToReturn = CreateL3AsyncPublishingCache(distributedSettings, distributedCache);
                     }
 #endif
 
@@ -222,6 +206,25 @@ namespace BuildXL.Cache.Host.Service.Internal
                     localServerConfiguration);
             }
         }
+
+#if MICROSOFT_INTERNAL
+        private ICache CreateL3AsyncPublishingCache<T>(DistributedContentSettings distributedSettings, T localCache)
+            where T : ICache, IContentStore, IStreamStore, IRepairStore, ICopyRequestHandler, IPushFileHandler
+        {
+            var publishingStores = new IPublishingStore[] {
+                            new BuildCachePublishingStore(
+                                    contentSource: localCache,
+                                    _fileSystem,
+                                    distributedSettings.PublishingConcurrencyLimit),
+                            new AzureBlobStoragePublishingStore(localCache)
+                        };
+
+            return new PublishingCache<T>(
+                local: localCache,
+                publishingStores: publishingStores,
+                Guid.NewGuid());
+        }
+#endif
 
         private DistributedContentStoreFactory CreateDistributedContentStoreFactory()
         {
@@ -263,23 +266,7 @@ namespace BuildXL.Cache.Host.Service.Internal
 #if MICROSOFT_INTERNAL
                         if (distributedSettings.EnablePublishingCache)
                         {
-                            IPublishingStore remotePublishingStore;
-                            if (distributedSettings.EnableBlobPublishingCache)
-                            {
-                                remotePublishingStore = new AzureBlobStoragePublishingStore(distributedCache);
-                            }
-                            else
-                            {
-                                remotePublishingStore = new BuildCachePublishingStore(
-                                    contentSource: distributedCache,
-                                    _fileSystem,
-                                    distributedSettings.PublishingConcurrencyLimit);
-                            }
-
-                            cacheToReturn = new PublishingCache<DistributedOneLevelCache>(
-                                local: distributedCache,
-                                remote: remotePublishingStore,
-                                Guid.NewGuid());
+                            cacheToReturn = CreateL3AsyncPublishingCache(distributedSettings, distributedCache);
                         }
 #endif
 

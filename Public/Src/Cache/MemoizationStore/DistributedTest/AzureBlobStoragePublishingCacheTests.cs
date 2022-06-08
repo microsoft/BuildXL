@@ -45,12 +45,15 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
 
         protected override PublishingCacheConfiguration CreateConfiguration(bool publishAsynchronously)
         {
-            return new BuildCacheServiceConfiguration(
-                           cacheServiceContentEndpoint: "contentEndpoint",
-                           cacheServiceFingerprintEndpoint: "fingerprintEndpoint")
+            return new AzureBlobStoragePublishingCacheConfiguration()
             {
-                PublishAsynchronously = publishAsynchronously
+                PublishAsynchronously = publishAsynchronously,
             };
+        }
+
+        protected override IPublishingStore CreatePublishingStore(IContentStore contentStore)
+        {
+            return new AzureBlobStoragePublishingStore(contentStore);
         }
 
         protected override ICache CreateCache(DisposableDirectory testDirectory)
@@ -62,14 +65,12 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
             return new PublishingCacheWrapper<LocalCache>(
                 cacheId: Guid.NewGuid(),
                 localCache: contentStore,
-                remotePublishingStore: CreatePublishingStore(new CacheToContentStore(contentStore)),
+                remotePublishingStore: new IPublishingStore[]
+                {
+                    CreatePublishingStore(new CacheToContentStore(contentStore)),
+                },
                 configFactory: () => CreateConfiguration(publishAsynchronously: false),
                 pat: instance.ConnectionString);
-        }
-
-        protected override IPublishingStore CreatePublishingStore(IContentStore contentStore)
-        {
-            return new AzureBlobStoragePublishingStore(contentStore);
         }
 
         protected override void Dispose(bool disposing)

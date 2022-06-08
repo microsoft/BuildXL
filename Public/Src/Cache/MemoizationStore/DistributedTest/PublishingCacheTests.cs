@@ -52,7 +52,10 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
             return new PublishingCacheWrapper<LocalCache>(
                 cacheId: Guid.NewGuid(),
                 localCache: contentStore,
-                remotePublishingStore: CreatePublishingStore(new CacheToContentStore(contentStore)),
+                remotePublishingStore: new IPublishingStore[]
+                {
+                    CreatePublishingStore(new CacheToContentStore(contentStore)),
+                },
                 configFactory: () => CreateConfiguration(publishAsynchronously: false));
         }
 
@@ -72,7 +75,13 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
             var context = new Context(Logger);
             using var testDirectory = new DisposableDirectory(FileSystem);
             var blockingStore = new BlockingPublishingStore();
-            var publishingCache = new PublishingCache<LocalCache>(CreateInnerCache(testDirectory), blockingStore, Guid.NewGuid());
+            var publishingCache = new PublishingCache<LocalCache>(
+                CreateInnerCache(testDirectory),
+                new IPublishingStore[]
+                {
+                    blockingStore,
+                },
+                Guid.NewGuid());
             await publishingCache.StartupAsync(context).ShouldBeSuccess();
 
             var sessionResult = publishingCache.CreatePublishingSession(
@@ -119,7 +128,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
         public PublishingCacheWrapper(
             Guid cacheId,
             TCache localCache,
-            IPublishingStore remotePublishingStore,
+            IReadOnlyList<IPublishingStore> remotePublishingStore,
             Func<PublishingCacheConfiguration> configFactory,
             string pat = null) : base(localCache, remotePublishingStore, cacheId)
         {
@@ -159,6 +168,11 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
 
         public Result<IPublishingSession> CreateSession(Context context, string name, PublishingCacheConfiguration config, string pat)
             => new Result<IPublishingSession>(new BlockingPublishingSession(this));
+
+        public bool IsValidConfigurationType(PublishingCacheConfiguration config)
+        {
+            return true;
+        }
 
         internal class BlockingPublishingSession : StartupShutdownSlimBase, IPublishingSession
         {

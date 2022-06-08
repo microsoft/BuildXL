@@ -71,5 +71,11 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
 
             return new Result<IPublishingSession>(new BuildCachePublishingSession(configuration, contentSessionResult.Session, FingerprintPublishingGate, ContentPublishingGate));
         }
+
+        /// <inheritdoc />
+        public bool IsValidConfigurationType(PublishingCacheConfiguration config)
+        {
+            return config is BuildCacheServiceConfiguration;
+        }
     }
 }

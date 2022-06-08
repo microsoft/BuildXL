@@ -38,6 +38,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blobs
         /// <nodoc />
         public Result<IPublishingSession> CreateSession(Context context, string name, PublishingCacheConfiguration config, string pat)
         {
+            if (!IsValidConfigurationType(config))
+            {
+                return new Result<IPublishingSession>($"Configuration is not a {nameof(AzureBlobStoragePublishingCacheConfiguration)}. Actual type: {config.GetType().FullName}");
+            }
+
             using var cancellableContext = TrackShutdown(context);
             var operationContext = cancellableContext.Context;
 
@@ -60,6 +65,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blobs
                 fingerprintPublishingGate: _fingerprintPublishingGate,
                 contentPublishingGate: _contentPublishingGate));
             });
+        }
+
+        /// <nodoc />
+        public bool IsValidConfigurationType(PublishingCacheConfiguration config)
+        {
+            return config is AzureBlobStoragePublishingCacheConfiguration;
         }
     }
 }

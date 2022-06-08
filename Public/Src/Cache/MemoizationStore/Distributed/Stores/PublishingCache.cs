@@ -35,7 +35,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
         where TInner : ICache, IContentStore, IStreamStore, IRepairStore, ICopyRequestHandler, IPushFileHandler
     {
         private readonly TInner _local;
-        private readonly IPublishingStore _remote;
+        private readonly IReadOnlyList<IPublishingStore> _publishingStores;
 
         /// <inheritdoc />
         public Guid Id { get; }
@@ -47,27 +47,38 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
         protected override Tracer Tracer { get; } = new Tracer(nameof(PublishingCache<TInner>));
 
         /// <nodoc />
-        public PublishingCache(TInner local, IPublishingStore remote, Guid id)
+        public PublishingCache(TInner local, IReadOnlyList<IPublishingStore> publishingStores, Guid id)
         {
             _local = local;
-            _remote = remote;
+            _publishingStores = publishingStores;
             Id = id;
         }
 
         /// <inheritdoc />
         protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
         {
-            await _local.StartupAsync(context).ThrowIfFailure();
-            await _remote.StartupAsync(context).ThrowIfFailure();
-            return BoolResult.Success;
+            var result = await _local.StartupAsync(context);
+
+            foreach (var publishingStore in _publishingStores)
+            {
+                result &= await publishingStore.StartupAsync(context);
+            }
+
+            return result;
         }
 
         /// <inheritdoc />
         protected override async Task<BoolResult> ShutdownCoreAsync(OperationContext context)
         {
-            await _local.ShutdownAsync(context).ThrowIfFailure();
-            await _remote.ShutdownAsync(context).ThrowIfFailure();
-            return BoolResult.Success;
+            var result = BoolResult.Success;
+            foreach (var publishingStore in _publishingStores)
+            {
+                result &= await publishingStore.ShutdownAsync(context);
+            }
+
+            result &= await _local.ShutdownAsync(context);
+
+            return result;
         }
 
         /// <inheritdoc />
@@ -96,7 +107,8 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
                 return ((ICache)_local).CreateSession(context, name, implicitPin);
             }
 
-            var remoteSessionResult = _remote.CreateSession(context, $"{name}-publisher", config, pat);
+            var remoteSessionResult = FetchMatchingStore(config)
+                .CreateSession(context, $"{name}-publisher", config, pat);
             if (!remoteSessionResult.Succeeded)
             {
                 return new CreateSessionResult<ICacheSession>(remoteSessionResult);
@@ -110,6 +122,19 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
 
             var session = new PublishingCacheSession(name, localSessionResult.Session, remoteSessionResult.Value, config.PublishAsynchronously);
             return new CreateSessionResult<ICacheSession>(session);
+        }
+
+        private IPublishingStore FetchMatchingStore(PublishingCacheConfiguration config)
+        {
+            foreach (var publishingStore in _publishingStores)
+            {
+                if (publishingStore.IsValidConfigurationType(config))
+                {
+                    return publishingStore;
+                }
+            }
+
+            throw new NotImplementedException($"Could not find publishing cache backend for type `{config.GetType().FullName}`");
         }
 
         /// <inheritdoc />

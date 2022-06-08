@@ -205,6 +205,8 @@ namespace BuildXL.Native.Processes.Windows
                 i++;
             }
 
+            // Set a WCI reparse point into the filesystem connecting the destination (container scratch dir)
+            // to the topmost layer.
             var reparsePointData = new NativeContainerUtilities.WC_REPARSE_POINT_DATA
             {
                 Flags = 0,

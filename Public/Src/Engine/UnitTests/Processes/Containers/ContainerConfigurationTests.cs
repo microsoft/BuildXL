@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Security.AccessControl;
@@ -236,6 +237,23 @@ namespace Test.BuildXL.Processes.Containers
                     return result;
                 }
             }
+        }
+
+        [FactIfSupported(requiresHeliumDriversAvailable: true)]
+        public void CustomJobObjectConfigurationCalled()
+        {
+            CreateSourceAndDestinationDirectories(out string sourceDirectory, out string destinationDirectory);
+
+            var operations = Array.Empty<Operation>();
+
+            bool callbackCalled = false;
+            var containerConfiguration = new ContainerConfiguration(
+                pathTable: null,
+                new Dictionary<ExpandedAbsolutePath, IReadOnlyList<ExpandedAbsolutePath>>(),
+                new Dictionary<AbsolutePath, IReadOnlyList<ExpandedAbsolutePath>>(),
+                customJobObjectCustomization: (IntPtr hJob, ICollection<string> warnings) => callbackCalled = true);
+            RunOperationsInContainerAsync(operations, containerConfiguration).GetAwaiter().GetResult();
+            XAssert.IsTrue(callbackCalled);
         }
 
         protected string CreateArguments(

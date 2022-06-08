@@ -91,14 +91,15 @@ namespace BuildXL.Processes.Containers
             NativeContainerUtilities.BfSetupFilterFlags bindFltFlags = NativeContainerUtilities.BfSetupFilterFlags.None,
             Action<IntPtr, ICollection<string>>? customJobObjectCustomization = null)
         {
-            Contract.Requires(redirectedDirectories.Count == 0 || pathTable != null);
+            Contract.Requires(redirectedDirectories.Count == 0 || pathTable != null || customJobObjectCustomization is not null);
 
-            IsIsolationEnabled = redirectedDirectories.Count > 0;
+            IsIsolationEnabled = redirectedDirectories.Count > 0 || customJobObjectCustomization is not null;
             RedirectedDirectories = redirectedDirectories;
             OriginalDirectories = originalDirectories;
             EnableWciFilter = enableWciFilter;
             BindFltExcludedPaths = bindFltExcludedPaths ?? CollectionUtilities.EmptySet<ExpandedAbsolutePath>();
             BindFltFlags = bindFltFlags;
+            CustomJobObjectCustomization = customJobObjectCustomization;
         }
 
         /// <summary>

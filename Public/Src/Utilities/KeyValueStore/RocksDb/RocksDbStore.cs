@@ -37,6 +37,11 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         private readonly RocksDb m_store;
 
         /// <summary>
+        /// Gets the underlying database
+        /// </summary>
+        public RocksDb Database => m_store;
+
+        /// <summary>
         /// Maps from column family name to <see cref="ColumnFamilyInfo"/>.
         /// </summary>
         private readonly Dictionary<string, ColumnFamilyInfo> m_columns;
@@ -109,7 +114,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
 
             public WriteOptions WriteOptions;
 
-            public ColumnFamilyOptions ColumnFamilyOptions;
+            public Func<string?, ColumnFamilyOptions> CreateColumnFamilyOptions;
         }
 
         /// <summary>
@@ -205,20 +210,30 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                 // See: https://github.com/facebook/rocksdb/blob/master/include/rocksdb/table.h#L297
                 .SetFormatVersion(4);
 
-            m_defaults.ColumnFamilyOptions = new ColumnFamilyOptions()
+            m_defaults.CreateColumnFamilyOptions = name =>
+            {
+                var options = new ColumnFamilyOptions()
 #if PLATFORM_OSX
                     // As advised by the official documentation, LZ4 is the preferred compression algorithm, our RocksDB
                     // dynamic library has been compiled to support this on macOS. Fallback to Snappy on other systems (default).
                     .SetCompression(Compression.Lz4)
 #endif
                     .SetBlockBasedTableFactory(blockBasedTableOptions)
-                .SetPrefixExtractor(SliceTransform.CreateNoOp())
-                .SetLevelCompactionDynamicLevelBytes(configuration.LeveledCompactionDynamicLevelTargetSizes);
+                    .SetPrefixExtractor(SliceTransform.CreateNoOp())
+                    .SetLevelCompactionDynamicLevelBytes(configuration.LeveledCompactionDynamicLevelTargetSizes);
 
-            if (configuration.Compression != null)
-            {
-                m_defaults.ColumnFamilyOptions.SetCompression(configuration.Compression.Value);
-            }
+                if (configuration.Compression != null)
+                {
+                    options.SetCompression(configuration.Compression.Value);
+                }
+
+                if (configuration.MergeOperators?.TryGetValue(name ?? ColumnFamilies.DefaultName, out var mergeOperator) == true)
+                {
+                    options.SetMergeOperator(mergeOperator);
+                }
+
+                return options;
+            };
 
             m_columns = new Dictionary<string, ColumnFamilyInfo>();
 
@@ -240,7 +255,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                 var columnFamilies = new ColumnFamilies();
                 foreach (var name in existingColumns)
                 {
-                    columnFamilies.Add(name, m_defaults.ColumnFamilyOptions);
+                    columnFamilies.Add(name, m_defaults.CreateColumnFamilyOptions(name));
                 }
 
                 m_store = RocksDb.OpenReadOnly(m_defaults.DbOptions, m_storeDirectory, columnFamilies, errIfLogFileExists: false);
@@ -281,7 +296,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                 var columnFamilies = new ColumnFamilies();
                 foreach (var name in existingColumns)
                 {
-                    columnFamilies.Add(name, m_defaults.ColumnFamilyOptions);
+                    columnFamilies.Add(name, m_defaults.CreateColumnFamilyOptions(name));
                 }
 
                 m_store = RocksDb.Open(m_defaults.DbOptions, m_storeDirectory, columnFamilies);
@@ -312,6 +327,14 @@ namespace BuildXL.Engine.Cache.KeyValueStores
 
             m_columns.TryGetValue(ColumnFamilies.DefaultName, out m_defaultColumnFamilyInfo);
             m_options = configuration;
+        }
+
+        /// <summary>
+        /// Gets the column family handle with the given name
+        /// </summary>
+        public ColumnFamilyHandle GetColumn(string? name)
+        {
+            return GetColumnFamilyInfo(name).Handle;
         }
 
         /// <summary>
@@ -1132,7 +1155,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         /// <nodoc />
         public void CreateColumnFamily(string columnFamily)
         {
-            var handle = m_store.CreateColumnFamily(m_defaults.ColumnFamilyOptions, columnFamily);
+            var handle = m_store.CreateColumnFamily(m_defaults.CreateColumnFamilyOptions(columnFamily), columnFamily);
             m_columns[columnFamily] = new ColumnFamilyInfo() { Handle = handle };
         }
 
@@ -1143,6 +1166,14 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             m_columns.Remove(columnFamily);
             m_store.DropColumnFamily(columnFamily);
             ((IDisposable)family.Handle).Dispose();
+        }
+
+        /// <nodoc />
+        public SstFileWriter CreateSstFileWriter(string path, string? columnFamilyName = null)
+        {
+            var sstFileWriter = new SstFileWriter(ioOptions: m_defaults.CreateColumnFamilyOptions(columnFamilyName));
+            sstFileWriter.Open(path);
+            return sstFileWriter;
         }
     } // RocksDbStore
 }

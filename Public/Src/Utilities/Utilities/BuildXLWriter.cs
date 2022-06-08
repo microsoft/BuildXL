@@ -309,47 +309,47 @@ namespace BuildXL.Utilities
         /// <summary>
         /// Writes a ReadOnlyArray
         /// </summary>
-        public void Write<T>(ReadOnlyArray<T> value, Action<BuildXLWriter, T> writer)
+        public void Write<T>(ReadOnlyArray<T> value, Action<BuildXLWriter, T> write)
         {
             Contract.Requires(value.IsValid);
-            WriteReadOnlyListCore(value, writer);
+            WriteReadOnlyListCore(value, write);
         }
 
         /// <summary>
         /// Writes a ReadOnlySet
         /// </summary>
-        public void Write<T>(IReadOnlySet<T> value, Action<BuildXLWriter, T> writer)
+        public void Write<T>(IReadOnlySet<T> value, Action<BuildXLWriter, T> write)
         {
             Contract.RequiresNotNull(value);
-            WriteReadOnlyListCore(value.ToReadOnlyArray(), writer);
+            WriteReadOnlyListCore(value.ToReadOnlyArray(), write);
         }
 
         /// <summary>
         /// Writes an array
         /// </summary>
-        public void Write<T>(T[] value, Action<BuildXLWriter, T> writer)
+        public void Write<T>(T[] value, Action<BuildXLWriter, T> write)
         {
-            WriteReadOnlyListCore(value, writer);
+            WriteReadOnlyListCore(value, write);
         }
 
         /// <summary>
         /// Writes a ReadOnlyList
         /// </summary>
-        public void WriteReadOnlyList<T>(IReadOnlyList<T> value, Action<BuildXLWriter, T> writer)
+        public void WriteReadOnlyList<T>(IReadOnlyList<T> value, Action<BuildXLWriter, T> write)
         {
             Contract.RequiresNotNull(value);
-            WriteReadOnlyListCore(value, writer);
+            WriteReadOnlyListCore(value, write);
         }
 
-        private void WriteReadOnlyListCore<T, TReadOnlyList>(TReadOnlyList value, Action<BuildXLWriter, T> writer)
+        private void WriteReadOnlyListCore<T, TReadOnlyList>(TReadOnlyList value, Action<BuildXLWriter, T> write)
             where TReadOnlyList : IReadOnlyList<T>
         {
-            Contract.RequiresNotNull(writer);
+            Contract.RequiresNotNull(write);
             Start<TReadOnlyList>();
             WriteCompact(value.Count);
             for (int i = 0; i < value.Count; i++)
             {
-                writer(this, value[i]);
+                write(this, value[i]);
             }
 
             End();

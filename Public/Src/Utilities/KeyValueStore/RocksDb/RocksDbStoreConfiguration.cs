@@ -41,6 +41,11 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         public IEnumerable<string>? AdditionalKeyTrackedColumns { get; init; }
 
         /// <summary>
+        /// Specifies merge operators by column name
+        /// </summary>
+        public IReadOnlyDictionary<string, MergeOperator>? MergeOperators { get; init; }
+
+        /// <summary>
         /// Whether the database should be opened read-only. This prevents modifications and
         /// creating unnecessary metadata files related to write sessions.
         /// </summary>

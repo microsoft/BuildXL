@@ -86,6 +86,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <summary>
+        /// Gets a valid item from a merge tuple
+        /// </summary>
+        public static T Either<T>(this (T left, T right, MergeMode mode) mergeItem)
+        {
+            return mergeItem.mode == MergeMode.LeftOnly ? mergeItem.left : mergeItem.right;
+        }
+
+        /// <summary>
         /// Merges two sorted sequences.
         /// </summary>
         public static IEnumerable<(TLeft left, TRight right, MergeMode mode)> DistinctMergeSorted<TLeft, TRight, TComparable>(

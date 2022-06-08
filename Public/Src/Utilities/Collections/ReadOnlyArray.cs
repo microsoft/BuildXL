@@ -55,6 +55,62 @@ namespace BuildXL.Utilities.Collections
         }
 
         /// <summary>
+        /// Gets the <see cref="ReadOnlyArray{T}"/> representation of the array
+        /// </summary>
+        public static implicit operator ReadOnlyArray<T>(T[] array)
+        {
+            return new ReadOnlyArray<T>(array);
+        }
+
+        /// <summary>
+        /// Gets the <see cref="ReadOnlySpan{T}"/> representation of the array
+        /// </summary>
+        public ReadOnlySpan<T> AsSpan(int start, int length)
+        {
+            return m_array.AsSpan(start, length);
+        }
+
+        /// <summary>
+        /// Gets the <see cref="ReadOnlySpan{T}"/> representation of the array
+        /// </summary>
+        public ReadOnlySpan<T> AsSpan()
+        {
+            return m_array;
+        }
+
+        /// <summary>
+        /// Gets the <see cref="ReadOnlyMemory{T}"/> representation of the array
+        /// </summary>
+        public ReadOnlyMemory<T> AsMemory(int start, int length)
+        {
+            return m_array.AsMemory(start, length);
+        }
+
+        /// <summary>
+        /// Gets the <see cref="ReadOnlyMemory{T}"/> representation of the array
+        /// </summary>
+        public ReadOnlyMemory<T> AsMemory()
+        {
+            return m_array;
+        }
+
+        /// <summary>
+        /// Gets the <see cref="ReadOnlySpan{T}"/> representation of the array
+        /// </summary>
+        public static implicit operator ReadOnlySpan<T>(ReadOnlyArray<T> array)
+        {
+            return array.m_array;
+        }
+
+        /// <summary>
+        /// Gets the <see cref="ReadOnlyMemory{T}"/> representation of the array
+        /// </summary>
+        public static implicit operator ReadOnlyMemory<T>(ReadOnlyArray<T> array)
+        {
+            return array.m_array;
+        }
+
+        /// <summary>
         /// Returns a subsegment of the current array starting at the given index and ending at the end
         /// of the array view
         /// </summary>

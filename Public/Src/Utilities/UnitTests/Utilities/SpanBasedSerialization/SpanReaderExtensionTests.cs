@@ -44,14 +44,13 @@ namespace Test.BuildXL.Utilities.SpanBasedSerialization
         [InlineData(42)]
         public void ReadByte(byte input)
         {
-            var writer = CreateWriter(Length);
-            writer.Write(input);
-
-            SpanReader span = writer.AsSpan();
-
-            var value = span.ReadByte();
-            value.Should().Be(input);
-            span.RemainingLength.Should().Be(Length - 1);
+            Test(Length,
+                (ref SpanWriter writer) => writer.Write(input),
+                writer => writer.Write(input),
+                (ref SpanReader reader) => reader.ReadByte().Should().Be(input),
+                reader => reader.ReadByte().Should().Be(input),
+                expectedPosition: 1
+            );
         }
 
         [Theory]
@@ -59,14 +58,13 @@ namespace Test.BuildXL.Utilities.SpanBasedSerialization
         [InlineData(false)]
         public void ReadBoolean(bool input)
         {
-            var writer = CreateWriter(Length);
-            writer.Write(input);
-
-            SpanReader span = writer.AsSpan();
-
-            var value = span.ReadBoolean();
-            value.Should().Be(input);
-            span.RemainingLength.Should().Be(Length - 1);
+            Test(Length,
+                (ref SpanWriter writer) => writer.Write(input),
+                writer => writer.Write(input),
+                (ref SpanReader reader) => reader.ReadBoolean().Should().Be(input),
+                reader => reader.ReadBoolean().Should().Be(input),
+                expectedPosition: 1
+            );
         }
 
         [Theory]
@@ -74,16 +72,15 @@ namespace Test.BuildXL.Utilities.SpanBasedSerialization
         [InlineData(int.MaxValue)]
         [InlineData(int.MinValue)]
         [InlineData(42)]
-        public void ReadInt32(int input)
+        public void Int32(int input)
         {
-            var writer = CreateWriter(Length);
-            writer.Write(input);
-
-            SpanReader span = writer.AsSpan();
-
-            var value = span.ReadInt32();
-            value.Should().Be(input);
-            span.RemainingLength.Should().Be(Length - sizeof(int));
+            Test(Length,
+                (ref SpanWriter writer) => writer.Write(input),
+                writer => writer.Write(input),
+                (ref SpanReader reader) => reader.ReadInt32().Should().Be(input),
+                reader => reader.ReadInt32().Should().Be(input),
+                expectedPosition: 4
+            );
         }
 
         [Theory]
@@ -91,16 +88,15 @@ namespace Test.BuildXL.Utilities.SpanBasedSerialization
         [InlineData(long.MaxValue)]
         [InlineData(long.MinValue)]
         [InlineData(42)]
-        public void ReadInt64(long input)
+        public void Int64(long input)
         {
-            var writer = CreateWriter(Length);
-            writer.Write(input);
-
-            SpanReader span = writer.AsSpan();
-
-            var value = span.ReadInt64();
-            value.Should().Be(input);
-            span.RemainingLength.Should().Be(Length - sizeof(long));
+            Test(Length,
+                (ref SpanWriter writer) => writer.Write(input),
+                writer => writer.Write(input),
+                (ref SpanReader reader) => reader.ReadInt64().Should().Be(input),
+                reader => reader.ReadInt64().Should().Be(input),
+                expectedPosition: 8
+            );
         }
 
         [Theory]
@@ -108,21 +104,14 @@ namespace Test.BuildXL.Utilities.SpanBasedSerialization
         [InlineData(uint.MaxValue)]
         [InlineData(uint.MinValue)]
         [InlineData(42)]
-        public void ReadUInt32Compact(uint input)
+        public void UInt32Compact(uint input)
         {
-            var writer = CreateWriter(Length);
-            writer.WriteCompact(input);
-
-            //
-            BuildXLReader br = new BuildXLReader(debug: false, new MemoryStream(writer.AsSpan().Remaining.ToArray()), leaveOpen: false);
-
-            var v1 = br.ReadUInt32Compact();
-            v1.Should().Be(input);
-
-            SpanReader span = writer.AsSpan();
-
-            var value = span.ReadUInt32Compact();
-            value.Should().Be(input);
+            Test(Length,
+                (ref SpanWriter writer) => writer.WriteUInt32Compact(input),
+                writer => writer.WriteCompact(input),
+                (ref SpanReader reader) => reader.ReadUInt32Compact().Should().Be(input),
+                reader => reader.ReadUInt32Compact().Should().Be(input)
+            );
         }
 
         [Theory]
@@ -130,14 +119,14 @@ namespace Test.BuildXL.Utilities.SpanBasedSerialization
         [InlineData(int.MaxValue)]
         [InlineData(int.MinValue)]
         [InlineData(42)]
-        public void ReadInt32Compact(int input)
+        public void Int32Compact(int input)
         {
-            var writer = CreateWriter(Length);
-            writer.WriteCompact(input);
-            SpanReader span = writer.AsSpan();
-
-            int value = span.ReadInt32Compact();
-            value.Should().Be(input);
+            Test(Length,
+                (ref SpanWriter writer) => writer.WriteInt32Compact(input),
+                writer => writer.WriteCompact(input),
+                (ref SpanReader reader) => reader.ReadInt32Compact().Should().Be(input),
+                reader => reader.ReadInt32Compact().Should().Be(input)
+            );
         }
         
         [Theory]
@@ -145,30 +134,39 @@ namespace Test.BuildXL.Utilities.SpanBasedSerialization
         [InlineData(long.MaxValue)]
         [InlineData(long.MinValue)]
         [InlineData(42)]
-        public void ReadInt64Compact(long input)
+        public void Int64Compact(long input)
         {
-            var writer = CreateWriter(Length);
-            writer.WriteCompact(input);
-            SpanReader span = writer.AsSpan();
-
-            long value = span.ReadInt64Compact();
-            value.Should().Be(input);
+            Test(Length,
+                (ref SpanWriter writer) => writer.WriteInt64Compact(input),
+                writer => writer.WriteCompact(input),
+                (ref SpanReader reader) => reader.ReadInt64Compact().Should().Be(input),
+                reader => reader.ReadInt64Compact().Should().Be(input)
+            );
         }
         
         [Fact]
-        public void ReadSpan()
+        public void TestReadSpan()
         {
-            var writer = CreateWriter(Length);
-            SpanReader span = writer.AsSpan();
+            var random = new Random(94);
+            var input = new byte[Length];
+            random.NextBytes(input);
 
-            var readSpan = span.ReadSpan(10);
-            readSpan.Length.Should().Be(10);
-            span.RemainingLength.Should().Be(Length - 10);
+            Test(Length,
+                (ref SpanWriter writer) => writer.WriteSpan(input),
+                writer => writer.Write(input),
+                (ref SpanReader reader) =>
+                {
+                    var readSpan = reader.ReadSpan(10);
+                    readSpan.Length.Should().Be(10);
+                    reader.Position.Should().Be(10);
+                    reader.RemainingLength.Should().Be(Length - 10);
 
-            // ReadSpan can read "outside" the length of the span.
-            readSpan = span.ReadSpan(Length);
-            readSpan.Length.Should().Be(Length - 10);
-            span.RemainingLength.Should().Be(0);
+                    // ReadSpan(allowIncomplete: true) can read "outside" the length of the span.
+                    readSpan = reader.ReadSpan(Length, allowIncomplete: true);
+                    readSpan.Length.Should().Be(Length - 10);
+                    reader.RemainingLength.Should().Be(0);
+                }
+            );
         }
 
         [Theory]
@@ -176,29 +174,58 @@ namespace Test.BuildXL.Utilities.SpanBasedSerialization
         [InlineData(42)]
         public void ReadArray(int arraySize)
         {
-            var writer = CreateWriter(1024);
-
             var random = new Random(42);
             var input = Enumerable.Range(0, arraySize).Select(_ => random.Next()).ToArray();
-            writer.Write(input, writer: static (writer, i) => writer.Write(i));
 
-            var span = writer.AsSpan();
-            var result = span.ReadArray(
-                reader: (ref SpanReader source) => source.ReadInt32());
-
-            result.Length.Should().Be(arraySize);
-            result.Should().BeEquivalentTo(input.ToArray());
+            Test(1024,
+                (ref SpanWriter writer) => writer.Write(input, write: static (ref SpanWriter writer, int i) => writer.Write(i)),
+                writer => writer.Write(input, write: static (writer, i) => writer.Write(i)),
+                (ref SpanReader reader) => reader.ReadArray((ref SpanReader source) => source.ReadInt32()).Should().BeEquivalentTo(input),
+                reader => reader.ReadArray(source => source.ReadInt32()).Should().BeEquivalentTo(input)
+            );
         }
 
-        private static BuildXLWriter CreateWriter(int dataLength) => new BuildXLWriter(
-            debug: false,
-            stream: new MemoryStream(new byte[dataLength]),
-            leaveOpen: false,
-            logStats: false);
-    }
+        private void Test(
+            int dataLength,
+            WriteSpan writeSpan,
+            Action<BuildXLWriter> write,
+            ReadSpan readSpan,
+            Action<BuildXLReader> read = null,
+            int? expectedPosition = null)
+        {
+            var spanData = new byte[dataLength];
+            var streamData = new byte[dataLength];
 
-    internal static class BinaryWriterHelper
-    {
-        public static SpanReader AsSpan(this BinaryWriter writer) => ((MemoryStream)writer.BaseStream).ToArray().AsSpan().AsReader();
+            using var writer = BuildXLWriter.Create(new MemoryStream(streamData), leaveOpen: false);
+            using var reader = BuildXLReader.Create(new MemoryStream(streamData), leaveOpen: false);
+
+            SpanWriter spanWriter = spanData.AsSpan();
+            SpanReader spanReader = spanData.AsSpan();
+
+            writeSpan(ref spanWriter);
+            write(writer);
+
+            if (expectedPosition != null)
+            {
+                spanWriter.WrittenBytes.Length.Should().Be(expectedPosition.Value);
+                spanWriter.Position.Should().Be(expectedPosition.Value);
+                spanWriter.RemainingLength.Should().Be(dataLength - expectedPosition.Value);
+            }
+
+            spanData.Should().BeEquivalentTo(streamData);
+            spanWriter.WrittenBytes.Length.Should().Be(spanWriter.Position);
+            spanWriter.Position.Should().Be((int)writer.BaseStream.Position);
+
+            readSpan(ref spanReader);
+
+            if (read != null)
+            {
+                read(reader);
+                spanReader.Position.Should().Be((int)reader.BaseStream.Position);
+            }
+        }
+
+        private delegate void ReadSpan(ref SpanReader reader);
+        private delegate void WriteSpan(ref SpanWriter reader);
     }
 }

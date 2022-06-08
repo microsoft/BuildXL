@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft Corporation.
+// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
 using System;
@@ -9,19 +9,19 @@ using System.Runtime.CompilerServices;
 namespace BuildXL.Utilities.Serialization
 {
     /// <summary>
-    /// A lightweight wrapper around <see cref="ReadOnlySpan{T}"/> that tracks its position.
+    /// A lightweight wrapper around <see cref="Span{T}"/> that tracks its position.
     /// </summary>
     /// <remarks>
-    /// The main purpose of this type is deserializing instances directly from spans.
-    /// Because its a struct, the deserialization methods should get the instance by ref in order for the caller methods to "observe" the position
-    /// changes that happen during deserialization.
+    /// The main purpose of this type is serializing instances directly to spans.
+    /// Because its a struct, the serialization methods should get the instance by ref in order for the caller methods to "observe" the position
+    /// changes that happen during serialization.
     /// </remarks>
-    public ref struct SpanReader
+    public ref struct SpanWriter
     {
         /// <summary>
         /// The original span.
         /// </summary>
-        public ReadOnlySpan<byte> Span { get; }
+        internal Span<byte> Span { get; }
 
         /// <summary>
         /// The current position inside the span. A valid range is [0..Span.Length].
@@ -32,17 +32,22 @@ namespace BuildXL.Utilities.Serialization
         public bool IsEnd => Span.Length == Position;
 
         /// <summary>
-        /// Returns a remaining length available by the reader.
+        /// Returns a remaining length available to the writer.
         /// </summary>
         public int RemainingLength => Span.Length - Position;
 
         /// <summary>
         /// Gets the remaining data in the original span.
         /// </summary>
-        public ReadOnlySpan<byte> Remaining => Span.Slice(Position);
+        public Span<byte> Remaining => Span.Slice(Position);
+
+        /// <summary>
+        /// Gets the written data in the original span.
+        /// </summary>
+        public Span<byte> WrittenBytes => Span.Slice(0, Position);
 
         /// <nodoc />
-        public SpanReader(ReadOnlySpan<byte> span)
+        public SpanWriter(Span<byte> span)
         {
             Span = span;
             Position = 0;
@@ -50,10 +55,10 @@ namespace BuildXL.Utilities.Serialization
 
         /// <nodoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public byte ReadByte()
+        public void WriteByte(byte b)
         {
             EnsureLength(sizeof(byte));
-            return Span[Position++];
+            Span[Position++] = b;
         }
 
         /// <summary>
@@ -68,24 +73,14 @@ namespace BuildXL.Utilities.Serialization
             Position += length;
         }
 
-        /// <summary>
-        /// The method returns a byte array from <seealso cref="Span"/>.
-        /// Please note, that the length of the final array might be smaller than the given <paramref name="length"/>.
-        /// </summary>
-        public ReadOnlySpan<byte> ReadSpan(int length, bool allowIncomplete = false)
+        /// <nodoc />
+        public void WriteSpan(ReadOnlySpan<byte> source)
         {
-            // This implementation mimics the one from BinaryReader that allows
-            // getting back an array of a smaller size than requested.
-            if (allowIncomplete)
-            {
-                length = Math.Min(RemainingLength, length);
-            }
-
-            var result = Span.Slice(Position, length);
-            Position += length;
-            return result;
+            EnsureLength(source.Length);
+            source.CopyTo(Span.Slice(Position, source.Length));
+            Position += source.Length;
         }
-        
+
         internal void EnsureLength(int minLength)
         {
             if (RemainingLength < minLength)
@@ -96,15 +91,9 @@ namespace BuildXL.Utilities.Serialization
         }
 
         /// <nodoc />
-        public static implicit operator SpanReader(Span<byte> span)
+        public static implicit operator SpanWriter(Span<byte> span)
         {
-            return new SpanReader(span);
-        }
-
-        /// <nodoc />
-        public static implicit operator SpanReader(ReadOnlySpan<byte> span)
-        {
-            return new SpanReader(span);
+            return new SpanWriter(span);
         }
     }
 }

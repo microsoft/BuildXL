@@ -206,8 +206,7 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         public static Fingerprint Deserialize(ref SpanReader reader)
         {
             var length = reader.ReadByte();
-            var buffer = ReadOnlyFixedBytes.FromSpan(reader.ReadSpan(length: length));
-            return new Fingerprint(buffer, length);
+            return Deserialize(length, ref reader);
         }
 
         /// <summary>
@@ -215,7 +214,7 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         /// </summary>
         public static Fingerprint Deserialize(int length, ref SpanReader reader)
         {
-            var buffer = ReadOnlyFixedBytes.FromSpan(reader.ReadSpan(length));
+            var buffer = ReadOnlyFixedBytes.FromSpan(reader.ReadSpan(length, allowIncomplete: true));
             return new Fingerprint(buffer, length);
         }
 

@@ -11,6 +11,8 @@ using BuildXL.Native.IO;
 using BuildXL.Utilities;
 using static BuildXL.Utilities.FormattableStringEx;
 
+#nullable enable
+
 namespace BuildXL.Native.Processes.Windows
 {
     /// <summary>
@@ -19,6 +21,7 @@ namespace BuildXL.Native.Processes.Windows
     public partial class ProcessUtilitiesWin
     {
         private const string s_containerDescription = "<container></container>";
+        private static Lazy<IntPtr> s_containerDescriptionHandle = new (() => CreateCommonDefaultContainerDescription());
 
         // Win32 errors
         private const int ERROR_SERVICE_ALREADY_RUNNING = 0x00000420;
@@ -82,40 +85,35 @@ namespace BuildXL.Native.Processes.Windows
             }
         }
 
-        /// <summary><see cref="ProcessUtilities.AttachContainerToJobObject(IntPtr, IReadOnlyDictionary{ExpandedAbsolutePath, IReadOnlyList{ExpandedAbsolutePath}}, bool, IEnumerable{string}, NativeContainerUtilities.BfSetupFilterFlags, out IEnumerable{string})"/></summary>
+        /// <summary><see cref="ProcessUtilities.AttachContainerToJobObject(IntPtr, IReadOnlyDictionary{ExpandedAbsolutePath, IReadOnlyList{ExpandedAbsolutePath}}, bool, IEnumerable{string}, NativeContainerUtilities.BfSetupFilterFlags, Action{IntPtr, ICollection{string}}, out IEnumerable{string})"/></summary>
         public void AttachContainerToJobObject(
             IntPtr hJob,
-            IReadOnlyDictionary<ExpandedAbsolutePath, IReadOnlyList<ExpandedAbsolutePath>> redirectedDirectories,
+            IReadOnlyDictionary<ExpandedAbsolutePath, IReadOnlyList<ExpandedAbsolutePath>> redirectedDirToSourceDirsMap,
             bool enableWciFilter,
             IEnumerable<string> bindFltExclusions,
             NativeContainerUtilities.BfSetupFilterFlags bindFltFlags,
+            Action<IntPtr, ICollection<string>>? customJobObjectCustomization,
             out IEnumerable<string> warnings)
         {
             try
             {
-                if (NativeContainerUtilities.WcCreateDescriptionFromXml(s_containerDescription, out var description) != 0)
-                {
-                    throw new NativeWin32Exception(Marshal.GetLastWin32Error(), I($"Unable to create a description for a container for job object {hJob}."));
-                }
-
-                if (NativeContainerUtilities.WcCreateContainer(hJob, description, isServerSilo: false) != 0)
+                // Activate container functionality on the job object. Used by both WCI and Bind.
+                if (NativeContainerUtilities.WcCreateContainer(hJob, s_containerDescriptionHandle.Value, isServerSilo: false) != 0)
                 {
                     throw new NativeWin32Exception(Marshal.GetLastWin32Error(), I($"Unable to create a container for job object {hJob}."));
                 }
 
-                NativeContainerUtilities.WcDestroyDescription(description);
-
-                var wciRetries = new List<string>();
-
-                // USE_CURRENT_SILO_MAPPING has to be passed when WCI and Bind are configured for the same silo (job object).
-                if (enableWciFilter)
+                var warningList = new List<string>();
+                if (customJobObjectCustomization is null)
                 {
-                    bindFltFlags |= NativeContainerUtilities.BfSetupFilterFlags.BINDFLT_FLAG_USE_CURRENT_SILO_MAPPING;
+                    ConfigureContainer(hJob, redirectedDirToSourceDirsMap, enableWciFilter, warningList, bindFltExclusions, bindFltFlags);
                 }
-                
-                ConfigureContainer(hJob, redirectedDirectories, enableWciFilter, wciRetries, bindFltExclusions, bindFltFlags);
+                else
+                {
+                    customJobObjectCustomization(hJob, warningList);
+                }
 
-                warnings = wciRetries;
+                warnings = warningList;
             }
             catch(NativeWin32Exception ex)
             {
@@ -138,6 +136,16 @@ namespace BuildXL.Native.Processes.Windows
             return cleanUpErrors.Count == 0;
         }
 
+        private static IntPtr CreateCommonDefaultContainerDescription()
+        {
+            if (NativeContainerUtilities.WcCreateDescriptionFromXml(s_containerDescription, out IntPtr descriptionHandle) != 0)
+            {
+                throw new NativeWin32Exception(Marshal.GetLastWin32Error(), I($"Unable to create a common container description."));
+            }
+
+            return descriptionHandle;
+        }
+
         private static bool LoadFilterSuccessful(int win32Error)
         {
             // The result of trying to load the filter should be either S_OK or the filter should be there/already running
@@ -146,13 +154,19 @@ namespace BuildXL.Native.Processes.Windows
 
         private static void ConfigureContainer(
             IntPtr hJob,
-            IReadOnlyDictionary<ExpandedAbsolutePath, IReadOnlyList<ExpandedAbsolutePath>> mapping,
+            IReadOnlyDictionary<ExpandedAbsolutePath, IReadOnlyList<ExpandedAbsolutePath>> redirectedDirToSourceDirsMap,
             bool enableWciFilter,
             List<string> wciRetries,
             IEnumerable<string> bindFltExclusions,
             NativeContainerUtilities.BfSetupFilterFlags bindFltFlags)
         {
-            foreach (var kvp in mapping)
+            // USE_CURRENT_SILO_MAPPING has to be passed when WCI and Bind are configured for the same silo (job object).
+            if (enableWciFilter)
+            {
+                bindFltFlags |= NativeContainerUtilities.BfSetupFilterFlags.BINDFLT_FLAG_USE_CURRENT_SILO_MAPPING;
+            }
+
+            foreach (var kvp in redirectedDirToSourceDirsMap)
             {
                 IReadOnlyCollection<ExpandedAbsolutePath> sourcePaths = kvp.Value;
                 string destinationPath = kvp.Key.ExpandedPath;
@@ -192,35 +206,33 @@ namespace BuildXL.Native.Processes.Windows
             }
 
             var reparsePointData = new NativeContainerUtilities.WC_REPARSE_POINT_DATA
-                                   {
-                                       Flags = 0,
-                                       LayerId = layerDescriptors[0].LayerId,
-                                       NameLength = 0,
-                                       Name = string.Empty
-                                   };
+            {
+                Flags = 0,
+                LayerId = layerDescriptors[0].LayerId,
+                NameLength = 0,
+                Name = string.Empty
+            };
 
-            var hresult = -1;
-            hresult = NativeContainerUtilities.WciSetReparsePointData(
+            int hresult = NativeContainerUtilities.WciSetReparsePointData(
                 destinationPath,
                 ref reparsePointData,
                 (UInt16)Marshal.OffsetOf(typeof(NativeContainerUtilities.WC_REPARSE_POINT_DATA), "Name"));
-
             if (hresult != 0)
             {
                 throw new NativeWin32Exception(Marshal.GetLastWin32Error(), I($"Unable to setup the reparse point data for '{destinationPath}'."));
             }
 
             hresult = -1;
-            // We try to setup the WCI filter on a retry loop to workaround an existing issue
+            // We try to setup the WCI filter on a retry loop to work around an existing issue
             // in the driver behavior, where the setup sometimes fails.
             var retries = s_wciRetries;
             while (hresult != 0 && retries > 0)
             {
                 // Isolation is set to hard because we want the virtualized source path to be
-                // completely isolated (e.g. with 'hard' we will get copy-on-write behavior and
+                // completely isolated (i.e. with 'hard' we will get copy-on-write behavior and
                 // tombstones when any deletion happens inside the container).
-                // It is also set as sparse so all layers recursively merge without needing an explicit reparse point
-                // for each of them
+                // Set as sparse so all layers recursively merge without needing an explicit reparse point
+                // for each of them.
                 hresult = NativeContainerUtilities.WciSetupFilter(
                     hJob,
                     NativeContainerUtilities.WC_ISOLATION_MODE.IsolationModeSparseHard,
@@ -238,7 +250,7 @@ namespace BuildXL.Native.Processes.Windows
 
             if (hresult != 0)
             {
-                throw new NativeWin32Exception(Marshal.GetLastWin32Error(), I($"Unable to setup the WCI filter for source paths '{string.Join(Environment.NewLine, sourcePaths)}' to destination path '{destinationPath}'."));
+                throw new NativeWin32Exception(hresult, I($"Unable to setup the WCI filter for source paths '{string.Join(Environment.NewLine, sourcePaths)}' to destination path '{destinationPath}'. Details: {NativeWin32Exception.GetFormattedMessageForNativeErrorCode(hresult)}"));
             }
         }
 

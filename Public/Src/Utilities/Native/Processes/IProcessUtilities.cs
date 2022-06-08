@@ -18,6 +18,8 @@ using BuildXL.Utilities;
 using JetBrains.Annotations;
 using Microsoft.Win32.SafeHandles;
 
+#nullable enable
+
 namespace BuildXL.Native.Processes
 {
     /// <summary>
@@ -50,7 +52,7 @@ namespace BuildXL.Native.Processes
         IntPtr GetCurrentProcess();
 
         /// <summary><see cref="ProcessUtilities.IsWow64Process"/></summary>
-        bool IsWow64Process([CanBeNull]SafeProcessHandle process);
+        bool IsWow64Process(SafeProcessHandle? process);
 
         /// <summary><see cref="ProcessUtilities.GetProcessTimes"/></summary>
         bool GetProcessTimes(IntPtr handle, out long creation, out long exit, out long kernel, out long user);
@@ -74,7 +76,7 @@ namespace BuildXL.Native.Processes
         IProcessInjector CreateProcessInjector(Guid payloadGuid, SafeHandle remoteInjectorPipe, SafeHandle reportPipe, string dllX86, string dllX64, ArraySegment<byte> payload);
 
         /// <summary><see cref="ProcessUtilities.SerializeEnvironmentBlock"/></summary>
-        byte[] SerializeEnvironmentBlock(IReadOnlyDictionary<string, string> environmentVariables);
+        byte[]? SerializeEnvironmentBlock(IReadOnlyDictionary<string, string>? environmentVariables);
 
         /// <summary><see cref="ProcessUtilities.CreateDetouredProcess"/></summary>
         CreateDetouredProcessStatus CreateDetouredProcess(string lpcwCommandLine, int dwCreationFlags, IntPtr lpEnvironment, string lpcwWorkingDirectory, SafeHandle hStdInput, SafeHandle hStdOutput, SafeHandle hStdError, SafeHandle hJob, IProcessInjector injector, bool addProcessToContainer, out SafeProcessHandle phProcess, out SafeThreadHandle phThread, out int pdwProcessId, out int errorCode);
@@ -113,6 +115,7 @@ namespace BuildXL.Native.Processes
             bool enableWciFilter,
             IEnumerable<string> bindFltExclusions,
             NativeContainerUtilities.BfSetupFilterFlags bindFltFlags,
+            Action<IntPtr, ICollection<string>>? customJobObjectCustomization,
             out IEnumerable<string> warnings);
 
         /// <summary><see cref="ProcessUtilities.TryCleanUpContainer"/></summary>

@@ -21,6 +21,8 @@ using BuildXL.Interop.Windows;
 using BuildXL.Utilities;
 using Microsoft.Win32.SafeHandles;
 
+#nullable enable
+
 namespace BuildXL.Native.Processes.Windows
 {
     /// <summary>
@@ -92,7 +94,7 @@ namespace BuildXL.Native.Processes.Windows
 
         /// <inheritdoc />
         [SuppressMessage("Microsoft.Reliability", "CA2001:AvoidCallingProblematicMethods")]
-        public bool IsWow64Process(SafeProcessHandle process)
+        public bool IsWow64Process(SafeProcessHandle? process)
         {
             IntPtr handle = process == null ? GetCurrentProcess() : process.DangerousGetHandle();
 
@@ -133,7 +135,7 @@ namespace BuildXL.Native.Processes.Windows
             => new ProcessInjectorWin(payloadGuid, remoteInjectorPipe, reportPipe, dllX86, dllX64, payload);
 
         /// <inheritdoc />
-        public byte[] SerializeEnvironmentBlock(IReadOnlyDictionary<string, string> environmentVariables)
+        public byte[]? SerializeEnvironmentBlock(IReadOnlyDictionary<string, string>? environmentVariables)
         {
             if (environmentVariables == null)
             {
@@ -223,7 +225,7 @@ namespace BuildXL.Native.Processes.Windows
         {
             Assert64Process();
 
-            byte[] serializedEnvironmentBlock = SerializeEnvironmentBlock(environmentVariables);
+            byte[]? serializedEnvironmentBlock = SerializeEnvironmentBlock(environmentVariables);
 
             var status = ExternCreateDetachedProcess(
                 commandLine,
@@ -378,7 +380,7 @@ namespace BuildXL.Native.Processes.Windows
         [return: MarshalAs(UnmanagedType.I4)]
         private static extern CreateDetachedProcessStatus ExternCreateDetachedProcess(
             [MarshalAs(UnmanagedType.LPWStr)] string lpcwCommandLine,
-            [MarshalAs(UnmanagedType.LPArray)] byte[] lpEnvironment,
+            [MarshalAs(UnmanagedType.LPArray)] byte[]? lpEnvironment,
             [MarshalAs(UnmanagedType.LPWStr)] string lpcwWorkingDirectory,
             out int pdwProcessId);
 

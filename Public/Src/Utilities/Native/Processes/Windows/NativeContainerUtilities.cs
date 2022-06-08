@@ -49,7 +49,16 @@ namespace BuildXL.Native.Processes.Windows
         public static readonly Version MinimumRequiredVersion = Version.Parse("10.0.18301.1000");
 
         /// <summary>
-        /// Isolation mode for the WCI filter
+        /// Isolation mode for a WCI filter instance.
+        ///
+        /// Sparse indicates that all layers in a session are sparse and should be automatically merged into
+        /// a combined view; non-sparse indicates that layers are logically separate and that any file that
+        /// should appear in a "higher" layer must have a WCI session specific reparse point set to allow the
+        /// lower layer file to be visible.
+        ///
+        /// Hard isolation provides copy-on-write behavior from lower layers - when a file in the view is rewritten,
+        /// file content from a lower layer is promoted into the writable layer for modification or append. Hard
+        /// isolation also creates tombstones in the writable layer indicating deleted files.
         /// </summary>
         public enum WC_ISOLATION_MODE
         {
@@ -101,13 +110,26 @@ namespace BuildXL.Native.Processes.Windows
             public GUID LayerId;
 
             //
-            // Virtual (i.e. relative to the layer root) name of the fully expanded
-            // file NameLength is in characters and does not include a NULL character.
+            // Virtual (i.e. relative to the layer root) name of the fully expanded file.
+            // NameLength is in characters and does not include a NULL character.
             //
             public uint NameLength;
 
             [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 1)]
             public string Name;
+        }
+
+        /// <summary>
+        /// Reparse point types. Some of these types translate to different tags
+        /// based on the nesting mode.
+        /// </summary>
+        // Ref: wcifs.h
+        public enum WC_REPARSE_POINT_TYPE
+        {
+            WcReparseTypePlaceholder,
+            WcReparseTypeLink,
+            WcReparseTypeTombstone,
+            WcReparseTypeMaximum
         }
 
         /// <summary>
@@ -117,10 +139,31 @@ namespace BuildXL.Native.Processes.Windows
         public enum LayerDescriptorFlags : uint
         {
             None = 0x0,
+
+            /// <summary>
+            /// This layer was created from the sandbox as a result of a snapshot.
+            /// </summary>
             Dirty = 1,
+
+            /// <summary>
+            /// This layer is considered part of the base image.
+            /// </summary>
             Base =  1 << 1,
+
+            /// <summary>
+            /// Indicates this layer is the host operating system.
+            /// </summary>
             Host = 1 << 2,
+
+            /// <summary>
+            /// This layer is sparse, meaning it merges with lower and higher layers to create a combined
+            /// filesystem view. This value can also be set for a whole WCI session using <see cref="WC_ISOLATION_MODE"/>.
+            /// </summary>
             Sparse = 1 << 3,
+
+            /// <summary>
+            /// Inherits security descriptors from lower layers.
+            /// </summary>
             InheritSecurity = 1 << 4,
         }
 
@@ -301,23 +344,26 @@ namespace BuildXL.Native.Processes.Windows
         public static extern void WcDestroyDescription([In] IntPtr description);
 
         /// <summary>
-        /// Creates a container given a custom container description.
+        /// Adds container functionality to an existing job object.
         /// </summary>
+        /// <returns>An NTSTATUS code.</returns>
         [DllImport(ExternDll.Container, SetLastError = true, CharSet = CharSet.Unicode)]
         public static extern int WcCreateContainer([In] IntPtr jobHandle, [In] IntPtr description, [In] bool isServerSilo);
 
         /// <summary>
         /// This routine will clean up permanent artifacts associated with a given
-        /// container that do not disappear with the job artifact. It should be
+        /// container that do not disappear with the job object. It should be
         /// called after a container is done running.
         /// </summary>
+        /// <returns>An NTSTATUS code.</returns>
         [DllImport(ExternDll.Container, SetLastError = true, CharSet = CharSet.Unicode)]
         public static extern int WcCleanupContainer([In] IntPtr jobHandle, [In] [MarshalAs(UnmanagedType.LPWStr)] string volume);
 
         /// <summary>
-        /// Sets up the WCIFS filter for the silo specified by the JobHandle, with the specified IsolationMode.
+        /// Sets up the WCIFS filter for the silo (job object) specified by the JobHandle, with the specified IsolationMode.
         /// It also takes in a path to a scratch root and a list of Layer Descriptors to configure the mapping.
         /// </summary>
+        /// <returns>An NTSTATUS code.</returns>
         [DllImport(ExternDll.Wcifs, SetLastError = true, CharSet = CharSet.Unicode)]
         public static extern int WciSetupFilter(
             [In] IntPtr jobHandle, 
@@ -331,11 +377,7 @@ namespace BuildXL.Native.Processes.Windows
         /// <see cref="BfSetupFilterInternal(IntPtr, BfSetupFilterFlags, string, string, string[], ulong)"/>, this is a 
         /// pinvoke that uses a legacy version of bind dll.
         /// </summary>
-        [DllImport(
-            ExternDll.BindfltLegacy, 
-            SetLastError = true, 
-            CharSet = CharSet.Unicode,
-            EntryPoint = "BfSetupFilter")]
+        [DllImport(ExternDll.BindfltLegacy, SetLastError = true, CharSet = CharSet.Unicode, EntryPoint = "BfSetupFilter")]
         private static extern int BfSetupFilterLegacyInternal(
             [In] IntPtr jobHandle, 
             [In] BfSetupFilterFlags flags, 
@@ -347,11 +389,7 @@ namespace BuildXL.Native.Processes.Windows
         /// <summary>
         /// This routine attaches Bind filter to sandbox volume
         /// </summary>
-        [DllImport(
-            ExternDll.Bindflt, 
-            SetLastError = true, 
-            CharSet = CharSet.Unicode,
-            EntryPoint = "BfSetupFilter")]
+        [DllImport(ExternDll.Bindflt, SetLastError = true, CharSet = CharSet.Unicode, EntryPoint = "BfSetupFilter")]
         private static extern int BfSetupFilterInternal(
             [In] IntPtr jobHandle,
             [In] BfSetupFilterFlags flags,
@@ -363,12 +401,7 @@ namespace BuildXL.Native.Processes.Windows
         /// <summary>
         /// <see cref="BfRemoveMappingInternal(IntPtr, string)"/>, this is a pinvoke that uses a legacy version of bind dll.
         /// </summary>
-        [DllImport(
-            ExternDll.BindfltLegacy, 
-            SetLastError = true, 
-            CharSet = CharSet.Unicode,
-            EntryPoint = "BfRemoveMapping"
-            )]
+        [DllImport(ExternDll.BindfltLegacy, SetLastError = true, CharSet = CharSet.Unicode, EntryPoint = "BfRemoveMapping")]
         private static extern int BfRemoveMappingLegacyInternal([In] IntPtr jobHandle, [MarshalAs(UnmanagedType.LPWStr)] string virtualizationPath);
 
         /// <summary>
@@ -377,11 +410,7 @@ namespace BuildXL.Native.Processes.Windows
         /// <remarks>
         /// Mappings should be removed before the container is cleaned up
         /// </remarks>
-        [DllImport(
-            ExternDll.Bindflt, 
-            SetLastError = true, 
-            CharSet = CharSet.Unicode, 
-            EntryPoint = "BfRemoveMapping")]
+        [DllImport(ExternDll.Bindflt, SetLastError = true, CharSet = CharSet.Unicode, EntryPoint = "BfRemoveMapping")]
         private static extern int BfRemoveMappingInternal([In] IntPtr jobHandle, [MarshalAs(UnmanagedType.LPWStr)] string virtualizationPath);
 
         /// <summary>
@@ -422,9 +451,29 @@ namespace BuildXL.Native.Processes.Windows
         /// </summary>
         [DllImport(ExternDll.Wcifs, SetLastError = true, CharSet = CharSet.Unicode)]
         public static extern int WciSetReparsePointData(
-                [In] [MarshalAs(UnmanagedType.LPWStr)] string FilePath,
-                [In] ref WC_REPARSE_POINT_DATA reparsePointData,
-                [In] UInt16 DataSize
-        );
+            [In] [MarshalAs(UnmanagedType.LPWStr)] string FilePath,
+            [In] ref WC_REPARSE_POINT_DATA reparsePointData,
+            [In] UInt16 DataSize);
+
+        /// <summary>
+        /// Flags used with <see cref="WciSetReparsePointDataEx"/>.
+        /// </summary>
+        [Flags]
+        public enum SetReparsePointDataFlags : uint
+        {
+            None = 0x0,
+            LinkPlaceholder = 1,
+        }
+
+        /// <summary>
+        /// Creates a reparse point.
+        /// </summary>
+        [DllImport(ExternDll.Wcifs, SetLastError = true, CharSet = CharSet.Unicode)]
+        public static extern int WciSetReparsePointDataEx(
+            [In] [MarshalAs(UnmanagedType.LPWStr)] string FilePath,
+            [In] ref WC_REPARSE_POINT_DATA reparsePointData,
+            [In] UInt16 DataSize,
+            [In] SetReparsePointDataFlags Flags,
+            [In] WC_NESTING_MODE NestingMode);
     }
 }

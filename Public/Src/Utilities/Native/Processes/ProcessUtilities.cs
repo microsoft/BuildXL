@@ -17,6 +17,8 @@ using BuildXL.Native.Processes.Windows;
 using BuildXL.Utilities;
 using Microsoft.Win32.SafeHandles;
 
+#nullable enable
+
 namespace BuildXL.Native.Processes
 {
     /// <summary>
@@ -65,17 +67,12 @@ namespace BuildXL.Native.Processes
         ///
         /// The normalized path is returned as a byte array representing the encoding of the path in the native world.
         /// The return value is the hash code used in the native world.
-        /// 
-        /// @requires path != null
         /// </summary>
         public static int NormalizeAndHashPath(string path, out byte[] bytes)
             => s_nativeMethods.NormalizeAndHashPath(path, out bytes);
 
         /// <summary>
-        /// Returns if two native buffers are equal up to a given number of elements.
-        /// 
-        /// @requires buffer1 != null
-        /// @requires buffer2 != null
+        /// Returns whether two native buffers are equal.
         /// </summary>
         public static bool AreBuffersEqual(byte[] buffer1, byte[] buffer2)
             => s_nativeMethods.AreBuffersEqual(buffer1, buffer2);
@@ -113,7 +110,7 @@ namespace BuildXL.Native.Processes
             => s_nativeMethods.GetCurrentProcess();
 
         /// <nodoc />
-        public static bool IsWow64Process(SafeProcessHandle process = null)
+        public static bool IsWow64Process(SafeProcessHandle? process = null)
             => s_nativeMethods.IsWow64Process(process);
 
         /// <nodoc />
@@ -161,7 +158,7 @@ namespace BuildXL.Native.Processes
         /// Note that you must provide CREATE_UNICODE_ENVIRONMENT to CreateProcess.
         /// If a null dictionary is provided, returns null.
         /// </summary>
-        public static byte[] SerializeEnvironmentBlock(IReadOnlyDictionary<string, string> environmentVariables)
+        public static byte[]? SerializeEnvironmentBlock(IReadOnlyDictionary<string, string>? environmentVariables)
             => s_nativeMethods.SerializeEnvironmentBlock(environmentVariables);
 
         /// <nodoc />
@@ -307,6 +304,7 @@ namespace BuildXL.Native.Processes
         /// <param name="enableWciFilter">Enables WCI filter for input virtualization</param>
         /// <param name="bindFltExclusions">Paths to not apply the bindflt path transformation to.</param>
         /// <param name="bindFltFlags">Flags used to configure the Windows BindFlt driver.</param>
+        /// <param name="customJobObjectCustomization">When non-null, overrides default job object configuration.</param>
         /// <param name="warnings">Any warnings that happened during the creation of the container. The container was created successfully regardless of these.</param>
         /// <exception cref="BuildXLException">If any unrecoverable error occurs when setting up the container</exception>
         public static void AttachContainerToJobObject(
@@ -315,8 +313,9 @@ namespace BuildXL.Native.Processes
             bool enableWciFilter,
             IEnumerable<string> bindFltExclusions,
             NativeContainerUtilities.BfSetupFilterFlags bindFltFlags,
+            Action<IntPtr, ICollection<string>>? customJobObjectCustomization,
             out IEnumerable<string> warnings)
-            => s_nativeMethods.AttachContainerToJobObject(hJob, redirectedDirectories, enableWciFilter, bindFltExclusions, bindFltFlags, out warnings);
+            => s_nativeMethods.AttachContainerToJobObject(hJob, redirectedDirectories, enableWciFilter, bindFltExclusions, bindFltFlags, customJobObjectCustomization, out warnings);
 
         /// <summary>
         /// Tries to cleans up the already attached Helium container to the given job object for all the volumes

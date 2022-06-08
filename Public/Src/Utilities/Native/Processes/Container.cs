@@ -44,6 +44,7 @@ namespace BuildXL.Processes.Containers
                             m_containerConfiguration.EnableWciFilter,
                             m_containerConfiguration.BindFltExcludedPaths.Select(p => p.ToString()),
                             m_containerConfiguration.BindFltFlags,
+                            m_containerConfiguration.CustomJobObjectCustomization,
                             out var warnings);
 
             // Log any warnings when setting up the container (at this point this is just WCI retries)

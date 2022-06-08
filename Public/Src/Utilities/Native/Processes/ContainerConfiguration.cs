@@ -11,6 +11,8 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using static BuildXL.Utilities.FormattableStringEx;
 
+#nullable enable
+
 namespace BuildXL.Processes.Containers
 {
     /// <summary>
@@ -52,12 +54,22 @@ namespace BuildXL.Processes.Containers
         /// <summary>
         /// Paths that should not have BindFlt output path transformations applied to them.
         /// </summary>
-        public IReadOnlySet<ExpandedAbsolutePath> BindFltExcludedPaths { get; }
+        public IReadOnlySet<ExpandedAbsolutePath>? BindFltExcludedPaths { get; }
 
         /// <summary>
         /// Additional flags to pass for BindFlt filter configuration.
         /// </summary>
         public NativeContainerUtilities.BfSetupFilterFlags BindFltFlags { get; }
+
+        /// <summary>
+        /// Optional callback to allow custom container configuration of a job object.
+        /// When non-null, the WCI and Bind filters are enabled for the job object, but no
+        /// container layer or BindFlt path mappings are applied.
+        /// First parameter is the Windows job object handle. Second parameter is a
+        /// non-threadsafe collection of non-fatal warnings to be passed back to the caller
+        /// for logging and debugging purposes.
+        /// </summary>
+        public Action<IntPtr, ICollection<string>>? CustomJobObjectCustomization { get; }
 
         /// <summary>
         /// No isolation
@@ -71,16 +83,15 @@ namespace BuildXL.Processes.Containers
         /// Creates a configuration created for a specific process
         /// </summary>
         public ContainerConfiguration(
-            PathTable pathTable,
+            PathTable? pathTable,
             IReadOnlyDictionary<ExpandedAbsolutePath, IReadOnlyList<ExpandedAbsolutePath>> redirectedDirectories,
             IReadOnlyDictionary<AbsolutePath, IReadOnlyList<ExpandedAbsolutePath>> originalDirectories,
             bool enableWciFilter = true,
-            IReadOnlySet<ExpandedAbsolutePath> bindFltExcludedPaths = null,
-            NativeContainerUtilities.BfSetupFilterFlags bindFltFlags = NativeContainerUtilities.BfSetupFilterFlags.None)
+            IReadOnlySet<ExpandedAbsolutePath>? bindFltExcludedPaths = null,
+            NativeContainerUtilities.BfSetupFilterFlags bindFltFlags = NativeContainerUtilities.BfSetupFilterFlags.None,
+            Action<IntPtr, ICollection<string>>? customJobObjectCustomization = null)
         {
             Contract.Requires(redirectedDirectories.Count == 0 || pathTable != null);
-            Contract.Requires(redirectedDirectories != null);
-            Contract.Requires(originalDirectories != null);
 
             IsIsolationEnabled = redirectedDirectories.Count > 0;
             RedirectedDirectories = redirectedDirectories;
@@ -95,8 +106,6 @@ namespace BuildXL.Processes.Containers
         /// </summary>
         public static ContainerConfiguration CreateConfigurationForTesting(PathTable pathTable, IEnumerable<(string originalDirectory, string redirectedDirectory)> directoryRemapping)
         {
-            Contract.Requires(directoryRemapping != null);
-
             var remapping = directoryRemapping.Select(tuple =>
                 (
                     originalDirectory: new ExpandedAbsolutePath(AbsolutePath.Create(pathTable, tuple.originalDirectory), pathTable),

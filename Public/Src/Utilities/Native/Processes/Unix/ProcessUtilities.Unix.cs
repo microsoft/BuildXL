@@ -1,7 +1,6 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
@@ -11,7 +10,6 @@ using BuildXL.Interop.Unix;
 using BuildXL.Native.IO;
 using BuildXL.Native.Processes.Windows;
 using BuildXL.Utilities;
-using JetBrains.Annotations;
 using Microsoft.Win32.SafeHandles;
 
 #if FEATURE_SAFE_PROCESS_HANDLE
@@ -22,6 +20,8 @@ using ProcessHandle = System.Runtime.InteropServices.HandleRef;
 using ProcessPtr = System.IntPtr;
 using SafeProcessHandle = BuildXL.Interop.Windows.SafeProcessHandle;
 #endif
+
+#nullable enable
 
 namespace BuildXL.Native.Processes.Unix
 {
@@ -89,7 +89,7 @@ namespace BuildXL.Native.Processes.Unix
             => throw new NotImplementedException();
 
         /// <inheritdoc />
-        public bool IsWow64Process([CanBeNull] SafeProcessHandle process)
+        public bool IsWow64Process(SafeProcessHandle? process)
             => throw new NotImplementedException();
 
         /// <inheritdoc />
@@ -121,8 +121,8 @@ namespace BuildXL.Native.Processes.Unix
             => throw new NotImplementedException();
 
         /// <inheritdoc />
-        public byte[] SerializeEnvironmentBlock(IReadOnlyDictionary<string, string> environmentVariables)
-            => new byte[0]; // TODO: this is only used for communication between BuildXL and external sandboxed process, which we don't do yet on Unix systems.
+        public byte[]? SerializeEnvironmentBlock(IReadOnlyDictionary<string, string>? environmentVariables)
+            => Array.Empty<byte>(); // TODO: this is only used for communication between BuildXL and external sandboxed process, which we don't do yet on Unix systems.
 
         /// <inheritdoc />
         public CreateDetouredProcessStatus CreateDetouredProcess(string lpcwCommandLine, int dwCreationFlags, IntPtr lpEnvironment, string lpcwWorkingDirectory, SafeHandle hStdInput, SafeHandle hStdOutput, SafeHandle hStdError, SafeHandle hJob, IProcessInjector injector, bool addProcessToSilo, out SafeProcessHandle phProcess, out SafeThreadHandle phThread, out int pdwProcessId, out int errorCode)
@@ -169,6 +169,7 @@ namespace BuildXL.Native.Processes.Unix
             bool enableWciFilter,
             IEnumerable<string> bindFltExclusions,
             NativeContainerUtilities.BfSetupFilterFlags bindFltFlags,
+            Action<IntPtr, ICollection<string>>? customJobObjectCustomization,
             out IEnumerable<string> warnings)
             => throw new NotImplementedException();
 

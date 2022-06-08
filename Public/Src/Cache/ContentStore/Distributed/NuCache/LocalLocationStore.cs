@@ -455,7 +455,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Restore checkpoint.
         /// </summary>
-        internal async Task<BoolResult> ProcessStateAsync(OperationContext context, bool inline, bool forceRestore = false)
+        internal async Task<BoolResult> ProcessStateAsync(OperationContext context, CheckpointState checkpointState, MasterElectionState masterElectionState, bool inline, bool forceRestore = false)
         {
             var operationResult = await RunOutOfBandAsync(
                 Configuration.InlinePostInitialization || inline,
@@ -467,16 +467,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     {
                         forceRestore = true;
                         _forceRestoreOnNextProcessState = false;
-                    }
-
-                    var checkpointState = await _checkpointRegistry.GetCheckpointStateAsync(context).ThrowIfFailureAsync();
-
-                    var masterElectionState = await MasterElectionMechanism.GetRoleAsync(context).ThrowIfFailureAsync();
-
-                    if (_coldStorage != null)
-                    {
-                        // We update the ColdStorage consistent-hashing ring on every heartbeat in case the cluster state has changed 
-                        _coldStorage.UpdateRingAsync(context, ClusterState).FireAndForget(context);
                     }
 
                     var oldRole = CurrentRole;
@@ -690,7 +680,19 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                             return true;
                         }
 
-                        await ProcessStateAsync(context, inline, forceRestore).ThrowIfFailureAsync();
+                        // It is very important that GetRoleAsync is called on every heartbeat to update the master information
+                        // and not inside 'ProcessStateAsync' methodthat might take a reasonable time to complete (20+ minutes in some cases).
+                        var checkpointState = await _checkpointRegistry.GetCheckpointStateAsync(context).ThrowIfFailureAsync();
+
+                        var leadershipState = await MasterElectionMechanism.GetRoleAsync(context).ThrowIfFailureAsync();
+
+                        if (_coldStorage != null)
+                        {
+                            // We update the ColdStorage consistent-hashing ring on every heartbeat in case the cluster state has changed 
+                            _coldStorage.UpdateRingAsync(context, ClusterState).FireAndForget(context);
+                        }
+
+                        await ProcessStateAsync(context, checkpointState, leadershipState, inline, forceRestore).ThrowIfFailureAsync();
 
                         return false;
                     }

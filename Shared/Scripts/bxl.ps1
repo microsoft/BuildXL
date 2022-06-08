@@ -218,6 +218,9 @@ if ($DominoArguments -eq $null) {
 # Use Env var to check for microsoftInternal
 $isMicrosoftInternal = [Environment]::GetEnvironmentVariable("[Sdk.BuildXL]microsoftInternal") -eq "1"
 
+# TF_BUILD is an environment variable which is always present when running on ADO
+[bool] $isRunningOnADO = [Environment]::GetEnvironmentVariable("TF_BUILD")
+
 # Even if managed shared compilation was requested to be on, we turn it off when:
 # - /ado option is present, so AzDevOps scenarios are kept unchanged. 
 # - this is not considered an internal build
@@ -225,7 +228,7 @@ $isMicrosoftInternal = [Environment]::GetEnvironmentVariable("[Sdk.BuildXL]micro
 # TODO: Enable shared compilation for -EnableProcessRemoting.
 #       Currently some builds failed to write outputs. Need more investigation.
 if ($UseManagedSharedCompilation -and 
-        (($DominoArguments -like '*/ado*') -or (-not $isMicrosoftInternal) -or $EnableProcessRemoting)) {
+        ($isRunningOnADO -or (-not $isMicrosoftInternal) -or $EnableProcessRemoting)) {
     $UseManagedSharedCompilation = $false
 }
 
@@ -311,7 +314,7 @@ $AdditionalBuildXLArguments += @("/remotetelemetry", "/reuseOutputsOnDisk+", "/e
 
 # Lazy shared opaque deletion is an experimental feature. We want to turn it on only for internal builds and when this script is not 
 # running under ADO (so we keep the feature out of PR validations for now).
-if (-not ($DominoArguments -like '*/ado*') -and $isMicrosoftInternal) {
+if (-not $isRunningOnADO -and $isMicrosoftInternal) {
     $AdditionalBuildXLArguments += @("/exp:LazySODeletion");
 }
 
@@ -744,7 +747,7 @@ if ($env:BUILDXL_ADDITIONAL_DEFAULTS)
     $AdditionalBuildXLArguments += $env:BUILDXL_ADDITIONAL_DEFAULTS
 }
 
-if ($DominoArguments -like '*/ado*')
+if ($isRunningOnADO)
 {
     # On ADO, let's make sure we scrub stale files to avoid CG issues on unused packages
     # Nuget packages go under the Object directory. The download resolver places the downloads under frontend/Download.
@@ -760,7 +763,7 @@ if ($DominoArguments -like '*/ado*')
 # This may prompt an interactive pop-up/console. ADO pipelines already configure the corresponding env vars 
 # so there is no need to do this on that case. Once the token is cached, launching the provider shouldn't need
 # any user interaction
-if ($isMicrosoftInternal -and (-not ($DominoArguments -like '*/ado*'))) {
+if ($isMicrosoftInternal -and (-not $isRunningOnADO)) {
     # Search for the provider executable under ther specified directory
     $credProvider = Get-ChildItem $Nuget_CredentialProviders_Path\* -File -Include CredentialProvider*.exe | Select-Object -First 1
 

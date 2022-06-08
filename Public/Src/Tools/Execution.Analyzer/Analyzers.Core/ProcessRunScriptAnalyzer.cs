@@ -406,6 +406,16 @@ namespace BuildXL.Execution.Analyzer
 #endif
                 writer.WriteLine();
 
+                writer.WriteLine($"{CommentPrefix} Creating Output Directories");
+                foreach (var directory in GetOutputDirectories(pip))
+                {
+                    if (directory.IsValid)
+                    {
+                        writer.WriteLine($"{DirectoryCreationCommand} \"{directory.ToString(PathTable)}\"");
+                    }
+                }
+                writer.WriteLine();
+
                 writer.WriteLine($"{CommentPrefix} Setting PIP Environment Variables");
                 foreach (var environmentVariable in environment)
                 {
@@ -550,16 +560,6 @@ namespace BuildXL.Execution.Analyzer
                         }
 
                         DeleteOutputs(writer, pip);
-
-                        writer.WriteLine($"{CommentPrefix} Creating Output Directories");
-                        foreach (var directory in GetOutputDirectories(pip))
-                        {
-                            if (directory.IsValid)
-                            {
-                                writer.WriteLine($"{DirectoryCreationCommand} \"{directory.ToString(PathTable)}\"");
-                            }
-                        }
-                        writer.WriteLine();
 
                         SetupEnvironment(writer, pip, outputFile);
 

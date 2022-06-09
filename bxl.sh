@@ -278,8 +278,26 @@ if [[ -n "$arg_Internal" &&  ! -n "$TF_BUILD" ]];then
 fi
 
 # Make sure we pass the credential provider as an env var to bxl invocation
-if [[ -n $NUGET_CREDENTIALPROVIDER_PATH ]];then
+if [[ -n $NUGET_CREDENTIALPROVIDERS_PATH ]];then
     arg_Positional+=("/p:NUGET_CREDENTIALPROVIDERS_PATH=$NUGET_CREDENTIALPROVIDERS_PATH")
+fi
+
+# If this is an internal build running on ADO, the nuget authentication is non-interactive and therefore we need to setup
+# VSS_NUGET_EXTERNAL_FEED_ENDPOINTS if not configured, so the Microsoft credential provider can pick that up. The script assumes the corresponding
+# secrets to be exposed in the environment
+if [[ -n "$arg_Internal" &&  -n "$TF_BUILD" && (! -n $VSS_NUGET_EXTERNAL_FEED_ENDPOINTS)]];then
+
+    if [[ (! -n $PAT1esSharedAssets) ]]; then
+        print_error "Environment variable PAT1esSharedAssets is not set."
+        exit 1
+    fi
+
+    if [[ (! -n $PATCloudBuild) ]]; then
+        print_error "Environment variable PATCloudBuild is not set."
+        exit 1
+    fi
+
+    export VSS_NUGET_EXTERNAL_FEED_ENDPOINTS="{\"endpointCredentials\":[{\"endpoint\":\"https://pkgs.dev.azure.com/1essharedassets/_packaging/BuildXL/nuget/v3/index.json\",\"password\":\"$PAT1esSharedAssets\"},{\"endpoint\":\"https://pkgs.dev.azure.com/cloudbuild/_packaging/BuildXL.Selfhost/nuget/v3/index.json\",\"password\":\"$PATCloudBuild\"}]}" 
 fi
 
 compileWithBxl ${arg_Positional[@]}

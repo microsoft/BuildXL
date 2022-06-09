@@ -21,20 +21,14 @@ jobs:
   - checkout: self
     fetchDepth: 1
 
-  # see https://docs.microsoft.com/en-us/azure/devops/pipelines/release/caching?view=azure-devops for how the Cache task works
-  - task: Cache@2
+  # Azure Key Vault
+  # Download Azure Key Vault secrets
+  - task: AzureKeyVault@2
     inputs:
-      # we'll get a cache hit against the first successful build where the content of 'cgmanifest.json' was the same
-      key: '"nuget" | "1" | "$(Agent.OS)" | ./cg/nuget/cgmanifest.json'
-      # if no cache entry is already associated with 'key', the most recent cache entry associated with the key prefix below (if any) will be restored
-      restoreKeys: |
-        "nuget" | "1" | "$(Agent.OS)"
-        "nuget" | "1"
-      # downloading/uploading the content of this folder (~4GB) takes 0.5-2 minutes, while restoring all NuGets from BuildXL takes 5-8 minutes
-      path: Out/frontend/Nuget
-    displayName: Cache NuGet packages
-    continueOnError: true
-    timeoutInMinutes: 10
+      connectedServiceName: CloudBuild-PME-PROD-KV-01
+      keyVaultName: BuildXLVaultRelease
+      secretsFilter: '*'
+      runAsPreJob: true 
 
   - task: Cache@2
     inputs:
@@ -61,6 +55,10 @@ jobs:
       set -eu
       bash bxl.sh $(BxlCommonArgs) --minimal --internal --deploy-dev-release
     displayName: Build
+    env:
+      PAT1esSharedAssets: $(PAT-TseBuild-AzureDevOps-1esSharedAssets-Package-Read)
+      PATCloudBuild: $(PAT-TseBuild-AzureDevOps-CloudBuild-Packaging-Read)
+
 
   - bash: |
       echo "== Deleting Out/frontend/Nuget/tmp folder to reduce the size of the NuGet cache dir"
@@ -83,6 +81,9 @@ jobs:
         run_build
       }
     displayName: Test
+    env:
+      PAT1esSharedAssets: $(PAT-TseBuild-AzureDevOps-1esSharedAssets-Package-Read)
+      PATCloudBuild: $(PAT-TseBuild-AzureDevOps-CloudBuild-Packaging-Read)
 
   - task: PublishPipelineArtifact@1
     displayName: Upload BuildXL Logs

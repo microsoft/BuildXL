@@ -3618,19 +3618,19 @@ namespace BuildXL.Scheduler
                     }
                 }
 
-                if (pipRuntimeInfo.Result == PipExecutionLevel.Executed)
+                // If a pip is a cache miss we consider it part of a path of misses
+                // and we inform the dependent so it can update the length of its maximal path of misses
+                // We only consider successive process pips in a dependency chain for this computation,
+                // so non-process pips just forward the accumulated value.
+                if (runnablePip.PipType != PipType.Process)
                 {
-                    // If the pip was executed (i.e. not a cache hit) we consider it part of a path of misses
-                    // and we inform the dependent so it can update the length of its maximal path of misses
-                    // We only increment the path length when a process pip is executed: metadata pips
-                    // don't contribute to the length but still propagate the fact that there are consecutive misses
-                    int upstreamLongestMissChain = pipRuntimeInfo.UpstreamCacheMissLongestChain;
-                    if (runnablePip.PipType == PipType.Process)
-                    {
-                        upstreamLongestMissChain++;
-                    }
-
-                    dependentPipRuntimeInfo.InformDependencyCacheMissChain(upstreamLongestMissChain);
+                    // If the pip is not a process pip just propagate the number
+                    dependentPipRuntimeInfo.InformDependencyCacheMissChain(pipRuntimeInfo.UpstreamCacheMissLongestChain);
+                }
+                else if (pipRuntimeInfo.Result == PipExecutionLevel.Executed)
+                {
+                    // A cache-miss process pip increments the length
+                    dependentPipRuntimeInfo.InformDependencyCacheMissChain(pipRuntimeInfo.UpstreamCacheMissLongestChain + 1);
                 }
 
                 // Decrement reference count and possibly queue the pip (even if it is doomed to be skipped).

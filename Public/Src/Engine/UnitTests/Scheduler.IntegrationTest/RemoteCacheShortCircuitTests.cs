@@ -199,6 +199,79 @@ namespace IntegrationTest.BuildXL.Scheduler
             Assert.Equal(0, result.PipExecutorCounters.GetCounterValue(global::BuildXL.Scheduler.PipExecutorCounter.TotalCacheLookupsAvoidingRemote));
         }
 
+
+
+        [Fact]
+        public void RemoteCacheShortCircuitWithOpaqueHit()
+        {
+            var outDir = CreateOutputDirectoryArtifact();
+            var outDirStr = ArtifactToString(outDir);
+
+            var sod = CreateOutputDirectoryArtifact();
+
+            Directory.CreateDirectory(outDirStr);
+
+            // Create a chain PipA <- PipB <- [SealDirectoryPip] <- PipC 
+            // We want to validate that if A,B are misses and the SealDirectory is a hit,
+            // PipC still gets the avoidRemote hint as we should only consider process pips in the chain.
+
+            FileArtifact aTxtFile = CreateFileArtifactWithName("a.txt", ReadonlyRoot);
+            var outA = CreateOutputFileArtifact(outDirStr);
+            Process pipA = CreateAndSchedulePipBuilder(new Operation[]
+            {
+                Operation.ReadFile(aTxtFile),   // to induce misses
+                Operation.WriteFile(outA, "contentsA"),
+            }).Process;
+
+            FileArtifact bTxtFile = CreateFileArtifactWithName("b.txt", ReadonlyRoot);
+            var pipBBuilder = CreatePipBuilder(new Operation[]
+            {
+                Operation.ReadFile(bTxtFile),   // to induce misses
+                Operation.ReadFile(outA),
+                Operation.WriteFile(CreateOutputFileArtifact()),
+                Operation.WriteFile(CreateFileArtifactWithName("sod_content.txt", sod.Path.ToString(Context.PathTable)), "sodcontents", doNotInfer: true) // SOD contents won't change
+            });
+
+            pipBBuilder.AddOutputDirectory(sod, SealDirectoryKind.SharedOpaque);
+            var pipBWithOutputs = SchedulePipBuilder(pipBBuilder);
+            pipBWithOutputs.ProcessOutputs.TryGetOutputDirectory(sod.Path, out var pipBOutput);
+            var pipB = pipBWithOutputs.Process;
+
+            // PipC will consume the shared opaque directory produced by PipB.
+            var pipCBuilder = CreatePipBuilder(new Operation[]
+            {
+                Operation.WriteFile(CreateOutputFileArtifact())
+            });
+            pipCBuilder.AddInputDirectory(pipBOutput.Root);
+            Process pipC = SchedulePipBuilder(pipCBuilder).Process;
+
+            // Count the number of times the hint is set to true
+            int avoidLookupWhileListWeakFingerprints = 0;
+            m_fingerprintStore.ListPublishedEntriesByWeakFingerprintCallback = hints =>
+            {
+                if (hints.AvoidRemote)
+                {
+                    Interlocked.Increment(ref avoidLookupWhileListWeakFingerprints);
+                }
+            };
+
+            // First run
+            var result = RunScheduler().AssertCacheMiss(pipA.PipId, pipB.PipId, pipC.PipId);
+            // PipC's cache lookup was marked with the hint
+            Assert.Equal(1, avoidLookupWhileListWeakFingerprints);
+            Assert.Equal(1, result.PipExecutorCounters.GetCounterValue(global::BuildXL.Scheduler.PipExecutorCounter.TotalCacheLookupsAvoidingRemote));
+
+            // Run again inducing cache misses for PipA and PipB.
+            // The SealDirectoryPip will be a "cache hit" but PipC should still get the hint
+            avoidLookupWhileListWeakFingerprints = 0;
+            File.WriteAllText(ArtifactToString(aTxtFile), "anothercontent");
+            File.WriteAllText(ArtifactToString(bTxtFile), "anothercontent_b");
+
+            result = RunScheduler().AssertCacheMiss(pipA.PipId, pipB.PipId);
+            Assert.Equal(1, avoidLookupWhileListWeakFingerprints);
+            Assert.Equal(1, result.PipExecutorCounters.GetCounterValue(global::BuildXL.Scheduler.PipExecutorCounter.TotalCacheLookupsAvoidingRemote));
+        }
+
         #region Cache wrappers with injected callbacks
         private class HintReportingInMemoryArtifactContentCache : IArtifactContentCache
         {

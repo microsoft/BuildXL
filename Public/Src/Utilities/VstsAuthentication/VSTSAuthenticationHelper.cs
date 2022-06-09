@@ -113,8 +113,10 @@ namespace BuildXL.Utilities.VstsAuthentication
                         }
                     }
                 }
-
-                logger.AppendLine($"Authentication not required for {uri.AbsoluteUri}");
+                else
+                {
+                    logger.AppendLine($"Authentication not required for {uri.AbsoluteUri}");
+                }
 
                 var sourceRepository = Repository.Factory.GetCoreV3(packageSource);
                 sourceRepositories.Add(sourceRepository);

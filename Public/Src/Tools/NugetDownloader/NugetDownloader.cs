@@ -57,7 +57,8 @@ namespace Tool.Download
         {
             var result = TryDownloadNugetToDiskAsync(arguments, isRetry: false).GetAwaiter().GetResult();
 
-            if (result == 0)
+            // If only authentication was required, no retry logic applies
+            if (result == 0 || arguments.OnlyAuthenticate)
             {
                 return result;
             }
@@ -72,7 +73,14 @@ namespace Tool.Download
         /// </summary>
         private async Task<int> TryDownloadNugetToDiskAsync(NugetDownloaderArgs arguments, bool isRetry)
         {
-            Console.WriteLine($"Download started for package '{arguments.Id}' and version '{arguments.Version}' to '{arguments.DownloadDirectory}'.");
+            if (arguments.OnlyAuthenticate)
+            {
+                Console.WriteLine("Authenticating against the specified repositories.");
+            }
+            else
+            {
+                Console.WriteLine($"Download started for package '{arguments.Id}' and version '{arguments.Version}' to '{arguments.DownloadDirectory}'.");
+            }
 
             var stopwatch = Stopwatch.StartNew();
 
@@ -90,18 +98,24 @@ namespace Tool.Download
                 return 1;
             }
 
+            if (arguments.OnlyAuthenticate)
+            {
+                Console.WriteLine("Authentication succeeded.");
+                return 0;
+            }
+
             bool found = false;
             ILogger logger = new ConsoleLogger();
             foreach (var sourceRepository in maybeRepositories.Result)
             {
-                Console.Write($"Finding resource against source repository '{sourceRepository.PackageSource.Name}={sourceRepository.PackageSource.SourceUri}'. Authentication is on: {sourceRepository.PackageSource.Credentials != null}");
+                Console.WriteLine($"Finding resource against source repository '{sourceRepository.PackageSource.Name}={sourceRepository.PackageSource.SourceUri}'. Authentication is on: {sourceRepository.PackageSource.Credentials != null}");
 
                 // TODO: maybe we need a retry here? or define a default retry in the DScript SDK?
                 FindPackageByIdResource resource = await sourceRepository.GetResourceAsync<FindPackageByIdResource>();
 
                 if (resource == null)
                 {
-                    Console.Write($"Resource under source repository '{sourceRepository.PackageSource.Name}={sourceRepository.PackageSource.SourceUri}' not found.");
+                    Console.WriteLine($"Resource under source repository '{sourceRepository.PackageSource.Name}={sourceRepository.PackageSource.SourceUri}' not found.");
                     continue;
                 }
 

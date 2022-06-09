@@ -31,6 +31,11 @@ namespace Tool.Download
         /// </summary>
         public IReadOnlyDictionary<string, Uri> Repositories { get; }
 
+        /// <summary>
+        /// Whether to only authenticate without downloading any package
+        /// </summary>
+        public bool OnlyAuthenticate { get; }
+
         /// <nodoc />
         public NugetDownloaderArgs(string[] args)
             : base(args)
@@ -61,6 +66,10 @@ namespace Tool.Download
                     var kvp = ParseKeyValuePair(opt);
                     repositories[kvp.Key] = new Uri(kvp.Value);
                 }
+                else if (opt.Name.Equals("onlyAuthenticate", StringComparison.OrdinalIgnoreCase))
+                {
+                    OnlyAuthenticate = true;
+                }
                 else
                 {
                     throw Error($"Unsupported option: {opt.Name}.");
@@ -69,24 +78,29 @@ namespace Tool.Download
 
             Repositories = repositories;
 
-            if (Id == null)
+            // If we are only after validating authentication works, none of the package related
+            // arguments are required
+            if (!OnlyAuthenticate)
             {
-                throw Error($"Missing mandatory argument 'id'");
-            }
+                if (Id == null)
+                {
+                    throw Error($"Missing mandatory argument 'id'");
+                }
 
-            if (Version == null)
-            {
-                throw Error($"Missing mandatory argument 'version'");
+                if (Version == null)
+                {
+                    throw Error($"Missing mandatory argument 'version'");
+                }
+
+                if (string.IsNullOrWhiteSpace(DownloadDirectory))
+                {
+                    throw Error($"Missing mandatory argument 'DownloadDirectory'");
+                }
             }
 
             if (Repositories.Count == 0)
             {
                 throw Error($"Missing mandatory argument 'repositories'");
-            }
-
-            if (string.IsNullOrWhiteSpace(DownloadDirectory))
-            {
-                throw Error($"Missing mandatory argument 'DownloadDirectory'");
             }
         }
     }

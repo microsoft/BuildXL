@@ -739,7 +739,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             Store(context, hash, entry: null);
         }
 
-        private (ContentLocationEntry entry, bool entryHasChanged) SetMachineExistenceAndUpdateDatabase(OperationContext context, ShortHash hash, MachineId? machine, bool existsOnMachine, long size, UnixTime? lastAccessTime, bool reconciling)
+        protected virtual bool SetMachineExistenceAndUpdateDatabase(OperationContext context, ShortHash hash, MachineId? machine, bool existsOnMachine, long size, UnixTime? lastAccessTime, bool reconciling)
         {
             var created = false;
             var reason = reconciling ? OperationReason.Reconcile : OperationReason.Unknown;
@@ -770,7 +770,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         }
 
                         // The entry is unchanged.
-                        return (initialEntry, entryHasChanged: false);
+                        return false;
                     }
 
                     EntryOperation entryOperation;
@@ -799,7 +799,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         }
 
                         // Attempting to remove a machine from or touch a missing entry should result in no changes
-                        return (ContentLocationEntry.Missing, entryHasChanged: false);
+                        return false;
                     }
 
                     lastAccessTime ??= Clock.UtcNow;
@@ -841,7 +841,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     }
                 }
 
-                return (entry, entryHasChanged: true);
+                return true;
             }
         }
 
@@ -910,7 +910,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             using (Counters[ContentLocationDatabaseCounters.LocationAdded].Start())
             {
-                return SetMachineExistenceAndUpdateDatabase(context, hash, machine, existsOnMachine: true, size: size, lastAccessTime: updateLastAccessTime ? Clock.UtcNow : (DateTime?)null, reconciling: reconciling).entryHasChanged;
+                return SetMachineExistenceAndUpdateDatabase(context, hash, machine, existsOnMachine: true, size: size, lastAccessTime: updateLastAccessTime ? Clock.UtcNow : (DateTime?)null, reconciling: reconciling);
             }
         }
 
@@ -919,7 +919,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             using (Counters[ContentLocationDatabaseCounters.LocationRemoved].Start())
             {
-                return SetMachineExistenceAndUpdateDatabase(context, hash, machine, existsOnMachine: false, size: -1, lastAccessTime: null, reconciling: reconciling).entryHasChanged;
+                return SetMachineExistenceAndUpdateDatabase(context, hash, machine, existsOnMachine: false, size: -1, lastAccessTime: null, reconciling: reconciling);
             }
         }
 
@@ -928,7 +928,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             using (Counters[ContentLocationDatabaseCounters.ContentTouched].Start())
             {
-                return SetMachineExistenceAndUpdateDatabase(context, hash, machine: null, existsOnMachine: false, -1, lastAccessTime: accessTime, reconciling: false).entryHasChanged;
+                return SetMachineExistenceAndUpdateDatabase(context, hash, machine: null, existsOnMachine: false, -1, lastAccessTime: accessTime, reconciling: false);
             }
         }
 
@@ -1021,7 +1021,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return strongFingerprint.WeakFingerprint[0];
         }
 
-        protected delegate TResult DeserializeValue<out TResult>(SpanReader reader);
+        public delegate TResult DeserializeValue<out TResult>(SpanReader reader);
 
         protected static bool TryDeserializeValue<TResult>(RocksDbStore store, ReadOnlySpan<byte> key, string? columnFamilyName, DeserializeValue<TResult> deserializer, [NotNullWhen(true)] out TResult? result)
         {

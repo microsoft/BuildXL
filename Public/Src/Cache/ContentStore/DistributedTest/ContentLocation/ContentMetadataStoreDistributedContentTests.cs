@@ -24,6 +24,18 @@ namespace ContentStoreTest.Distributed.Sessions
     [Trait("Category", "Integration")]
     [Trait("Category", "LongRunningTest")]
     [Collection("Redis-based tests")]
+    public partial class ContentMetadataStoreDistributedContentTestsWithMerge : ContentMetadataStoreDistributedContentTests
+    {
+        public ContentMetadataStoreDistributedContentTestsWithMerge(LocalRedisFixture redis, ITestOutputHelper output) : base(redis, output)
+        {
+        }
+
+        protected override bool UseMergeOperators => true;
+    }
+
+    [Trait("Category", "Integration")]
+    [Trait("Category", "LongRunningTest")]
+    [Collection("Redis-based tests")]
     public partial class ContentMetadataStoreDistributedContentTests : LocalLocationStoreDistributedContentTestsBase
     {
         public ContentMetadataStoreDistributedContentTests(
@@ -33,9 +45,12 @@ namespace ContentStoreTest.Distributed.Sessions
         {
         }
 
+        protected virtual bool UseMergeOperators => false;
+
         protected override DistributedCacheServiceArguments ModifyArguments(DistributedCacheServiceArguments arguments)
         {
             arguments.Configuration.DistributedContentSettings.EnableGlobalCacheLocationStoreValidation = true;
+            arguments.Configuration.DistributedContentSettings.ContentMetadataUseMergeWrites = UseMergeOperators;
             return base.ModifyArguments(arguments);
         }
 
@@ -86,6 +101,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     d.ContentMetadataEnableResilience = true;
                     d.ContentMetadataStoreMode = ContentMetadataStoreMode.Distributed;
                     d.ContentMetadataPersistInterval = "1000s";
+                    d.ContentMetadataUseMergeWrites = true;
                 },
                 overrideRedis: r =>
                 {

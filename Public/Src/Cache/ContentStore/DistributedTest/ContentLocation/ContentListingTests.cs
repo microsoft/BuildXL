@@ -105,7 +105,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
             DateTime time = DateTime.UtcNow;
             for (int i = 0; i < count; i++)
             {
-                entries[i] = MachineContentEntry.Create(ContentHash.Random(), new LocationChange((short)(i % 2000)), 1000, time);
+                entries[i] = MachineContentEntry.Create(ContentHash.Random(), new LocationChange((ushort)(i % 2000)), 1000, time);
             }
 
             Output.WriteLine($"Generated in {watch.Elapsed}");

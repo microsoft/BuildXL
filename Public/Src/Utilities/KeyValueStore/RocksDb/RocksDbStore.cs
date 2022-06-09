@@ -77,7 +77,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         /// Information related to a specific <see cref="ColumnFamilies"/>.
         /// Column families are analogous to tables in relational databases.
         /// </summary>
-        private struct ColumnFamilyInfo
+        private record struct ColumnFamilyInfo
         {
             /// <summary>
             /// Accessor to the <see cref="RocksDb"/> column.
@@ -96,6 +96,13 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             /// Null if <see cref="UseKeyTracking"/> is false.
             /// </summary>
             public ColumnFamilyHandle? KeyHandle;
+
+            /// <summary>
+            /// Options for column family. Need to keep reference to prevent
+            /// premature garbage collection since values are called from
+            /// native code.
+            /// </summary>
+            internal ColumnFamilyOptions Options;
         }
 
         /// <summary>
@@ -255,7 +262,9 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                 var columnFamilies = new ColumnFamilies();
                 foreach (var name in existingColumns)
                 {
-                    columnFamilies.Add(name, m_defaults.CreateColumnFamilyOptions(name));
+                    var options = m_defaults.CreateColumnFamilyOptions(name);
+                    m_columns[name] = new ColumnFamilyInfo() { Options = options };
+                    columnFamilies.Add(name, options);
                 }
 
                 m_store = RocksDb.OpenReadOnly(m_defaults.DbOptions, m_storeDirectory, columnFamilies, errIfLogFileExists: false);
@@ -296,7 +305,9 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                 var columnFamilies = new ColumnFamilies();
                 foreach (var name in existingColumns)
                 {
-                    columnFamilies.Add(name, m_defaults.CreateColumnFamilyOptions(name));
+                    var options = m_defaults.CreateColumnFamilyOptions(name);
+                    m_columns[name] = new ColumnFamilyInfo() { Options = options };
+                    columnFamilies.Add(name, options);
                 }
 
                 m_store = RocksDb.Open(m_defaults.DbOptions, m_storeDirectory, columnFamilies);
@@ -317,12 +328,12 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             foreach (var name in userFacingColumns)
             {
                 var isKeyTracked = existingColumns.Contains(name + KeyColumnSuffix);
-                m_columns.Add(name, new ColumnFamilyInfo()
+                m_columns[name] = m_columns.GetOrDefault(name) with
                 {
                     Handle = m_store.GetColumnFamily(name),
                     UseKeyTracking = isKeyTracked,
                     KeyHandle = isKeyTracked ? m_store.GetColumnFamily(name + KeyColumnSuffix) : null,
-                });
+                };
             }
 
             m_columns.TryGetValue(ColumnFamilies.DefaultName, out m_defaultColumnFamilyInfo);
@@ -841,7 +852,8 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         {
             columnFamilyName ??= ColumnFamilies.DefaultName;
 
-            if (m_columns.TryGetValue(columnFamilyName, out var result))
+            if (m_columns.TryGetValue(columnFamilyName, out var result) 
+                && result.Handle.Handle != IntPtr.Zero)
             {
                 return result;
             }
@@ -1155,8 +1167,9 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         /// <nodoc />
         public void CreateColumnFamily(string columnFamily)
         {
-            var handle = m_store.CreateColumnFamily(m_defaults.CreateColumnFamilyOptions(columnFamily), columnFamily);
-            m_columns[columnFamily] = new ColumnFamilyInfo() { Handle = handle };
+            var options = m_columns.TryGetValue(columnFamily, out var info) ? info.Options : m_defaults.CreateColumnFamilyOptions(columnFamily);
+            var handle = m_store.CreateColumnFamily(options, columnFamily);
+            m_columns[columnFamily] = info with { Handle = handle, Options = options };
         }
 
         /// <nodoc />

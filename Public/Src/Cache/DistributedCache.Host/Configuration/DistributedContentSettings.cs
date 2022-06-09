@@ -1156,6 +1156,9 @@ namespace BuildXL.Cache.Host.Configuration
         public bool ContentMetadataOptimizeWrites { get; set; }
 
         [DataMember]
+        public bool ContentMetadataUseMergeWrites { get; set; }
+
+        [DataMember]
         public bool UseBlobVolatileStorage { get; set; }
 
         [DataMember]

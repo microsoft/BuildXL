@@ -14,8 +14,10 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
+using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
+using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Synchronization;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
@@ -37,6 +39,8 @@ using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePa
 
 namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 {
+    using static RocksDbOperations;
+
     public class RocksDbContentMetadataDatabaseConfiguration : RocksDbContentLocationDatabaseConfiguration
     {
         public RocksDbContentMetadataDatabaseConfiguration(AbsolutePath storeLocation)
@@ -52,6 +56,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         public TimeSpan BlobRotationInterval { get; set; } = TimeSpan.FromHours(1);
 
         public bool StoreExpandedContent { get; set; }
+
+        public bool UseMergeOperators { get; set; }
     }
 
     /// <summary>
@@ -65,6 +71,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 
         private KeyValueStoreGuard _keyValueStore;
         private const string ActiveStoreSlotFileName = "activeSlot.txt";
+
+        private readonly IAbsFileSystem _fileSystem = new PassThroughFileSystem();
 
         private StoreSlot _activeSlot = StoreSlot.Slot1;
         private readonly string _activeSlotFilePath;
@@ -113,7 +121,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             /// [ShortHash] -> [ContentSize:long] // This serves as a marker that compaction is necessary and stores the size of the entry
             /// [ShortHash][MachineId] -> {}
             /// </summary>
-            ExpandedContent
+            ExpandedContent,
+
+            MergeContent,
+
+            SstMergeContent
         }
 
         public enum ColumnGroup
@@ -123,12 +135,19 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             Two
         }
 
-        private static readonly string[] ColumnNames =
-            Enumerable.Range(1, 2).SelectMany(i =>
-                EnumTraits<Columns>
+        private static bool IsRotatedColumn(Columns columns)
+        {
+            return columns != Columns.SstMergeContent;
+        }
+
+        private static readonly string[][] ColumnNames =
+            EnumTraits<Columns>
                     .EnumerateValues()
-                    .Select(c => c.ToString() + i))
+                    .Select(c => !IsRotatedColumn(c) ? new[] { c.ToString() } : Enumerable.Range(1, 2).Select(i => c.ToString() + i).ToArray())
                     .ToArray();
+
+        private static ReadOnlyArray<string> AllMergeContentColumnNames { get; } =
+            NamesOf(Columns.MergeContent).Concat(NamesOf(Columns.SstMergeContent)).ToReadOnlyArray();
 
         private enum GlobalKeys
         {
@@ -151,6 +170,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             // this is a hacky way to convince the compiler that the field is initialized.
             // Technically, the field is nullable, but keeping it as nullable causes more issues than giving us benefits.
             _keyValueStore = null!;
+        }
+
+        /// <summary>
+        /// Gets a temporary directory inside the database root
+        /// </summary>
+        internal DisposableDirectory CreateTempDirectory(string baseName)
+        {
+            return new DisposableDirectory(_fileSystem, _configuration.StoreLocation / "tmp" / baseName + Path.GetRandomFileName());
         }
 
         /// <inheritdoc />
@@ -226,6 +253,25 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             return _configuration.Epoch != epoch;
         }
 
+        private Dictionary<string, MergeOperator>? GetMergeOperators()
+        {
+            IEnumerable<(Columns column, MergeOperator merger)> enumerate()
+            {
+                yield return
+                (
+                    Columns.MergeContent,
+                    MergeOperators.CreateAssociative(
+                        "MergeContent",
+                        merge: RocksDbOperations.MergeLocations,
+                        transformSingle: RocksDbOperations.ProcessSingleLocationEntry)
+                );
+            }
+
+            return enumerate()
+                .SelectMany(t => NamesOf(t.column).Select(name => (name, t.merger)))
+                .ToDictionary(t => t.name, t => t.merger);
+        }
+
         private BoolResult Load(OperationContext context, StoreSlot activeSlot, bool clean)
         {
             try
@@ -250,7 +296,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                 var possibleStore = KeyValueStoreAccessor.Open(
                     new RocksDbStoreConfiguration(storeLocation)
                     {
-                        AdditionalColumns = ColumnNames,
+                        AdditionalColumns = ColumnNames.SelectMany(n => n),
                         RotateLogsMaxFileSizeBytes = 0L,
                         RotateLogsNumFiles = 60,
                         RotateLogsMaxAge = TimeSpan.FromHours(12),
@@ -260,6 +306,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                         Compression = _configuration.Compression,
                         UseReadOptionsWithSetTotalOrderSeekInDbEnumeration = true,
                         UseReadOptionsWithSetTotalOrderSeekInGarbageCollection = true,
+                        MergeOperators = GetMergeOperators()
                     },
                     // When an exception is caught from within methods using the database, this handler is called to
                     // decide whether the exception should be rethrown in user code, and the database invalidated. Our
@@ -500,12 +547,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                    return _keyValueStore.UseExclusive(
                        (store, _) =>
                        {
-                           foreach (var column in EnumTraits<Columns>.EnumerateValues())
+                           foreach (var column in EnumTraits<Columns>.EnumerateValues().Where(IsRotatedColumn))
                            {
                                var rotationInterval = column switch
                                {
                                    Columns.Content => _configuration.ContentRotationInterval,
                                    Columns.ExpandedContent => _configuration.ContentRotationInterval,
+                                   Columns.MergeContent => _configuration.ContentRotationInterval,
                                    Columns.Metadata => _configuration.MetadataRotationInterval,
                                    Columns.MetadataHeaders => _configuration.MetadataRotationInterval,
                                    Columns.Blobs => _configuration.BlobRotationInterval,
@@ -574,6 +622,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                 : ColumnGroup.One;
         }
 
+        private static string[] NamesOf(Columns columnFamily)
+        {
+            return ColumnNames[(int)columnFamily];
+        }
+
         private string NameOf(Columns columnFamily, ColumnGroup? group = null)
         {
             return NameOf(columnFamily, out _, group);
@@ -581,8 +634,38 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 
         private string NameOf(Columns columnFamily, out ColumnGroup resolvedGroup, ColumnGroup? group = null)
         {
-            resolvedGroup = group ?? _columnMetadata[columnFamily].Group;
-            return ColumnNames[(int)resolvedGroup * EnumTraits<Columns>.ValueCount + (int)columnFamily];
+            resolvedGroup = IsRotatedColumn(columnFamily)
+                ? group ?? _columnMetadata[columnFamily].Group
+                : ColumnGroup.One;
+            return ColumnNames[(int)columnFamily][(int)resolvedGroup];
+        }
+
+        /// <summary>
+        /// Ingests sst files from the given paths for the <see cref="Columns.SstMergeContent"/> column
+        /// </summary>
+        internal BoolResult IngestMergeContentSstFiles(OperationContext context, IEnumerable<AbsolutePath> files)
+        {
+            return _keyValueStore.Use(store => store.Database.IngestExternalFiles(
+                files.Select(f => f.Path).ToArray(),
+                new IngestExternalFileOptions().SetMoveFiles(true),
+                store.GetColumn(NameOf(Columns.SstMergeContent))))
+            .ToBoolResult();
+        }
+
+        /// <summary>
+        /// Create an <see cref="SstFileWriter"/> at the given path for the <see cref="Columns.SstMergeContent"/> column
+        /// </summary>
+        internal Result<SstFileWriter> CreateContentSstWriter(OperationContext context, AbsolutePath path)
+        {
+            return CreateSstFileWriter(context, path, Columns.SstMergeContent);
+        }
+
+        /// <summary>
+        /// Create an <see cref="SstFileWriter"/> at the given path for the given column
+        /// </summary>
+        private Result<SstFileWriter> CreateSstFileWriter(OperationContext context, AbsolutePath path, Columns columns)
+        {
+            return _keyValueStore.Use(store => store.CreateSstFileWriter(path.Path, NameOf(columns))).ToResult();
         }
 
         /// <inheritdoc />
@@ -735,9 +818,72 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             return value != null;
         }
 
+        protected override bool SetMachineExistenceAndUpdateDatabase(
+            OperationContext context,
+            ShortHash hash,
+            MachineId? machine,
+            bool existsOnMachine,
+            long size,
+            UnixTime? lastAccessTime,
+            bool reconciling)
+        {
+            if (_configuration.UseMergeOperators)
+            {
+                return _keyValueStore.Use(
+                    static (store, state) =>
+                    {
+                        store.ApplyBatch(
+                            state,
+                            state.db.NameOf(Columns.MergeContent),
+                            static (batch, state, columnHandle) =>
+                            {
+                                CompactTime? lastAccessTime = state.lastAccessTime?.ToDateTime().ToCompactTime();
+                                long? size = state.existsOnMachine ? state.size : (long?)null;
+                                var columnWriter = new RocksDbColumnWriter(batch, columnHandle);
+
+                                columnWriter.MergeLocationEntry(
+                                    state.hash,
+                                    state.machine,
+                                    new MachineContentInfo(size, latestAccessTime: lastAccessTime),
+                                    isRemove: !state.existsOnMachine);
+                            });
+
+                        return true;
+                    },
+                    (hash, size, lastAccessTime, existsOnMachine, machine, db: this)
+                ).ThrowOnError();
+            }
+
+            return base.SetMachineExistenceAndUpdateDatabase(context, hash, machine, existsOnMachine, size, lastAccessTime, reconciling);
+        }
+
         public bool LocationAdded(OperationContext context, MachineId machine, IReadOnlyList<ShortHashWithSize> hashes, bool touch)
         {
-            if (_configuration.StoreExpandedContent)
+            if (_configuration.UseMergeOperators)
+            {
+                return _keyValueStore.Use(
+                    static (store, state) =>
+                    {
+                        store.ApplyBatch(
+                            state,
+                            state.db.NameOf(Columns.MergeContent),
+                            static (batch, state, columnHandle) =>
+                            {
+                                CompactTime? lastAccessTime = state.touch ? state.db.Clock.UtcNow : null;
+                                var columnWriter = new RocksDbColumnWriter(batch, columnHandle);
+
+                                foreach ((ShortHash hash, long size) in state.hashes.AsStructEnumerable())
+                                {
+                                    columnWriter.MergeLocationEntry(hash, state.machine, new MachineContentInfo(size, latestAccessTime: lastAccessTime));
+                                }
+                            });
+
+                        return true;
+                    },
+                    (hashes, touch, machine, db: this)
+                ).ThrowOnError();
+            }
+            else if (_configuration.StoreExpandedContent)
             {
                 return _keyValueStore.Use(
                     static (store, state) =>
@@ -833,6 +979,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             // 1. Retrieve machine ids from expanded entries
             Span<long> size = stackalloc long[1];
             List<MachineId>? machineIdsBuffer = null;
+            UnixTime? lastAccessTime = null;
+
+            // TODO: Add configuration for whether we read the expanded content values
 
             // AsSpan is safe here because 'hash' lives on the stack.
             var key = hash.AsSpanUnsafe();
@@ -860,14 +1009,52 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             // 2. Read combined entry
             db.TryDeserializeValue(store, key, Columns.Content, static reader => ContentLocationEntry.Deserialize(ref reader), out result);
 
+            // 3. Read merged entry
+            foreach (var column in AllMergeContentColumnNames)
+            {
+                if (store.TryGetPinnableValue(MemoryMarshal.AsBytes(stackalloc[] { hash.AsEntryKey() }), out var mergeData, column))
+                {
+                    machineIdsBuffer ??= new List<MachineId>();
+
+                    using var mergedValue = mergeData.Value;
+                    ReadMergedContentLocationEntry(mergedValue.UnsafePin(), out var machines, out var info);
+                    if (info.Size != null)
+                    {
+                        size[0] = info.Size.Value;
+                    }
+
+                    lastAccessTime = info.LatestAccessTime?.ToDateTime().ToUnixTime();
+
+                    foreach (var machine in machines)
+                    {
+                        if (!machine.IsRemove)
+                        {
+                            machineIdsBuffer.Add(machine.ToMachineId());
+                        }
+                    }
+                }
+            }
+
             // Merge results
             if (machineIdsBuffer?.Count > 0)
             {
                 result ??= ContentLocationEntry.Missing;
-                result = result.SetMachineExistence(MachineIdCollection.Create(machineIdsBuffer), exists: true, size: size[0]);
+                result = result.SetMachineExistence(MachineIdCollection.Create(machineIdsBuffer), exists: true, size: size[0], lastAccessTime: lastAccessTime);
             }
 
             return result;
+        }
+
+        public Result<Optional<TResult>> TryDeserializeValue<TResult>(ReadOnlyMemory<byte> key, Columns columns, DeserializeValue<TResult> deserializer)
+        {
+            return _keyValueStore.Use((store, state) =>
+                {
+                    bool found = TryDeserializeValue(store, state.key.Span, state.columns, state.deserializer, out var result);
+                    return (found, result);
+                },
+                (key, columns, deserializer))
+            .Then(r => r.found ? new Optional<TResult>(r.result!) : default)
+            .ToResult();
         }
 
         private bool TryGetValue(RocksDbStore store, ReadOnlySpan<byte> key, [NotNullWhen(true)] out byte[]? value, Columns columns)
@@ -885,7 +1072,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         private bool TryDeserializeValue<TResult>(RocksDbStore store, ReadOnlySpan<byte> key, Columns columns, DeserializeValue<TResult> deserializer, [NotNullWhen(true)] out TResult? result)
         {
             return TryDeserializeValue(store, key, NameOf(columns), deserializer, out result)
-                   || TryDeserializeValue(store, key, NameOf(columns, GetFormerColumnGroup(columns)), deserializer, out result);
+                   || IsRotatedColumn(columns) && TryDeserializeValue(store, key, NameOf(columns, GetFormerColumnGroup(columns)), deserializer, out result);
         }
 
         private bool TryGetValue(RocksDbStore store, ReadOnlySpan<byte> key, [NotNullWhen(true)] out byte[]? value, out ColumnGroup resolvedGroup, Columns columns)
@@ -1010,7 +1197,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                 {
                     using var keyHandle = GetMetadataKey(strongFingerprint);
                     var key = keyHandle.Buffer;
-                    
+
                     using (_metadataLocks[GetMetadataLockIndex(strongFingerprint)].AcquireWriteLock())
                     {
                         MetadataEntryHeader header = default;

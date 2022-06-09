@@ -8,7 +8,7 @@ using System.Globalization;
 namespace BuildXL.Cache.Host.Configuration
 {
     /// <summary>
-    /// Setting for representing timespan in a readable format (i.e. [-][#d][#h][#m][#s][#ms])
+    /// Setting for representing timespan in a readable format (i.e. [-][#pb][#tb][#gb][#mb][#kb][#b])
     /// </summary>
     [TypeConverter(typeof(StringConvertibleConverter))]
     public struct ByteSizeSetting : IStringConvertibleSetting
@@ -25,7 +25,7 @@ namespace BuildXL.Cache.Host.Configuration
         {
             Value = value;
         }
-
+        
         public static implicit operator long(ByteSizeSetting value)
         {
             return value.Value;
@@ -70,7 +70,7 @@ namespace BuildXL.Cache.Host.Configuration
         /// Parses a <see cref="long"/> in readable format
         ///
         /// Format:
-        /// [-][#d][#h][#m][#s][#ms]
+        /// [-][#pb][#tb][#gb][#mb][#kb][#b]
         /// where # represents any valid non-negative double. All parts are optional but string must be non-empty.
         /// </summary>
         public static bool TryParseReadableBytes(string value, out long result)

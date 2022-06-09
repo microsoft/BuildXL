@@ -768,6 +768,9 @@ namespace BuildXL.Cache.Host.Configuration
         public double? ContentLocationDatabaseMetadataGarbageCollectionMaximumSizeMb { get; set; }
 
         [DataMember]
+        public ByteSizeSetting? GlobalCacheMetadataSizeRotationThreshold { get; set; }
+
+        [DataMember]
         public bool? ContentLocationDatabaseUseReadOptionsWithSetTotalOrderSeekInDbEnumeration { get; set; }
 
         [DataMember]

@@ -7,6 +7,7 @@ using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
@@ -15,12 +16,15 @@ using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.ContentStore.Utils;
+using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
+using BuildXL.Engine.Cache.KeyValueStores;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Serialization;
 using ContentStoreTest.Test;
 using FluentAssertions;
 using Xunit;
 using Xunit.Abstractions;
+using static BuildXL.Cache.ContentStore.Distributed.MetadataService.RocksDbContentMetadataDatabase;
 using static BuildXL.Cache.ContentStore.Distributed.MetadataService.RocksDbOperations;
 
 namespace ContentStoreTest.Distributed.ContentLocation.NuCache
@@ -46,6 +50,71 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
             Missing,
             Different,
             Valid
+        }
+
+        [Fact]
+        public async Task TestMetadataSizeGarbageCollect()
+        {
+            var configuration = new RocksDbContentMetadataDatabaseConfiguration(_workingDirectory.Path)
+            {
+                CleanOnInitialize = false,
+                MetadataSizeRotationThreshold = "1gb"
+            };
+
+            var context = new Context(Logger);
+            var ctx = new OperationContext(context);
+            var db = new TestDatabase(Clock, configuration);
+
+            var sf = StrongFingerprint.Random();
+            var entry = RandomMetadata();
+            await db.StartupAsync(ctx).ShouldBeSuccess();
+            db.CompareExchange(ctx, sf, entry, null, lastAccessTimeUtc: default).Result.Should().BeTrue();
+
+            db.CompareExchange(ctx, sf, entry, null, lastAccessTimeUtc: default).Result.Should().BeFalse();
+
+            // Force a garbage collection so the next rotation would trigger the column with the data to be collected
+            await db.GarbageCollectAsync(ctx, force: true).ShouldBeSuccess();
+
+            await db.GarbageCollectAsync(ctx).ShouldBeSuccess();
+
+            // Garbage collection should not collect since the size is under threshold 
+            db.CompareExchange(ctx, sf, entry, null, lastAccessTimeUtc: default).Result.Should().BeFalse();
+
+            db.SizeInfo[db.NameOf(Columns.Metadata, ColumnGroup.One)] = new ColumnSizeInfo("", 300_000_000, 0);
+            await db.GarbageCollectAsync(ctx).ShouldBeSuccess();
+
+            // Garbage collection should not collect since the size is under threshold 
+            db.CompareExchange(ctx, sf, entry, null, lastAccessTimeUtc: default).Result.Should().BeFalse();
+
+            db.SizeInfo[db.NameOf(Columns.Metadata, ColumnGroup.Two)] = new ColumnSizeInfo("", 300_000_000, 0);
+            await db.GarbageCollectAsync(ctx).ShouldBeSuccess();
+
+            // Garbage collection should not collect since the size is under threshold 
+            db.CompareExchange(ctx, sf, entry, null, lastAccessTimeUtc: default).Result.Should().BeFalse();
+
+            db.SizeInfo[db.NameOf(Columns.MetadataHeaders, ColumnGroup.One)] = new ColumnSizeInfo("", 300_000_000, 0);
+            await db.GarbageCollectAsync(ctx).ShouldBeSuccess();
+
+            // Garbage collection should not collect since the size is under threshold 
+            db.CompareExchange(ctx, sf, entry, null, lastAccessTimeUtc: default).Result.Should().BeFalse();
+
+            db.SizeInfo[db.NameOf(Columns.MetadataHeaders, ColumnGroup.Two)] = new ColumnSizeInfo("", 300_000_000, 0);
+            await db.GarbageCollectAsync(ctx).ShouldBeSuccess();
+
+            // Garbage collection SHOULD collect since the size is over threshold 
+            db.CompareExchange(ctx, sf, entry, null, lastAccessTimeUtc: default).Result.Should().BeTrue();
+
+            await db.ShutdownAsync(ctx).ShouldBeSuccess();
+        }
+
+        private SerializedMetadataEntry RandomMetadata()
+        {
+            return new SerializedMetadataEntry()
+            {
+                Data = ThreadSafeRandom.GetBytes(40),
+                SequenceNumber = 1,
+                ReplacementToken = Guid.NewGuid().ToString()
+            };
         }
 
         [Fact]
@@ -382,6 +451,26 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
                 actualInfo.Size.Should().Be(expectedInfo.Size);
                 actualInfo.LatestAccessTime.Should().Be(expectedInfo.LatestAccessTime);
                 actualInfo.EarliestAccessTime.Should().Be(expectedInfo.EarliestAccessTime);
+            }
+        }
+
+        private class TestDatabase : RocksDbContentMetadataDatabase
+        {
+            public Dictionary<string, ColumnSizeInfo> SizeInfo { get; } = new();
+
+            public TestDatabase(IClock clock, RocksDbContentMetadataDatabaseConfiguration configuration)
+                : base(clock, configuration)
+            {
+            }
+
+            protected override ColumnSizeInfo GetColumnSizeInfo(OperationContext context, RocksDbStore store, string columnFamilyName)
+            {
+                if (SizeInfo.TryGetValue(columnFamilyName, out var sizeInfo))
+                {
+                    return sizeInfo;
+                }
+
+                return base.GetColumnSizeInfo(context, store, columnFamilyName);
             }
         }
     }

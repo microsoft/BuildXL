@@ -25,6 +25,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
+using BuildXL.Cache.Host.Configuration;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Engine.Cache.KeyValueStores;
 using BuildXL.Native.IO;
@@ -58,12 +59,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         public bool StoreExpandedContent { get; set; }
 
         public bool UseMergeOperators { get; set; }
+
+        public ByteSizeSetting? MetadataSizeRotationThreshold { get; set; }
     }
 
     /// <summary>
     /// RocksDb-based version of <see cref="ContentLocationDatabase"/>.
     /// </summary>
-    public sealed class RocksDbContentMetadataDatabase : ContentLocationDatabase
+    public class RocksDbContentMetadataDatabase : ContentLocationDatabase
     {
         private readonly RocksDbContentMetadataDatabaseConfiguration _configuration;
 
@@ -549,27 +552,74 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                        {
                            foreach (var column in EnumTraits<Columns>.EnumerateValues().Where(IsRotatedColumn))
                            {
+                               if (column == Columns.MetadataHeaders)
+                               {
+                                   // Metadata headers is handled with Metadata column
+                                   continue;
+                               }
+
                                var rotationInterval = column switch
                                {
                                    Columns.Content => _configuration.ContentRotationInterval,
                                    Columns.ExpandedContent => _configuration.ContentRotationInterval,
                                    Columns.MergeContent => _configuration.ContentRotationInterval,
                                    Columns.Metadata => _configuration.MetadataRotationInterval,
-                                   Columns.MetadataHeaders => _configuration.MetadataRotationInterval,
                                    Columns.Blobs => _configuration.BlobRotationInterval,
                                    _ => _configuration.GarbageCollectionInterval,
                                };
 
                                var delta = now - _columnMetadata[column].LastGcTimeUtc;
 
-                               if (!force && (rotationInterval <= TimeSpan.Zero || delta < rotationInterval))
+                               var sizeInfo = new[]
                                {
-                                   Tracer.Info(context, $"Skipping garbage collection for column family {NameOf(column)}. Now=[{now}] LastRotation=[{_columnMetadata[column].LastGcTimeUtc}] RotationInterval=[{rotationInterval}] Delta=[{delta}]");
-                                   continue;
+                                   GetColumnSizeInfo(context, store, NameOf(column, ColumnGroup.One)),
+                                   GetColumnSizeInfo(context, store, NameOf(column, ColumnGroup.Two)),
+                               };
+
+                               if (column == Columns.Metadata)
+                               {
+                                   sizeInfo = sizeInfo.Concat(new[]
+                                       {
+                                           GetColumnSizeInfo(context, store, NameOf(Columns.MetadataHeaders, ColumnGroup.One)),
+                                           GetColumnSizeInfo(context, store, NameOf(Columns.MetadataHeaders, ColumnGroup.Two)),
+                                       }).ToArray();
                                }
 
-                               Tracer.Info(context, $"Garbage collecting column family {NameOf(column)}. Now=[{now}] LastRotation=[{_columnMetadata[column].LastGcTimeUtc}] RotationInterval=[{rotationInterval}] Delta=[{delta}] Force=[{force}]");
-                               GarbageCollectColumnFamily(context, store, column).IgnoreFailure();
+                               var totalSize = sizeInfo.Sum(s => s.EffectiveSize);
+
+                               bool shouldRotate(out long maxSize)
+                               {
+                                   maxSize = -1;
+                                   if (force)
+                                   {
+                                       return true;
+                                   }
+
+                                   if (column == Columns.Metadata
+                                        && _configuration.MetadataSizeRotationThreshold is ByteSizeSetting sizeRotationThreshold)
+                                   {
+                                       maxSize = sizeRotationThreshold.Value;
+                                       return totalSize >= maxSize;
+                                   }
+                                   else
+                                   {
+                                       return rotationInterval > TimeSpan.Zero && delta >= rotationInterval;
+                                   }
+                               }
+
+                               bool skip = !shouldRotate(out var maxSize);
+                               Tracer.Info(context, $"Garbage collection for column family {NameOf(column)}. Skip[{skip}]. Now=[{now}] " +
+                                   $"LastRotation=[{_columnMetadata[column].LastGcTimeUtc}] RotationInterval=[{rotationInterval}] " +
+                                   $"Delta=[{delta}] Force=[{force}] MaxSize={maxSize}] {string.Join(", ", sizeInfo.AsEnumerable())}");
+
+                               if (!skip)
+                               {
+                                   GarbageCollectColumnFamily(context, store, column).IgnoreFailure();
+                                   if (column == Columns.Metadata)
+                                   {
+                                       GarbageCollectColumnFamily(context, store, Columns.MetadataHeaders).IgnoreFailure();
+                                   }
+                               }
                            }
 
                            return BoolResult.Success;
@@ -627,7 +677,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             return ColumnNames[(int)columnFamily];
         }
 
-        private string NameOf(Columns columnFamily, ColumnGroup? group = null)
+        public string NameOf(Columns columnFamily, ColumnGroup? group = null)
         {
             return NameOf(columnFamily, out _, group);
         }
@@ -1140,14 +1190,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                         if (TryDeserializeValue(store, key.Span, Columns.MetadataHeaders, static reader => DeserializeMetadataEntryHeader(reader.Remaining), out var header)
                             && TryGetValue(store, key.Span, out var data, out var dataGroup, Columns.Metadata))
                         {
-                            // Update last access time in database
-                            header.LastAccessTimeUtc = Clock.UtcNow;
+                            if (!_configuration.OpenReadOnly)
+                            {
+                                // Update last access time in database
+                                header.LastAccessTimeUtc = Clock.UtcNow;
 
-                            using var serializedHeader = SerializeMetadataEntryHeader(header);
+                                using var serializedHeader = SerializeMetadataEntryHeader(header);
 
-                            // Ensure updated header goes to same group as data so there is not a case where
-                            // data comes from different group than metadata
-                            store.Put(key.Span, serializedHeader, NameOf(Columns.MetadataHeaders, dataGroup));
+                                // Ensure updated header goes to same group as data so there is not a case where
+                                // data comes from different group than metadata
+                                store.Put(key.Span, serializedHeader, NameOf(Columns.MetadataHeaders, dataGroup));
+                            }
 
                             return new SerializedMetadataEntry()
                             {
@@ -1358,6 +1411,58 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             public ExpandedContentEntryKey(ShortHash hash, ushort machineId)
             {
                 (Hash, MachineId) = (hash, machineId);
+            }
+        }
+
+        public record ColumnSizeInfo(string? Column, long? LiveDataSizeBytes = null, long? LiveFilesSizeBytes = null)
+        {
+            public long EffectiveSize => LiveDataSizeBytes ?? LiveFilesSizeBytes ?? 0;
+        }
+
+        /// <nodoc />
+        public enum LongProperty
+        {
+            /// <summary>
+            /// Size of live data.
+            /// </summary>
+            /// <remarks>
+            ///  This differs from <see cref="LiveFilesSizeBytes"/> because the files include the size of tombstones
+            ///  and other stuff that's in there, not just actual data.
+            /// </remarks>
+            LiveDataSizeBytes,
+
+            /// <summary>
+            /// Size of live files.
+            /// </summary>
+            LiveFilesSizeBytes,
+        }
+
+        protected virtual ColumnSizeInfo GetColumnSizeInfo(OperationContext context, RocksDbStore store, string? columnFamilyName)
+        {
+            return new ColumnSizeInfo(
+                Column: columnFamilyName,
+                LiveDataSizeBytes: GetLongProperty(context, store, LongProperty.LiveDataSizeBytes, columnFamilyName).TryGetValue(out var dataSize) ? dataSize : default(long?),
+                LiveFilesSizeBytes: GetLongProperty(context, store, LongProperty.LiveFilesSizeBytes, columnFamilyName).TryGetValue(out var fileSize) ? fileSize : default(long?));
+        }
+
+        /// <nodoc />
+        private Result<long> GetLongProperty(OperationContext context, RocksDbStore store, LongProperty property, string? columnFamilyName = null)
+        {
+            var propertyName = property switch
+            {
+                LongProperty.LiveFilesSizeBytes => "rocksdb.live-sst-files-size",
+                LongProperty.LiveDataSizeBytes => "rocksdb.estimate-live-data-size",
+                _ => throw new NotImplementedException($"Unhandled property `{property}` for entity `{columnFamilyName}`"),
+            };
+
+            try
+            {
+                return long.Parse(store.GetProperty(propertyName, columnFamilyName));
+            }
+            catch (Exception exception)
+            {
+                Tracer.Warning(context, exception, $"Error retrieving or parsing property '{propertyName}' for column '{columnFamilyName}'.");
+                return new Result<long>(exception);
             }
         }
 

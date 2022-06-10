@@ -32,6 +32,7 @@ namespace BuildXL.Cache.VerticalAggregator
         private readonly bool m_isReadOnly;
         private readonly bool m_remoteIsReadOnly;
         private readonly bool m_remoteContentIsReadOnly;
+        private readonly bool m_skipDeterminismRecovery;
         private bool m_isClosed = false;
         private readonly ICacheSession m_localSession;
         private readonly ICacheSession m_remoteSession;
@@ -46,7 +47,8 @@ namespace BuildXL.Cache.VerticalAggregator
             ICacheSession remoteSession,
             ICacheReadOnlySession remoteROSession,
             bool remoteIsReadOnly,
-            bool remoteContentIsReadOnly)
+            bool remoteContentIsReadOnly,
+            bool skipDeterminismRecovery)
         {
             Contract.Requires(cache != null);
             Contract.Requires(!string.IsNullOrWhiteSpace(sessionId));
@@ -64,6 +66,7 @@ namespace BuildXL.Cache.VerticalAggregator
             m_remoteIsReadOnly = remoteIsReadOnly;
             m_sessionCounters = new SessionCounters();
             m_remoteContentIsReadOnly = remoteContentIsReadOnly;
+            m_skipDeterminismRecovery = skipDeterminismRecovery;
         }
 
         /// <inheritdoc/>
@@ -577,7 +580,8 @@ namespace BuildXL.Cache.VerticalAggregator
                         // in some semblance of sync should the remote drop content.
                         // (i.e., the sessions in the local should be a sub-set of the sessions in the remote OR should have
                         // all their CAS content local)
-                        if (localResult.Succeeded && (localResult.Result.Determinism.IsDeterministicTool ||
+                        if (localResult.Succeeded && (m_skipDeterminismRecovery ||
+                                                      localResult.Result.Determinism.IsDeterministicTool ||
                                                       localResult.Result.Determinism.IsSinglePhaseNonDeterministic ||
                                                       m_cache.RemoteCache.IsDisconnected ||
                                                       localResult.Result.Determinism.EffectiveGuid.Equals(m_cache.RemoteCache.CacheGuid)))

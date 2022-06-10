@@ -40,6 +40,9 @@ namespace BuildXL.Cache.VerticalAggregator
         /// </summary>
         private readonly bool m_remoteContentIsReadOnly;
 
+        /// <see cref="VerticalCacheAggregatorFactory.Config.SkipDeterminismRecovery" />
+        private readonly bool m_skipDeterminismRecovery;
+
         /// <summary>
         /// Indicates that CAS data should write through to remote CAS
         /// </summary>
@@ -55,16 +58,17 @@ namespace BuildXL.Cache.VerticalAggregator
             new EventSource("VerticalCacheAggregatorEvt", EventSourceSettings.EtwSelfDescribingEventFormat);
 #endif
 
-        internal VerticalCacheAggregator(ICache localCache, ICache remoteCache, ICache remoteReadCache, bool remoteIsReadOnly, bool writeThroughCasData, bool remoteContentIsReadOnly)
+        internal VerticalCacheAggregator(ICache localCache, ICache remoteCache, ICache remoteReadCache, IVerticalAggregatorConfig config)
         {
             m_localCache = localCache;
             m_remoteCache = remoteCache;
             m_remoteReadCache = remoteReadCache;
             m_cacheId = new CacheId(localCache.CacheId, remoteCache.CacheId);
-            m_remoteIsReadOnly = remoteIsReadOnly || remoteCache.IsReadOnly;
-            m_remoteContentIsReadOnly = remoteContentIsReadOnly;
+            m_remoteIsReadOnly = remoteCache.IsReadOnly || config.RemoteIsReadOnly;
+            m_remoteContentIsReadOnly = config.RemoteContentIsReadOnly;
+            m_skipDeterminismRecovery = config.SkipDeterminismRecovery;
 
-            WriteThroughCasData = writeThroughCasData && !remoteContentIsReadOnly;
+            WriteThroughCasData = config.WriteThroughCasData && !config.RemoteContentIsReadOnly;
         }
 
         /// <inheritdoc/>
@@ -141,7 +145,8 @@ namespace BuildXL.Cache.VerticalAggregator
                         null,
                         remoteSession.Result,
                         remoteIsReadOnly: true,
-                        remoteContentIsReadOnly: true);
+                        remoteContentIsReadOnly: true,
+                        skipDeterminismRecovery: m_skipDeterminismRecovery);
                 }
 
                 Analysis.IgnoreResult(await localSession.Result.CloseAsync(), justification: "Okay to ignore close result");
@@ -231,7 +236,8 @@ namespace BuildXL.Cache.VerticalAggregator
                     remoteSession.Result,
                     remoteRoSession.Result,
                     m_remoteIsReadOnly,
-                    m_remoteContentIsReadOnly);
+                    m_remoteContentIsReadOnly,
+                    m_skipDeterminismRecovery);
             }
 
             List<Failure> failures = new List<Failure>();

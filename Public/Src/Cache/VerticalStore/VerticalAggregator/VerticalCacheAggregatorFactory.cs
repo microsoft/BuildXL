@@ -35,7 +35,7 @@ namespace BuildXL.Cache.VerticalAggregator
         //     "WriteThroughCasData":{4},
         //     "FailIfRemoteFails":{5}
         // }
-        private sealed class Config
+        private sealed class Config : IVerticalAggregatorConfig
         {
             /// <summary>
             /// The local Cache configuration
@@ -47,63 +47,41 @@ namespace BuildXL.Cache.VerticalAggregator
             /// </summary>
             public ICacheConfigData RemoteCache { get; set; }
 
-            /// <summary>
-            /// Treat the remote cache as read only. Still pull from it.
-            /// </summary>
+            /// <inheritdoc />
             [DefaultValue(false)]
             public bool RemoteIsReadOnly { get; set; }
 
-            /// <summary>
-            /// Start a background prefetch of CAS data from the remote CAS when a FullCacheRecord is returned.
-            /// </summary>
-            /// <remarks>
-            /// Currently not supported.
-            /// </remarks>
+            /// <inheritdoc />
             [DefaultValue(false)]
             public bool PreFetchCasData { get; set; }
 
-            /// <summary>
-            /// Write CAS data to remote and block on completion.
-            /// </summary>
+            /// <inheritdoc />
             [DefaultValue(false)]
             public bool WriteThroughCasData { get; set; }
 
-            /// <summary>
-            /// If true, fail construction of the cache if the Remote cache fails
-            /// </summary>
-            /// <remarks>
-            /// Normally, if the remote cache fails but the local cache works, the
-            /// construction will just return the local cache as a basic fallback.
-            /// If, however, the remote cache is considered critical, setting this to
-            /// true will fail the cache construction if the remote cache is not
-            /// functioning.
-            /// </remarks>
+            /// <inheritdoc />
             [DefaultValue(false)]
             public bool FailIfRemoteFails { get; set; }
 
-            /// <summary>
-            /// Remote content is read-only and we should only try to put metadata into the cache.
-            /// </summary>
+            /// <inheritdoc />
             [DefaultValue(false)]
             public bool RemoteContentIsReadOnly { get; set; }
 
-            /// <summary>
-            /// Create only the local cache.
-            /// </summary>
+            /// <inheritdoc />
             [DefaultValue(false)]
             public bool UseLocalOnly { get; set; }
 
-            /// <summary>
-            /// Timeout for the amount of time it can take to construct the remote cache.
-            /// </summary>
+            /// <inheritdoc />
             [DefaultValue(Timeout.Infinite)]
             public int RemoteConstructionTimeoutMilliseconds { get; set; }
 
-            /// <summary>
-            /// Whether to prohibit read operations on the remote cache.
-            /// </summary>
+            /// <inheritdoc />
             [DefaultValue(false)]
             public bool RemoteIsWriteOnly { get; set; }
+
+            /// <inheritdoc />
+            [DefaultValue(false)]
+            public bool SkipDeterminismRecovery { get; set; }
         }
 
         /// <inheritdoc />
@@ -175,9 +153,6 @@ namespace BuildXL.Cache.VerticalAggregator
                 }
 
                 ICache remote = maybeCache.Result;
-
-                bool readOnlyRemote = remote.IsReadOnly || cacheAggregatorConfig.RemoteIsReadOnly;
-
                 var remoteReadCache = cacheAggregatorConfig.RemoteIsWriteOnly
                     ? new MemCache(new CacheId("ReadOnlyEmptyRemote"), strictMetadataCasCoupling: true, isauthoritative: false)
                     : null;
@@ -189,9 +164,7 @@ namespace BuildXL.Cache.VerticalAggregator
                         local,
                         remote,
                         remoteReadCache,
-                        readOnlyRemote,
-                        cacheAggregatorConfig.WriteThroughCasData,
-                        cacheAggregatorConfig.RemoteContentIsReadOnly));
+                        cacheAggregatorConfig));
                 }
                 catch (Exception e)
                 {

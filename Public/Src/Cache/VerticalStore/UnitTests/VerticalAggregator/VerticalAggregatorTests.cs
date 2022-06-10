@@ -157,6 +157,62 @@ namespace BuildXL.Cache.VerticalAggregator.Test
                                                                                                                          finalDeterminismRemote);
         }
 
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public async Task SkipDeterminismRecovery(bool skip)
+        {
+            string testName = "SkipDeterminismRecovery";
+            string testCacheId = MakeCacheId(testName);
+
+            // L1 + L3 cache.
+            TestInMemory memoryCache = new TestInMemory();
+            string configL1 = memoryCache.NewCache(testCacheId + "L1", false);
+            string configL3 = memoryCache.NewCache(testCacheId + "L3", true, authoritative: true);
+            string vertConfig = NewCacheString(testCacheId, configL1, configL3, false, false, false, skipDeterminismRecovery: skip);
+
+            ICache testCache = await CacheFactory.InitializeCacheAsync(vertConfig).SuccessAsync();
+            VerticalAggregator.VerticalCacheAggregator cache = testCache as VerticalAggregator.VerticalCacheAggregator;
+
+            string testSessionId = "Session1-" + testCacheId;
+            ICacheSession session = await CreateSessionAsync(testCache, testSessionId);
+
+            VerticalCacheAggregatorSession vSession = session as VerticalCacheAggregatorSession;
+            XAssert.IsNotNull(vSession, "Where is our vertical aggregator session?");
+
+            var localSession = vSession.LocalSession;
+            var remoteSession = vSession.RemoteSession;
+
+            const string PipName = "TestPip";
+
+            // Feed the local and remote cache with different determinisms.
+            var localDeterminism = determinisms[0];
+            var remoteDeterminism = determinisms[1];
+            FullCacheRecord cacheRecord = await FakeBuild.DoNonDeterministicPipAsync(localSession, PipName, determinism: localDeterminism);
+            FullCacheRecord remoteRecord = await FakeBuild.DoNonDeterministicPipAsync(remoteSession, PipName, determinism: remoteDeterminism, generateVerifiablePip: true);
+
+            XAssert.AreEqual(cacheRecord.StrongFingerprint, remoteRecord.StrongFingerprint); // Sanity check
+
+            var sfp = cacheRecord.StrongFingerprint;
+
+            // Now let's check that the vertical session honors the SkipDeterminismCheck flag
+            var casEntry = (await vSession.GetCacheEntryAsync(sfp, default, default)).Result;
+
+            if (skip)
+            {
+                // If we are skipping the determinism recovery, we should get the local result
+                XAssert.AreEqual(localDeterminism, casEntry.Determinism);
+            }
+            else
+            {
+                // Convergence logic kicks in and the remote determinism is recovered
+                remoteDeterminism = CacheDeterminism.ViaCache(testCache.CacheGuid, CacheDeterminism.NeverExpires);
+                XAssert.AreEqual(remoteDeterminism, casEntry.Determinism);
+            }
+
+        }
+
+
         /// <summary>
         /// When cache hits happen in L1, the L2 may not see some or all of
         /// the cache hit requests (good thing) but that would prevent it from

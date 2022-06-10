@@ -37,7 +37,8 @@ namespace BuildXL.Cache.Tests
                 ""LocalCache"":{2},
 	            ""RemoteCache"":{3},
                 ""WriteThroughCasData"":{4},
-                ""FailIfRemoteFails"":{5}
+                ""FailIfRemoteFails"":{5},
+                ""SkipDeterminismRecovery"":{6}
             }}";
 
         protected override IEnumerable<EventSource> EventSources => new[] { VerticalCacheAggregator.EventSource };
@@ -158,7 +159,8 @@ namespace BuildXL.Cache.Tests
                                             bool prefetchCacheData,
                                             bool remoteReadOnly,
                                             bool writeThroughCasData,
-                                            bool failIfRemoteFails = true)
+                                            bool failIfRemoteFails = true,
+                                            bool skipDeterminismRecovery = false)
         {
             string verticalAggregatorCacheConfigJSONDataString = string.Format(
                 VerticalAggregatorConfigJSONData,
@@ -167,7 +169,8 @@ namespace BuildXL.Cache.Tests
                                                                                localCacheConfigJSONDataString,
                                                                                remoteCacheConfigJSONDataString,
                                                                                writeThroughCasData.ToString().ToLowerInvariant(),
-                                                                               failIfRemoteFails.ToString().ToLowerInvariant());
+                                                                               failIfRemoteFails.ToString().ToLowerInvariant(),
+                                                                               skipDeterminismRecovery.ToString().ToLowerInvariant());
 
             return verticalAggregatorCacheConfigJSONDataString;
         }

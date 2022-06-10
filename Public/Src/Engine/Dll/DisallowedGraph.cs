@@ -10,6 +10,7 @@ using BuildXL.Pips.Builders;
 using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
 
@@ -186,6 +187,13 @@ namespace BuildXL.Engine
         {
             fileArtifact = FileArtifact.Invalid;
             return false;
+        }
+
+        /// <inheritdoc />
+        public IReadOnlyCollection<KeyValuePair<DirectoryArtifact, HashSet<FileArtifact>>> RetrieveOutputsUnderOpaqueExistenceAssertions()
+        {
+            Tracing.Logger.Log.CannotAddCreatePipsDuringConfigOrModuleEvaluation(m_loggingContext);
+            return null;
         }
     }
 }

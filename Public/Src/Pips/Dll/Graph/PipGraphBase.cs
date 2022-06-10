@@ -638,6 +638,12 @@ namespace BuildXL.Pips.Graph
             }
         }
 
+        /// <inheritdoc />
+        public virtual IReadOnlyCollection<KeyValuePair<DirectoryArtifact, HashSet<FileArtifact>>> RetrieveOutputsUnderOpaqueExistenceAssertions()
+        {
+            return OutputsUnderOpaqueExistenceAssertions;
+        }
+
         public virtual IEnumerable<Pip> RetrievePipImmediateDependencies(Pip pip)
         {
             var nodeId = pip.PipId.ToNodeId();

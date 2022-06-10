@@ -410,6 +410,12 @@ namespace Test.BuildXL.TestUtilities
 
             /// <inheritdoc />
             public bool TryAssertOutputExistenceInOpaqueDirectory(DirectoryArtifact outputDirectoryArtifact, AbsolutePath outputInOpaque, out FileArtifact fileArtifact) => throw new NotImplementedException();
+
+            /// <inheritdoc />
+            public IReadOnlyCollection<KeyValuePair<DirectoryArtifact, HashSet<FileArtifact>>> RetrieveOutputsUnderOpaqueExistenceAssertions()
+            {
+                throw new NotImplementedException();
+            }
         }
 
         /// <summary>

@@ -11,6 +11,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Pips.Graph;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Collections;
 
 namespace BuildXL.Pips.Operations
 {
@@ -78,6 +79,7 @@ namespace BuildXL.Pips.Operations
         public async Task<bool> DeserializeAsync(
             AbsolutePath filePath,
             Func<PipGraphFragmentContext, PipGraphFragmentProvenance, PipId, Pip, Task<bool>> handleDeserializedPip,
+            Func<DirectoryArtifact, IReadOnlyList<AbsolutePath>, bool> handleOutputsUnderOpaqueExistenceAssertion,
             string fragmentDescriptionOverride)
         {
             Contract.Requires(filePath.IsValid);
@@ -90,7 +92,7 @@ namespace BuildXL.Pips.Operations
 
             using (var stream = new FileStream(fileName, FileMode.Open, FileAccess.Read, FileShare.Read))
             {
-                return await DeserializeAsync(stream, handleDeserializedPip, fragmentDescriptionOverride, filePath);
+                return await DeserializeAsync(stream, handleDeserializedPip, handleOutputsUnderOpaqueExistenceAssertion, fragmentDescriptionOverride, filePath);
             }
         }
 
@@ -100,6 +102,7 @@ namespace BuildXL.Pips.Operations
         public async Task<bool> DeserializeAsync(
             Stream stream,
             Func<PipGraphFragmentContext, PipGraphFragmentProvenance, PipId, Pip, Task<bool>> handleDeserializedPip,
+            Func<DirectoryArtifact, IReadOnlyList<AbsolutePath>, bool> handleOutputsUnderOpaqueExistenceAssertion,
             string fragmentDescriptionOverride,
             AbsolutePath filePathOrigin)
         {
@@ -112,6 +115,18 @@ namespace BuildXL.Pips.Operations
                     var provenance = new PipGraphFragmentProvenance(filePathOrigin, FragmentDescription);
                     bool serializedUsingTopSort = reader.ReadBoolean();
                     Func<PipId, Pip, Task<bool>> handleDeserializedPipInFragment = (pipId, pip) => handleDeserializedPip(m_pipGraphFragmentContext, provenance, pipId, pip);
+                    var outputsUnderOpaqueExistenceAssertionsCount = reader.ReadInt32();
+                    for (int i = 0; i < outputsUnderOpaqueExistenceAssertionsCount; i++)
+                    {
+                        DirectoryArtifact opaque = reader.ReadDirectoryArtifact();
+                        var outputsUnderOpaqueExistenceAssertionCount = reader.ReadInt32();
+                        IReadOnlyList<AbsolutePath> outputsUnderOpaqueExistenceAssertion = reader.ReadReadOnlyList((reader => reader.ReadAbsolutePath()));
+                        if (!handleOutputsUnderOpaqueExistenceAssertion(opaque, outputsUnderOpaqueExistenceAssertion))
+                        {
+                            return false;
+                        }
+                    }
+
                     if (serializedUsingTopSort)
                     {
                         return await DeserializeTopSortAsync(handleDeserializedPipInFragment, reader);
@@ -225,12 +240,11 @@ namespace BuildXL.Pips.Operations
             {
                 var topSorter = new PipGraphFragmentTopSort(pipGraph);
                 var sortedPips = topSorter.Sort();
-
-                SerializeTopSort(filePath, sortedPips, fragmentDescription);
+                SerializeTopSort(filePath, pipGraph.RetrieveOutputsUnderOpaqueExistenceAssertions(), sortedPips, fragmentDescription);
             }
             else
             {
-                SerializeSerially(filePath, pipGraph.RetrieveScheduledPips().ToList(), fragmentDescription);
+                SerializeSerially(filePath, pipGraph.RetrieveOutputsUnderOpaqueExistenceAssertions(), pipGraph.RetrieveScheduledPips().ToList(), fragmentDescription);
             }
         }
 
@@ -244,19 +258,19 @@ namespace BuildXL.Pips.Operations
         /// <summary>
         /// Serializes list of pips to a file.
         /// </summary>
-        private void SerializeSerially(AbsolutePath filePath, IReadOnlyList<Pip> pipsToSerialize, string fragmentDescription = null)
+        private void SerializeSerially(AbsolutePath filePath, IReadOnlyCollection<KeyValuePair<DirectoryArtifact, HashSet<FileArtifact>>> outputsUnderOpaqueExistenceAssertions, IReadOnlyList<Pip> pipsToSerialize, string fragmentDescription = null)
         {
             string fileName = filePath.ToString(m_pipExecutionContext.PathTable);
             using (var stream = GetStream(fileName))
             {
-                SerializeSerially(stream, pipsToSerialize, fragmentDescription ?? fileName);
+                SerializeSerially(stream, outputsUnderOpaqueExistenceAssertions, pipsToSerialize, fragmentDescription ?? fileName);
             }
         }
 
         /// <summary>
         /// Serializes list of pips to a file.
         /// </summary>
-        private void SerializeSerially(Stream stream, IReadOnlyList<Pip> pipsToSerialize, string fragmentDescription)
+        private void SerializeSerially(Stream stream, IReadOnlyCollection<KeyValuePair<DirectoryArtifact, HashSet<FileArtifact>>> outputsUnderOpaqueExistenceAssertions, IReadOnlyList<Pip> pipsToSerialize, string fragmentDescription)
         {
             Contract.Requires(pipsToSerialize != null);
 
@@ -265,6 +279,8 @@ namespace BuildXL.Pips.Operations
             using (var writer = GetRemapWriter(stream))
             {
                 SerializeHeader(writer, fragmentDescription, topSort: false);
+                WriteOpaqueFileAssertions(outputsUnderOpaqueExistenceAssertions, writer);
+
                 writer.Write(pipsToSerialize.Count);
                 foreach (var pip in pipsToSerialize)
                 {
@@ -276,19 +292,19 @@ namespace BuildXL.Pips.Operations
         /// <summary>
         /// Serializes list of pips to a file using topological sorting so that each level can be added to the graph in parallel.
         /// </summary>
-        public void SerializeTopSort(AbsolutePath filePath, IReadOnlyCollection<IReadOnlyList<Pip>> pipsToSerialize, string fragmentDescription = null)
+        public void SerializeTopSort(AbsolutePath filePath, IReadOnlyCollection<KeyValuePair<DirectoryArtifact, HashSet<FileArtifact>>> outputsUnderOpaqueExistenceAssertions, IReadOnlyCollection<IReadOnlyList<Pip>> pipsToSerialize, string fragmentDescription = null)
         {
             string fileName = filePath.ToString(m_pipExecutionContext.PathTable);
             using (var stream = GetStream(fileName))
             {
-                SerializeTopSort(stream, pipsToSerialize, fragmentDescription ?? fileName);
+                SerializeTopSort(stream, outputsUnderOpaqueExistenceAssertions, pipsToSerialize, fragmentDescription ?? fileName);
             }
         }
 
         /// <summary>
         /// Serializes list of pips to a file using topological sorting so that each level can be added to the graph in parallel.
         /// </summary>
-        public void SerializeTopSort(Stream stream, IReadOnlyCollection<IReadOnlyList<Pip>> pipsToSerialize, string fragmentDescription)
+        public void SerializeTopSort(Stream stream, IReadOnlyCollection<KeyValuePair<DirectoryArtifact, HashSet<FileArtifact>>> outputsUnderOpaqueExistenceAssertions, IReadOnlyCollection<IReadOnlyList<Pip>> pipsToSerialize, string fragmentDescription)
         {
             Contract.Requires(pipsToSerialize != null);
 
@@ -297,6 +313,7 @@ namespace BuildXL.Pips.Operations
             using (var writer = GetRemapWriter(stream))
             {
                 SerializeHeader(writer, fragmentDescription, topSort: true);
+                WriteOpaqueFileAssertions(outputsUnderOpaqueExistenceAssertions, writer);
 
                 // We will use the total pips to serialize as a checksum during deserialization.
                 writer.Write(m_totalPipsToSerialize);
@@ -309,6 +326,17 @@ namespace BuildXL.Pips.Operations
                         SerializePip(writer, pip);
                     });
                 }
+            }
+        }
+
+        private static void WriteOpaqueFileAssertions(IReadOnlyCollection<KeyValuePair<DirectoryArtifact, HashSet<FileArtifact>>> outputsUnderOpaqueExistenceAssertions, PipRemapWriter writer)
+        {
+            writer.Write(outputsUnderOpaqueExistenceAssertions.Count);
+            foreach (var outputsUnderOpaqueExistenceAssertion in outputsUnderOpaqueExistenceAssertions)
+            {
+                writer.Write(outputsUnderOpaqueExistenceAssertion.Key);
+                writer.Write(outputsUnderOpaqueExistenceAssertion.Value.Count);
+                writer.WriteReadOnlyList(outputsUnderOpaqueExistenceAssertion.Value.Select(x => x.Path).ToList(), (writer, path) => writer.Write(path));
             }
         }
 

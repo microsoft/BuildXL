@@ -130,6 +130,11 @@ namespace Test.BuildXL.Scheduler
         public DirectoryArtifact CreateOutputDirectory(string relative) => DirectoryArtifact.CreateWithZeroPartialSealId(CreateAbsolutePath(m_objectRoot, relative));
 
         /// <summary>
+        /// Creates an output directory artifact.
+        /// </summary>
+        public DirectoryArtifact CreateOutputDirectory(AbsolutePath fullPath) => DirectoryArtifact.CreateWithZeroPartialSealId(fullPath);
+
+        /// <summary>
         /// Gets a process builder.
         /// </summary>
         public ProcessBuilder GetProcessBuilder()

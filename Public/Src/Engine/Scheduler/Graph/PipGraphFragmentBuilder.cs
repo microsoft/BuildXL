@@ -50,6 +50,7 @@ namespace BuildXL.Scheduler.Graph
         private readonly PipExecutionContext m_pipExecutionContext;
         private readonly ConcurrentQueue<Pip> m_pips = new ConcurrentQueue<Pip>();
         private readonly ConcurrentBigMap<PipId, SealDirectoryKind> m_sealDirectoryPips = new ConcurrentBigMap<PipId, SealDirectoryKind>();
+        private readonly ConcurrentBigMap<DirectoryArtifact, HashSet<FileArtifact>> m_outputsUnderOpaqueExistenceAssertions = new ConcurrentBigMap<DirectoryArtifact, HashSet<FileArtifact>>();
         private readonly Lazy<IIpcMoniker> m_lazyApiServerMoniker;
         private PipGraph.WindowsOsDefaults m_windowsOsDefaults;
         private PipGraph.UnixDefaults m_unixDefaults;
@@ -311,18 +312,29 @@ namespace BuildXL.Scheduler.Graph
             Contract.Requires(outputDirectoryArtifact.IsValid);
             Contract.Requires(outputDirectoryArtifact.IsOutputDirectory());
             Contract.Requires(outputInOpaque.IsWithin(m_pipExecutionContext.PathTable, outputDirectoryArtifact.Path));
+            fileArtifact = FileArtifact.CreateOutputFile(outputInOpaque);
 
             var producerResult = OpaqueDirectoryProducers.TryGet(outputDirectoryArtifact);
-            if (!producerResult.IsFound)
+            if (producerResult.IsFound)
             {
-                fileArtifact = FileArtifact.Invalid;
-                return false;
+                FileProducers.TryAdd(fileArtifact, producerResult.Item.Value);
             }
-
-            fileArtifact = FileArtifact.CreateOutputFile(outputInOpaque);
-            FileProducers.TryAdd(fileArtifact, producerResult.Item.Value);
-
+            else
+            {
+                m_outputsUnderOpaqueExistenceAssertions.AddOrUpdate(
+                    outputDirectoryArtifact,
+                    fileArtifact,
+                    (key, fileArtifact) => new HashSet<FileArtifact> { fileArtifact },
+                    (key, fileArtifact, assertions) => { assertions.Add(fileArtifact); return assertions; });
+            }
+            
             return true;
+        }
+
+        /// <inheritdoc/>
+        public IReadOnlyCollection<KeyValuePair<DirectoryArtifact, HashSet<FileArtifact>>> RetrieveOutputsUnderOpaqueExistenceAssertions()
+        {
+            return m_outputsUnderOpaqueExistenceAssertions;
         }
     }
 }

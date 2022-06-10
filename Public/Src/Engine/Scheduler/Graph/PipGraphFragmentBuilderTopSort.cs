@@ -17,7 +17,7 @@ namespace BuildXL.Scheduler.Graph
     public class PipGraphFragmentBuilderTopSort : PipGraphFragmentBuilder
     {
         private readonly ConcurrentDictionary<PipId, IList<Pip>> m_pipDependents = new ConcurrentDictionary<PipId, IList<Pip>>();
-        
+
         /// <summary>
         /// Creates an instance of <see cref="PipGraphFragmentBuilder"/>.
         /// </summary>

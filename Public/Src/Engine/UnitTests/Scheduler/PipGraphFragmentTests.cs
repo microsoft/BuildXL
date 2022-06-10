@@ -112,6 +112,48 @@ namespace Test.BuildXL.Scheduler
         }
 
         [Fact]
+        public void TestAddingOpaqueFileAssertions()
+        {
+            var fragment1 = CreatePipGraphFragmentTest(nameof(TestAddingOpaqueFileAssertions) + "1");
+            var processBuilder1 = fragment1.GetProcessBuilder();
+            var argumentsBuilder1 = new ArgumentsBuilder(processBuilder1);
+            var outputDirectoryPath = fragment1.CreateOutputDirectory("g").Path;
+            var outputFilePath = fragment1.CreateOutputFile("f").Path;
+            AbsolutePath outputPathToVerify1, outputPathToVerify2;
+            argumentsBuilder1
+                .AddInputFileOption("/input:", fragment1.CreateSourceFile("f"))
+                .AddOutputDirectoryOption("/output:", outputPathToVerify1 = outputDirectoryPath)
+                .AddOutputFileOption("/output:", outputPathToVerify2 = outputFilePath)
+                .Finish();
+            (Process process1, ProcessOutputs _) = fragment1.ScheduleProcessBuilder(processBuilder1);
+
+            // Fragment2 asserts that a file exists in output directory g.
+            var fragment2 = CreatePipGraphFragmentTest(nameof(TestAddingOpaqueFileAssertions) + "2");
+            var directoryInput = fragment2.CreateOutputDirectory(AbsolutePath.Create(fragment2.Context.PathTable, outputDirectoryPath.ToString(fragment1.Context.PathTable)));
+            var fileInput = directoryInput.Path.CreateRelative(fragment2.Context.PathTable, "1.txt");
+            fragment2.PipGraph.TryAssertOutputExistenceInOpaqueDirectory(directoryInput, fileInput, out FileArtifact fileArtifactInput);
+            var processBuilder2 = fragment2.GetProcessBuilder();
+            var argumentsBuilder2 = new ArgumentsBuilder(processBuilder2);
+            AbsolutePath outputPathToVerify3;
+            argumentsBuilder2
+                .AddInputFileOption("/input:", fileArtifactInput)
+                .AddInputFileOption("/input:", fragment2.CreateOutputFile("f"))
+                .AddOutputFileOption("/output:", outputPathToVerify3 = fragment2.CreateOutputFile("h").Path)
+                .Finish();
+            (Process process2, ProcessOutputs _) = fragment2.ScheduleProcessBuilder(processBuilder2);
+
+            var graph = SerializeAndDeserializeFragments(fragment1, fragment2);
+
+            VerifyGraphSuccessfullyConstructed(graph);
+            VerifyProducerExists(graph, fragment1, outputPathToVerify1);
+            VerifyProducerExists(graph, fragment1, outputPathToVerify2);
+            VerifyProducerExists(graph, fragment2, fileInput);
+            VerifyProducerExists(graph, fragment2, outputPathToVerify3);
+            VerifyMatchingArguments(graph, fragment1, process1);
+            VerifyMatchingArguments(graph, fragment2, process2);
+        }
+
+        [Fact]
         public void TestAddingAndUnifyingIpcPip()
         {
             var fragment = CreatePipGraphFragmentTest(nameof(TestAddingAndUnifyingIpcPip));

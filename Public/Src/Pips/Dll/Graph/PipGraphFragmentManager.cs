@@ -90,6 +90,10 @@ namespace BuildXL.Pips.Graph
                         {
                             return m_taskFactory.Value.StartNew(() => AddPipToGraph(fragmentContext, provenance, pipId, pip));
                         },
+                        (opaque, filesInOpaque) =>
+                        {
+                            return AddOutputsUnderOpaqueExistenceAssertion(opaque, filesInOpaque);
+                        },
                         description);
 
                     if (!ETWLogger.Log.IsEnabled(EventLevel.Verbose, Keywords.Diagnostics))
@@ -115,6 +119,19 @@ namespace BuildXL.Pips.Graph
         public IReadOnlyCollection<(PipGraphFragmentSerializer, Task<bool>)> GetAllFragmentTasks()
         {
             return m_taskMap.Select(x => x.Value).ToList();
+        }
+
+        private bool AddOutputsUnderOpaqueExistenceAssertion(
+            DirectoryArtifact opaque,
+            IReadOnlyList<AbsolutePath> filesInOpaque)
+        {
+            bool success = true;
+            foreach (var fileInOpaque in filesInOpaque)
+            {
+                success &= m_pipGraph.TryAssertOutputExistenceInOpaqueDirectory(opaque, fileInOpaque, out _);
+            }
+
+            return success;
         }
 
         private bool AddPipToGraph(PipGraphFragmentContext fragmentContext, PipGraphFragmentProvenance provenance, PipId pipId, Pip pip)

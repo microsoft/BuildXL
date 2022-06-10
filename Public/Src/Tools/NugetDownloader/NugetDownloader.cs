@@ -55,12 +55,19 @@ namespace Tool.Download
         /// <inheritdoc />
         public override int Run(NugetDownloaderArgs arguments)
         {
-            var result = TryDownloadNugetToDiskAsync(arguments, isRetry: false).GetAwaiter().GetResult();
-
-            // If only authentication was required, no retry logic applies
-            if (result == 0 || arguments.OnlyAuthenticate)
+            try
             {
-                return result;
+                var result = TryDownloadNugetToDiskAsync(arguments, isRetry: false).GetAwaiter().GetResult();
+
+                // If only authentication was required, no retry logic applies
+                if (result == 0 || arguments.OnlyAuthenticate)
+                {
+                    return result;
+                }
+            }
+            catch (NuGetProtocolException)
+            { 
+                // Scenarios like a bad gateway during communication throw an exception. Silently catch it here so we can retry below.
             }
 
             Console.Write("Failed to download specified package. Retrying.");

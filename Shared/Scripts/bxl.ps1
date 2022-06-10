@@ -270,6 +270,7 @@ if ($DeployDev) {
 
 $BuildXLExeName = "bxl.exe";
 $BuildXLRunnerExeName = "RunInSubst.exe";
+$NugetDownloaderName = "NugetDownloader.exe";
 
 if ($Analyze)
 {
@@ -389,6 +390,7 @@ function New-Deployment {
         dir = $dir;
         domino = Join-Path $dir $BuildXLExeName;
         dominoRunner = Join-Path $dir $BuildXLRunnerExeName;
+        nugetDownloader = Join-Path $dir $NugetDownloaderName
         buildDir = Join-Path $Root $buildRelativeDir;
         enableServerMode = $enableServerMode;
         telemetryEnvironment = $TelemetryEnvironment;
@@ -767,9 +769,13 @@ if ($isMicrosoftInternal -and (-not $isRunningOnADO)) {
     # Search for the provider executable under ther specified directory
     $credProvider = Get-ChildItem $Nuget_CredentialProviders_Path\* -File -Include CredentialProvider*.exe | Select-Object -First 1
 
-    # Launch the provider making sure we allow for UI (C option) and that the token gets redacted from the console (R option)
     # CODESYNC: config.dsc. The URI needs to match the (single) feed used for the internal build
-    $p = Start-Process -FilePath $credProvider -NoNewWindow -Wait -PassThru -ArgumentList "-U https://pkgs.dev.azure.com/cloudbuild/_packaging/BuildXL.Selfhost/nuget/v3/index.json -V Information -C -R";
+    $internalFeed = "https://pkgs.dev.azure.com/cloudbuild/_packaging/BuildXL.Selfhost/nuget/v3/index.json"
+
+    Log "Launching the credential provider with (maybe required) user interaction."
+    # Launch the provider making sure we allow for UI (C option) and that the token gets redacted from the console (R option)
+    $credProviderArguments = "-U $internalFeed -V Information -C -R"
+    $p = Start-Process -FilePath $credProvider -NoNewWindow -Wait -PassThru -ArgumentList $credProviderArguments;
 
     if (-not ($p.ExitCode -eq 0))
     {
@@ -777,6 +783,26 @@ if ($isMicrosoftInternal -and (-not $isRunningOnADO)) {
         $host.SetShouldExit($p.ExitCode);
         return $p.ExitCode;
     }
+
+    # Now validate the cached token is good. Since we called the provider without -IsRetry (with the hope that an auth token is already cached), the provider
+    # might succeed but return an expired token. Use the nuget downloader with the option /onlyAuthenticate to verify this
+    Log "Validating credential provider execution."
+    $p = Start-Process $useDeployment.nugetDownloader -NoNewWindow -Wait -PassThru -ArgumentList "/repositories:BuildXL=$internalFeed /onlyAuthenticate" -RedirectStandardOutput "Out/Logs/interactive-auth.log"
+
+    if (-not ($p.ExitCode -eq 0))
+    {
+        Log "Authentication failed. The credential provider may have returned an invalid auth token. Calling it again with -IsRetry to bypass caching";
+        $p = Start-Process -FilePath $credProvider -NoNewWindow -Wait -PassThru -ArgumentList "$credProviderArguments -IsRetry";
+        
+        if (-not ($p.ExitCode -eq 0))
+        {
+            Log-Error "Failed authentication using the specified credential provider.";
+            $host.SetShouldExit($p.ExitCode);
+            return $p.ExitCode;
+        }
+    }
+
+    Log "Authentication was successful."
 }
 
 if ($NoSubst) {

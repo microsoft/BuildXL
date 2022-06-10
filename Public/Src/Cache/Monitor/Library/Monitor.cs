@@ -432,6 +432,17 @@ namespace BuildXL.Cache.Monitor.App
 
             OncePerEnvironment(arguments =>
             {
+                var configuration = new KeySpaceRule.Configuration(arguments.BaseConfiguration);
+
+                return Analysis.Utilities.Yield(new Instantiation()
+                {
+                    Rule = new KeySpaceRule(configuration),
+                    PollingPeriod = TimeSpan.FromMinutes(10),
+                });
+            }, watchlist);
+
+            OncePerEnvironment(arguments =>
+            {
                 var configuration = new DiskCorruptionRule.Configuration(arguments.BaseConfiguration);
 
                 return Analysis.Utilities.Yield(new Instantiation()

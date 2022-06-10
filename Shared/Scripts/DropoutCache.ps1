@@ -19,7 +19,7 @@ In order to use the new bits, DeploymentConfiguration.json file (https://cloudbu
 
 #>
 
-$userName = $env:USERNAME;
+$userName = ($env:username -replace '[ ]','').ToLower();
 $dateTime = (get-date -Format "yyyyMMdd.HHmm");
 $version = "0.1.0-$dateTime.$userName"
 # Release -> .net 6, ReleaseDotNetCore -> .NET Core App 3.1

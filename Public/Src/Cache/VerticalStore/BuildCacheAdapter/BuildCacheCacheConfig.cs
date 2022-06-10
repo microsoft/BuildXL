@@ -117,6 +117,7 @@ namespace BuildXL.Cache.BuildCacheAdapter
                 DomainId = DomainId,
                 DownloadBlobsUsingHttpClient = DownloadBlobsUsingHttpClient,
                 IncludeDownloadUris = IncludeDownloadUris,
+                RequiredContentKeepUntilHours = RequiredContentKeepUntilHours,
             };
         }
     }

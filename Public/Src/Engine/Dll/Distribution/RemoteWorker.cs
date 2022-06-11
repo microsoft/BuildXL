@@ -958,6 +958,8 @@ namespace BuildXL.Engine.Distribution
                     // it's a declared output and it's been added when processing Q. However, D/f is still populated to the dynamicFiles map.
                     files.UnionWith(dynamicFiles.Keys);
 
+                    int numDynamicFiles = 0;
+
                     foreach (var file in files)
                     {
                         var fileMaterializationInfo = environment.State.FileContentManager.GetInputContent(file);
@@ -986,6 +988,8 @@ namespace BuildXL.Engine.Distribution
                                     IsDirectorySharedOpaque = dynamicDirectory.IsSharedOpaque
                                 });
                             }
+
+                            numDynamicFiles++;
                         }
 
                         lock (m_hashListLock)
@@ -993,6 +997,8 @@ namespace BuildXL.Engine.Distribution
                             hashes.Add(hash);
                         }
                     }
+
+                    m_orchestratorService.Environment.Counters.AddToCounter(PipExecutorCounter.HashesForDynamicFilesSentToWorkers, numDynamicFiles);
                 }
             }
         }

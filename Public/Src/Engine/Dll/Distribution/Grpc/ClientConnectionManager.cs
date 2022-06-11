@@ -72,7 +72,6 @@ namespace BuildXL.Engine.Distribution.Grpc
         /// </summary>
         private static readonly ChannelOption[] s_defaultChannelOptions = new ChannelOption[] { new ChannelOption(ChannelOptions.MaxSendMessageLength, int.MaxValue), new ChannelOption(ChannelOptions.MaxReceiveMessageLength, int.MaxValue) };
 
-        public static readonly IEnumerable<ChannelOption> ClientChannelOptions = GetClientChannelOptions();
         public static readonly IEnumerable<ChannelOption> ServerChannelOptions = GetServerChannelOptions();
 
         internal readonly ChannelBase Channel;
@@ -116,70 +115,114 @@ namespace BuildXL.Engine.Distribution.Grpc
             m_loggingContext = loggingContext;
             m_dotNetClientEnabled = EngineEnvironmentSettings.GrpcDotNetClientEnabled;
 
-            if (!m_dotNetClientEnabled)
+            if (m_dotNetClientEnabled)
             {
-                // Grpc.Core package will be deprecated in May 2022.
-
-                var channelCreds = ChannelCredentials.Insecure;
-                List<ChannelOption> options = new List<ChannelOption>(ClientChannelOptions);
-
-                if (GrpcSettings.EncryptionEnabled)
-                {
-                    string certSubjectName = EngineEnvironmentSettings.CBBuildUserCertificateName;
-
-                    if (GrpcEncryptionUtils.TryGetPublicAndPrivateKeys(certSubjectName, out string publicCertificate, out string privateKey, out string hostName, out string errorMessage) &&
-                        publicCertificate != null &&
-                        privateKey != null &&
-                        hostName != null)
-                    {
-                        channelCreds = new SslCredentials(
-                            publicCertificate,
-                            new KeyCertificatePair(publicCertificate, privateKey));
-
-                        var callCredentials = GetCallCredentialsWithToken();
-                        if (callCredentials != null)
-                        {
-                            channelCreds = ChannelCredentials.Create(channelCreds, callCredentials);
-                        }
-
-                        // This is needed to make SSL hostname verification successful.
-                        // Otherwise we see this sort of error:
-                        // GrpcCore: 0 T:\src\github\grpc\workspace_csharp_ext_windows_x64\src\core\ext\filters\client_channel\subchannel.cc:1073:
-                        // Connect failed: {"created":"@1628096484.767000000","description":"Peer name MW1SCH103352403 is not in peer certificate",
-                        // "file":"T:\src\github\grpc\workspace_csharp_ext_windows_x64\src\core\lib\security\security_connector\ssl\ssl_security_connector.cc","file_line":59}
-                        // Even though this is advertised as 'test environment' only, this is a common practice for distributed services running in a closed network.
-                        options.Add(new ChannelOption(ChannelOptions.SslTargetNameOverride, hostName));
-
-                        Logger.Log.GrpcAuthTrace(m_loggingContext, $"Encryption and authentication is enabled: '{ipAddress}'.");
-                    }
-                    else
-                    {
-                        Logger.Log.GrpcAuthWarningTrace(m_loggingContext, $"Could not extract public certificate and private key from '{certSubjectName}'. Server will be started without ssl. Error message: '{errorMessage}'");
-                    }
-                }
-
-                Channel = new Channel(
-                    ipAddress,
-                    port,
-                    channelCreds,
-                    options);
-
+#if NET6_0_OR_GREATER
+                Channel = SetupGrpcNetClient(ipAddress, port);               
+#endif
+            }
+            else
+            {
+                // Grpc.Core package will be deprecated in late 2022.
+                Channel = SetupGrpcCoreClient(ipAddress, port);
                 m_monitorConnectionTask = MonitorConnectionAsync();
-                return;
             }
 
+            Contract.Assert(Channel != null, "Channel must be initialized");
+        }
+
+        private ChannelBase SetupGrpcCoreClient(string ipAddress, int port)
+        {
+            var channelCreds = ChannelCredentials.Insecure;
+
+            List<ChannelOption> channelOptions = new List<ChannelOption>();
+            channelOptions.AddRange(s_defaultChannelOptions);
+            if (EngineEnvironmentSettings.GrpcKeepAliveEnabled)
+            {
+                channelOptions.Add(new ChannelOption(ExtendedChannelOptions.KeepAlivePermitWithoutCalls, 1)); // enable sending pings
+                channelOptions.Add(new ChannelOption(ExtendedChannelOptions.KeepAliveTimeMs, 300000)); // 5m-frequent pings
+                channelOptions.Add(new ChannelOption(ExtendedChannelOptions.KeepAliveTimeoutMs, 60000)); // wait for 1m to receive ack for the ping before closing connection.
+                channelOptions.Add(new ChannelOption(ExtendedChannelOptions.MaxPingsWithoutData, 0)); // no limit for pings with no header/data
+                channelOptions.Add(new ChannelOption(ExtendedChannelOptions.MinSentPingIntervalWithoutDataMs, 300000)); // 5m-frequent pings with no header/data
+            }
+
+            if (GrpcSettings.EncryptionEnabled)
+            {
+                string certSubjectName = EngineEnvironmentSettings.CBBuildUserCertificateName;
+
+                if (GrpcEncryptionUtils.TryGetPublicAndPrivateKeys(certSubjectName, out string publicCertificate, out string privateKey, out string hostName, out string errorMessage) &&
+                    publicCertificate != null &&
+                    privateKey != null &&
+                    hostName != null)
+                {
+                    channelCreds = new SslCredentials(
+                        publicCertificate,
+                        new KeyCertificatePair(publicCertificate, privateKey));
+
+                    var callCredentials = GetCallCredentialsWithToken();
+                    if (callCredentials != null)
+                    {
+                        channelCreds = ChannelCredentials.Create(channelCreds, callCredentials);
+                    }
+
+                    // This is needed to make SSL hostname verification successful.
+                    // Otherwise we see this sort of error:
+                    // GrpcCore: 0 T:\src\github\grpc\workspace_csharp_ext_windows_x64\src\core\ext\filters\client_channel\subchannel.cc:1073:
+                    // Connect failed: {"created":"@1628096484.767000000","description":"Peer name MW1SCH103352403 is not in peer certificate",
+                    // "file":"T:\src\github\grpc\workspace_csharp_ext_windows_x64\src\core\lib\security\security_connector\ssl\ssl_security_connector.cc","file_line":59}
+                    // Even though this is advertised as 'test environment' only, this is a common practice for distributed services running in a closed network.
+                    channelOptions.Add(new ChannelOption(ChannelOptions.SslTargetNameOverride, hostName));
+
+                    Logger.Log.GrpcAuthTrace(m_loggingContext, $"Encryption and authentication is enabled: '{ipAddress}'.");
+                }
+                else
+                {
+                    Logger.Log.GrpcAuthWarningTrace(m_loggingContext, $"Could not extract public certificate and private key from '{certSubjectName}'. Server will be started without ssl. Error message: '{errorMessage}'");
+                }
+            }
+
+            return new Channel(
+                ipAddress,
+                port,
+                channelCreds,
+                channelOptions);
+        }
+
 #if NET6_0_OR_GREATER
+        private ChannelBase SetupGrpcNetClient(string ipAddress, int port)
+        {
+            var handler = new SocketsHttpHandler
+            {
+                UseCookies = false,
+                ConnectTimeout = EngineEnvironmentSettings.WorkerAttachTimeout,
+                Expect100ContinueTimeout = TimeSpan.Zero,
+            };
+
+            if (EngineEnvironmentSettings.GrpcKeepAliveEnabled)
+            {
+                handler.PooledConnectionIdleTimeout = Timeout.InfiniteTimeSpan;
+                handler.KeepAlivePingDelay = TimeSpan.FromSeconds(300); // 5m-frequent pings
+                handler.KeepAlivePingTimeout = TimeSpan.FromSeconds(60); // wait for 1m to receive ack for the ping before closing connection.
+                handler.KeepAlivePingPolicy = HttpKeepAlivePingPolicy.Always;
+            }
+
+            if (EngineEnvironmentSettings.GrpcNetMultipleConnectionsEnabled)
+            {
+                handler.EnableMultipleHttp2Connections = true;
+            }
+
             var channelOptions = new GrpcChannelOptions
             {
                 MaxSendMessageSize = int.MaxValue,
                 MaxReceiveMessageSize = int.MaxValue,
+                HttpHandler = handler
             };
 
             string address;
 
             if (GrpcSettings.EncryptionEnabled)
             {
-                SetupChannelOptionsForEncryption(channelOptions);
+                SetupChannelOptionsForEncryption(channelOptions, handler);
                 address = $"https://{ipAddress}:{port}";
                 Logger.Log.GrpcAuthTrace(m_loggingContext, $"GRPC.NET Encryption and authentication is enabled: '{address}'.");
             }
@@ -189,20 +232,11 @@ namespace BuildXL.Engine.Distribution.Grpc
                 address = $"http://{ipAddress}:{port}";
             }
 
-            Channel = GrpcChannel.ForAddress(address, channelOptions);
-#endif
+            return GrpcChannel.ForAddress(address, channelOptions);
         }
 
-#if NET6_0_OR_GREATER
-        private void SetupChannelOptionsForEncryption(GrpcChannelOptions channelOptions)
+        private void SetupChannelOptionsForEncryption(GrpcChannelOptions channelOptions, SocketsHttpHandler httpHandler)
         {
-            var handler = new SocketsHttpHandler
-            {
-                UseCookies = false,
-                ConnectTimeout = EngineEnvironmentSettings.WorkerAttachTimeout,
-                Expect100ContinueTimeout = TimeSpan.Zero,
-            };
-
             string certSubjectName = EngineEnvironmentSettings.CBBuildUserCertificateName;
 
             X509Certificate2 certificate = null;
@@ -223,11 +257,11 @@ namespace BuildXL.Engine.Distribution.Grpc
                 return;
             }
 
-            handler.SslOptions.ClientCertificates = new X509CertificateCollection { certificate };
+            httpHandler.SslOptions.ClientCertificates = new X509CertificateCollection { certificate };
 
             string buildUserCertificateChainsPath = EngineEnvironmentSettings.CBBuildUserCertificateChainsPath.Value;
 
-            handler.SslOptions.RemoteCertificateValidationCallback =
+            httpHandler.SslOptions.RemoteCertificateValidationCallback =
                 (requestMessage, certificate, chain, errors) =>
             {
                 if (buildUserCertificateChainsPath != null)
@@ -242,8 +276,6 @@ namespace BuildXL.Engine.Distribution.Grpc
                 // If the path for the chains is not provided, we will not validate the certificate.
                 return true;
             };
-
-            channelOptions.HttpHandler = handler;
 
             var credentials = GetCallCredentialsWithToken();
 
@@ -274,23 +306,7 @@ namespace BuildXL.Engine.Distribution.Grpc
             });
         }
 
-        public static IEnumerable<ChannelOption> GetClientChannelOptions()
-        {
-            List<ChannelOption> channelOptions = new List<ChannelOption>();
-            channelOptions.AddRange(s_defaultChannelOptions);
-            if (EngineEnvironmentSettings.GrpcKeepAliveEnabled)
-            {
-                channelOptions.Add(new ChannelOption(ExtendedChannelOptions.KeepAlivePermitWithoutCalls, 1)); // enable sending pings
-                channelOptions.Add(new ChannelOption(ExtendedChannelOptions.KeepAliveTimeMs, 300000)); // 5m-frequent pings
-                channelOptions.Add(new ChannelOption(ExtendedChannelOptions.KeepAliveTimeoutMs, 60000)); // wait for 1m to receive ack for the ping before closing connection.
-                channelOptions.Add(new ChannelOption(ExtendedChannelOptions.MaxPingsWithoutData, 0)); // no limit for pings with no header/data
-                channelOptions.Add(new ChannelOption(ExtendedChannelOptions.MinSentPingIntervalWithoutDataMs, 300000)); // 5m-frequent pings with no header/data
-            }
-
-            return channelOptions;
-        }
-
-        public static IEnumerable<ChannelOption> GetServerChannelOptions()
+        private static IEnumerable<ChannelOption> GetServerChannelOptions()
         {
             List<ChannelOption> channelOptions = new List<ChannelOption>();
             channelOptions.AddRange(s_defaultChannelOptions);

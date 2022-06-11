@@ -1237,6 +1237,9 @@ namespace BuildXL.Scheduler
         HashesSentToWorkers,
 
         /// <nodoc/>
+        HashesForDynamicFilesSentToWorkers,
+
+        /// <nodoc/>
         [CounterType(CounterType.Stopwatch)]
         IpcSendAndHandleDuration,
 

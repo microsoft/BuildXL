@@ -270,9 +270,17 @@ namespace BuildXL.Utilities.Configuration
         /// Whether KeepAlive is enabled for grpc. It allows http2 pings between client and server over transport.
         /// </summary>
         /// <remarks>
-        /// Default enabled
+        /// Default disabled
         /// </remarks>
-        public static readonly Setting<bool> GrpcKeepAliveEnabled = CreateSetting("BuildXLGrpcKeepAliveEnabled", value => string.IsNullOrWhiteSpace(value) ? true : value == "1");
+        public static readonly Setting<bool> GrpcKeepAliveEnabled = CreateSetting("BuildXLGrpcKeepAliveEnabled", value => value == "1");
+
+        /// <summary>
+        /// Whether multiple connections can be used per grpc channel.
+        /// </summary>
+        /// <remarks>
+        /// Default disabled
+        /// </remarks>
+        public static readonly Setting<bool> GrpcNetMultipleConnectionsEnabled = CreateSetting("BuildXLGrpcNetMultipleConnectionsEnabled", value => value == "1");
 
         /// <summary>
         /// How many retry attempts when a grpc message is failed to send in the given deadline period.
@@ -286,7 +294,7 @@ namespace BuildXL.Utilities.Configuration
         /// Whether new .Net client is enabled for grpc. 
         /// </summary>
         /// <remarks>
-        /// Default disabled
+        /// Default enabled
         /// </remarks>
         public static readonly Setting<bool> GrpcDotNetClientEnabled = CreateSetting("BuildXLGrpcDotNetClientEnabled", value => string.IsNullOrWhiteSpace(value) || value == "1");
 
@@ -294,7 +302,7 @@ namespace BuildXL.Utilities.Configuration
         /// Whether grpc encryption is enabled.
         /// </summary>
         /// <remarks>
-        /// Default disabled
+        /// Default enabled
         /// </remarks>
         public static readonly Setting<bool> GrpcEncryptionEnabled = CreateSetting("BuildXLGrpcEncryptionEnabled", value => string.IsNullOrWhiteSpace(value) || value == "1");
 

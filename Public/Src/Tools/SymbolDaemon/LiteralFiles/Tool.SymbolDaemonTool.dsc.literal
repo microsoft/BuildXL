@@ -1,7 +1,17 @@
 import {Transformer} from "Sdk.Transformers";
 
+const stableSymbolDaemonBinPath = d`${Context.getBuildEngineDirectory()}/Sdk/Sdk.Symbols/bin`;
+const symbolDaemonToolAtStablePath : Transformer.ToolDefinition = {
+    exe: f`${stableSymbolDaemonBinPath}/SymbolDaemon.exe`,
+    runtimeDependencies: globR(stableSymbolDaemonBinPath, "*.*"),
+    untrackedDirectoryScopes: [
+        Context.getUserHomeDirectory(),
+        d`${Context.getMount("ProgramData").path}`,
+    ],
+    dependsOnWindowsDirectories: true,
+    dependsOnAppDataDirectory: true,
+    prepareTempDirectory: true,
+};
+
 @@public
-export const tool = toolTemplate.override<Transformer.ToolDefinition>({
-    exe: f`bin/SymbolDaemon.exe`, 
-    runtimeDependencies: globR(d`bin`, "*.*")
-});
+export const tool = symbolDaemonToolAtStablePath;

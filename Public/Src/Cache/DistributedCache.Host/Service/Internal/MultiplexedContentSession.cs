@@ -95,5 +95,12 @@ namespace BuildXL.Cache.Host.Service.Internal
             var session = GetCache<ITrustedContentSession>(path);
             return session.PutTrustedFileAsync(context, contentHashWithSize, path, realizationMode, cts, urgencyHint);
         }
+
+        /// <inheritdoc />
+        public AbsolutePath TryGetWorkingDirectory(AbsolutePath pathHint)
+        {
+            var session = GetCache<IContentSession>(pathHint);
+            return (session as ITrustedContentSession)?.TryGetWorkingDirectory(pathHint);
+        }
     }
 }

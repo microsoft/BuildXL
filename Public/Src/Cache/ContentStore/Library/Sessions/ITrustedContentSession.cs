@@ -26,5 +26,8 @@ namespace BuildXL.Cache.ContentStore.Sessions.Internal
             FileRealizationMode realizationMode,
             CancellationToken cts,
             UrgencyHint urgencyHint);
+
+        /// </nodoc>
+        AbsolutePath? TryGetWorkingDirectory(AbsolutePath? pathHint);
     }
 }

@@ -752,7 +752,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                                         // We just traced all the hashes as a result of GetBulk call, no need to trace each individual hash.
                                         trace: false,
                                         // Using in-ring locations as well if the feature is on.
-                                        useInRingMachineLocations: useInRingMachineLocations);
+                                        useInRingMachineLocations: useInRingMachineLocations,
+                                        outputPath: hashesWithPaths[indexed.Index].Path);
 
                                     if (!copyResult)
                                     {
@@ -849,7 +850,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             }
         }
 
-        private async Task<PutResult> TryCopyAndPutAsync(OperationContext operationContext, ContentHashWithSizeAndLocations hashInfo, UrgencyHint urgencyHint, CopyReason reason, bool trace, bool useInRingMachineLocations = false)
+        private async Task<PutResult> TryCopyAndPutAsync(OperationContext operationContext, ContentHashWithSizeAndLocations hashInfo, UrgencyHint urgencyHint, CopyReason reason, bool trace, bool useInRingMachineLocations = false, AbsolutePath? outputPath = null)
         {
             Context context = operationContext;
             CancellationToken cts = operationContext.Token;
@@ -950,7 +951,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
                     return innerPutResult;
                 },
-                copyCompression);
+                copyCompression,
+                OverrideWorkingFolder: (Inner as ITrustedContentSession)?.TryGetWorkingDirectory(outputPath));
 
             if (useInRingMachineLocations)
             {

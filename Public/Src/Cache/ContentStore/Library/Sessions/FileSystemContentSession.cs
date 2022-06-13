@@ -100,5 +100,11 @@ namespace BuildXL.Cache.ContentStore.Sessions
         {
             return Store.PutFileAsync(context, path, contentHash, realizationMode, wrapStream, MakePinRequest(ImplicitPin.Put));
         }
+
+        /// <inheritdoc />
+        public AbsolutePath TryGetWorkingDirectory(AbsolutePath? pathHint)
+        {
+            return Store.TempFolder;
+        }
     }
 }

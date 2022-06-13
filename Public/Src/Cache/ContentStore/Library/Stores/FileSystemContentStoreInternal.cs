@@ -102,6 +102,8 @@ namespace BuildXL.Cache.ContentStore.Stores
         private readonly AbsolutePath _contentRootDirectory;
         private readonly AbsolutePath _tempFolder;
 
+        internal AbsolutePath TempFolder => _tempFolder;
+
         /// <summary>
         ///     LockSet used to ensure thread safety on write operations.
         /// </summary>

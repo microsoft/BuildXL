@@ -115,7 +115,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             Func<(CopyFileResult copyResult, AbsolutePath tempLocation, int attemptCount), Task<PutResult>> HandleCopyAsync,
             CopyCompression CopyCompression,
             // Optional list of machines in the build ring that can be also used to copy data from.
-            IReadOnlyList<MachineLocation>? InRingMachines = null)
+            IReadOnlyList<MachineLocation>? InRingMachines = null,
+            AbsolutePath? OverrideWorkingFolder = null)
         {
             /// <summary>
             /// Gets all the locations of the content including in-ring machines.
@@ -428,7 +429,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             int maxReplicaCount,
             int totalRetries)
         {
-            var workingFolder = request.Host.WorkingFolder;
+            var workingFolder = request.OverrideWorkingFolder ?? request.Host.WorkingFolder;
             var hashInfo = request.HashInfo;
             var locations = request.GetAllLocationCandidates();
 

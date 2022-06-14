@@ -3,6 +3,7 @@
 
 using System.Collections.Generic;
 using System.Linq;
+using BuildXL.Cache.Host.Configuration;
 
 namespace BuildXL.Cache.Host.Service
 {
@@ -11,16 +12,28 @@ namespace BuildXL.Cache.Host.Service
     /// </summary>
     public class HostInfo
     {
-        public string StampId { get; }
+        public HostParameters Parameters { get; }
 
-        public string RingId { get; }
+        public string StampId => Parameters.Stamp;
+
+        public string RingId => Parameters.Ring;
 
         public IEnumerable<string> Capabilities { get; }
 
+        public HostInfo(HostParameters parameters)
+        {
+            Parameters = parameters;
+            Capabilities = Enumerable.Empty<string>();
+        }
+
         public HostInfo(string stampId, string ringId, IEnumerable<string> capabilities)
         {
-            StampId = stampId;
-            RingId = ringId;
+            Parameters = new HostParameters()
+            {
+                Stamp = stampId,
+                Ring = ringId
+            };
+
             Capabilities = new List<string>(capabilities);
         }
 

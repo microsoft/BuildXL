@@ -63,6 +63,7 @@ namespace BuildXL.Launcher.Server
             var logger = new Logger(consoleLog);
 
             var cacheConfigurationPath = configuration["CacheConfigurationPath"];
+            var overlayConfigurationPath = configuration["OverlayConfigurationPath"];
             var standalone = configuration.GetValue<bool>("standalone", true);
             var secretsProviderKind = configuration.GetValue("secretsProviderKind", CrossProcessSecretsCommunicationKind.Environment);
             var context = new Context(logger);
@@ -93,7 +94,8 @@ namespace BuildXL.Launcher.Server
                     var serviceHost = new ServiceHost(commandLineArgs, config, hostParameters, context, secretsProviderKind);
                     return serviceHost;
                 },
-                requireServiceInterruptable: !standalone);
+                requireServiceInterruptable: !standalone,
+                overlayConfigurationPath: overlayConfigurationPath);
         }
 
         private const string UseExternalServicesKey = "UseExternalServices";

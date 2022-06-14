@@ -40,29 +40,36 @@ namespace BuildXL.Cache.Host.Service
             out string configHash,
             Func<TConfig, TResultConfig> extractConfig,
             Action<Context, string> requestTeardown = null,
-            TimeSpan? pollingInterval = null)
+            TimeSpan? pollingInterval = null,
+            string overlayConfigurationPath = null)
         {
             requestTeardown ??= (context, reason) => LifetimeManager.RequestTeardown(context, reason);
             pollingInterval ??= TimeSpan.FromSeconds(5);
 
-               var config = LoadPreprocessedConfig<TConfig>(configurationPath, out configHash, hostParameters);
+            var config = LoadPreprocessedConfig<TConfig>(context, configurationPath, out configHash, hostParameters, overlayConfigurationPath);
             var resultConfig = extractConfig(config);
 
             var resultConfigString = JsonSerializer.Serialize(resultConfig);
 
-            DeploymentUtilities.WatchFileAsync(
-                configurationPath,
+            List<string> paths = new List<string>() { configurationPath };
+            if (overlayConfigurationPath != null)
+            {
+                paths.Add(overlayConfigurationPath);
+            }
+
+            DeploymentUtilities.WatchFilesAsync(
+                paths,
                 context.Token,
                 pollingInterval.Value,
-                onChanged: () =>
+                onChanged: configIndex =>
                 {
-                    var newConfig = LoadPreprocessedConfig<TConfig>(configurationPath, out _, hostParameters);
+                    var newConfig = LoadPreprocessedConfig<TConfig>(context, configurationPath, out _, hostParameters, overlayConfigurationPath);
                     var newResultConfig = extractConfig(newConfig);
                     var newResultConfigString = JsonSerializer.Serialize(resultConfig);
                     if (newResultConfigString != resultConfigString)
                     {
                         resultConfigString = newResultConfigString;
-                        requestTeardown(context, "Configuration changed: " + configurationPath);
+                        requestTeardown(context, "Configuration changed: " + paths[configIndex]);
                     }
                 },
                 onError: ex =>
@@ -76,18 +83,45 @@ namespace BuildXL.Cache.Host.Service
         /// <summary>
         /// Loads a configuration object from preprocessed json
         /// </summary>
-        public static TConfig LoadPreprocessedConfig<TConfig>(string configurationPath, out string configHash, HostParameters hostParameters = null)
+        public static TConfig LoadPreprocessedConfig<TConfig>(OperationContext context, string configurationPath, out string configHash, HostParameters hostParameters = null, string overlayConfigurationPath = null)
         {
             hostParameters ??= HostParameters.FromEnvironment();
             var configJson = File.ReadAllText(configurationPath);
-            configHash = HashInfoLookup.GetContentHasher(HashType.Murmur).GetContentHash(Encoding.UTF8.GetBytes(configJson)).ToHex();
 
             var preprocessor = DeploymentUtilities.GetHostJsonPreprocessor(hostParameters);
-
             var preprocessedConfigJson = preprocessor.Preprocess(configJson);
 
+            configHash = HashInfoLookup.GetContentHasher(HashType.Murmur).GetContentHash(Encoding.UTF8.GetBytes(configJson)).ToHex().Substring(0, 12);
+
+            if (overlayConfigurationPath != null && File.Exists(overlayConfigurationPath))
+            {
+                var overlayConfigJson = File.ReadAllText(overlayConfigurationPath);
+                var preprocessedOverlayJson = preprocessor.Preprocess(overlayConfigJson);
+
+                configHash += HashInfoLookup.GetContentHasher(HashType.Murmur).GetContentHash(Encoding.UTF8.GetBytes(overlayConfigJson)).ToHex().Substring(0, 12);
+
+                preprocessedConfigJson = JsonMerger.Merge(preprocessedConfigJson, overlayJson: preprocessedOverlayJson);
+            }
+
             var config = JsonSerializer.Deserialize<TConfig>(preprocessedConfigJson, DeploymentUtilities.ConfigurationSerializationOptions);
+            var configInfo = new ConfigInfo<TConfig>()
+            {
+                ConfigurationPath = configurationPath,
+                OverlayPath = overlayConfigurationPath,
+                Parameters = hostParameters,
+                Configuration = config
+            };
+
+            context.TracingContext.Debug(JsonSerializer.Serialize(config, DeploymentUtilities.ConfigurationSerializationOptions), nameof(CacheServiceRunner));
             return config;
+        }
+
+        private class ConfigInfo<TConfig>
+        {
+            public string ConfigurationPath { get; init; }
+            public string OverlayPath { get; init; }
+            public HostParameters Parameters { get; init; }
+            public TConfig Configuration { get; init; }
         }
 
         /// <summary>
@@ -102,13 +136,20 @@ namespace BuildXL.Cache.Host.Service
             string configurationPath,
             Func<HostParameters, DistributedCacheServiceConfiguration, CancellationToken, IDistributedCacheServiceHost> createHost,
             HostParameters hostParameters = null,
-            bool requireServiceInterruptable = true)
+            bool requireServiceInterruptable = true,
+            string overlayConfigurationPath = null)
         {
             try
             {
                 hostParameters ??= HostParameters.FromEnvironment();
 
-                using var cancellableContext = new CancellableOperationContext(context, default(CancellationToken));
+                using var cts = new CancellationTokenSource();
+                LifetimeManager.OnTeardownRequested += args =>
+                {
+                    cts.Cancel();
+                };
+
+                using var cancellableContext = new CancellableOperationContext(context, cts.Token);
                 context = cancellableContext;
 
                 var config = LoadAndWatchPreprocessedConfig<DistributedCacheServiceConfiguration, DistributedCacheServiceConfiguration>(
@@ -116,7 +157,8 @@ namespace BuildXL.Cache.Host.Service
                     configurationPath,
                     hostParameters,
                     out var configHash,
-                    c => c);
+                    c => c,
+                    overlayConfigurationPath: overlayConfigurationPath);
 
                 // If the ConfigurationId was not propagated through the environment variables (for the Launcher case)
                 // we hash the config file and use the hash as the ConfigurationId.
@@ -125,7 +167,7 @@ namespace BuildXL.Cache.Host.Service
 
                 await ServiceLifetimeManager.RunDeployedInterruptableServiceAsync(context, async token =>
                 {
-                    var hostInfo = new HostInfo(hostParameters.Stamp, hostParameters.Ring, new List<string>());
+                    var hostInfo = new HostInfo(hostParameters);
 
                     var host = createHost(hostParameters, config, token);
 

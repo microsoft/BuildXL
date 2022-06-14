@@ -211,6 +211,11 @@ namespace BuildXL.Cache.Host.Service
             var configuration = arguments.Configuration;
             var logIntervalSeconds = configuration.DistributedContentSettings.ServiceRunningLogInSeconds;
             var logInterval = logIntervalSeconds != null ? (TimeSpan?)TimeSpan.FromSeconds(logIntervalSeconds.Value) : null;
+
+            context.TracingContext.Debug(
+                JsonUtilities.JsonSerialize(new ConfigurationDescriptor(arguments.HostInfo.Parameters, arguments.Configuration), indent: true),
+                nameof(DistributedCacheServiceFacade),
+                operation: "StartupConfiguration");
             
             var logFilePath = GetPathForLifetimeTracking(configuration);
             
@@ -218,6 +223,8 @@ namespace BuildXL.Cache.Host.Service
 
             return host.OnStartingServiceAsync();
         }
+
+        private record ConfigurationDescriptor(HostParameters Parameters, DistributedCacheServiceConfiguration Configuration);
 
         private static AbsolutePath GetPathForLifetimeTracking(DistributedCacheServiceConfiguration configuration) => configuration.LocalCasSettings.GetCacheRootPathWithScenario(LocalCasServiceSettings.DefaultCacheName);
 

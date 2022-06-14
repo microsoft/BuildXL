@@ -16,6 +16,7 @@ using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.Host.Configuration;
+using BuildXL.Utilities.Collections;
 using static BuildXL.Cache.Host.Configuration.DeploymentManifest;
 
 namespace BuildXL.Cache.Host.Service
@@ -132,22 +133,25 @@ namespace BuildXL.Cache.Host.Service
         }
 
 #pragma warning disable AsyncFixer03 // Fire & forget async void methods
-        public static async void WatchFileAsync(string path, CancellationToken token, TimeSpan pollingInterval, Action onChanged, Action<Exception> onError)
+        public static async void WatchFilesAsync(IReadOnlyList<string> paths, CancellationToken token, TimeSpan pollingInterval, Action<int> onChanged, Action<Exception> onError)
 #pragma warning restore AsyncFixer03 // Fire & forget async void methods
         {
             int retries;
-            var info = getChangeInfo(path);
+            var info = getChangeInfo(paths);
             while (true)
             {
                 try
                 {
                     await Task.Delay(pollingInterval, token);
 
-                    var newInfo = getChangeInfo(path);
-                    if (newInfo != info)
+                    var newInfo = getChangeInfo(paths);
+                    for (int i = 0; i < paths.Count; i++)
                     {
-                        info = newInfo;
-                        onChanged();
+                        if (newInfo[i] != info[i])
+                        {
+                            info[i] = newInfo[i];
+                            onChanged(i);
+                        }
                     }
                 }
                 catch (OperationCanceledException)
@@ -164,13 +168,17 @@ namespace BuildXL.Cache.Host.Service
                 }
             }
 
-            (long Length, DateTime LastWriteTimeUtc, DateTime CreationTimeUtc) getChangeInfo(string path)
+            (long Length, DateTime LastWriteTimeUtc, DateTime CreationTimeUtc)[] getChangeInfo(IReadOnlyList<string> paths)
             {
-                var fileInfo = new System.IO.FileInfo(path);
-                var result = (fileInfo.Length, fileInfo.LastWriteTimeUtc, fileInfo.CreationTimeUtc);
+                var result = paths.SelectArray(path =>
+                {
+                    var fileInfo = new System.IO.FileInfo(path);
+                    return (fileInfo.Length, fileInfo.LastWriteTimeUtc, fileInfo.CreationTimeUtc);
+                });
 
                 // On success, reset number of retries
                 retries = 5;
+
                 return result;
             }
         }

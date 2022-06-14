@@ -294,6 +294,11 @@ namespace Transformer {
         untrackedScopes?: Directory[];
         hasUntrackedChildProcesses?: boolean;
         allowPreservedOutputs?: boolean | number;
+
+        /**
+         * Environment variables that need to be passthrough
+         * These environment variables will not be in process' fingerprint
+         */
         passThroughEnvironmentVariables?: string[];
         
         /** 

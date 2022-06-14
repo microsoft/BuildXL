@@ -35,10 +35,26 @@ In BuildXL each tool that runs in the engine starts with a basic environment var
             // ...
             environmentVariables:[{}] ,
 
-});
+    });
 ```
-## Passthrough environment varibales
+## Passthrough environment variables
 Environment variables can be marked as _passthrough_, meaning the environment variable value is not considered when fingerprinting the process. Global passthrough variables, which will be visible to processes and also untracked, may be set via the `/unsafe_GlobalPassthroughEnvVars`. Note this is an unsafe configuration.
+
+Different from basic environment variables, passthrough environment variables can also be set in unsafe when the pip is added into build graph.
+```ts
+    let result = Transformer.execute({
+            tool: args.tool,
+            description: args.description,
+            // ...
+            unsafe: {
+                passThroughEnvironmentVariables: [
+                    EnvVar1,
+                    ...
+                    EnvVarN
+                ]
+            }
+    });
+```
 
 ### Windows fixed environment variables.
 | Variable | Value | Note |
@@ -60,7 +76,6 @@ Environment variables can be marked as _passthrough_, meaning the environment va
                           
 `$(SYSDIR)` in the table is defined as the result of [GetSystemDirectory()](https://msdn.microsoft.com/en-us/library/windows/desktop/ms724373(v=vs.85).aspx) 
 `$(WINDOWS)` in the table is defined as the result of [SHGetFolderPath()](https://msdn.microsoft.com/en-us/library/windows/desktop/bb762181(v=vs.85).aspx) with [CSIDL_WINDOWS](https://msdn.microsoft.com/en-us/library/windows/desktop/bb762494(v=vs.85).aspx)
-
 
 # Other build systems
 For example in MSBuild you can write:

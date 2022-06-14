@@ -246,14 +246,17 @@ namespace Test.BuildXL.Processes.Containers
 
             var operations = Array.Empty<Operation>();
 
-            bool callbackCalled = false;
+            int setupCallCount = 0;
+            int cleanupCallCount = 0;
             var containerConfiguration = new ContainerConfiguration(
                 pathTable: null,
                 new Dictionary<ExpandedAbsolutePath, IReadOnlyList<ExpandedAbsolutePath>>(),
                 new Dictionary<AbsolutePath, IReadOnlyList<ExpandedAbsolutePath>>(),
-                customJobObjectCustomization: (IntPtr hJob, ICollection<string> warnings) => callbackCalled = true);
+                customJobObjectCustomization: (IntPtr hJob, ICollection<string> warnings) => setupCallCount++,
+                customJobObjectCleanup: (IntPtr hJob, ICollection<string> warnings) => cleanupCallCount++);
             RunOperationsInContainerAsync(operations, containerConfiguration).GetAwaiter().GetResult();
-            XAssert.IsTrue(callbackCalled);
+            XAssert.AreEqual(1, setupCallCount);
+            XAssert.AreEqual(1, cleanupCallCount);
         }
 
         protected string CreateArguments(

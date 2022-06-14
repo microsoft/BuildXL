@@ -324,7 +324,8 @@ namespace BuildXL.Native.Processes
         /// <remarks>
         /// This method does not throw. If any of the clean-up operations fail, error details are returns.
         /// </remarks>
-        public static bool TryCleanUpContainer(IntPtr hJob, out IEnumerable<string> errors) => s_nativeMethods.TryCleanUpContainer(hJob, out errors);
+        public static bool TryCleanUpContainer(IntPtr hJob, Action<IntPtr, ICollection<string>>? customJobObjectCleanup, out IEnumerable<string> errors)
+            => s_nativeMethods.TryCleanUpContainer(hJob, customJobObjectCleanup, out errors);
 
         /// <summary>
         /// Checks whether WCI and Bind filters are available in the system (and if the current process has enough priviledges to use them)

@@ -59,7 +59,7 @@ namespace BuildXL.Processes.Containers
         /// </summary>
         protected override bool ReleaseHandle()
         {
-            if (!Native.Processes.ProcessUtilities.TryCleanUpContainer(handle, out var warnings))
+            if (!Native.Processes.ProcessUtilities.TryCleanUpContainer(handle, m_containerConfiguration.CustomJobObjectCleanup, out var warnings))
             {
                 foreach (var warning in warnings)
                 {

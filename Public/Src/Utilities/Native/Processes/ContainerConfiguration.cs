@@ -72,6 +72,16 @@ namespace BuildXL.Processes.Containers
         public Action<IntPtr, ICollection<string>>? CustomJobObjectCustomization { get; }
 
         /// <summary>
+        /// Optional callback to allow custom container cleanup for a job object.
+        /// Called during shutdown of the container after execution is complete, only when
+        /// container isolation was activated.
+        /// First parameter is the Windows job object handle. Second parameter is a
+        /// non-threadsafe collection of warnings to be passed back to the caller
+        /// for logging and debugging purposes.
+        /// </summary>
+        public Action<IntPtr, ICollection<string>>? CustomJobObjectCleanup { get; }
+
+        /// <summary>
         /// No isolation
         /// </summary>
         public static ContainerConfiguration DisabledIsolation = new ContainerConfiguration(
@@ -89,7 +99,8 @@ namespace BuildXL.Processes.Containers
             bool enableWciFilter = true,
             IReadOnlySet<ExpandedAbsolutePath>? bindFltExcludedPaths = null,
             NativeContainerUtilities.BfSetupFilterFlags bindFltFlags = NativeContainerUtilities.BfSetupFilterFlags.None,
-            Action<IntPtr, ICollection<string>>? customJobObjectCustomization = null)
+            Action<IntPtr, ICollection<string>>? customJobObjectCustomization = null,
+            Action<IntPtr, ICollection<string>>? customJobObjectCleanup = null)
         {
             Contract.Requires(redirectedDirectories.Count == 0 || pathTable != null || customJobObjectCustomization is not null);
 
@@ -100,6 +111,7 @@ namespace BuildXL.Processes.Containers
             BindFltExcludedPaths = bindFltExcludedPaths ?? CollectionUtilities.EmptySet<ExpandedAbsolutePath>();
             BindFltFlags = bindFltFlags;
             CustomJobObjectCustomization = customJobObjectCustomization;
+            CustomJobObjectCleanup = customJobObjectCleanup;
         }
 
         /// <summary>

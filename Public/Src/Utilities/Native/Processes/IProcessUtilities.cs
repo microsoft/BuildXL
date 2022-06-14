@@ -119,7 +119,7 @@ namespace BuildXL.Native.Processes
             out IEnumerable<string> warnings);
 
         /// <summary><see cref="ProcessUtilities.TryCleanUpContainer"/></summary>
-        bool TryCleanUpContainer(IntPtr hJob, out IEnumerable<string> errors);
+        bool TryCleanUpContainer(IntPtr hJob, Action<IntPtr, ICollection<string>>? customJobObjectCleanup, out IEnumerable<string> errors);
 
         /// <summary><see cref="ProcessUtilities.IsWciAndBindFiltersAvailable()"/></summary>
         bool IsWciAndBindFiltersAvailable();

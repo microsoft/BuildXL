@@ -174,7 +174,7 @@ namespace BuildXL.Native.Processes.Unix
             => throw new NotImplementedException();
 
         /// <inheritdoc />
-        public bool TryCleanUpContainer(IntPtr hJob, out IEnumerable<string> errors) => throw new NotImplementedException();
+        public bool TryCleanUpContainer(IntPtr hJob, Action<IntPtr, ICollection<string>>? customJobObjectCleanup, out IEnumerable<string> errors) => throw new NotImplementedException();
 
         /// <inheritdoc />
         public bool IsWciAndBindFiltersAvailable() => false;

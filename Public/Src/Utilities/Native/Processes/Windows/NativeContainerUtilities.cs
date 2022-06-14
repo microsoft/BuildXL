@@ -6,6 +6,8 @@ using System.IO;
 using System.Runtime.InteropServices;
 using BuildXL.Native.IO;
 
+#nullable enable
+
 namespace BuildXL.Native.Processes.Windows
 {
 #pragma warning disable CS1591 // Missing XML comment
@@ -101,21 +103,37 @@ namespace BuildXL.Native.Processes.Windows
         }
 
         /// <summary>
-        /// A target path for the WCI filter
+        /// Used in placing a WCI reparse point into the real filesystem to map a file or directory to a
+        /// corresponding relative path within a WCI virtualization layer.
         /// </summary>
+        /// <remarks>
+        /// This struct cannot be used for calling WciReadReparsePointData(), it will not correctly marshal.
+        /// For such a case, allocate an unmanaged buffer to receive data, create a clone of this struct as a
+        /// class, and use Marshal.PtrToStructure(unmanagedBuffer, instanceOfDataClass).
+        /// </remarks>
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
         public struct WC_REPARSE_POINT_DATA
         {
+            public const int MAX_PATH = 260;
+
             public uint Flags;
+
+            /// <summary>
+            /// The layer GUID to target. Typically this is set to the first/topmost layer in a set of layers,
+            /// so that virtualization utilizes each layer in succession.
+            /// </summary>
             public GUID LayerId;
 
-            //
-            // Virtual (i.e. relative to the layer root) name of the fully expanded file.
-            // NameLength is in characters and does not include a NULL character.
-            //
-            public uint NameLength;
+            /// <summary>
+            /// The number of characters in <see cref="Name"/> not including a null character.
+            /// </summary>
+            public ushort NameLength;
 
-            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 1)]
+            /// <summary>
+            /// Virtual (i.e. relative to the layer root) name of the fully expanded file.
+            /// No terminating null character is needed.
+            /// </summary>
+            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = MAX_PATH)]
             public string Name;
         }
 
@@ -308,18 +326,21 @@ namespace BuildXL.Native.Processes.Windows
         /// </summary>
         /// <param name="strDriverName"></param>
         [DllImport(ExternDll.Fltlib, SetLastError = true, CharSet = CharSet.Unicode)]
+        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         public static extern int FilterLoad([In] [MarshalAs(UnmanagedType.LPWStr)] string strDriverName);
 
         /// <summary>
         /// Creates a custom container description from an XML string.
         /// </summary>
         [DllImport(ExternDll.Container, SetLastError = true, CharSet = CharSet.Unicode)]
+        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         public static extern int WcCreateDescriptionFromXml([In] [MarshalAs(UnmanagedType.LPWStr)] string xmlDescription, [Out] out IntPtr description);
 
         /// <summary>
         /// Enables or disables a privilege from the calling thread or process. 
         /// </summary>
         [DllImport(ExternDll.Ntdll, SetLastError = true, CharSet = CharSet.Unicode)]
+        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         public static extern int RtlAdjustPrivilege([In] Priviledge privilege, [In] bool bEnablePrivilege, [In] bool isThreadPrivilege, [Out] out bool previousValue);
 
         /// <summary>
@@ -329,25 +350,29 @@ namespace BuildXL.Native.Processes.Windows
         /// See https://docs.microsoft.com/en-us/windows/desktop/api/securitybaseapi/nf-securitybaseapi-impersonateself
         /// </remarks>
         [DllImport(ExternDll.Ntdll, SetLastError = true, CharSet = CharSet.Unicode)]
+        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         public static extern int RtlImpersonateSelf([In] SecurityImpersonationLevel securityImpersonationLevel, [In] uint accessMask, [Out] out IntPtr threadToken);
 
         /// <summary>
         /// Terminates the impersonation of a client application.
         /// </summary>
         [DllImport(ExternDll.Advapi32, SetLastError = true, CharSet = CharSet.Unicode)]
+        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         public static extern bool RevertToSelf();
 
         /// <summary>
         /// Deletes a custom container description created by <see cref="WcCreateDescriptionFromXml(string, out IntPtr)"/>
         /// </summary>
         [DllImport(ExternDll.Container, SetLastError = true, CharSet = CharSet.Unicode)]
+        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         public static extern void WcDestroyDescription([In] IntPtr description);
 
         /// <summary>
         /// Adds container functionality to an existing job object.
         /// </summary>
-        /// <returns>An NTSTATUS code.</returns>
+        /// <returns>An HRESULT code.</returns>
         [DllImport(ExternDll.Container, SetLastError = true, CharSet = CharSet.Unicode)]
+        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         public static extern int WcCreateContainer([In] IntPtr jobHandle, [In] IntPtr description, [In] bool isServerSilo);
 
         /// <summary>
@@ -355,16 +380,34 @@ namespace BuildXL.Native.Processes.Windows
         /// container that do not disappear with the job object. It should be
         /// called after a container is done running.
         /// </summary>
-        /// <returns>An NTSTATUS code.</returns>
+        /// <param name="jobHandle">The job object handle for the container.</param>
+        /// <param name="volume">
+        /// Supplies the mount path of the sandbox volume, for detaching filesystem filters
+        /// attached during WcCreateContainer(). If null is passed in, no detach is performed.
+        /// </param>
+        /// <returns>An HRESULT code.</returns>
         [DllImport(ExternDll.Container, SetLastError = true, CharSet = CharSet.Unicode)]
-        public static extern int WcCleanupContainer([In] IntPtr jobHandle, [In] [MarshalAs(UnmanagedType.LPWStr)] string volume);
+        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+        public static extern int WcCleanupContainer([In] IntPtr jobHandle, [In] [MarshalAs(UnmanagedType.LPWStr)] string? volume);
 
         /// <summary>
         /// Sets up the WCIFS filter for the silo (job object) specified by the JobHandle, with the specified IsolationMode.
         /// It also takes in a path to a scratch root and a list of Layer Descriptors to configure the mapping.
         /// </summary>
-        /// <returns>An NTSTATUS code.</returns>
+        /// <param name="jobHandle">
+        /// Handle to the job object associated with this isolation root or NULL/zero
+        /// if the root is associated with the host silo.</param>
+        /// <param name="isolationMode">The isolation mode of this container and its layers.</param>
+        /// <param name="scratchRootPath">The container scratch root path.</param>
+        /// <param name="layerDescriptions">
+        /// Ordered layer information. Filesystem operations will occur in the scratch root followed
+        /// by each successive layer in this list.
+        /// </param>
+        /// <param name="layerCount">The count of layers in <paramref name="layerDescriptions"/>.</param>
+        /// <param name="nestingMode">Directs the file operation to the appropriate filter instance.</param>
+        /// <returns>An HRESULT code.</returns>
         [DllImport(ExternDll.Wcifs, SetLastError = true, CharSet = CharSet.Unicode)]
+        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         public static extern int WciSetupFilter(
             [In] IntPtr jobHandle, 
             [In] WC_ISOLATION_MODE isolationMode, 
@@ -378,6 +421,7 @@ namespace BuildXL.Native.Processes.Windows
         /// pinvoke that uses a legacy version of bind dll.
         /// </summary>
         [DllImport(ExternDll.BindfltLegacy, SetLastError = true, CharSet = CharSet.Unicode, EntryPoint = "BfSetupFilter")]
+        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         private static extern int BfSetupFilterLegacyInternal(
             [In] IntPtr jobHandle, 
             [In] BfSetupFilterFlags flags, 
@@ -390,6 +434,7 @@ namespace BuildXL.Native.Processes.Windows
         /// This routine attaches Bind filter to sandbox volume
         /// </summary>
         [DllImport(ExternDll.Bindflt, SetLastError = true, CharSet = CharSet.Unicode, EntryPoint = "BfSetupFilter")]
+        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         private static extern int BfSetupFilterInternal(
             [In] IntPtr jobHandle,
             [In] BfSetupFilterFlags flags,
@@ -402,6 +447,7 @@ namespace BuildXL.Native.Processes.Windows
         /// <see cref="BfRemoveMappingInternal(IntPtr, string)"/>, this is a pinvoke that uses a legacy version of bind dll.
         /// </summary>
         [DllImport(ExternDll.BindfltLegacy, SetLastError = true, CharSet = CharSet.Unicode, EntryPoint = "BfRemoveMapping")]
+        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         private static extern int BfRemoveMappingLegacyInternal([In] IntPtr jobHandle, [MarshalAs(UnmanagedType.LPWStr)] string virtualizationPath);
 
         /// <summary>
@@ -411,6 +457,7 @@ namespace BuildXL.Native.Processes.Windows
         /// Mappings should be removed before the container is cleaned up
         /// </remarks>
         [DllImport(ExternDll.Bindflt, SetLastError = true, CharSet = CharSet.Unicode, EntryPoint = "BfRemoveMapping")]
+        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         private static extern int BfRemoveMappingInternal([In] IntPtr jobHandle, [MarshalAs(UnmanagedType.LPWStr)] string virtualizationPath);
 
         /// <summary>
@@ -450,10 +497,21 @@ namespace BuildXL.Native.Processes.Windows
         /// Changes an existing file to be a WCI reparse point file and sets the reparse point data.
         /// </summary>
         [DllImport(ExternDll.Wcifs, SetLastError = true, CharSet = CharSet.Unicode)]
+        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         public static extern int WciSetReparsePointData(
             [In] [MarshalAs(UnmanagedType.LPWStr)] string FilePath,
             [In] ref WC_REPARSE_POINT_DATA reparsePointData,
             [In] UInt16 DataSize);
+
+        /// <summary>
+        /// Removes WCI reparse point data from the specified path.
+        /// </summary>
+        /// <param name="filePath">The path of the reparse point.</param>
+        /// <param name="nestingMode">Directs the file operation to the appropriate filter instance.</param>
+        /// <returns>An HRESULT.</returns>
+        [DllImport(ExternDll.Wcifs, SetLastError = true, CharSet = CharSet.Unicode)]
+        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+        public static extern int WcRemoveReparseData(string filePath, WC_NESTING_MODE nestingMode);
 
         /// <summary>
         /// Flags used with <see cref="WciSetReparsePointDataEx"/>.
@@ -469,11 +527,22 @@ namespace BuildXL.Native.Processes.Windows
         /// Creates a reparse point.
         /// </summary>
         [DllImport(ExternDll.Wcifs, SetLastError = true, CharSet = CharSet.Unicode)]
+        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         public static extern int WciSetReparsePointDataEx(
             [In] [MarshalAs(UnmanagedType.LPWStr)] string FilePath,
             [In] ref WC_REPARSE_POINT_DATA reparsePointData,
             [In] UInt16 DataSize,
             [In] SetReparsePointDataFlags Flags,
             [In] WC_NESTING_MODE NestingMode);
+
+        /// <summary>
+        /// Creates a WCI tombstone reparse point for a file, indicating that a file is not present.
+        /// Similar to a 'whiteout' in Linux, this immediately returns a file-not-found result when
+        /// accessing this path.
+        /// </summary>
+        [DllImport(ExternDll.Wcifs, SetLastError = true, CharSet = CharSet.Unicode)]
+        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+        public static extern int WciSetTombstone(
+            [In] [MarshalAs(UnmanagedType.LPWStr)] string FilePath);
     }
 }

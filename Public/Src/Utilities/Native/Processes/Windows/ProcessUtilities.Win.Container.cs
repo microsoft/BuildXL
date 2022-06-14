@@ -122,9 +122,14 @@ namespace BuildXL.Native.Processes.Windows
         }
 
         /// <summary><see cref="ProcessUtilities.TryCleanUpContainer"/></summary>
-        public bool TryCleanUpContainer(IntPtr hJob, out IEnumerable<string> errors)
+        public bool TryCleanUpContainer(
+            IntPtr hJob,
+            Action<IntPtr, ICollection<string>>? customJobObjectCleanup,
+            out IEnumerable<string> errors)
         {
             var cleanUpErrors = new List<string>();
+
+            customJobObjectCleanup?.Invoke(hJob, cleanUpErrors);
 
             var result = NativeContainerUtilities.WcCleanupContainer(hJob, null);
             if (result != 0)

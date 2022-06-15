@@ -21,6 +21,7 @@ using BuildXL.Cache.ContentStore.Grpc;
 
 #if NET6_0_OR_GREATER
 using Grpc.Net.Client;
+using Microsoft.Extensions.Logging;
 #endif
 
 namespace BuildXL.Engine.Distribution.Grpc
@@ -73,6 +74,31 @@ namespace BuildXL.Engine.Distribution.Grpc
         private static readonly ChannelOption[] s_defaultChannelOptions = new ChannelOption[] { new ChannelOption(ChannelOptions.MaxSendMessageLength, int.MaxValue), new ChannelOption(ChannelOptions.MaxReceiveMessageLength, int.MaxValue) };
 
         public static readonly IEnumerable<ChannelOption> ServerChannelOptions = GetServerChannelOptions();
+
+        // Verbose logging meant for debugging only
+        internal static void EnableVerboseLogging(string path, GrpcEnvironmentOptions.GrpcVerbosity verbosity)
+        {
+#if NET6_0_OR_GREATER
+            s_debugLogPathBase = path;
+
+            // Adapt from GrpcEnvironmentOptions.GrpcVerbosity.
+            // We are slightly more 'verbose' here (i.e. Debug => Trace and Error => Warning)
+            // to account for the finer granularity and considering that the gRPC.NET client logging
+            // is not as verbose as the Grpc.Core one.
+            s_debugLogVerbosity = verbosity switch
+            {
+                GrpcEnvironmentOptions.GrpcVerbosity.Disabled => LogLevel.None,
+                GrpcEnvironmentOptions.GrpcVerbosity.Debug => LogLevel.Trace,
+                GrpcEnvironmentOptions.GrpcVerbosity.Info => LogLevel.Debug,
+                GrpcEnvironmentOptions.GrpcVerbosity.Error => LogLevel.Warning,
+                _ => LogLevel.Error
+            };
+        }
+        private static string s_debugLogPathBase;
+        private static LogLevel s_debugLogVerbosity;
+#else
+        }
+#endif
 
         internal readonly ChannelBase Channel;
 
@@ -217,6 +243,16 @@ namespace BuildXL.Engine.Distribution.Grpc
                 MaxReceiveMessageSize = int.MaxValue,
                 HttpHandler = handler
             };
+
+            if (s_debugLogPathBase != null)
+            {
+                // Enable logging from the client
+                channelOptions.LoggerFactory = LoggerFactory.Create(l => 
+                {
+                    l.AddProvider(new GrpcFileLoggerAdapter(s_debugLogPathBase + $".client.{ipAddress}_{port}.grpc")); 
+                    l.SetMinimumLevel(s_debugLogVerbosity); 
+                });
+            }
 
             string address;
 

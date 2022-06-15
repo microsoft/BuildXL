@@ -284,12 +284,16 @@ namespace BuildXL.Engine
                 grpcVerbosity = (GrpcEnvironmentOptions.GrpcVerbosity?)EngineEnvironmentSettings.GrpcVerbosityLevel.Value ?? GrpcEnvironmentOptions.GrpcVerbosity.Error;
                 var grpcTraceString = EngineEnvironmentSettings.GrpcTraceList.Value ?? "all";
                 grpcTrace = grpcTraceString.Split(',').ToList();
+
+                // gRPC.NET uses a different logging mechanism, we enable it per-client in the ClientConnectionManager
+                ClientConnectionManager.EnableVerboseLogging(configuration.Logging.RpcLog.ToString(context.PathTable), grpcVerbosity);
             }
 
             GrpcEnvironment.Initialize(logger: logger, options: new GrpcEnvironmentOptions { 
                 LoggingVerbosity = grpcVerbosity,
                 Trace = grpcTrace
             });
+
 
             Logger.Log.GrpcSettings(
                 loggingContext,

@@ -50,7 +50,7 @@ namespace BuildXL.Engine.Distribution.Grpc
             {
                 if (kvp.Key == GrpcMetadata.TraceIdKey)
                 {
-                    traceId = new Guid(kvp.ValueBytes).ToString();
+                    traceId = kvp.Value;
                 }
                 else if (kvp.Key == GrpcMetadata.RelatedActivityIdKey)
                 {

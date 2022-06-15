@@ -128,7 +128,6 @@ namespace Test.BuildXL.Distribution
         [Fact]
         public async Task EarlyReleaseWhileAttachingDoesntCauseFailure()
         {
-
             var testRun = CreateTestRun();
 
             // Attach and exit before triggering the start of the service, which will make

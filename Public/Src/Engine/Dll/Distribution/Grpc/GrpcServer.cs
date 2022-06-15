@@ -74,11 +74,11 @@ namespace BuildXL.Engine.Distribution.Grpc
                         null,
                         SslClientCertificateRequestType.DontRequest);
 
-                    Logger.Log.GrpcAuthTrace(m_loggingContext, $"Server-side SSL credentials is enabled.");
+                    Logger.Log.GrpcServerTrace(m_loggingContext, $"Server auth is enabled");
                 }
                 else
                 {
-                    Logger.Log.GrpcAuthWarningTrace(m_loggingContext, $"Could not extract public certificate and private key from '{certSubjectName}'. Server will be started without ssl. Error message: '{errorMessage}'.");
+                    Logger.Log.GrpcServerTraceWarning(m_loggingContext, $"Could not extract public certificate and private key from '{certSubjectName}'. Server will be started without ssl. Error message: '{errorMessage}'");
                 }
             }
 

@@ -860,32 +860,42 @@ namespace BuildXL.Engine.Tracing
         [GeneratedEvent(
             (ushort)LogEventId.GrpcTrace,
             EventGenerators = EventGenerators.LocalOnly,
-            Message = "Grpc: {message}.",
+            Message = "[{address}] {message}",
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Distribution,
             EventOpcode = (byte)EventOpcode.Info,
             Keywords = (int)Keywords.UserMessage)]
-        public abstract void GrpcTrace(LoggingContext context, string message);
+        public abstract void GrpcTrace(LoggingContext context, string address, string message);
 
         [GeneratedEvent(
-            (ushort)LogEventId.GrpcAuthTrace,
+            (ushort)LogEventId.GrpcServerTrace,
             EventGenerators = EventGenerators.LocalOnly,
-            Message = "Auth: {message}.",
+            Message = "[localhostserver] {message}",
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Distribution,
             EventOpcode = (byte)EventOpcode.Info,
             Keywords = (int)Keywords.UserMessage)]
-        public abstract void GrpcAuthTrace(LoggingContext context, string message);
+        public abstract void GrpcServerTrace(LoggingContext context, string message);
 
         [GeneratedEvent(
-            (ushort)LogEventId.GrpcAuthWarningTrace,
+            (ushort)LogEventId.GrpcTraceWarning,
             EventGenerators = EventGenerators.LocalOnly,
-            Message = "AuthWarning: {message}.",
+            Message = "[{address}] {message}",
             EventLevel = Level.Warning,
             EventTask = (ushort)Tasks.Distribution,
             EventOpcode = (byte)EventOpcode.Info,
             Keywords = (int)Keywords.UserMessage)]
-        public abstract void GrpcAuthWarningTrace(LoggingContext context, string message);
+        public abstract void GrpcTraceWarning(LoggingContext context, string address, string message);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.GrpcServerTraceWarning,
+            EventGenerators = EventGenerators.LocalOnly,
+            Message = "[localhostserver] {message}",
+            EventLevel = Level.Warning,
+            EventTask = (ushort)Tasks.Distribution,
+            EventOpcode = (byte)EventOpcode.Info,
+            Keywords = (int)Keywords.UserMessage)]
+        public abstract void GrpcServerTraceWarning(LoggingContext context, string message);
 
         [GeneratedEvent(
             (ushort)LogEventId.DistributionWorkerFinishedPipRequest,

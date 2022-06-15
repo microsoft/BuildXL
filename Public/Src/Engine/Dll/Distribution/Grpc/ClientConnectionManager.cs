@@ -15,11 +15,13 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Tracing;
 using Grpc.Core;
 using static BuildXL.Engine.Distribution.RemoteWorker;
 using BuildXL.Cache.ContentStore.Grpc;
 
 #if NET6_0_OR_GREATER
+using Grpc.Net.Client.Configuration;
 using Grpc.Net.Client;
 using Microsoft.Extensions.Logging;
 #endif
@@ -108,9 +110,11 @@ namespace BuildXL.Engine.Distribution.Grpc
         public event EventHandler<ConnectionFailureEventArgs> OnConnectionFailureAsync;
         private volatile bool m_isShutdownInitiated;
         private volatile bool m_isExitCalledForServer;
+        private readonly CancellationTokenSource m_exitTokenSource = new CancellationTokenSource();
         private volatile bool m_attached;
         
         private readonly bool m_dotNetClientEnabled;
+        private readonly string m_ipAddress;
 
         /// <summary>
         /// Channel State 
@@ -120,19 +124,19 @@ namespace BuildXL.Engine.Distribution.Grpc
 #else
         private ChannelState State => ((Channel)Channel).State;
 #endif
-        private string StateStr => State.ToString() ?? "N/A";
 
         private string GenerateLog(string traceId, string status, uint numTry, string description)
         {
-            // example: [SELF -> MW1AAP45DD9145A::89] e709c667-ef88-464c-8557-232b02463976 Call#1. Description 
-            // example: [SELF -> MW1AAP45DD9145A::89] e709c667-ef88-464c-8557-232b02463976 Sent#1. Duration: Milliseconds 
-            // example: [SELF -> MW1AAP45DD9145A::89] e709c667-ef88-464c-8557-232b02463976 Fail#1. Duration: Milliseconds. Failure: 
-            return string.Format("[SELF -> {0}] {1} {2}#{3}. {4}", Channel.Target, traceId, status, numTry, description);
+            // example: [MW1AAP45DD9145A] Call #1 e709c ExecutePips: 1 pips, 5 file hashes, 4F805AF2204AA5BA. 
+            // example: [MW1AAP45DD9145A] Sent #1.e709c 
+            // example: [MW1AAP45DD9145A] Fail #1 e709c Failure:
+            string tryText = numTry != 1 ? numTry.ToString() : string.Empty;
+            return $"{status}{tryText} {traceId} {description}";
         }
 
-        private string GenerateFailLog(string traceId, uint numTry, long duration, string failure)
+        private string GenerateFailLog(string traceId, uint numTry, string failure)
         {
-            return GenerateLog(traceId.ToString(), "Fail", numTry, $"Duration: {duration}ms. Failure: {failure}. ChannelState: {StateStr}");
+            return GenerateLog(traceId.ToString(), "Fail", numTry, failure);
         }
 
         public ClientConnectionManager(LoggingContext loggingContext, string ipAddress, int port, DistributedInvocationId invocationId)
@@ -140,11 +144,17 @@ namespace BuildXL.Engine.Distribution.Grpc
             m_invocationId = invocationId;
             m_loggingContext = loggingContext;
             m_dotNetClientEnabled = EngineEnvironmentSettings.GrpcDotNetClientEnabled;
+            m_ipAddress = ipAddress;
 
             if (m_dotNetClientEnabled)
             {
 #if NET6_0_OR_GREATER
-                Channel = SetupGrpcNetClient(ipAddress, port);               
+                Channel = SetupGrpcNetClient(ipAddress, port);
+
+                if (EngineEnvironmentSettings.GrpcDotNetMonitorConnectionsEnabled)
+                {
+                    m_monitorConnectionTask = MonitorConnectionAsync();
+                }
 #endif
             }
             else
@@ -199,11 +209,11 @@ namespace BuildXL.Engine.Distribution.Grpc
                     // Even though this is advertised as 'test environment' only, this is a common practice for distributed services running in a closed network.
                     channelOptions.Add(new ChannelOption(ChannelOptions.SslTargetNameOverride, hostName));
 
-                    Logger.Log.GrpcAuthTrace(m_loggingContext, $"Encryption and authentication is enabled: '{ipAddress}'.");
+                    Logger.Log.GrpcTrace(m_loggingContext, ipAddress, "Grpc.Core auth is enabled");
                 }
                 else
                 {
-                    Logger.Log.GrpcAuthWarningTrace(m_loggingContext, $"Could not extract public certificate and private key from '{certSubjectName}'. Server will be started without ssl. Error message: '{errorMessage}'");
+                    Logger.Log.GrpcTraceWarning(m_loggingContext, ipAddress, $"Could not extract public certificate and private key from '{certSubjectName}'. Server will be started without ssl. Error message: '{errorMessage}'");
                 }
             }
 
@@ -230,10 +240,6 @@ namespace BuildXL.Engine.Distribution.Grpc
                 handler.KeepAlivePingDelay = TimeSpan.FromSeconds(300); // 5m-frequent pings
                 handler.KeepAlivePingTimeout = TimeSpan.FromSeconds(60); // wait for 1m to receive ack for the ping before closing connection.
                 handler.KeepAlivePingPolicy = HttpKeepAlivePingPolicy.Always;
-            }
-
-            if (EngineEnvironmentSettings.GrpcNetMultipleConnectionsEnabled)
-            {
                 handler.EnableMultipleHttp2Connections = true;
             }
 
@@ -241,7 +247,7 @@ namespace BuildXL.Engine.Distribution.Grpc
             {
                 MaxSendMessageSize = int.MaxValue,
                 MaxReceiveMessageSize = int.MaxValue,
-                HttpHandler = handler
+                HttpHandler = handler,
             };
 
             if (s_debugLogPathBase != null)
@@ -253,6 +259,30 @@ namespace BuildXL.Engine.Distribution.Grpc
                     l.SetMinimumLevel(s_debugLogVerbosity); 
                 });
             }
+            
+            if (EngineEnvironmentSettings.GrpcDotNetServiceConfigEnabled)
+            {
+                var defaultMethodConfig = new MethodConfig
+                {
+                    Names = { MethodName.Default },
+                    RetryPolicy = new RetryPolicy
+                    {
+                        MaxAttempts = GrpcSettings.MaxAttempts,
+                        InitialBackoff = TimeSpan.FromSeconds(2),
+                        MaxBackoff = TimeSpan.FromSeconds(10),
+                        BackoffMultiplier = 1.5,
+                        RetryableStatusCodes = {                                     
+                            StatusCode.Unavailable,
+                            StatusCode.Internal,
+                            StatusCode.Unknown }
+                    }
+                };
+
+                channelOptions.ServiceConfig = new ServiceConfig { 
+                    MethodConfigs = { defaultMethodConfig },
+                    LoadBalancingConfigs = { new PickFirstConfig() },
+                };
+            }
 
             string address;
 
@@ -260,7 +290,7 @@ namespace BuildXL.Engine.Distribution.Grpc
             {
                 SetupChannelOptionsForEncryption(channelOptions, handler);
                 address = $"https://{ipAddress}:{port}";
-                Logger.Log.GrpcAuthTrace(m_loggingContext, $"GRPC.NET Encryption and authentication is enabled: '{address}'.");
+                Logger.Log.GrpcTrace(m_loggingContext, ipAddress, "Grpc.NET auth is enabled.");
             }
             else
             {
@@ -283,13 +313,13 @@ namespace BuildXL.Engine.Distribution.Grpc
             }
             catch (Exception e)
             {
-                Logger.Log.GrpcAuthWarningTrace(m_loggingContext, $"An exception occurred when finding a certificate: '{e}'.");
+                Logger.Log.GrpcTraceWarning(m_loggingContext, m_ipAddress, $"An exception occurred when finding a certificate: '{e}'.");
                 return;
             }
 
             if (certificate == null)
             {
-                Logger.Log.GrpcAuthWarningTrace(m_loggingContext, $"No certificate found that matches subject name: '{certSubjectName}'.");
+                Logger.Log.GrpcTraceWarning(m_loggingContext, m_ipAddress, $"No certificate found that matches subject name: '{certSubjectName}'.");
                 return;
             }
 
@@ -304,7 +334,7 @@ namespace BuildXL.Engine.Distribution.Grpc
                 {
                     if (!GrpcEncryptionUtils.TryValidateCertificate(buildUserCertificateChainsPath, chain, out string errorMessage))
                     {
-                        Logger.Log.GrpcAuthWarningTrace(m_loggingContext, $"Certificate is not validated: '{errorMessage}'.");
+                        Logger.Log.GrpcTraceWarning(m_loggingContext, m_ipAddress, $"Certificate is not validated: '{errorMessage}'.");
                         return false;
                     }
                 }
@@ -327,7 +357,7 @@ namespace BuildXL.Engine.Distribution.Grpc
 
             if (token == null)
             {
-                Logger.Log.GrpcAuthWarningTrace(m_loggingContext, $"No token found in the following location: {buildIdentityTokenLocation}.");
+                Logger.Log.GrpcTraceWarning(m_loggingContext, m_ipAddress, $"No token found in the following location: {buildIdentityTokenLocation}.");
                 return null;
             }
 
@@ -351,13 +381,13 @@ namespace BuildXL.Engine.Distribution.Grpc
                 // Pings are sent from client to server, and we do not want server to send pings to client due to the overhead concerns.
                 // We just need to make server accept the pings.
                 channelOptions.Add(new ChannelOption(ExtendedChannelOptions.KeepAlivePermitWithoutCalls, 1)); // enable receiving pings with no data
-                channelOptions.Add(new ChannelOption(ExtendedChannelOptions.MinRecvPingIntervalWithoutDataMs, 300000)); // expecting 5m-frequent pings with no header/data
+                channelOptions.Add(new ChannelOption(ExtendedChannelOptions.MinRecvPingIntervalWithoutDataMs, 60000)); // expecting 5m-frequent pings with no header/data. As this is minimum allowed, we state 1m pings. 
             }
 
             return channelOptions;
         }
 
-        public async Task MonitorConnectionAsync()
+        private async Task MonitorConnectionAsync()
         {
             await Task.Yield();
 
@@ -380,7 +410,7 @@ namespace BuildXL.Engine.Distribution.Grpc
                     if (m_dotNetClientEnabled)
                     {
 #if NET6_0_OR_GREATER
-                        await ((GrpcChannel)Channel).WaitForStateChangedAsync((ConnectivityState)(int)state);
+                        await ((GrpcChannel)Channel).WaitForStateChangedAsync((ConnectivityState)(int)state, m_exitTokenSource.Token);
 #endif
                     }
                     else
@@ -395,11 +425,16 @@ namespace BuildXL.Engine.Distribution.Grpc
                     // The channel has been already shutdown and handle was disposed
                     // (https://github.com/grpc/grpc/blob/master/src/csharp/Grpc.Core/Channel.cs#L160)
                     // We shouldn't fail or leave this unobserved, instead we just stop monitoring
-                    Logger.Log.GrpcTrace(m_loggingContext, $"[{Channel.Target}] Channel state: {lastState} -> Disposed. Assuming shutdown was requested");
+                    Logger.Log.GrpcTrace(m_loggingContext, m_ipAddress, $"{lastState} -> Disposed. Assuming shutdown was requested");
+                    break;
+                }
+                catch (TaskCanceledException)
+                {
+                    Logger.Log.GrpcTrace(m_loggingContext, m_ipAddress, $"{lastState} -> TaskCancelledException. Assuming shutdown was requested");
                     break;
                 }
 
-                Logger.Log.GrpcTrace(m_loggingContext, $"[{Channel.Target}] Channel state: {lastState} -> {state}");
+                Logger.Log.GrpcTrace(m_loggingContext, m_ipAddress, $"{lastState} -> {state}");
 
                 // Check if we're stuck in reconnection attemps after losing connection
                 // In this situation, the state will alternate between "Connecting" and "TransientFailure"
@@ -455,7 +490,7 @@ namespace BuildXL.Engine.Distribution.Grpc
                 numRetries++;
 
                 // Try connecting with timeout
-                connectionSucceeded = await TryConnectGrpcCoreChannelAsync(GrpcSettings.CallTimeout, nameof(TryReconnectAsync));
+                connectionSucceeded = await TryConnectChannelAsync(GrpcSettings.CallTimeout, nameof(TryReconnectAsync));
                 if (connectionSucceeded)
                 {
                     return true;
@@ -476,7 +511,21 @@ namespace BuildXL.Engine.Distribution.Grpc
             if (!m_isShutdownInitiated)
             {
                 m_isShutdownInitiated = true;
-                await Channel.ShutdownAsync();
+
+                if (m_dotNetClientEnabled)
+                {
+#if NET6_0_OR_GREATER
+                    ((GrpcChannel)Channel).Dispose();
+
+                    // WaitForStateChangedAsync hangs when you dispose/shutdown the channel when it is 'idle'.
+                    // That's why, we pass a cancellation token to WaitForStateChangedAsync and cancel 
+                    m_exitTokenSource.Cancel();
+#endif
+                }
+                else
+                {
+                    await ((Channel)Channel).ShutdownAsync();
+                }
             }
 
             if (m_monitorConnectionTask != null)
@@ -496,14 +545,14 @@ namespace BuildXL.Engine.Distribution.Grpc
             CancellationToken cancellationToken = default(CancellationToken),
             bool waitForConnection = false)
         {
-            var watch = Stopwatch.StartNew();
+            var watch = StopwatchSlim.Start();
 
             TimeSpan waitForConnectionDuration = TimeSpan.Zero;
             TimeSpan totalCallDuration = TimeSpan.Zero;
 
             if (waitForConnection)
             {
-                bool connectionSucceeded = await TryConnectGrpcCoreChannelAsync(GrpcSettings.WorkerAttachTimeout, operation, watch);
+                bool connectionSucceeded = await TryConnectChannelAsync(GrpcSettings.WorkerAttachTimeout, operation, watch);
                 waitForConnectionDuration = watch.Elapsed;
 
                 if (!connectionSucceeded)
@@ -512,9 +561,9 @@ namespace BuildXL.Engine.Distribution.Grpc
                 }
             }
 
-            Guid traceId = Guid.NewGuid();
+            string traceId = Guid.NewGuid().ToString("N").Substring(0, 5);
             var headers = new Metadata();
-            headers.Add(GrpcMetadata.TraceIdKey, traceId.ToByteArray());
+            headers.Add(GrpcMetadata.TraceIdKey, traceId);
             headers.Add(GrpcMetadata.RelatedActivityIdKey, m_invocationId.RelatedActivityId);
             headers.Add(GrpcMetadata.EnvironmentKey, m_invocationId.Environment);
             headers.Add(GrpcMetadata.SenderKey, DistributionHelpers.MachineName);
@@ -527,7 +576,7 @@ namespace BuildXL.Engine.Distribution.Grpc
             while (numTry < GrpcSettings.MaxAttempts)
             {
                 numTry++;
-                watch.Restart();
+                watch.ElapsedAndReset();
 
                 try
                 {
@@ -536,16 +585,16 @@ namespace BuildXL.Engine.Distribution.Grpc
                         cancellationToken: cancellationToken,
                         headers: headers).WithWaitForReady();
 
-                    Logger.Log.GrpcTrace(m_loggingContext, GenerateLog(traceId.ToString(), "Call", numTry, operation));
+                    Logger.Log.GrpcTrace(m_loggingContext, m_ipAddress, GenerateLog(traceId, "Call", numTry, operation));
                     await func(callOptions);
-                    Logger.Log.GrpcTrace(m_loggingContext, GenerateLog(traceId.ToString(), "Sent", numTry, $"Duration: {watch.ElapsedMilliseconds}ms"));
+                    Logger.Log.GrpcTrace(m_loggingContext, m_ipAddress, GenerateLog(traceId, "Sent", numTry, string.Empty));
 
                     state = RpcCallResultState.Succeeded;
                     break;
                 }
                 catch (RpcException e)
                 {
-                    Logger.Log.GrpcTrace(m_loggingContext, GenerateFailLog(traceId.ToString(), numTry, watch.ElapsedMilliseconds, e.Message));
+                    Logger.Log.GrpcTrace(m_loggingContext, m_ipAddress, GenerateLog(traceId, "Fail", numTry, e.Message));
                     state = e.StatusCode == StatusCode.Cancelled ? RpcCallResultState.Cancelled : RpcCallResultState.Failed;
                     failure = state == RpcCallResultState.Failed ? new RecoverableExceptionFailure(new BuildXLException(e.Message)) : null;
 
@@ -580,12 +629,20 @@ namespace BuildXL.Engine.Distribution.Grpc
                     {
                         break;
                     }
+
+                    if (EngineEnvironmentSettings.GrpcDotNetServiceConfigEnabled)
+                    {
+                        // When we use the built-in retry for grpc.net, do not retry manually.
+
+                        timeouts = GrpcSettings.MaxAttempts;
+                        break;
+                    }
                 }
                 catch (ObjectDisposedException e)
                 {
                     state = RpcCallResultState.Failed;
                     failure = new RecoverableExceptionFailure(new BuildXLException(e.Message));
-                    Logger.Log.GrpcTrace(m_loggingContext, GenerateFailLog(traceId.ToString(), numTry, watch.ElapsedMilliseconds, e.Message));
+                    Logger.Log.GrpcTrace(m_loggingContext, m_ipAddress, GenerateLog(traceId, "Fail", numTry, e.Message));
 
                     // If stream is already disposed, we cannot retry call. 
                     break;
@@ -616,13 +673,12 @@ namespace BuildXL.Engine.Distribution.Grpc
                 lastFailure: failure);
         }
 
-
-        private async Task<bool> TryConnectGrpcCoreChannelAsync(TimeSpan timeout, string operation, Stopwatch watch = null)
+        private async Task<bool> TryConnectChannelAsync(TimeSpan timeout, string operation, StopwatchSlim? watch = null)
         {
-            watch = watch ?? Stopwatch.StartNew();
+            watch = watch ?? StopwatchSlim.Start();
             try
             {
-                Logger.Log.GrpcTrace(m_loggingContext, $"Attempt to connect to {Channel.Target}. ChannelState {StateStr}. Operation {operation}");
+                Logger.Log.GrpcTrace(m_loggingContext, m_ipAddress, $"Connecting by {operation}");
                 if (m_dotNetClientEnabled)
                 {
 #if NET6_0_OR_GREATER
@@ -636,12 +692,12 @@ namespace BuildXL.Engine.Distribution.Grpc
                     await ((Channel)Channel).ConnectAsync(DateTime.UtcNow.Add(timeout));
                 }
                 
-                Logger.Log.GrpcTrace(m_loggingContext, $"Connected to {Channel.Target}. ChannelState {StateStr}. Duration {watch.ElapsedMilliseconds}ms");
+                Logger.Log.GrpcTrace(m_loggingContext, m_ipAddress, $"Connected in {(long)watch.Value.Elapsed.TotalMilliseconds}ms");
             }
             catch (Exception e)
             {
 #pragma warning disable EPC12 // Suspicious exception handling: only Message property is observed in exception block.
-                Logger.Log.GrpcTrace(m_loggingContext, $"Failed to connect to {Channel.Target}. Duration {watch.ElapsedMilliseconds}ms. ChannelState {StateStr}. Failure {e.Message}");
+                Logger.Log.GrpcTrace(m_loggingContext, m_ipAddress, $"{State}. Failed to connect in {(long)watch.Value.Elapsed.TotalMilliseconds}ms. Failure {e.Message}");
 #pragma warning restore EPC12 // Suspicious exception handling: only Message property is observed in exception block.
 
                 return false;

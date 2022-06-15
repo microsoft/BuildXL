@@ -270,17 +270,17 @@ namespace BuildXL.Utilities.Configuration
         /// Whether KeepAlive is enabled for grpc. It allows http2 pings between client and server over transport.
         /// </summary>
         /// <remarks>
-        /// Default disabled
+        /// Default enabled
         /// </remarks>
-        public static readonly Setting<bool> GrpcKeepAliveEnabled = CreateSetting("BuildXLGrpcKeepAliveEnabled", value => value == "1");
+        public static readonly Setting<bool> GrpcKeepAliveEnabled = CreateSetting("BuildXLGrpcKeepAliveEnabled", value => string.IsNullOrWhiteSpace(value) || value == "1");
 
         /// <summary>
-        /// Whether multiple connections can be used per grpc channel.
+        /// Whether serviceconfig is enabled per grpc channel.
         /// </summary>
         /// <remarks>
         /// Default disabled
         /// </remarks>
-        public static readonly Setting<bool> GrpcNetMultipleConnectionsEnabled = CreateSetting("BuildXLGrpcNetMultipleConnectionsEnabled", value => value == "1");
+        public static readonly Setting<bool> GrpcDotNetServiceConfigEnabled = CreateSetting("BuildXLGrpcDotNetServiceConfigEnabled", value => value == "1");
 
         /// <summary>
         /// How many retry attempts when a grpc message is failed to send in the given deadline period.
@@ -291,12 +291,25 @@ namespace BuildXL.Utilities.Configuration
         public static readonly Setting<int> GrpcMaxAttempts = CreateSetting("BuildXLGrpcMaxAttempts", value => ParseInt32(value) ?? 2);
 
         /// <summary>
-        /// Whether new .Net client is enabled for grpc. 
+        /// Whether new .Net client is enabled for grpc
         /// </summary>
         /// <remarks>
         /// Default enabled
         /// </remarks>
         public static readonly Setting<bool> GrpcDotNetClientEnabled = CreateSetting("BuildXLGrpcDotNetClientEnabled", value => string.IsNullOrWhiteSpace(value) || value == "1");
+
+        /// <summary>
+        /// Whether MonitorConnections enabled for grpc.net
+        /// </summary>
+        /// <remarks>
+        /// Default enabled
+        /// </remarks>
+        public static readonly Setting<bool> GrpcDotNetMonitorConnectionsEnabled = CreateSetting("BuildXLGrpcDotNetMonitorConnectionsEnabled", value => string.IsNullOrWhiteSpace(value) || value == "1");
+
+        /// <summary>
+        /// Time to wait for the pip build request to be removed from the concurrent blocking collections
+        /// </summary>
+        public static readonly Setting<int?> RemoteWorkerSendBuildRequestTimeoutMs = CreateSetting("BuildXLRemoteWorkerSendBuildRequestTimeoutMs", value => ParseInt32(value));
 
         /// <summary>
         /// Whether grpc encryption is enabled.

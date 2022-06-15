@@ -15,7 +15,7 @@ namespace BuildXL.Engine.Distribution.Grpc
         // Keys
         public const string IsUnrecoverableError = "isunrecoverableerror";
         public const string InvocationIdMismatch = "invocationidmismatch";
-        public const string TraceIdKey = "traceid-bin";
+        public const string TraceIdKey = "traceid";
         public const string RelatedActivityIdKey = "relatedactivityid";
         public const string EnvironmentKey = "environment";
         public const string SenderKey = "sender";

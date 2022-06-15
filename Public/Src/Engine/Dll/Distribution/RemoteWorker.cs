@@ -205,7 +205,7 @@ namespace BuildXL.Engine.Distribution
                     m_pipCompletionTaskList.Add(firstItem.Item1);
                     m_buildRequestList.Add(firstItem.Item2);
 
-                    while (m_buildRequestList.Count < MaxMessagesPerBatch && m_buildRequests.TryTake(out var item))
+                    while (m_buildRequestList.Count < MaxMessagesPerBatch && m_buildRequests.TryTake(out var item, EngineEnvironmentSettings.RemoteWorkerSendBuildRequestTimeoutMs.Value ?? 0))
                     {
                         m_pipCompletionTaskList.Add(item.Item1);
                         m_buildRequestList.Add(item.Item2);

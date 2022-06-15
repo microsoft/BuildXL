@@ -328,7 +328,6 @@ namespace BuildXL.Engine.Tracing
         DistributionExecutePipFailedNetworkFailureWarning = 7039,
         DistributionWorkerTimeoutFailure = 7040,
 
-        GrpcAuthTrace = 7041,
         DistributionDebugMessage = 7042,
         DistributionServiceInitializationError = 7043,
         WorkerTotalRamMb = 7044,
@@ -391,7 +390,7 @@ namespace BuildXL.Engine.Tracing
         ExitOnNewGraph = 7128,
 
         EngineLoadedFileContentTable = 7150,
-        GrpcAuthWarningTrace = 7151,
+        GrpcTraceWarning = 7151,
 
         DistributionWorkerPendingMessageQueues = 7153,
         DistributionOrchestratorExitBeforeAttachment = 7154,
@@ -400,6 +399,10 @@ namespace BuildXL.Engine.Tracing
         CacheIsStillBeingInitialized = 13200,
 
         //was: StringTableConfiguration = 7127,
+
+        GrpcServerTraceWarning = 7130,
+        GrpcServerTrace = 7131,
+
         // max 7200
     }
 }

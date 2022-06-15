@@ -34,6 +34,7 @@ using Xunit.Abstractions;
 namespace BuildXL.Cache.ContentStore.Distributed.Test.MetadataService
 {
     [Collection("Redis-based tests")]
+    [Trait("Category", "WindowsOSOnly")] // 'redis-server' executable no longer exists
     public class ResilientContentMetadataServiceTests : TestBase, IDisposable
     {
         protected Tracer Tracer { get; } = new Tracer(nameof(ResilientContentMetadataServiceTests));

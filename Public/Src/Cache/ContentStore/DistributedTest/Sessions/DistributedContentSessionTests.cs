@@ -21,6 +21,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 namespace ContentStoreTest.Distributed.Sessions
 {
     [Collection("Redis-based tests")]
+    [Trait("Category", "WindowsOSOnly")] // 'redis-server' executable no longer exists
     [Trait("Category", "LongRunningTest")]
     public class DistributedContentSessionTests : ContentSessionTests
     {

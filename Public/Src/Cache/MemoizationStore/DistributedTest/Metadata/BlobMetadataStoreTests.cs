@@ -19,6 +19,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
 {
     [Trait("Category", "LongRunningTest")]
     [Collection("Redis-based tests")]
+    [Trait("Category", "WindowsOSOnly")] // 'redis-server' executable no longer exists
     public class BlobMetadataStoreTests : MemoizationSessionTests
     {
         private readonly MemoryClock _clock = new MemoryClock();

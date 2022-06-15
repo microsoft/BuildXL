@@ -263,7 +263,7 @@ fi
 
 # if the nuget credential provider is not configured (and the build is an internal one, which is where it is needed)
 # download and install the artifacts credential provider
-if [[ (! -n $NUGET_CREDENTIALPROVIDERS_PATH) && -n "$arg_Internal" ]];then
+if [[ -n "$arg_Internal" ]] && [[ ! -d "${NUGET_CREDENTIALPROVIDERS_PATH:-}" ]]; then
     installCredProvider
 fi
 

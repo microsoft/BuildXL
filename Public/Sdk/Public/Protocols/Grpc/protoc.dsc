@@ -3,7 +3,6 @@
 
 import {Artifact, Cmd, Tool, Transformer} from "Sdk.Transformers";
 import * as Managed from "Sdk.Managed.Shared";
-import * as MacOS from "Sdk.MacOS";
 
 const pkgContents = importFrom("Grpc.Tools").Contents.all;
 const includesFolder = d`${pkgContents.root}/build/native/include`;
@@ -26,6 +25,39 @@ export const tool: Transformer.ToolDefinition = {
         : r`tools/${binDir}/protoc`),
     dependsOnCurrentHostOSDirectories: true
 };
+
+@@public
+export const pluginPath = (() => {
+    const pluginPath = pkgContents.getFile(isHostOsWin
+        ? r`tools/windows_x64/grpc_csharp_plugin.exe`
+        : r`tools/${binDir}/grpc_csharp_plugin`);
+
+    const outDir = Context.getNewOutputDirectory("plugin-exe");
+    const outExe = p`${outDir}/${pluginPath.name}`;
+
+    if (isHostOsOsx || isHostOsLinux) {
+        const result = Transformer.execute({
+            tool: {
+                exe: f`/bin/bash`,
+                dependsOnCurrentHostOSDirectories: true
+            },
+            disableCacheLookup: true, // the cache doesn't store permission bits, so chmod +x must always be executed
+            workingDirectory: outDir,
+            arguments: [ 
+                Cmd.argument("-c"),
+                Cmd.rawArgument('"'),
+                Cmd.args([ "cp", Artifact.input(pluginPath), Artifact.output(outExe) ]),
+                Cmd.rawArgument(" && "),
+                Cmd.args([ "chmod", "u+x", Artifact.none(outExe) ]),
+                Cmd.rawArgument('"')
+            ]
+        });
+        return result.getOutputFile(outExe);
+    }
+    else {
+        return Transformer.copyFile(pluginPath, outExe);
+    }
+})();
 
 /**
  * Standard includes for Protobufs.
@@ -68,12 +100,7 @@ export function generateCSharp(args: ArgumentsCSharp) : Result {
             Cmd.files([fileToProcess.file]),
             ...addIf(fileToProcess.isRpc,
                 Cmd.option("--grpc_out ", Artifact.none(outputDirectory)),
-                Cmd.option("--plugin=protoc-gen-grpc=", Artifact.input(pkgContents.getFile(
-                    isHostOsWin
-                        ? r`tools/windows_x64/grpc_csharp_plugin.exe`
-                        : r`tools/${binDir}/grpc_csharp_plugin`)
-                    )
-                )
+                Cmd.option("--plugin=protoc-gen-grpc=", Artifact.input(pluginPath))
             ),
             Cmd.options("--proto_path=", Artifact.inputs(args.includes)),
         ];

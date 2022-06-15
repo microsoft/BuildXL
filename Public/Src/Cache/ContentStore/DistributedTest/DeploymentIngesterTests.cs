@@ -85,6 +85,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test
 ".Replace("'", "\"");
 
         [Fact]
+        [Trait("Category", "WindowsOSOnly")] // TODO: investigate why
         public async Task TestFullDeployment()
         {
             var sources = new Dictionary<string, string>()

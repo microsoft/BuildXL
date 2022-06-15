@@ -33,6 +33,7 @@ using Channel = System.Threading.Channels.Channel;
 namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
 {
     [Collection("Redis-based tests")]
+    [Trait("Category", "WindowsOSOnly")] // 'redis-server' executable no longer exists
     public class AzureBlobStorageMasterElectionMechanismTests : TestWithOutput
     {
         private readonly static MachineLocation M1 = new MachineLocation("M1");

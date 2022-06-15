@@ -43,6 +43,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Test
 {
     [Trait("Category", "LongRunningTest")]
     [Collection("Redis-based tests")]
+    [Trait("Category", "WindowsOSOnly")]  // 'redis-server' executable no longer exists
     [TestClassIfSupported(requiresWindowsBasedOperatingSystem: true)]
     public class DistributedOneLevelCacheTests : LocalLocationStoreDistributedContentTestsBase<ICache, ICacheSession>
     {

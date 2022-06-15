@@ -36,6 +36,7 @@ namespace ContentStoreTest.Distributed.Sessions
     [Trait("Category", "Integration")]
     [Trait("Category", "LongRunningTest")]
     [Collection("Redis-based tests")]
+    [Trait("Category", "WindowsOSOnly")] // 'redis-server' executable no longer exists
     public partial class CacheServerDistributedContentTests : ContentMetadataStoreDistributedContentTests, IClassFixture<LocalRedisFixture>
     {
         public CacheServerDistributedContentTests(

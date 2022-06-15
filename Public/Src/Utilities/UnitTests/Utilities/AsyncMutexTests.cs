@@ -6,6 +6,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Native.IO;
 using BuildXL.Utilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
@@ -16,13 +17,17 @@ namespace Test.BuildXL.Utilities
 {
     public class AsyncMutexTests : TemporaryStorageTestBase
     {
-        private readonly string m_asynMutexClient;
+        private readonly string m_asyncMutexClient;
 
         public AsyncMutexTests(ITestOutputHelper output) : base(output) 
         {
-            m_asynMutexClient = Path.Combine(TestDeploymentDir, OperatingSystemHelper.IsUnixOS
-                    ? "Test.BuildXL.Executables.AsyncMutexClient"
-                    : "Test.BuildXL.Executables.AsyncMutexClient.exe");
+            m_asyncMutexClient = Path.Combine(TestDeploymentDir, OperatingSystemHelper.IsUnixOS
+                ? "Test.BuildXL.Executables.AsyncMutexClient"
+                : "Test.BuildXL.Executables.AsyncMutexClient.exe");
+            if (OperatingSystemHelper.IsUnixOS)
+            {
+                FileUtilities.TrySetExecutePermissionIfNeeded(m_asyncMutexClient);
+            }
         }
 
         [Fact]
@@ -169,7 +174,7 @@ namespace Test.BuildXL.Utilities
         {
             var processInfo = new ProcessStartInfo
             {
-                FileName = m_asynMutexClient,
+                FileName = m_asyncMutexClient,
                 Arguments = $"{mutexName} {action}",
                 WindowStyle = ProcessWindowStyle.Hidden,
                 UseShellExecute = false,

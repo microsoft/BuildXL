@@ -214,6 +214,7 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
         }
 
         [Fact]
+        [Trait("Category", "WindowsOSOnly")] // TODO: investigate why?
         public Task TestMergeOperators()
         {
             var configuration = new RocksDbContentMetadataDatabaseConfiguration(_workingDirectory.Path)

@@ -110,8 +110,8 @@ namespace ContentStoreTest.Distributed.Sessions
 
         protected bool UseSeparateContentMetadataStorage { get; set; }
 
-        protected AbsolutePath _redirectedSourcePath = new AbsolutePath(@"X:\cache");
-        protected AbsolutePath _redirectedTargetPath = new AbsolutePath(@"X:\cache");
+        protected AbsolutePath _redirectedSourcePath = new AbsolutePath(BuildXL.Utilities.OperatingSystemHelper.IsUnixOS ? "/X/cache" : @"X:\cache");
+        protected AbsolutePath _redirectedTargetPath = new AbsolutePath(BuildXL.Utilities.OperatingSystemHelper.IsUnixOS ? "/X/cache" : @"X:\cache");
 
         protected bool EnableProactiveCopy { get; set; } = false;
 

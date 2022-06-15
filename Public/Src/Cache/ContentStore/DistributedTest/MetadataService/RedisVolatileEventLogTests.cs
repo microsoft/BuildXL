@@ -24,6 +24,7 @@ using Xunit.Abstractions;
 namespace BuildXL.Cache.ContentStore.Distributed.Test.MetadataService
 {
     [Collection("Redis-based tests")]
+    [Trait("Category", "WindowsOSOnly")] // 'redis-server' executable no longer exists
     public class RedisVolatileEventStorageTests : TestBase, IDisposable
     {
         private readonly LocalRedisFixture _redisFixture;

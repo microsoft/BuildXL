@@ -24,6 +24,7 @@ namespace ContentStoreTest.Distributed.Sessions
     [Trait("Category", "Integration")]
     [Trait("Category", "LongRunningTest")]
     [Collection("Redis-based tests")]
+    [Trait("Category", "WindowsOSOnly")] // 'redis-server' executable no longer exists
     public partial class ContentMetadataStoreDistributedContentTestsWithMerge : ContentMetadataStoreDistributedContentTests
     {
         public ContentMetadataStoreDistributedContentTestsWithMerge(LocalRedisFixture redis, ITestOutputHelper output) : base(redis, output)
@@ -36,6 +37,7 @@ namespace ContentStoreTest.Distributed.Sessions
     [Trait("Category", "Integration")]
     [Trait("Category", "LongRunningTest")]
     [Collection("Redis-based tests")]
+    [Trait("Category", "WindowsOSOnly")] // 'redis-server' executable no longer exists
     public partial class ContentMetadataStoreDistributedContentTests : LocalLocationStoreDistributedContentTestsBase
     {
         public ContentMetadataStoreDistributedContentTests(

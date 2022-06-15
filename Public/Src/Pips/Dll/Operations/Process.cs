@@ -444,7 +444,7 @@ namespace BuildXL.Pips.Operations
             Contract.Requires(workingDirectory.IsValid);
             Contract.Requires(arguments.IsValid);
             Contract.RequiresForAll(environmentVariables, environmentVariable => environmentVariable.Name.IsValid);
-            Contract.RequiresForAll(environmentVariables, environmentVariable => environmentVariable.Value.IsValid ^ environmentVariable.IsPassThrough);
+            Contract.RequiresForAll(environmentVariables, environmentVariable => environmentVariable.Value.IsValid || environmentVariable.IsPassThrough);
             Contract.Requires(dependencies.IsValid);
             Contract.RequiresForAll(dependencies, dependency => dependency.IsValid);
             Contract.Requires(directoryDependencies.IsValid);

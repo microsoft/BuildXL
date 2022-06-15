@@ -12,21 +12,66 @@ Transformer.execute({
     dependencies: [f`./src/environmentVariables.exe`],
     implicitOutputs: [f`./Out/file.out`],
     environmentVariables: [
-        {name: "bool", value: "True"},
-        {name: "dir", value: p`./dir`},
-        {name: "dirs", value: [p`./dir1`, p`./dir1`]},
-        {name: "file", value: p`./file`},
-        {name: "files", value: [p`./file1`, p`./file2`]},
-        {name: "number", value: "1"},
-        {name: "path", value: p`./path`},
-        {name: "paths", value: [p`./path1`, p`./path2`]},
+        {
+            name: "bool",
+            value: "True",
+            isPassThrough: false,
+        },
+        {
+            name: "dir",
+            value: p`./dir`,
+            isPassThrough: false,
+        },
+        {
+            name: "dirs",
+            value: [p`./dir1`, p`./dir1`],
+            isPassThrough: false,
+        },
+        {
+            name: "file",
+            value: p`./file`,
+            isPassThrough: false,
+        },
+        {
+            name: "files",
+            value: [p`./file1`, p`./file2`],
+            isPassThrough: false,
+        },
+        {
+            name: "number",
+            value: "1",
+            isPassThrough: false,
+        },
+        {
+            name: "path",
+            value: p`./path`,
+            isPassThrough: false,
+        },
+        {
+            name: "paths",
+            value: [p`./path1`, p`./path2`],
+            isPassThrough: false,
+        },
         {
             name: "pathsWithSepartor",
             value: [p`./path1`, p`./path2`],
             separator: "----",
+            isPassThrough: false,
         },
-        {name: "staticDir", value: p`./src/seal1`},
-        {name: "staticDirs", value: [p`./src/seal1`, p`./src/seal2`]},
-        {name: "string", value: "stringValue"},
+        {
+            name: "staticDir",
+            value: p`./src/seal1`,
+            isPassThrough: false,
+        },
+        {
+            name: "staticDirs",
+            value: [p`./src/seal1`, p`./src/seal2`],
+            isPassThrough: false,
+        },
+        {
+            name: "string",
+            value: "stringValue",
+            isPassThrough: false,
+        },
     ],
 });

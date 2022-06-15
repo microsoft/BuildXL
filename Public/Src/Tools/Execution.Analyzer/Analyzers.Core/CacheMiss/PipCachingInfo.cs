@@ -9,7 +9,7 @@ using BuildXL.Pips.Operations;
 using BuildXL.Scheduler;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities;
-using StringPair = System.Collections.Generic.KeyValuePair<string, string>;
+using EnvVar = System.Collections.Generic.KeyValuePair<string, (string, bool)>;
 
 namespace BuildXL.Execution.Analyzer.Analyzers.CacheMiss
 {
@@ -50,10 +50,10 @@ namespace BuildXL.Execution.Analyzer.Analyzers.CacheMiss
             return (Process)Model.CachedGraph.PipGraph.GetPipFromPipId(OriginalPipId);
         }
 
-        public IReadOnlyList<StringPair> GetEnvironmentVariables()
+        public IReadOnlyList<EnvVar> GetEnvironmentVariables()
         {
             var context = Model.CachedGraph.Context;
-            return GetOriginalProcess().EnvironmentVariables.Select(env => new StringPair(env.Name.ToString(context.StringTable), env.IsPassThrough ? "{Pass-through}" : env.Value.ToString(context.PathTable))).ToList();
+            return GetOriginalProcess().EnvironmentVariables.Select(env => new EnvVar(env.Name.ToString(context.StringTable), (env.Value.IsValid ? "{unset}" : env.Value.ToString(context.PathTable), env.IsPassThrough))).ToList();
         }
 
         public IReadOnlyList<FileData> DependencyData => CacheablePipInfo.Dependencies.ToFileDataList(WorkerId, Model);

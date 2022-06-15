@@ -464,7 +464,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
                         var environmentVariable = Converter.ExpectObjectLiteral(
                             environmentVariables[i],
                             new ConversionContext(pos: i, objectCtx: environmentVariables));
-                        ProcessEnvironmentVariable(context, processBuilder, pipDataBuilder, environmentVariable);
+                        ProcessEnvironmentVariable(context, processBuilder, pipDataBuilder, environmentVariable, isPassThrough: false);
                         pipDataBuilder.Clear();
                     }
                 }
@@ -856,7 +856,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
 
             foreach (var kv in cachedTool.EnvironmentVariables)
             {
-                processBuilder.SetEnvironmentVariable(kv.Key, kv.Value);
+                processBuilder.SetEnvironmentVariable(kv.Key, kv.Value, isPassThrough: false);
             }
 
             if (cachedTool.DependsOnCurrentHostOSDirectories)
@@ -1192,7 +1192,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             }
         }
 
-        private void ProcessEnvironmentVariable(Context context, ProcessBuilder processBuilder, PipDataBuilder pipDataBuilder, ObjectLiteral obj)
+        private void ProcessEnvironmentVariable(Context context, ProcessBuilder processBuilder, PipDataBuilder pipDataBuilder, ObjectLiteral obj, bool isPassThrough)
         {
             // Name of the environment variable.
             var n = obj[m_envName].Value as string;
@@ -1267,7 +1267,8 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
 
             processBuilder.SetEnvironmentVariable(
                 StringId.Create(context.StringTable, n),
-                pipDataBuilder.ToPipData(sepId, PipDataFragmentEscaping.NoEscaping));
+                pipDataBuilder.ToPipData(sepId, PipDataFragmentEscaping.NoEscaping),
+                isPassThrough);
         }
 
         private void ProcessAcquireSemaphores(Context context, ProcessBuilder processBuilder, ArrayLiteral semaphores)
@@ -1390,10 +1391,26 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             var passThroughEnvironmentVariables = Converter.ExtractArrayLiteral(unsafeOptionsObjLit, m_unsafePassThroughEnvironmentVariables, allowUndefined: true);
             if (passThroughEnvironmentVariables != null)
             {
-                for (var i = 0; i < passThroughEnvironmentVariables.Length; i++)
+                using (var pipDataBuilderWrapper = context.FrontEndContext.GetPipDataBuilder())
                 {
-                    var passThroughEnvironmentVariable = Converter.ExpectString(passThroughEnvironmentVariables[i], new ConversionContext(pos: i, objectCtx: passThroughEnvironmentVariables));
-                    processBuilder.SetPassthroughEnvironmentVariable(StringId.Create(context.StringTable, passThroughEnvironmentVariable));
+                    var pipDataBuilder = pipDataBuilderWrapper.Instance;
+
+                    for (var i = 0; i < passThroughEnvironmentVariables.Length; i++)
+                    {
+                        var passThroughEnvironmentVariableElem = passThroughEnvironmentVariables[i];
+                        if (passThroughEnvironmentVariableElem.IsUndefined || passThroughEnvironmentVariableElem.Value is string)
+                        {
+                            var passThroughEnvironmentVariable = Converter.ExpectString(passThroughEnvironmentVariableElem, new ConversionContext(pos: i, objectCtx: passThroughEnvironmentVariables));
+                            processBuilder.SetPassthroughEnvironmentVariable(StringId.Create(context.StringTable, passThroughEnvironmentVariable));
+                        }
+                        else
+                        {
+                            var passThroughEnvironmentVariable = Converter.ExpectObjectLiteral(passThroughEnvironmentVariableElem, new ConversionContext(pos: i, objectCtx: passThroughEnvironmentVariables));
+                            ProcessEnvironmentVariable(context, processBuilder, pipDataBuilder, passThroughEnvironmentVariable, isPassThrough: true);
+                            
+                            pipDataBuilder.Clear();
+                        }
+                    }
                 }
             }
 

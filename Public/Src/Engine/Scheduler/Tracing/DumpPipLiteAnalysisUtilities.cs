@@ -267,7 +267,7 @@ namespace BuildXL.Scheduler.Tracing
                 Arguments = CreateString(pip.Arguments, pathTable),
                 ResponseFilePath = CreateString(pip.ResponseFile, pathTable),
                 ReponseFileContents = CreateString(pip.ResponseFileData, pathTable),
-                EnvironmentVariables = GetJsonFriendlyList(pip.EnvironmentVariables.Select(envVar => new SerializedEnvironmentVariable(envVar.Name.ToString(stringTable), (envVar.Value.IsValid ? envVar.Value.ToString(pathTable) : "[Passthrough Environment Variable]"))))
+                EnvironmentVariables = GetJsonFriendlyList(pip.EnvironmentVariables.Select(envVar => new SerializedEnvironmentVariable(envVar.Name.ToString(stringTable), (envVar.Value.IsValid ? envVar.Value.ToString(pathTable) : "[Passthrough Environment Variable]"), envVar.IsPassThrough)))
             };
         }
 

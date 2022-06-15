@@ -33,7 +33,7 @@ namespace BuildXL.Pips.Operations
         public EnvironmentVariable(StringId name, PipData value, bool isPassThrough = false)
         {
             Contract.Requires(name.IsValid);
-            Contract.Requires(value.IsValid ^ isPassThrough);
+            Contract.Requires(value.IsValid || isPassThrough);
 
             Name = name;
             Value = value;
@@ -63,7 +63,7 @@ namespace BuildXL.Pips.Operations
             {
                 PipData value = reader.ReadPipData();
                 bool isPassThrough = reader.ReadBoolean();
-                Contract.Assume(value.IsValid ^ isPassThrough);
+                Contract.Assume(value.IsValid || isPassThrough);
                 return new EnvironmentVariable(name, value, isPassThrough);
             }
             else
@@ -85,7 +85,7 @@ namespace BuildXL.Pips.Operations
         /// <filterpriority>2</filterpriority>
         public bool Equals(EnvironmentVariable other)
         {
-            return Value == other.Value && Name == other.Name;
+            return Value == other.Value && Name == other.Name && IsPassThrough == other.IsPassThrough;
         }
 
         /// <summary>
@@ -106,7 +106,7 @@ namespace BuildXL.Pips.Operations
         /// </summary>
         public override int GetHashCode()
         {
-            return HashCodeHelper.Combine(Value.GetHashCode(), Name.GetHashCode());
+            return HashCodeHelper.Combine(Value.GetHashCode(), Name.GetHashCode(), IsPassThrough.GetHashCode());
         }
 
         /// <summary>

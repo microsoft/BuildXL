@@ -18,7 +18,7 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using static BuildXL.Utilities.FormattableStringEx;
-using StringPair = System.Collections.Generic.KeyValuePair<string, string>;
+using EnvVar = System.Collections.Generic.KeyValuePair<string, (string, bool)>;
 
 namespace BuildXL.Execution.Analyzer
 {
@@ -222,8 +222,8 @@ namespace BuildXL.Execution.Analyzer
                 }
             }
 
-            private readonly Dictionary<string, StringPair> m_currentEnvVarsByName = new Dictionary<string, StringPair>();
-            private readonly List<(StringPair envVar1, StringPair EnvVar2)> m_currentChangedEnvVars = new List<(StringPair envVar1, StringPair EnvVar2)>();
+            private readonly Dictionary<string, EnvVar> m_currentEnvVarsByName = new Dictionary<string, EnvVar>();
+            private readonly List<(EnvVar envVar1, EnvVar EnvVar2)> m_currentChangedEnvVars = new List<(EnvVar envVar1, EnvVar EnvVar2)>();
 
             private readonly Dictionary<AbsolutePath, FileData> m_currentDependenciesByPath = new Dictionary<AbsolutePath, FileData>();
             private readonly List<(FileData, FileData)> m_currentChangedDependenciesByPath = new List<(FileData, FileData)>();
@@ -836,9 +836,9 @@ namespace BuildXL.Execution.Analyzer
                 return "None";
             }
 
-            private string Print(StringPair arg)
+            private string Print(EnvVar arg)
             {
-                return I($"{arg.Key}={arg.Value}");
+                return I($"[PassThrough:${arg.Value.Item2}]{arg.Key}={arg.Value.Item1}");
             }
 
             private string Print(ObservedInput arg)
@@ -904,9 +904,9 @@ namespace BuildXL.Execution.Analyzer
             }
 
             private void ExtractChangedInputs(
-                ref IEnumerable<StringPair> added,
-                ref IEnumerable<StringPair> removed,
-                out IEnumerable<(StringPair, StringPair)> changed)
+                ref IEnumerable<EnvVar> added,
+                ref IEnumerable<EnvVar> removed,
+                out IEnumerable<(EnvVar, EnvVar)> changed)
             {
                 m_currentEnvVarsByName.Clear();
                 m_currentChangedEnvVars.Clear();
@@ -918,7 +918,7 @@ namespace BuildXL.Execution.Analyzer
 
                 foreach (var item in removed)
                 {
-                    StringPair currentInput;
+                    EnvVar currentInput;
                     if (m_currentEnvVarsByName.TryGetValue(item.Key, out currentInput))
                     {
                         m_currentChangedEnvVars.Add((currentInput, item));

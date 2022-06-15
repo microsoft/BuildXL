@@ -102,11 +102,13 @@ namespace BuildXL.Scheduler.Tracing
     {
         public string Variable { get; set; }
         public string Value { get; set; }
+        public bool IsPassThrough { get; set; }
 
-        public SerializedEnvironmentVariable(string variable, string value)
+        public SerializedEnvironmentVariable(string variable, string value, bool isPassThrough)
         {
             Variable = variable;
             Value = value;
+            IsPassThrough = isPassThrough;
         }
     }
 

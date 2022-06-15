@@ -212,6 +212,8 @@ namespace BuildXL.Execution.Analyzer
                                         {
                                             writer.WriteAttributeString("Value", "Unset");
                                         }
+                                        
+                                        writer.WriteAttributeString("IsPassThrough", environmentVariable.IsPassThrough.ToString());
 
                                         writer.WriteEndElement();
                                     }

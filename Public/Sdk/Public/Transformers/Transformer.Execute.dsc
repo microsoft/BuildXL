@@ -299,7 +299,7 @@ namespace Transformer {
          * Environment variables that need to be passthrough
          * These environment variables will not be in process' fingerprint
          */
-        passThroughEnvironmentVariables?: string[];
+        passThroughEnvironmentVariables?: (string | EnvironmentVariable)[];
         
         /** 
          * File/directory output paths that are preserved.

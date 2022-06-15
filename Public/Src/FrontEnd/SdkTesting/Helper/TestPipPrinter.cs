@@ -432,33 +432,36 @@ namespace BuildXL.FrontEnd.Script.Testing.Helper
         {
             Contract.Requires(arg.IsPassThrough || arg.Value.FragmentEscaping == PipDataFragmentEscaping.NoEscaping); // This should not be controllable
 
-            if (arg.IsPassThrough)
+            var pipData = arg.Value;
+
+            if (!pipData.IsValid)
             {
                 return new ObjectLiteralExpression(
                     new PropertyAssignment("name", Generate(arg.Name)),
-                    new PropertyAssignment("isPassThrough", Generate(true)));
+                    new PropertyAssignment("isPassThrough", Generate(arg.IsPassThrough)));
             }
-
-            var pipData = arg.Value;
 
             if (pipData.FragmentSeparator == m_emptyString && pipData.FragmentCount == 1)
             {
                 return new ObjectLiteralExpression(
                     new PropertyAssignment("name", Generate(arg.Name)),
-                    new PropertyAssignment("value", Generate(pipData.First())));
+                    new PropertyAssignment("value", Generate(pipData.First())),
+                    new PropertyAssignment("isPassThrough", Generate(arg.IsPassThrough)));
             }
 
             if (pipData.FragmentSeparator == m_semiColon && pipData.FragmentCount > 1)
             {
                 return new ObjectLiteralExpression(
                     new PropertyAssignment("name", Generate(arg.Name)),
-                    new PropertyAssignment("value", Generate(pipData.ToList(), Generate)));
+                    new PropertyAssignment("value", Generate(pipData.ToList(), Generate)),
+                    new PropertyAssignment("isPassThrough", Generate(arg.IsPassThrough)));
             }
 
             return new ObjectLiteralExpression(
                 new PropertyAssignment("name", Generate(arg.Name)),
                 new PropertyAssignment("value", Generate(pipData.ToList(), Generate)),
-                new PropertyAssignment("separator", Generate(pipData.FragmentSeparator)));
+                new PropertyAssignment("separator", Generate(pipData.FragmentSeparator)),
+                new PropertyAssignment("isPassThrough", Generate(arg.IsPassThrough)));
         }
 
         private IExpression Generate(PipData pipData)

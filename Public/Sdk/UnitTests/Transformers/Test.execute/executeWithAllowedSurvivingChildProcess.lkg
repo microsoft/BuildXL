@@ -15,7 +15,18 @@ Transformer.execute({
         d`./src/seal2`,
     ],
     implicitOutputs: [f`./Out/outputFile1.txt`],
-    environmentVariables: [{name: "TEMP", value: p`./tmp_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/t`}, {name: "TMP", value: p`./tmp_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/t`}],
+    environmentVariables: [
+        {
+            name: "TEMP",
+            value: p`./tmp_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/t`,
+            isPassThrough: false,
+        },
+        {
+            name: "TMP",
+            value: p`./tmp_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/t`,
+            isPassThrough: false,
+        },
+    ],
     tempDirectory: d`./tmp_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/t`,
     unsafe: {
         untrackedPaths: [p`./src/tool/untrackedFile.txt`],

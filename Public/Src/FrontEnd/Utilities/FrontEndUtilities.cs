@@ -307,7 +307,8 @@ namespace BuildXL.FrontEnd.Utilities
 
                     processBuilder.SetEnvironmentVariable(
                         StringId.Create(pathTable.StringTable, kvp.Key),
-                        envPipData.ToPipData(string.Empty, PipDataFragmentEscaping.NoEscaping));
+                        envPipData.ToPipData(string.Empty, PipDataFragmentEscaping.NoEscaping),
+                        isPassThrough: false);
                 }
             }
 

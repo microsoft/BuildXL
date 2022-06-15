@@ -63,15 +63,32 @@ Transformer.execute({
         {name: "INTERNETHISTORY", isPassThrough: true},
         {name: "LOCALAPPDATA", isPassThrough: true},
         {name: "LOCALLOW", isPassThrough: true},
-        {name: "NO_UPDATE_NOTIFIER", value: "1"},
+        {
+            name: "NO_UPDATE_NOTIFIER",
+            value: "1",
+            isPassThrough: false,
+        },
         {
             name: "PATH",
             value: [p`./path/to`, p`\${Context.getMount('Windows').path}/system32/windowspowershell/v1.0`, p`\${Context.getMount('Windows').path}/system32`],
+            isPassThrough: false,
         },
-        {name: "RUSH_ABSOLUTE_SYMLINKS", value: "FALSE"},
-        {name: "RUSH_PNPM_STORE_PATH", value: p`./Out/path/to/pnpm/store`},
+        {
+            name: "RUSH_ABSOLUTE_SYMLINKS",
+            value: "FALSE",
+            isPassThrough: false,
+        },
+        {
+            name: "RUSH_PNPM_STORE_PATH",
+            value: p`./Out/path/to/pnpm/store`,
+            isPassThrough: false,
+        },
         {name: "USERNAME", isPassThrough: true},
-        {name: "USERPROFILE", value: p`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/userprofile`},
+        {
+            name: "USERPROFILE",
+            value: p`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/userprofile`,
+            isPassThrough: false,
+        },
     ],
     unsafe: {
         untrackedPaths: [p`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/userprofile/.npmrc`, p`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/userprofile/global.npmrc`],

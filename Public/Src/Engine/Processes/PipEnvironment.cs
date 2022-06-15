@@ -114,11 +114,14 @@ namespace BuildXL.Processes
             Contract.Requires(pip != null);
             Contract.Requires(currentUserRetryCount >= 0);
 
-            var trackedEnv = pip.EnvironmentVariables.Where(envVar => !envVar.IsPassThrough);
-            var passThroughEnvNames = pip.EnvironmentVariables.Where(envVar => envVar.IsPassThrough).Select(envVar => pipFragmentRenderer.Render(envVar.Name));
+            // Capture the env variables whose values are set (as opposed to being taken from the process environment)
+            // Observe these variables can be passthrough or not
+            var setEnvironmentVars = pip.EnvironmentVariables.Where(envVar => envVar.Value.IsValid);
+            // Now take the env var names that are not set, and therefore are taken from the process environment. Observe that by contract there are always passthrough
+            var unsetEnvNames = pip.EnvironmentVariables.Where(envVar => !envVar.Value.IsValid).Select(envVar => pipFragmentRenderer.Render(envVar.Name));
 
             // Append any passthrough environment variables if they're specified
-            passThroughEnvNames = globalUnsafePassthroughEnvironmentVariables != null ? passThroughEnvNames.Union(globalUnsafePassthroughEnvironmentVariables) : passThroughEnvNames;
+            unsetEnvNames = globalUnsafePassthroughEnvironmentVariables != null ? unsetEnvNames.Union(globalUnsafePassthroughEnvironmentVariables) : unsetEnvNames;
 
             IBuildParameters fullEnvironmentForPassThrough = OrchestratorEnvironmentVariables != null ?
 
@@ -129,10 +132,10 @@ namespace BuildXL.Processes
                 FullEnvironmentVariables;
 
             IBuildParameters effectiveVariables = m_baseEnvironmentVariables
-                .Override(trackedEnv.ToDictionary(
+                .Override(setEnvironmentVars.ToDictionary(
                     envVar => pipFragmentRenderer.Render(envVar.Name),
                     envVar => envVar.Value.ToString(pipFragmentRenderer)))
-                .Override(fullEnvironmentForPassThrough.Select(passThroughEnvNames).ToDictionary());
+                .Override(fullEnvironmentForPassThrough.Select(unsetEnvNames).ToDictionary());
 
             // If the variable to indicate the retry attempt is set, make sure it gets populated
             if (pip.RetryAttemptEnvironmentVariable.IsValid)

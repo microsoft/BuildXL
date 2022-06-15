@@ -40,7 +40,18 @@ Transformer.execute({
         d`./path/to/guardian/packages`,
     ],
     implicitOutputs: [d`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/.gdn`],
-    environmentVariables: [{name: "TEMP", value: p`./tmp_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/t`}, {name: "TMP", value: p`./tmp_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/t`}],
+    environmentVariables: [
+        {
+            name: "TEMP",
+            value: p`./tmp_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/t`,
+            isPassThrough: false,
+        },
+        {
+            name: "TMP",
+            value: p`./tmp_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/t`,
+            isPassThrough: false,
+        },
+    ],
     successExitCodes: [0],
     tempDirectory: d`./tmp_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/t`,
     unsafe: {
@@ -183,7 +194,18 @@ Transformer.execute({
         d`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/r`,
         d`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/rc`,
     ],
-    environmentVariables: [{name: "TEMP", value: p`./tmp_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/t_1`}, {name: "TMP", value: p`./tmp_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/t_1`}],
+    environmentVariables: [
+        {
+            name: "TEMP",
+            value: p`./tmp_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/t_1`,
+            isPassThrough: false,
+        },
+        {
+            name: "TMP",
+            value: p`./tmp_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/t_1`,
+            isPassThrough: false,
+        },
+    ],
     successExitCodes: [0],
     tempDirectory: d`./tmp_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/t_1`,
     unsafe: {

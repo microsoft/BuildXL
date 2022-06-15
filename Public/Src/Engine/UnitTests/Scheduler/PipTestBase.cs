@@ -194,6 +194,13 @@ namespace Test.BuildXL.Scheduler
         /// <nodoc />
         public ProcessBuilder CreatePipBuilder(IEnumerable<Operation> processOperations, IEnumerable<string> tags = null, string description = null, IDictionary<string, string> environmentVariables = null, IEnumerable<int> succeedFastExitCodes = null, ProcessBuilder builder = null)
         {
+            var envVars = environmentVariables?.ToDictionary(kvp => kvp.Key, kvp => (kvp.Value, false));
+            return CreatePipBuilderWithEnvironment(processOperations, tags, description, envVars, succeedFastExitCodes, builder);
+        }
+
+        /// <nodoc />
+        public ProcessBuilder CreatePipBuilderWithEnvironment(IEnumerable<Operation> processOperations, IEnumerable<string> tags = null, string description = null, IDictionary<string, (string, bool)> environmentVariables = null, IEnumerable<int> succeedFastExitCodes = null, ProcessBuilder builder = null)
+        {
             builder ??= ProcessBuilder.CreateForTesting(Context.PathTable);
             builder.Executable = TestProcessExecutable;
             if (succeedFastExitCodes != null)
@@ -238,9 +245,20 @@ namespace Test.BuildXL.Scheduler
             {
                 foreach (var envVar in environmentVariables)
                 {
-                    builder.SetEnvironmentVariable(
-                        StringId.Create(Context.StringTable, envVar.Key),
-                        StringId.Create(Context.StringTable, envVar.Value));
+                    if (envVar.Value.Item1 is null)
+                    {
+                        builder.SetEnvironmentVariable(
+                            StringId.Create(Context.StringTable, envVar.Key),
+                            PipData.Invalid,
+                            isPassThrough: envVar.Value.Item2);
+                    }
+                    else
+                    {
+                        builder.SetEnvironmentVariable(
+                            StringId.Create(Context.StringTable, envVar.Key),
+                            StringId.Create(Context.StringTable, envVar.Value.Item1),
+                            isPassThrough: envVar.Value.Item2);
+                    }
                 }
             }
 
@@ -248,7 +266,8 @@ namespace Test.BuildXL.Scheduler
             {
                 builder.SetEnvironmentVariable(
                     StringId.Create(Context.StringTable, "DYLD_LIBRARY_PATH"),
-                    Path.GetDirectoryName(TestProcessExecutable.Path.ToString(Context.PathTable)));
+                    Path.GetDirectoryName(TestProcessExecutable.Path.ToString(Context.PathTable)),
+                    isPassThrough: false);
 
                 // untracking this directory as well because dynamic probes are non-deterministic which
                 // can cause some of our FingerprintStore tests to fail.

@@ -36,7 +36,19 @@ Transformer.execute({
     consoleInput: f`./src/stdIn.txt`,
     consoleOutput: p`./Out/stdOut.txt`,
     consoleError: p`./Out/stdErr.txt`,
-    environmentVariables: [{name: "TEMP", value: p`./Out/Temp`}, {name: "TMP", value: p`./Out/Temp`}, {name: "env1", isPassThrough: true}],
+    environmentVariables: [
+        {
+            name: "TEMP",
+            value: p`./Out/Temp`,
+            isPassThrough: false,
+        },
+        {
+            name: "TMP",
+            value: p`./Out/Temp`,
+            isPassThrough: false,
+        },
+        {name: "env1", isPassThrough: true},
+    ],
     warningRegex: "warningRegEx",
     acquireSemaphores: [
         {

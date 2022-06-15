@@ -1486,6 +1486,57 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         /// <summary>
+        /// Test to validate that global passthrough environment variables are visible to processes
+        /// </summary>
+        [Theory]
+        [InlineData(true, "local-test-value")]
+        [InlineData(true, null)]
+        [InlineData(false, "local-test-value")]
+        public void PerVariablePassThroughIsHonored(bool isPassThrough, string value)
+        {
+            string envVarName = "ENV" + Guid.NewGuid().ToString().Replace("-", string.Empty);
+            string envVarValue = "env-test-value";
+            string updatedValue = Guid.NewGuid().ToString();
+
+            Environment.SetEnvironmentVariable(envVarName, envVarValue);
+
+            Configuration.Sandbox.OutputReportingMode = global::BuildXL.Utilities.Configuration.OutputReportingMode.FullOutputAlways;
+
+            var ops = new Operation[]
+            {
+                Operation.ReadEnvVar(envVarName),
+                Operation.WriteFile(CreateOutputFileArtifact()),
+            };
+
+            // The value we pass to the pip builder for the given env var can be null, which means that it will be left unset and the environment will take effect
+            var builder = CreatePipBuilderWithEnvironment(ops, environmentVariables: new Dictionary<string, (string, bool)>() { [envVarName]=(value, isPassThrough)});
+            var process = SchedulePipBuilder(builder).Process;
+
+            RunScheduler().AssertSuccess();
+            string log = EventListener.GetLog();
+            // The value the process sees needs to be the one we set from the outside
+            XAssert.IsTrue(log.Contains(value ?? envVarValue));
+
+            // Let's change the value on the environment and the corresponding one we pass to the pip
+            Environment.SetEnvironmentVariable(envVarName, updatedValue);
+            
+            ResetPipGraphBuilder();
+            builder = CreatePipBuilderWithEnvironment(ops, environmentVariables: new Dictionary<string, (string, bool)>() { [envVarName] = (updatedValue, isPassThrough) });
+            process = SchedulePipBuilder(builder).Process;
+
+            // We should only get a cache hit when the variable is passthrough
+            if (isPassThrough)
+            {
+                RunScheduler().AssertCacheHit(process.PipId);
+            }
+            else
+            {
+                RunScheduler().AssertCacheMiss(process.PipId);
+            }
+        }
+
+
+        /// <summary>
         /// Validates behavior with a process being retried
         /// </summary>
         [Theory]

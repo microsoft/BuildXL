@@ -384,7 +384,7 @@ namespace BuildXL.FrontEnd.Ninja
                 {
                     var envPipData = new PipDataBuilder(m_context.StringTable);
                     envPipData.Add(kvp.Value);
-                    processBuilder.SetEnvironmentVariable(StringId.Create(m_context.StringTable, kvp.Key), envPipData.ToPipData(kvp.Value, PipDataFragmentEscaping.NoEscaping));
+                    processBuilder.SetEnvironmentVariable(StringId.Create(m_context.StringTable, kvp.Key), envPipData.ToPipData(kvp.Value, PipDataFragmentEscaping.NoEscaping), isPassThrough: false);
                 }
             }
 
@@ -420,7 +420,8 @@ namespace BuildXL.FrontEnd.Ninja
             mspdbsrvPipDataBuilder.Add(PipConstructionUtilities.ComputeSha256(node.Command));   // Unique value for each pip
             processBuilder.SetEnvironmentVariable(
                     StringId.Create(m_context.StringTable, SpecialEnvironmentVariables.MsPdvSrvEndpoint),
-                    mspdbsrvPipDataBuilder.ToPipData(string.Empty, PipDataFragmentEscaping.NoEscaping));
+                    mspdbsrvPipDataBuilder.ToPipData(string.Empty, PipDataFragmentEscaping.NoEscaping), 
+                    isPassThrough: false);
         }
 
         /// <summary>

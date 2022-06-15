@@ -31,7 +31,7 @@ namespace BuildXL.Pips.Builders
         /// <nodoc />
         public DirectoryArtifact WorkingDirectory { get; set; }
 
-        private readonly Dictionary<StringId, PipData> m_environmentVariables;
+        private readonly Dictionary<StringId, (PipData, bool)> m_environmentVariables;
 
         private readonly PooledObjectWrapper<PipDataBuilder> m_argumentsBuilder;
 
@@ -211,7 +211,7 @@ namespace BuildXL.Pips.Builders
             m_untrackedFilesAndDirectories = Pools.GetAbsolutePathSet();
             m_untrackedDirectoryScopes = Pools.GetDirectoryArtifactSet();
 
-            m_environmentVariables = new Dictionary<StringId, PipData>();
+            m_environmentVariables = new Dictionary<StringId, (PipData, bool)>();
 
             m_realUserProfilePath = AbsolutePath.Create(pathTable, Environment.GetFolderPath(Environment.SpecialFolder.UserProfile, Environment.SpecialFolderOption.DoNotVerify));
             m_redirectedUserProfilePath = AbsolutePath.Create(pathTable, SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.UserProfile, Environment.SpecialFolderOption.DoNotVerify));
@@ -470,27 +470,27 @@ namespace BuildXL.Pips.Builders
 
             foreach (var tmpVar in BuildParameters.DisallowedTempVariables)
             {
-                SetEnvironmentVariable(StringId.Create(m_pathTable.StringTable, tmpVar), tempDirectory.Path);
+                SetEnvironmentVariable(StringId.Create(m_pathTable.StringTable, tmpVar), tempDirectory.Path, isPassThrough: false);
             }
         }
 
         /// <nodoc />
-        public void SetEnvironmentVariable(StringId key, PipDataAtom value)
+        public void SetEnvironmentVariable(StringId key, PipDataAtom value, bool isPassThrough)
         {
             Contract.Requires(key.IsValid);
             Contract.Requires(value.IsValid);
 
             var pipData = PipDataBuilder.CreatePipData(m_pathTable.StringTable, string.Empty, PipDataFragmentEscaping.NoEscaping, value);
-            SetEnvironmentVariable(key, pipData);
+            SetEnvironmentVariable(key, pipData, isPassThrough);
         }
 
         /// <nodoc />
-        public void SetEnvironmentVariable(StringId key, PipData value)
+        public void SetEnvironmentVariable(StringId key, PipData value, bool isPassThrough)
         {
             Contract.Requires(key.IsValid);
-            Contract.Requires(value.IsValid);
+            Contract.Requires(value.IsValid || isPassThrough);
 
-            m_environmentVariables[key] = value;
+            m_environmentVariables[key] = (value, isPassThrough);
         }
 
         /// <nodoc />
@@ -498,7 +498,7 @@ namespace BuildXL.Pips.Builders
         {
             Contract.Requires(key.IsValid);
 
-            m_environmentVariables[key] = PipData.Invalid;
+            m_environmentVariables[key] = (PipData.Invalid, true);
         }
 
         /// <nodoc />
@@ -518,9 +518,7 @@ namespace BuildXL.Pips.Builders
             int idx = 0;
             foreach (var kvp in m_environmentVariables)
             {
-                // if the value is invalid, then it is a pass through env variable.
-                var isPassThrough = !kvp.Value.IsValid;
-                envVars[idx++] = new EnvironmentVariable(kvp.Key, kvp.Value, isPassThrough);
+                envVars[idx++] = new EnvironmentVariable(kvp.Key, kvp.Value.Item1, kvp.Value.Item2);
             }
 
             return ReadOnlyArray<EnvironmentVariable>.FromWithoutCopy(envVars);

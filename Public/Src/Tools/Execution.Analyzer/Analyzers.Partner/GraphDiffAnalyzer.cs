@@ -388,7 +388,7 @@ namespace BuildXL.Execution.Analyzer
         private readonly string m_executable = null;
         private readonly string m_stdInFile = null;
         private readonly string m_stdInData = null;
-        private readonly HashSet<KeyValuePair<string, string>> m_envVars = new HashSet<KeyValuePair<string, string>>();
+        private readonly HashSet<KeyValuePair<string, (string, bool)>> m_envVars = new HashSet<KeyValuePair<string, (string, bool)>>();
         private readonly string m_workingDir = null;
         private readonly string m_uniqueOutputDir = null;
         private readonly string m_tempDir = null;
@@ -607,7 +607,7 @@ namespace BuildXL.Execution.Analyzer
                 var varName = envVar.Name.ToString(stringTable);
                 var varValue = envVar.Value.IsValid ? envVar.Value.ToString(pathTable) : null;
 
-                m_envVars.Add(new KeyValuePair<string, string>(varName, varValue));
+                m_envVars.Add(new KeyValuePair<string, (string, bool)>(varName, (varValue, envVar.IsPassThrough)));
             }
 
             m_workingDir = processPip.WorkingDirectory.ToString(pathTable);

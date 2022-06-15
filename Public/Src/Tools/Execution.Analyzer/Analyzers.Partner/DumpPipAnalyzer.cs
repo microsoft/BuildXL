@@ -526,7 +526,8 @@ namespace BuildXL.Execution.Analyzer
                         pip.EnvironmentVariables.Select(envVar => new XElement(
                             "tr",
                             new XElement("td", envVar.Name.ToString(StringTable)),
-                            new XElement("td", envVar.Value.IsValid ? envVar.Value.ToString(PathTable) : "[PassThroughValue]")))))),
+                            new XElement("td", envVar.Value.IsValid ? envVar.Value.ToString(PathTable) : "[PassThroughValue]"),
+                            new XElement("td", $"IsPassThrough:{envVar.IsPassThrough}")))))),
 
                 m_html.CreateBlock(
                     "Process in/out handling",

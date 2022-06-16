@@ -56,6 +56,11 @@ namespace BuildXL.Processes.Remoting
             m_filePredictor = filePredictor;
             m_remoteManagerDirectory = Path.Combine(m_configuration.Layout.ExternalSandboxedProcessDirectory.ToString(m_executionContext.PathTable), nameof(AnyBuildRemoteProcessManager));
             m_initResultLazy = new AsyncLazy<InitResult>(InitCoreAsync);
+
+            // The following is left commented so that it becomes handy to do experiments
+            // particularly in the environment (pipeline) where setting extra
+            // arguments is not possible (or not under our control).
+            // EngineEnvironmentSettings.ProcessRemotingSalt.Value = "Test0";
         }
 
         /// <inheritdoc/>
@@ -253,13 +258,16 @@ namespace BuildXL.Processes.Remoting
                 {
                     DisableDirectoryMetadataDedup = true,
 
-                    // FUTURE OPTIONS: Only enabled when they are available in AnyBuild.
-
-                    // Using PLACEHOLDER for pre-rendering because using COPY causes error like:
+                    // Using PLACEHOLDER for pre-rendering because using Copy/Hardlink causes error like:
                     //   error CS1504: Source file 'D:\a\_work\5\s\Public\Src\FrontEnd\MsBuild.Serialization\GraphSerializationSettings.cs' could not be opened
                     //   -- The process cannot access the file because another process has locked a portion of the file.
-                    PreRenderingMode = "Placeholder", // "COPY",
-                    Substs = !string.IsNullOrEmpty(substSource) && !string.IsNullOrEmpty(substTarget) ? $"{substSource};{substTarget}" : string.Empty
+                    PreRenderingMode = "Placeholder", // Other options: "HardLink", "Copy",
+                    Substs = !string.IsNullOrEmpty(substSource) && !string.IsNullOrEmpty(substTarget) ? $"{substSource};{substTarget}" : string.Empty,
+
+                    // Experimental options.
+                    ForceFetchNonPredictedDirectoryMetadataForPreRendering = true,
+                    PreRenderDirectoryEntriesOfEnumeratedDirectories = false, // Avoid creations of a large number of placeholders because directories have many entries.
+                    DisableAbsentPathPreRendering = false
                 },
                 Agents = new
                 {

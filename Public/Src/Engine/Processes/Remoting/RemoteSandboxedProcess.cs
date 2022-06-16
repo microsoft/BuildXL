@@ -22,7 +22,7 @@ namespace BuildXL.Processes.Remoting
     public class RemoteSandboxedProcess : ExternalSandboxedProcess
     {
         private const string RemoteSandboxedProcessDataFileName = "RemoteData";
-        private const int Version = 0;
+        private const int Version = 1;
 
         private IRemoteProcessPip m_remoteProcess;
         private readonly RemoteData m_remoteData;

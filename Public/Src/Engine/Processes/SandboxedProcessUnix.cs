@@ -492,7 +492,7 @@ namespace BuildXL.Processes
             if (info.RootJailInfo != null)
             {
                 // A process executed in a chroot jail does not automatically inherit the environment from the parent process, so we must save the env vars before entering chroot and pass them explicitly before running 'cmdLine'.
-                lines.Add($"readarray -t EnvArr < <(printenv)");
+                lines.Add($"readarray -d $'\\0' -t EnvArr < <(printenv -0)");
                 lines.Add($"exec {info.RootJailInfo.Value.RootJailProgram} --userspec={userIdExpr()}:{groupIdExpr()} '{info.RootJailInfo.Value.RootJail}' env -C '{info.WorkingDirectory}' -i \"${{EnvArr[@]}}\" {AdditionalEnvVars()} {cmdLine}");
             }
             else

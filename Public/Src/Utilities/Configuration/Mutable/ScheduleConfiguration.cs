@@ -101,6 +101,11 @@ namespace BuildXL.Utilities.Configuration.Mutable
             // Based on telemetry P90 of waiting time is 3s.
             RemoteAgentWaitTimeSec = 3.0;
 
+            // The following is left commented so that it becomes handy to do experiments
+            // particularly in the environment (pipeline) where setting extra
+            // arguments is not possible (or not under our control).
+            // NumOfRemoteAgentLeases = 80;
+
             RemoteCacheCutoffLength = 2;
         }
 
@@ -486,7 +491,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
         /// <inheritdoc />
         public bool RemoteCacheCutoff { get; set; }
 
-        private int NumOfRemoteAgentLeasesValue => NumOfRemoteAgentLeases ?? 2 * MaxProcesses;
+        private int NumOfRemoteAgentLeasesValue => NumOfRemoteAgentLeases ?? (int)(2.5 * MaxProcesses);
 
         /// <inheritdoc />
         public bool CpuResourceAware { get; set; }

@@ -396,6 +396,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         resultsMemory.Span.Slice(0, resultCount).Fill((result, registerContext.TracingContext.TraceId));
                         resultsMemory = resultsMemory.Slice(resultCount);
                         resultCount = 0;
+                        hashes.Clear();
                     }
                 }
 

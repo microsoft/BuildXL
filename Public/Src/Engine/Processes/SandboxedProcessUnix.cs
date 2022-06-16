@@ -491,13 +491,30 @@ namespace BuildXL.Processes
 
             if (info.RootJailInfo != null)
             {
-                // A process executed in a chroot jail does not automatically inherit the environment from the parent process, so we must save the env vars before entering chroot and pass them explicitly before running 'cmdLine'.
-                lines.Add($"readarray -d $'\\0' -t EnvArr < <(printenv -0)");
-                lines.Add($"exec {info.RootJailInfo.Value.RootJailProgram} --userspec={userIdExpr()}:{groupIdExpr()} '{info.RootJailInfo.Value.RootJail}' env -C '{info.WorkingDirectory}' -i \"${{EnvArr[@]}}\" {AdditionalEnvVars()} {cmdLine}");
+                // A process executed in a chroot jail does not automatically inherit the environment from the parent process,
+                // so we must export the vars before entering chroot and then source them once inside.
+                const string BxlEnvFile = "bxl_pip_env.sh";
+                lines.Add($"export -p > '{info.RootJailInfo.Value.RootJail}/{BxlEnvFile}'");
+                lines.Add($"exec {info.RootJailInfo.Value.RootJailProgram} --userspec={userIdExpr()}:{groupIdExpr()} '{info.RootJailInfo.Value.RootJail}' {ShellExecutable} <<'{EofDelim}'");
+                lines.Add("set -e");
+                lines.Add($". /{BxlEnvFile}");
+                lines.Add($"cd \"{info.WorkingDirectory}\"");
             }
-            else
+
+            if (info.SandboxConnection.Kind == SandboxKind.MacOsHybrid || info.SandboxConnection.Kind == SandboxKind.MacOsDetours)
             {
-                lines.Add($"exec env {AdditionalEnvVars()} {cmdLine}");
+                lines.Add($"export {DetoursEnvVar}={DetoursFile}");
+            }
+
+            foreach (var envKvp in info.SandboxConnection.AdditionalEnvVarsToSet(info.FileAccessManifest.PipId))
+            {
+                lines.Add($"export {envKvp.Item1}={envKvp.Item2}");
+            }
+
+            lines.Add($"exec {cmdLine}");
+            if (info.RootJailInfo != null)
+            {
+                lines.Add(EofDelim);
             }
 
             SetExecutePermissionIfNeeded(info.FileName, throwIfNotFound: false);
@@ -512,14 +529,6 @@ namespace BuildXL.Processes
 
             string userIdExpr() => info.RootJailInfo?.UserId?.ToString() ?? "$(id -u)";
             string groupIdExpr() => info.RootJailInfo?.GroupId?.ToString() ?? "$(id -u)";
-            string AdditionalEnvVars() => string.Join(
-                " ",
-                info.SandboxConnection
-                    .AdditionalEnvVarsToSet(info.FileAccessManifest.PipId)
-                    .Concat(info.SandboxConnection.Kind == SandboxKind.MacOsHybrid || info.SandboxConnection.Kind == SandboxKind.MacOsDetours
-                        ? new[] { (DetoursEnvVar, DetoursFile) }
-                        : Array.Empty<(string, string)>())
-                    .Select(kvp => $"{kvp.Item1}=\"{kvp.Item2}\""));
         }
 
         internal override void FeedStdErr(SandboxedProcessOutputBuilder builder, string line)

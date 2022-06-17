@@ -257,7 +257,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                     if (distributedSettings.EnableDistributedCache)
                     {
                         var distributedCache = new DistributedOneLevelCache(topLevelAndPrimaryStore.topLevelStore,
-                            factory.Services.ContentLocationStoreServices.Instance,
+                            factory.Services,
                             Guid.NewGuid(),
                             passContentToMemoization: true);
 

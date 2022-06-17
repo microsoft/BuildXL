@@ -9,7 +9,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
     /// <summary>
     /// Configuration type for <see cref="ContentLocationEventStore"/> family of types.
     /// </summary>
-    public record ContentLocationEventStoreConfiguration
+    public abstract record ContentLocationEventStoreConfiguration
     {
         /// <summary>
         /// The number of events which forces an event batch to be sent
@@ -55,6 +55,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         /// If true, the nagle queue used by the event store will stop processing events and the error will be propagated back to the caller in Dispose method.
         /// </summary>
         public bool FailWhenSendEventsFails { get; set; } = false;
+    }
+
+    /// <summary>
+    /// Configuration type for <see cref="NullEventHubClient"/>.
+    /// </summary>
+    public record NullContentLocationEventStoreConfiguration : ContentLocationEventStoreConfiguration
+    {
     }
 
     /// <summary>

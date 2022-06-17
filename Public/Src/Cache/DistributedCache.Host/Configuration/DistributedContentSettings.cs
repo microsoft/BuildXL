@@ -1153,6 +1153,12 @@ namespace BuildXL.Cache.Host.Configuration
         public bool GlobalCacheBackgroundRestore { get; set; }
 
         [DataMember]
+        public bool UseGlobalCacheDatabaseInLocalLocationStore { get; set; }
+
+        [DataMember]
+        public bool DisableContentLocationEvents { get; set; }
+
+        [DataMember]
         public bool ContentMetadataDisableDatabaseRegisterLocation { get; set; }
 
         [DataMember]

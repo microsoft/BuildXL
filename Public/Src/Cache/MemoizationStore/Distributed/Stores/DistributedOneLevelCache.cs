@@ -25,14 +25,14 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
         /// <inheritdoc />
         protected override CacheTracer CacheTracer { get; } = new CacheTracer(nameof(DistributedOneLevelCache));
 
-        private readonly ContentLocationStoreServices _contentLocationStoreServices;
+        private readonly DistributedContentStoreServices _services;
 
         /// <nodoc />
-        public DistributedOneLevelCache(IContentStore contentStore, ContentLocationStoreServices contentLocationStoreServices, Guid id, bool passContentToMemoization = true)
+        public DistributedOneLevelCache(IContentStore contentStore, DistributedContentStoreServices services, Guid id, bool passContentToMemoization = true)
             : base(id, passContentToMemoization)
         {
             ContentStore = contentStore;
-            _contentLocationStoreServices = contentLocationStoreServices;
+            _services = services;
         }
 
         /// <inheritdoc />
@@ -53,30 +53,53 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
         {
             return context.PerformOperationAsync(base.Tracer, async () =>
             {
+                var services = _services;
+                var locationStoreServices = _services.ContentLocationStoreServices.Instance;
+                var localLocationStore = locationStoreServices.LocalLocationStore.Instance;
+                var distributedSettings = services.Arguments.DistributedContentSettings;
                 MemoizationDatabase getGlobalMemoizationDatabase()
                 {
-                    if (_contentLocationStoreServices.Configuration.UseMemoizationContentMetadataStore)
+                    if (locationStoreServices.Configuration.UseMemoizationContentMetadataStore)
                     {
                         return new MetadataStoreMemoizationDatabase(
-                            _contentLocationStoreServices.GlobalCacheStore.Instance,
-                            _contentLocationStoreServices.Configuration.MetadataStoreMemoization,
-                            _contentLocationStoreServices.CentralStorage.Instance as CentralStreamStorage);
+                            locationStoreServices.GlobalCacheStore.Instance,
+                            locationStoreServices.Configuration.MetadataStoreMemoization,
+                            locationStoreServices.CentralStorage.Instance);
                     }
                     else
                     {
-                        var redisStore = _contentLocationStoreServices.RedisGlobalStore.Instance;
-                        return new RedisMemoizationDatabase(redisStore.RaidedRedis, _contentLocationStoreServices.Configuration.Memoization);
+                        var redisStore = locationStoreServices.RedisGlobalStore.Instance;
+                        return new RedisMemoizationDatabase(redisStore.RaidedRedis, locationStoreServices.Configuration.Memoization);
                     }
                 }
 
-                DistributedContentSettings? dcs = _contentLocationStoreServices.Dependencies.DistributedContentSettings.InstanceOrDefault();
+                MemoizationDatabase getLocalMemoizationDatabase()
+                {
+                    if (distributedSettings.UseGlobalCacheDatabaseInLocalLocationStore)
+                    {
+                        // Using GCS database locally. Need to get the wrapping
+                        // RocksDbContentMetadataStore since GCS DB doesn't truly support all
+                        // the metadata operations of the base type (ContentLocationDatabase)
+                        var checkpointManager = services.GlobalCacheCheckpointManager;
+                        return new MetadataStoreMemoizationDatabase(
+                            services.RocksDbContentMetadataStore.Instance,
+                            locationStoreServices.Configuration.MetadataStoreMemoization,
+                            services.GlobalCacheStreamStorage.Instance);
+                    }
+                    else
+                    {
+                        return new RocksDbMemoizationDatabase(localLocationStore.Database, ownsDatabase: false);
+                    }
+                }
+
                 MemoizationStore = new DatabaseMemoizationStore(
                     new DistributedMemoizationDatabase(
-                        _contentLocationStoreServices.LocalLocationStore.Instance,
-                        getGlobalMemoizationDatabase()))
+                        localDatabase: getLocalMemoizationDatabase(),
+                        sharedDatabase: getGlobalMemoizationDatabase(),
+                        localLocationStore))
                 {
-                    OptimizeWrites = dcs?.OptimizeDistributedCacheWrites == true,
-                    RegisterAssociatedContent = dcs?.RegisterHintHandling.Value.HasFlag(RegisterHintHandling.RegisterAssociatedContent) == true
+                    OptimizeWrites = distributedSettings.OptimizeDistributedCacheWrites == true,
+                    RegisterAssociatedContent = distributedSettings.RegisterHintHandling.Value.HasFlag(RegisterHintHandling.RegisterAssociatedContent) == true
                 };
 
                 return await MemoizationStore.StartupAsync(context);

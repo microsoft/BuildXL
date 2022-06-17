@@ -879,7 +879,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Test
 
             return new DistributedOneLevelCache(
                 store,
-                factory.Services.ContentLocationStoreServices.Instance,
+                factory.Services,
                 Guid.NewGuid(),
                 passContentToMemoization: false);
         }

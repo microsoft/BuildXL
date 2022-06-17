@@ -4,7 +4,9 @@
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
+using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
+using BuildXL.Cache.ContentStore.Utils;
 using Microsoft.Azure.EventHubs;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
@@ -28,5 +30,32 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         /// Send an event.
         /// </summary>
         Task SendAsync(OperationContext context, EventData eventData);
+    }
+
+    /// <summary>
+    /// No-op implementation of event hub client
+    /// </summary>
+    public class NullEventHubClient : StartupShutdownSlimBase, IEventHubClient
+    {
+        /// <nodoc />
+        protected override Tracer Tracer { get; } = new Tracer(nameof(NullEventHubClient));
+
+        /// <nodoc />
+        public Task SendAsync(OperationContext context, EventData eventData)
+        {
+            return Task.CompletedTask;
+        }
+
+        /// <nodoc />
+        public BoolResult StartProcessing(OperationContext context, EventSequencePoint sequencePoint, IPartitionReceiveHandler processor)
+        {
+            return BoolResult.Success;
+        }
+
+        /// <nodoc />
+        public BoolResult SuspendProcessing(OperationContext context)
+        {
+            return BoolResult.Success;
+        }
     }
 }

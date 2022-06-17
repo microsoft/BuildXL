@@ -4,8 +4,10 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Distributed.MetadataService;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
+using BuildXL.Cache.ContentStore.Distributed.Services;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
@@ -32,9 +34,9 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
         protected override Tracer Tracer { get; } = new Tracer(nameof(DistributedMemoizationDatabase));
 
         /// <nodoc />
-        public DistributedMemoizationDatabase(LocalLocationStore localLocationStore, MemoizationDatabase sharedDatabase)
+        public DistributedMemoizationDatabase(MemoizationDatabase localDatabase, MemoizationDatabase sharedDatabase, LocalLocationStore localLocationStore)
         {
-            _localDatabase = new RocksDbMemoizationDatabase(localLocationStore.Database, ownsDatabase: false);
+            _localDatabase = localDatabase;
             _sharedDatabase = sharedDatabase;
             _localLocationStore = localLocationStore;
 
@@ -87,6 +89,9 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
             var result = await GetContentHashListMultiLevelAsync(context, strongFingerprint, preferShared);
             if (_localLocationStore.Configuration.TouchContentHashLists && result.Succeeded && result.Value.contentHashListInfo.ContentHashList != null)
             {
+                // TODO: We can represent touches to content in the system with BlobContentLocationRegistry by creating
+                // a content entry for the content hash list and touching that.
+
                 // Successfully retrieved the entry. Notify the event store of the access.
                 // NOTE: Empty content hash list is used to signal that this is strictly a touch
                 await _localLocationStore.EventStore.UpdateMetadataEntryAsync(context,

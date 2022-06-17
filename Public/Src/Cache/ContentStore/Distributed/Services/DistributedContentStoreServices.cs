@@ -97,7 +97,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
 
         internal IServiceDefinition<ICheckpointRegistry> CacheServiceCheckpointRegistry { get; }
 
-        internal IServiceDefinition<AzureBlobStorageCheckpointRegistry> CacheServiceBlobCheckpointRegistry { get;  }
+        internal IServiceDefinition<AzureBlobStorageCheckpointRegistry> CacheServiceBlobCheckpointRegistry { get; }
 
         internal DistributedContentStoreServices(DistributedContentStoreServicesArguments arguments)
         {
@@ -106,7 +106,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
             bool isGlobalCacheServiceEnabled = DistributedContentSettings.IsMasterEligible
                 && RedisContentLocationStoreConfiguration.AllContentMetadataStoreModeFlags.HasAnyFlag(ContentMetadataStoreModeFlags.Distributed);
 
-            GlobalCacheServiceConfiguration = Create(() => CreateGlobalCacheServiceConfiguration());
             GlobalCacheServiceConfiguration = Create(() => CreateGlobalCacheServiceConfiguration());
 
             GlobalCacheService = CreateOptional(
@@ -210,7 +209,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
         internal AzureBlobStorageCheckpointRegistry CreateCacheServiceBlobCheckpointRegistry()
         {
             var clock = Arguments.Clock;
-            
+
             var storageRegistryConfiguration = new AzureBlobStorageCheckpointRegistryConfiguration()
             {
                 Credentials = Arguments.Secrets.GetStorageCredentials(new[] { DistributedContentSettings.ContentMetadataBlobSecretName }).First(),

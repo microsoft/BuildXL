@@ -65,7 +65,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public override bool AllowMultipleStartupAndShutdowns => true;
 
         /// <nodoc />
-        public CounterCollection<ContentLocationStoreCounters> Counters { get; } = new CounterCollection<ContentLocationStoreCounters>();
+        public CounterCollection<ContentLocationStoreCounters> Counters { get; }
 
         /// <nodoc />
         public Role? CurrentRole { get; private set; }
@@ -163,22 +163,21 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             IClock clock,
             IGlobalCacheStore globalCacheStore,
             LocalLocationStoreConfiguration configuration,
-            DistributedContentCopier copier,
+            CheckpointManager checkpointManager,
             IMasterElectionMechanism masterElectionMechanism,
             ClusterStateManager clusterStateManager,
-            ICheckpointRegistry checkpointRegistry,
-            CentralStorage centralStorage,
             ColdStorage? coldStorage)
         {
             Contract.RequiresNotNull(clock);
             Contract.RequiresNotNull(configuration);
 
             _clock = clock;
+            Counters = checkpointManager.Counters;
             Configuration = configuration;
             GlobalCacheStore = globalCacheStore;
             MasterElectionMechanism = masterElectionMechanism;
             ClusterStateManager = clusterStateManager;
-            _checkpointRegistry = checkpointRegistry;
+            _checkpointRegistry = checkpointManager.CheckpointRegistry;
             _coldStorage = coldStorage;
 
             if (configuration.Settings.GlobalRegisterNagleInterval?.Value is TimeSpan nagleInterval)
@@ -197,20 +196,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             Contract.Assert(Configuration.IsValidForLls());
 
-            if (Configuration.DistributedCentralStore != null)
-            {
-                centralStorage = new DistributedCentralStorage(
-                    Configuration.DistributedCentralStore,
-                    new DistributedCentralStorageLocationStoreAdapter(this),
-                    copier,
-                    fallbackStorage: centralStorage,
-                    clock: _clock);
-            }
-
-            CentralStorage = centralStorage;
+            CentralStorage = checkpointManager.Storage;
 
             Configuration.Database.TouchFrequency = configuration.TouchFrequency;
-            Database = ContentLocationDatabase.Create(clock, Configuration.Database, () => ClusterState.InactiveMachineList);
+            Database = checkpointManager.Database;
 
             _machineListSettings = new MachineList.Settings
             {
@@ -218,7 +207,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 ResolveLocationsEagerly = Configuration.ResolveMachineIdsEagerly,
             };
 
-            CheckpointManager = new CheckpointManager(Database, _checkpointRegistry, CentralStorage, Configuration.Checkpoint, Counters);
+            CheckpointManager = checkpointManager;
             EventStore = CreateEventStore(Configuration, subfolder: "main");
 
             LinkLifetime(CentralStorage);

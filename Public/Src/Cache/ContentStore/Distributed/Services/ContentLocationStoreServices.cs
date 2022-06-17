@@ -10,6 +10,7 @@ using BuildXL.Cache.ContentStore.Distributed.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.Host.Configuration;
+using BuildXL.Utilities.Tracing;
 
 #nullable enable
 namespace BuildXL.Cache.ContentStore.Distributed.Services
@@ -33,6 +34,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
 
         /// <nodoc />
         public OptionalServiceDefinition<CheckpointManager> GlobalCacheCheckpointManager { get; init; }
+
+        /// <nodoc />
+        public OptionalServiceDefinition<RocksDbContentMetadataStore> GlobalCacheDatabaseStore { get; init; }
     }
 
     /// <summary>
@@ -42,6 +46,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
     {
         /// <nodoc />
         public ContentLocationStoreServicesDependencies Dependencies => Arguments.Dependencies;
+
+        /// <nodoc />
+        public DistributedContentSettings? DistributedContentSettings => Dependencies.DistributedContentSettings.InstanceOrDefault();
 
         /// <nodoc />
         public RedisContentLocationStoreConfiguration Configuration { get; }
@@ -80,7 +87,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
         public IServiceDefinition<LocalLocationStore> LocalLocationStore { get; }
 
         /// <nodoc />
-        public IServiceDefinition<CentralStorage> CentralStorage { get; }
+        /// <nodoc />
+        public IServiceDefinition<CentralStreamStorage> CentralStorage { get; }
+
+        /// <nodoc />
+        public IServiceDefinition<CheckpointManager> CheckpointManager { get; }
 
         /// <nodoc />
         public IServiceDefinition<AzureBlobStorageCheckpointRegistry> CheckpointRegistry { get; }
@@ -113,12 +124,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
 
             CheckpointRegistry = Create(() => CreateCheckpointRegistry());
 
+            CheckpointManager = Create(() => CreateCheckpointManager());
+
             CentralStorage = Create(() => CreateCentralStorage());
 
             BlobContentLocationRegistry = CreateOptional(
                 () => Dependencies.DistributedContentSettings.InstanceOrDefault()?.LocationStoreSettings?.EnableBlobContentLocationRegistry == true,
                 () => CreateBlobContentLocationRegistry());
-
         }
 
         private BlobContentLocationRegistry CreateBlobContentLocationRegistry()
@@ -139,21 +151,57 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
             return new ClientGlobalCacheStore(MasterClientAccessor.Instance, Configuration.MetadataStore!);
         }
 
+        private CheckpointManager CreateCheckpointManager()
+        {
+            Contract.Assert(Configuration.IsValidForLls());
+
+            if (DistributedContentSettings?.UseGlobalCacheDatabaseInLocalLocationStore == true
+                // Only replace LLS DB/CheckpointManager on worker machines
+                && !Dependencies.GlobalCacheService.IsAvailable
+                && DistributedContentSettings?.IsMasterEligible == false
+                && Dependencies.GlobalCacheCheckpointManager.TryGetInstance(out var checkpointManager))
+            {
+                return checkpointManager;
+            }
+
+            CentralStorage centralStorage = CentralStorage.Instance;
+            if (Configuration.DistributedCentralStore != null)
+            {
+                centralStorage = new DistributedCentralStorage(
+                    Configuration.DistributedCentralStore,
+                    new DistributedCentralStorageLocationStoreAdapter(() => LocalLocationStore.Instance),
+                    Copier,
+                    fallbackStorage: centralStorage,
+                    clock: Clock);
+            }
+
+            var clusterStateManager = ClusterStateManager.Instance;
+            var database = ContentLocationDatabase.Create(
+                Clock,
+                Configuration.Database!,
+                () => clusterStateManager.ClusterState.InactiveMachineList);
+
+            return new CheckpointManager(
+                database,
+                CheckpointRegistry.Instance,
+                centralStorage,
+                Configuration.Checkpoint,
+                new CounterCollection<ContentLocationStoreCounters>());
+        }
+
         private LocalLocationStore CreateLocalLocationStore()
         {
             return new LocalLocationStore(
                 Clock,
                 GlobalCacheStore.Instance,
                 Configuration,
-                Copier,
+                CheckpointManager.Instance,
                 MasterElectionMechanism.Instance,
                 ClusterStateManager.Instance,
-                CheckpointRegistry.Instance,
-                CentralStorage.Instance,
                 Dependencies?.ColdStorage.InstanceOrDefault());
         }
 
-        private CentralStorage CreateCentralStorage()
+        private CentralStreamStorage CreateCentralStorage()
         {
             return Configuration.CentralStore!.CreateCentralStorage();
         }

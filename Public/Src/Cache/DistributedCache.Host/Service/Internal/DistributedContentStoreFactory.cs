@@ -688,14 +688,16 @@ namespace BuildXL.Cache.Host.Service.Internal
                 configuration.DistributedCentralStore = distributedCentralStoreConfiguration;
             }
 
-            EventHubContentLocationEventStoreConfiguration eventStoreConfiguration;
+            ContentLocationEventStoreConfiguration eventStoreConfiguration;
             string epoch = _keySpace + _distributedSettings.EventHubEpoch;
 
-            eventStoreConfiguration = new EventHubContentLocationEventStoreConfiguration(
-                eventHubName: _distributedSettings.EventHubName,
-                eventHubConnectionString: _distributedSettings.EventHubConnectionString ?? ((PlainTextSecret)GetRequiredSecret(_distributedSettings.EventHubSecretName)).Secret,
-                consumerGroupName: _distributedSettings.EventHubConsumerGroupName,
-                epoch: epoch);
+            eventStoreConfiguration = _distributedSettings.DisableContentLocationEvents
+                ? new NullContentLocationEventStoreConfiguration()
+                : new EventHubContentLocationEventStoreConfiguration(
+                    eventHubName: _distributedSettings.EventHubName,
+                    eventHubConnectionString: _distributedSettings.EventHubConnectionString ?? ((PlainTextSecret)GetRequiredSecret(_distributedSettings.EventHubSecretName)).Secret,
+                    consumerGroupName: _distributedSettings.EventHubConsumerGroupName,
+                    epoch: epoch);
 
             dbConfig.Epoch = eventStoreConfiguration.Epoch;
 

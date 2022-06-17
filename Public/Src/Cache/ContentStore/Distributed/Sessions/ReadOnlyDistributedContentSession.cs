@@ -1392,18 +1392,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                         _pendingProactivePuts.Remove(hash);
                     }
                 },
-                extraEndMessage: r => $"Hash={info.ContentHash}, Retries={r.Retries}, Reason=[{reason}]");
+                extraEndMessage: r => $"Hash={info.ContentHash}, Retries={r.TotalRetries}, Reason=[{reason}]");
         }
 
-        private async Task<(int retries, PushFileResult outsideRingCopyResult)> ProactiveCopyOutsideBuildRingWithRetryAsync(
+        private async Task<(int retries, ProactivePushResult outsideRingCopyResult)> ProactiveCopyOutsideBuildRingWithRetryAsync(
             OperationContext context,
             ContentHashWithSize hash,
             IReadOnlyList<MachineLocation> replicatedLocations,
             CopyReason reason)
         {
-            var outsideRingCopyResult = await ProactiveCopyOutsideBuildRingAsync(context, hash, replicatedLocations, reason, attempt:0);
+            var outsideRingCopyResult = await ProactiveCopyOutsideBuildRingAsync(context, hash, replicatedLocations, reason, retries: 0);
             int retries = 0;
-            while (outsideRingCopyResult.Status.QualifiesForRetry() && retries < Settings.ProactiveCopyMaxRetries)
+            while (outsideRingCopyResult.QualifiesForRetry && retries < Settings.ProactiveCopyMaxRetries)
             {
                 SessionCounters[Counters.ProactiveCopyRetries].Increment();
                 SessionCounters[Counters.ProactiveCopyOutsideRingRetries].Increment();
@@ -1413,17 +1413,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             return (retries, outsideRingCopyResult);
         }
 
-        private Task<PushFileResult> ProactiveCopyOutsideBuildRingAsync(
+        private async Task<ProactivePushResult> ProactiveCopyOutsideBuildRingAsync(
             OperationContext context,
             ContentHashWithSize hash,
             IReadOnlyList<MachineLocation> replicatedLocations,
             CopyReason reason,
-            int attempt)
+            int retries)
         {
-
+            // The first attempt is not considered as retry
+            int attempt = retries + 1;
             if ((Settings.ProactiveCopyMode & ProactiveCopyMode.OutsideRing) == 0)
             {
-                return Task.FromResult(PushFileResult.Disabled());
+                return ProactivePushResult.FromPushFileResult(PushFileResult.Disabled(), attempt);
             }
 
             Result<MachineLocation>? getLocationResult = null;
@@ -1463,11 +1464,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
             if (!getLocationResult.Succeeded)
             {
-                return Task.FromResult(new PushFileResult(getLocationResult));
+                return ProactivePushResult.FromPushFileResult(new PushFileResult(getLocationResult), attempt);
             }
             var candidate = getLocationResult.Value;
             SessionCounters[Counters.ProactiveCopy_OutsideRingCopies].Increment();
-            return PushContentAsync(context, hash, candidate, isInsideRing: false, reason, source, attempt);
+            PushFileResult pushFileResult = await PushContentAsync(context, hash, candidate, isInsideRing: false, reason, source, attempt);
+            return ProactivePushResult.FromPushFileResult(pushFileResult, attempt);
         }
 
         /// <summary>
@@ -1481,16 +1483,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 .ToArray();
         }
 
-        private async Task<(int retries, PushFileResult insideRingCopyResult)> ProactiveCopyInsideBuildRingWithRetryAsync(
+        private async Task<(int retries, ProactivePushResult insideRingCopyResult)> ProactiveCopyInsideBuildRingWithRetryAsync(
             OperationContext context,
             ContentHashWithSize hash,
             bool tryBuildRing,
             IReadOnlyList<MachineLocation> replicatedLocations,
             CopyReason reason)
         {
-            PushFileResult insideRingCopyResult = await ProactiveCopyInsideBuildRing(context, hash, tryBuildRing, replicatedLocations, reason, attempt:0);
+            ProactivePushResult insideRingCopyResult = await ProactiveCopyInsideBuildRing(context, hash, tryBuildRing, replicatedLocations, reason, retries: 0);
             int retries = 0;
-            while (insideRingCopyResult.Status.QualifiesForRetry() && retries < Settings.ProactiveCopyMaxRetries)
+            while (insideRingCopyResult.QualifiesForRetry && retries < Settings.ProactiveCopyMaxRetries)
             {
                 SessionCounters[Counters.ProactiveCopyRetries].Increment();
                 SessionCounters[Counters.ProactiveCopyInsideRingRetries].Increment();
@@ -1500,42 +1502,46 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             return (retries, insideRingCopyResult);
         }
 
-        private async Task<PushFileResult> ProactiveCopyInsideBuildRing(
+        private async Task<ProactivePushResult> ProactiveCopyInsideBuildRing(
             OperationContext context,
             ContentHashWithSize hash,
             bool tryBuildRing,
             IReadOnlyList<MachineLocation> replicatedLocations,
             CopyReason reason,
-            int attempt)
+            int retries)
         {
+            // The first attempt is not considered as retry
+            int attempt = retries + 1;
+
             // Get random machine inside build ring
             if (!tryBuildRing || (Settings.ProactiveCopyMode & ProactiveCopyMode.InsideRing) == 0)
             {
-                return PushFileResult.Disabled();
+                return ProactivePushResult.FromPushFileResult(PushFileResult.Disabled(), attempt);
             }
 
             if (_buildIdHash == null)
             {
-                return new PushFileResult("BuildId was not specified, so machines in the build ring cannot be found.");
+                return ProactivePushResult.FromStatus(ProactivePushStatus.BuildIdNotSpecified, attempt);
             }
             
             var candidates = GetInRingActiveMachines();
 
             if (candidates.Length == 0)
             {
-                return new PushFileResult($"Could not find any machines belonging to the build ring for build {_buildId}.");
+                return ProactivePushResult.FromStatus(ProactivePushStatus.MachineNotFound, attempt);
             }
 
             candidates = candidates.Except(replicatedLocations).ToArray();
             if (candidates.Length == 0)
             {
                 SessionCounters[Counters.ProactiveCopy_InsideRingFullyReplicated].Increment();
-                return new PushFileResult($"All candidates in the build ring for build {_buildId} already have the content.");
+                return ProactivePushResult.FromStatus(ProactivePushStatus.MachineAlreadyHasCopy, attempt);
             }
 
             SessionCounters[Counters.ProactiveCopy_InsideRingCopies].Increment();
             var candidate = candidates[ThreadSafeRandom.Generator.Next(0, candidates.Length)];
-            return await PushContentAsync(context, hash, candidate, isInsideRing: true, reason, ProactiveCopyLocationSource.Random, attempt);
+            PushFileResult pushFileResult = await PushContentAsync(context, hash, candidate, isInsideRing: true, reason, ProactiveCopyLocationSource.Random, attempt);
+            return ProactivePushResult.FromPushFileResult(pushFileResult, attempt);
         }
 
         private async Task<PushFileResult> PushContentAsync(

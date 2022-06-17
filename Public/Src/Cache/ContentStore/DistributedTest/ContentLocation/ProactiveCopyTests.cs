@@ -260,8 +260,8 @@ namespace ContentStoreTest.Distributed.Sessions
                     counters["ProactiveCopy_InsideRingCopies.Count"].Should().Be(1);
                     counters["ProactiveCopy_InsideRingFullyReplicated.Count"].Should().Be(0);
 
-                    // Pin the content. Should fail the proactive copy because there re no more build-ring machines available.
-                    var pin = await sessions[0].PinAsync(context, hash, CancellationToken.None).ShouldBeError();
+                    // Pin the content. All Machines have copy is considered success
+                    var pin = await sessions[0].PinAsync(context, hash, CancellationToken.None).ShouldBeSuccess();
 
                     getBulkResult = await masterStore.GetBulkAsync(context, hash, GetBulkOrigin.Global).ShouldBeSuccess();
                     getBulkResult.ContentHashesInfo[0].Locations.Count.Should().Be(2);
@@ -715,7 +715,7 @@ namespace ContentStoreTest.Distributed.Sessions
                             });
                         var results = await Task.WhenAll(tasks);
                         // We should have at least some skipped operations, because we tried 100 pushes at the same time with 1 as the push count limit.
-                        var acceptedSuccesses = results.Count(r => r.Status == CopyResultCode.Success);
+                        var acceptedSuccesses = results.Count(r => r.Succeeded);
                         if (expectAllSuccesses)
                         {
                             acceptedSuccesses.Should().Be(count);

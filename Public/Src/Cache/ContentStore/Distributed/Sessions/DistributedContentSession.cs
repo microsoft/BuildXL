@@ -187,7 +187,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                     var proactiveCopyResult = await proactiveCopyTask;
 
                     // Only fail if all copies failed.
-                    if (!proactiveCopyResult.Succeeded && proactiveCopyResult.RingCopyResult?.Succeeded == false && proactiveCopyResult.OutsideRingCopyResult?.Succeeded == false)
+                    if (proactiveCopyResult.InsideRingCopyResult?.Succeeded == false && proactiveCopyResult.OutsideRingCopyResult?.Succeeded == false)
                     {
                         return new PutResult(proactiveCopyResult);
                     }

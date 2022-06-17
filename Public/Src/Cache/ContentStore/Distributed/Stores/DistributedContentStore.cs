@@ -382,22 +382,22 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                                 reason: CopyReason.ProactiveBackground);
 
                             wasPreviousCopyNeeded = true;
-                            switch (result.Status)
+                            switch (GetProactiveReplicationStatus(result))
                             {
-                                case ProactiveCopyStatus.Success:
+                                case ProactivePushStatus.Success:
                                     CounterCollection[Counters.ProactiveReplication_Succeeded].Increment();
                                     succeeded++;
                                     break;
-                                case ProactiveCopyStatus.Skipped:
+                                case ProactivePushStatus.Skipped:
                                     CounterCollection[Counters.ProactiveReplication_Skipped].Increment();
                                     skipped++;
                                     wasPreviousCopyNeeded = false;
                                     break;
-                                case ProactiveCopyStatus.Rejected:
+                                case ProactivePushStatus.Rejected:
                                     rejected++;
                                     CounterCollection[Counters.ProactiveReplication_Rejected].Increment();
                                     break;
-                                case ProactiveCopyStatus.Error:
+                                case ProactivePushStatus.Error:
                                     CounterCollection[Counters.ProactiveReplication_Failed].Increment();
                                     failed++;
                                     break;
@@ -418,6 +418,30 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                     return new ProactiveReplicationResult(succeeded, failed, skipped, rejected, localContent.Length, scanned, lastVisited);
                 },
                 counter: CounterCollection[Counters.ProactiveReplication]);
+        }
+
+        private ProactivePushStatus GetProactiveReplicationStatus(ProactiveCopyResult result)
+        {
+            // When both Inside and Outside Copy fails, that is considered as failure
+            if (result.InsideRingCopyResult?.Succeeded != true && result.OutsideRingCopyResult?.Succeeded != true)
+            {
+                return ProactivePushStatus.Error;
+            }
+
+            // Status is skipped when both Inside and Outside Copy was disabled or when Copy wasn't required in either ring
+            if (result.Skipped)
+            {
+                return ProactivePushStatus.Skipped;
+            }
+
+            // Status is Rejected when both Inside and Outside Copy was rejected
+            if (result.InsideRingCopyResult?.Rejected == true || result.OutsideRingCopyResult?.Rejected == true)
+            {
+                return ProactivePushStatus.Rejected;
+            }
+
+            // All other cases are considered success
+            return ProactivePushStatus.Success;
         }
 
         /// <inheritdoc />

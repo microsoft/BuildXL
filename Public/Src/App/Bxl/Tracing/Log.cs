@@ -116,6 +116,9 @@ namespace BuildXL.App.Tracing
                         "            Replay outputs from cache:             {replayFromCache}%\r\n" +
                         "            Prepare process sandbox:               {prepareSandbox}%\r\n" +
                         "            Non-process pips:                      {nonProcessPips}%\r\n" +
+                        "            Retried process pips:                  {retriedProcessPips}%\r\n" +
+                        "            Schedule selection:                    {scheduling}%\r\n" +
+                        "            Reporting results:                     {handleResult}%\r\n" +
                         "            Other:                                 {processOverheadOther}%\r\n" +
                         "    Other:                                 {highLevelOtherPercent}%\r\n\r\n" +
                         "Process pip cache hits: {cacheHitRate}% ({processPipsCacheHit}/{totalProcessPips})\r\n" +
@@ -126,7 +129,7 @@ namespace BuildXL.App.Tracing
         public abstract void DominoPerformanceSummary(LoggingContext context, int processPipsCacheHit, int cacheHitRate, int incrementalSchedulingPrunedPips, int incrementalSchedulingPruneRate, int totalProcessPips, bool serverUsed,
             string appInitializationPercent, string graphConstructionPercent, string scrubbingPercent, string schedulerInitPercent, string executePhasePercent, int highLevelOtherPercent,
             string checkingForPipGraphReusePercent, string reloadingPipGraphPercent, string createGraphPercent, int graphConstructionOtherPercent,
-            int processExecutePercent, string telemetryTagsPercent, int processRunningPercent, int hashingInputs, int checkingForCacheHit, int processOutputs, int replayFromCache, int prepareSandbox, int processOverheadOther, int nonProcessPips,
+            int processExecutePercent, string telemetryTagsPercent, int processRunningPercent, int hashingInputs, int checkingForCacheHit, int processOutputs, int replayFromCache, int prepareSandbox, int processOverheadOther, int nonProcessPips, int retriedProcessPips, int scheduling, int handleResult,
             int averageCpu, int minAvailableMemoryMb, string diskUsage,
             LimitingResourcePercentages limitingResourcePercentages);
 

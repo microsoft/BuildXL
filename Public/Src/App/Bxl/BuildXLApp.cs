@@ -2349,7 +2349,19 @@ namespace BuildXL
                 var nonProcessPips = ComputeTimePercentage(
                     (long)schedulerInfo.PipExecutionStepCounters.GetElapsedTime(PipExecutionStep.ExecuteNonProcessPip).TotalMilliseconds,
                     allStepsMinusPipExecution);
-                var processOverheadOther = Math.Max(0, 100 - hashingInputs.Item1 - checkingForCacheHit.Item1 - processOutputs.Item1 - replayFromCache.Item1 - prepareSandbox.Item1 - nonProcessPips.Item1);
+                var retriedProcessPips = ComputeTimePercentage(
+                    (long)schedulerInfo.CanceledProcessExecuteDurationMs,
+                    allStepsMinusPipExecution);
+                var scheduling = ComputeTimePercentage(
+                    (long)schedulerInfo.PipExecutionStepCounters.GetElapsedTime(PipExecutionStep.ChooseWorkerCpu).TotalMilliseconds +
+                    (long)schedulerInfo.PipExecutionStepCounters.GetElapsedTime(PipExecutionStep.ChooseWorkerCacheLookup).TotalMilliseconds +
+                    (long)schedulerInfo.PipExecutionStepCounters.GetElapsedTime(PipExecutionStep.DelayedCacheLookup).TotalMilliseconds,
+                    allStepsMinusPipExecution);
+                var handleResult = ComputeTimePercentage(
+                    (long)schedulerInfo.PipExecutionStepCounters.GetElapsedTime(PipExecutionStep.HandleResult).TotalMilliseconds,
+                    allStepsMinusPipExecution);
+
+                var processOverheadOther = Math.Max(0, 100 - hashingInputs.Item1 - checkingForCacheHit.Item1 - processOutputs.Item1 - replayFromCache.Item1 - prepareSandbox.Item1 - nonProcessPips.Item1 - retriedProcessPips.Item1 - scheduling.Item1 - handleResult.Item1);
 
                 StringBuilder sb = new StringBuilder();
                 if (schedulerInfo.DiskStatistics != null)
@@ -2392,6 +2404,9 @@ namespace BuildXL
                         prepareSandbox: prepareSandbox.Item1,
                         processOverheadOther: processOverheadOther,
                         nonProcessPips: nonProcessPips.Item1,
+                        retriedProcessPips: retriedProcessPips.Item1,
+                        scheduling: scheduling.Item1,
+                        handleResult: handleResult.Item1,
                         averageCpu: schedulerInfo.AverageMachineCPU,
                         minAvailableMemoryMb: (int)schedulerInfo.MachineMinimumAvailablePhysicalMB,
                         diskUsage: sb.ToString(),

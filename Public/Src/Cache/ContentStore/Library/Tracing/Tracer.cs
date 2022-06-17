@@ -298,7 +298,9 @@ namespace BuildXL.Cache.ContentStore.Tracing
             // Intentionally using a separate argument but not result.DurationMs, because result.DurationMs is mutable and not necessarily set.
             if (context.IsEnabled)
             {
-                var messageText = CreateMessageText(result, duration, message, operationName!);
+                var messageText = context.RequiresMessage(result, traceErrorsOnly)
+                    ? CreateMessageText(result, duration, message, operationName!)
+                    : string.Empty;
 
                 OperationFinishedCore(context, result, duration, messageText, OperationKind.None, traceErrorsOnly ? Severity.Diagnostic : Severity.Debug, operationName!);
             }

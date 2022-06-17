@@ -270,6 +270,14 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
         }
 
         /// <summary>
+        /// Gets whether the message is required
+        /// </summary>
+        public bool RequiresMessage(ResultBase result, bool traceErrorsOnly)
+        {
+            return !traceErrorsOnly || !result.Succeeded || IsSeverityEnabled(Severity.Diagnostic);
+        }
+
+        /// <summary>
         /// Trace operation completion.
         /// </summary>
         public void OperationFinished(string message, string operationName, string componentName, ResultBase result, TimeSpan duration, Severity successSeverity, OperationKind kind)
@@ -294,7 +302,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
             // 1. Traces the operation and
             // 2. Emit metrics.
             // But other IOperationLogger implementation just trace the metrics and a text racing should be done separately.
-            if (Logger is IStructuredLogger structuredLogger)
+            if (Logger is IStructuredLogger structuredLogger && IsSeverityEnabled(severity))
             {
                 // Note, that 'message' here is a plain message from the client
                 // without correlation id.

@@ -226,9 +226,11 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
 
             if (_traceOperationFinished || duration > SilentOperationDurationThreshold)
             {
-                string message = _endMessageFactory?.Invoke(result) ?? string.Empty;
                 var traceableResult = _resultBaseFactory?.Invoke(result) ?? BoolResult.Success;
                 traceableResult.SetDuration(duration);
+                string message = _context.TracingContext.RequiresMessage(traceableResult, _traceErrorsOnly)
+                    ? _endMessageFactory?.Invoke(result) ?? string.Empty
+                    : string.Empty;
 
                 // Marking the operation as critical failure only when it was not a cancellation.
                 if (_isCritical && !traceableResult.IsCancelled && !traceableResult.Succeeded)

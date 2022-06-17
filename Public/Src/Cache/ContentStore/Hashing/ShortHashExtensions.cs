@@ -34,5 +34,8 @@ namespace BuildXL.Cache.ContentStore.Hashing
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ReadOnlySpan<byte> AsSpanUnsafe(this in ShortHash hash) => hash.ToByteArray().AsSpan();
 #endif
+
+        /// <nodoc />
+        public static ShortHash ToShortHash(this ContentHash contentHash) => new ShortHash(contentHash);
     }
 }

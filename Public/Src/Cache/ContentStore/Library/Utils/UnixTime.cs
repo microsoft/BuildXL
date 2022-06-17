@@ -14,6 +14,9 @@ namespace BuildXL.Cache.ContentStore.Utils
         public static readonly UnixTime Zero = new UnixTime(0);
 
         /// <nodoc />
+        public static UnixTime UtcNow => DateTime.UtcNow.ToUnixTime();
+
+        /// <nodoc />
         public UnixTime(long value) => Value = value;
 
         /// <nodoc />

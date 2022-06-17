@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using BuildXL.Utilities.Collections;
 using RocksDbSharp;
 
 namespace BuildXL.Engine.Cache.KeyValueStores
@@ -43,7 +44,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         /// <summary>
         /// Specifies merge operators by column name
         /// </summary>
-        public IReadOnlyDictionary<string, MergeOperator>? MergeOperators { get; init; }
+        public Dictionary<string, MergeOperator> MergeOperators { get; init; } = new Dictionary<string, MergeOperator>();
 
         /// <summary>
         /// Whether the database should be opened read-only. This prevents modifications and

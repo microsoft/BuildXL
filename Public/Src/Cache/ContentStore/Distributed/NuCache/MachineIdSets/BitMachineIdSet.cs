@@ -30,8 +30,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         internal const byte MaxCharBitMask = 0x80;
 
-        // TODO: consider switching to Span<T> (bug 1365340)
-
         /// <summary>
         /// Binary mask where each bit represents a machine with an available content.
         /// </summary>

@@ -14,7 +14,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     /// <summary>
     /// Represents a set of machine ids that contains a content based on a plain array of machine ids.
     /// </summary>
-    public sealed class ArrayMachineIdSet : MachineIdSet
+    public class ArrayMachineIdSet : MachineIdSet
     {
         // The field is intentionally not made readonly to avoid defensive copies accessing
         // non-readonly struct.
@@ -51,7 +51,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public static ArrayMachineIdSet Create(in MachineIdCollection machines) => (ArrayMachineIdSet)EmptyInstance.SetExistence(machines, exists: true);
 
         /// <nodoc />
-        public static ArrayMachineIdSet Create(in IEnumerable<MachineId> machines) => (ArrayMachineIdSet)EmptyInstance.SetExistence(MachineIdCollection.Create(machines.ToArray()), exists: true);
+        public static ArrayMachineIdSet Create(IEnumerable<MachineId> machines) => (ArrayMachineIdSet)EmptyInstance.SetExistence(MachineIdCollection.Create(machines.ToArray()), exists: true);
 
         /// <inheritdoc />
         public override bool this[int index] => _machineIds.Contains((ushort)index);
@@ -59,7 +59,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <inheritdoc />
         public override int Count => _machineIds.Length;
 
-        /// <inheritdoc />
         /// <inheritdoc />
         public override MachineIdSet SetExistence(in MachineIdCollection machines, bool exists)
         {

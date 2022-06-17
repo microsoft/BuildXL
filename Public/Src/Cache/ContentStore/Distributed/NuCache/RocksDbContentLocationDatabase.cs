@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
@@ -26,7 +27,9 @@ using BuildXL.Engine.Cache.KeyValueStores;
 using BuildXL.Native.IO;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Serialization;
 using BuildXL.Utilities.Tasks;
+using RocksDbSharp;
 using static BuildXL.Cache.ContentStore.Distributed.Tracing.TracingStructuredExtensions;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 
@@ -199,36 +202,51 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 bool dbAlreadyExists = Directory.Exists(storeLocation);
                 Directory.CreateDirectory(storeLocation);
 
-                Tracer.Info(context, $"Creating RocksDb store at '{storeLocation}'. Clean={clean}, Configured Epoch='{_configuration.Epoch}'");
+                Tracer.Info(context, $"Creating RocksDb store at '{storeLocation}'. Clean={clean}, UseMergeOperators={_configuration.UseMergeOperatorForContentLocations}, Configured Epoch='{_configuration.Epoch}'");
+
+                var settings = new RocksDbStoreConfiguration(storeLocation)
+                {
+                    AdditionalColumns = new[] { nameof(Columns.ClusterState), nameof(Columns.Metadata) },
+                    RotateLogsMaxFileSizeBytes = _configuration.LogsKeepLongTerm ? 0ul : ((ulong)"1MB".ToSize()),
+                    RotateLogsNumFiles = _configuration.LogsKeepLongTerm ? 60ul : 1,
+                    RotateLogsMaxAge = TimeSpan.FromHours(_configuration.LogsKeepLongTerm ? 12 : 1),
+                    EnableStatistics = true,
+                    FastOpen = true,
+                    // We take the user's word here. This may be completely wrong, but we don't have enough
+                    // information at this point to take a decision here. If a machine is master and demoted to
+                    // worker, EventHub may continue to process events for a little while. If we set this to
+                    // read-only during that checkpoint, those last few events will fail with RocksDbException.
+                    // NOTE: we need to check that the database exists because RocksDb will refuse to open an empty
+                    // read-only instance.
+                    ReadOnly = _configuration.OpenReadOnly && dbAlreadyExists,
+                    // The RocksDb database here is read-only from the perspective of the default column family,
+                    // but read/write from the perspective of the ClusterState (which is rewritten on every
+                    // heartbeat). This means that the database may perform background compactions on the column
+                    // families, possibly triggering a RocksDb corruption "block checksum mismatch" error.
+                    // Since the writes to ClusterState are relatively few, we can make-do with disabling
+                    // compaction here and pretending like we are using a read-only database.
+                    DisableAutomaticCompactions = !IsDatabaseWriteable,
+                    LeveledCompactionDynamicLevelTargetSizes = true,
+                    Compression = _configuration.Compression,
+                    UseReadOptionsWithSetTotalOrderSeekInDbEnumeration = _configuration.UseReadOptionsWithSetTotalOrderSeekInDbEnumeration,
+                    UseReadOptionsWithSetTotalOrderSeekInGarbageCollection = _configuration.UseReadOptionsWithSetTotalOrderSeekInGarbageCollection,
+                };
+
+                if (_configuration.UseMergeOperatorForContentLocations)
+                {
+                    var mergeContext = context.CreateNested(nameof(RocksDbContentLocationDatabase), caller: "MergeContentLocationEntries");
+                    
+                    settings.MergeOperators.Add(
+                        ColumnFamilies.DefaultName, 
+                        MergeOperators.CreateAssociative(
+                            "ContentLocationEntryMergeOperator",
+                            (key, value1, value2, result) =>
+                                MergeContentLocationEntries(mergeContext, value1, value2, result))
+                        );
+                }
 
                 var possibleStore = KeyValueStoreAccessor.Open(
-                    new RocksDbStoreConfiguration(storeLocation)
-                    {
-                        AdditionalColumns = new[] { nameof(Columns.ClusterState), nameof(Columns.Metadata) },
-                        RotateLogsMaxFileSizeBytes = _configuration.LogsKeepLongTerm ? 0ul : ((ulong)"1MB".ToSize()),
-                        RotateLogsNumFiles = _configuration.LogsKeepLongTerm ? 60ul : 1,
-                        RotateLogsMaxAge = TimeSpan.FromHours(_configuration.LogsKeepLongTerm ? 12 : 1),
-                        EnableStatistics = true,
-                        FastOpen = true,
-                        // We take the user's word here. This may be completely wrong, but we don't have enough
-                        // information at this point to take a decision here. If a machine is master and demoted to
-                        // worker, EventHub may continue to process events for a little while. If we set this to
-                        // read-only during that checkpoint, those last few events will fail with RocksDbException.
-                        // NOTE: we need to check that the database exists because RocksDb will refuse to open an empty
-                        // read-only instance.
-                        ReadOnly = _configuration.OpenReadOnly && dbAlreadyExists,
-                        // The RocksDb database here is read-only from the perspective of the default column family,
-                        // but read/write from the perspective of the ClusterState (which is rewritten on every
-                        // heartbeat). This means that the database may perform background compactions on the column
-                        // families, possibly triggering a RocksDb corruption "block checksum mismatch" error.
-                        // Since the writes to ClusterState are relatively few, we can make-do with disabling
-                        // compaction here and pretending like we are using a read-only database.
-                        DisableAutomaticCompactions = !IsDatabaseWriteable,
-                        LeveledCompactionDynamicLevelTargetSizes = true,
-                        Compression = _configuration.Compression,
-                        UseReadOptionsWithSetTotalOrderSeekInDbEnumeration = _configuration.UseReadOptionsWithSetTotalOrderSeekInDbEnumeration,
-                        UseReadOptionsWithSetTotalOrderSeekInGarbageCollection = _configuration.UseReadOptionsWithSetTotalOrderSeekInGarbageCollection,
-                    },
+                    settings,
                     // When an exception is caught from within methods using the database, this handler is called to
                     // decide whether the exception should be rethrown in user code, and the database invalidated. Our
                     // policy is to only invalidate if it is an exception coming from RocksDb, but not from our code.
@@ -277,6 +295,121 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             {
                 return new BoolResult(ex);
             }
+        }
+
+        private bool MergeContentLocationEntries(
+            OperationContext operationContext,
+            ReadOnlySpan<byte> value1,
+            ReadOnlySpan<byte> value2,
+            MergeResult result)
+        {
+            // Using manual try/catch block instead of using 'PerformOperation' to avoid unnecessary overhead.
+            // This method is called a lot, and it should be as efficient as possible.
+            using var c = Counters[ContentLocationDatabaseCounters.MergeEntry].Start();
+            try
+            {
+                var leftReader = value1.AsReader();
+                var leftEntry = ContentLocationEntry.Deserialize(ref leftReader);
+                var rightReader = value2.AsReader();
+                var rightEntry = ContentLocationEntry.Deserialize(ref rightReader);
+
+                var mergedEntry = ContentLocationEntry.MergeEntries(leftEntry, rightEntry);
+
+                using var serializedEntry = SerializeContentLocationEntry(mergedEntry);
+                result.ValueBuffer.Set(serializedEntry.Buffer.Span);
+            }
+            catch (Exception e)
+            {
+                var errorResult = new ErrorResult(e);
+                errorResult.MakeCritical();
+                Tracer.OperationFinished(operationContext, errorResult, c.Elapsed, message: "Failed merging values");
+            }
+
+            return true;
+        }
+        
+        /// <inheritdoc />
+        protected override bool SetMachineExistenceAndUpdateDatabase(
+            OperationContext context,
+            ShortHash hash,
+            MachineId? machine,
+            bool existsOnMachine,
+            long size,
+            UnixTime? lastAccessTime,
+            bool reconciling)
+        {
+            using var counter = Counters[ContentLocationDatabaseCounters.SetMachineExistenceAndUpdateDatabase].Start();
+            context.TrackMetric("ContentLocationDatabase_SetMachineExistenceAndUpdateDatabase", Counters[ContentLocationDatabaseCounters.SetMachineExistenceAndUpdateDatabase].Value, Tracer.Name);
+
+            if (!_configuration.UseMergeOperatorForContentLocations)
+            {
+                return base.SetMachineExistenceAndUpdateDatabase(context, hash, machine, existsOnMachine, size, lastAccessTime, reconciling);
+            }
+
+            // When the merge is used its hard to track the total content size, just because its not possible to know
+            // whether the entry was actually created or not.
+
+            // This is an implementation that uses merge operators which is quite different compared to the standard behavior.
+            // 1. We don't need any locks
+            // 2. We just create an entry that will be merged on retrieval or compaction
+
+            // machine, existsOnMachine, lastAccessTime: null => add
+            // machine: null, existsOnMachine: false => touch
+            // machine, existsOnMachine: false => remove
+
+            lastAccessTime ??= Clock.UtcNow;
+            ContentLocationEntry? entry = null;
+
+            EntryOperation entryOperation = EntryOperation.Invalid;
+            var reason = reconciling ? OperationReason.Reconcile : OperationReason.Unknown;
+
+            if (machine != null && existsOnMachine)
+            {
+                // Add
+                var now = Clock.UtcNow;
+                entry = ContentLocationEntry.Create(
+                    MachineIdSet.Create(exists: true, machine.Value),
+                    size,
+                    lastAccessTimeUtc: now,
+                    creationTimeUtc: now);
+                Counters[ContentLocationDatabaseCounters.MergeAdd].Increment();
+                entryOperation = EntryOperation.MergeAdd;
+            }
+            else if (machine == null && existsOnMachine == false)
+            {
+                // Touch. Last access time must not be null
+                // Ignoring touch frequency here because in order to avoid a write we would have to read the entry first.
+                Contract.Assert(lastAccessTime != null);
+                entry = ContentLocationEntry.Create(
+                    MachineIdSet.Empty,
+                    size,
+                    lastAccessTimeUtc: lastAccessTime.Value,
+                    creationTimeUtc: lastAccessTime.Value);
+                Counters[ContentLocationDatabaseCounters.MergeTouch].Increment();
+                entryOperation = EntryOperation.MergeTouch;
+            }
+            else if (machine != null && existsOnMachine == false)
+            {
+                // Removal
+                var now = Clock.UtcNow;
+                entry = ContentLocationEntry.Create(
+                    MachineIdSet.Create(exists: false, machine.Value),
+                    size,
+                    lastAccessTimeUtc: now,
+                    creationTimeUtc: now);
+                Counters[ContentLocationDatabaseCounters.MergeRemove].Increment();
+                entryOperation = EntryOperation.MergeRemove;
+            }
+
+            if (entry != null)
+            {
+                NagleOperationTracer?.Enqueue((context, hash, entryOperation, reason));
+            }
+
+            Contract.Assert(entry != null, "Seems like an unknown database operation.");
+
+            Persist(context, hash, entry);
+            return true;
         }
 
         private void BackupLogs(OperationContext context, string instancePath, string name)
@@ -600,6 +733,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <inheritdoc />
         internal override void Persist(OperationContext context, ShortHash hash, ContentLocationEntry? entry)
         {
+            Counters[ContentLocationDatabaseCounters.DatabaseChanges].Increment();
+            context.TrackMetric("ContentLocationDatabase_DatabaseChange", Counters[ContentLocationDatabaseCounters.DatabaseChanges].Value, Tracer.Name);
+
             if (entry == null)
             {
                 DeleteFromDb(hash);
@@ -620,8 +756,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private static Unit SaveToDbHelper(ShortHash hash, ContentLocationEntry entry, RocksDbStore store, RocksDbContentLocationDatabase db)
         {
             using var value = db.SerializeContentLocationEntry(entry);
-            // hash.AsSpan is safe here.
-            store.Put(hash.AsSpanUnsafe(), value);
+
+            if (db._configuration.UseMergeOperatorForContentLocations)
+            {
+                // hash.AsSpan is safe here.
+                store.Merge(hash.AsSpanUnsafe(), value);
+            }
+            else
+            {
+                // hash.AsSpan is safe here.
+                store.Put(hash.AsSpanUnsafe(), value);
+            }
 
             return Unit.Void;
         }
@@ -645,9 +790,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return ShortHash.FromBytes(key);
         }
 
-        private Pool<byte[]>.PoolHandle GetKey(in ShortHash hash)
+        private ShortHash DeserializeKey(ReadOnlySpan<byte> key)
         {
-            return hash.ToPooledByteArray();
+            return ShortHash.FromSpan(key);
         }
 
         /// <inheritdoc />

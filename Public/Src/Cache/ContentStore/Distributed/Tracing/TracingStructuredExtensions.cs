@@ -292,7 +292,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Tracing
             RemoveMetadataEntry,
             AddMachineNoStateChange,
             RemoveMachineNoStateChange,
-            RemoveOnUnknownMachine
+            RemoveOnUnknownMachine,
+            MergeAdd,
+            MergeTouch,
+            MergeRemove,
         }
     }
 }

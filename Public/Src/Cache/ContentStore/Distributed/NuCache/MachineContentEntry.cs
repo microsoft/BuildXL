@@ -73,50 +73,92 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private const ushort RemoveBit = 1 << 15;
         private const ushort RemoveBitMask = unchecked((ushort)~RemoveBit);
 
+        /// <summary>
+        /// True if the location for a machine with index <see cref="Index"/> was removed.
+        /// </summary>
         public bool IsRemove => (Value & RemoveBit) != 0;
+
+        /// <summary>
+        /// True if the location for a machine with index <see cref="Index"/> was added.
+        /// </summary>
         public bool IsAdd => (Value & RemoveBit) == 0;
+
+        /// <summary>
+        /// Returns true if the instance is valid.
+        /// </summary>
+        /// <remarks>
+        /// The property returns false if created with a default constructor.
+        /// </remarks>
         public bool IsValid => Value != 0;
 
+        /// <summary>
+        /// Gets the machine index for a changed location.
+        /// </summary>
         public int Index => Value & RemoveBitMask;
 
-        public MachineId ToMachineId()
+        /// <summary>
+        /// Converts the current instance to <see cref="MachineId"/>.
+        /// </summary>
+        public MachineId AsMachineId()
         {
             return new MachineId(Index);
         }
 
+        /// <summary>
+        /// Creates a location add event.
+        /// </summary>
         public static LocationChange CreateAdd(MachineId machine)
         {
             return Create(machine, isRemove: false);
         }
 
+        /// <summary>
+        /// Creates a location remove event.
+        /// </summary>
         public static LocationChange CreateRemove(MachineId machine)
         {
             return Create(machine, isRemove: true);
         }
 
+        /// <nodoc />
         public static LocationChange Create(MachineId machine, bool isRemove)
         {
             var value = unchecked((ushort)(isRemove ? (RemoveBit | machine.Index) : machine.Index));
             return new LocationChange(value);
         }
 
+        /// <nodoc />
         public LocationChange AsRemove()
         {
             return new LocationChange(unchecked((ushort)(RemoveBit | Value)));
         }
+
+        /// <nodoc />
         public LocationChange AsAdd()
         {
             return new LocationChange(unchecked((ushort)Index));
         }
 
+        /// <inheritdoc />
         public int CompareTo(LocationChange other)
         {
             return Index.ChainCompareTo(other.Index) ?? Value.CompareTo(other.Value);
         }
 
+        /// <inheritdoc />
         public override string ToString()
         {
-            return (IsRemove ? -Index : Index).ToString();
+            if (IsAdd)
+            {
+                return $"Add({Index})";
+            }
+
+            if (IsRemove)
+            {
+                return $"Remove({Index})";
+            }
+
+            return "Invalid";
         }
     }
 

@@ -89,6 +89,12 @@ namespace BuildXL.Cache.ContentStore.Hashing
         }
 
         /// <nodoc />
+        public static ShortHash FromSpan(ReadOnlySpan<byte> data)
+        {
+            return new ShortHash(ShortReadOnlyFixedBytes.FromSpan(data));
+        }
+
+        /// <nodoc />
         public static ShortHash FromBytes(byte[] data)
         {
             return new ShortHash(new ShortReadOnlyFixedBytes(data));

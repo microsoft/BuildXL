@@ -433,6 +433,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         {
                             continue;
                         }
+
                         filteredEntry = FilterInactiveMachines(entry);
 
                         if (filteredEntry.Locations.Count == 0)

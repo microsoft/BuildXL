@@ -23,32 +23,32 @@ namespace BuildXL.Utilities.Serialization
     public static class SpanSerializationExtensions
     {
         /// <nodoc />
-        public static SpanReader AsReader(this ReadOnlySpan<byte> source) => new SpanReader(source);
+        public static SpanReader AsReader(this ReadOnlySpan<byte> reader) => new SpanReader(reader);
 
         /// <nodoc />
-        public static SpanReader AsReader(this Span<byte> source) => new SpanReader(source);
+        public static SpanReader AsReader(this Span<byte> reader) => new SpanReader(reader);
 
         /// <nodoc />
-        public static bool ReadBoolean(this ref SpanReader source) => source.ReadByte() != 0;
+        public static bool ReadBoolean(this ref SpanReader reader) => reader.ReadByte() != 0;
 
         /// <nodoc />
-        public static int ReadInt32(this ref SpanReader source)
+        public static int ReadInt32(this ref SpanReader reader)
         {
-            return BinaryPrimitives.ReadInt32LittleEndian(source.ReadSpan(sizeof(int)));
+            return BinaryPrimitives.ReadInt32LittleEndian(reader.ReadSpan(sizeof(int)));
         }
 
         /// <nodoc />
-        public static long ReadInt64(this ref SpanReader source)
+        public static long ReadInt64(this ref SpanReader reader)
         {
-            return BinaryPrimitives.ReadInt64LittleEndian(source.ReadSpan(sizeof(long)));
+            return BinaryPrimitives.ReadInt64LittleEndian(reader.ReadSpan(sizeof(long)));
         }
 
         /// <summary>
         /// Reads <see cref="uint"/>.
         /// </summary>
-        public static uint ReadUInt32Compact(this ref SpanReader source)
+        public static uint ReadUInt32Compact(this ref SpanReader reader)
         {
-            var value = source.Read7BitEncodedInt();
+            var value = reader.Read7BitEncodedInt();
             return unchecked((uint)value);
         }
 
@@ -71,9 +71,13 @@ namespace BuildXL.Utilities.Serialization
         }
 
         /// <nodoc />
-        public static long ReadInt64Compact(this ref SpanReader source)
+        public static ushort ReadUInt16(this ref SpanReader reader) 
+            => BinaryPrimitives.ReadUInt16LittleEndian(reader.ReadSpan(sizeof(ushort)));
+
+        /// <nodoc />
+        public static long ReadInt64Compact(this ref SpanReader reader)
         {
-            return source.Read7BitEncodedLong();
+            return reader.Read7BitEncodedLong();
         }
 
         /// <nodoc />
@@ -102,14 +106,14 @@ namespace BuildXL.Utilities.Serialization
         }
 
         /// <nodoc />
-        public static TimeSpan ReadTimeSpan(this ref SpanReader source) =>
-            TimeSpan.FromTicks(source.Read7BitEncodedLong());
+        public static TimeSpan ReadTimeSpan(this ref SpanReader reader) =>
+            TimeSpan.FromTicks(reader.Read7BitEncodedLong());
 
         /// <nodoc />
-        public static DateTime ReadDateTime(this ref SpanReader source) =>
-            DateTime.FromBinary(source.ReadInt64());
+        public static DateTime ReadDateTime(this ref SpanReader reader) =>
+            DateTime.FromBinary(reader.ReadInt64());
 
-        internal static int Read7BitEncodedInt(this ref SpanReader source)
+        internal static int Read7BitEncodedInt(this ref SpanReader reader)
         {
             // Unlike writing, we can't delegate to the 64-bit read on
             // 64-bit platforms. The reason for this is that we want to
@@ -130,7 +134,7 @@ namespace BuildXL.Utilities.Serialization
             for (var shift = 0; shift < MaxBytesWithoutOverflow * 7; shift += 7)
             {
                 // ReadByte handles end of stream cases for us.
-                byteReadJustNow = source.ReadByte();
+                byteReadJustNow = reader.ReadByte();
                 result |= (byteReadJustNow & 0x7Fu) << shift;
 
                 if (byteReadJustNow <= 0x7Fu)
@@ -143,7 +147,7 @@ namespace BuildXL.Utilities.Serialization
             // the value of this byte must fit within 4 bits (32 - 28),
             // and it must not have the high bit set.
 
-            byteReadJustNow = source.ReadByte();
+            byteReadJustNow = reader.ReadByte();
             if (byteReadJustNow > 0b_1111u)
             {
                 // throw new FormatException(SR.Format_Bad7BitInt);
@@ -155,20 +159,20 @@ namespace BuildXL.Utilities.Serialization
         }
 
         /// <summary>
-        /// The method returns a byte array from <paramref name="source"/>, please note, that the length 
+        /// The method returns a byte array from <paramref name="reader"/>, please note, that the length 
         /// of the final array might be smaller than the given <paramref name="length"/> if <paramref name="allowIncomplete"/>
         /// is true (false by default).
         /// </summary>
-        public static byte[] ReadBytes(this ref SpanReader source, int length, bool allowIncomplete = false)
+        public static byte[] ReadBytes(this ref SpanReader reader, int length, bool allowIncomplete = false)
         {
             // This implementation's behavior when incomplete = true
             // mimics BinaryReader.ReadBytes which allows
             // returning an array less than the size requested.
-            return source.ReadSpan(length, allowIncomplete).ToArray();
+            return reader.ReadSpan(length, allowIncomplete).ToArray();
         }
 
         /// <nodoc />
-        internal static long Read7BitEncodedLong(this ref SpanReader source)
+        internal static long Read7BitEncodedLong(this ref SpanReader reader)
         {
             // Read out an Int64 7 bits at a time.  The high bit
             // of the byte when on means to continue reading more bytes.
@@ -178,7 +182,7 @@ namespace BuildXL.Utilities.Serialization
             do
             {
                 // ReadByte handles end of stream cases for us.
-                b = source.ReadByte();
+                b = reader.ReadByte();
                 long m = b & 0x7f;
                 count |= m << shift;
                 shift += 7;
@@ -194,26 +198,26 @@ namespace BuildXL.Utilities.Serialization
         public delegate void WriteItemToSpan<in T>(ref SpanWriter writer, T item);
 
         /// <nodoc />
-        public static T[] ReadArray<T>(this ref SpanReader source, ReadItemFromSpan<T> reader, int minimumLength = 0)
+        public static T[] ReadArray<T>(this ref SpanReader reader, ReadItemFromSpan<T> itemReader, int minimumLength = 0)
         {
-            var length = source.ReadInt32Compact();
+            var length = reader.ReadInt32Compact();
             if (length == 0)
             {
                 return Array.Empty<T>();
             }
 
-            var array = source.ReadArrayCore(reader, length, minimumLength: minimumLength);
+            var array = reader.ReadArrayCore(itemReader, length, minimumLength: minimumLength);
 
             return array;
         }
 
-        private static T[] ReadArrayCore<T>(this ref SpanReader source, ReadItemFromSpan<T> reader, int length, int minimumLength = 0)
+        private static T[] ReadArrayCore<T>(this ref SpanReader reader, ReadItemFromSpan<T> itemReader, int length, int minimumLength = 0)
         {
             var arrayLength = Math.Max(minimumLength, length);
             var array = arrayLength == 0 ? Array.Empty<T>() : new T[arrayLength];
             for (var i = 0; i < length; i++)
             {
-                array[i] = reader(ref source);
+                array[i] = itemReader(ref reader);
             }
 
             return array;

@@ -750,6 +750,9 @@ namespace BuildXL.Cache.Host.Configuration
         public string ContentLocationDatabaseCompression { get; set; }
 
         [DataMember]
+        public bool? UseMergeOperatorForContentLocations { get; set; }
+
+        [DataMember]
         [Validation.Range(1, long.MaxValue)]
         public long? ContentLocationDatabaseEnumerateSortedKeysFromStorageBufferSize { get; set; }
 

@@ -8,7 +8,6 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
-using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Serialization;
@@ -26,6 +25,38 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
         {
             _testOutputHelper = testOutputHelper;
         }
+
+        [Fact]
+        public void MergeWithRemovals()
+        {
+            var machineId = new MachineId(42);
+            var machineId2 = new MachineId(43);
+
+            var left = CreateEntry(MachineIdSet.Create(exists: true, machineId));
+
+            left.Locations.Contains(machineId).Should().BeTrue();
+
+            var right = CreateEntry(MachineIdSet.Create(exists: true, machineId2));
+
+            var merge = left.Merge(right);
+            merge.Locations.Count.Should().Be(2);
+
+            merge.Locations.Contains(machineId).Should().BeTrue();
+            merge.Locations.Contains(machineId2).Should().BeTrue();
+
+            var removal = CreateEntry(MachineIdSet.Create(exists: false, machineId2));
+            merge = merge.Merge(removal);
+            merge.Locations.Count.Should().Be(1);
+
+            left.Locations.Contains(machineId).Should().BeTrue();
+            left.Locations.Contains(machineId2).Should().BeFalse();
+        }
+
+        private static ContentLocationEntry CreateEntry(MachineIdSet machineIdSet) => ContentLocationEntry.Create(
+            machineIdSet,
+            contentSize: 42,
+            lastAccessTimeUtc: UnixTime.UtcNow,
+            UnixTime.UtcNow);
 
         [Fact]
         public void TestRoundtripRedisValue()

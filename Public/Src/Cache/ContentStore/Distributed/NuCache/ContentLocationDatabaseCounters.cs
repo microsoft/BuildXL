@@ -136,5 +136,31 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// Amount of content removed
         /// </summary>
         TotalContentRemovedCount,
+
+        /// <summary>
+        /// Tracks the RocksDb merge operator invocation count and duration.
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        MergeEntry,
+
+        /// <summary>
+        /// Tracks the duration of changing the machine locations in the database
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        SetMachineExistenceAndUpdateDatabase,
+
+        /// <summary>
+        /// The actual number of database changes after calling <see cref="SetMachineExistenceAndUpdateDatabase"/>.
+        /// </summary>
+        DatabaseChanges,
+
+        /// <nodoc />
+        MergeAdd,
+
+        /// <nodoc />
+        MergeTouch,
+
+        /// <nodoc />
+        MergeRemove,
     }
 }

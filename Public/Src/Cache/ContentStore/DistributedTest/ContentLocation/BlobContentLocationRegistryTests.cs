@@ -390,7 +390,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
                     entry.PartitionId.Should().Be(partitionId);
                     entry.Hash[0].Should().Be(partitionId);
 
-                    clusterState.TryResolve(entry.Location.ToMachineId(), out var machineLocation).Should().BeTrue();
+                    clusterState.TryResolve(entry.Location.AsMachineId(), out var machineLocation).Should().BeTrue();
                     ActualContent.Add((entry.Hash, machineLocation, entry.Size.Value)).Should().BeTrue();
                     var store = Machines[machineLocation].Store;
                     store.TryGetContentInfo(entry.Hash, out var info).Should().BeTrue();

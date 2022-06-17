@@ -65,7 +65,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         /// <summary>
         /// Creates a projection of the entries as <see cref="MachineContentEntry"/>s.
-        /// </summar>y
+        /// </summary>
         private static IReadOnlyList<MachineContentEntry> GetEntries(
             IReadOnlyList<ContentInfo> contentInfo,
             MachineId machineId)

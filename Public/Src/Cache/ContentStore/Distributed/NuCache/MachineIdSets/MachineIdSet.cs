@@ -6,7 +6,6 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Serialization;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
@@ -19,6 +18,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     /// </remarks>
     public abstract class MachineIdSet : IReadOnlyCollection<MachineId>
     {
+        private static readonly ObjectPool<List<MachineId>> MachineIdListPool = new ObjectPool<List<MachineId>>(
+            () => new List<MachineId>(),
+            ids => ids.Clear());
+
         /// <nodoc />
         public const int BitMachineIdSetThreshold = 100;
 
@@ -30,6 +33,21 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// in some very rare cases.
         /// </remarks>
         public static MachineIdSet Empty => ArrayMachineIdSet.EmptyInstance;
+
+        /// <summary>
+        /// Creates a list of machine ids that represents additions or removals of the content on them.
+        /// </summary>
+        public static MachineIdSet Create(bool exists, params MachineId[] machineIds)
+        {
+            if (machineIds.Length == 0)
+            {
+                return Empty;
+            }
+
+            return exists
+                ? Empty.Add(machineIds)
+                : LocationChangeMachineIdSet.EmptyInstance.SetExistence(MachineIdCollection.Create(machineIds), false);
+        }
 
         /// <summary>
         /// Returns the format of a machine id set.
@@ -60,6 +78,42 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// Returns a new instance of <see cref="MachineIdSet"/> based on the given <paramref name="machines"/> and <paramref name="exists"/>.
         /// </summary>
         public abstract MachineIdSet SetExistence(in MachineIdCollection machines, bool exists);
+
+        /// <summary>
+        /// Creates a new instance of the machine mid set with the machine existence or non-existence "flag" for a given <paramref name="machineId"/>.
+        /// </summary>
+        public MachineIdSet SetExistence(MachineId machineId, bool exists) => SetExistence(MachineIdCollection.Create(machineId), exists);
+
+        /// <summary>
+        /// Merges two machine id sets together.
+        /// </summary>
+        public MachineIdSet Merge(MachineIdSet other)
+        {
+            if (other is LocationChangeMachineIdSet locationChanges)
+            {
+                using var pooledAdditions = MachineIdListPool.GetInstance();
+                using var pooledRemovals = MachineIdListPool.GetInstance();
+
+                foreach (var lc in locationChanges.LocationStates)
+                {
+                    if (lc.IsAdd)
+                    {
+                        pooledAdditions.Instance.Add(lc.AsMachineId());
+                    }
+                    else
+                    {
+                        pooledRemovals.Instance.Add(lc.AsMachineId());
+                    }
+                }
+
+                var additions = MachineIdCollection.Create(pooledAdditions.Instance);
+                var removals = MachineIdCollection.Create(pooledRemovals.Instance);
+
+                return SetExistence(additions, exists: true).SetExistence(removals, exists: false);
+            }
+
+            return SetExistence(MachineIdCollection.Create(other.ToArray()), exists: true);
+        }
 
         /// <nodoc />
         public MachineIdSet Add(params MachineId[] machines) => SetExistence(MachineIdCollection.Create(machines), exists: true);
@@ -104,8 +158,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
             else
             {
-                if (Count > BitMachineIdSetThreshold)
+                if (Format == SetFormat.Array && Count > BitMachineIdSetThreshold)
                 {
+                    // Not changing the format for LocationChangeMachineIdSet.
                     serializableInstance = BitMachineIdSet.Create(EnumerateMachineIds());
                 }
             }
@@ -125,14 +180,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             var reader = source.AsReader();
             var format = (SetFormat)reader.ReadByte();
 
-            if (format == SetFormat.Bits)
+            return format switch
             {
-                return BitMachineIdSet.HasMachineIdCore(reader.Remaining, index);
-            }
-            else
-            {
-                return ArrayMachineIdSet.HasMachineIdCore(reader.Remaining, index);
-            }
+                SetFormat.Bits => BitMachineIdSet.HasMachineIdCore(reader.Remaining, index),
+                SetFormat.Array => ArrayMachineIdSet.HasMachineIdCore(reader.Remaining, index),
+                SetFormat.LocationChange => LocationChangeMachineIdSet.HasMachineIdCore(reader.Remaining, index),
+                _ => throw new InvalidOperationException($"Unknown format '{format}'."),
+            };
         }
 
         /// <nodoc />
@@ -140,14 +194,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             var format = (SetFormat)reader.ReadByte();
 
-            if (format == SetFormat.Bits)
+            return format switch
             {
-                return BitMachineIdSet.DeserializeCore(reader);
-            }
-            else
-            {
-                return ArrayMachineIdSet.DeserializeCore(reader);
-            }
+                SetFormat.Bits => BitMachineIdSet.DeserializeCore(reader),
+                SetFormat.Array => ArrayMachineIdSet.DeserializeCore(reader),
+                SetFormat.LocationChange => LocationChangeMachineIdSet.DeserializeCore(reader),
+                _ => throw new InvalidOperationException($"Unknown format '{format}'."),
+            };
         }
 
         /// <nodoc />
@@ -155,14 +208,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             var format = (SetFormat)reader.ReadByte();
 
-            if (format == SetFormat.Bits)
+            return format switch
             {
-                return BitMachineIdSet.DeserializeCore(ref reader);
-            }
-            else
-            {
-                return ArrayMachineIdSet.DeserializeCore(ref reader);
-            }
+                SetFormat.Bits => BitMachineIdSet.DeserializeCore(ref reader),
+                SetFormat.Array => ArrayMachineIdSet.DeserializeCore(ref reader),
+                SetFormat.LocationChange => LocationChangeMachineIdSet.DeserializeCore(ref reader),
+                _ => throw new InvalidOperationException($"Unknown format '{format}'."),
+            };
         }
 
         /// <summary>
@@ -178,7 +230,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             /// <summary>
             /// Based on an array that contains a list of machine ids.
             /// </summary>
-            Array
+            Array,
+
+            /// <summary>
+            /// Based on an array of location changes that can represents both additions and removals of locations.
+            /// </summary>
+            LocationChange
         }
 
         /// <inheritdoc />

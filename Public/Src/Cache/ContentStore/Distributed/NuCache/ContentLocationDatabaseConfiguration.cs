@@ -248,6 +248,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </remarks>
         public bool UseReadOptionsWithSetTotalOrderSeekInGarbageCollection { get; set; } = true;
 
+        /// <summary>
+        /// Whether to use RocksDb merge operator for content location entries.
+        /// </summary>
+        public bool UseMergeOperatorForContentLocations { get; set; } = false;
+
         /// <nodoc />
         public static RocksDbContentLocationDatabaseConfiguration FromDistributedContentSettings(
             DistributedContentSettings settings,
@@ -274,6 +279,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             ApplyIfNotNull(settings.ContentLocationDatabaseMetadataGarbageCollectionLogEnabled, v => configuration.MetadataGarbageCollectionLogEnabled = v);
 
             ApplyIfNotNull(settings.ContentLocationDatabaseOpenReadOnly, v => configuration.OpenReadOnly = v && !settings.IsMasterEligible);
+            ApplyIfNotNull(settings.UseMergeOperatorForContentLocations, v => configuration.UseMergeOperatorForContentLocations = v);
 
             ApplyEnumIfNotNull<Compression>(settings.ContentLocationDatabaseCompression, v => configuration.Compression = v);
 

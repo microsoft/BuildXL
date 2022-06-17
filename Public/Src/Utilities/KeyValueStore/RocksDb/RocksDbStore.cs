@@ -416,6 +416,13 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         }
 
         /// <inheritdoc />
+        public void Merge(ReadOnlySpan<byte> key, ReadOnlySpan<byte> value, string? columnFamilyName = null)
+        {
+            var columnFamilyInfo = GetColumnFamilyInfo(columnFamilyName);
+            m_store.Merge(key, value, columnFamilyInfo.Handle, m_defaults.WriteOptions);
+        }
+
+        /// <inheritdoc />
         public void ApplyBatch<TData>(in TData data, string? columnFamilyName, Action<WriteBatch, TData, ColumnFamilyHandle> apply)
         {
             ColumnFamilyInfo batchColumnFamilyInfo = GetColumnFamilyInfo(columnFamilyName);

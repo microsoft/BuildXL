@@ -4,7 +4,6 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -31,10 +30,10 @@ using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
-using BuildXL.Cache.ContentStore.Utils;
-using BuildXL.Cache.Host.Configuration;
 using BuildXL.Cache.Host.Service.Internal;
 using BuildXL.Utilities.Collections;
+using BuildXL.Cache.ContentStore.Utils;
+using BuildXL.Cache.Host.Configuration;
 using BuildXL.Utilities.Tracing;
 using ContentStoreTest.Distributed.ContentLocation;
 using ContentStoreTest.Distributed.Redis;
@@ -231,15 +230,16 @@ namespace ContentStoreTest.Distributed.Sessions
         }
 
         [Theory]
-        [InlineData(true)]
-        [InlineData(false)]
-        public Task SkipRestoreCheckpointTest(bool changeKeyspace)
+        [InlineData(true, true)]
+        [InlineData(false, false)]
+        public Task SkipRestoreCheckpointTest(bool changeKeyspace, bool useMergeOperator)
         {
             // Ensure master lease is long enough that role doesn't switch between machines
             var masterLeaseExpiryTime = TimeSpan.FromMinutes(60);
             ConfigureWithOneMaster(
                 s =>
                 {
+                    s.UseMergeOperatorForContentLocations = useMergeOperator;
                     if (changeKeyspace && s.TestIteration == 2)
                     {
                         s.KeySpacePrefix += s.TestIteration;
@@ -446,31 +446,31 @@ namespace ContentStoreTest.Distributed.Sessions
             return RunTestAsync(
                 storeCount: 3,
                 testFunc: async context =>
- {
-     var sessions = context.Sessions;
-     var session0 = context.GetDistributedSession(0);
-     var session1 = context.GetDistributedSession(1);
-     var session2 = context.GetDistributedSession(2);
+                {
+                    var sessions = context.Sessions;
+                    var session0 = context.GetDistributedSession(0);
+                    var session1 = context.GetDistributedSession(1);
+                    var session2 = context.GetDistributedSession(2);
 
-     var content = ThreadSafeRandom.GetBytes((int)ContentByteCount);
-     var path = context.Directories[0].CreateRandomFileName();
-     FileSystem.WriteAllBytes(path, content);
+                    var content = ThreadSafeRandom.GetBytes((int)ContentByteCount);
+                    var path = context.Directories[0].CreateRandomFileName();
+                    FileSystem.WriteAllBytes(path, content);
 
-     // Insert random file in session 1
-     var putResult0 = await sessions[1].PutFileAsync(context, ContentHashType, path, FileRealizationMode.Any, Token).ShouldBeSuccess();
+                    // Insert random file in session 1
+                    var putResult0 = await sessions[1].PutFileAsync(context, ContentHashType, path, FileRealizationMode.Any, Token).ShouldBeSuccess();
 
-     // Locations that have the content are less than PinMinUnverifiedCount, therefore counter will not be incremented
-     // Session 0 will also copy the content to itself, now enough locations have the content to satisfy PinMinUnverifiedCount
-     var result = await sessions[0].PinAsync(context, putResult0.ContentHash, Token).ShouldBeSuccess();
-     var counters = session0.GetCounters().ToDictionaryIntegral();
-     counters["PinUnverifiedCountSatisfied.Count"].Should().Be(0);
+                    // Locations that have the content are less than PinMinUnverifiedCount, therefore counter will not be incremented
+                    // Session 0 will also copy the content to itself, now enough locations have the content to satisfy PinMinUnverifiedCount
+                    var result = await sessions[0].PinAsync(context, putResult0.ContentHash, Token).ShouldBeSuccess();
+                    var counters = session0.GetCounters().ToDictionaryIntegral();
+                    counters["PinUnverifiedCountSatisfied.Count"].Should().Be(0);
 
-     await UploadCheckpointOnMasterAndRestoreOnWorkers(context);
+                    await UploadCheckpointOnMasterAndRestoreOnWorkers(context);
 
-     var result1 = await sessions[2].PinAsync(context, putResult0.ContentHash, Token).ShouldBeSuccess();
-     var counters1 = session2.GetCounters().ToDictionaryIntegral();
-     counters1["PinUnverifiedCountSatisfied.Count"].Should().Be(1);
- });
+                    var result1 = await sessions[2].PinAsync(context, putResult0.ContentHash, Token).ShouldBeSuccess();
+                    var counters1 = session2.GetCounters().ToDictionaryIntegral();
+                    counters1["PinUnverifiedCountSatisfied.Count"].Should().Be(1);
+                });
         }
 
         [Theory]
@@ -493,73 +493,73 @@ namespace ContentStoreTest.Distributed.Sessions
             return RunTestAsync(
                 storeCount: 3,
                 testFunc: async context =>
- {
-     var sessions = context.Sessions;
-     var session0 = context.GetDistributedSession(0);
+                {
+                    var sessions = context.Sessions;
+                    var session0 = context.GetDistributedSession(0);
 
-     var session2 = context.GetDistributedSession(2);
+                    var session2 = context.GetDistributedSession(2);
 
-     var content = ThreadSafeRandom.GetBytes((int)ContentByteCount);
-     var path = context.Directories[0].CreateRandomFileName();
-     FileSystem.WriteAllBytes(path, content);
+                    var content = ThreadSafeRandom.GetBytes((int)ContentByteCount);
+                    var path = context.Directories[0].CreateRandomFileName();
+                    FileSystem.WriteAllBytes(path, content);
 
-     //------------------------------------------------
-     // Insert random file in session 1
-     //------------------------------------------------
-     var putResult0 = await sessions[1].PutFileAsync(context, ContentHashType, path, FileRealizationMode.Any, Token).ShouldBeSuccess();
+                    //------------------------------------------------
+                    // Insert random file in session 1
+                    //------------------------------------------------
+                    var putResult0 = await sessions[1].PutFileAsync(context, ContentHashType, path, FileRealizationMode.Any, Token).ShouldBeSuccess();
 
-     // The number of locations is less than PinMinUnverifiedCount, therefore counter will not be incremented
-     // Session 0 will also copy the content to itself, now enough locations have the content to satisfy PinMinUnverifiedCount
-     await sessions[0].PinAsync(context, putResult0.ContentHash, Token).ShouldBeSuccess();
-     var counters = session0.GetCounters().ToDictionaryIntegral();
-     counters["PinUnverifiedCountSatisfied.Count"].Should().Be(0);
-     var remoteFileCopies = counters["RemoteFilesCopied.Count"];
+                    // The number of locations is less than PinMinUnverifiedCount, therefore counter will not be incremented
+                    // Session 0 will also copy the content to itself, now enough locations have the content to satisfy PinMinUnverifiedCount
+                    await sessions[0].PinAsync(context, putResult0.ContentHash, Token).ShouldBeSuccess();
+                    var counters = session0.GetCounters().ToDictionaryIntegral();
+                    counters["PinUnverifiedCountSatisfied.Count"].Should().Be(0);
+                    var remoteFileCopies = counters["RemoteFilesCopied.Count"];
 
-     await UploadCheckpointOnMasterAndRestoreOnWorkers(context);
-     // Establishing the base line for number of locations.
-     int preAsyncPinLocationsCount = 2;
-     (await GetGlobalLocationsCount(context, putResult0.ContentHash)).Should().Be(preAsyncPinLocationsCount);
+                    await UploadCheckpointOnMasterAndRestoreOnWorkers(context);
+                    // Establishing the base line for number of locations.
+                    int preAsyncPinLocationsCount = 2;
+                    (await GetGlobalLocationsCount(context, putResult0.ContentHash)).Should().Be(preAsyncPinLocationsCount);
 
-     //------------------------------------------------
-     // Calling PinAsync that should be an async pin
-     //------------------------------------------------
+                    //------------------------------------------------
+                    // Calling PinAsync that should be an async pin
+                    //------------------------------------------------
 
-     // This pin should be satisfied based on the number of locations and trigger an async copy.
-     // Introducing the copy delay to check that asynchronous copy indeed asynchronous and works as expected.
-     context.TestFileCopier.CopyDelay = TimeSpan.FromSeconds(1);
-     await sessions[2].PinAsync(context, putResult0.ContentHash, Token).ShouldBeSuccess();
+                    // This pin should be satisfied based on the number of locations and trigger an async copy.
+                    // Introducing the copy delay to check that asynchronous copy indeed asynchronous and works as expected.
+                    context.TestFileCopier.CopyDelay = TimeSpan.FromSeconds(1);
+                    await sessions[2].PinAsync(context, putResult0.ContentHash, Token).ShouldBeSuccess();
 
-     //------------------------------------------------
-     // Analyzing the results
-     //------------------------------------------------
+                    //------------------------------------------------
+                    // Analyzing the results
+                    //------------------------------------------------
 
-     var session2Counters = session2.GetCounters().ToDictionaryIntegral();
-     session2Counters["PinUnverifiedCountSatisfied.Count"].Should().Be(1);
+                    var session2Counters = session2.GetCounters().ToDictionaryIntegral();
+                    session2Counters["PinUnverifiedCountSatisfied.Count"].Should().Be(1);
 
-     // We do initiate the async copy on pin only when configured.
-     bool asyncCopyShouldBeInitiated = threshold > 0;
-     int expectedStartCopies = asyncCopyShouldBeInitiated ? 1 : 0;
+                    // We do initiate the async copy on pin only when configured.
+                    bool asyncCopyShouldBeInitiated = threshold > 0;
+                    int expectedStartCopies = asyncCopyShouldBeInitiated ? 1 : 0;
 
-     session2Counters["StartCopyForPinWhenUnverifiedCountSatisfied.Count"].Should().Be(expectedStartCopies);
+                    session2Counters["StartCopyForPinWhenUnverifiedCountSatisfied.Count"].Should().Be(expectedStartCopies);
 
-     // Now the copy is happening asynchronously, so we can wait for it.
-     (await context.TestFileCopier.CopyToAsyncTask).ShouldBeSuccess();
-     // We need to give the chance for the asynchronous operation to complete.
-     await Task.Delay(TimeSpan.FromSeconds(1));
+                    // Now the copy is happening asynchronously, so we can wait for it.
+                    (await context.TestFileCopier.CopyToAsyncTask).ShouldBeSuccess();
+                    // We need to give the chance for the asynchronous operation to complete.
+                    await Task.Delay(TimeSpan.FromSeconds(1));
 
-     // Making sure that we did a copy.
-     session2Counters = session2.GetCounters().ToDictionaryIntegral();
+                    // Making sure that we did a copy.
+                    session2Counters = session2.GetCounters().ToDictionaryIntegral();
 
-     // Making sure that the location was registered.
-     (await GetGlobalLocationsCount(context, putResult0.ContentHash)).Should().Be(preAsyncPinLocationsCount + expectedStartCopies);
+                    // Making sure that the location was registered.
+                    (await GetGlobalLocationsCount(context, putResult0.ContentHash)).Should().Be(preAsyncPinLocationsCount + expectedStartCopies);
 
-     // And now we can call another pin on the same session and this time the pin should be satisfied by a local pin.
-     var result = await sessions[2].PinAsync(context, putResult0.ContentHash, Token).ShouldBeSuccess();
+                    // And now we can call another pin on the same session and this time the pin should be satisfied by a local pin.
+                    var result = await sessions[2].PinAsync(context, putResult0.ContentHash, Token).ShouldBeSuccess();
 
-     // If the pin is satisfied by local store we're getting a simple 'PinResult' instance, otherwise the type is DistributedPinResult.
-     var expectedType = asyncCopyShouldBeInitiated ? typeof(PinResult) : typeof(DistributedPinResult);
-     result.Should().BeOfType(expectedType);
- });
+                    // If the pin is satisfied by local store we're getting a simple 'PinResult' instance, otherwise the type is DistributedPinResult.
+                    var expectedType = asyncCopyShouldBeInitiated ? typeof(PinResult) : typeof(DistributedPinResult);
+                    result.Should().BeOfType(expectedType);
+                });
         }
 
         private async Task<int> GetGlobalLocationsCount(TestContext testContext, ContentHash hash)
@@ -586,34 +586,34 @@ namespace ContentStoreTest.Distributed.Sessions
             return RunTestAsync(
                 storeCount: 3,
                 testFunc: async context =>
- {
-     var sessions = context.Sessions;
-     var session0 = context.GetDistributedSession(0);
+                {
+                    var sessions = context.Sessions;
+                    var session0 = context.GetDistributedSession(0);
 
-     var session2 = context.GetDistributedSession(2);
+                    var session2 = context.GetDistributedSession(2);
 
-     var content = ThreadSafeRandom.GetBytes((int)ContentByteCount);
-     var path = context.Directories[0].CreateRandomFileName();
-     FileSystem.WriteAllBytes(path, content);
+                    var content = ThreadSafeRandom.GetBytes((int)ContentByteCount);
+                    var path = context.Directories[0].CreateRandomFileName();
+                    FileSystem.WriteAllBytes(path, content);
 
-     // Insert random file in session 1
-     var putResult0 = await sessions[1].PutFileAsync(context, ContentHashType, path, FileRealizationMode.Any, Token).ShouldBeSuccess();
+                    // Insert random file in session 1
+                    var putResult0 = await sessions[1].PutFileAsync(context, ContentHashType, path, FileRealizationMode.Any, Token).ShouldBeSuccess();
 
-     // Locations that have the content are less than PinMinUnverifiedCount, therefore counter will not be incremented
-     // Session 0 will also copy the content to itself, now enough locations have the content to satisfy PinMinUnverifiedCount
-     var result = await sessions[0].PinAsync(context, putResult0.ContentHash, Token).ShouldBeSuccess();
-     var counters = session0.GetCounters().ToDictionaryIntegral();
-     counters["PinUnverifiedCountSatisfied.Count"].Should().Be(0);
-     var remoteFileCopies = counters["RemoteFilesCopied.Count"];
+                    // Locations that have the content are less than PinMinUnverifiedCount, therefore counter will not be incremented
+                    // Session 0 will also copy the content to itself, now enough locations have the content to satisfy PinMinUnverifiedCount
+                    var result = await sessions[0].PinAsync(context, putResult0.ContentHash, Token).ShouldBeSuccess();
+                    var counters = session0.GetCounters().ToDictionaryIntegral();
+                    counters["PinUnverifiedCountSatisfied.Count"].Should().Be(0);
+                    var remoteFileCopies = counters["RemoteFilesCopied.Count"];
 
-     await UploadCheckpointOnMasterAndRestoreOnWorkers(context);
+                    await UploadCheckpointOnMasterAndRestoreOnWorkers(context);
 
-     await sessions[2].PinAsync(context, putResult0.ContentHash, Token).ShouldBeSuccess();
+                    await sessions[2].PinAsync(context, putResult0.ContentHash, Token).ShouldBeSuccess();
 
-     var counters1 = session2.GetCounters().ToDictionaryIntegral();
-     counters1["PinUnverifiedCountSatisfied.Count"].Should().Be(1);
-     counters1["StartCopyForPinWhenUnverifiedCountSatisfied.Count"].Should().Be(1);
- });
+                    var counters1 = session2.GetCounters().ToDictionaryIntegral();
+                    counters1["PinUnverifiedCountSatisfied.Count"].Should().Be(1);
+                    counters1["StartCopyForPinWhenUnverifiedCountSatisfied.Count"].Should().Be(1);
+                });
         }
 
         [Fact]
@@ -657,6 +657,7 @@ namespace ContentStoreTest.Distributed.Sessions
         [Fact]
         public Task LocalLocationStoreDistributedEvictionTest()
         {
+            System.Diagnostics.Debugger.Launch();
             // Use the same context in two sessions when checking for file existence
             var loggingContext = new Context(Logger);
 
@@ -914,21 +915,21 @@ namespace ContentStoreTest.Distributed.Sessions
             return RunTestAsync(
                 storeCount: 1,
                 testFunc: async context =>
- {
-     var master = context.GetMaster();
-     var hashes = new ContentHashWithLastAccessTimeAndReplicaCount[]
-                  {
-                                     new ContentHashWithLastAccessTimeAndReplicaCount(ContentHash.Random(), TestClock.UtcNow)
-                  };
-     var lruHashes = master.GetHashesInEvictionOrder(context, hashes).ToList();
-     master.LocalLocationStore.Counters[ContentLocationStoreCounters.EvictionMinAge].Value.Should().Be(expected: 0);
+                {
+                    var master = context.GetMaster();
+                    var hashes = new ContentHashWithLastAccessTimeAndReplicaCount[]
+                                 {
+                                                    new ContentHashWithLastAccessTimeAndReplicaCount(ContentHash.Random(), TestClock.UtcNow)
+                                 };
+                    var lruHashes = master.GetHashesInEvictionOrder(context, hashes).ToList();
+                    master.LocalLocationStore.Counters[ContentLocationStoreCounters.EvictionMinAge].Value.Should().Be(expected: 0);
 
-     _configurations[0].EvictionMinAge = TimeSpan.FromHours(1);
-     lruHashes = master.GetHashesInEvictionOrder(context, hashes).ToList();
-     master.LocalLocationStore.Counters[ContentLocationStoreCounters.EvictionMinAge].Value.Should().Be(expected: 1);
+                    _configurations[0].EvictionMinAge = TimeSpan.FromHours(1);
+                    lruHashes = master.GetHashesInEvictionOrder(context, hashes).ToList();
+                    master.LocalLocationStore.Counters[ContentLocationStoreCounters.EvictionMinAge].Value.Should().Be(expected: 1);
 
-     await Task.Yield();
- });
+                    await Task.Yield();
+                });
         }
 
         [Theory]

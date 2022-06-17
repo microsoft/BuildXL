@@ -256,7 +256,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             return _configuration.Epoch != epoch;
         }
 
-        private Dictionary<string, MergeOperator>? GetMergeOperators()
+        private Dictionary<string, MergeOperator> GetMergeOperators()
         {
             IEnumerable<(Columns column, MergeOperator merger)> enumerate()
             {
@@ -1079,7 +1079,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                     {
                         if (!machine.IsRemove)
                         {
-                            machineIdsBuffer.Add(machine.ToMachineId());
+                            machineIdsBuffer.Add(machine.AsMachineId());
                         }
                     }
                 }

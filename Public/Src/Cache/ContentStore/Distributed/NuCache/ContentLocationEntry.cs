@@ -4,7 +4,6 @@
 using System;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
-using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
@@ -163,6 +162,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <nodoc />
+        public ContentLocationEntry Merge(ContentLocationEntry other) => ContentLocationEntry.MergeEntries(this, other);
+
+        /// <nodoc />
         public static ContentLocationEntry MergeEntries(ContentLocationEntry entry1, ContentLocationEntry entry2)
         {
             if (entry1 == null || entry1.IsMissing)
@@ -176,7 +178,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
 
             return new ContentLocationEntry(
-                entry1.Locations.SetExistence(MachineIdCollection.Create(entry2.Locations.ToArray()), true),
+                entry1.Locations.Merge(entry2.Locations),
                 entry1.ContentSize,
                 UnixTime.Max(entry1.LastAccessTimeUtc, entry2.LastAccessTimeUtc),
                 UnixTime.Min(entry1.CreationTimeUtc, entry2.CreationTimeUtc));

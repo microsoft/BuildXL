@@ -828,15 +828,13 @@ namespace BuildXL.Scheduler.IncrementalScheduling
             ChangedPathKind pathChangeKind,
             long changeTypeCount)
         {
-            if (!DirtyNodeTracker.IsNodeDirty(maybeImpactedNode) || DirtyNodeTracker.IsNodeMaterialized(maybeImpactedNode))
-            {
                 if (m_nodesToDirectDirty.Add(maybeImpactedNode))
                 {
                     // Hash source file pips never make it into the scheduler,
                     // so the immediate consumers of them must be marked as non-materialized as well to ensure they are not skipped.
                     if (PipGraph.PipTable.GetPipType(maybeImpactedNode.ToPipId()) == PipType.HashSourceFile)
                     {
-                        foreach (var edge in PipGraph.DirectedGraph.GetOutgoingEdges(maybeImpactedNode).Where(e => !DirtyNodeTracker.IsNodeDirty(e.OtherNode)))
+                        foreach (var edge in PipGraph.DirectedGraph.GetOutgoingEdges(maybeImpactedNode))
                         {
                             m_nodesToDirectDirty.Add(edge.OtherNode);
                         }
@@ -881,7 +879,6 @@ namespace BuildXL.Scheduler.IncrementalScheduling
                         }
                     }
                 }
-            }
         }
 
         #endregion Journal scanning

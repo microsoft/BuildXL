@@ -735,6 +735,60 @@ namespace IntegrationTest.BuildXL.Scheduler.IncrementalSchedulingTests
         }
 
         [Fact]
+        public void DirectDirtyGraphChange()
+        {
+            // Graph G1: f <- C2 <- h <- C4 <- j <- C5 <- k
+            // Graph G1:                       l <- C5
+            // Graph G2: g <- C3 <- h <- C4 <- j <- C5 <- k
+            // Graph G2:                       l <- C5
+            // When we switch to G2, then C3 gets marked direct dirty, causing C4 and C5 to be marked dirty
+            // If we also modify "l", then C4 needs to be marked direct dirty.
+
+            // Start with G1.
+            FileArtifact f = CreateSourceFile();
+            FileArtifact l = CreateSourceFile();
+            AbsolutePath h = CreateUniqueObjPath("copy_h");
+            FileArtifact j = CreateOutputFileArtifact();
+            FileArtifact k = CreateOutputFileArtifact();
+
+            var hFileArtifact = CopyFile(f, h);
+            NodeId c2 = GetProducerNode(hFileArtifact);
+            var c4Operations = new Operation[] { Operation.ReadFile(hFileArtifact), Operation.WriteFile(j) };
+            Process c4 = CreateAndSchedulePipBuilder(c4Operations).Process;
+            var c5Operations = new Operation[] { Operation.ReadFile(j), Operation.ReadFile(l), Operation.WriteFile(k) };
+            Process c5 = CreateAndSchedulePipBuilder(c5Operations).Process;
+
+            RunScheduler().AssertScheduled(c2.ToPipId(), c4.PipId, c5.PipId);
+
+            // Switch to G2.
+            ResetPipGraphBuilder();
+
+            FileArtifact g = CreateSourceFile();
+            hFileArtifact = CopyFile(g, h);
+            NodeId c3 = GetProducerNode(hFileArtifact);
+            c4Operations = new Operation[] { Operation.ReadFile(hFileArtifact), Operation.WriteFile(j) };
+            c4 = CreateAndSchedulePipBuilder(c4Operations).Process;
+            c5Operations = new Operation[] { Operation.ReadFile(j), Operation.ReadFile(l), Operation.WriteFile(k) };
+            c5 = CreateAndSchedulePipBuilder(c5Operations).Process;
+
+            // Modifying this file at one point would cause c5 to not be direct dirtied because it would already be marked dirty from the change in graph.
+            // We verify below that it is in fact not materialized.
+            ModifyFile(l);
+
+            RunScheduler(
+                new global::BuildXL.Scheduler.SchedulerTestHooks()
+                {
+                    IncrementalSchedulingStateAfterJournalScanAction = iss =>
+                    {
+                        XAssert.IsFalse(iss.DirtyNodeTracker.IsNodeMaterialized(c4.PipId.ToNodeId()), "C4 is not supposed to be materialized but is.");
+                        XAssert.IsTrue(iss.DirtyNodeTracker.IsNodeDirty(c4.PipId.ToNodeId()));
+                        XAssert.IsTrue(iss.DirtyNodeTracker.IsNodeDirty(c5.PipId.ToNodeId()));
+                        XAssert.IsFalse(iss.DirtyNodeTracker.IsNodeMaterialized(c5.PipId.ToNodeId()), "C5 is not supposed to be materialized but is.");
+                    }
+                }).AssertScheduled(c4.PipId);
+        }
+
+        [Fact]
         public void SealDirectoryChangeMembership()
         {
             // NOTES: This test will fail if seal directories' fingerprints are not taken into account 

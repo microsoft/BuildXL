@@ -272,7 +272,7 @@ namespace BuildXL.Utilities.Configuration
         /// <remarks>
         /// Default enabled
         /// </remarks>
-        public static readonly Setting<bool> GrpcKeepAliveEnabled = CreateSetting("BuildXLGrpcKeepAliveEnabled", value => string.IsNullOrWhiteSpace(value) || value == "1");
+        public static readonly Setting<bool> GrpcKeepAliveEnabled = CreateSetting("BuildXLGrpcKeepAliveEnabled", value => value == "1");
 
         /// <summary>
         /// Whether serviceconfig is enabled per grpc channel.

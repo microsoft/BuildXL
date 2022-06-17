@@ -232,15 +232,15 @@ namespace BuildXL.Engine.Distribution.Grpc
                 UseCookies = false,
                 ConnectTimeout = EngineEnvironmentSettings.WorkerAttachTimeout,
                 Expect100ContinueTimeout = TimeSpan.Zero,
+                PooledConnectionIdleTimeout = Timeout.InfiniteTimeSpan,
+                EnableMultipleHttp2Connections = true
             };
 
             if (EngineEnvironmentSettings.GrpcKeepAliveEnabled)
             {
-                handler.PooledConnectionIdleTimeout = Timeout.InfiniteTimeSpan;
                 handler.KeepAlivePingDelay = TimeSpan.FromSeconds(300); // 5m-frequent pings
                 handler.KeepAlivePingTimeout = TimeSpan.FromSeconds(60); // wait for 1m to receive ack for the ping before closing connection.
                 handler.KeepAlivePingPolicy = HttpKeepAlivePingPolicy.Always;
-                handler.EnableMultipleHttp2Connections = true;
             }
 
             var channelOptions = new GrpcChannelOptions

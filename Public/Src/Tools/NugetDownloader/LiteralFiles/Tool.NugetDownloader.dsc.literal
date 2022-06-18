@@ -85,8 +85,6 @@ export function downloadPackage(args: Arguments) : PartialStaticContentDirectory
         workingDirectory: args.downloadDirectory,
         tags: ["nuget", ...(args.tags || [])],
         environmentVariables: [
-            ...addIf(args.credentialProviderPath !== undefined, {name: "NUGET_CREDENTIALPROVIDERS_PATH", value: args.credentialProviderPath}),
-            ...addIf(Environment.hasVariable("VSS_NUGET_EXTERNAL_FEED_ENDPOINTS"), {name: "VSS_NUGET_EXTERNAL_FEED_ENDPOINTS", value: Environment.getStringValue("VSS_NUGET_EXTERNAL_FEED_ENDPOINTS")}),
             // On linux/mac the NuGet SDK needs this variable defined. It doesn't really matter where it is pointing to.
             ...addIf(!Context.isWindowsOS(), {name: "DOTNET_CLI_HOME", value: redirectedAppData}),
             {name: "AppData", value: redirectedAppData}
@@ -94,7 +92,9 @@ export function downloadPackage(args: Arguments) : PartialStaticContentDirectory
         outputs: outputs,
         tempDirectory: redirectedAppData,
         unsafe: <Transformer.UnsafeExecuteArguments>{
-            passThroughEnvironmentVariables: [ 
+            passThroughEnvironmentVariables: [
+                ...addIf(args.credentialProviderPath !== undefined, {name: "NUGET_CREDENTIALPROVIDERS_PATH", value: args.credentialProviderPath}),
+                "VSS_NUGET_EXTERNAL_FEED_ENDPOINTS",
                 "LocalAppData",
                 "QAUTHMATERIALROOT",
                 "__CREDENTIAL_PROVIDER_LOG_DIR",

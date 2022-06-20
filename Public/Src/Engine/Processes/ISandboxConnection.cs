@@ -43,7 +43,12 @@ namespace BuildXL.Processes
         bool NotifyUsage(uint cpuUsageBasisPoints, uint availableRamMB);
 
         /// <summary>
-        /// Notifies the sandbox that a new pip is about to start. Since the sandbox expects to receive the
+        /// Notifies the sandbox that a new pip process is ready to be launched.
+        /// </summary>
+        void NotifyPipReady(LoggingContext loggingContext, FileAccessManifest fam, SandboxedProcessUnix process);
+
+        /// <summary>
+        /// Notifies the sandbox that a new pip process has started. Since the sandbox expects to receive the
         /// process ID of the pip, this method requires that the supplied <paramref name="process"/> has already been started,
         /// and hence already has an ID assigned to it. To ensure that the process is not going to request file accesses before the
         /// sandbox is notified about it being started, the process should be started in some kind of suspended mode, and
@@ -55,7 +60,7 @@ namespace BuildXL.Processes
         /// A concrete sandbox connection can override this method to specify additional environment variables
         /// that should be set before executing the process.
         /// </summary>
-        public IEnumerable<(string, string)> AdditionalEnvVarsToSet(long pipId);
+        public IEnumerable<(string, string)> AdditionalEnvVarsToSet(SandboxedProcessInfo info, string uniqueName);
 
         /// <summary>
         /// SandboxedProcess uses this method to notify the connection that the root process of the pip exited.

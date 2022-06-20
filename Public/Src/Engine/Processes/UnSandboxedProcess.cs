@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Interop;
 using BuildXL.Utilities;
@@ -65,6 +66,11 @@ namespace BuildXL.Processes
         protected event ProcessStartedHandler ProcessStarted;
 
         /// <summary>
+        /// Raised right before the process is started.
+        /// </summary>
+        protected event Action ProcessReady;
+
+        /// <summary>
         /// Indicates if the process has been force killed during execution.
         /// </summary>
         protected virtual bool Killed => m_processExecutor?.Killed ?? false;
@@ -88,6 +94,20 @@ namespace BuildXL.Processes
         /// Pip's semi-stable hash from the <see cref="SandboxedProcessInfo"/> object passed to the constructor.
         /// </summary>
         public long PipSemiStableHash { get; }
+
+        /// <summary>
+        /// Unique name for this process during this build.  May change build over build, but need not be unique across different builds.
+        /// </summary>
+        /// <remarks>
+        /// Normally, PipId (or PipSemiStableHash) will meet all these criteria; unit tests are an exception, which is why this
+        /// property is added.
+        /// 
+        /// For example, this property could be used to create auxiliary per-pip files that will not clash with each other
+        /// (e.g., Linux sandbox needs to create a FIFO file per pip).
+        /// </remarks>
+        public string UniqueName { get; }
+
+        private int m_uniqueNameCounter = 0;
 
         /// <summary>
         /// Returns the path table from the supplied <see cref="SandboxedProcessInfo"/>.
@@ -126,6 +146,7 @@ namespace BuildXL.Processes
             TimeoutDumpDirectory = info.TimeoutDumpDirectory;
             ShouldReportFileAccesses = info.FileAccessManifest?.ReportFileAccesses == true;
             DetoursListener = info.DetoursEventListener;
+            UniqueName = $"Pip{info.FileAccessManifest.PipId:X}.{Interlocked.Increment(ref m_uniqueNameCounter)}";
 
             info.Timeout ??= s_defaultProcessTimeout;
 
@@ -177,6 +198,7 @@ namespace BuildXL.Processes
         {
             Contract.Requires(!Started, "Process was already started.  Cannot start process more than once.");
 
+            ProcessReady?.Invoke();
             Started = true;
             m_processExecutor.Start();
             ProcessStarted?.Invoke(ProcessId);

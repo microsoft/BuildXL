@@ -42,7 +42,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// Program to use to enter root jail. Defaults to <c>sudo chroot</c>, which requires NOPASSWD sudo privileges.
         /// </summary>
-        public string RootJailProgram { get; init; } = "sudo chroot";
+        public (string program, string[] args) RootJailProgram { get; init; } = ("/usr/bin/sudo", new[] { "/usr/sbin/chroot" });
 
         /// <nodoc />
         public RootJailInfo(string rootJail, int? userId = null, int? groupId = null, bool disableSandboxing = false, bool disableAuditing = false)
@@ -59,11 +59,12 @@ namespace BuildXL.Processes
         public void Serialize(BuildXLWriter writer)
         {
             writer.Write(RootJail);
-            writer.Write(UserId, (w, v) => w.WriteCompact(v));
-            writer.Write(GroupId, (w, v) => w.WriteCompact(v));
+            writer.Write(UserId, static (w, v) => w.WriteCompact(v));
+            writer.Write(GroupId, static (w, v) => w.WriteCompact(v));
             writer.Write(DisableSandboxing);
             writer.Write(DisableAuditing);
-            writer.Write(RootJailProgram);
+            writer.Write(RootJailProgram.program);
+            writer.Write(RootJailProgram.args, static (w, a) => w.Write(a));
         }
 
         /// <nodoc />
@@ -71,13 +72,46 @@ namespace BuildXL.Processes
         {
             return new RootJailInfo(
                 rootJail: reader.ReadString(),
-                userId: reader.ReadNullableStruct(r => r.ReadInt32Compact()),
-                groupId: reader.ReadNullableStruct(r => r.ReadInt32Compact()),
+                userId: reader.ReadNullableStruct(static r => r.ReadInt32Compact()),
+                groupId: reader.ReadNullableStruct(static r => r.ReadInt32Compact()),
                 disableSandboxing: reader.ReadBoolean(),
                 disableAuditing: reader.ReadBoolean())
             {
-                RootJailProgram = reader.ReadString(),
+                RootJailProgram = (reader.ReadString(), reader.ReadArray(static r => r.ReadString())),
             };
+        }
+    }
+
+    /// <summary>
+    /// Extension methods for <see cref="RootJailInfo"/>.
+    /// </summary>
+    public static class RootJailInfoExtensions
+    {
+        /// <summary>
+        /// If <see cref="RootJailInfo.RootJail"/> is set:
+        ///    if <paramref name="path"/> is relative to <see cref="RootJailInfo.RootJail"/> returns an absolute path which
+        ///    when accessed from the root jail resolves to path at location <paramref name="path"/>; otherwise throws.
+        ///
+        /// If <see cref="RootJailInfo.RootJail"/> is null:
+        ///    returns <paramref name="path"/>
+        /// </summary>
+        public static string ToPathInsideRootJail(this RootJailInfo? @this, string path)
+        {
+            string rootJailDir = @this?.RootJail;
+            if (rootJailDir == null)
+            {
+                return path;
+            }
+
+            if (!path.StartsWith(rootJailDir.TrimEnd('/') + '/'))
+            {
+                throw new BuildXLException($"Root jail dir '{rootJailDir}' must be a parent directory of path '{path}'");
+            }
+
+            var jailRelativePath = path.Substring(rootJailDir.Length);
+            return jailRelativePath[0] == '/'
+                ? jailRelativePath
+                : "/" + jailRelativePath;
         }
     }
 }

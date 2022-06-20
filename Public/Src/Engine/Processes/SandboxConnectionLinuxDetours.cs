@@ -76,8 +76,6 @@ namespace BuildXL.Processes
             internal string ReportsFifoPath { get; }
             internal string FamPath { get; }
 
-            internal string DebugLogJailPath { get; }
-
             private readonly Sandbox.ManagedFailureCallback m_failureCallback;
             private readonly Dictionary<string, PathCacheRecord> m_pathCache; // TODO: use AbsolutePath instead of string
             private readonly CancellationTokenSource m_waitToCompleteCts;
@@ -115,14 +113,10 @@ namespace BuildXL.Processes
                 Process = process;
                 ReportsFifoPath = reportsFifoPath;
                 FamPath = famPath;
-                DebugLogJailPath = debugLogPath;
 
                 m_waitToCompleteCts = new CancellationTokenSource();
                 m_pathCache = new Dictionary<string, PathCacheRecord>();
-                m_activeProcesses = new ConcurrentDictionary<int, byte>
-                {
-                    [process.ProcessId] = 1
-                };
+                m_activeProcesses = new ConcurrentDictionary<int, byte>();
                 m_activeProcessesChecker = new CancellableTimedAction(
                     CheckActiveProcesses,
                     intervalMs: Math.Min((int)process.ChildProcessTimeout.TotalMilliseconds, (int)ActiveProcessesCheckerInterval.TotalMilliseconds));
@@ -282,6 +276,7 @@ namespace BuildXL.Processes
 
             internal void LogError(string message)
             {
+                message = $"{message} (errno: {Marshal.GetLastWin32Error()})";
                 Process.LogDebug("[ERROR]: " + message);
                 m_failureCallback?.Invoke(1, message);
             }
@@ -415,7 +410,7 @@ namespace BuildXL.Processes
                 using var readHandle = IO.Open(fifoName, IO.OpenFlags.O_RDONLY, 0);
                 if (readHandle.IsInvalid)
                 {
-                    LogError($"Opening FIFO {fifoName} for reading failed");
+                    LogError($"Opening FIFO {fifoName} for reading failed.");
                     return;
                 }
 
@@ -435,7 +430,7 @@ namespace BuildXL.Processes
 
                     if (numRead < 0) // error
                     {
-                        LogError($"Read from FIFO {ReportsFifoPath} failed with return value {numRead}");
+                        LogError($"Read from FIFO {ReportsFifoPath} failed with return value {numRead}.");
                         break;
                     }
 
@@ -447,7 +442,7 @@ namespace BuildXL.Processes
                     numRead = Read(readHandle, messageBytes.Instance, 0, messageLength);
                     if (numRead < messageLength)
                     {
-                        LogError($"Read from FIFO {ReportsFifoPath} failed: read only {numRead} out of {messageLength} bytes");
+                        LogError($"Read from FIFO {ReportsFifoPath} failed: read only {numRead} out of {messageLength} bytes.");
                         messageBytes.Dispose();
                         break;
                     }
@@ -487,12 +482,7 @@ namespace BuildXL.Processes
         {
             m_failureCallback = failureCallback;
             IsInTestMode = isInTestMode;
-
-#if DEBUG
-            BuildXL.Native.Processes.ProcessUtilities.SetNativeConfiguration(true);
-#else
-            BuildXL.Native.Processes.ProcessUtilities.SetNativeConfiguration(false);
-#endif
+            BuildXL.Native.Processes.ProcessUtilities.SetNativeConfiguration(BuildXL.Processes.SandboxConnection.IsInDebugMode);
         }
 
         /// <inheritdoc />
@@ -530,34 +520,27 @@ namespace BuildXL.Processes
         }
 
         /// <inheritdoc />
-        public IEnumerable<(string, string)> AdditionalEnvVarsToSet(long pipId)
+        public IEnumerable<(string, string)> AdditionalEnvVarsToSet(SandboxedProcessInfo info, string uniqueName)
         {
-            if (!m_pipProcesses.TryGetValue(pipId, out var info))
-            {
-                throw new BuildXLException($"No info found for pip id {pipId}");
-            }
+            var detoursLibPath = CopyToRootJailIfNeeded(info.RootJailInfo?.RootJail, DetoursLibFile);
+            (string fifoPath, string famPath, string debugLogPath) = GetPaths(info.RootJailInfo, uniqueName);
 
-            var detoursLibPath = CopyToRootJailIfNeeded(info.Process.RootJail, DetoursLibFile);
-
-            // TODO: the ROOT_PID env var is a temporary solution for breakway processes
-            // CODESYNC: Public/Src/Sandbox/Linux/bxl_observer.hpp
-            yield return ("__BUILDXL_ROOT_PID", info.Process.ProcessId.ToString());
-            yield return ("__BUILDXL_FAM_PATH", info.Process.ToPathInsideRootJail(info.FamPath));
+            yield return ("__BUILDXL_ROOT_PID", "1"); // CODESYNC: Public/Src/Sandbox/Linux/bxl_observer.hpp (temp solution for breakaway processes)
+            yield return ("__BUILDXL_FAM_PATH", info.RootJailInfo.ToPathInsideRootJail(famPath));
             yield return ("__BUILDXL_DETOURS_PATH", detoursLibPath);
-
-            if (info.DebugLogJailPath != null)
+            if (debugLogPath != null)
             {
-                yield return ("__BUILDXL_LOG_PATH", info.DebugLogJailPath);
+                yield return ("__BUILDXL_LOG_PATH", info.RootJailInfo.ToPathInsideRootJail(debugLogPath));
             }
 
-            if (info.Process.RootJailInfo?.DisableSandboxing != true)
+            if (info.RootJailInfo?.DisableSandboxing != true)
             {
-                yield return ("LD_PRELOAD", detoursLibPath + ":$LD_PRELOAD");
+                yield return ("LD_PRELOAD", detoursLibPath + ":" + info.EnvironmentVariables.TryGetValue("LD_PRELOAD", string.Empty));
             }
 
-            if (info.Process.RootJailInfo?.DisableAuditing != true)
+            if (info.RootJailInfo?.DisableAuditing != true)
             {
-                yield return ("LD_AUDIT", CopyToRootJailIfNeeded(info.Process.RootJail, AuditLibFile) + ":$LD_AUDIT");
+                yield return ("LD_AUDIT", CopyToRootJailIfNeeded(info.RootJailInfo?.RootJail, AuditLibFile) + ":" + info.EnvironmentVariables.TryGetValue("LD_AUDIT", string.Empty));
             }
         }
 
@@ -573,20 +556,37 @@ namespace BuildXL.Processes
             return "/" + basename;
         }
 
+        private (string fifo, string fam, string log) GetPaths(RootJailInfo? rootJailInfo, string uniqueName)
+        {
+            string rootDir = rootJailInfo?.RootJail ?? Path.GetTempPath();
+            string fifoPath = Path.Combine(rootDir, $"bxl_{uniqueName}.fifo");
+            string famPath = Path.ChangeExtension(fifoPath, ".fam");
+            string debugLogPath = IsInTestMode ? Path.ChangeExtension(fifoPath, ".log") : null;
+            return (fifo: fifoPath, fam: famPath, log: debugLogPath);
+        }
+
         /// <inheritdoc />
         public bool NotifyPipStarted(LoggingContext loggingContext, FileAccessManifest fam, SandboxedProcessUnix process)
         {
-            Contract.Requires(process.Started);
+            if (!m_pipProcesses.TryGetValue(process.PipId, out var info))
+            {
+                throw new BuildXLException($"No info found for pip id {process.PipId}");
+            }
+
+            info.AddPid(process.ProcessId);
+            return true;
+        }
+
+        /// <inheritdoc />
+        public void NotifyPipReady(LoggingContext loggingContext, FileAccessManifest fam, SandboxedProcessUnix process)
+        {
+            Contract.Requires(!process.Started);
             Contract.Requires(process.PipId != 0);
 
-            string rootDir = process.RootJail ?? Path.GetTempPath();
-            string fifoPath = Path.Combine(rootDir, $"bxl_Pip{process.PipSemiStableHash:X}.{process.ProcessId}.fifo");
-            string famPath = Path.ChangeExtension(fifoPath, ".fam");
-            string debugLogPath = null;
-            if (IsInTestMode)
+            (string fifoPath, string famPath, string debugLogPath) = GetPaths(process.RootJailInfo, process.UniqueName);
+            if (debugLogPath != null)
             {
-                debugLogPath = process.ToPathInsideRootJail(Path.ChangeExtension(fifoPath, ".log"));
-                fam.AddPath(toAbsPath(debugLogPath), mask: FileAccessPolicy.MaskAll, values: FileAccessPolicy.AllowAll);
+                fam.AddPath(toAbsPath(process.ToPathInsideRootJail(debugLogPath)), mask: FileAccessPolicy.MaskAll, values: FileAccessPolicy.AllowAll);
             }
 
             // serialize FAM
@@ -607,10 +607,10 @@ namespace BuildXL.Processes
             process.LogDebug($"Saved FAM to '{famPath}'");
 
             // create a FIFO (named pipe)
+            Analysis.IgnoreResult(FileUtilities.TryDeleteFile(fifoPath, retryOnFailure: false));
             if (IO.MkFifo(fifoPath, IO.FilePermissions.S_IRWXU) != 0)
             {
-                m_failureCallback?.Invoke(1, $"Creating FIFO {fifoPath} failed");
-                return false;
+                throw new BuildXLException($"Creating FIFO {fifoPath} failed. (errno: {Marshal.GetLastWin32Error()})");
             }
 
             process.LogDebug($"Created FIFO at '{fifoPath}'");
@@ -623,7 +623,6 @@ namespace BuildXL.Processes
             }
 
             info.Start();
-            return true;
 
             AbsolutePath toAbsPath(string path) => AbsolutePath.Create(process.PathTable, path);
         }

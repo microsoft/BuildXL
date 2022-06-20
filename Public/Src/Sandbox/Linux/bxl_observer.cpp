@@ -19,12 +19,20 @@ BxlObserver* BxlObserver::GetInstance()
 
 BxlObserver::BxlObserver()
 {
+    char pidStr[20] = {0};
+
     empty_str_ = "";
     real_readlink("/proc/self/exe", progFullPath_, PATH_MAX);
 
+    disposed_ = false;
     const char *rootPidStr = getenv(BxlEnvRootPid);
     rootPid_ = is_null_or_empty(rootPidStr) ? -1 : atoi(rootPidStr);
-    disposed_ = false;
+    // value of "1" -> special case, set by BuildXL for the root process
+    if (rootPid_ == 1) {
+        rootPid_ = getpid();
+        sprintf(pidStr, "%d", rootPid_);
+        setenv(BxlEnvRootPid, pidStr, /* replace */ 1);
+    }
 
     InitLogFile();
     InitFam();

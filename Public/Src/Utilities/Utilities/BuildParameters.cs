@@ -127,6 +127,18 @@ namespace BuildXL.Utilities
         }
 
         // ==================================================================================
+        // == IBuildParameters Extension Methods
+        // ==================================================================================
+
+        /// <summary>
+        ///     Retrieves the value of a parameter named <paramref name="key"/>, if one is found; otherwise returns <paramref name="defaultValue"/>.
+        /// </summary>
+        public static string TryGetValue(this IBuildParameters @this, string key, string defaultValue)
+        {
+            return @this != null && @this.ContainsKey(key) ? @this[key] : defaultValue;
+        }
+
+        // ==================================================================================
         // == Public Factory Methods
         // ==================================================================================
 

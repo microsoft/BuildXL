@@ -33,6 +33,14 @@ namespace BuildXL.Processes
         /// <inheritdoc />
         public bool IsInTestMode { get; }
 
+        /// <nodoc />
+        public static bool IsInDebugMode { get; } = 
+#if DEBUG
+            true;
+#else
+            false;
+#endif
+
         private readonly ConcurrentDictionary<long, SandboxedProcessUnix> m_pipProcesses = new ConcurrentDictionary<long, SandboxedProcessUnix>();
 
         // TODO: remove at some later point
@@ -96,11 +104,7 @@ namespace BuildXL.Processes
                 throw new BuildXLException($@"Unable to initialize generic sandbox, please check the sources for error code: {m_sandboxConnectionInfo.Error})");
             }
 
-#if DEBUG
-            ProcessUtilities.SetNativeConfiguration(true);
-#else
-            ProcessUtilities.SetNativeConfiguration(false);
-#endif
+            ProcessUtilities.SetNativeConfiguration(IsInDebugMode);
 
             m_AccessReportCallback = (Sandbox.AccessReport report, int code) =>
             {
@@ -166,10 +170,13 @@ namespace BuildXL.Processes
         }
 
         /// <inheritdoc />
-        public IEnumerable<(string, string)> AdditionalEnvVarsToSet(long pipId)
+        public IEnumerable<(string, string)> AdditionalEnvVarsToSet(SandboxedProcessInfo info, string uniqueName)
         {
             return Enumerable.Empty<(string, string)>();
         }
+
+        /// <inheritdoc />
+        public void NotifyPipReady(LoggingContext loggingContext, FileAccessManifest fam, SandboxedProcessUnix process) {}
 
         /// <inheritdoc />
         public bool NotifyPipStarted(LoggingContext loggingContext, FileAccessManifest fam, SandboxedProcessUnix process)

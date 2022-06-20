@@ -75,7 +75,7 @@ namespace Test.BuildXL.TestUtilities.Xunit
 
         private static void FailureCallback(int status, string description)
         {
-            XAssert.Fail($"Kernel extension failed.  Status: {status}.  Description: {description}");
+            XAssert.Fail($"Sandbox failed.  Status: {status}.  Description: {description}");
         }
 
         private static SandboxKind ReadSandboxKindFromEnvVars()

@@ -2,21 +2,14 @@
 
 readonly __dir=$(cd `dirname ${BASH_SOURCE[0]}` && pwd)
 
-set -e
-set -u
-
-function onExit {
-    popd > /dev/null 2>&1
-}
+set -euo pipefail
 
 readonly version="$1"
 readonly pkgName="runtime.linux-x64.BuildXL.${version}"
 
-pushd "${__dir}" > /dev/null 2>&1
-trap onExit EXIT
-
 cd "${__dir}"
-make debug release
+make cleanall
+bash build-manylinux.sh
 
 cd bin
 

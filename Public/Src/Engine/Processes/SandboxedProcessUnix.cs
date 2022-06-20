@@ -105,6 +105,11 @@ namespace BuildXL.Processes
         internal const string ShellExecutable = "/bin/bash"; // /bin/sh doesn't support env vars that contain funky characters (e.g., [])
 
         /// <summary>
+        /// Full path to the standard "env" Unix program.
+        /// </summary>
+        internal const string EnvExecutable = "/usr/bin/env";
+
+        /// <summary>
         /// Optional configuration for running this process in a root jail.
         /// </summary>
         internal RootJailInfo? RootJailInfo { get; }
@@ -116,31 +121,7 @@ namespace BuildXL.Processes
 
         private const double NanosecondsToMillisecondsFactor = 1000000d;
 
-        /// <summary>
-        /// If <see cref="RootJail"/> is set:
-        ///    if <paramref name="path"/> is relative to <see cref="RootJail"/> returns an absolute path which
-        ///    when accessed from the root jail resolves to path at location <paramref name="path"/>; otherwise throws.
-        ///
-        /// If <see cref="RootJail"/> is null:
-        ///    returns <paramref name="path"/>
-        /// </summary>
-        internal string ToPathInsideRootJail(string path)
-        {
-            if (RootJail == null)
-            {
-                return path;
-            }
-
-            if (!path.StartsWith(RootJail))
-            {
-                ThrowBuildXLException($"Path '{path}' is not relative to root jail: '{RootJail}'");
-            }
-
-            var jailRelativePath = path.Substring(RootJail.Length);
-            return jailRelativePath[0] == '/'
-                ? jailRelativePath
-                : "/" + jailRelativePath;
-        }
+        internal string ToPathInsideRootJail(string path) => RootJailInfo.ToPathInsideRootJail(path);
 
         /// <nodoc />
         public SandboxedProcessUnix(SandboxedProcessInfo info, bool ignoreReportedAccesses = false)
@@ -189,7 +170,8 @@ namespace BuildXL.Processes
 
             m_pendingReports = new ActionBlock<AccessReport>(HandleAccessReport, executionOptions);
 
-            // install a 'ProcessStarted' handler that informs the sandbox of the newly started process
+            // install 'ProcessReady' and 'ProcessStarted' handlers to inform the sandbox
+            ProcessReady += () => SandboxConnection.NotifyPipReady(info.LoggingContext, info.FileAccessManifest, this);
             ProcessStarted += (pid) => OnProcessStartedAsync(info).GetAwaiter().GetResult();
         }
 
@@ -219,18 +201,83 @@ namespace BuildXL.Processes
             }
         }
 
+        private bool NeedsShellWrapping() => OperatingSystemHelper.IsMacOS;
+
         /// <inheritdoc />
         protected override System.Diagnostics.Process CreateProcess(SandboxedProcessInfo info)
         {
             var process = base.CreateProcess(info);
-
-            process.StartInfo.FileName = ShellExecutable;
-            process.StartInfo.Arguments = string.Empty;
             process.StartInfo.RedirectStandardInput = true;
             if (info.RootJailInfo?.RootJail != null)
             {
                 // the 'chroot' program will change the directory to what it's supposed to be
                 process.StartInfo.WorkingDirectory = "/";
+            }
+
+            if (NeedsShellWrapping())
+            {
+                // shell script streamed to stdin
+                process.StartInfo.FileName = ShellExecutable;
+                process.StartInfo.Arguments = string.Empty;
+            }
+            else if (info.RootJailInfo == null)
+            {
+                foreach (var kvp in AdditionalEnvVars(info))
+                {
+                    process.StartInfo.EnvironmentVariables[kvp.Item1] = kvp.Item2;
+                }
+            }
+            else
+            {
+#if NETCOREAPP
+                var rootJailInfo = info.RootJailInfo.Value;
+                // top-level process is the root jail program
+                process.StartInfo.FileName = rootJailInfo.RootJailProgram.program;
+                process.StartInfo.Arguments = string.Empty;
+                process.StartInfo.ArgumentList.Clear();
+                // root jail arguments
+                foreach (string rootJailArg in rootJailInfo.RootJailProgram.args)
+                {
+                    process.StartInfo.ArgumentList.Add(rootJailArg);
+                }
+                if (rootJailInfo.UserId != null && rootJailInfo.GroupId != null)
+                {
+                    process.StartInfo.ArgumentList.Add($"--userspec={rootJailInfo.UserId}:{rootJailInfo.GroupId}");
+                }
+                // root jail directory
+                process.StartInfo.ArgumentList.Add(rootJailInfo.RootJail);
+                // inside the jail, run "env" to change into user-specified directory as well as to set environment variables before running user-specified program
+                process.StartInfo.ArgumentList.Add(EnvExecutable);
+                // change directory into what the user specified
+                process.StartInfo.ArgumentList.Add("-C");
+                process.StartInfo.ArgumentList.Add(info.WorkingDirectory);
+                // propagate environment variables (because root jail program won't do it)
+                process.StartInfo.ArgumentList.Add("-i");
+                foreach (var kvp in process.StartInfo.Environment.Select(kvp => (kvp.Key, kvp.Value)).Concat(AdditionalEnvVars(info)))
+                {
+                    process.StartInfo.ArgumentList.Add($"{kvp.Item1}={kvp.Item2}");
+                }
+                // finally add the original executable and its arguments
+                process.StartInfo.ArgumentList.Add(info.FileName);
+                foreach (var arg in CommandLineEscaping.SplitArguments(info.Arguments))
+                {
+                    process.StartInfo.ArgumentList.Add(arg.Value.ToString());
+                }
+#else
+                throw new ArgumentException($"Running {nameof(SandboxedProcessUnix)} in a non .NET Core environment should not be possible");
+#endif
+            }
+
+            // In any case, allow read access to the process file.
+            // When executed using external tool, the manifest tree has been sealed, and cannot be modified.
+            // We take care of adding this path in the manifest in SandboxedProcessPipExecutor.cs;
+            // see AddUnixSpecificSandcboxedProcessFileAccessPolicies
+            if (!info.FileAccessManifest.IsManifestTreeBlockSealed)
+            {
+                info.FileAccessManifest.AddPath(
+                    AbsolutePath.Create(PathTable, process.StartInfo.FileName),
+                    mask: FileAccessPolicy.MaskNothing,
+                    values: FileAccessPolicy.AllowReadAlways);
             }
 
             return process;
@@ -246,23 +293,16 @@ namespace BuildXL.Processes
         /// </summary>
         private async Task OnProcessStartedAsync(SandboxedProcessInfo info)
         {
-            // Generate "Process Created" report because the rest of the system expects to see it before any other file access reports
-            //
-            // IMPORTANT: do this before notifying sandbox kernel extension, because otherwise it can happen that a report
-            //            from the extension is received before the "process created" report is handled, causing
-            //            a "Should see a process creation before its accesses" assertion exception.
-            ReportProcessCreated();
-
-            // Allow read access for /bin/sh
-            // When executed using external tool, the manifest tree has been sealed, and cannot be modified.
-            // We take care of adding this path in the manifest in SandboxedProcessPipExecutor.cs;
-            // see AddUnixSpecificSandcboxedProcessFileAccessPolicies
-            if (!info.FileAccessManifest.IsManifestTreeBlockSealed)
+            if (NeedsShellWrapping())
             {
-                info.FileAccessManifest.AddPath(
-                    AbsolutePath.Create(PathTable, Process.StartInfo.FileName),
-                    mask: FileAccessPolicy.MaskNothing,
-                    values: FileAccessPolicy.AllowReadAlways);
+                // The shell wrapper script started, so generate "Process Created" report before the actual pip process starts
+                // (the rest of the system expects to see it before any other file access reports).
+                //
+                // IMPORTANT (macOS-only):
+                //   do this before notifying sandbox kernel extension, because otherwise it can happen that a report
+                //   from the extension is received before the "process created" report is handled, causing
+                //   a "Should see a process creation before its accesses" assertion exception.
+                ReportProcessCreated();
             }
 
             if (OperatingSystemHelper.IsLinuxOS)
@@ -301,7 +341,6 @@ namespace BuildXL.Processes
 
         private string DetoursFile => Path.Combine(Path.GetDirectoryName(AssemblyHelper.GetThisProgramExeLocation()), "libBuildXLDetours.dylib");
         private const string DetoursEnvVar = "DYLD_INSERT_LIBRARIES";
-        private const string EofDelim = "__EOF__";
 
         /// <inheritdoc />
         protected override IEnumerable<ReportedProcess> GetSurvivingChildProcesses()
@@ -400,7 +439,7 @@ namespace BuildXL.Processes
         /// </summary>
         private IReadOnlyList<ReportedProcess> GetCurrentlyActiveChildProcesses()
         {
-            return m_reports.GetActiveProcesses().Where(p => p.ProcessId != ProcessId).ToList();
+            return m_reports.GetActiveProcesses().Where(p => p.ProcessId > 0 && p.ProcessId != ProcessId).ToList();
         }
 
         private void KillAllChildProcesses()
@@ -444,7 +483,7 @@ namespace BuildXL.Processes
 
         private static string EnsureQuoted(string cmdLineArgs)
         {
-#if NET_CORE
+#if NETCOREAPP
             if (cmdLineArgs == null)
             {
                 return null;
@@ -472,9 +511,29 @@ namespace BuildXL.Processes
 #endif
         }
 
-        // TODO: instead of generating a bash script (and be exposed to all kinds of injection attacks) we should write a wrapper runner program
         private async Task FeedStdInAsync(SandboxedProcessInfo info, [CanBeNull] string processStdinFileName)
         {
+            Contract.Requires(info.RootJailInfo == null || !NeedsShellWrapping(), $"Cannot run root jail on this OS");
+
+            // if no shell wrapping is needed, only feed processStdinFileName (if specified)
+            if (!NeedsShellWrapping())
+            {
+                if (processStdinFileName != null)
+                {
+                    string stdinContent =
+#if NETCOREAPP
+                        await File.ReadAllTextAsync(processStdinFileName);
+#else
+                        File.ReadAllText(processStdinFileName);
+#endif
+                    await Process.StandardInput.WriteAsync(stdinContent);
+                }
+
+                Process.StandardInput.Close();
+                return;
+            }
+
+            // TODO: instead of generating a bash script (and be exposed to all kinds of injection attacks) we should write a wrapper runner program
             string redirectedStdin = processStdinFileName != null ? $" < {ToPathInsideRootJail(processStdinFileName)}" : string.Empty;
 
             // this additional round of escaping is needed because we are flushing the arguments to a shell script
@@ -489,33 +548,17 @@ namespace BuildXL.Processes
 
             lines.Add("set -e");
 
-            if (info.RootJailInfo != null)
-            {
-                // A process executed in a chroot jail does not automatically inherit the environment from the parent process,
-                // so we must export the vars before entering chroot and then source them once inside.
-                const string BxlEnvFile = "bxl_pip_env.sh";
-                lines.Add($"export -p > '{info.RootJailInfo.Value.RootJail}/{BxlEnvFile}'");
-                lines.Add($"exec {info.RootJailInfo.Value.RootJailProgram} --userspec={userIdExpr()}:{groupIdExpr()} '{info.RootJailInfo.Value.RootJail}' {ShellExecutable} <<'{EofDelim}'");
-                lines.Add("set -e");
-                lines.Add($". /{BxlEnvFile}");
-                lines.Add($"cd \"{info.WorkingDirectory}\"");
-            }
-
             if (info.SandboxConnection.Kind == SandboxKind.MacOsHybrid || info.SandboxConnection.Kind == SandboxKind.MacOsDetours)
             {
                 lines.Add($"export {DetoursEnvVar}={DetoursFile}");
             }
 
-            foreach (var envKvp in info.SandboxConnection.AdditionalEnvVarsToSet(info.FileAccessManifest.PipId))
+            foreach (var envKvp in info.SandboxConnection.AdditionalEnvVarsToSet(info, UniqueName))
             {
                 lines.Add($"export {envKvp.Item1}={envKvp.Item2}");
             }
 
             lines.Add($"exec {cmdLine}");
-            if (info.RootJailInfo != null)
-            {
-                lines.Add(EofDelim);
-            }
 
             SetExecutePermissionIfNeeded(info.FileName, throwIfNotFound: false);
             foreach (string line in lines)
@@ -524,11 +567,16 @@ namespace BuildXL.Processes
             }
 
             LogDebug("Done feeding stdin:" + Environment.NewLine + string.Join(Environment.NewLine, lines));
-
             Process.StandardInput.Close();
+        }
 
-            string userIdExpr() => info.RootJailInfo?.UserId?.ToString() ?? "$(id -u)";
-            string groupIdExpr() => info.RootJailInfo?.GroupId?.ToString() ?? "$(id -u)";
+        private IEnumerable<(string, string)> AdditionalEnvVars(SandboxedProcessInfo info)
+        {
+            return info.SandboxConnection
+                .AdditionalEnvVarsToSet(info, UniqueName)
+                .Concat(info.SandboxConnection.Kind == SandboxKind.MacOsHybrid || info.SandboxConnection.Kind == SandboxKind.MacOsDetours
+                    ? new[] { (DetoursEnvVar, DetoursFile) }
+                    : Array.Empty<(string, string)>());
         }
 
         internal override void FeedStdErr(SandboxedProcessOutputBuilder builder, string line)
@@ -700,7 +748,7 @@ namespace BuildXL.Processes
         /// </summary>
         internal void LogDebug(string message)
         {
-            if (ShouldReportFileAccesses)
+            if (BuildXL.Processes.SandboxConnection.IsInDebugMode || ShouldReportFileAccesses)
             {
                 LogProcessState(message);
             }

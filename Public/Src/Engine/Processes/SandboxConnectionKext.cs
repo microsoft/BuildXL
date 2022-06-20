@@ -248,6 +248,9 @@ Use the the following command to load/reload the sandbox kernel extension and fi
         }
 
         /// <inheritdoc />
+        public void NotifyPipReady(LoggingContext loggingContext, FileAccessManifest fam, SandboxedProcessUnix process) {}
+
+        /// <inheritdoc />
         public bool NotifyPipStarted(LoggingContext loggingContext, FileAccessManifest fam, SandboxedProcessUnix process)
         {
             Contract.Requires(process.Started);
@@ -290,7 +293,7 @@ Use the the following command to load/reload the sandbox kernel extension and fi
         }
 
         /// <inheritdoc />
-        public IEnumerable<(string, string)> AdditionalEnvVarsToSet(long pipId)
+        public IEnumerable<(string, string)> AdditionalEnvVarsToSet(SandboxedProcessInfo info, string uniqueName)
         {
             return Enumerable.Empty<(string, string)>();
         }

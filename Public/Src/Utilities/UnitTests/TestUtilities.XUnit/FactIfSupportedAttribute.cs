@@ -76,6 +76,8 @@ namespace Test.BuildXL.TestUtilities.Xunit
                 return;
             }
 
+            CheckRequirement(TestRequirements.NotSupported, () => "Test is marked not supported.");
+
             CheckRequirement(
                 TestRequirements.Admin,
                 () =>

@@ -67,5 +67,10 @@ namespace Test.BuildXL.TestUtilities.Xunit
         /// Requires running on either Windows or Mac operating system (excluding Linux)
         /// </summary>
         WindowsOrMacOs = 1 << 9,
+
+        /// <summary>
+        /// Used to disable a test. Typically used with #ifdef
+        /// </summary>
+        NotSupported = 1 << 10,
     }
 }

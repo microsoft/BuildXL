@@ -35,10 +35,20 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
 
         public static JsonSerializerOptions IndentedSerializationOptions { get; } = GetOptions(indent: true);
 
+        /// <summary>
+        /// Options used when reading deployment configuration
+        /// </summary>
+        public static JsonDocumentOptions DefaultDocumentOptions { get; } = new JsonDocumentOptions()
+        {
+            AllowTrailingCommas = true,
+            CommentHandling = JsonCommentHandling.Skip
+        };
+
         private static JsonSerializerOptions GetOptions(bool indent)
         {
             return new JsonSerializerOptions()
             {
+                IgnoreReadOnlyProperties = true,
                 AllowTrailingCommas = true,
                 ReadCommentHandling = JsonCommentHandling.Skip,
                 WriteIndented = indent,
@@ -51,6 +61,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
                     FuncJsonConverter.Create(ReadMachineId, (writer, value) => writer.WriteNumberValue(value.Index)),
                     FuncJsonConverter.Create(ReadMachineLocation, (writer, value) => writer.WriteStringValue(value.Path)),
                     FuncJsonConverter.Create(ReadShortHash, (writer, value) => writer.WriteStringValue(value.HashType == HashType.Unknown ? null : value.ToString())),
+                    FuncJsonConverter.Create(ReadShardHash, (writer, value) => writer.WriteStringValue(value.ToShortHash().HashType == HashType.Unknown ? null : value.ToShortHash().ToString())),
+                    FuncJsonConverter.Create(ReadCompactTime, (writer, value) => writer.WriteStringValue(value.ToDateTime())),
+                    FuncJsonConverter.Create(ReadCompactSize, (writer, value) => writer.WriteNumberValue(value.Value)),
                 }
             };
         }
@@ -68,7 +81,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
 
                 return new MachineLocation(property.GetString());
             }
-            
+
             var data = reader.GetString();
             return data == null ? default : new MachineLocation(data);
         }
@@ -76,6 +89,21 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
         private static MachineId ReadMachineId(ref Utf8JsonReader reader)
         {
             return new MachineId(reader.GetInt32());
+        }
+
+        private static ShardHash ReadShardHash(ref Utf8JsonReader reader)
+        {
+            return ReadShortHash(ref reader).AsEntryKey();
+        }
+
+        private static CompactSize ReadCompactSize(ref Utf8JsonReader reader)
+        {
+            return reader.GetInt64();
+        }
+
+        private static CompactTime ReadCompactTime(ref Utf8JsonReader reader)
+        {
+            return reader.GetDateTime();
         }
 
         private static ShortHash ReadShortHash(ref Utf8JsonReader reader)
@@ -89,15 +117,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
             var data = reader.GetString();
             return data == null ? default : new ShortHash(data);
         }
-
-        /// <summary>
-        /// Options used when reading deployment configuration
-        /// </summary>
-        public static JsonDocumentOptions DefaultDocumentOptions { get; } = new JsonDocumentOptions()
-        {
-            AllowTrailingCommas = true,
-            CommentHandling = JsonCommentHandling.Skip
-        };
 
         /// <summary>
         /// Serialize the value to json using <see cref="DefaultSerializationOptions"/>
@@ -120,6 +139,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
         /// </summary>
         public static ValueTask<T> JsonDeserializeAsync<T>(Stream value)
         {
+#if NETCOREAPP
+            if (value is MemoryStream memoryStream && memoryStream.TryGetBuffer(out var buffer))
+            {
+                // JsonSerializer.DeserializeAsync can fail on reading large streams if there is a value which
+                // must be skipped. Workaround this in some cases where the data is in memory
+                // and using the synchronous API.
+                var doc = JsonDocument.Parse(buffer.AsMemory(), DefaultDocumentOptions);
+                var result = JsonSerializer.Deserialize<T>(doc, DefaultSerializationOptions);
+                return new ValueTask<T>(result);
+            }
+#endif
+
             return JsonSerializer.DeserializeAsync<T>(value, DefaultSerializationOptions);
         }
 

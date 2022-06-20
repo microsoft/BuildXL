@@ -10,6 +10,7 @@ using System.Net;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
@@ -50,11 +51,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return new BlobName(fileName, IsRelative: true);
         }
 
+        public static implicit operator BlobName?(string? fileName)
+        {
+            return fileName != null
+                ? new BlobName(fileName, IsRelative: true)
+                : default(BlobName?);
+        }
+
         public static BlobName CreateAbsolute(string name) => new BlobName(name, false);
 
         public override string ToString()
         {
-            return Name;
+            return ToDisplayName();
         }
 
         public string ToDisplayName()
@@ -147,26 +155,38 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 timeout: _configuration.StorageInteractionTimeout);
         }
 
+        public BlobWrapper GetBlob(CancellationToken token, BlobName fileName)
+        {
+            var blob = GetBlockBlobReference(fileName);
+            return WrapBlob(token, fileName, blob);
+        }
+
+        internal BlobWrapper WrapBlob(CancellationToken token, BlobName fileName, CloudBlockBlob blob)
+        {
+            return new BlobWrapper(this, blob, fileName, token, DefaultBlobStorageRequestOptions);
+        }
+
         public Task<T> UseBlockBlobAsync<T>(
             OperationContext context,
             BlobName fileName,
             Func<OperationContext, BlobWrapper, Task<T>> useAsync,
             [CallerMemberName] string? caller = null,
             Func<T, string>? endMessageSuffix = null,
-            TimeSpan? timeout = null)
+            TimeSpan? timeout = null,
+            bool isCritical = false)
             where T : ResultBase
         {
             return context.PerformOperationWithTimeoutAsync(
                 Tracer,
                 context =>
                 {
-                    var blob = GetBlockBlobReference(fileName);
-                    var wrapperBlob = new BlobWrapper(blob, fileName, context.Token, DefaultBlobStorageRequestOptions);
+                    var wrapperBlob = GetBlob(context.Token, fileName);
                     return useAsync(context, wrapperBlob);
                 },
                 extraEndMessage: r => $"FileName=[{GetDisplayPath(fileName)}]{endMessageSuffix?.Invoke(r)}",
                 traceOperationStarted: false,
                 caller: caller,
+                isCritical: isCritical,
                 timeout: timeout ?? _configuration.StorageInteractionTimeout);
         }
 
@@ -496,6 +516,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
         }
 
+        private CloudBlobDirectory GetDirectoryReference(BlobName fileName)
+        {
+            if (fileName.IsRelative)
+            {
+                return Directory.GetDirectoryReference(fileName.Name);
+            }
+            else
+            {
+                return _container.GetDirectoryReference(fileName.Name);
+            }
+        }
+
         public Task<BoolResult> TouchAsync(OperationContext context, BlobName fileName)
         {
             return context.PerformOperationWithTimeoutAsync(Tracer, async context =>
@@ -519,13 +551,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Lists blobs in folder
         /// </summary>
-        public IAsyncEnumerable<BlobName> ListBlobsAsync(
+        public IAsyncEnumerable<BlobName> ListBlobNamesAsync(
             OperationContext context,
             Regex? regex = null,
             string? subDirectoryPath = null,
             int? maxResults = null)
         {
-            return ListBlobsCoreAsync(context, regex, subDirectoryPath, maxResults: maxResults).Select(blob => BlobName.CreateAbsolute(blob.Name));
+            return ListBlobsAsync(context, regex, subDirectoryPath, maxResults: maxResults).Select(blob => BlobName.CreateAbsolute(blob.Name));
         }
 
         /// <summary>
@@ -537,11 +569,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             Regex? regex = null,
             string? subDirectoryPath = null)
         {
-            var blobs = await ListBlobsCoreAsync(
+            var blobs = await ListBlobsAsync(
                 context,
                 regex,
                 subDirectoryPath,
-                getMetadata: true,
+                blobListingDetails: BlobListingDetails.Metadata,
                 maxResults: maxResults).ToListAsync();
 
             blobs.Sort(LruCompareBlobs);
@@ -578,39 +610,46 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Lists blobs in folder
         /// </summary>
-        private async IAsyncEnumerable<CloudBlob> ListBlobsCoreAsync(
+        internal async IAsyncEnumerable<CloudBlob> ListBlobsAsync(
             OperationContext context,
             Regex? regex = null,
-            string? subDirectoryPath = null,
-            bool getMetadata = false,
-            int? maxResults = null)
+            BlobName? prefix = null,
+            BlobListingDetails blobListingDetails = BlobListingDetails.None,
+            int? maxResults = null,
+            bool listingSingleBlobSnapshots = false)
         {
             BlobContinuationToken? continuation = null;
 
+            var directory = Directory;
+            if (prefix != null)
+            {
+                directory = GetDirectoryReference(prefix.Value);
+            }
+
+            var delimiter = directory.ServiceClient.DefaultDelimiter;
+            var listingPrefix = listingSingleBlobSnapshots && directory.Prefix.EndsWith(delimiter)
+                ? directory.Prefix.Substring(0, directory.Prefix.Length - delimiter.Length)
+                : directory.Prefix;
+
             while (!context.Token.IsCancellationRequested)
             {
-                var directory = Directory;
-                if (subDirectoryPath != null)
-                {
-                    directory = directory.GetDirectoryReference(subDirectoryPath);
-                }
-
                 var blobs = await context.PerformOperationWithTimeoutAsync(
                     Tracer,
                     async context =>
                     {
-                        var result = await directory.ListBlobsSegmentedAsync(
+                        var result = await _container.ListBlobsSegmentedAsync(
+                            prefix: listingPrefix,
                             useFlatBlobListing: true,
-                            blobListingDetails: getMetadata ? BlobListingDetails.Metadata : BlobListingDetails.None,
+                            blobListingDetails: blobListingDetails,
                             maxResults: maxResults,
                             currentToken: continuation,
-                            options: null,
+                            options: DefaultBlobStorageRequestOptions,
                             operationContext: null,
                             cancellationToken: context.Token);
                         return Result.Success(result);
                     },
                     timeout: _configuration.StorageInteractionTimeout,
-                    extraEndMessage: r => $"ItemCount={r.GetValueOrDefault()?.Results.Count()}").ThrowIfFailureAsync();
+                    extraEndMessage: r => $"Prefix={directory.Prefix} ItemCount={r.GetValueOrDefault()?.Results.Count()}").ThrowIfFailureAsync();
 
                 continuation = blobs.ContinuationToken;
 

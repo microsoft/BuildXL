@@ -52,6 +52,24 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
         }
 
         [Fact]
+        public void TestPartitionIds()
+        {
+            for (int i = 1; i < 256; i++)
+            {
+                var ids = PartitionId.GetPartitions(i);
+                ids.Length.Should().BeGreaterOrEqualTo(i);
+                ids.Length.Should().BeLessOrEqualTo(i * 2);
+                ids.All(id => id.Width == ids[0].Width).Should().BeTrue();
+                ids.All(id => id.EndValue >= id.StartValue).Should().BeTrue();
+
+                for (int j = 1; j < ids.Length; j++)
+                {
+                    ids[j].StartValue.Should().BeGreaterThan(ids[j - 1].EndValue);
+                }
+            }
+        }
+
+        [Fact]
         public void TestEntryFormat()
         {
             Unsafe.SizeOf<ShortReadOnlyFixedBytes>()

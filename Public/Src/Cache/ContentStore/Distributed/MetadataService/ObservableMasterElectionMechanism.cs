@@ -97,7 +97,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             if (result.Succeeded)
             {
                 _lastGetRoleTime = _clock.UtcNow;
-                OnRoleUpdated(context, result.Value.Role);
+                OnRoleUpdated(context, result.Value);
             }
 
             return result;
@@ -108,17 +108,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             var result = await _inner.ReleaseRoleIfNecessaryAsync(context);
             if (result.Succeeded)
             {
-                OnRoleUpdated(context, result.Value);
+                OnRoleUpdated(context, MasterElectionState.DefaultWorker with { Role = result.Value });
             }
 
             return result;
         }
 
-        private void OnRoleUpdated(OperationContext context, Role role)
+        private void OnRoleUpdated(OperationContext context, MasterElectionState electionState)
         {
             if (_observer != null)
             {
-                _observer.OnRoleUpdatedAsync(context, role).FireAndForget(context);
+                _observer.OnRoleUpdatedAsync(context, electionState).FireAndForget(context);
             }
         }
     }

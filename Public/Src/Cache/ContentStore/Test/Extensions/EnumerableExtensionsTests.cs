@@ -24,18 +24,20 @@ namespace ContentStoreTest.Extensions
         {
             for (int length = 0; length < 1024; length++)
             {
-                var randomRange = EnumerableExtensions.PseudoRandomEnumerate(length).ToArray();
-
                 var sortedRange = Enumerable.Range(0, length).ToArray();
+                var randomRange = EnumerableExtensions.PseudoRandomEnumerateRange(length).ToArray();
+                var randomEnumeration = sortedRange.PseudoRandomEnumerate().ToArray();
 
                 // Technically, there is a possibility that the random range will match the sorted
                 // range. Use a high enough length so that possibility is excluded.
                 if (length > 10)
                 {
                     Assert.NotEqual(sortedRange, randomRange);
+                    Assert.NotEqual(sortedRange, randomEnumeration);
                 }
 
                 Assert.Equal(sortedRange, randomRange.OrderBy(i => i));
+                Assert.Equal(sortedRange, randomEnumeration.OrderBy(i => i));
             }
         }
 

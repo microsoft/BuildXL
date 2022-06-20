@@ -476,7 +476,7 @@ namespace ContentStoreTest.Distributed.Sessions
         [Theory]
         [InlineData(1)]
         [InlineData(0)]
-        public Task PinWithUnverifiedCountAndStartCopy(int threshold)
+        public virtual Task PinWithUnverifiedCountAndStartCopyWithThreshold(int threshold)
         {
             _overrideDistributed = s =>
             {
@@ -1615,12 +1615,12 @@ namespace ContentStoreTest.Distributed.Sessions
                     await workerStore.RegisterLocalLocationAsync(context, new[] { new ContentHashWithSize(hash, 120) }, Token, UrgencyHint.Nominal, touch: true).ShouldBeSuccess();
 
                     TestClock.UtcNow += TimeSpan.FromMinutes(2);
-                    await masterStore.LocalLocationStore.HeartbeatAsync(context).ShouldBeSuccess();
+                    await CreateCheckpointAsync(masterStore, context).ShouldBeSuccess();
 
                     for (int sessionIndex = 0; sessionIndex < storeCount; sessionIndex++)
                     {
                         // Heartbeat to ensure machine receives checkpoint
-                        await context.GetLocationStore(sessionIndex).LocalLocationStore.HeartbeatAsync(context).ShouldBeSuccess();
+                        await RestoreCheckpointAsync(sessionIndex, context).ShouldBeSuccess();
 
                         // Pin the content in the session which should fail with content not found
                         await PinContentForSession(sessionIndex).ShouldBeContentNotFound();
@@ -2006,13 +2006,13 @@ namespace ContentStoreTest.Distributed.Sessions
                         TestClock.UtcNow += TimeSpan.FromMinutes(masterLeaseExpiryTime.TotalMinutes / 2);
 
                         // Save checkpoint by heartbeating master
-                        await masterRedisStore.LocalLocationStore.HeartbeatAsync(context).ShouldBeSuccess();
+                        await CreateCheckpointAsync(masterRedisStore, context).ShouldBeSuccess();
 
                         // Verify file was uploaded
                         // Verify file was skipped (if not first iteration)
 
                         // Restore checkpoint by  heartbeating worker
-                        await workerRedisStore.LocalLocationStore.HeartbeatAsync(context).ShouldBeSuccess();
+                        await RestoreCheckpointAsync(workerRedisStore, context).ShouldBeSuccess();
 
                         // Files should be uploaded by master and downloaded by worker
                         diff(masterRedisStore.LocalLocationStore.Counters, masterCounters, ContentLocationStoreCounters.IncrementalCheckpointFilesUploaded).Should().BePositive();
@@ -2152,10 +2152,10 @@ namespace ContentStoreTest.Distributed.Sessions
                     TestClock.UtcNow += TimeSpan.FromMinutes(masterLeaseExpiryTime.TotalMinutes / 2);
 
                     // Save checkpoint by heartbeating master
-                    await masterRedisStore.LocalLocationStore.HeartbeatAsync(context).ShouldBeSuccess();
+                    await CreateCheckpointAsync(masterRedisStore, context).ShouldBeSuccess();
 
                     // Restore checkpoint by  heartbeating worker
-                    await workerRedisStore.LocalLocationStore.HeartbeatAsync(context).ShouldBeSuccess();
+                    await RestoreCheckpointAsync(workerRedisStore, context).ShouldBeSuccess();
 
                     // Files should be uploaded by master and downloaded by worker
                     diff(masterRedisStore.LocalLocationStore.Counters, masterCounters, ContentLocationStoreCounters.IncrementalCheckpointFilesUploaded).Should().BePositive();
@@ -3044,38 +3044,6 @@ namespace ContentStoreTest.Distributed.Sessions
                 GetBulkOrigin.Global).ShouldBeSuccess();
             postTrimGetBulkResult.ContentHashesInfo[0].Locations.Should().NotBeNullOrEmpty("TrimBulkAsync does not clean global store.");
             return putResult0.ContentHash;
-        }
-
-        private async Task UploadCheckpointOnMasterAndRestoreOnWorkers(TestContext context, bool reconcile = false, string clearStoragePrefix = null)
-        {
-            // Update time to trigger checkpoint upload and restore on master and workers respectively
-            TestClock.UtcNow += TimeSpan.FromMinutes(2);
-
-            var masterStore = context.GetMaster();
-
-            // Heartbeat master first to upload checkpoint
-            await masterStore.LocalLocationStore.HeartbeatAsync(context).ShouldBeSuccess();
-
-            if (reconcile)
-            {
-                await masterStore.ReconcileAsync(context, force: true).ShouldBeSuccess();
-            }
-
-            if (clearStoragePrefix != null)
-            {
-                await StorageProcess.ClearAsync(clearStoragePrefix);
-            }
-
-            // Next heartbeat workers to restore checkpoint
-            foreach (var workerStore in context.EnumerateWorkers())
-            {
-                await workerStore.LocalLocationStore.HeartbeatAsync(context).ShouldBeSuccess();
-
-                if (reconcile)
-                {
-                    await workerStore.ReconcileAsync(context, force: true).ShouldBeSuccess();
-                }
-            }
         }
 
         #region SAS Tokens Tests

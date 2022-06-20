@@ -42,7 +42,7 @@ namespace BuildXL.Cache.Host.Configuration
         /// </summary>
         public bool EnableBlobContentLocationRegistry { get; set; }
 
-        public BlobContentLocationRegistrySettings BlobContentLocationRegistrySettings { get; }
+        public BlobContentLocationRegistrySettings BlobContentLocationRegistrySettings { get; set; } = new BlobContentLocationRegistrySettings();
     }
 
     public record BlobContentLocationRegistrySettings
@@ -53,7 +53,7 @@ namespace BuildXL.Cache.Host.Configuration
 
         public string FolderName { get; set; } = "partitions";
 
-        public string PartitionCheckpointManifestFileName { get; set; } = "manifest.json";
+        public string PartitionCheckpointManifestFileName { get; set; } = "manifest.v2.json";
 
         /// <summary>
         /// Indicates whether partitions are updated in the background on a timer loop
@@ -68,6 +68,36 @@ namespace BuildXL.Cache.Host.Configuration
         /// <summary>
         /// Interval between updates of partitions output blob
         /// </summary>
-        public TimeSpanSetting PartitionsUpdateInterval { get; set; } = TimeSpan.FromMinutes(5);
+        public TimeSpanSetting PartitionsUpdateInterval { get; set; } = TimeSpan.FromMinutes(10);
+
+        /// <summary>
+        /// Gets whether partitions should be processed into output blobs (i.e. containing sst files and content listings)
+        /// </summary>
+        public bool ProcessPartitions { get; set; } = true;
+
+        /// <summary>
+        /// Maximum number of diff sst snapshots for a particular partition allowed before using full sst snapshot instead.
+        /// </summary>
+        public int MaxSnapshotChainLength { get; set; } = 5;
+
+        /// <summary>
+        /// Maximum number of diff sst snapshots for a particular partition allowed before using full sst snapshot instead.
+        /// </summary>
+        public int MaxRetainedSnapshots => Math.Max(1, (MaxSnapshotChainLength * 2));
+
+        /// <summary>
+        /// Maximum parallelism for sst file download
+        /// </summary>
+        public int MaxDegreeOfParallelism { get; set; } = 4;
+
+        /// <summary>
+        /// Gets whether the local database should be updated with sst files
+        /// </summary>
+        public bool UpdateDatabase { get; set; } = false;
+
+        /// <summary>
+        /// The number of partitions to create. Changing this number causes partition to be recomputed
+        /// </summary>
+        public int PartitionCount { get; set; } = 256;
     }
 }

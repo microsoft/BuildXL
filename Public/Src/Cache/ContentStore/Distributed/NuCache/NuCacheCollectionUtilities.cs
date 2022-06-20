@@ -109,7 +109,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return DistinctMergeSorted(leftEnumerator, rightEnumerator, getLeftComparable, getRightComparable);
         }
 
-        private static IEnumerable<(TLeft left, TRight right, MergeMode mode)> DistinctMergeSorted<TLeft, TRight, TComparable>(
+        /// <summary>
+        /// Merges two sorted sequences with no duplicates.
+        /// </summary>
+        public static IEnumerable<(TLeft left, TRight right, MergeMode mode)> DistinctMergeSorted<TLeft, TRight, TComparable>(
             IEnumerator<TLeft> leftEnumerator,
             IEnumerator<TRight> rightEnumerator,
             Func<TLeft, TComparable> getLeftComparable,

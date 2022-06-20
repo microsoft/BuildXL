@@ -9,6 +9,7 @@ using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Service;
 using BuildXL.Cache.ContentStore.Utils;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Serialization;
 using RocksDbSharp;
 
@@ -33,17 +34,31 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         /// <summary>
         /// Deletes the range of keys in the given partition (i.e. all keys with partition as prefix).
         /// </summary>
-        public static void DeleteLocationEntryPartitionRange<TWriter>(this TWriter writer, byte partition)
+        public static void DeleteLocationEntryPartitionRange<TWriter>(this TWriter writer, PartitionId partition)
             where TWriter : IRocksDbColumnWriter
         {
             // Create a key after all keys with the given partition by taking partition
             // and suffixing with byte.MaxValue greater to maximum key length.
             // Next partition id can't be used because there is no way to represent the next for partition 255.
-            Span<byte> rangeEnd = stackalloc byte[ShortHash.SerializedLength + 1];
-            rangeEnd[0] = partition;
+            Span<byte> rangeEnd = stackalloc byte[ShortHash.SerializedLength + 2];
+            rangeEnd[0] = partition.EndValue;
             rangeEnd.Slice(1).Fill(byte.MaxValue);
 
-            writer.DeleteRange(stackalloc[] { partition }, rangeEnd);
+            writer.DeleteRange(stackalloc[] { partition.StartValue }, rangeEnd);
+        }
+
+        /// <summary>
+        /// Gets a key for the partition record in the partition's range after all valid shard hash
+        /// keys but within the range which would be deleted by a DeleteRange operation.
+        /// </summary>
+        public static ReadOnlyArray<byte> GetPartitionRecordKey(this PartitionId partition)
+        {
+            var key = new byte[ShortHash.SerializedLength + 1];
+            key[0] = partition.EndValue;
+            key.AsSpan().Slice(1).Fill(byte.MaxValue);
+            key[ShortHash.SerializedLength] = 0;
+
+            return key;
         }
 
         /// <summary>

@@ -191,6 +191,57 @@ namespace BuildXL.Utilities.Collections
         }
 
         /// <summary>
+        /// Converts sequence to dictionary, but accepts duplicate keys. First will win.
+        /// </summary>
+        public static Dictionary<TKey, TValue> ToDictionarySafe<TKey, TValue>(this IEnumerable<TValue> source, Func<TValue, TKey> keySelector)
+            where TKey : notnull
+        {
+            Contract.Requires(source != null);
+            Contract.Requires(keySelector != null);
+
+            Dictionary<TKey, TValue> result = new Dictionary<TKey, TValue>();
+
+            foreach (var value in source)
+            {
+                var key = keySelector(value);
+
+                if (!result.ContainsKey(key))
+                {
+                    result.Add(key, value);
+                }
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Converts sequence to dictionary, but accepts duplicate keys. First will win.
+        /// </summary>
+        public static Dictionary<TKey, TValue> ToDictionarySafe<T, TKey, TValue>(this IEnumerable<T> source, Func<T, TKey> keySelector,
+            Func<T, TValue> valueSelector)
+            where TKey : notnull
+        {
+            Contract.Requires(source != null);
+            Contract.Requires(keySelector != null);
+            Contract.Requires(valueSelector != null);
+
+            Dictionary<TKey, TValue> result = new Dictionary<TKey, TValue>();
+
+            foreach (var element in source)
+            {
+                var key = keySelector(element);
+                var value = valueSelector(element);
+
+                if (!result.ContainsKey(key))
+                {
+                    result.Add(key, value);
+                }
+            }
+
+            return result;
+        }
+
+        /// <summary>
         /// Clones the existing dictionary with no enumerator allocations.
         /// </summary>
         public static Dictionary<TKey, TValue> ToDictionary<TKey, TValue>(this Dictionary<TKey, TValue> map) where TKey : notnull

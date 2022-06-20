@@ -240,7 +240,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private IAsyncEnumerable<BlobName> ListBlobsRecentFirstAsync(OperationContext context)
         {
-            var blobs = _storage.ListBlobsAsync(context, _blobNameRegex)
+            var blobs = _storage.ListBlobNamesAsync(context, _blobNameRegex)
                 .Select(name =>
                 {
                     // This should never fail, because ListBlobsAsync returns blobs that we know already match.

@@ -5,8 +5,11 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
+using System.Linq;
+using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Utilities.Collections;
 
@@ -17,8 +20,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     /// </summary>
     public record ContentListing : IDisposable
     {
-        internal const int PartitionCount = 256;
-
         private readonly SafeAllocHHandle _handle;
         private readonly int _offset;
         private int _length;
@@ -134,12 +135,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Enumerates the partition slices from the listing
         /// </summary>
-        public IEnumerable<ContentListing> GetPartitionSlices()
+        public IEnumerable<ContentListing> GetPartitionSlices(IEnumerable<PartitionId> ids)
         {
             int start = 0;
-            for (int i = 0; i < PartitionCount; i++)
+            foreach (var partitionId in ids)
             {
-                var partitionId = (byte)i;
                 var partition = GetPartitionContentSlice(partitionId, ref start);
                 yield return partition;
             }
@@ -148,13 +148,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Gets the slice of the full listing containing the partition's content.
         /// </summary>
-        private ContentListing GetPartitionContentSlice(byte partitionId, ref int start)
+        private ContentListing GetPartitionContentSlice(PartitionId partitionId, ref int start)
         {
             var entrySpan = EntrySpan;
             for (int i = start; i < entrySpan.Length; i++)
             {
                 var entry = entrySpan[i];
-                if (entry.PartitionId != partitionId)
+                if (!partitionId.Contains(entry.PartitionId))
                 {
                     var result = GetSlice(start, i - start);
                     start = i;
@@ -164,14 +164,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             return GetSlice(start, entrySpan.Length - start);
         }
-        
+
 
         /// <summary>
         /// Gets an unmanaged stream over the listing.
         /// </summary>
-        public Stream AsStream()
+        public StreamWithLength AsStream()
         {
-            return new UnmanagedMemoryStream(_handle, _offset * (long)MachineContentEntry.ByteLength, _length * (long)MachineContentEntry.ByteLength, FileAccess.ReadWrite);
+            var stream = new UnmanagedMemoryStream(_handle, _offset * (long)MachineContentEntry.ByteLength, _length * (long)MachineContentEntry.ByteLength, FileAccess.ReadWrite);
+            return stream.WithLength(stream.Length);
         }
 
         /// <summary>
@@ -202,24 +203,36 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Computes the difference from this listing to <paramref name="nextEntries"/>.
         /// </summary>
-        public IEnumerable<MachineContentEntry> EnumerateChanges(IEnumerable<MachineContentEntry> nextEntries,
-            PartitionChangeCounters counters = null)
+        public IEnumerable<MachineContentEntry> EnumerateChanges(
+            IEnumerable<MachineContentEntry> nextEntries,
+            BoxRef<DiffContentStatistics> counters,
+            bool synthesizeUniqueHashEntries)
         {
-            counters ??= new PartitionChangeCounters();
-            foreach (var diff in NuCacheCollectionUtilities.DistinctDiffSorted(EnumerateEntries(), nextEntries, i => i))
+            counters ??= new DiffContentStatistics();
+            foreach (var diff in NuCacheCollectionUtilities.DistinctMergeSorted(EnumerateEntries(), nextEntries, i => i, i => i))
             {
                 if (diff.mode == MergeMode.LeftOnly)
                 {
-                    counters.Removes++;
-                    counters.RemoveContentSize += diff.item.Size.Value;
-                    yield return diff.item with { Location = diff.item.Location.AsRemove() };
+                    counters.Value.Removes.Add(diff.left);
+                    yield return diff.left with { Location = diff.left.Location.AsRemove() };
                 }
                 else
                 {
-                    counters.Adds++;
-                    counters.AddContentSize += diff.item.Size.Value;
-                    Contract.Assert(!diff.item.Location.IsRemove);
-                    yield return diff.item;
+                    var entry = diff.Either();
+                    bool isUnique = counters.Value.Total.Add(entry);
+                    if (diff.mode == MergeMode.RightOnly)
+                    {
+                        counters.Value.Adds.Add(entry, isUnique);
+                        yield return diff.right;
+                    }
+                    else if (isUnique && synthesizeUniqueHashEntries)
+                    {
+                        // Synthesize fake entry for hash
+                        // This ensures that touches happen even when no content adds/removes
+                        // have happened for the hash.
+                        // NOTE: This should not be written to the database.
+                        yield return new MachineContentEntry() with { ShardHash = entry.ShardHash };
+                    }
                 }
             }
         }
@@ -243,12 +256,73 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     /// <summary>
     /// Counters for <see cref="ContentListing.EnumerateChanges"/>
     /// </summary>
-    public record PartitionChangeCounters
+    public record PartitionUpdateStatistics
     {
-        public long Adds;
-        public long Removes;
-        public long AddContentSize;
-        public long RemoveContentSize;
+        // TODO: Log(size) statistics?
+        public DiffContentStatistics DiffStats { get; init; } = new DiffContentStatistics();
+    }
+
+    public record ContentStatistics
+    {
+        public long TotalCount { get; set; }
+        public long TotalSize { get; set; }
+        public long UniqueCount { get; set; }
+        public long UniqueSize { get; set; }
+        public ShardHash? First { get; set; }
+        public ShardHash? Last { get; set; }
+        public int MaxHashFirstByteDifference { get; set; }
+        public MachineContentInfo Info = MachineContentInfo.Default;
+
+        public bool Add(MachineContentEntry entry, bool? isUnique = default)
+        {
+            var last = Last;
+            Last = entry.ShardHash;
+            First ??= Last;
+
+            Info.Merge(entry);
+            var size = entry.Size.Value;
+
+            TotalCount++;
+            TotalSize += size;
+
+            isUnique ??= last != Last;
+            if (isUnique.Value)
+            {
+                if (last != null)
+                {
+                    var bytes1 = MemoryMarshal.AsBytes(stackalloc[] { last.Value });
+                    var bytes2 = MemoryMarshal.AsBytes(stackalloc[] { Last.Value });
+                    MaxHashFirstByteDifference = Math.Max(MaxHashFirstByteDifference, GetFirstByteDifference(bytes1, bytes2));
+                }
+
+                UniqueCount++;
+                UniqueSize += size;
+            }
+
+            return isUnique.Value;
+        }
+
+        private static int GetFirstByteDifference(Span<byte> bytes1, Span<byte> bytes2)
+        {
+            for (int i = 0; i < bytes1.Length; i++)
+            {
+                if (bytes1[i] != bytes2[i])
+                {
+                    return i;
+                }
+            }
+
+            return bytes1.Length;
+        }
+    }
+
+    public record DiffContentStatistics()
+    {
+        public ContentStatistics Adds { get; init; } = new();
+        public ContentStatistics Removes { get; init; } = new();
+        public ContentStatistics Deletes { get; init; } = new();
+        public ContentStatistics Touchs { get; init; } = new();
+        public ContentStatistics Total { get; init; } = new();
     }
 
     /// <summary>

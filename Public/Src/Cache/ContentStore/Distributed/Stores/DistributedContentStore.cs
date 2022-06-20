@@ -170,7 +170,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
 
         string IDistributedContentCopierHost2.ReportCopyResult(OperationContext context, ContentLocation info, CopyFileResult result)
         {
-            if (_distributedContentSettings?.EnableGlobalCacheLocationStoreValidation != true
+            if (_distributedContentSettings == null
+                || _distributedContentSettings.GlobalCacheDatabaseValidationMode == DatabaseValidationMode.None
                 || GlobalCacheCheckpointManager == null
                 || LocalLocationStore == null
                 || !LocalLocationStore.ClusterState.TryResolveMachineId(info.Machine, out var machineId))
@@ -195,25 +196,41 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 };
             }
 
+            bool shouldError = _distributedContentSettings.GlobalCacheDatabaseValidationMode == DatabaseValidationMode.LogAndError
+                && result.Succeeded
+                && info.Origin == GetBulkOrigin.Local
+                && !isPresentInGcs;
+
+            // Represent various aspects as parameters in operation so
+            // they show up as separate dimensions on the metric in MDM.
             var presence = isPresentInGcs ? "GcsContains" : "GcsMissing";
+            var operationResult = new OperationResult(
+                message: presence,
+                operationName: presence,
+                tracerName: $"{nameof(DistributedContentStore)}.{nameof(IDistributedContentCopierHost2.ReportCopyResult)}",
+                status: result.GetStatus(),
+                duration: result.Duration,
+                operationKind: originToKind(info.Origin),
+                exception: result.Exception,
+                operationId: context.TracingContext.TraceId,
+                severity: Severity.Debug);
+
             // Directly calls IOperationLogger interface because we don't want to log a message, just surface a complex metric
-            if (context.TracingContext.Logger is IOperationLogger logger)
+            if (shouldError && context.TracingContext.Logger is IStructuredLogger slog)
             {
-                // Represent various aspects as parameters in operation so
-                // they show up as separate dimensions on the metric in MDM.
-                logger.OperationFinished(new OperationResult(
-                    message: "",
-                    operationName: presence,
-                    tracerName: $"{nameof(DistributedContentStore)}.{nameof(IDistributedContentCopierHost2.ReportCopyResult)}",
-                    status: result.GetStatus(),
-                    duration: result.Duration,
-                    operationKind: originToKind(info.Origin),
-                    exception: result.Exception,
-                    operationId: context.TracingContext.TraceId,
-                    severity: Severity.Debug));
+                slog.LogOperationFinished(operationResult);
+            }
+            else if (context.TracingContext.Logger is IOperationLogger logger)
+            {
+                logger.OperationFinished(operationResult);
             }
 
-            return $"IsPresentInGcs=[{isPresentInGcs}]";
+            if (shouldError)
+            {
+                new ErrorResult($"Content found in LLS but not GCS DB. {info.Hash} CopyResult={result}").ThrowIfFailure();
+            }
+
+            return $"Origin=[{info.Origin}] IsPresentInGcs=[{isPresentInGcs}]";
         }
 
         private Task<Result<ReadOnlyDistributedContentSession>> CreateCopySession(Context context)

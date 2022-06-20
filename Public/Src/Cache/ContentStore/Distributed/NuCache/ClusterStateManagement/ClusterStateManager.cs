@@ -10,6 +10,7 @@ using BuildXL.Cache.ContentStore.Utils;
 using OperationContext = BuildXL.Cache.ContentStore.Tracing.Internal.OperationContext;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System;
 
 #nullable enable
 
@@ -40,7 +41,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             LinkLifetime(_storage);
 
-            RunInBackground(nameof(BackgroundUpdateAsync), BackgroundUpdateAsync, fireAndForget: true);
+            if (_configuration.Checkpoint?.UpdateClusterStateInterval > TimeSpan.Zero)
+            {
+                RunInBackground(nameof(BackgroundUpdateAsync), BackgroundUpdateAsync, fireAndForget: true);
+            }
         }
 
         protected override async Task<BoolResult> StartupComponentAsync(OperationContext context)

@@ -92,7 +92,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             while (!context.Token.IsCancellationRequested)
             {
-                await PeriodicRestoreCheckpointAsync(context);
+                await PeriodicRestoreCheckpointAsync(context).IgnoreFailure();
 
                 await Task.Delay(_configuration.RestoreCheckpointInterval, context.Token);
             }
@@ -100,7 +100,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return BoolResult.Success;
         }
 
-        private Task PeriodicRestoreCheckpointAsync(OperationContext context)
+        public Task<BoolResult> PeriodicRestoreCheckpointAsync(OperationContext context)
         {
             return context.PerformOperationAsync(
                 Tracer,
@@ -109,8 +109,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     var checkpointState = await CheckpointRegistry.GetCheckpointStateAsync(context).ThrowIfFailureAsync();
 
                     return await RestoreCheckpointAsync(context, checkpointState);
-                })
-                .IgnoreFailure();
+                });
         }
 
         private record DatabaseStats
@@ -255,6 +254,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             long uploadSize = 0;
             long retainedSize = 0;
 
+            int uploadCount = 0;
+            int retainedCount = 0;
+
             var newManifest = new CheckpointManifest();
             await ParallelAlgorithms.WhenDoneAsync(
                 _configuration.IncrementalCheckpointDegreeOfParallelism,
@@ -278,6 +280,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                             AddEntry(newManifest, relativePath, storageId);
                             attemptUpload = false;
 
+                            Interlocked.Increment(ref retainedCount);
                             Interlocked.Add(ref retainedSize, _fileSystem.GetFileSize(file));
                             Counters[ContentLocationStoreCounters.IncrementalCheckpointFilesUploadSkipped].Increment();
                         }
@@ -291,6 +294,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                             incrementalCheckpointsPrefix + relativePath).ThrowIfFailureAsync();
                         AddEntry(newManifest, relativePath, storageId);
 
+                        Interlocked.Increment(ref uploadCount);
                         Interlocked.Add(ref uploadSize, _fileSystem.GetFileSize(file));
                         Counters[ContentLocationStoreCounters.IncrementalCheckpointFilesUploaded].Increment();
                     }
@@ -299,6 +303,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             Tracer.TrackMetric(context, "CheckpointUploadSize", uploadSize);
             Tracer.TrackMetric(context, "CheckpointRetainedSize", retainedSize);
+            Tracer.TrackMetric(context, "CheckpointTotalSize", uploadSize + retainedSize);
+
+            Tracer.TrackMetric(context, "CheckpointUploadCount", uploadCount);
+            Tracer.TrackMetric(context, "CheckpointRetainedCount", retainedCount);
+            Tracer.TrackMetric(context, "CheckpointTotalCount", uploadCount + retainedCount);
 
             DatabaseWriteManifest(context, newManifest);
 

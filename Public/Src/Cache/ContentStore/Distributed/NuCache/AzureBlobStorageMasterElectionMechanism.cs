@@ -119,7 +119,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             if (r.Succeeded)
             {
                 // We don't know who the master is any more
-                _lastElection = new MasterElectionState(Master: default, Role: Role.Worker);
+                _lastElection = MasterElectionState.DefaultWorker;
             }
 
             return Result.Success(Role.Worker);
@@ -236,7 +236,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 master = default(MachineLocation);
             }
 
-            return new MasterElectionState(master, master.Equals(_primaryMachineLocation) ? Role.Master : Role.Worker);
+            return new MasterElectionState(master, master.Equals(_primaryMachineLocation) ? Role.Master : Role.Worker, MasterLeaseExpiryUtc: lease?.LeaseExpiryTimeUtc);
         }
 
         private Task<Result<MasterElectionState>> UpdateRoleAsync(OperationContext context, TryUpdateLease tryUpdateLease)

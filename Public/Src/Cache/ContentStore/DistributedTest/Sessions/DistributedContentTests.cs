@@ -363,6 +363,11 @@ namespace ContentStoreTest.Distributed.Sessions
                 return GetServices(idx).RedisGlobalStore.Instance;
             }
 
+            internal BlobContentLocationRegistry GetBlobContentLocationRegistry(int idx)
+            {
+                return GetServices(idx).BlobContentLocationRegistry.GetRequiredInstance();
+            }
+
             internal TransitioningContentLocationStore GetLocationStore(int idx) =>
                 ((TransitioningContentLocationStore)GetDistributedSession(idx).ContentLocationStore);
 

@@ -1,6 +1,7 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
@@ -12,9 +13,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// Current master machine
         MachineLocation Master,
         /// Role of the current machine
-        Role Role)
+        Role Role,
+        DateTime? MasterLeaseExpiryUtc)
     {
-        public static MasterElectionState DefaultWorker = new MasterElectionState(Master: default, Role: Role.Worker);
+        public static MasterElectionState DefaultWorker = new MasterElectionState(Master: default, Role: Role.Worker, MasterLeaseExpiryUtc: null);
     } 
 
     /// <nodoc />

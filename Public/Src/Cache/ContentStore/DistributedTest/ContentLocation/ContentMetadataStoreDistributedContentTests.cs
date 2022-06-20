@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed;
 using BuildXL.Cache.ContentStore.Distributed.MetadataService;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
+using BuildXL.Cache.ContentStore.Distributed.Test.MetadataService;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
@@ -51,8 +52,9 @@ namespace ContentStoreTest.Distributed.Sessions
 
         protected override DistributedCacheServiceArguments ModifyArguments(DistributedCacheServiceArguments arguments)
         {
-            arguments.Configuration.DistributedContentSettings.EnableGlobalCacheLocationStoreValidation = true;
+            arguments.Configuration.DistributedContentSettings.GlobalCacheDatabaseValidationMode = DatabaseValidationMode.Log;
             arguments.Configuration.DistributedContentSettings.ContentMetadataUseMergeWrites = UseMergeOperators;
+            arguments.Configuration.DistributedContentSettings.EnableIndependentBackgroundMasterElection = true;
             return base.ModifyArguments(arguments);
         }
 

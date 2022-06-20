@@ -304,7 +304,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         public CompactTime? LatestAccessTime
         {
-            get => _latestAccessTime > 0 ? new CompactTime(_latestAccessTime) : null;
+            get => _latestAccessTime != DefaultInvalidLatestAccessTime ? new CompactTime(_latestAccessTime) : null;
         }
 
         /// <summary>
@@ -313,7 +313,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         public CompactTime? EarliestAccessTime
         {
-            get => _earliestAccessTime > 0 ? new CompactTime(_earliestAccessTime) : null;
+            get => _earliestAccessTime != DefaultInvalidEarliestTime ? new CompactTime(_earliestAccessTime) : null;
         }
 
         /// <summary>

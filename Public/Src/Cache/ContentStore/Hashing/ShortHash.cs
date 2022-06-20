@@ -29,6 +29,11 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// </summary>
         public const int HashLength = SerializedLength - 1;
 
+        /// <summary>
+        /// The length in hex characters of the hash portion of a short hash. NOTE: This does NOT include characters for the hash type
+        /// </summary>
+        public const int HashStringLength = HashLength * 2;
+
         /// <nodoc />
         public readonly ShortReadOnlyFixedBytes Value;
 
@@ -78,7 +83,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// </summary>
         public static bool TryParse(string str, out ShortHash result)
         {
-            if (ContentHash.TryParse(str, out var longHash, expectedStringLength: HashLength * 2))
+            if (ContentHash.TryParse(str, out var longHash, isShortHash: true))
             {
                 result = longHash.AsShortHash();
                 return true;

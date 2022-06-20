@@ -167,7 +167,7 @@ namespace BuildXL.Cache.ContentStore.Extensions
         /// <summary>
         /// Pseudorandomly enumerates the range from [0, <paramref name="length"/>)
         /// </summary>
-        public static IEnumerable<int> PseudoRandomEnumerate(int length)
+        public static IEnumerable<int> PseudoRandomEnumerateRange(int length)
         {
             var offset = ThreadSafeRandom.Generator.Next(0, length);
             var current = ThreadSafeRandom.Generator.Next(0, length);
@@ -175,6 +175,17 @@ namespace BuildXL.Cache.ContentStore.Extensions
             {
                 yield return (current + offset) % length;
                 current = PseudoRandomNextIndex(current, length);
+            }
+        }
+
+        /// <summary>
+        /// Pseudorandomly enumerates the items in the list
+        /// </summary>
+        public static IEnumerable<T> PseudoRandomEnumerate<T>(this IReadOnlyList<T> list)
+        {
+            foreach (var index in PseudoRandomEnumerateRange(list.Count))
+            {
+                yield return list[index];
             }
         }
 

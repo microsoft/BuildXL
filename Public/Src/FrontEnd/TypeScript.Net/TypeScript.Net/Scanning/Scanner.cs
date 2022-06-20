@@ -9,6 +9,7 @@ using System.Linq;
 using System.Numerics;
 using BuildXL.FrontEnd.Script.Constants;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Collections;
 using TypeScript.Net.Diagnostics;
 using TypeScript.Net.Extensions;
 using TypeScript.Net.Types;

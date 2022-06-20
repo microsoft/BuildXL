@@ -343,9 +343,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
                 Clock = clock;
             }
 
-            public Task OnRoleUpdatedAsync(OperationContext context, Role role)
+            public Task OnRoleUpdatedAsync(OperationContext context, MasterElectionState electionState)
             {
-                return RoleQueue.Writer.WriteAsync((role, Clock.UtcNow)).AsTask();
+                return RoleQueue.Writer.WriteAsync((electionState.Role, Clock.UtcNow)).AsTask();
             }
 
             public async Task WaitTillCurrentRoleAsync()
@@ -453,6 +453,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
             await machine.StartupAsync(operationContext).ThrowIfFailureAsync();
             await runTest(operationContext, machine);
             await machine.ShutdownAsync(operationContext).ThrowIfFailureAsync();
+        }
+    }
+
+    public static class TestRoleObserverExtensions
+    {
+        public static Task OnRoleUpdatedAsync(this IRoleObserver observer, OperationContext context, Role role)
+        {
+            return observer.OnRoleUpdatedAsync(context, new MasterElectionState(default, role, default));
         }
     }
 }

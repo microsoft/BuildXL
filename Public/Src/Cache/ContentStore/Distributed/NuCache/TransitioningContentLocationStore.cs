@@ -27,7 +27,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     /// <summary>
     /// <see cref="IContentLocationStore"/> implementation that supports old redis and new local location store.
     /// </summary>
-    internal class TransitioningContentLocationStore : StartupShutdownBase, IContentLocationStore, IDistributedLocationStore, IDistributedMachineInfo
+    public class TransitioningContentLocationStore : StartupShutdownBase, IContentLocationStore, IDistributedLocationStore, IDistributedMachineInfo
     {
         /// <nodoc />
         public ILocalContentStore LocalContentStore { get; }

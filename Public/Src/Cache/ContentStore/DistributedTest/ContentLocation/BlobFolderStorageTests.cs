@@ -2,7 +2,9 @@
 // Licensed under the MIT License.
 
 using System;
+using System.IO;
 using System.Runtime.CompilerServices;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
@@ -55,6 +57,35 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
             : base(output)
         {
             _fixture = fixture;
+        }
+
+        /// <summary>
+        /// This test is for a bug in Azurite (the Azure storage emulator)
+        /// where creating a snapshot causes PutBlock operations with a lease to fail.
+        /// </summary>
+        [Fact]
+        public async Task TestStorage()
+        {
+            using var storage = AzuriteStorageProcess.CreateAndStartEmpty(_fixture, TestGlobal.Logger);
+
+            var creds = new AzureBlobStorageCredentials(storage.ConnectionString);
+
+            var client = creds.CreateCloudBlobClient();
+
+            var container = client.GetContainerReference("test");
+
+            await container.CreateIfNotExistsAsync();
+
+            var blob = container.GetBlockBlobReference("test/sub/blob.out.bin");
+
+            var bytes = Encoding.UTF8.GetBytes("hello");
+            await blob.UploadFromByteArrayAsync(bytes, 0, bytes.Length);
+
+            var leaseId = await blob.AcquireLeaseAsync(TimeSpan.FromSeconds(60));
+
+            var snapshot = await blob.SnapshotAsync();
+
+            await blob.PutBlockAsync("0000", new MemoryStream(), null, Microsoft.WindowsAzure.Storage.AccessCondition.GenerateLeaseCondition(leaseId), null, null);
         }
 
         [Fact]

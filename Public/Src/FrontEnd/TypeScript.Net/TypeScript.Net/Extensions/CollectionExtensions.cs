@@ -473,32 +473,6 @@ namespace TypeScript.Net.Extensions
         }
 
         /// <summary>
-        /// Converts sequence to dictionary, but accepts duplicate keys. First will win.
-        /// </summary>
-        public static Dictionary<TKey, TValue> ToDictionarySafe<T, TKey, TValue>(this IEnumerable<T> source, Func<T, TKey> keySelector,
-            Func<T, TValue> valueSelector)
-        {
-            Contract.Requires(source != null);
-            Contract.Requires(keySelector != null);
-            Contract.Requires(valueSelector != null);
-
-            Dictionary<TKey, TValue> result = new Dictionary<TKey, TValue>();
-
-            foreach (var element in source)
-            {
-                var key = keySelector(element);
-                var value = valueSelector(element);
-
-                if (!result.ContainsKey(key))
-                {
-                    result.Add(key, value);
-                }
-            }
-
-            return result;
-        }
-
-        /// <summary>
         /// Returns whether a <paramref name="source"/> is null or empty.
         /// </summary>
         public static bool IsNullOrEmpty<T>(this IEnumerable<T> source)

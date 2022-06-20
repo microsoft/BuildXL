@@ -4,12 +4,14 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed;
 using BuildXL.Cache.ContentStore.Distributed.MetadataService;
+using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
 using BuildXL.Cache.ContentStore.Distributed.Redis;
 using BuildXL.Cache.ContentStore.Distributed.Stores;
@@ -360,6 +362,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 };
             }
 
+            settings = ModifySettings(settings);
             var configuration = new DistributedCacheServiceConfiguration(localCasSettings, settings);
 
             var arguments = new DistributedCacheServiceArguments(
@@ -383,6 +386,8 @@ namespace ContentStoreTest.Distributed.Sessions
             return CreateStore(context, arguments);
         }
 
+        protected virtual TestDistributedContentSettings ModifySettings(TestDistributedContentSettings dcs) => dcs;
+
         protected virtual TestServerProvider CreateStore(Context context, DistributedCacheServiceArguments arguments)
         {
             if (UseGrpcServer)
@@ -395,6 +400,80 @@ namespace ContentStoreTest.Distributed.Sessions
             {
                 return (CreateFromArguments(arguments), null);
             }
+        }
+
+        protected virtual Task<BoolResult> CreateCheckpointAsync(InstanceRef storeRef, TestContext context)
+        {
+            return context.GetLocalLocationStore(storeRef.ResolveIndex(context)).HeartbeatAsync(context);
+        }
+
+        protected virtual Task<BoolResult> RestoreCheckpointAsync(InstanceRef storeRef, TestContext context)
+        {
+            return context.GetLocalLocationStore(storeRef.ResolveIndex(context)).HeartbeatAsync(context);
+        }
+
+        protected async Task UploadCheckpointOnMasterAndRestoreOnWorkers(TestContext context, bool reconcile = false, string clearStoragePrefix = null)
+        {
+            // Update time to trigger checkpoint upload and restore on master and workers respectively
+            TestClock.UtcNow += TimeSpan.FromMinutes(2);
+
+            var masterStore = context.GetMaster();
+
+            // Heartbeat master first to upload checkpoint
+            await CreateCheckpointAsync(masterStore, context).ShouldBeSuccess();
+
+            if (reconcile)
+            {
+                await masterStore.ReconcileAsync(context, force: true).ShouldBeSuccess();
+            }
+
+            if (clearStoragePrefix != null)
+            {
+                await StorageProcess.ClearAsync(clearStoragePrefix);
+            }
+
+            // Next heartbeat workers to restore checkpoint
+            foreach (var workerStore in context.EnumerateWorkers())
+            {
+                await RestoreCheckpointAsync(workerStore, context).ShouldBeSuccess();
+
+                if (reconcile)
+                {
+                    await workerStore.ReconcileAsync(context, force: true).ShouldBeSuccess();
+                }
+            }
+        }
+
+        protected record struct InstanceRef(
+            LocalLocationStore LocalLocationStore = null,
+            TransitioningContentLocationStore LocationStore = null,
+            int? Index = null)
+        {
+            public int ResolveIndex(TestContext context)
+            {
+                return Index
+                    ?? ResolveIndex(context, LocalLocationStore, (c, i) => c.GetLocalLocationStore(i))
+                    ?? ResolveIndex(context, LocationStore, (c, i) => c.GetLocationStore(i))
+                    ?? throw Contract.AssertFailure("Could not find instance");
+            }
+
+            public int? ResolveIndex<T>(TestContext context, T instance, Func<TestContext, int, T> getIndexInstance)
+                where T : class
+            {
+                for (int i = 0; i < context.Stores.Count; i++)
+                {
+                    if (getIndexInstance(context, i) == instance)
+                    {
+                        return i;
+                    }
+                }
+
+                return null;
+            }
+
+            public static implicit operator InstanceRef(LocalLocationStore value) => new InstanceRef(LocalLocationStore: value); 
+            public static implicit operator InstanceRef(int value) => new InstanceRef(Index: value); 
+            public static implicit operator InstanceRef(TransitioningContentLocationStore value) => new InstanceRef(LocationStore: value);
         }
 
         protected async Task OpenStreamAndDisposeAsync(IContentSession session, Context context, ContentHash hash)

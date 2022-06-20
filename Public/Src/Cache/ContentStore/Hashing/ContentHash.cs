@@ -428,7 +428,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// </summary>
         public static bool TryParse(string serialized, out ContentHash contentHash)
         {
-            return TryParse(serialized, out contentHash, null);
+            return TryParse(serialized, out contentHash, isShortHash: false);
         }
 
         /// <summary>
@@ -436,13 +436,13 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// </summary>
         public static bool TryParse(HashType hashType, string serialized, out ContentHash contentHash)
         {
-            return TryParse(hashType, serialized, out contentHash, null);
+            return TryParse(hashType, serialized, out contentHash, isShortHash: false);
         }
 
         /// <summary>
         ///     Attempt to create from a known type string.
         /// </summary>
-        internal static bool TryParse(string serialized, out ContentHash contentHash, int? expectedStringLength)
+        internal static bool TryParse(string serialized, out ContentHash contentHash, bool isShortHash)
         {
             Contract.Requires(serialized != null);
 
@@ -473,17 +473,17 @@ namespace BuildXL.Cache.ContentStore.Hashing
                 return false;
             }
 
-            return TryParse(hashType, hash, out contentHash, expectedStringLength);
+            return TryParse(hashType, hash, out contentHash, isShortHash);
         }
 
         /// <summary>
         ///     Attempt to create from a known type and string (without type).
         /// </summary>
-        internal static bool TryParse(HashType hashType, string serialized, out ContentHash contentHash, int? expectedStringLength)
+        internal static bool TryParse(HashType hashType, string serialized, out ContentHash contentHash, bool isShortHash)
         {
             Contract.Requires(serialized != null);
 
-            if (serialized.Length != (expectedStringLength ?? HashInfoLookup.Find(hashType).StringLength))
+            if (serialized.Length != (isShortHash ? ShortHash.HashStringLength : HashInfoLookup.Find(hashType).StringLength))
             {
                 contentHash = default(ContentHash);
                 return false;
@@ -497,10 +497,13 @@ namespace BuildXL.Cache.ContentStore.Hashing
 
             contentHash = new ContentHash(hashType, bytes);
 
-            if (HashInfoLookup.Find(hashType) is TaggedHashInfo && !AlgorithmIdHelpers.IsHashTagValid(contentHash))
+            if (!isShortHash)
             {
-                contentHash = default(ContentHash);
-                return false;
+                if (HashInfoLookup.Find(hashType) is TaggedHashInfo && !AlgorithmIdHelpers.IsHashTagValid(contentHash))
+                {
+                    contentHash = default(ContentHash);
+                    return false;
+                }
             }
 
             return true;

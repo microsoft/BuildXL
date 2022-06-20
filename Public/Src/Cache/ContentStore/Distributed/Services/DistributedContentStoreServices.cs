@@ -284,7 +284,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
                 };
 
                 if (!GlobalCacheService.IsAvailable
-                    && DistributedContentSettings.EnableGlobalCacheLocationStoreValidation
+                    && DistributedContentSettings.GlobalCacheDatabaseValidationMode != DatabaseValidationMode.None
                     && DistributedContentSettings.GlobalCacheBackgroundRestore)
                 {
                     // Restore checkpoints in checkpoint manager when GCS is unavailable since
@@ -371,7 +371,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
                     checkpointManager,
                     RocksDbContentMetadataStore.Instance,
                     eventStream,
-                    clock);
+                    clock,
+                    registry: ContentLocationStoreServices.Instance.BlobContentLocationRegistry.InstanceOrDefault());
 
                 return service;
             }

@@ -9,6 +9,7 @@ using System.Diagnostics.SymbolStore;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Threading;
@@ -250,6 +251,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             return result;
         }
 
+        private MergeOperator MergeContentMergeOperator { get; } = MergeOperators.CreateAssociative(
+                        "MergeContent",
+                        merge: RocksDbOperations.MergeLocations,
+                        transformSingle: RocksDbOperations.ProcessSingleLocationEntry);
+
         private bool IsStoredEpochInvalid([NotNullWhen(true)] out string? epoch)
         {
             TryGetGlobalEntry(nameof(GlobalKeys.StoredEpoch), out epoch);
@@ -263,10 +269,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                 yield return
                 (
                     Columns.MergeContent,
-                    MergeOperators.CreateAssociative(
-                        "MergeContent",
-                        merge: RocksDbOperations.MergeLocations,
-                        transformSingle: RocksDbOperations.ProcessSingleLocationEntry)
+                    MergeContentMergeOperator
+                );
+
+                yield return
+                (
+                    Columns.SstMergeContent,
+                    MergeContentMergeOperator
                 );
             }
 
@@ -690,6 +699,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             return ColumnNames[(int)columnFamily][(int)resolvedGroup];
         }
 
+        internal RocksDbStore UnsafeGetStore()
+        {
+            return _keyValueStore.Use(store => store).ToResult().Value!;
+        }
+
         /// <summary>
         /// Ingests sst files from the given paths for the <see cref="Columns.SstMergeContent"/> column
         /// </summary>
@@ -697,7 +711,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         {
             return _keyValueStore.Use(store => store.Database.IngestExternalFiles(
                 files.Select(f => f.Path).ToArray(),
-                new IngestExternalFileOptions().SetMoveFiles(true),
+                new IngestExternalFileOptions().SetMoveFiles(true)
+                ,
                 store.GetColumn(NameOf(Columns.SstMergeContent))))
             .ToBoolResult();
         }
@@ -1119,7 +1134,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                 || store.TryReadValue(key, valueBuffer, NameOf(columns, GetFormerColumnGroup(columns))) >= 0;
         }
 
-        private bool TryDeserializeValue<TResult>(RocksDbStore store, ReadOnlySpan<byte> key, Columns columns, DeserializeValue<TResult> deserializer, [NotNullWhen(true)] out TResult? result)
+        public bool TryDeserializeValue<TResult>(RocksDbStore store, ReadOnlySpan<byte> key, Columns columns, DeserializeValue<TResult> deserializer, [NotNullWhen(true)] out TResult? result)
         {
             return TryDeserializeValue(store, key, NameOf(columns), deserializer, out result)
                    || IsRotatedColumn(columns) && TryDeserializeValue(store, key, NameOf(columns, GetFormerColumnGroup(columns)), deserializer, out result);
@@ -1300,6 +1315,37 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 
                     return true;
                 });
+        }
+
+        public Result<IterateDbContentResult> IterateSstMergeContentEntries(OperationContext context, Action<MachineContentEntry> onEntry)
+        {
+            return _keyValueStore.Use(
+                static (store, state) =>
+                {
+                    var hashKeySize = Unsafe.SizeOf<ShardHash>();
+                    return store.IterateDbContent(
+                        iterator =>
+                        {
+                            var key = iterator.Key();
+                            if (key.Length != hashKeySize)
+                            {
+                                return;
+                            }
+
+                            var hash = MemoryMarshal.Read<ShardHash>(key);
+                            RocksDbOperations.ReadMergedContentLocationEntry(iterator.Value(), out var machines, out var info);
+                            foreach (var machine in machines)
+                            {
+                                var entry = new MachineContentEntry(hash, machine, info.Size!.Value, info.LatestAccessTime ?? CompactTime.Zero);
+                                state.onEntry(entry);
+                            }
+                        },
+                        state.@this.NameOf(Columns.SstMergeContent),
+                        startValue: (byte[]?)null,
+                        state.context.Token);
+
+                }, (@this: this, onEntry, context))
+                .ToResult();
         }
 
         /// <inheritdoc />

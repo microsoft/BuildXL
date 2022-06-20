@@ -681,7 +681,7 @@ namespace BuildXL.Cache.Host.Configuration
         #endregion
 
         [DataMember]
-        public bool EnableGlobalCacheLocationStoreValidation { get; set; } = false;
+        public EnumSetting<DatabaseValidationMode> GlobalCacheDatabaseValidationMode { get; set; } = DatabaseValidationMode.None;
 
         [DataMember]
         public bool IsMasterEligible { get; set; } = false;
@@ -1162,7 +1162,7 @@ namespace BuildXL.Cache.Host.Configuration
         public bool ContentMetadataDisableDatabaseRegisterLocation { get; set; }
 
         [DataMember]
-        public bool ContentMetadataEnableResilience { get; set; }
+        public bool ContentMetadataEnableResilience { get; set; } = true;
 
         [DataMember]
         public bool ContentMetadataOptimizeWrites { get; set; }
@@ -1323,6 +1323,24 @@ namespace BuildXL.Cache.Host.Configuration
 
         [DataMember]
         public LocalLocationStoreSettings LocationStoreSettings { get; set; } = new();
+    }
+
+    public enum DatabaseValidationMode
+    {
+        /// <summary>
+        /// No validation
+        /// </summary>
+        None,
+
+        /// <summary>
+        /// Log metrics and presence in GCS for all copies
+        /// </summary>
+        Log,
+
+        /// <summary>
+        /// Log and raise error. This mainly for unit test validation.
+        /// </summary>
+        LogAndError,
     }
 
     [Flags]

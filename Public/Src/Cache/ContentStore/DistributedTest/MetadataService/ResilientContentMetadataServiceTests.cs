@@ -269,4 +269,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.MetadataService
             _redisFixture.Dispose();
         }
     }
+
+    public static partial class TestExtensions
+    {
+        public static Task OnRoleUpdatedAsync(this ResilientGlobalCacheService service, OperationContext context, Role role)
+        {
+            return service.OnRoleUpdatedAsync(context, new MasterElectionState(default, role, default));
+        }
+    }
 }

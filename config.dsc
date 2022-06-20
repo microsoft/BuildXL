@@ -170,11 +170,11 @@ config({
                 { id: "Microsoft.Windows.ProjFS", version: "1.2.19351.1" },
 
                 // RocksDb
-                { id: "RocksDbSharp", version: "6.10.2-b20220610.3", alias: "RocksDbSharpSigned", 
+                { id: "RocksDbSharp", version: "6.10.2-b20220610.4", alias: "RocksDbSharpSigned", 
                     dependentPackageIdsToSkip: [ "System.Memory" ],
                     dependentPackageIdsToIgnore: [ "System.Memory" ]
                 },
-                { id: "RocksDbNative", version: "6.10.2-b20220610.3" },
+                { id: "RocksDbNative", version: "6.10.2-b20220610.4" },
 
                 { id: "JsonDiffPatch.Net", version: "2.1.0" },
 
@@ -257,7 +257,7 @@ config({
                 // Azurite node app compiled to standalone executable
                 // Sources for this package are: https://github.com/Azure/Azurite
                 // This packaged is produced by the pipeline: https://dev.azure.com/mseng/Domino/_build?definitionId=13199
-                { id: "BuildXL.Azurite.Executables", version: "1.0.0-CI-20220125-034149" },
+                { id: "BuildXL.Azurite.Executables", version: "1.0.0-CI-20220612-002122" },
 
                 // It turns out Redis-64 ( https://www.nuget.org/packages/redis-64/ ) was deprecated several years 
                 // ago, and so we can't even build with it due to component governance. We don't actually care about 

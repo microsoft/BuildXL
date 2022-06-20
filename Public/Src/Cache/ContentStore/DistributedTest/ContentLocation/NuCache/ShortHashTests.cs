@@ -1,8 +1,10 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
@@ -20,6 +22,25 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
         private readonly ITestOutputHelper _helper;
 
         public ShortHashTests(ITestOutputHelper helper) => _helper = helper;
+
+        public static IEnumerable<object[]> HashTypes => HashInfoLookup.All().Distinct().Select(i => new object[] { i.HashType });
+
+        [Theory]
+        [MemberData(nameof(HashTypes))]
+        public void ParseAllHashTypes(HashType hashType)
+        {
+            var hash = ContentHash.Random(hashType);
+            var stringHash = hash.ToShortString();
+
+            // Test using TryParse
+            ShortHash.TryParse(stringHash, out var shortHash).Should().BeTrue();
+            var expectedShortHash = hash.AsShortHash();
+            shortHash.Should().Be(expectedShortHash);
+
+            // Test using constructor
+            shortHash = new ShortHash(stringHash);
+            shortHash.Should().Be(expectedShortHash);
+        }
 
         [Fact]
         public void ShortHashBinaryRoundtrip()

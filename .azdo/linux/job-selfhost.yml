@@ -16,7 +16,7 @@ jobs:
 
   variables:
     skipComponentGovernanceDetection: true # done elsewhere (in the main rolling pipeline)
-    BxlCommonArgs: --shared-comp /ado /logsToRetain:10 /cacheMiss /logObservedFileAccesses /logoutput:FullOutputOnError # /p:[Sdk.BuildXL]xunitSemaphoreCount=20
+    BxlCommonArgs: --shared-comp /ado /cacheMiss:"[Bxl.Selfhost.Linux]" /logObservedFileAccesses /logsDirectory:Out/Logs /cacheConfigFilePath:Out/CacheConfig.json /logoutput:FullOutputOnError # /p:[Sdk.BuildXL]xunitSemaphoreCount=20
 
   steps:
   - checkout: self
@@ -31,20 +31,6 @@ jobs:
       secretsFilter: '*'
       runAsPreJob: true 
 
-  - task: Cache@2
-    inputs:
-      key: '"bxl" | "1" | "$(Agent.OS)" | "$(BxlMatrixArgs)" | "$(Build.SourceBranch)" | "$(Build.SourceVersion)"'
-      # if no cache entry is already associated with 'key', the most recent cache entry associated with the key prefix below (if any) will be restored
-      restoreKeys: |
-        "bxl" | "1" | "$(Agent.OS)" | "$(BxlMatrixArgs)" | "$(Build.SourceBranch)" 
-        "bxl" | "1" | "$(Agent.OS)" | "$(BxlMatrixArgs)"
-        "bxl" | "1" | "$(Agent.OS)"
-        "bxl" | "1"
-      path: Out/Cache.noindex
-    displayName: Cache BuildXL's cache dir
-    continueOnError: true
-    timeoutInMinutes: 10
-
   - task: UseDotNet@2
     displayName: Use .NET Core sdk 6.x
     inputs:
@@ -53,13 +39,61 @@ jobs:
   - template: step-nuget-config.yml
 
   - bash: |
+      mkdir -p Out
+      tee Out/CacheConfig.json << EOF
+      {
+      "RemoteIsReadOnly":  false,
+      "SkipDeterminismCheck":  true,
+      "RemoteConstructionTimeoutMilliseconds":  10000,
+      "Assembly":  "BuildXL.Cache.VerticalAggregator",
+      "Type":  "BuildXL.Cache.VerticalAggregator.VerticalCacheAggregatorFactory",
+      "RemoteCache":  {
+                          "CacheServiceFingerprintEndpoint":  "https://mseng.artifacts.visualstudio.com/DefaultCollection",
+                          "RequiredContentKeepUntilHours":  1,
+                          "Assembly":  "BuildXL.Cache.BuildCacheAdapter",
+                          "CacheServiceContentEndpoint":  "https://mseng.vsblob.visualstudio.com/DefaultCollection",
+                          "Type":  "BuildXL.Cache.BuildCacheAdapter.BuildCacheFactory",
+                          "CacheLogPath":  "[BuildXLSelectedLogPath].Remote.log",
+                          "CacheId":  "L3Cache",
+                          "CacheNamespace":  "BuildXLSelfhost.Linux",
+                          "UseBlobContentHashLists":  true
+                      },
+      "LocalCache":  {
+                        "MaxCacheSizeInMB":  20240,
+                        "Assembly":  "BuildXL.Cache.MemoizationStoreAdapter",
+                        "UseStreamCAS":  true,
+                        "Type":  "BuildXL.Cache.MemoizationStoreAdapter.MemoizationStoreCacheFactory",
+                        "CacheLogPath":  "[BuildXLSelectedLogPath]",
+                        "CacheRootPath":  "[BuildXLSelectedRootPath]",
+                        "CacheId":  "SelfhostCS2L1",
+                        "UseRocksDbMemoizationStore":  true
+                    }
+      }
+      EOF
+    displayName: Write cache config file
+
+  - bash: |
+      sudo mkdir /home/subst
+      sudo mount --verbose --bind $(Build.SourcesDirectory) /home/subst
+    displayName: Bind /home/subst to sources directory  
+
+  - bash: |
       set -eu
       bash bxl.sh $(BxlCommonArgs) --minimal --internal --deploy-dev-release
     displayName: Build
+    workingDirectory: /home/subst
     env:
       PAT1esSharedAssets: $(PAT-TseBuild-AzureDevOps-1esSharedAssets-Package-Read)
       PATCloudBuild: $(PAT-TseBuild-AzureDevOps-CloudBuild-Packaging-Read)
+      VSTSPERSONALACCESSTOKEN: $(PAT-TseBuild-AzureDevOps-mseng-buildcache)
 
+  - task: PublishPipelineArtifact@1
+    displayName: Upload cache miss analysis 
+    inputs:
+      targetPath: Out/Logs/BuildXL.CacheMiss.log
+      artifactName: Cache miss analysis
+    condition: always()
+    continueOnError: true
 
   - bash: |
       echo "== Deleting Out/frontend/Nuget/tmp folder to reduce the size of the NuGet cache dir"
@@ -82,9 +116,11 @@ jobs:
         run_build
       }
     displayName: Test
+    workingDirectory: /home/subst
     env:
       PAT1esSharedAssets: $(PAT-TseBuild-AzureDevOps-1esSharedAssets-Package-Read)
       PATCloudBuild: $(PAT-TseBuild-AzureDevOps-CloudBuild-Packaging-Read)
+      VSTSPERSONALACCESSTOKEN: $(PAT-TseBuild-AzureDevOps-mseng-buildcache)
 
   - task: PublishPipelineArtifact@1
     displayName: Upload BuildXL Logs
@@ -121,3 +157,7 @@ jobs:
       artifactName: XUnit-Logs.$(System.JobName).$(System.JobAttempt)
     condition: always()
     continueOnError: true
+
+  - bash: sudo umount -v --lazy /home/subst
+    condition: always()
+    displayName: Unmount /home/subst

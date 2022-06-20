@@ -348,7 +348,7 @@ if ($Deploy -eq "LKG") {
 
 function Get-CacheMissArgs {
     # Adds arguments to reference fingerprintstores corresponding to the last 3 commits.
-    # Argument is of the form: /cachemiss[commit123456]
+    # Argument is of the form: /cachemiss:[commit123456:commit0abcdef:commit044839]
     # This ideally allows retrieval of the fingerprint store for the most recent close build to the current
     # state of the repo.
     $cacheMissArgs = "";

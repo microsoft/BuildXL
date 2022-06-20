@@ -15,6 +15,10 @@ Param(
  [String]$NcPath,
  [Parameter(mandatory=$true)]
  [String]$MsEngGitPat,
+ [Parameter(mandatory=$false)]
+ [String]$VstsPat,
+ [Parameter(mandatory=$false)]
+ [String]$VstsCredProviderPath,
 
  [ValidateSet("LKG", "Dev", "RunCheckinTests", "RunCheckinTestSamples", "ChangeJournalService")]
  [string]$Use = "LKG",
@@ -32,6 +36,13 @@ Param(
  [Parameter(Mandatory=$false)]
  [string]$AnyBuildClientDir,
 
+ [Parameter(Mandatory=$false)]
+ [ValidateSet("Disable", "Consume", "ConsumeAndPublish")]
+ [string]$SharedCacheMode = "Disable",
+
+ [Parameter(Mandatory=$false)]
+ [string]$CacheNamespace,
+
  [Parameter(mandatory=$false, ValueFromRemainingArguments=$true)]
  [string[]]$BxlArgs
 )
@@ -40,6 +51,8 @@ Param(
 [Environment]::SetEnvironmentVariable("CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT", $CbPat, "Process")
 [Environment]::SetEnvironmentVariable("MSENG_GIT_PAT", $MsEngGitPat, "Process")
 [Environment]::SetEnvironmentVariable("NUGET_CREDENTIALPROVIDERS_PATH", $NcPath, "Process")
+[Environment]::SetEnvironmentVariable("VSTSPERSONALACCESSTOKEN", $VstsPat, "Process")
+[Environment]::SetEnvironmentVariable("ARTIFACT_CREDENTIALPROVIDERS_PATH", $VstsCredProviderPath, "Process")
 
 [Environment]::SetEnvironmentVariable("VSS_NUGET_EXTERNAL_FEED_ENDPOINTS", "
 {
@@ -53,6 +66,7 @@ $BxlCmdArgs = @(
     "-Use", $Use,
     "-DeployConfig", $DeployConfig,
     "-DeployRuntime", $DeployRuntime
+    "-SharedCacheMode", $SharedCacheMode
 )
 
 if (-not [string]::IsNullOrEmpty($Deploy))
@@ -73,6 +87,11 @@ if ($EnableProcessRemoting)
 if (-not [string]::IsNullOrEmpty($AnyBuildClientDir))
 {
     $BxlCmdArgs += @("-AnyBuildClientDir", "$AnyBuildClientDir")
+}
+
+if (-not [string]::IsNullOrEmpty($CacheNamespace))
+{
+    $BxlCmdArgs += @("-CacheNamespace", "$CacheNamespace")
 }
 
 $BxlCmdArgs += $BxlArgs

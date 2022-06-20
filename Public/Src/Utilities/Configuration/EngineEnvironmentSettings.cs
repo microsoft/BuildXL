@@ -225,7 +225,7 @@ namespace BuildXL.Utilities.Configuration
         public static readonly Setting<TimeSpan> WorkerAttachTimeout = CreateSetting("BuildXLWorkerAttachTimeoutMin", value => ParseTimeSpan(value, ts => TimeSpan.FromMinutes(ts)) ?? DefaultWorkerAttachTimeout);
 
         /// <nodoc/>
-        public static readonly TimeSpan DefaultDistributionConnectTimeout = TimeSpan.FromMinutes(10);
+        public static readonly TimeSpan DefaultDistributionConnectTimeout = TimeSpan.FromMinutes(5);
 
         /// <summary>
         /// Maximum time to wait while establishing a connection to the remote machine (both orchestrator->worker and worker->orchestrator)

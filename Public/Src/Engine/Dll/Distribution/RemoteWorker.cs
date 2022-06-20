@@ -213,6 +213,12 @@ namespace BuildXL.Engine.Distribution
 
                     m_currentBatchSize = m_pipCompletionTaskList.Count;
 
+                    if (m_isConnectionLost)
+                    {
+                        failRemotePips();
+                        continue;
+                    }
+
                     using (m_orchestratorService.Environment.Counters.StartStopwatch(PipExecutorCounter.RemoteWorker_ExtractHashesDuration))
                     {
                         Parallel.ForEach(m_pipCompletionTaskList, (task) =>
@@ -239,19 +245,7 @@ namespace BuildXL.Engine.Distribution
 
                     if (callResult.State == RpcCallResultState.Failed)
                     {
-                        foreach (var task in m_pipCompletionTaskList)
-                        {
-                            FailRemotePip(
-                                task,
-                                callResult.LastFailure?.DescribeIncludingInnerFailures() ?? "Connection was lost");
-                        }
-
-                        // TODO: We could not send the hashes; so it is hard to determine what files and directories are added to AvailableHashes.
-                        // That's why, for correctness, we clear the AvailableHashes all together. 
-                        // This seems to be very inefficient; but it is so rare that we completely fail to send the build request to the worker after retries.
-                        ResetAvailableHashes(m_pipGraph);
-
-                        m_orchestratorService.Environment.Counters.IncrementCounter(PipExecutorCounter.BuildRequestBatchesFailedSentToWorkers);
+                        failRemotePips(callResult);
                     }
                     else
                     {
@@ -264,6 +258,23 @@ namespace BuildXL.Engine.Distribution
                         }
                     }
                 }
+            }
+
+            void failRemotePips(RpcCallResult<Unit> callResult = null)
+            {
+                foreach (var task in m_pipCompletionTaskList)
+                {
+                    FailRemotePip(
+                        task,
+                        callResult?.LastFailure?.DescribeIncludingInnerFailures() ?? "Connection was lost");
+                }
+
+                // TODO: We could not send the hashes; so it is hard to determine what files and directories are added to AvailableHashes.
+                // That's why, for correctness, we clear the AvailableHashes all together. 
+                // This seems to be very inefficient; but it is so rare that we completely fail to send the build request to the worker after retries.
+                ResetAvailableHashes(m_pipGraph);
+
+                m_orchestratorService.Environment.Counters.IncrementCounter(PipExecutorCounter.BuildRequestBatchesFailedSentToWorkers);
             }
         }
 

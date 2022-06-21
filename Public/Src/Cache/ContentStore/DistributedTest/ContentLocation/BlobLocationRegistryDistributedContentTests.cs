@@ -18,6 +18,7 @@ namespace ContentStoreTest.Distributed.Sessions
     [Trait("Category", "Integration")]
     [Trait("Category", "LongRunningTest")]
     [Collection("Redis-based tests")]
+    [Trait("Category", "WindowsOSOnly")] // 'redis-server' executable no longer exists
 #if !NETCOREAPP
     [TestClassIfSupported(TestRequirements.NotSupported)]
 #endif

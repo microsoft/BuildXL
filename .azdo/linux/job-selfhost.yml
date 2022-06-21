@@ -9,14 +9,16 @@ jobs:
   strategy:
     matrix:
       InternalRelease:
+        BxlMatrixName: InternalReleaseLinux
         BxlMatrixArgs: --internal /q:ReleaseLinux
       # TODO: broken because "runtime.linux-x64.BuildXL" NuGet is not public
       # PublicRelease:
+      #   BxlMatrixName: ReleaseLinux
       #   BxlMatrixArgs: /q:ReleaseLinux
 
   variables:
     skipComponentGovernanceDetection: true # done elsewhere (in the main rolling pipeline)
-    BxlCommonArgs: --shared-comp /ado /cacheMiss:"[Bxl.Selfhost.Linux]" /logObservedFileAccesses /logsDirectory:Out/Logs /cacheConfigFilePath:Out/CacheConfig.json /logoutput:FullOutputOnError # /p:[Sdk.BuildXL]xunitSemaphoreCount=20
+    BxlCommonArgs: --shared-comp /ado /cacheMiss:"[Bxl.Selfhost.Linux]" /logObservedFileAccesses /cacheConfigFilePath:Out/CacheConfig.json /logoutput:FullOutputOnError # /p:[Sdk.BuildXL]xunitSemaphoreCount=20
 
   steps:
   - checkout: self
@@ -79,7 +81,7 @@ jobs:
 
   - bash: |
       set -eu
-      bash bxl.sh $(BxlCommonArgs) --minimal --internal --deploy-dev-release
+      bash bxl.sh $(BxlCommonArgs) /logsDirectory:"Out/Logs/Build" --minimal --internal --deploy-dev-release
     displayName: Build
     workingDirectory: /home/subst
     env:
@@ -87,16 +89,8 @@ jobs:
       PATCloudBuild: $(PAT-TseBuild-AzureDevOps-CloudBuild-Packaging-Read)
       VSTSPERSONALACCESSTOKEN: $(PAT-TseBuild-AzureDevOps-mseng-buildcache)
 
-  - task: PublishPipelineArtifact@1
-    displayName: Upload cache miss analysis 
-    inputs:
-      targetPath: Out/Logs/BuildXL.CacheMiss.log
-      artifactName: Cache miss analysis
-    condition: always()
-    continueOnError: true
-
   - bash: |
-      echo "== Deleting Out/frontend/Nuget/tmp folder to reduce the size of the NuGet cache dir"
+      echo "== Deleting Out/frontend/Nuget/tmp, Out/bin, Out/Boorstrap folders to reduce the size of the NuGet cache dir"
       rm -rf Out/frontend/Nuget/tmp Out/Objects.noindex Out/bin Out/BootStrap
       echo "== Disk usage of folders in Out"
       du -sh Out/*
@@ -108,7 +102,7 @@ jobs:
       set -eu
       function run_build {
         # the disks on Azure Pipeline VMs are too small to build everything, so let's instead run tests
-        bash bxl.sh --use-dev $(BxlCommonArgs) $(BxlMatrixArgs) "/f:tag='test'"
+        bash bxl.sh --use-dev $(BxlCommonArgs) /logsDirectory:"Out/Logs/$(BxlMatrixName)" $(BxlMatrixArgs) "/f:tag='test'"
       }
 
       run_build || {

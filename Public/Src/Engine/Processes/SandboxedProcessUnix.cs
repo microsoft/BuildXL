@@ -107,7 +107,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// Full path to "bxl-env" executable to use instead of '/usr/bin/env' (because some old versions of 'env' do not support the '-C' option).
         /// </summary>
-        internal static readonly string EnvExecutable = EnsureDeploymentFile("bxl-env", setExecuteBit: true);
+        internal static readonly string EnvExecutable = OperatingSystemHelper.IsLinuxOS ? EnsureDeploymentFile("bxl-env", setExecuteBit: true) : "/usr/bin/env";
 
         internal static string EnsureDeploymentFile(string relativePath, bool setExecuteBit = false)
         {

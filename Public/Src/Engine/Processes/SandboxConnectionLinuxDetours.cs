@@ -504,25 +504,13 @@ namespace BuildXL.Processes
             return true;
         }
 
-        private static readonly string DetoursLibFile = EnsureDeploymentFile("libDetours.so");
-        private static readonly string AuditLibFile = EnsureDeploymentFile("libBxlAudit.so");
-
-        private static string EnsureDeploymentFile(string relativePath)
-        {
-            var deploymentDir = Path.GetDirectoryName(AssemblyHelper.GetThisProgramExeLocation());
-            var fullPath = Path.Combine(deploymentDir, relativePath);
-            if (!File.Exists(fullPath))
-            {
-                throw new ArgumentException($"Deployment file '{relativePath}' not found in '{deploymentDir}'");
-            }
-
-            return fullPath;
-        }
+        private static readonly string DetoursLibFile = SandboxedProcessUnix.EnsureDeploymentFile("libDetours.so");
+        private static readonly string AuditLibFile = SandboxedProcessUnix.EnsureDeploymentFile("libBxlAudit.so");
 
         /// <inheritdoc />
         public IEnumerable<(string, string)> AdditionalEnvVarsToSet(SandboxedProcessInfo info, string uniqueName)
         {
-            var detoursLibPath = CopyToRootJailIfNeeded(info.RootJailInfo?.RootJail, DetoursLibFile);
+            var detoursLibPath = info.RootJailInfo.CopyToRootJailIfNeeded(DetoursLibFile);
             (string fifoPath, string famPath, string debugLogPath) = GetPaths(info.RootJailInfo, uniqueName);
 
             yield return ("__BUILDXL_ROOT_PID", "1"); // CODESYNC: Public/Src/Sandbox/Linux/bxl_observer.hpp (temp solution for breakaway processes)
@@ -540,20 +528,8 @@ namespace BuildXL.Processes
 
             if (info.RootJailInfo?.DisableAuditing != true)
             {
-                yield return ("LD_AUDIT", CopyToRootJailIfNeeded(info.RootJailInfo?.RootJail, AuditLibFile) + ":" + info.EnvironmentVariables.TryGetValue("LD_AUDIT", string.Empty));
+                yield return ("LD_AUDIT", info.RootJailInfo.CopyToRootJailIfNeeded(AuditLibFile) + ":" + info.EnvironmentVariables.TryGetValue("LD_AUDIT", string.Empty));
             }
-        }
-
-        private static string CopyToRootJailIfNeeded(string rootJailDir, string file)
-        {
-            if (rootJailDir == null)
-            {
-                return file;
-            }
-
-            var basename = Path.GetFileName(file);
-            File.Copy(file, Path.Combine(rootJailDir, basename));
-            return "/" + basename;
         }
 
         private (string fifo, string fam, string log) GetPaths(RootJailInfo? rootJailInfo, string uniqueName)

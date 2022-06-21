@@ -76,8 +76,8 @@ allDep = $(allCpp:.cpp=.deps) $(allC:.c=.deps)
 	$(CXX) $(CXXFLAGS) $(RELFLAGS) -o $@ $<
 
 all: debug release
-debug: prep bin/debug/libDetours.so bin/debug/libBxlAudit.so bin/debug/libBxlUtils.so
-release: prep bin/release/libDetours.so bin/release/libBxlAudit.so bin/release/libBxlUtils.so
+debug: prep bin/debug/libDetours.so bin/debug/libBxlAudit.so bin/debug/libBxlUtils.so bin/debug/bxl-env
+release: prep bin/release/libDetours.so bin/release/libBxlAudit.so bin/release/libBxlUtils.so bin/release/bxl-env
 
 prep:
 	@mkdir -p bin/debug bin/release
@@ -99,6 +99,12 @@ bin/release/libBxlUtils.so: $(filter %.r.o, $(utilsObj))
 
 bin/debug/libBxlUtils.so: $(filter %.d.o, $(utilsObj))
 	$(CC) -shared $^ -o bin/debug/libBxlUtils.so
+
+bin/debug/bxl-env: bxl-env.c
+	$(CC) -fPIC $(DBGFLAGS) -o $@ $<
+
+bin/release/bxl-env: bxl-env.c
+	$(CC) -fPIC $(RELFLAGS) -o $@ $<
 
 -include $(allDep)
 

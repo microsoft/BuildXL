@@ -1,6 +1,7 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.IO;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
@@ -112,6 +113,24 @@ namespace BuildXL.Processes
             return jailRelativePath[0] == '/'
                 ? jailRelativePath
                 : "/" + jailRelativePath;
+        }
+
+        /// <summary>
+        /// If <see cref="RootJailInfo.RootJail" /> is not null, copies <paramref name="file"/> into the root of that directory
+        /// and returns the absolute path to that file as if the filesystem root were <see cref="RootJailInfo.RootJail" />;
+        /// otherwise, returns <paramref name="file"/>.
+        /// </summary>
+        public static string CopyToRootJailIfNeeded(this RootJailInfo? @this, string file)
+        {
+            string rootJailDir = @this?.RootJail;
+            if (rootJailDir == null)
+            {
+                return file;
+            }
+
+            var basename = Path.GetFileName(file);
+            File.Copy(file, Path.Combine(rootJailDir, basename));
+            return "/" + basename;
         }
     }
 }

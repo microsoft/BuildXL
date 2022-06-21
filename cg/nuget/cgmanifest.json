@@ -2868,7 +2868,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "RocksDbNative",
-          "Version": "6.10.2-b20220610.4"
+          "Version": "6.10.2-b20220621.2"
         }
       }
     },
@@ -2877,7 +2877,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "RocksDbSharp",
-          "Version": "6.10.2-b20220610.4"
+          "Version": "6.10.2-b20220621.2"
         }
       }
     },
@@ -4605,7 +4605,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "runtime.linux-x64.BuildXL",
-          "Version": "0.0.65"
+          "Version": "0.0.71"
         }
       }
     },

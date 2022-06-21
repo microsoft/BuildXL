@@ -105,9 +105,26 @@ namespace BuildXL.Processes
         internal const string ShellExecutable = "/bin/bash"; // /bin/sh doesn't support env vars that contain funky characters (e.g., [])
 
         /// <summary>
-        /// Full path to the standard "env" Unix program.
+        /// Full path to "bxl-env" executable to use instead of '/usr/bin/env' (because some old versions of 'env' do not support the '-C' option).
         /// </summary>
-        internal const string EnvExecutable = "/usr/bin/env";
+        internal static readonly string EnvExecutable = EnsureDeploymentFile("bxl-env", setExecuteBit: true);
+
+        internal static string EnsureDeploymentFile(string relativePath, bool setExecuteBit = false)
+        {
+            var deploymentDir = Path.GetDirectoryName(AssemblyHelper.GetThisProgramExeLocation());
+            var fullPath = Path.Combine(deploymentDir, relativePath);
+            if (!File.Exists(fullPath))
+            {
+                throw new ArgumentException($"Deployment file '{relativePath}' not found in '{deploymentDir}'");
+            }
+
+            if (setExecuteBit)
+            {
+                FileUtilities.TrySetExecutePermissionIfNeeded(fullPath);
+            }
+
+            return fullPath;
+        }
 
         /// <summary>
         /// Optional configuration for running this process in a root jail.
@@ -246,8 +263,9 @@ namespace BuildXL.Processes
                 }
                 // root jail directory
                 process.StartInfo.ArgumentList.Add(rootJailInfo.RootJail);
-                // inside the jail, run "env" to change into user-specified directory as well as to set environment variables before running user-specified program
-                process.StartInfo.ArgumentList.Add(EnvExecutable);
+                // inside the jail, run "bxl-env" to change into user-specified directory as well as to set environment variables before running user-specified program
+                // NOTE: -C <dir> must be the first two arguments, see bxl-env.c
+                process.StartInfo.ArgumentList.Add(info.RootJailInfo.CopyToRootJailIfNeeded(EnvExecutable));
                 // change directory into what the user specified
                 process.StartInfo.ArgumentList.Add("-C");
                 process.StartInfo.ArgumentList.Add(info.WorkingDirectory);

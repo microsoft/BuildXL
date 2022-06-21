@@ -19,8 +19,6 @@ BxlObserver* BxlObserver::GetInstance()
 
 BxlObserver::BxlObserver()
 {
-    char pidStr[20] = {0};
-
     empty_str_ = "";
     real_readlink("/proc/self/exe", progFullPath_, PATH_MAX);
 
@@ -30,8 +28,6 @@ BxlObserver::BxlObserver()
     // value of "1" -> special case, set by BuildXL for the root process
     if (rootPid_ == 1) {
         rootPid_ = getpid();
-        sprintf(pidStr, "%d", rootPid_);
-        setenv(BxlEnvRootPid, pidStr, /* replace */ 1);
     }
 
     InitLogFile();
@@ -558,8 +554,8 @@ char** BxlObserver::ensureEnvs(char *const envp[])
         char **newEnvp = remove_path_from_LDPRELOAD(envp, detoursLibFullPath_);
         newEnvp = ensure_env_value(newEnvp, BxlEnvFamPath, "");
         newEnvp = ensure_env_value(newEnvp, BxlEnvLogPath, "");
-        newEnvp = ensure_env_value(newEnvp, BxlEnvRootPid, "");
         newEnvp = ensure_env_value(newEnvp, BxlEnvDetoursPath, "");
+        newEnvp = ensure_env_value(newEnvp, BxlEnvRootPid, "");
         return newEnvp;
     }
     else
@@ -572,8 +568,8 @@ char** BxlObserver::ensureEnvs(char *const envp[])
 
         newEnvp = ensure_env_value_with_log(newEnvp, BxlEnvFamPath);
         newEnvp = ensure_env_value_with_log(newEnvp, BxlEnvLogPath);
-        newEnvp = ensure_env_value_with_log(newEnvp, BxlEnvRootPid);
         newEnvp = ensure_env_value_with_log(newEnvp, BxlEnvDetoursPath);
+        newEnvp = ensure_env_value(newEnvp, BxlEnvRootPid, "");
 
         return newEnvp;
     }

@@ -538,6 +538,74 @@ namespace IntegrationTest.BuildXL.Scheduler.IncrementalSchedulingTests
         }
 
         [Fact]
+        public void SourceChangeEnsuresDirectDirty()
+        {
+            // Graph: f <- P1 <- g <- P2 <- h <- P3 <- j
+            //                                   |
+            //                              i <--+
+            
+            FileArtifact f = CreateSourceFile();
+            FileArtifact i = CreateSourceFile();
+            FileArtifact g = CreateOutputFileArtifact();
+            FileArtifact h = CreateOutputFileArtifact();
+            FileArtifact j = CreateOutputFileArtifact();
+
+            Process p1 = CreateAndSchedulePipBuilder(new Operation[]
+            {
+                Operation.ReadFile(f),
+                Operation.WriteFile(g, nameof(g))
+            }).Process;
+
+            Process p2 = CreateAndSchedulePipBuilder(new Operation[]
+            {
+                Operation.ReadFile(g),
+                Operation.WriteFile(h, nameof(h))
+            }).Process;
+
+            Process p3 = CreateAndSchedulePipBuilder(new Operation[]
+            {
+                Operation.ReadFile(h),
+                Operation.ReadFile(i),
+                Operation.WriteFile(j)
+            }).Process;
+
+            RunScheduler()
+                .AssertScheduled(p1.PipId, p2.PipId, p3.PipId)
+                .AssertCacheMiss(p1.PipId, p2.PipId, p3.PipId);
+
+            // Because f is modified, P1 should be direct dirty during the scheduling phase.
+            // P2 and P3 will be marked dirty (but materialized).
+            ModifyFile(f);
+
+            // Force P3 to be marked direct dirty during the scheduling phase.
+            ModifyFile(i);
+
+            // During the execution phase, P2 will also be a direct dirty because P1 executed. Since P1 produces
+            // the same output as before, P2 will have a cache hit, and has its output up-to-date, thus P3 is not marked
+            // direct direct during the execution phase. However, since i is modified, then it should be a direct dirty, and P3 should
+            // execute.
+
+            var testHooks = new SchedulerTestHooks()
+            {
+                IncrementalSchedulingStateAfterJournalScanAction = iss =>
+                {
+                    // P2 is dirty but materialized because none of its input has changed.
+                    XAssert.IsTrue(iss.DirtyNodeTracker.IsNodeMaterialized(p2.PipId.ToNodeId()));
+                    XAssert.IsTrue(iss.DirtyNodeTracker.IsNodeDirty(p2.PipId.ToNodeId()));
+
+                    // P3 should be a direct dirty because it's direct dependency, i.e., i, is modified.
+                    XAssert.IsFalse(iss.DirtyNodeTracker.IsNodeMaterialized(p3.PipId.ToNodeId()));
+                    XAssert.IsTrue(iss.DirtyNodeTracker.IsNodeDirty(p3.PipId.ToNodeId()));
+                }
+            };
+            RunScheduler(testHooks)
+                .AssertScheduled(p1.PipId, p2.PipId, p3.PipId)
+                .AssertCacheMiss(p1.PipId, p3.PipId)
+                .AssertCacheHit(p2.PipId)
+                .AssertPipResultStatus((p2.PipId, PipResultStatus.UpToDate)); // P2 is a cache hit, and its output, h, is up-to-date.
+        }
+
+        [Fact]
         public void IncrementalSchedulingIsRobustAgainstFileCreationMidBuild()
         {
             var directoryPath = CreateUniqueDirectory(ReadonlyRoot);

@@ -828,57 +828,57 @@ namespace BuildXL.Scheduler.IncrementalScheduling
             ChangedPathKind pathChangeKind,
             long changeTypeCount)
         {
-                if (m_nodesToDirectDirty.Add(maybeImpactedNode))
+            if (m_nodesToDirectDirty.Add(maybeImpactedNode))
+            {
+                // Hash source file pips never make it into the scheduler,
+                // so the immediate consumers of them must be marked as non-materialized as well to ensure they are not skipped.
+                if (PipGraph.PipTable.GetPipType(maybeImpactedNode.ToPipId()) == PipType.HashSourceFile)
                 {
-                    // Hash source file pips never make it into the scheduler,
-                    // so the immediate consumers of them must be marked as non-materialized as well to ensure they are not skipped.
-                    if (PipGraph.PipTable.GetPipType(maybeImpactedNode.ToPipId()) == PipType.HashSourceFile)
+                    foreach (var edge in PipGraph.DirectedGraph.GetOutgoingEdges(maybeImpactedNode))
                     {
-                        foreach (var edge in PipGraph.DirectedGraph.GetOutgoingEdges(maybeImpactedNode))
-                        {
-                            m_nodesToDirectDirty.Add(edge.OtherNode);
-                        }
-                    }
-
-                    if (changeTypeCount <= MaxMessagesPerChangeType)
-                    {
-                        var dirtyPipType = PipGraph.PipTable.GetPipType(maybeImpactedNode.ToPipId());
-                        var dirtyPipSemiStableHash = PipGraph.PipTable.GetPipSemiStableHash(maybeImpactedNode.ToPipId());
-                        string reason = null;
-
-                        switch (pathChangeKind)
-                        {
-                            case ChangedPathKind.StaticArtifact:
-                                reason = I($"File/Directory '{changedPath}' changed");
-                                break;
-                            case ChangedPathKind.DynamicallyObservedPath:
-                                reason = I($"Dynamically observed read file '{changedPath}' changed");
-                                break;
-                            case ChangedPathKind.DynamicallyProbedPath:
-                                reason = I($"Dynamically observed probed file '{changedPath}' changed");
-                                break;
-                            case ChangedPathKind.DynamicallyObservedPathEnumeration:
-                                reason = I($"Dynamically observed directory '{changedPath}' had membership change");
-                                break;
-                            default:
-                                Contract.Assert(false);
-                                break;
-                        }
-
-                        if (dirtyPipType == PipType.HashSourceFile)
-                        {
-                            Tracing.Logger.Log.IncrementalSchedulingSourceFileIsDirty(m_loggingContext, reason, pathChangeReasons.ToString());
-                        }
-                        else
-                        {
-                            Tracing.Logger.Log.IncrementalSchedulingPipIsDirty(
-                                m_loggingContext,
-                                dirtyPipSemiStableHash,
-                                reason,
-                                pathChangeReasons.ToString());
-                        }
+                        m_nodesToDirectDirty.Add(edge.OtherNode);
                     }
                 }
+
+                if (changeTypeCount <= MaxMessagesPerChangeType)
+                {
+                    var dirtyPipType = PipGraph.PipTable.GetPipType(maybeImpactedNode.ToPipId());
+                    var dirtyPipSemiStableHash = PipGraph.PipTable.GetPipSemiStableHash(maybeImpactedNode.ToPipId());
+                    string reason = null;
+
+                    switch (pathChangeKind)
+                    {
+                        case ChangedPathKind.StaticArtifact:
+                            reason = I($"File/Directory '{changedPath}' changed");
+                            break;
+                        case ChangedPathKind.DynamicallyObservedPath:
+                            reason = I($"Dynamically observed read file '{changedPath}' changed");
+                            break;
+                        case ChangedPathKind.DynamicallyProbedPath:
+                            reason = I($"Dynamically observed probed file '{changedPath}' changed");
+                            break;
+                        case ChangedPathKind.DynamicallyObservedPathEnumeration:
+                            reason = I($"Dynamically observed directory '{changedPath}' had membership change");
+                            break;
+                        default:
+                            Contract.Assert(false);
+                            break;
+                    }
+
+                    if (dirtyPipType == PipType.HashSourceFile)
+                    {
+                        Tracing.Logger.Log.IncrementalSchedulingSourceFileIsDirty(m_loggingContext, reason, pathChangeReasons.ToString());
+                    }
+                    else
+                    {
+                        Tracing.Logger.Log.IncrementalSchedulingPipIsDirty(
+                            m_loggingContext,
+                            dirtyPipSemiStableHash,
+                            reason,
+                            pathChangeReasons.ToString());
+                    }
+                }
+            }
         }
 
         #endregion Journal scanning
@@ -2021,7 +2021,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
                                 cleanSourceFiles,
                                 pipOrigins))
                         {
-                            // If pip is still clean, it may only be tentatively clean because it can be made dirtied later.
+                            // If pip is still clean, it may only be tentatively clean because it can be made dirty later.
                             nodesTentativelyClean.TryAdd(pipId.ToNodeId(), true);
 
                             if (materializedPips.Contains(pipStableIdAndPipGraphSequenceNumber.Key))

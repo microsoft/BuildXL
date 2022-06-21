@@ -12,6 +12,7 @@ using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
+using BuildXL.Pips;
 
 namespace IntegrationTest.BuildXL.Scheduler.IncrementalSchedulingTests
 {
@@ -735,57 +736,83 @@ namespace IntegrationTest.BuildXL.Scheduler.IncrementalSchedulingTests
         }
 
         [Fact]
-        public void DirectDirtyGraphChange()
+        public void SourceChangeEnsureDirectDirtyInPresenceOfGraphChange()
         {
-            // Graph G1: f <- C2 <- h <- C4 <- j <- C5 <- k
-            // Graph G1:                       l <- C5
-            // Graph G2: g <- C3 <- h <- C4 <- j <- C5 <- k
-            // Graph G2:                       l <- C5
-            // When we switch to G2, then C3 gets marked direct dirty, causing C4 and C5 to be marked dirty
-            // If we also modify "l", then C4 needs to be marked direct dirty.
-
+            // Graph G1: f <- C1 <- h <- P1 <- i <- P2 <- j <- P3 <- k
+            //                                                 |
+            //                                            l <--+ 
+            //
+            // Graph G2: g <- C2 <- h <- P1 <- i <- P2 <- j <- P3 <- k
+            //                                                 |
+            //                                            l <--+ 
+            
             // Start with G1.
             FileArtifact f = CreateSourceFile();
-            FileArtifact l = CreateSourceFile();
-            AbsolutePath h = CreateUniqueObjPath("copy_h");
+            FileArtifact h = CreateOutputFileArtifact();
+            FileArtifact i = CreateOutputFileArtifact();
             FileArtifact j = CreateOutputFileArtifact();
+            FileArtifact l = CreateSourceFile();
             FileArtifact k = CreateOutputFileArtifact();
 
-            var hFileArtifact = CopyFile(f, h);
-            NodeId c2 = GetProducerNode(hFileArtifact);
-            var c4Operations = new Operation[] { Operation.ReadFile(hFileArtifact), Operation.WriteFile(j) };
-            Process c4 = CreateAndSchedulePipBuilder(c4Operations).Process;
-            var c5Operations = new Operation[] { Operation.ReadFile(j), Operation.ReadFile(l), Operation.WriteFile(k) };
-            Process c5 = CreateAndSchedulePipBuilder(c5Operations).Process;
+            CopyFile c1 = CreateAndScheduleCopyFile(f, h);
+            var p1Ops = new Operation[] { Operation.ReadFile(h), Operation.WriteFile(i, nameof(i)) };
+            Process p1 = CreateAndSchedulePipBuilder(p1Ops).Process;
+            var p2Ops = new Operation[] { Operation.ReadFile(i), Operation.WriteFile(j) };
+            Process p2 = CreateAndSchedulePipBuilder(p2Ops).Process;
+            var p3Ops = new Operation[] { Operation.ReadFile(j), Operation.ReadFile(l), Operation.WriteFile(k) };
+            Process p3 = CreateAndSchedulePipBuilder(p3Ops).Process;
 
-            RunScheduler().AssertScheduled(c2.ToPipId(), c4.PipId, c5.PipId);
+            RunScheduler()
+                .AssertScheduled(c1.PipId, p1.PipId, p2.PipId, p3.PipId)
+                .AssertCacheMiss(p1.PipId, p2.PipId, p3.PipId);
 
             // Switch to G2.
+            // h's producer has changed from C1 to C2. Because its dependency changes, P1 is marked dirty when processing graph change.
+            // Currently graph-agnostic IS does not distinguish the kinds of dependency that causes P1 to be dirty, so to be safe,
+            // graph-agnostic IS simply marks P1 as direct dirty, i.e., it's dirty and no longer materialized.
+            // However, during graph change processing, P2 and P3 are only marked dirty, but they are still considered materialized.
             ResetPipGraphBuilder();
 
             FileArtifact g = CreateSourceFile();
-            hFileArtifact = CopyFile(g, h);
-            NodeId c3 = GetProducerNode(hFileArtifact);
-            c4Operations = new Operation[] { Operation.ReadFile(hFileArtifact), Operation.WriteFile(j) };
-            c4 = CreateAndSchedulePipBuilder(c4Operations).Process;
-            c5Operations = new Operation[] { Operation.ReadFile(j), Operation.ReadFile(l), Operation.WriteFile(k) };
-            c5 = CreateAndSchedulePipBuilder(c5Operations).Process;
 
-            // Modifying this file at one point would cause c5 to not be direct dirtied because it would already be marked dirty from the change in graph.
-            // We verify below that it is in fact not materialized.
+            CopyFile c2 = CreateAndScheduleCopyFile(g, h);
+            p1 = CreateAndSchedulePipBuilder(p1Ops).Process;
+            p2 = CreateAndSchedulePipBuilder(p2Ops).Process;
+            p3 = CreateAndSchedulePipBuilder(p3Ops).Process;
+
+            
+            // By modifying l, we want to ensure that P3 is no longer materialized.
             ModifyFile(l);
 
-            RunScheduler(
-                new global::BuildXL.Scheduler.SchedulerTestHooks()
+            var testHooks = new global::BuildXL.Scheduler.SchedulerTestHooks()
+            {
+                IncrementalSchedulingStateAfterJournalScanAction = iss =>
                 {
-                    IncrementalSchedulingStateAfterJournalScanAction = iss =>
-                    {
-                        XAssert.IsFalse(iss.DirtyNodeTracker.IsNodeMaterialized(c4.PipId.ToNodeId()), "C4 is not supposed to be materialized but is.");
-                        XAssert.IsTrue(iss.DirtyNodeTracker.IsNodeDirty(c4.PipId.ToNodeId()));
-                        XAssert.IsTrue(iss.DirtyNodeTracker.IsNodeDirty(c5.PipId.ToNodeId()));
-                        XAssert.IsFalse(iss.DirtyNodeTracker.IsNodeMaterialized(c5.PipId.ToNodeId()), "C5 is not supposed to be materialized but is.");
-                    }
-                }).AssertScheduled(c4.PipId);
+                    // P1 is direct dirty (dirty & not materialized).
+                    XAssert.IsTrue(iss.DirtyNodeTracker.IsNodeDirty(p1.PipId.ToNodeId()));
+                    XAssert.IsFalse(iss.DirtyNodeTracker.IsNodeMaterialized(p1.PipId.ToNodeId()));
+
+                    // P3 is direct dirty (dirty & not materialized).
+                    XAssert.IsTrue(iss.DirtyNodeTracker.IsNodeDirty(p3.PipId.ToNodeId()));
+                    // Commit 74c5007c6dd5348c43a5b9af4d623d2e2e5dfd8d fixes the assertion below.
+                    // Basically the bug fixed by the commit made incremental scheduling, during file change processing,
+                    // unable to marked direct dirty a node that has only been marked dirty during graph change processing.
+                    // As a result, although l changes, since (1) P2 will have a cache hit and determined up-to-date, and
+                    // (2) P3 is materialized, P3 will be skipped during the execution phase, which clearly is
+                    // an underbuild.
+                    XAssert.IsFalse(iss.DirtyNodeTracker.IsNodeMaterialized(p3.PipId.ToNodeId()));
+
+                    // P2 is only dirty, but materialized.
+                    XAssert.IsTrue(iss.DirtyNodeTracker.IsNodeDirty(p2.PipId.ToNodeId()));
+                    XAssert.IsTrue(iss.DirtyNodeTracker.IsNodeMaterialized(p2.PipId.ToNodeId()));
+                }
+            };
+
+            RunScheduler(testHooks)
+                .AssertScheduled(c2.PipId, p1.PipId, p2.PipId, p3.PipId)
+                .AssertCacheMiss(p1.PipId, p3.PipId)
+                .AssertCacheHit(p2.PipId)
+                .AssertPipResultStatus((p2.PipId, PipResultStatus.UpToDate));
         }
 
         [Fact]

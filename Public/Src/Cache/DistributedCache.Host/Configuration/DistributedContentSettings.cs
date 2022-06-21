@@ -1,9 +1,11 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+
 using System;
 using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
+using System.ComponentModel;
+using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Runtime.Serialization;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling;
@@ -1320,6 +1322,9 @@ namespace BuildXL.Cache.Host.Configuration
 
         [DataMember]
         public LocalLocationStoreSettings LocationStoreSettings { get; set; } = new();
+
+        [DataMember]
+        public RocksDbPerformanceSettings RocksDbPerformanceSettings { get; set; } = null;
     }
 
     public enum DatabaseValidationMode
@@ -1357,6 +1362,160 @@ namespace BuildXL.Cache.Host.Configuration
         /// Respect skip register and register associated content hints
         /// </summary>
         SkipAndRegisterAssociatedContent = 1 << 1 | RegisterAssociatedContent
+    }
+
+    /// <summary>
+    /// Represents a setting for configuring degree of parallelism that can be set as a multiplier based on the number of cores
+    /// or as an explicit number of threads.
+    /// </summary>
+    /// <remarks>
+    /// Essentially, this is a union between (int ThreadCount) | (double ProcessorCountMultiplier).
+    ///
+    /// This setting is also converting to and from a string.
+    /// Examples: "concurrency": "42", or "concurrency": "1x", or "concurrency": 0.5x
+    /// </remarks>
+    [TypeConverter(typeof(StringConvertibleConverter))]
+    public record struct DegreeOfParallelism : IStringConvertibleSetting
+    {
+        /// <summary>
+        /// Gets and sets an explicit number of threads.
+        /// </summary>
+        public int? ThreadCount { get; set; }
+
+        /// <summary>
+        /// Gets and sets the multiplier that is used to compute the final thread count based on the number of cores.
+        /// </summary>
+        public double? ProcessorCountMultiplier { get; set; }
+
+        /// <inheritdoc />
+        public string ConvertToString()
+        {
+            if (ThreadCount != null)
+            {
+                return $"{ThreadCount}t";
+            }
+
+            Contract.Assert(ProcessorCountMultiplier != null, $"Either {nameof(ThreadCount)} or {nameof(ProcessorCountMultiplier)} should not be null.");
+
+            // Like: '42x'
+            return $"{ProcessorCountMultiplier:F3}x";
+        }
+
+        /// <inheritdoc />
+        public object ConvertFromString(string value)
+        {
+            if (value.EndsWith("x"))
+            {
+                if (double.TryParse(value.Substring(0, value.Length - 1), out var multiplier))
+                {
+                    return new DegreeOfParallelism {ProcessorCountMultiplier = multiplier};
+                }
+
+                throw new FormatException($"Can't parse '{value}' into '{nameof(DegreeOfParallelism)}' type.");
+            }
+
+            if (value.EndsWith("t"))
+            {
+                if (int.TryParse(value.Substring(0, value.Length - 1), out var threadCount))
+                {
+                    return new DegreeOfParallelism { ThreadCount = threadCount };
+                }
+
+                throw new FormatException($"Can't parse '{value}' into '{nameof(DegreeOfParallelism)}' type.");
+            }
+
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// A set of performance tuning options for RocksDb.
+    /// </summary>
+    public record RocksDbPerformanceSettings
+    {
+        /// <summary>
+        /// Gets and sets the degree of parallelism for the RocksDb background compaction process.
+        /// </summary>
+        public DegreeOfParallelism? CompactionDegreeOfParallelism { get; set; }
+
+        /// <summary>
+        /// Gets and sets the max number of background compaction jobs.
+        /// </summary>
+        public int? MaxBackgroundCompactions { get; set; }
+
+        /// <nodoc />
+        public int? MaxBackgroundFlushes { get; set; }
+
+        /// <nodoc />
+        public int? MaxSubCompactions { get; set; } // Not used for now. Needs to be exposed in RocksDbSharp layer first.
+
+        public Dictionary<string, RocksDbColumnFamilyPerformanceSettings> ColumnFamilySettings { get; set; } = new Dictionary<string, RocksDbColumnFamilyPerformanceSettings>();
+    }
+
+    public record RocksDbColumnFamilyPerformanceSettings
+    {
+        /// <nodoc />
+        public int? ColumnFamilyWriteBufferSize { get; init; } //64Mb by default
+
+        /// <nodoc />
+        public int? ColumnFamilyLevel0StopWritesTrigger { get; init; }
+
+        /// <nodoc />
+        public int? ColumnFamilyLevel0SlowdownWritesTrigger { get; init; }
+
+        /// <nodoc />
+        public int? MaxBytesForLevelBase { get; init; }
+    }
+
+    public enum CheckpointDistributionModes
+    {
+        /// <summary>
+        /// Initial mode
+        ///
+        /// LLS
+        /// Checkpoint storage: DistributedCentralStorage
+        /// Checkpoint registry: Blob
+        /// Checkpoint manifest format: Key=Value (line-delimited)
+        /// DistributedCentralStorage.LocationStore: LLS
+        ///
+        /// GCS
+        /// Checkpoint storage: CachingCentralStorage
+        /// Checkpoint registry: As configured (RedisWriteAheadEventStorage, AzureBlobStorageCheckpointRegistry)
+        /// Checkpoint manifest format: Key=Value (line-delimited)
+        /// </summary>
+        Legacy,
+
+        /// <summary>
+        /// Transitional state in preparation for switching to proxy mode
+        ///
+        /// LLS
+        /// Checkpoint storage: DistributedCentralStorage
+        /// Checkpoint registry: Blob
+        /// Checkpoint manifest format: Json
+        /// DistributedCentralStorage.LocationStore: LLS
+        ///
+        /// GCS
+        /// Checkpoint storage: CachingCentralStorage
+        /// Checkpoint registry: Transitional if prior state was RedisWriteAheadEventStorage
+        /// Checkpoint manifest format: Json
+        /// </summary>
+        Transitional,
+
+        /// <summary>
+        /// Mode where locations for checkpoints are centrally registry in blob storage and copy chain forms a tree.
+        ///
+        /// LLS
+        /// Checkpoint storage: DistributedCentralStorage
+        /// Checkpoint registry: Blob
+        /// Checkpoint manifest format: Json
+        /// DistributedCentralStorage.LocationStore: LLS
+        ///
+        /// GCS
+        /// Checkpoint storage: CachingCentralStorage
+        /// Checkpoint registry: Blob
+        /// Checkpoint manifest format: Json
+        /// </summary>
+        Proxy,
     }
 
     /// <nodoc />

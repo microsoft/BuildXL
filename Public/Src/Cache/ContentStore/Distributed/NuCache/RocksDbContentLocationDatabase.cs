@@ -1,7 +1,6 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
@@ -22,11 +21,13 @@ using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore.Sketching;
 using BuildXL.Cache.ContentStore.Utils;
+using BuildXL.Cache.Host.Configuration;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Engine.Cache.KeyValueStores;
 using BuildXL.Native.IO;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.ConfigurationHelpers;
 using BuildXL.Utilities.Serialization;
 using BuildXL.Utilities.Tasks;
 using RocksDbSharp;
@@ -183,6 +184,30 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return _configuration.Epoch != epoch;
         }
 
+        private static RocksDbPerformanceConfiguration ToKeyValueStoreSettings(Host.Configuration.RocksDbPerformanceSettings configuration)
+        {
+            var result = new RocksDbPerformanceConfiguration();
+
+            result = (configuration.CompactionDegreeOfParallelism?.ProcessorCountMultiplier).ApplyIfNotNull(result, static (result, value) => result with { BackgroundCompactionCoreMultiplier = value});
+            result = (configuration.CompactionDegreeOfParallelism?.ThreadCount).ApplyIfNotNull(result, static (result, value) => result with { BackgroundCompactionThreadCount = value});
+            result = configuration.MaxBackgroundCompactions.ApplyIfNotNull(result, static (result, value) => result with { MaxBackgroundCompactions = value});
+            result = configuration.MaxBackgroundFlushes.ApplyIfNotNull(result, static (result, value) => result with { MaxBackgroundFlushes = value});
+            result = configuration.MaxSubCompactions.ApplyIfNotNull(result, static (result, value) => result with { MaxSubCompactions = value});
+
+            result = result with { ColumnFamilyPerformanceSettings = configuration.ColumnFamilySettings.ToDictionary(static kvp => kvp.Key, static kvp => fromSettings(kvp.Value)) };
+            return result;
+
+            static ColumnFamilyPerformanceConfiguration fromSettings(RocksDbColumnFamilyPerformanceSettings settings)
+            {
+                var r = new ColumnFamilyPerformanceConfiguration();
+                r = settings.ColumnFamilyLevel0SlowdownWritesTrigger.ApplyIfNotNull(r, static (r, value) => r with { ColumnFamilyLevel0SlowdownWritesTrigger = value });
+                r = settings.ColumnFamilyLevel0StopWritesTrigger.ApplyIfNotNull(r, static (r, value) => r with { ColumnFamilyLevel0StopWritesTrigger = value });
+                r = settings.ColumnFamilyWriteBufferSize.ApplyIfNotNull(r, static (r, value) => r with { ColumnFamilyWriteBufferSize = value });
+                r = settings.MaxBytesForLevelBase.ApplyIfNotNull(r, static (r, value) => r with { MaxBytesForLevelBase = value });
+                return r;
+            }
+        }
+
         private BoolResult Load(OperationContext context, StoreSlot activeSlot, bool clean)
         {
             try
@@ -243,6 +268,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                             (key, value1, value2, result) =>
                                 MergeContentLocationEntries(mergeContext, value1, value2, result))
                         );
+                }
+
+                Tracer.Debug(context, $"RocksDb performance settings: {(_configuration.RocksDbPerformanceSettings?.ToString() ?? "null")}");
+                if (_configuration.RocksDbPerformanceSettings != null)
+                {
+                    // Tracing the perf configuration separately to make sure the final settings are correct and there is no issue in the configuration translation layer.
+                    settings.PerformanceConfiguration = ToKeyValueStoreSettings(_configuration.RocksDbPerformanceSettings);
+                    Tracer.Debug(context, $"RocksDb-level performance settings: {settings.PerformanceConfiguration}");
                 }
 
                 var possibleStore = KeyValueStoreAccessor.Open(

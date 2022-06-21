@@ -254,6 +254,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public bool UseMergeOperatorForContentLocations { get; set; } = false;
 
         /// <nodoc />
+        public RocksDbPerformanceSettings? RocksDbPerformanceSettings { get; set; } = null;
+
+        /// <nodoc />
         public static RocksDbContentLocationDatabaseConfiguration FromDistributedContentSettings(
             DistributedContentSettings settings,
             AbsolutePath databasePath,
@@ -268,6 +271,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 MetadataGarbageCollectionEnabled = settings.EnableDistributedCache,
                 LogsBackupPath = logsBackupPath,
             };
+
+            configuration.RocksDbPerformanceSettings = settings.RocksDbPerformanceSettings;
 
             ApplyIfNotNull(settings.TraceNoStateChangeDatabaseOperations, v => configuration.TraceNoStateChangeOperations = v);
 

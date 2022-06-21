@@ -132,6 +132,8 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             m_storeDirectory = configuration.StoreDirectory;
             m_openBulkLoad = configuration.OpenBulkLoad;
 
+            var performanceConfiguration = configuration.PerformanceConfiguration;
+
             m_defaults.DbOptions = new DbOptions()
                 .SetCreateIfMissing(true)
                 .SetCreateMissingColumnFamilies(true)
@@ -139,18 +141,22 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                 // the system. The number of cores in the system is what we want here according to official docs,
                 // and we are setting this to the number of logical processors, which may be higher.
                 // See: https://github.com/facebook/rocksdb/wiki/RocksDB-Tuning-Guide#parallelism-options
-#if !PLATFORM_OSX
-                .SetMaxBackgroundCompactions(Environment.ProcessorCount)
-                .SetMaxBackgroundFlushes(1)
-#else
-                // The memtable uses significant chunks of available system memory on macOS, we increase the number
-                // of background flushing threads (low priority) and set the DB write buffer size. This allows for
-                // up to 128 MB in memtables across all column families before we flush to disk.
-                .SetMaxBackgroundCompactions(Environment.ProcessorCount / 4)
-                .SetMaxBackgroundFlushes(Environment.ProcessorCount / 4)
-                .SetDbWriteBufferSize(128 << 20)
-#endif
-                .IncreaseParallelism(Environment.ProcessorCount / 2);
+                .SetMaxBackgroundCompactions(performanceConfiguration.MaxBackgroundCompactions)
+                .SetMaxBackgroundFlushes(performanceConfiguration.MaxBackgroundFlushes)
+                // We don't have a separate setting to change 'Environment.SetBackgroundThreads', because 
+                // IncreaseParallelism DBOptions::IncreaseParallelism that does the following:
+                // DBOptions* DBOptions::IncreaseParallelism(int total_threads) {
+                //   max_background_jobs = total_threads;
+                //   env->SetBackgroundThreads(total_threads, Env::LOW);
+                //   env->SetBackgroundThreads(1, Env::HIGH);
+                //   return this;
+                // }
+                .IncreaseParallelism(performanceConfiguration.GetBackgroundCompactionActualThreadCount());
+
+            if (performanceConfiguration.DbWriteBufferSize is { } dbWriteBufferSize)
+            {
+                m_defaults.DbOptions.SetDbWriteBufferSize(dbWriteBufferSize);
+            }
 
             if (configuration.EnableStatistics)
             {
@@ -229,9 +235,35 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                     .SetPrefixExtractor(SliceTransform.CreateNoOp())
                     .SetLevelCompactionDynamicLevelBytes(configuration.LeveledCompactionDynamicLevelTargetSizes);
 
-                if (configuration.Compression != null)
+                ColumnFamilyPerformanceConfiguration? perfConfiguration = null;
+                if (name != null)
                 {
-                    options.SetCompression(configuration.Compression.Value);
+                    configuration.PerformanceConfiguration.ColumnFamilyPerformanceSettings?.TryGetValue(name, out perfConfiguration);
+                }
+
+                if (perfConfiguration?.ColumnFamilyWriteBufferSize is { } bufferSize)
+                {
+                    options.SetWriteBufferSize((uint)bufferSize);
+                }
+
+                if (perfConfiguration?.ColumnFamilyLevel0StopWritesTrigger is { } level0StopWrites)
+                {
+                    options.SetLevel0StopWritesTrigger(level0StopWrites);
+                }
+
+                if (perfConfiguration?.ColumnFamilyLevel0SlowdownWritesTrigger is { } level0SlowdownWrites)
+                {
+                    options.SetLevel0SlowdownWritesTrigger(level0SlowdownWrites);
+                }
+
+                if (perfConfiguration?.MaxBytesForLevelBase is { } maxBytesForLevelBase)
+                {
+                    options.SetMaxBytesForLevelBase((ulong)maxBytesForLevelBase);
+                }
+
+                if (configuration.Compression is { } compression)
+                {
+                    options.SetCompression(compression);
                 }
 
                 if (configuration.MergeOperators?.TryGetValue(name ?? ColumnFamilies.DefaultName, out var mergeOperator) == true)

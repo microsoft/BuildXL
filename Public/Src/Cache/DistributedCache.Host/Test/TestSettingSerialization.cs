@@ -30,6 +30,24 @@ namespace BuildXL.Cache.Host.Configuration.Test
         }
 
         [Fact]
+        public void SerializeWithConcurrencySettings()
+        {
+            var dcs = DistributedContentSettings.CreateDisabled();
+            dcs.RocksDbPerformanceSettings = new RocksDbPerformanceSettings()
+            {
+                CompactionDegreeOfParallelism = new DegreeOfParallelism() { ThreadCount = 42 }
+            };
+
+            TestSerializationRoundTrip(dcs);
+
+            dcs.RocksDbPerformanceSettings = new RocksDbPerformanceSettings()
+                                             {
+                                                 CompactionDegreeOfParallelism = new DegreeOfParallelism() { ProcessorCountMultiplier = 0.45}
+                                             };
+            TestSerializationRoundTrip(dcs);
+        }
+
+        [Fact]
         public void RetryIntervalForCopiesNull()
         {
             var dcs = DistributedContentSettings.CreateDisabled();

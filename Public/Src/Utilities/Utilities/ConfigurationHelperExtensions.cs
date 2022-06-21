@@ -3,6 +3,8 @@
 
 using System;
 
+#nullable enable
+
 namespace BuildXL.Utilities.ConfigurationHelpers
 {
     /// <summary>
@@ -18,8 +20,20 @@ namespace BuildXL.Utilities.ConfigurationHelpers
     public static class ConfigurationHelperExtensions
     {
         /// <nodoc />
-        public static void ApplyIfNotNull<T>(this T value, Action<T> apply)
+        public static void ApplyIfNotNull<T>(this T? value, Action<T> apply)
             where T : class => ConfigurationHelper.ApplyIfNotNull(value, apply);
+        
+        /// <nodoc />
+        public static TResult ApplyIfNotNull<TResult, TValue>(this TValue? value, TResult result, Func<TResult, TValue, TResult> apply)
+            where TValue : struct
+        {
+            if (value is not null)
+            {
+                return apply(result, value.Value);
+            }
+
+            return result;
+        }
 
         /// <nodoc />
         public static void ApplyIfNotNull<T>(this T? value, Action<T> apply)

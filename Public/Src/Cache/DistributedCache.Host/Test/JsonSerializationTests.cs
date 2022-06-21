@@ -42,7 +42,14 @@ namespace BuildXL.Cache.Host.Test
         [Fact]
         public void TestStringConvertibleSettings()
         {
-            var serialized = @"{ 'Mode': 'WriteBothPreferDistributed', 'TimeThreshold': '3d5h10m42s', 'Bytes': '6pb7t2gb30mb4kb5b' }"
+            var serialized = @"
+{
+    'Mode': 'WriteBothPreferDistributed',
+    'TimeThreshold': '3d5h10m42s',
+    'Bytes': '6pb7t2gb30mb4kb5b',
+    'DoP': '0.512x',
+    'DoP2': '136t',
+}"
                 .Replace('\'', '"'); ;
 
             var deserialized = DeploymentUtilities.JsonDeserialize<TestConfig>(serialized);
@@ -65,6 +72,9 @@ namespace BuildXL.Cache.Host.Test
             Assert.Equal(ContentMetadataStoreMode.WriteBothPreferDistributed, deserializedWithNulls.Mode.Value.Value);
             Assert.Equal(expectedTimeThreshold, deserializedWithNulls.TimeThreshold.Value.Value);
             Assert.Equal(expectedBytes, deserializedWithNulls.Bytes.Value.Value);
+
+            Assert.Equal((decimal)0.512, (decimal)deserialized.DoP.ProcessorCountMultiplier.Value, 3);
+            Assert.Equal(136, deserialized.DoP2.ThreadCount);
         }
 
         public class TestConfig
@@ -77,6 +87,12 @@ namespace BuildXL.Cache.Host.Test
 
             [DataMember]
             public ByteSizeSetting Bytes { get; set; }
+
+            [DataMember]
+            public DegreeOfParallelism DoP { get; set; }
+
+            [DataMember]
+            public DegreeOfParallelism DoP2 { get; set; }
         }
 
         public class TestConfigWithNulls

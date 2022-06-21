@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Text;
 using BuildXL.Utilities.Collections;
 using RocksDbSharp;
 
@@ -159,5 +160,142 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         /// but still exist in the database.
         /// </remarks>
         public bool UseReadOptionsWithSetTotalOrderSeekInGarbageCollection { get; init; } = true;
+
+        /// <nodoc />
+        public RocksDbPerformanceConfiguration PerformanceConfiguration { get; set; } = new RocksDbPerformanceConfiguration();
+    }
+
+    /// <summary>
+    /// A set of performance tuning options for RocksDb.
+    /// </summary>
+    public record RocksDbPerformanceConfiguration
+    {
+        /// <summary>
+        /// Column family-specific performance options.
+        /// </summary>
+        public IReadOnlyDictionary<string, ColumnFamilyPerformanceConfiguration>? ColumnFamilyPerformanceSettings { get; init; }
+
+        /// <summary>
+        /// Gets and sets the number of background threads for flush and compaction.
+        /// </summary>
+        /// <remarks>
+        /// This option takes precedence over <see cref="BackgroundCompactionCoreMultiplier"/>.
+        /// </remarks>
+        public int? BackgroundCompactionThreadCount { get; set; }
+
+        /// <summary>
+        /// Gets and sets the multiplier to compute the degree of parallelism based on the number of cores.
+        /// </summary>
+        /// <remarks>
+        /// This option is used only if <see cref="BackgroundCompactionThreadCount"/> property is not set explicitly.
+        /// </remarks>
+        public double BackgroundCompactionCoreMultiplier { get; set; } = 0.5;
+
+        /// <summary>
+        /// Gets the degree of parallelism based on either <see cref="BackgroundCompactionCoreMultiplier"/> or <see cref="BackgroundCompactionThreadCount"/>.
+        /// </summary>
+        public int GetBackgroundCompactionActualThreadCount()
+        {
+            if (BackgroundCompactionThreadCount != null)
+            {
+                return BackgroundCompactionThreadCount.Value;
+            }
+
+            return (int)(Environment.ProcessorCount * BackgroundCompactionCoreMultiplier);
+        }
+
+        /// <summary>
+        /// Gets and sets the max number of background compaction jobs submitted to the default LOW priority thread pool.
+        /// </summary>
+        /// <remarks>
+        /// If you're increasing this, also consider increasing the number of background threads as well.
+        /// </remarks>
+        public int MaxBackgroundCompactions { get; init; } = DefaultMaxBackgroundCompactions;
+
+        /// <nodoc />
+        public ulong? DbWriteBufferSize { get; init; } =
+#if !PLATFORM_OSX
+            null;
+#else
+            // The memtable uses significant chunks of available system memory on macOS, we increase the number
+            // of background flushing threads (low priority) and set the DB write buffer size. This allows for
+            // up to 128 MB in memtables across all column families before we flush to disk.
+            128 << 20;
+#endif
+
+        /// <nodoc />
+        public static int DefaultMaxBackgroundCompactions =
+
+#if !PLATFORM_OSX
+            Environment.ProcessorCount;
+#else
+            Environment.ProcessorCount / 4;
+#endif
+
+        /// <summary>
+        /// Sets the maximum number of concurrent background memtable flush jobs, submitted to the HIGH priority thread pool.
+        /// </summary>
+        /// <remarks>
+        /// If you're increasing this, also consider increasing number of threads in
+        /// HIGH priority thread pool. For more information, see
+        /// Env::SetBackgroundThreads
+        /// Default: 1
+        /// </remarks>
+        public int MaxBackgroundFlushes { get; init; } = DefaultMaxBackgroundFlushes;
+
+        /// <nodoc />
+        public static int DefaultMaxBackgroundFlushes =
+
+#if !PLATFORM_OSX
+            1;
+#else
+            Environment.ProcessorCount / 4;
+#endif
+
+        /// <nodoc />
+        public int? MaxSubCompactions { get; init; } // Not used for now. Needs to be exposed in RocksDbSharp layer first.
+
+        /// <inheritdoc />
+        public override string ToString()
+        {
+            var result = new StringBuilder();
+
+            PrintMembers(result);
+
+            result.Append($", ActualDegreeOfParallelism = {GetBackgroundCompactionActualThreadCount()}");
+
+            string nullOrEmpty = ColumnFamilyPerformanceSettings is null
+                ? "null"
+                : (ColumnFamilyPerformanceSettings.Count == 0 ? "Empty" : string.Empty);
+            result.Append($"ColumnFamilyPerformanceSettings: {nullOrEmpty}");
+            
+            if (ColumnFamilyPerformanceSettings is not null)
+            {
+                foreach (var kvp in ColumnFamilyPerformanceSettings)
+                {
+                    result.Append($"{kvp.Key}: {kvp.Value}");
+                }
+            }
+
+            return result.ToString();
+        }
+    }
+
+    /// <summary>
+    /// A set of performance tuning options for column family.
+    /// </summary>
+    public record ColumnFamilyPerformanceConfiguration
+    {
+        /// <nodoc />
+        public int? ColumnFamilyWriteBufferSize { get; init; } //64Mb by default
+
+        /// <nodoc />
+        public int? ColumnFamilyLevel0StopWritesTrigger { get; init; }
+
+        /// <nodoc />
+        public int? ColumnFamilyLevel0SlowdownWritesTrigger { get; init; }
+
+        /// <nodoc />
+        public int? MaxBytesForLevelBase { get; init; }
     }
 }

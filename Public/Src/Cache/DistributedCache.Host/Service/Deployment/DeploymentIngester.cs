@@ -85,6 +85,8 @@ namespace BuildXL.Cache.Host.Service
 
         private ActionQueue ActionQueue { get; }
 
+        private readonly JsonPreprocessor _preprocessor = new JsonPreprocessor(new ConstraintDefinition[0], new Dictionary<string, string>());
+
         /// <summary>
         /// For testing purposes only. Used to intercept launch of drop.exe process and run custom logic in its place
         /// </summary>
@@ -206,10 +208,7 @@ namespace BuildXL.Cache.Host.Service
                     .Where(e => e.Name.StartsWith(nameof(DeploymentConfiguration.Drops)))
                     .SelectMany(d => d.Value
                         .EnumerateArray()
-                        .SelectMany(e =>
-                            e.EnumerateObject()
-                             .Where(e => e.Name.StartsWith(nameof(DropDeploymentConfiguration.Url))))
-                        .Select(e => e.Value.GetString()));
+                        .SelectMany(e => GetUrlsFromDropElement(e)));
 
                 foreach (var url in new[] { DeploymentUtilities.ConfigDropUri.ToString() }.Concat(urls))
                 {
@@ -219,6 +218,36 @@ namespace BuildXL.Cache.Host.Service
                 return BoolResult.Success;
             },
            extraStartMessage: DeploymentConfigurationPath.ToString()).ThrowIfFailure();
+        }
+
+        private IEnumerable<string> GetUrlsFromDropElement(JsonElement e)
+        {
+            IEnumerable<string> getValuesWithName(string name)
+            {
+                return e.EnumerateObject()
+                .Where(p => _preprocessor.ParseNameWithoutConstraints(p).Equals(name))
+                .Select(p => p.Value.GetString());
+            }
+
+            var baseUrls = getValuesWithName(nameof(DropDeploymentConfiguration.BaseUrl));
+            var relativeRoots = getValuesWithName(nameof(DropDeploymentConfiguration.RelativeRoot));
+            var fullUrls = getValuesWithName(nameof(DropDeploymentConfiguration.Url));
+
+            var dropConfiguration = new DropDeploymentConfiguration();
+            foreach (var baseUrl in baseUrls)
+            {
+                dropConfiguration.BaseUrl = baseUrl;
+                foreach (var relativeRoot in relativeRoots)
+                {
+                    dropConfiguration.RelativeRoot = relativeRoot;
+                    yield return dropConfiguration.EffectiveUrl;
+                }
+            }
+
+            foreach (var fullUrl in fullUrls)
+            {
+                yield return fullUrl;
+            }
         }
 
         private DropLayout ParseDropUrl(string url)

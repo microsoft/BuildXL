@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+#if NETCOREAPP
+
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -9,6 +11,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Web;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
@@ -27,9 +30,11 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using ContentStoreTest.Test;
 using FluentAssertions;
+using Microsoft.Azure.Amqp.Framing;
 using Xunit;
 using Xunit.Abstractions;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
+using RelativePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.RelativePath;
 
 namespace BuildXL.Cache.ContentStore.Distributed.Test
 {
@@ -57,6 +62,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test
 {
     'Drops': [
         {
+            'BaseUrl[Stage:1]': 'https://dev.azure.com/buildxlcachetest/drop/drops/deployment/stage1',
+            'BaseUrl[Stage:2]': 'https://dev.azure.com/buildxlcachetest/drop/drops/deployment/stage2',
+
+            'RelativeRoot[Tool:A]' : 'tools/toola',
+            'RelativeRoot[Tool:B]' : 'app/appb',
+            'RelativeRoot[Tool:C]' : 'c',
+
+
             'Url [Ring:Ring_0]': 'https://dev.azure.com/buildxlcachetest/drop/drops/dev/testdrop1?root=release/win-x64',
             'Url [Ring:Ring_1]': 'https://dev.azure.com/buildxlcachetest/drop/drops/dev/testdrop2?root=debug',
             'Url [Ring:Ring_2]': 'https://dev.azure.com/buildxlcachetest/drop/drops/dev/testdrop1?root=release/win-x64',
@@ -99,11 +112,43 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test
                 { @"Files\Foo.txt", "Bar" },
             };
 
+            Dictionary<string, string> getSubDrop(Dictionary<string, string> dropContents, string root, string prefix)
+            {
+                return dropContents.Where(e => e.Key.StartsWith(root.Replace("/", "\\")))
+                    .ToDictionary(e => e.Key.Substring((prefix ?? root).Length), e => e.Value);
+            }
+
             Dictionary<string, string> getSourceDrop(string root, string prefix)
             {
-                return sources.Where(e => e.Key.StartsWith(root))
-                    .ToDictionary(e => e.Key.Substring(prefix.Length), e => e.Value);
+                return getSubDrop(sources, root, prefix);
             }
+
+            var baseUrlDrops = new Dictionary<string, Dictionary<string, string>>()
+            {
+                {
+                    "https://dev.azure.com/buildxlcachetest/drop/drops/deployment/stage1",
+                    new Dictionary<string, string>
+                    {
+                        { @"tools\toola\info.txt", "" },
+                        { @"app\appb\subfolder\file.json", "{ 'key1': 1, 'key2': 2 }" },
+                        { @"app\appb\Hello.txt", "Hello world" },
+                        { @"c\Foo.txt", "Baz" },
+                        { @"c\Bar.txt", "Bar" },
+                    }
+                },
+                {
+                    "https://dev.azure.com/buildxlcachetest/drop/drops/deployment/stage2",
+                    new Dictionary<string, string>
+                    {
+                        { @"tools\toola\info.txt", "Information appears hear now" },
+                        { @"app\appb\subfolder\file.json", "{ 'key1': 3, 'key2': 4 }" },
+                        { @"app\appb\subfolder\newfile.json", "{ 'prop': 'this is a new file', 'key2': 4 }" },
+                        { @"app\appb\Hello.txt", "Hello world" },
+                        { @"c\Foo.txt", "Baz" },
+                        { @"c\Bar.txt", "Bar" },
+                    }
+                },
+            };
 
             var drops = new Dictionary<string, Dictionary<string, string>>()
             {
@@ -162,9 +207,25 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test
 
             FileSystem.WriteAllText(ingester.DeploymentConfigurationPath, ConfigString);
 
+            Dictionary<string, string> getDropContents(string dropUrl, string relativeRoot = null)
+            {
+                var uri = new UriBuilder(dropUrl);
+                var query = uri.Query;
+                uri.Query = null;
+
+                if (relativeRoot == null && query != null)
+                {
+                    relativeRoot = HttpUtility.ParseQueryString(query)["root"];
+                }
+
+                return baseUrlDrops.TryGetValue(uri.Uri.ToString(), out var contents)
+                    ? getSubDrop(contents, relativeRoot, prefix: "")
+                    : drops[dropUrl];
+            }
+
             ingester.OverrideLaunchDropProcess = t =>
             {
-                var dropContents = drops[t.dropUrl];
+                var dropContents = getDropContents(t.dropUrl, t.relativeRoot);
                 WriteFiles(new AbsolutePath(t.targetDirectory) / (t.relativeRoot ?? ""), dropContents);
                 return BoolResult.Success;
             };
@@ -203,13 +264,31 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test
             await verifyLaunchManifestAsync(new DeploymentParameters()
                 {
                     Stamp = "ST_S3",
-                    Ring = "Ring_1"
+                    Ring = "Ring_1",
+                    Properties =
+                    {
+                        { "Stage", "1" }
+                    }
                 },
                 new HashSet<(string targetPath, string drop)>()
                 {
                     ("bin", "https://dev.azure.com/buildxlcachetest/drop/drops/dev/testdrop2?root=debug"),
                     ("", "file://Env"),
                     ("info", "file://Stamp3"),
+                });
+
+            await verifyLaunchManifestAsync(new DeploymentParameters()
+                {
+                    Properties =
+                    {
+                        { "Stage", "2" },
+                        { "Tool", "A" }
+                    }
+                },
+                new HashSet<(string targetPath, string drop)>()
+                {
+                    ("bin", "https://dev.azure.com/buildxlcachetest/drop/drops/deployment/stage2?root=tools/toola"),
+                    ("", "file://Env"),
                 });
 
             async Task<LauncherManifest> verifyLaunchManifestAsync(DeploymentParameters parameters, HashSet<(string targetPath, string drop)> expectedDrops)
@@ -222,10 +301,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test
                 foreach (var drop in launchManifest.Drops)
                 {
                     var targetRelativePath = drop.TargetRelativePath ?? string.Empty;
-                    expectedDrops.Should().Contain((targetRelativePath, drop.Url));
+                    expectedDrops.Should().Contain((targetRelativePath, drop.EffectiveUrl));
 
-                    var dropSpec = deploymentManifest.Drops[drop.Url];
-                    foreach (var dropFile in drops[drop.Url])
+                    var dropSpec = deploymentManifest.Drops[drop.EffectiveUrl];
+                    foreach (var dropFile in getDropContents(drop.EffectiveUrl))
                     {
                         expectedDeploymentPathToHashMap[Path.Combine(targetRelativePath, dropFile.Key)] = dropSpec[dropFile.Key].Hash;
                     }
@@ -334,3 +413,5 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test
         }
     }
 }
+
+#endif

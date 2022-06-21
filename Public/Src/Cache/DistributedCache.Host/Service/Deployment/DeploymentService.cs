@@ -184,7 +184,7 @@ namespace BuildXL.Cache.Host.Service
                     var uploadTasks = new List<Task<(string targetPath, FileSpec spec)>>();
 
                     resultManifest.Tool = deployConfig.Tool;
-                    resultManifest.Drops = deployConfig.Drops;
+                    resultManifest.Drops = deployConfig.Drops.Where(d => d.EffectiveUrl != null).ToList();
 
                     var secretsProvider = await GetSecretsProviderAsync(context, deployConfig.KeyVaultUri);
 
@@ -218,9 +218,9 @@ namespace BuildXL.Cache.Host.Service
 
                     var proxyBaseAddress = GetProxyBaseAddress(context, () => (deployConfig, deploymentManifest), parameters);
 
-                    var filesAndTargetPaths = deployConfig.Drops
-                        .Where(drop => drop.Url != null)
-                        .SelectMany(drop => deploymentManifest.Drops[drop.Url]
+                    var filesAndTargetPaths = resultManifest.Drops
+                        .Where(drop => drop.EffectiveUrl != null)
+                        .SelectMany(drop => deploymentManifest.Drops[drop.EffectiveUrl]
                             .Select(fileEntry => (fileSpec: fileEntry.Value, targetPath: Path.Combine(drop.TargetRelativePath ?? string.Empty, fileEntry.Key))))
                         .ToList();
 

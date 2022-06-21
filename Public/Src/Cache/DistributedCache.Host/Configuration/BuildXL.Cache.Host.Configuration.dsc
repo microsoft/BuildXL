@@ -17,6 +17,7 @@ namespace Configuration {
                 NetFx.System.ComponentModel.DataAnnotations.dll
             ),
 
+            ...importFrom("BuildXL.Cache.ContentStore").getSystemTextJson(true),
             importFrom("BuildXL.Cache.ContentStore").Interfaces.dll,
             importFrom("BuildXL.Cache.ContentStore").Grpc.dll,
         ],

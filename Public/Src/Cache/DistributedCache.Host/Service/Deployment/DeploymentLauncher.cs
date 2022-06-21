@@ -204,7 +204,15 @@ namespace BuildXL.Cache.Host.Service
                     // The content has changed from the active run. Get full manifest.
                     if (!manifest.IsComplete)
                     {
-                        return BoolResult.WithSuccessMessage($"Skipped because manifest ingestion is not complete. Id={manifest.ContentId}");
+                        var filesExistence = CheckManifestReferencedFileExistence(manifest);
+                        if (filesExistence.MissingFileCount > 0)
+                        {
+                            return BoolResult.WithSuccessMessage($"Skipped because manifest ingestion is not complete. Id={manifest.ContentId}. {filesExistence}");
+                        }
+                        else
+                        {
+                            Tracer.Debug(context, $"Manifest is not completed but all files are present locally. Attempting to launch process. {filesExistence}");
+                        }
                     }
 
                     if (manifest.ContentId == _currentRun?.Manifest.ContentId && _currentRun.IsActive)
@@ -221,8 +229,6 @@ namespace BuildXL.Cache.Host.Service
                         }
                     }
 
-                    var hashes = manifest.Deployment.Select(f => new ContentHash(f.Value.Hash)).Distinct().ToList();
-
                     var deploymentTargetDirectoryPath =
                         Settings.OverrideServiceDeploymentLocation ??
                         (DeploymentDirectory.Path / manifest.Tool.ServiceId / $"{DateTime.Now.ToReadableString()}_{manifest.ContentId}").Path;
@@ -236,7 +242,7 @@ namespace BuildXL.Cache.Host.Service
 
                     var directory = new DisposableDirectory(FileSystem, new AbsolutePath(deploymentTargetDirectoryPath));
                     var deployedTool = new DeployedTool(this, manifest, directory, Store.CreatePinContext());
-
+                    var hashes = GetManifestHashes(manifest);
                     var pinResults = await Store.PinAsync(context, hashes, pinContext: deployedTool.PinRequest.PinContext, options: null);
 
                     var result = await DownloadAndDeployAsync(context, client, deployedTool, watchedFilesOnly: false);
@@ -266,6 +272,38 @@ namespace BuildXL.Cache.Host.Service
 
                     return startResult;
                 });
+        }
+
+        private static List<ContentHash> GetManifestHashes(LauncherManifest manifest)
+        {
+            return manifest.Deployment.Select(f => new ContentHash(f.Value.Hash)).Distinct().ToList();
+        }
+
+        private ManifestFilesExistence CheckManifestReferencedFileExistence(LauncherManifest manifest)
+        {
+            var result = new ManifestFilesExistence();
+            var hashes = GetManifestHashes(manifest);
+            foreach (var hash in hashes)
+            {
+                if (Store.Contains(hash, out var size))
+                {
+                    result.ExistingFileCount += 1;
+                    result.ExistsSize += size;
+                }
+                else
+                {
+                    result.MissingFileCount += 1;
+                }
+            }
+
+            return result;
+        }
+
+        private record ManifestFilesExistence
+        {
+            public int ExistingFileCount;
+            public long ExistsSize;
+            public int MissingFileCount;
         }
 
         private Task<Result<LauncherManifest>> GetLaunchManifestAsync(OperationContext context, IDeploymentServiceClient client)

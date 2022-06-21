@@ -200,6 +200,12 @@ namespace BuildXL.Cache.Host.Service
             }
         }
 
+        public string ParseNameWithoutConstraints(JsonProperty property)
+        {
+            ParseNameAndConstraints(property, out var name, out _);
+            return name;
+        }
+
         private void ParseNameAndConstraints(JsonProperty property, out string name, out IEnumerable<Constraint> constraints)
         {
             name = RemoveWhitespace(property.Name);

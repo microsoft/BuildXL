@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Text.Json.Serialization;
 using BuildXL.Cache.ContentStore.Interfaces.Secrets;
 
 #nullable disable
@@ -74,6 +75,22 @@ namespace BuildXL.Cache.Host.Configuration
         /// file://MyEnvironment/
         /// </summary>
         public string Url { get; set; }
+
+        /// <summary>
+        /// The base url used to download the drop. This is only valid when combined with <see cref="RelativeRoot"/>
+        /// </summary>
+        public string BaseUrl { get; set; }
+
+        /// <summary>
+        /// The root directory under a provided drop to use. This is only valid when combined with <see cref="BaseUrl"/>
+        /// </summary>
+        public string RelativeRoot { get; set; }
+
+        /// <summary>
+        /// Gets the effective url used based on the values set for <see cref="Url"/>, <see cref="BaseUrl"/>, <see cref="RelativeRoot"/>.
+        /// NOTE: <see cref="Url"/> takes precedence.
+        /// </summary>
+        public string EffectiveUrl => Url ?? (BaseUrl != null && RelativeRoot != null ? $"{BaseUrl}?root={RelativeRoot}" : null);
 
         /// <summary>
         /// Defines target folder under which deployment files should be placed.

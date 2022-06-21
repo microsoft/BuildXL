@@ -41,11 +41,13 @@ jobs:
   - template: step-nuget-config.yml
 
   - bash: |
+      set -euo pipefail
+      readonly isNotMaster="${{ ne(variables['Build.SourceBranchName'], 'master') }}"
       mkdir -p Out
       tee Out/CacheConfig.json << EOF
       {
-      "RemoteIsReadOnly":  false,
-      "SkipDeterminismCheck":  true,
+      "RemoteIsReadOnly": ${isNotMaster,,},
+      "SkipDeterminismRecovery":  true,
       "RemoteConstructionTimeoutMilliseconds":  10000,
       "Assembly":  "BuildXL.Cache.VerticalAggregator",
       "Type":  "BuildXL.Cache.VerticalAggregator.VerticalCacheAggregatorFactory",

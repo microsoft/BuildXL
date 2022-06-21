@@ -57,8 +57,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 
         public TimeSpan BlobRotationInterval { get; set; } = TimeSpan.FromHours(1);
 
-        public bool StoreExpandedContent { get; set; }
-
         public bool UseMergeOperators { get; set; }
 
         public ByteSizeSetting? MetadataSizeRotationThreshold { get; set; }
@@ -119,13 +117,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             MetadataHeaders,
 
             Blobs,
-
-            /// <summary>
-            /// Represents content locations as multiple entries which are later compacted into a single entry
-            /// [ShortHash] -> [ContentSize:long] // This serves as a marker that compaction is necessary and stores the size of the entry
-            /// [ShortHash][MachineId] -> {}
-            /// </summary>
-            ExpandedContent,
 
             MergeContent,
 
@@ -570,7 +561,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                                var rotationInterval = column switch
                                {
                                    Columns.Content => _configuration.ContentRotationInterval,
-                                   Columns.ExpandedContent => _configuration.ContentRotationInterval,
                                    Columns.MergeContent => _configuration.ContentRotationInterval,
                                    Columns.Metadata => _configuration.MetadataRotationInterval,
                                    Columns.Blobs => _configuration.BlobRotationInterval,
@@ -948,38 +938,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                     (hashes, touch, machine, db: this)
                 ).ThrowOnError();
             }
-            else if (_configuration.StoreExpandedContent)
-            {
-                return _keyValueStore.Use(
-                    static (store, state) =>
-                    {
-                        store.ApplyBatch(
-                            state,
-                            state.db.NameOf(Columns.ExpandedContent),
-                            static (batch, state, columnHandle) =>
-                            {
-                                Span<ShortHash> hashSpan = stackalloc ShortHash[1];
-                                Span<long> sizeSpan = stackalloc long[1];
-                                Span<ExpandedContentEntryKey> entrySpan = stackalloc ExpandedContentEntryKey[1];
-
-                                foreach ((ShortHash hash, long size) in state.hashes.AsStructEnumerable())
-                                {
-                                    // [ShortHash] -> Size
-                                    hashSpan[0] = hash;
-                                    sizeSpan[0] = size;
-                                    batch.Put(key: MemoryMarshal.AsBytes(hashSpan), value: TrimTrailingZeros(MemoryMarshal.AsBytes(sizeSpan)), columnHandle);
-
-                                    // [ShortHash][MachineId] -> {}
-                                    entrySpan[0] = new ExpandedContentEntryKey(hash, (ushort)state.machine.Index);
-                                    batch.Put(key: MemoryMarshal.AsBytes(entrySpan), value: ReadOnlySpan<byte>.Empty, columnHandle);
-                                }
-                            });
-
-                        return true;
-                    },
-                    (hashes, machine, db: this)
-                ).ThrowOnError();
-            }
             else
             {
                 foreach (var hash in hashes.AsStructEnumerable())
@@ -1038,43 +996,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         {
             ContentLocationEntry? result = null;
 
-            // TODO: We should evaluate whether compaction of entries is needed?
-            // NOTE: We don't bother cleaning up entries since that's handled by the DB's garbage collection
-
-            // 1. Retrieve machine ids from expanded entries
             Span<long> size = stackalloc long[1];
             List<MachineId>? machineIdsBuffer = null;
             UnixTime? lastAccessTime = null;
 
-            // TODO: Add configuration for whether we read the expanded content values
-
             // AsSpan is safe here because 'hash' lives on the stack.
             var key = hash.AsSpanUnsafe();
-            if (db.TryRead(store, key, MemoryMarshal.AsBytes(size), Columns.ExpandedContent))
-            {
-                machineIdsBuffer = new List<MachineId>();
 
-                db.PrefixKeyLookup(
-                    store,
-                    state: machineIdsBuffer,
-                    key,
-                    Columns.ExpandedContent,
-                    observeCallback: static (machineIdsBuffer, key) =>
-                    {
-                        if (key.Length == ExpandedContentEntryKey.SerializedLength)
-                        {
-                            var entry = MemoryMarshal.Read<ExpandedContentEntryKey>(key);
-                            machineIdsBuffer.Add(new MachineId(entry.MachineId));
-                        }
-
-                        return true;
-                    });
-            }
-
-            // 2. Read combined entry
+            // 1. Read combined entry
             db.TryDeserializeValue(store, key, Columns.Content, static reader => ContentLocationEntry.Deserialize(ref reader), out result);
 
-            // 3. Read merged entry
+            // 2. Read merged entry
             foreach (var column in AllMergeContentColumnNames)
             {
                 if (store.TryGetPinnableValue(MemoryMarshal.AsBytes(stackalloc[] { hash.AsEntryKey() }), out var mergeData, column))
@@ -1444,20 +1376,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         private static MetadataEntryHeader DeserializeMetadataEntryHeader(ReadOnlySpan<byte> data)
         {
             return MetadataServiceSerializer.TypeModel.Deserialize<MetadataEntryHeader>((ReadOnlySpan<byte>)data);
-        }
-
-        [StructLayout(LayoutKind.Sequential)]
-        private struct ExpandedContentEntryKey
-        {
-            public static readonly int SerializedLength = SizeOf<ExpandedContentEntryKey>();
-
-            public ShortHash Hash;
-            public ushort MachineId;
-
-            public ExpandedContentEntryKey(ShortHash hash, ushort machineId)
-            {
-                (Hash, MachineId) = (hash, machineId);
-            }
         }
 
         public record ColumnSizeInfo(string? Column, long? LiveDataSizeBytes = null, long? LiveFilesSizeBytes = null)

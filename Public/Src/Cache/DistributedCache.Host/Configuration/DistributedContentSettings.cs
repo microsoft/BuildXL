@@ -1165,9 +1165,6 @@ namespace BuildXL.Cache.Host.Configuration
         public bool ContentMetadataEnableResilience { get; set; } = true;
 
         [DataMember]
-        public bool ContentMetadataOptimizeWrites { get; set; }
-
-        [DataMember]
         public bool ContentMetadataUseMergeWrites { get; set; }
 
         [DataMember]

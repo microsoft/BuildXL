@@ -245,7 +245,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
             {
                 // Setting to false, until we have persistence for the db
                 CleanOnInitialize = false,
-                StoreExpandedContent = DistributedContentSettings.ContentMetadataOptimizeWrites,
                 UseMergeOperators = DistributedContentSettings.ContentMetadataUseMergeWrites,
                 MetadataSizeRotationThreshold = DistributedContentSettings.GlobalCacheMetadataSizeRotationThreshold,
             };

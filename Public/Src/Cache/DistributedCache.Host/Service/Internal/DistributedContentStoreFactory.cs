@@ -527,7 +527,6 @@ namespace BuildXL.Cache.Host.Service.Internal
             ApplyIfNotNull(settings.ReserveSpaceTimeoutInMinutes, v => result.ReserveTimeout = TimeSpan.FromMinutes(v));
 
             ApplyIfNotNull(settings.UseAsynchronousFileStreamOptionByDefault, v => FileSystemDefaults.UseAsynchronousFileStreamOptionByDefault = v);
-            ApplyIfNotNull(settings.UseChannelBasedActionBlockSlimImplementation, v => ActionBlockSlim.UseChannelBaseImplementationByDefault = v);
 
             ApplyIfNotNull(settings.UseHierarchicalTraceIds, v => Context.UseHierarchicalIds = v);
 

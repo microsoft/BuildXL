@@ -2,7 +2,6 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
@@ -33,14 +32,11 @@ namespace BuildXL.Utilities.ParallelAlgorithms
         }
     }
 
-    /// <nodoc />
+    /// <summary>
+    /// A non-static factory for creating <see cref="ActionBlockSlim{T}"/> instances.
+    /// </summary>
     public static class ActionBlockSlim
     {
-        /// <summary>
-        /// Set it to true to globally use <see cref="ActionBlockSlim{T}.ChannelBasedActionBlockSlim"/> by default.
-        /// </summary>
-        public static bool UseChannelBaseImplementationByDefault = false;
-
         /// <summary>
         /// Creates an instance of the action block.
         /// </summary>
@@ -52,17 +48,19 @@ namespace BuildXL.Utilities.ParallelAlgorithms
             int degreeOfParallelism,
             Action<T> processItemAction,
             int? capacityLimit = null,
-            bool? useChannelBasedImpl = null,
             bool? singleProducedConstrained = null,
             bool? singleConsumerConstrained = null,
             CancellationToken cancellationToken = default)
         {
             degreeOfParallelism = degreeOfParallelism == -1 ? Environment.ProcessorCount : degreeOfParallelism;
 
-            return (useChannelBasedImpl ?? UseChannelBaseImplementationByDefault)
-                ? (ActionBlockSlim<T>)new ActionBlockSlim<T>.ChannelBasedActionBlockSlim(degreeOfParallelism, processItemAction,
-                    capacityLimit, singleProducedConstrained, singleConsumerConstrained, cancellationToken)
-                : new ActionBlockSlim<T>.SemaphoreBasedActionBlockSlim(degreeOfParallelism, processItemAction, capacityLimit);
+            return new ActionBlockSlim<T>(
+                degreeOfParallelism,
+                processItemAction,
+                capacityLimit,
+                singleProducedConstrained,
+                singleConsumerConstrained,
+                cancellationToken);
         }
 
         /// <nodoc />
@@ -70,25 +68,30 @@ namespace BuildXL.Utilities.ParallelAlgorithms
             int degreeOfParallelism,
             Func<T, Task> processItemAction,
             int? capacityLimit = null,
-            bool? useChannelBasedImpl = null,
             bool? singleProducedConstrained = null,
             bool? singleConsumerConstrained = null,
             CancellationToken cancellationToken = default)
         {
             degreeOfParallelism = degreeOfParallelism == -1 ? Environment.ProcessorCount : degreeOfParallelism;
 
-            return (useChannelBasedImpl ?? UseChannelBaseImplementationByDefault)
-                ? (ActionBlockSlim<T>)new ActionBlockSlim<T>.ChannelBasedActionBlockSlim(degreeOfParallelism, processItemAction,
-                    capacityLimit, singleProducedConstrained, singleConsumerConstrained, cancellationToken)
-                : new ActionBlockSlim<T>.SemaphoreBasedActionBlockSlim(degreeOfParallelism, processItemAction, capacityLimit);
+            return new ActionBlockSlim<T>(
+                degreeOfParallelism,
+                processItemAction,
+                capacityLimit,
+                singleProducedConstrained,
+                singleConsumerConstrained,
+                cancellationToken);
         }
     }
 
     /// <summary>
     /// A base class for different action-block-like implementations.
     /// </summary>
-    public abstract class ActionBlockSlim<T>
+    public class ActionBlockSlim<T>
     {
+        private readonly Channel<T> m_channel;
+        private readonly CancellationToken m_cancellationToken;
+
         private int m_schedulingCompleted = 0;
 
         /// <nodoc />
@@ -113,18 +116,60 @@ namespace BuildXL.Utilities.ParallelAlgorithms
         /// <summary>
         /// Gets whether the action block is complete
         /// </summary>
-        public bool IsComplete
-        {
-            get
-            {
-                return m_schedulingCompleted == 1 && Tasks.All(t => t.IsCompleted);
-            }
-        }
+        public bool IsComplete => m_schedulingCompleted == 1 && Tasks.All(t => t.IsCompleted);
 
         /// <summary>
         /// Used to cancel all pending operations
         /// </summary>
         protected CancellationTokenSource Cancellation { get; } = new CancellationTokenSource();
+
+        /// <nodoc />
+        internal ActionBlockSlim(int degreeOfParallelism, Action<T> processItemAction,
+            int? capacityLimit = null,
+            bool? singleProducedConstrained = null,
+            bool? singleConsumerConstrained = null,
+            CancellationToken cancellationToken = default)
+            : this(degreeOfParallelism, t =>
+            {
+                processItemAction(t);
+                return Task.CompletedTask;
+            }, capacityLimit: capacityLimit, singleProducedConstrained, singleConsumerConstrained, cancellationToken)
+        {
+        }
+
+        /// <nodoc />
+        internal ActionBlockSlim(int degreeOfParallelism, Func<T, Task> processItemAction,
+            int? capacityLimit = null,
+            bool? singleProducedConstrained = null,
+            bool? singleConsumerConstrained = null,
+            CancellationToken cancellationToken = default)
+        {
+            ProcessItemAction = processItemAction;
+            CapacityLimit = capacityLimit;
+
+            m_cancellationToken = cancellationToken;
+
+            var options = capacityLimit != null
+                // Blocking the calls if the channel is full to handle 
+                ? (ChannelOptions)new BoundedChannelOptions(capacityLimit.Value)
+                { FullMode = BoundedChannelFullMode.Wait }
+                : new UnboundedChannelOptions();
+
+            // The assumption is that the following options gives the best performance/throughput.
+            options.AllowSynchronousContinuations = false;
+            options.SingleReader = singleConsumerConstrained ?? false;
+            options.SingleWriter = singleProducedConstrained ?? false;
+
+            m_channel = capacityLimit != null
+                ? Channel.CreateBounded<T>((BoundedChannelOptions)options)
+                : Channel.CreateUnbounded<T>((UnboundedChannelOptions)options);
+
+            // 0 concurrency is valid.
+            if (degreeOfParallelism != 0)
+            {
+                IncreaseConcurrencyTo(degreeOfParallelism);
+            }
+        }
 
         /// <summary>
         /// Add a given <paramref name="item"/> to a processing queue.
@@ -146,14 +191,10 @@ namespace BuildXL.Utilities.ParallelAlgorithms
                 return false;
             }
 
-            PostCore(item);
+            bool added = m_channel.Writer.TryWrite(item);
+            Contract.Assert(added);
             return true;
         }
-
-        /// <summary>
-        /// Add a given <paramref name="item"/> to a processing queue.
-        /// </summary>
-        protected abstract void PostCore(T item);
 
         private bool TryIncrementPending(bool throwOnFullOrComplete)
         {
@@ -194,20 +235,35 @@ namespace BuildXL.Utilities.ParallelAlgorithms
 
             if (Interlocked.CompareExchange(ref m_schedulingCompleted, value: 1, comparand: 0) == 0)
             {
-                CompleteCore();
+                m_channel.Writer.Complete();
             }
         }
 
         /// <nodoc />
-        protected abstract void CompleteCore();
+        private bool SchedulingCompleted() => Volatile.Read(ref m_schedulingCompleted) != 0;
 
-        /// <nodoc />
-        protected bool SchedulingCompleted() => Volatile.Read(ref m_schedulingCompleted) != 0;
+        private Task CreateProcessorItemTask()
+        {
+            return Task.Run(
+                async () =>
+                {
+                    using var cts = CancellationTokenSource.CreateLinkedTokenSource(Cancellation.Token, m_cancellationToken);
 
-        /// <summary>
-        /// Creates a task responsible for draining the action block queue.
-        /// </summary>
-        protected abstract Task CreateProcessorItemTask(int degreeOfParallelism);
+                    // Not using 'Reader.ReadAllAsync' because its not available in the version we use here.
+                    // So we do what 'ReadAllAsync' does under the hood.
+                    //
+                    // using 'WaitToReadOrCanceledAsync' instead of 'channel.Reader.WaitToReadAsync' to simply break
+                    // the execution when the token is triggered instead of throwing 'OperationCanceledException'
+                    while (await m_channel.WaitToReadOrCanceledAsync(cts.Token).ConfigureAwait(false))
+                    {
+                        while (!cts.Token.IsCancellationRequested && m_channel.Reader.TryRead(out var item))
+                        {
+                            await ProcessItemAction(item);
+                            Interlocked.Decrement(ref Pending);
+                        }
+                    }
+                });
+        }
 
         /// <summary>
         /// Fails if the block is completed.
@@ -232,14 +288,16 @@ namespace BuildXL.Utilities.ParallelAlgorithms
         /// </summary>
         public virtual Task CompletionAsync()
         {
-            // Awaiting all the tasks to be finished.
+            // The number of processing task could be changed via IncreaseConcurrencyTo method calls,
+            // so we need to make sure that Complete method was called by "awaiting" for the task completion source.
+
             return Task.WhenAll(Tasks.ToArray());
         }
 
         /// <summary>
         /// Increases the current concurrency level from <see cref="DegreeOfParallelism"/> to <paramref name="maxDegreeOfParallelism"/>.
         /// </summary>
-        public virtual void IncreaseConcurrencyTo(int maxDegreeOfParallelism)
+        public void IncreaseConcurrencyTo(int maxDegreeOfParallelism)
         {
             Contract.Requires(maxDegreeOfParallelism > DegreeOfParallelism);
             AssertNotCompleted();
@@ -249,206 +307,7 @@ namespace BuildXL.Utilities.ParallelAlgorithms
 
             for (int i = 0; i < degreeOfParallelism; i++)
             {
-                Tasks.Add(CreateProcessorItemTask(degreeOfParallelism));
-            }
-        }
-
-        /// <summary>
-        /// Light-weight version of a non-dataflow block that invokes a provided <see cref="Action{T}"/> delegate for every data element received in parallel with limited concurrency.
-        /// </summary>
-        internal sealed class SemaphoreBasedActionBlockSlim : ActionBlockSlim<T>
-        {
-            private readonly ConcurrentQueue<T> m_queue;
-
-            private readonly SemaphoreSlim m_semaphore;
-
-            /// <nodoc />
-            internal SemaphoreBasedActionBlockSlim(int degreeOfParallelism, Action<T> processItemAction,
-                int? capacityLimit = null)
-                : this(degreeOfParallelism, t =>
-                {
-                    processItemAction(t);
-                    return Task.CompletedTask;
-                }, capacityLimit: capacityLimit)
-            {
-            }
-
-            /// <nodoc />
-            internal SemaphoreBasedActionBlockSlim(int degreeOfParallelism, Func<T, Task> processItemAction,
-                int? capacityLimit = null)
-            {
-                Contract.Requires(degreeOfParallelism >= -1);
-
-                ProcessItemAction = processItemAction;
-                CapacityLimit = capacityLimit;
-
-                m_queue = new ConcurrentQueue<T>();
-
-                // Semaphore count is 0 to ensure that all the tasks are blocked unless new data is scheduled.
-                m_semaphore = new SemaphoreSlim(0, int.MaxValue);
-
-                // 0 concurrency is valid.
-                if (degreeOfParallelism != 0)
-                {
-                    IncreaseConcurrencyTo(degreeOfParallelism);
-                }
-            }
-
-            /// <inheritdoc />
-            protected override void PostCore(T item)
-            {
-                // NOTE: Enqueue MUST happen before releasing the semaphore
-                // to ensure WaitAsync below never returns when there is not
-                // a corresponding item in the queue to be dequeued. The only
-                // exception is on completion of all items.
-                m_queue.Enqueue(item);
-                m_semaphore.Release();
-            }
-
-            /// <inheritdoc />
-            protected override void CompleteCore()
-            {
-                if (Cancellation.Token.IsCancellationRequested)
-                {
-                    // Release all tasks to complete immediately
-                    m_semaphore.Release(DegreeOfParallelism);
-                }
-                else
-                {
-                    // Release one thread that will release all the threads when all the elements are processed.
-                    m_semaphore.Release();
-                }
-            }
-
-            /// <inheritdoc />
-            protected override Task CreateProcessorItemTask(int degreeOfParallelism)
-            {
-                return Task.Run(
-                    async () =>
-                    {
-                        while (!Cancellation.Token.IsCancellationRequested)
-                        {
-                            await m_semaphore.WaitAsync();
-
-                            if (!Cancellation.Token.IsCancellationRequested && m_queue.TryDequeue(out var item))
-                            {
-                                await ProcessItemAction(item);
-                            }
-
-                            // Could be -1 if the number of pending items is already 0 and the task was awakened for graceful finish.
-                            if (Interlocked.Decrement(ref Pending) <= 0 && SchedulingCompleted())
-                            {
-                                // Ensure all tasks are unblocked and can gracefully
-                                // finish since there are at most degreeOfParallelism - 1 tasks
-                                // waiting at this point
-                                m_semaphore.Release(degreeOfParallelism);
-                                return;
-                            }
-                        }
-                    });
-            }
-        }
-
-        /// <summary>
-        /// An action-block implementation based on System.Threading.Channel.
-        /// </summary>
-        internal sealed class ChannelBasedActionBlockSlim : ActionBlockSlim<T>
-        {
-            private readonly Channel<T> m_channel;
-            private readonly CancellationToken m_cancellationToken;
-
-            /// <nodoc />
-            internal ChannelBasedActionBlockSlim(int degreeOfParallelism, Action<T> processItemAction,
-                int? capacityLimit = null,
-                bool? singleProducedConstrained = null,
-                bool? singleConsumerConstrained = null,
-                CancellationToken cancellationToken = default)
-                : this(degreeOfParallelism, t =>
-               {
-                   processItemAction(t);
-                   return Task.CompletedTask;
-               }, capacityLimit: capacityLimit, singleProducedConstrained, singleConsumerConstrained, cancellationToken)
-            {
-            }
-
-            /// <nodoc />
-            internal ChannelBasedActionBlockSlim(int degreeOfParallelism, Func<T, Task> processItemAction,
-                int? capacityLimit = null,
-                bool? singleProducedConstrained = null,
-                bool? singleConsumerConstrained = null,
-                CancellationToken cancellationToken = default)
-            {
-                ProcessItemAction = processItemAction;
-                CapacityLimit = capacityLimit;
-
-                m_cancellationToken = cancellationToken;
-
-                var options = capacityLimit != null
-                    // Blocking the calls if the channel is full to handle 
-                    ? (ChannelOptions)new BoundedChannelOptions(capacityLimit.Value)
-                    { FullMode = BoundedChannelFullMode.Wait }
-                    : new UnboundedChannelOptions();
-
-                // The assumption is that the following options gives the best performance/throughput.
-                options.AllowSynchronousContinuations = false;
-                options.SingleReader = singleConsumerConstrained ?? false;
-                options.SingleWriter = singleProducedConstrained ?? false;
-
-                m_channel = capacityLimit != null
-                    ? Channel.CreateBounded<T>((BoundedChannelOptions)options)
-                    : Channel.CreateUnbounded<T>((UnboundedChannelOptions)options);
-
-                // 0 concurrency is valid.
-                if (degreeOfParallelism != 0)
-                {
-                    IncreaseConcurrencyTo(degreeOfParallelism);
-                }
-            }
-
-            /// <inheritdoc />
-            protected override void PostCore(T item)
-            {
-                bool added = m_channel.Writer.TryWrite(item);
-                Contract.Assert(added);
-            }
-
-            /// <inheritdoc />
-            protected override void CompleteCore()
-            {
-                m_channel.Writer.Complete();
-            }
-
-            /// <inheritdoc />
-            public override Task CompletionAsync()
-            {
-                // The number of processing task could be changed via IncreaseConcurrencyTo method calls,
-                // so we need to make sure that Complete method was called by "awaiting" for the task completion source.
-
-                return Task.WhenAll(Tasks.ToArray());
-            }
-
-            /// <inheritdoc />
-            protected override Task CreateProcessorItemTask(int degreeOfParallelism)
-            {
-                return Task.Run(
-                    async () =>
-                    {
-                        using var cts = CancellationTokenSource.CreateLinkedTokenSource(Cancellation.Token, m_cancellationToken);
-
-                        // Not using 'Reader.ReadAllAsync' because its not available in the version we use here.
-                        // So we do what 'ReadAllAsync' does under the hood.
-                        //
-                        // using 'WaitToReadOrCanceledAsync' instead of 'channel.Reader.WaitToReadAsync' to simply break
-                        // the execution when the token is triggered instead of throwing 'OperationCanceledException'
-                        while (await m_channel.WaitToReadOrCanceledAsync(cts.Token).ConfigureAwait(false))
-                        {
-                            while (!cts.Token.IsCancellationRequested && m_channel.Reader.TryRead(out var item))
-                            {
-                                await ProcessItemAction(item);
-                                Interlocked.Decrement(ref Pending);
-                            }
-                        }
-                    });
+                Tasks.Add(CreateProcessorItemTask());
             }
         }
     }

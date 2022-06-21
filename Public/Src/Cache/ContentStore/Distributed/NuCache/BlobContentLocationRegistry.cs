@@ -151,7 +151,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             LinkLifetime(clusterStateManager);
 
             _putBlockRetryPolicy = RetryPolicyFactory.GetExponentialPolicy(shouldRetry: ex => IsPreconditionFailedError(ex));
-            _actionQueue = new ActionQueue(Configuration.MaxDegreeOfParallelism, useChannel: true);
+            _actionQueue = new ActionQueue(Configuration.MaxDegreeOfParallelism);
 
             if (configuration.UpdateInBackground)
             {

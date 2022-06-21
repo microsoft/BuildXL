@@ -15,13 +15,11 @@ namespace Test.BuildXL.Utilities
 {
     public class ActionBlockSlimTests
     {
-        [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)]
-        [InlineData(true)]
-        [InlineData(false)]
-        public async Task ExceptionIsThrownWhenTheBlockIsFull(bool useChannelBasedImpl)
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        public async Task ExceptionIsThrownWhenTheBlockIsFull()
         {
             var tcs = new TaskCompletionSource<object>();
-            var actionBlock = ActionBlockSlim.CreateWithAsyncAction<int>(1, n => tcs.Task, capacityLimit: 1, useChannelBasedImpl);
+            var actionBlock = ActionBlockSlim.CreateWithAsyncAction<int>(1, n => tcs.Task, capacityLimit: 1);
             actionBlock.Post(42);
             Assert.Equal(1, actionBlock.PendingWorkItems);
 
@@ -41,10 +39,8 @@ namespace Test.BuildXL.Utilities
             actionBlock.Post(1);
         }
 
-        [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)]
-        [InlineData(true)]
-        [InlineData(false)]
-        public async Task ExceptionIsNotThrownWhenTheBlockIsFullOrComplete(bool useChannelBasedImpl)
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        public async Task ExceptionIsNotThrownWhenTheBlockIsFullOrComplete()
         {
             ConcurrentQueue<int> seenInputs = new();
             var tcs = new TaskCompletionSource<object>();
@@ -52,7 +48,7 @@ namespace Test.BuildXL.Utilities
             {
                 seenInputs.Enqueue(input);
                 return tcs.Task;
-            }, capacityLimit: 1, useChannelBasedImpl);
+            }, capacityLimit: 1);
 
             actionBlock.Post(42);
             Assert.Equal(1, actionBlock.PendingWorkItems);
@@ -84,10 +80,8 @@ namespace Test.BuildXL.Utilities
             Assert.DoesNotContain(seenInputs, i => i < 0);
         }
         
-        [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)]
-        [InlineData(true)]
-        [InlineData(false)]
-        public async Task CompletionAsync_Succeeded_When_CancellationToken_Is_Canceled(bool useChannelBasedImpl)
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        public async Task CompletionAsync_Succeeded_When_CancellationToken_Is_Canceled()
         {
 
             await Task.Yield();
@@ -102,7 +96,6 @@ namespace Test.BuildXL.Utilities
                     return tcs.Task;
                 },
                 capacityLimit: 1,
-                useChannelBasedImpl: useChannelBasedImpl,
                 cancellationToken: cts.Token);
 
             cts.Cancel();
@@ -112,10 +105,8 @@ namespace Test.BuildXL.Utilities
             await actionBlock.CompletionAsync();
         }
         
-        [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)]
-        [InlineData(true)]
-        [InlineData(false)]
-        public async Task CompletionAsync_Succeeded_When_CancelPending_Is_True(bool useChannelBasedImpl)
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        public async Task CompletionAsync_Succeeded_When_CancelPending_Is_True()
         {
             await Task.Yield();
             var tcs = new TaskCompletionSource<object>();
@@ -127,19 +118,16 @@ namespace Test.BuildXL.Utilities
                     return tcs.Task;
                 },
                 capacityLimit: 1,
-                useChannelBasedImpl: useChannelBasedImpl,
                 cancellationToken: CancellationToken.None);
 
             actionBlock.Complete(cancelPending: true);
             await actionBlock.CompletionAsync();
         }
 
-        [Theory]
-        [InlineData(true)]
-        [InlineData(false)]
-        public async Task CompletionTaskIsDoneWhenCompletedIsCalled(bool useChannelBasedImpl)
+        [Fact]
+        public async Task CompletionTaskIsDoneWhenCompletedIsCalled()
         {
-            var actionBlock = ActionBlockSlim.Create<int>(42, n => { }, useChannelBasedImpl: useChannelBasedImpl);
+            var actionBlock = ActionBlockSlim.Create<int>(42, n => { });
             var task = actionBlock.CompletionAsync();
 
             Assert.NotEqual(TaskStatus.RanToCompletion, task.Status);
@@ -150,27 +138,22 @@ namespace Test.BuildXL.Utilities
             Assert.Equal(TaskStatus.RanToCompletion, task.Status);
         }
         
-        [Theory]
-        [InlineData(true)]
-        [InlineData(false)]
-        public void CompletionTaskIsDoneWhenCompletedWith0ConcurrencyIsCalled(bool useChannelBasedImpl)
+        [Fact]
+        public void CompletionTaskIsDoneWhenCompletedWith0ConcurrencyIsCalled()
         {
-            var actionBlock = ActionBlockSlim.Create<int>(0, n => { }, useChannelBasedImpl: useChannelBasedImpl);
+            var actionBlock = ActionBlockSlim.Create<int>(0, n => { });
             var task = actionBlock.CompletionAsync();
 
             Assert.Equal(TaskStatus.RanToCompletion, task.Status);
         }
 
-        [Theory]
-        [InlineData(true)]
-        [InlineData(false)]
-        public async Task AllTheElementsAreFinished(bool useChannelBasedImpl)
+        [Fact]
+        public async Task AllTheElementsAreFinished()
         {
             int count = 0;
             var actionBlock = ActionBlockSlim.Create<int>(
                 42,
-                n => { Interlocked.Increment(ref count); Thread.Sleep(1); },
-                useChannelBasedImpl: useChannelBasedImpl);
+                n => { Interlocked.Increment(ref count); Thread.Sleep(1); });
 
             var task = actionBlock.CompletionAsync();
             actionBlock.Post(1);
@@ -182,17 +165,14 @@ namespace Test.BuildXL.Utilities
             Assert.Equal(2, count);
         }
 
-        [Theory]
-        [InlineData(true)]
-        [InlineData(false)]
-        public async Task AllTheElementsAreProcessedBy1Thread(bool useChannelBasedImpl)
+        [Fact]
+        public async Task AllTheElementsAreProcessedBy1Thread()
         {
             const int maxCount = 420;
             int count = 0;
             var actionBlock = ActionBlockSlim.Create<int>(
                 1,
-                n => { Interlocked.Increment(ref count); },
-                useChannelBasedImpl: useChannelBasedImpl);
+                n => { Interlocked.Increment(ref count); });
 
             for (int i = 0; i < maxCount; i++)
             {
@@ -205,17 +185,14 @@ namespace Test.BuildXL.Utilities
             Assert.Equal(maxCount, count);
         }
 
-        [Theory]
-        [InlineData(true)]
-        [InlineData(false)]
-        public async Task AllTheElementsAreProcessedBy2Thread(bool useChannelBasedImpl)
+        [Fact]
+        public async Task AllTheElementsAreProcessedBy2Thread()
         {
             const int maxCount = 420;
             int count = 0;
             var actionBlock = ActionBlockSlim.Create<int>(
                 2,
-                n => { Interlocked.Increment(ref count); },
-                useChannelBasedImpl: useChannelBasedImpl);
+                n => { Interlocked.Increment(ref count); });
 
             for (int i = 0; i < maxCount; i++)
             {
@@ -228,10 +205,8 @@ namespace Test.BuildXL.Utilities
             Assert.Equal(maxCount, count);
         }
 
-        [Theory]
-        [InlineData(true)]
-        [InlineData(false)]
-        public async Task IncreaseConcurrency(bool useChannelBasedImpl)
+        [Fact]
+        public async Task IncreaseConcurrency()
         {
             int count = 0;
 
@@ -256,8 +231,7 @@ namespace Test.BuildXL.Utilities
                     }
 
                     Thread.Sleep(1);
-                },
-                useChannelBasedImpl: useChannelBasedImpl);
+                });
 
             // Schedule work
             actionBlock.Post(1);

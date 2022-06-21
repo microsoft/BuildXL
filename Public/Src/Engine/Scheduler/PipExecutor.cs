@@ -4613,7 +4613,6 @@ namespace BuildXL.Scheduler
                                 materializationResults[dataToStore.index] = result;
                             }
                         },
-                        useChannelBasedImpl: true,
                         singleProducedConstrained: true,
                         singleConsumerConstrained: false,
                         cancellationToken: environment.Context.CancellationToken);

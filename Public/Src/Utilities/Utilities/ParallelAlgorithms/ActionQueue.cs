@@ -26,9 +26,9 @@ namespace BuildXL.Utilities.ParallelAlgorithms
         public Task CompletionAsync() => m_actionBlock.CompletionAsync();
 
         /// <nodoc />
-        public ActionQueue(int degreeOfParallelism, int? capacityLimit = null, bool useChannel = false)
+        public ActionQueue(int degreeOfParallelism, int? capacityLimit = null)
         {
-            m_actionBlock = ActionBlockSlim.CreateWithAsyncAction<Func<Task>>(degreeOfParallelism, static f => f(), capacityLimit, useChannelBasedImpl: useChannel);
+            m_actionBlock = ActionBlockSlim.CreateWithAsyncAction<Func<Task>>(degreeOfParallelism, static f => f(), capacityLimit);
         }
 
         /// <summary>

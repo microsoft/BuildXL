@@ -11,19 +11,10 @@ namespace BuildXL.Cache.ContentStore.Vsts
     /// A cache for backing content store expiry.
     /// TODO: Clearing this cache relies on restart of the cache. We need to think of a better way to handle its unbounded growth, or at least add telemetry to track it.
     /// </summary>
-    internal class BackingContentStoreExpiryCache
+    public class BackingContentStoreExpiryCache
     {
-        /// <summary>
-        /// A singleton cache for ContentHash expiry in backing content store.
-        /// </summary>
-        public static readonly BackingContentStoreExpiryCache Instance = new BackingContentStoreExpiryCache();
-
         private readonly ConcurrentDictionary<ContentHash, DateTime> _backingStoreExpiryCacheDictionary
             = new ConcurrentDictionary<ContentHash, DateTime>();
-
-        public BackingContentStoreExpiryCache()
-        {
-        }
 
         /// <summary>
         /// Tries to get the expiry from the cache if available.

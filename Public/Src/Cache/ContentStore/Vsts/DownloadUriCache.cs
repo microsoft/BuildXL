@@ -13,19 +13,10 @@ namespace BuildXL.Cache.ContentStore.Vsts
     /// <summary>
     /// A cache for download URIs.
     /// </summary>
-    internal class DownloadUriCache
+    public class DownloadUriCache
     {
-        /// <summary>
-        /// A singleton cache per process of download URIs.
-        /// </summary>
-        internal static readonly DownloadUriCache Instance = new DownloadUriCache();
-
         private readonly ConcurrentDictionary<ContentHash, PreauthenticatedUri> _downloadUriCacheDictionary
             = new ConcurrentDictionary<ContentHash, PreauthenticatedUri>();
-
-        private DownloadUriCache()
-        {
-        }
 
         /// <summary>
         /// Tries to get the download URI from the cache if available.

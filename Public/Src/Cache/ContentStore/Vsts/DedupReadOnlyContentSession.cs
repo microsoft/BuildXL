@@ -45,6 +45,12 @@ namespace BuildXL.Cache.ContentStore.Vsts
             PinIgnored
         }
 
+        /// <inheritdoc />
+        public BackingContentStoreExpiryCache ExpiryCache { get; } = new BackingContentStoreExpiryCache();
+
+        /// <inheritdoc />
+        public DownloadUriCache UriCache { get; } = new DownloadUriCache();
+
         private CounterCollection<BackingContentStore.SessionCounters> _counters { get; }
         private CounterCollection<Counters> _dedupCounters { get; }
 
@@ -258,7 +264,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
                 if (pinResult.Succeeded)
                 {
                     _counters[BackingContentStore.SessionCounters.PinSatisfiedFromRemote].Increment();
-                    BackingContentStoreExpiryCache.Instance.AddExpiry(contentHash, keepUntil);
+                    ExpiryCache.AddExpiry(contentHash, keepUntil);
                 }
 
                 return pinResult;
@@ -484,8 +490,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
         private PinResult CheckPinInMemory(ContentHash contentHash, DateTime keepUntil)
         {
             // TODO: allow cached expiry time to be within some bump threshold (e.g. allow expiryTime = 6 days & endDateTime = 7 days) (bug 1365340)
-            if (BackingContentStoreExpiryCache.Instance.TryGetExpiry(
-                contentHash, out var expiryTime) && expiryTime > keepUntil)
+            if (ExpiryCache.TryGetExpiry(contentHash, out var expiryTime) && expiryTime > keepUntil)
             {
                 _counters[BackingContentStore.SessionCounters.PinSatisfiedInMemory].Increment();
                 return PinResult.Success;
@@ -559,7 +564,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
         }
 
         /// <summary>
-        /// Updates expiry of single node in DedupStore if 
+        /// Updates expiry of single node in DedupStore if
         ///     1) Node exists
         ///     2) All children exist and have sufficient TTL
         /// If children have insufficient TTL, attempt to extend the expiry of all children before pinning.

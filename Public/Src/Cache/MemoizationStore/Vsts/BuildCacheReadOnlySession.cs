@@ -112,8 +112,6 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         // ReSharper disable once InconsistentNaming
         protected BackgroundTaskTracker _taskTracker;
 
-        private readonly BackingContentStoreExpiryCache _expiryCache = new BackingContentStoreExpiryCache();
-
         /// <summary>
         ///     Keep track of all the fingerprints that need to be incorporated later
         /// </summary>
@@ -619,7 +617,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         /// <summary>
         ///     Stores the DownloadUris in-memory to reduce the calls to BlobStore.
         /// </summary>
-        protected static void StorePrefetchedDownloadUris(IDictionary<string, Uri> blobDownloadUris)
+        protected void StorePrefetchedDownloadUris(IDictionary<string, Uri> blobDownloadUris)
         {
             if (blobDownloadUris == null)
             {
@@ -628,7 +626,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
 
             foreach (var blobDownloadUri in blobDownloadUris)
             {
-                DownloadUriCache.Instance.AddDownloadUri(
+                BackingContentSession.UriCache.AddDownloadUri(
                     BlobIdentifier.Deserialize(blobDownloadUri.Key).ToContentHash(),
                     new PreauthenticatedUri(blobDownloadUri.Value, EdgeType.Unknown)); // EdgeType value shouldn't matter because we don't use it.
             }
@@ -697,13 +695,13 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         {
             if (expirationUtc != null)
             {
-                _expiryCache.AddExpiry(strongFingerprint.Selector.ContentHash, expirationUtc.Value);
+                BackingContentSession.ExpiryCache.AddExpiry(strongFingerprint.Selector.ContentHash, expirationUtc.Value);
 
                 if (hashes != null)
                 {
                     foreach (var hash in hashes.Hashes)
                     {
-                        _expiryCache.AddExpiry(hash, expirationUtc.Value);
+                        BackingContentSession.ExpiryCache.AddExpiry(hash, expirationUtc.Value);
                     }
                 }
             }
@@ -836,7 +834,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
 
         private PinResult CheckExpiryCache(ContentHash hash, DateTime? requiredExpiry)
         {
-            if (requiredExpiry != null && _expiryCache.TryGetExpiry(hash, out var expiry) && (expiry >= requiredExpiry))
+            if (requiredExpiry != null && BackingContentSession.ExpiryCache.TryGetExpiry(hash, out var expiry) && (expiry >= requiredExpiry))
             {
                 return PinResult.Success;
             }

@@ -5,6 +5,7 @@ using System;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Cache.ContentStore.Vsts;
 using BuildXL.Cache.MemoizationStore.VstsInterfaces;
 
 namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
@@ -51,13 +52,13 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
         /// <summary>
         /// Creates a contenthashlistadapter for a particular session.
         /// </summary>
-        public IContentHashListAdapter Create(IContentSession contentSession, bool includeDownloadUris)
+        public IContentHashListAdapter Create(IBackingContentSession contentSession, bool includeDownloadUris)
         {
             ItemBuildCacheHttpClient itemBasedClient = BuildCacheHttpClient as ItemBuildCacheHttpClient;
 
             if (itemBasedClient != null)
             {
-                return new ItemBuildCacheContentHashListAdapter(itemBasedClient);
+                return new ItemBuildCacheContentHashListAdapter(itemBasedClient, contentSession.UriCache);
             }
 
             return new BlobBuildCacheContentHashListAdapter((IBlobBuildCacheHttpClient)BuildCacheHttpClient, contentSession, includeDownloadUris);

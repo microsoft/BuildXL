@@ -26,13 +26,15 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
                    ContentAvailabilityGuarantee.NoContentBackedByCache);
 
         private readonly IBuildCacheHttpClient _buildCacheHttpClient;
+        private readonly DownloadUriCache _downloadUriCache;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ItemBuildCacheContentHashListAdapter"/> class.
         /// </summary>
-        public ItemBuildCacheContentHashListAdapter(IBuildCacheHttpClient buildCacheHttpClient)
+        public ItemBuildCacheContentHashListAdapter(IBuildCacheHttpClient buildCacheHttpClient, DownloadUriCache downloadUriCache)
         {
             _buildCacheHttpClient = buildCacheHttpClient;
+            _downloadUriCache = downloadUriCache;
         }
 
         /// <inheritdoc />
@@ -58,7 +60,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
                 {
                     if (selectorAndPossible.ContentHashList != null)
                     {
-                        DownloadUriCache.Instance.BulkAddDownloadUris(selectorAndPossible.ContentHashList.BlobDownloadUris);
+                        _downloadUriCache.BulkAddDownloadUris(selectorAndPossible.ContentHashList.BlobDownloadUris);
                     }
 
                     selectorsToReturn.Add(
@@ -90,7 +92,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
                         innerCts => _buildCacheHttpClient.GetContentHashListAsync(cacheNamespace, strongFingerprint),
                         CancellationToken.None).ConfigureAwait(false);
 
-                DownloadUriCache.Instance.BulkAddDownloadUris(response.BlobDownloadUris);
+                _downloadUriCache.BulkAddDownloadUris(response.BlobDownloadUris);
 
                 // our response should never be null.
                 if (response.ContentHashListWithCacheMetadata != null)
@@ -138,12 +140,12 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
                         strongFingerprint,
                         valueToAdd,
                         forceUpdate), CancellationToken.None).ConfigureAwait(false);
-                
+
                 // The return value is null if the server fails adding content hash list to the backing store.
                 // See BuildCacheService.AddContentHashListAsync for more details about the implementation invariants/guarantees.
                 if (addResult != null)
                 {
-                    DownloadUriCache.Instance.BulkAddDownloadUris(addResult.BlobDownloadUris);
+                    _downloadUriCache.BulkAddDownloadUris(addResult.BlobDownloadUris);
                 }
 
                 // add succeeded but returned an empty contenthashlistwith cache metadata. correct this.

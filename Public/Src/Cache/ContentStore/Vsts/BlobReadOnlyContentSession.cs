@@ -58,6 +58,12 @@ namespace BuildXL.Cache.ContentStore.Vsts
             VstsDownloadUriFetchedInMemory
         }
 
+        /// <inheritdoc />
+        public BackingContentStoreExpiryCache ExpiryCache { get; } = new BackingContentStoreExpiryCache();
+
+        /// <inheritdoc />
+        public DownloadUriCache UriCache { get; } = new DownloadUriCache();
+
         private readonly CounterCollection<BackingContentStore.SessionCounters> _counters;
         private readonly CounterCollection<Counters> _blobCounters;
 
@@ -344,7 +350,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
                         : PinResult.Success;
                     if (pinResult.Succeeded)
                     {
-                        BackingContentStoreExpiryCache.Instance.AddExpiry(contentHashes[i], endDateTime);
+                        ExpiryCache.AddExpiry(contentHashes[i], endDateTime);
                         _counters[BackingContentStore.SessionCounters.PinSatisfiedFromRemote].Increment();
                     }
 
@@ -365,19 +371,19 @@ namespace BuildXL.Cache.ContentStore.Vsts
         private PinResult CheckPinInMemory(ContentHash contentHash, DateTime endDateTime)
         {
             // TODO: allow cached expiry time to be within some bump threshold (e.g. allow expiryTime = 6 days & endDateTime = 7 days) (bug 1365340)
-            if (BackingContentStoreExpiryCache.Instance.TryGetExpiry(contentHash, out var expiryTime) &&
+            if (ExpiryCache.TryGetExpiry(contentHash, out var expiryTime) &&
                 expiryTime > endDateTime)
             {
                 _counters[BackingContentStore.SessionCounters.PinSatisfiedInMemory].Increment();
                 return PinResult.Success;
             }
 
-            if (DownloadUriCache.Instance.TryGetDownloadUri(contentHash, out var authenticatedUri) &&
-                authenticatedUri.ExpiryTime > endDateTime)
-            {
-                _counters[BackingContentStore.SessionCounters.PinSatisfiedInMemory].Increment();
-                return PinResult.Success;
-            }
+            // if (DownloadUriCache.TryGetDownloadUri(contentHash, out var authenticatedUri) &&
+            //     authenticatedUri.ExpiryTime > endDateTime)
+            // {
+            //     _counters[BackingContentStore.SessionCounters.PinSatisfiedInMemory].Increment();
+            //     return PinResult.Success;
+            // }
 
             return PinResult.ContentNotFound;
         }
@@ -414,7 +420,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
 
                         try
                         {
-                            var success = DownloadUriCache.Instance.TryGetDownloadUri(contentHash, out var preauthUri);
+                            var success = UriCache.TryGetDownloadUri(contentHash, out var preauthUri);
                             uri = success ? preauthUri.NotNullUri : new Uri("http://empty.com");
 
                             Directory.CreateDirectory(Directory.GetParent(path)!.FullName);
@@ -536,7 +542,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
 
         private async Task<Uri?> GetUriAsync(OperationContext context, ContentHash contentHash)
         {
-            if (!DownloadUriCache.Instance.TryGetDownloadUri(contentHash, out var uri))
+            if (!UriCache.TryGetDownloadUri(contentHash, out var uri))
             {
                 _blobCounters[Counters.VstsDownloadUriFetchedFromRemote].Increment();
                 var blobId = contentHash.ToBlobIdentifier();
@@ -555,7 +561,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
                     return null;
                 }
 
-                DownloadUriCache.Instance.AddDownloadUri(contentHash, uri);
+                UriCache.AddDownloadUri(contentHash, uri);
             }
             else
             {

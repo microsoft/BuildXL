@@ -18,6 +18,16 @@ namespace BuildXL.Cache.ContentStore.Vsts
         /// Bulk operations for pins with a specific TTL
         /// </summary>
         Task<IEnumerable<Task<PinResult>>> PinAsync(OperationContext context, IReadOnlyList<ContentHash> contentHashes, DateTime keepUntil);
+
+        /// <summary>
+        /// Expiry Cache
+        /// </summary>
+        BackingContentStoreExpiryCache ExpiryCache { get; }
+
+        /// <summary>
+        /// Uri Cache
+        /// </summary>
+        DownloadUriCache UriCache { get; }
     }
 
     /// <nodoc />

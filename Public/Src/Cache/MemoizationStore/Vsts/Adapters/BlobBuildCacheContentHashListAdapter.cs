@@ -33,13 +33,13 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
                    ContentAvailabilityGuarantee.NoContentBackedByCache);
 
         private readonly IBlobBuildCacheHttpClient _buildCacheHttpClient;
-        private readonly IContentSession _blobContentSession;
+        private readonly IBackingContentSession _blobContentSession;
         private readonly bool _includeDownloadUris;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="BlobBuildCacheContentHashListAdapter"/> class.
         /// </summary>
-        public BlobBuildCacheContentHashListAdapter(IBlobBuildCacheHttpClient buildCacheHttpClient, IContentSession blobContentSession, bool includeDownloadUris)
+        public BlobBuildCacheContentHashListAdapter(IBlobBuildCacheHttpClient buildCacheHttpClient, IBackingContentSession blobContentSession, bool includeDownloadUris)
         {
             _buildCacheHttpClient = buildCacheHttpClient;
             _blobContentSession = blobContentSession;
@@ -77,10 +77,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
                                 selectorAndPossible.ContentHashList);
                         }
 
-                        if (selectorAndPossible.ContentHashList.ContentHashListWithDeterminism.MetadataBlobDownloadUri != null)
-                        {
-                            AddDownloadUriToCache(selectorAndPossible.ContentHashList.ContentHashListWithDeterminism);
-                        }
+                        AddDownloadUriToCache(selectorAndPossible.ContentHashList.ContentHashListWithDeterminism);
                     }
 
                     selectorsToReturn.Add(
@@ -114,8 +111,8 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
                             CancellationToken.None)
                         .ConfigureAwait(false);
 
+                    _blobContentSession.UriCache.BulkAddDownloadUris(blobResponse.BlobDownloadUris);
                     blobCacheMetadata = blobResponse.ContentHashListWithCacheMetadata;
-                    DownloadUriCache.Instance.BulkAddDownloadUris(blobResponse.BlobDownloadUris);
                     AddDownloadUriToCache(blobCacheMetadata.ContentHashListWithDeterminism);
                 }
 
@@ -197,7 +194,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
                         blobContentHashListWithCacheMetadata,
                         forceUpdate),
                     CancellationToken.None).ConfigureAwait(false);
-                DownloadUriCache.Instance.BulkAddDownloadUris(addResult.BlobDownloadUris);
+                _blobContentSession.UriCache.BulkAddDownloadUris(addResult.BlobDownloadUris);
 
                 // add succeeded but returned an empty contenthashlistwith cache metadata. correct this.
                 if (addResult.ContentHashListWithCacheMetadata == null)
@@ -220,11 +217,11 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
             }
         }
 
-        private static void AddDownloadUriToCache(BlobContentHashListWithDeterminism contentHashListWithDeterminism)
+        private void AddDownloadUriToCache(BlobContentHashListWithDeterminism contentHashListWithDeterminism)
         {
             if (contentHashListWithDeterminism.MetadataBlobDownloadUri != null)
             {
-                DownloadUriCache.Instance.AddDownloadUri(
+                _blobContentSession.UriCache.AddDownloadUri(
                     contentHashListWithDeterminism.BlobIdentifier.ToContentHash(),
                     new PreauthenticatedUri(contentHashListWithDeterminism.MetadataBlobDownloadUri, EdgeType.Unknown)); // EdgeType value shouldn't matter because we don't use it.
             }

@@ -239,9 +239,10 @@ namespace BuildXL.Cache.ContentStore.Vsts
                 else
                 {
                     await PutNodeAsync(context, dedupNode, path);
+                    // TODO add expiry cache for all children
                 }
 
-                BackingContentStoreExpiryCache.Instance.AddExpiry(dedupNode.ToContentHash(hashType), EndDateTime);
+                ExpiryCache.AddExpiry(dedupNode.ToContentHash(hashType), EndDateTime);
                 return BoolResult.Success;
             }
             catch (Exception ex)

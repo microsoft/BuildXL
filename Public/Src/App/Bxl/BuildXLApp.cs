@@ -1098,7 +1098,7 @@ namespace BuildXL
             // Sending a different event to CloudBuild ETW listener.
             if (inCloudBuild)
             {
-                BuildXL.Tracing.CloudBuildEventSource.Log.DominoCompletedEvent(new  BuildXL.Tracing.CloudBuild.DominoCompletedEvent
+                BuildXL.Tracing.CloudBuildEventSource.Log.DominoCompletedEvent(new BuildXL.Tracing.CloudBuild.DominoCompletedEvent
                 {
                     ExitCode = exitCode,
                     UtcTicks = utcTicks,
@@ -1835,7 +1835,7 @@ namespace BuildXL
 
         #endregion
 
-        private static string ComputeEnvironment(IConfiguration configuration)
+        public static string ComputeEnvironment(IConfiguration configuration)
         {
             using (var builderPool = Pools.StringBuilderPool.GetInstance())
             {
@@ -1843,14 +1843,22 @@ namespace BuildXL
                 sb.Append(configuration.Logging.Environment);
                 sb.Append("Script");
 
-                foreach (KeyValuePair<string, string> traceInfo in configuration.Logging.TraceInfo.OrderBy(kvp => kvp.Key, StringComparer.OrdinalIgnoreCase))
+                // Using a map to capture all the traceInfoProperties, which can be later used for removal of duplicates.
+                // If the user has passed a buildProperty through traceInfo flag,then that value is used to override the value to be set by the build properties methods.
+                Dictionary<string, string> traceInfoProperties = new Dictionary<string, string>(configuration.Logging.TraceInfo, StringComparer.InvariantCultureIgnoreCase);
+                if (!traceInfoProperties.ContainsKey(CaptureBuildInfo.InfraKey))
+                {
+                    string infraPropertyValue = CaptureBuildInfo.GetInfra(configuration);
+                    traceInfoProperties.Add(CaptureBuildInfo.InfraKey, infraPropertyValue);
+                }
+
+                foreach (KeyValuePair<string, string> traceInfo in traceInfoProperties.OrderBy(kvp => kvp.Key, StringComparer.InvariantCultureIgnoreCase))
                 {
                     sb.Append(';');
                     sb.Append(traceInfo.Key);
                     sb.Append('=');
                     sb.Append(traceInfo.Value);
                 }
-
                 return sb.ToString();
             }
         }
@@ -2182,7 +2190,7 @@ namespace BuildXL
                 trackingEventListener,
                 rememberAllChangedTrackedInputs: true,
                 commitId: s_buildInfo?.IsDeveloperBuild == false ? s_buildInfo.CommitId : null,
-                buildVersion:  s_buildInfo?.IsDeveloperBuild == false ? s_buildInfo.Build : null);
+                buildVersion: s_buildInfo?.IsDeveloperBuild == false ? s_buildInfo.Build : null);
 
             if (engine == null)
             {
@@ -2207,7 +2215,7 @@ namespace BuildXL
             var asyncLoggingContext = new LoggingContext(loggingContext.ActivityId, loggingContext.LoggerComponentInfo, loggingContext.Session, loggingContext, loggingQueue);
 
             BuildXLEngineResult result = null;
-            
+
             using (loggingQueue?.EnterAsyncLoggingScope(asyncLoggingContext))
             {
                 result = engine.Run(asyncLoggingContext, engineState);
@@ -2306,7 +2314,7 @@ namespace BuildXL
                 var scrubbing = ComputeTimePercentage(perfInfo.EnginePerformanceInfo.ScrubbingDurationMs, perfInfo.EngineRunDurationMs);
                 var schedulerInit = ComputeTimePercentage(perfInfo.EnginePerformanceInfo.SchedulerInitDurationMs, perfInfo.EngineRunDurationMs);
                 var executePhase = ComputeTimePercentage(perfInfo.EnginePerformanceInfo.ExecutePhaseDurationMs, perfInfo.EngineRunDurationMs);
-                var highLevelOther = Math.Max(0, 100 - appInitialization.Item1 - graphConstruction.Item1 - scrubbing.Item1 - schedulerInit .Item1 - executePhase.Item1);
+                var highLevelOther = Math.Max(0, 100 - appInitialization.Item1 - graphConstruction.Item1 - scrubbing.Item1 - schedulerInit.Item1 - executePhase.Item1);
 
                 // Graph construction
                 var checkingForPipGraphReuse = ComputeTimePercentage(perfInfo.EnginePerformanceInfo.GraphCacheCheckDurationMs, loadOrConstructGraph);

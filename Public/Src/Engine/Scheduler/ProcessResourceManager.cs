@@ -194,7 +194,7 @@ namespace BuildXL.Scheduler
                         break;
 
                     case ManageMemoryMode.Suspend:
-                        isEligible = (scope) => !scope.IsSuspended && scope.MemoryCounters.PeakWorkingSetMb != 0;
+                        isEligible = (scope) => scope.CanCancel && !scope.IsSuspended && scope.MemoryCounters.PeakWorkingSetMb != 0;
                         comparer = s_largestWorkingSetFirstComparer;
                         break;
 

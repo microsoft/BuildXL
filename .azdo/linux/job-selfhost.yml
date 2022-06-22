@@ -2,7 +2,7 @@ jobs:
 - job: Selfhost
   displayName: Build and Validate Selfhost
   pool:
-    vmImage: ubuntu-18.04
+    name: BuildXL-DevOpsAgents-Linux-PME
 
   timeoutInMinutes: 90
 

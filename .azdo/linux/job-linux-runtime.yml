@@ -10,7 +10,7 @@ jobs:
 - job: NativeRuntime
   displayName: Build Native Runtime
   pool:
-    vmImage: ubuntu-18.04
+    name: BuildXL-DevOpsAgents-Linux-PME
 
   variables:
     skipComponentGovernanceDetection: true # done elsewhere (in the main rolling pipeline)

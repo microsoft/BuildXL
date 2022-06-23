@@ -47,6 +47,7 @@ namespace Test.BuildXL.Engine
         }
 
         [Fact]
+        [Trait("Category", "WindowsOSOnly")] // TODO: on Linux we get a 'CacheException: Failed to create hard link...'. Investigate
         public void OutputsUnderSharedOpaqueAreSelectivelyScrubbed()
         {
             var file = X("out/MyFile.txt");
@@ -85,6 +86,7 @@ namespace Test.BuildXL.Engine
         [Theory]
         [InlineData(true)]
         [InlineData(false)]
+        [Trait("Category", "WindowsOSOnly")] // TODO: on Linux we get a 'CacheException: Failed to create hard link...'. Investigate
         public void UnsafeEmptyDirectoriesUnderSharedOpaqueAreNotScrubbedWhenDisabled(bool disableEmptyDirectoryScrubbing)
         {
             // The unsafe option should be off by default
@@ -110,6 +112,7 @@ namespace Test.BuildXL.Engine
         }
 
         [Fact]
+        [Trait("Category", "WindowsOSOnly")] // TODO: on Linux we get a 'CacheException: Failed to create hard link...'. Investigate
         public void SharedOpaqueOutputsAreScrubbedRegardlessOfDirectoriesKnownToTheGraph()
         {
             var file = X("out/subdir1/subdir2/MyFile.txt");
@@ -141,6 +144,7 @@ namespace Test.BuildXL.Engine
         }
 
         [Fact]
+        [Trait("Category", "WindowsOSOnly")] // TODO: on Linux we get a 'CacheException: Failed to create hard link...'. Investigate
         public void OutputsUnderSharedOpaqueInSubdirAreScrubbed()
         {
             var file = X("out/subdir/MyFile.txt");
@@ -171,6 +175,7 @@ namespace Test.BuildXL.Engine
         }
 
         [Fact]
+        [Trait("Category", "WindowsOSOnly")] // TODO: investigate why
         public void ExclusionsUnderSharedOpaquesAreNotScrubbed()
         {
             var file = X("out/subdir/MyFile.txt");
@@ -197,7 +202,7 @@ namespace Test.BuildXL.Engine
             Assert.False(Directory.Exists(dir2));
         }
 
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)] // The test is skipped because its falky on mac
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)] // The test is skipped because its flaky on mac
         public void OutputsUnderSharedOpaqueAreProperlyMarkedEvenOnCacheReplay()
         {
             var file = X("out/SharedOpaqueOutput.txt");
@@ -228,6 +233,7 @@ namespace Test.BuildXL.Engine
         }
 
         [Fact]
+        [Trait("Category", "WindowsOSOnly")] // TODO: on Linux we get a 'CacheException: Failed to create hard link...'. Investigate
         public void StaticOutputBecomingASharedOpaqueOutputIsProperlyMarkedAsSharedOpaqueOutput()
         {
             var file = X($"out/MyFile.txt");

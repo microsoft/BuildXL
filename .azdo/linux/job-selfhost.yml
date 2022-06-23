@@ -11,10 +11,9 @@ jobs:
       InternalRelease:
         BxlMatrixName: InternalReleaseLinux
         BxlMatrixArgs: --internal /q:ReleaseLinux
-      # TODO: broken because "runtime.linux-x64.BuildXL" NuGet is not public
-      # PublicRelease:
-      #   BxlMatrixName: ReleaseLinux
-      #   BxlMatrixArgs: /q:ReleaseLinux
+      PublicRelease:
+        BxlMatrixName: ReleaseLinux
+        BxlMatrixArgs: /q:ReleaseLinux
 
   variables:
     skipComponentGovernanceDetection: true # done elsewhere (in the main rolling pipeline)

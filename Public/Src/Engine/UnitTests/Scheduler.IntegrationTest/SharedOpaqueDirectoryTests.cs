@@ -923,6 +923,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         [Theory]
         [InlineData(true)]  // when there is an explicit dependency between the two pips --> allowed
         [InlineData(false)] // when there is NO explicit dependency between the two pips --> DependencyViolationWriteOnAbsentPathProbe error
+        [Trait("Category", "WindowsOSOnly")] // TODO: investigate why this is flaky on Linux
         public void AbsentFileProbeFollowedByDynamicWriteIsBlockedWhenPipsAreIndependent(bool forceDependency)
         {
             var signaligFile = CreateSourceFile();

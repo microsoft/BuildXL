@@ -198,7 +198,7 @@ function installCredProvider() {
     fi
 
     # Download the artifacts credential provider
-    wget -c https://github.com/microsoft/artifacts-credprovider/releases/download/v1.0.0/Microsoft.NuGet.CredentialProvider.tar.gz -O - | tar -xz -C $destinationFolder
+    wget -q -c https://github.com/microsoft/artifacts-credprovider/releases/download/v1.0.0/Microsoft.NuGet.CredentialProvider.tar.gz -O - | tar -xz -C $destinationFolder
 
     # Remove the .exe, since we want to replace it with a script that runs on Mac/Linux
     rm "$credentialProviderExe"

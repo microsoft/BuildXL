@@ -6,6 +6,7 @@ import {Transformer} from "Sdk.Transformers";
 import * as Managed from "Sdk.Managed";
 import * as Shared from "Sdk.Managed.Shared";
 import * as MacServices from "BuildXL.Sandbox.MacOS";
+import { Sandbox as LinuxSandbox } from "BuildXL.Sandbox.Linux";
 
 namespace Native {
     @@public
@@ -34,14 +35,14 @@ namespace Native {
 
     @@public
     export const nativeWin = [ 
-        ...addIfLazy(qualifier.targetRuntime === "win-x64" && Context.getCurrentHost().os === "win", () => [
+        ...addIfLazy(qualifier.targetRuntime === "win-x64" && BuildXLSdk.isHostOsWin, () => [
             importFrom("BuildXL.Sandbox.Windows").Deployment.natives
         ])
     ];
 
     @@public
     export const nativeMac = [
-        ...addIfLazy(MacServices.Deployment.macBinaryUsage !== "none" && qualifier.targetRuntime === "osx-x64", () =>
+        ...addIfLazy(MacServices.Deployment.macBinaryUsage !== "none" && BuildXLSdk.isTargetRuntimeOsx, () =>
         [
             MacServices.Deployment.interopLibrary,
         ]),
@@ -49,10 +50,9 @@ namespace Native {
 
     @@public
     export const nativeLinux = [
-        ...addIfLazy(qualifier.targetRuntime === "linux-x64", () =>
-        [
-            ...importFrom("runtime.linux-x64.BuildXL").Contents.all.ensureContents({subFolder: r`runtimes/linux-x64/native/${qualifier.configuration}`}).getContent()
-        ]),
+        ...addIfLazy(BuildXLSdk.isTargetRuntimeLinux, () => BuildXLSdk.isHostOsLinux && !BuildXLSdk.Flags.isMicrosoftInternal
+            ? [ LinuxSandbox.libBxlUtils, LinuxSandbox.bxlEnv, LinuxSandbox.libBxlAudit, LinuxSandbox.libDetours ]
+            : importFrom("runtime.linux-x64.BuildXL").Contents.all.ensureContents({subFolder: r`runtimes/linux-x64/native/${qualifier.configuration}`}).getContent())
     ];
 
     @@public

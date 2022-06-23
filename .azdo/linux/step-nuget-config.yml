@@ -10,6 +10,9 @@ steps:
 
 - bash: |
     set -eu
+    mono Shared/Tools/NuGet.exe sources remove -Name "BuildXL.Selfhost" || true
+    mono Shared/Tools/NuGet.exe sources remove -Name "BuildXL" || true
+
     mono Shared/Tools/NuGet.exe sources add -Name "BuildXL.Selfhost" -Source "$(Feed-BuildXL.Selfhost)" -username tsebuild -password $(PAT-TseBuild-AzureDevOps-CloudBuild)
     mono Shared/Tools/NuGet.exe sources add -Name "BuildXL" -Source "$(Feed-BuildXL)" -username tsebuild -password $(PAT-TseBuild-AzureDevOps-1esSharedAssets)
   displayName: Add NuGet Sources

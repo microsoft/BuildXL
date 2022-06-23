@@ -111,7 +111,34 @@ namespace ContentStoreTest.Test
                 }
             }
 
-            return new Logger(true, logs.ToArray());
+            return new TestLogger(logs.ToArray());
+        }
+
+        public class TestLogger : Logger, IOperationLogger
+        {
+            public TestLogger(params ILog[] logs) : base(true, logs)
+            {
+            }
+
+            public void OperationFinished(in OperationResult result)
+            {
+            }
+
+            public void RegisterBuildId(string buildId)
+            {
+            }
+
+            public void TrackMetric(in Metric metric)
+            {
+            }
+
+            public void TrackTopLevelStatistic(in Statistic statistic)
+            {
+            }
+
+            public void UnregisterBuildId()
+            {
+            }
         }
     }
 }

@@ -300,7 +300,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
             {
                 var messageText = context.RequiresMessage(result, traceErrorsOnly)
                     ? CreateMessageText(result, duration, message, operationName!)
-                    : string.Empty;
+                    : "none";
 
                 OperationFinishedCore(context, result, duration, messageText, OperationKind.None, traceErrorsOnly ? Severity.Diagnostic : Severity.Debug, operationName!);
             }

@@ -28,7 +28,7 @@ namespace BuildXL.Cache.ContentStore.Logging
     ///       - ...
     ///     Clients usually provide their own logging infrastructure via <see cref="ILogger"/>
     /// </remarks>
-    public sealed class Logger : ILogger, IAsyncDisposable
+    public class Logger : ILogger, IAsyncDisposable
     {
         /// <summary>
         /// Gets and sets a queue length used by an async version of the logger.

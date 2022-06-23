@@ -352,8 +352,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                 {
                     CleanOnInitialize = false,
                     GarbageCollectionInterval = TimeSpan.FromSeconds(config.RocksDbMemoizationStoreGarbageCollectionIntervalInSeconds),
-                    MetadataGarbageCollectionEnabled = true,
-                    MetadataGarbageCollectionMaximumNumberOfEntriesToKeep = config.RocksDbMemoizationStoreGarbageCollectionMaximumNumberOfEntriesToKeep,
+                    MetadataGarbageCollectionMaximumSizeMb = config.MaxCacheSizeInMB,
                     OnFailureDeleteExistingStoreAndRetry = true,
                     LogsKeepLongTerm = false,
                 },

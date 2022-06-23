@@ -154,7 +154,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             lock (_garbageCollectionLock)
             {
                 _isContentGarbageCollectionEnabled = isDatabaseWriteable;
-                _isMetadataGarbageCollectionEnabled = isDatabaseWriteable && _configuration.MetadataGarbageCollectionEnabled;
+                _isMetadataGarbageCollectionEnabled = isDatabaseWriteable;
                 IsDatabaseWriteable = isDatabaseWriteable;
             }
 

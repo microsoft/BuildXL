@@ -332,7 +332,6 @@ namespace BuildXL.Cache.Host.Service.Internal
 
                 config.Database.CleanOnInitialize = false;
                 config.Database.OnFailureDeleteExistingStoreAndRetry = true;
-                config.Database.MetadataGarbageCollectionEnabled = true;
 
                 return new RocksDbMemoizationStore(SystemClock.Instance, config);
             }

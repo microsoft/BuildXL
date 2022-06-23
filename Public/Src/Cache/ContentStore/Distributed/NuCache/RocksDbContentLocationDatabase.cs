@@ -93,8 +93,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public RocksDbContentLocationDatabase(IClock clock, RocksDbContentLocationDatabaseConfiguration configuration, Func<IReadOnlyList<MachineId>> getInactiveMachines)
             : base(clock, configuration, getInactiveMachines)
         {
-            Contract.Requires(configuration.MetadataGarbageCollectionMaximumNumberOfEntriesToKeep > 0);
-
             _configuration = configuration;
             _activeSlotFilePath = (_configuration.StoreLocation / ActiveStoreSlotFileName).ToString();
 
@@ -252,7 +250,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     // compaction here and pretending like we are using a read-only database.
                     DisableAutomaticCompactions = !IsDatabaseWriteable,
                     LeveledCompactionDynamicLevelTargetSizes = true,
-                    Compression = _configuration.Compression,
+                    Compression = Compression.Zstd,
                     UseReadOptionsWithSetTotalOrderSeekInDbEnumeration = _configuration.UseReadOptionsWithSetTotalOrderSeekInDbEnumeration,
                     UseReadOptionsWithSetTotalOrderSeekInGarbageCollection = _configuration.UseReadOptionsWithSetTotalOrderSeekInGarbageCollection,
                 };
@@ -996,15 +994,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     "rocksdb.estimate-live-data-size",
                     columnFamilyName: nameof(Columns.Metadata)).GetValueOrDefault(-1);
 
-                var output = _configuration.MetadataGarbageCollectionStrategy switch
-                {
-                    MetadataGarbageCollectionStrategy.CapacityBound =>
-                        GarbageCollectMetadataWithMaximumEntriesStrategy(ctx, store),
-                    MetadataGarbageCollectionStrategy.DiskSizeBound =>
-                        GarbageCollectMetadataWithMaximumSizeStrategy(ctx, store),
-                    _ =>
-                        throw new InvalidOperationException($"Unknown Metadata GC strategy `{_configuration.MetadataGarbageCollectionStrategy}`"),
-                };
+                var output = GarbageCollectMetadataWithMaximumSizeStrategy(ctx, store);
 
                 Counters[ContentLocationDatabaseCounters.GarbageCollectMetadataEntriesScanned].Add(output.Scanned);
                 Counters[ContentLocationDatabaseCounters.GarbageCollectMetadataEntriesRemoved].Add(output.Removed);
@@ -1017,87 +1007,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 output.KillSwitch = killSwitch.IsCancellationRequested;
                 return output;
             }).ToResult();
-        }
-
-        private MetadataGarbageCollectionOutput GarbageCollectMetadataWithMaximumEntriesStrategy(OperationContext context, RocksDbStore store)
-        {
-            // This implementation still used the older and less efficient store.PrefixSearch that copies the keys and values
-            // for each iteration.
-            // But this implemnetation is not used in production right now, so it's not very important to change it as well.
-
-            // The strategy here is to keep the top K elements by last access time (i.e. an LRU policy). This is
-            // slightly worse than that, because our iterator will go stale as time passes: since we iterate over
-            // a snapshot of the DB, we can't guarantee that an entry we remove is truly the one we should be
-            // removing. Moreover, since we store information what the last access times were, our internal
-            // priority queue may go stale over time as well.
-
-            long scannedEntries = 0;
-            long removedEntries = 0;
-
-            // This is a min-heap using lexicographic order: an element will be at the `Top` if its `fileTimeUtc`
-            // is the smallest (i.e. the oldest). Hence, we always know what the cut-off point is for the top K: if
-            // a new element is smaller than the Top, it's not in the top K, if larger, it is.
-            var entries = new PriorityQueue<(long fileTimeUtc, byte[] strongFingerprint)>(
-                capacity: _configuration.MetadataGarbageCollectionMaximumNumberOfEntriesToKeep + 1,
-                comparer: Comparer<(long fileTimeUtc, byte[] strongFingerprint)>.Create((x, y) => x.fileTimeUtc.CompareTo(y.fileTimeUtc)));
-
-            // Intentionally not using a callback-based version of the search (i.e. PrefixLookup) because we won't get too much benefits
-            // from it, but the implementation would be more complicated.
-            foreach (var keyValuePair in store.PrefixSearch(Array.Empty<byte>(), nameof(Columns.Metadata)))
-            {
-                // NOTE(jubayard): the expensive part of this is iterating over the whole database; the less we
-                // take _while_ we do that, the better. An alternative is to compute a quantile sketch and remove
-                // unneeded entries as we go. We could also batch deletions here.
-
-                if (context.Token.IsCancellationRequested)
-                {
-                    break;
-                }
-
-                var entry = (fileTimeUtc: DeserializeMetadataLastAccessTimeUtc(keyValuePair.Value),
-                    strongFingerprint: keyValuePair.Key);
-
-                byte[]? strongFingerprintToRemove = null;
-
-                if (entries.Count >= _configuration.MetadataGarbageCollectionMaximumNumberOfEntriesToKeep && entries.Top.fileTimeUtc > entry.fileTimeUtc)
-                {
-                    // If we already reached the maximum number of elements to keep, and the current entry is older
-                    // than the oldest in the top K, we can just remove the current entry.
-                    strongFingerprintToRemove = entry.strongFingerprint;
-                }
-                else
-                {
-                    // We either didn't reach the number of elements we want to keep, or the entry has a last
-                    // access time larger than the current smallest one in the top K.
-                    entries.Push(entry);
-
-                    if (entries.Count > _configuration.MetadataGarbageCollectionMaximumNumberOfEntriesToKeep)
-                    {
-                        strongFingerprintToRemove = entries.Top.strongFingerprint;
-                        entries.Pop();
-                    }
-                }
-
-                if (strongFingerprintToRemove is not null)
-                {
-                    store.Remove(strongFingerprintToRemove, columnFamilyName: nameof(Columns.Metadata));
-                    removedEntries++;
-
-                    if (_configuration.MetadataGarbageCollectionLogEnabled)
-                    {
-                        var strongFingerprint = DeserializeStrongFingerprint(strongFingerprintToRemove.AsSpan());
-                        NagleOperationTracer?.Enqueue((context, strongFingerprint, EntryOperation.RemoveMetadataEntry, OperationReason.GarbageCollect));
-                    }
-                }
-
-                scannedEntries++;
-            }
-
-            return new MetadataGarbageCollectionOutput()
-            {
-                Scanned = scannedEntries,
-                Removed = removedEntries,
-            };
         }
 
         private MetadataGarbageCollectionOutput GarbageCollectMetadataWithMaximumSizeStrategy(OperationContext context, RocksDbStore store)

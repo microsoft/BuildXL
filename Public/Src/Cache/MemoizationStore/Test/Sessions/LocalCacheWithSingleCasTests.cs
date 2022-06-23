@@ -30,8 +30,6 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
                     CleanOnInitialize = false,
                     OnFailureDeleteExistingStoreAndRetry = true,
                     LogsKeepLongTerm = true,
-                    MetadataGarbageCollectionEnabled = true,
-                    MetadataGarbageCollectionMaximumNumberOfEntriesToKeep = MaxContentHashListItems,
                 },
             };
             return LocalCache.CreateUnknownContentStoreInProcMemoizationStoreCache(Logger, rootPath, memoConfig, LocalCacheConfiguration.CreateServerDisabled(), clock: Clock);

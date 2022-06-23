@@ -250,7 +250,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
             };
 
             ApplyIfNotNull(DistributedContentSettings.LocationEntryExpiryMinutes, v => dbConfig.ContentRotationInterval = TimeSpan.FromMinutes(v));
-            ApplyEnumIfNotNull<Compression>(DistributedContentSettings.ContentLocationDatabaseCompression, v => dbConfig.Compression = v);
             dbConfig.BlobRotationInterval = TimeSpan.FromMinutes(DistributedContentSettings.BlobExpiryTimeMinutes);
             dbConfig.MetadataRotationInterval = DistributedContentSettings.ContentMetadataServerMetadataRotationInterval;
 

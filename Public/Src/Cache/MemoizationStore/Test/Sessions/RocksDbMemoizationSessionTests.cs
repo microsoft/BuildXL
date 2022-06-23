@@ -163,10 +163,9 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
             {
                 return CreateStore(testDirectory: disposableDirectory, configMutator: (configuration) =>
                 {
-                    configuration.MetadataGarbageCollectionEnabled = true;
-                    configuration.MetadataGarbageCollectionMaximumNumberOfEntriesToKeep = 1;
                     // Disables automatic GC
                     configuration.GarbageCollectionInterval = Timeout.InfiniteTimeSpan;
+                    configuration.MetadataGarbageCollectionMaximumSizeMb = 0.0001;
                 });
             }
         }
@@ -221,10 +220,9 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
             {
                 return CreateStore(testDirectory: disposableDirectory, configMutator: (configuration) =>
                 {
-                    configuration.MetadataGarbageCollectionEnabled = true;
-                    configuration.MetadataGarbageCollectionMaximumNumberOfEntriesToKeep = 1;
                     // Disables automatic GC
                     configuration.GarbageCollectionInterval = Timeout.InfiniteTimeSpan;
+                    configuration.MetadataGarbageCollectionMaximumSizeMb = 0.0001;
                 });
             }
         }
@@ -293,8 +291,6 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
             {
                 return CreateStore(testDirectory: disposableDirectory, configMutator: (Action<RocksDbContentLocationDatabaseConfiguration>)((configuration) =>
                 {
-                    configuration.MetadataGarbageCollectionEnabled = true;
-                    configuration.MetadataGarbageCollectionStrategy = MetadataGarbageCollectionStrategy.DiskSizeBound;
                     configuration.MetadataGarbageCollectionMaximumSizeMb = 0.5;
 
                     // Disables automatic GC

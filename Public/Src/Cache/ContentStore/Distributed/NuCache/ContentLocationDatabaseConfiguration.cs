@@ -2,34 +2,15 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Diagnostics.ContractsLight;
-using System.Threading;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.InMemory;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.Host.Configuration;
-using RocksDbSharp;
 using static BuildXL.Utilities.ConfigurationHelper;
 
 #nullable enable
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
-    /// <nodoc />
-    public enum MetadataGarbageCollectionStrategy
-    {
-        /// <summary>
-        /// Always keep at most <see cref="ContentLocationDatabaseConfiguration.MetadataGarbageCollectionMaximumNumberOfEntriesToKeep"/> entries, using
-        /// LRU policy.
-        /// </summary>
-        CapacityBound,
-
-        /// <summary>
-        /// Attempt to keep as many entries possible, as long as they take no more than
-        /// <see cref="ContentLocationDatabaseConfiguration.MetadataGarbageCollectionMaximumSizeMb"/>.
-        /// </summary>
-        DiskSizeBound,
-    }
-
     /// <summary>
     /// Configuration type for <see cref="ContentLocationDatabase"/> family of types.
     /// </summary>
@@ -52,37 +33,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public TimeSpan GarbageCollectionInterval { get; set; } = TimeSpan.FromHours(1);
 
         /// <summary>
-        /// Whether to enable garbage collection of metadata
-        /// </summary>
-        public bool MetadataGarbageCollectionEnabled { get; set; } = false;
-
-        /// <summary>
-        /// Whether to log evicted content
+        /// Whether to log evicted metadata
         /// </summary>
         public bool MetadataGarbageCollectionLogEnabled { get; set; } = false;
 
         /// <summary>
-        /// Maximum number of metadata entries to keep after garbage collection.
-        ///
-        /// Only useful when:
-        /// - <see cref="MetadataGarbageCollectionEnabled"/> is true
-        /// - <see cref="MetadataGarbageCollectionStrategy"/> is MaximumEntries
-        /// </summary>
-        public int MetadataGarbageCollectionMaximumNumberOfEntriesToKeep { get; set; } = 500_000;
-
-        /// <summary>
         /// Maximum allowed size of the Metadata column family.
-        ///
-        /// Only useful when:
-        /// - <see cref="MetadataGarbageCollectionEnabled"/> is true
-        /// - <see cref="MetadataGarbageCollectionStrategy"/> is MaximumSize
         /// </summary>
         public double MetadataGarbageCollectionMaximumSizeMb { get; set; } = 20_000;
-
-        /// <summary>
-        /// Metadata garbage collection strategy to use.
-        /// </summary>
-        public MetadataGarbageCollectionStrategy MetadataGarbageCollectionStrategy { get; set; } = MetadataGarbageCollectionStrategy.CapacityBound;
 
         /// <summary>
         /// Whether to clean the DB when it is corrupted.
@@ -224,9 +182,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         public long EnumerateEntriesWithSortedKeysFromStorageBufferSize { get; set; } = 100_000;
 
-        /// <nodoc />
-        public Compression? Compression { get; internal set; }
-
         /// <summary>
         /// Whether to use 'SetTotalOrderSeek' option during database enumeration.
         /// </summary>
@@ -268,7 +223,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 LogsKeepLongTerm = logsKeepLongTerm,
                 UseContextualEntryOperationLogging = settings.UseContextualEntryDatabaseOperationLogging,
                 TraceTouches = settings.TraceTouches,
-                MetadataGarbageCollectionEnabled = settings.EnableDistributedCache,
                 LogsBackupPath = logsBackupPath,
             };
 
@@ -278,15 +232,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             ApplyIfNotNull(settings.ContentLocationDatabaseGcIntervalMinutes, v => configuration.GarbageCollectionInterval = TimeSpan.FromMinutes(v));
             ApplyIfNotNull(settings.ContentLocationDatabaseGarbageCollectionConcurrent, v => configuration.GarbageCollectionConcurrent = v);
-            ApplyEnumIfNotNull<MetadataGarbageCollectionStrategy>(settings.ContentLocationDatabaseMetadataGarbageCollectionStrategy, nameof(settings.ContentLocationDatabaseMetadataGarbageCollectionStrategy), v => configuration.MetadataGarbageCollectionStrategy = v);
             ApplyIfNotNull(settings.ContentLocationDatabaseMetadataGarbageCollectionMaximumSizeMb, v => configuration.MetadataGarbageCollectionMaximumSizeMb = v);
-            ApplyIfNotNull(settings.MaximumNumberOfMetadataEntriesToStore, v => configuration.MetadataGarbageCollectionMaximumNumberOfEntriesToKeep = v);
             ApplyIfNotNull(settings.ContentLocationDatabaseMetadataGarbageCollectionLogEnabled, v => configuration.MetadataGarbageCollectionLogEnabled = v);
 
             ApplyIfNotNull(settings.ContentLocationDatabaseOpenReadOnly, v => configuration.OpenReadOnly = v && !settings.IsMasterEligible);
             ApplyIfNotNull(settings.UseMergeOperatorForContentLocations, v => configuration.UseMergeOperatorForContentLocations = v);
-
-            ApplyEnumIfNotNull<Compression>(settings.ContentLocationDatabaseCompression, v => configuration.Compression = v);
 
             if (settings.ContentLocationDatabaseLogsBackupEnabled)
             {

@@ -749,9 +749,6 @@ namespace BuildXL.Cache.Host.Configuration
         public int? ContentLocationDatabaseLogsBackupRetentionMinutes { get; set; }
 
         [DataMember]
-        public string ContentLocationDatabaseCompression { get; set; }
-
-        [DataMember]
         public bool? UseMergeOperatorForContentLocations { get; set; }
 
         [DataMember]

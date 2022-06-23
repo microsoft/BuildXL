@@ -43,8 +43,6 @@ namespace BuildXL.Cache.MemoizationStore.Test.Synchronization
                         CleanOnInitialize = false,
                         OnFailureDeleteExistingStoreAndRetry = true,
                         LogsKeepLongTerm = true,
-                        MetadataGarbageCollectionEnabled = true,
-                        MetadataGarbageCollectionMaximumNumberOfEntriesToKeep = MaxStrongFingerprints,
                     },
                 },
                 LocalCacheConfiguration.CreateServerDisabled(),

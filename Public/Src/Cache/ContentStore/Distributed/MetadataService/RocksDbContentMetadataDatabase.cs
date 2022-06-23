@@ -306,7 +306,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                         EnableStatistics = true,
                         FastOpen = true,
                         LeveledCompactionDynamicLevelTargetSizes = true,
-                        Compression = _configuration.Compression,
+                        Compression = Compression.Zstd,
                         UseReadOptionsWithSetTotalOrderSeekInDbEnumeration = true,
                         UseReadOptionsWithSetTotalOrderSeekInGarbageCollection = true,
                         MergeOperators = GetMergeOperators()

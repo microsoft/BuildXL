@@ -62,7 +62,7 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
                 CloudCacheLogEvent
                 | where PreciseTimeStamp between (start .. end)
                 | where Role == 'Master'
-                | where Operation == 'CreateCheckpointAsync' and isnotempty(Duration)
+                | where Component == 'CheckpointManager' and Operation == 'CreateCheckpointAsync' and isnotempty(Duration)
                 | where Result == '{Constants.ResultCode.Success}'
                 | summarize (PreciseTimeStamp, Machine)=arg_max(PreciseTimeStamp, Machine) by Stamp
                 | extend Age = end - PreciseTimeStamp

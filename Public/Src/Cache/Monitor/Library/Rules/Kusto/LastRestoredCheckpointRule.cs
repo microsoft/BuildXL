@@ -95,7 +95,7 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
                 // The most recent restore checkpoint events
                 //
                 let RestoreCheckpointEvents = Events
-                | where Operation == 'RestoreCheckpointAsync' and isnotempty(Duration)
+                | where Component == 'CheckpointManager' and Operation == 'RestoreCheckpointAsync' and isnotempty(Duration)
                 | where Result == '{Constants.ResultCode.Success}'
                 | summarize LastRestoreTime=max(PreciseTimeStamp) by Machine, Stamp;
                 //

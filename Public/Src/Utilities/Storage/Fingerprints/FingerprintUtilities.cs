@@ -68,6 +68,7 @@ namespace BuildXL.Storage.Fingerprints
         public static Fingerprint CreateFrom(byte[] value)
         {
             Contract.Requires(value != null);
+            Contract.Check(value.Length == FingerprintLength)?.Requires($"Expected length is '{FingerprintLength}' but actual length is '{value.Length}'.");
             Contract.Requires(value.Length == FingerprintLength);
 
             return new Fingerprint(value);

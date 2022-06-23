@@ -2,7 +2,9 @@
 // Licensed under the MIT License.
 
 using System;
+using System.IO;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace BuildXL.Cache.ContentStore.Hashing
 {
@@ -24,7 +26,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ReadOnlySpan<byte> AsSpanUnsafe(this in ShortHash hash) => MemoryHelpers.AsBytesUnsafe(hash);
 #else
-/// <summary>
+        /// <summary>
         /// Gets the byte array representation of <paramref name="hash"/> and then gets the span representation out of ot.
         /// </summary>
         /// <remarks>
@@ -34,6 +36,31 @@ namespace BuildXL.Cache.ContentStore.Hashing
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ReadOnlySpan<byte> AsSpanUnsafe(this in ShortHash hash) => hash.ToByteArray().AsSpan();
 #endif
+
+        /// <nodoc />
+        public static void Write(this BinaryWriter writer, in ShortHash value)
+        {
+            value.Serialize(writer);
+        }
+
+        /// <nodoc />
+        public static unsafe ShortHash ReadShortHash(this BinaryReader reader)
+        {
+#if NETCOREAPP
+            Span<ShortHash> result = stackalloc ShortHash[1];
+            // Ignoring the result, because we might read fewer bytes than requested.
+            _ = reader.Read(MemoryMarshal.AsBytes(result));
+
+            return result[0];
+#else
+            var length = ShortHash.SerializedLength;
+            using var pooledHandle = ContentHashExtensions.ShortHashBytesArrayPool.Get();
+
+            var bytesRead = reader.Read(pooledHandle.Value, index: 0, count: length);
+
+            return ShortHash.FromSpan(pooledHandle.Value.AsSpan(0, length: bytesRead));
+#endif
+        }
 
         /// <nodoc />
         public static ShortHash ToShortHash(this ContentHash contentHash) => new ShortHash(contentHash);

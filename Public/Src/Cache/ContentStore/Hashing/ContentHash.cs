@@ -140,8 +140,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
             Contract.Requires(reader != null);
 
             _hashType = (HashType)reader.ReadByte();
-            var data = reader.ReadBytes(ReadOnlyFixedBytes.MaxLength);
-            _bytes = ReadOnlyFixedBytes.FromSpan(data);
+            _bytes = ReadOnlyFixedBytes.ReadFrom(reader, ReadOnlyFixedBytes.MaxLength);
         }
 
         /// <summary>
@@ -154,8 +153,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
             Contract.Requires(reader != null);
 
             _hashType = hashType;
-            var data = reader.ReadBytes(ReadOnlyFixedBytes.MaxLength);
-            _bytes = ReadOnlyFixedBytes.FromSpan(data);
+            _bytes = ReadOnlyFixedBytes.ReadFrom(reader, ReadOnlyFixedBytes.MaxLength);
         }
 
         /// <summary>

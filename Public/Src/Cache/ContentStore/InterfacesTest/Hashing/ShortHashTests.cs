@@ -1,15 +1,11 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
-using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
-using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Utilities;
 using FluentAssertions;
 using Xunit;
@@ -23,23 +19,17 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
 
         public ShortHashTests(ITestOutputHelper helper) => _helper = helper;
 
-        public static IEnumerable<object[]> HashTypes => HashInfoLookup.All().Distinct().Select(i => new object[] { i.HashType });
-
-        [Theory]
-        [MemberData(nameof(HashTypes))]
-        public void ParseAllHashTypes(HashType hashType)
+        [Fact]
+        public void SerializationCompatibility()
         {
-            var hash = ContentHash.Random(hashType);
-            var stringHash = hash.ToShortString();
+            // ShortHash -> Span -> ByteArray -> ShortHash
+            var hash = ContentHash.Random(HashType.Vso0);
+            var v1 = new ShortHash(hash);
+            var v2 = ShortHash.FromSpan(v1.AsSpanUnsafe());
+            v1.Should().Be(v2);
 
-            // Test using TryParse
-            ShortHash.TryParse(stringHash, out var shortHash).Should().BeTrue();
-            var expectedShortHash = hash.AsShortHash();
-            shortHash.Should().Be(expectedShortHash);
-
-            // Test using constructor
-            shortHash = new ShortHash(stringHash);
-            shortHash.Should().Be(expectedShortHash);
+            var v3 = ShortHash.FromBytes(v1.AsSpanUnsafe().ToArray());
+            v1.Should().Be(v3);
         }
 
         [Fact]
@@ -71,7 +61,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
             var data = shortHash.ToByteArray();
 
             var shortHash2 = MemoryMarshal.Read<ShortHash>(data);
-            shortHash2.Should().Be(shortHash);
+            Assert.Equal(shortHash2, shortHash);
         }
 
         [Fact]
@@ -128,20 +118,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
             var shortHashFromShortString = ParseShortHash(shortHash.ToString());
             shortHash.Should().Be(shortHashFromShortString);
         }
-
-        [Fact]
-        public void GetRedisKeyShouldReturn20Characters()
-        {
-            // Hash.ToString is a very important method, because the result of it is used as keys in Redis.
-            // So the output oof GetRedisKey should not change even when ShortHash.ToString() implementation has changed.
-            var hash = ContentHash.Random();
-            var redisKey = RedisGlobalStore.GetRedisKey(hash);
-
-            redisKey.Should().NotBe(hash.AsShortHash().ToString());
-            const int expectedLength = 25; // 'VSO0' + 20 characters for the hash.
-            redisKey.Length.Should().Be(expectedLength);
-        }
-
+        
         private static ContentHash ParseContentHash(string str)
         {
             bool parsed = ContentHash.TryParse(str, out var result);

@@ -9,6 +9,9 @@ namespace InterfacesTest {
         sources: globR(d`.`,"*.cs"),
         skipTestRun: BuildXLSdk.restrictTestRunToSomeQualifiers,
         references: [
+            NetFx.System.Xml.dll,
+            NetFx.System.Xml.Linq.dll,
+            
             UtilitiesCore.dll,
             Hashing.dll,
             Interfaces.dll,
@@ -23,6 +26,7 @@ namespace InterfacesTest {
             importFrom("Newtonsoft.Json").pkg,
             ...getSerializationPackages(/*includeNetStandard*/true),
             ...BuildXLSdk.bclAsyncPackages,
+            ...BuildXLSdk.fluentAssertionsWorkaround,
         ],
         runTestArgs: {
             skipGroups: BuildXLSdk.isDotNetCoreBuild ? [ "SkipDotNetCore" ] : [],

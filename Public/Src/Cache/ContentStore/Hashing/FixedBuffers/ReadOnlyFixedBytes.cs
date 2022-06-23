@@ -96,7 +96,17 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// </remarks>
         public static ReadOnlyFixedBytes ReadFrom(BinaryReader reader, int length = MaxLength)
         {
-            return new ReadOnlyFixedBytes(reader.ReadBytes(length), length, offset: 0);
+#if NETCOREAPP
+            Span<ReadOnlyFixedBytes> result = stackalloc ReadOnlyFixedBytes[1];
+            _ = reader.Read(MemoryMarshal.AsBytes(result).Slice(start: 0, length));
+            return result[0];
+#else
+            using var pooledHandle = ContentHashExtensions.ContentHashBytesArrayPool.Get();
+            var bytesRead = reader.Read(pooledHandle.Value, index: 0, count: length);
+
+            return FromSpan(pooledHandle.Value.AsSpan(0, length: bytesRead));
+#endif
+
         }
 
         /// <summary>

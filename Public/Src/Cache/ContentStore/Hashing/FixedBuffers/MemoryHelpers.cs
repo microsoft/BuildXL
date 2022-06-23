@@ -28,10 +28,9 @@ namespace BuildXL.Cache.ContentStore.Hashing
         public static ReadOnlySpan<byte> AsBytesUnsafe<T>(in T value)
             where T : unmanaged
         {
-            return MemoryMarshal.AsBytes(
-                MemoryMarshal.CreateReadOnlySpan(
+            return MemoryMarshal.CreateReadOnlySpan(
                     reference: ref Unsafe.As<T, byte>(ref Unsafe.AsRef(in value)),
-                    length: Unsafe.SizeOf<T>()));
+                    length: Unsafe.SizeOf<T>());
         }
 #endif
     }

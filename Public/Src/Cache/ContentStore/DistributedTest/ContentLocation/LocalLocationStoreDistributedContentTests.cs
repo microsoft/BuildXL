@@ -657,7 +657,7 @@ namespace ContentStoreTest.Distributed.Sessions
         [Fact]
         public Task LocalLocationStoreDistributedEvictionTest()
         {
-            System.Diagnostics.Debugger.Launch();
+            // System.Diagnostics.Debugger.Launch();
             // Use the same context in two sessions when checking for file existence
             var loggingContext = new Context(Logger);
 

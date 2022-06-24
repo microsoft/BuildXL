@@ -932,7 +932,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 });
         }
 
-        [Theory]
+        [Fact]
         public Task TestUnifiedMultiplexOperations()
         {
             _registerAdditionalLocationPerMachine = true;
@@ -1014,6 +1014,41 @@ namespace ContentStoreTest.Distributed.Sessions
                     // Verify NO copy performed between stores when opening stream present in secondary
                     await OpenStreamAndDisposeAsync(session, context, putFileHashes.secondaryHash);
                     IsHashInStore(putFileHashes.secondaryHash, context, primary: true).Should().BeFalse();
+                });
+        }
+
+        [Fact]
+        public Task TestCopyToCorrectDrive()
+        {
+            _registerAdditionalLocationPerMachine = true;
+
+            return RunTestAsync(
+                storeCount: 2,
+                testFunc: async context =>
+                {
+                    var session0 = context.Sessions[0];
+                    var session1 = context.Sessions[1];
+                    // Put a file into store 0
+                    var putResult = await session0.PutRandomAsync(context, ContentHashType, false, ContentByteCount, Token).ShouldBeSuccess();
+
+                    // Try to place a file in store 1 on the alternative drive
+                    var placeResult = await session1.PlaceFileAsync(
+                        context,
+                        putResult.ContentHash,
+                        GetRandomSecondaryPath(),
+                        FileAccessMode.ReadOnly,
+                        FileReplacementMode.ReplaceExisting,
+                        FileRealizationMode.Any,
+                        Token).ShouldBeSuccess();
+
+                    // Verify that the file was hardlinked and that the file appears in the alternative drive cache
+                    placeResult.Code.Should().Be(PlaceFileResult.ResultCode.PlacedWithHardLink);
+
+                    var primaryStore1 = context.GetFileSystemStore(1, primary: true);
+                    var secondaryStore1 = context.GetFileSystemStore(1, primary: false);
+
+                    primaryStore1.Contains(putResult.ContentHash).Should().BeFalse();
+                    secondaryStore1.Contains(putResult.ContentHash).Should().BeTrue();
                 });
         }
 

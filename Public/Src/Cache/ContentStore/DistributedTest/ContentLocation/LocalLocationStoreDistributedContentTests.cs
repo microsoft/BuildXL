@@ -768,6 +768,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
                     var globalStore0 = context.GetServices(0).RedisGlobalStore.Instance;
                     var clusterStateMgr0 = store0.LocalLocationStore.ClusterStateManager;
+                    var clusterStateMgr1 = store1.LocalLocationStore.ClusterStateManager;
 
                     int registerContentCount = 5;
                     int registerMachineCount = 300;
@@ -825,6 +826,9 @@ namespace ContentStoreTest.Distributed.Sessions
                             entry.Locations[id].Should().BeTrue();
                         }
                     }
+
+                    // 
+                    await clusterStateMgr1.HeartbeatAsync(context, MachineState.Unknown).ShouldBeSuccess();
 
                     foreach (var page in content.GetPages(10))
                     {

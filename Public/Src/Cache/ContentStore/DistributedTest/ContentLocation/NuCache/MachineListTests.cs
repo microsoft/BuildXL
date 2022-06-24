@@ -35,16 +35,13 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
             _output = output;
         }
 
-        [Theory]
-        [InlineData(true)]
-        [InlineData(false)]
-        public void SortsUsingReputation(bool resolveEagerly)
+        [Fact]
+        public void SortsUsingReputation()
         {
             var amountMachines = 10;
-            var settings = new MachineList.Settings()
+            var settings = new MachineLocationResolver.Settings()
             {
                 PrioritizeDesignatedLocations = false,
-                ResolveLocationsEagerly = resolveEagerly
             };
 
             var factory = new MachineListFactory(_clock, amountMachines, designatedLocations: 3);
@@ -69,17 +66,14 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
             }
         }
 
-        [Theory]
-        [InlineData(true)]
-        [InlineData(false)]
-        public void PrioritizeDesignatedLocations(bool resolveEagerly)
+        [Fact]
+        public void PrioritizeDesignatedLocations()
         {
             var amountMachines = 10;
             var designatedLocations = 3;
-            var settings = new MachineList.Settings()
+            var settings = new MachineLocationResolver.Settings()
             {
                 PrioritizeDesignatedLocations = true,
-                ResolveLocationsEagerly = resolveEagerly
             };
 
             var factory = new MachineListFactory(_clock, amountMachines, designatedLocations);
@@ -100,17 +94,14 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
             }
         }
 
-        [Theory]
-        [InlineData(true)]
-        [InlineData(false)]
-        public void DeprioritizeMaster(bool resolveEagerly)
+        [Fact]
+        public void DeprioritizeMaster()
         {
             var amountMachines = 10;
             var designatedLocations = 3;
-            var settings = new MachineList.Settings()
+            var settings = new MachineLocationResolver.Settings()
             {
                 PrioritizeDesignatedLocations = false,
-                ResolveLocationsEagerly = resolveEagerly
             };
 
             var factory = new MachineListFactory(_clock, amountMachines, designatedLocations, master: 0);
@@ -126,109 +117,12 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
             }
         }
 
-        [Fact(Skip = "For manual testing only!")]
-        public void PerformanceTest()
-        {
-            var amountMachines = 1_000;
-            var designatedLocations = 3;
-            var eagerSettings = new MachineList.Settings() { ResolveLocationsEagerly = true };
-            var lazySettings = eagerSettings with { ResolveLocationsEagerly = false };
-
-            var context = new OperationContext(new Context(Logger));
-
-            var machines = Enumerable.Range(1, amountMachines).Select(n => (ushort)n).ToArray();
-
-            // Skipping the first 2 machine to fail machine resolution.
-            var machineMappings = machines.Select(m => new MachineMapping(new MachineId(m), new MachineLocation(m.ToString()))).ToArray();
-            var clusterState = new ClusterState(primaryMachineId: default, machineMappings);
-            foreach (var mapping in machineMappings)
-            {
-                clusterState.AddMachineForTest(context, mapping.Id, mapping.Location);
-            }
-            clusterState.InitializeBinManagerIfNeeded(locationsPerBin: designatedLocations, _clock, expiryTime: TimeSpan.FromSeconds(1));
-
-            var masterElectionMechanism = new MockMasterElectionMechanism()
-            {
-                Master = machineMappings[0].Location,
-            };
-
-            var tracker = new MachineReputationTracker(context, _clock, clusterState);
-
-            int machineIdSetCount = 1_000;
-            int maxLocationCount = 30;
-            int locationsToCheck = 3;
-            var random = new Random(42);
-
-            var machineIdSets = Enumerable.Range(1, machineIdSetCount)
-                .Select(
-                    n =>
-                    {
-                        var locationCount = random.Next(minValue: locationsToCheck, maxValue: maxLocationCount);
-                        var machines = Enumerable.Range(1, locationCount).Select(n => (ushort)n).ToArray();
-                        return new ArrayMachineIdSet(machines);
-                    }).ToList();
-
-            int warmupCount = 10;
-
-            // Warming up the test
-            run(warmupCount, eagerSettings);
-            run(warmupCount, lazySettings);
-
-            collectAndSleep(1_000);
-
-            int perfRunCount = 5_000;
-
-            var sw = Stopwatch.StartNew();
-            run(perfRunCount, eagerSettings);
-            var eagerDuration = sw.Elapsed;
-
-            collectAndSleep(1_000);
-
-            sw = Stopwatch.StartNew();
-            run(perfRunCount, lazySettings);
-            var lazyDuration = sw.Elapsed;
-            _output.WriteLine($"Eager: {eagerDuration}, Lazy: {lazyDuration}");
-
-            bool run(int iterationCount, MachineList.Settings settings)
-            {
-                bool result = false;
-                for (int iteration = 0; iteration < iterationCount; iteration++)
-                {
-                    foreach (var machineIdSet in machineIdSets)
-                    {
-                        var list = MachineList.Create(context, machineIdSet, tracker, clusterState, TestHash, settings, masterElectionMechanism);
-                        var l1 = list[0];
-                        var l2 = list[1];
-                        var l3 = list[2];
-
-                        result = l1 == l2 && l2 == l3;
-                    }
-                }
-
-                return result;
-            }
-
-            static void collectAndSleep(int delayMs)
-            {
-                Thread.Sleep(delayMs);
-                GC.Collect();
-                GC.WaitForPendingFinalizers();
-                GC.Collect();
-                Thread.Sleep(delayMs);
-            }
-        }
-
-        [Theory]
-        [InlineData(true)]
-        [InlineData(false)]
-        public void TestUnresolvedMachine(bool resolveEagerly)
+        [Fact]
+        public void TestUnresolvedMachine()
         {
             var amountMachines = 10;
             var designatedLocations = 3;
-            var settings = new MachineList.Settings()
-            {
-                ResolveLocationsEagerly = resolveEagerly
-            };
+            var settings = new MachineLocationResolver.Settings();
 
             var factory = new MachineListFactory(_clock, amountMachines, designatedLocations);
             var (_, _, machines) = factory;
@@ -240,29 +134,17 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
 
             var list = factory.Create(settings, machineIds.ToArray());
 
-            if (resolveEagerly)
-            {
-                list.Count.Should().Be(amountMachines);
-            }
-            else
-            {
-                list.Count.Should().Be(amountMachines + 2);
-                // A non-eager version should fail with an exception
-                Assert.Throws<InvalidOperationException>(() => list.ToList());
-            }
+            list.Count.Should().Be(amountMachines);
         }
 
-        [Theory]
-        [InlineData(true)]
-        [InlineData(false)]
-        public void CombineRules(bool resolveEagerly)
+        [Fact]
+        public void CombineRules()
         {
             var amountMachines = 10;
             var designatedLocations = 3;
-            var settings = new MachineList.Settings()
+            var settings = new MachineLocationResolver.Settings()
             {
                 PrioritizeDesignatedLocations = true,
-                ResolveLocationsEagerly = resolveEagerly
             };
 
             var factory = new MachineListFactory(_clock, amountMachines, designatedLocations);
@@ -300,18 +182,14 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
             }
         }
 
-        [Theory]
-        [InlineData(true)]
-        [InlineData(false)]
-        public void CombineRulesWithRandomization(bool resolveEagerly)
+        [Fact]
+        public void CombineRulesWithRandomization()
         {
             var amountMachines = 10;
             var designatedLocations = 3;
-            var settings = new MachineList.Settings()
+            var settings = new MachineLocationResolver.Settings()
             {
                 PrioritizeDesignatedLocations = true,
-                //Randomize = true,
-                ResolveLocationsEagerly = resolveEagerly
             };
 
             var factory = new MachineListFactory(_clock, amountMachines, designatedLocations);
@@ -405,11 +283,11 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
 
             public OperationContext Context { get; }
 
-            public IReadOnlyList<MachineLocation> Create(MachineList.Settings settings, MachineId[] machineIds = null)
+            public IReadOnlyList<MachineLocation> Create(MachineLocationResolver.Settings settings, MachineId[] machineIds = null)
             {
                 machineIds ??= MachineMappings.Select(m => m.Id).ToArray();
                 var machineIdSet = new ArrayMachineIdSet(machineIds.Select(id => (ushort)id.Index));
-                return  MachineList.Create(Context, machineIdSet, Tracker, ClusterState, TestHash, settings, MasterElectionMechanism);
+                return  MachineLocationResolver.Resolve(Context, machineIdSet, Tracker, ClusterState, TestHash, settings, MasterElectionMechanism);
             }
 
             public void Deconstruct(out ClusterState clusterState, out MachineReputationTracker tracker, out MachineMapping[] mappings)

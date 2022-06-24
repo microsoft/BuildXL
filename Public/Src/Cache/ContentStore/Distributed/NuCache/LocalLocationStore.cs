@@ -154,7 +154,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private readonly ResultNagleQueue<IReadOnlyList<ShortHashWithSize>, (BoolResult Result, string TraceId)>? _registerNagleQueue;
 
-        private readonly MachineList.Settings _machineListSettings;
+        private readonly MachineLocationResolver.Settings _machineListSettings;
 
         private readonly ColdStorage? _coldStorage;
 
@@ -201,10 +201,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             Configuration.Database.TouchFrequency = configuration.TouchFrequency;
             Database = checkpointManager.Database;
 
-            _machineListSettings = new MachineList.Settings
+            _machineListSettings = new MachineLocationResolver.Settings
             {
                 PrioritizeDesignatedLocations = Configuration.MachineListPrioritizeDesignatedLocations,
-                ResolveLocationsEagerly = Configuration.ResolveMachineIdsEagerly,
             };
 
             CheckpointManager = checkpointManager;
@@ -1101,7 +1100,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         GetFilteredOutMachineList(context.TracingContext, contentHash, filteredOutMachines)));
             }
 
-            // Machine locations are resolved lazily by MachineList.
             // If we faced at least one unknown machine location we're forcing an update of a cluster state to make the resolution successful.
             if (hasUnknownLocations)
             {
@@ -1124,7 +1122,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 return CollectionUtilities.EmptyArray<MachineLocation>();
             }
 
-            return MachineList.Create(
+            return MachineLocationResolver.Resolve(
                 context,
                 entry.Locations,
                 MachineReputationTracker,
@@ -1141,7 +1139,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 return null;
             }
 
-            return MachineList.Create(
+            return MachineLocationResolver.Resolve(
                 context,
                 MachineIdSet.Empty.SetExistence(MachineIdCollection.Create(machineIds), exists: true),
                 MachineReputationTracker,

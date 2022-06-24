@@ -377,17 +377,6 @@ namespace BuildXL.Cache.ContentStore.Distributed
         public bool MachineListPrioritizeDesignatedLocations { get; set; }
 
         /// <summary>
-        /// If true, then all the locations would be resolved eagerly.
-        /// </summary>
-        /// <remarks>
-        /// This is important when the location resolution may fail.
-        /// In this case, the lazy <see cref="MachineList"/>'s enumeration will fail with an error and instead of getting an exception
-        /// in some cases its better to trace the unresolved locations
-        /// and used the resolved ones.
-        /// </remarks>
-        public bool ResolveMachineIdsEagerly { get; set; }
-
-        /// <summary>
         /// Indicates whether content hash lists should be touched after retrieval
         /// </summary>
         public bool TouchContentHashLists { get; set; }

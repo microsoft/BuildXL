@@ -5,21 +5,22 @@
 const protoVersion = "3.19.4";
 const protoToolsVersion = "3.19.4";
 
-const grpcVersion = "2.46.0";
+const grpcNetVersion = "2.47.0-pre1";
+const grpcCoreVersion = "2.46.3";
 
 export const pkgs = [
     // grpc
-    { id: "Grpc.Net.Client", version: grpcVersion}, 
-    { id: "Grpc.Net.Client.Web", version: grpcVersion},  
-    { id: "Grpc.Net.ClientFactory", version: grpcVersion},  
-    { id: "Grpc.Net.Common", version: grpcVersion},
-    { id: "Grpc.AspNetCore.Server.ClientFactory", version: grpcVersion},
-    { id: "Grpc.AspNetCore.Server", version: grpcVersion},
-    { id: "Grpc.AspNetCore", version: grpcVersion},  
+    { id: "Grpc.Net.Client", version: grpcNetVersion}, 
+    { id: "Grpc.Net.Client.Web", version: grpcNetVersion},  
+    { id: "Grpc.Net.ClientFactory", version: grpcNetVersion},  
+    { id: "Grpc.Net.Common", version: grpcNetVersion},
+    { id: "Grpc.AspNetCore.Server.ClientFactory", version: grpcNetVersion},
+    { id: "Grpc.AspNetCore.Server", version: grpcNetVersion},
+    { id: "Grpc.AspNetCore", version: grpcNetVersion},  
 
-    { id: "Grpc.Core", version: "2.46.1", dependentPackageIdsToSkip: [ "System.Memory" ] },
-    { id: "Grpc.Core.Api", version: "2.46.1", dependentPackageIdsToSkip: [ "System.Memory" ] },
-    { id: "Grpc.Tools", version: "2.46.1" },
+    { id: "Grpc.Core", version: grpcCoreVersion, dependentPackageIdsToSkip: [ "System.Memory" ] },
+    { id: "Grpc.Core.Api", version: grpcCoreVersion, dependentPackageIdsToSkip: [ "System.Memory" ] },
+    { id: "Grpc.Tools", version: grpcCoreVersion },
 
     // protobuf
     { id: "Google.Protobuf", version: protoVersion, dependentPackageIdsToSkip: [ "System.Memory" ] },

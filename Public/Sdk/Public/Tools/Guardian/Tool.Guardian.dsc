@@ -137,7 +137,7 @@ export function runGuardian(args: GuardianArguments) : Transformer.ExecuteResult
             policyMicrosoft,
             policyNames
         ]);
-
+        
         switch (args.guardianCommand) {
             case "Install":
                 // Generate a settings file for the install operation.
@@ -153,7 +153,7 @@ export function runGuardian(args: GuardianArguments) : Transformer.ExecuteResult
                 // 3. Guardian run to run static analysis tools specified in config file, break build if any breaking changes are found, and export results.
                 guardianDependencies = guardianDependencies.push(genericSettingsFile);
                 guardianResult = runGuardianInternal(args, guardianTool, genericSettingsFile, guardianDependencies, guardianPaths);
-                break;
+                break;         
             default:
                 Contract.fail(`Unsupported Guardian command '${args.guardianCommand}'.`);
         }

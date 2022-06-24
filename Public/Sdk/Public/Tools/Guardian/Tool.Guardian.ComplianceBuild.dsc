@@ -13,6 +13,7 @@ const logLevel = "[Tool.Guardian]complianceLogLevel";
 const enabledTools = "[Tool.Guardian]enabledTools";
 
 // Export config file directory for tools to use
+@@public
 export const guardianConfigFileDirectory = Context.getNewOutputDirectory("guardianconfiguration");
 export const complianceLogLevel : GuardianLogLevel = Environment.hasVariable(logLevel) ? Environment.getStringValue(logLevel) as GuardianLogLevel : "Warning";
 
@@ -84,7 +85,7 @@ export function runComplianceBuildOnEntireRepository(guardianToolRoot : StaticDi
         ...(toolsToRun.contains("eslint") ? addGuardianEsLintCalls(guardianBuildRoot, guardianToolRoot, packageDirectory, guardianDrop, nodeToolRoot, nodeToolExe, files) : [] ),
         ...(toolsToRun.contains("psscriptanalyzer") ? [addPsscriptAnalyzerCalls(guardianBuildRoot, guardianToolRoot, packageDirectory, guardianDrop, files)] : []),
         ...(toolsToRun.contains("flawfinder") ? [addFlawFinderCalls(guardianBuildRoot, guardianToolRoot, packageDirectory, guardianDrop, files)] : []),
-        ...(toolsToRun.contains("policheck") ? addPoliCheckCalls(guardianBuildRoot, guardianToolRoot, packageDirectory, guardianDrop, files) : [])
+        ...(toolsToRun.contains("policheck") ? addPoliCheckCalls(guardianBuildRoot, guardianToolRoot, packageDirectory, guardianDrop, files) : []),
     ];
 
     return guardianResults;
@@ -144,6 +145,7 @@ function discoverFilesToScan(rootDirectory : Directory) : File[] {
  * Baselines/Suppressions will be picked up from {SourceRoot}/.config/buildxl/compliance automatically.
  * LogLevel is set to Warning in Guardian.
  */
+@@public
 export function createGuardianCall(
     guardianToolRoot : StaticDirectory,
     guardianPackageDirectory: StaticDirectory,
@@ -151,7 +153,7 @@ export function createGuardianCall(
     dependencies : Transformer.InputArtifact[],
     baselineName : string,
     workingDirectory : Directory,
-    outputSarifFile : PathAtom,
+    outputSarifFile : RelativePath,
     configFiles : File[],
     environmentVariables: Transformer.EnvironmentVariable[],
     retryExitCodes: number[],
@@ -207,6 +209,7 @@ export function createGuardianCall(
  * Writes a JSON configuration file for this Guardian run.
  * Extend this configuration file to add more Guardian tools to the compliance build.
  */
+@@public
 export function createConfigurationFile(config : Object, destination : Path) : File {
     const options : Json.AdditionalJsonOptions = {
         pathRenderingOption: Context.getCurrentHost().os !== "win" ? "escapedBackSlashes" : "forwardSlashes"

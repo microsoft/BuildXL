@@ -271,6 +271,13 @@ namespace Flags {
      */
     @@public
     export const useInProcLogGen = Environment.getFlag("[Sdk.BuildXL]useInProcLogGen");
+
+    /**
+     * Gets the default value for whether to enable roslyn analyzer
+     * We only want to enable it for PR builds not for local dev builds
+     */
+    @@public
+    export const enableRoslynAnalyzers = Environment.getFlag("[Sdk.BuildXL]enableRoslynAnalyzers");
 }
 
 @@public
@@ -646,6 +653,20 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
         analyzers = [...analyzers, ...getInProcLogGenerators()];
     }
 
+    // Only add roslynanalyzers for microsoft internal build since Microsoft.Internal.Analyzers is for internal use
+    if (Flags.isMicrosoftInternal && Flags.enableRoslynAnalyzers) {
+        analyzers = [
+            ...analyzers,
+            ...getAnalyzerDlls(importFrom("Microsoft.CodeAnalysis.NetAnalyzers").Contents.all),
+            ...getAnalyzerDlls(importFrom("Microsoft.Internal.Analyzers").pkg.contents)
+        ];
+
+        // Required for v2.x Roslyn compilers
+        // Flow analysis is used to infer the nullability of variables within executable code. The inferred nullability of a variable is independent of the variable's declared nullability.
+        // Method calls are analyzed even when they are conditionally omitted. For instance, `Debug.Assert` in release mode.
+        features.push("flow-analysis");
+    }
+    
     args = Object.merge<Arguments>(
         {
             framework: framework,
@@ -688,6 +709,8 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
 
                     // TODO: Make analyzers supported in regular references by undestanding the structure in nuget packages
                     analyzers: analyzers,
+                    errorlog: Flags.isMicrosoftInternal && Flags.enableRoslynAnalyzers ? r`${assemblyName}/roslyn.csproj.diagnostics.sarif` : undefined,
+                    enableRoslynAnalyzers: Flags.isMicrosoftInternal && Flags.enableRoslynAnalyzers,
 
                     features: features,
                     codeAnalysisRuleset: args.enableStyleCopAnalyzers ? f`BuildXL.ruleset` : undefined,

@@ -92,6 +92,9 @@ export const pkgs = isMicrosoftInternal ? [
     // Part of VSSDK used by IDE/VsIntegration
     { id: "Microsoft.Internal.VisualStudio.Interop", version: "17.2.32405.191" },
     { id: "Microsoft.VisualStudio.ProjectSystem", version: "17.3.74-pre" },
+
+    // RoslynAnalyzers internal analyzers
+    { id: "Microsoft.Internal.Analyzers", version: "2.6.11"},
 ] : [
 
     // Artifact packages and dependencies in OSS

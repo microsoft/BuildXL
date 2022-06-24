@@ -27,7 +27,7 @@ export function addCredScanCalls(rootDirectory : Directory, guardianToolRoot : S
         
         const scanPaths = scannedFiles.map(file => file.path);
         const tsvFile = Transformer.writeAllLines(p`${credScanWorkingDirectory.path}/guardian.TSV`, scanPaths);
-        
+        const sarifName = `CredScan_${i.toString()}.sarif`;
         // Schedule cred scan pips
         results.add(createGuardianCall(
             guardianToolRoot,
@@ -36,7 +36,7 @@ export function addCredScanCalls(rootDirectory : Directory, guardianToolRoot : S
             [tsvFile, ...scannedFiles],
             `credscan_${i}`,
             credScanWorkingDirectory,
-            a`CredScan_${i.toString()}.sarif`,
+            r`${sarifName}`,
             [guardianCredScanConfigFile],
             /*environmentVariables*/undefined,
             /*retryExitCodes*/[-9000],

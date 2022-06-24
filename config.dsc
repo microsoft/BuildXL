@@ -123,6 +123,7 @@ config({
                 { id: "Microsoft.CodeQuality.Analyzers", version: "2.3.0-beta1" },
                 { id: "Microsoft.NetFramework.Analyzers", version: "2.3.0-beta1" },
                 { id: "Microsoft.NetCore.Analyzers", version: "2.3.0-beta1" },
+                { id: "Microsoft.CodeAnalysis.NetAnalyzers", version: "5.0.3"},
 
                 { id: "AsyncFixer", version: "1.6.0" },
                 { id: "ErrorProne.NET.CoreAnalyzers", version: "0.3.1-beta.2" },
@@ -700,7 +701,17 @@ config({
                     path: f`${Environment.expandEnvironmentVariablesInString(Environment.getStringValue("SIGN_TOOL_PATH"))}`.parent.path,
                     trackSourceFileChanges: true
                 }
-            ] : [])
+            ] : []),
+        ...(Environment.hasVariable("TOOLPATH_GUARDIAN") ? 
+        [
+            {
+                name: a`GuardianDrop`,
+                path: Environment.getPathValue("TOOLPATH_GUARDIAN").parent,
+                isReadable: true,
+                isWritable: true,
+                trackSourceFileChanges: true
+            }
+        ] : [])
     ],
 
     searchPathEnumerationTools: [

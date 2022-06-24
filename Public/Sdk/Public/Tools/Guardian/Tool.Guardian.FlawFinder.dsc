@@ -23,7 +23,7 @@ export function addFlawFinderCalls(rootDirectory : Directory, guardianToolRoot :
         [sealRoot],
         `flawfinder`,
         flawFinderWorkDir,
-        a`flawfinder.sarif`,
+        r`flawfinder.sarif`,
         [guardianFlawFinderConfigFile],
         environmentVariables,
         /*retryExitCodes*/undefined,

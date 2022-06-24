@@ -62,7 +62,7 @@ export function addGuardianEsLintCalls(rootDirectory : Directory, guardianToolRo
 
         // Eslint will also read files under the node_modules directory under the root directory of each project
         const node_modules = Transformer.sealSourceDirectory(d`${packageJsonFiles[packageIndex].parent}/node_modules`, Transformer.SealSourceDirectoryOption.allDirectories);
-
+        const sarifName = `EsLint_${packageIndex.toString()}.sarif`;
         results.add(createGuardianCall(
             guardianToolRoot,
             packageDirectory,
@@ -70,7 +70,7 @@ export function addGuardianEsLintCalls(rootDirectory : Directory, guardianToolRo
             [...scannedFiles, eslintExclusionFile === undefined ? dummyEsLintExclusionFile : eslintExclusionFile, nodeToolRoot, node_modules],
             `eslint_${packageIndex}`,
             workingDirectory,
-            a`EsLint_${packageIndex.toString()}.sarif`,
+            r`${sarifName}`,
             [guardianEslintConfigFile],
             environmentVariables,
             /*retryExitCodes*/undefined,

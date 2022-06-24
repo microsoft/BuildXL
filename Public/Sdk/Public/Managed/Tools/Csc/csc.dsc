@@ -3,6 +3,7 @@
 
 import {Artifact, Cmd, Tool, Transformer} from "Sdk.Transformers";
 import * as Shared from "Sdk.Managed.Shared";
+import * as RoslynAnalyzers from "Sdk.Managed.Tools.RoslynAnalyzers";
 
 const pkgContents = Context.getCurrentHost().os === "win"
     ? importFrom("Microsoft.Net.Compilers").Contents.all
@@ -63,7 +64,10 @@ export function compile(inputArgs: Arguments) : Result {
         : undefined;
     const outputDocPath = args.doc && p`${outputDirectory}/${args.doc}`;
     const outputRefPath = args.emitReferenceAssembly ? p`${outputDirectory}/ref/${args.out}` : undefined;
-    
+
+    const roslynOutputDir = args.enableRoslynAnalyzers ? d`${outputDirectory}/roslynOutput/` : undefined;
+    const roslynOutputPath = args.enableRoslynAnalyzers ? p`${outputDirectory}/roslynOutput/${args.errorlog}` : undefined;
+
     // Using 'outputDirectory' as an output folder to make the error analysis simpler.
     // If we use a subfolder for generated files, the compiler will write the generated files there
     // but the emitted error/warning will be based on the outputDirectory only.
@@ -151,7 +155,7 @@ export function compile(inputArgs: Arguments) : Result {
         Cmd.options("/analyzer:",       Artifact.inputs(args.analyzers && args.analyzers.map(a => a.binary))),
         Cmd.options("/additionalfile:", Artifact.inputs(args.additionalFiles || [])),
         Cmd.option("/features:",        args.features ? Cmd.join(",", args.features) : undefined    ),
-
+        Cmd.option("/errorlog:",        args.errorlog ? Artifact.output(roslynOutputPath) : undefined),
         // If this looks very complicated, user can use imperative for loops to build this piece manually
         Cmd.options("/resource:",       Artifact.inputs(args.resourceFiles)),
         ...(args.linkResources || []).map(lr =>
@@ -235,6 +239,13 @@ export function compile(inputArgs: Arguments) : Result {
 
     let executeResult = Transformer.execute(cscExecuteArgs);
 
+    // Use Guardian to analyze the RoslynAnalyzers reuslt files
+    if (args.enableRoslynAnalyzers) {
+        const roslynResultFiles = executeResult.getOutputFile(roslynOutputPath);
+        const uniquePath = r`${outputDirectory.parent.name}/${args.out}`;
+        RoslynAnalyzers.createRoslynCalls(roslynOutputDir, [...args.sources, roslynResultFiles], uniquePath);
+    }
+    
     // Compose result object
     const binary = Shared.Factory.createBinaryFromFiles(
         executeResult.getOutputFile(outputBinPath),
@@ -433,6 +444,12 @@ export interface Arguments extends Transformer.RunnerArguments{
      * the compiler because it affects performance.
      * */
     emitCompilerGeneratedFiles?: boolean;
+
+    /** Result logs that RoslynAnalyzers produce used by Guardian for analyzing and potentially breaking the build based on its findings.*/
+    errorlog?: RelativePath;
+
+    /** Enable RoslynAnalyzers */
+    enableRoslynAnalyzers?: boolean
 }
 
 @@public

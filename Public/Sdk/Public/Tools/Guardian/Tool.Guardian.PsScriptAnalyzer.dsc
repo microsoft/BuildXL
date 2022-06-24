@@ -25,7 +25,7 @@ export function addPsscriptAnalyzerCalls(rootDirectory : Directory, guardianTool
         dependencies,
         `psscriptanalyzer`,
         psscriptanalyzerWorkDir,
-        a`psscriptanalyzer.sarif`,
+        r`psscriptanalyzer.sarif`,
         [guardianPsscriptAnalyzerConfigFile],
         environmentVariables,
         /*retryExitCodes*/undefined,

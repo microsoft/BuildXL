@@ -1292,6 +1292,15 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "Microsoft.CodeAnalysis.NetAnalyzers",
+          "Version": "5.0.3"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "Microsoft.CodeAnalysis.VisualBasic",
           "Version": "2.10.0"
         }
@@ -1618,6 +1627,15 @@
         "NuGet": {
           "Name": "Microsoft.IdentityModel.Tokens",
           "Version": "5.4.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Internal.Analyzers",
+          "Version": "2.6.11"
         }
       }
     },

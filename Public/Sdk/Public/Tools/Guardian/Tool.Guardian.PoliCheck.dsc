@@ -26,6 +26,7 @@ export function addPoliCheckCalls(rootDirectory : Directory, guardianToolRoot : 
             {name: "TF_BUILD", value: true}
         ];
         const dependencies = [txtFile, ...scannedFiles];
+        const sarifName = `policheck_${i.toString()}.sarif`;
 
         results.add(createGuardianCall(
             guardianToolRoot,
@@ -34,7 +35,7 @@ export function addPoliCheckCalls(rootDirectory : Directory, guardianToolRoot : 
             dependencies,
             `policheck_${i}`,
             poliCheckWorkDir,
-            a`policheck_${i.toString()}.sarif`,
+            r`${sarifName}`,
             [guardianPoliCheckConfigFile],
             environmentVariables,
             /*retryExitCodes*/undefined,

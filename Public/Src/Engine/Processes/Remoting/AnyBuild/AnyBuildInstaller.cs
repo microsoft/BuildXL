@@ -48,13 +48,8 @@ namespace BuildXL.Processes.Remoting
         /// </summary>
         /// <remarks>
         /// If minumum is not satisfied, BuildXL will keep reinstalling AnyBuild.
-        /// 
-        /// Known versions:
-        /// - 98a7fbfa_20220314.3_149776
-        /// - b36bd90f_20220319.3_151742
-        /// - 733e1fd5_20220330.10_156353 
         /// </remarks>
-        internal static readonly AnyBuildVersion MinRequiredVersion = AnyBuildVersion.Create("34386d17_20220613.16_185126")!;
+        internal static readonly AnyBuildVersion MinRequiredVersion = AnyBuildVersion.Create("11bf639e_20220621.25_188291")!;
 
         private static readonly string s_installRoot = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),

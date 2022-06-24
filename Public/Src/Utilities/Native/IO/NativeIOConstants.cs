@@ -101,6 +101,11 @@ namespace BuildXL.Native.IO
         public const int ErrorSharingViolation = 0x20;
 
         /// <summary>
+        /// ERROR_LOCK_VIOLATION
+        /// </summary>
+        public const int ErrorLockViolation = 0x21;
+
+        /// <summary>
         /// ERROR_TOO_MANY_LINKS
         /// </summary>
         public const int ErrorTooManyLinks = 0x476;

@@ -74,6 +74,11 @@ namespace BuildXL.Native.IO
         BadPathname,
 
         /// <summary>
+        /// Cannot access the file because another process has locked a portion of the file.
+        /// </summary>
+        LockViolation,
+
+        /// <summary>
         /// See <see cref="OpenFileResult.NativeErrorCode"/>
         /// </summary>
         UnknownError,
@@ -107,7 +112,9 @@ namespace BuildXL.Native.IO
         /// </summary>
         public static bool ImpliesOtherProcessBlockingHandle(this OpenFileStatus status)
         {
-            return status == OpenFileStatus.SharingViolation || status == OpenFileStatus.AccessDenied;
+            return status == OpenFileStatus.SharingViolation 
+                || status == OpenFileStatus.AccessDenied
+                || status == OpenFileStatus.LockViolation;
         }
     }
 }

@@ -132,6 +132,11 @@ namespace BuildXL.Utilities.Configuration
         public static readonly Setting<bool> AnyBuildSkipClientVersionCheck = CreateSetting("BUILDXL_ANYBUILD_SKIP_VERSION_CHECK", value => value == "1");
 
         /// <summary>
+        /// Sets AnyBuild VFS pre-rendering mode. Available values are 'Disabled', 'Placeholder', 'Hardlink', 'Copy'.
+        /// </summary>
+        public static readonly Setting<string> AnyBuildVfsPreRenderingMode = CreateSetting("BUILDXL_ANYBUILD_VFS_PRERENDERING_MODE", value => value);
+
+        /// <summary>
         /// Salt for process remoting purpose.
         /// </summary>
         /// <remarks>

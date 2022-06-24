@@ -132,6 +132,10 @@ namespace BuildXL.Native.IO
                     Contract.Assume(!handleIsValid);
                     status = OpenFileStatus.SharingViolation;
                     break;
+                case NativeIOConstants.ErrorLockViolation:
+                    Contract.Assume(!handleIsValid);
+                    status = OpenFileStatus.LockViolation;
+                    break;
                 case NativeIOConstants.ErrorNotReady:
                     status = OpenFileStatus.ErrorNotReady;
                     break;

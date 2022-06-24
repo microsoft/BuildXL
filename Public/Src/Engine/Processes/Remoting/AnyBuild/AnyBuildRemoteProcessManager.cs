@@ -257,16 +257,13 @@ namespace BuildXL.Processes.Remoting
                 Run = new
                 {
                     DisableDirectoryMetadataDedup = true,
-
-                    // Using PLACEHOLDER for pre-rendering because using Copy/Hardlink causes error like:
-                    //   error CS1504: Source file 'D:\a\_work\5\s\Public\Src\FrontEnd\MsBuild.Serialization\GraphSerializationSettings.cs' could not be opened
-                    //   -- The process cannot access the file because another process has locked a portion of the file.
-                    PreRenderingMode = "Placeholder", // Other options: "HardLink", "Copy",
+                    
+                    PreRenderingMode = GetVfsPreRenderingMode().ToString(),
                     Substs = !string.IsNullOrEmpty(substSource) && !string.IsNullOrEmpty(substTarget) ? $"{substSource};{substTarget}" : string.Empty,
 
                     // Experimental options.
                     ForceFetchNonPredictedDirectoryMetadataForPreRendering = true,
-                    PreRenderDirectoryEntriesOfEnumeratedDirectories = false, // Avoid creations of a large number of placeholders because directories have many entries.
+                    PreRenderDirectoryEntriesOfEnumeratedDirectories = false, // Avoid creations of a large number of placeholders because directories can have many entries.
                     DisableAbsentPathPreRendering = false
                 },
                 Agents = new
@@ -318,6 +315,41 @@ namespace BuildXL.Processes.Remoting
         //     listener.Stop();
         //     return port;
         // }
+
+        private enum VfsPreRenderingMode
+        {
+            /// <summary>
+            /// No VFS pre-rendering.
+            /// </summary>
+            Disabled,
+
+            /// <summary>
+            /// Files are pre-rendered as ProjFs placeholders.
+            /// </summary>
+            Placeholder,
+
+            /// <summary>
+            /// Files are pre-rendered as hardlinks.
+            /// </summary>
+            Hardlink,
+
+            /// <summary>
+            /// Files are pre-rendered as copies or clones (if COW is available).
+            /// </summary>
+            Copy
+        }
+
+        private VfsPreRenderingMode GetVfsPreRenderingMode()
+        {
+            if (string.IsNullOrEmpty(EngineEnvironmentSettings.AnyBuildVfsPreRenderingMode))
+            {
+                return VfsPreRenderingMode.Hardlink;
+            }
+
+            return Enum.TryParse(EngineEnvironmentSettings.AnyBuildVfsPreRenderingMode, out VfsPreRenderingMode mode)
+                ? mode
+                : VfsPreRenderingMode.Hardlink;
+        }
 
         private record InitResult(AnyBuildClient? AbClient, AnyBuildDaemonManager? DaemonManager, IRemoteProcessFactory? RemoteProcessFactory, BuildXLException? Exception);
     }

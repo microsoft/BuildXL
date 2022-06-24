@@ -87,7 +87,7 @@ export const pkgs = isMicrosoftInternal ? [
     { id: "Microsoft.VisualStudio.Services.Governance.ComponentDetection.Contracts", version: "0.2010.80" },
 
     // Process remoting
-    { id: "AnyBuild.SDK", version: "0.1.13" },
+    { id: "AnyBuild.SDK", version: "0.1.14" },
 
     // Part of VSSDK used by IDE/VsIntegration
     { id: "Microsoft.Internal.VisualStudio.Interop", version: "17.2.32405.191" },

@@ -60,9 +60,6 @@ namespace LanguageService.Server {
             importFrom("System.IO.Pipelines").pkg, 
             importFrom("System.Collections.Immutable.ForVBCS").pkg, 
         ],
-        // StreamJsonRpc needs System.Collections.Immutable.dll v5.0.0, which is higher than the one provided
-        // by the .net framework
-        deploymentOptions: { ignoredSelfContainedRuntimeFilenames: [a`System.Collections.Immutable.dll`] }, 
     });
 
     @@public

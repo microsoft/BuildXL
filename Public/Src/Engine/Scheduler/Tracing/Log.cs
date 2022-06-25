@@ -3099,6 +3099,24 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void ApiServerGetSealedDirectoryContentExecuted(LoggingContext loggingContext, string directory, int filesCount);
 
         [GeneratedEvent(
+            (ushort)LogEventId.ApiServerReportDaemonTelemetryExecuted,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Scheduler,
+            Message = "[{ShortProductName} API Server] Operation ReportDaemonTelemetry executed; daemon - '{daemonName}'.")]
+        internal abstract void ApiServerReportDaemonTelemetryExecuted(LoggingContext loggingContext, string daemonName);
+
+        [GeneratedEvent(
+           (ushort)LogEventId.DaemonTelemetry,
+           EventGenerators = EventGenerators.TelemetryOnly,
+           EventLevel = Level.Verbose,
+           Keywords = (int)Keywords.Diagnostics,
+           EventTask = (ushort)Tasks.Scheduler,
+           Message = "N/A")]
+        internal abstract void DaemonTelemetry(LoggingContext loggingContext, string daemonName, string telemetry, string daemonInfo);
+
+        [GeneratedEvent(
             (ushort)LogEventId.UnexpectedlySmallObservedInputCount,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,

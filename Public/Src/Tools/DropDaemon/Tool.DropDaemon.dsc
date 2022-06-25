@@ -16,11 +16,7 @@ export namespace DropDaemon {
         appConfig: f`DropDaemon.exe.config`,
         assemblyBindingRedirects: dropDaemonBindingRedirects(),
         sources: globR(d`.`, "*.cs"),
-        embeddedResources: [
-            {
-                resX: f`Statistics.resx`,
-            }
-        ],
+
         references: [
             importFrom("BuildXL.Cache.ContentStore").Hashing.dll,
             importFrom("BuildXL.Utilities.Instrumentation").Common.dll,
@@ -73,14 +69,32 @@ export namespace DropDaemon {
         runtimeContentToSkip: dropDaemonRuntimeContentToSkip()
     });
 
+    const temporarySdkDropNextToEngineFolder = d`${Context.getBuildEngineDirectory()}/Sdk/Sdk.Drop/bin`;
+    const temporaryDropDaemonTool : Transformer.ToolDefinition = {
+        exe: f`${temporarySdkDropNextToEngineFolder}/DropDaemon.exe`,
+        runtimeDirectoryDependencies: [
+            Transformer.sealSourceDirectory({
+                root: temporarySdkDropNextToEngineFolder,
+                include: "allDirectories",
+            }), 
+        ],
+        untrackedDirectoryScopes: [
+            Context.getUserHomeDirectory(),
+            d`${Context.getMount("ProgramData").path}`,
+        ],
+        dependsOnWindowsDirectories: true,
+        dependsOnAppDataDirectory: true,
+        prepareTempDirectory: true,
+    };
+
     @@public
     export const tool = !BuildXLSdk.isDropToolingEnabled 
         ? undefined 
-        // : temporaryDropDaemonTool;
-        : BuildXLSdk.deployManagedTool({
-            tool: exe,
-            options: toolTemplate,
-        });
+        : temporaryDropDaemonTool;
+        //: BuildXLSdk.deployManagedTool({
+        //    tool: exe,
+        //    options: toolTemplate,
+        //});
 
     const specs = [
         f`Tool.DropDaemonRunner.dsc`,

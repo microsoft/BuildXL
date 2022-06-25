@@ -96,7 +96,7 @@ namespace Test.Tool.DropDaemon
             return m_finalizeFunc();
         }
 
-        public IDictionary<string, long> GetStats() => new Dictionary<string, long>(0);
+        public IDictionary<string, long> GetStats(bool reportSizeInMegabytes = true) => new Dictionary<string, long>(0);
 
         public void Dispose() { }
 

@@ -86,6 +86,11 @@ namespace Tool.DropDaemon
         ///     Optional custom SBOM Package version.
         /// </summary>
         public string SbomPackageVersion { get; }
+
+        /// <summary>
+        ///     Whether to report telemetry for individual drops.
+        /// </summary>
+        public bool ReportTelemetry { get; }
         #endregion
 
         #region Defaults
@@ -140,7 +145,8 @@ namespace Tool.DropDaemon
             bool? generateBuildManifest = null,
             bool? signBuildManifest = null,
             string sbomPackageName = null,
-            string sbomPackageVersion = null)
+            string sbomPackageVersion = null,
+            bool? reportTelemetry = null)
         {
             Name = dropName;
             Service = serviceEndpoint;
@@ -156,6 +162,7 @@ namespace Tool.DropDaemon
             SignBuildManifest = signBuildManifest ?? DefaultSignBuildManifest;
             SbomPackageName = sbomPackageName;
             SbomPackageVersion = sbomPackageVersion;
+            ReportTelemetry = reportTelemetry ?? false;
         }
     }
 }

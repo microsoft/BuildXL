@@ -153,6 +153,14 @@ namespace Tool.SymbolDaemon
             DefaultValue = (int)SymbolConfig.DefaultNagleTime.TotalMilliseconds,
         });
 
+        internal static readonly BoolOption ReportTelemetry = RegisterSymbolConfigOption(new BoolOption("reprotTelemetry")
+        {
+            ShortName = "rst",
+            HelpText = "Whether to report collected telemetry",
+            IsRequired = false,
+            DefaultValue = false,
+        });
+
         internal static SymbolConfig CreateSymbolConfig(ConfiguredCommand conf)
         {
             byte? domainId;
@@ -173,7 +181,8 @@ namespace Tool.SymbolDaemon
                 domainId: domainId,
                 batchSize: conf.Get(BatchSize),
                 maxParallelUploads: conf.Get(MaxParallelUploads),
-                nagleTimeMs: conf.Get(NagleTimeMs));
+                nagleTimeMs: conf.Get(NagleTimeMs),
+                reportTelemetry: conf.Get(ReportTelemetry));
         }
 
         private static Client CreateClient(string serverMoniker, IClientConfig config)
@@ -580,7 +589,8 @@ namespace Tool.SymbolDaemon
             {
                 try
                 {
-                    var hash = FileContentInfo.Parse(hashes[i]).Hash;
+                    var fci = FileContentInfo.Parse(hashes[i]);
+                    var hash = fci.Hash;
                     if (!symbolMetadata.TryGetValue(hash, out var debugEntries))
                     {
                         daemon.Logger.Verbose("Symbol metadata file - {0}{1}{2}",
@@ -598,6 +608,7 @@ namespace Tool.SymbolDaemon
                         files[i],
                         fileIds[i],
                         hash,
+                        fci.Length,
                         debugEntries));
                 }
                 catch (Exception e)
@@ -827,6 +838,20 @@ namespace Tool.SymbolDaemon
                     {
                         var errorDescription = possiblyReported.Succeeded ? string.Empty : possiblyReported.Failure.Describe();
                         m_logger.Warning("Reporting stats to BuildXL failed. " + errorDescription);
+                    }
+
+                    if (symbolClient is VsoSymbolClient client)
+                    {
+                        possiblyReported = await client.ReportSymbolTelemetryDataAsync("SymbolDaemon");
+                        if (possiblyReported.Succeeded && possiblyReported.Result)
+                        {
+                            m_logger.Info($"Telemetry for symbol request '{client.RequestName}' successfully reported to BuildXL.");
+                        }
+                        else
+                        {
+                            var errorDescription = possiblyReported.Succeeded ? string.Empty : possiblyReported.Failure.Describe();
+                            m_logger.Warning($"Reporting telemetry for symbol request '{client.RequestName}' to BuildXL failed. {errorDescription}");
+                        }
                     }
                 }
             }

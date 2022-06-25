@@ -68,7 +68,7 @@ namespace Tool.SymbolDaemon
 
         private Uri ServiceEndpoint => m_config.Service;
 
-        private string RequestName => m_config.Name;
+        internal string RequestName => m_config.Name;
 
         private string RequestId
         {
@@ -331,6 +331,7 @@ namespace Tool.SymbolDaemon
                     {
                         file.ResultTaskSource.TrySetResult(AddDebugEntryResult.Associated);
                         m_counters.IncrementCounter(SymbolClientCounter.NumFilesAssociated);
+                        m_counters.AddToCounter(SymbolClientCounter.TotalAssociateSize, file.File.FileLength);
                     }
                 }
                 else
@@ -440,6 +441,34 @@ namespace Tool.SymbolDaemon
             return m_counters.AsStatistics("SymbolDaemon");
         }
 
+        internal async Task<Possible<bool>> ReportSymbolTelemetryDataAsync(string daemonName)
+        {
+            if (!m_config.ReportTelemetry)
+            {
+                return true;
+            }
+
+            Contract.Requires(m_apiClient != null);
+
+            var telemetry = new Dictionary<string, string>
+            {
+                { addPrefix("Endpoint"), ServiceEndpoint.ToString() },
+                { addPrefix("RequestName"), RequestName },
+                { addPrefix("RequestId"), RequestId }
+            };
+
+            string serializedSymbolInfo = JsonConvert.SerializeObject(telemetry, Formatting.Indented);
+            string serializedSymbolStats = JsonConvert.SerializeObject(GetStats(), Formatting.Indented);
+
+            m_logger.Info("Reporting telemetry to BuildXL");
+            m_logger.Info($"Info:{Environment.NewLine}{serializedSymbolInfo}");
+            m_logger.Info($"Statistics:{Environment.NewLine}{serializedSymbolStats}");
+
+            return await m_apiClient.ReportDaemonTelemetry(daemonName, serializedSymbolStats, serializedSymbolInfo);
+
+            static string addPrefix(string name) => $"SymbolDaemon.{name}";
+        }
+
         private enum SymbolClientCounter
         {
             [CounterType(CounterType.Stopwatch)]
@@ -470,6 +499,8 @@ namespace Tool.SymbolDaemon
             NumFilesAssociated,
 
             NumFilesUploaded,
+
+            TotalAssociateSize,
 
             TotalUploadSize,
         }

@@ -39,6 +39,7 @@ using static Tool.ServicePipDaemon.Statics;
 using BuildXL.Utilities.SBOMUtilities;
 using BuildXL.Utilities.Tracing;
 using Microsoft.Sbom.Adapters.Report;
+using BuildXL.Utilities.Collections;
 
 namespace Tool.DropDaemon
 {
@@ -66,7 +67,7 @@ namespace Tool.DropDaemon
         private static readonly int s_minIoThreadsForDrop = Environment.ProcessorCount * 10;
 
         private static readonly int s_minWorkerThreadsForDrop = Environment.ProcessorCount * 10;
-        
+
         internal static readonly List<Option> ConfigOptions = new();
 
         internal static IEnumerable<Command> SupportedCommands => Commands.Values;
@@ -309,6 +310,14 @@ namespace Tool.DropDaemon
             DefaultValue = string.Empty,
         });
 
+        internal static readonly BoolOption ReportIndidualDropTelemetry = RegisterConfigOption(new BoolOption("reportTelemetry")
+        {
+            ShortName = "rdt",
+            HelpText = "Whether to report individual drop telemetry",
+            IsRequired = false,
+            DefaultValue = false,
+        });
+
         // ==============================================================================
         // 'addfile' and 'addartifacts' parameters
         // ==============================================================================
@@ -435,7 +444,7 @@ namespace Tool.DropDaemon
         internal static readonly Command CreateDropCmd = RegisterCommand(
            name: "create",
            description: "[RPC] Invokes the 'create' operation.",
-           options: ConfigOptions.Union(new[] { DisableCBV1Manifest } ),
+           options: ConfigOptions.Union(new[] { DisableCBV1Manifest }),
            clientAction: SyncRPCSend,
            serverAction: async (conf, dropDaemon) =>
            {
@@ -476,7 +485,7 @@ namespace Tool.DropDaemon
             {
                 var daemon = dropDaemon as DropDaemon;
                 daemon.Logger.Info("[FINALIZE] Started finalizing all running drops.");
-                
+
                 // If a drop daemon was started but no drops were produced, there will be nothing for us to finalize.
                 if (daemon.m_vsoClients.Count == 0)
                 {
@@ -899,7 +908,6 @@ namespace Tool.DropDaemon
             var maybeArtifactsHash = m_disableCloudBuildManifest ? Array.Empty<ContentHash>() : new[] { fileInfo.AzureArtifactsHash };
             return new()
             {
-                
                 Checksum = maybeArtifactsHash.Union(fileInfo.BuildManifestHashes).Select(h =>
                 {
                     return new Checksum()
@@ -1141,7 +1149,8 @@ namespace Tool.DropDaemon
                 try
                 {
                     var vsoClient = await lazyVsoClientTask.Value;
-                    var clientStats = vsoClient.GetStats();
+                    // First, get all basic stats and aggregate them. For back compat reasons, keep reporting size in megabytes.
+                    var clientStats = vsoClient.GetStats(reportSizeInMegabytes: true);
                     if (clientStats == null || clientStats.Count == 0)
                     {
                         m_logger.Info("No stats recorded by drop client of type " + vsoClient.GetType().Name);
@@ -1156,6 +1165,22 @@ namespace Tool.DropDaemon
                         }
 
                         stats[statistic.Key] += statistic.Value;
+                    }
+
+                    // If this is a real DropClient and ApiClient is specified, report individual drop details back to BuildXL,
+                    // so they can be pushed into telemetry.
+                    if (vsoClient is VsoClient client && ApiClient != null)
+                    {
+                        var possiblyReported = await client.ReportDropTelemetryDataAsync("DropDaemon");
+                        if (possiblyReported.Succeeded && possiblyReported.Result)
+                        {
+                            m_logger.Info($"Telemetry for drop '{client.DropName}' successfully reported to BuildXL.");
+                        }
+                        else
+                        {
+                            var errorDescription = possiblyReported.Succeeded ? string.Empty : possiblyReported.Failure.Describe();
+                            m_logger.Warning($"Reporting telemetry for drop '{client.DropName}' to BuildXL failed. {errorDescription}");
+                        }
                     }
                 }
                 catch (Exception e)
@@ -1330,7 +1355,8 @@ namespace Tool.DropDaemon
                 generateBuildManifest: conf.Get(GenerateBuildManifest),
                 signBuildManifest: conf.Get(SignBuildManifest),
                 sbomPackageName: conf.Get(SbomPackageName),
-                sbomPackageVersion: conf.Get(SbomPackageVersion));
+                sbomPackageVersion: conf.Get(SbomPackageVersion),
+                reportTelemetry: conf.Get(ReportIndidualDropTelemetry));
         }
 
         private static T RegisterConfigOption<T>(T option) where T : Option => RegisterOption(ConfigOptions, option);
@@ -1367,9 +1393,9 @@ namespace Tool.DropDaemon
             var directoryFilterUseRelativePath = DirectoryFilterUseRelativePath.GetValues(conf.Config).ToArray();
             var directoryRelativePathsReplaceSerialized = DirectoryRelativePathReplace.GetValues(conf.Config).ToArray();
 
-            if (directoryPaths.Length != directoryIds.Length 
-                || directoryPaths.Length != directoryDropPaths.Length 
-                || directoryPaths.Length != directoryFilters.Length 
+            if (directoryPaths.Length != directoryIds.Length
+                || directoryPaths.Length != directoryDropPaths.Length
+                || directoryPaths.Length != directoryFilters.Length
                 || directoryPaths.Length != directoryFilterUseRelativePath.Length
                 || directoryPaths.Length != directoryRelativePathsReplaceSerialized.Length)
             {

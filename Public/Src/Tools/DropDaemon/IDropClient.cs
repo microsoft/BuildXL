@@ -47,7 +47,7 @@ namespace Tool.DropDaemon
         /// Arbitrary statistics to report;
         /// </summary>
         [NotNull]
-        IDictionary<string, long> GetStats();
+        IDictionary<string, long> GetStats(bool reportSizeInMegabytes);
     }
 
     /// <summary>

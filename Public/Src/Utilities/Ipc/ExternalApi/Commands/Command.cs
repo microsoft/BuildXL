@@ -78,6 +78,8 @@ namespace BuildXL.Ipc.ExternalApi.Commands
                         return ReportServicePipIsReadyCommand.InternalDeserialize(reader);
                     case nameof(RecomputeContentHashCommand):
                         return RecomputeContentHashCommand.InternalDeserialize(reader);
+                    case nameof(ReportDaemonTelemetryCommand):
+                        return ReportDaemonTelemetryCommand.InternalDeserialize(reader);
                     default:
                         throw new ArgumentException("unrecognized command type name: " + typeName);
                 }

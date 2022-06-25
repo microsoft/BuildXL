@@ -374,6 +374,13 @@ namespace BuildXL.Scheduler
                 return new Possible<IIpcResult>(result);
             }
 
+            var reportDaemonTelemetryCmd = cmd as ReportDaemonTelemetryCommand;
+            if (reportDaemonTelemetryCmd != null)
+            {
+                var result = await ExecuteCommandWithStats(ExecuteReportDaemonTelemetry, reportDaemonTelemetryCmd, ApiServerCounters.TotalReportDaemonTelemetryCalls);
+                return new Possible<IIpcResult>(result);
+            }
+
             var errorMessage = "Unimplemented command: " + cmd.GetType().FullName;
             Contract.Assert(false, errorMessage);
             return new Failure<string>(errorMessage);
@@ -708,6 +715,19 @@ namespace BuildXL.Scheduler
             return new IpcResult(IpcResultStatus.ExecutionError, errorMessage);
         }
 
+        /// <summary>
+        /// Executes <see cref="ReportDaemonTelemetryCommand"/>.
+        /// </summary>
+        private Task<IIpcResult> ExecuteReportDaemonTelemetry(ReportDaemonTelemetryCommand cmd)
+        {
+            Contract.Requires(cmd != null);
+
+            Tracing.Logger.Log.ApiServerReportDaemonTelemetryExecuted(m_loggingContext, cmd.DaemonName);
+            Tracing.Logger.Log.DaemonTelemetry(m_loggingContext, cmd.DaemonName, cmd.TelemetryPayload ?? string.Empty, cmd.InfoPayload ?? string.Empty);
+
+            return Task.FromResult(IpcResult.Success(cmd.RenderResult(true)));
+        }
+
         private Possible<Command> TryDeserialize(string operation)
         {
             try
@@ -782,6 +802,12 @@ namespace BuildXL.Scheduler
         /// </summary>
         [CounterType(CounterType.Numeric)]
         TotalServicePipIsReadyCalls,
+
+        /// <summary>
+        /// Number of <see cref="ReportDaemonTelemetryCommand"/> calls
+        /// </summary>
+        [CounterType(CounterType.Numeric)]
+        TotalReportDaemonTelemetryCalls,
     }
 
     /// <summary>

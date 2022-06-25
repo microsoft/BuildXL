@@ -8,10 +8,29 @@ import * as Managed from "Sdk.Managed";
 import * as Deployment from "Sdk.Deployment";
 import { NetFx } from "Sdk.BuildXL";
 
+const temporarySdkSymbolsNextToEngineFolder = d`${Context.getBuildEngineDirectory()}/Sdk/Sdk.Symbols/bin`;
+const temporarySymbolDaemonTool : Transformer.ToolDefinition = {
+    exe: f`${temporarySdkSymbolsNextToEngineFolder}/SymbolDaemon.exe`,
+    runtimeDirectoryDependencies: [
+        Transformer.sealSourceDirectory({
+            root: temporarySdkSymbolsNextToEngineFolder,
+            include: "allDirectories",
+        }), 
+    ],
+    untrackedDirectoryScopes: [
+        Context.getUserHomeDirectory(),
+        d`${Context.getMount("ProgramData").path}`,
+    ],
+    dependsOnWindowsDirectories: true,
+    dependsOnAppDataDirectory: true,
+    prepareTempDirectory: true,
+};
+
 @@public
 export const tool = !BuildXLSdk.isSymbolToolingEnabled 
-    ? undefined 
-    : BuildXLSdk.deployManagedTool({
-        tool: exe,
-        options: toolTemplate,
-    });
+    ? undefined
+    : temporarySymbolDaemonTool;
+    //: BuildXLSdk.deployManagedTool({
+    //    tool: exe,
+    //    options: toolTemplate,
+    //});

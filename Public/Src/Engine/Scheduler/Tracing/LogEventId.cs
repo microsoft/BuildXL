@@ -419,7 +419,9 @@ namespace BuildXL.Scheduler.Tracing
         ErrorApiServerMaterializeFileFailed = 12106,
         ApiServerReceivedMessage = 12107,
         ApiServerReceivedWarningMessage = 12108,
+        ApiServerReportDaemonTelemetryExecuted = 12109,
         ErrorApiServerGetBuildManifestHashFromLocalFileFailed = 12110,
+        DaemonTelemetry = 12111,
 
         // Copy file cont'd.
         // Elsewhere = 12201,

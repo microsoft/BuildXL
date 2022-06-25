@@ -101,6 +101,14 @@ namespace BuildXL.Ipc.ExternalApi
         }
 
         /// <summary>
+        /// Arbitrary info and stats that BuildXL should publish into telemetry.
+        /// </summary>
+        public Task<Possible<bool>> ReportDaemonTelemetry(string daemonName, string daemonTelemetryPayload, string daemonInfoPayload)
+        {
+            return ExecuteCommand(new ReportDaemonTelemetryCommand(daemonName, daemonTelemetryPayload, daemonInfoPayload));
+        }
+
+        /// <summary>
         /// Lists the content of a sealed directory
         /// </summary>
         public Task<Possible<List<SealedDirectoryFile>>> GetSealedDirectoryContent(DirectoryArtifact directory, string fullDirectoryPath)

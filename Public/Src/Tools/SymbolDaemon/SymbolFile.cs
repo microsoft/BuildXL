@@ -66,9 +66,14 @@ namespace Tool.SymbolDaemon
         /// </summary>
         public bool IsIndexed => m_debugEntries != null;
 
+        /// <summary>
+        /// Pre-computed file length.
+        /// </summary>
+        public long FileLength { get; }
+
         /// <nodoc/>
-        public SymbolFile(Client bxlClient, string filePath, string fileId, ContentHash hash, IEnumerable<DebugEntryData> debugEntries = null)
-            : this(Statics.IsSymLinkOrMountPoint, bxlClient, filePath, fileId, hash, debugEntries)
+        public SymbolFile(Client bxlClient, string filePath, string fileId, ContentHash hash, long fileLength, IEnumerable<DebugEntryData> debugEntries = null)
+            : this(Statics.IsSymLinkOrMountPoint, bxlClient, filePath, fileId, hash, fileLength, debugEntries)
         {
         }
 
@@ -78,6 +83,7 @@ namespace Tool.SymbolDaemon
             string filePath,
             string fileId,
             ContentHash hash,
+            long fileLength,
             IEnumerable<IDebugEntryData> debugEntries)
         {
             Contract.Requires(symlinkTester != null);
@@ -100,6 +106,7 @@ namespace Tool.SymbolDaemon
             FullFilePath = Path.GetFullPath(filePath);
             m_file = FileId.Parse(fileId);
             Hash = hash;
+            FileLength = fileLength;
         }
 
         /// <nodoc/>    

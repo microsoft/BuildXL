@@ -75,6 +75,11 @@ namespace Tool.SymbolDaemon
         public bool EnableChunkDedup => false;
 
         /// <summary>
+        /// Whether to report collected telemetry.
+        /// </summary>
+        public bool ReportTelemetry { get; }
+
+        /// <summary>
         /// The expected behavior when a debug entry to add already exists.
         /// </summary>
         public DebugEntryCreateBehavior DebugEntryCreateBehavior { get; }
@@ -113,7 +118,8 @@ namespace Tool.SymbolDaemon
             byte? domainId = null,
             int? batchSize = null,
             int? maxParallelUploads = null,
-            int? nagleTimeMs = null)
+            int? nagleTimeMs = null,
+            bool? reportTelemetry = null)
         {
             Name = requestName;
             Service = serviceEndpoint;
@@ -126,6 +132,7 @@ namespace Tool.SymbolDaemon
             BatchSize = batchSize ?? DefaultBatchSize;
             NagleTime = nagleTimeMs.HasValue ? TimeSpan.FromMilliseconds(nagleTimeMs.Value) : DefaultNagleTime;
             MaxParallelUploads = maxParallelUploads ?? DefaultMaxParallelUploads;
+            ReportTelemetry = reportTelemetry ?? false;
 
             if (debugEntryCreateBehaviorStr == null)
             {

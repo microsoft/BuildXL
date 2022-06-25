@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -17,6 +18,7 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Authentication;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Tracing;
 using Microsoft.VisualStudio.Services.ArtifactServices.App.Shared.Cache;
 using Microsoft.VisualStudio.Services.BlobStore.Common;
 using Microsoft.VisualStudio.Services.Common;
@@ -38,68 +40,23 @@ namespace Tool.DropDaemon
     /// </summary>
     public sealed class VsoClient : IDropClient
     {
-        #region Private Nested Types
-
-        /// <summary>
-        ///     Private nested class for keeping statistics.
-        /// </summary>
-        private sealed class DropStatistics
-        {
-            internal long NumCompleteBatches = 0;
-            internal long NumIncompleteBatches = 0;
-            internal long NumBatches = 0;
-            internal long NumAddFileRequests = 0;
-            internal long NumFilesAssociated = 0;
-            internal long NumFilesUploaded = 0;
-            internal long AuthTimeMs = 0;
-            internal long CreateTimeMs = 0;
-            internal long TotalAssociateTimeMs = 0;
-            internal long TotalUploadTimeMs = 0;
-            internal long TotalComputeFileBlobDescriptorForAssociateMs = 0;
-            internal long TotalComputeFileBlobDescriptorForUploadMs = 0;
-            internal long FinalizeTimeMs = 0;
-            internal long TotalAssociateSizeBytes = 0;
-            internal long TotalUploadSizeBytes = 0;
-            internal long TotalBuildManifestRegistrationDurationMs = 0;
-            internal long TotalBuildManifestRegistrationFailures = 0;
-
-            internal IDictionary<string, long> ToDictionary()
-            {
-                var dict = new Dictionary<string, long>();
-                AddStat(dict, Statistics.AuthTimeMs, ref AuthTimeMs);
-                AddStat(dict, Statistics.CreateTimeMs, ref CreateTimeMs);
-                AddStat(dict, Statistics.NumberOfAddFileRequests, ref NumAddFileRequests);
-                AddStat(dict, Statistics.NumberOfBatches, ref NumBatches);
-                AddStat(dict, "NumCompleteBatches", ref NumCompleteBatches);
-                AddStat(dict, "NumIncompleteBatches", ref NumIncompleteBatches);
-                AddStat(dict, Statistics.NumberOfFilesAssociated, ref NumFilesAssociated);
-                AddStat(dict, Statistics.NumberOfFilesUploaded, ref NumFilesUploaded);
-                AddStat(dict, Statistics.TotalAssociateTimeMs, ref TotalAssociateTimeMs);
-                AddStat(dict, Statistics.TotalUploadTimeMs, ref TotalUploadTimeMs);
-                AddStat(dict, Statistics.TotalComputeFileBlobDescriptorForAssociateMs, ref TotalComputeFileBlobDescriptorForAssociateMs);
-                AddStat(dict, Statistics.TotalComputeFileBlobDescriptorForUploadMs, ref TotalComputeFileBlobDescriptorForUploadMs);
-                AddStat(dict, Statistics.FinalizeTimeMs, ref FinalizeTimeMs);
-                // we track the total size of files in bytes, but log it in megabytes
-                AddStat(dict, Statistics.TotalAssociateSizeMb, ref TotalAssociateSizeBytes, size => size >> 20);
-                AddStat(dict, Statistics.TotalUploadSizeMb, ref TotalUploadSizeBytes, size => size >> 20);
-                AddStat(dict, Statistics.TotalBuildManifestRegistrationDurationMs, ref TotalBuildManifestRegistrationDurationMs);
-                AddStat(dict, Statistics.TotalBuildManifestRegistrationFailures, ref TotalBuildManifestRegistrationFailures);
-                return dict;
-            }
-
-            private static void AddStat(IDictionary<string, long> stats, string key, ref long value, Func<long, long> converter = null)
-            {
-                stats[I($"DropDaemon.{key}")] = converter != null ? converter(Volatile.Read(ref value)) : Volatile.Read(ref value);
-            }
-        }
-        #endregion
-
         private readonly IIpcLogger m_logger;
         private readonly DropConfig m_config;
         private readonly IDropServiceClient m_dropClient;
         private readonly CancellationTokenSource m_cancellationSource;
         private readonly Client m_bxlApiClient;
         private readonly NagleQueue<AddFileItem> m_nagleQueue;
+        private readonly CounterCollection<DropClientCounter> m_counters;
+
+        /// <summary>
+        /// Won't be set for clients running on workers because workers don't create drops
+        /// </summary>
+        private DateTime? m_dropCreatedAtUtc;
+
+        /// <summary>
+        /// Won't be set for clients running on workers because workers don't finalize drops
+        /// </summary>
+        private DateTime? m_dropFinalizedAtUtc;
 
         private CancellationToken Token => m_cancellationSource.Token;
 
@@ -115,8 +72,6 @@ namespace Tool.DropDaemon
                 httpSendTimeout: m_config.HttpSendTimeout,
                 tracer: Tracer,
                 verifyConnectionCancellationToken: Token);
-
-        private DropStatistics Stats { get; }
 
         /// <nodoc/>
         public Uri ServiceEndpoint => m_config.Service;
@@ -144,7 +99,7 @@ namespace Tool.DropDaemon
 
             logger.Info("Using drop config: " + JsonConvert.SerializeObject(m_config));
 
-            Stats = new DropStatistics();
+            m_counters = new();
 
             m_credentialFactory = new VssCredentialsFactory(pat: null, new CredentialProviderHelper(m => m_logger.Verbose(m)), m => m_logger.Verbose(m));
 
@@ -196,26 +151,28 @@ namespace Tool.DropDaemon
         /// </summary>
         public async Task<DropItem> CreateAsync(CancellationToken token)
         {
-            var startTime = DateTime.UtcNow;
-            if (!m_config.DomainId.HasValue)
+            using (m_counters.StartStopwatch(DropClientCounter.CreateTime))
             {
-                m_logger.Verbose("Domain ID is not specified. Creating drop using a default domain id.");
+                if (!m_config.DomainId.HasValue)
+                {
+                    m_logger.Verbose("Domain ID is not specified. Creating drop using a default domain id.");
+                }
+
+                IDomainId domainId = m_config.DomainId.HasValue
+                    ? new ByteDomainId(m_config.DomainId.Value)
+                    : WellKnownDomainIds.DefaultDomainId;
+
+                var result = await m_dropClient.CreateAsync(
+                    domainId,
+                    DropName,
+                    isAppendOnly: true,
+                    expirationDate: DateTime.UtcNow.Add(m_config.Retention),
+                    chunkDedup: m_config.EnableChunkDedup,
+                    cancellationToken: token);
+
+                m_dropCreatedAtUtc = DateTime.UtcNow;
+                return result;
             }
-
-            IDomainId domainId = m_config.DomainId.HasValue
-                ? new ByteDomainId(m_config.DomainId.Value)
-                : WellKnownDomainIds.DefaultDomainId;
-
-            var result = await m_dropClient.CreateAsync(
-                domainId,
-                DropName,
-                isAppendOnly: true,
-                expirationDate: DateTime.UtcNow.Add(m_config.Retention),
-                chunkDedup: m_config.EnableChunkDedup,
-                cancellationToken: token);
-
-            Interlocked.Add(ref Stats.CreateTimeMs, ElapsedMillis(startTime));
-            return result;
         }
 
         /// <summary>
@@ -233,7 +190,7 @@ namespace Tool.DropDaemon
 
             m_logger.Verbose("Queued file '{0}'", dropItem);
 
-            Interlocked.Increment(ref Stats.NumAddFileRequests);
+            m_counters.IncrementCounter(DropClientCounter.NumberOfAddFileRequests);
 
             var addFileItem = new AddFileItem(dropItem);
             m_nagleQueue.Enqueue(addFileItem);
@@ -254,9 +211,12 @@ namespace Tool.DropDaemon
             AttemptedFinalization = true;
             await m_nagleQueue.DisposeAsync();
 
-            var startTime = DateTime.UtcNow;
-            await m_dropClient.FinalizeAsync(DropName, token);
-            Interlocked.Add(ref Stats.FinalizeTimeMs, ElapsedMillis(startTime));
+            using (m_counters.StartStopwatch(DropClientCounter.FinalizeTime))
+            {
+                await m_dropClient.FinalizeAsync(DropName, token);
+            }
+
+            m_dropFinalizedAtUtc = DateTime.UtcNow;
 
             return new FinalizeResult();
         }
@@ -279,9 +239,66 @@ namespace Tool.DropDaemon
         ///       - total time spent computing full FileBlobDescriptor (for "UploadAndAssociate")
         ///       - 'drop finalize' time
         /// </summary>
-        public IDictionary<string, long> GetStats()
+        public IDictionary<string, long> GetStats(bool reportSizeInMegabytes)
         {
-            return Stats.ToDictionary();
+            const string StatsPrefix = "DropDaemon";
+
+            var stats = m_counters.AsStatistics(StatsPrefix);
+            if (reportSizeInMegabytes)
+            {
+                // Although we always track the size of associated / uploaded files in bytes, we used
+                // to report these two metrics in megabytes. For backward compatibility, keep an option
+                // to report size in megabytes.
+                convertCounterToMb(stats, DropClientCounter.TotalAssociateSizeBytes, "TotalAssociateSizeMb");
+                convertCounterToMb(stats, DropClientCounter.TotalUploadSizeBytes, "TotalUploadSizeMb");
+            }
+
+            return stats;
+
+            static void convertCounterToMb(Dictionary<string, long> counters, DropClientCounter originalCounter, string newCounterName)
+            {
+                var oldKey = $"{StatsPrefix}.{originalCounter}";
+                var newKey = $"{StatsPrefix}.{newCounterName}";
+                counters.Add(newKey, counters[oldKey] >> 20);
+                counters.Remove(oldKey);
+            }
+        }
+
+        internal async Task<Possible<bool>> ReportDropTelemetryDataAsync(string daemonName)
+        {
+            if (!m_config.ReportTelemetry)
+            {
+                return true;
+            }
+
+            Contract.Requires(m_bxlApiClient != null);
+
+            var dropInfo = new Dictionary<string, string>
+            {
+                { addPrefix("Endpoint"), ServiceEndpoint.ToString() },
+                { addPrefix("DropName"), DropName},
+            };
+            
+            if (m_dropCreatedAtUtc.HasValue)
+            {
+                dropInfo.Add(addPrefix("CreatedAtUtc"), m_dropCreatedAtUtc.Value.ToString("s", CultureInfo.InvariantCulture));
+            }
+
+            if (m_dropFinalizedAtUtc.HasValue)
+            {
+                dropInfo.Add(addPrefix("FinalizedAtUtc"), m_dropFinalizedAtUtc.Value.ToString("s", CultureInfo.InvariantCulture));
+            }
+
+            string serializedDropInfo = JsonConvert.SerializeObject(dropInfo, Formatting.Indented);
+            string serializedDropStats = JsonConvert.SerializeObject(GetStats(reportSizeInMegabytes: false), Formatting.Indented);
+
+            m_logger.Info("Reporting telemetry to BuildXL");
+            m_logger.Info($"Info:{Environment.NewLine}{serializedDropInfo}");
+            m_logger.Info($"Statistics:{Environment.NewLine}{serializedDropStats}");
+
+            return await m_bxlApiClient.ReportDaemonTelemetry(daemonName, serializedDropStats, serializedDropInfo);
+            
+            static string addPrefix(string name) => $"DropDaemon.{name}";
         }
 
         /// <inheritdoc/>
@@ -295,16 +312,17 @@ namespace Tool.DropDaemon
         [SuppressMessage("Microsoft.Reliability", "CA2000:Dispose client", Justification = "Caller is responsible for disposing it")]
         private IDropServiceClient CreateDropServiceClient()
         {
-            var startTime = DateTime.UtcNow;
-            var client = new DropServiceClient(
-                ServiceEndpoint,
-                GetFactory(),
-                CacheContext,
-                new DropClientTelemetry(ServiceEndpoint, Tracer, enable: m_config.EnableTelemetry),
-                Tracer);
-            Interlocked.Add(ref Stats.AuthTimeMs, ElapsedMillis(startTime));
+            using (m_counters.StartStopwatch(DropClientCounter.AuthTime))
+            {
+                var client = new DropServiceClient(
+                    ServiceEndpoint,
+                    GetFactory(),
+                    CacheContext,
+                    new DropClientTelemetry(ServiceEndpoint, Tracer, enable: m_config.EnableTelemetry),
+                    Tracer);
 
-            return client;
+                return client;
+            }
         }
 
         /// <summary>
@@ -321,14 +339,14 @@ namespace Tool.DropDaemon
                 return;
             }
 
-            Interlocked.Increment(ref Stats.NumBatches);
+            m_counters.IncrementCounter(DropClientCounter.NumberOfBatches);
             if (batch.Length == m_config.BatchSize)
             {
-                Interlocked.Increment(ref Stats.NumCompleteBatches);
+                m_counters.IncrementCounter(DropClientCounter.NumberOfCompleteBatches);
             }
             else
             {
-                Interlocked.Increment(ref Stats.NumIncompleteBatches);
+                m_counters.IncrementCounter(DropClientCounter.NumberOfIncompleteBatches);
             }
 
             FileBlobDescriptor[] blobsForAssociate = new FileBlobDescriptor[0];
@@ -354,43 +372,46 @@ namespace Tool.DropDaemon
                 }
 
                 // compute blobs for associate
-                var startTime = DateTime.UtcNow;
-                blobsForAssociate = await Task.WhenAll(dedupedBatch.Select(item => item.FileBlobDescriptorForAssociateAsync(m_config.EnableChunkDedup, Token)));
-                Interlocked.Add(ref Stats.TotalComputeFileBlobDescriptorForAssociateMs, ElapsedMillis(startTime));
+                using (m_counters.StartStopwatch(DropClientCounter.TotalComputeFileBlobDescriptorForAssociate))
+                {
+                    blobsForAssociate = await Task.WhenAll(dedupedBatch.Select(item => item.FileBlobDescriptorForAssociateAsync(m_config.EnableChunkDedup, Token)));
+                }
 
                 // run 'Associate' on all items from the batch; the result will indicate which files were associated and which need to be uploaded
                 AssociationsStatus associateStatus = await AssociateAsync(blobsForAssociate);
                 IReadOnlyList<AddFileItem> itemsLeftToUpload = await SetResultForAssociatedNonMissingItemsAsync(dedupedBatch, associateStatus, m_config.EnableChunkDedup, Token);
 
                 // compute blobs for upload
-                startTime = DateTime.UtcNow;
-                FileBlobDescriptor[] blobsForUpload = await Task.WhenAll(itemsLeftToUpload.Select(item => item.FileBlobDescriptorForUploadAsync(m_config.EnableChunkDedup, Token)));
-                Interlocked.Add(ref Stats.TotalComputeFileBlobDescriptorForUploadMs, ElapsedMillis(startTime));
+                FileBlobDescriptor[] blobsForUpload;
+                using (m_counters.StartStopwatch(DropClientCounter.TotalComputeFileBlobDescriptorForUpload))
+                {
+                    blobsForUpload = await Task.WhenAll(itemsLeftToUpload.Select(item => item.FileBlobDescriptorForUploadAsync(m_config.EnableChunkDedup, Token)));
+                }
 
                 // run 'UploadAndAssociate' for the missing files.
                 await UploadAndAssociateAsync(associateStatus, blobsForUpload);
                 SetResultForUploadedMissingItems(itemsLeftToUpload);
-                Interlocked.Add(ref Stats.TotalUploadSizeBytes, blobsForUpload.Sum(b => b.FileSize ?? 0));
+                m_counters.AddToCounter(DropClientCounter.TotalUploadSizeBytes, blobsForUpload.Sum(b => b.FileSize ?? 0));
 
-                startTime = DateTime.UtcNow;
-
-                foreach (var file in dedupedBatch)
+                using (m_counters.StartStopwatch(DropClientCounter.TotalBuildManifestRegistrationDuration))
                 {
-                    RegisterFileForBuildManifestResult result = registerFilesForBuildManifestTask == null
-                        ? RegisterFileForBuildManifestResult.Skipped
-                        : (await registerFilesForBuildManifestTask).Contains(file.RelativeDropFilePath)
-                            ? RegisterFileForBuildManifestResult.Failed
-                            : RegisterFileForBuildManifestResult.Registered;
-                    file.BuildManifestTaskSource.TrySetResult(result);
-
-                    if (result == RegisterFileForBuildManifestResult.Failed)
+                    foreach (var file in dedupedBatch)
                     {
-                        Interlocked.Increment(ref Stats.TotalBuildManifestRegistrationFailures);
-                        m_logger.Info($"Build Manifest File registration failed for file at RelativePath '{file.RelativeDropFilePath}' with VSO '{file.BlobIdentifier.AlgorithmResultString}'.");
+                        RegisterFileForBuildManifestResult result = registerFilesForBuildManifestTask == null
+                            ? RegisterFileForBuildManifestResult.Skipped
+                            : (await registerFilesForBuildManifestTask).Contains(file.RelativeDropFilePath)
+                                ? RegisterFileForBuildManifestResult.Failed
+                                : RegisterFileForBuildManifestResult.Registered;
+                        file.BuildManifestTaskSource.TrySetResult(result);
+
+                        if (result == RegisterFileForBuildManifestResult.Failed)
+                        {
+                            m_counters.IncrementCounter(DropClientCounter.TotalBuildManifestRegistrationFailures);
+                            m_logger.Info($"Build Manifest File registration failed for file at RelativePath '{file.RelativeDropFilePath}' with VSO '{file.BlobIdentifier.AlgorithmResultString}'.");
+                        }
                     }
                 }
 
-                Interlocked.Add(ref Stats.TotalBuildManifestRegistrationDurationMs, ElapsedMillis(startTime));
                 m_logger.Info("Done processing AddFile batch.");
             }
             catch (Exception e)
@@ -455,27 +476,26 @@ namespace Tool.DropDaemon
         {
             m_logger.Info("Running associate on {0} files.", blobsForAssociate.Length);
 
-            var startTime = DateTime.UtcNow;
-
-            // m_dropClient.AssociateAsync does some internal batching. For each batch, it will create AssociationsStatus.
-            // The very first created AssociationsStatus is stored and later returned as Item2 in the tuple.
-            // Elements from all AssociationsStatus.Missing are added to the same IEnumerable<BlobIdentifier> and returned
-            // as Item2 in the tuple.
-            // If the method creates more than one batch (i.e., more than one AssociationsStatus is created), the returned
-            // associateResult.Item1 will not match associateResult.Item2.Missing.
-            Tuple<IEnumerable<BlobIdentifier>, AssociationsStatus> associateResult = await m_dropClient.AssociateAsync(
-                DropName,
-                blobsForAssociate.ToList(),
-                abortIfAlreadyExists: false,
-                cancellationToken: Token).ConfigureAwait(false);
+            Tuple<IEnumerable<BlobIdentifier>, AssociationsStatus> associateResult;
+            using (m_counters.StartStopwatch(DropClientCounter.TotalAssociateTime))
+            {
+                // m_dropClient.AssociateAsync does some internal batching. For each batch, it will create AssociationsStatus.
+                // The very first created AssociationsStatus is stored and later returned as Item2 in the tuple.
+                // Elements from all AssociationsStatus.Missing are added to the same IEnumerable<BlobIdentifier> and returned
+                // as Item2 in the tuple.
+                // If the method creates more than one batch (i.e., more than one AssociationsStatus is created), the returned
+                // associateResult.Item1 will not match associateResult.Item2.Missing.
+                associateResult = await m_dropClient.AssociateAsync(
+                    DropName,
+                    blobsForAssociate.ToList(),
+                    abortIfAlreadyExists: false,
+                    cancellationToken: Token).ConfigureAwait(false);
+            }
 
             var result = associateResult.Item2;
-
-            Interlocked.Add(ref Stats.TotalAssociateTimeMs, ElapsedMillis(startTime));
-
             var missingBlobIdsCount = associateResult.Item1.Count();
             var associationsStatusMissingBlobsCount = associateResult.Item2.Missing.Count();
-            Interlocked.Add(ref Stats.NumFilesAssociated, blobsForAssociate.Length - missingBlobIdsCount);
+            m_counters.AddToCounter(DropClientCounter.NumberOfFilesAssociated, blobsForAssociate.Length - missingBlobIdsCount);
 
             if (missingBlobIdsCount != associationsStatusMissingBlobsCount)
             {
@@ -511,22 +531,17 @@ namespace Tool.DropDaemon
             }
 #endif
 
-            var startTime = DateTime.UtcNow;
+            using (m_counters.StartStopwatch(DropClientCounter.TotalUploadTime))
+            {
+                await m_dropClient.UploadAndAssociateAsync(
+                    DropName,
+                    blobsForUpload.ToList(),
+                    abortIfAlreadyExists: false,
+                    firstAssociationStatus: associateStatus,
+                    cancellationToken: Token).ConfigureAwait(false);
+            }
 
-            await m_dropClient.UploadAndAssociateAsync(
-                DropName,
-                blobsForUpload.ToList(),
-                abortIfAlreadyExists: false,
-                firstAssociationStatus: associateStatus,
-                cancellationToken: Token).ConfigureAwait(false);
-
-            Interlocked.Add(ref Stats.TotalUploadTimeMs, ElapsedMillis(startTime));
-            Interlocked.Add(ref Stats.NumFilesUploaded, numMissing);
-        }
-
-        private static long ElapsedMillis(DateTime startTime)
-        {
-            return (long)DateTime.UtcNow.Subtract(startTime).TotalMilliseconds;
+            m_counters.AddToCounter(DropClientCounter.NumberOfFilesUploaded, numMissing);
         }
 
         private static void SetResultForUploadedMissingItems(IReadOnlyList<AddFileItem> uploadedItems)
@@ -561,7 +576,8 @@ namespace Tool.DropDaemon
                 }
             }
 
-            Interlocked.Add(ref Stats.TotalAssociateSizeBytes, totalSizeOfAssociatedFiles);
+            m_counters.AddToCounter(DropClientCounter.TotalAssociateSizeBytes, totalSizeOfAssociatedFiles);
+
             return missingItems;
         }
 
@@ -697,6 +713,96 @@ namespace Tool.DropDaemon
             return m_credentialFactory.GetOrCreateVssCredentialsAsync(m_config.Service, useAad: true, PatType.VstsDropReadWrite)
                 .GetAwaiter()
                 .GetResult();
+        }
+
+        private enum DropClientCounter
+        {
+            /// <summary>
+            /// Time taken to authenticate
+            /// </summary>
+            [CounterType(CounterType.Stopwatch)]
+            AuthTime,
+
+            /// <summary>
+            /// Time taken to complete 'drop create'
+            /// </summary>
+            [CounterType(CounterType.Stopwatch)]
+            CreateTime,
+
+            /// <summary>
+            /// Time taken to complete 'drop finalize'
+            /// </summary>
+            [CounterType(CounterType.Stopwatch)]
+            FinalizeTime,
+
+            /// <summary>
+            /// Total number of 'addfile' requests
+            /// </summary>
+            NumberOfAddFileRequests,
+
+            /// <summary>
+            /// Number of 'addfile' processing batches
+            /// </summary>
+            NumberOfBatches,
+
+            NumberOfCompleteBatches,
+
+            NumberOfIncompleteBatches,
+
+            /// <summary>
+            /// Number of files 'associated' (found in the drop remote store, so didn't need to be uploaded to drop)
+            /// </summary>
+            NumberOfFilesAssociated,
+
+            /// <summary>
+            /// Total size of all associated files in bytes (note that these files were not actually uploaded, i.e., they were not transfered across the network)
+            /// </summary>
+            TotalAssociateSizeBytes,
+
+            /// <summary>
+            /// Total time taken to complete all 'Associate' calls to ArtifactServices drop
+            /// </summary>
+            [CounterType(CounterType.Stopwatch)]
+            TotalAssociateTime,
+
+            /// <summary>
+            /// Number of files 'uploaded' (were not already found in the drop remote store)
+            /// </summary>
+            NumberOfFilesUploaded,
+
+            /// <summary>
+            /// Total size of all uploaded files in bytes (note that this is not the same as the size of the drop, since it doesn't include files that were only associated).
+            /// </summary>
+            TotalUploadSizeBytes,
+
+            /// <summary>
+            /// Total time taken to complete all 'UploadAndAssociate' calls to ArtifactServices drop
+            /// </summary>
+            [CounterType(CounterType.Stopwatch)]
+            TotalUploadTime,
+
+            /// <summary>
+            /// Total time spent in Build Manifest Registrations during 'UploadAndAssociate' calls
+            /// </summary>
+            [CounterType(CounterType.Stopwatch)]
+            TotalBuildManifestRegistrationDuration,
+
+            /// <summary>
+            /// Total number of failures encountered in Build Manifest Registrations during 'UploadAndAssociate' calls
+            /// </summary>
+            TotalBuildManifestRegistrationFailures,
+
+            /// <summary>
+            /// Total time taken to compute FileBlobDescriptors for 'Associate' calls
+            /// </summary>
+            [CounterType(CounterType.Stopwatch)]
+            TotalComputeFileBlobDescriptorForAssociate,
+
+            /// <summary>
+            /// Total time taken to compute FileBlobDescriptors for 'UploadAndAssociate' calls
+            /// </summary>
+            [CounterType(CounterType.Stopwatch)]
+            TotalComputeFileBlobDescriptorForUpload
         }
     }
 }

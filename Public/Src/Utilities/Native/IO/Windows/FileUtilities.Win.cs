@@ -8,6 +8,7 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.IO;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Security.AccessControl;
 using System.Security.Principal;
@@ -182,8 +183,10 @@ namespace BuildXL.Native.IO.Windows
                 
                 if (result.Status == EnumerateDirectoryStatus.AccessDenied)
                 {
+                    Logger.Log.FileUtilitiesDiagnostic(m_loggingContext, directoryPath, $"Access denied when enumerated the directory. Already enumerated {pathsEnumeratedForDeletion.Count} items. Trying again.");
                     FileUtilities.TryTakeOwnershipAndSetWriteable(directoryPath);
                     result = enumerateDirectory(pathsEnumeratedForDeletion);
+                    Logger.Log.FileUtilitiesDiagnostic(m_loggingContext, directoryPath, $"Enumerated again after access denied. Enumerated {pathsEnumeratedForDeletion.Count} items. Result: {result.Status}");
                 }
 
                 // If result.Status == EnumerateDirectoryStatus.SearchDirectoryNotFound that means the directory is already deleted.
@@ -218,7 +221,8 @@ namespace BuildXL.Native.IO.Windows
                             // Only reached if there are no exceptions
                             return true;
                         },
-                        numberOfAttempts: numberOfAttempts);
+                        numberOfAttempts: numberOfAttempts,
+                        onException: (_) => Logger.Log.FileUtilitiesDiagnostic(m_loggingContext, directoryPath, $"{nameof(DeleteEmptyDirectory)} threw an unhandled exception."));
                 }
                 else
                 {
@@ -312,8 +316,8 @@ namespace BuildXL.Native.IO.Windows
                         {
                             if (shouldDelete(childPath))
                             {
-                                    // This method already has retry logic, so no need to do retry in DeleteFile
-                                    DeleteFile(childPath, retryOnFailure: !bestEffort, tempDirectoryCleaner: tempDirectoryCleaner);
+                                // This method already has retry logic, so no need to do retry in DeleteFile
+                                DeleteFile(childPath, retryOnFailure: !bestEffort, tempDirectoryCleaner: tempDirectoryCleaner);
                             }
                             else
                             {
@@ -444,11 +448,6 @@ namespace BuildXL.Native.IO.Windows
                     {
                         string fullPath = directoryName + Path.DirectorySeparatorChar + filePath;
 
-                        if (shouldDelete != null && !shouldDelete(fullPath))
-                        {
-                            return;
-                        }
-
                         builder.AppendLine(fullPath);
 
                         if (TryFindOpenHandlesToFile(fullPath, out var diagnosticInfo))
@@ -460,6 +459,11 @@ namespace BuildXL.Native.IO.Windows
                         if (pathsPossiblyPendingDelete.Contains(fullPath))
                         {
                             builder.AppendLine(FileUtilitiesMessages.PathMayBePendingDeletion);
+                        }
+
+                        if (shouldDelete != null)
+                        {
+                            builder.AppendLine($"Should be deleted: {shouldDelete(fullPath)}");
                         }
                     });
 

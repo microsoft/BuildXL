@@ -190,6 +190,15 @@ namespace BuildXL.Cache.ContentStore.Stores
         public int? HistoryWindowSize { get; private set; }
 
         /// <summary>
+        /// Maximum number of files to place in parallel.
+        /// </summary>
+        /// <remarks>
+        /// Defaults to 8 because that is the historical limit
+        /// </remarks>
+        [DataMember(Name = "ParallelPlaceFilesLimit")]
+        public int ParallelPlaceFilesLimit { get; private set; } = 8;
+
+        /// <summary>
         ///     Gets a value indicating whether the state is valid after deserialization.
         /// </summary>
         /// <remarks>

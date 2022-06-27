@@ -62,9 +62,6 @@ namespace BuildXL.Cache.ContentStore.Stores
         private const string CurrentByteCountName = Component + ".CurrentByteCount";
         private const string CurrentFileCountName = Component + ".CurrentFileCount";
 
-        // TODO: Adjust defaults (bug 1365340)
-        private const int ParallelPlaceFilesLimit = 8;
-
         private const string BlobNameExtension = "blob";
 
         /// <summary>
@@ -1965,7 +1962,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             var placeFileInternalBlock = new TransformBlock<Indexed<ContentHashWithPath>, Indexed<PlaceFileResult>>(
                 async p =>
                     (await PlaceFileAsync(context, p.Item.Hash, p.Item.Path, accessMode, replacementMode, realizationMode, pinRequest)).WithIndex(p.Index),
-                new ExecutionDataflowBlockOptions { MaxDegreeOfParallelism = ParallelPlaceFilesLimit, });
+                new ExecutionDataflowBlockOptions { MaxDegreeOfParallelism = Configuration?.ParallelPlaceFilesLimit ?? 8, });
 
             // TODO: Better way ? (bug 1365340)
             placeFileInternalBlock.PostAll(placeFileArgs.AsIndexed());

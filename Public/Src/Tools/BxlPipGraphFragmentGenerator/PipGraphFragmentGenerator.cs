@@ -201,7 +201,11 @@ namespace BuildXL.PipGraphFragmentGenerator
                     ConstructAndSaveBindingFingerprint = false,
                     NameResolutionSemantics = NameResolutionSemantics.ImplicitProjectReferences,
                     UsePackagesFromFileSystem = false,
-                    ReleaseWorkspaceBeforeEvaluation = true,
+
+                    // Garabage collection has a tendency to hang when the machine is really overscheduled.
+                    // Pip graph fragment creation typically happens inside a BuildXL pip
+                    // so we can rely on BuildXL to manage memory instead of the fragment creation pip.
+                    ReleaseWorkspaceBeforeEvaluation = false,
                     UnsafeOptimizedAstConversion = true,
                     AllowUnsafeAmbient = true,
                 },

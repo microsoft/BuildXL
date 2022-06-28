@@ -112,6 +112,14 @@ namespace BuildXL.Pips.Filter
                             }
 
                             break;
+                             
+                        default:
+                            // the default case will consider pips with no inputs so the negated filter should include them
+                            if (negate)
+                            {
+                                AddOutputs(context, pipId, localOutputs);
+                            }
+                            break;
                     }
                 },
                 constrainingPips);

@@ -658,6 +658,42 @@ namespace Test.BuildXL.Scheduler
         }
 
         [Fact]
+        public void TestNegatingInputFilter()
+        {
+            FileArtifact input1 = CreateSourceFile();
+            FileArtifact output1 = CreateOutputFileArtifact();
+            FileArtifact output2 = CreateOutputFileArtifact();
+            WriteFile writePip = CreateAndScheduleWriteFile(output2, string.Empty, new[] { "xxx" });
+
+            Process p1 = CreateAndScheduleProcess(
+                dependencies: new[] { input1 },
+                outputs: new[] { output1 },
+                tags: new[] { "T1" });
+
+            // Filter on a direct input of the process pip
+            XAssert.IsTrue(IsFilterMatch(new NegatingFilter(new InputFileFilter(input1.Path, null, MatchMode.FilePath, pathFromMount: false)), writePip));
+
+            // Filter on a member of the seal directory
+            var filter = new InputFileFilter(input1.Path, null, MatchMode.FilePath, pathFromMount: false);
+            var outputs = filter.FilterOutputs(
+                new PipFilterContext(
+                    Context.PathTable,
+                    allPips: new[] { p1.PipId, writePip.PipId },
+                    pipHydrator: pipId =>
+                    {
+                        if (pipId == writePip.PipId)
+                        {
+                            return writePip;
+                        }
+
+                        Contract.Assert(pipId == p1.PipId);
+                        return p1;
+                    },
+                    pipDependenciesGetter: pipId => Enumerable.Empty<PipId>()));
+            XAssert.IsTrue(outputs.Count() == 1, "Should have matched writeFile pip");
+        }
+
+        [Fact]
         public void TestSpecDependenciesFilter()
         {
             var o1 = CreateOutputFileArtifact();

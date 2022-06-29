@@ -152,7 +152,7 @@ config({
                 { id: "Microsoft.Tpl.Dataflow", version: "4.5.24" },
                 { id: "Microsoft.TypeScript.Compiler", version: "1.8" },
                 { id: "Microsoft.WindowsAzure.ConfigurationManager", version: "1.8.0.0" },
-                { id: "Newtonsoft.Json", version: "12.0.3" },
+                { id: "Newtonsoft.Json", version: "13.0.1" },
                 { id: "Newtonsoft.Json.Bson", version: "1.0.1" },
                 { id: "System.Reflection.Metadata", version: "1.6.0" },
                 { id: "System.Reflection.Metadata", version: "5.0.0", alias: "System.Reflection.Metadata.ForVBCS", dependentPackageIdsToSkip: ["System.Collections.Immutable"] },

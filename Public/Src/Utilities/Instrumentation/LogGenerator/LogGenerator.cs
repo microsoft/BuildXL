@@ -120,7 +120,12 @@ namespace BuildXL.LogGenerator
             try
             {
                 configuration = JsonConvert.DeserializeObject<LogGenConfiguration>(content!);
-                return true;
+                if (configuration == null)
+                {
+                    m_errorReport.ReportError($"LogGen unable to parse ({file.Path}). JSON: {content}.");
+                }
+
+                return configuration != null;
             }
             catch (Exception e)
             {

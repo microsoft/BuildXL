@@ -176,19 +176,22 @@ namespace BuildXL.Cache.ContentStore.Grpc
             string jsonContent = File.ReadAllText(certificateChainsPath);
             var cmdSettingsFile = JsonConvert.DeserializeObject<CompliantBuildCmdAgentSettings>(jsonContent);
 
-            foreach (CertificateChainValidationElement issuerChain in cmdSettingsFile.ValidClientAuthenticationChains)
+            if (cmdSettingsFile != null)
             {
-                try
+                foreach (CertificateChainValidationElement issuerChain in cmdSettingsFile.ValidClientAuthenticationChains)
                 {
-                    if (issuerChain.Validate(chain, false, out errorMessage))
+                    try
                     {
-                        return true;
+                        if (issuerChain.Validate(chain, false, out errorMessage))
+                        {
+                            return true;
+                        }
                     }
-                }
-                catch (Exception ex)
-                {
-                    errorMessage += ex;
-                    return false;
+                    catch (Exception ex)
+                    {
+                        errorMessage += ex;
+                        return false;
+                    }
                 }
             }
 

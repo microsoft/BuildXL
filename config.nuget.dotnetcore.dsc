@@ -259,7 +259,6 @@ export const pkgs = [
         dependentPackageIdsToSkip: ["System.Memory", "System.Buffers", "System.ValueTuple", "System.Runtime.CompilerServices.Unsafe", "System.Numerics.Vectors", "System.Threading.Tasks.Extensions", "Microsoft.Bcl.AsyncInterfaces", "System.Text.Encodings.Web"],
         alias: "System.Text.Json.v5.0.0"
     },
-    { id: "Newtonsoft.Json", version: "13.0.1", alias: "Newtonsoft.Json.v13.0.1" },
     { id: "System.Threading.AccessControl", version: pkgVersionNext },
 
     { id: "System.IO.FileSystem.AccessControl", version: pkgVersion6Preview, alias: "System.IO.FileSystem.AccessControl.v6.0.0" },

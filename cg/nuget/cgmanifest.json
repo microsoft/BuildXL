@@ -2742,15 +2742,6 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Newtonsoft.Json",
-          "Version": "12.0.3"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Newtonsoft.Json",
           "Version": "13.0.1"
         }
       }

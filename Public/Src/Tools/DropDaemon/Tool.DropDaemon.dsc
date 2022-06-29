@@ -60,7 +60,7 @@ export namespace DropDaemon {
             ),
             importFrom("Microsoft.SBOM.Adapters").withQualifier({ targetFramework: "netstandard2.0" }).pkg,
             importFrom("System.Text.Json.v5.0.0").pkg,
-            importFrom("Newtonsoft.Json.v13.0.1").pkg,
+            importFrom("Newtonsoft.Json").pkg,
             importFrom("System.Text.Encodings.Web.v5.0.1").pkg,
         ],
         internalsVisibleTo: [
@@ -163,7 +163,6 @@ export namespace DropDaemon {
     export function dropDaemonRuntimeContentToSkip() {
         return [
             importFrom("System.Text.Json").withQualifier({ targetFramework: "netstandard2.0" }).pkg,
-            importFrom("Newtonsoft.Json").pkg,
             importFrom("System.Text.Encodings.Web").withQualifier({ targetFramework: "netstandard2.0" }).pkg,
             importFrom("Microsoft.Extensions.Logging.Abstractions").pkg,
         ];

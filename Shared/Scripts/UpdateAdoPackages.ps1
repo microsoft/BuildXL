@@ -3,7 +3,12 @@
 $destination = 'https://pkgs.dev.azure.com/cloudbuild/_packaging/BuildXL.Selfhost/nuget/v3/index.json'
 $source = 'https://pkgs.dev.azure.com/mseng/_packaging/VSOnline-Internal/nuget/v3/index.json'
 
-$adoVersion = '16.199.0-internal202201091'
+$nugetPath = "nuget.exe"
+
+$tempDirectory = Join-Path $env:TEMP "adoUpdateTemp"
+New-Item -Path $tempDirectory -ItemType Directory -Force
+
+$adoVersion = '16.207.0-internal202206272'
 $adoPackages = @(
     'Microsoft.VisualStudio.Services.Client'
     'Microsoft.VisualStudio.Services.InteractiveClient'
@@ -18,7 +23,7 @@ $adoPackages = @(
     'Microsoft.VisualStudio.Services.ServiceEndpoints.WebApi'
 )
 
-$artifactVersion = '18.199.32109-buildid16662423'
+$artifactVersion = '19.207.32627-buildid17546194'
 $artifactPackages = @(
     'Microsoft.VisualStudio.Services.ArtifactServices.Shared'
     'Microsoft.VisualStudio.Services.BlobStore.Client'
@@ -35,26 +40,22 @@ $artifactPackages = @(
     'Drop.App'
 )
 
-$tempDirectory = '.\adoUpdateTemp'
-
-Foreach ($package in $adoPackages)
-{
+Foreach ($package in $adoPackages) {
     $version = $adoVersion
-    nuget.exe install $package -Version $version -DependencyVersion Ignore -DirectDownload -Source $source -OutputDirectory $tempDirectory
+    Invoke-Expression "$nugetPath install $package -Version $version -DependencyVersion Ignore -DirectDownload -Source $source -OutputDirectory $tempDirectory"
 
     $packageDirectory = "$package.$version"
     $packageFile = "$packageDirectory.nupkg"
-    nuget.exe push "$tempDirectory\$packageDirectory\$packageFile" -ApiKey ado -Source $destination
+    Invoke-Expression "$nugetPath push '$tempDirectory\$packageDirectory\$packageFile' -ApiKey ado -Source $destination -Timeout 3600 -SkipDuplicate"
 }
 
-Foreach ($package in $artifactPackages)
-{
+Foreach ($package in $artifactPackages) {
     $version = $artifactVersion
-    nuget.exe install $package -Version $version -DependencyVersion Ignore -DirectDownload -Source $source -OutputDirectory $tempDirectory
+    Invoke-Expression "$nugetPath install $package -Version $version -DependencyVersion Ignore -DirectDownload -Source $source -OutputDirectory $tempDirectory"
 
     $packageDirectory = "$package.$version"
     $packageFile = "$packageDirectory.nupkg"
-    nuget.exe push "$tempDirectory\$packageDirectory\$packageFile" -ApiKey ado -Source $destination
+    Invoke-Expression "$nugetPath push '$tempDirectory\$packageDirectory\$packageFile' -ApiKey ado -Source $destination -Timeout 3600 -SkipDuplicate"
 }
 
 Remove-Item $tempDirectory -Recurse

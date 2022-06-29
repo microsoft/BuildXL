@@ -1,6 +1,22 @@
 This page is a curated list of the release notes for releases after 0.20170619.4.0 and a manual copy of notable changes from each build before that. See the repo's commit history full details for what is included in each build.
 
 =======
+# 0.1.0-20220626.0 (Release [190089](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=190089)) Released 6/29/2022
+-	\[Linux Sandbox\] Stop wrapping processes in a bash script.
+-	Fail pips faster when a connection is lost with a worker.
+-	\[Linux Sandbox\] Implement a tiny bxl-env program to use instead of /usr/bin/env.
+-	Remove spansort extension.
+-	\[libDetours\] Don't crash if no FileAccessManifest is specified.
+-	Capture Infra property for Telemetry.
+-	Disable suspending service pips.
+-	\[BXL Remoting\]\[AnyBuild\] Enable VFS pre-rendering using hardlinks
+-	Add more diagnostic info to FindAllOpenHandlesInDirectory.
+
+# 0.1.0-20220617.5.2 (Release [187820](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=187820)) Released 6/22/2022
+- Fail pips faster when a connection is lost with a worker
+- Fix underbuild due to dirty check
+- Expand Peformance Summary Logging
+
 # 0.1.0-20220603.4 (Release [181226](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=181226&_a=release-pipeline-progress)) Released 6/8/2022
 -	Reduce the number of events going to the XLG to optimize space
 -	Allow for interactive authentication in linux/mac local builds

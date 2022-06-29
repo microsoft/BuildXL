@@ -117,7 +117,7 @@ function createFileListJsonForSigning(input: File, output: File, fileListJsonPat
                 "SigningInfo": {
                     "Operations": [
                         {
-                            "KeyCode": "CP-230072",
+                            "KeyCode": "CP-230856",
                             "OperationCode": "SigntoolSign",
                             "Parameters": 
                             {
@@ -131,7 +131,7 @@ function createFileListJsonForSigning(input: File, output: File, fileListJsonPat
                             "ToolVersion": "1.0"
                         },
                         {
-                            "KeyCode": "CP-230072",
+                            "KeyCode": "CP-230856",
                             "OperationCode": "SigntoolVerify",
                             "Parameters": {},
                             "ToolName": "sign",

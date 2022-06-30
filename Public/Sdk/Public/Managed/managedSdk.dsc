@@ -9,6 +9,7 @@ import * as ResGen     from "Sdk.Managed.Tools.ResGen.Lite";
 import * as AppPatcher from "Sdk.Managed.Tools.AppHostPatcher";
 import * as Xml        from "Sdk.Xml";
 import * as Crossgen   from "Sdk.Managed.Tools.Crossgen";
+import * as BinarySigner from "Sdk.Managed.Tools.BinarySigner";
 
 @@public
 export * from "Sdk.Managed.Shared";
@@ -348,11 +349,19 @@ function processDeploymentStyle(args: Arguments, targetType: Csc.TargetType, fra
             targetRuntimeVersion: Context.getCurrentHost().os === "win" ? qualifier.targetRuntime : Shared.TargetFrameworks.MachineQualifier.current.targetRuntime
         });
 
+        // When ESRP is enabled, get the patched .exe file and sign it.
+        let patchOutputFile = patchResult.patchOutputFile;
+        if (args.esrpSignArguments && patchOutputFile.extension === a`.exe`) {
+            let signInfo = BinarySigner.esrpSignFileInfoTemplate(args.esrpSignArguments).override<BinarySigner.SignFileInfo>({file: patchOutputFile});
+            patchOutputFile = BinarySigner.signBinary(args.esrpSignArguments, signInfo);
+        }
+
         runtimeContent = [
             ...(runtimeContent || []),
             // Self-Contained .NET Core deployments need a runtime and a patched application host container to be able to run on the target OS
             ...frameworkRuntimeFiles,
             ...patchResult.contents,
+            patchOutputFile,
         ];
 
         // When deploying self-contained dotNetCore executables we prefer to deploy the binaries that come with
@@ -513,6 +522,9 @@ export interface Arguments {
 
     /** Number of heaps to use for ServerGC. */
     gcHeapCount?: number;
+
+    /** ESRP sign arguments */
+    esrpSignArguments?: BinarySigner.ESRPSignArguments;
 }
 
 @@public

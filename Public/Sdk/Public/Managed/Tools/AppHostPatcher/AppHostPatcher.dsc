@@ -83,9 +83,9 @@ export function patchBinary(args: Arguments) : Result {
 
     return {
         contents: [
-            result.getOutputFile(outputPath),
             ...contents.getContent().filter(f => contentFilter(f)),
-        ]
+        ],
+        patchOutputFile: result.getOutputFile(outputPath)
     };
 }
 
@@ -95,7 +95,13 @@ export interface Arguments {
     targetRuntimeVersion: Managed.RuntimeVersion,
 }
 
+/**
+ * Binary files that AppHostPatcher patched. These files are part of Assembly.runtimeContent
+ * @patchOutputFile: This file is the executable file. Also part of 'contents' as a way to identify the patched output file.
+ */
+@@public
 export interface Result {
     contents: File[],
+    patchOutputFile: File,
 }
 

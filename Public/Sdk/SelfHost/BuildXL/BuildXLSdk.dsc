@@ -15,12 +15,12 @@ import * as XUnit from "Sdk.Managed.Testing.XUnit";
 import * as QTest from "Sdk.Managed.Testing.QTest";
 import * as Frameworks from "Sdk.Managed.Frameworks";
 import * as Net472 from "Sdk.Managed.Frameworks.Net472";
+import * as BinarySigner from "Sdk.Managed.Tools.BinarySigner";
 
 import * as ResXPreProcessor from "Sdk.BuildXL.Tools.ResXPreProcessor";
 import * as LogGenerator from "Sdk.BuildXL.Tools.LogGenerator";
 import * as ScriptSdkTestRunner from "Sdk.TestRunner";
 import * as Contracts from "Tse.RuntimeContracts";
-import * as BinarySigner from "BuildXL.Tools.BinarySigner";
 import * as NativeSdk from "Sdk.Native";
 import * as Json from "Sdk.Json";
 
@@ -278,6 +278,12 @@ namespace Flags {
      */
     @@public
     export const enableRoslynAnalyzers = Environment.getFlag("[Sdk.BuildXL]enableRoslynAnalyzers");
+
+    /**
+     * Enable ESRP Signing
+     */
+    @@public
+    export const enableESRP = Environment.getFlag("ENABLE_ESRP");
 }
 
 @@public
@@ -298,7 +304,8 @@ export const dotNetFramework = isDotNetCoreBuild
 @@public
 export function library(args: Arguments): Managed.Assembly {
     args = processArguments(args, "library");
-    return Signing.esrpSignAssembly(Managed.library(args));
+    let result = Managed.library(args);
+    return Flags.enableESRP ? Signing.esrpSignAssembly(args.esrpSignArguments, result) : result;
 }
 
 /**
@@ -375,7 +382,9 @@ export function executable(args: Arguments): Managed.Assembly {
         },
     });
 
-    return Signing.esrpSignAssembly(Managed.executable(args));
+    let result = Managed.executable(args);
+
+    return Flags.enableESRP ? Signing.esrpSignAssembly(args.esrpSignArguments, result) : result;
 }
 
 @@public
@@ -852,6 +861,15 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
         });
     }
 
+    // Add esrp arguments
+    if (Flags.enableESRP) {
+        args = args.merge({
+            esrpSignArguments: {
+                signToolPath: f`${Environment.expandEnvironmentVariablesInString(Environment.getStringValue("SIGN_TOOL_PATH"))}`,
+            }
+        });
+    }
+
     return args;
 }
 
@@ -952,9 +970,13 @@ namespace Native {
         
         let result = NativeSdk.Dll.build(args);
 
-        return result.override<NativeSdk.Dll.NativeDllImage>({
-            binaryFile : Signing.esrpSignFile(result.binaryFile)
-        });
+        if (Flags.enableESRP) {
+            return result.override<NativeSdk.Dll.NativeDllImage>({
+                binaryFile : Signing.esrpSignFile(createSignArguments(), result.binaryFile)
+            });
+        }
+        
+        return result;
     }
 
     /** Build a native exe. ESRP signs the file if enabled.*/
@@ -967,8 +989,19 @@ namespace Native {
         
         let result = NativeSdk.Exe.build(args);
 
-        return result.override<NativeSdk.Exe.NativeExeImage>({
-            binaryFile : Signing.esrpSignFile(result.binaryFile)
-        });
+        if (Flags.enableESRP) {
+            return result.override<NativeSdk.Exe.NativeExeImage>({
+                binaryFile : Signing.esrpSignFile(createSignArguments(), result.binaryFile)
+            });
+        }
+
+        return result;
+    }
+
+    /** Create esrp sign arguments for native dll signing */
+    function createSignArguments() : BinarySigner.ESRPSignArguments {
+        return {
+            signToolPath: f`${Environment.expandEnvironmentVariablesInString(Environment.getStringValue("SIGN_TOOL_PATH"))}`,
+        };
     }
 }

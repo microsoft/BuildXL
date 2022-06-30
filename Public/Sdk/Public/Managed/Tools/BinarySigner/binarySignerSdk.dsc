@@ -23,46 +23,56 @@ export interface SignFileInfo extends Transformer.RunnerArguments {
 }
 
 /**
+ * ESRP Signer arguments
+ */
+@@public
+export interface ESRPSignArguments {
+
+    /** Sign tool path */
+    signToolPath: File;
+
+    /** Output Directory. binarySignerSdk will create a new output directory if it's not provided*/
+    outputDir?: Directory;
+}
+
+/**
  * Process ESRP Sign requirements
  */
 @@public
-export const esrpSignFileInfoTemplate: SignFileInfo = Environment.getFlag("ENABLE_ESRP") ? {
-    tool: { 
-        exe : f`${Environment.expandEnvironmentVariablesInString(Environment.getStringValue("SIGN_TOOL_PATH"))}`,
-        untrackedDirectoryScopes: [
-            ...(Context.getCurrentHost().os === "win" ? [
-                d`${Context.getMount("ProgramData").path}`,
-                d`${Context.getMount("UserProfile").path}`
-            ] : [])
-        ],
-        runtimeDependencies : globR(d`${Context.getMount("ESRPClientRoot").path}`, "*"),
-    },
-    file: undefined,
-    signToolConfiguration: Environment.getFileValue("ESRP_SESSION_CONFIG"),
-    signToolEsrpPolicy: Environment.getFileValue("ESRP_POLICY_CONFIG"),
-    signToolAadAuth: f`${Context.getMount("SourceRoot").path}/Secrets/CodeSign/EsrpAuthentication.json`,
-} : undefined;
+export function esrpSignFileInfoTemplate(args: ESRPSignArguments): SignFileInfo {
+    return {
+        tool: { 
+            exe : args.signToolPath,
+            untrackedDirectoryScopes: [
+                ...(Context.getCurrentHost().os === "win" ? [
+                    d`${Context.getMount("ProgramData").path}`,
+                    d`${Context.getMount("UserProfile").path}`
+                ] : [])
+            ],
+            runtimeDependencies : globR(d`${Context.getMount("ESRPClientRoot").path}`, "*"),
+        },
+        file: undefined,
+        signToolConfiguration: Environment.getFileValue("ESRP_SESSION_CONFIG"),
+        signToolEsrpPolicy: Environment.getFileValue("ESRP_POLICY_CONFIG"),
+        signToolAadAuth: f`${Context.getMount("SourceRoot").path}/Secrets/CodeSign/EsrpAuthentication.json`,
+    };
+}
 
 /**
  * Returns a new file for given binary file
  */
 @@public
-export function signBinary(signInfo: SignFileInfo, outputDir?: Directory): File {
-    Contract.requires(
-        Environment.getFlag("ENABLE_ESRP") === true,
-        "Environment Flag ENABLE_ESRP not set, but Binary Signing was called."
-    );
-
+export function signBinary(args: ESRPSignArguments, signInfo: SignFileInfo): File {
     Contract.requires(
         signInfo.file !== undefined,
         `Binary Signing was called for an undefined file. SignInfo: ${signInfo}`
     );
     
     if (signInfo.tool === undefined) {
-        signInfo = signInfo.override<SignFileInfo>(esrpSignFileInfoTemplate);
+        signInfo = signInfo.override<SignFileInfo>(esrpSignFileInfoTemplate(args));
     }
 
-    let outputDirectory = outputDir === undefined ? Context.getNewOutputDirectory("esrpSignOutput") : outputDir;
+    let outputDirectory = args.outputDir === undefined ? Context.getNewOutputDirectory("esrpSignOutput") : args.outputDir;
     let fileListJson = p`${outputDirectory}/bxlEsrpBinarySignerSdk.json`;
 
     let signedFile = f`${outputDirectory.path}/${signInfo.file.name}`;   // Final Output: Signed version of given file

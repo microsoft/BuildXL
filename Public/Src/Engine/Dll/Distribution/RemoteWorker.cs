@@ -556,7 +556,7 @@ namespace BuildXL.Engine.Distribution
                     m_serviceLocation.Port,
                     callerName);
 
-                await DisconnectAsync(buildFailure);
+                await DisconnectAsync(buildFailure, callerName);
             }
         }
 
@@ -649,7 +649,7 @@ namespace BuildXL.Engine.Distribution
                 isDrainedWithSuccess);
         }
 
-        private async Task DisconnectAsync(string buildFailure = null)
+        private async Task DisconnectAsync(string buildFailure = null, [CallerMemberName] string callerName = null)
         {
             if (Status != WorkerNodeStatus.Stopping)
             {
@@ -720,7 +720,7 @@ namespace BuildXL.Engine.Distribution
                 }
             }
 
-            ChangeStatus(WorkerNodeStatus.Stopping, WorkerNodeStatus.Stopped);
+            ChangeStatus(WorkerNodeStatus.Stopping, WorkerNodeStatus.Stopped, callerName);
         }
 
         /// <inheritdoc />

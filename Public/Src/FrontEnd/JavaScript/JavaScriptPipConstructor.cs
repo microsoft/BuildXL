@@ -5,6 +5,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.IO;
 using System.Linq;
 using BuildXL.FrontEnd.JavaScript.ProjectGraph;
 using BuildXL.FrontEnd.Script.Ambients.Transformers;
@@ -218,7 +219,7 @@ namespace BuildXL.FrontEnd.JavaScript
 
             // node_modules/.bin is expected to be part of the project path. This is standard for JavaScript projects.
             string nodeModulesBin = project.ProjectFolder.Combine(PathTable, RelativePath.Create(PathTable.StringTable, "node_modules/.bin")).ToString(PathTable);
-            env["PATH"] = nodeModulesBin + (env.ContainsKey("PATH")? $";{env["PATH"]}" : string.Empty);
+            env["PATH"] = nodeModulesBin + (env.ContainsKey("PATH")? $"{Path.PathSeparator}{env["PATH"]}" : string.Empty);
             
             return env;
         }
@@ -437,9 +438,10 @@ namespace BuildXL.FrontEnd.JavaScript
 
             using (processBuilder.ArgumentsBuilder.StartFragment(PipDataFragmentEscaping.CRuntimeArgumentRules, " "))
             {
-                processBuilder.ArgumentsBuilder.Add(PipDataAtom.FromString("/C"));
+                JavaScriptUtilities.AddCmdArguments(processBuilder);
 
-                using (processBuilder.ArgumentsBuilder.StartFragment(PipDataFragmentEscaping.NoEscaping, " "))
+                // On non-Windows OS, the arguments need (double quoute) escaping
+                using (processBuilder.ArgumentsBuilder.StartFragment(OperatingSystemHelper.IsWindowsOS ? PipDataFragmentEscaping.NoEscaping : PipDataFragmentEscaping.CRuntimeArgumentRules, " "))
                 {
                     // Execute the command and redirect the output to a designated log file
                     processBuilder.ArgumentsBuilder.Add(PipDataAtom.FromString(project.ScriptCommand));
@@ -510,7 +512,7 @@ namespace BuildXL.FrontEnd.JavaScript
             ProcessBuilder processBuilder,
             JavaScriptProject project)
         {
-            var cmdExeArtifact = FileArtifact.CreateSourceFile(AbsolutePath.Create(PathTable, Environment.GetEnvironmentVariable("COMSPEC")));
+            var cmdExeArtifact = FileArtifact.CreateSourceFile(JavaScriptUtilities.GetCommandLineToolPath(m_context.PathTable));
 
             processBuilder.Executable = cmdExeArtifact;
             processBuilder.AddInputFile(cmdExeArtifact);

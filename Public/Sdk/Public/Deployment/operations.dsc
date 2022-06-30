@@ -235,7 +235,7 @@ function flattenStaticDirectory(staticDirectory: StaticDirectory, targetFolder: 
 
             // TODO: Improve error logging and disambiguation
             if (existingOpaque !== undefined) {
-                if (existingOpaque[0] !== staticDirectory) {
+                if (existingOpaque.opaque !== staticDirectory) {
                     Contract.fail(`Duplicate opaque directory. Can't deploy both '{existingOpaque.root}' and '{staticDirectory.root}' to '{targetFolder}'`);
                 }
 

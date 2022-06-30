@@ -139,7 +139,7 @@ type PassthroughEnvironmentVariable = Unit;
 /** An environment variable can be defined to have a value of the following types */
 type EnvironmentData = string | number | Path | PathFragment | CompoundEnvironmentData | Directory;
 
-/** A compound environment variable value. The separator defaults to ';' if not defined */
+/** A compound environment variable value. The separator defaults to the OS default if not defined */
 interface CompoundEnvironmentData {
     separator?: string; 
     contents: EnvironmentData[];

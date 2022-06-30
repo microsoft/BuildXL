@@ -239,7 +239,7 @@ namespace BuildXL.FrontEnd.JavaScript
             AbsolutePath toolPath = m_configuration.Layout.BuildEngineDirectory.Combine(m_context.PathTable, RelativePathToGraphConstructionTool);
             string outputDirectory = outputFile.GetParent(m_context.PathTable).ToString(m_context.PathTable);
 
-            var cmdExeArtifact = FileArtifact.CreateSourceFile(AbsolutePath.Create(m_context.PathTable, Environment.GetEnvironmentVariable("COMSPEC")));
+            var cmdExeArtifact = FileArtifact.CreateSourceFile(JavaScriptUtilities.GetCommandLineToolPath(m_context.PathTable));
             
             var toolArguments = GetGraphConstructionToolArguments(outputFile, toolLocation, toolPath, nodeExeLocation);
 

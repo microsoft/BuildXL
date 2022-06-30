@@ -5,25 +5,30 @@ using System;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Collections;
 
 namespace BuildXL.Pips.Graph
 {
     partial class PipGraph
     {
         /// <nodoc />
-        public class WindowsOsDefaults
+        public class WindowsOsDefaults : OsDefaults
         {
-            private readonly DirectoryArtifact[] m_untrackedDirectories;
-
             private readonly DirectoryArtifact m_applicationDataPath;
             private readonly DirectoryArtifact m_localApplicationDataPath;
 
             private readonly DirectoryArtifact m_commonApplicationDataPath;
 
+            /// <inheritdoc/>
+            public DirectoryArtifact[] UntrackedDirectories { get; }
+
+            /// <inheritdoc/>
+            public FileArtifact[] UntrackedFiles => CollectionUtilities.EmptyArray<FileArtifact>();
+            
             /// <nodoc />
             public WindowsOsDefaults(PathTable pathTable)
             {
-                m_untrackedDirectories =
+                UntrackedDirectories =
                     new[]
                     {
                         GetSpecialFolder(pathTable, Environment.SpecialFolder.Windows),
@@ -48,7 +53,7 @@ namespace BuildXL.Pips.Graph
             {
                 if ((processBuilder.Options & Process.Options.DependsOnCurrentOs) != 0)
                 {
-                    foreach (var untrackedDirectory in m_untrackedDirectories)
+                    foreach (var untrackedDirectory in UntrackedDirectories)
                     {
                         AddUntrackedScopeIfValid(untrackedDirectory, processBuilder);
                     }

@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
+using System.IO;
 using BuildXL.Utilities.Collections;
 
 namespace BuildXL.Utilities.Configuration.Resolvers.Mutable
@@ -10,7 +11,7 @@ namespace BuildXL.Utilities.Configuration.Resolvers.Mutable
     public class CompoundEnvironmentData : ICompoundEnvironmentData
     {
         /// <nodoc/>
-        public const string DefaultSeparator = ";";
+        public static string DefaultSeparator = Path.PathSeparator.ToString();
 
         /// <nodoc/>
         public CompoundEnvironmentData()

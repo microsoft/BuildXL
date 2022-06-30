@@ -23,15 +23,15 @@ namespace Factory {
             Script.dll,
             Nuget.dll,
             Sdk.dll,
+            Rush.dll,
+            Yarn.dll,
+            JavaScript.dll,
+            Lage.dll,
 
             ...addIfLazy(qualifier.targetRuntime === "win-x64", () => [
                 CMake.dll,
-                JavaScript.dll,
-                Lage.dll,
                 MsBuild.dll,
                 Ninja.dll,
-                Rush.dll,
-                Yarn.dll,
             ]),
         ],
         internalsVisibleTo: [

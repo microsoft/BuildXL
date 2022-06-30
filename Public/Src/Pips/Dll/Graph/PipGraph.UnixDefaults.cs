@@ -15,7 +15,7 @@ namespace BuildXL.Pips.Graph
     partial class PipGraph
     {
         /// <nodoc />
-        public class UnixDefaults
+        public class UnixDefaults : OsDefaults
         {
             private static readonly SortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer> s_emptySealContents
                 = CollectionUtilities.EmptySortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer>(OrdinalFileArtifactComparer.Instance);
@@ -38,8 +38,12 @@ namespace BuildXL.Pips.Graph
             private readonly PipProvenance m_provenance;
             private readonly AbsolutePath[] m_sourceSealDirectoryPaths;
             private readonly Lazy<DefaultSourceSealDirectories> m_lazySourceSealDirectories;
-            private readonly FileArtifact[] m_untrackedFiles;
-            private readonly DirectoryArtifact[] m_untrackedDirectories;
+
+            /// <inheritdoc/>
+            public FileArtifact[] UntrackedFiles { get; }
+
+            /// <inheritdoc/>
+            public DirectoryArtifact[] UntrackedDirectories { get; }
 
             /// <nodoc />
             public UnixDefaults(PathTable pathTable, IMutablePipGraph pipGraph)
@@ -68,7 +72,7 @@ namespace BuildXL.Pips.Graph
                     new DefaultSourceSealDirectories(m_sourceSealDirectoryPaths.Select(p => GetSourceSeal(pipGraph, p)).ToArray()));
 
                 // TODO: try not to untrack so many paths
-                m_untrackedFiles =
+                UntrackedFiles =
                     new[]
                     {
                         UnixPaths.Etc,
@@ -86,7 +90,7 @@ namespace BuildXL.Pips.Graph
                     .Select(p => FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, p)))
                     .ToArray();
 
-                m_untrackedDirectories =
+                UntrackedDirectories =
                     new[]
                     {
                         UnixPaths.Bin,
@@ -158,13 +162,13 @@ namespace BuildXL.Pips.Graph
                     }
 
                     // add untracked files
-                    foreach (var untrackedFile in m_untrackedFiles)
+                    foreach (var untrackedFile in UntrackedFiles)
                     {
                         processBuilder.AddUntrackedFile(untrackedFile);
                     }
 
                     // add untracked directories
-                    foreach (var untrackedDirectory in m_untrackedDirectories)
+                    foreach (var untrackedDirectory in UntrackedDirectories)
                     {
                         processBuilder.AddUntrackedDirectoryScope(untrackedDirectory);
                     }

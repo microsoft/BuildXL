@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
@@ -17,6 +18,7 @@ using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Sdk.Mutable;
 using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Pips.Builders;
+using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes;
 using BuildXL.Processes.Containers;
@@ -103,10 +105,20 @@ namespace BuildXL.FrontEnd.Utilities
             Action onResult = null      // Action to be taken after getting a successful result
             )
         {
+            var toolBuildStorage = new ToolBuildStorage(buildStorageDirectory);
+
+            // If the pipId is 0 (unset) set some roughly unique value for it. For the linux case, the sandbox connection assumes the pip id
+            // is set. We don't really need a true id here since we are only running a single pip in the lifetime of the connection, so in fact any non-zero
+            // value should do
+            if (fileAccessManifest.PipId == 0)
+            {
+                fileAccessManifest.PipId = HashCodeHelper.Combine(pathToTool.GetHashCode(), arguments.GetHashCode());
+            }
+
             var info =
                 new SandboxedProcessInfo(
                     context.PathTable,
-                    new ToolBuildStorage(buildStorageDirectory),
+                    toolBuildStorage,
                     pathToTool,
                     fileAccessManifest,
                     disableConHostSharing: true,
@@ -117,41 +129,96 @@ namespace BuildXL.FrontEnd.Utilities
                     WorkingDirectory = workingDirectory,
                     PipSemiStableHash = 0,
                     PipDescription = description,
-                    EnvironmentVariables = buildParameters
+                    EnvironmentVariables = buildParameters,
                 };
 
-            var process = await SandboxedProcessFactory.StartAsync(info, forceSandboxing: true);
+            // We don't expect many failures (none for the typical case). A concurrent bag should be fine.
+            var sandboxFailures = new ConcurrentBag<(int, string)>();
+            void sandboxConnectionFailureCallback(int status, string description)
+            {
+                sandboxFailures.Add((status, description));
+            }
 
-            var registration = context.CancellationToken.Register(
-                () =>
+            SandboxedProcessResult sandboxedProcessResult;
+            try
+            {
+                if (OperatingSystemHelper.IsLinuxOS)
                 {
-                    try
-                    {
-                        process.KillAsync().GetAwaiter().GetResult();
-                    }
-                    catch (TaskCanceledException)
-                    {
-                        // If the process has already terminated or doesn't exist, an TaskCanceledException is raised.
-                        // In either case, we swallow the exception, cancellation is already requested by the user
-                    }
-                });
-
-
-            beforeLaunch?.Invoke();
-            var result = process.GetResultAsync().ContinueWith(
-                r =>
+                    info.SandboxConnection = new SandboxConnectionLinuxDetours(sandboxConnectionFailureCallback);
+                }
+                else if (OperatingSystemHelper.IsMacOS)
                 {
-                    // Dispose the registration for the cancellation token once the process is done
-                    registration.Dispose();
+                    info.SandboxConnection = new SandboxConnectionKext(
+                        new SandboxConnectionKext.Config
+                        {
+                            FailureCallback = sandboxConnectionFailureCallback,
+                            KextConfig = new Interop.Unix.Sandbox.KextConfig
+                            {
+                                ReportQueueSizeMB = 1024,
+#if PLATFORM_OSX
+                            EnableCatalinaDataPartitionFiltering = OperatingSystemHelper.IsMacWithoutKernelExtensionSupport
+#endif
+                            }
+                        });
+                }
+
+                var process = await SandboxedProcessFactory.StartAsync(info, forceSandboxing: true);
+
+                var registration = context.CancellationToken.Register(
+                    () =>
+                    {
+                        try
+                        {
+                            process.KillAsync().GetAwaiter().GetResult();
+                        }
+                        catch (TaskCanceledException)
+                        {
+                            // If the process has already terminated or doesn't exist, an TaskCanceledException is raised.
+                            // In either case, we swallow the exception, cancellation is already requested by the user
+                        }
+                    });
 
 
-                    //
-                    onResult?.Invoke();
+                beforeLaunch?.Invoke();
+                var result = process.GetResultAsync().ContinueWith(
+                    r =>
+                    {
+                        // Dispose the registration for the cancellation token once the process is done
+                        registration.Dispose();
 
-                    return r.GetAwaiter().GetResult();
-                });
 
-            return await result;
+                        //
+                        onResult?.Invoke();
+
+                        return r.GetAwaiter().GetResult();
+                    });
+
+                sandboxedProcessResult = await result;
+            }
+            finally 
+            { 
+                info.SandboxConnection?.Dispose(); 
+            }
+
+            // No sandboxed process failures, so we return the result
+            if (sandboxFailures.Count == 0)
+            {
+                return sandboxedProcessResult;
+            }
+
+            // Inject the sandboxed failures into the result, so downstream consumers can fail appropriately 
+            var error = string.Join(Environment.NewLine, sandboxFailures.Select((status, description) => $"[{status}]{description}"));
+            return new SandboxedProcessResult() {
+                ExitCode = -1,
+                StandardError = new SandboxedProcessOutput(
+                    error.Length, 
+                    error, 
+                    fileName: null, 
+                    Console.OutputEncoding, 
+                    toolBuildStorage, 
+                    SandboxedProcessFile.StandardError, 
+                    exception: null)
+            };
         }
 
         /// <summary>
@@ -192,27 +259,30 @@ namespace BuildXL.FrontEnd.Utilities
                                          MonitorChildProcesses = true,
                                      };
 
-            fileAccessManifest.AddScope(
-                AbsolutePath.Create(pathTable, SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.Windows)),
-                FileAccessPolicy.MaskAll,
-                FileAccessPolicy.AllowAllButSymlinkCreation);
+            OsDefaults osDefaults = OperatingSystemHelper.IsWindowsOS
+                ? new BuildXL.Pips.Graph.PipGraph.WindowsOsDefaults(pathTable)
+                : new BuildXL.Pips.Graph.PipGraph.UnixDefaults(pathTable, pipGraph: null);
 
-            fileAccessManifest.AddScope(
-                AbsolutePath.Create(pathTable, SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.InternetCache)),
-                FileAccessPolicy.MaskAll,
-                FileAccessPolicy.AllowAllButSymlinkCreation);
-
-            fileAccessManifest.AddScope(
-                AbsolutePath.Create(pathTable, SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.History)),
-                FileAccessPolicy.MaskAll,
-                FileAccessPolicy.AllowAllButSymlinkCreation);
+            foreach (var untrackedDirectory in osDefaults.UntrackedDirectories)
+            {
+                fileAccessManifest.AddScope(
+                    untrackedDirectory.Path,
+                    ~FileAccessPolicy.ReportAccess,
+                    FileAccessPolicy.AllowAll | FileAccessPolicy.AllowRealInputTimestamps);
+            }
+            
+            foreach (var untrackedFile in osDefaults.UntrackedFiles)
+            {
+                fileAccessManifest.AddPath(
+                    untrackedFile.Path,
+                    ~FileAccessPolicy.ReportAccess,
+                    FileAccessPolicy.AllowAll | FileAccessPolicy.AllowRealInputTimestamps);
+            }
 
             fileAccessManifest.AddScope(toolDirectory, FileAccessPolicy.MaskAll, FileAccessPolicy.AllowReadAlways);
 
             return fileAccessManifest;
         }
-
-
 
         /// <summary>
         /// The FrontEnds that use an out-of-proc tool should sandbox that process and call this method

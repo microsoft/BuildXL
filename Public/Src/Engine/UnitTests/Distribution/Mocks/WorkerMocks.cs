@@ -122,10 +122,6 @@ namespace Test.BuildXL.Distribution
         {
         }
 
-        void IWorkerPipExecutionService.Transition(PipId pipId, WorkerPipState state)
-        {
-        }
-
         Possible<Unit> IWorkerPipExecutionService.TryReportInputs(List<FileArtifactKeyedHash> hashes) => new Possible<Unit>(Unit.Void);
 
         async Task IWorkerPipExecutionService.HandlePipStepAsync(PipId pipId, ExtendedPipCompletionData pipCompletionData, SinglePipBuildRequest pipBuildRequest, Possible<Unit> reportInputsResult)

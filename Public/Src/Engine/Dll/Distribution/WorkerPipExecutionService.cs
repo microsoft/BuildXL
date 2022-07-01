@@ -65,9 +65,6 @@ namespace BuildXL.Engine.Distribution
         /// Executes the requested pip step and reports the result to the worker service
         /// </summary>
         Task HandlePipStepAsync(PipId pipId, ExtendedPipCompletionData pipCompletionData, SinglePipBuildRequest pipBuildRequest, Possible<Unit> reportInputsResult);
-        
-        /// <nodoc />
-        void Transition(PipId pipId, WorkerPipState state);
 
         /// <summary>
         /// Gets the description for a pip from a PipId. For logging purposes.
@@ -97,7 +94,6 @@ namespace BuildXL.Engine.Distribution
             private PipQueue m_pipQueue;
             private Scheduler.Scheduler m_scheduler;
             private IPipExecutionEnvironment m_environment;
-            private WorkerServicePipStateManager m_workerPipStateManager;
             private readonly WorkerRunnablePipObserver m_workerRunnablePipObserver;
             private Scheduler.Tracing.OperationTracker m_operationTracker;
 
@@ -117,7 +113,6 @@ namespace BuildXL.Engine.Distribution
                 Contract.Requires(schedule.Scheduler != null);
                 Contract.Requires(schedule.SchedulingQueue != null);
 
-                m_workerPipStateManager = new WorkerServicePipStateManager(this);
                 m_pipTable = schedule.PipTable;
                 m_pipQueue = schedule.SchedulingQueue;
                 m_scheduler = schedule.Scheduler;
@@ -230,7 +225,6 @@ namespace BuildXL.Engine.Distribution
                         m_environment.State.FileContentManager.RegisterDirectoryDependencies(pipInfo.UnderlyingPip);
                     }
 
-                    m_workerPipStateManager.Transition(pipId, WorkerPipState.Queued);
                     m_scheduler.HandlePipRequest(pipId, m_workerRunnablePipObserver, step, pipBuildRequest.Priority);
 
                     // Track how much time the request spent queued
@@ -255,9 +249,6 @@ namespace BuildXL.Engine.Distribution
                         step);
                 }
             }
-
-            /// <inheritdoc />
-            void IWorkerPipExecutionService.Transition(PipId pipId, WorkerPipState state) => m_workerPipStateManager.Transition(pipId, state);
 
             /// <inheritdoc />
             Possible<Unit> IWorkerPipExecutionService.TryReportInputs(List<FileArtifactKeyedHash> hashes)
@@ -346,7 +337,6 @@ namespace BuildXL.Engine.Distribution
             public void Dispose()
             {
                 m_workerService.LogStatistics(LoggingContext);
-                m_workerPipStateManager?.Dispose();
             }
 
             private void StartStep(RunnablePip runnablePip)
@@ -406,18 +396,9 @@ namespace BuildXL.Engine.Distribution
 
                 switch (runnablePip.Step)
                 {
-                    case PipExecutionStep.MaterializeInputs:
-                        if (!runnablePip.Result.HasValue ||
-                            !runnablePip.Result.Value.Status.IndicatesFailure())
-                        {
-                            m_workerPipStateManager.Transition(pipId, WorkerPipState.Prepped);
-                        }
-
-                        break;
                     case PipExecutionStep.ExecuteProcess:
                     case PipExecutionStep.ExecuteNonProcessPip:
                         executionResult.Seal();
-                        m_workerPipStateManager.Transition(pipId, WorkerPipState.Executed);
 
                         if (!executionResult.Result.IndicatesFailure() &&
                             ETWLogger.Log.IsEnabled(EventLevel.Verbose, Keywords.Diagnostics))
@@ -518,90 +499,6 @@ namespace BuildXL.Engine.Distribution
 
                     m_workerService.EndStep(runnablePip);
                 }
-            }
-
-            private sealed class WorkerServicePipStateManager : WorkerPipStateManager, IDisposable
-            {
-                private readonly StatusReporter m_statusReporter;
-                private readonly WorkerPipExecutionService m_workerService;
-
-                public WorkerServicePipStateManager(WorkerPipExecutionService workerService)
-                {
-                    m_workerService = workerService;
-                    m_statusReporter = new StatusReporter(m_workerService.LoggingContext, this);
-                }
-
-                private sealed class StatusReporter : BaseEventListener
-                {
-                    private readonly LoggingContext m_loggingContext;
-                    private Snapshot m_pipStateSnapshot;
-
-                    public StatusReporter(LoggingContext loggingContext, WorkerServicePipStateManager stateManager)
-                        : base(Events.Log, warningMapper: null, eventMask: new EventMask(enabledEvents: new int[] { (int)SharedLogEventId.PipStatus }, disabledEvents: null))
-                    {
-                        m_loggingContext = loggingContext;
-                        m_pipStateSnapshot = stateManager.GetSnapshot();
-                    }
-
-                    private void ReportStatus()
-                    {
-                        var pipStateSnapshot = Interlocked.Exchange(ref m_pipStateSnapshot, null);
-                        if (pipStateSnapshot != null)
-                        {
-                            pipStateSnapshot.Update();
-                            Logger.Log.DistributionWorkerStatus(
-                                m_loggingContext,
-                                pipsQueued: pipStateSnapshot[WorkerPipState.Queued],
-                                pipsPrepping: pipStateSnapshot[WorkerPipState.Prepping],
-                                pipsPrepped: pipStateSnapshot[WorkerPipState.Prepped],
-                                pipsRecording: pipStateSnapshot[WorkerPipState.Recording],
-                                pipsReporting: pipStateSnapshot[WorkerPipState.Reporting],
-                                pipsDone: pipStateSnapshot[WorkerPipState.Done]);
-                            m_pipStateSnapshot = pipStateSnapshot;
-                        }
-                    }
-
-                    protected override void OnEventWritten(EventWrittenEventArgs eventData)
-                    {
-                        if (eventData.EventId == (int)SharedLogEventId.PipStatus)
-                        {
-                            ReportStatus();
-                        }
-                    }
-
-                    protected override void OnCritical(EventWrittenEventArgs eventData)
-                    {
-                    }
-
-                    protected override void OnWarning(EventWrittenEventArgs eventData)
-                    {
-                    }
-
-                    protected override void OnError(EventWrittenEventArgs eventData)
-                    {
-                    }
-
-                    protected override void OnInformational(EventWrittenEventArgs eventData)
-                    {
-                    }
-
-                    protected override void OnVerbose(EventWrittenEventArgs eventData)
-                    {
-                    }
-
-                    protected override void OnAlways(EventWrittenEventArgs eventData)
-                    {
-                    }
-                }
-
-                #region IDisposable Members
-
-                public void Dispose()
-                {
-                    m_statusReporter.Dispose();
-                }
-
-                #endregion
             }
         }
     }

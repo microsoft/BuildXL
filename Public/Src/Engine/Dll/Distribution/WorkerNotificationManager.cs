@@ -393,7 +393,6 @@ namespace BuildXL.Engine.Distribution
                         foreach (var result in m_executionResults)
                         {
                             Tracing.Logger.Log.DistributionWorkerFinishedPipRequest(m_loggingContext, result.SemiStableHash, ((PipExecutionStep)result.SerializedData.Step).ToString());
-                            ExecutionService.Transition(result.PipId, WorkerPipState.Done);
                         }
 
                         m_numBatchesSent++;

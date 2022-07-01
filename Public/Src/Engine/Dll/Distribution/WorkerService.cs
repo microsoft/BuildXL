@@ -396,7 +396,6 @@ namespace BuildXL.Engine.Distribution
             ExecutionResult executionResult,
             PipExecutionStep step)
         {
-            m_pipExecutionService.Transition(pipId, WorkerPipState.Recording);
             if (executionResult.Result == PipResultStatus.Failed)
             {
                 m_hasFailures = true;
@@ -411,7 +410,6 @@ namespace BuildXL.Engine.Distribution
             {
                 // We do not report 'MaterializeOutput' step results back to orchestrator.
                 Logger.Log.DistributionWorkerFinishedPipRequest(m_appLoggingContext, pipCompletion.SemiStableHash, step.ToString());
-                m_pipExecutionService.Transition(pipId, WorkerPipState.Done);
                 return;
             }
 

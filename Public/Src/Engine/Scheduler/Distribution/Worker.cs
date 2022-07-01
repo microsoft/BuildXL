@@ -64,7 +64,6 @@ namespace BuildXL.Scheduler.Distribution
         private ContentTrackingSet m_availableContent;
         private ContentTrackingSet m_availableHashes;
         private SemaphoreSet<StringId> m_workerSemaphores;
-        private readonly WorkerPipStateManager m_workerPipStateManager;
         private WorkerNodeStatus m_status;
         private OperationContext m_workerStatusOperation;
         private OperationContext m_currentStatusOperation;
@@ -325,11 +324,6 @@ namespace BuildXL.Scheduler.Distribution
         public readonly ConcurrentDictionary<string, byte> InitializedTracerCounters = new ConcurrentDictionary<string, byte>();
 
         /// <summary>
-        /// Snapshot of pip state counts for worker
-        /// </summary>
-        public WorkerPipStateManager.Snapshot PipStateSnapshot { get; }
-
-        /// <summary>
         /// Pip execution context.
         /// </summary>
         protected PipExecutionContext PipExecutionContext { init; get; }
@@ -347,8 +341,6 @@ namespace BuildXL.Scheduler.Distribution
             Name = name;
             WorkerIpAddress = workerIpAddress;
             m_workerSemaphores = new SemaphoreSet<StringId>();
-            m_workerPipStateManager = new WorkerPipStateManager();
-            PipStateSnapshot = m_workerPipStateManager.GetSnapshot();
 
             m_workerOperationKind = OperationKind.Create("Worker " + Name);
             DrainCompletion = TaskSourceSlim.Create<bool>();
@@ -1006,14 +998,6 @@ namespace BuildXL.Scheduler.Distribution
         }
 
         /// <summary>
-        /// Transitions the state of the given pip on the worker
-        /// </summary>
-        public virtual void Transition(PipId pipId, WorkerPipState state)
-        {
-            m_workerPipStateManager.Transition(pipId, state);
-        }
-
-        /// <summary>
         /// Called after worker finishes materializing inputs for a pip
         /// </summary>
         public void OnInputMaterializationCompletion(Pip pip, IPipExecutionEnvironment environment)
@@ -1021,9 +1005,6 @@ namespace BuildXL.Scheduler.Distribution
             Contract.Assert(pip.PipType == PipType.Process || pip.PipType == PipType.Ipc);
 
             var fileContentManager = environment.State.FileContentManager;
-
-            // Update the pip state
-            Transition(pip.PipId, WorkerPipState.Prepped);
 
             if (!m_isContentTrackingEnabled)
             {

@@ -42,7 +42,6 @@ namespace BuildXL.Engine.Distribution
                     }
 
                     ReadyToSendResultList.Add(pipCompletion);
-                    m_notificationManager.ExecutionService.Transition(pipCompletion.PipId, WorkerPipState.Reporting);
                 }
                 catch (InvalidOperationException)
                 {

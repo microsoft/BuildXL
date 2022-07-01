@@ -926,22 +926,6 @@ namespace BuildXL.Engine.Tracing
         public abstract void DistributionWorkerPipOutputContent(LoggingContext context, long pipSemiStableHash, string pipDescription, string filePath, string hash);
 
         [GeneratedEvent(
-            (ushort)LogEventId.DistributionWorkerStatus,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Verbose,
-            Keywords = (int)(Keywords.UserMessage | Keywords.Progress),
-            EventTask = (ushort)Tasks.Distribution,
-            Message = "{pipsDone} done, {pipsReporting} reporting, {pipsRecording} recording, {pipsPrepped} prepped, {pipsPrepping} prepping, {pipsQueued} queued")]
-        internal abstract void DistributionWorkerStatus(
-            LoggingContext loggingContext,
-            int pipsQueued,
-            int pipsPrepping,
-            int pipsPrepped,
-            int pipsRecording,
-            int pipsReporting,
-            int pipsDone);
-
-        [GeneratedEvent(
             (ushort)LogEventId.DistributionOrchestratorStatus,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,

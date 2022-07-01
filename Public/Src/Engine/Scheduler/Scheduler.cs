@@ -2366,14 +2366,7 @@ namespace BuildXL.Scheduler
                         rows.Add(I($"W{worker.WorkerId} Total Commit Mb"), _ => worker.TotalCommitMb ?? 0, includeInSnapshot: false);
                         rows.Add(I($"W{worker.WorkerId} Estimated Free Commit Mb"), _ => worker.EstimatedFreeCommitMb, includeInSnapshot: false);
                         rows.Add(I($"W{worker.WorkerId} Actual Free Commit Mb"), _ => worker.ActualFreeCommitMb ?? 0, includeInSnapshot: false);
-
                         rows.Add(I($"W{worker.WorkerId} Status"), _ => worker.Status, includeInSnapshot: false);
-
-                        var snapshot = worker.PipStateSnapshot;
-                        foreach (var workerPipState in EnumTraits<WorkerPipState>.EnumerateValues().Where(wps => wps.IsReportedState()))
-                        {
-                            rows.Add(I($"W{worker.WorkerId} {workerPipState}"), _ => snapshot[workerPipState], includeInSnapshot: false);
-                        }
                     }
                 },
             }.Seal();
@@ -2414,10 +2407,6 @@ namespace BuildXL.Scheduler
 
                 // Update snapshots for status reporting
                 m_executionStepTracker.CurrentSnapshot.Update();
-                foreach (var worker in m_workers)
-                {
-                    worker.PipStateSnapshot.Update();
-                }
 
                 m_pipStateCounters.CollectSnapshotsForEachType(m_pipStateCountersSnapshots);
                 m_pipTypesToLogCountersSnapshot.AggregateByPipTypes(m_pipStateCountersSnapshots, s_pipTypesToLogStats);
@@ -4503,7 +4492,6 @@ namespace BuildXL.Scheduler
                         return PipExecutionStep.ChooseWorkerCacheLookup;
                     }
 
-                    worker.Transition(runnablePip.PipId, WorkerPipState.ChosenForCacheLookup);
                     runnablePip.SetWorker(worker);
 
                     return PipExecutionStep.CacheLookup;
@@ -4522,7 +4510,6 @@ namespace BuildXL.Scheduler
                         return PipExecutionStep.ChooseWorkerCpu;
                     }
 
-                    worker.Transition(runnablePip.PipId, WorkerPipState.ChosenForExecution);
                     runnablePip.SetWorker(worker);
                     if (InputsLazilyMaterialized)
                     {

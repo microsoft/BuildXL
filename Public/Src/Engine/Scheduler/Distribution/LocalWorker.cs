@@ -152,7 +152,6 @@ namespace BuildXL.Scheduler.Distribution
 
                 ContentFingerprint? fingerprint = processRunnable.CacheResult?.Fingerprint;
 
-                Transition(processRunnable.PipId, WorkerPipState.Executing);
                 ExecutionResult executionResult = await PipExecutor.ExecuteProcessAsync(
                     operationContext,
                     environment,
@@ -212,7 +211,6 @@ namespace BuildXL.Scheduler.Distribution
                 var ipcPip = (IpcPip)runnablePip.Pip;
                 var operationContext = runnablePip.OperationContext;
 
-                Transition(runnablePip.PipId, WorkerPipState.Executing);
                 var executionResult = await PipExecutor.ExecuteIpcAsync(operationContext, environment, ipcPip);
                 runnablePip.SetExecutionResult(executionResult);
 

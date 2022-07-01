@@ -323,7 +323,7 @@ namespace BuildXL.Engine.Tracing
         //DistributionPipRemoteResultReceived = 7035,
         DistributionHostLog = 7036,
         DistributionOrchestratorStatus = 7037,
-        DistributionWorkerStatus = 7038,
+        //DistributionWorkerStatus = 7038,
 
         DistributionExecutePipFailedNetworkFailureWarning = 7039,
         DistributionWorkerTimeoutFailure = 7040,

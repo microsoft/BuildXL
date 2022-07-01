@@ -1659,6 +1659,9 @@ namespace BuildXL.Processes
             ISandboxedProcess process)
         {
             var sw = System.Diagnostics.Stopwatch.StartNew();
+
+            result.ExitCode = await PluginEP_ProcessExitCodeAsync(result);
+
             bool canceled = result.Killed && cancellationToken.IsCancellationRequested;
             bool hasMessageParsingError = result?.MessageProcessingFailure != null;
             bool exitedWithSuccessExitCode = m_pip.SuccessExitCodes.Length == 0
@@ -4986,6 +4989,37 @@ namespace BuildXL.Processes
             }
 
             return message;
+        }
+
+        private async Task<int> PluginEP_ProcessExitCodeAsync(SandboxedProcessResult result)
+        {
+            if (m_pluginManager == null)
+            {
+                return result.ExitCode;
+            }
+
+            //Send stderr to plugin
+            var parsedResult = await PluginParseProcessOutput(result.StandardError, true);
+            if (parsedResult.Succeeded && parsedResult.Result.HasExitCode)
+            {
+                return parsedResult.Result.ExitCode;
+            }
+
+            //Send stdout to plugin
+            parsedResult = await PluginParseProcessOutput(result.StandardOutput, false);
+            if (parsedResult.Succeeded && parsedResult.Result.HasExitCode)
+            {
+                return parsedResult.Result.ExitCode;
+            }
+
+            return result.ExitCode;
+        }
+
+        private async Task<Possible<BuildXL.Plugin.Grpc.ExitCodeParseResult>> PluginParseProcessOutput(SandboxedProcessOutput output, bool isError)
+        {
+            string fileName = output.IsSaved ? output.FileName : null;
+            string content = output.IsSaved ? null : await output.ReadValueAsync();
+            return await m_pluginManager.ExitCodeParseAsync(content, fileName, isError);
         }
 
         private void LogPipProcessError(SandboxedProcessResult result, bool allOutputsPresent, bool failedDueToWritingToStdErr,

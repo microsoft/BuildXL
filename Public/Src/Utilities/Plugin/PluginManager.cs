@@ -199,6 +199,22 @@ namespace BuildXL.Plugin
                 new LogParseResult() { ParsedMessage = message});
         }
 
+        /// <nodoc />
+        public async Task<Possible<ExitCodeParseResult>> ExitCodeParseAsync(string content, string filePath, bool isErrorOutput)
+        {
+            IPlugin plugin = null;
+            var messageType = PluginMessageType.HandleExitCode;
+            if (!m_pluginHandlers.TryGet(messageType, out plugin))
+            {
+                return new Failure<string>($"no plugin is available to handle {messageType}");
+            }
+
+            return await CallWithEnsurePluginLoadedWrapperAsync(
+                messageType, plugin,
+                () => { return plugin.HandleExitCodeAsync(content, filePath, isErrorOutput); },
+                new ExitCodeParseResult());
+        }
+
         private PluginCreationArgument GetPluginArgument(string pluginPath, bool runInSeparateProcess)
         {
             var pluginId = PluginFactory.Instance.CreatePluginId();

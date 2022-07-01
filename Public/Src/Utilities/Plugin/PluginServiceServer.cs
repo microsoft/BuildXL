@@ -24,7 +24,7 @@ namespace BuildXL.Plugin
         private readonly TaskSourceSlim<Unit> m_shutdownTask = TaskSourceSlim.Create<Unit>();
 
         /// <nodoc />
-        public abstract IList<SupportedOperationResponse.Types.SupportedOperation> SupportedOperations { get; }//= new[] { SupportedOperationResponse.Types.SupportedOperation.LogParse };
+        public abstract IList<SupportedOperationResponse.Types.SupportedOperation> SupportedOperations { get; }
 
         /// <nodoc />
         public ILogger Logger { get; }
@@ -106,6 +106,8 @@ namespace BuildXL.Plugin
             {
                 case PluginMessage.PayloadOneofCase.LogParseMessage:
                     return HandleLogParse(request.LogParseMessage);
+                case PluginMessage.PayloadOneofCase.ExitCodeParseMessage:
+                    return HandleExitCode(request.ExitCodeParseMessage);
                 default:
                     return HandleUnknown();
             }
@@ -138,8 +140,18 @@ namespace BuildXL.Plugin
         /// Log Parse plugin server should implemented this methods
         /// </summary>
         /// <param name="logParseMessage"></param>
-        /// <returns>PluginMessageResponse should has LogParsedResult</returns>
+        /// <returns>PluginMessageResponse should have LogParsedResult</returns>
         protected virtual Task<PluginMessageResponse> HandleLogParse(LogParseMessage logParseMessage)
+        {
+            throw new NotImplementedException();
+        }
+
+        /// <summary>
+        /// Log Parse plugin server should implemented this methods
+        /// </summary>
+        /// <param name="exitCodeParseMessage"></param>
+        /// <returns>PluginMessageResponse should have ExitCodeParseResult</returns>
+        protected virtual Task<PluginMessageResponse> HandleExitCode(ExitCodeParseMessage exitCodeParseMessage)
         {
             throw new NotImplementedException();
         }

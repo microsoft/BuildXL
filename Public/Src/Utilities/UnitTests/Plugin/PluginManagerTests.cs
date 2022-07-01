@@ -39,9 +39,13 @@ namespace Test.BuildXL.Plugin
         private static Func<Task<PluginResponseResult<bool>>> s_booleanResponsetFailed = () => Task.FromResult(new PluginResponseResult<bool>(PluginResponseState.Failed, "0", 0, new Failure<string>("")));
         private static Func<Task<PluginResponseResult<bool>>> s_booleanResponseThrowException = () => throw new Exception();
 
-        private static Func<Task<PluginResponseResult<LogParseResult>>> s_logParseResponseSucceed = () => Task.FromResult(new PluginResponseResult<LogParseResult>(new LogParseResult() { ParsedMessage=""}, PluginResponseState.Succeeded, "0", 0));
+        private static Func<Task<PluginResponseResult<LogParseResult>>> s_logParseResponseSucceed = () => Task.FromResult(new PluginResponseResult<LogParseResult>(new LogParseResult() { ParsedMessage = ""}, PluginResponseState.Succeeded, "0", 0));
         private static Func<Task<PluginResponseResult<LogParseResult>>> s_logParseResponsetFailed = () => Task.FromResult(new PluginResponseResult<LogParseResult>(PluginResponseState.Failed, "0", 0, new Failure<string>("")));
         private static Func<Task<PluginResponseResult<LogParseResult>>> s_logParseResponseThrowException = () => throw new Exception();
+
+        private static Func<Task<PluginResponseResult<ExitCodeParseResult>>> s_exitCodeParseResponseSucceed = () => Task.FromResult(new PluginResponseResult<ExitCodeParseResult>(new ExitCodeParseResult() { ExitCode = 1111 }, PluginResponseState.Succeeded, "0", 0));
+        private static Func<Task<PluginResponseResult<ExitCodeParseResult>>> s_exitCodeParseResponsetFailed = () => Task.FromResult(new PluginResponseResult<ExitCodeParseResult>(PluginResponseState.Failed, "0", 0, new Failure<string>("")));
+        private static Func<Task<PluginResponseResult<ExitCodeParseResult>>> s_exitCodeParseResponseThrowException = () => throw new Exception();
 
         private static Func<Task<PluginResponseResult<List<PluginMessageType>>>> s_pluginMessageTypeResponseSucceed = () => Task.FromResult(new PluginResponseResult<List<PluginMessageType>>(new List<PluginMessageType>() { PluginMessageType.ParseLogMessage }, PluginResponseState.Succeeded, "0", 0));
         private static Func<Task<PluginResponseResult<List<PluginMessageType>>>> s_unknownMessageTypeResponseSucceed = () => Task.FromResult(new PluginResponseResult<List<PluginMessageType>>(new List<PluginMessageType>(){ PluginMessageType.Unknown }, PluginResponseState.Succeeded, "0", 0));
@@ -52,7 +56,8 @@ namespace Test.BuildXL.Plugin
             startFunc: s_booleanResponseSucceed,
             stopFunc: s_booleanResponseSucceed,
             supportedMessageTyepFunc: s_pluginMessageTypeResponseSucceed,
-            logparseFunc: s_logParseResponseSucceed
+            logparseFunc: s_logParseResponseSucceed,
+            exitcodeFunc: s_exitCodeParseResponseSucceed
         );
 
         private readonly ILogger m_logger = new MockLogger();
@@ -310,6 +315,70 @@ namespace Test.BuildXL.Plugin
             var logParseResult = await m_pluginManager.LogParseAsync("", true);
             Assert.True(logParseResult.Succeeded);
             XAssert.Contains(logParseResult.Result.ParsedMessage, "[plugin]");
+        }
+        
+        [Fact]
+        public async Task FailedToGetExitCodeParseResponseAsync() //Not sure if this is necessary - it's nearly identical to FailedToGetLogParseResponseAsync and doesn't test much new functionality
+        {
+            m_mockedPluginClient.MockedHandleExitCodeFunc = s_exitCodeParseResponsetFailed;
+
+            var args = GetMockPluginCreationArguments((options) => m_mockedPluginClient);
+            var res  = await m_pluginManager.GetOrCreateAsync(args);
+            var exitCodeParseResult = await m_pluginManager.ExitCodeParseAsync("", "", true);
+
+            Assert.False(exitCodeParseResult.Succeeded);
+        }
+
+        [Fact]
+        public async Task FailedToGetExitCodeParseResponseWithExceptionAsync() //Not sure if this is necessary - it's nearly identical to FailedToGetLogParseResponseWithExceptionAsync and doesn't test much new functionality
+        {
+            m_mockedPluginClient.MockedHandleExitCodeFunc = s_exitCodeParseResponseThrowException;
+
+            var args = GetMockPluginCreationArguments((options) => m_mockedPluginClient);
+            var res = await m_pluginManager.GetOrCreateAsync(args);
+            var exitCodeParseResult = await m_pluginManager.ExitCodeParseAsync("", "", true);
+
+            Assert.False(exitCodeParseResult.Succeeded);
+        }
+
+        [Fact]
+        public async Task LoadNonMockedExitCodeParsePluginShouldSucceedAsync()
+        {
+            var args = GetPluginCreationArguments((options) =>
+            {
+                return new PluginClient(IPAddress.Loopback.ToString(), m_port, m_logger);
+            });
+
+            var res = await m_pluginManager.GetOrCreateAsync(args);
+            XAssert.PossiblySucceeded(res);
+            Assert.Equal(m_pluginManager.PluginLoadedSuccessfulCount, 1);
+            Assert.Equal(m_pluginManager.PluginsCount, 1);
+            Assert.True(m_pluginManager.CanHandleMessage(PluginMessageType.HandleExitCode));
+
+            var exitCodeParseResult = await m_pluginManager.ExitCodeParseAsync("RETRY", null, true);
+            Assert.True(exitCodeParseResult.Succeeded);
+            Assert.True(exitCodeParseResult.Result.HasExitCode);
+            Assert.Equal(exitCodeParseResult.Result.ExitCode, 1111);
+        }
+
+        [Fact]
+        public async Task LoadNonMockedExitCodeParsePluginShouldFailAsync()
+        {
+            var args = GetPluginCreationArguments((options) =>
+            {
+                return new PluginClient(IPAddress.Loopback.ToString(), m_port, m_logger);
+            });
+
+            var res = await m_pluginManager.GetOrCreateAsync(args);
+            XAssert.PossiblySucceeded(res);
+            Assert.Equal(m_pluginManager.PluginLoadedSuccessfulCount, 1);
+            Assert.Equal(m_pluginManager.PluginsCount, 1);
+            Assert.True(m_pluginManager.CanHandleMessage(PluginMessageType.HandleExitCode));
+
+            var exitCodeParseResult = await m_pluginManager.ExitCodeParseAsync("Don't retry", null, true);
+            Assert.True(exitCodeParseResult.Succeeded);
+            Assert.False(exitCodeParseResult.Result.HasExitCode);
+            Assert.Equal(exitCodeParseResult.Result.ExitCode, default(int));
         }
 
         public Task InitializeAsync()

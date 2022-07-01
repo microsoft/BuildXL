@@ -156,5 +156,11 @@ namespace BuildXL.Plugin
         {
             return PluginClient.ParseLogAsync(message, isErrorOutput);
         }
+
+        /// <nodoc />
+        public Task<PluginResponseResult<ExitCodeParseResult>> HandleExitCodeAsync(string content, string filePath, bool isErrorOutput)
+        {
+            return PluginClient.HandleExitCodeAsync(content, filePath, isErrorOutput);
+        }
     }
 }

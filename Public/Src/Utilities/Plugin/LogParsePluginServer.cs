@@ -12,7 +12,11 @@ namespace BuildXL.Plugin
     public class LogParsePluginServer: PluginServiceServer
     {
         /// <nodoc />
-        public override IList<SupportedOperationResponse.Types.SupportedOperation> SupportedOperations { get; } =  new[] { SupportedOperationResponse.Types.SupportedOperation.LogParse };
+        public override IList<SupportedOperationResponse.Types.SupportedOperation> SupportedOperations { get; } =  new[] 
+        { 
+            SupportedOperationResponse.Types.SupportedOperation.LogParse,
+            SupportedOperationResponse.Types.SupportedOperation.HandleExitCode,
+        };
 
         /// <nodoc />
         public LogParsePluginServer(int port, ILogger logger): base(port, logger)
@@ -32,5 +36,29 @@ namespace BuildXL.Plugin
             string parsedMessage = "[plugin]:" + logParseMessage.Message;
             return new LogParseResult() { ParsedMessage = parsedMessage };
         }
+
+        /// <inheritdoc />
+        protected override Task<PluginMessageResponse> HandleExitCode(ExitCodeParseMessage exitCodeParseMessage)
+        {
+            ExitCodeParseResult parseResult = new ExitCodeParseResult();
+            if (messagesToRetry.Contains(exitCodeParseMessage.Content))
+            {
+                parseResult.ExitCode = 1111;
+            }
+
+            return Task.FromResult<PluginMessageResponse>(new PluginMessageResponse
+            {
+                Status = true,
+                ExitCodeParseMessageResponse = new ExitCodeParseMessageResponse
+                {
+                    ExitCodeParseResult = parseResult,
+                },
+            });
+        }
+
+        private HashSet<string> messagesToRetry = new HashSet<string>
+        {
+            "RETRY",
+        };
     }
 }

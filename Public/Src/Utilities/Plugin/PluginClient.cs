@@ -181,7 +181,11 @@ namespace BuildXL.Plugin
         {
             var pluginMessage = new PluginMessage();
             var logType = isError ? LogType.Error : LogType.StandardOutput;
-            pluginMessage.LogParseMessage = new LogParseMessage() { LogType = logType, Message = message };
+            pluginMessage.LogParseMessage = new LogParseMessage()
+            {
+                LogType = logType,
+                Message = message,
+            };
             return pluginMessage;
         }
 
@@ -196,7 +200,43 @@ namespace BuildXL.Plugin
                 {
                     var response = await PluginServiceClient.ParseLogAsync(request, options);
                     return response.LogParseMessageResponse.LogParseResult;
+                }, requestId);
+            return response;
+        }
 
+        private PluginMessage GetHandleExitCodePluginMessage(string content, string filePath, bool isError)
+        {
+            var pluginMessage = new PluginMessage();
+            var logType = isError ? LogType.Error : LogType.StandardOutput;
+            pluginMessage.ExitCodeParseMessage = new ExitCodeParseMessage
+            {
+                LogType = logType,
+            };
+
+            if (content != null)
+            {
+                pluginMessage.ExitCodeParseMessage.Content = content;
+            }
+
+            if (filePath != null)
+            {
+                pluginMessage.ExitCodeParseMessage.FilePath = filePath;
+            }
+
+            return pluginMessage;
+        }
+
+        /// <nodoc />
+        public virtual async Task<PluginResponseResult<ExitCodeParseResult>> HandleExitCodeAsync(string content, string filePath, bool isError)
+        {
+            var requestId = GetRequestId();
+            var options = GetCallOptions(requestId);
+            var request = GetHandleExitCodePluginMessage(content, filePath, isError);
+            var response = await HandleRpcExceptionWithCallAsync(
+                async () =>
+                {
+                    var response = await PluginServiceClient.HandleExitCodeAsync(request, options);
+                    return response.ExitCodeParseMessageResponse.ExitCodeParseResult;
                 }, requestId);
             return response;
         }

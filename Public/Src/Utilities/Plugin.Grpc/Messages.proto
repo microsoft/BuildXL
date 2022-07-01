@@ -9,6 +9,7 @@ message SupportedOperationResponse
 {
     enum SupportedOperation{
         LogParse = 0;
+        HandleExitCode = 1;
     }
     repeated SupportedOperation operation = 1;
 }
@@ -35,4 +36,23 @@ message LogParseMessageResponse
 message LogParseResult
 {
     string parsedMessage = 1;
+}
+
+message ExitCodeParseMessage
+{
+    LogType logType = 1;
+    oneof data {
+        string content = 2;
+        string filePath = 3;
+    }
+}
+
+message ExitCodeParseMessageResponse
+{
+    ExitCodeParseResult exitCodeParseResult = 2;
+}
+
+message ExitCodeParseResult
+{
+    optional int32 exitCode = 1;
 }

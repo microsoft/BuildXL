@@ -22,5 +22,8 @@ namespace BuildXL.Plugin
 
         /// <nodoc />
         Task<PluginResponseResult<LogParseResult>> ParseLogAsync(string message, bool isErrorStdOutput);
+
+        /// <nodoc />
+        Task<PluginResponseResult<ExitCodeParseResult>> HandleExitCodeAsync(string content, string filePath, bool isErrorStdOutput);
     }
 }

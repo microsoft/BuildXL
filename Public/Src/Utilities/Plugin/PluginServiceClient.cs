@@ -61,5 +61,16 @@ namespace BuildXL.Plugin
         {
             return SendAsync(request, options);
         }
+
+        /// <summary>
+        /// send exitcodeparse command to remote plugin server
+        /// </summary>
+        /// <param name="request"></param>
+        /// <param name="options"></param>
+        /// <returns>plugin response with payload as ExitCodeParseMessageResponse <see cref="PluginMessageResponse" /></returns>
+        public AsyncUnaryCall<PluginMessageResponse> HandleExitCodeAsync(PluginMessage request, CallOptions options)
+        {
+            return SendAsync(request, options);
+        }
     }
 }

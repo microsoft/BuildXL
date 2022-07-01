@@ -422,7 +422,7 @@ namespace BuildXL.Interop.Unix
             var buf = new stat_buf();
             return
                 fstatat(__Ver, AT_FDCWD, path, ref buf, AT_SYMLINK_NOFOLLOW) == 0 &&
-                (buf.st_mode & (ushort)FilePermissions.S_IFLNK) != 0;
+                (buf.st_mode & (uint)FilePermissions.S_IFMT) == (uint)FilePermissions.S_IFLNK;
         }
 
         private static string ToPath(SafeFileHandle fd)

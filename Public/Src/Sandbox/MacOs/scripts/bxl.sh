@@ -32,9 +32,6 @@ export COMPlus_DefaultStackSize=200000
 # The arguments are decided based on sensible defaults as well as the current values of the 'arg_*' variables.
 function setBxlCmdArgs {
     g_bxlCmdArgs=(
-        # some defaults
-        /enableIncrementalFrontEnd-
-        /useHardLinks-
         # some environment variables
         "/p:BUILDXL_BIN=${arg_BuildXLBin}"
         "/p:DOTNET_EXE=$(which dotnet)"

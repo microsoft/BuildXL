@@ -21,7 +21,7 @@ namespace BuildXL.Scheduler.Tracing
     {
         private readonly StringTable m_stringTable;
         private readonly LoggingContext m_loggingContext;
-        private readonly ConcurrentBag<(string dropName, string relativePath, string recordedHash, string rejectedHash)> m_duplicateEntries;
+        private readonly ConcurrentBag<(string dropName, string relativePath, string recordedHash, string rejectedHash)> m_duplicateEntries = new();
         private readonly ConcurrentDictionary<string, bool> m_dropManifestFinalizations = new();
 
         /// <summary>
@@ -39,10 +39,11 @@ namespace BuildXL.Scheduler.Tracing
                 .ToList();
 
         /// <summary>
-        /// Details of files added to drop.
-        /// Key is a tuple of (DropName, RelativePath) for each individual file added to the drop specified
+        /// Details of files added to drop. The keys are the string ids to a drop's name, 
+        /// i.e., we create one mapping of RelativePath to its hashes per drop.
         /// </summary>
-        internal readonly ConcurrentBigMap<(StringId DropName, RelativePath RelativePath), BuildManifestHashes> BuildManifestEntries;
+        internal readonly ConcurrentDictionary<StringId, ConcurrentBigMap<RelativePath, BuildManifestHashes>> BuildManifestEntries = new();
+        private readonly IEqualityComparer<RelativePath> m_relativePathCaseInsensitiveComparer;
 
         /// <summary>
         /// Constructor.
@@ -55,8 +56,7 @@ namespace BuildXL.Scheduler.Tracing
 
             m_loggingContext = loggingContext;
             m_stringTable = stringTable;
-            m_duplicateEntries = new ConcurrentBag<(string, string, string, string)>();
-            BuildManifestEntries = new ConcurrentBigMap<(StringId, RelativePath), BuildManifestHashes>(keyComparer: new CaseInsensitiveKeyComparer(m_stringTable));
+            m_relativePathCaseInsensitiveComparer = new CaseInsensitiveComparer(m_stringTable);
         }
 
         /// <summary>
@@ -72,15 +72,16 @@ namespace BuildXL.Scheduler.Tracing
                 // Currently, each invocation of this method can essentially be matched to a call received from DropDaemon.
                 // In turn, in each call, DropDaemon only puts files that belong to the same drop.
                 // This check here is mainly to ensure that the upstream behavior has not changed.
+                var dropName = records[0].DropName;
                 for (int i = 1; i < records.Count; i++)
                 {
-                    if (records[i - 1].DropName != records[i].DropName)
+                    if (dropName != records[i].DropName)
                     {
-                        Contract.Assert(false, $"All records must be from the same drop. Mismatched drop names: '{records[i - 1].DropName}', '{records[i].DropName}'");
+                        Contract.Assert(false, $"All records must be from the same drop. Mismatched drop names: '{dropName}', '{records[i].DropName}'");
                     }
                 }
 
-                if (m_dropManifestFinalizations.ContainsKey(records[0].DropName))
+                if (m_dropManifestFinalizations.ContainsKey(dropName))
                 {
                     // only log one file per batch
                     Logger.Log.RecordFileForBuildManifestAfterGenerateBuildManifestFileList(
@@ -91,18 +92,18 @@ namespace BuildXL.Scheduler.Tracing
                         records[0].AzureArtifactsHash.Serialize());
                 }
 
+                var dropNameId = StringId.Create(m_stringTable, dropName);
+                var entries = BuildManifestEntries.GetOrAdd(dropNameId, _ => new(keyComparer: m_relativePathCaseInsensitiveComparer));
+
                 foreach (var record in records)
                 {
                     Counters.IncrementCounter(BuildManifestCounters.TotalRecordFileForBuildManifestCalls);
 
                     RelativePath relativePathObj = RelativePath.Create(m_stringTable, record.RelativePath);
-                    StringId dropNameId = StringId.Create(m_stringTable, record.DropName);
 
                     using (Counters.StartStopwatch(BuildManifestCounters.AddHashesToBuildManifestEntriesDuration))
                     {
-                        var existingEntry = BuildManifestEntries.GetOrAdd(
-                            (dropNameId, relativePathObj),
-                            new BuildManifestHashes(record.AzureArtifactsHash, record.BuildManifestHashes));
+                        var existingEntry = entries.GetOrAdd(relativePathObj, new BuildManifestHashes(record.AzureArtifactsHash, record.BuildManifestHashes));
 
                         if (existingEntry.IsFound &&
                             !record.AzureArtifactsHash.Equals(existingEntry.Item.Value.AzureArtifactsHash))
@@ -148,9 +149,8 @@ namespace BuildXL.Scheduler.Tracing
             {
                 StringId dropStringId = StringId.Create(m_stringTable, dropName);
 
-                List<BuildManifestFileInfo> sortedManifestDetailsForDrop = BuildManifestEntries
-                    .Where(kvp => kvp.Key.DropName == dropStringId)
-                    .Select(kvp => (relPathStr: kvp.Key.RelativePath.ToString(m_stringTable), hashes: kvp.Value))
+                List<BuildManifestFileInfo> sortedManifestDetailsForDrop = BuildManifestEntries[dropStringId]
+                    .Select(kvp => (relPathStr: kvp.Key.ToString(m_stringTable), hashes: kvp.Value))
                     .OrderBy(t => t.relPathStr)
                     .Select(t => ToBuildManifestDataComponent(t.relPathStr, t.hashes.AzureArtifactsHash, t.hashes.Hashes))
                     .ToList();
@@ -265,25 +265,19 @@ namespace BuildXL.Scheduler.Tracing
     /// <summary>
     /// A comparer that compare two relativepath object in a case insensitive manner
     /// </summary>
-    internal sealed class CaseInsensitiveKeyComparer : IEqualityComparer<(StringId dropName, RelativePath relativePath)>
+    internal sealed class CaseInsensitiveComparer : IEqualityComparer<RelativePath>
     {
         private readonly StringTable m_stringTable;
 
         /// <nodoc/>
-        public CaseInsensitiveKeyComparer(StringTable stringTable)
+        public CaseInsensitiveComparer(StringTable stringTable)
         {
             Contract.RequiresNotNull(stringTable);
             m_stringTable = stringTable;
         }
 
-        public bool Equals((StringId dropName, RelativePath relativePath) x, (StringId dropName, RelativePath relativePath) y)
-        {
-            return x.dropName.Equals(y.dropName) && x.relativePath.CaseInsensitiveEquals(m_stringTable, y.relativePath);
-        }
+        public bool Equals(RelativePath path, RelativePath other) => path.CaseInsensitiveEquals(m_stringTable, other);
 
-        public int GetHashCode((StringId dropName, RelativePath relativePath) obj)
-        {
-            return HashCodeHelper.Combine(obj.dropName.GetHashCode(), HashCodeHelper.Combine(obj.relativePath.Components, component => m_stringTable.CaseInsensitiveGetHashCode(component)));
-        }
+        public int GetHashCode(RelativePath relativePath) => HashCodeHelper.Combine(relativePath.Components, m_stringTable.CaseInsensitiveGetHashCode);
     }
 }

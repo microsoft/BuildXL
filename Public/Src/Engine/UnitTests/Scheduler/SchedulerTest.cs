@@ -2804,9 +2804,9 @@ namespace Test.BuildXL.Scheduler
             StringId dropName = StringId.Create(Context.StringTable, "comparerTestDrop");
             RelativePath relativePathX = RelativePath.Create(Context.StringTable, pathX);
             RelativePath relativePathY = RelativePath.Create(Context.StringTable, pathY);
-            IEqualityComparer<(StringId, RelativePath)> comparer = new CaseInsensitiveKeyComparer(Context.StringTable);
-            XAssert.AreEqual(expectedResult, comparer.Equals((dropName, relativePathX), (dropName, relativePathY)));
-            XAssert.AreEqual(expectedResult, comparer.GetHashCode((dropName, relativePathX)) == comparer.GetHashCode((dropName, relativePathY)));
+            IEqualityComparer<RelativePath> comparer = new CaseInsensitiveComparer(Context.StringTable);
+            XAssert.AreEqual(expectedResult, comparer.Equals(relativePathX, relativePathY));
+            XAssert.AreEqual(expectedResult, comparer.GetHashCode(relativePathX) == comparer.GetHashCode(relativePathY));
         }
 
         /// <summary>

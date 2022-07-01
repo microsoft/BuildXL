@@ -418,6 +418,18 @@ namespace BuildXL.Native.IO
             return maybeExistence.Succeeded && maybeExistence.Result == PathExistence.ExistsAsFile;
         }
 
+        /// <summary>
+        /// Checks if an artifact (file or directory) exists.
+        /// </summary>
+        /// <remarks>
+        /// Doesn't follow the symlink if <paramref name="path"/> is a symlink.
+        /// </remarks>
+        public static bool ArtifactExistsNoFollow(string path)
+        {
+            var maybeExistence = TryProbePathExistence(path, followSymlink: false);
+            return maybeExistence.Succeeded && maybeExistence.Result == PathExistence.ExistsAsFile || maybeExistence.Result == PathExistence.ExistsAsDirectory;
+        }
+
         /// <see cref="IFileUtilities.TryMoveDelete(string, string)"/>
         public static bool TryMoveDelete(string path, string deletionTempDirectory) => s_fileUtilities.TryMoveDelete(path, deletionTempDirectory);
 

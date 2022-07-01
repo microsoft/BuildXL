@@ -51,6 +51,11 @@ namespace BuildXL.Scheduler.IncrementalScheduling
         public long ChangedDynamicallyProbedFilesCount;
 
         /// <summary>
+        /// Number of changed dynamically observed absent path probes.
+        /// </summary>
+        public long ChangedDynamicallyObservedAbsentPathProbesCount;
+
+        /// <summary>
         /// Number of prepetually dirty nodes.
         /// </summary>
         public long PerpetuallyDirtyNodesCount;

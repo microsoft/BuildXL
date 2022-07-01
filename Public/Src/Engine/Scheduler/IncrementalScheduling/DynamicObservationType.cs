@@ -22,5 +22,10 @@ namespace BuildXL.Scheduler.IncrementalScheduling
         /// Dynamically observed directory enumeration.
         /// </summary>
         Enumeration = 2,
+
+        /// <summary>
+        /// Dynamically observed absent path probe.
+        /// </summary>
+        AbsentPathProbe = 3,
     }
 }

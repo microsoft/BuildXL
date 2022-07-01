@@ -232,13 +232,13 @@ namespace IntegrationTest.BuildXL.Scheduler.IncrementalSchedulingTests
             var pipA = SchedulePipBuilder(builderA);
 
             FileArtifact outputB = CreateOutputFileArtifact();
-            FileArtifact rougeOutput = CreateOutputFileArtifact(directoryPath);
+            FileArtifact rogueOutput = CreateOutputFileArtifact(directoryPath);
 
             var builderB = CreatePipBuilder(new Operation[]
             {
                 Operation.ReadFile(outputA),
                 Operation.WriteFile(outputB),
-                Operation.WriteFile(rougeOutput, doNotInfer: true)
+                Operation.WriteFile(rogueOutput, doNotInfer: true)
             });
 
             builderB.AddUntrackedDirectoryScope(enumeratedDirectory);
@@ -605,65 +605,75 @@ namespace IntegrationTest.BuildXL.Scheduler.IncrementalSchedulingTests
                 .AssertPipResultStatus((p2.PipId, PipResultStatus.UpToDate)); // P2 is a cache hit, and its output, h, is up-to-date.
         }
 
-        [Fact]
-        public void IncrementalSchedulingIsRobustAgainstFileCreationMidBuild()
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void IncrementalSchedulingIsRobustAgainstFileCreationMidBuild(bool trackAntiDependencies)
         {
-            var directoryPath = CreateUniqueDirectory(ReadonlyRoot);
-            var fileInsideDirectory = FileArtifact.CreateSourceFile(Combine(directoryPath, "fileToBeCreated"));
-
-            FileArtifact outputA = CreateOutputFileArtifact();
-            SealDirectory sealedDirectory = CreateAndScheduleSealDirectory(directoryPath, SealDirectoryKind.Partial, fileInsideDirectory);
-
-            var builderA = CreatePipBuilder(new Operation[]
+            try
             {
+                EngineEnvironmentSettings.IncrementalSchedulingTrackAntidependencies.Value = trackAntiDependencies;
+
+                var directoryPath = CreateUniqueDirectory(ReadonlyRoot);
+                var fileInsideDirectory = FileArtifact.CreateSourceFile(Combine(directoryPath, "fileToBeCreated"));
+
+                FileArtifact outputA = CreateOutputFileArtifact();
+                SealDirectory sealedDirectory = CreateAndScheduleSealDirectory(directoryPath, SealDirectoryKind.Partial, fileInsideDirectory);
+
+                var builderA = CreatePipBuilder(new Operation[]
+                {
                 Operation.Probe(fileInsideDirectory, doNotInfer: true),
                 Operation.WriteFile(outputA, "Hello World A!")
-            });
+                });
 
-            builderA.AddInputDirectory(sealedDirectory.Directory);
+                builderA.AddInputDirectory(sealedDirectory.Directory);
 
-            var pipA = SchedulePipBuilder(builderA);
+                var pipA = SchedulePipBuilder(builderA);
 
-            FileArtifact outputB = CreateOutputFileArtifact();
-            FileArtifact rougeOutput = CreateOutputFileArtifact(directoryPath);
+                FileArtifact outputB = CreateOutputFileArtifact();
 
-            var builderB = CreatePipBuilder(new Operation[]
-            {
+                var builderB = CreatePipBuilder(new Operation[]
+                {
                 Operation.ReadFile(outputA),
                 Operation.WriteFile(outputB, "Hello World B!"),
                 Operation.WriteFile(fileInsideDirectory, "Whatever", doNotInfer: true)
-            });
+                });
 
-            builderB.AddUntrackedDirectoryScope(sealedDirectory.Directory);
+                builderB.AddUntrackedDirectoryScope(sealedDirectory.Directory);
 
-            var pipB = SchedulePipBuilder(builderB);
+                var pipB = SchedulePipBuilder(builderB);
 
-            FileArtifact outputC = CreateOutputFileArtifact();
+                FileArtifact outputC = CreateOutputFileArtifact();
 
-            var builderC = CreatePipBuilder(new Operation[]
-            {
+                var builderC = CreatePipBuilder(new Operation[]
+                {
                 Operation.ReadFile(outputB),
                 Operation.Probe(fileInsideDirectory, doNotInfer: true),
                 Operation.WriteFile(outputC, "Hello World C!")
-            });
+                });
 
-            builderC.AddInputDirectory(sealedDirectory.Directory);
+                builderC.AddInputDirectory(sealedDirectory.Directory);
 
-            var pipC = SchedulePipBuilder(builderC);
+                var pipC = SchedulePipBuilder(builderC);
 
-            var result = RunScheduler().AssertScheduled(
-                pipA.Process.PipId,
-                pipB.Process.PipId,
-                pipC.Process.PipId);
-
-            // File creation blows away incremental scheduling state.
-            RunScheduler()
-                .AssertScheduled(
+                var result = RunScheduler().AssertScheduled(
                     pipA.Process.PipId,
                     pipB.Process.PipId,
-                    pipC.Process.PipId)
-                .AssertCacheMiss(pipA.Process.PipId, pipC.Process.PipId)
-                .AssertCacheHit(pipB.Process.PipId);
+                    pipC.Process.PipId);
+
+                // File creation blows away incremental scheduling state.
+                RunScheduler()
+                    .AssertScheduled(
+                        pipA.Process.PipId,
+                        pipB.Process.PipId,
+                        pipC.Process.PipId)
+                    .AssertCacheMiss(pipA.Process.PipId, pipC.Process.PipId)
+                    .AssertCacheHit(pipB.Process.PipId);
+            }
+            finally
+            {
+                EngineEnvironmentSettings.IncrementalSchedulingTrackAntidependencies.Value = false;
+            }
         }
 
         [Fact]
@@ -975,34 +985,45 @@ namespace IntegrationTest.BuildXL.Scheduler.IncrementalSchedulingTests
             RunScheduler().AssertNotScheduled(process.PipId);
         }
 
-        [Fact]
-        public void RemovingProbedDynamicInputCauseRescheduledAndRebuild()
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void RemovingProbedDynamicInputCauseRescheduledAndRebuild(bool trackAntidependencies)
         {
-            var directoryPath = CreateUniqueDirectory(SourceRoot);
-            var sealedDirectory = CreateAndScheduleSealDirectory(directoryPath, SealDirectoryKind.SourceTopDirectoryOnly);
-
-            var probedInput = CreateSourceFile(directoryPath);
-
-            var pipBuilder = CreatePipBuilder(new[]
+            try
             {
+                EngineEnvironmentSettings.IncrementalSchedulingTrackAntidependencies.Value = trackAntidependencies;
+
+                var directoryPath = CreateUniqueDirectory(SourceRoot);
+                var sealedDirectory = CreateAndScheduleSealDirectory(directoryPath, SealDirectoryKind.SourceTopDirectoryOnly);
+
+                var probedInput = CreateSourceFile(directoryPath);
+
+                var pipBuilder = CreatePipBuilder(new[]
+                {
                 Operation.Probe(probedInput, doNotInfer: true),
                 Operation.ReadFile(CreateSourceFile()),
                 Operation.WriteFile(CreateOutputFileArtifact())
             });
-            pipBuilder.AddInputDirectory(sealedDirectory.Directory);
+                pipBuilder.AddInputDirectory(sealedDirectory.Directory);
 
-            var process = SchedulePipBuilder(pipBuilder).Process;
+                var process = SchedulePipBuilder(pipBuilder).Process;
 
-            RunScheduler().AssertCacheMiss(process.PipId);
+                RunScheduler().AssertCacheMiss(process.PipId);
 
-            DeleteFile(probedInput);
+                DeleteFile(probedInput);
 
-            RunScheduler().AssertScheduled(process.PipId).AssertCacheMiss(process.PipId);
+                RunScheduler().AssertScheduled(process.PipId).AssertCacheMiss(process.PipId);
 
-            // Re-introducing the file should reschedule the pip, but it should get a cache hit.
-            ModifyFile(probedInput);
+                // Re-introducing the file should reschedule the pip, but it should get a cache hit.
+                ModifyFile(probedInput);
 
-            RunScheduler().AssertScheduled(process.PipId).AssertCacheHit(process.PipId);
+                RunScheduler().AssertScheduled(process.PipId).AssertCacheHit(process.PipId);
+            }
+            finally
+            {
+                EngineEnvironmentSettings.IncrementalSchedulingTrackAntidependencies.Value = false;
+            }
         }
 
         [Fact]
@@ -1170,6 +1191,118 @@ namespace IntegrationTest.BuildXL.Scheduler.IncrementalSchedulingTests
                 .AssertNotScheduled(processA.PipId)
                 .AssertScheduled(processB.PipId)
                 .AssertCacheHit(processB.PipId);
+        }
+
+        [Fact]
+        public void NewlyPresentPathOnlyDirtiesProberDownstreamPips()
+        {
+            // Only true when antidependency tracking is enabled
+            try
+            {
+                EngineEnvironmentSettings.IncrementalSchedulingTrackAntidependencies.Value = true;
+
+                var (processA, probedPath, outputA) = CreateAndScheduleAbsentPathProbePip();
+
+                // B depends on A
+                var pipBuilderB = CreatePipBuilder(new[] {
+                Operation.ReadFile(outputA),
+                Operation.WriteFile(CreateOutputFileArtifact())
+            });
+                var processB = SchedulePipBuilder(pipBuilderB).Process;
+
+                // C doesn't depend on A or B
+                var pipBuilderC = CreatePipBuilder(new[] {
+                Operation.ReadFile(CreateSourceFile()),
+                Operation.WriteFile(CreateOutputFileArtifact())
+            });
+                var processC = SchedulePipBuilder(pipBuilderC).Process;
+
+                RunScheduler().AssertSuccess();
+
+                // Write to the absently probed path. 
+                WriteSourceFile(probedPath);
+
+                RunScheduler()
+                    .AssertScheduled(processA.PipId, processB.PipId)    // A and B are dirty
+                    .AssertNotScheduled(processC.PipId);                // But we can skip C
+            }
+            finally 
+            {
+                EngineEnvironmentSettings.IncrementalSchedulingTrackAntidependencies.Value = false;
+            }
+        }
+
+        [Fact]
+        public void CreatedAndDeletedAbsentPathProbeShouldNotCauseReschedule()
+        {
+            // Only true when tracking antidependencies
+            try
+            {
+                EngineEnvironmentSettings.IncrementalSchedulingTrackAntidependencies.Value = true;
+
+                var (process, probedPath, _) = CreateAndScheduleAbsentPathProbePip();
+                RunScheduler().AssertCacheMiss(process.PipId);
+
+                // Write and delete the probed path. 
+                // The journal may have a NewlyPresent entry for the file but the pip shouldn't be scheduled
+                WriteSourceFile(probedPath);
+                ModifyFile(probedPath);
+                DeleteFile(probedPath);
+                RunScheduler().AssertNotScheduled(process.PipId);
+
+                WriteSourceFile(probedPath);
+                RunScheduler().AssertScheduled(process.PipId).AssertCacheMiss(process.PipId);
+            }
+            finally
+            {
+                EngineEnvironmentSettings.IncrementalSchedulingTrackAntidependencies.Value = false;
+            }
+        }
+
+        private (Process Process, FileArtifact ProbedFile, FileArtifact Output) CreateAndScheduleAbsentPathProbePip()
+        {
+            var directoryPath = CreateUniqueDirectory(SourceRoot);
+            var probedPath = CreateFileArtifactWithName("originallyAbsentPath", directoryPath.ToString(Context.PathTable));
+            var sealedDirectory = CreateAndScheduleSealDirectory(directoryPath, SealDirectoryKind.SourceTopDirectoryOnly);
+            var output = CreateOutputFileArtifact();
+
+            var pipBuilder = CreatePipBuilder(new[]
+            {
+                Operation.Probe(probedPath, doNotInfer: true),
+                Operation.ReadFile(CreateSourceFile()),
+                Operation.WriteFile(output)
+            });
+            pipBuilder.AddInputDirectory(sealedDirectory.Directory);
+
+            var process = SchedulePipBuilder(pipBuilder).Process;
+            return (process, probedPath, output);
+        }
+
+        [Feature(Features.DirectoryProbe)]
+        [Fact]
+        public void AbsentDirectoryProbesOutsideOfOutputDirectories()
+        {
+            FileArtifact absentDirectory = CreateFileArtifactWithName("absentDir", ReadonlyRoot);
+            FileArtifact output1 = CreateOutputFileArtifact(prefix: "fileA");
+            FileArtifact output2 = CreateOutputFileArtifact(prefix: "fileB");
+           
+            // Pip1 probes absent directory and produces some output.
+            Process pip1 = CreateAndSchedulePipBuilder(new Operation[]
+            {
+                Operation.Probe(absentDirectory, doNotInfer: true),
+                Operation.WriteFile(output1, "StableContent")
+            }).Process;
+
+            Process pip2 = CreateAndSchedulePipBuilder(new Operation[]
+            {
+                Operation.ReadFile(output1),
+                Operation.WriteFile(output2)
+            }).Process;
+
+            RunScheduler().AssertCacheMiss(pip1.PipId, pip2.PipId);
+            WriteSourceFile(CreateFileArtifactWithName("foo", absentDirectory.Path.ToString(Context.PathTable)));
+            RunScheduler().AssertScheduled(pip1.PipId, pip2.PipId).AssertCacheHit(pip2.PipId);
+            RunScheduler().AssertNotScheduled(pip1.PipId, pip2.PipId);
         }
 
         protected string ReadAllText(FileArtifact file) => File.ReadAllText(ArtifactToString(file));

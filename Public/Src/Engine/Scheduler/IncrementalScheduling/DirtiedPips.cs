@@ -30,7 +30,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
         /// <summary>
         /// Pips (both of the current graph and the other pip graphs) that get dirtied because dynamic observations have changed after scan.
         /// </summary>
-        public readonly List<(PipStableId, DynamicObservationType)> PipsGetDirtiedDueToDynamicObservationAfterScan = new List<(PipStableId, DynamicObservationType)>();
+        public readonly List<(PipStableId PipStableId, DynamicObservationType ObservationType)> PipsGetDirtiedDueToDynamicObservationAfterScan = new List<(PipStableId, DynamicObservationType)>();
 
         /// <summary>
         /// List of pips of other pip graphs (not the current pip graph) that get dirtied after scan.
@@ -92,7 +92,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
         {
             writer.WriteReadOnlyList(PipsOfCurrentGraphGetDirtiedAfterScan, (w, n) => w.Write(n.Value));
             writer.WriteReadOnlyList(PipsOfCurrentGraphGetDirtiedDueToGraphChange, (w, n) => w.Write(n.Value));
-            writer.WriteReadOnlyList(PipsGetDirtiedDueToDynamicObservationAfterScan, (w, c) => { w.Write(c.Item1); w.Write((byte)c.Item2); });
+            writer.WriteReadOnlyList(PipsGetDirtiedDueToDynamicObservationAfterScan, (w, c) => { w.Write(c.PipStableId); w.Write((byte)c.ObservationType); });
             writer.WriteReadOnlyList(PipsOfOtherPipGraphsGetDirtiedAfterScan, (w, id) => w.Write(id));
             writer.WriteReadOnlyList(SourceFilesOfOtherPipGraphsGetDirtiedAfterScan, (w, p) => w.Write(p));
             writer.WriteReadOnlyList(PipsOfOtherPipGraphsGetDirtiedDueToGraphChange, (w, id) => w.Write(id));
@@ -138,11 +138,11 @@ namespace BuildXL.Scheduler.IncrementalScheduling
             WriteTextEntryWithHeader(
                 writer,
                 "Pips get dirtied due to observed files after scan",
-                w => WriteTextList(w, PipsGetDirtiedDueToDynamicObservationAfterScan.Where(p => p.Item2 == DynamicObservationType.ObservedFile), p => GetPipIdText(pipOrigins, p.Item1)));
+                w => WriteTextList(w, PipsGetDirtiedDueToDynamicObservationAfterScan.Where(p => p.ObservationType == DynamicObservationType.ObservedFile), p => GetPipIdText(pipOrigins, p.PipStableId)));
             WriteTextEntryWithHeader(
                 writer,
                 "Pips get dirtied due to enumeration after scan",
-                w => WriteTextList(w, PipsGetDirtiedDueToDynamicObservationAfterScan.Where(p => p.Item2 == DynamicObservationType.Enumeration), p => GetPipIdText(pipOrigins, p.Item1)));
+                w => WriteTextList(w, PipsGetDirtiedDueToDynamicObservationAfterScan.Where(p => p.ObservationType == DynamicObservationType.Enumeration), p => GetPipIdText(pipOrigins, p.PipStableId)));
             WriteTextEntryWithHeader(
                 writer,
                 "Pips of other pip graphs get dirtied after scan",

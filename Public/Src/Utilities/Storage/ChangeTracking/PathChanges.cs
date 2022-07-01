@@ -39,12 +39,12 @@ namespace BuildXL.Storage.ChangeTracking
         /// <summary>
         /// Refinement of <see cref="NewlyPresent"/> in which the path now exists as a file.
         /// </summary>
-        NewlyPresentAsFile = 16,
+        NewlyPresentAsFile = 16 | NewlyPresent,
 
         /// <summary>
         /// Refinement of <see cref="NewlyPresent"/> in which the path now exists as a directory.
         /// </summary>
-        NewlyPresentAsDirectory = 32,
+        NewlyPresentAsDirectory = 32 | NewlyPresent,
     }
 
     /// <summary>

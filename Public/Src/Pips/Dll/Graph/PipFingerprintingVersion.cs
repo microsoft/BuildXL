@@ -76,7 +76,8 @@ namespace BuildXL.Pips.Graph
         /// 99: Alien file enumerations are cached
         /// 100: Alien file enumerations exclude untracked artifacts
         /// 101: Direct dirty should apply to all pips, not just filtered pips
+        /// 102: Add dynamic absent path probe observations to incremental scheduling state
         /// </remarks>
-        TwoPhaseV2 = 101,
+        TwoPhaseV2 = 102,
     }
 }

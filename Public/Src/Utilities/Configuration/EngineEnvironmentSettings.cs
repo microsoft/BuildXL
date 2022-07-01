@@ -401,6 +401,11 @@ namespace BuildXL.Utilities.Configuration
         /// </remarks>
         public static readonly Setting<bool> DoNotSkipIpcWhenMaterializingOutputs = CreateSetting("BuildXLDoNotSkipIpcWhenMaterializingOutputs", value => value == "1");
 
+        /// <summary>
+        /// Track antidependencies in the incremental scheduling state
+        /// </summary>
+        public static readonly Setting<bool> IncrementalSchedulingTrackAntidependencies = CreateSetting("BuildXLIncrementalSchedulingTrackAntidependencies", value => value == "1");
+
         #region Cache-related timeouts
 
         /// <summary>

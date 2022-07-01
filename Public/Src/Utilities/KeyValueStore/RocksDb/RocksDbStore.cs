@@ -8,6 +8,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Serialization;
 using BuildXL.Utilities.Tracing;
 using RocksDbSharp;
 
@@ -466,6 +467,20 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             }
         }
 
+        /// <inheritdoc />
+        public delegate ColumnFamilyHandle? GetHandle(string columnFamilyName);
+
+        /// <nodoc />
+        public void ApplyBatch<TData>(in TData data, Action<WriteBatch, TData, GetHandle> apply)
+        {
+            GetHandle getHandleFunc = (columnFamilyName) => GetColumnFamilyInfo(columnFamilyName).Handle;
+            using (var writeBatch = new WriteBatch())
+            {
+                apply(writeBatch, data, getHandleFunc);
+                WriteInternal(writeBatch);
+            }
+        }
+
         /// <summary>
         /// Adds a put operation for a key to a <see cref="WriteBatch"/>. These are not written
         /// to the store by this function, just added to the <see cref="WriteBatch"/>.
@@ -523,6 +538,26 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             bool keyFound = TryGetValue(StringToBytes(key), out var valueInBytes, columnFamilyName);
             value = BytesToString(valueInBytes);
             return keyFound;
+        }
+
+        /// <nodoc />
+        public delegate TResult DeserializeValue<out TResult>(SpanReader reader);
+
+        /// <nodoc />
+        public bool TryDeserializeValue<TResult>(ReadOnlySpan<byte> key, string? columnFamilyName, DeserializeValue<TResult> deserializer, [NotNullWhen(true)] out TResult? result)
+        {
+            result = default;
+            if (!TryGetPinnableValue(key, out var pinnedValue, columnFamilyName))
+            {
+                return false;
+            }
+
+            using (pinnedValue)
+            {
+                var spanReader = pinnedValue.Value.UnsafePin().AsReader();
+                result = deserializer(spanReader)!;
+                return true;
+            }
         }
 
         /// <inheritdoc />

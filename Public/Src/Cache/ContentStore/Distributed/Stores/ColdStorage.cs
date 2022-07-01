@@ -25,6 +25,7 @@ using BuildXL.Cache.Host.Configuration;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Utilities.Collections;
 using static BuildXL.Utilities.ConfigurationHelper;
+using System.IO;
 
 #nullable enable
 
@@ -115,7 +116,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         {
             if (coldStorageSettings.RocksDbEnabled)
             {
-                return new RocksDbFileSystemContentStore();
+                return new RocksDbFileSystemContentStore(_fileSystem, SystemClock.Instance, _rootPath);
             }
             ConfigurationModel configurationModel = new ConfigurationModel(new ContentStoreConfiguration(new MaxSizeQuota(coldStorageSettings.CacheSizeQuotaString!)));
             ContentStoreSettings contentStoreSettings = FromColdStorageSettings(coldStorageSettings);
@@ -271,46 +272,68 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             return _session.OpenStreamAsync(context, contentHash, cts, urgencyHint);
         }
 
-        public Task<PlaceFileResult> PlaceFileAsync(
+        public Task<PutResult> PutStream(
             Context context,
             ContentHash contentHash,
-            AbsolutePath path,
-            FileAccessMode accessMode,
-            FileReplacementMode replacementMode,
-            FileRealizationMode realizationMode,
-            CancellationToken cts,
-            UrgencyHint urgencyHint = UrgencyHint.Nominal)
+            Stream stream,
+            CancellationToken token,
+            UrgencyHint urgencyHint)
+        {
+            if (_session == null) 
+            {
+                return Task.FromResult(new PutResult(contentHash, ErrorMsg));
+            }
+            return _session.PutStreamAsync(context, contentHash, stream, token, urgencyHint);
+        }
+
+        public async Task<PlaceFileResult> PlaceFileAsync(
+                   Context context,
+                   ContentHash contentHash,
+                   AbsolutePath path,
+                   FileAccessMode accessMode,
+                   FileReplacementMode replacementMode,
+                   FileRealizationMode realizationMode,
+                   CancellationToken cts,
+                   UrgencyHint urgencyHint = UrgencyHint.Nominal)
         {
             if (_session == null)
             {
-                return Task.FromResult(new PlaceFileResult(PlaceFileResult.ResultCode.NotPlacedContentNotFound, ErrorMsg));
+                return new PlaceFileResult(PlaceFileResult.ResultCode.NotPlacedContentNotFound, ErrorMsg);
             }
-            return _session.PlaceFileAsync(context, contentHash, path, accessMode, replacementMode, realizationMode, cts, urgencyHint);
+
+            OpenStreamResult openStreamResult = await OpenStreamAsync(context, contentHash, cts);
+            if (!openStreamResult.Succeeded)
+            {
+                // return new PlaceFileResult(PlaceFileResult.ResultCode.NotPlacedContentNotFound, ErrorMsg)
+                return new PlaceFileResult(openStreamResult);
+            }
+
+            using (var fileStream = _fileSystem.Open(path, FileAccess.ReadWrite, FileMode.OpenOrCreate, FileShare.None))
+            {
+                openStreamResult!.Stream.Seek(0, SeekOrigin.Begin);
+                await openStreamResult.Stream.CopyToAsync(fileStream);
+            }
+
+            return PlaceFileResult.CreateSuccess(PlaceFileResult.ResultCode.PlacedWithCopy, openStreamResult.Stream.Length, source: PlaceFileResult.Source.ColdStorage);          
         }
 
         public async Task<PlaceFileResult> CreateTempAndPutAsync(
-            OperationContext context,
-            ContentHash contentHash,
-            IContentSession contentSession)
+               OperationContext context,
+               ContentHash contentHash,
+               IContentSession contentSession)
         {
-            using (var disposableFile = new DisposableFile(context, _fileSystem, AbsolutePath.CreateRandomFileName(_rootPath / "temp")))
+            OpenStreamResult openStreamResult = await OpenStreamAsync(context, contentHash, context.Token);     
+            if (!openStreamResult.Succeeded)
             {
-                PlaceFileResult placeTempFileResult = await PlaceFileAsync(context, contentHash, disposableFile.Path, FileAccessMode.ReadOnly, FileReplacementMode.FailIfExists, FileRealizationMode.HardLink, context.Token);
-                if (!placeTempFileResult.Succeeded)
-                {
-                    return placeTempFileResult;
-                }
-                PutResult putFileResult = await contentSession.PutFileAsync(context, contentHash, disposableFile.Path, FileRealizationMode.Any, context.Token);
-
-                if (!putFileResult)
-                {
-                    return new PlaceFileResult(putFileResult);
-                }
-                else
-                {
-                    return PlaceFileResult.CreateSuccess(PlaceFileResult.ResultCode.PlacedWithCopy, putFileResult.ContentSize, source: PlaceFileResult.Source.ColdStorage);
-                }
+                return new PlaceFileResult(openStreamResult);
             }
+
+            PutResult putStreamResult = await contentSession.PutStreamAsync(context, contentHash, openStreamResult.Stream, context.Token, UrgencyHint.Nominal);
+            if (!putStreamResult.Succeeded)
+            {
+                return new PlaceFileResult(putStreamResult);
+            }
+            return PlaceFileResult.CreateSuccess(PlaceFileResult.ResultCode.PlacedWithCopy, putStreamResult.ContentSize, source: PlaceFileResult.Source.ColdStorage);
         }
 
         public async Task<IEnumerable<Task<Indexed<PlaceFileResult>>>> FetchThenPutBulkAsync(OperationContext context, IReadOnlyList<ContentHashWithPath> args, IContentSession contentSession)

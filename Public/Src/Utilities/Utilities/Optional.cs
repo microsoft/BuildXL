@@ -14,6 +14,14 @@ namespace BuildXL.Utilities
     public readonly struct Optional<T>
     {
         /// <summary>
+        /// Creates an optional with the value of hasValue is true
+        /// </summary>
+        public static Optional<T> Create(bool hasValue, T value)
+        {
+            return hasValue ? new Optional<T>(value) : new Optional<T>();
+        }
+
+        /// <summary>
         /// Whether the Optional contains a value
         /// </summary>
         public readonly bool HasValue;

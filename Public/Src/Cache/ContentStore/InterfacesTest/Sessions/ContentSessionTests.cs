@@ -67,7 +67,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Sessions
         }
 
         [Fact]
-        public Task PinNonExisting()
+        public virtual Task PinNonExisting()
         {
             return RunReadOnlyTestAsync(ImplicitPin.None, async (context, session) =>
             {
@@ -77,7 +77,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Sessions
         }
 
         [Fact]
-        public Task PinExisting()
+        public virtual Task PinExisting()
         {
             return RunTestAsync(ImplicitPin.None, null, async (context, session) =>
             {
@@ -166,7 +166,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Sessions
         }
 
         [Fact]
-        public Task OpenStreamNonExisting()
+        public virtual Task OpenStreamNonExisting()
         {
             return RunReadOnlyTestAsync(ImplicitPin.None, async (context, session) =>
             {
@@ -265,7 +265,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Sessions
         }
 
         [Fact]
-        public Task PlaceFileNonExisting()
+        public virtual Task PlaceFileNonExisting()
         {
             return RunReadOnlyTestAsync(ImplicitPin.None, async (context, session) =>
             {
@@ -283,7 +283,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Sessions
         }
 
         [Fact]
-        public async Task PlaceFileExisting()
+        public virtual async Task PlaceFileExisting()
         {
             using (var placeDirectory = new DisposableDirectory(FileSystem))
             {
@@ -306,7 +306,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Sessions
         }
 
         [Fact]
-        public async Task PlaceFileExistingReplaces()
+        public virtual async Task PlaceFileExistingReplaces()
         {
             using (var placeDirectory = new DisposableDirectory(FileSystem))
             {
@@ -331,7 +331,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Sessions
         }
 
         [Fact]
-        public async Task PlaceFileFailsIfExists()
+        public virtual async Task PlaceFileFailsIfExists()
         {
             using (var placeDirectory = new DisposableDirectory(FileSystem))
             {
@@ -357,7 +357,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Sessions
         }
 
         [Fact]
-        public async Task PlaceFileSkipsIfExists()
+        public virtual async Task PlaceFileSkipsIfExists()
         {
             using (var placeDirectory = new DisposableDirectory(FileSystem))
             {
@@ -383,7 +383,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Sessions
         }
 
         [Fact]
-        public async Task PlaceFileImplicitlyPins()
+        public virtual async Task PlaceFileImplicitlyPins()
         {
             if (!RunEvictionBasedTests)
             {
@@ -466,10 +466,25 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Sessions
             });
         }
 
+        [Fact]
+        public async Task PutFileExisting()
+        {
+            using (var directory = new DisposableDirectory(FileSystem))
+            {
+                await RunTestAsync(ImplicitPin.None, directory, async (context, session) =>
+                {
+                    string content = "randomContent";
+                    var pr1 = await session.PutContentAsync(context, content).ShouldBeSuccess();
+                    var pr2 = await session.PutContentAsync(context, content).ShouldBeSuccess();
+                    Assert.True(pr2.ContentAlreadyExistsInCache);
+                });
+            }
+        }
+
         [Theory]
         [InlineData(true)]
         [InlineData(false)]
-        public Task PutFileImplicitlyPins(bool provideHash)
+        public virtual Task PutFileImplicitlyPins(bool provideHash)
         {
             if (!RunEvictionBasedTests)
             {
@@ -492,7 +507,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Sessions
         [Theory]
         [InlineData(true)]
         [InlineData(false)]
-        public Task PutFileDoesNotPin(bool provideHash)
+        public virtual Task PutFileDoesNotPin(bool provideHash)
         {
             if (!RunEvictionBasedTests)
             {
@@ -503,9 +518,11 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Sessions
             {
                 var pr1 = await session.PutRandomFileAsync(
                     context, FileSystem, ContentHashType, provideHash, ContentByteCount, Token).ShouldBeSuccess();
+                Assert.False(pr1.ContentAlreadyExistsInCache);
 
                 var pr2 = await session.PutRandomFileAsync(
                     context, FileSystem, ContentHashType, provideHash, MaxSize, Token).ShouldBeSuccess();
+                Assert.False(pr2.ContentAlreadyExistsInCache);
 
                 var r = await session.OpenStreamAsync(context, pr1.ContentHash, Token).ShouldBeNotFound();
             });

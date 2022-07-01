@@ -1021,23 +1021,5 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             // Using the first byte of a weak fingerprint, and not the first byte of the key, because the first byte of the key is length.
             return strongFingerprint.WeakFingerprint[0];
         }
-
-        public delegate TResult DeserializeValue<out TResult>(SpanReader reader);
-
-        protected static bool TryDeserializeValue<TResult>(RocksDbStore store, ReadOnlySpan<byte> key, string? columnFamilyName, DeserializeValue<TResult> deserializer, [NotNullWhen(true)] out TResult? result)
-        {
-            result = default;
-            if (!store.TryGetPinnableValue(key, out var pinnedValue, columnFamilyName))
-            {
-                return false;
-            }
-
-            using (pinnedValue)
-            {
-                var spanReader = pinnedValue.Value.UnsafePin().AsReader();
-                result = deserializer(spanReader)!;
-                return true;
-            }
-        }
     }
 }

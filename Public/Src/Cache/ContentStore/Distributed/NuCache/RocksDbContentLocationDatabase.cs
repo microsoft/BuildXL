@@ -752,8 +752,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         // NOTE: This should remain static to avoid allocations in TryGetEntryCore
         internal static ContentLocationEntry? TryGetEntryCoreHelper(ShortHash hash, RocksDbStore store, RocksDbContentLocationDatabase db)
         {
-            TryDeserializeValue(
-                store,
+            store.TryDeserializeValue(
                 hash.AsSpanUnsafe(),
                 columnFamilyName: null,
                 static reader => ContentLocationEntry.Deserialize(ref reader),
@@ -837,7 +836,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             var status = _keyValueStore.Use(
                 store =>
                 {
-                    if (TryDeserializeValue(store, key, nameof(Columns.Metadata), static reader => MetadataEntry.Deserialize(ref reader), out result)
+                    if (store.TryDeserializeValue(key, nameof(Columns.Metadata), static reader => MetadataEntry.Deserialize(ref reader), out result)
                         && !_configuration.OpenReadOnly && IsDatabaseWriteable && touch)
                     {
                         // Update the time, only if no one else has changed it in the mean time. We don't
@@ -877,7 +876,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 {
                     lock (_metadataLocks[GetMetadataLockIndex(strongFingerprint)])
                     {
-                        if (TryDeserializeValue(store, key, nameof(Columns.Metadata), static reader => MetadataEntry.Deserialize(ref reader), out var current))
+                        if (store.TryDeserializeValue(key, nameof(Columns.Metadata), static reader => MetadataEntry.Deserialize(ref reader), out var current))
                         {
                             if (!shouldReplace(current))
                             {

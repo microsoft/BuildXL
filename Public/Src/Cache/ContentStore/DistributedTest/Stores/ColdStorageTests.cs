@@ -25,10 +25,13 @@ using BuildXL.Cache.Host.Configuration;
 using ContentStoreTest.Test;
 using FluentAssertions;
 using Xunit;
+using System.Diagnostics;
+using BuildXL.Cache.ContentStore.FileSystem;
 
 // ReSharper disable All
 namespace ContentStoreTest.Distributed.Stores
 {
+    [Trait("Category", "WindowsOSOnly")]
     public class ColdStorageTests : TestBase
     {
 
@@ -39,7 +42,7 @@ namespace ContentStoreTest.Distributed.Stores
         private readonly static Random Random = new Random();
 
         public ColdStorageTests()
-            : base(() => new MemoryFileSystem(Clock), TestGlobal.Logger)
+            : base(() => new PassThroughFileSystem(TestGlobal.Logger), TestGlobal.Logger)
         {
         }
 
@@ -90,12 +93,13 @@ namespace ContentStoreTest.Distributed.Stores
             return Encoding.UTF8.GetString(bytes);
         }
 
-        [Fact]
-        public Task TestColdStorage()
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public Task TestColdStorage(bool rocksDbEnabled)
         {
             return RunTestAsync(async (context, store, directory) =>
              {
-
                  var originalPath = directory.Path / "original.txt";
                  var fileContents = GetRandomFileContents();
 
@@ -105,6 +109,7 @@ namespace ContentStoreTest.Distributed.Stores
                  var contentHasher = HashInfoLookup.GetContentHasher(HashType.MD5);
                  var contentHash = contentHasher.GetContentHash(Encoding.UTF8.GetBytes(fileContents));
 
+                 // Debugger.Launch();
                  await store.PutFileAsync(context, contentHash, new DisposableFile(context, FileSystem, originalPath), context.Token).ShouldBeSuccess();
 
                  // Hardlink back to original location trying to replace existing.
@@ -119,12 +124,14 @@ namespace ContentStoreTest.Distributed.Stores
 
                   // The file is intact.
                   FileSystem.ReadAllText(originalPath).Should().Be(fileContents);
-              });
+              }, rocksDbEnabled: rocksDbEnabled);
         }
 
-        [Fact]
-        public Task TestColdStorageWithBulkFunction()
-        {
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public Task TestColdStorageWithBulkFunction(bool rocksDbEnabled)
+        {      
             return RunTestAsync(async (context, store, directory) =>
             {
                 var originalPath = directory.Path / "original.txt";
@@ -153,11 +160,12 @@ namespace ContentStoreTest.Distributed.Stores
                 List<ContentHashWithPath> listFile = new List<ContentHashWithPath>();
                 listFile.Add(contentHashWithPath);
 
+                // Debugger.Launch();
                 // Hardlink back to original location trying to replace existing.
                 var copyTask = await store.FetchThenPutBulkAsync(
                      context,
                      listFile,
-                     contentSession);
+                     contentSession); 
 
                 await copyTask.ToLookupAwait(r => { return r.Item.Succeeded; });
 
@@ -170,11 +178,13 @@ namespace ContentStoreTest.Distributed.Stores
 
                 _ = await contentSession.ShutdownAsync(context);
                 _ = await destination.ShutdownAsync(context);
-            });
+            }, rocksDbEnabled: rocksDbEnabled);
         }
 
-        [Fact]
-        public Task TestUpdateRingAndGetLocations()
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public Task TestUpdateRingAndGetLocations(bool rocksDbEnabled)
         {
             return RunTestAsync(async (context, store, directory) =>
             {
@@ -207,11 +217,13 @@ namespace ContentStoreTest.Distributed.Stores
                 locations.ContentHashesInfo[1].Locations[0].ToString().Should().Be("10");
                 locations.ContentHashesInfo[1].Locations[1].ToString().Should().Be("1");
                 locations.ContentHashesInfo[1].Locations[2].ToString().Should().Be("3");
-            });
+            }, rocksDbEnabled: rocksDbEnabled);
         }
 
-        [Fact]
-        public Task TestPutToColdStorageWithRemoteLocations()
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public Task TestPutToColdStorageWithRemoteLocations(bool rocksDbEnabled)
         {
             return RunTestAsync(async (context, store, directory) =>
             {
@@ -232,8 +244,7 @@ namespace ContentStoreTest.Distributed.Stores
                 var contentHash = contentHasher.GetContentHash(Encoding.UTF8.GetBytes(fileContents));
 
                 await store.PutFileAsync(context, contentHash, new DisposableFile(context, FileSystem, originalPath), context.Token).ShouldBeSuccess();
-            });
+            }, rocksDbEnabled: rocksDbEnabled);
         }
-
     }
 }

@@ -35,6 +35,7 @@ using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Serialization;
 using BuildXL.Utilities.Tasks;
 using RocksDbSharp;
+using static BuildXL.Engine.Cache.KeyValueStores.RocksDbStore;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 
 #nullable enable
@@ -1068,8 +1069,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 
         public bool TryDeserializeValue<TResult>(RocksDbStore store, ReadOnlySpan<byte> key, Columns columns, DeserializeValue<TResult> deserializer, [NotNullWhen(true)] out TResult? result)
         {
-            return TryDeserializeValue(store, key, NameOf(columns), deserializer, out result)
-                   || IsRotatedColumn(columns) && TryDeserializeValue(store, key, NameOf(columns, GetFormerColumnGroup(columns)), deserializer, out result);
+            return store.TryDeserializeValue(key, NameOf(columns), deserializer, out result)
+                   || IsRotatedColumn(columns) && store.TryDeserializeValue(key, NameOf(columns, GetFormerColumnGroup(columns)), deserializer, out result);
         }
 
         private bool TryGetValue(RocksDbStore store, ReadOnlySpan<byte> key, [NotNullWhen(true)] out byte[]? value, out ColumnGroup resolvedGroup, Columns columns)

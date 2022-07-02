@@ -510,7 +510,7 @@ namespace BuildXL.Processes.Tracing
             (int)LogEventId.LogDetoursMaxHeapSize,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics),
+            Keywords = (int)Keywords.Diagnostics,
             EventTask = (int)Tasks.PipExecutor,
             Message = EventConstants.PipPrefix + "Maximum detours heap size for process in the pip is {maxDetoursHeapSizeInBytes} bytes. The processName '{processName}'. The processId is: {processId}. The manifestSize in bytes is: {manifestSizeInBytes}. The finalDetoursHeapSize in bytes is: {finalDetoursHeapSizeInBytes}. The allocatedPoolEntries is: {allocatedPoolEntries}. The maxHandleMapEntries is: {maxHandleMapEntries}. The handleMapEntries is: {handleMapEntries}.")]
         public abstract void LogDetoursMaxHeapSize(

@@ -158,9 +158,10 @@ namespace Test.BuildXL.Distribution
                 ReceivedAttachCall = true;
             }
 
-            void IWorkerService.ExecutePips(global::BuildXL.Engine.Distribution.OpenBond.PipBuildRequest request)
+            Task IWorkerService.ExecutePipsAsync(global::BuildXL.Engine.Distribution.OpenBond.PipBuildRequest request)
             {
                 Delay();
+                return Task.CompletedTask;
             }
 
             void IWorkerService.ExitRequested(Optional<string> failure)

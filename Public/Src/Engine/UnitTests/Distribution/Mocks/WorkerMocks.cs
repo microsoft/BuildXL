@@ -124,7 +124,7 @@ namespace Test.BuildXL.Distribution
 
         Possible<Unit> IWorkerPipExecutionService.TryReportInputs(List<FileArtifactKeyedHash> hashes) => new Possible<Unit>(Unit.Void);
 
-        async Task IWorkerPipExecutionService.HandlePipStepAsync(PipId pipId, ExtendedPipCompletionData pipCompletionData, SinglePipBuildRequest pipBuildRequest, Possible<Unit> reportInputsResult)
+        async Task IWorkerPipExecutionService.StartPipStepAsync(PipId pipId, ExtendedPipCompletionData pipCompletionData, SinglePipBuildRequest pipBuildRequest, Possible<Unit> reportInputsResult)
         {
             Interlocked.Increment(ref m_ongoingRequests);
             await Task.Yield();

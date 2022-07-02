@@ -1237,7 +1237,7 @@ namespace BuildXL.Scheduler
         HashesSentToWorkers,
 
         /// <nodoc/>
-        HashesForDynamicFilesSentToWorkers,
+        HashesForStringPathsSentToWorkers,
 
         /// <nodoc/>
         [CounterType(CounterType.Stopwatch)]

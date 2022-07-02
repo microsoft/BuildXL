@@ -3864,7 +3864,7 @@ namespace BuildXL.Scheduler
             }
         }
 
-        internal void HandlePipRequest(PipId pipId, RunnablePipObserver observer, PipExecutionStep step, int priority)
+        internal void StartPipStep(PipId pipId, RunnablePipObserver observer, PipExecutionStep step, int priority)
         {
             Contract.Assert(IsDistributedWorker, "Only workers can handle distributed pip requests");
 
@@ -3983,7 +3983,7 @@ namespace BuildXL.Scheduler
                     string workerName = runnablePip.Worker.Name + (runnablePip is ProcessRunnablePip proc && proc.RunLocation == ProcessRunLocation.Remote ? "(Remote)" : string.Empty);
                     BuildXL.Tracing.Logger.Log.TracerCompletedEvent(runnablePip.OperationContext,
                         runnablePip.FormattedSemiStableHash,
-                        runnablePip.Step.ToString(),
+                        runnablePip.Step.AsString(),
                         workerName + " - " + DecideDispatcherKind(runnablePip),
                         runnablePip.ThreadId,
                         runnablePip.StepStartTime.Ticks,
@@ -3995,7 +3995,7 @@ namespace BuildXL.Scheduler
                 {
                     // None of I/O pip execution steps is supposed to take more than 15 minutes. However, there are some large Cosine pips whose inputs are materialized around 20m-25m.
                     // That's why, we chose 30 minutes for the limit to log a warning message, so that we can keep track of the frequency.
-                    Logger.Log.PipExecutionIOStepDelayed(runnablePip.OperationContext, runnablePip.Description, runnablePip.Step.ToString(), PipExecutionIOStepDelayedLimitMin, (int)runnablePip.StepDuration.TotalMinutes);
+                    Logger.Log.PipExecutionIOStepDelayed(runnablePip.OperationContext, runnablePip.Description, runnablePip.Step.AsString(), PipExecutionIOStepDelayedLimitMin, (int)runnablePip.StepDuration.TotalMinutes);
                 }
 
                 runnablePip.Observer.EndStep(runnablePip);

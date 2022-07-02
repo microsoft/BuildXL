@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using BuildXL.Distribution.Grpc;
 using Grpc.Core;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Tasks;
 
 namespace BuildXL.Engine.Distribution.Grpc
 {
@@ -38,7 +39,7 @@ namespace BuildXL.Engine.Distribution.Grpc
         {
             var bondMessage = message.ToOpenBond();
 
-            m_workerService.ExecutePips(bondMessage);
+            m_workerService.ExecutePipsAsync(bondMessage).Forget();
             return Task.FromResult(new RpcResponse());
         }
 

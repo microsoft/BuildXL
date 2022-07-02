@@ -237,6 +237,11 @@ namespace BuildXL.Scheduler.Distribution
             long setupCostForBestWorker = workerSetupCosts[0].SetupBytes;
 
             limitingResource = null;
+
+            var moduleId = runnablePip.Pip.Provenance.ModuleId;
+            (int NumPips, List<Worker> Workers) assignedWorkers = (0, null);
+            m_moduleWorkerMapping?.TryGetValue(moduleId, out assignedWorkers);
+
             foreach (var loadFactor in m_workerBalancedLoadFactors)
             {
                 if (!loadBalanceWorkers && loadFactor < 1)
@@ -245,11 +250,7 @@ namespace BuildXL.Scheduler.Distribution
                     continue;
                 }
 
-                var moduleId = runnablePip.Pip.Provenance.ModuleId;
-
-                if (m_scheduleConfig.ModuleAffinityEnabled() &&
-                    m_moduleWorkerMapping.TryGetValue(moduleId, out var assignedWorkers) &&
-                    assignedWorkers.Workers.Count > 0)
+                if (assignedWorkers.Workers?.Count > 0)
                 {
                     // If there are no workers assigned to the module, proceed with normal chooseworker logic.
                     return ChooseWorkerForModuleAffinity(runnablePip, workerSetupCosts, loadFactor, out limitingResource);

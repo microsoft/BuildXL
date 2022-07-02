@@ -27,6 +27,8 @@ using BuildXL.Utilities.Tracing;
 using EventWrittenEventArgs = System.Diagnostics.Tracing.EventWrittenEventArgs;
 using static BuildXL.Tracing.Diagnostics;
 using static BuildXL.Utilities.FormattableStringEx;
+using System.Linq.Expressions;
+using System.Linq;
 
 namespace BuildXL.Engine.Distribution
 {
@@ -62,9 +64,9 @@ namespace BuildXL.Engine.Distribution
         Possible<Unit> TryReportInputs(List<FileArtifactKeyedHash> hashes);
         
         /// <summary>
-        /// Executes the requested pip step and reports the result to the worker service
+        /// Starts executing the requested pip step
         /// </summary>
-        Task HandlePipStepAsync(PipId pipId, ExtendedPipCompletionData pipCompletionData, SinglePipBuildRequest pipBuildRequest, Possible<Unit> reportInputsResult);
+        Task StartPipStepAsync(PipId pipId, ExtendedPipCompletionData pipCompletionData, SinglePipBuildRequest pipBuildRequest, Possible<Unit> reportInputsResult);
 
         /// <summary>
         /// Gets the description for a pip from a PipId. For logging purposes.
@@ -167,7 +169,7 @@ namespace BuildXL.Engine.Distribution
             }
 
             /// <inheritdoc/>
-            async Task IWorkerPipExecutionService.HandlePipStepAsync(PipId pipId, ExtendedPipCompletionData pipCompletionData, SinglePipBuildRequest pipBuildRequest, Possible<Unit> reportInputsResult)
+            async Task IWorkerPipExecutionService.StartPipStepAsync(PipId pipId, ExtendedPipCompletionData pipCompletionData, SinglePipBuildRequest pipBuildRequest, Possible<Unit> reportInputsResult)
             {
                 // Do not block the caller.
                 await Task.Yield();
@@ -187,65 +189,62 @@ namespace BuildXL.Engine.Distribution
                     throw Contract.AssertFailure(I($"Workers can only execute process or IPC pips for steps other than MaterializeOutputs: Step={step}, PipId={pipId}, Pip={pip.GetDescription(m_environment.Context)}"));
                 }
 
-                using (var operationContext = m_operationTracker.StartOperation(PipExecutorCounter.WorkerServiceHandlePipStepDuration, pipId, pipType, LoggingContext))
-                using (operationContext.StartOperation(step))
+                try
                 {
-                    if (step == PipExecutionStep.MaterializeOutputs && Config.Distribution.FireForgetMaterializeOutput())
+                    using (var operationContext = m_operationTracker.StartOperation(PipExecutorCounter.WorkerServiceHandlePipStepDuration, pipId, pipType, LoggingContext))
+                    using (operationContext.StartOperation(step))
                     {
-                        // We do not report 'MaterializeOutput' step results back to orchestrator
-                        // so the notification manager is not made aware of the pip being processed.
+                        if (step == PipExecutionStep.MaterializeOutputs && Config.Distribution.FireForgetMaterializeOutput())
+                        {
+                            // We do not report 'MaterializeOutput' step results back to orchestrator
+                            // so the notification manager is not made aware of the pip being processed.
+                        }
+                        else
+                        {
+                            m_workerService.m_notificationManager.MarkPipProcessingStarted(pip.SemiStableHash);
+                        }
+
+                        var pipInfo = new PipInfo(pip, m_environment.Context);
+
+                        if (!reportInputsResult.Succeeded)
+                        {
+                            // Could not report inputs due to input mismatch. Fail the pip
+                            Scheduler.Tracing.Logger.Log.PipMaterializeDependenciesFailureDueToVerifySourceFilesFailed(
+                                LoggingContext,
+                                pipInfo.Description,
+                                reportInputsResult.Failure.DescribeIncludingInnerFailures());
+
+                            m_workerService.ReportResult(
+                                pip.PipId,
+                                ExecutionResult.GetFailureNotRunResult(LoggingContext),
+                                step);
+
+                            return;
+                        }
+
+                        if (step == PipExecutionStep.CacheLookup)
+                        {
+                            // Directory dependencies need to be registered for cache lookup.
+                            // For process execution, the input materialization guarantees the registration.
+                            m_environment.State.FileContentManager.RegisterDirectoryDependencies(pipInfo.UnderlyingPip);
+                        }
+
+                        m_scheduler.StartPipStep(pipId, m_workerRunnablePipObserver, step, pipBuildRequest.Priority);
                     }
-                    else
-                    {
-                        m_workerService.m_notificationManager.MarkPipProcessingStarted(pip.SemiStableHash);
-                    }
+                }
+                catch (Exception ex)
+                {
+                    Scheduler.Tracing.Logger.Log.HandlePipStepOnWorkerFailed(
+                                   LoggingContext,
+                                   pip.GetDescription(m_environment.Context),
+                                   ex.ToString());
 
-                    var pipInfo = new PipInfo(pip, m_environment.Context);
-
-                    if (!reportInputsResult.Succeeded)
-                    {
-                        // Could not report inputs due to input mismatch. Fail the pip
-                        Scheduler.Tracing.Logger.Log.PipMaterializeDependenciesFailureDueToVerifySourceFilesFailed(
-                            LoggingContext,
-                            pipInfo.Description,
-                            reportInputsResult.Failure.DescribeIncludingInnerFailures());
-
-                        m_workerService.ReportResult(
-                            pip.PipId,
-                            ExecutionResult.GetFailureNotRunResult(LoggingContext),
-                            step);
-
-                        return;
-                    }
-
-                    if (step == PipExecutionStep.CacheLookup)
-                    {
-                        // Directory dependencies need to be registered for cache lookup.
-                        // For process execution, the input materialization guarantees the registration.
-                        m_environment.State.FileContentManager.RegisterDirectoryDependencies(pipInfo.UnderlyingPip);
-                    }
-
-                    m_scheduler.HandlePipRequest(pipId, m_workerRunnablePipObserver, step, pipBuildRequest.Priority);
-
-                    // Track how much time the request spent queued
-                    using (var op = operationContext.StartOperation(PipExecutorCounter.WorkerServiceQueuedPipStepDuration))
-                    {
-                        await pipCompletionData.StepExecutionStarted.Task;
-                        pipCompletionData.SerializedData.QueueTicks = op.Duration.Value.Ticks;
-
-                    }
-
-                    ExecutionResult executionResult;
-
-                    // Track how much time the request spent executing
-                    using (operationContext.StartOperation(PipExecutorCounter.WorkerServiceExecutePipStepDuration))
-                    {
-                        executionResult = await pipCompletionData.StepExecutionCompleted.Task;
-                    }
-
+                    // HandlePipStep might throw an exception before we send the pipbuildrequest to Scheduler. 
+                    // In that case, we will fail to report the result to the orchestrator. That's why, in the case
+                    // of an exception, we send the result to the orchestrator to avoid infinite waiting over there. 
                     m_workerService.ReportResult(
                         pip.PipId,
-                        executionResult,
+                        ExecutionResult.GetFailureNotRunResult(LoggingContext),
                         step);
                 }
             }
@@ -256,24 +255,49 @@ namespace BuildXL.Engine.Distribution
                 var dynamicDirectoryMap = new Dictionary<DirectoryArtifact, List<FileArtifactWithAttributes>>();
                 var failedFiles = new List<(FileArtifact file, ContentHash hash)>();
                 var fileContentManager = m_environment.State.FileContentManager;
+                var lockObj = new object();
 
-                foreach (FileArtifactKeyedHash fileArtifactKeyedHash in hashes)
+                // Concurrently report inputs
+                Parallel.ForEach(hashes, (fileArtifactKeyedHash) =>
                 {
-                    FileArtifactWithAttributes fileWithAttributes;
-                    FileArtifact file;
-                    if (fileArtifactKeyedHash.AssociatedDirectories != null && fileArtifactKeyedHash.AssociatedDirectories.Count != 0)
+                    if (fileArtifactKeyedHash.PathValue == AbsolutePath.Invalid.RawValue)
                     {
                         // All workers have the same entries in the path table up to the schedule phase. Dynamic outputs add entries to the path table of the worker that generates them.
                         // Dynamic outputs can be generated by one worker, but consumed by another, which potentially is not the orchestrator. Thus, the two workers do not have the same entries
                         // in the path table.
                         // The approach we have here may be sub-optimal(the worker may have had the paths already). But it ensures correctness.
                         // Need to create absolute path because the path is potentially not in the path table.
-                        file = new FileArtifact(
-                            AbsolutePath.Create(m_environment.Context.PathTable, fileArtifactKeyedHash.PathString),
-                            fileArtifactKeyedHash.RewriteCount);
 
-                        fileWithAttributes = FileArtifactWithAttributes.Create(
-                            file,
+                        fileArtifactKeyedHash.PathValue = AbsolutePath.Create(m_environment.Context.PathTable, fileArtifactKeyedHash.PathString).RawValue;
+                    }
+
+                    var file = fileArtifactKeyedHash.File;
+
+                    if (fileArtifactKeyedHash.IsSourceAffected)
+                    {
+                        fileContentManager.SourceChangeAffectedInputs.ReportSourceChangedAffectedFile(file.Path);
+                    }
+
+                    var materializationInfo = fileArtifactKeyedHash.GetFileMaterializationInfo(m_environment.Context.PathTable);
+                    if (!fileContentManager.ReportWorkerPipInputContent(
+                        LoggingContext,
+                        file,
+                        materializationInfo))
+                    {
+                        lock (lockObj)
+                        {
+                            failedFiles.Add((file, materializationInfo.Hash));
+                        }
+                    }
+                });
+
+                // Populate dynamicDirectoryMap
+                foreach (FileArtifactKeyedHash fileArtifactKeyedHash in hashes)
+                {
+                    if (fileArtifactKeyedHash.AssociatedDirectories?.Count > 0)
+                    {
+                        var fileWithAttributes = FileArtifactWithAttributes.Create(
+                            fileArtifactKeyedHash.File,
                             FileExistence.Required,
                             isUndeclaredFileRewrite: fileArtifactKeyedHash.IsAllowedFileRewrite);
 
@@ -293,26 +317,9 @@ namespace BuildXL.Engine.Distribution
                             files.Add(fileWithAttributes);
                         }
                     }
-                    else
-                    {
-                        file = fileArtifactKeyedHash.File;
-                    }
-
-                    if (fileArtifactKeyedHash.IsSourceAffected)
-                    {
-                        fileContentManager.SourceChangeAffectedInputs.ReportSourceChangedAffectedFile(file.Path);
-                    }
-
-                    var materializationInfo = fileArtifactKeyedHash.GetFileMaterializationInfo(m_environment.Context.PathTable);
-                    if (!fileContentManager.ReportWorkerPipInputContent(
-                        LoggingContext,
-                        file,
-                        materializationInfo))
-                    {
-                        failedFiles.Add((file, materializationInfo.Hash));
-                    }
                 }
 
+                // Report directory contents from dynamicDirectoryMap
                 foreach (var directoryAndContents in dynamicDirectoryMap)
                 {
                     fileContentManager.ReportDynamicDirectoryContents(directoryAndContents.Key, directoryAndContents.Value, PipOutputOrigin.NotMaterialized);
@@ -351,8 +358,6 @@ namespace BuildXL.Engine.Distribution
                     runnablePip.Step.AsString());
 
                 var pipIdStepTuple = (pipId, runnablePip.Step);
-                var completionData = PendingPipCompletions[pipIdStepTuple];
-                completionData.StepExecutionStarted.SetResult(true);
 
                 switch (runnablePip.Step)
                 {
@@ -382,17 +387,19 @@ namespace BuildXL.Engine.Distribution
 
             private void EndStep(RunnablePip runnablePip)
             {
+                runnablePip.ReleaseDispatcher();
+
                 var pipId = runnablePip.PipId;
                 var loggingContext = runnablePip.LoggingContext;
                 var pip = runnablePip.Pip;
                 var description = runnablePip.Description;
                 var executionResult = runnablePip.ExecutionResult;
 
-
                 var completionData = PendingPipCompletions[(pipId, runnablePip.Step)];
                 completionData.SerializedData.ExecuteStepTicks = runnablePip.StepDuration.Ticks;
                 completionData.SerializedData.ThreadId = runnablePip.ThreadId;
                 completionData.SerializedData.StartTimeTicks = runnablePip.StepStartTime.Ticks;
+                completionData.SerializedData.QueueTicks = runnablePip.Performance.QueueDurations.Value.First().Ticks;
 
                 switch (runnablePip.Step)
                 {
@@ -449,7 +456,10 @@ namespace BuildXL.Engine.Distribution
                     executionResult.Seal();
                 }
 
-                completionData.StepExecutionCompleted.SetResult(executionResult);
+                m_workerService.ReportResult(
+                        runnablePip.PipId,
+                        executionResult,
+                        runnablePip.Step);
             }
 
             private Guid GetActivityId(RunnablePip runnablePip)

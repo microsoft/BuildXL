@@ -38,7 +38,7 @@ namespace BuildXL.Engine.Distribution
         /// Requests execution of a pip build request
         /// </summary>
         /// <param name="request"></param>
-        void ExecutePips(PipBuildRequest request);
+        Task ExecutePipsAsync(PipBuildRequest request);
 
         /// <summary>
         /// Notifies the WorkerService that the orchestrator has issued an exit request
@@ -352,9 +352,13 @@ namespace BuildXL.Engine.Distribution
         }
 
         /// <inheritdoc />
-        void IWorkerService.ExecutePips(PipBuildRequest request)
+        async Task IWorkerService.ExecutePipsAsync(PipBuildRequest request)
         {
             var reportInputsResult = m_pipExecutionService.TryReportInputs(request.Hashes);
+            
+            // Unblock the caller, so we can send a response to the orchestrator asap to receive the new pipbuildrequest messages.
+            // We intentionally unblock the caller after processing the inputs. 
+            await Task.Yield();
 
             for (int i = 0; i < request.Pips.Count; i++)
             {
@@ -370,23 +374,7 @@ namespace BuildXL.Engine.Distribution
                     var pipCompletionData = new ExtendedPipCompletionData(new PipCompletionData() { PipIdValue = pipId.Value, Step = pipBuildRequest.Step });
                     m_pendingPipCompletions[pipIdStepTuple] = pipCompletionData;
 
-                    m_pipExecutionService.HandlePipStepAsync(pipId, pipCompletionData, pipBuildRequest, reportInputsResult).Forget((ex) =>
-                    {
-                        Scheduler.Tracing.Logger.Log.HandlePipStepOnWorkerFailed(
-                            m_appLoggingContext,
-                            m_pipExecutionService.GetPipDescription(pipId),
-                            ex.ToString());
-
-                        // HandlePipStep might throw an exception after we remove pipCompletionData from m_pendingPipCompletions.
-                        // That's why, we check whether the pipCompletionData still exists there.
-                        if (m_pendingPipCompletions.ContainsKey(pipIdStepTuple))
-                        {
-                            ReportResult(
-                                pipId,
-                                ExecutionResult.GetFailureNotRunResult(m_appLoggingContext),
-                                (PipExecutionStep)pipBuildRequest.Step);
-                        }
-                    });
+                    m_pipExecutionService.StartPipStepAsync(pipId, pipCompletionData, pipBuildRequest, reportInputsResult).Forget();
                 }
             }
         }
@@ -396,24 +384,23 @@ namespace BuildXL.Engine.Distribution
             ExecutionResult executionResult,
             PipExecutionStep step)
         {
-            if (executionResult.Result == PipResultStatus.Failed)
+            if (m_pendingPipCompletions.TryRemove((pipId, step), out var pipCompletion))
             {
-                m_hasFailures = true;
+                if (executionResult.Result == PipResultStatus.Failed)
+                {
+                    m_hasFailures = true;
+                }
+
+                if (step == PipExecutionStep.MaterializeOutputs && m_config.Distribution.FireForgetMaterializeOutput())
+                {
+                    // We do not report 'MaterializeOutput' step results back to orchestrator.
+                    Logger.Log.DistributionWorkerFinishedPipRequest(m_appLoggingContext, pipCompletion.SemiStableHash, step.AsString());
+                    return;
+                }
+
+                pipCompletion.ExecutionResult = executionResult;
+                m_notificationManager.ReportResult(pipCompletion);
             }
-
-            bool found = m_pendingPipCompletions.TryRemove((pipId, step), out var pipCompletion);
-            Contract.Assert(found, "Could not find corresponding build completion data for executed pip on worker");
-
-            pipCompletion.ExecutionResult = executionResult;
-
-            if (step == PipExecutionStep.MaterializeOutputs && m_config.Distribution.FireForgetMaterializeOutput())
-            {
-                // We do not report 'MaterializeOutput' step results back to orchestrator.
-                Logger.Log.DistributionWorkerFinishedPipRequest(m_appLoggingContext, pipCompletion.SemiStableHash, step.ToString());
-                return;
-            }
-
-            m_notificationManager.ReportResult(pipCompletion);
         }
 
         /// <inheritdoc/>

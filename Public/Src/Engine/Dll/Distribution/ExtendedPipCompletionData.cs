@@ -37,16 +37,6 @@ namespace BuildXL.Engine.Distribution
         /// </summary>
         internal PipType PipType { get; set; }
 
-        /// <summary>
-        /// Signal for start of step execution
-        /// </summary>
-        internal TaskSourceSlim<bool> StepExecutionStarted { get; set; } = TaskSourceSlim.Create<bool>();
-
-        /// <summary>
-        /// Signal for end of step execution
-        /// </summary>
-        internal TaskSourceSlim<ExecutionResult> StepExecutionCompleted { get; set; } = TaskSourceSlim.Create<ExecutionResult>();
-
         internal ExecutionResult ExecutionResult { get; set; }
 
         internal bool PreservePathSetCasing { get; set; }

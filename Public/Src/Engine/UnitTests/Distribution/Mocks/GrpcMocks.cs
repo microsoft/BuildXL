@@ -134,7 +134,7 @@ namespace Test.BuildXL.Distribution
         public void ExecutePips(GrpcPipBuildRequest message)
         {
             var bondMessage = message.ToOpenBond();
-            WorkerService.ExecutePips(bondMessage);
+            WorkerService.ExecutePipsAsync(bondMessage).Forget();
         }
 
         public void Exit(BuildEndData message)

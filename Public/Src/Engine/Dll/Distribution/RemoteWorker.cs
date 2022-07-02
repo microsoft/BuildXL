@@ -969,19 +969,21 @@ namespace BuildXL.Engine.Distribution
                     // it's a declared output and it's been added when processing Q. However, D/f is still populated to the dynamicFiles map.
                     files.UnionWith(dynamicFiles.Keys);
 
-                    int numDynamicFiles = 0;
+                    int numStringPathFiles = 0;
 
                     foreach (var file in files)
                     {
                         var fileMaterializationInfo = environment.State.FileContentManager.GetInputContent(file);
                         bool isDynamicFile = dynamicFiles.TryGetValue(file, out var dynamicDirectories) && dynamicDirectories.Count != 0;
 
+                        bool sendStringPath = m_pipGraph.MaxAbsolutePathIndex < file.Path.Value.Index;
+
                         var hash = new FileArtifactKeyedHash
                         {
                             IsSourceAffected = environment.State.FileContentManager.SourceChangeAffectedInputs.IsSourceChangedAffectedFile(file),
                             RewriteCount = file.RewriteCount,
-                            PathValue = file.Path.Value.Value,
-                            PathString = isDynamicFile ? file.Path.ToString(pathTable) : null,
+                            PathValue = sendStringPath ? AbsolutePath.Invalid.RawValue : file.Path.RawValue,
+                            PathString = sendStringPath ? file.Path.ToString(pathTable) : null,
                             IsAllowedFileRewrite = environment.State.FileContentManager.IsAllowedFileRewriteOutput(file.Path)
                         }.SetFileMaterializationInfo(pathTable, fileMaterializationInfo);
 
@@ -999,8 +1001,11 @@ namespace BuildXL.Engine.Distribution
                                     IsDirectorySharedOpaque = dynamicDirectory.IsSharedOpaque
                                 });
                             }
+                        }
 
-                            numDynamicFiles++;
+                        if (sendStringPath)
+                        {
+                            numStringPathFiles++;
                         }
 
                         lock (m_hashListLock)
@@ -1009,7 +1014,7 @@ namespace BuildXL.Engine.Distribution
                         }
                     }
 
-                    m_orchestratorService.Environment.Counters.AddToCounter(PipExecutorCounter.HashesForDynamicFilesSentToWorkers, numDynamicFiles);
+                    m_orchestratorService.Environment.Counters.AddToCounter(PipExecutorCounter.HashesForStringPathsSentToWorkers, numStringPathFiles);
                 }
             }
         }

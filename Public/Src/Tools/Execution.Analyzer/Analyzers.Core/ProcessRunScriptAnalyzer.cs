@@ -392,6 +392,18 @@ namespace BuildXL.Execution.Analyzer
             {
                 writer.WriteLine($":{SkipDelOutputs}");
             }
+
+            writer.WriteLine();
+            writer.WriteLine($"{CommentPrefix} Creating Output Directories");
+            foreach (var directory in GetOutputDirectories(pip))
+            {
+                if (directory.IsValid)
+                {
+                    writer.WriteLine($"{DirectoryCreationCommand} \"{directory.ToString(PathTable)}\"");
+                }
+            }
+            writer.WriteLine();
+
             writer.WriteLine($"{CommentPrefix} Environment Variables");
             if (string.IsNullOrEmpty(JsonEnvironmentScript))
             {
@@ -404,16 +416,6 @@ namespace BuildXL.Execution.Analyzer
 #else
                 writer.WriteLine(@"for c in $(set | cut -d '=' -f 1); do unset $c 2> /dev/null; done");
 #endif
-                writer.WriteLine();
-
-                writer.WriteLine($"{CommentPrefix} Creating Output Directories");
-                foreach (var directory in GetOutputDirectories(pip))
-                {
-                    if (directory.IsValid)
-                    {
-                        writer.WriteLine($"{DirectoryCreationCommand} \"{directory.ToString(PathTable)}\"");
-                    }
-                }
                 writer.WriteLine();
 
                 writer.WriteLine($"{CommentPrefix} Setting PIP Environment Variables");

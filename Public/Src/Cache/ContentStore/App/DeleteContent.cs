@@ -26,6 +26,9 @@ namespace BuildXL.Cache.ContentStore.App
             )
         {
             Initialize();
+            
+            // We need to initialize this here
+            GrpcEnvironment.Initialize();
 
             var context = new Interfaces.Tracing.Context(_logger);
             var operationContext = new OperationContext(context);

@@ -5,7 +5,7 @@
 const protoVersion = "3.19.4";
 const protoToolsVersion = "3.19.4";
 
-const grpcNetVersion = "2.47.0-pre1";
+const grpcNetVersion = "2.47.0";
 const grpcCoreVersion = "2.46.3";
 
 export const pkgs = [

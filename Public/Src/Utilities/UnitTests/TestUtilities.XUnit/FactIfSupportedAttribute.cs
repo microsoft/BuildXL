@@ -55,6 +55,7 @@ namespace Test.BuildXL.TestUtilities.Xunit
             bool requiresHeliumDriversNotAvailable = false,
             bool requiresMacOperatingSystem = false,
             bool requiresWindowsOrMacOperatingSystem = false,
+            bool requiresWindowsOrLinuxOperatingSystem = false,
             TestRequirements additionalRequirements = TestRequirements.None)
         {
             var requirements = additionalRequirements;
@@ -67,6 +68,7 @@ namespace Test.BuildXL.TestUtilities.Xunit
             AddRequirement(ref requirements, requiresHeliumDriversNotAvailable, TestRequirements.HeliumDriversNotAvailable);
             AddRequirement(ref requirements, requiresMacOperatingSystem, TestRequirements.MacOs);
             AddRequirement(ref requirements, requiresWindowsOrMacOperatingSystem, TestRequirements.WindowsOrMacOs);
+            AddRequirement(ref requirements, requiresWindowsOrLinuxOperatingSystem, TestRequirements.WindowsOrLinuxOs);
 
             Requirements = requirements;
 
@@ -206,6 +208,18 @@ namespace Test.BuildXL.TestUtilities.Xunit
                     if (OperatingSystemHelper.IsLinuxOS)
                     {
                         return "Test must be run on Windows or macOS";
+                    }
+
+                    return null;
+                });
+
+            CheckRequirement(
+                TestRequirements.WindowsOrLinuxOs,
+                () =>
+                {
+                    if (OperatingSystemHelper.IsMacOS)
+                    {
+                        return "Test must be run on Windows or Linux OS";
                     }
 
                     return null;

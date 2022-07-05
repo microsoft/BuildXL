@@ -23,7 +23,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         [Feature(Features.OpaqueDirectory)]
-	    [Theory]
+        [TheoryIfSupported(requiresWindowsOrLinuxOperatingSystem: true)]
         [InlineData(false)]
         [InlineData(true)]
         public void NonDeterminismOpaqueDirectoryOutput(bool fileListedAsNormalOutput)
@@ -78,7 +78,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         [Feature(Features.OpaqueDirectory)]
-	    [Fact]
+        [FactIfSupported(requiresWindowsOrLinuxOperatingSystem: true)]
         public void NonDeterminismOpaqueDirectoryOutputDifferentFiles()
         {
             string untracked = Path.Combine(ObjectRoot, "untracked.txt");

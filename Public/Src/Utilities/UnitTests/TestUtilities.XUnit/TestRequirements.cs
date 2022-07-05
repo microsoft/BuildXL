@@ -72,5 +72,10 @@ namespace Test.BuildXL.TestUtilities.Xunit
         /// Used to disable a test. Typically used with #ifdef
         /// </summary>
         NotSupported = 1 << 10,
+
+        /// <summary>
+        /// Requires running on either Windows or Linux operating system (excludes macOS)
+        /// </summary>
+        WindowsOrLinuxOs = 1 << 11,
     }
 }

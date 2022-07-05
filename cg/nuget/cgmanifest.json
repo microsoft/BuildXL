@@ -2760,7 +2760,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "NuGet.CommandLine",
-          "Version": "5.11.0"
+          "Version": "6.2.1"
         }
       }
     },

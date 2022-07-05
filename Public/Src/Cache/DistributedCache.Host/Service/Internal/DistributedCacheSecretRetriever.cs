@@ -131,7 +131,7 @@ namespace BuildXL.Cache.Host.Service.Internal
 
                         if (!typeMatch)
                         {
-                            throw new SecurityException($"The credentials produced by the host for secret named {request.Name} do not match the expected kind");
+                            throw new SecurityException($"The credentials produced by the host for secret named {request.Name} do not match the expected kind. Requested: '{request.Kind}'. Actual: '{secret.GetType()}'.");
                         }
                     }
                 }

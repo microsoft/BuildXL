@@ -43,6 +43,17 @@ namespace BuildXL.Cache.Host.Service
 
             public async Task<LauncherManifest> GetLaunchManifestAsync(OperationContext context, LauncherSettings settings)
             {
+                if (settings.OverrideTool != null && settings.ServiceUrl == null)
+                {
+                    return new LauncherManifest()
+                    {
+                        ContentId = "OverrideTool",
+                        DeploymentManifestChangeId = "OverrideTool",
+                        IsComplete = true,
+                        Tool = settings.OverrideTool
+                    };
+                }
+
                 if (!settings.DeploymentParameters.ForceUpdate)
                 {
                     // First query for change id to detect if deployment manifest has changed. If
@@ -64,6 +75,11 @@ namespace BuildXL.Cache.Host.Service
                 if (manifest.IsComplete)
                 {
                     _lastManifest = manifest;
+                }
+
+                if (settings.OverrideTool != null)
+                {
+                    manifest.Tool = settings.OverrideTool;
                 }
 
                 return manifest;

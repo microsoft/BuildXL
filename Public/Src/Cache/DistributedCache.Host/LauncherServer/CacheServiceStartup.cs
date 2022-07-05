@@ -66,6 +66,7 @@ namespace BuildXL.Launcher.Server
             var overlayConfigurationPath = configuration["OverlayConfigurationPath"];
             var standalone = configuration.GetValue<bool>("standalone", true);
             var secretsProviderKind = configuration.GetValue("secretsProviderKind", CrossProcessSecretsCommunicationKind.Environment);
+            var exposedSecretsFileName = configuration.GetValue<string>("exposedSecretsFileName", null);
             var context = new Context(logger);
 
             if (!standalone)
@@ -91,7 +92,7 @@ namespace BuildXL.Launcher.Server
                     Contract.Assert(config.DataRootPath != null,
                         "The required property (DataRootPath) is not set, so it should be passed through the command line options by the parent process.");
 
-                    var serviceHost = new ServiceHost(commandLineArgs, config, hostParameters, context, secretsProviderKind);
+                    var serviceHost = new ServiceHost(commandLineArgs, config, hostParameters, context, secretsProviderKind, exposedSecretsFileName);
                     return serviceHost;
                 },
                 requireServiceInterruptable: !standalone,
@@ -214,8 +215,13 @@ namespace BuildXL.Launcher.Server
             /// Constructs the service host and takes command line arguments because
             /// ASP.Net core application host is used to parse command line.
             /// </summary>
-            public ServiceHost(string[] commandLineArgs, DistributedCacheServiceConfiguration configuration, HostParameters hostParameters, Context context, CrossProcessSecretsCommunicationKind secretsCommunicationKind = CrossProcessSecretsCommunicationKind.Environment)
-                : base(context, secretsCommunicationKind, configuration.DistributedContentSettings?.OutOfProcCacheSettings?.InterProcessSecretsCommunicationFileName)
+            public ServiceHost(string[] commandLineArgs,
+                               DistributedCacheServiceConfiguration configuration,
+                               HostParameters hostParameters,
+                               Context context,
+                               CrossProcessSecretsCommunicationKind secretsCommunicationKind = CrossProcessSecretsCommunicationKind.Environment,
+                               string exposedSecretsFileName = null)
+                : base(context, secretsCommunicationKind, exposedSecretsFileName ?? configuration.DistributedContentSettings?.OutOfProcCacheSettings?.InterProcessSecretsCommunicationFileName)
             {
                 HostParameters = hostParameters;
                 ServiceConfiguration = configuration;

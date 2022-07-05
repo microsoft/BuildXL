@@ -177,7 +177,7 @@ namespace BuildXL.Cache.Host.Service
                         hostInfo: hostInfo,
                         telemetryFieldsProvider: new HostTelemetryFieldsProvider(hostParameters),
                         config,
-                        token: token); ;
+                        token: token);
 
                     return BoolResult.Success;
                 },

@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 
 #nullable disable
+#nullable enable annotations
 
 namespace BuildXL.Cache.Host.Configuration
 {
@@ -75,5 +76,11 @@ namespace BuildXL.Cache.Host.Configuration
         /// The service id used for service lifetime of the launcher
         /// </summary>
         public string LauncherServiceId { get; set; } = "Launcher";
+
+        /// <summary>
+        /// Configuration specifying the tool to launch. Overrides tool returned by deployment service. Also, allows launching
+        /// a local tool in cases where deployment service url specified.
+        /// </summary>
+        public ServiceLaunchConfiguration? OverrideTool { get; set; }
     }
 }

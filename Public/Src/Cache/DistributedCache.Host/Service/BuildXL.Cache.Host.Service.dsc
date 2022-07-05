@@ -45,6 +45,7 @@ namespace Service {
         allowUnsafeBlocks: false,
         addNotNullAttributeFile: true,
         internalsVisibleTo: [
+            "BuildXL.Cache.ContentStore.Distributed.Test",
             "BuildXL.Cache.Host.Test",
         ]
     });

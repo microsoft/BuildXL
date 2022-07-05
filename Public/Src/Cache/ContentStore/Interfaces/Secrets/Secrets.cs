@@ -137,6 +137,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Secrets
         /// <nodoc />
         public UpdatingSasToken(SasToken token)
         {
+            Contract.Requires(token != null);
             Token = token;
         }
 
@@ -145,8 +146,12 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Secrets
         {
             Contract.Requires(token != null);
 
-            Token = token;
-            TokenUpdated?.Invoke(this, token);
+            // Raising an event only when the token has changed.
+            if (!token.Equals(Token))
+            {
+                Token = token;
+                TokenUpdated?.Invoke(this, token);
+            }
         }
 
         /// <inheritdoc />
@@ -163,7 +168,8 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Secrets
         /// <inheritdoc />
         public override int GetHashCode()
         {
-            return Token.GetHashCode();
+            // The type is mutable so it should not be used as the key in a dictionary.
+            throw new NotSupportedException($"{nameof(GetHashCode)} is not supported for {nameof(UpdatingSasToken)}");
         }
     }
 }

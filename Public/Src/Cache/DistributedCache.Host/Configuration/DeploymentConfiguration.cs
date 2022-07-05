@@ -7,6 +7,7 @@ using System.Text.Json.Serialization;
 using BuildXL.Cache.ContentStore.Interfaces.Secrets;
 
 #nullable disable
+#nullable enable annotations
 
 namespace BuildXL.Cache.Host.Configuration
 {
@@ -143,6 +144,16 @@ namespace BuildXL.Cache.Host.Configuration
         /// Environment variables for secrets used when launching the tool
         /// </summary>
         public Dictionary<string, SecretConfiguration> SecretEnvironmentVariables { get; set; } = new Dictionary<string, SecretConfiguration>();
+
+        /// <summary>
+        /// If true, then memory-mapped-file-based secret communication is used between the launcher and the launchee.
+        /// </summary>
+        public bool UseInterProcSecretsCommunication { get; set; }
+
+        /// <summary>
+        /// The name of the file to use for interprocess secrets communication.
+        /// </summary>
+        public string? InterprocessSecretsFileName { get; set; }
     }
 
     /// <summary>

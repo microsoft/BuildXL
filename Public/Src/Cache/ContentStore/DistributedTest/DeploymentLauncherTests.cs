@@ -24,6 +24,13 @@ using BuildXL.Cache.ContentStore.Service;
 using BuildXL.Utilities.Tasks;
 using System.Text.Json;
 using System.Runtime.Serialization;
+using BuildXL.Cache.ContentStore.Interfaces.Secrets;
+using System.Diagnostics.ContractsLight;
+using BuildXL.Cache.ContentStore.Interfaces.Extensions;
+using System.Linq;
+using BuildXL.Cache.Host.Service.Internal;
+using System.Reflection;
+using Test.BuildXL.TestUtilities.Xunit;
 
 namespace BuildXL.Cache.ContentStore.Distributed.Test
 {
@@ -79,6 +86,99 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test
         {
         }
 
+        // Memory mapped file not supported on linux
+        [FactIfSupported(TestRequirements.WindowsOs)]
+        public async Task TestOverrideTool()
+        {
+            using var cts = new CancellationTokenSource();
+            var context = new OperationContext(new Context(Logger), cts.Token);
+
+            var host = new TestHost();
+            var client = DeploymentLauncherHost.Instance.CreateServiceClient();
+
+            host.TestClient.GetManifest = launcherSettings =>
+            {
+                return client.GetLaunchManifestAsync(context, launcherSettings).GetAwaiter().GetResult();
+            };
+
+            var serviceId = "testcasaas";
+
+            var interprocSecretsFileName = Guid.NewGuid().ToString("N");
+            var settings = new LauncherSettings()
+            {
+                // NOTE: Not specified to trigger behavior where tool manifest is returned without querying
+                // deployment service.
+                //ServiceUrl = ,
+                RetentionSizeGb = 1,
+                RunInBackgroundOnStartup = false,
+                DeploymentParameters = new DeploymentParameters()
+                {
+
+                },
+                ServiceLifetimePollingIntervalSeconds = 0.01,
+                DownloadConcurrency = 1,
+                TargetDirectory = TestRootDirectoryPath.Path,
+                OverrideTool = new ServiceLaunchConfiguration()
+                {
+                    ServiceId = serviceId,
+                    Arguments = new[]
+                    {
+                        "arg1",
+                        "arg2",
+                        "arg3 with spaces"
+                    },
+                    InterprocessSecretsFileName = interprocSecretsFileName,
+                    UseInterProcSecretsCommunication = true,
+                    EnvironmentVariables =
+                    {
+                        { "hello", "world" },
+                        { "foo", "bar" },
+                    },
+                    SecretEnvironmentVariables =
+                    {
+                        {"testsecret", new() { Kind = SecretKind.SasToken } },
+                        {"testsecretwithrename", new() { Name = "realsecretname",  } },
+                    },
+                    // Need an existing path. Pick the current dll and use %LauncherHostDir% token to ensure it's replaced correctly.
+                    Executable = $"%LauncherHostDir%/{Assembly.GetExecutingAssembly().GetName().Name}.dll",
+                    ShutdownTimeoutSeconds = 60,
+
+                }
+            };
+
+            var sasToken = new SasToken("token1", "storageAccount1", "resourcePath1");
+            var updatingSasToken = new UpdatingSasToken(sasToken);
+            var plainSecret = new PlainTextSecret("plainsecret1");
+            host.Secrets[("testsecret", SecretKind.SasToken)] = updatingSasToken;
+            host.Secrets[("realsecretname", SecretKind.PlainText)] = plainSecret;
+
+            var launcher = new DeploymentLauncher(settings, FileSystem, host, host);
+
+            await launcher.StartupAsync(context).ThrowIfFailureAsync();
+            await launcher.GetDownloadAndRunDeployment(context).ShouldBeSuccess();
+
+            // Test the process is launched.
+            (launcher.CurrentRun?.RunningProcess).Should().NotBeNull();
+            launcher.CurrentRun.IsActive.Should().BeTrue();
+            var testProcess1 = (TestProcess)launcher.CurrentRun.RunningProcess;
+            testProcess1.IsRunningService.Should().BeTrue();
+
+            var readSecrets = InterProcessSecretsCommunicator.ReadExposedSecrets(context, interprocSecretsFileName, pollingIntervalInSeconds: 10000);
+
+            readSecrets.Secrets["testsecret"].Should().BeEquivalentTo(updatingSasToken);
+            readSecrets.Secrets["testsecretwithrename"].Should().BeEquivalentTo(plainSecret);
+
+            var newToken = new SasToken("t2", "storageAccount2", "rp2");
+            updatingSasToken.UpdateToken(newToken);
+            readSecrets.Secrets["testsecret"].Should().NotBe(updatingSasToken);
+
+            readSecrets.RefreshSecrets(context);
+            readSecrets.Secrets["testsecret"].Should().BeEquivalentTo(updatingSasToken);
+            readSecrets.Secrets["testsecretwithrename"].Should().BeEquivalentTo(plainSecret);
+
+            await launcher.ShutdownAsync(context).ThrowIfFailureAsync();
+        }
+
         [Fact]
         public async Task TestDeployAndRun()
         {
@@ -106,7 +206,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test
 
             var watchedConfigPath = "config/toolconfig.json";
 
-            var toolConfiguraiton = new ServiceLaunchConfiguration()
+            var toolConfiguration = new ServiceLaunchConfiguration()
             {
                 ServiceId = serviceId,
                 WatchedFiles = new[]
@@ -176,9 +276,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test
                 return JsonSerializer.Deserialize<LauncherManifest>(manifestText);
             };
 
-            var launcher = new DeploymentLauncher(settings,
-                FileSystem,
-                host);
+            var launcher = new DeploymentLauncher(settings, FileSystem, host);
 
             using var cts = new CancellationTokenSource();
             var context = new OperationContext(new Context(Logger), cts.Token);
@@ -193,7 +291,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test
             var testProcess1 = (TestProcess)launcher.CurrentRun.RunningProcess;
             testProcess1.IsRunningService.Should().BeTrue();
 
-            // Verify executable, arguments, enviroment variables
+            // Verify executable, arguments, environment variables
             ReadAllText(testProcess1.StartInfo.FileName).Should().Be(firstRunExecutableContent);
             testProcess1.StartInfo.Arguments.Should().Be("arg1 arg2 \"arg3 with spaces\"");
             testProcess1.StartInfo.Environment["hello"].Should().Be("world");
@@ -244,10 +342,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test
             public string ExtraMember { get; set; } = "This should be ignored";
         }
 
-        public class TestHost : IDeploymentLauncherHost
+        public class TestHost : IDeploymentLauncherHost, ISecretsProvider
         {
             public TestProcess Process { get; set; }
             public TestClient TestClient { get; } = new TestClient();
+
+            public Dictionary<(string, SecretKind), Secret> Secrets = new Dictionary<(string, SecretKind), Secret>();
 
             public ILauncherProcess CreateProcess(ProcessStartInfo info)
             {
@@ -258,6 +358,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test
             public IDeploymentServiceClient CreateServiceClient()
             {
                 return TestClient;
+            }
+
+            public Task<RetrievedSecrets> RetrieveSecretsAsync(List<RetrieveSecretsRequest> requests, CancellationToken token)
+            {
+                return Task.FromResult(new RetrievedSecrets(requests.ToDictionary(r => r.Name, r => Secrets[(r.Name, r.Kind)])));
             }
         }
 

@@ -4,8 +4,10 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -22,8 +24,10 @@ using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore.Internal;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.Host.Configuration;
+using BuildXL.Cache.Host.Service.Internal;
 using BuildXL.Native.IO;
 using BuildXL.Processes;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Utilities.Tasks;
 using static BuildXL.Cache.Host.Configuration.DeploymentManifest;
@@ -83,13 +87,17 @@ namespace BuildXL.Cache.Host.Service
 
         private readonly IDeploymentLauncherHost _host;
 
+        private readonly ISecretsProvider _secretsProvider;
+
         /// <nodoc />
         public DeploymentLauncher(
             LauncherSettings settings,
             IAbsFileSystem fileSystem,
-            IDeploymentLauncherHost host = null)
+            IDeploymentLauncherHost host = null,
+            ISecretsProvider secretsProvider = null)
         {
             Settings = settings;
+            _secretsProvider = secretsProvider;
             var targetDirectory = new AbsolutePath(settings.TargetDirectory);
             DeploymentDirectory = new DisposableDirectory(fileSystem, targetDirectory / "bin");
             _host = host ?? OverrideHost ?? DeploymentLauncherHost.Instance;
@@ -466,6 +474,8 @@ namespace BuildXL.Cache.Host.Service
 
             public AbsolutePath DirectoryPath => Directory.Path;
 
+            private IDisposable _secretsExposer;
+
             protected override Tracer Tracer { get; } = new Tracer(nameof(DeployedTool));
 
             private HashSet<string> WatchedFiles { get; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -554,7 +564,12 @@ namespace BuildXL.Cache.Host.Service
                         {
                             if (_runningProcess == null)
                             {
-                                var executablePath = (Directory.Path / tool.Executable).Path;
+                                var executablePath = ExpandTokens(tool.Executable);
+                                if (!Path.IsPathRooted(executablePath))
+                                {
+                                    executablePath = (Directory.Path / executablePath).Path;
+                                }
+
                                 if (!File.Exists(executablePath))
                                 {
                                     return new BoolResult($"Executable '{executablePath}' does not exist.");
@@ -565,12 +580,32 @@ namespace BuildXL.Cache.Host.Service
                                     return new BoolResult($"Executable permissions could not be set on '{executablePath}'.");
                                 }
 
+                                var arguments = tool.Arguments.Select(arg => QuoteArgumentIfNecessary(ExpandTokens(arg))).ToList();
+
+                                if (tool.UseInterProcSecretsCommunication)
+                                {
+                                    Contract.Requires(Launcher._secretsProvider != null, "Secrets provider must be specified when using inter-process secrets communication.");
+
+                                    var secretsVariables = tool.SecretEnvironmentVariables.ToList();
+                                    var secretRequests = secretsVariables.SelectList(s => (key: s.Key, request: CreateSecretsRequest(s.Key, s.Value)));
+
+                                    var secretsResult = await Launcher._secretsProvider.RetrieveSecretsAsync(secretRequests.Select(r => r.request).ToList(), context.Token);
+
+                                    // Secrets may be renamed, so recreate with configured names
+                                    secretsResult = secretsResult with
+                                    {
+                                        Secrets = secretRequests.ToDictionarySafe(r => r.key, r => secretsResult.Secrets[r.request.Name])
+                                    };
+
+                                    _secretsExposer = InterProcessSecretsCommunicator.Expose(context, secretsResult, tool.InterprocessSecretsFileName);
+                                }
+
                                 var process = Launcher._host.CreateProcess(
                                     new ProcessStartInfo()
                                     {
                                         UseShellExecute = false,
                                         FileName = executablePath,
-                                        Arguments = string.Join(" ", tool.Arguments.Select(arg => QuoteArgumentIfNecessary(ExpandTokens(arg)))),
+                                        Arguments = string.Join(" ", arguments),
                                         Environment =
                                         {
                                             // Launcher hashes the configuration file and computes the ConfigurationId properly manually
@@ -595,14 +630,21 @@ namespace BuildXL.Cache.Host.Service
                     extraEndMessage: r => $"ProcessId={processId ?? -1}, ServiceId={tool.ServiceId}");
             }
 
+            private RetrieveSecretsRequest CreateSecretsRequest(string key, SecretConfiguration value)
+            {
+                return new RetrieveSecretsRequest(value.Name ?? key, value.Kind);
+            }
+
             public static string QuoteArgumentIfNecessary(string arg)
             {
-                return arg.Contains(" ") ? $"\"{arg}\"" : arg;
+                return arg.Contains(' ') ? $"\"{arg}\"" : arg;
             }
 
             public string ExpandTokens(string value)
             {
                 value = ExpandToken(value, "ServiceDir", DirectoryPath.Path);
+                value = ExpandToken(value, "LauncherHostDir", Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location));
+                value = Environment.ExpandEnvironmentVariables(value);
                 return value;
             }
 
@@ -636,6 +678,8 @@ namespace BuildXL.Cache.Host.Service
                     }
                     finally
                     {
+                        _secretsExposer?.Dispose();
+
                         await PinRequest.PinContext.DisposeAsync();
 
                         Directory.Dispose();

@@ -80,7 +80,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             RetryPolicy = StandardRetryPolicy.ExponentialSpread,
             MinimumRetryWindow = TimeSpan.FromMilliseconds(1),
-            MaximumRetryWindow = TimeSpan.FromSeconds(30),
+            MaximumRetryWindow = TimeSpan.FromSeconds(15),
             WindowJitter = 1.0,
         };
 

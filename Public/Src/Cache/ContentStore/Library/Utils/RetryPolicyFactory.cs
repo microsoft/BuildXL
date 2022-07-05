@@ -45,6 +45,7 @@ namespace BuildXL.Cache.ContentStore.Utils
         /// <nodoc />
         public TimeSpan Compute(int retry)
         {
+            retry = Math.Min(retry, 32);
             // Formula copied from TransientFaultHandling
             var wndFactor = _configuration.WindowJitter / 2;
             var startWindowMs = (1.0 - wndFactor) * ((TimeSpan)_configuration.ExponentialBackoffDelta).TotalMilliseconds;
@@ -78,8 +79,10 @@ namespace BuildXL.Cache.ContentStore.Utils
         /// <nodoc />
         public TimeSpan Compute(int retry)
         {
-            var waitTime = TimeSpan.FromMilliseconds((Math.Pow(2.0, retry) - 1) * ThreadSafeRandom.ContinuousUniform(0, _configuration.WindowJitter));
-            return TimeSpanUtilities.Min(_configuration.MaximumRetryWindow, _configuration.MinimumRetryWindow + waitTime);
+            retry = Math.Min(retry, 32);
+            var waitTime = TimeSpan.FromMilliseconds(Math.Pow(2.0, retry) - 1);
+            var cappedWaitTime = TimeSpanUtilities.Min(_configuration.MaximumRetryWindow.Value - _configuration.MinimumRetryWindow.Value, waitTime);
+            return _configuration.MinimumRetryWindow + TimeSpan.FromTicks((long)(ThreadSafeRandom.ContinuousUniform(0, 1) * cappedWaitTime.Ticks));
         }
     }
 

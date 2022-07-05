@@ -115,8 +115,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
             }, elideStartup: true);
         }
 
-        [InlineData(10, 10, 60)] // This typically takes <30s
-        [InlineData(1024, 1, 180)] // This typically takes <1m
+        [Theory(Skip = "This is used for manual verification, because running these tests takes long, is random, and we don't want to have a flaky test")]
+        [InlineData(10, 10, 60)]
+        [InlineData(1024, 1, 180)] // Usually ~1.5m
+        [InlineData(2048, 1, 1000)] // Usually ~3m
         public Task ConcurrentReadModifyWriteEventuallyFinishes(int numTasks, int numIncrementsPerTask, double maxDurationSeconds)
         {
             var maxTestDuration = TimeSpan.FromSeconds(maxDurationSeconds);
@@ -165,7 +167,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
                 // Ensure time taken is what we expected it to be
                 elapsed.Should().BeLessOrEqualTo(maxTestDuration);
             },
-            timeout: maxTestDuration);
+            timeout: maxTestDuration,
+            configuration: new BlobFolderStorageConfiguration() {
+                RetryPolicy = new RetryPolicyConfiguration()
+                {
+                    RetryPolicy = StandardRetryPolicy.ExponentialSpread,
+                    MinimumRetryWindow = TimeSpan.FromMilliseconds(1),
+                    MaximumRetryWindow = TimeSpan.FromSeconds(5),
+                    WindowJitter = 1.0,
+                },
+            });
         }
 
         private Task RunTest(Func<OperationContext, BlobFolderStorage, IClock, Task> runTest, IClock? clock = null, BlobFolderStorageConfiguration? configuration = null, bool elideStartup = false, TimeSpan? timeout = null, [CallerMemberName] string? caller = null)

@@ -203,10 +203,10 @@ namespace BuildXL
             if (ex != null)
             {
                 StackTrace st = new StackTrace(ex, false);
-                StackFrame frame = st.GetFrames()[0];
-                if (frame != null)
+                StackFrame[] frames = st.GetFrames();
+                if (frames.Length > 0 && frames[0] != null)
                 {
-                    offset = frame.GetILOffset().ToString(CultureInfo.InvariantCulture);
+                    offset = frames[0].GetILOffset().ToString(CultureInfo.InvariantCulture);
                 }
 
                 var targetSite = ex.TargetSite;

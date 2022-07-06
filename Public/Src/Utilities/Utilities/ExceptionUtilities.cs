@@ -267,7 +267,8 @@ namespace BuildXL.Utilities
             const int PipeNotConnectedFault = unchecked((int)0x800700E9);
             const int NotEnoughStorage = unchecked((int)0x8);
             const int IncorrectFunction = unchecked((int)0x00000001);
-
+            const int ConnectionReset = unchecked((int)0x80072746);
+ 
             var buildXLException = ex as BuildXLException;
             if (buildXLException != null)
             {
@@ -338,6 +339,11 @@ namespace BuildXL.Utilities
                 {
                     return ExceptionRootCause.ConsoleNotConnected;
                 }
+            }
+
+            if (exHResult == ConnectionReset)
+            {
+                return ExceptionRootCause.NetworkException;
             }
 
             var aggregateException = ex as AggregateException;

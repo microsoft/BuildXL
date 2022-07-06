@@ -645,6 +645,16 @@ namespace BuildXL
                 unobservedTaskHandler =
                     (sender, eventArgs) =>
                     {
+                        // GRPC tends to leave unobserved task exceptions in its normal operation. Eat those.
+                        if (eventArgs.Exception != null)
+                        {
+                            ExceptionRootCause rootCause = ExceptionUtilities.AnalyzeExceptionRootCause(eventArgs.Exception);
+                            if (rootCause == ExceptionRootCause.NetworkException)
+                            {
+                                return;
+                            }
+                        }
+
                         HandleUnhandledFailure(
                             eventArgs.Exception,
                             appLoggers,

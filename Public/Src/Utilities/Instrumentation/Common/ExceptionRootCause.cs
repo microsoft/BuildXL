@@ -66,5 +66,10 @@ namespace BuildXL.Utilities
         /// I/O failure due to a generic device access error
         /// </summary>
         DeviceAccessError,
+
+        /// <summary>
+        /// Various network exceptions
+        /// </summary>
+        NetworkException,
     }
 }

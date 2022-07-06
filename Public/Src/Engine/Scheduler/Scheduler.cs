@@ -528,10 +528,15 @@ namespace BuildXL.Scheduler
         private PluginManager m_pluginManager;
 
         /// <summary>
-        /// Tracker for drop pips.
+        /// Tracker for service pips.
         /// </summary>
         [CanBeNull]
         private readonly ServicePipTracker m_servicePipTracker;
+
+        /// <summary>
+        /// PipIds of all service pips in a graph.
+        /// </summary>
+        private readonly IReadOnlyList<PipId> m_servicePipIds;
 
         /// <summary>
         /// Pip table holding all known pips.
@@ -548,7 +553,7 @@ namespace BuildXL.Scheduler
         private volatile bool m_scheduleTerminating;
 
         /// <summary>
-        /// Number of pips that ran and exited with sucess fast set, and thus their downstreams were skipped.
+        /// Number of pips that ran and exited with success fast set, and thus their downstreams were skipped.
         /// </summary>
         /// <remarks>
         /// It is volatile because all threads accessing this variable should read latest values.
@@ -1266,6 +1271,7 @@ namespace BuildXL.Scheduler
             m_schedulerCancellationTokenSource = new CancellationTokenSource();
 
             m_testHooks = testHooks;
+            m_servicePipIds = new List<PipId>(graph.GetServicePipIds());
             m_servicePipTracker = new ServicePipTracker(context);
             m_serviceManager = new SchedulerServiceManager(graph, context, m_servicePipTracker, m_testHooks);
             m_pipFragmentRenderer = this.CreatePipFragmentRenderer();
@@ -2276,6 +2282,7 @@ namespace BuildXL.Scheduler
                 { "ResourceManager_LastRequiredSize", data => State.ResourceManager.LastRequiredSizeMb},
                 { "ResourceManager_LastManageMemoryMode", data => State.ResourceManager.LastManageMemoryMode?.ToString() ?? ""},
                 { "ResourceManager_NumSuspended", data => State.ResourceManager.NumSuspended},
+                { "ResourceManager_ServicePipsTotalUsedWorkingSet", data => State.ResourceManager.GetPipsCurrentUsedWorkingSet(m_servicePipIds) },
                 {
                     EnumTraits<PipState>.EnumerateValues(), (rows, state) =>
                     {
@@ -2305,6 +2312,7 @@ namespace BuildXL.Scheduler
                 { "Running Process Locally", data => data.RunningLocallyPipExecutorProcesses },
                 { "Total Run Process Remotely", data => data.TotalRunRemotelyProcesses },
                 { "Total Run Process Locally", data => data.TotalRunLocallyProcesses },
+                { "Running service pips", data => m_serviceManager.RunningServicesCount },
                 { "PipTable.ReadCount", data => m_pipTable.Reads },
                 { "PipTable.ReadDurationMs", data => m_pipTable.ReadsMilliseconds },
                 { "PipTable.WriteCount", data => m_pipTable.Writes },

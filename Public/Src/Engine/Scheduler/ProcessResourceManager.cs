@@ -369,6 +369,25 @@ namespace BuildXL.Scheduler
             RemoveScope(pipId);
         }
 
+        internal long GetPipsCurrentUsedWorkingSet(IReadOnlyList<PipId> pips)
+        {
+            lock (m_syncLock)
+            {
+                // Memory counters are already regularly refreshed. While the value computed here
+                // might not be the current one, it's at most 'refresh interval' old.
+                long usedWorkingSet = 0;
+                foreach (PipId pipId in pips)
+                {
+                    if (m_pipResourceScopes.TryGetValue(pipId, out var scope))
+                    {
+                        usedWorkingSet += scope.MemoryCounters.LastWorkingSetMb;
+                    }
+                }
+
+                return usedWorkingSet;
+            }
+        }
+
         /// <summary>
         /// Delegate for executing a pip only when resources are available and allowing the pip to be cancelled
         /// if resource thresholds are exceeded. Further, the pip should register a

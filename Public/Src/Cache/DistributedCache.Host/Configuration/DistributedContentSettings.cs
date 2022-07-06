@@ -1176,6 +1176,9 @@ namespace BuildXL.Cache.Host.Configuration
         public string ContentMetadataBlobCheckpointRegistryContainerName { get; set; } = "contentmetadata";
 
         [DataMember]
+        public TimeSpanSetting ContentMetadataMaxWriteAheadInterval { get; set; } = TimeSpan.Zero;
+
+        [DataMember]
         public TimeSpanSetting ContentMetadataPersistInterval { get; set; } = TimeSpan.FromSeconds(5);
 
         [DataMember]

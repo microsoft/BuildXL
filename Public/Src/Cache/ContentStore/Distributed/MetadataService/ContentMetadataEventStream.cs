@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Threading;
@@ -26,6 +27,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     public record ContentMetadataEventStreamConfiguration
     {
         public TimeSpan LogBlockRefreshInterval { get; set; } = TimeSpan.FromSeconds(1);
+
+        /// <summary>
+        /// The maximum frequency to write write-ahead events to storage
+        /// </summary>
+        public TimeSpan MaxWriteAheadInterval { get; set; } = TimeSpan.Zero;
 
         public bool BatchWriteAheadWrites { get; set; } = true;
 
@@ -289,6 +295,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             using var cancelContext = context.WithCancellationToken(block.WriteAheadCommitCancellation.Token);
             context = cancelContext;
 
+            var sw = Stopwatch.StartNew();
+
             LogEvent writeAheadCommit = new LogEvent();
             var reader = block.Events.Reader;
             while (await reader.WaitToReadAsync(context.Token))
@@ -317,6 +325,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 {
                     completion.Completion.TrySetResult(true);
                 }
+
+                var elapsedTimeSinceLastWrite = sw.Elapsed;
+                var waitTime = _configuration.MaxWriteAheadInterval - elapsedTimeSinceLastWrite;
+                if (waitTime > TimeSpan.Zero)
+                {
+                    await Task.Delay(waitTime, context.Token);
+                }
+
+                sw.Restart();
             }
         }
 

@@ -178,7 +178,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
                 {
                     BatchWriteAheadWrites = DistributedContentSettings.ContentMetadataBatchVolatileWrites,
                     ShutdownTimeout = DistributedContentSettings.ContentMetadataShutdownTimeout,
-                    LogBlockRefreshInterval = DistributedContentSettings.ContentMetadataPersistInterval
+                    LogBlockRefreshInterval = DistributedContentSettings.ContentMetadataPersistInterval,
+                    MaxWriteAheadInterval = DistributedContentSettings.ContentMetadataMaxWriteAheadInterval
                 },
                 Checkpoint = RedisContentLocationStoreConfiguration.Checkpoint with
                 {

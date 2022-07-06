@@ -27,7 +27,7 @@ if [%2] NEQ [] GOTO :usage
 
 setlocal EnableDelayedExpansion
 rem We will copy everything to the cmaketools folder
-set "OUT=%~df1\Out\Bin\debug\net472\tools\CMakeNinjaPipEnvironment"
+set "OUT=%~df1\Out\Bin\debug\net472"
 
 IF DEFINED __SKIP_CONFIRMATION GOTO :confirmed
 

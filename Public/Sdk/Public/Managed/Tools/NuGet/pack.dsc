@@ -27,6 +27,9 @@ export interface Arguments extends Transformer.RunnerArguments {
     /** Deployed files. */
     deployment?: Deployment.Definition;
 
+    /** File names to exclude from the NuGet package */
+    filterFiles?: PathAtom[];
+
     /** Options to use during the deployment. i.e. to not deploy the pdb or xml docs */
     deploymentOptions?: Managed.Deployment.FlattenOptions,
 
@@ -130,7 +133,7 @@ export function pack(args: Arguments): PackResult {
     const nupkgPath = p`${outDir}/${packName + ".nupkg"}`;
 
     // Due to nuspec file not supporting renaming files, we have to compute the dependencies on the fly since we need to copy renames to a temp location with the same name.
-    const nuspecData = createNuSpecFile(args.metadata, args.deployment, nuspecPath, args.deploymentOptions);
+    const nuspecData = createNuSpecFile(args.metadata, args.deployment, nuspecPath, args.deploymentOptions, args.filterFiles);
 
     const arguments: Argument[] = [
         Cmd.argument("pack"),
@@ -174,7 +177,8 @@ function createNuSpecFile(
     metaData: PackageMetadata, 
     deployment: Deployment.Definition, 
     nuSpecOutput: Path,
-    deploymentOptions: Managed.Deployment.FlattenOptions) : { nuspec: File, dependencies: (File|OpaqueDirectory)[] } {
+    deploymentOptions: Managed.Deployment.FlattenOptions,
+    filterFiles?: PathAtom[]) : { nuspec: File, dependencies: (File|OpaqueDirectory)[] } {
 
     let optionalElement = (element:string, value: string) => String.isUndefinedOrEmpty(value)
         ? undefined
@@ -190,6 +194,12 @@ function createNuSpecFile(
     {
         const target = flattenedFile[0];
         let source = flattenedFile[1].file;
+
+        // Skip the file if it is part of the files to filter
+        if (filterFiles && filterFiles.indexOf(source.name) !== -1)
+        {
+            continue;
+        }
 
         if (target.name !== source.path.name) {
             // NuGet.exe does not like if target name is different from the source name.

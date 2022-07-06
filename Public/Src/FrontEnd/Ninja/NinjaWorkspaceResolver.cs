@@ -53,7 +53,7 @@ namespace BuildXL.FrontEnd.Ninja
         /// <summary>
         /// Keep in sync with the BuildXL deployment spec that places the tool (\Public\Src\Deployment\buildXL.dsc)
         /// </summary>
-        private const string NinjaGraphBuilderRelativePath = @"tools\CMakeNinja\NinjaGraphBuilder.exe";
+        private const string NinjaGraphBuilderRelativePath = @"NinjaGraphBuilder.exe";
 
         /// <inheritdoc/>
         public NinjaWorkspaceResolver()

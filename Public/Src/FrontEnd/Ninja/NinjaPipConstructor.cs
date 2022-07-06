@@ -76,8 +76,7 @@ namespace BuildXL.FrontEnd.Ninja
             m_settings = settings;
             m_pipConstructionHelper = GetPipConstructionHelperForModule(m_projectRoot, moduleDefinition, qualifierId);
             m_frontEndName = frontEndName;
-            m_manuallyDroppedDependenciesPath = m_frontEndHost.Configuration.Layout.BuildEngineDirectory
-                                                    .Combine(m_context.PathTable, RelativePath.Create(m_context.StringTable, @"tools\CMakeNinjaPipEnvironment"));
+            m_manuallyDroppedDependenciesPath = m_frontEndHost.Configuration.Layout.BuildEngineDirectory;
 
 
             PrepareEnvironment(settings.UserDefinedEnvironment, settings.UserDefinedPassthroughVariables, out m_userDefinedEnvironment, out m_userDefinedPassthroughVariables);

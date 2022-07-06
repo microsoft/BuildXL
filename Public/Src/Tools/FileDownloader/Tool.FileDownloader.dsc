@@ -32,9 +32,6 @@ namespace FileDownloader {
             importFrom("Newtonsoft.Json").pkg,
             importFrom("BuildXL.Cache.ContentStore").Hashing.dll,
         ],
-        runtimeContent: [
-            f`App.config`,
-        ],
     });
 
     @@public
@@ -54,15 +51,9 @@ namespace FileDownloader {
             importFrom("BuildXL.Cache.ContentStore").Hashing.dll,
             importFrom("SharpZipLib").pkg,
         ],
-        runtimeContent: [
-            f`App.config`,
-        ],
     });
 
     @@public export const deployment : Deployment.Definition = {
-        contents: [{
-            subfolder: r`tools/FileDownloader`,
-            contents: [downloader, extractor]
-        }]
+        contents: [downloader, extractor]
     };
 }

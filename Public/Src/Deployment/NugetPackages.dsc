@@ -57,7 +57,10 @@ namespace NugetPackages {
             targetFramework: defaultTargetFramework,
             targetRuntime: "win-x64"
         }).deployment,
-        deploymentOptions: reducedDeploymentOptions
+        deploymentOptions: reducedDeploymentOptions,
+        // The following PDBs are quite big and copied many times. Remove them from the nuget
+        // package to save some space.
+        filterFiles: [a`DetoursServices.pdb`, a`BuildXLAria.pdb`, a`BuildXLNatives.pdb`]
     });
 
     const osxX64 = pack({
@@ -442,7 +445,8 @@ namespace NugetPackages {
         deployment: Deployment.Definition,
         deploymentOptions?: Managed.Deployment.FlattenOptions,
         copyContentFiles?: boolean,
-        dependencies?: (Nuget.Dependency | Managed.ManagedNugetPackage)[]
+        dependencies?: (Nuget.Dependency | Managed.ManagedNugetPackage)[],
+        filterFiles?: PathAtom[]
     }) : File {
 
         const dependencies : Nuget.Dependency[] = (args.dependencies || [])
@@ -460,6 +464,7 @@ namespace NugetPackages {
             deploymentOptions: args.deploymentOptions,
             noPackageAnalysis: true,
             noDefaultExcludes: true,
+            filterFiles: args.filterFiles,
         }).nuPkg;
     }
 

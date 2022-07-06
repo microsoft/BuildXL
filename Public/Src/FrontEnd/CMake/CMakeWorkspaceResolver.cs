@@ -60,7 +60,7 @@ namespace BuildXL.FrontEnd.CMake
         /// <summary>
         /// Keep in sync with the BuildXL deployment spec that places the tool (\Public\Src\Deployment\buildXL.dsc)
         /// </summary>
-        private const string CMakeRunnerRelativePath = @"tools\CMakeNinja\CMakeRunner.exe";
+        private const string CMakeRunnerRelativePath = @"CMakeRunner.exe";
         private AbsolutePath m_pathToTool;
 
         internal readonly NinjaWorkspaceResolver EmbeddedNinjaWorkspaceResolver;
@@ -222,7 +222,7 @@ namespace BuildXL.FrontEnd.CMake
             var environment = FrontEndUtilities.GetEngineEnvironment(m_host.Engine, CMakeResolverName);
 
             // TODO: This manual configuration is temporary. Remove after the cloud builders have the correct configuration
-            var pathToManuallyDroppedTools = m_configuration.Layout.BuildEngineDirectory.Combine(m_context.PathTable, RelativePath.Create(m_context.StringTable, @"tools\CmakeNinjaPipEnvironment"));
+            var pathToManuallyDroppedTools = m_configuration.Layout.BuildEngineDirectory;
             if (FileUtilities.Exists(pathToManuallyDroppedTools.ToString(m_context.PathTable)))
             {
                 environment = SpecialCloudConfiguration.OverrideEnvironmentForCloud(environment, pathToManuallyDroppedTools, m_context);
@@ -276,7 +276,7 @@ namespace BuildXL.FrontEnd.CMake
             // TODO: This manual configuration is temporary. Remove after the cloud builders have the correct configuration
             var pathTable = m_context.PathTable;
             IReadOnlyList<AbsolutePath> cmakeSearchLocations = m_resolverSettings.CMakeSearchLocations?.SelectList(directoryLocation => directoryLocation.Path);
-            var pathToManuallyDroppedTools = m_configuration.Layout.BuildEngineDirectory.Combine(pathTable, RelativePath.Create(m_context.StringTable, @"tools\CmakeNinjaPipEnvironment"));
+            var pathToManuallyDroppedTools = m_configuration.Layout.BuildEngineDirectory;
             if (FileUtilities.Exists(pathToManuallyDroppedTools.ToString(pathTable)))
             {
                 var cloudCmakeSearchLocations = new[] { pathToManuallyDroppedTools.Combine(pathTable, "cmake").Combine(pathTable, "bin") };

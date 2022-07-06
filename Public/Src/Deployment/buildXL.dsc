@@ -31,19 +31,11 @@ namespace BuildXL {
             ]),
 
             // tools
-            ...addIfLazy(qualifier.targetRuntime === "win-x64", () => [{
-                subfolder: r`tools`,
-                contents: [
-                    {
-                        subfolder: r`CMakeNinja`,
-                        contents: [
-                            importFrom("BuildXL.Tools").CMakeRunner.exe,
-                            importFrom("BuildXL.Tools").NinjaGraphBuilder.exe,
-                            importFrom("BuildXL.Tools.Ninjson").pkg.contents
-                        ]
-                    },
-                ]
-            }])
+            ...addIfLazy(qualifier.targetRuntime === "win-x64", () => [
+                importFrom("BuildXL.Tools").CMakeRunner.exe,
+                importFrom("BuildXL.Tools").NinjaGraphBuilder.exe,
+                importFrom("BuildXL.Tools.Ninjson").pkg.contents
+            ])
         ]
     };
 

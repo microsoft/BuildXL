@@ -42,18 +42,8 @@ namespace Test.Ninja {
             importFrom("BuildXL.Pips").dll,
         ],
         runtimeContent: [
-            {
-                subfolder: a`tools`,
-                contents: [
-                    {
-                        subfolder: a`CMakeNinja`,
-                        contents: [
-                            importFrom("BuildXL.Tools").NinjaGraphBuilder.exe,
-                            importFrom("BuildXL.Tools.Ninjson").pkg.contents 
-                        ]
-                    }
-                ]
-            }
+            importFrom("BuildXL.Tools").NinjaGraphBuilder.exe,
+            importFrom("BuildXL.Tools.Ninjson").pkg.contents 
         ]
     });
 }

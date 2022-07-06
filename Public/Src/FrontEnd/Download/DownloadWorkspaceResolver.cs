@@ -261,8 +261,8 @@ namespace BuildXL.FrontEnd.Download
 
             // CODESYNC: keep in sync with Public\Src\Tools\FileDownloader\Tool.FileDownloader.dsc deployment
             AbsolutePath toolRootPath = m_host.Configuration.Layout.NormalizedBuildEngineDirectory.IsValid ? m_host.Configuration.Layout.NormalizedBuildEngineDirectory : m_host.Configuration.Layout.BuildEngineDirectory;
-            var pathToDownloader = toolRootPath.Combine(m_context.PathTable, RelativePath.Create(m_context.StringTable, "/tools/FileDownloader/Downloader" + exeExtension));
-            var pathToExtractor = toolRootPath.Combine(m_context.PathTable, RelativePath.Create(m_context.StringTable, "/tools/FileDownloader/Extractor" + exeExtension));
+            var pathToDownloader = toolRootPath.Combine(m_context.PathTable, RelativePath.Create(m_context.StringTable, "Downloader" + exeExtension));
+            var pathToExtractor = toolRootPath.Combine(m_context.PathTable, RelativePath.Create(m_context.StringTable, "Extractor" + exeExtension));
 
             // Create a spec file that schedules two pips: a download one followed by an extract one. The latter only if extraction is specified
             // CODESYNC: tools arguments and behavior defined in Public\Src\Tools\FileDownloader\Downloader.cs and \Public\Src\Tools\FileDownloader\Extractor.cs

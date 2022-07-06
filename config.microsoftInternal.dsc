@@ -79,12 +79,11 @@ export const pkgs = isMicrosoftInternal ? [
     { id: "Microsoft.SBOMCore", version: sbomApiVersion, dependentPackageIdsToSkip: ["Microsoft.Extensions.Logging.Abstractions"] },
     { id: "Microsoft.Parsers.ManifestGenerator", version: sbomApiVersion, dependentPackageIdsToSkip: ["Newtonsoft.Json"]},
     { id: "Microsoft.Parsers.SPDX22SBOMParser", version: sbomApiVersion },
-    { id: "Microsoft.SBOM.Adapters", version: sbomApiVersion, dependentPackageIdsToSkip : ["Newtonsoft.Json"] },
-    { id: "Microsoft.ComponentDetection.Contracts", version: "1.0.8", dependentPackageIdsToSkip: ["Newtonsoft.Json"] },
+    { id: "Microsoft.SBOM.Adapters", version: sbomApiVersion, dependentPackageIdsToSkip : ["Newtonsoft.Json", "PackageUrl"] },
+    { id: "Microsoft.ComponentDetection.Contracts", version: "1.2.3", dependentPackageIdsToSkip: ["Newtonsoft.Json"] },
     { id: "Microsoft.ManifestInterface", version: sbomApiVersion, dependentPackageIdsToSkip: ["System.Text.Json"] },
     { id: "Microsoft.Sbom.Contracts", version: sbomApiVersion },
     { id: "Microsoft.Bcl.HashCode", version: "1.1.1" },
-    { id: "Microsoft.VisualStudio.Services.Governance.ComponentDetection.Contracts", version: "0.2010.80" },
 
     // Process remoting
     { id: "AnyBuild.SDK", version: "0.1.14" },

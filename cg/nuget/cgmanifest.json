@@ -1365,7 +1365,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.ComponentDetection.Contracts",
-          "Version": "1.0.8"
+          "Version": "1.2.3"
         }
       }
     },
@@ -2356,15 +2356,6 @@
         "NuGet": {
           "Name": "Microsoft.VisualStudio.Services.Client",
           "Version": "16.199.0-internal202201091"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.VisualStudio.Services.Governance.ComponentDetection.Contracts",
-          "Version": "0.2010.80"
         }
       }
     },
@@ -4525,6 +4516,15 @@
         "NuGet": {
           "Name": "boost",
           "Version": "1.71.0.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "packageurl-dotnet",
+          "Version": "1.0.0"
         }
       }
     },

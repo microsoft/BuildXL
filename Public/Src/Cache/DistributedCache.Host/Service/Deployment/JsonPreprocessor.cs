@@ -64,6 +64,8 @@ namespace BuildXL.Cache.Host.Service
             foreach (var constraintDefinition in constraintDefinitions)
             {
                 _constraintsByName[constraintDefinition.Name] = constraintDefinition;
+                var hasValueDefinition = new ConstraintDefinition(constraintDefinition.Name + ".HasValue", new[] { bool.TrueString });
+                _constraintsByName[hasValueDefinition.Name] = hasValueDefinition;
             }
 
             foreach (var entry in replacementMacros)
@@ -239,12 +241,13 @@ namespace BuildXL.Cache.Host.Service
         /// </summary>
         private class Constraint
         {
-            public static readonly string RegexPattern = @"\[(?<negation>!)?(?<constraintName>\w+):(?<candidates>[!\.\w\|]*)\]";
+            public static readonly string RegexPattern = @"\[(?<negation>!)?(?<constraintName>[\.\w]+)(?<comparer>[\:\<\>])(?<candidates>[!\.\-\w\|]*)\]";
             private static readonly char[] ConstraintCandidateSeparator = new[] { '|' };
             private static Regex ConstraintRegex { get; } = new Regex($@"^{RegexPattern}$");
 
             public bool Negated { get; }
             public string Name { get; }
+            public char Comparer { get; }
             public ConstraintCandidate[] Candidates { get; }
 
             public Constraint(string constraintSpecifier)
@@ -252,6 +255,7 @@ namespace BuildXL.Cache.Host.Service
                 var match = ConstraintRegex.Match(constraintSpecifier);
                 Name = match.Groups["constraintName"].Value;
                 Negated = match.Groups["negation"].Success;
+                Comparer = match.Groups["comparer"].Value[0];
                 Candidates = match.Groups["candidates"].Value
                     .Split(ConstraintCandidateSeparator)
                     .Select(c => new ConstraintCandidate(c))
@@ -263,7 +267,7 @@ namespace BuildXL.Cache.Host.Service
                 bool isMatch = false;
                 foreach (var candidate in Candidates)
                 {
-                    isMatch |= candidate.Match(definition.AcceptableValues);
+                    isMatch |= candidate.Match(definition.AcceptableValues, Comparer);
                 }
 
                 if (Negated)
@@ -291,11 +295,11 @@ namespace BuildXL.Cache.Host.Service
                 Value = candidateSpecifier.Substring(Negated ? 1 : 0);
             }
 
-            public bool Match(IEnumerable<string> values)
+            public bool Match(IEnumerable<string> values, char comparer)
             {
                 foreach (var value in values)
                 {
-                    if (ValueMatch(value))
+                    if (ValueMatch(value, comparer))
                     {
                         return !Negated;
                     }
@@ -306,16 +310,17 @@ namespace BuildXL.Cache.Host.Service
                 return Negated;
             }
 
-            public bool Match(string value)
+            public bool ValueMatch(string value, char comparer)
             {
-                var valueMatches = string.Equals(Value, value, StringComparison.OrdinalIgnoreCase);
-                return Negated ? !valueMatches : valueMatches;
-            }
-
-            public bool ValueMatch(string value)
-            {
-                var valueMatches = string.Equals(Value, value, StringComparison.OrdinalIgnoreCase);
-                return valueMatches;
+                switch (comparer)
+                {
+                    case '>':
+                        return StringComparer.OrdinalIgnoreCase.Compare(value, Value) > 0;
+                    case '<':
+                        return StringComparer.OrdinalIgnoreCase.Compare(value, Value) < 0;
+                    default:
+                        return string.Equals(Value, value, StringComparison.OrdinalIgnoreCase);
+                }
             }
         }
 

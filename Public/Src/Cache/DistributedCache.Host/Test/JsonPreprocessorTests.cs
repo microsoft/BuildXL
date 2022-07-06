@@ -8,6 +8,7 @@ using System.Runtime.Serialization;
 using System.Text.Json;
 using BuildXL.Cache.ContentStore.Distributed.Redis;
 using BuildXL.Cache.ContentStore.Distributed.Utilities;
+using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.Host.Configuration;
 using BuildXL.Cache.Host.Service;
 using FluentAssertions;
@@ -339,6 +340,71 @@ namespace BuildXL.Cache.Host.Test
         }
 
         [Fact]
+        public void ComparisonConstraints()
+        {
+            var currentTime = DateTime.UtcNow;
+
+            var greaterTime = (currentTime + TimeSpan.FromSeconds(20)).ToReadableString();
+            var lesserTime = (currentTime - TimeSpan.FromSeconds(20)).ToReadableString();
+            var template = ("{" + $@"
+            'PropA' : 'Unexpected',
+            'PropA [ UtcNow > {lesserTime} ]': 'Expected',
+            'PropB' : 'Unexpected',
+            'PropB [ UtcNow < {greaterTime} ]': 'Expected',
+            'PropC' : 'Expected',
+            'PropC [ UtcNow > {greaterTime} ]': 'Unexpected',
+            'PropD' : 'Expected',
+            'PropD [ UtcNow < {lesserTime} ]': 'Unexpected',
+            'PropE' : 'Unexpected',
+            'PropE [ ServiceVersion < 0.1.0-20220624 ]': 'Expected',
+            'PropF' : 'Unexpected',
+            'PropF [ ServiceVersion > 0.1.0-20220621 ]': 'Expected',
+            " + "}").Replace('\'', '"');
+
+            var preProc = DeploymentUtilities.GetHostJsonPreprocessor(new HostParameters()
+            {
+                UtcNow = currentTime,
+                ServiceVersion = "0.1.0-20220623.1025.user",
+            });
+
+            var config = PreprocessAndDeserialize<JsonObject>(template, preProc);
+
+            foreach (var prop in config.Element.EnumerateObject())
+            {
+                var value = config[prop.Name];
+                ((string)value).Should().Be("Expected", $"Property {value.Name} should have value 'Expected'");
+            }
+        }
+
+        [Fact]
+        public void HasValueConstraint()
+        {
+            var currentTime = DateTime.UtcNow;
+
+            var template = ("{" + $@"
+            'PropA' : 'Unexpected',
+            'PropA [ Stamp.HasValue:true ]': '{{Stamp}}',
+            'PropB' : 'Expected',
+            'PropB [ Ring.HasValue:True ]': 'Unexpected',
+            'PropC' : 'Unexpected',
+            'PropC [ !Ring.HasValue:True ]': 'Expected',
+            " + "}").Replace('\'', '"');
+
+            var preProc = DeploymentUtilities.GetHostJsonPreprocessor(new HostParameters()
+            {
+                Stamp = "Expected",
+            });
+
+            var config = PreprocessAndDeserialize<JsonObject>(template, preProc);
+
+            foreach (var prop in config.Element.EnumerateObject())
+            {
+                var value = config[prop.Name];
+                ((string)value).Should().Be("Expected", $"Property {value.Name} should have value 'Expected'");
+            }
+        }
+
+        [Fact]
         public void ConstraintsAreTrimmedWithOr()
         {
             var template = @"
@@ -430,11 +496,11 @@ namespace BuildXL.Cache.Host.Test
             return new JsonObject(document.RootElement);
         }
 
-        private readonly record struct JsonObject(JsonElement Element)
+        private readonly record struct JsonObject(JsonElement Element, string Name = null)
         {
             public JsonObject this[string name]
                 => Element.TryGetProperty(name, out var property)
-                ? new JsonObject(property)
+                ? new JsonObject(property, name)
                 : default;
 
             public static implicit operator int(JsonObject obj)

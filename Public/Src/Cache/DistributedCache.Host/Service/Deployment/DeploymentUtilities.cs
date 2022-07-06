@@ -15,6 +15,7 @@ using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
+using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.Host.Configuration;
 using BuildXL.Utilities.Collections;
 using static BuildXL.Cache.Host.Configuration.DeploymentManifest;
@@ -206,6 +207,9 @@ namespace BuildXL.Cache.Host.Service
                         { "Environment", parameters.Environment },
                         { "Env", parameters.Environment },
                         { "Machine", parameters.Machine },
+                        { "ServiceVersion", parameters.ServiceVersion },
+                        { "UtcNow", parameters.UtcNow.ToReadableString() },
+                        { "BuildXLVersion", Utilities.Branding.Version },
 
                         // Backward compatibility where machine function was not
                         // its own constraint
@@ -225,8 +229,10 @@ namespace BuildXL.Cache.Host.Service
                         { "Region", parameters.Region },
                         { "RegionId", parameters.Region },
                         { "Ring", parameters.Ring },
-                        { "RingId", parameters.Ring },
+                        { "ServiceVersion", parameters.ServiceVersion },
                         { "ServiceDir", parameters.ServiceDir },
+                        { "UtcNow", parameters.UtcNow.ToReadableString() },
+                        { "BuildXLVersion", Utilities.Branding.Version },
                     }
                 .ConcatIfNotNull(parameters.Properties)
                 .Concat(GetEnvironmentVariableMacros())

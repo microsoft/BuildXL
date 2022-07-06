@@ -23,6 +23,7 @@ namespace BuildXL.Cache.Host.Configuration
         public string MachineFunction { get; set; }
         public string ServiceVersion { get; set; }
         public string ConfigurationId { get; set; }
+        public DateTime UtcNow { get; set; } = DateTime.UtcNow;
 
         public Dictionary<string, string> Properties { get; set; } = new();
         public Dictionary<string, string[]> Flags { get; set; } = new();

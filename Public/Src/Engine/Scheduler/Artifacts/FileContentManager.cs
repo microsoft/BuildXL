@@ -1831,6 +1831,14 @@ namespace BuildXL.Scheduler.Artifacts
                             // during the directory deletion step (they will be replaced by the materialization
                             // step or may have already been replaced if the file was explicitly materialized)
                             state.MaterializedDirectoryContents.Add(file);
+
+                            // Add all directory paths between the file and opaque root directory.
+                            // We do that to prevent those directories from being deleted by PrepareDirectoriesAsync even when those dirs are empty. 
+                            var parentPath = file.Path.GetParent(Context.PathTable);
+                            while (parentPath.IsValid && parentPath != directory.Path && state.MaterializedDirectoryContents.Add(parentPath))
+                            {
+                                parentPath = parentPath.GetParent(Context.PathTable);
+                            }
                         }
 
                         // if required, ensure that we are not materializing files that are under any exclusion root
@@ -2099,12 +2107,12 @@ namespace BuildXL.Scheduler.Artifacts
                                         operationContext.StartAsyncOperation(
                                             PipExecutorCounter.FileContentManagerDeleteDirectoriesPathParsingDuration))
                                     {
-                                        var file = FileArtifact.CreateOutputFile(AbsolutePath.Create(Context.PathTable, filePath));
+                                        var path = AbsolutePath.Create(Context.PathTable, filePath);
 
                                         // MaterializedDirectoryContents will contain all declared contents of the directory which should not be deleted
                                         // as the file may already have been materialized by the file content manager. If the file was not materialized
                                         // by the file content manager, it will be deleted and replaced as a part of file materialization
-                                        return !state.MaterializedDirectoryContents.Contains(file);
+                                        return !state.MaterializedDirectoryContents.Contains(path);
                                     }
                                 },
                                 tempDirectoryCleaner: m_tempDirectoryCleaner);
@@ -3144,7 +3152,7 @@ namespace BuildXL.Scheduler.Artifacts
 
                 if (file.IsOutputFile ||
 
-                    // TODO: Bug #995938: Temporary hack to handle pip graph construction verifcation oversight
+                    // TODO: Bug #995938: Temporary hack to handle pip graph construction verification oversight
                     // where source files declared inside output directories
                     state.MaterializedDirectoryContents.Contains(file.Path) ||
 

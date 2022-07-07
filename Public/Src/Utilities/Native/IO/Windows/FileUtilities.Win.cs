@@ -212,7 +212,7 @@ namespace BuildXL.Native.IO.Windows
                 // Case 1: If we are deleting the root directory, the caller needs to worry about that same problem (recursively, things work out, so long as the outermost directory is emptied with deleteRootDirectory==false; see next case).
                 // Case 2: Otherwise, we poll the root directory until it is empty (so the caller can be guaranteed it is *really* empty w.r.t. re-creating files or directories with existing names)
                 bool success = false;
-                if (deleteRootDirectory && remainingChildCount == 0)
+                if (deleteRootDirectory && remainingChildCount == 0 && shouldDelete(directoryPath))
                 {
                     success = Helpers.RetryOnFailure(
                         finalRound =>

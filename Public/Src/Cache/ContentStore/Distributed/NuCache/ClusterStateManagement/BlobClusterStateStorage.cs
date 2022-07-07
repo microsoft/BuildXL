@@ -19,21 +19,12 @@ using BuildXL.Cache.Host.Configuration;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
-    public class BlobClusterStateStorageConfiguration : IBlobFolderStorageConfiguration
+    public record BlobClusterStateStorageConfiguration()
+        : Host.Configuration.BlobFolderStorageConfiguration(ContainerName: "checkpoints", FolderName: "clusterState")
     {
-        public AzureBlobStorageCredentials? Credentials { get; set; }
-
-        public string ContainerName { get; set; } = "checkpoints";
-
-        public string FolderName { get; set; } = "clusterState";
-
         public string FileName { get; set; } = "clusterState.json";
 
-        public TimeSpan StorageInteractionTimeout { get; set; } = TimeSpan.FromSeconds(10);
-
         public ClusterStateRecomputeConfiguration RecomputeConfiguration { get; set; } = new ClusterStateRecomputeConfiguration();
-
-        public RetryPolicyConfiguration RetryPolicy { get; set; } = BlobFolderStorage.DefaultRetryPolicy;
     }
 
     public class BlobClusterStateStorage : StartupShutdownComponentBase

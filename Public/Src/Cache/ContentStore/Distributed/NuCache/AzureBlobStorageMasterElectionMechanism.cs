@@ -19,14 +19,9 @@ using OperationContext = BuildXL.Cache.ContentStore.Tracing.Internal.OperationCo
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
-    public class AzureBlobStorageMasterElectionMechanismConfiguration : IBlobFolderStorageConfiguration
+    public record AzureBlobStorageMasterElectionMechanismConfiguration()
+        : BlobFolderStorageConfiguration(ContainerName: "checkpoints", FolderName: "masterElection")
     {
-        public AzureBlobStorageCredentials? Credentials { get; set; }
-
-        public string ContainerName { get; set; } = "checkpoints";
-
-        public string FolderName { get; set; } = "masterElection";
-
         public string FileName { get; set; } = "master.json";
 
         public bool IsMasterEligible { get; set; } = true;
@@ -42,11 +37,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </remarks>
         public TimeSpan LeaseExpiryTime { get; set; } = TimeSpan.FromMinutes(10);
 
-        public TimeSpan StorageInteractionTimeout { get; set; } = TimeSpan.FromSeconds(10);
-
         public bool ReleaseLeaseOnShutdown { get; set; } = false;
-
-        public RetryPolicyConfiguration RetryPolicy { get; set; } = BlobFolderStorage.DefaultRetryPolicy;
     }
 
     public class AzureBlobStorageMasterElectionMechanism : StartupShutdownComponentBase, IMasterElectionMechanism

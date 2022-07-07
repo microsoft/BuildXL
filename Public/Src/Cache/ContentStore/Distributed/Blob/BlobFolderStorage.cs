@@ -28,19 +28,6 @@ using OperationContext = BuildXL.Cache.ContentStore.Tracing.Internal.OperationCo
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
-    public interface IBlobFolderStorageConfiguration
-    {
-        public AzureBlobStorageCredentials? Credentials { get; set; }
-
-        string ContainerName { get; }
-
-        string FolderName { get; }
-
-        TimeSpan StorageInteractionTimeout { get; }
-
-        RetryPolicyConfiguration RetryPolicy { get; }
-    }
-
     /// <summary>
     /// Represents a full or relative blob path
     /// </summary>
@@ -86,7 +73,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         protected override Tracer Tracer { get; }
 
-        private readonly IBlobFolderStorageConfiguration _configuration;
+        private readonly BlobFolderStorageConfiguration _configuration;
 
         private readonly CloudBlobClient _client;
         private readonly CloudBlobContainer _container;
@@ -106,7 +93,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         public BlobFolderStorage(
             Tracer tracer,
-            IBlobFolderStorageConfiguration configuration)
+            BlobFolderStorageConfiguration configuration)
         {
             Contract.RequiresNotNull(configuration.Credentials);
             Tracer = tracer;

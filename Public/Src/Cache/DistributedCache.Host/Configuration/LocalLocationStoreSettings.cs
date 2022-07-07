@@ -3,7 +3,10 @@
 
 using System;
 using System.Collections.Generic;
+using System.Runtime.Serialization;
+using System.Text.Json.Serialization;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
+using BuildXL.Cache.ContentStore.Interfaces.Secrets;
 
 #nullable disable
 #nullable enable annotations
@@ -42,17 +45,12 @@ namespace BuildXL.Cache.Host.Configuration
         /// </summary>
         public bool EnableBlobContentLocationRegistry { get; set; }
 
-        public BlobContentLocationRegistrySettings BlobContentLocationRegistrySettings { get; set; } = new BlobContentLocationRegistrySettings();
+        public BlobContentLocationRegistryConfiguration BlobContentLocationRegistrySettings { get; set; } = new BlobContentLocationRegistryConfiguration();
     }
 
-    public record BlobContentLocationRegistrySettings
+    public record BlobContentLocationRegistryConfiguration()
+        : BlobFolderStorageConfiguration(ContainerName: "contentlocations", FolderName: "partitions")
     {
-        public TimeSpanSetting StorageInteractionTimeout { get; set; } = TimeSpan.FromSeconds(10);
-
-        public string ContainerName { get; set; } = "contentlocations";
-
-        public string FolderName { get; set; } = "partitions";
-
         public string PartitionCheckpointManifestFileName { get; set; } = "manifest.v2.json";
 
         /// <summary>
@@ -99,5 +97,28 @@ namespace BuildXL.Cache.Host.Configuration
         /// The number of partitions to create. Changing this number causes partition to be recomputed
         /// </summary>
         public int PartitionCount { get; set; } = 256;
+    }
+
+    [DataContract]
+    public record BlobFolderStorageConfiguration(string ContainerName = "", string FolderName = "")
+    {
+        [JsonIgnore]
+        public AzureBlobStorageCredentials? Credentials { get; set; }
+
+        public RetryPolicyConfiguration RetryPolicy { get; set; } = DefaultRetryPolicy;
+
+        public string ContainerName { get; set; } = ContainerName;
+
+        public string FolderName { get; set; } = FolderName;
+
+        public TimeSpanSetting StorageInteractionTimeout { get; set; } = TimeSpan.FromMinutes(1);
+
+        public static RetryPolicyConfiguration DefaultRetryPolicy { get; } = new RetryPolicyConfiguration()
+        {
+            RetryPolicy = StandardRetryPolicy.ExponentialSpread,
+            MinimumRetryWindow = TimeSpan.FromMilliseconds(1),
+            MaximumRetryWindow = TimeSpan.FromSeconds(30),
+            WindowJitter = 1.0,
+        };
     }
 }

@@ -32,22 +32,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
     [Trait("Category", "WindowsOSOnly")] // 'redis-server' executable no longer exists
     public class BlobFolderStorageTests : TestWithOutput
     {
-        private class BlobFolderStorageConfiguration : IBlobFolderStorageConfiguration
+        private record TestBlobFolderStorageConfiguration : BlobFolderStorageConfiguration
         {
-            public AzureBlobStorageCredentials? Credentials { get; set; } = AzureBlobStorageCredentials.StorageEmulator;
-
-            public string ContainerName { get; set; } = "blobfolderstoragetests";
-
-            public string FolderName { get; set; }
-
-            public TimeSpan StorageInteractionTimeout { get; set; } = TimeSpan.FromMinutes(1);
-
-            public RetryPolicyConfiguration RetryPolicy { get; set; } = BlobFolderStorage.DefaultRetryPolicy;
-
-            public BlobFolderStorageConfiguration()
+            public TestBlobFolderStorageConfiguration()
+                : base(
+                      ContainerName: "blobfolderstoragetests",
+                      // Use a random folder every time to avoid clashes
+                      FolderName: Guid.NewGuid().ToString())
             {
-                // Use a random folder every time to avoid clashes
-                FolderName = Guid.NewGuid().ToString();
+                Credentials = AzureBlobStorageCredentials.StorageEmulator;
+                StorageInteractionTimeout = TimeSpan.FromMinutes(1);
             }
         }
 
@@ -168,7 +162,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
                 elapsed.Should().BeLessOrEqualTo(maxTestDuration);
             },
             timeout: maxTestDuration,
-            configuration: new BlobFolderStorageConfiguration() {
+            configuration: new TestBlobFolderStorageConfiguration() {
                 RetryPolicy = new RetryPolicyConfiguration()
                 {
                     RetryPolicy = StandardRetryPolicy.ExponentialSpread,
@@ -179,7 +173,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
             });
         }
 
-        private Task RunTest(Func<OperationContext, BlobFolderStorage, IClock, Task> runTest, IClock? clock = null, BlobFolderStorageConfiguration? configuration = null, bool elideStartup = false, TimeSpan? timeout = null, [CallerMemberName] string? caller = null)
+        private Task RunTest(Func<OperationContext, BlobFolderStorage, IClock, Task> runTest, IClock? clock = null, TestBlobFolderStorageConfiguration? configuration = null, bool elideStartup = false, TimeSpan? timeout = null, [CallerMemberName] string? caller = null)
         {
             clock ??= SystemClock.Instance;
             timeout ??= Timeout.InfiniteTimeSpan;
@@ -195,7 +189,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
                 {
                     using var storage = AzuriteStorageProcess.CreateAndStartEmpty(_fixture, TestGlobal.Logger);
 
-                    configuration ??= new BlobFolderStorageConfiguration()
+                    configuration ??= new TestBlobFolderStorageConfiguration()
                     {
                         RetryPolicy = new RetryPolicyConfiguration()
                         {

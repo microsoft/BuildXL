@@ -723,7 +723,6 @@ namespace BuildXL.Cache.Host.Service.Internal
             ApplyIfNotNull(_distributedSettings.BlobCheckpointRegistryGarbageCollectionTimeout, v => azureBlobStorageCheckpointRegistryConfiguration.GarbageCollectionTimeout = v);
             ApplyIfNotNull(_distributedSettings.BlobCheckpointRegistryRegisterCheckpointTimeout, v => azureBlobStorageCheckpointRegistryConfiguration.RegisterCheckpointTimeout = v);
             ApplyIfNotNull(_distributedSettings.BlobCheckpointRegistryGetCheckpointStateTimeout, v => azureBlobStorageCheckpointRegistryConfiguration.CheckpointStateTimeout = v);
-            ApplyIfNotNull(_distributedSettings.BlobCheckpointRegistryFanout, v => azureBlobStorageCheckpointRegistryConfiguration.CheckpointContentFanOut = v);
             ApplyIfNotNull(_distributedSettings.BlobCheckpointRegistryRetryPolicy, v => azureBlobStorageCheckpointRegistryConfiguration.RetryPolicy = v);
 
             ApplyIfNotNull(_distributedSettings.BlobCheckpointRegistryCheckpointLimit, v => azureBlobStorageCheckpointRegistryConfiguration.CheckpointLimit = v);

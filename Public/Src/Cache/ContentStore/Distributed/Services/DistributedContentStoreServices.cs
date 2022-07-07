@@ -219,8 +219,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
                 KeySpacePrefix = DistributedContentSettings.KeySpacePrefix,
             };
 
-            ApplyIfNotNull(DistributedContentSettings.BlobCheckpointRegistryFanout, v => storageRegistryConfiguration.CheckpointContentFanOut = v);
-
             var storageRegistry = new AzureBlobStorageCheckpointRegistry(
                 storageRegistryConfiguration,
                 RedisContentLocationStoreConfiguration.PrimaryMachineLocation,

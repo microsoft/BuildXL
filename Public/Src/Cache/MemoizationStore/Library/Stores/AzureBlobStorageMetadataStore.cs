@@ -28,22 +28,9 @@ using OperationContext = BuildXL.Cache.ContentStore.Tracing.Internal.OperationCo
 namespace BuildXL.Cache.MemoizationStore.Stores
 {
     /// <nodoc />
-    public class BlobMetadataStoreConfiguration : IBlobFolderStorageConfiguration
+    public record BlobMetadataStoreConfiguration()
+        : BlobFolderStorageConfiguration(ContainerName: "metadatastore", FolderName: "memoization")
     {
-        /// <nodoc />
-        public AzureBlobStorageCredentials? Credentials { get; set; }
-
-        /// <nodoc />
-        public string ContainerName { get; set; } = "metadatastore";
-
-        /// <nodoc />
-        public string FolderName { get; set; } = "memoization";
-
-        /// <nodoc />
-        public TimeSpan StorageInteractionTimeout { get; set; } = TimeSpan.FromSeconds(10);
-
-        /// <nodoc />
-        public RetryPolicyConfiguration RetryPolicy { get; set; } = BlobFolderStorage.DefaultRetryPolicy;
     }
 
     /// <nodoc />

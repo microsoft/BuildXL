@@ -27,13 +27,12 @@ using OperationContext = BuildXL.Cache.ContentStore.Tracing.Internal.OperationCo
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
-    public class AzureBlobStorageCheckpointRegistryConfiguration : IBlobFolderStorageConfiguration
+    public record AzureBlobStorageCheckpointRegistryConfiguration : BlobFolderStorageConfiguration
     {
-        public AzureBlobStorageCredentials? Credentials { get; set; }
-
-        public string ContainerName { get; set; } = string.Empty;
-
-        public string FolderName { get; set; } = string.Empty;
+        public AzureBlobStorageCheckpointRegistryConfiguration()
+        {
+            StorageInteractionTimeout = TimeSpan.FromMinutes(1);
+        }
 
         /// <summary>
         /// WARNING: this has to be an alphanumeric string without any kind of special characters
@@ -60,13 +59,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         public TimeSpan CheckpointStateTimeout { get; set; } = TimeSpan.FromSeconds(30);
 
-        public TimeSpan StorageInteractionTimeout { get; } = TimeSpan.FromMinutes(1);
-
         public TimeSpan PushCheckpointCandidateExpiry { get; } = TimeSpan.FromMinutes(10);
 
         public int CheckpointContentFanOut { get; set; } = 5;
-
-        public RetryPolicyConfiguration RetryPolicy { get; set; } = BlobFolderStorage.DefaultRetryPolicy;
     }
 
     /// <summary>
@@ -83,9 +78,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     /// - <see cref="RegisterCheckpointAsync"/> simply adds a new file with the current timestamp, and also prunes
     ///   stale checkpoints.
     /// </summary>
-    public class AzureBlobStorageCheckpointRegistry :
-        StartupShutdownComponentBase,
-        ICheckpointRegistry
+    public class AzureBlobStorageCheckpointRegistry : StartupShutdownComponentBase, ICheckpointRegistry
     {
         protected override Tracer Tracer => WorkaroundTracer;
 
@@ -127,7 +120,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 Tracer,
                 async context =>
                 {
-                    var blobs = ListBlobsRecentFirstAsync(context);
+                    var blobs = ListBlobsRecentFirstAsync(context, includeWellknownLatestBlob: true);
 
                     await foreach (var blob in blobs)
                     {
@@ -174,10 +167,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             var msg = checkpointState.ToString();
             return context.PerformOperationWithTimeoutAsync(
                 Tracer,
-                context =>
+                async context =>
                 {
                     var blobName = GenerateBlobName();
-                    return _storage.WriteAsync(context, blobName, checkpointState);
+
+                    var latestBlob = GetLatestBlob(context);
+
+                    var result = await _storage.WriteAsync(context, latestBlob.Name, checkpointState).ThrowIfFailureAsync();
+
+                    return result & await _storage.WriteAsync(context, blobName, checkpointState);
                 },
                 traceOperationStarted: false,
                 extraStartMessage: msg,
@@ -238,8 +236,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 timeout: _configuration.GarbageCollectionTimeout);
         }
 
-        private IAsyncEnumerable<BlobName> ListBlobsRecentFirstAsync(OperationContext context)
+        private async IAsyncEnumerable<BlobName> ListBlobsRecentFirstAsync(OperationContext context, bool includeWellknownLatestBlob = false)
         {
+            if (includeWellknownLatestBlob)
+            {
+                var latestBlob = GetLatestBlob(context);
+                if (await latestBlob.ExistsAsync())
+                {
+                    yield return latestBlob.Name;
+                }
+            }
+
             var blobs = _storage.ListBlobNamesAsync(context, _blobNameRegex)
                 .Select(name =>
                 {
@@ -249,8 +256,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 })
                 .OrderByDescending(kvp => kvp.timestampUtc)
                 .Select(kvp => kvp.name);
-            return blobs;
+
+            await foreach (var blob in blobs)
+            {
+                yield return blob;
+            }
         }
+
+        private BlobWrapper GetLatestBlob(OperationContext context) => _storage.GetBlob(context.Token, $"{_configuration.KeySpacePrefix}.latest.json");
 
         private string GenerateBlobName()
         {

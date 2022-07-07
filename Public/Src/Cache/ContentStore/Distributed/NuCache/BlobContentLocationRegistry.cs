@@ -48,25 +48,6 @@ using OperationContext = BuildXL.Cache.ContentStore.Tracing.Internal.OperationCo
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
-    public record BlobContentLocationRegistryConfiguration : BlobContentLocationRegistrySettings, IBlobFolderStorageConfiguration
-    {
-        [JsonIgnore]
-        public AzureBlobStorageCredentials? Credentials { get; set; }
-
-        public RetryPolicyConfiguration RetryPolicy { get; set; } = BlobFolderStorage.DefaultRetryPolicy;
-
-        TimeSpan IBlobFolderStorageConfiguration.StorageInteractionTimeout => StorageInteractionTimeout;
-
-        public BlobContentLocationRegistryConfiguration(BlobContentLocationRegistrySettings settings)
-            : base(settings)
-        {
-        }
-
-        public BlobContentLocationRegistryConfiguration()
-        {
-        }
-    }
-
     /// <summary>
     /// Tracking content locations using blobs in Azure storage.
     ///

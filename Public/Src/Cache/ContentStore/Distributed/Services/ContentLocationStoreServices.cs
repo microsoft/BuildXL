@@ -139,7 +139,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
             var baseConfiguration = Arguments.Dependencies.DistributedContentSettings.GetRequiredInstance().LocationStoreSettings.BlobContentLocationRegistrySettings ?? new();
             var database = (RocksDbContentMetadataDatabase)Dependencies.GlobalCacheCheckpointManager.GetRequiredInstance().Database;
             return new BlobContentLocationRegistry(
-                new BlobContentLocationRegistryConfiguration(baseConfiguration)
+                baseConfiguration with
                 {
                     Credentials = Configuration.AzureBlobStorageCheckpointRegistryConfiguration!.Credentials,
                 },

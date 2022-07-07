@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using BuildXL.Ipc.Common;
 using BuildXL.Ipc.Interfaces;
 
@@ -19,6 +20,12 @@ namespace BuildXL.Ipc
         /// </summary>
         public static IIpcProvider GetProvider()
         {
+#if NET6_0_OR_GREATER
+            if (Environment.GetEnvironmentVariable("BuildXLEnableGrpcIpc") == "1")  // AB Testing shoud be done setting this variable as passthrough for the daemons
+            {
+                return new GrpcBasedIpc.GrpcIpcProvider();
+            }
+#endif
             return new MultiplexingSocketBasedIpc.MultiplexingSocketBasedIpcProvider();
         }
 

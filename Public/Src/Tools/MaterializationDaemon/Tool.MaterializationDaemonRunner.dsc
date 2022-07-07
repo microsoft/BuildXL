@@ -203,7 +203,11 @@ function getExecuteArguments(command: string, args: CombinedArguments): Transfor
             ...(args.dependencies || []),
         ],
         unsafe: {
-            passThroughEnvironmentVariables: (args.forwardEnvironmentVars || []),
+            passThroughEnvironmentVariables: [ 
+                ...(args.forwardEnvironmentVars || []),
+                // Remove after A/B testing
+                "BuildXLEnableGrpcIpc" 
+            ],
         },
     };
 }

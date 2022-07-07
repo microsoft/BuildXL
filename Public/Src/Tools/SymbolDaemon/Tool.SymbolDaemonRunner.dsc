@@ -436,7 +436,11 @@ function getExecuteArguments(command: string, args: UberArguments, ...additional
         ],
         environmentVariables: (args.additionalEnvironmentVars || []),
         unsafe: {
-            passThroughEnvironmentVariables: (args.forwardEnvironmentVars || []),
+            passThroughEnvironmentVariables: 
+            [
+                ...(args.forwardEnvironmentVars || []),
+                "BuildXLEnableGrpcIpc"
+            ],
         }
     };
 }

@@ -1,0 +1,42 @@
+﻿syntax = "proto3";
+
+package BuildXL.Ipc.Grpc;
+
+enum IpcResultStatus {    
+    // Indicates successful execution.
+    Success = 0;
+
+    // Indicates a generic (unexplained) error.
+    GenericError = 1;
+
+    // Indicates that the client could not establish a connection with the server.
+    // This is defined here for consistency but should not be a result of an RPC
+    ConnectionError = 2;
+
+    // Indicates that an error occured on the client while communicating with the server.
+    // This is defined here for consistency but should not be a result of an RPC
+    TransmissionError = 3;
+
+    // Indicates that an error occured on the server while executing the operation.
+    ExecutionError = 4;
+
+    // Indicates that the user input is invalid.
+    InvalidInput = 5;
+}
+
+message IpcResult {
+    IpcResultStatus exitCode = 1;
+    string payload = 2;
+}
+
+// The response from an Attach event
+message IpcOperation {
+    bool isSynchronous = 1;
+    string payload = 2;   
+}
+
+// IPC service
+service IpcServer {
+    // Signals the completion of the Attach call
+    rpc Message(IpcOperation) returns (IpcResult) {}
+}

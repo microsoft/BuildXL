@@ -170,7 +170,7 @@ export namespace DropDaemonRunner {
                 serviceFinalizationCmds: finalizeCmd ? [finalizeCmd] : [],
                 unsafe: {
                     // only because ArtifactServices may run some external credentials provider
-                    hasUntrackedChildProcesses: true,
+                    hasUntrackedChildProcesses: true,                    
                 },
                 serviceTrackableTag: dropTag,
                 serviceTrackableTagDisplayName: "DropTrackerOverhangMs"
@@ -475,7 +475,11 @@ export namespace DropDaemonRunner {
             ],
             environmentVariables: (args.additionalEnvironmentVars || []),
             unsafe: {
-                passThroughEnvironmentVariables: (args.forwardEnvironmentVars || []),
+                passThroughEnvironmentVariables: [
+                    ...(args.forwardEnvironmentVars || []),
+                    // Remove after A/B testing
+                    "BuildXLEnableGrpcIpc"
+                ]
             }   
         };
     }
@@ -574,7 +578,7 @@ export namespace DropDaemonRunner {
         };
         return defaults.merge<T>(args).merge<T>(
             <CommonArguments>{
-                forwardEnvironmentVars: cloudBuildVars
+                forwardEnvironmentVars: [ ...cloudBuildVars, "BuildXLEnableGrpcIpc" ]
             }
         );
     }

@@ -13,6 +13,9 @@ using BuildXL.Ipc.SocketBasedIpc;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
+#if NET6_0_OR_GREATER
+using BuildXL.Ipc.GrpcBasedIpc;
+#endif
 
 namespace Test.BuildXL.Ipc
 {
@@ -25,6 +28,9 @@ namespace Test.BuildXL.Ipc
         {
             yield return new SocketBasedIpcProvider();
             yield return new MultiplexingSocketBasedIpcProvider();
+#if NET6_0_OR_GREATER
+            yield return new GrpcIpcProvider();
+#endif
         }
 
         /// <summary>
@@ -255,19 +261,24 @@ namespace Test.BuildXL.Ipc
                 {
                     using (var client = provider.GetClient(provider.RenderConnectionString(moniker), ClientConfigWithLogger(testName)))
                     {
-                        var syncOp = new IpcOperation("sync", waitForServerAck: true);
-                        var asyncOp = new IpcOperation("async", waitForServerAck: false);
-                        var syncResult = SendWithTimeout(client, syncOp);
-                        var asyncResult = SendWithTimeout(client, asyncOp);
+                        try
+                        {
+                            var syncOp = new IpcOperation("sync", waitForServerAck: true);
+                            var asyncOp = new IpcOperation("async", waitForServerAck: false);
+                            var syncResult = SendWithTimeout(client, syncOp);
+                            var asyncResult = SendWithTimeout(client, asyncOp);
 
-                        Assert.True(asyncResult.Succeeded, "Asynchronous operation is expected to succeed if executor crashes");
-                        Assert.False(syncResult.Succeeded, "Synchronous operation is expected to fail if executor crashes");
-                        Assert.Equal(IpcResultStatus.ExecutionError, syncResult.ExitCode);
-                        Assert.True(syncResult.Payload.Contains("System.Exception")); // because CrashingExecutor throws System.Exception
-                        Assert.True(syncResult.Payload.Contains(syncOp.Payload));     // because CrashingExecutor throws System.Exception whose message is equal to syncOp.Payload
-
-                        client.RequestStop();
-                        client.Completion.GetAwaiter().GetResult();
+                            Assert.True(asyncResult.Succeeded, "Asynchronous operation is expected to succeed if executor crashes");
+                            Assert.False(syncResult.Succeeded, "Synchronous operation is expected to fail if executor crashes");
+                            Assert.Equal(IpcResultStatus.ExecutionError, syncResult.ExitCode);
+                            Assert.True(syncResult.Payload.Contains("System.Exception")); // because CrashingExecutor throws System.Exception
+                            Assert.True(syncResult.Payload.Contains(syncOp.Payload));     // because CrashingExecutor throws System.Exception whose message is equal to syncOp.Payload  
+                        }
+                        finally
+                        {
+                            client.RequestStop();
+                            client.Completion.GetAwaiter().GetResult();
+                        }
                     }
                 });
         }
@@ -285,7 +296,7 @@ namespace Test.BuildXL.Ipc
             {
                 Logger = VerboseLogger(testName),
                 MaxConnectRetries = 2,
-                ConnectRetryDelay = TimeSpan.FromMilliseconds(1)
+                ConnectRetryDelay = TimeSpan.FromMilliseconds(100)
             };
             using var client = provider.GetClient(connectionString, config);
             var syncOpResult = await client.Send(new IpcOperation("sync hi", waitForServerAck: true));
@@ -296,6 +307,8 @@ namespace Test.BuildXL.Ipc
             XAssert.AreEqual(IpcResultStatus.ConnectionError, asyncOpResult.ExitCode);
             XAssert.IsFalse(syncOpResult.Succeeded);
             XAssert.IsFalse(asyncOpResult.Succeeded);
+            client.RequestStop();
+            await client.Completion;
         }
 
         [Theory]

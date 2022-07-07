@@ -2,7 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 namespace Ipc {
-    export declare const qualifier: BuildXLSdk.DefaultQualifierWithNet472;
+   export declare const qualifier: BuildXLSdk.DefaultQualifierWithNet472;
 
     @@public
     export const dll = BuildXLSdk.library({
@@ -14,9 +14,16 @@ namespace Ipc {
             importFrom("BuildXL.Cache.ContentStore").Hashing.dll,
             ...BuildXLSdk.systemMemoryDeployment,
             ...BuildXLSdk.systemThreadingTasksDataflowPackageReference,
+            Ipc.Grpc.dll,
+            ...importFrom("BuildXL.Cache.ContentStore").getGrpcPackages(true),
+            ...importFrom("BuildXL.Cache.ContentStore").getGrpcAspNetCorePackages(),
         ],
         internalsVisibleTo: [
             "Test.BuildXL.Ipc",
+        ],
+
+        runtimeContentToSkip : [
+            importFrom("Microsoft.Extensions.Logging.Abstractions.v6.0.0").pkg,
         ],
     });
 }

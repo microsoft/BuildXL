@@ -2754,6 +2754,18 @@ namespace Test.BuildXL.Scheduler
         }
 
         [Fact]
+        public void TestGenerateBuildManifestEmptyDrop()
+        {
+            string dropName = "drop0";
+
+            // Generate file list without recording any file - i.e., a list for am empty drop
+            BuildManifestGenerator buildManifestGenerator = new BuildManifestGenerator(LoggingContext, new StringTable());
+            XAssert.IsTrue(buildManifestGenerator.TryGenerateBuildManifestFileList(dropName, out string error, out var buildManifestFileList), $"Failure during Build Manifest generation: {error}");
+            XAssert.IsNull(error);
+            XAssert.AreEqual(0, buildManifestFileList.Count);
+        }
+
+        [Fact]
         public void TestGenerateBuildManifestFailure()
         {
             BuildManifestGenerator buildManifestGenerator = new BuildManifestGenerator(LoggingContext, new StringTable());

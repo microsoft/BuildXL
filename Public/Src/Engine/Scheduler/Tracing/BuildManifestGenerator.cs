@@ -149,11 +149,21 @@ namespace BuildXL.Scheduler.Tracing
             {
                 StringId dropStringId = StringId.Create(m_stringTable, dropName);
 
-                List<BuildManifestFileInfo> sortedManifestDetailsForDrop = BuildManifestEntries[dropStringId]
-                    .Select(kvp => (relPathStr: kvp.Key.ToString(m_stringTable), hashes: kvp.Value))
-                    .OrderBy(t => t.relPathStr)
-                    .Select(t => ToBuildManifestDataComponent(t.relPathStr, t.hashes.AzureArtifactsHash, t.hashes.Hashes))
-                    .ToList();
+                List<BuildManifestFileInfo> sortedManifestDetailsForDrop;
+
+                if (BuildManifestEntries.TryGetValue(dropStringId, out var entries)) 
+                {
+                    sortedManifestDetailsForDrop = entries
+                        .Select(kvp => (relPathStr: kvp.Key.ToString(m_stringTable), hashes: kvp.Value))
+                        .OrderBy(t => t.relPathStr)
+                        .Select(t => ToBuildManifestDataComponent(t.relPathStr, t.hashes.AzureArtifactsHash, t.hashes.Hashes))
+                        .ToList();
+                }
+                else
+                {
+                    // Empty drop
+                    sortedManifestDetailsForDrop = new();
+                }
 
                 Logger.Log.GenerateBuildManifestFileListResult(m_loggingContext, dropName, sortedManifestDetailsForDrop.Count);
 

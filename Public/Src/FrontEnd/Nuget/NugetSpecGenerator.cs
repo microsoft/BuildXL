@@ -35,7 +35,7 @@ namespace BuildXL.FrontEnd.Nuget
         private readonly int? m_timeoutInMinutes;
 
         /// <summary>Current spec generation format version</summary>
-        public const int SpecGenerationFormatVersion = 12;
+        public const int SpecGenerationFormatVersion = 13;
 
         /// <nodoc />
         public NugetSpecGenerator(
@@ -290,7 +290,6 @@ namespace BuildXL.FrontEnd.Nuget
             {
                     ("id", new LiteralExpression(m_analyzedPackage.Id)),
                     ("version", new LiteralExpression(m_analyzedPackage.Version)),
-                    ("downloadDirectory", Identifier("outputDir")),
                     ("extractedFiles", new ArrayLiteralExpression(m_analyzedPackage.PackageOnDisk.Contents
                         .Select(relativePath => PathLikeLiteral(InterpolationKind.RelativePathInterpolation, relativePath.ToString(m_pathTable.StringTable, PathFormat.Script))))),
                     ("repositories", new ArrayLiteralExpression(m_repositories.Select(kvp => new ArrayLiteralExpression(new LiteralExpression(kvp.Key), new LiteralExpression(kvp.Value)))))
@@ -326,9 +325,6 @@ namespace BuildXL.FrontEnd.Nuget
                 "Contents",
 
                 Qualifier(new TypeLiteralNode()),
-
-                new VariableDeclarationBuilder().Name("outputDir").Visibility(Visibility.None).Type(new TypeReferenceNode("Directory")).Initializer(
-                    new CallExpression(new PropertyAccessExpression("Context", "getNewOutputDirectory"), new LiteralExpression("nuget"))).Build(),
                 
                 new VariableDeclarationBuilder()
                     .Name("all")

@@ -30,7 +30,7 @@ const downloaderDefinition: Transformer.ToolDefinition = {
 export interface Arguments extends Transformer.RunnerArguments {
     id: string;
     version: string;
-    downloadDirectory: Directory;
+    downloadDirectory?: Directory;
     extractedFiles: RelativePath[];
     repositories: [string, string][];
     credentialProviderPath?: File;
@@ -43,10 +43,12 @@ export interface Arguments extends Transformer.RunnerArguments {
 @@public
 export function downloadPackage(args: Arguments) : PartialStaticContentDirectory {
 
+    const downloadDirectory = args.downloadDirectory 
+        || d`${Context.getMount("ObjectRoot").path}/nuget`;
     const arguments: Argument[] = [
         Cmd.option("/id:", args.id),
         Cmd.option("/version:", args.version),
-        Cmd.option("/downloadDirectory:", Artifact.none(args.downloadDirectory)),
+        Cmd.option("/downloadDirectory:", Artifact.none(downloadDirectory)),
         Cmd.options("/repositories:", args.repositories.map(kvp => kvp[0] + "=" + kvp[1])),
     ];
 
@@ -54,12 +56,12 @@ export function downloadPackage(args: Arguments) : PartialStaticContentDirectory
     const directoryName = `${args.id}.${args.version}`;
 
     // Build the list of expected outputs
-    const outputs : File[] = args.extractedFiles.map(relativePath => f`${args.downloadDirectory}/${directoryName}/${relativePath}`);
+    const outputs : File[] = args.extractedFiles.map(relativePath => f`${downloadDirectory}/${directoryName}/${relativePath}`);
 
     // In some cases the package is expected to be empty. In that case, don't run anything and just return an empty seal dir
     if (outputs.length === 0)
     {
-        return Transformer.sealPartialDirectory(d`${args.downloadDirectory.combine(directoryName)}`, []);
+        return Transformer.sealPartialDirectory(d`${downloadDirectory.combine(directoryName)}`, []);
     }
 
     let tool = downloaderDefinition;
@@ -82,7 +84,7 @@ export function downloadPackage(args: Arguments) : PartialStaticContentDirectory
         description: `Downloading NuGet package '${args.id}.${args.version}'`,
         tool: tool,
         arguments: arguments,
-        workingDirectory: args.downloadDirectory,
+        workingDirectory: downloadDirectory,
         tags: ["nuget", ...(args.tags || [])],
         environmentVariables: [
             // On linux/mac the NuGet SDK needs this variable defined. It doesn't really matter where it is pointing to.
@@ -121,5 +123,5 @@ export function downloadPackage(args: Arguments) : PartialStaticContentDirectory
 
     const result = Transformer.execute(transformerExecuteArgs);
 
-    return Transformer.sealPartialDirectory(d`${args.downloadDirectory.combine(directoryName)}`, result.getOutputFiles());
+    return Transformer.sealPartialDirectory(d`${downloadDirectory.combine(directoryName)}`, result.getOutputFiles());
 }

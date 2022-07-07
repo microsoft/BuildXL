@@ -88,12 +88,10 @@ export declare const qualifier: {{
 namespace Contents {{
     export declare const qualifier: {{
     }};
-    const outputDir: Directory = Context.getNewOutputDirectory(""nuget"");
     @@public
     export const all: StaticDirectory = NugetDownloader.downloadPackage({{
         id: ""TestPkg"",
         version: ""1.999"",
-        downloadDirectory: outputDir,
         extractedFiles: [
             r`TestPkg.nuspec`,
             r`lib/net45/my.dll`,
@@ -162,7 +160,7 @@ export const pkg: Managed.ManagedNugetPackage = (() => {{
 )();";
             XAssert.AreEqual(expectedSpec.Trim(), text.Trim());
 
-            const string CurrentSpecHash = "1291F51E8E59ED9C2F967C01D49CC39FE6DEB9D8";
+            const string CurrentSpecHash = "4CF85805376DECF46E8C6D3E03DF2222C4069C6F";
             ValidateCurrentSpecGenVersion(expectedSpec, CurrentSpecHash);
         }
 
@@ -184,12 +182,10 @@ export declare const qualifier: {
 namespace Contents {
     export declare const qualifier: {
     };
-    const outputDir: Directory = Context.getNewOutputDirectory(""nuget"");
     @@public
     export const all: StaticDirectory = NugetDownloader.downloadPackage({
         id: ""TestPkgStub"",
         version: ""1.999"",
-        downloadDirectory: outputDir,
         extractedFiles: [],
         repositories: [[""BuildXL"", ""https://pkgs.dev.azure.com/cloudbuild/_packaging/BuildXL.Selfhost/nuget/v3/index.json""]],
     });
@@ -203,7 +199,7 @@ export const pkg: NugetPackage = {
 };";
             XAssert.ArrayEqual(SplitToLines(expectedSpec), SplitToLines(text));
 
-            const string CurrentSpecHash = "389BC336BD4B206394E01B1E76A859E6561CE30D";
+            const string CurrentSpecHash = "26FD09A83C5767AA023AB0385ED349DB123D3AE1";
             ValidateCurrentSpecGenVersion(expectedSpec, CurrentSpecHash);
         }
 

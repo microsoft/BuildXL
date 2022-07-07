@@ -42,6 +42,7 @@ export const pluginPath = (() => {
                 dependsOnCurrentHostOSDirectories: true
             },
             disableCacheLookup: true, // the cache doesn't store permission bits, so chmod +x must always be executed
+            keepOutputsWritable: true, // don't replace output with hardlink from cache
             workingDirectory: outDir,
             arguments: [ 
                 Cmd.argument("-c"),

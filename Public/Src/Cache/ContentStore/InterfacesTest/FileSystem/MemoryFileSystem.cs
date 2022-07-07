@@ -696,7 +696,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
         }
 
         /// <inheritdoc />
-        public void DenyFileWrites(AbsolutePath path)
+        public void DenyFileWrites(AbsolutePath path, bool disableInheritance)
         {
             lock (_drives)
             {
@@ -793,6 +793,18 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
 
             var volumeFreeSpace = _volumeSize - size;
             return new VolumeInfo(_volumeSize, volumeFreeSpace);
+        }
+
+        /// <inheritdoc />
+        public void DisableAuditRuleInheritance(AbsolutePath path)
+        {
+            // Do nothing.
+        }
+
+        /// <inheritdoc />
+        public bool IsAclInheritanceDisabled(AbsolutePath path)
+        {
+            return true;
         }
 
         private static IEnumerable<string> DirectoriesFromRoot(AbsolutePath path)

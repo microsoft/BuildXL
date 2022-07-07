@@ -40,6 +40,7 @@ using FileInfo = BuildXL.Cache.ContentStore.Interfaces.FileSystem.FileInfo;
 using OperatingSystemHelper = BuildXL.Utilities.OperatingSystemHelper;
 using RelativePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.RelativePath;
 using static BuildXL.Cache.ContentStore.Interfaces.Results.PlaceFileResult.ResultCode;
+using System.Security.AccessControl;
 
 namespace BuildXL.Cache.ContentStore.Stores
 {
@@ -1337,7 +1338,17 @@ namespace BuildXL.Cache.ContentStore.Stores
             using var trace = _tracer.ApplyPerms();
             if (accessMode == FileAccessMode.ReadOnly)
             {
-                FileSystem.DenyFileWrites(path);
+                FileSystem.DenyFileWrites(path, disableInheritance: true);
+
+                try
+                {
+                    FileSystem.DisableAuditRuleInheritance(path);
+                }
+                catch (Exception e)
+                {
+                    // Trace but don't throw, since it would otherwise break tests, and there is no guarantee that the cache is being run as an admin; and there shouldn't be.
+                    _tracer.Debug(context, e, "Exception found when trying to disable audit rule inheritance. This is likely due to not running as an administrator.");
+                }
 
                 if (_applyDenyWriteAttributesOnContent)
                 {

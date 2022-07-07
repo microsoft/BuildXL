@@ -1012,13 +1012,13 @@ namespace BuildXL.Cache.ContentStore.FileSystem
         ///     Interestingly, despite not requiring a handle as a parameter,
         ///     this is safe to call while holding a Stream to a file.
         /// </remarks>
-        public void DenyFileWrites(AbsolutePath path)
+        public void DenyFileWrites(AbsolutePath path, bool disableInheritance = false)
         {
             path.ThrowIfPathTooLong();
 
             WithErrorHandling(
                 path,
-                absolutePath => SetFileWrites(absolutePath, AccessControlType.Deny),
+                absolutePath => SetFileWrites(absolutePath, AccessControlType.Deny, disableInheritance),
                 absolutePath => $"Failed to set a Deny Writes ACL on {absolutePath}");
         }
 
@@ -1065,6 +1065,20 @@ namespace BuildXL.Cache.ContentStore.FileSystem
                 path,
                 absolutePath => SetAttributeWrites(absolutePath, AccessControlType.Allow),
                 absolutePath => $"Failed to remove a Deny Write Attributes ACL on {absolutePath}");
+        }
+
+        /// <inheritdoc />
+        public void DisableAuditRuleInheritance(AbsolutePath path)
+        {
+            path.ThrowIfPathTooLong();
+            FileUtilities.DisableAuditRuleInheritance(path.Path);
+        }
+
+        /// <inheritdoc />
+        public bool IsAclInheritanceDisabled(AbsolutePath path)
+        {
+            path.ThrowIfPathTooLong();
+            return FileUtilities.IsFileAccessRuleInheritanceDisabled(path.Path);
         }
 
         /// <inheritdoc />
@@ -1121,9 +1135,9 @@ namespace BuildXL.Cache.ContentStore.FileSystem
             return new VolumeInfo(di.TotalSize, di.AvailableFreeSpace);
         }
 
-        private static void SetFileWrites(AbsolutePath path, AccessControlType accessControlType)
+        private static void SetFileWrites(AbsolutePath path, AccessControlType accessControlType, bool disableInheritance = false)
         {
-            SetFileAccessControl(path, FileSystemRights.WriteData | FileSystemRights.AppendData, accessControlType);
+            SetFileAccessControl(path, FileSystemRights.WriteData | FileSystemRights.AppendData, accessControlType, disableInheritance);
         }
 
         private static void SetAttributeWrites(AbsolutePath path, AccessControlType accessControlType)
@@ -1131,9 +1145,9 @@ namespace BuildXL.Cache.ContentStore.FileSystem
             SetFileAccessControl(path, FileSystemRights.WriteAttributes | FileSystemRights.WriteExtendedAttributes, accessControlType);
         }
 
-        private static void SetFileAccessControl(AbsolutePath path, FileSystemRights fileSystemRights, AccessControlType accessControlType)
+        private static void SetFileAccessControl(AbsolutePath path, FileSystemRights fileSystemRights, AccessControlType accessControlType, bool disableInheritance = false)
         {
-            FileUtilities.SetFileAccessControl(path.Path, fileSystemRights, accessControlType == AccessControlType.Allow);
+            FileUtilities.SetFileAccessControl(path.Path, fileSystemRights, accessControlType == AccessControlType.Allow, disableInheritance);
         }
 
         private static Exception ThrowLastWin32Error(string? path, string message, int? lastErrorArg = null)

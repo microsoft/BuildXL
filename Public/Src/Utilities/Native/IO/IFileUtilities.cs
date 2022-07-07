@@ -417,9 +417,20 @@ namespace BuildXL.Native.IO
         /// Helper to set file access rights for a file.
         /// </summary>
         /// <param name="path">Path to a file.</param>
-        /// <param name="fileSystemRights">Writes to modify.</param>
-        /// <param name="allow">Whether the given rights are to be enabled to disabled.</param>
-        void SetFileAccessControl(string path, FileSystemRights fileSystemRights, bool allow);
+        /// <param name="fileSystemRights">Which rights to apply</param>
+        /// <param name="allow">Whether these rights are allowed or not.</param>
+        /// <param name="disableInheritance">Whether to disable ACL inheritance</param>
+        void SetFileAccessControl(string path, FileSystemRights fileSystemRights, bool allow, bool disableInheritance);
+
+        /// <summary>
+        /// Disables audit rule inheritance for a given file.
+        /// </summary>
+        void DisableAuditRuleInheritance(string path);
+
+        /// <summary>
+        /// Returns whether access rule inheritance is disabled for a given file.
+        /// </summary>
+        bool IsAclInheritanceDisabled(string path);
         #endregion
     }
 }

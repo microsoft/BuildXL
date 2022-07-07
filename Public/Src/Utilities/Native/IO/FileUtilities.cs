@@ -643,16 +643,28 @@ namespace BuildXL.Native.IO
             s_fileSystem.SetFileAttributes(path, attributes);
         }
 
-        /// <see cref="IFileUtilities.SetFileAccessControl(string, FileSystemRights, bool)"/>
-        public static void SetFileAccessControl(string path, FileSystemRights fileSystemRights, bool allow)
+        /// <see cref="IFileUtilities.SetFileAccessControl(string, FileSystemRights, bool, bool)"/>
+        public static void SetFileAccessControl(string path, FileSystemRights fileSystemRights, bool allow, bool disableInheritance = false)
         {
-            s_fileUtilities.SetFileAccessControl(path, fileSystemRights, allow);
+            s_fileUtilities.SetFileAccessControl(path, fileSystemRights, allow, disableInheritance);
         }
 
         /// <see cref="IFileSystem.TryWriteFileSync(SafeFileHandle, byte[], out int)"/>
         public static bool TryWriteFileSync(SafeFileHandle handle, byte[] content, out int nativeErrorCode)
         {
             return s_fileSystem.TryWriteFileSync(handle, content, out nativeErrorCode);
+        }
+
+        /// <see cref="IFileUtilities.DisableAuditRuleInheritance(string)"/>
+        public static void DisableAuditRuleInheritance(string path)
+        {
+            s_fileUtilities.DisableAuditRuleInheritance(path);
+        }
+
+        /// <inheritdoc />
+        public static bool IsFileAccessRuleInheritanceDisabled(string path)
+        {
+            return s_fileUtilities.IsAclInheritanceDisabled(path);
         }
 
         #endregion

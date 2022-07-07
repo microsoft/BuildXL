@@ -27,6 +27,7 @@ using static BuildXL.Utilities.FormattableStringEx;
 namespace BuildXL.Native.IO.Windows
 {
     /// <inheritdoc />
+    [SuppressMessage("Interoperability", "CA1416:Validate platform compatibility", Justification = "This is Windows-specific by design")]
     public sealed class FileUtilitiesWin : IFileUtilities
     {
         /// <summary>
@@ -2219,15 +2220,10 @@ namespace BuildXL.Native.IO.Windows
         }
 
         /// <inheritdoc />
-        public void SetFileAccessControl(string path, FileSystemRights fileSystemRights, bool allow)
+        public void SetFileAccessControl(string path, FileSystemRights fileSystemRights, bool allow, bool disableInheritance)
         {
             path = FileSystemWin.ToLongPathIfExceedMaxPath(path);
-            var denyWriteRule = new FileSystemAccessRule(
-                FileUtilitiesWin.s_worldSid,
-                fileSystemRights,
-                InheritanceFlags.None,
-                PropagationFlags.None,
-                AccessControlType.Deny);
+
             try
             {
                 FileInfo fileInfo = new FileInfo(path);
@@ -2235,21 +2231,62 @@ namespace BuildXL.Native.IO.Windows
                 FileSecurity security;
                 try
                 {
-                    security = fileInfo.GetAccessControl();
+                    security = fileInfo.GetAccessControl(AccessControlSections.Access);
                 }
                 catch (UnauthorizedAccessException)
                 {
                     TryTakeOwnershipAndSetWriteable(path);
-                    security = fileInfo.GetAccessControl();
+                    security = fileInfo.GetAccessControl(AccessControlSections.Access);
                 }
 
-                if (allow)
+                // Make sure to remove any explicit DACLs, while keeping track of what isn't allowed.
+                var rulesToDelete = new List<FileSystemAccessRule>();
+                FileSystemRights deniedPermissions = 0;
+                foreach (FileSystemAccessRule rule in security.GetAccessRules(includeExplicit: true, includeInherited: false, typeof(SecurityIdentifier)))
                 {
-                    security.RemoveAccessRule(denyWriteRule);
+                    if (rule.IdentityReference.Value.Equals(s_worldSid.Value, StringComparison.OrdinalIgnoreCase))
+                    {
+                        rulesToDelete.Add(rule);
+                        if (rule.AccessControlType == AccessControlType.Deny)
+                        {
+                            deniedPermissions |= rule.FileSystemRights;
+                        }
+                    }
                 }
-                else
+
+                foreach (var ruleToDelete in rulesToDelete)
                 {
-                    security.AddAccessRule(denyWriteRule);
+                    security.RemoveAccessRule(ruleToDelete);
+                }
+
+                // Always allow anything, knowing that explicit DENY rules take precedence over explicit ALLOW rules.
+                var allowRule = new FileSystemAccessRule(
+                    s_worldSid,
+                    FileSystemRights.FullControl,
+                    InheritanceFlags.None,
+                    PropagationFlags.None,
+                    AccessControlType.Allow);
+                security.AddAccessRule(allowRule);
+
+                // Make sure to start or stop denying whatever permissions we're setting.
+                deniedPermissions = allow
+                    ? deniedPermissions & ~fileSystemRights
+                    : deniedPermissions | fileSystemRights;
+
+                if (deniedPermissions != 0)
+                {
+                    var denyRule = new FileSystemAccessRule(
+                        s_worldSid,
+                        deniedPermissions,
+                        InheritanceFlags.None,
+                        PropagationFlags.None,
+                        AccessControlType.Deny);
+                    security.AddAccessRule(denyRule);
+                }
+
+                if (disableInheritance)
+                {
+                    security.SetAccessRuleProtection(isProtected: true, preserveInheritance: false);
                 }
 
                 // For some bizarre reason, instead using SetAccessControl on the caller's existing FileStream fails reliably.
@@ -2267,8 +2304,78 @@ namespace BuildXL.Native.IO.Windows
             {
                 // calls to GetAccessControl sometime result in a weird ArgumentException
                 // add more data to the exception so we could find some pattern if any
-                throw new ArgumentException(I($"SetFileAccessControl arguments -- path: '{path}', FileSystemRights: {fileSystemRights}, allow: {allow}"), e);
+                throw new ArgumentException(I($"SetFileAccessControl arguments -- path: '{path}', FileSystemRights: {fileSystemRights}, allow: {allow}, disableInheritance: {disableInheritance}"), e);
             }
+        }
+
+        /// <inheritdoc />
+        public void DisableAuditRuleInheritance(string path)
+        {
+            FileInfo fileInfo = new FileInfo(path);
+
+            FileSecurity security;
+            try
+            {
+                security = fileInfo.GetAccessControl(AccessControlSections.Audit);
+            }
+            catch (UnauthorizedAccessException)
+            {
+                TryTakeOwnershipAndSetWriteable(path);
+                security = fileInfo.GetAccessControl(AccessControlSections.Audit);
+            }
+
+            if (!security.AreAuditRulesProtected)
+            {
+                security.SetAuditRuleProtection(isProtected: true, preserveInheritance: false);
+
+                try
+                {
+                    fileInfo.SetAccessControl(security);
+                }
+                catch (UnauthorizedAccessException)
+                {
+                    TryTakeOwnershipAndSetWriteable(path);
+                    fileInfo.SetAccessControl(security);
+                }
+            }
+        }
+
+        /// <inheritdoc />
+        public bool IsAclInheritanceDisabled(string path)
+        {
+            FileInfo fileInfo = new FileInfo(path);
+
+            FileSecurity security;
+            bool checkAudits = true;
+            try
+            {
+                try
+                {
+                    security = fileInfo.GetAccessControl(AccessControlSections.Access | AccessControlSections.Audit);
+                }
+                catch (UnauthorizedAccessException)
+                {
+                    TryTakeOwnershipAndSetWriteable(path);
+                    security = fileInfo.GetAccessControl(AccessControlSections.Access | AccessControlSections.Audit);
+                }
+            }
+            catch (PrivilegeNotHeldException)
+            {
+                // Not running as admin, so we can't determine Audit rule inheritance
+                checkAudits = false;
+
+                try
+                {
+                    security = fileInfo.GetAccessControl(AccessControlSections.Access);
+                }
+                catch (UnauthorizedAccessException)
+                {
+                    TryTakeOwnershipAndSetWriteable(path);
+                    security = fileInfo.GetAccessControl(AccessControlSections.Access);
+                }
+            }
+
+            return security.AreAccessRulesProtected && (!checkAudits || security.AreAuditRulesProtected);
         }
     }
 }

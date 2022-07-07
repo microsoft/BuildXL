@@ -6,10 +6,12 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
+using System.Security.AccessControl;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing;
@@ -345,6 +347,19 @@ namespace BuildXL.Cache.ContentStore.Stores
                 {
                     // Don't need to add an expected hash into the error string because the client code will always put it into the final error message.
                     return (isValid: false, error: $"Hash mismatch. Actual hash is {actualHashAndSize.Value.Hash.ToShortString()}");
+                }
+
+                // Also, make sure that inheritance has been disabled. Otherwise, re-apply permissions.
+                try
+                {
+                    if (!_fileSystem.IsAclInheritanceDisabled(fileInfo.FullPath))
+                    {
+                        _contentStoreInternal.ApplyPermissions(context, fileInfo.FullPath, FileAccessMode.ReadOnly);
+                    }
+                }
+                catch (Exception e)
+                {
+                    return (isValid: false, error: $"Failed to disable inheritance for file {fileInfo.FullPath}, Error={e}");
                 }
 
                 return (isValid: true, error: string.Empty);

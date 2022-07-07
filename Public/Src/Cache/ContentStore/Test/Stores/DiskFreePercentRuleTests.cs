@@ -137,7 +137,7 @@ namespace ContentStoreTest.Stores
                 throw new NotImplementedException();
             }
 
-            public void DenyFileWrites(AbsolutePath path)
+            public void DenyFileWrites(AbsolutePath path, bool disableInheritance)
             {
                 throw new NotImplementedException();
             }
@@ -263,6 +263,16 @@ namespace ContentStoreTest.Stores
             }
 
             public void WriteAllBytes(AbsolutePath path, byte[] content)
+            {
+                throw new NotImplementedException();
+            }
+
+            public void DisableAuditRuleInheritance(AbsolutePath path)
+            {
+                throw new NotImplementedException();
+            }
+
+            public bool IsAclInheritanceDisabled(AbsolutePath path)
             {
                 throw new NotImplementedException();
             }

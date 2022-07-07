@@ -84,9 +84,9 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
         }
 
         /// <nodoc />
-        public void DenyFileWrites(AbsolutePath path)
+        public void DenyFileWrites(AbsolutePath path, bool disableInheritance)
         {
-            Inner.DenyFileWrites(Redirect(path));
+            Inner.DenyFileWrites(Redirect(path), disableInheritance);
         }
 
         /// <nodoc />
@@ -243,6 +243,18 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
         private AbsolutePath Redirect(AbsolutePath path)
         {
             return path.SwapRoot(SourceRoot, TargetRoot);
+        }
+
+        /// <nodoc />
+        public void DisableAuditRuleInheritance(AbsolutePath path)
+        {
+            Inner.DisableAuditRuleInheritance(Redirect(path));
+        }
+
+        /// <nodoc />
+        public bool IsAclInheritanceDisabled(AbsolutePath path)
+        {
+            return Inner.IsAclInheritanceDisabled(Redirect(path));
         }
     }
 }

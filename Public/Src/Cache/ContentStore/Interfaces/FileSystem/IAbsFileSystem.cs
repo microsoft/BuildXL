@@ -150,7 +150,8 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         ///     Add an ACL on the given file which disallows writing or appending data.
         /// </summary>
         /// <param name="path">Path to the file</param>
-        void DenyFileWrites(AbsolutePath path);
+        /// <param name="disableInheritance">Whether to disable inheritance for the file.</param>
+        void DenyFileWrites(AbsolutePath path, bool disableInheritance = false);
 
         /// <summary>
         ///     Add an ACL on the given file which allows writing or appending data.
@@ -192,5 +193,15 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         ///     Gets the creation time of the directory, in UTC
         /// </summary>
         DateTime GetDirectoryCreationTimeUtc(AbsolutePath path);
+
+        /// <summary>
+        ///     Disables audit rule inheritance for a given file.
+        /// </summary>
+        void DisableAuditRuleInheritance(AbsolutePath path);
+
+        /// <summary>
+        ///     Whether file access rule inheritance is disabled for a given file.
+        /// </summary>
+        bool IsAclInheritanceDisabled(AbsolutePath path);
     }
 }

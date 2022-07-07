@@ -319,8 +319,8 @@ namespace BuildXL.Native.IO.Unix
 
             int result = StatFile(path, followSymlink, ref statBuffer);
 
-            device = unchecked((ulong) statBuffer.DeviceID);
-            inode = unchecked((ulong) statBuffer.InodeNumber);
+            device = unchecked((ulong)statBuffer.DeviceID);
+            inode = unchecked((ulong)statBuffer.InodeNumber);
 
             return result;
         }
@@ -589,7 +589,7 @@ namespace BuildXL.Native.IO.Unix
                 catch (System.EntryPointNotFoundException)
                 {
                     m_sendFileSupported = false;
-                } 
+                }
             }
 
             return -1;
@@ -694,7 +694,7 @@ namespace BuildXL.Native.IO.Unix
             }
 
             // TODO: Change hardlink count return type to ulong.
-            return unchecked((uint) statBuffer.HardLinks);
+            return unchecked((uint)statBuffer.HardLinks);
         }
 
         /// <inheritdoc />
@@ -742,7 +742,7 @@ namespace BuildXL.Native.IO.Unix
 
             int result = m_fileSystem.GetFilePermission(path, false, true);
 
-            FilePermissions permissions = checked((FilePermissions) result);
+            FilePermissions permissions = checked((FilePermissions)result);
             return permissions.HasFlag(FilePermissions.S_IWUSR)
                 || permissions.HasFlag(FilePermissions.S_IWGRP)
                 || permissions.HasFlag(FilePermissions.S_IWOTH);
@@ -756,7 +756,7 @@ namespace BuildXL.Native.IO.Unix
         }
 
         /// <inheritdoc />
-        public void SetFileAccessControl(string path, FileSystemRights fileSystemRights, bool allow)
+        public void SetFileAccessControl(string path, FileSystemRights fileSystemRights, bool allow, bool disableInheritance)
         {
             FilePermissions permissions = 0;
 
@@ -779,7 +779,7 @@ namespace BuildXL.Native.IO.Unix
 
             int result = m_fileSystem.GetFilePermission(path, false, true);
 
-            FilePermissions currentPermissions = checked((FilePermissions) result);
+            FilePermissions currentPermissions = checked((FilePermissions)result);
 
             if (allow)
             {
@@ -805,5 +805,15 @@ namespace BuildXL.Native.IO.Unix
             // Ownership not applicable for Unix. Setting writable is not implemented for Unix
             return false;
         }
+
+
+        /// <inheritdoc />
+        public void DisableAuditRuleInheritance(string path)
+        {
+            // Do nothing in Unix.
+        }
+
+        /// <inheritdoc />
+        public bool IsAclInheritanceDisabled(string path) => true;
     }
 }

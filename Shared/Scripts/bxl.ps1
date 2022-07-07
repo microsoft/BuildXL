@@ -753,9 +753,10 @@ if ($env:BUILDXL_ADDITIONAL_DEFAULTS)
 if ($isRunningOnADO)
 {
     # On ADO, let's make sure we scrub stale files to avoid CG issues on unused packages
-    # Nuget packages go under the Object directory. The download resolver places the downloads under frontend/Download.
+    # Nuget packages go under the Object directory (and nuspec files downloaded as part of the inpection process under the frontend\Nuget folder).
+    # The download resolver places the downloads under frontend/Download.
     # Observe that frontend/Nuget only contains .nuspecs (and hash.txt files), so no need to scrub anything there.
-    $AdditionalBuildXLArguments += "/scrub:Out\Objects /scrub:Out\frontend\Download";
+    $AdditionalBuildXLArguments += "/scrub:Out\Objects /scrub:Out\frontend\Download /scrub:Out\frontend\Nuget\pkgs";
 }
 
 [string[]]$DominoArguments = @($DominoArguments |% { $_.Replace("#singlequote#", "'").Replace("#openparens#", "(").Replace("#closeparens#", ")"); })

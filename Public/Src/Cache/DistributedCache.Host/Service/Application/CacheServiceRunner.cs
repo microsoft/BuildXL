@@ -65,11 +65,21 @@ namespace BuildXL.Cache.Host.Service
                 {
                     var newConfig = LoadPreprocessedConfig<TConfig>(context, configurationPath, out _, hostParameters, overlayConfigurationPath);
                     var newResultConfig = extractConfig(newConfig);
-                    var newResultConfigString = JsonSerializer.Serialize(resultConfig);
-                    if (newResultConfigString != resultConfigString)
+                    var newResultConfigString = JsonSerializer.Serialize(newResultConfig);
+                    var oldResultConfigString = resultConfigString;
+
+                    // Compare the json serialized representation of the old and new configuration
+                    // in order to detect changes. NOTE: This post preprocessing and overlay
+                    // to ensure that final configuration matches. We also load and reserialize
+                    // to ensure the final value returned is what is compared.
+                    if (newResultConfigString != oldResultConfigString)
                     {
                         resultConfigString = newResultConfigString;
-                        requestTeardown(context, "Configuration changed: " + paths[configIndex]);
+                        requestTeardown(context, string.Join(Environment.NewLine, $"Configuration changed: {paths[configIndex]}",
+                                "Old:",
+                                oldResultConfigString,
+                                "New:",
+                                newResultConfigString));
                     }
                 },
                 onError: ex =>

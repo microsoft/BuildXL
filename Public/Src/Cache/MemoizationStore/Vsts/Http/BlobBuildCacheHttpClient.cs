@@ -32,9 +32,11 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Http
                 { "ContentBagNotFoundException", typeof(ContentBagNotFoundException) }
             };
 
+        private const string IncludeDownloadUrisParamName = "includeDownloadUris";
+
         private static readonly IEnumerable<KeyValuePair<string, string>> IncludeDownloadUrisParams = new Dictionary<string, string>
             {
-                { "includeDownloadUris", "true" }
+                { IncludeDownloadUrisParamName, "true" }
             };
 
         /// <summary>
@@ -156,20 +158,21 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Http
         public Task<BlobSelectorsResponse> GetSelectors(
             string cacheNamespace,
             Fingerprint weakFingerprint,
+            bool includeDownloadUris,
             int maxSelectorsToFetch)
         {
             var queryParameters = new Dictionary<string, string>
             {
                 { "maxSelectorsToFetch", maxSelectorsToFetch.ToString() }
             };
-            return GetSelectorsInternal(cacheNamespace, weakFingerprint, queryParameters);
+            return GetSelectorsInternal(cacheNamespace, weakFingerprint, includeDownloadUris, queryParameters);
         }
 
         /// <inheritdoc />
-        public Task<BlobSelectorsResponse> GetSelectors(string cacheNamespace, Fingerprint weakFingerprint)
+        public Task<BlobSelectorsResponse> GetSelectors(string cacheNamespace, Fingerprint weakFingerprint, bool includeDownloadUris)
         {
             var queryParameters = new Dictionary<string, string>();
-            return GetSelectorsInternal(cacheNamespace, weakFingerprint, queryParameters);
+            return GetSelectorsInternal(cacheNamespace, weakFingerprint, includeDownloadUris, queryParameters);
         }
 
         /// <inheritdoc />
@@ -206,8 +209,14 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Http
         private Task<BlobSelectorsResponse> GetSelectorsInternal(
             string cacheNamespace,
             Fingerprint weakFingerprint,
+            bool includeDownloadUris,
             Dictionary<string, string> queryParameters)
         {
+            if (includeDownloadUris)
+            {
+                queryParameters[IncludeDownloadUrisParamName] = "true";
+            }
+
             return GetAsync<BlobSelectorsResponse>(
                 BuildCacheResourceIds.BlobSelectorResourceId,
                 new {cacheNamespace, weakFingerprint = weakFingerprint.ToHex() },

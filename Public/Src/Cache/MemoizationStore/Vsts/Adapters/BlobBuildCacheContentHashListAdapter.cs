@@ -35,6 +35,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
         private readonly IBlobBuildCacheHttpClient _buildCacheHttpClient;
         private readonly IBackingContentSession _blobContentSession;
         private readonly bool _includeDownloadUris;
+        private readonly BlobContentHashListCache _contentHashListCache = new BlobContentHashListCache();
 
         /// <summary>
         /// Initializes a new instance of the <see cref="BlobBuildCacheContentHashListAdapter"/> class.
@@ -61,9 +62,13 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
                     innerCts => _buildCacheHttpClient.GetSelectors(
                         cacheNamespace,
                         weakFingerprint,
+                        _includeDownloadUris,
                         maxSelectorsToFetch),
                     CancellationToken.None);
                 var selectorsToReturn = new List<SelectorAndContentHashListWithCacheMetadata>();
+
+                _blobContentSession.UriCache.BulkAddDownloadUris(selectorsResponse.BlobDownloadUris);
+
                 foreach (
                     BlobSelectorAndContentHashList selectorAndPossible in selectorsResponse.SelectorsAndPossibleContentHashLists)
                 {
@@ -71,13 +76,23 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
                     {
                         if (selectorAndPossible.ContentHashList.Determinism.IsDeterministic)
                         {
-                            BlobContentHashListCache.Instance.AddValue(
+                            _contentHashListCache.AddValue(
                                 cacheNamespace,
                                 new StrongFingerprint(weakFingerprint, selectorAndPossible.Selector),
                                 selectorAndPossible.ContentHashList);
                         }
 
                         AddDownloadUriToCache(selectorAndPossible.ContentHashList.ContentHashListWithDeterminism);
+                        var expirationUtc = selectorAndPossible.ContentHashList.GetRawExpirationTimeUtc();
+                        if (expirationUtc != null)
+                        {
+                            _blobContentSession.ExpiryCache.AddExpiry(
+                                selectorAndPossible.Selector.ContentHash,
+                                expirationUtc.Value);
+                            _blobContentSession.ExpiryCache.AddExpiry(
+                                selectorAndPossible.ContentHashList.ContentHashListWithDeterminism.BlobIdentifier.ToContentHash(),
+                                expirationUtc.Value);
+                        }
                     }
 
                     selectorsToReturn.Add(
@@ -102,7 +117,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
         {
             try
             {
-                if (!BlobContentHashListCache.Instance.TryGetValue(cacheNamespace, strongFingerprint, out var blobCacheMetadata))
+                if (!_contentHashListCache.TryGetValue(cacheNamespace, strongFingerprint, out var blobCacheMetadata))
                 {
                     BlobContentHashListResponse blobResponse = await ArtifactHttpClientErrorDetectionStrategy.ExecuteWithTimeoutAsync(
                             context,

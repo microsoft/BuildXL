@@ -30,16 +30,14 @@ namespace BuildXL.Cache.ContentStore.Vsts
         /// </summary>
         /// <param name="configuration">Configuration.</param>
         /// <param name="name">Session name.</param>
-        /// <param name="implicitPin">Policy determining whether or not content should be automatically pinned on adds or gets.</param>
         /// <param name="blobStoreHttpClient">Backing BlobStore http client.</param>
         /// <param name="counterTracker">Parent counters to track the session.</param>
         public BlobContentSession(
             BackingContentStoreConfiguration configuration,
             string name,
-            ImplicitPin implicitPin,
             IBlobStoreHttpClient blobStoreHttpClient,
             CounterTracker counterTracker)
-            : base(configuration, name, implicitPin, blobStoreHttpClient, counterTracker)
+            : base(configuration, name, blobStoreHttpClient, counterTracker)
         {
         }
 

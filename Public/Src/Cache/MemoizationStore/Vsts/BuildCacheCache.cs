@@ -326,7 +326,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         {
             return Tracing.CreateReadOnlySessionCall.Run(_tracer, context, name, () =>
             {
-                var backingContentSessionResult = _backingContentStore.CreateSession(context, name, implicitPin);
+                var backingContentSessionResult = _backingContentStore.CreateSession(context, name);
                 if (!backingContentSessionResult.Succeeded)
                 {
                     return new CreateSessionResult<IReadOnlyCacheSession>(backingContentSessionResult);
@@ -381,7 +381,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         {
             return Tracing.CreateSessionCall.Run(_tracer, context, name, () =>
             {
-                var backingContentSessionResult = _backingContentStore.CreateSession(context, name, implicitPin);
+                var backingContentSessionResult = _backingContentStore.CreateSession(context, name);
                 if (!backingContentSessionResult.Succeeded)
                 {
                     return new CreateSessionResult<ICacheSession>(backingContentSessionResult);

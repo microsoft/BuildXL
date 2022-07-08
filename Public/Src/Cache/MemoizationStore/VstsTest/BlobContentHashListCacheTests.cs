@@ -16,7 +16,7 @@ namespace BuildXL.Cache.MemoizationStore.VstsTest
         [Fact]
         public void NonDeterministicItemShouldNotBeCached()
         {
-            var cache = BlobContentHashListCache.Instance;
+            var cache = new BlobContentHashListCache();
 
             var cacheNamespace = "ns";
             var strongFingerprint = new StrongFingerprint(Fingerprint.Random(), Selector.Random());

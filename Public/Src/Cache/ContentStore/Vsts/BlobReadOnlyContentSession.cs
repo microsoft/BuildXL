@@ -83,11 +83,6 @@ namespace BuildXL.Cache.ContentStore.Vsts
                           DefaultReadSizeInBytes.ToString()),
                 maxToKeep: 4 * Environment.ProcessorCount);
 
-        /// <summary>
-        ///     Policy determining whether or not content should be automatically pinned on adds or gets.
-        /// </summary>
-        protected readonly ImplicitPin ImplicitPin;
-
         /// <nodoc />
         protected readonly BackingContentStoreConfiguration Configuration;
 
@@ -130,13 +125,11 @@ namespace BuildXL.Cache.ContentStore.Vsts
         /// </summary>
         /// <param name="configuration">Configuration.</param>
         /// <param name="name">Session name.</param>
-        /// <param name="implicitPin">Policy determining whether or not content should be automatically pinned on adds or gets.</param>
         /// <param name="blobStoreHttpClient">Backing BlobStore http client.</param>
         /// <param name="counterTracker">Parent counters to track the session.</param>
         public BlobReadOnlyContentSession(
             BackingContentStoreConfiguration configuration,
             string name,
-            ImplicitPin implicitPin,
             IBlobStoreHttpClient blobStoreHttpClient,
             CounterTracker? counterTracker = null)
             : base(name, counterTracker)
@@ -148,7 +141,6 @@ namespace BuildXL.Cache.ContentStore.Vsts
 
             Configuration = configuration;
 
-            ImplicitPin = implicitPin;
             BlobStoreHttpClient = blobStoreHttpClient;
             _parallelSegmentDownloadConfig = ParallelHttpDownload.DownloadConfiguration.ReadFromEnvironment(EnvironmentVariablePrefix);
 
@@ -189,20 +181,6 @@ namespace BuildXL.Cache.ContentStore.Vsts
             string? tempFile = null;
             try
             {
-                if (ImplicitPin.HasFlag(ImplicitPin.Get))
-                {
-                    var pinResult = await PinAsync(context, contentHash, context.Token, urgencyHint).ConfigureAwait(false);
-                    if (!pinResult.Succeeded)
-                    {
-                        if (pinResult.Code == PinResult.ResultCode.ContentNotFound)
-                        {
-                            return new OpenStreamResult(null);
-                        }
-
-                        return new OpenStreamResult(pinResult);
-                    }
-                }
-
                 tempFile = TempDirectory.CreateRandomFileName().Path;
                 var possibleLength =
                     await PlaceFileInternalAsync(context, contentHash, tempFile, FileMode.Create).ConfigureAwait(false);
@@ -256,17 +234,6 @@ namespace BuildXL.Cache.ContentStore.Vsts
                 if (replacementMode != FileReplacementMode.ReplaceExisting && File.Exists(path.Path))
                 {
                     return PlaceFileResult.AlreadyExists;
-                }
-
-                if (ImplicitPin.HasFlag(ImplicitPin.Get))
-                {
-                    var pinResult = await PinAsync(context, contentHash, context.Token, urgencyHint).ConfigureAwait(false);
-                    if (!pinResult.Succeeded)
-                    {
-                        return pinResult.Code == PinResult.ResultCode.ContentNotFound
-                            ? PlaceFileResult.ContentNotFound
-                            : new PlaceFileResult(pinResult);
-                    }
                 }
 
                 var fileMode = replacementMode == FileReplacementMode.ReplaceExisting

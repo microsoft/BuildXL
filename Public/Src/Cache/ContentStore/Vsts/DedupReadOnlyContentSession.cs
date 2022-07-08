@@ -75,11 +75,6 @@ namespace BuildXL.Cache.ContentStore.Vsts
         /// </summary>
         protected const int StreamBufferSize = 16384;
 
-        /// <summary>
-        ///     Policy determining whether or not content should be automatically pinned on adds or gets.
-        /// </summary>
-        protected readonly ImplicitPin ImplicitPin;
-
         /// <inheritdoc />
         protected override Tracer Tracer { get; } = new Tracer(nameof(DedupContentSession));
 
@@ -123,7 +118,6 @@ namespace BuildXL.Cache.ContentStore.Vsts
         /// </summary>
         /// <param name="fileSystem">Filesystem used to read/write files.</param>
         /// <param name="name">Session name.</param>
-        /// <param name="implicitPin">Policy determining whether or not content should be automatically pinned on adds or gets.</param>
         /// <param name="dedupStoreHttpClient">Backing DedupStore http client.</param>
         /// <param name="timeToKeepContent">Minimum time-to-live for accessed content.</param>
         /// <param name="pinInlineThreshold">Maximum time-to-live to inline pin calls.</param>
@@ -133,7 +127,6 @@ namespace BuildXL.Cache.ContentStore.Vsts
         public DedupReadOnlyContentSession(
             IAbsFileSystem fileSystem,
             string name,
-            ImplicitPin implicitPin,
             IDedupStoreHttpClient dedupStoreHttpClient,
             TimeSpan timeToKeepContent,
             TimeSpan pinInlineThreshold,
@@ -146,7 +139,6 @@ namespace BuildXL.Cache.ContentStore.Vsts
             Contract.Requires(name != null);
             Contract.Requires(dedupStoreHttpClient != null);
 
-            ImplicitPin = implicitPin;
             DedupStoreClient = new DedupStoreClient(dedupStoreHttpClient, DefaultMaxParallelism);
             FileSystem = fileSystem;
             TempDirectory = new DisposableDirectory(fileSystem);
@@ -287,24 +279,6 @@ namespace BuildXL.Cache.ContentStore.Vsts
             string tempFile = null;
             try
             {
-                if (ImplicitPin.HasFlag(ImplicitPin.Get))
-                {
-                    var pinResult = await PinAsync(context, contentHash, context.Token, urgencyHint);
-
-                    if (!pinResult.Succeeded)
-                    {
-                        if (pinResult.Code == PinResult.ResultCode.ContentNotFound)
-                        {
-                            return new OpenStreamResult(null);
-                        }
-                        else
-                        {
-                            // Pin returned a service errror. Fail fast.
-                            return new OpenStreamResult(pinResult);
-                        }
-                    }
-                }
-
                 tempFile = TempDirectory.CreateRandomFileName().Path;
                 var result =
                     await PlaceFileInternalAsync(context, contentHash, tempFile, FileMode.Create).ConfigureAwait(false);
@@ -363,17 +337,6 @@ namespace BuildXL.Cache.ContentStore.Vsts
                 if (replacementMode != FileReplacementMode.ReplaceExisting && File.Exists(path.Path))
                 {
                     return PlaceFileResult.AlreadyExists;
-                }
-
-                if (ImplicitPin.HasFlag(ImplicitPin.Get))
-                {
-                    var pinResult = await PinAsync(context, contentHash, context.Token, urgencyHint).ConfigureAwait(false);
-                    if (!pinResult.Succeeded)
-                    {
-                        return pinResult.Code == PinResult.ResultCode.ContentNotFound
-                            ? PlaceFileResult.ContentNotFound
-                            : new PlaceFileResult(pinResult);
-                    }
                 }
 
                 var fileMode = replacementMode == FileReplacementMode.ReplaceExisting

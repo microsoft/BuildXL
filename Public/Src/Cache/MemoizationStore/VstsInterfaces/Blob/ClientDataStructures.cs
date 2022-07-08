@@ -297,6 +297,12 @@ namespace BuildXL.Cache.MemoizationStore.VstsInterfaces.Blob
         /// </summary>
         [DataMember]
         public IReadOnlyList<BlobSelectorAndContentHashList> SelectorsAndPossibleContentHashLists { get; private set; }
+
+        /// <summary>
+        /// Gets the download URI mappings for the blobs in a contenthashlist.
+        /// </summary>
+        [DataMember]
+        public IDictionary<string, Uri> BlobDownloadUris { get; private set; }
     }
 
     /// <summary>

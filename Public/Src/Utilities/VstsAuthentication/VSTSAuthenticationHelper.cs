@@ -27,16 +27,7 @@ namespace BuildXL.Utilities.VstsAuthentication
     /// </summary>
     public static class VSTSAuthenticationHelper
     {
-        // Constant value to target Azure DevOps.
-        private const string Resource = "499b84ac-1321-427f-aa17-267ca6975798";
-        // Visual Studio IDE client ID originally provisioned by Azure Tools.
-        private const string Client = "872cd9fa-d31f-45e0-9eab-6e460a02d1f1";
-        // Microsoft tenant
-        private const string Tenant = "microsoft.com";
-        // Microsoft authority
-        private const string Authority = $"https://login.windows.net/microsoft.com";
-
-        // On non-Windows OS-es the nuget credential provider may not be executed concurrently (otherwise the following exception happens: 
+        // On non-Windows OS-es the nuget credential provider may not be executed concurrently (otherwise the following exception happens:
         // System.PlatformNotSupportedException: Wait operations on multiple wait handles including a named synchronization primitive are not supported on this platform.")
         // The credential provider is used in both a multi-threaded and multi-process scenario, so use a named muted that covers both cases
         private static readonly AsyncMutex g_authProviderMutex = OperatingSystemHelper.IsWindowsOS
@@ -242,7 +233,7 @@ namespace BuildXL.Utilities.VstsAuthentication
                 UseShellExecute = false,
                 ErrorDialog = false,
                 StandardOutputEncoding = Encoding.UTF8,
-                StandardErrorEncoding = Encoding.UTF8
+                StandardErrorEncoding = Encoding.UTF8,
             };
 
             return RunCredentialProvider(uri, credentialProviderPath, processInfo, isRetry, cancellationToken);
@@ -268,7 +259,7 @@ namespace BuildXL.Utilities.VstsAuthentication
                 {
                     // An abandoned mutex means there was a previous crash that prevented the mutex release.
                     // The mutex is now acquired and there shouldn't be any further consequences since this mutex is
-                    // only used to prevent concurrent executions of the credential provider. Therefore, we just 
+                    // only used to prevent concurrent executions of the credential provider. Therefore, we just
                     // ignore the exception
                 }
             }
@@ -351,7 +342,7 @@ namespace BuildXL.Utilities.VstsAuthentication
             }
             catch (InvalidOperationException)
             {
-                // the process may have exited, 
+                // the process may have exited,
                 // in this case ignore the exception
             }
         }

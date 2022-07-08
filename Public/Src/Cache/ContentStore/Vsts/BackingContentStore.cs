@@ -90,17 +90,17 @@ namespace BuildXL.Cache.ContentStore.Vsts
 
         /// <nodoc />
         [SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope")]
-        public CreateSessionResult<IBackingContentSession> CreateSession(Context context, string name, ImplicitPin implicitPin)
+        public CreateSessionResult<IBackingContentSession> CreateSession(Context context, string name)
         {
             if (_configuration.UseDedupStore)
             {
                 // TODO: Change DedupContentSession to use BackingContentStoreConfiguration
                 return new CreateSessionResult<IBackingContentSession>(new DedupContentSession(
-                    context, _configuration.FileSystem, name, implicitPin, _artifactHttpClient as IDedupStoreHttpClient, _configuration.TimeToKeepContent, _configuration.PinInlineThreshold, _configuration.IgnorePinThreshold, _sessionCounterTracker.AddOrGetChildCounterTracker("Dedup.")));
+                    context, _configuration.FileSystem, name, _artifactHttpClient as IDedupStoreHttpClient, _configuration.TimeToKeepContent, _configuration.PinInlineThreshold, _configuration.IgnorePinThreshold, _sessionCounterTracker.AddOrGetChildCounterTracker("Dedup.")));
             }
 
             return new CreateSessionResult<IBackingContentSession>(new BlobContentSession(
-                _configuration, name, implicitPin, _artifactHttpClient as IBlobStoreHttpClient, _sessionCounterTracker.AddOrGetChildCounterTracker("Blob.")));
+                _configuration, name, _artifactHttpClient as IBlobStoreHttpClient, _sessionCounterTracker.AddOrGetChildCounterTracker("Blob.")));
         }
 
         /// <nodoc />

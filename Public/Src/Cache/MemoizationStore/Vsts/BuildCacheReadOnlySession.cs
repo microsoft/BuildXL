@@ -597,6 +597,10 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                                 CacheNamespace,
                                 strongFingerprint,
                                 unpackResult.ContentHashListWithDeterminism);
+
+                            BackingContentSession.ExpiryCache.AddExpiry(
+                                selector.ContentHash,
+                                unpackResult.ContentHashListWithDeterminism.Determinism.ExpirationUtc);
                         }
                     }
                 }

@@ -53,6 +53,7 @@ namespace BuildXL.Cache.MemoizationStore.VstsInterfaces
         Task<BlobSelectorsResponse> GetSelectors(
             string cacheNamespace,
             Fingerprint weakFingerprint,
+            bool includeDownloadUris,
             int maxSelectorsToFetch);
 
         /// <summary>
@@ -60,6 +61,6 @@ namespace BuildXL.Cache.MemoizationStore.VstsInterfaces
         /// Returns all associated fingerprintselectors, and returns no content bags.
         /// </summary>
         [SuppressMessage("ReSharper", "UnusedMember.Global")]
-        Task<BlobSelectorsResponse> GetSelectors(string cacheNamespace, Fingerprint weakFingerprint);
+        Task<BlobSelectorsResponse> GetSelectors(string cacheNamespace, Fingerprint weakFingerprint, bool includeDownloadUris);
     }
 }

@@ -429,13 +429,23 @@ function Get-CacheConfig {
         Type = "BuildXL.Cache.BuildCacheAdapter.BuildCacheFactory";
         CacheId = "L3Cache";
         CacheLogPath = "[BuildXLSelectedLogPath].Remote.log";
-        CacheServiceFingerprintEndpoint = "https://$VsoAccount.artifacts.visualstudio.com/DefaultCollection";
-        CacheServiceContentEndpoint = "https://$VsoAccount.vsblob.visualstudio.com/DefaultCollection";
+        CacheServiceFingerprintEndpoint = "https://$VsoAccount.artifacts.visualstudio.com";
+        CacheServiceContentEndpoint = "https://$VsoAccount.vsblob.visualstudio.com";
         UseBlobContentHashLists = $true;
         CacheNamespace = $CacheNamespace;
         DownloadBlobsUsingHttpClient = $true;
         RequiredContentKeepUntilHours = 1;
     };
+
+    if ($env:BUILDXL_VSTS_REMOTE_FINGERPRINT_ENDPOINT) {
+        $remoteCache.CacheServiceFingerprintEndpoint = $env:BUILDXL_VSTS_REMOTE_FINGERPRINT_ENDPOINT;
+        Write-Host "Using " $remoteCache.CacheServiceFingerprintEndpoint
+    }
+
+    if ($env:BUILDXL_VSTS_REMOTE_CONTENT_ENDPOINT) {
+        $remoteCache.CacheServiceContentEndpoint = $env:BUILDXL_VSTS_REMOTE_CONTENT_ENDPOINT;
+        Write-Host "Using " $remoteCache.CacheServiceContentEndpoint
+    }
     
     <# TODO: After unifying flags, remove if statement and hard-code dummy value into remoteCache #>
     if ($UseDedupStore) {

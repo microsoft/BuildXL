@@ -36,14 +36,13 @@ namespace BuildXL.Cache.ContentStore.Vsts
             Context context,
             IAbsFileSystem fileSystem,
             string name,
-            ImplicitPin implicitPin,
             IDedupStoreHttpClient dedupStoreHttpClient,
             TimeSpan timeToKeepContent,
             TimeSpan pinInlineThreshold,
             TimeSpan ignorePinThreshold,
             CounterTracker counterTracker,
             int maxConnections = DefaultMaxConnections)
-            : base(fileSystem, name, implicitPin, dedupStoreHttpClient, timeToKeepContent, pinInlineThreshold, ignorePinThreshold, counterTracker, maxConnections)
+            : base(fileSystem, name, dedupStoreHttpClient, timeToKeepContent, pinInlineThreshold, ignorePinThreshold, counterTracker, maxConnections)
         {
             _artifactFileSystem = VstsFileSystem.Instance;
             _uploadSession = DedupStoreClient.CreateUploadSession(

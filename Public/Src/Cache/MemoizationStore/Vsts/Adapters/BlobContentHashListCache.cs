@@ -13,17 +13,8 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
     /// </summary>
     public class BlobContentHashListCache
     {
-        /// <summary>
-        ///     The singleton instance of the content hash list cache.
-        /// </summary>
-        public static readonly BlobContentHashListCache Instance = new BlobContentHashListCache();
-
         private readonly ConcurrentDictionary<string, StrongFingerprintToHashListDictionary> _cacheNamespaceToContentHashListCacheDictionary
             = new ConcurrentDictionary<string, StrongFingerprintToHashListDictionary>();
-
-        private BlobContentHashListCache()
-        {
-        }
 
         /// <summary>
         /// Tries to get a content hash list for a specific strong fingerprint in the cache.
@@ -43,7 +34,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
                     value = existingValue;
                     return true;
                 }
-                
+
                 if (contentHashListCacheDictionary.Remove(strongFingerprint, existingValue))
                 {
                     // Removal was successful, so nothing usable

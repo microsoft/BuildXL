@@ -101,21 +101,22 @@ namespace BuildXL.Cache.ContentStore.Utils
             };
         }
 
-        public static IRetryPolicy AsRetryPolicy(this RetryPolicyConfiguration configuration, Func<Exception, bool> shouldRetry, int maximumRetryCount)
+        public static IRetryPolicy AsRetryPolicy(this RetryPolicyConfiguration configuration, Func<Exception, bool> shouldRetry, int? maximumRetryCount = null)
         {
-            return configuration.Create().AsRetryPolicy(shouldRetry, maximumRetryCount);
-        }
-
-        /// <nodoc />
-        public static IEnumerable<TimeSpan> AsEnumerable(this IStandardRetryPolicy policy, int retryCount)
-        {
-            return Enumerable.Range(0, retryCount).Select(i => policy.Compute(i));
+            return configuration
+                .Create()
+                .AsRetryPolicy(shouldRetry, maximumRetryCount ?? configuration.MaximumRetryCount ?? int.MaxValue);
         }
 
         /// <nodoc />
         public static IRetryPolicy AsRetryPolicy(this IStandardRetryPolicy policy, Func<Exception, bool> shouldRetry, int maximumRetryCount)
         {
-            return new PollyRetryPolicy(() => policy.AsEnumerable(maximumRetryCount), shouldRetry);
+            return new PollyRetryPolicy(() =>
+            {
+                return Enumerable
+                    .Range(0, maximumRetryCount)
+                    .Select(i => policy.Compute(i));
+            }, shouldRetry);
         }
 
         /// <nodoc />

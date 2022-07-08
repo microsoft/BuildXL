@@ -3,6 +3,7 @@
 
 using System;
 using System.Diagnostics.ContractsLight;
+using System.Threading.Tasks;
 
 namespace BuildXL.Cache.ContentStore.Interfaces.Results
 {
@@ -48,9 +49,19 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         public static readonly PinResult Success = new PinResult(ResultCode.Success);
 
         /// <summary>
+        ///     Success singleton.
+        /// </summary>
+        public static readonly Task<PinResult> SuccessTask = Task.FromResult(Success);
+
+        /// <summary>
         ///     Content not found singleton.
         /// </summary>
         public static readonly PinResult ContentNotFound = new PinResult(code: ResultCode.ContentNotFound);
+
+        /// <summary>
+        ///     Content not found singleton.
+        /// </summary>
+        public static readonly Task<PinResult> ContentNotFoundTask = Task.FromResult(ContentNotFound);
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="PinResult"/> class.

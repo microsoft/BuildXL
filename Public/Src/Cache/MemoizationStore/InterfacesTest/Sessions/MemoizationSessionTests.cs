@@ -18,6 +18,7 @@ using BuildXL.Cache.MemoizationStore.Interfaces.Stores;
 using Xunit;
 using BuildXL.Cache.MemoizationStore.InterfacesTest.Results;
 using Xunit.Abstractions;
+using BuildXL.Cache.MemoizationStore.Sessions;
 
 namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Sessions
 {
@@ -56,7 +57,7 @@ namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Sessions
                             var sessionResult = store.CreateSession(context, Name, contentSessionResult.Session);
                             sessionResult.ShouldBeSuccess();
 
-                            using (var cacheSession = new OneLevelCacheSession(Name, ImplicitPin.None, sessionResult.Session, contentSessionResult.Session))
+                            using (var cacheSession = new OneLevelCacheSession(parent: null, Name, ImplicitPin.None, sessionResult.Session, contentSessionResult.Session))
                             {
                                 try
                                 {

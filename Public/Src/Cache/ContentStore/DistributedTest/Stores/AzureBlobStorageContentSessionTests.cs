@@ -5,6 +5,7 @@ using System;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.Blobs;
 using BuildXL.Cache.ContentStore.FileSystem;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Secrets;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
@@ -14,8 +15,10 @@ using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using BuildXL.Cache.ContentStore.InterfacesTest.Sessions;
 using BuildXL.Cache.ContentStore.Stores;
+using BuildXL.Cache.ContentStore.Utils;
 using ContentStoreTest.Distributed.Redis;
 using ContentStoreTest.Test;
+using FluentAssertions;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -56,7 +59,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test
 
         protected override async Task RunTestAsync(
             ImplicitPin implicitPin,
-            DisposableDirectory directory,
+            DisposableDirectory? directory,
             Func<Context, IContentSession, Task> funcAsync)
         {
             var context = new Context(Logger);
@@ -69,9 +72,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test
 
             try
             {
-                var config = CreateStoreConfiguration();
-
-                using (var storage = CreateBlobContentStore(directory!, config, out var store))
+                using (var storage = CreateBlobContentStore(out var store))
                 {
                     try
                     {
@@ -117,10 +118,37 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test
             }
         }
 
-        private IDisposable CreateBlobContentStore(
-            DisposableDirectory disposableDirectory,
-            ContentStoreConfiguration contentStoreConfiguration,
-            out AzureBlobStorageContentStore store)
+        [Fact]
+        public async Task PlaceLargeFileAsync()
+        {
+            // This test downloads a file in parallel, hence why we check
+            using (var placeDirectory = new DisposableDirectory(FileSystem))
+            {
+                var path = placeDirectory.Path / "file.dat";
+                await RunTestAsync(ImplicitPin.None, null, async (context, session) =>
+                {
+                    var putResult = await session.PutRandomAsync(
+                        context, ContentHashType, false, "100MB".ToSize(), Token).ShouldBeSuccess();
+                    var result = await session.PlaceFileAsync(
+                        context,
+                        putResult.ContentHash,
+                        path,
+                        FileAccessMode.ReadOnly,
+                        FileReplacementMode.ReplaceExisting,
+                        FileRealizationMode.Any,
+                        Token).ShouldBeSuccess();
+
+                    Assert.True(result.IsPlaced());
+
+                    using (var fs = FileSystem.OpenForHashing(path))
+                    {
+                        (await HashInfoLookup.GetContentHasher(ContentHashType).GetContentHashAsync(fs)).Should().BeEquivalentTo(putResult.ContentHash);
+                    }
+                });
+            }
+        }
+
+        private IDisposable CreateBlobContentStore(out AzureBlobStorageContentStore store)
         {
             var storage = AzuriteStorageProcess.CreateAndStartEmpty(
                 _fixture,
@@ -130,12 +158,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test
             {
                 Credentials = new AzureBlobStorageCredentials(connectionString: storage.ConnectionString),
                 FolderName = _runId.ToString(),
+                BlobDownloadStrategyConfiguration = new BlobDownloadStrategyConfiguration(Strategy: BlobDownloadStrategy.HttpClientDownloadToMemoryMappedFile),
             };
 
-            store = AzureBlobStorageContentStore.WithFileSystemContentStore(
-                configuration,
-                contentStoreRootPath: disposableDirectory.Path,
-                contentStoreConfiguration: contentStoreConfiguration);
+            store = new AzureBlobStorageContentStore(configuration);
 
             return storage;
         }

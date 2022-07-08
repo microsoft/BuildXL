@@ -54,14 +54,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blobs
                     PersonalAccessToken = pat,
                     Parent = this,
                 },
-                localContentStore: _localContentStore,
                 // We need to pass in a context to create the session, so we do it like this instead of inside the
                 // AzureBlobPublishingSession
                 localContentSessionFactory: () =>
                     _localContentStore
-                    .CreateSession(context, $"azure-blob-publishing-{name}", ImplicitPin.None)
-                    .ThrowIfFailure()
-                    .Session,
+                        .CreateSession(context, $"azure-blob-publishing-{name}", ImplicitPin.None)
+                        .ThrowIfFailure()
+                        .Session,
                 fingerprintPublishingGate: _fingerprintPublishingGate,
                 contentPublishingGate: _contentPublishingGate));
             });

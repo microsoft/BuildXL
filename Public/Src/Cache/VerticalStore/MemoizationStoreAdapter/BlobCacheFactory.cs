@@ -8,6 +8,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
 using BuildXL.Cache.Interfaces;
+using BuildXL.Cache.MemoizationStore.Distributed.Stores;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
@@ -41,10 +42,13 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             [DefaultValue("BlobCacheFactoryConnectionString")]
             public string ConnectionStringEnvironmentVariableName { get; set; }
 
+            /// <nodoc />
+            [DefaultValue("default")]
+            public string Universe { get; set; }
 
             /// <nodoc />
-            [DefaultValue("blobcache")]
-            public string ContainerName { get; set; }
+            [DefaultValue("default")]
+            public string Namespace { get; set; }
 
             /// <summary>
             /// Path to the log file for the cache.
@@ -58,11 +62,6 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             [DefaultValue(0)]
             public uint LogFlushIntervalSeconds { get; set; }
 
-            /// <summary>
-            /// Cache to store temporary files
-            /// </summary>
-            public string LocalCachePath { get; set; }
-
             /// <nodoc />
             public Config()
             {
@@ -71,7 +70,10 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         }
 
         /// <inheritdoc />
-        public async Task<Possible<ICache, Failure>> InitializeCacheAsync(ICacheConfigData cacheData, Guid activityId, ICacheConfiguration cacheConfiguration = null)
+        public async Task<Possible<ICache, Failure>> InitializeCacheAsync(
+            ICacheConfigData cacheData,
+            Guid activityId,
+            ICacheConfiguration cacheConfiguration = null)
         {
             Contract.Requires(cacheData != null);
 
@@ -81,27 +83,25 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                 return possibleCacheConfig.Failure;
             }
 
-            Config cacheConfig = possibleCacheConfig.Result;
-
-            return await InitializeCacheAsync(cacheConfig, activityId);
+            return await InitializeCacheAsync(possibleCacheConfig.Result);
         }
 
         /// <summary>
         /// Create cache using configuration
         /// </summary>
-        public async Task<Possible<ICache, Failure>> InitializeCacheAsync(Config cacheConfig, Guid activityId)
+        public async Task<Possible<ICache, Failure>> InitializeCacheAsync(Config configuration)
         {
-            Contract.Requires(cacheConfig != null);
+            Contract.Requires(configuration != null);
 
             try
             {
-                var logPath = new AbsolutePath(cacheConfig.CacheLogPath);
-                var logger = new DisposeLogger(() => new EtwFileLog(logPath.Path, cacheConfig.CacheId), cacheConfig.LogFlushIntervalSeconds);
-                var statsFilePath = new AbsolutePath(logPath.Path + ".stats");
+                var logPath = new AbsolutePath(configuration.CacheLogPath);
 
-                var localCache = CreateCache(cacheConfig);
-
-                var cache = new MemoizationStoreAdapterCache(cacheConfig.CacheId, localCache, logger, statsFilePath);
+                var cache = new MemoizationStoreAdapterCache(
+                    cacheId: configuration.CacheId,
+                    innerCache: CreateCache(configuration),
+                    logger: new DisposeLogger(() => new EtwFileLog(logPath.Path, configuration.CacheId), configuration.LogFlushIntervalSeconds),
+                    statsFile: new AbsolutePath(logPath.Path + ".stats"));
 
                 var startupResult = await cache.StartupAsync();
                 if (!startupResult.Succeeded)
@@ -113,8 +113,23 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             }
             catch (Exception e)
             {
-                return new CacheConstructionFailure(cacheConfig.CacheId, e);
+                return new CacheConstructionFailure(configuration.CacheId, e);
             }
+        }
+
+        private static MemoizationStore.Interfaces.Caches.ICache CreateCache(Config configuration)
+        {
+            var connectionString = Environment.GetEnvironmentVariable(configuration.ConnectionStringEnvironmentVariableName);
+
+            var factoryConfiguration = new AzureBlobStorageCacheFactory.Configuration(
+                Credentials: new ContentStore.Interfaces.Secrets.AzureBlobStorageCredentials(connectionString),
+                Universe: configuration.Universe,
+                Namespace: configuration.Namespace,
+                StorageInteractionTimeout: TimeSpan.FromHours(1),
+                DownloadStrategyConfiguration: new ContentStore.Distributed.Blobs.BlobDownloadStrategyConfiguration(),
+                MetadataPinElisionDuration: TimeSpan.FromDays(1));
+
+            return AzureBlobStorageCacheFactory.Create(factoryConfiguration);
         }
 
         /// <inheritdoc />
@@ -126,7 +141,8 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                 failures.AddFailureIfNullOrWhitespace(cacheConfig.CacheLogPath, nameof(cacheConfig.CacheLogPath));
                 failures.AddFailureIfNullOrWhitespace(cacheConfig.CacheId, nameof(cacheConfig.CacheId));
                 failures.AddFailureIfNullOrWhitespace(cacheConfig.ConnectionStringEnvironmentVariableName, nameof(cacheConfig.ConnectionStringEnvironmentVariableName));
-                failures.AddFailureIfNullOrWhitespace(cacheConfig.ContainerName, nameof(cacheConfig.ContainerName));
+                failures.AddFailureIfNullOrWhitespace(cacheConfig.Universe, nameof(cacheConfig.Universe));
+                failures.AddFailureIfNullOrWhitespace(cacheConfig.Namespace, nameof(cacheConfig.Namespace));
 
                 if (!string.IsNullOrEmpty(cacheConfig.ConnectionStringEnvironmentVariableName))
                 {

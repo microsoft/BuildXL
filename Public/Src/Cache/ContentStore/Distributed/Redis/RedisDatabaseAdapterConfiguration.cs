@@ -48,7 +48,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             if (RetryPolicyConfiguration != null)
             {
                 return RetryPolicyConfiguration
-                    .AsRetryPolicy(policy.IsTransient, _retryCount ?? RetryPolicyConfiguration.DefaultRetryCount);
+                    .AsRetryPolicy(policy.IsTransient, _retryCount);
             }
             else if (_retryCount != null)
             {

@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
@@ -9,12 +10,15 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using BuildXL.Cache.MemoizationStore.Interfaces.Results;
+using BuildXL.Cache.MemoizationStore.Sessions;
 
 namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
 {
@@ -40,16 +44,24 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
 
         private bool _disposed;
 
+        /// <nodoc />
+        protected OneLevelCacheBase Parent;
+
         /// <summary>
         ///     Initializes a new instance of the <see cref="ReadOnlyOneLevelCacheSession" /> class.
         /// </summary>
         public ReadOnlyOneLevelCacheSession(
-            string name, ImplicitPin implicitPin, IReadOnlyMemoizationSession memoizationSession, IReadOnlyContentSession contentSession)
+            OneLevelCacheBase parent,
+            string name,
+            ImplicitPin implicitPin,
+            IReadOnlyMemoizationSession memoizationSession,
+            IReadOnlyContentSession contentSession)
         {
             Contract.Requires(name != null);
             Contract.Requires(memoizationSession != null);
             Contract.Requires(contentSession != null);
 
+            Parent = parent;
             Name = name;
             ImplicitPin = implicitPin;
             MemoizationReadOnlySession = memoizationSession;
@@ -176,33 +188,79 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         }
 
         /// <inheritdoc />
-        public Task<Result<LevelSelectors>> GetLevelSelectorsAsync(Context context, Fingerprint weakFingerprint, CancellationToken cts, int level)
+        public async Task<Result<LevelSelectors>> GetLevelSelectorsAsync(Context context, Fingerprint weakFingerprint, CancellationToken cts, int level)
         {
             if (MemoizationReadOnlySession is IReadOnlyMemoizationSessionWithLevelSelectors withLevelSelectors)
             {
-                return withLevelSelectors.GetLevelSelectorsAsync(context, weakFingerprint, cts, level);
+                var result = await withLevelSelectors.GetLevelSelectorsAsync(context, weakFingerprint, cts, level);
+
+                if (result.Succeeded && Parent is not null)
+                {
+                    foreach (var selector in result.Value.Selectors)
+                    {
+                        Parent.AddOrExtendPin(context, selector.ContentHash);
+                    }
+                }
+
+                return result;
             }
 
             throw new NotSupportedException($"ReadOnlyMemoization session {MemoizationReadOnlySession.GetType().Name} does not support GetLevelSelectors functionality.");
         }
 
         /// <inheritdoc />
-        public Task<GetContentHashListResult> GetContentHashListAsync(
-            Context context, StrongFingerprint strongFingerprint, CancellationToken cts, UrgencyHint urgencyHint)
+        public async Task<GetContentHashListResult> GetContentHashListAsync(Context context,
+            StrongFingerprint strongFingerprint,
+            CancellationToken cts,
+            UrgencyHint urgencyHint)
         {
-            return MemoizationReadOnlySession.GetContentHashListAsync(context, strongFingerprint, cts, urgencyHint);
+            var result = await MemoizationReadOnlySession.GetContentHashListAsync(context, strongFingerprint, cts, urgencyHint);
+            if (result.Succeeded && Parent is not null && result.ContentHashListWithDeterminism.ContentHashList is not null)
+            {
+                Parent.AddOrExtendPin(context, strongFingerprint.Selector.ContentHash);
+
+                var contentHashList = result.ContentHashListWithDeterminism.ContentHashList.Hashes;
+                foreach (var contentHash in contentHashList)
+                {
+                    Parent.AddOrExtendPin(context, contentHash);
+                }
+            }
+
+            return result;
         }
 
         /// <inheritdoc />
         public Task<PinResult> PinAsync(Context context, ContentHash contentHash, CancellationToken cts, UrgencyHint urgencyHint)
         {
+            if (Parent is not null && Parent.CanElidePin(context, contentHash))
+            {
+                return PinResult.SuccessTask;
+            }
+
             return ContentReadOnlySession.PinAsync(context, contentHash, cts, urgencyHint);
         }
 
         /// <inheritdoc />
         public Task<IEnumerable<Task<Indexed<PinResult>>>> PinAsync(Context context, IReadOnlyList<ContentHash> contentHashes, PinOperationConfiguration configuration)
         {
-            return ContentReadOnlySession.PinAsync(context, contentHashes, configuration);
+            return Workflows.RunWithFallback(
+                contentHashes,
+                initialFunc: (contentHashes) =>
+                {
+                    return Task.FromResult(contentHashes.Select(contentHash =>
+                    {
+                        if (Parent is not null && Parent.CanElidePin(context, contentHash))
+                        {
+                            return PinResult.Success;
+                        }
+
+                        return PinResult.ContentNotFound;
+                    }).AsIndexedTasks());
+                },
+                fallbackFunc: (contentHashes) => {
+                    return ContentReadOnlySession.PinAsync(context, contentHashes, configuration);
+                },
+                isSuccessFunc: r => r.Succeeded);
         }
 
         /// <inheritdoc />
@@ -235,7 +293,24 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
             CancellationToken cts,
             UrgencyHint urgencyHint = UrgencyHint.Nominal)
         {
-            return ContentReadOnlySession.PinAsync(context, contentHashes, cts, urgencyHint);
+            return Workflows.RunWithFallback(
+                contentHashes,
+                initialFunc: (contentHashes) =>
+                {
+                    return Task.FromResult(contentHashes.Select(contentHash =>
+                    {
+                        if (Parent is not null && Parent.CanElidePin(context, contentHash))
+                        {
+                            return PinResult.Success;
+                        }
+
+                        return PinResult.ContentNotFound;
+                    }).AsIndexedTasks());
+                },
+                fallbackFunc: (contentHashes) => {
+                    return ContentReadOnlySession.PinAsync(context, contentHashes, cts, urgencyHint);
+                },
+                isSuccessFunc: r => r.Succeeded);
         }
 
         /// <inheritdoc />

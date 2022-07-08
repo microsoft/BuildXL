@@ -29,7 +29,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
 
         /// <nodoc />
         public VirtualizedContentCache(ICache cache, VfsCasConfiguration configuration)
-            : base(Guid.NewGuid(), passContentToMemoization: false)
+            : base(new OneLevelCacheBaseConfiguration(Guid.NewGuid(), PassContentToMemoization: false))
         {
             _cache = cache;
             _configuration = configuration;

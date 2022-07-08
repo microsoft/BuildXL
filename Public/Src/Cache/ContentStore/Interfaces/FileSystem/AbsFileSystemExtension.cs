@@ -177,7 +177,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
             FileOptions options = FileOptions.None,
             int bufferSize = FileSystemDefaults.DefaultFileStreamBufferSize)
         {
-            var stream = fileSystem.TryOpen(path, FileAccess.Write, fileMode, share, options, bufferSize);
+            var stream = fileSystem.TryOpen(path, FileAccess.ReadWrite, fileMode, share, options, bufferSize);
             if (stream == null)
             {
                 return null;

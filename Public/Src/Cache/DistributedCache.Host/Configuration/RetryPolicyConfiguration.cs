@@ -55,6 +55,8 @@ namespace BuildXL.Cache.Host.Configuration
 
         public double WindowJitter { get; init; } = DefaultWindowJitter;
 
+        public int? MaximumRetryCount { get; init; }
+
         public static RetryPolicyConfiguration Exponential(
             TimeSpan? minimumRetryWindow = null,
             TimeSpan? maximumRetryWindow = null,

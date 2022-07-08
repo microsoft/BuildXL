@@ -29,7 +29,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
 {
     /// <nodoc />
     public record BlobMetadataStoreConfiguration()
-        : BlobFolderStorageConfiguration(ContainerName: "metadatastore", FolderName: "memoization")
+        : BlobFolderStorageConfiguration(ContainerName: "default", FolderName: "metadata/default")
     {
     }
 

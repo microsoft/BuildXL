@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading;
@@ -12,6 +13,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.MemoizationStore.Interfaces.Results;
+using BuildXL.Cache.MemoizationStore.Sessions;
 
 namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
 {
@@ -33,23 +35,39 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         /// <summary>
         ///     Initializes a new instance of the <see cref="OneLevelCacheSession" /> class.
         /// </summary>
-        public OneLevelCacheSession(string name, ImplicitPin implicitPin, IMemoizationSession memoizationSession, IContentSession contentSession)
-            : base(name, implicitPin, memoizationSession, contentSession)
+        public OneLevelCacheSession(
+            OneLevelCacheBase parent,
+            string name,
+            ImplicitPin implicitPin,
+            IMemoizationSession memoizationSession,
+            IContentSession contentSession)
+            : base(parent, name, implicitPin, memoizationSession, contentSession)
         {
         }
 
         /// <inheritdoc />
-        public Task<AddOrGetContentHashListResult> AddOrGetContentHashListAsync
-            (
+        public async Task<AddOrGetContentHashListResult> AddOrGetContentHashListAsync(
             Context context,
             StrongFingerprint strongFingerprint,
             ContentHashListWithDeterminism contentHashListWithDeterminism,
             CancellationToken cts,
-            UrgencyHint urgencyHint
-            )
+            UrgencyHint urgencyHint)
         {
-            return MemoizationSession.AddOrGetContentHashListAsync(
+            var result = await MemoizationSession.AddOrGetContentHashListAsync(
                 context, strongFingerprint, contentHashListWithDeterminism, cts, urgencyHint);
+
+            if (result.Succeeded && Parent is not null && result.ContentHashListWithDeterminism.ContentHashList is not null)
+            {
+                Parent.AddOrExtendPin(context, strongFingerprint.Selector.ContentHash);
+
+                var contentHashList = result.ContentHashListWithDeterminism.ContentHashList.Hashes;
+                foreach (var contentHash in contentHashList)
+                {
+                    Parent.AddOrExtendPin(context, contentHash);
+                }
+            }
+
+            return result;
         }
 
         /// <inheritdoc />

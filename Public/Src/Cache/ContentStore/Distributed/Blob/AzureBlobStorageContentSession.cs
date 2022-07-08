@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.FileSystem;
@@ -13,7 +14,7 @@ using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
-using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Sessions;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Utilities.Tasks;
@@ -27,60 +28,37 @@ using OperationContext = BuildXL.Cache.ContentStore.Tracing.Internal.OperationCo
 
 namespace BuildXL.Cache.ContentStore.Distributed.Blobs
 {
-    internal sealed class AzureBlobStorageContentSession : ContentSessionBase
+    public sealed class AzureBlobStorageContentSession : ContentSessionBase
     {
         public record Configuration(
             string Name,
             ImplicitPin ImplicitPin,
             AzureBlobStorageContentStore Parent,
-            TimeSpan StorageInteractionTimeout)
+            TimeSpan StorageInteractionTimeout,
+            BlobDownloadStrategyConfiguration BlobDownloadStrategyConfiguration)
         {
         }
 
         protected override Tracer Tracer { get; } = new Tracer(nameof(AzureBlobStorageContentSession));
 
         private readonly Configuration _configuration;
-        private readonly IContentSession _innerContentSession;
 
         private readonly IAbsFileSystem _fileSystem = PassThroughFileSystem.Default;
+
+        private readonly IClock _clock = SystemClock.Instance;
 
         private static readonly BlobRequestOptions DefaultBlobStorageRequestOptions = new BlobRequestOptions()
         {
             RetryPolicy = new Microsoft.WindowsAzure.Storage.RetryPolicies.ExponentialRetry(),
         };
 
-        public static AzureBlobStorageContentSession Create(Context context, Configuration configuration)
-        {
-            var contentSession = configuration
-                .Parent
-                .ContentStore
-                .CreateSession(
-                    context,
-                    $"{configuration.Name}-inner",
-                    // We don't pin inside the inner content session. It is just used to ensure correctness when placing / putting files
-                    ImplicitPin.None)
-                .ThrowIfFailure();
+        private readonly IBlobDownloadStrategy _downloadStrategy;
 
-            return new AzureBlobStorageContentSession(configuration, contentSession.Session!);
-        }
-
-        private AzureBlobStorageContentSession(Configuration configuration, IContentSession contentSession)
+        public AzureBlobStorageContentSession(Configuration configuration)
             : base(configuration.Name)
         {
             _configuration = configuration;
-            _innerContentSession = contentSession;
-        }
-
-        protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
-        {
-            await _innerContentSession.StartupAsync(context).ThrowIfFailure();
-            return await base.StartupCoreAsync(context);
-        }
-
-        protected override async Task<BoolResult> ShutdownCoreAsync(OperationContext context)
-        {
-            await _innerContentSession.ShutdownAsync(context).ThrowIfFailure();
-            return await base.ShutdownCoreAsync(context);
+            _downloadStrategy = BlobDownloadStrategyFactory.Create(configuration.BlobDownloadStrategyConfiguration);
         }
 
         #region IContentSession Implementation
@@ -91,6 +69,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blobs
             UrgencyHint urgencyHint,
             Counter retryCounter)
         {
+            if (contentHash.IsEmptyHash())
+            {
+                return Task.FromResult(new PinResult(PinResult.ResultCode.Success));
+            }
+
             return PinRemoteAsync(context, contentHash);
         }
 
@@ -101,6 +84,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blobs
             Counter retryCounter,
             Counter fileCounter)
         {
+            // TODO: we can use blob batch API calls for deleting blobs using IfModifiedSince in the future for pinning in bulk
             var tasks = contentHashes.WithIndices().Select((tuple, _) =>
             {
                 var (contentHash, index) = tuple;
@@ -116,29 +100,69 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blobs
             return tasks;
         }
 
-        protected override Task<OpenStreamResult> OpenStreamCoreAsync(
+        protected override async Task<OpenStreamResult> OpenStreamCoreAsync(
             OperationContext context,
             ContentHash contentHash,
             UrgencyHint urgencyHint,
             Counter retryCounter)
         {
-            return RunWithRecovery(
-                () => _innerContentSession.OpenStreamAsync(
-                    context,
-                    contentHash,
-                    context.Token,
-                    urgencyHint),
-                () => DownloadIntoSession(context, contentHash),
-                shouldAttemptRecovery: r => r.Code == OpenStreamResult.ResultCode.ContentNotFound,
-                // If we fail to download into the local content session, we will just return that the content has not
-                // been found.
-                tryConvertRecoveryError: r => new OpenStreamResult(
-                                             other: r,
-                                             code: OpenStreamResult.ResultCode.ContentNotFound,
-                                             message: "Failed to obtain content from Azure Storage"));
+            if (contentHash.IsEmptyHash())
+            {
+                return new OpenStreamResult(new MemoryStream(Array.Empty<byte>()).WithLength(0));
+            }
+
+            var stream = await OpenRemoteStreamAsync(context, contentHash).ThrowIfFailureAsync();
+            return new OpenStreamResult(stream);
         }
 
-        protected override Task<PlaceFileResult> PlaceFileCoreAsync(
+        private Task<Result<StreamWithLength?>> OpenRemoteStreamAsync(OperationContext context, ContentHash contentHash)
+        {
+            return context.PerformOperationWithTimeoutAsync(
+                Tracer,
+                async context =>
+                {
+                    var reference = GetCloudBlockBlobReference(contentHash);
+
+                    Stream readStream;
+                    try
+                    {
+                        readStream = await reference.OpenReadAsync(
+                            accessCondition: null,
+                            options: DefaultBlobStorageRequestOptions,
+                            operationContext: null,
+                            cancellationToken: context.Token);
+                    }
+                    catch (StorageException exception)
+                    {
+                        // See: https://docs.microsoft.com/en-us/rest/api/storageservices/blob-service-error-codes
+                        // See: https://docs.microsoft.com/en-us/rest/api/storageservices/Specifying-Conditional-Headers-for-Blob-Service-Operations#Subheading3
+                        if (exception.RequestInformation.HttpStatusCode == (int)HttpStatusCode.NotFound)
+                        {
+                            return Result.Success<StreamWithLength?>(null, isNullAllowed: true);
+                        }
+                        else
+                        {
+                            throw;
+                        }
+                    }
+
+                    return Result.Success<StreamWithLength?>(readStream.WithLength(readStream.Length));
+                },
+                traceOperationStarted: false,
+                timeout: _configuration.StorageInteractionTimeout,
+                extraEndMessage: r =>
+                {
+                    long size = -1;
+                    if (r.Succeeded && r.Value is not null)
+                    {
+                        size = r.Value.Value.Length;
+                    }
+
+                    return $"ContentHash=[{contentHash}] Size=[{size}]";
+                });
+        }
+
+        protected override async Task<PlaceFileResult> PlaceFileCoreAsync(
             OperationContext context,
             ContentHash contentHash,
             AbsolutePath path,
@@ -148,24 +172,71 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blobs
             UrgencyHint urgencyHint,
             Counter retryCounter)
         {
-            return RunWithRecovery(
-                () => _innerContentSession.PlaceFileAsync(
-                    context,
-                    contentHash,
-                    path,
-                    accessMode,
-                    replacementMode,
-                    realizationMode,
-                    context.Token,
-                    urgencyHint),
-                () => DownloadIntoSession(context, contentHash),
-                shouldAttemptRecovery: r => r.Code == PlaceFileResult.ResultCode.NotPlacedContentNotFound,
-                // If we fail to download into the local content session, we will just return that the content has not
-                // been found.
-                tryConvertRecoveryError: r => new PlaceFileResult(
-                                             other: r,
-                                             code: PlaceFileResult.ResultCode.NotPlacedContentNotFound,
-                                             message: "Failed to obtain content from Azure Storage"));
+            if (replacementMode is FileReplacementMode.SkipIfExists or FileReplacementMode.FailIfExists && _fileSystem.FileExists(path))
+            {
+                return new PlaceFileResult(PlaceFileResult.ResultCode.NotPlacedAlreadyExists);
+            }
+
+            if (contentHash.IsEmptyHash())
+            {
+                _fileSystem.CreateEmptyFile(path);
+                return new PlaceFileResult(PlaceFileResult.ResultCode.PlacedWithCopy, fileSize: 0);
+            }
+
+            var remoteDownloadResult = await PlaceRemoteFileAsync(context, contentHash, path, accessMode, replacementMode).ThrowIfFailureAsync();
+            return new PlaceFileResult(remoteDownloadResult.ResultCode, remoteDownloadResult.FileSize ?? 0, source: PlaceFileResult.Source.BackingStore);
+        }
+        
+        private Task<Result<RemoteDownloadResult>> PlaceRemoteFileAsync(OperationContext context, ContentHash contentHash, AbsolutePath path, FileAccessMode accessMode, FileReplacementMode replacementMode)
+        {
+            return context.PerformOperationWithTimeoutAsync(
+                Tracer,
+                async context =>
+                {
+                    var reference = GetCloudBlockBlobReference(contentHash);
+
+                    var sasUrlQuery = reference.GetSharedAccessSignature(new SharedAccessBlobPolicy()
+                    {
+                        Permissions = SharedAccessBlobPermissions.Read,
+                        SharedAccessExpiryTime = _clock.UtcNow + TimeSpan.FromDays(1),
+                    });
+
+                    var downloadUrl = reference.Uri.AbsoluteUri + sasUrlQuery;
+
+                    var downloadRequest = new RemoteDownloadRequest()
+                    {
+                        ContentHash = contentHash,
+                        AbsolutePath = path,
+                        Reference = reference,
+                        DownloadUrl = downloadUrl,
+                    };
+
+                    RemoteDownloadResult remoteDownloadResult;
+                    try
+                    {
+                        remoteDownloadResult = await _downloadStrategy.DownloadAsync(context, downloadRequest);
+                    }
+                    catch
+                    {
+                        _fileSystem.DeleteFile(downloadRequest.AbsolutePath);
+                        throw;
+                    }
+
+                    return Result.Success(remoteDownloadResult);
+                },
+                traceOperationStarted: false,
+                timeout: _configuration.StorageInteractionTimeout,
+                extraEndMessage: r =>
+                {
+                    var baseline = $"ContentHash=[{contentHash.ToShortString()}] Path=[{path}] AccessMode=[{accessMode}] ReplacementMode=[{replacementMode}]";
+                    if (!r.Succeeded)
+                    {
+                        return baseline;
+                    }
+
+                    var d = r.Value;
+                    return $"{baseline} {r.Value}";
+                });
         }
 
         protected override async Task<IEnumerable<Task<Indexed<PlaceFileResult>>>> PlaceFileCoreAsync(
@@ -204,18 +275,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blobs
             UrgencyHint urgencyHint,
             Counter retryCounter)
         {
-            // We can't hash while uploading because the name of the blob must be determined before uploading, so we
-            // need to hash before.
-            var putResult = await _innerContentSession.PutFileAsync(context, hashType, path, realizationMode, context.Token).ThrowIfFailureAsync();
-            var contentHash = putResult.ContentHash;
-            var openStreamResult = await _innerContentSession.OpenStreamAsync(context, contentHash, context.Token).ThrowIfFailureAsync();
-
-            using var streamWithLength = openStreamResult.StreamWithLength!.Value;
-            return await UploadFromStreamAsync(
-                context,
-                contentHash,
-                streamWithLength.Stream,
-                streamWithLength.Length);
+            using var streamWithLength = _fileSystem.Open(
+                path,
+                FileAccess.Read,
+                FileMode.Open,
+                FileShare.Read,
+                FileOptions.Asynchronous | FileOptions.SequentialScan);
+            return await PutStreamCoreAsync(context, hashType, streamWithLength.Stream, urgencyHint, retryCounter);
         }
 
         protected override async Task<PutResult> PutFileCoreAsync(
@@ -270,11 +336,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blobs
         {
             // We can't hash while uploading because the name of the blob must be determined before uploading, so we
             // need to hash before.
-            var putResult = await _innerContentSession.PutStreamAsync(context, hashType, stream, context.Token).ThrowIfFailureAsync();
-            var contentHash = putResult.ContentHash;
-            var openStreamResult = await _innerContentSession.OpenStreamAsync(context, contentHash, context.Token).ThrowIfFailureAsync();
+            var position = stream.Position;
+            var streamWithLength = stream.WithLength(stream.Length - position);
+            var contentHash = await HashInfoLookup.GetContentHasher(hashType).GetContentHashAsync(streamWithLength);
+            stream.Position = position;
 
-            using var streamWithLength = openStreamResult.StreamWithLength!.Value;
             return await UploadFromStreamAsync(
                 context,
                 contentHash,
@@ -282,7 +348,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blobs
                 streamWithLength.Length);
         }
 
-        #endregion
+#endregion
 
         private Task<PinResult> PinRemoteAsync(
             OperationContext context,
@@ -293,61 +359,25 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blobs
                 async context => {
                     var reference = GetCloudBlockBlobReference(contentHash);
 
-                    try
-                    {
-                        await reference.FetchAttributesAsync(
-                            accessCondition: AccessCondition.GenerateEmptyCondition(),
+                    bool exists = await reference.ExistsAsync(
                             options: DefaultBlobStorageRequestOptions,
                             operationContext: null,
                             cancellationToken: context.Token);
-                    }
-                    catch (StorageException exception)
+
+                    if (exists)
                     {
-                        // See: https://docs.microsoft.com/en-us/rest/api/storageservices/blob-service-error-codes
-                        // See: https://docs.microsoft.com/en-us/rest/api/storageservices/Specifying-Conditional-Headers-for-Blob-Service-Operations#Subheading3
-                        if (exception.RequestInformation.HttpStatusCode == (int)HttpStatusCode.NotFound
-                            || exception.RequestInformation.ErrorCode == "BlobNotFound")
-                        {
-                            return PinResult.ContentNotFound;
-                        }
-                        else
-                        {
-                            throw;
-                        }
+                        return new PinResult(
+                            code: PinResult.ResultCode.Success,
+                            lastAccessTime: reference.Properties.LastModified?.UtcDateTime,
+                            contentSize: reference.Properties.Length);
                     }
-
-                    return new PinResult(
-                        code: PinResult.ResultCode.Success,
-                        lastAccessTime: reference.Properties.LastModified?.UtcDateTime,
-                        contentSize: reference.Properties.Length);
+                    else
+                    {
+                        return PinResult.ContentNotFound;
+                    }
                 },
                 traceOperationStarted: false,
-                timeout: _configuration.StorageInteractionTimeout);
-        }
-
-        private Task<PutResult> DownloadIntoSession(
-            OperationContext context,
-            ContentHash contentHash)
-        {
-            return context.PerformOperationWithTimeoutAsync(
-                Tracer,
-                async context =>
-                {
-                    var reference = GetCloudBlockBlobReference(contentHash);
-
-                    var readStream = await reference.OpenReadAsync(
-                        accessCondition: null,
-                        options: DefaultBlobStorageRequestOptions,
-                        operationContext: null,
-                        cancellationToken: context.Token);
-
-                    return await _innerContentSession.PutStreamAsync(
-                        context,
-                        contentHash,
-                        readStream,
-                        context.Token);
-                },
-                traceOperationStarted: false,
+                extraEndMessage: _ => $"ContentHash=[{contentHash}]",
                 timeout: _configuration.StorageInteractionTimeout);
         }
 
@@ -370,6 +400,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blobs
                     bool contentAlreadyExistsInCache = false;
                     try
                     {
+                        // TODO: setup parallel upload by using storage options (ParallelOperationThreadCount)
+                        // TODO: setup cancellation time via storage options (MaximumExecutionTime / ServerTimeout)
                         // TODO: ideally here we'd also hash in the bg and cancel the op if it turns out the hash
                         // doesn't match as a protective measure against trusted puts with the wrong hash.
                         await reference.UploadFromStreamAsync(
@@ -398,35 +430,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blobs
                 },
                 traceOperationStarted: false,
                 timeout: _configuration.StorageInteractionTimeout);
-        }
-
-        private async Task<TResult> RunWithRecovery<TResult, TRecovery>(
-            Func<Task<TResult>> attempt,
-            Func<Task<TRecovery>> recover,
-            Func<TResult, bool> shouldAttemptRecovery,
-            Func<TRecovery, TResult?> tryConvertRecoveryError)
-            where TResult : ResultBase
-            where TRecovery : ResultBase
-        {
-            var result = await attempt();
-            if (result.Succeeded || !shouldAttemptRecovery(result))
-            {
-                return result;
-            }
-
-            var recovery = await recover();
-            if (!recovery.Succeeded)
-            {
-                var converted = tryConvertRecoveryError(recovery);
-                if (converted is null)
-                {
-                    recovery.ThrowIfFailure();
-                }
-
-                return converted!;
-            }
-
-            return await attempt();
         }
 
         private CloudBlockBlob GetCloudBlockBlobReference(ContentHash contentHash)

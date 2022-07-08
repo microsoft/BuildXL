@@ -37,12 +37,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blobs
         /// <nodoc />
         protected override Tracer Tracer { get; } = new Tracer(nameof(AzureBlobStoragePublishingSession));
 
-        private readonly IContentStore _localContentStore;
-
         /// <nodoc />
         public AzureBlobStoragePublishingSession(
             AzureBlobStoragePublishingSessionConfiguration configuration,
-            IContentStore localContentStore,
             Func<IContentSession> localContentSessionFactory,
             SemaphoreSlim fingerprintPublishingGate,
             SemaphoreSlim contentPublishingGate)
@@ -51,7 +48,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blobs
                   fingerprintPublishingGate,
                   contentPublishingGate)
         {
-            _localContentStore = localContentStore;
         }
 
         /// <nodoc />
@@ -73,9 +69,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blobs
             var contentStore = new AzureBlobStorageContentStore(new AzureBlobStorageContentStoreConfiguration()
                 {
                     Credentials = credentials,
-                },
-                contentStoreFactory: () => _localContentStore,
-                ownsContentStore: false);
+                });
             var cache = new OneLevelCache(
                 contentStoreFunc: () => contentStore,
                 memoizationStoreFunc: () => memoizationStore,

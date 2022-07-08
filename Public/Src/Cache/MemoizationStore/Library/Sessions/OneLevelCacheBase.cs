@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Text;
@@ -12,6 +13,7 @@ using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
+using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Tracing;
@@ -27,6 +29,13 @@ using BuildXL.Cache.MemoizationStore.Tracing;
 
 namespace BuildXL.Cache.MemoizationStore.Sessions
 {
+    /// <nodoc />
+    public record OneLevelCacheBaseConfiguration(
+        Guid Id,
+        // Determines if the content session will be passed to the memoization store when constructing a non-readonly session.
+        bool PassContentToMemoization,
+        TimeSpan? MetadataPinElisionDuration = null);
+
     /// <summary>
     ///     A reference implementation of <see cref="ICache"/> that represents a single level of content and metadata.
     /// </summary>
@@ -52,26 +61,27 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
         IContentStore IComponentWrapper<IContentStore>.Inner => ContentStore!;
 
         /// <summary>
-        ///     Determines if the content session will be passed to the memoization store when constructing a non-readonly session.
-        /// </summary>
-        private readonly bool _passContentToMemoization;
-
-        /// <summary>
         /// Gets whether stats should be from only content store.
         /// This is to avoid aggregating equivalent stats when content and memoization
         /// are backed by the same instance.
         /// </summary>
         protected virtual bool UseOnlyContentStats => false;
 
-        /// <nodoc />
-        protected OneLevelCacheBase(Guid id, bool passContentToMemoization)
-        {
-            _passContentToMemoization = passContentToMemoization;
-            Id = id;
-        }
-
         /// <inheritdoc />
-        public Guid Id { get; }
+        public Guid Id { get => Configuration.Id; }
+
+        /// <nodoc />
+        internal OneLevelCacheBaseConfiguration Configuration { get; }
+
+        private readonly ConcurrentDictionary<ContentHash, DateTime> _pinElisionCache = new ConcurrentDictionary<ContentHash, DateTime>();
+
+        private readonly IClock _clock = SystemClock.Instance;
+
+        /// <nodoc />
+        protected OneLevelCacheBase(OneLevelCacheBaseConfiguration configuration)
+        {
+            Configuration = configuration;
+        }
 
         /// <summary>
         /// Creates and starts the content store and memoization store
@@ -199,7 +209,7 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
 
                 var memoizationReadOnlySession = createMemoizationResult.Session;
 
-                var session = new ReadOnlyOneLevelCacheSession(name, implicitPin, memoizationReadOnlySession, contentReadOnlySession);
+                var session = new ReadOnlyOneLevelCacheSession(this, name, implicitPin, memoizationReadOnlySession, contentReadOnlySession);
                 return new CreateSessionResult<IReadOnlyCacheSession>(session);
             });
         }
@@ -220,7 +230,7 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
 
                 var contentSession = createContentResult.Session;
 
-                var createMemoizationResult = _passContentToMemoization
+                var createMemoizationResult = Configuration.PassContentToMemoization
                     ? MemoizationStore.CreateSession(context, name, contentSession)
                     : MemoizationStore.CreateSession(context, name);
 
@@ -231,7 +241,7 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
 
                 var memoizationSession = createMemoizationResult.Session;
 
-                var session = new OneLevelCacheSession(name, implicitPin, memoizationSession, contentSession);
+                var session = new OneLevelCacheSession(this, name, implicitPin, memoizationSession, contentSession);
                 return new CreateSessionResult<ICacheSession>(session);
             });
         }
@@ -373,6 +383,38 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
 
             rejectionReason = RejectionReason.NotSupported;
             return false;
+        }
+
+        internal void AddOrExtendPin(Context context, ContentHash contentHash)
+        {
+            if (Configuration.MetadataPinElisionDuration is null)
+            {
+                return;
+            }
+
+            var expiry = _clock.UtcNow + Configuration.MetadataPinElisionDuration.Value;
+            _pinElisionCache.AddOrUpdate(contentHash, expiry, (_, current) => current.Max(expiry));
+        }
+
+        internal bool CanElidePin(Context context, ContentHash contentHash)
+        {
+            if (Configuration.MetadataPinElisionDuration is null)
+            {
+                return false;
+            }
+
+            if (!_pinElisionCache.TryGetValue(contentHash, out var expiry))
+            {
+                return false;
+            }
+
+            bool elide = expiry > _clock.UtcNow;
+            if (elide)
+            {
+                Tracer.Info(context, $"Eliding pin for content hash `{contentHash}`");
+            }
+
+            return elide;
         }
     }
 }

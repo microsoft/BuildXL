@@ -131,9 +131,6 @@ param(
     [switch]$UseVfs = $false,
 
     [Parameter(Mandatory=$false)]
-    [switch]$SkipExtraPins = $true,
-
-    [Parameter(Mandatory=$false)]
     [switch]$UseBlobL3 = $false,
 
     [string]$VsoAccount = "mseng",
@@ -436,6 +433,8 @@ function Get-CacheConfig {
         CacheServiceContentEndpoint = "https://$VsoAccount.vsblob.visualstudio.com/DefaultCollection";
         UseBlobContentHashLists = $true;
         CacheNamespace = $CacheNamespace;
+        DownloadBlobsUsingHttpClient = $true;
+        RequiredContentKeepUntilHours = 1;
     };
     
     <# TODO: After unifying flags, remove if statement and hard-code dummy value into remoteCache #>
@@ -443,17 +442,13 @@ function Get-CacheConfig {
         $remoteCache.Add("UseDedupStore", $true);
     }
 
-    if ($SkipExtraPins) {
-        $remoteCache.Add("RequiredContentKeepUntilHours", 1);
-    }
-
     if ($UseBlobL3) {
         $remoteCache = @{
             Assembly = "BuildXL.Cache.MemoizationStoreAdapter";
             Type = "BuildXL.Cache.MemoizationStoreAdapter.BlobCacheFactory";
             CacheId = "L3Cache";
-            LocalCachePath = (Join-Path $cacheDirectory "blobL3Cache");
             CacheLogPath = "[BuildXLSelectedLogPath].Remote.log";
+            ContainerName = $CacheNamespace;
         };
     }
 
@@ -461,15 +456,14 @@ function Get-CacheConfig {
         Assembly = "BuildXL.Cache.VerticalAggregator";
         Type = "BuildXL.Cache.VerticalAggregator.VerticalCacheAggregatorFactory";
         RemoteIsReadOnly = !($PublishToSharedCache);
+        RemoteContentIsReadOnly = !($PublishToSharedCache);
+        WriteThroughCasData = $PublishToSharedCache;
         LocalCache = $localCache;
         RemoteCache = $remoteCache;
-        RemoteConstructionTimeoutMilliseconds = 5000;
-        SkipDeterminismCheck = $true;
+        RemoteConstructionTimeoutMilliseconds = 36000;
+        SkipDeterminismRecovery = $true;
+        FailIfRemoteFails = $true;
     };
-
-    if ($UseBlobL3) {
-        $resultCache.RemoteContentIsReadOnly = $true
-    }
 
     return $resultCache;
 }

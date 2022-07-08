@@ -221,7 +221,7 @@ namespace BuildXL.FrontEnd.Script
                         }
                     }
                 }, 
-                configPath);
+                new [] { configPath });
 
             return result.ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
         }

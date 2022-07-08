@@ -120,7 +120,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Synchronization
                 MockContentStore contentStore,
                 MockMemoizationStore memoizationStore,
                 Func<(BoolResult contentStoreResult, BoolResult memoizationStoreResult)> createAndStartStoresFunc)
-                : base(Guid.NewGuid(), passContentToMemoization: false)
+                : base(new OneLevelCacheBaseConfiguration(Guid.NewGuid(), PassContentToMemoization: false))
             {
                 _contentStore = contentStore;
                 _memoizationStore = memoizationStore;

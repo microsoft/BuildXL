@@ -30,7 +30,16 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
         ///     when creating a non-readonly session.
         /// </summary>
         public OneLevelCache(Func<IContentStore> contentStoreFunc, Func<IMemoizationStore> memoizationStoreFunc, Guid id, bool passContentToMemoization = true)
-            : base(id, passContentToMemoization)
+            : this(contentStoreFunc, memoizationStoreFunc, new OneLevelCacheBaseConfiguration(id, passContentToMemoization))
+        {
+        }
+
+        /// <summary>
+        ///     Initializes a new instance of the <see cref="OneLevelCache" /> class, with an option to configure whether the content session will be passed to the memoization store
+        ///     when creating a non-readonly session.
+        /// </summary>
+        public OneLevelCache(Func<IContentStore> contentStoreFunc, Func<IMemoizationStore> memoizationStoreFunc, OneLevelCacheBaseConfiguration configuration)
+            : base(configuration)
         {
             Contract.Requires(contentStoreFunc != null);
             Contract.Requires(memoizationStoreFunc != null);

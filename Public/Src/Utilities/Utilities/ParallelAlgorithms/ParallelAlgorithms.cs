@@ -92,24 +92,6 @@ namespace BuildXL.Utilities.ParallelAlgorithms
         public delegate void ScheduleItem<T>(T item);
 
         /// <summary>
-        /// Sync wrapper around <see cref="WhenDoneAsync{T}(int, CancellationToken, Func{ScheduleItem{T}, T, Task}, T[])"/>
-        /// </summary>
-        public static void WhenDone<T>(int degreeOfParallelism, CancellationToken cancellationToken, Action<ScheduleItem<T>, T> action, params T[] items)
-        {
-            var task = WhenDoneAsync<T>(
-                degreeOfParallelism,
-                cancellationToken,
-                (scheduleItem, item) =>
-                {
-                    action(scheduleItem, item);
-                    return Task.FromResult(false);
-                },
-                items);
-
-            task.GetAwaiter().GetResult();
-        }
-
-        /// <summary>
         /// Process the <paramref name="items"/> in parallel by calling <paramref name="action"/> on each element.
         /// Each call back can schedule more work by calling a <see cref="ScheduleItem{T}"/> delegate.
         /// </summary>
@@ -118,26 +100,26 @@ namespace BuildXL.Utilities.ParallelAlgorithms
         /// this method is suitable for producing-consuming scnarios.
         /// The callback function can discover new work and can call a given call back to schedule more work.
         /// </remarks>
-        public static async Task WhenDoneAsync<T>(int degreeOfParallelism, CancellationToken cancellationToken, Func<ScheduleItem<T>, T, Task> action, params T[] items)
+        public static async Task WhenDoneAsync<T>(int degreeOfParallelism, CancellationToken cancellationToken, Func<ScheduleItem<T>, T, Task> action, IEnumerable<T> items)
         {
-            if (items.Length == 0)
-            {
-                return;
-            }
-
             // The channel is unbounded, because we don't expect it to grow too much.
             var channel = Channel.CreateUnbounded<T>(new UnboundedChannelOptions() { SingleReader = false, SingleWriter = false, });
-            
-            // Adding all the items to the channel.
-            foreach (var item in items)
-            {
-                channel.Writer.TryWrite(item);
-            }
 
             // Using the number of pending items to understand when all the items were processed.
             // Each processing callback can add more items to the processing queue, but if the number of pending
             // items drops to 0, then it means that all the items were processed and the method is done.
-            int pending = items.Length;
+            int pending = 0;
+            foreach (var item in items)
+            {
+                // Adding all the items to the channel.
+                channel.Writer.TryWrite(item);
+                pending++;
+            }
+
+            if (pending == 0)
+            {
+                return;
+            }
 
             ScheduleItem<T> scheduleItem = item =>
             {

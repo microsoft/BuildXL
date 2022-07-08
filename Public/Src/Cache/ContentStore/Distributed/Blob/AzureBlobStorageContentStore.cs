@@ -2,17 +2,15 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Net;
+using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Secrets;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
-using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
-using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
@@ -26,43 +24,57 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blobs
     {
         public AzureBlobStorageCredentials Credentials { get; set; } = AzureBlobStorageCredentials.StorageEmulator;
 
-        public string ContainerName { get; set; } = "blobcontentstore";
+        public string ContainerName { get; set; } = "default";
 
-        public string FolderName { get; set; } = "blobcontentstore";
+        public string FolderName { get; set; } = "content/default";
 
         public TimeSpan StorageInteractionTimeout { get; set; } = TimeSpan.FromMinutes(30);
+
+        public BlobDownloadStrategyConfiguration BlobDownloadStrategyConfiguration { get; set; } = new BlobDownloadStrategyConfiguration();
     }
 
-    public class AzureBlobStorageContentStore : StartupShutdownComponentBase, IContentStore
+    public class AzureBlobStorageContentStore : StartupShutdownBase, IContentStore
     {
         protected override Tracer Tracer { get; } = new Tracer(nameof(AzureBlobStorageContentStore));
 
         private readonly AzureBlobStorageContentStoreConfiguration _configuration;
 
-        internal IContentStore ContentStore { get; }
-
         private readonly CloudBlobClient _client;
         private readonly CloudBlobContainer _container;
         private readonly CloudBlobDirectory _directory;
 
-        public AzureBlobStorageContentStore(AzureBlobStorageContentStoreConfiguration configuration, Func<IContentStore> contentStoreFactory, bool ownsContentStore = true)
+        public AzureBlobStorageContentStore(AzureBlobStorageContentStoreConfiguration configuration)
         {
             _configuration = configuration;
-            ContentStore = contentStoreFactory();
 
             _client = _configuration.Credentials!.CreateCloudBlobClient();
             _container = _client.GetContainerReference(_configuration.ContainerName);
             _directory = _container.GetDirectoryReference(_configuration.FolderName);
-
-            if (ownsContentStore)
-            {
-                LinkLifetime(ContentStore);
-            }
         }
 
-        protected override async Task<BoolResult> StartupComponentAsync(OperationContext context)
+        protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
         {
+            ApplyServicePointSettings();
+
             return await EnsureContainerExists(context);
+        }
+
+        private void ApplyServicePointSettings()
+        {
+            // The following is used only pre-.NET Core, but it is important to set these for those usages.
+
+#pragma warning disable SYSLIB0014 // Type or member is obsolete
+            var servicePoint = ServicePointManager.FindServicePoint(_client.BaseUri);
+#pragma warning restore SYSLIB0014 // Type or member is obsolete
+
+            // See: https://github.com/Azure/azure-storage-net-data-movement#best-practice
+            var connectionLimit = Environment.ProcessorCount * 8;
+            if (servicePoint.ConnectionLimit < connectionLimit)
+            {
+                servicePoint.ConnectionLimit = connectionLimit;
+            }
+            servicePoint.UseNagleAlgorithm = false;
+            servicePoint.Expect100Continue = false;
         }
 
         internal Task<Result<bool>> EnsureContainerExists(OperationContext context)
@@ -90,29 +102,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blobs
                     return $"{msg} Created=[{r.Value}]";
                 },
                 timeout: _configuration.StorageInteractionTimeout);
-        }
-
-        public static AzureBlobStorageContentStore WithFileSystemContentStore(
-            AzureBlobStorageContentStoreConfiguration configuration,
-            AbsolutePath contentStoreRootPath,
-            ContentStoreConfiguration? contentStoreConfiguration = null,
-            ContentStoreSettings? contentStoreSettings = null)
-        {
-            contentStoreConfiguration ??= ContentStoreConfiguration.CreateWithMaxSizeQuotaMB(1024);
-            contentStoreSettings ??= ContentStoreSettings.DefaultSettings;
-
-            var contentStoreFactory = () => new FileSystemContentStore(
-                fileSystem: new PassThroughFileSystem(),
-                clock: SystemClock.Instance,
-                rootPath: contentStoreRootPath,
-                configurationModel: new ConfigurationModel(
-                    inProcessConfiguration: contentStoreConfiguration,
-                    selection: ConfigurationSelection.RequireAndUseInProcessConfiguration),
-                distributedStore: null,
-                settings: contentStoreSettings,
-                coldStorage: null);
-
-            return new AzureBlobStorageContentStore(configuration, contentStoreFactory);
         }
 
         public CreateSessionResult<IReadOnlyContentSession> CreateReadOnlySession(Context context, string name, ImplicitPin implicitPin)
@@ -143,13 +132,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blobs
 
         private IContentSession CreateSessionCore(Context context, string name, ImplicitPin implicitPin)
         {
-            return AzureBlobStorageContentSession.Create(
-                context,
+            return new AzureBlobStorageContentSession(
                 new AzureBlobStorageContentSession.Configuration(
                     Name: name,
                     ImplicitPin: implicitPin,
                     Parent: this,
-                    StorageInteractionTimeout: _configuration.StorageInteractionTimeout));
+                    StorageInteractionTimeout: _configuration.StorageInteractionTimeout,
+                    BlobDownloadStrategyConfiguration: _configuration.BlobDownloadStrategyConfiguration));
         }
 
         public Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash, DeleteContentOptions? deleteOptions)

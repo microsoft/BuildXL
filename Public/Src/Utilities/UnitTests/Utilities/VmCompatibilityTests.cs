@@ -121,6 +121,19 @@ namespace Test.BuildXL.Utilities
             });
         }
 
+        [Fact(Skip = "Waiting for a new BuildXL LKG")]
+        public void VmSharedTempFolderExists()
+        {
+            EnsureRunInVm(() =>
+            {
+                string vmSharedTemp = Environment.GetEnvironmentVariable(VmSpecialEnvironmentVariables.VmSharedTemp);
+                XAssert.IsNotNull(vmSharedTemp);
+                string expectedVmSharedTemp = Path.Combine(VmConstants.Temp.Root, VmSpecialFilesAndDirectories.SharedTempFolder);
+                XAssert.AreEqual(expectedVmSharedTemp.ToUpperInvariant(), vmSharedTemp.ToUpperInvariant());
+                XAssert.IsTrue(Directory.Exists(vmSharedTemp));
+            });
+        }
+
         [Fact]
         public void VmPipCurrentlyDoesNotHaveUserProfileEnvironmentVariablesSpecified()
         {

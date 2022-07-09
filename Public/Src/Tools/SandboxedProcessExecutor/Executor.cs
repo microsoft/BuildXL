@@ -16,6 +16,7 @@ using BuildXL.SandboxedProcessExecutor.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
+using BuildXL.Utilities.VmCommandProxy;
 
 #nullable enable
 
@@ -497,6 +498,18 @@ namespace BuildXL.SandboxedProcessExecutor
                         m_logger.LogError($"Failed to prepare temporary directory '{tempPath}': {result.Failure.DescribeIncludingInnerFailures()}");
                         return false;
                     }   
+                }
+            }
+
+            string vmSharedTemp = info.EnvironmentVariables.TryGetValue(VmSpecialEnvironmentVariables.VmSharedTemp, null);
+
+            if (!string.IsNullOrEmpty(vmSharedTemp))
+            {
+                var result = EnsureDirectoryExists(vmSharedTemp);
+                if (!result.Succeeded)
+                {
+                    m_logger.LogError($"Failed to prepare VM shared temporary directory '{vmSharedTemp}': {result.Failure.DescribeIncludingInnerFailures()}");
+                    return false;
                 }
             }
 

@@ -61,6 +61,9 @@ param(
     [Parameter(HelpMessage = "Build queue")]
     [string]$Queue = "BuildXL_Internal_PR",
 
+    [Parameter(HelpMessage = "Build engine drop")]
+    [string]$BxlDrop = "",
+
     [Parameter(ValueFromRemainingArguments=$true)]
     [string[]]$BuildXLArguments = ""
 )
@@ -134,12 +137,17 @@ if ($beforeCommit -ne $afterCommit)
 # 2- Generate the cb.exe arguments and send the build to Cloudbuild
 Write-Host ">>> Sending the build to CloudBuild"
 
-# BuildXL version in your repo needs to be used to get cache hits in your local builds.
-# To this end, we infer BuildXL version from BuildXLLkgVersion.cmd. If we use the version
-# in CloudBuild, we may not get cache hits from the remote cache.
-$bxlVersionLine = Get-Content -Path "$PSScriptRoot\BuildXLLkgVersion.cmd" | Select-String "BUILDXL_LKG_VERSION" | select-object -First 1
-$bxlVersion = $bxlVersionLine.Line.Split("=")[1];
-$bxlDrop = 'https://cloudbuild.artifacts.visualstudio.com/DefaultCollection/_apis/drop/drops/buildxl.dogfood.' + $bxlVersion + '?root=release/win-x64';
+if (![string]::IsNullOrEmpty($BxlDrop)) {
+    $bxlEngine = $BxlDrop + '?root=release/win-x64';
+}
+else {
+    # BuildXL version in your repo needs to be used to get cache hits in your local builds.
+    # To this end, we infer BuildXL version from BuildXLLkgVersion.cmd. If we use the version
+    # in CloudBuild, we may not get cache hits from the remote cache.
+    $bxlVersionLine = Get-Content -Path "$PSScriptRoot\BuildXLLkgVersion.cmd" | Select-String "BUILDXL_LKG_VERSION" | select-object -First 1
+    $bxlVersion = $bxlVersionLine.Line.Split("=")[1];
+    $bxlEngine = 'https://cloudbuild.artifacts.visualstudio.com/DefaultCollection/_apis/drop/drops/buildxl.dogfood.' + $bxlVersion + '?root=release/win-x64';
+}
 
 $disableCache = ($Cache -eq "Disable");
 $consumeCache = ($Cache -eq "Consume");
@@ -172,7 +180,7 @@ $requestBody = "
     'MaxBuilders': '$maxBuilders',
     'Description': 'BuildXL buddy build $([DateTime]::UtcNow.ToLocalTIme().ToString())',
     'ToolPaths': {
-        'DominoEngine': '$bxlDrop'
+        'DominoEngine': '$bxlEngine'
     },
     'GenericRunnerOptions': {
         'CacheVstsAccountName': '$CacheAccount',

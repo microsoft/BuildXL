@@ -60,9 +60,13 @@ namespace BuildXL.Utilities.VmCommandProxy
         /// that do not work well when executed from the network mapped D: drive. It will copy the original .exe and its entire folder into the VM
         /// and re-execute the original command-line from there.
         /// CODESYNC (CB codebase): private\Common\VmUtils\VmCommandProxy\VmCommandProxy.cs
-        /// 
         /// </summary>
         public const string CopyLocalShimDirectory = @"C:\VmAgent\Dependencies\CopyLocalShim";
+
+        /// <summary>
+        /// Named of shared temp folder that all pips executing in the VM will have untracked accesses.
+        /// </summary>
+        public const string SharedTempFolder = "BuildXLVmSharedTemp";
     }
 
     /// <summary>
@@ -85,6 +89,16 @@ namespace BuildXL.Utilities.VmCommandProxy
         /// whose new value is stored in <see cref="VmTemp"/>.
         /// </summary>
         public const string VmOriginalTemp = "[BUILDXL]VM_ORIGINAL_TEMP";
+
+        /// <summary>
+        /// Environment variable whose value is a path to a temp folder shared by all pips executing in the VM.
+        /// </summary>
+        /// <remarks>
+        /// Shared temp folder is needed particularly in the case of pips needing to use <see cref="VmSpecialFilesAndDirectories.CopyLocalShimDirectory"/>.
+        /// One pip will copy the tool into a folder in this shared temp folder once, and other pips will simply use the copied tool in that folder. Without
+        /// this folder, each pip will copy the tool into its own temp folder. Not only that this has performance impact, the VM will run out of space quickly.
+        /// </remarks>
+        public const string VmSharedTemp = "[BUILDXL]VM_SHARED_TEMP";
 
         /// <summary>
         /// Property indicating if a process is running in VM.

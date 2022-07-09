@@ -2995,6 +2995,11 @@ namespace BuildXL.Processes
 
                     environmentVariables = environmentVariables.Override(overridenEnvVars);
                 }
+
+                environmentVariables = environmentVariables.Override(new[] 
+                { 
+                    new KeyValuePair<string, string>(VmSpecialEnvironmentVariables.VmSharedTemp, PrepareSharedTempDirectoryForVm().ToString(m_pathTable))
+                });
             }
 
             return true;
@@ -3035,6 +3040,17 @@ namespace BuildXL.Processes
             }
 
             return true;
+        }
+
+        private AbsolutePath PrepareSharedTempDirectoryForVm()
+        {
+            AbsolutePath vmTempRoot = m_sandboxConfig.RedirectedTempFolderRootForVmExecution.IsValid
+                ? m_sandboxConfig.RedirectedTempFolderRootForVmExecution
+                : AbsolutePath.Create(m_pathTable, VmConstants.Temp.Root);
+
+            AbsolutePath vmSharedTemp = vmTempRoot.Combine(m_pathTable, VmSpecialFilesAndDirectories.SharedTempFolder);
+            AddUntrackedScopeToManifest(vmSharedTemp);
+            return vmSharedTemp;
         }
 
         private bool PrepareTempDirectoryForVm(AbsolutePath tempDirectoryPath)
@@ -3119,7 +3135,7 @@ namespace BuildXL.Processes
             Contract.Assert(m_fileAccessManifest != null);
 
             // Ensure that T:\BxlTemp\D__\Bxl\Out\Object\Pip123\Temp\t_0 is untracked. Thus, there is no need for a directory translation.
-            m_fileAccessManifest.AddScope(tempRedirectedPath, mask: m_excludeReportAccessMask, values: FileAccessPolicy.AllowAll | FileAccessPolicy.AllowRealInputTimestamps);
+            AddUntrackedScopeToManifest(tempRedirectedPath);
 
             Tracing.Logger.Log.PipTempSymlinkRedirection(
                 m_loggingContext,

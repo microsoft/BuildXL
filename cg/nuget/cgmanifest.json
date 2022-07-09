@@ -348,7 +348,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Grpc.Core.Api",
-          "Version": "2.46.3"
+          "Version": "2.47.0"
         }
       }
     },
@@ -393,7 +393,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Grpc.Tools",
-          "Version": "2.46.3"
+          "Version": "2.47.0"
         }
       }
     },

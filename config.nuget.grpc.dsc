@@ -6,7 +6,7 @@ const protoVersion = "3.19.4";
 const protoToolsVersion = "3.19.4";
 
 const grpcNetVersion = "2.47.0";
-const grpcCoreVersion = "2.46.3";
+const grpcCoreVersion = "2.47.0";
 
 export const pkgs = [
     // grpc
@@ -18,7 +18,7 @@ export const pkgs = [
     { id: "Grpc.AspNetCore.Server", version: grpcNetVersion},
     { id: "Grpc.AspNetCore", version: grpcNetVersion},  
 
-    { id: "Grpc.Core", version: grpcCoreVersion, dependentPackageIdsToSkip: [ "System.Memory" ] },
+    { id: "Grpc.Core", version: "2.46.3", dependentPackageIdsToSkip: [ "System.Memory" ] },
     { id: "Grpc.Core.Api", version: grpcCoreVersion, dependentPackageIdsToSkip: [ "System.Memory" ] },
     { id: "Grpc.Tools", version: grpcCoreVersion },
 

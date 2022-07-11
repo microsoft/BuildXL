@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Grpc;
 using BuildXL.Engine.Distribution.Grpc;
 using BuildXL.Engine.Tracing;
+using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
@@ -34,11 +35,11 @@ namespace BuildXL.Engine.Distribution
             }
         }
 
-        private void InterceptCallContext(ServerCallContext context)
+        private void InterceptCallContext(ServerCallContext context, out string sender)
         {
             string method = context.Method.Split('/')[2];
 
-            GrpcSettings.ParseHeader(context.RequestHeaders, out string sender, out var senderInvocationId, out string traceId, out string token);
+            GrpcSettings.ParseHeader(context.RequestHeaders, out sender, out var senderInvocationId, out string traceId, out string token);
 
             if (m_invocationId != senderInvocationId)
             {
@@ -81,25 +82,49 @@ namespace BuildXL.Engine.Distribution
 
         public override Task<TResponse> UnaryServerHandler<TRequest, TResponse>(TRequest request, ServerCallContext context, UnaryServerMethod<TRequest, TResponse> continuation)
         {
-            InterceptCallContext(context);
-            return continuation(request, context);
+            string sender = "(Unknown)";
+            try
+            {
+                InterceptCallContext(context, out sender);
+                return continuation(request, context);
+            }
+            catch (RpcException)
+            {
+                throw;
+            }
+            catch (Exception e)
+            {
+                var failureMessage = $"Unexpected exception processing unary call: {e.ToStringDemystified()}";
+                Logger.Log.GrpcTrace(m_loggingContext, sender, failureMessage);
+
+                var trailers = new Metadata
+                {
+                    { GrpcMetadata.IsUnrecoverableError, GrpcMetadata.True } // Bail
+                };
+
+                throw new RpcException(
+                    new Status(
+                        StatusCode.Unknown,
+                        failureMessage),
+                    trailers);
+            }
         }
 
         public override Task<TResponse> ClientStreamingServerHandler<TRequest, TResponse>(IAsyncStreamReader<TRequest> requestStream, ServerCallContext context, ClientStreamingServerMethod<TRequest, TResponse> continuation)
         {
-            InterceptCallContext(context);
+            InterceptCallContext(context, out _);
             return continuation(requestStream, context);
         }
 
         public override Task ServerStreamingServerHandler<TRequest, TResponse>(TRequest request, IServerStreamWriter<TResponse> responseStream, ServerCallContext context, ServerStreamingServerMethod<TRequest, TResponse> continuation)
         {
-            InterceptCallContext(context);
+            InterceptCallContext(context, out _);
             return continuation(request, responseStream, context);
         }
 
         public override Task DuplexStreamingServerHandler<TRequest, TResponse>(IAsyncStreamReader<TRequest> requestStream, IServerStreamWriter<TResponse> responseStream, ServerCallContext context, DuplexStreamingServerMethod<TRequest, TResponse> continuation)
         {
-            InterceptCallContext(context);
+            InterceptCallContext(context, out _);
             return continuation(requestStream, responseStream, context);
         }
     }

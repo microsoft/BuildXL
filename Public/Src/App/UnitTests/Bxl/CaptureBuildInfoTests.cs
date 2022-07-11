@@ -2,6 +2,9 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Globalization;
 using System.Linq;
 using BuildXL;
 using BuildXL.Utilities;
@@ -17,7 +20,13 @@ namespace Test.BuildXL.Utilities.Configuration
     public class CaptureBuildInfoTests
     {
 
-        private readonly string m_specFilePath = A("d", "src", "blahBlah.dsc");
+        private static readonly string s_specFilePath = A("d", "src", "blahBlah.dsc");
+
+        private const string EnvVarExpectedValue = "TestADO";
+
+        private const string OrgURLNewFormatTestValue = "https://dev.azure.com/bxlTestCheck/check/newformat/URL//";
+
+        private const string OrgURLFormatTestValue = "https://bxlTestCheck.visualstudio.com";
 
         /// <summary>
         /// This test is to check if the "infra" property is set to "ado" when "Build_DefinitionName" is present as an environment variable.
@@ -26,21 +35,21 @@ namespace Test.BuildXL.Utilities.Configuration
         public static void TestInfraPropertyADO()
         {
             ICommandLineConfiguration configuration = new CommandLineConfiguration();
-            string[] envString = ComputeEnvBlockForTesting(configuration);
-            XAssert.IsTrue(CheckIfEnvStringContainsInfraProperty("infra=ado", envString));
+            string[] envString = ComputeEnvBlockForTesting(configuration, CaptureBuildInfo.AdoEnvVariableForInfra, EnvVarExpectedValue);
+            XAssert.IsTrue(AssertEnvStringContainsTelemetryEnvProperty("infra=ado", envString));
         }
+
         /// <summary>
         /// This test is to check if the "infra" property has been to set "cloudbuild" if the "InCloudBuild" cmd line argument is passed.
         /// </summary>
-
         [Fact]
         public void TestInfraPropertyCloudBuild()
         {
             ICommandLineConfiguration configuration = new CommandLineConfiguration(new CommandLineConfiguration() { InCloudBuild = true });
             string env1 = BuildXLApp.ComputeEnvironment(configuration);
             string[] envString = env1.Split(';');
-            CheckForDuplicates(envString);
-            XAssert.IsTrue(CheckIfEnvStringContainsInfraProperty("infra=cloudbuild", envString));
+            AssertNoDuplicates(envString);
+            XAssert.IsTrue(AssertEnvStringContainsTelemetryEnvProperty("infra=cb", envString));
         }
 
         /// <summary>
@@ -51,25 +60,22 @@ namespace Test.BuildXL.Utilities.Configuration
         public void TestInfraPropertyForBothADOCB()
         {
             ICommandLineConfiguration configuration = new CommandLineConfiguration(new CommandLineConfiguration() { InCloudBuild = true });
-            string[] envString = ComputeEnvBlockForTesting(configuration);
-            XAssert.IsTrue(CheckIfEnvStringContainsInfraProperty("infra=cloudbuild", envString));
-            XAssert.IsFalse(CheckIfEnvStringContainsInfraProperty("infra=ado", envString));
+            string[] envString = ComputeEnvBlockForTesting(configuration, CaptureBuildInfo.AdoEnvVariableForInfra, EnvVarExpectedValue);
+            XAssert.IsTrue(AssertEnvStringContainsTelemetryEnvProperty("infra=cb", envString));
+            XAssert.IsFalse(AssertEnvStringContainsTelemetryEnvProperty("infra=ado", envString));
         }
 
         /// <summary>
         /// This test is to ensure that the user passed build property value overrides the value being set by GetInfra().
         /// </summary>
-                [Fact]
+        [Fact]
         public void TestInfraPropertyForDuplicates()
         {
-            PathTable pt = new PathTable();
-            var argsParser = new Args();
-            ICommandLineConfiguration configuration = new CommandLineConfiguration();
-            string args = "/traceInfo:INFRA=test";
-            argsParser.TryParse(new[] { @"/c:" + m_specFilePath, args}, pt, out configuration);
-            string[] envString = ComputeEnvBlockForTesting(configuration);            
-            XAssert.IsTrue(CheckIfEnvStringContainsInfraProperty("INFRA=test", envString));
-            XAssert.IsFalse(CheckIfEnvStringContainsInfraProperty("INFRA=ado", envString));
+            string traceInfoArgs = "/traceInfo:INFRA=test";
+            ICommandLineConfiguration configuration = AddTraceInfoArguments(traceInfoArgs);
+            string[] envString = ComputeEnvBlockForTesting(configuration, CaptureBuildInfo.AdoEnvVariableForInfra, EnvVarExpectedValue);
+            XAssert.IsTrue(AssertEnvStringContainsTelemetryEnvProperty("INFRA=test", envString));
+            XAssert.IsFalse(AssertEnvStringContainsTelemetryEnvProperty("INFRA=ado", envString));
         }
 
         /// <summary>
@@ -83,62 +89,116 @@ namespace Test.BuildXL.Utilities.Configuration
             ICommandLineConfiguration configuration = new CommandLineConfiguration();
             string args = "/traceInfo:Infra=test";
             string args1 = "/traceInfo:inFra=test2";
-            argsParser.TryParse(new[] { @"/c:" + m_specFilePath, args, args1 }, pt, out configuration);
+            argsParser.TryParse(new[] { @"/c:" + s_specFilePath, args, args1 }, pt, out configuration);
             string env1 = BuildXLApp.ComputeEnvironment(configuration);
             string[] envString = env1.Split(';');
-            XAssert.IsFalse(CheckIfEnvStringContainsInfraProperty("Infra=test", envString));
-            XAssert.IsTrue(CheckIfEnvStringContainsInfraProperty("Infra=test2", envString));
-
+            XAssert.IsFalse(AssertEnvStringContainsTelemetryEnvProperty("Infra=test", envString));
+            XAssert.IsTrue(AssertEnvStringContainsTelemetryEnvProperty("Infra=test2", envString));
         }
 
         /// <summary>
-        /// This is a helper method to set a default environment variable "Build_DefintionName"
-        /// Check if there any duplicates in the environment string.
-        /// Reset the Build_DefinitionName variable to its original value
+        /// This test is to check if the "org" property is set to the organization name extracted from the URL for both ADO and CB env.
+        /// </summary>
+        [Theory]
+        [InlineData(CaptureBuildInfo.EnvVariableForOrg, OrgURLNewFormatTestValue, "bxlTestCheck")]
+        [InlineData(CaptureBuildInfo.EnvVariableForOrg, "https://dev.azure.com123/bxlTestCheck/check/newformat/URL//", null)]
+        [InlineData(CaptureBuildInfo.EnvVariableForOrg, OrgURLFormatTestValue, "bxlTestCheck")]
+        [InlineData(CaptureBuildInfo.EnvVariableForOrg, "notAURI_JustaString?//", null)]
+        [InlineData("NotAnEnvVariable", "notAURI_JustaString?//", null)]
+        public static void TestOrgProperty(string adoPreDefinedEnvVar, string adoPreDefinedEnvVarTestValue, string expectedValueInEnvString)
+        {
+            ICommandLineConfiguration configuration = new CommandLineConfiguration();
+            string[] envString = ComputeEnvBlockForTesting(configuration, adoPreDefinedEnvVar, adoPreDefinedEnvVarTestValue);
+            if (expectedValueInEnvString != null)
+            {
+                XAssert.IsTrue(AssertEnvStringContainsTelemetryEnvProperty("org=" + expectedValueInEnvString, envString));
+            }
+            else
+            {
+                XAssert.IsFalse(AssertEnvStringContainsTelemetryEnvProperty("org=", envString));
+            }
+        }
+
+        /// <summary>
+        /// This test is to ensure that the user passed build property value overrides the value being set by GetOrg().
+        /// </summary>
+        [Fact]
+        public void TestOrgPropertyForTraceInfoValue()
+        {
+            string traceInfoArgs = "/traceInfo:org=test";
+            ICommandLineConfiguration configuration = AddTraceInfoArguments(traceInfoArgs);
+            string[] envString = ComputeEnvBlockForTesting(configuration, CaptureBuildInfo.EnvVariableForOrg, OrgURLNewFormatTestValue);
+            XAssert.IsTrue(AssertEnvStringContainsTelemetryEnvProperty("org=test", envString));
+            XAssert.IsFalse(AssertEnvStringContainsTelemetryEnvProperty("org=bxlTestCheck", envString));
+        }
+
+        /// <summary>
+        /// This is a helper method to avoid memory leaks with respect to the environment variables that are tested
+        /// Check if there any duplicates are present in the environment string.
         /// </summary>
         /// <param name="configuration">
         /// CommandLine configuration object
         /// </param>
-        /// <param name="buildProperty">
-        /// The buildProperty value set
+        /// <param name="envProperty">
+        /// The environment property which is used to add the appropriate properties of build.
+        /// Ex: The presence of envProperty "Build_DefinitionName" adds a property called "infra=ado" to the envString.
         /// </param>
-        /// <returns></returns>
-
-        public static string[] ComputeEnvBlockForTesting(ICommandLineConfiguration configuration)
+        public static string[] ComputeEnvBlockForTesting(ICommandLineConfiguration configuration, string envProperty, string envPropertyTestValue)
         {
-            string buildDefOriginalValue = Environment.GetEnvironmentVariable("BUILD_DEFINTIONNAME");
+            string envPropertyOriginalValue = Environment.GetEnvironmentVariable(envProperty);
             try
             {
-                Environment.SetEnvironmentVariable("BUILD_DEFINITIONNAME", "TestADO");
+                Environment.SetEnvironmentVariable(envProperty, envPropertyTestValue);
                 string env = BuildXLApp.ComputeEnvironment(configuration);
                 string[] envString = env.Split(';');
                 // Adding this test condition to make sure that there are no duplicates.
-                CheckForDuplicates(envString);
-                return envString;                
+                AssertNoDuplicates(envString);
+                return envString;
             }
             finally
             {
-                Environment.SetEnvironmentVariable("BUILD_DEFINITIONNAME", buildDefOriginalValue);
+                Environment.SetEnvironmentVariable(envProperty, envPropertyOriginalValue);
             }
+        }
+
+        /// <summary>
+        /// Helper method to pass traeInfo arguments.
+        /// </summary>
+        /// <param name="traceInfoArgs">traceInfo arguments to be passed to the config object</param>
+        /// <returns></returns>
+        private static ICommandLineConfiguration AddTraceInfoArguments(string traceInfoArgs)
+        {
+            PathTable pt = new PathTable();
+            var argsParser = new Args();
+            ICommandLineConfiguration configuration = new CommandLineConfiguration();
+            argsParser.TryParse(new[] { @"/c:" + s_specFilePath, traceInfoArgs }, pt, out configuration);
+            return configuration;
         }
 
         /// <summary>
         /// Helper method to check if the envString contains the required buildProperty or not.
         /// </summary>
-        /// <param name="buildPropertyValue">
+        /// <param name="envPropertyValue">
         /// Build property to be tested ex:- infra=ado</param>
-        /// <param name="envString">
-        /// environment string array which contains traceinfo and buildproperties</param>
-        /// <returns></returns>
-        private static bool CheckIfEnvStringContainsInfraProperty(string buildPropertyValue, string[] envString)
-        {       
-            return envString.Contains(buildPropertyValue, StringComparer.InvariantCultureIgnoreCase);
+        /// <param name="envString">environment string array which contains traceinfo and buildproperties </param>
+        private static bool AssertEnvStringContainsTelemetryEnvProperty(string envPropertyValue, string[] envString)
+        {
+            return envString.Contains(envPropertyValue, StringComparer.InvariantCultureIgnoreCase);
         }
 
-        private static void CheckForDuplicates(string[] envString)
+        /// <summary>
+        /// Helper method to detect duplicates in the environment string
+        /// </summary>
+        /// <param name="envString">Environment string which containes traceInfo and build properties</param>
+        private static void AssertNoDuplicates(string[] envString)
         {
-            XAssert.IsTrue(envString.Count(x => x.StartsWith("infra=", StringComparison.InvariantCultureIgnoreCase)) <= 1);
-
+            HashSet<string> envKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (string envStringItem in envString)
+            {
+                string[] envProperties = envStringItem.Split('=');
+                envKeys.Add(envProperties[0]);
+            }
+            XAssert.AreEqual(envKeys.Count(), envString.Length, "Duplicate properties found in the environment string");
         }
     }
 }

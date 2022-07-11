@@ -1855,12 +1855,7 @@ namespace BuildXL
 
                 // Using a map to capture all the traceInfoProperties, which can be later used for removal of duplicates.
                 // If the user has passed a buildProperty through traceInfo flag,then that value is used to override the value to be set by the build properties methods.
-                Dictionary<string, string> traceInfoProperties = new Dictionary<string, string>(configuration.Logging.TraceInfo, StringComparer.InvariantCultureIgnoreCase);
-                if (!traceInfoProperties.ContainsKey(CaptureBuildInfo.InfraKey))
-                {
-                    string infraPropertyValue = CaptureBuildInfo.GetInfra(configuration);
-                    traceInfoProperties.Add(CaptureBuildInfo.InfraKey, infraPropertyValue);
-                }
+                Dictionary<string, string> traceInfoProperties = CaptureBuildInfo.CaptureTelemetryEnvProperties(configuration);
 
                 foreach (KeyValuePair<string, string> traceInfo in traceInfoProperties.OrderBy(kvp => kvp.Key, StringComparer.InvariantCultureIgnoreCase))
                 {

@@ -154,12 +154,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
         }
 
-        /// <nodoc />
-        public int ApproximateNumberOfMachines()
-        {
-            return _clusterStateCache.OpenMachinesSet.Count;
-        }
-
         #endregion
 
         #region Bin Manager
@@ -297,14 +291,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 }
 
                 // What follows is just diagnostic information, mostly useful for debugging issues when they happen.
-                foreach (var kvp in nextCache.RecordsByMachineId)
-                {
-                    if (!prevCache.RecordsByMachineId.ContainsKey(kvp.Key))
-                    {
-                        var nextRecord = kvp.Value;
-                        Tracer.Debug(context, $"Found new machine. Id=[{nextRecord.Id}] Location=[{nextRecord.Location}] State=[{nextRecord.State}]");
-                    }
-                }
+                TraceMachineMappings(context, nextCache, prevCache);
 
                 Tracer.TrackMetric(context, "OpenMachineCount", nextCache.OpenMachinesSet.Count);
                 Tracer.TrackMetric(context, "ClosedMachineCount", nextCache.ClosedMachinesSet.Count);
@@ -321,6 +308,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 return BoolResult.Success;
             },
             traceOperationStarted: false);
+        }
+
+        private void TraceMachineMappings(OperationContext context, QueryableClusterState nextCache, QueryableClusterState prevCache)
+        {
+            foreach (var kvp in nextCache.RecordsByMachineId)
+            {
+                if (!prevCache.RecordsByMachineId.ContainsKey(kvp.Key))
+                {
+                    var nextRecord = kvp.Value;
+                    Tracer.Debug(context, $"MachineMapping: Found new machine. Id=[{nextRecord.Id}] Location=[{nextRecord.Location}] State=[{nextRecord.State}]");
+                }
+            }
         }
 
         #region Test-related methods

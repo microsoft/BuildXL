@@ -6,6 +6,7 @@ using System.Diagnostics.ContractsLight;
 using System.Diagnostics.Tracing;
 using System.Globalization;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Instrumentation.Common;
 
@@ -323,8 +324,11 @@ namespace BuildXL.Utilities.Tracing
                     // this is formatted with the invariant culture since it is parsed by VS
                     full = string.Format(
                         CultureInfo.InvariantCulture,
-                        "{0} {1} DX{2:D4}: {3}",
+                        "{0}{1} {2} DX{3:D4}: {4}",
                         TimeSpanToString(timeDisplay, DateTime.UtcNow - baseTime),
+
+                        // utc timestamp for certain events
+                        ShouldIncludeUtcTimestamp(eventData) ? string.Format(" [{0} UTC]", DateTime.UtcNow.ToString("HH:mm:ss.ff")) : string.Empty,
 
                         // error/warning/info/etc
                         label,
@@ -360,6 +364,14 @@ namespace BuildXL.Utilities.Tracing
             }
 
             return full;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static bool ShouldIncludeUtcTimestamp(EventWrittenEventArgs eventData)
+        {
+            // Distribution related messages should include a UTC timestamp for easy
+            // correlation between events across workers
+            return eventData.Task == Instrumentation.Common.Tasks.Distribution;
         }
 
         /// <summary>

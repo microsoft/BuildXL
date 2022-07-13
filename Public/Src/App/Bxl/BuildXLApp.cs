@@ -651,6 +651,7 @@ namespace BuildXL
                             ExceptionRootCause rootCause = ExceptionUtilities.AnalyzeExceptionRootCause(eventArgs.Exception);
                             if (rootCause == ExceptionRootCause.NetworkException)
                             {
+                                UnexpectedCondition.Log(pm.LoggingContext, $"Swallow the following unobserved task exception. Root cause: {rootCause}, Exception: {eventArgs.Exception.ToStringDemystified()}");
                                 return;
                             }
                         }

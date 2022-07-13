@@ -285,6 +285,11 @@ namespace BuildXL.Utilities
                 return innerBuldXLException.RootCause;
             }
 
+            if (ex is Grpc.Core.RpcException)
+            {
+                return ExceptionRootCause.NetworkException;
+            }
+
             int exHResult = GetHResult(ex);
 
             if (ex is IOException && exHResult == IncorrectFunction)

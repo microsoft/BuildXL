@@ -23,7 +23,7 @@ namespace BuildXL.Tracing
         FinalStatistics = 6306,
         LoggerStatistics = 6307,
         PipCounters = 6308,
-       
+
         DominoCompletedEvent = 11500,
         TargetAddedEvent = 11501,
         TargetRunningEvent = 11502,

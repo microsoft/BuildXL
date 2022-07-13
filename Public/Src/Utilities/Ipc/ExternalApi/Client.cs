@@ -31,9 +31,8 @@ namespace BuildXL.Ipc.ExternalApi
         /// <summary>
         /// Convenient factory method.
         /// </summary>
-        public static Client Create(string connectionString, IClientConfig config = null)
+        public static Client Create(IIpcProvider provider, string connectionString, IClientConfig config = null)
         {
-            var provider = IpcFactory.GetProvider();
             return new Client(provider.GetClient(connectionString, config ?? new ClientConfig()));
         }
         #endregion

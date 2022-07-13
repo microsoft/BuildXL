@@ -14,6 +14,7 @@ namespace Plugin {
         references: [
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Ipc.dll,
+            importFrom("BuildXL.Utilities").Ipc.Providers.dll,
             importFrom("BuildXL.Utilities").PluginGrpc.dll,
             importFrom("BuildXL.Utilities").Plugin.dll,
             importFrom("System.Runtime.CompilerServices.Unsafe").withQualifier({ targetFramework: "netstandard2.0" }).pkg,

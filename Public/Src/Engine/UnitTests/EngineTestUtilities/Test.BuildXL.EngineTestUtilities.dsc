@@ -22,6 +22,7 @@ namespace EngineTestUtilities {
             importFrom("BuildXL.Utilities").Configuration.dll,
             importFrom("BuildXL.Utilities").Native.dll,
             importFrom("BuildXL.Utilities").Ipc.dll, 
+            importFrom("BuildXL.Utilities").Ipc.Providers.dll, 
             importFrom("BuildXL.Utilities").Storage.dll,
             importFrom("BuildXL.Utilities").Script.Constants.dll,
             importFrom("BuildXL.Utilities.UnitTests").TestUtilities.dll,

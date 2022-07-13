@@ -12,6 +12,19 @@ namespace BuildXL.Ipc.Common
     /// </summary>
     public readonly struct StringMoniker : IIpcMoniker, IEquatable<StringMoniker>
     {
+        /// <summary>
+        /// Gets a fixed moniker.
+        /// </summary>
+        public static IIpcMoniker GetFixedMoniker() => new StringMoniker("BuildXL.Ipc");
+
+        /// <summary>
+        /// Creates and returns a new moniker tied to an arbitrary free port.
+        /// </summary>
+        /// <remarks>
+        /// Ensures that unique monikers are returned throughout one program execution.
+        /// </remarks>
+        public static IIpcMoniker CreateNewMoniker() => new StringMoniker(Guid.NewGuid().ToString());
+
         /// <inheritdoc />
         public string Id { get; }
 

@@ -7,7 +7,7 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading;
-using BuildXL.Ipc;
+using BuildXL.Ipc.Common;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Pips;
 using BuildXL.Pips.Builders;
@@ -70,8 +70,8 @@ namespace BuildXL.Scheduler.Graph
             Configuration = configuration;
             m_pipExecutionContext = pipExecutionContext;
             m_lazyApiServerMoniker = configuration.Schedule.UseFixedApiServerMoniker
-                ? Lazy.Create(() => IpcFactory.GetFixedMoniker())
-                : Lazy.Create(() => IpcFactory.GetProvider().CreateNewMoniker());
+                ? Lazy.Create(() => StringMoniker.GetFixedMoniker())
+                : Lazy.Create(() => StringMoniker.CreateNewMoniker());
             SealDirectoryTable = new SealedDirectoryTable(m_pipExecutionContext.PathTable);
 
             if (configuration.Schedule.ComputePipStaticFingerprints)

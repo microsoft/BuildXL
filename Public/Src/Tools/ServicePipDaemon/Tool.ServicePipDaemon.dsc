@@ -22,6 +22,7 @@ namespace ServicePipDaemon {
             importFrom("BuildXL.Utilities.Instrumentation").Tracing.dll,
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Ipc.dll,
+            importFrom("BuildXL.Utilities").Ipc.Providers.dll,
             importFrom("BuildXL.Utilities").Native.dll,
             importFrom("BuildXL.Utilities").Storage.dll,
 

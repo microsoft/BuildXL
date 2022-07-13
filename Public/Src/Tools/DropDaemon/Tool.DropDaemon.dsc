@@ -25,6 +25,7 @@ export namespace DropDaemon {
             importFrom("BuildXL.Utilities").Authentication.dll,
             importFrom("BuildXL.Utilities").Collections.dll,
             importFrom("BuildXL.Utilities").Ipc.dll,
+            importFrom("BuildXL.Utilities").Ipc.Providers.dll,
             importFrom("BuildXL.Utilities").Native.dll,
             importFrom("BuildXL.Utilities").Storage.dll,
             importFrom("BuildXL.Utilities").SBOMUtilities.dll,

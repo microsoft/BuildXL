@@ -10,7 +10,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.Ipc;
+using BuildXL.Ipc.Common;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.DirectedGraph;
@@ -198,8 +198,8 @@ namespace BuildXL.Pips.Graph
                 m_sourceFiles = new ConcurrentBigMap<AbsolutePath, PipId>();
 
                 m_lazyApiServerMoniker = configuration.Schedule.UseFixedApiServerMoniker
-                    ? Lazy.Create(() => IpcFactory.GetFixedMoniker())
-                    : Lazy.Create(() => IpcFactory.GetProvider().CreateNewMoniker());
+                    ? Lazy.Create(() => StringMoniker.GetFixedMoniker())
+                    : Lazy.Create(() => StringMoniker.CreateNewMoniker());
 
                 LockManager = new LockManager();
 

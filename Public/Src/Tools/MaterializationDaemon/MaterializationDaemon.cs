@@ -122,7 +122,7 @@ namespace Tool.MaterializationDaemon
         private static Client CreateClient(string serverMoniker, IClientConfig config)
         {
             return serverMoniker != null
-                ? Client.Create(serverMoniker, config)
+                ? Client.Create(IpcProvider, serverMoniker, config)
                 : null;
         }
 

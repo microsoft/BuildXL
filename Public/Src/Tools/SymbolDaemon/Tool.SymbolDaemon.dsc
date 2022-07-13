@@ -26,6 +26,7 @@ export const exe = !BuildXLSdk.isSymbolToolingEnabled ? undefined : BuildXLSdk.e
         importFrom("BuildXL.Utilities").dll,
         importFrom("BuildXL.Utilities").Authentication.dll,
         importFrom("BuildXL.Utilities").Ipc.dll,
+        importFrom("BuildXL.Utilities").Ipc.Providers.dll,
         importFrom("BuildXL.Utilities").Native.dll,
         importFrom("BuildXL.Utilities").Storage.dll,
         importFrom("BuildXL.Utilities").Collections.dll,

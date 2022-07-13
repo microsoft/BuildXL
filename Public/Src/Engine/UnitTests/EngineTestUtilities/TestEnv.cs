@@ -11,13 +11,12 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using BuildXL.Engine;
 using BuildXL.FrontEnd.Sdk.FileSystem;
-using BuildXL.Ipc;
+using BuildXL.Ipc.Common;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Pips;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
-using BuildXL.Scheduler.Graph;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
@@ -228,7 +227,7 @@ namespace Test.BuildXL.TestUtilities
         public sealed class TestPipGraph : IPipGraphBuilder, IPipScheduleTraversal
         {
             private readonly ConcurrentQueue<Pip> m_pips = new ConcurrentQueue<Pip>();
-            private readonly Lazy<IIpcMoniker> m_lazyApiServerMoniker = Lazy.Create(() => IpcFactory.GetProvider().CreateNewMoniker());
+            private readonly Lazy<IIpcMoniker> m_lazyApiServerMoniker = Lazy.Create(() => StringMoniker.CreateNewMoniker());
             private int m_reservedSealIds = 0;
 
             /// <inheritdoc />

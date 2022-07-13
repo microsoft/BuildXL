@@ -13,6 +13,7 @@ namespace Plugin {
             ...importFrom("BuildXL.Cache.ContentStore").getGrpcPackages(false),
             $.dll,
             $.Ipc.dll,
+            $.Ipc.Providers.dll,
             $.PluginGrpc.dll,
         ],
         internalsVisibleTo: [

@@ -7251,14 +7251,60 @@ namespace BuildXL.Scheduler
         }
 
         [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]
-        void IFileContentManagerHost.ReportFileArtifactPlaced(in FileArtifact artifact, bool isAllowedFileRewrite)
+        Possible<Unit> IFileContentManagerHost.ReportFileArtifactPlaced(in FileArtifact artifact, FileMaterializationInfo fileMaterializationInfo)
         {
+            var pathAsString = artifact.Path.ToString(Context.PathTable);
+            bool artifactIsModified = false;
+
             // Don't flag allowed source rewrites as shared opaque outputs since we don't want to delete them
             // in the next build.
-            if (!isAllowedFileRewrite)
+            if (!fileMaterializationInfo.IsUndeclaredFileRewrite)
             {
-                MakeSharedOpaqueOutputIfNeeded(artifact.Path);
+                if (MakeSharedOpaqueOutputIfNeeded(artifact.Path))
+                {
+                    artifactIsModified = true;
+                }
             }
+
+            // If the file has execution permissions set, make sure we honor that when the file is placed
+            if (fileMaterializationInfo.IsExecutable)
+            {
+                var result = FileUtilities.TrySetExecutePermissionIfNeeded(pathAsString);
+                if (!result.Succeeded)
+                {
+                    return result.Failure;
+                }
+
+                artifactIsModified |= !result.Result;
+            }
+
+            // If the file was modified after being placed, make sure we update the file content table
+            if (artifactIsModified && fileMaterializationInfo.FileContentInfo.Hash.IsValid)
+            {
+                var flags = FileFlagsAndAttributes.FileFlagOverlapped | FileFlagsAndAttributes.FileFlagOpenReparsePoint;
+
+                if (fileMaterializationInfo.IsReparsePointActionable)
+                {
+                    flags |= FileFlagsAndAttributes.FileFlagBackupSemantics;
+                }
+
+                try
+                {
+                    FileUtilities.UsingFileHandleAndFileLength(
+                        pathAsString,
+                        FileDesiredAccess.GenericRead,
+                        FileShare.Read | FileShare.Delete,
+                        FileMode.Open,
+                        flags,
+                        (handle, length) => m_fileContentTable.RecordContentHash(handle, pathAsString, fileMaterializationInfo.FileContentInfo.Hash, fileMaterializationInfo.FileContentInfo.Length));
+                }
+                catch (BuildXLException e)
+                {
+                    return new NativeFailure(e.GetLogEventErrorCode()).Annotate(e.Message);
+                }
+            }
+
+            return Unit.Void;
         }
 
         private bool MakeSharedOpaqueOutputIfNeeded(AbsolutePath path)

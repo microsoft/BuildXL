@@ -46,20 +46,29 @@ namespace BuildXL.Storage.ChangeTracking
         public readonly bool IsUndeclaredFileRewrite;
 
         /// <summary>
+        /// Whether the file has execution permission for the owner
+        /// </summary>
+        /// <remarks>
+        /// Only valid in linux/mac OSs
+        /// </remarks>
+        public readonly bool IsExecutable;
+
+        /// <summary>
         /// Gets the file materialization info
         /// </summary>
-        public FileMaterializationInfo FileMaterializationInfo => new FileMaterializationInfo(FileContentInfo, FileName, ReparsePointInfo, IsUndeclaredFileRewrite);
+        public FileMaterializationInfo FileMaterializationInfo => new FileMaterializationInfo(FileContentInfo, FileName, ReparsePointInfo, IsUndeclaredFileRewrite, IsExecutable);
 
         /// <summary>
         /// Creates a <see cref="TrackedFileContentInfo"/> with an associated change tracking subscription.
         /// </summary>
-        public TrackedFileContentInfo(FileContentInfo fileContentInfo, FileChangeTrackingSubscription subscription, PathAtom fileName, ReparsePointInfo? reparsePointInfo = null, bool isUndeclaredFileRewrite = false)
+        public TrackedFileContentInfo(FileContentInfo fileContentInfo, FileChangeTrackingSubscription subscription, PathAtom fileName, ReparsePointInfo? reparsePointInfo = null, bool isUndeclaredFileRewrite = false, bool isExecutable = false)
         {
             Subscription = subscription;
             FileContentInfo = fileContentInfo;
             FileName = fileName;
             ReparsePointInfo = reparsePointInfo ?? ReparsePointInfo.CreateNoneReparsePoint();
             IsUndeclaredFileRewrite = isUndeclaredFileRewrite;
+            IsExecutable = isExecutable;
         }
 
         /// <summary>
@@ -107,7 +116,8 @@ namespace BuildXL.Storage.ChangeTracking
             return other.Subscription == Subscription &&
                    other.FileContentInfo == FileContentInfo &&
                    other.ReparsePointInfo == ReparsePointInfo &&
-                   other.IsUndeclaredFileRewrite == IsUndeclaredFileRewrite;
+                   other.IsUndeclaredFileRewrite == IsUndeclaredFileRewrite &&
+                   other.IsExecutable == IsExecutable;
         }
 
         /// <inheritdoc />
@@ -119,7 +129,7 @@ namespace BuildXL.Storage.ChangeTracking
         /// <inheritdoc />
         public override int GetHashCode()
         {
-            return HashCodeHelper.Combine(FileContentInfo.GetHashCode(), Subscription.GetHashCode(), ReparsePointInfo.GetHashCode(), IsUndeclaredFileRewrite.GetHashCode());
+            return HashCodeHelper.Combine(FileContentInfo.GetHashCode(), Subscription.GetHashCode(), ReparsePointInfo.GetHashCode(), IsUndeclaredFileRewrite.GetHashCode(), IsExecutable.GetHashCode());
         }
 
         /// <nodoc />

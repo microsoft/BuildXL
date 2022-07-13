@@ -2228,26 +2228,27 @@ namespace BuildXL.Scheduler.Artifacts
 
                                 Possible<ContentMaterializationResult> possiblyPlaced = await PlaceSingleFileAsync(operationContext, state, materializationFileIndex, materializationFile);
 
-                                if (possiblyPlaced.Succeeded)
+                                var result = possiblyPlaced.Then(materializationResult =>
                                 {
                                     state.SetMaterializationSuccess(
                                         fileIndex: materializationFileIndex,
                                         origin: possiblyPlaced.Result.Origin,
                                         operationContext: operationContext);
 
-                                    m_host.ReportFileArtifactPlaced(file, materializationInfo.IsUndeclaredFileRewrite);
-                                }
-                                else
+                                    return m_host.ReportFileArtifactPlaced(file, materializationInfo);
+                                });
+                                
+                                if (!result.Succeeded)
                                 {
                                     Logger.Log.StorageCacheGetContentWarning(
                                         operationContext,
                                         pipDescription: pipInfo.Description,
                                         contentHash: hash.ToHex(),
                                         destinationPath: file.Path.ToString(pathTable),
-                                        errorMessage: possiblyPlaced.Failure.DescribeIncludingInnerFailures());
+                                        errorMessage: result.Failure.DescribeIncludingInnerFailures());
                                     state.SetMaterializationFailure(fileIndex: materializationFileIndex);
 
-                                    if (possiblyPlaced.Failure is FailToDeleteForMaterializationFailure)
+                                    if (result.Failure is FailToDeleteForMaterializationFailure)
                                     {
                                         userError = true;
                                     }
@@ -3025,8 +3026,17 @@ namespace BuildXL.Scheduler.Artifacts
                     if (result.Succeeded)
                     {
                         state.SetMaterializationSuccess(fileAndIndex.index, result.Result.Origin, operationContext);
-                        m_host.ReportFileArtifactPlaced(fileArtifact, fileAndIndex.materializationFile.MaterializationInfo.IsUndeclaredFileRewrite);
-                        results[resultIndex] = new ContentAvailabilityResult(contentHash, true, result.Result.TrackedFileContentInfo.Length, "ContentPlaced");
+
+                        var placed = m_host.ReportFileArtifactPlaced(fileArtifact, fileAndIndex.materializationFile.MaterializationInfo);
+                        if (placed.Succeeded)
+                        {
+                            results[resultIndex] = new ContentAvailabilityResult(contentHash, true, result.Result.TrackedFileContentInfo.Length, "ContentPlaced");
+                        }
+                        else
+                        {
+                            allContentAvailable = false;
+                            results[resultIndex] = new ContentAvailabilityResult(contentHash, false, 0, "ContentMiss", placed.Failure);
+                        }
                     }
                     else
                     {

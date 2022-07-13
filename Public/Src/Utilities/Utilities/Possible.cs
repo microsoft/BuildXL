@@ -151,6 +151,19 @@ namespace BuildXL.Utilities
         }
 
         /// <summary>
+        /// On failure, converts this to an exception and throws (<see cref="Failure.Throw()"/>. On success, returns this.
+        /// </summary>
+        public Possible<TResult> ThrowIfFailure()
+        {
+            if (!Succeeded)
+            {
+                Failure.Throw();
+            }
+
+            return this;
+        }
+
+        /// <summary>
         /// Async version of <c>Then{TResult2}</c>
         /// </summary>
         public Task<Possible<TResult2>> ThenAsync<TResult2>(Func<TResult, Task<Possible<TResult2>>> binder)

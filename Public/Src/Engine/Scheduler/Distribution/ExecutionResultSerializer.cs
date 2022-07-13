@@ -506,10 +506,11 @@ namespace BuildXL.Scheduler.Distribution
                     var reparsePointType = (ReparsePointType)reader.ReadByte();
                     var reparsePointTarget = ReadNullableString(reader);
                     var isAllowedFileRewrite = reader.ReadBoolean();
+                    var isExecutable = reader.ReadBoolean();
 
                     outputContent[i] = (
                         file,
-                        new FileMaterializationInfo(new FileContentInfo(hash, FileContentInfo.LengthAndExistence.Deserialize(length)), fileName, ReparsePointInfo.Create(reparsePointType, reparsePointTarget), isAllowedFileRewrite),
+                        new FileMaterializationInfo(new FileContentInfo(hash, FileContentInfo.LengthAndExistence.Deserialize(length)), fileName, ReparsePointInfo.Create(reparsePointType, reparsePointTarget), isAllowedFileRewrite, isExecutable),
                         PipOutputOrigin.NotMaterialized);
                 }
             }
@@ -539,6 +540,7 @@ namespace BuildXL.Scheduler.Distribution
                     writer.Write((byte)output.fileMaterializationInfo.ReparsePointInfo.ReparsePointType);
                     WriteNullableString(writer, output.fileMaterializationInfo.ReparsePointInfo.GetReparsePointTarget());
                     writer.Write(output.fileMaterializationInfo.IsUndeclaredFileRewrite);
+                    writer.Write(output.fileMaterializationInfo.IsExecutable);
                 }
             }
         }

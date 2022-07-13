@@ -246,6 +246,9 @@ message FileArtifactKeyedHash
 
     /// Indicates whether the file represents an allowed rewrite on a source or alien file
     bool IsAllowedFileRewrite = 11;
+
+    /// Whether the file has execution permission for the owner. Only valid in linux/mac OSs
+    bool IsExecutable = 12;
 }
 
 message GrpcDirectoryArtifact

@@ -534,9 +534,10 @@ namespace Test.BuildXL.Scheduler.Utils
         }
 
         /// <inheritdoc />
-        public void ReportFileArtifactPlaced(in FileArtifact artifact, bool isAllowedSourceRewrite)
+        public Possible<Unit> ReportFileArtifactPlaced(in FileArtifact artifact, FileMaterializationInfo info)
         {
             // Do nothing.
+            return Unit.Void;
         }
 
         /// <inheritdoc />

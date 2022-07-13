@@ -144,7 +144,8 @@ namespace BuildXL.Cache.ContentStore.App.Test
 
         public static async Task RunAppAsync(string verb, Dictionary<string, string> args, ILogger logger)
         {
-            FileUtilities.TrySetExecutePermissionIfNeeded(Path.Combine(Environment.CurrentDirectory, AppExe));
+            var permResult = FileUtilities.TrySetExecutePermissionIfNeeded(Path.Combine(Environment.CurrentDirectory, AppExe)).ThrowIfFailure();
+            
             var info = new ProcessStartInfo
             {
                 FileName = AppExe,
@@ -181,7 +182,7 @@ namespace BuildXL.Cache.ContentStore.App.Test
 
         public static Process RunService(string verb, Dictionary<string, string> args, ILogger logger)
         {
-            FileUtilities.TrySetExecutePermissionIfNeeded(Path.Combine(Environment.CurrentDirectory, AppExe));
+            var permResult = FileUtilities.TrySetExecutePermissionIfNeeded(Path.Combine(Environment.CurrentDirectory, AppExe)).ThrowIfFailure();
 
             var info = new ProcessStartInfo
             {

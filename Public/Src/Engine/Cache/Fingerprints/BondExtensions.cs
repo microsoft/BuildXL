@@ -120,7 +120,8 @@ namespace BuildXL.Engine.Cache.Fingerprints
                     info.FileName.ToString(pathTable.StringTable) : null,
                 ReparsePointType = info.ReparsePointInfo.ReparsePointType.ToBondReparsePointType(),
                 ReparsePointTarget = info.ReparsePointInfo.GetReparsePointTarget(),
-                IsAllowedFileRewrite = info.IsUndeclaredFileRewrite
+                IsAllowedFileRewrite = info.IsUndeclaredFileRewrite,
+                IsExecutable = info.IsExecutable
             };
         }
 
@@ -133,7 +134,7 @@ namespace BuildXL.Engine.Cache.Fingerprints
                 new FileContentInfo(bondInfo.Hash.ToContentHash(), FileContentInfo.LengthAndExistence.Deserialize(bondInfo.Length)),
                 bondInfo.FileName != null ? PathAtom.Create(pathTable.StringTable, bondInfo.FileName) : PathAtom.Invalid,
                 ReparsePointInfo.Create(bondInfo.ReparsePointType.ToReparsePointType(), bondInfo.ReparsePointTarget),
-                bondInfo.IsAllowedFileRewrite);
+                bondInfo.IsAllowedFileRewrite, bondInfo.IsExecutable);
         }
 
         /// <nodoc />

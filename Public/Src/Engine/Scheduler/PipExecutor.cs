@@ -4903,8 +4903,18 @@ namespace BuildXL.Scheduler
                     // Rewritten output is stored to the cache.
                     !isRewrittenOutputFile;
 
-                var reparsePointType = FileUtilities.TryGetReparsePointType(outputArtifact.Path.ToString(environment.Context.PathTable));
+                var pathAsString = outputArtifact.Path.ToString(environment.Context.PathTable);
+                var reparsePointType = FileUtilities.TryGetReparsePointType(pathAsString);
                 bool isReparsePoint = reparsePointType.Succeeded && FileUtilities.IsReparsePointActionable(reparsePointType.Result);
+
+                // If on non-Windows OS, retrieve the owner execution permission bit so it can be stored as part of the cache metadata
+                // TODO: on Linux/macOS, both TryGetIsExecutableIfNeeded and TryGetReparsePointType can be obtained with a single stat system call, whereas here stat will be done twice.
+                // Presumably it won't make a big difference, but if there is an easy way to optimize this, then maybe we can just as well do it (e.g., we could call FileSystem.GetFilePermission() once and extract both from the result)
+                var isExecutable = FileUtilities.TryGetIsExecutableIfNeeded(pathAsString);
+                if (!isExecutable.Succeeded)
+                {
+                    return isExecutable.Failure;
+                }
 
                 bool shouldStoreOutputToCache =
                     !process.DisableSandboxing  // Don't store outputs to cache for processes running outside of the sandbox
@@ -4912,7 +4922,15 @@ namespace BuildXL.Scheduler
                     && !isReparsePoint;
 
                 Possible<TrackedFileContentInfo> possiblyStoredOutputArtifact = shouldStoreOutputToCache
-                    ? await StoreProcessOutputToCacheAsync(operationContext, environment, process, outputArtifact, output.IsUndeclaredFileRewrite, isReparsePoint, isProcessCacheable: isProcessCacheable)
+                    ? await StoreProcessOutputToCacheAsync(
+                        operationContext, 
+                        environment, 
+                        process, 
+                        outputArtifact, 
+                        output.IsUndeclaredFileRewrite, 
+                        isReparsePoint, 
+                        isProcessCacheable: isProcessCacheable, 
+                        isExecutable: isExecutable.Result)
                     : await TrackPipOutputAsync(
                         operationContext,
                         process,
@@ -4921,7 +4939,8 @@ namespace BuildXL.Scheduler
                         createHandleWithSequentialScan: environment.ShouldCreateHandleWithSequentialScan(outputArtifact),
                         isReparsePoint: isReparsePoint,
                         shouldOutputBePreserved: shouldOutputBePreserved,
-                        isUndeclaredFileRewrite: output.IsUndeclaredFileRewrite);
+                        isUndeclaredFileRewrite: output.IsUndeclaredFileRewrite,
+                        isExecutable: isExecutable.Result);
 
                 if (!possiblyStoredOutputArtifact.Succeeded)
                 {
@@ -5328,7 +5347,8 @@ namespace BuildXL.Scheduler
             FileArtifact outputFileArtifact,
             bool isUndeclaredFileRewrite,
             bool isReparsePoint,
-            bool isProcessCacheable)
+            bool isProcessCacheable,
+            bool isExecutable)
         {
             Contract.Requires(environment != null);
             Contract.Requires(process != null);
@@ -5343,7 +5363,8 @@ namespace BuildXL.Scheduler
                         tryFlushPageCacheToFileSystem: environment.Configuration.Sandbox.FlushPageCacheToFileSystemOnStoringOutputsToCache,
                         isReparsePoint: isReparsePoint,
                         isUndeclaredFileRewrite: isUndeclaredFileRewrite,
-                        isStoringCachedProcessOutput: isProcessCacheable);
+                        isStoringCachedProcessOutput: isProcessCacheable,
+                        isExecutable: isExecutable);
 
             if (!possiblyStored.Succeeded)
             {
@@ -5365,7 +5386,8 @@ namespace BuildXL.Scheduler
             bool createHandleWithSequentialScan = false,
             bool isReparsePoint = false,
             bool shouldOutputBePreserved = false,
-            bool isUndeclaredFileRewrite = false)
+            bool isUndeclaredFileRewrite = false,
+            bool isExecutable = false)
         {
             Contract.Requires(environment != null);
             Contract.Requires(outputFileArtifact.IsOutputFile);
@@ -5384,7 +5406,8 @@ namespace BuildXL.Scheduler
                 ignoreKnownContentHashOnDiscoveringContent: !shouldOutputBePreserved,
                 createHandleWithSequentialScan: createHandleWithSequentialScan,
                 isReparsePoint: isReparsePoint,
-                isUndeclaredFileRewrite: isUndeclaredFileRewrite);
+                isUndeclaredFileRewrite: isUndeclaredFileRewrite,
+                isExecutable: isExecutable);
 
             if (!possiblyTracked.Succeeded)
             {

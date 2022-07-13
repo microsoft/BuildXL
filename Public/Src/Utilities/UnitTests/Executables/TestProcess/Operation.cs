@@ -253,6 +253,11 @@ namespace Test.BuildXL.Executables.TestProcess
             /// Invokes some native code that crashes hard (by segfaulting or something)
             /// </summary>
             CrashHardNative,
+
+            /// <summary>
+            /// Does a chmod u+x on the given file
+            /// </summary>
+            SetExecutionPermissions,
         }
 
         /// <summary>
@@ -544,6 +549,9 @@ namespace Test.BuildXL.Executables.TestProcess
                         return;
                     case Type.AugmentedWriteFile:
                         DoAugmentedWriteFile();
+                        return;
+                    case Type.SetExecutionPermissions:
+                        DoSetExecutionPermissions();
                         return;
                 }
             }
@@ -994,6 +1002,14 @@ namespace Test.BuildXL.Executables.TestProcess
             return new Operation(Type.WaitUntilPathExists, path, doNotInfer: doNotInfer);
         }
 
+        /// <summary>
+        /// Does a chmod u+x on the given file
+        /// </summary>
+        public static Operation SetExecutionPermissions(FileArtifact path, bool doNotInfer = false)
+        {
+            return new Operation(Type.SetExecutionPermissions, path, doNotInfer: doNotInfer);
+        }
+
         /*** FILESYSTEM OPERATION FUNCTIONS ***/
 
         private void DoCreateDir()
@@ -1220,6 +1236,18 @@ namespace Test.BuildXL.Executables.TestProcess
             return string.Empty;
         }
 
+        private void DoSetExecutionPermissions(string path = null)
+        {
+            path = path ?? PathAsString;
+
+            var result = FileUtilities.TrySetExecutePermissionIfNeeded(path);
+            if (!result.Succeeded)
+            {
+                result.Failure.Throw();
+            }
+        }
+
+
         private string DoReadRequiredFile()
         {
             return File.ReadAllText(PathAsString);
@@ -1429,7 +1457,12 @@ namespace Test.BuildXL.Executables.TestProcess
                 }
             }
 
-            FileUtilities.TrySetExecutePermissionIfNeeded(process.StartInfo.FileName, throwIfNotFound: false);
+            var result = FileUtilities.TrySetExecutePermissionIfNeeded(process.StartInfo.FileName);
+            if (!result.Succeeded)
+            {
+                result.Failure.Throw();
+            }
+
             process.Start();
             process.BeginOutputReadLine();
             process.BeginErrorReadLine();
@@ -1477,7 +1510,12 @@ namespace Test.BuildXL.Executables.TestProcess
                 CreateNoWindow = true,
             };
 
-            FileUtilities.TrySetExecutePermissionIfNeeded(process.StartInfo.FileName, throwIfNotFound: false);
+            var result = FileUtilities.TrySetExecutePermissionIfNeeded(process.StartInfo.FileName);
+            if (!result.Succeeded)
+            {
+                result.Failure.Throw();
+            }
+
             process.Start();
 
             // Log the the process that was launched with its id so it can be retrieved by bxl tests later

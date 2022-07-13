@@ -46,14 +46,23 @@ namespace BuildXL.Storage
         public readonly bool IsUndeclaredFileRewrite;
 
         /// <summary>
+        /// Whether the file has execution permission for the owner
+        /// </summary>
+        /// <remarks>
+        /// Only valid in linux/mac OSs
+        /// </remarks>
+        public readonly bool IsExecutable;
+
+        /// <summary>
         /// Creates a <see cref="FileMaterializationInfo"/> with an associated change tracking subscription.
         /// </summary>
-        public FileMaterializationInfo(FileContentInfo fileContentInfo, PathAtom fileName, ReparsePointInfo? reparsePointInfo = null, bool isAllowedSourceRewrite = false)
+        public FileMaterializationInfo(FileContentInfo fileContentInfo, PathAtom fileName, ReparsePointInfo? reparsePointInfo = null, bool isAllowedSourceRewrite = false, bool isExecutable = false)
         {
             FileName = fileName;
             FileContentInfo = fileContentInfo;
             ReparsePointInfo = reparsePointInfo ?? ReparsePointInfo.CreateNoneReparsePoint();
             IsUndeclaredFileRewrite = isAllowedSourceRewrite;
+            IsExecutable = isExecutable;
 
             // NOTE: Update ExecutionResultSerializer WriteOutputContent/ReadOutputContent when adding new fields (i.e., BuildXL.Engine.Cache bond structure) 
             // NOTE: Update FileArtifactKeyedHash when adding new fields (i.e., BuildXL.Engine bond structure) 
@@ -102,7 +111,8 @@ namespace BuildXL.Storage
             return other.FileName == FileName &&
                    other.FileContentInfo == FileContentInfo &&
                    other.ReparsePointInfo == ReparsePointInfo &&
-                   other.IsUndeclaredFileRewrite == IsUndeclaredFileRewrite;
+                   other.IsUndeclaredFileRewrite == IsUndeclaredFileRewrite &&
+                   other.IsExecutable == IsExecutable;
         }
 
         /// <inheritdoc />
@@ -114,7 +124,7 @@ namespace BuildXL.Storage
         /// <inheritdoc />
         public override int GetHashCode()
         {
-            return HashCodeHelper.Combine(FileContentInfo.GetHashCode(), FileName.GetHashCode(), ReparsePointInfo.GetHashCode(), IsUndeclaredFileRewrite.GetHashCode());
+            return HashCodeHelper.Combine(FileContentInfo.GetHashCode(), FileName.GetHashCode(), ReparsePointInfo.GetHashCode(), IsUndeclaredFileRewrite.GetHashCode(), IsExecutable.GetHashCode());
         }
 
         /// <nodoc />

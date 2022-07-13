@@ -7,6 +7,7 @@ using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Security.AccessControl;
 using System.Text;
 using System.Threading;
@@ -1299,40 +1300,72 @@ namespace BuildXL.Native.IO
         }
 
         /// <summary>
-        /// Unix only (no-op on windows): sets u+x on <paramref name="fileName"/>.  Throws if file doesn't exists and <paramref name="throwIfNotFound"/> is true.
+        /// Unix only (no-op on windows): sets u+x on <paramref name="fileName"/>.
         /// </summary>
         /// <returns>
         /// true if file exists and already has execute permissions or execute permissions were set. Otherwise, false.
         /// </returns>
-        public static bool TrySetExecutePermissionIfNeeded(string fileName, bool throwIfNotFound = true)
+        public static Possible<bool> TrySetExecutePermissionIfNeeded(string fileName)
         {
             if (OperatingSystemHelper.IsUnixOS)
             {
-                var mode = UnixIO.GetFilePermissionsForFilePath(fileName, followSymlink: false);
-                if (mode < 0)
+                var maybePermissions = TryGetPermissions(fileName);
+
+                if (!maybePermissions.Succeeded)
                 {
-                    if (throwIfNotFound)
-                    {
-                        throw new BuildXLException($"Process creation failed: File '{fileName}' not found", new Win32Exception(0x2));
-                    }
-                    else
-                    {
-                        return false;
-                    }
+                    return maybePermissions.Failure;
                 }
 
-                var filePermissions = checked((UnixIO.FilePermissions)mode);
-                UnixIO.FilePermissions exePermission = UnixIO.FilePermissions.S_IXUSR;
-                if (!filePermissions.HasFlag(exePermission))
+                var filePermissions = maybePermissions.Result;
+
+                if (!filePermissions.HasFlag(UnixIO.FilePermissions.S_IXUSR))
                 {
-                    var result = UnixIO.SetFilePermissionsForFilePath(fileName, (filePermissions | exePermission));
-                    return result >= 0;
+                    var result = UnixIO.SetFilePermissionsForFilePath(fileName, (filePermissions | UnixIO.FilePermissions.S_IXUSR));
+                    
+                    if (result < 0)
+                    {
+                        return new NativeFailure(result, $"Could not set file permissions: File '{fileName}'.");
+                    }
+
+                    return false;
                 }
 
                 return true;
             }
 
             return true;
+        }
+
+        /// <summary>
+        /// Unix only (always false on Windows): gets S_IXUSR on <paramref name="filename"/>.  Returns a failure on error.
+        /// </summary>
+        public static Possible<bool> TryGetIsExecutableIfNeeded(string filename)
+        {
+            if (OperatingSystemHelper.IsUnixOS)
+            {
+                return TryGetPermissions(filename).Then(permissions => permissions.HasFlag(UnixIO.FilePermissions.S_IXUSR));
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Unix only (always 0x0 on Windows): gets file permissions on <paramref name="filename"/>.  Returns a failure on error.
+        /// </summary>
+        public static Possible<UnixIO.FilePermissions> TryGetPermissions(string filename)
+        {
+            if (OperatingSystemHelper.IsUnixOS)
+            {
+                var mode = UnixIO.GetFilePermissionsForFilePath(filename, followSymlink: false);
+                if (mode < 0)
+                {
+                    return new NativeFailure(Marshal.GetLastWin32Error(), $"Could not retrieve file permissions: File '{filename}' returned mode '{mode}'");
+                }
+
+                return checked((UnixIO.FilePermissions)mode);
+            }
+
+            return default(UnixIO.FilePermissions);
         }
 
         /// <summary>

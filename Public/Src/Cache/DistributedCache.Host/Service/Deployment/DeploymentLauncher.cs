@@ -575,7 +575,7 @@ namespace BuildXL.Cache.Host.Service
                                     return new BoolResult($"Executable '{executablePath}' does not exist.");
                                 }
 
-                                if (!FileUtilities.TrySetExecutePermissionIfNeeded(executablePath))
+                                if (!FileUtilities.TrySetExecutePermissionIfNeeded(executablePath).Succeeded)
                                 {
                                     return new BoolResult($"Executable permissions could not be set on '{executablePath}'.");
                                 }

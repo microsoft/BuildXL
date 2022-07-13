@@ -120,7 +120,7 @@ namespace BuildXL.Processes
 
             if (setExecuteBit)
             {
-                FileUtilities.TrySetExecutePermissionIfNeeded(fullPath);
+                var result = FileUtilities.TrySetExecutePermissionIfNeeded(fullPath).ThrowIfFailure();
             }
 
             return fullPath;

@@ -14,6 +14,7 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
+using BuildXL.Utilities.Tasks;
 
 namespace BuildXL.Scheduler.Artifacts
 {
@@ -130,7 +131,7 @@ namespace BuildXL.Scheduler.Artifacts
         /// <summary>
         /// Callback to host to report that a file has been placed to disk.
         /// </summary>
-        void ReportFileArtifactPlaced(in FileArtifact artifact, bool isAllowedFileRewrite);
+        Possible<Unit> ReportFileArtifactPlaced(in FileArtifact artifact, FileMaterializationInfo fileMaterializationInfo);
 
         /// <summary>
         /// Gets whether the host supports materializing the given file

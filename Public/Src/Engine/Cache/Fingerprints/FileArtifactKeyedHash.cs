@@ -36,6 +36,7 @@ namespace BuildXL.Engine.Distribution.OpenBond
             ReparsePointType = info.ReparsePointInfo.ReparsePointType.ToBondReparsePointType();
             ReparsePointTarget = info.ReparsePointInfo.GetReparsePointTarget();
             IsAllowedFileRewrite = info.IsUndeclaredFileRewrite;
+            IsExecutable = info.IsExecutable;
 
             return this;
         }
@@ -47,7 +48,8 @@ namespace BuildXL.Engine.Distribution.OpenBond
                 new FileContentInfo(ContentHash.ToContentHash(), FileContentInfo.LengthAndExistence.Deserialize(Length)),
                 !string.IsNullOrEmpty(FileName) ? PathAtom.Create(pathTable.StringTable, FileName) : PathAtom.Invalid,
                 ReparsePointInfo.Create(ReparsePointType.ToReparsePointType(), ReparsePointTarget),
-                IsAllowedFileRewrite);
+                IsAllowedFileRewrite,
+                IsExecutable);
         }
     }
 }

@@ -26,7 +26,12 @@ namespace Test.BuildXL.Utilities
                 : "Test.BuildXL.Executables.AsyncMutexClient.exe");
             if (OperatingSystemHelper.IsUnixOS)
             {
-                FileUtilities.TrySetExecutePermissionIfNeeded(m_asyncMutexClient);
+                // TODO: remove after honoring execution permissions become part of the LKG
+                var result = FileUtilities.TrySetExecutePermissionIfNeeded(m_asyncMutexClient);
+                if (!result.Succeeded)
+                {
+                    result.Failure.Throw();
+                }
             }
         }
 

@@ -144,11 +144,11 @@ namespace BuildXL.Native.IO
             return s_fileSystem.TryRemoveDirectory(path, out hr);
         }
 
-        /// <see cref="IFileUtilities.DeleteDirectoryContents(string, bool, Func{string, bool}, ITempCleaner, bool, CancellationToken?)"/>
+        /// <see cref="IFileUtilities.DeleteDirectoryContents(string, bool, Func{string, bool, bool}, ITempCleaner, bool, CancellationToken?)"/>
         public static void DeleteDirectoryContents(
             string path,
             bool deleteRootDirectory = false,
-            Func<string, bool> shouldDelete = null,
+            Func<string, bool, bool> shouldDelete = null,
             ITempCleaner tempDirectoryCleaner = null,
             bool bestEffort = false,
             CancellationToken? cancellationToken = default) =>
@@ -201,7 +201,7 @@ namespace BuildXL.Native.IO
             return s_fileSystem.EnumerateDirectoryEntries(directoryPath, enumerateDirectory, pattern, directoriesToSkipRecursively, recursive, accumulators);
         }
 
-        /// <see cref="IFileUtilities.FindAllOpenHandlesInDirectory(string, HashSet{string},Func{String, bool})"/>
+        /// <see cref="IFileUtilities.FindAllOpenHandlesInDirectory(string, HashSet{string},Func{String, bool, bool})"/>
         public static string FindAllOpenHandlesInDirectory(string directoryPath, HashSet<string> pathsPossiblyPendingDelete = null) =>
             s_fileUtilities.FindAllOpenHandlesInDirectory(directoryPath, pathsPossiblyPendingDelete);
 

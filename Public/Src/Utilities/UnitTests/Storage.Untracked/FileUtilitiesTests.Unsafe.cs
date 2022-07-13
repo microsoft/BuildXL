@@ -390,7 +390,7 @@ namespace Test.BuildXL.Storage
             FileUtilities.DeleteDirectoryContents(
                 path: topDir,
                 deleteRootDirectory: true,
-                shouldDelete: (path) =>
+                shouldDelete: (path, _) =>
                     {
                         // exclude \nestedDir\*
                         return !path.Contains(nestedDir);

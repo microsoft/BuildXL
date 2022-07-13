@@ -1427,7 +1427,7 @@ namespace BuildXL.Scheduler.Artifacts
                         FileUtilities.DeleteDirectoryContents(
                             path: directory.Path.ToString(Context.PathTable),
                             deleteRootDirectory: false,
-                            shouldDelete: filePath =>
+                            shouldDelete: (filePath, _) =>
                             {
                                 if (!m_sealedFiles.ContainsKey(AbsolutePath.Create(Context.PathTable, filePath)))
                                 {
@@ -1830,12 +1830,12 @@ namespace BuildXL.Scheduler.Artifacts
                             // Track reported files inside dynamic directories so they are not deleted
                             // during the directory deletion step (they will be replaced by the materialization
                             // step or may have already been replaced if the file was explicitly materialized)
-                            state.MaterializedDirectoryContents.Add(file);
+                            state.MaterializedDirectoryContents.Add(file, false);
 
                             // Add all directory paths between the file and opaque root directory.
                             // We do that to prevent those directories from being deleted by PrepareDirectoriesAsync even when those dirs are empty. 
                             var parentPath = file.Path.GetParent(Context.PathTable);
-                            while (parentPath.IsValid && parentPath != directory.Path && state.MaterializedDirectoryContents.Add(parentPath))
+                            while (parentPath.IsValid && parentPath != directory.Path && state.MaterializedDirectoryContents.TryAdd(parentPath, true))
                             {
                                 parentPath = parentPath.GetParent(Context.PathTable);
                             }
@@ -2101,7 +2101,7 @@ namespace BuildXL.Scheduler.Artifacts
                             // enumerating the directory or a descendant directory. Note that this is a possibly expensive I/O operation.
                             FileUtilities.DeleteDirectoryContents(
                                 dirOutputPath,
-                                shouldDelete: filePath =>
+                                shouldDelete: (filePath, isReparsePoint) =>
                                 {
                                     using (
                                         operationContext.StartAsyncOperation(
@@ -2112,7 +2112,8 @@ namespace BuildXL.Scheduler.Artifacts
                                         // MaterializedDirectoryContents will contain all declared contents of the directory which should not be deleted
                                         // as the file may already have been materialized by the file content manager. If the file was not materialized
                                         // by the file content manager, it will be deleted and replaced as a part of file materialization
-                                        return !state.MaterializedDirectoryContents.Contains(path);
+                                        // We also delete the directory symlinks whose paths are added to MaterializedDirectoryContents due to being the parents of some contents. 
+                                        return !state.MaterializedDirectoryContents.TryGetValue(path, out bool isDirectory) || (isDirectory && isReparsePoint);
                                     }
                                 },
                                 tempDirectoryCleaner: m_tempDirectoryCleaner);
@@ -3154,7 +3155,7 @@ namespace BuildXL.Scheduler.Artifacts
 
                     // TODO: Bug #995938: Temporary hack to handle pip graph construction verification oversight
                     // where source files declared inside output directories
-                    state.MaterializedDirectoryContents.Contains(file.Path) ||
+                    state.MaterializedDirectoryContents.ContainsKey(file.Path) ||
 
                     // Don't verify if it is a reparse point creation
                     createReparsePoint)
@@ -4131,9 +4132,9 @@ namespace BuildXL.Scheduler.Artifacts
             public PipOutputOrigin OverallOutputOrigin { get; private set; } = PipOutputOrigin.NotMaterialized;
 
             /// <summary>
-            /// The materialized file paths in all materialized directories
+            /// The materialized paths (files and directories) in all materialized directories. The boolean represents isDirectory info.
             /// </summary>
-            public readonly HashSet<AbsolutePath> MaterializedDirectoryContents = new HashSet<AbsolutePath>();
+            public readonly Dictionary<AbsolutePath, bool> MaterializedDirectoryContents = new Dictionary<AbsolutePath, bool>();
 
             /// <summary>
             /// All the artifacts to process

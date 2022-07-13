@@ -140,7 +140,7 @@ namespace Test.BuildXL.Scheduler
             harness.VerifyContent(hostFileOutput, hostFileOutputContents);
         }
 
-        [Fact]
+        [FactIfSupported(requiresSymlinkPermission: true)]
         public async Task DynamicDirectoryMaterializationDoesNotDeleteDeclaredFiles()
         {
             var harness = CreateDefaultHarness();
@@ -160,14 +160,26 @@ namespace Test.BuildXL.Scheduler
             FileArtifact dynamicOutputFile = CreateOutputFile(rootPath: dynamicOutputDirectory.Path, fileName: "dynout.txt");
             string dynamicOutputFileContents = "This is a dynamic file dependency";
 
+            var symlinkDirectory = dynamicOutputDirectory.Path.Combine(pathTable, "dirSymlink");
+            var targetDirectory = dynamicOutputDirectory.Path.Combine(pathTable, "targetSymlink");
+            
+            Directory.CreateDirectory(dynamicOutputDirectory.Path.ToString(pathTable));
+            Directory.CreateDirectory(targetDirectory.ToString(pathTable));
+            Assert.True(FileUtilities.TryCreateReparsePoint(symlinkDirectory.ToString(pathTable), targetDirectory.ToString(pathTable), ReparsePointType.DirectorySymlink).Succeeded);
+
+            FileArtifact fileUnderTargetDir = CreateOutputFile(rootPath: targetDirectory, fileName: "fileUnderDirSymlink.txt");
+            string fileUnderDirSymlinkContents = "This is a declared file dependency under a directory symlink";
+
             await harness.StoreAndReportStringContent(explicitDeclaredOutputFileContents, explicitDeclaredOutputFile);
             await harness.StoreAndReportStringContent(explicitNestedDeclaredOutputFileContents, explicitNestedDeclaredOutputFile);
             await harness.StoreAndReportStringContent(dynamicOutputFileContents, dynamicOutputFile);
+            await harness.StoreAndReportStringContent(fileUnderDirSymlinkContents, fileUnderTargetDir);
 
             const string PriorOutputText = "Prior output";
             harness.WriteText(dynamicOutputFile, PriorOutputText);
             harness.WriteText(explicitDeclaredOutputFile, PriorOutputText);
             harness.WriteText(explicitNestedDeclaredOutputFile, PriorOutputText);
+            harness.WriteText(fileUnderTargetDir, PriorOutputText);
 
             // Add some extraneous files/directories to be removed
             const string RemovedFileText = "Removed file text";
@@ -182,7 +194,7 @@ namespace Test.BuildXL.Scheduler
 
             harness.Environment.RegisterDynamicOutputDirectory(dynamicOutputDirectory);
 
-            var dynamicDirectoryContents = new[] { explicitDeclaredOutputFile, explicitNestedDeclaredOutputFile, dynamicOutputFile };
+            var dynamicDirectoryContents = new[] { explicitDeclaredOutputFile, explicitNestedDeclaredOutputFile, dynamicOutputFile, fileUnderTargetDir };
 
             // Report files for directory
             harness.FileContentManager.ReportDynamicDirectoryContents(
@@ -192,11 +204,11 @@ namespace Test.BuildXL.Scheduler
 
             var producer = CreateCmdProcess(
                 dependencies: new FileArtifact[0],
-                outputs: new[] { explicitDeclaredOutputFile, explicitNestedDeclaredOutputFile },
+                outputs: new[] { explicitDeclaredOutputFile, explicitNestedDeclaredOutputFile, fileUnderTargetDir },
                 directoryOutputs: new[] { dynamicOutputDirectory });
 
             var fileConsumer = CreateCmdProcess(
-                dependencies: new[] { explicitDeclaredOutputFile, explicitNestedDeclaredOutputFile },
+                dependencies: new[] { explicitDeclaredOutputFile, explicitNestedDeclaredOutputFile, fileUnderTargetDir },
                 outputs: new[] { CreateOutputFile() });
 
             var directoryConsumer = CreateCmdProcess(
@@ -258,6 +270,9 @@ namespace Test.BuildXL.Scheduler
             harness.VerifyContent(explicitNestedDeclaredOutputFile, ModifiedExplicitOutputText);
 
             harness.VerifyContent(dynamicOutputFile, dynamicOutputFileContents);
+
+            // Verify the symlink directory got deleted.
+            Assert.False(directoriesAfterMaterialization.Contains(symlinkDirectory.ToString(pathTable)));
         }
 
         [Fact]

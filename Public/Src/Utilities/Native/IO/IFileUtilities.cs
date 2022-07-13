@@ -67,14 +67,14 @@ namespace BuildXL.Native.IO
         /// </remarks>
         /// <param name="path">absolute path of directory to delete</param>
         /// <param name="deleteRootDirectory">whether to also delete the root directory</param>
-        /// <param name="shouldDelete">a function which returns true if file should be deleted and false otherwise.</param>
+        /// <param name="shouldDelete">a function which returns true if file should be deleted based on the path and reparsePoint information.</param>
         /// <param name="tempDirectoryCleaner">provides and cleans a temp directory for move-deleting files</param>
         /// <param name="bestEffort">if true, avoid retry logic while deleting</param>
         /// <param name="cancellationToken">provides cancelation capability.</param>
         void DeleteDirectoryContents(
             string path, 
             bool deleteRootDirectory, 
-            Func<string, bool> shouldDelete, 
+            Func<string, bool, bool> shouldDelete, 
             ITempCleaner tempDirectoryCleaner = null,
             bool bestEffort = false,
             CancellationToken? cancellationToken = default);
@@ -90,12 +90,13 @@ namespace BuildXL.Native.IO
         /// delete state; see remarks.
         /// </param>
         /// <param name="shouldDelete">
+        /// a function which returns true if file should be deleted based on the path and reparsePoint information.
         /// </param>
         /// <remarks>
         /// In the case that the path is pending deletion, no open handles will be reported, even
         /// if there is a handle open somewhere preventing the delete from completing.
         /// </remarks>
-        string FindAllOpenHandlesInDirectory(string directoryPath, HashSet<string> pathsPossiblyPendingDelete = null, Func<string, bool> shouldDelete = null);
+        string FindAllOpenHandlesInDirectory(string directoryPath, HashSet<string> pathsPossiblyPendingDelete = null, Func<string, bool, bool> shouldDelete = null);
 
         #endregion
 

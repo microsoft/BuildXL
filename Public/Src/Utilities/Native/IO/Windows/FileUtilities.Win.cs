@@ -122,7 +122,7 @@ namespace BuildXL.Native.IO.Windows
         public void DeleteDirectoryContents(
             string path,
             bool deleteRootDirectory = false,
-            Func<string, bool> shouldDelete = null,
+            Func<string, bool, bool> shouldDelete = null,
             ITempCleaner tempDirectoryCleaner = null,
             bool bestEffort = false,
             CancellationToken? cancellationToken = default)
@@ -166,12 +166,12 @@ namespace BuildXL.Native.IO.Windows
         private int DeleteDirectoryAndContentsInternal(
             string directoryPath,
             bool deleteRootDirectory,
-            Func<string, bool> shouldDelete = null,
+            Func<string, bool, bool> shouldDelete = null,
             ITempCleaner tempDirectoryCleaner = null,
             bool bestEffort = false,
             CancellationToken? cancellationToken = default)
         {
-            var defaultDeleteCheck = new Func<string, bool>(p => true);
+            var defaultDeleteCheck = new Func<string, bool, bool>((a, b) => true);
             shouldDelete = shouldDelete ?? defaultDeleteCheck;
             int remainingChildCount = 0;
             int numberOfAttempts = bestEffort ? 1 : Helpers.DefaultNumberOfAttempts; // Don't retry if bestEffort
@@ -212,7 +212,7 @@ namespace BuildXL.Native.IO.Windows
                 // Case 1: If we are deleting the root directory, the caller needs to worry about that same problem (recursively, things work out, so long as the outermost directory is emptied with deleteRootDirectory==false; see next case).
                 // Case 2: Otherwise, we poll the root directory until it is empty (so the caller can be guaranteed it is *really* empty w.r.t. re-creating files or directories with existing names)
                 bool success = false;
-                if (deleteRootDirectory && remainingChildCount == 0 && shouldDelete(directoryPath))
+                if (deleteRootDirectory && remainingChildCount == 0 && shouldDelete(directoryPath, false))
                 {
                     success = Helpers.RetryOnFailure(
                         finalRound =>
@@ -315,7 +315,7 @@ namespace BuildXL.Native.IO.Windows
                         }
                         else
                         {
-                            if (shouldDelete(childPath))
+                            if (shouldDelete(childPath, isActionableReparsePoint))
                             {
                                 // This method already has retry logic, so no need to do retry in DeleteFile
                                 DeleteFile(childPath, retryOnFailure: !bestEffort, tempDirectoryCleaner: tempDirectoryCleaner);
@@ -436,7 +436,7 @@ namespace BuildXL.Native.IO.Windows
         }
 
         /// <inheritdoc />
-        public string FindAllOpenHandlesInDirectory(string directoryPath, HashSet<string> pathsPossiblyPendingDelete = null, Func<string, bool> shouldDelete = null)
+        public string FindAllOpenHandlesInDirectory(string directoryPath, HashSet<string> pathsPossiblyPendingDelete = null, Func<string, bool, bool> shouldDelete = null)
         {
             pathsPossiblyPendingDelete = pathsPossiblyPendingDelete ?? new HashSet<string>();
             using (var builderPool = Pools.GetStringBuilder())
@@ -461,10 +461,10 @@ namespace BuildXL.Native.IO.Windows
                         {
                             builder.AppendLine(FileUtilitiesMessages.PathMayBePendingDeletion);
                         }
-
+                        
                         if (shouldDelete != null)
                         {
-                            builder.AppendLine($"Should be deleted: {shouldDelete(fullPath)}");
+                            builder.AppendLine($"Should be deleted: {shouldDelete(fullPath, attributes.HasFlag(FileAttributes.ReparsePoint))}");
                         }
                     });
 

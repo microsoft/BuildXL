@@ -67,7 +67,7 @@ namespace BuildXL.Native.IO.Unix
         public void DeleteDirectoryContents(
             string path,
             bool deleteRootDirectory = false,
-            Func<string, bool> shouldDelete = null,
+            Func<string, bool, bool> shouldDelete = null,
             ITempCleaner tempDirectoryCleaner = null,
             bool bestEffort = false,
             CancellationToken? cancellationToken = default)
@@ -78,7 +78,7 @@ namespace BuildXL.Native.IO.Unix
         private int DeleteDirectoryContentsInternal(
             string path,
             bool deleteRootDirectory,
-            Func<string, bool> shouldDelete,
+            Func<string, bool, bool> shouldDelete,
             ITempCleaner tempDirectoryCleaner,
             bool bestEffort,
             CancellationToken? cancellationToken)
@@ -90,7 +90,7 @@ namespace BuildXL.Native.IO.Unix
                 return remainingChildCount;
             }
 
-            shouldDelete = shouldDelete ?? (p => true);
+            shouldDelete = shouldDelete ?? ((a,b) => true);
 
             EnumerateDirectoryResult result = m_fileSystem.EnumerateDirectoryEntries(
                 path,
@@ -118,7 +118,7 @@ namespace BuildXL.Native.IO.Unix
                     }
                     else
                     {
-                        if (shouldDelete(childPath))
+                        if (shouldDelete(childPath, attributes.HasFlag(FileAttributes.ReparsePoint)))
                         {
                             // This method already has retry logic, so no need to do retry in DeleteFile
                             DeleteFile(childPath, retryOnFailure: !bestEffort, tempDirectoryCleaner: tempDirectoryCleaner);
@@ -155,7 +155,7 @@ namespace BuildXL.Native.IO.Unix
         }
 
         /// <inheritdoc />
-        public string FindAllOpenHandlesInDirectory(string directoryPath, HashSet<string> pathsPossiblyPendingDelete = null, Func<string, bool> shouldDelete = null) => throw new NotImplementedException();
+        public string FindAllOpenHandlesInDirectory(string directoryPath, HashSet<string> pathsPossiblyPendingDelete = null, Func<string, bool, bool> shouldDelete = null) => throw new NotImplementedException();
 
         /// <inheritdoc />
         public Possible<string, DeletionFailure> TryDeleteFile(

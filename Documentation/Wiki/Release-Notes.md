@@ -1,6 +1,18 @@
 This page is a curated list of the release notes for releases after 0.20170619.4.0 and a manual copy of notable changes from each build before that. See the repo's commit history full details for what is included in each build.
 
 =======
+# 0.1.0-20220711.4.2 (Release [196363](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=196363)) Released 7/13/2022
+- Log unexpected exceptions in grpc server interceptor 
+- Capture more info related to the organization triggering the build.
+- Introduce temp folder shared by pips executed in VM
+- Blob L3 - Download strategies and pin elision optimizations
+- Fix empty drops crashing GenerateBuildManifestFileList
+- IPC pips through gRPC
+- Log service pip mem usage in stats.csv
+- Eat connection reset unobserved task exceptions
+- Update grpc.net to 2.47.0
+- Decrease grpc communication overhead between worker and orchestrator
+
 # 0.1.0-20220626.0 (Release [190089](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=190089)) Released 6/29/2022
 -	\[Linux Sandbox\] Stop wrapping processes in a bash script.
 -	Fail pips faster when a connection is lost with a worker.

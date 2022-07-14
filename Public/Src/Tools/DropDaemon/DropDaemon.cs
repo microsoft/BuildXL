@@ -315,7 +315,7 @@ namespace Tool.DropDaemon
             ShortName = "rdt",
             HelpText = "Whether to report individual drop telemetry",
             IsRequired = false,
-            DefaultValue = false,
+            DefaultValue = true,
         });
 
         // ==============================================================================

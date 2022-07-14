@@ -158,7 +158,7 @@ namespace Tool.SymbolDaemon
             ShortName = "rst",
             HelpText = "Whether to report collected telemetry",
             IsRequired = false,
-            DefaultValue = false,
+            DefaultValue = true,
         });
 
         internal static SymbolConfig CreateSymbolConfig(ConfiguredCommand conf)

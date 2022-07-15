@@ -133,6 +133,32 @@ namespace Test.BuildXL.Utilities.Configuration
         }
 
         /// <summary>
+        /// This test is to check if the "codebase" property is set to the branch name when "BUILD_REPOSITORY_NAME" is present as an environment variable.
+        /// </summary>
+        [Fact]
+        public static void TestCodebasePropertyADO()
+        {
+            ICommandLineConfiguration configuration = new CommandLineConfiguration();
+            string[] envString = ComputeEnvBlockForTesting(configuration, CaptureBuildInfo.AdoPreDefinedVariableForCodebase, EnvVarExpectedValue);
+            XAssert.IsTrue(AssertEnvStringContainsTelemetryEnvProperty("codebase=TestADO", envString));
+        }
+
+        /// <summary>
+        /// This test is to check if the "codebase" property has been to set the branch name passed via traceInfo in the CB environment.
+        /// This test also tests the scenario when the codebase property has been passed via traceInfo in the "CloudBuild" environment and the presence of the environment variable "BUILD_REPOSITORY_NAME".
+        /// In this case the codebase property value obtained from the traceInfo argument should be set in the envString for codebase.
+        /// </summary>
+        [Fact]
+        public void TestCodebasePropertyCloudBuild()
+        {
+            string traceInfoArgs = "/traceInfo:codebase=TestCB";
+            ICommandLineConfiguration configuration = AddTraceInfoArguments(traceInfoArgs);
+            string[] envString = ComputeEnvBlockForTesting(configuration, CaptureBuildInfo.AdoPreDefinedVariableForCodebase, EnvVarExpectedValue);
+            XAssert.IsTrue(AssertEnvStringContainsTelemetryEnvProperty("codebase=TestCB", envString));
+            XAssert.IsFalse(AssertEnvStringContainsTelemetryEnvProperty("codebase=TestADO", envString));
+        }
+
+        /// <summary>
         /// This is a helper method to avoid memory leaks with respect to the environment variables that are tested
         /// Check if there any duplicates are present in the environment string.
         /// </summary>

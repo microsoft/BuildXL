@@ -16,6 +16,7 @@ namespace BuildXL.Utilities.Configuration
     /// Below are the list of properties which capture the required information about the build for telemetry purpose.
     /// infra - identify the environment in which the build is run(CloudBuild, Azure DevOps).
     /// org - identify the orgnization triggering the build.
+    /// codebase - identifies the code or product that's being built. This will typically be the name of the Git repository.
     /// </remarks>
     public class CaptureBuildInfo
     {
@@ -42,6 +43,17 @@ namespace BuildXL.Utilities.Configuration
         /// </summary>
         public const string AdoEnvVariableForInfra = "BUILD_DEFINITIONNAME";
 
+        ///<summary>
+        /// Codebase - identifies the code or product that's being built. This will typically be the name of the Git repository.
+        /// It will vary in other source control mechanisms.
+        /// </summary>
+        private const string CodeBaseKey = "codebase";
+
+        /// <summary>
+        /// ADO pre-defined environment variable to obtain the name of the repository triggering the build.
+        /// </summary>
+        public static readonly string AdoPreDefinedVariableForCodebase = "BUILD_REPOSITORY_NAME";
+
         /// <summary>
         /// This is the primary method in the class which is called by ComputeEnvironment(), to capture the build properties.
         /// </summary>
@@ -62,6 +74,15 @@ namespace BuildXL.Utilities.Configuration
                 if (!string.IsNullOrEmpty(orgPropertyValue))
                 {
                     traceInfoProperties.Add(OrgKey, orgPropertyValue);
+                }
+            }
+
+            if (!traceInfoProperties.ContainsKey(CodeBaseKey))
+            {
+                string codebasePropertyValue = GetCodebase();
+                if (!string.IsNullOrEmpty(codebasePropertyValue))
+                {
+                    traceInfoProperties.Add(CodeBaseKey, codebasePropertyValue);
                 }
             }
 
@@ -110,7 +131,25 @@ namespace BuildXL.Utilities.Configuration
                 return match.Groups[0].Value;
             }
 
-            return null;            
+            return null;
         }
+
+        /// <summary>
+        /// This method is used to set a build property called Codebase in the EnvString for telemetry purpose in an ADO environment. 
+        /// For CB, the codebase information is passed as a part of traceInfo.
+        /// This method captures the required information from the ADO pre-defined variable "Build_Repository_Name"
+        /// This variable gives the name of the triggering repository.
+        /// </summary>
+        private static string GetCodebase()
+        {
+            // For ADO the build property BUILD_REPOSITORY_NAME is used to extract the codebase information.
+            if (Environment.GetEnvironmentVariables().Contains(AdoPreDefinedVariableForCodebase))
+            {
+                return Environment.GetEnvironmentVariable(AdoPreDefinedVariableForCodebase);
+            }
+
+            return null;
+        }
+
     }
 }

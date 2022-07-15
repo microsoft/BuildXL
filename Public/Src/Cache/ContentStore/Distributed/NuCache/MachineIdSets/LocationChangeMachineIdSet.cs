@@ -104,23 +104,25 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private MachineIdSet SetExistenceWithBuilder(in MachineIdCollection machines, bool exists)
         {
-            var lazyBuilder = new Lazy<ImmutableArray<LocationChange>.Builder>(() => _locationStates.ToBuilder());
+            ImmutableArray<LocationChange>.Builder builder = null;
 
             foreach (var machineId in machines)
             {
+                builder ??= _locationStates.ToBuilder();
+
                 // isRemove flag has no impact on the search, because LocationChangeMachineIdComparer ignores that
                 // and only compares the Index.
                 var inputLocation = LocationChange.Create(machineId, isRemove: true);
-                var arrayIndex = _locationStates.IndexOf(inputLocation, LocationChangeMachineIdComparer.Instance);
+                var arrayIndex = builder.IndexOf(inputLocation, 0, builder.Count, LocationChangeMachineIdComparer.Instance);
                 if (arrayIndex != -1)
                 {
-                    lazyBuilder.Value.RemoveAt(arrayIndex);
+                    builder.RemoveAt(arrayIndex);
                 }
 
-                lazyBuilder.Value.Add(LocationChange.Create(machineId, isRemove: !exists));
+                builder.Add(LocationChange.Create(machineId, isRemove: !exists));
             }
 
-            return lazyBuilder.IsValueCreated ? new LocationChangeMachineIdSet(lazyBuilder.Value.ToImmutable()) : this;
+            return builder != null ? new LocationChangeMachineIdSet(builder.ToImmutable()) : this;
         }
 
         /// <summary>

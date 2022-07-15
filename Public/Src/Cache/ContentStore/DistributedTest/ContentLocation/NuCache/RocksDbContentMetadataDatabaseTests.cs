@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.MetadataService;
@@ -318,6 +319,8 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
 
         private record struct TestOperation(MachineContentInfo Info, LocationChange[] Locations, byte[] SerializedData = null)
         {
+            public MachineIdSet MachineIdSet { get; set; } = new LocationChangeMachineIdSet(Locations.ToImmutableArray());
+
             public static CompactTime DefaultLastAccessTime = DateTime.UtcNow;
 
             public static TestOperation Create(params int[] machines)
@@ -327,6 +330,7 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
 
             private static TestOperation CreateCore(long? size, CompactTime lastAccessTime, params int[] machines)
             {
+                var changes = machines.Select(m => LocationChange.Create(new MachineId(Math.Abs(m)), isRemove: m < 0)).ToArray();
                 var result = new TestOperation
                 (
                     Info: new MachineContentInfo(size, lastAccessTime),
@@ -404,7 +408,10 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
                     Info: MachineContentInfo.Merge(Info, other.Info),
                     Locations: MergeLocations(Locations, other.Locations, full),
                     SerializedData: mergedData.WrittenBytes.ToArray()
-                );
+                )
+                {
+                    MachineIdSet = MachineIdSet.Merge(other.MachineIdSet)
+                };
 
                 merge.Validate();
 
@@ -443,6 +450,8 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
                 }
 
                 machines.Length.Should().Be(Locations.Length);
+                var expectedCount = machines.ToArray().Where(m => m.IsAdd).Count();
+                MachineIdSet.Count.Should().Be(expectedCount);
                 var expectedInfo = Info;
                 ValidateInfo(info, expectedInfo);
             }

@@ -2359,7 +2359,7 @@ namespace BuildXL.Native.IO.Windows
                     security = fileInfo.GetAccessControl(AccessControlSections.Access | AccessControlSections.Audit);
                 }
             }
-            catch (PrivilegeNotHeldException)
+            catch (Exception e) when (e is PrivilegeNotHeldException || e is FileNotFoundException)
             {
                 // Not running as admin, so we can't determine Audit rule inheritance
                 checkAudits = false;

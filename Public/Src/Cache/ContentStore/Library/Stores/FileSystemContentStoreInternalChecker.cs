@@ -359,7 +359,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 }
                 catch (Exception e)
                 {
-                    return (isValid: false, error: $"Failed to disable inheritance for file {fileInfo.FullPath}, Error={e}");
+                    _tracer.Debug(context, $"Failed to disable inheritance for file {fileInfo.FullPath}, Error={e}");
                 }
 
                 return (isValid: true, error: string.Empty);

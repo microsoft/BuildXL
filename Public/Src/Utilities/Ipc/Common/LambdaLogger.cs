@@ -2,6 +2,8 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
+using System.Text;
 using BuildXL.Ipc.Interfaces;
 
 namespace BuildXL.Ipc.Common
@@ -21,6 +23,16 @@ namespace BuildXL.Ipc.Common
 
         /// <inheritdoc />
         public void Log(LogLevel level, string format, params object[] args) => m_logFunction(level, format, args);
+
+        /// <summary>
+        /// Not supported.
+        /// </summary>
+        public void Log(LogLevel level, StringBuilder message) => throw new NotSupportedException();
+
+        /// <summary>
+        /// Not supported.
+        /// </summary>
+        public void Log(LogLevel level, string header, IEnumerable<string> items, bool placeItemsOnSeparateLines) => throw new NotSupportedException();
 
         /// <nodoc />
         public void Dispose() { }

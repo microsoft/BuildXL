@@ -4,8 +4,10 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Ipc.Interfaces;
@@ -72,7 +74,16 @@ namespace BuildXL.Ipc.Common
         /// <inheritdoc/>
         public override string ToString()
         {
-            return I($"{{succeeded: {Succeeded}, payload: '{Payload}', ActionDuration: {ActionDuration}}}");
+            using var wrappedBuilder = Pools.GetStringBuilder();
+            return ToString(wrappedBuilder.Instance).ToString();
+        }
+
+        /// <summary>
+        /// Writes a string that represent the current object into a provided StringBuilder.
+        /// </summary>
+        public StringBuilder ToString(StringBuilder builder)
+        {
+            return builder.Append($"{{succeeded: {Succeeded}, payload: '{Payload}', ActionDuration: {ActionDuration.ToString("c")}}}");
         }
 
         /// <summary>

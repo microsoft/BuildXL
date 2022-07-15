@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
 using BuildXL.Storage;
 using BuildXL.Utilities;
 
@@ -44,7 +45,19 @@ namespace BuildXL.Ipc.ExternalApi
         /// </summary>
         public string Render()
         {
-            return $"{FileName}{RenderSeparator}{FileId.ToString(Artifact)}{RenderSeparator}{ContentInfo.Render()}";
+            return string.Join(string.Empty, RenderContent());
+        }
+
+        /// <summary>
+        /// A variant of Render that returns individual components of the rendered string representation of this struct.
+        /// </summary>
+        public IEnumerable<string> RenderContent()
+        {
+            yield return FileName;
+            yield return RenderSeparator;
+            yield return FileId.ToString(Artifact);
+            yield return RenderSeparator;
+            yield return ContentInfo.Render();
         }
 
         /// <summary>

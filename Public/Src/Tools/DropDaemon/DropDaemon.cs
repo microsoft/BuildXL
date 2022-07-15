@@ -510,7 +510,7 @@ namespace Tool.DropDaemon
                 }
 
                 IIpcResult result = await daemon.FinalizeAsync();
-                daemon.Logger.Info($"[FINALIZE] {result}");
+                LogIpcResult(daemon.Logger, LogLevel.Info, "[FINALIZE] ", result);
                 return result;
             });
 
@@ -534,7 +534,7 @@ namespace Tool.DropDaemon
                }
 
                IIpcResult result = await daemon.FinalizeSingleDropAsync(dropConfig);
-               logger.Info($"[FINALIZE] {result}");
+               LogIpcResult(logger, LogLevel.Info, "[FINALIZE] ", result);
                return result;
            });
 
@@ -562,7 +562,7 @@ namespace Tool.DropDaemon
                 IIpcResult result = System.IO.File.Exists(filePath)
                     ? await daemon.AddFileAsync(dropItem)
                     : new IpcResult(IpcResultStatus.ExecutionError, "file '" + filePath + "' does not exist");
-                logger.Verbose("[ADDFILE] " + result);
+                LogIpcResult(logger, LogLevel.Verbose, "[ADDFILE] ", result);
                 return result;
             });
 
@@ -582,7 +582,7 @@ namespace Tool.DropDaemon
 
                 var result = await AddArtifactsToDropInternalAsync(conf, daemon, logger, commandId);
 
-                logger.Verbose($"{commandId} [ADDARTIFACTS]: {result}");
+                LogIpcResult(logger, LogLevel.Verbose, $"{commandId} [ADDARTIFACTS]: ", result);
                 return result;
             });
 
@@ -936,7 +936,7 @@ namespace Tool.DropDaemon
         /// </summary>
         /// <returns>
         /// A converted list of <see cref="SBOMPackage"/> if successful.
-        /// If partially succesful, a partial list of packages are returned and errors messages will be logged.
+        /// If partially successful, a partial list of packages are returned and errors messages will be logged.
         /// If conversion is unsuccessful, an empty list is returned and errors are logged.
         /// </returns>
         private IEnumerable<SBOMPackage> GetSbomPackages(IIpcLogger logger)
@@ -1095,6 +1095,14 @@ namespace Tool.DropDaemon
             foreach (var kvp in m_vsoClients)
             {
                 kvp.Value.lazyVsoClientTask.Value.Result.Dispose();
+            }
+
+            foreach (var dropLogger in m_dropSpecificLoggers.Values)
+            {
+                if (dropLogger.IsValueCreated)
+                {
+                    dropLogger.Value.Dispose();
+                }
             }
 
             base.Dispose();
@@ -1409,6 +1417,7 @@ namespace Tool.DropDaemon
             using (var pooledSb = Pools.GetStringBuilder())
             {
                 var sb = pooledSb.Instance;
+                sb.AppendLine($"{commandId} Payload:");
                 for (int i = 0; i < files.Length; i++)
                 {
                     sb.AppendFormat("{0}|{1}|{2}|{3}{4}", files[i], fileIds[i], hashes[i], dropPaths[i], Environment.NewLine);
@@ -1430,7 +1439,7 @@ namespace Tool.DropDaemon
                         directoryPaths[i], directoryIds[i], directoryDropPaths[i], directoryFilters[i], directoryFilterUseRelativePath[i], directoryRelativePathsReplaceSerialized[i], Environment.NewLine);
                 }
 
-                logger.Verbose("{0} Payload:{1}{2}", commandId, Environment.NewLine, sb.ToString());
+                logger.Verbose(sb);
             }
 
             var possibleFilters = InitializeFilters(directoryFilters);
@@ -1588,7 +1597,11 @@ namespace Tool.DropDaemon
             }
 
             var directoryContent = maybeResult.Result;
-            logger.Verbose($"{commandId} (dirPath'{directoryPath}', dirId='{directoryId}') contains '{directoryContent.Count}' files:{Environment.NewLine}{string.Join(Environment.NewLine, directoryContent.Select(f => f.Render()))}");
+            logger.Log(
+                LogLevel.Verbose,
+                $"{commandId} (dirPath'{directoryPath}', dirId='{directoryId}') contains '{directoryContent.Count}' files:",
+                directoryContent.SelectMany(f => f.RenderContent().Append(Environment.NewLine)),
+                placeItemsOnSeparateLines: false);
 
             if (contentFilter != null)
             {

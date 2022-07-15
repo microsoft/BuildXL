@@ -168,7 +168,7 @@ namespace Tool.MaterializationDaemon
                var materializationDaemon = daemon as MaterializationDaemon;
                materializationDaemon.Logger.Verbose("[REGISTERMANIFEST] Started");
                var result = await materializationDaemon.RegisterManifestInternalAsync(conf);
-               materializationDaemon.Logger.Verbose("[REGISTERMANIFEST] " + result);
+               LogIpcResult(materializationDaemon.Logger, LogLevel.Verbose, "[REGISTERMANIFEST] ", result);
                return result;
            });
 
@@ -195,7 +195,7 @@ namespace Tool.MaterializationDaemon
                 var materializationDaemon = daemon as MaterializationDaemon;
                 materializationDaemon.Logger.Verbose("[MATERIALIZEDIRECTORIES] Started");
                 var result = await materializationDaemon.MaterializeDirectoriesAsync(conf);
-                materializationDaemon.Logger.Verbose("[MATERIALIZEDIRECTORIES] " + result);
+                LogIpcResult(materializationDaemon.Logger, LogLevel.Verbose, "[MATERIALIZEDIRECTORIES] ", result);
                 return result;
             });
 
@@ -469,11 +469,15 @@ namespace Tool.MaterializationDaemon
                 if (!possibleContent.Succeeded)
                 {
                     return new Failure<string>(I($"Failed to get the content of a directory artifact ({directoryId}, {directoryPath}){Environment.NewLine}{possibleContent.Failure.Describe()}"));
-                } 
+                }
             }
 
             var content = possibleContent.Result;
-            Logger.Verbose($"(dirPath'{directoryPath}', dirId='{directoryId}') contains '{content.Count}' files:{Environment.NewLine}{string.Join(Environment.NewLine, content.Select(f => f.Render()))}");
+            Logger.Log(
+                LogLevel.Verbose,
+                $"(dirPath'{directoryPath}', dirId='{directoryId}') contains '{content.Count}' files:",
+                content.SelectMany(f => f.RenderContent().Append(Environment.NewLine)),
+                placeItemsOnSeparateLines: false);
 
             if (contentFilter != null)
             {
@@ -521,7 +525,7 @@ namespace Tool.MaterializationDaemon
 
                     if (possibleResult.Succeeded)
                     {
-                        Logger.Verbose($"Manifest file ('{manifestFilePath}') content:{Environment.NewLine}{string.Join(Environment.NewLine, possibleResult.Result)}");
+                        Logger.Log(LogLevel.Verbose, $"Manifest file ('{manifestFilePath}') content:", possibleResult.Result, placeItemsOnSeparateLines: true);
                         return possibleResult.Result;
                     }
 
@@ -684,17 +688,11 @@ namespace Tool.MaterializationDaemon
             var materializedPaths = pathsByStatus[true].ToList();
             var failedPaths = pathsByStatus[false].ToList();
 
-            Logger.Verbose("Successfully materialized {0} files:{1}{2}",
-                materializedPaths.Count,
-                Environment.NewLine,
-                string.Join(Environment.NewLine, materializedPaths));
+            Logger.Log(LogLevel.Verbose, $"Successfully materialized {materializedPaths.Count} files:", materializedPaths, placeItemsOnSeparateLines: true);
 
             if (failedPaths.Count > 0)
             {
-                Logger.Warning("Failed to materialize {0} files:{1}{2}",
-                    failedPaths.Count,
-                    Environment.NewLine,
-                    string.Join(Environment.NewLine, failedPaths));
+                Logger.Log(LogLevel.Warning, $"Failed to materialize {failedPaths.Count} files:", failedPaths, placeItemsOnSeparateLines: true);
             }
         }
 

@@ -2,6 +2,8 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
+using System.Text;
 
 namespace BuildXL.Ipc.Interfaces
 {
@@ -31,5 +33,11 @@ namespace BuildXL.Ipc.Interfaces
     {
         /// <nodoc />
         void Log(LogLevel level, string format, params object[] args);
+
+        /// <nodoc />
+        void Log(LogLevel level, StringBuilder message);
+
+        /// <nodoc />
+        void Log(LogLevel level, string header, IEnumerable<string> items, bool placeItemsOnSeparateLines);
     }
 }

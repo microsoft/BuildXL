@@ -649,5 +649,33 @@ namespace Tool.ServicePipDaemon
 
         /// <nodoc />
         protected IDictionary<string, long> GetDaemonStats(string prefix = null) => m_counters.AsStatistics(prefix);
+
+        /// <summary>
+        /// Logs IpcResult by wrapping it into a StringBuilder and passing to a provided logger. 
+        /// This method wraps IpcResult into a pooled StringBuilder to reduce the number of string allocations that might happen 
+        /// </summary>
+        /// <remarks>
+        /// IpcResult is essentially a string, so at first, it might seem counter-intuitive to put it inside of a StringBuilder.
+        /// However, the Payload of IpcResult can be very big (i.e., big enough to be located on the Large object heap), so all the
+        /// prefixing / timestamping that loggers might be doing will result in more 'copies' of that string added to LOH.
+        /// StringBuilder will still be on the LOH if the Payload string is too big, but we won't be creating any additional copies
+        /// while it goes through the logger.
+        /// </remarks>
+        protected static void LogIpcResult(IIpcLogger logger, LogLevel level, string prefix, IIpcResult result)
+        {
+            using var pooledBuilder = Pools.GetStringBuilder();
+            var sb = pooledBuilder.Instance;
+            sb.Append(prefix);
+            if (result is IpcResult ipcResult)
+            {
+                ipcResult.ToString(sb);
+            }
+            else
+            {
+                sb.Append(result.ToString());
+            }
+
+            logger.Log(level, sb);
+        }
     }
 }

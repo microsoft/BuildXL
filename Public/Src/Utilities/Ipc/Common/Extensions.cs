@@ -3,6 +3,7 @@
 
 using System;
 using System.Globalization;
+using System.Text;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Utilities;
 
@@ -19,23 +20,54 @@ namespace BuildXL.Ipc.Common
         public static void Info(this IIpcLogger logger, string format, params object[] args) => logger?.Log(LogLevel.Info, format, args);
 
         /// <nodoc />
+        public static void Info(this IIpcLogger logger, StringBuilder message) => logger?.Log(LogLevel.Info, message);
+
+        /// <nodoc />
         public static void Verbose(this IIpcLogger logger, string format, params object[] args) => logger?.Log(LogLevel.Verbose, format, args);
+
+        /// <nodoc />
+        public static void Verbose(this IIpcLogger logger, StringBuilder message) => logger?.Log(LogLevel.Verbose, message);
 
         /// <nodoc />
         public static void Warning(this IIpcLogger logger, string format, params object[] args) => logger?.Log(LogLevel.Warning, format, args);
 
         /// <nodoc />
+        public static void Warning(this IIpcLogger logger, StringBuilder message) => logger?.Log(LogLevel.Warning, message);
+
+        /// <nodoc />
         public static void Error(this IIpcLogger logger, string format, params object[] args) => logger?.Log(LogLevel.Error, format, args);
+
+        /// <nodoc />
+        public static void Error(this IIpcLogger logger, StringBuilder message) => logger?.Log(LogLevel.Error, message);
 
         /// <summary>
         /// Formats log message using some default formatting.
         /// </summary>
         public static string Format(LogLevel level, string messageFormat, params object[] args)
         {
-            string time = DateTime.UtcNow.ToString("HH:mm:ss.fff", CultureInfo.InvariantCulture);
-            string prefix = string.Format(CultureInfo.CurrentCulture, "{0} [{1}] ", time, level);
+            var timestamp = GetFormattedTimestamp(level);
             string message = args.Length == 0 ? messageFormat : string.Format(CultureInfo.CurrentCulture, messageFormat, args);
-            return prefix + message;
+            return timestamp + message;
+        }
+
+        /// <summary>
+        /// Formats log message using some default formatting. Modifies a provided StringBuilder
+        /// and returns a reference to it.
+        /// </summary>
+        public static StringBuilder Format(LogLevel level, StringBuilder message)
+        {
+            var timestamp = GetFormattedTimestamp(level);
+            message.Insert(0, timestamp);
+            return message;
+        }
+
+        /// <summary>
+        /// Returns a timestamp formatted for logging
+        /// </summary>
+        public static string GetFormattedTimestamp(LogLevel level)
+        {
+            string time = DateTime.UtcNow.ToString("HH:mm:ss.fff", CultureInfo.InvariantCulture);
+            return string.Format(CultureInfo.CurrentCulture, "{0} [{1}] ", time, level);
         }
     }
 

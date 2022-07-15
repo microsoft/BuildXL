@@ -106,15 +106,15 @@ namespace Tool.ServicePipDaemon
 
             if (m_wasCreator && Interlocked.Increment(ref m_finalizeRequestCounter) == 1)
             {
-                m_logger.Log(LogLevel.Info, LogPrefix + "Issuing the 'Finalize' command before shutting down: this means the command wasn't explicitly issued before.");
+                m_logger.Log(LogLevel.Info, $"{LogPrefix}Issuing the 'Finalize' command before shutting down: this means the command wasn't explicitly issued before.");
                 try
                 {
                     var result = DoFinalizeAsync().GetAwaiter().GetResult();
-                    m_logger.Log(LogLevel.Info, LogPrefix + $"[FINALIZE] result: {result}");
+                    m_logger.Log(LogLevel.Info, $"{LogPrefix}[FINALIZE] result: {result}");
                 }
                 catch (Exception e)
                 {
-                    m_logger.Log(LogLevel.Error, $"An exception was thrown while attempting to Finalize before shutting down: {e.ToStringDemystified()}");
+                    m_logger.Log(LogLevel.Error, $"{LogPrefix}An exception was thrown while attempting to Finalize before shutting down: {e.ToStringDemystified()}");
                 }
             }
         }

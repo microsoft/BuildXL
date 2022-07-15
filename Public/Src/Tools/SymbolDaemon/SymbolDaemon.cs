@@ -294,7 +294,7 @@ namespace Tool.SymbolDaemon
                 var symbolMetadataFile = SymbolMetadataFile.GetValue(conf.Config);
 
                 var result = await AddSymbolFilesInternalAsync(files, fileIds, hashes, symbolMetadataFile, symbolDaemon);
-                symbolDaemon.Logger.Verbose("[ADDSYMBOLS] " + result);
+                LogIpcResult(symbolDaemon.Logger, LogLevel.Verbose, "[ADDSYMBOLS] ", result);
                 return result;
             });
 
@@ -328,7 +328,7 @@ namespace Tool.SymbolDaemon
                 var symbolDaemon = daemon as SymbolDaemon;
                 symbolDaemon.Logger.Verbose("[GetDirectoriesContentAsync] Started");
                 var result = await GetDirectoriesContentAsync(conf, symbolDaemon);
-                symbolDaemon.Logger.Verbose("[GetDirectoriesContentAsync] " + result);
+                LogIpcResult(symbolDaemon.Logger, LogLevel.Verbose, "[GetDirectoriesContentAsync] ", result);
                 return result;
             });
 
@@ -369,7 +369,7 @@ namespace Tool.SymbolDaemon
                 var symbolDaemon = daemon as SymbolDaemon;
                 symbolDaemon.Logger.Verbose("[ADDSYMBOLSFROMDIRECTORIES] Started");
                 var result = await AddDirectoriesInternalAsync(conf, symbolDaemon);
-                symbolDaemon.Logger.Verbose("[ADDSYMBOLSFROMDIRECTORIES] " + result);
+                LogIpcResult(symbolDaemon.Logger, LogLevel.Verbose, "[ADDSYMBOLSFROMDIRECTORIES] ", result);
                 return result;
             });
 

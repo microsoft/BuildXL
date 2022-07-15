@@ -2,6 +2,8 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
+using System.Text;
 using BuildXL.Ipc.Interfaces;
 
 namespace BuildXL.Ipc.Common
@@ -40,6 +42,27 @@ namespace BuildXL.Ipc.Common
             var writer = level == LogLevel.Error ? Console.Error : Console.Out;
             writer.WriteLine(message);
         }
+
+        /// <summary>
+        /// Logs to Console.Out, unless <paramref name="level"/> is <see cref="Interfaces.LogLevel.Verbose"/>,
+        /// and <see cref="IsLoggingVerbose"/> is <code>false</code>.
+        /// </summary>
+        public void Log(LogLevel level, StringBuilder message)
+        {
+            if (!IsLoggingVerbose && level == LogLevel.Verbose)
+            {
+                return;
+            }
+
+            LoggerExtensions.Format(level, message).Insert(0, Prefix);
+            var writer = level == LogLevel.Error ? Console.Error : Console.Out;
+            writer.WriteLine(message);
+        }
+
+        /// <summary>
+        /// Not supported.
+        /// </summary>
+        public void Log(LogLevel level, string header, IEnumerable<string> items, bool placeItemsOnSeparateLines) => throw new NotSupportedException();
 
         /// <nodoc />
         public void Dispose() { }

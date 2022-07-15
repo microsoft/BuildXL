@@ -24,6 +24,7 @@ using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Distributed;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Synchronization.Internal;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
@@ -1168,6 +1169,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private enum RegisterAction
         {
             EagerGlobal,
+            EagerGlobalOnPut,
             RecentInactiveEagerGlobal,
             RecentRemoveEagerGlobal,
             LazyEventOnly,
@@ -1189,6 +1191,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             switch (action)
             {
                 case RegisterAction.EagerGlobal:
+                case RegisterAction.EagerGlobalOnPut:
                 case RegisterAction.RecentInactiveEagerGlobal:
                 case RegisterAction.RecentRemoveEagerGlobal:
                     return RegisterCoreAction.Global;
@@ -1322,7 +1325,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Notifies a central store that content represented by <paramref name="contentHashes"/> is available on a current machine.
         /// </summary>
-        public async Task<BoolResult> RegisterLocalLocationAsync(OperationContext context, MachineId machineId, IReadOnlyList<ContentHashWithSize> contentHashes, bool touch, bool isRegisterLocalContent = false)
+        public async Task<BoolResult> RegisterLocalLocationAsync(OperationContext context, MachineId machineId, IReadOnlyList<ContentHashWithSize> contentHashes, bool touch, bool isRegisterLocalContent = false, UrgencyHint urgencyHint = UrgencyHint.Minimum)
         {
             Contract.Requires(contentHashes != null);
 
@@ -1349,9 +1352,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     // Select which hashes are not already registered for the local machine and those which must eagerly go to the global store
                     foreach (var contentHash in contentHashes)
                     {
-                        var registerAction = (isRegisterLocalContent && contentHash.Size < 0)
-                            ? RegisterAction.SkippedDueToMissingLocalContent // this is a local content register where content was not found. Skip.
-                            : GetRegisterAction(context, machineId, contentHash.Hash, now);
+                        RegisterAction registerAction;
+                        if (urgencyHint == UrgencyHint.RegisterEagerly)
+                        {
+                            registerAction = RegisterAction.EagerGlobalOnPut;
+                        }
+                        else
+                        {
+                            registerAction = (isRegisterLocalContent && contentHash.Size < 0)
+                                ? RegisterAction.SkippedDueToMissingLocalContent // this is a local content register where content was not found. Skip.
+                                : GetRegisterAction(context, machineId, contentHash.Hash, now);
+                        }
+
                         actions.Add(registerAction);
 
                         var coreAction = ToCoreAction(registerAction);

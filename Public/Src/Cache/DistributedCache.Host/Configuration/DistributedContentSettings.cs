@@ -1312,6 +1312,9 @@ namespace BuildXL.Cache.Host.Configuration
         public EnumSetting<RegisterHintHandling> RegisterHintHandling { get; set; }
 
         [DataMember]
+        public bool? RegisterContentEagerlyOnPut { get; set; }
+
+        [DataMember]
         public LocalLocationStoreSettings LocationStoreSettings { get; set; } = new();
 
         [DataMember]

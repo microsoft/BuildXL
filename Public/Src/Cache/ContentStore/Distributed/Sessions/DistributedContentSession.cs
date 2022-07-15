@@ -206,6 +206,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         {
             if (putResult.Succeeded && ShouldRegister(urgencyHint))
             {
+                if (Settings.RegisterEagerlyOnPut && !putResult.ContentAlreadyExistsInCache)
+                {
+                    // The content might have been recently evicted from the current machine and due to various optimizations
+                    // the global registration might be skipped for the newly produced content.
+                    // This might cause build failures and we want to make sure that the content that was produced during the build
+                    // is definitely available in the global store.
+                    urgencyHint = UrgencyHint.RegisterEagerly;
+                }
+                
                 var updateResult = await ContentLocationStore.RegisterLocalLocationAsync(
                     context,
                     new[] { new ContentHashWithSize(putResult.ContentHash, putResult.ContentSize) },

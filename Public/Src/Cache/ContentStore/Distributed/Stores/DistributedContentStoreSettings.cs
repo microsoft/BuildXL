@@ -247,5 +247,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         /// If true, put calls with <see cref="UrgencyHint.SkipRegisterContent"/> do not register content.
         /// </summary>
         public bool RespectSkipRegisterContentHint { get; set; }
+
+        /// <summary>
+        /// If true, then the content that was added to the cache will be eagerly registered in a global store.
+        /// </summary>
+        public bool RegisterEagerlyOnPut { get; set; }
     }
 }

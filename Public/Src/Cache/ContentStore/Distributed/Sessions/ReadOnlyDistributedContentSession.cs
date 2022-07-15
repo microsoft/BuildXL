@@ -267,6 +267,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 return streamResult;
             }
 
+            var contentRegistrationUrgencyHint = urgencyHint;
+
             long? size = null;
             GetBulkLocationsResult? localGetBulkResult = null;
 
@@ -310,6 +312,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                     }
 
                     size = copyResult.ContentSize;
+
+                    // If configured, register the content eagerly on put to make sure the content is discoverable by the other builders,
+                    // even if the current machine used to have the content and evicted it recently.
+                    if (Settings.RegisterEagerlyOnPut && !copyResult.ContentAlreadyExistsInCache)
+                    {
+                        contentRegistrationUrgencyHint = UrgencyHint.RegisterEagerly;
+                    }
+
                     return BoolResult.Success;
                 }
 
@@ -331,7 +341,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
             Contract.Assert(size != null, "Size should be set if operation succeeded");
 
-            var updateResult = await UpdateContentTrackerWithNewReplicaAsync(operationContext, new[] { new ContentHashWithSize(contentHash, size.Value) }, urgencyHint);
+            var updateResult = await UpdateContentTrackerWithNewReplicaAsync(operationContext, new[] { new ContentHashWithSize(contentHash, size.Value) }, contentRegistrationUrgencyHint);
             if (!updateResult.Succeeded)
             {
                 return new OpenStreamResult(updateResult);

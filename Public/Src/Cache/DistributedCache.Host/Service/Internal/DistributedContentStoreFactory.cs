@@ -422,6 +422,8 @@ namespace BuildXL.Cache.Host.Service.Internal
                 RespectSkipRegisterContentHint = distributedSettings.RegisterHintHandling.Value == RegisterHintHandling.SkipAndRegisterAssociatedContent
                     && distributedSettings.EnableDistributedCache // Only distributed cache supports registering associated content
             };
+
+            ApplyIfNotNull(distributedSettings.RegisterContentEagerlyOnPut, v => distributedContentStoreSettings.RegisterEagerlyOnPut = v);
             ApplyIfNotNull(distributedSettings.GrpcCopyCompressionSizeThreshold, v => distributedContentStoreSettings.GrpcCopyCompressionSizeThreshold = v);
             ApplyEnumIfNotNull<CopyCompression>(distributedSettings.GrpcCopyCompressionAlgorithm, v => distributedContentStoreSettings.GrpcCopyCompressionAlgorithm = v);
             ApplyIfNotNull(distributedSettings.UseInRingMachinesForCopies, v => distributedContentStoreSettings.UseInRingMachinesForCopies = v);

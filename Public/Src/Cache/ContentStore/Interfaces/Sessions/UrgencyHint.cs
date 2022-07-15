@@ -44,6 +44,11 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Sessions
         RegisterAssociatedContent = 1,
 
         /// <summary>
+        /// The content was produced on the machine and must go to a global store.
+        /// </summary>
+        RegisterEagerly = 2,
+
+        /// <summary>
         ///     High urgency - in the middle of the range between Nominal and Maximum
         /// </summary>
         High = int.MaxValue / 2,

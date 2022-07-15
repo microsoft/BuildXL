@@ -148,9 +148,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <nodoc />
-        public Task<BoolResult> RegisterLocalLocationAsync(OperationContext context, IReadOnlyList<ContentHashWithSize> contentHashes, bool touch)
+        public Task<BoolResult> RegisterLocalLocationAsync(OperationContext context, IReadOnlyList<ContentHashWithSize> contentHashes, bool touch, UrgencyHint urgencyHint = UrgencyHint.Nominal)
         {
-            return LocalLocationStore.RegisterLocalLocationAsync(context, LocalMachineId, contentHashes, touch);
+            return LocalLocationStore.RegisterLocalLocationAsync(context, LocalMachineId, contentHashes, touch, urgencyHint: urgencyHint);
         }
 
         /// <inheritdoc />
@@ -164,7 +164,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public Task<BoolResult> RegisterLocalLocationAsync(Context context, IReadOnlyList<ContentHashWithSize> contentHashes, CancellationToken cts, UrgencyHint urgencyHint, bool touch)
         {
             var operationContext = new OperationContext(context, cts);
-            return RegisterLocalLocationAsync(operationContext, contentHashes, touch);
+            return RegisterLocalLocationAsync(operationContext, contentHashes, touch, urgencyHint);
         }
 
         /// <inheritdoc />

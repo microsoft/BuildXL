@@ -346,6 +346,11 @@ namespace BuildXL.Cache.Host.Test
 
             var greaterTime = (currentTime + TimeSpan.FromSeconds(20)).ToReadableString();
             var lesserTime = (currentTime - TimeSpan.FromSeconds(20)).ToReadableString();
+
+            var machineName = "M1";
+            var fraction = DeploymentUtilities.ComputeContentHashFraction(machineName);
+            fraction.Should().BeInRange(0, 1);
+
             var template = ("{" + $@"
             'PropA' : 'Unexpected',
             'PropA [ UtcNow > {lesserTime} ]': 'Expected',
@@ -359,10 +364,17 @@ namespace BuildXL.Cache.Host.Test
             'PropE [ ServiceVersion < 0.1.0-20220624 ]': 'Expected',
             'PropF' : 'Unexpected',
             'PropF [ ServiceVersion > 0.1.0-20220621 ]': 'Expected',
+            'Prop1' : 'Unexpected',
+            // Less decimals to force comparand to be smaller
+            'Prop1 [ MachineFraction > {fraction:f1} ]': 'Expected', 
+            'Prop2' : 'Unexpected',
+            // Add small value to force the comparand to be larger
+            'Prop2 [ MachineFraction < {(fraction + 0.00001):f5} ]': 'Expected', 
             " + "}").Replace('\'', '"');
 
             var preProc = DeploymentUtilities.GetHostJsonPreprocessor(new HostParameters()
             {
+                Machine = machineName,
                 UtcNow = currentTime,
                 ServiceVersion = "0.1.0-20220623.1025.user",
             });

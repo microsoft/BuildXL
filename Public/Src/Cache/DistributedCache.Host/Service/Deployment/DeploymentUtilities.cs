@@ -13,11 +13,14 @@ using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
+using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using BuildXL.Cache.ContentStore.Stores;
+using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.Host.Configuration;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Serialization;
 using static BuildXL.Cache.Host.Configuration.DeploymentManifest;
 
 namespace BuildXL.Cache.Host.Service
@@ -193,6 +196,17 @@ namespace BuildXL.Cache.Host.Service
         }
 
         /// <summary>
+        /// Computes an fractional number between [0, 1] value based on the hash of the given string
+        /// </summary>
+        public static double ComputeContentHashFraction(this string value)
+        {
+            var hash = HashInfoLookup.GetContentHasher(HashType.Murmur).GetContentHash(Encoding.UTF8.GetBytes(value));
+            SpanReader reader = hash.ToFixedBytes().ToByteArray().AsSpan();
+            double numerator = reader.Read<uint>();
+            return numerator / uint.MaxValue;
+        }
+
+        /// <summary>
         /// Gets a json preprocessor for the given host parameters
         /// </summary>
         public static JsonPreprocessor GetHostJsonPreprocessor(HostParameters parameters)
@@ -207,6 +221,7 @@ namespace BuildXL.Cache.Host.Service
                         { "Environment", parameters.Environment },
                         { "Env", parameters.Environment },
                         { "Machine", parameters.Machine },
+                        { "MachineFraction", parameters.Machine?.ComputeContentHashFraction().ToString("f8") /* Fraction with 8 point precision i.e. 0.12345678 */ },
                         { "ServiceVersion", parameters.ServiceVersion },
                         { "UtcNow", parameters.UtcNow.ToReadableString() },
                         { "BuildXLVersion", Utilities.Branding.Version },

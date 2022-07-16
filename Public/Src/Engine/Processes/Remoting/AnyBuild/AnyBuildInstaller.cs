@@ -190,16 +190,19 @@ namespace BuildXL.Processes.Remoting
             var output = new StringBuilder(512);
             var error = new StringBuilder(512);
 
-            string powerShellExe = !string.IsNullOrEmpty(EngineEnvironmentSettings.AnyBuildPsPath.Value)
+            string fileName = !string.IsNullOrEmpty(EngineEnvironmentSettings.AnyBuildPsPath.Value)
                 ? EngineEnvironmentSettings.AnyBuildPsPath.Value
-                : "powershell.exe";
-            string powerShellArgs = $"-NoProfile -ExecutionPolicy ByPass -File \"{bootstrapperFile}\" {m_source} {m_ring}";
+                : Path.Combine(Environment.SystemDirectory, "cmd.exe");
+            string args = $"-NoProfile -ExecutionPolicy ByPass -File \"{bootstrapperFile}\" {m_source} {m_ring}";
+            args = !string.IsNullOrEmpty(EngineEnvironmentSettings.AnyBuildPsPath.Value)
+                ? args
+                : $"/c powershell.exe {args}";
 
-            Tracing.Logger.Log.ExecuteAnyBuildBootstrapper(m_loggingContext, $"{powerShellExe} {powerShellArgs}");
+            Tracing.Logger.Log.ExecuteAnyBuildBootstrapper(m_loggingContext, $"{fileName} {args}");
 
             var process = new Process()
             {
-                StartInfo = new ProcessStartInfo(powerShellExe, powerShellArgs)
+                StartInfo = new ProcessStartInfo(fileName, args)
                 {
                     UseShellExecute = false,
                     RedirectStandardOutput = true,

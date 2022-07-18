@@ -3,8 +3,8 @@
 
 const isMicrosoftInternal = Environment.getFlag("[Sdk.BuildXL]microsoftInternal");
 
-const artifactNugetVersion = "19.208.32712-buildid17682333";
-const azureDevopsNugetVersion = "19.208.0-internal202207122";
+const artifactNugetVersion = "18.199.32109-buildid16662423";
+const azureDevopsNugetVersion = "16.199.0-internal202201091";
 const sbomApiVersion = "2.1.35";
 
 // These packages are Microsoft internal packages.
@@ -33,7 +33,7 @@ export const pkgs = isMicrosoftInternal ? [
     { id: "WindowsSdk.Corext", version: "10.0.16299.1", alias: "Windows.Sdk", osSkip: [ "macOS", "unix" ] },
 
     // Artifact packages and dependencies
-    { id: "Microsoft.VisualStudio.Services.ArtifactServices.Shared", version: artifactNugetVersion, dependentPackageIdsToSkip: ["*"], dependentPackageIdsToIgnore: ["BuildXL.Cache.Hashing", "Microsoft.Azure.Cosmos.Table", "Microsoft.Azure.Storage.Blob", "BuildXL.Utilities", "DotNetFxRefAssemblies.Corext", "Mono.Unix" ] },
+    { id: "Microsoft.VisualStudio.Services.ArtifactServices.Shared", version: artifactNugetVersion, dependentPackageIdsToSkip: ["*"], dependentPackageIdsToIgnore: ["BuildXL.Cache.Hashing", "Microsoft.Azure.Cosmos.Table", "Microsoft.Azure.Storage.Blob", "BuildXL.Utilities", "DotNetFxRefAssemblies.Corext" ] },
     { id: "Microsoft.VisualStudio.Services.BlobStore.Client", version: artifactNugetVersion, dependentPackageIdsToSkip: ["*"], dependentPackageIdsToIgnore: ["BuildXL.Cache.Hashing", "BuildXL.Cache.Interfaces", "DotNetFxRefAssemblies.Corext"] },
     { id: "Microsoft.VisualStudio.Services.Client", version: azureDevopsNugetVersion, dependentPackageIdsToSkip: [ "Microsoft.Net.Http", "Microsoft.AspNet.WebApi.Client", "System.Security.Cryptography.OpenSsl", "System.Security.Principal.Windows" ] },
     { id: "Microsoft.VisualStudio.Services.InteractiveClient", version: azureDevopsNugetVersion, dependentPackageIdsToSkip: [ "Ben.Demystifier" ], dependentPackageIdsToIgnore: [ "Ben.Demystifier" ] },

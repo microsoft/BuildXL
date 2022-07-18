@@ -233,7 +233,7 @@ config({
                 { id: "Microsoft.NET.Test.Sdk", version: "15.9.0" },
                 { id: "Microsoft.CodeCoverage", version: "15.9.0" },
 
-                { id: "Microsoft.IdentityModel.Clients.ActiveDirectory", version: "5.2.9", /* Change Sync: BuildXLSdk.cacheBindingRedirects() */
+                { id: "Microsoft.IdentityModel.Clients.ActiveDirectory", version: "5.2.6", /* Change Sync: BuildXLSdk.cacheBindingRedirects() */
                     dependentPackageIdsToSkip: ["Xamarin.Android.Support.CustomTabs", "Xamarin.Android.Support.v7.AppCompat"] },
                 { id: "System.Private.Uri", version: "4.3.2" },
 

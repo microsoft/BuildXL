@@ -33,7 +33,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "ArtifactServices.App.Shared",
-          "Version": "19.208.32712-buildid17682333"
+          "Version": "18.199.32109-buildid16662423"
         }
       }
     },
@@ -42,7 +42,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "ArtifactServices.App.Shared.Cache",
-          "Version": "19.208.32712-buildid17682333"
+          "Version": "18.199.32109-buildid16662423"
         }
       }
     },
@@ -231,7 +231,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Drop.App.Core",
-          "Version": "19.208.32712-buildid17682333"
+          "Version": "18.199.32109-buildid16662423"
         }
       }
     },
@@ -240,7 +240,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Drop.Client",
-          "Version": "19.208.32712-buildid17682333"
+          "Version": "18.199.32109-buildid16662423"
         }
       }
     },
@@ -429,7 +429,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "ItemStore.Shared",
-          "Version": "19.208.32712-buildid17682333"
+          "Version": "18.199.32109-buildid16662423"
         }
       }
     },
@@ -1599,7 +1599,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.IdentityModel.Clients.ActiveDirectory",
-          "Version": "5.2.9"
+          "Version": "5.2.6"
         }
       }
     },
@@ -2328,7 +2328,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.VisualStudio.Services.ArtifactServices.Shared",
-          "Version": "19.208.32712-buildid17682333"
+          "Version": "18.199.32109-buildid16662423"
         }
       }
     },
@@ -2337,7 +2337,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.VisualStudio.Services.BlobStore.Client",
-          "Version": "19.208.32712-buildid17682333"
+          "Version": "18.199.32109-buildid16662423"
         }
       }
     },
@@ -2346,7 +2346,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.VisualStudio.Services.BlobStore.Client.Cache",
-          "Version": "19.208.32712-buildid17682333"
+          "Version": "18.199.32109-buildid16662423"
         }
       }
     },
@@ -2355,7 +2355,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.VisualStudio.Services.Client",
-          "Version": "19.208.0-internal202207122"
+          "Version": "16.199.0-internal202201091"
         }
       }
     },
@@ -2364,7 +2364,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.VisualStudio.Services.InteractiveClient",
-          "Version": "19.208.0-internal202207122"
+          "Version": "16.199.0-internal202201091"
         }
       }
     },
@@ -2958,7 +2958,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Symbol.App.Core",
-          "Version": "19.208.32712-buildid17682333"
+          "Version": "18.199.32109-buildid16662423"
         }
       }
     },
@@ -2967,7 +2967,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Symbol.Client",
-          "Version": "19.208.32712-buildid17682333"
+          "Version": "18.199.32109-buildid16662423"
         }
       }
     },

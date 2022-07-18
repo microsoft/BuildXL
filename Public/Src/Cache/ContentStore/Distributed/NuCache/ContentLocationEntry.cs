@@ -30,7 +30,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// True if the entry is a special "missing entry".
         /// </summary>
-        public bool IsMissing => LastAccessTimeUtc == default;
+        public bool IsMissing => LastAccessTimeUtc == default && Locations.Count == 0;
 
         /// <summary>
         /// Returns a set of locations for a given content.
@@ -70,8 +70,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         public static ContentLocationEntry Create(MachineIdSet locations, long contentSize, UnixTime lastAccessTimeUtc, UnixTime? creationTimeUtc = null)
         {
-            Contract.Requires(lastAccessTimeUtc != default);
-
             return new ContentLocationEntry(locations, contentSize, lastAccessTimeUtc, creationTimeUtc);
         }
 

@@ -1,0 +1,42 @@
+trigger: none
+
+pool:
+  name: BuildXL-DevOpsAgents-PME
+
+resources:
+  repositories:
+    - repository: DominoReleaseManagement
+      type: git
+      name: Domino.ReleaseManagement
+
+stages:
+- stage:
+  variables:
+  - group: "BuildXL Secrets"
+  jobs:
+    - job: UpdateSBOMPackages
+      displayName: "Update SBOM Packages"
+      steps:
+      - checkout: self
+        persistCredentials: true
+      - checkout: DominoReleaseManagement
+      - task: UseDotNet@2
+        inputs:
+          packageType: 'sdk'
+          version: '6.x'
+      # Nuget authenticate is required for package restore to work even though the feed is under the same organization as the pipeline
+      - task: NuGetAuthenticate@1
+      - task: DotNetCoreCLI@2
+        inputs:
+          command: 'publish'
+          publishWebProjects: false
+          projects: '$(Build.SourcesDirectory)/Domino.ReleaseManagement/src/BuildXLReleaseManagement/BuildXLReleaseManagement/BuildXLReleaseManagement.csproj'
+          arguments: '--configuration Release --output $(Build.ArtifactStagingDirectory)'
+          zipAfterPublish: false
+      - task: PowerShell@2
+        inputs:
+          targetType: 'inline'
+          script: .\BuildXLReleaseManagement.exe updatePackages --OneEsPat $(PAT-TseBuild-AzureDevOps-1EsSharedAssets) --CbPat $(PAT-TseBuild-AzureDevOps-CloudBuild) --MsEngGitPat $(PAT-TseBuild-AzureDevOps-MsEng) --NcPath "$(UserProfile)\.nuget\plugins\netfx\CredentialProvider.Microsoft\" --SourceRoot "$(Build.SourcesDirectory)/BuildXL.Internal"
+          showWarnings: true
+          pwsh: false
+          workingDirectory: '$(Build.ArtifactStagingDirectory)/BuildXLReleaseManagement'

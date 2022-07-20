@@ -17,7 +17,7 @@ jobs:
 
   variables:
     skipComponentGovernanceDetection: true # done elsewhere (in the main rolling pipeline)
-    BxlCommonArgs: --shared-comp /ado /cacheMiss:"[Bxl.Selfhost.Linux]" /logObservedFileAccesses /cacheConfigFilePath:Out/CacheConfig.json /logoutput:FullOutputOnError /logsToRetain:10 # /p:[Sdk.BuildXL]xunitSemaphoreCount=20
+    BxlCommonArgs: --shared-comp /ado /cacheMiss:"[Bxl.Selfhost.Linux]" /logObservedFileAccesses /cacheConfigFilePath:Out/CacheConfig.json /logoutput:FullOutputOnError /logsToRetain:10 /exp:lazysodeletion- # /p:[Sdk.BuildXL]xunitSemaphoreCount=20
 
   steps:
   - checkout: self

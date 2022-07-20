@@ -17,7 +17,7 @@ namespace Test.Rush {
     const rushlib = Node.runNpmPackageInstall(rushLibTest, [], {name: "@microsoft/rush-lib", version: "5.47.0"});
 
     // TODO: to enable this, we should use an older version of NodeJs for Linux
-    const isRunningOnSupportedSystem = Context.getCurrentHost().cpuArchitecture === "x64" && !BuildXLSdk.isHostOsLinux;
+    const isRunningOnSupportedSystem = Context.getCurrentHost().cpuArchitecture === "x64";
 
     // TODO: enable Rush tests for non-internal builds when we address the perf issue that make them timeout
     @@public
@@ -92,7 +92,7 @@ namespace Test.Rush {
             },
             {
                 subfolder: a`node`,
-                contents: [Node.nodeExecutables]
+                contents: [Node.nodePackage]
             },
         ],
     });

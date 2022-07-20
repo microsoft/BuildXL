@@ -15,8 +15,8 @@ namespace Test.Tool.Javascript
     {
         public PathTable PathTable;
         public string UserProfile => Path.Combine(TestDeploymentDir, "userprofile");
-        public string NodeTool => Path.Combine(TestDeploymentDir, "node", OperatingSystemHelper.IsUnixOS ? "node" : "node.exe");
-        public string YarnTool => Path.Combine(TestDeploymentDir, "yarn", "bin", "yarn");
+        public string NodeTool => Path.Combine(TestDeploymentDir, "node", OperatingSystemHelper.IsWindowsOS ? "node.exe" : "node");
+        public string YarnTool => Path.Combine(TestDeploymentDir, "yarn", "bin", OperatingSystemHelper.IsWindowsOS ? "yarn.cmd" : "yarn");
 
         public JavascriptGraphBuilderTestBase(ITestOutputHelper output) : base(output)
         {
@@ -42,8 +42,15 @@ namespace Test.Tool.Javascript
                 UseShellExecute = false,
             };
 
-            startInfo.Environment["PATH"] += $";{Path.GetDirectoryName(NodeTool)}";
-            startInfo.Environment["USERPROFILE"] = UserProfile;
+            // Low level tools like sed and readlink needs to be in the path for the linux/mac case
+            var path = $"{Path.PathSeparator}{Path.GetDirectoryName(NodeTool)}";
+            if (!OperatingSystemHelper.IsWindowsOS)
+            {
+                path += Path.PathSeparator + "/usr/bin/";
+            }
+
+            startInfo.Environment["PATH"] += path;
+            startInfo.Environment[OperatingSystemHelper.IsWindowsOS ? "USERPROFILE" : "HOME"] = UserProfile;
 
             var graphBuilderResult = Process.Start(startInfo);
             graphBuilderResult.WaitForExit();

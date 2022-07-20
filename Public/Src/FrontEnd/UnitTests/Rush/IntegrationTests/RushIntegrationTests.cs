@@ -268,11 +268,11 @@ namespace Test.BuildXL.FrontEnd.Rush
                .AddJavaScriptProject("@ms/project-B", "src/B", dependencies: new[] { "@ms/project-A" }, scriptCommands: new[] { ("build", "echo HelloB") })
                .AddSpec("module.config.dsc", "module({name: 'myModule'});")
                .AddSpec(@"
-import {Transformer} from 'Sdk.Transformers';
+import {Transformer, Artifact, Cmd} from 'Sdk.Transformers';
 
 const tool : Transformer.ToolDefinition = { 
-    exe: Environment.getFileValue('COMSPEC'),
-    dependsOnWindowsDirectories: true
+    exe: Context.isWindowsOS()? Environment.getFileValue('COMSPEC') : f`/usr/bin/bash`,
+    dependsOnCurrentHostOSDirectories: true
 };
 
 namespace Test {
@@ -281,7 +281,12 @@ namespace Test {
         if (project.name === '@ms/project-A') {
             return Transformer.execute({
                 workingDirectory: project.projectFolder,
-                arguments: [{ value: '/C' }, { value: 'echo HelloA' }, { value: '>' }, { value: 'file.txt' }],
+                arguments: [
+                    Cmd.argument(Context.isWindowsOS() ? ""/C"" : ""-c""),
+                    Cmd.rawArgument('""'),
+                    Cmd.args([""echo"", ""HelloA"", "">"", ""file.txt""]),
+                    Cmd.rawArgument('""')
+                ],
                 tool: tool,
                 outputs: project.outputs.filter(output => typeof output !== 'Path').map(output => <Transformer.DirectoryOutput>{ directory: output, kind: 'shared' })
             });

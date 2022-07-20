@@ -88,8 +88,9 @@ namespace Test.BuildXL.FrontEnd.Rush
         [Fact]
         public void ComplexCustomCommand()
         {
+            var path = X("/c/absolute/path");
             // Exercise custom commands with other types
-            var config = Build(customRushCommands: "[{command: 'build', extraArguments: ['--test', a`atom`, r`relative/path`, p`C:/absolute/path`]}]")
+            var config = Build(customRushCommands: $"[{{command: 'build', extraArguments: ['--test', a`atom`, r`relative/path`, p`{path}`]}}]")
                .AddJavaScriptProject("@ms/project-A", "src/A", scriptCommands: new[] { ("build", "execute") })
                .PersistSpecsAndGetConfiguration();
 
@@ -101,7 +102,7 @@ namespace Test.BuildXL.FrontEnd.Rush
 
             var pip = result.EngineState.RetrieveProcess("@ms/project-A", "build");
             Assert.Contains(
-                $"execute --test atom {RelativePath.Create(StringTable, "relative/path").ToString(StringTable)} {AbsolutePath.Create(PathTable, "C:/absolute/path").ToString(PathTable)}", 
+                $"execute --test atom {RelativePath.Create(StringTable, "relative/path").ToString(StringTable)} {AbsolutePath.Create(PathTable, path).ToString(PathTable)}", 
                 pip.Arguments.ToString(PathTable));
         }
     }

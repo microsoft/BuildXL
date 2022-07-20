@@ -23,7 +23,6 @@ namespace Test.BuildXL.FrontEnd.Yarn
     /// <summary>
     /// Provides facilities to run the engine adding Yarn specific artifacts.
     /// </summary>
-    [TestClassIfSupported(requiresWindowsBasedOperatingSystem: true)]
     public abstract class CustomJavaScriptIntegrationTestBase : DsTestWithCacheBase
     {
         /// <summary>

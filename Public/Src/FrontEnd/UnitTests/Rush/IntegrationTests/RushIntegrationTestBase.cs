@@ -23,23 +23,22 @@ namespace Test.BuildXL.FrontEnd.Rush
     /// <summary>
     /// Provides facilities to run the engine adding Rush specific artifacts.
     /// </summary>
-    [TestClassIfSupported(requiresWindowsBasedOperatingSystem: true)]
     public abstract class RushIntegrationTestBase : DsTestWithCacheBase
     {
         /// <summary>
         /// Keep in sync with deployment.
         /// </summary>
-        protected string PathToRush => Path.Combine(TestDeploymentDir, "Rush", "node_modules", "@microsoft", "rush", "bin", "rush").Replace("\\", "/");
+        protected string PathToRush => Path.Combine(TestDeploymentDir, "rush", "node_modules", "@microsoft", "rush", "bin", "rush").Replace("\\", "/");
 
         /// <summary>
         /// Keep in sync with deployment.
         /// </summary>
-        protected string PathToNodeModules => Path.Combine(TestDeploymentDir, "Rush", "node_modules").Replace("\\", "/");
+        protected string PathToNodeModules => Path.Combine(TestDeploymentDir, "rush", "node_modules").Replace("\\", "/");
 
         /// <summary>
         /// Keep in sync with deployment.
         /// </summary>
-        protected string PathToNode => Path.Combine(TestDeploymentDir, "Node", OperatingSystemHelper.IsLinuxOS? "bin/node" : "node.exe").Replace("\\", "/");
+        protected string PathToNode => Path.Combine(TestDeploymentDir, "node", OperatingSystemHelper.IsLinuxOS? "bin/node" : "node.exe").Replace("\\", "/");
 
         /// <nodoc/>
         protected string PathToNodeFolder => Path.GetDirectoryName(PathToNode).Replace("\\", "/");
@@ -57,7 +56,7 @@ namespace Test.BuildXL.FrontEnd.Rush
         // By default the engine runs e2e
         protected virtual EnginePhases Phase => EnginePhases.Execute;
 
-        private string RushUserProfile => Path.Combine(TestRoot, "USERPROFILE").Replace("\\", "/");
+        private string RushUserProfile => Path.Combine(TestRoot, OperatingSystemHelper.IsWindowsOS ? "USERPROFILE" : "HOME").Replace("\\", "/");
 
         private string RushTempFolder => Path.Combine(TestRoot, "RUSH_TEMP_FOLDER").Replace("\\", "/");
 
@@ -319,7 +318,7 @@ config({{
                 var updatedRushJson = rushJson
                     .Replace(
                     "\"nodeSupportedVersionRange\": \">=12.13.0 <13.0.0 || >=14.15.0 <15.0.0\"",
-                    "\"nodeSupportedVersionRange\": \">=10.13.0 <=18.3.0\"")
+                    "\"nodeSupportedVersionRange\": \">=10.13.0 <=18.6.0\"")
                     .Replace(
                     "\"pnpmVersion\": \"2.15.1\"",
                     "\"pnpmVersion\": \"5.0.2\"");
@@ -354,9 +353,16 @@ config({{
                 UseShellExecute = false,
             };
             
-            startInfo.Environment["PATH"] += $";{PathToNodeFolder}";
+            startInfo.Environment["PATH"] += $"{Path.PathSeparator}{PathToNodeFolder}";
             startInfo.Environment["NODE_PATH"] = PathToNodeModules;
-            startInfo.Environment["USERPROFILE"] = RushUserProfile;
+            if (OperatingSystemHelper.IsWindowsOS)
+            {
+                startInfo.Environment["USERPROFILE"] = RushUserProfile;
+            }
+            else 
+            {
+                startInfo.Environment["HOME"] = RushUserProfile;
+            }
             startInfo.Environment["APPDATA"] = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
             startInfo.Environment["RUSH_TEMP_FOLDER"] = RushTempFolder;
             startInfo.Environment["RUSH_ABSOLUTE_SYMLINKS"] = "1";

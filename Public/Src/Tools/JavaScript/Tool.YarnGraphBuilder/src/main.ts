@@ -59,11 +59,20 @@ try {
      *     data: '{ 'workspaceName' : { location: 'some/location', workspaceDependencies: [], mismatchedWorkspaceDependencies: [] } }' 
      * }
      */
-    let workspaceJson = JSON.parse(testJson === undefined
-        ? execSync(`"${pathToYarn}" --silent workspaces info --json`).toString()
-        : testJson
-    );
-    
+    let workspaceJson;
+    if (testJson !== undefined) {
+        workspaceJson = JSON.parse(testJson);
+    }
+    else {
+        // This yarn execution sometimes non-deterministically makes node non-terminating. Debugging this call shows a dangling pipe
+        // that seems to be related to stdout/stderr piping to the main process. In order to workaround this issue, output the raw
+        // report to the output graph file and immediately read it back for post-processing. The final graph (in the format bxl expects)
+        // will be rewritten into the same file
+        execSync(`"${pathToYarn}" --silent workspaces info --json > "${outputGraphFile}"`, {stdio: "ignore"});
+
+        workspaceJson = JSON.parse(fs.readFileSync(outputGraphFile, "utf8"));
+    }
+
     // Parse the data key if the old format is found.
     if ("type" in workspaceJson && workspaceJson["type"] === "log") {
         workspaceJson = JSON.parse(workspaceJson["data"]);
@@ -103,6 +112,6 @@ try {
 } catch (Error) {
     // Standard error from this tool is exposed directly to the user.
     // Catch any exceptions and just print out the message.
-    console.error(Error.message);
+    console.error(Error.message || Error);
     process.exit(1);
 }

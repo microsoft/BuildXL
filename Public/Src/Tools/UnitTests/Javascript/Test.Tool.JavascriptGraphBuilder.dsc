@@ -9,7 +9,7 @@ namespace Test.Tool.JavascriptGraphBuilder {
     // Yarn is not easily available in the hosted machines that run the public build. So excluding these tests for now outside of the internal build
     const isRunningOnSupportedSystem = 
     Context.getCurrentHost().cpuArchitecture === "x64" && 
-    !BuildXLSdk.isHostOsLinux && !BuildXLSdk.isHostOsOsx &&
+    !BuildXLSdk.isHostOsOsx &&
     Environment.getFlag("[Sdk.BuildXL]microsoftInternal");
 
     @@public

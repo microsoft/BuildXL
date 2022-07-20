@@ -23,18 +23,17 @@ namespace Test.BuildXL.FrontEnd.Yarn
     /// <summary>
     /// Provides facilities to run the engine adding Yarn specific artifacts.
     /// </summary>
-    [TestClassIfSupported(requiresWindowsBasedOperatingSystem: true)]
     public abstract class YarnIntegrationTestBase : DsTestWithCacheBase
     {
         /// <summary>
         /// Keep in sync with deployment.
         /// </summary>
-        protected string PathToYarn => Path.Combine(TestDeploymentDir, "yarn", "bin", "yarn").Replace("\\", "/");
+        protected string PathToYarn => Path.Combine(TestDeploymentDir, "yarn", "bin", OperatingSystemHelper.IsWindowsOS ? "yarn.cmd" : "yarn").Replace("\\", "/");
 
         /// <summary>
         /// Keep in sync with deployment.
         /// </summary>
-        protected string PathToNode => Path.Combine(TestDeploymentDir, "Node", OperatingSystemHelper.IsLinuxOS? "bin/node" : "node.exe").Replace("\\", "/");
+        protected string PathToNode => Path.Combine(TestDeploymentDir, "node", OperatingSystemHelper.IsWindowsOS? "node.exe" : "node").Replace("\\", "/");
 
         /// <nodoc/>
         protected string PathToNodeFolder => Path.GetDirectoryName(PathToNode).Replace("\\", "/");
@@ -78,7 +77,7 @@ namespace Test.BuildXL.FrontEnd.Yarn
             bool? enableFullReparsePointResolving = null,
             string nodeLocation = "")
         {
-            environment ??= new Dictionary<string, string> { 
+            environment ??= new Dictionary<string, string> {
                 ["PATH"] = PathToNodeFolder,
             };
 
@@ -105,6 +104,12 @@ namespace Test.BuildXL.FrontEnd.Yarn
             environment ??= new Dictionary<string, DiscriminatingUnion<string, UnitValue>> { 
                 ["PATH"] = new DiscriminatingUnion<string, UnitValue>(PathToNodeFolder),
             };
+
+            // On Linux/Mac, yarn depends on low level tools like sed, readlink, etc. If the value for path is not configured as a passthrough, inject /usr/bin
+            if (!OperatingSystemHelper.IsWindowsOS && environment.TryGetValue("PATH", out var value) && value.GetValue() is string path)
+            { 
+                environment["PATH"] = new DiscriminatingUnion<string, UnitValue>(path + Path.PathSeparator + "/usr/bin");
+            }
 
             // We reserve the null string for a true undefined.
             if (yarnLocation == string.Empty)
@@ -229,7 +234,7 @@ config({{
 
         private bool YarnRun(string workingDirectory, string yarnArgs)
         {
-            string arguments = $"{PathToYarn}.js {yarnArgs}";
+            string arguments = $"{Path.Combine(Path.GetDirectoryName(PathToYarn), "yarn")}.js {yarnArgs}";
             string filename = PathToNode;
 
             // Unfortunately, capturing standard out/err non-deterministically hangs node.exe on exit when 

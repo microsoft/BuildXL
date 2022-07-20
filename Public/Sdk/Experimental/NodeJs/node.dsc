@@ -15,6 +15,9 @@ namespace Node {
 
     const nodeExecutablesDir : Directory = d`${getNodeTool().exe.parent}`;
 
+    @@public
+    export const nodePackage = getNodePackage();
+
     /**
      * Self-contained node executables. Platform dependent.
      */
@@ -22,7 +25,6 @@ namespace Node {
     export const nodeExecutables : Deployment.Deployable = getNodeExecutables();
 
     function getNodeExecutables() : Deployment.Deployable {
-        const nodePackage = getNodePackage();
         const relativePath = nodePackage.root.path.getRelative(nodeExecutablesDir.path);
 
         return Deployment.createDeployableOpaqueSubDirectory(
@@ -58,7 +60,7 @@ namespace Node {
         return Transformer.execute(execArgs);
     }
 
-    const nodeVersion = "v18.3.0";
+    const nodeVersion = "v18.6.0";
     const nodeWinDir = `node-${nodeVersion}-win-x64`;
     const nodeOsxDir = `node-${nodeVersion}-darwin-x64`;
     const nodeLinuxDir = `node-${nodeVersion}-linux-x64`;
@@ -84,7 +86,49 @@ namespace Node {
                 Contract.fail(`The current NodeJs package doesn't support the current OS: ${host.os}. Ensure you run on a supported OS -or- update the NodeJs package to have the version embedded.`);
         }
 
-        return pkgContents;
+        const outDir = Context.getNewOutputDirectory("executable-npm");
+
+        const pkgRoot = d`${pkgContents.root}/${getNodePackageRoot()}`;
+
+        // For Windows, we just need to get rid of the root folder (which for node it always contains the version number). Unfortunately there is no
+        // way to get a nested opaque directory for an exclusive opaque (only for shared opaques)
+        if (host.os === "win")
+        {
+            return Transformer.copyDirectory({sourceDir: pkgRoot, targetDir: outDir, dependencies: [pkgContents], recursive: true});
+        }
+
+        // For linux/mac we need to create an executable npm symlink alongside node
+        // The npm file does come with the linux package in the form of a symlink, but our current
+        // targz expander doesn't handle it well
+
+        const npmExe = p`${outDir}/bin/npm`;
+
+        const result = Transformer.execute({
+            tool: {
+                exe: f`/bin/bash`,
+                dependsOnCurrentHostOSDirectories: true
+            },
+            workingDirectory: outDir,
+            arguments: [ 
+                Cmd.argument("-c"),
+                Cmd.rawArgument('"'),
+                // Copy the contents to its final destination
+                Cmd.args([ "rsync", "-arvh", Cmd.join("", [Artifact.none(pkgRoot), '/']), Artifact.none(outDir)]),
+                Cmd.rawArgument(" && "),
+                // Create and npm node executable
+                Cmd.args([ "echo", "'#!/usr/bin/env", "node'", ">", Artifact.none(npmExe) ]),
+                Cmd.rawArgument(" && "),
+                Cmd.args([ "echo", "\"require(\'../lib/node_modules/npm/lib/cli.js\')(process)\"", ">>", Artifact.none(npmExe) ]),
+                Cmd.rawArgument(" && "),
+                // Set the right permissions
+                Cmd.args([ "chmod", "u+x", Artifact.none(npmExe) ]),
+                Cmd.rawArgument('"')
+            ],
+            dependencies: [pkgContents],
+            outputs: [outDir]
+        });
+
+        return result.getOutputDirectory(outDir);
     }
     
     function getNodeTool() : Transformer.ToolDefinition {
@@ -93,17 +137,15 @@ namespace Node {
         Contract.assert(host.cpuArchitecture === "x64", "Only 64bit versions supported.");
     
         let executable : RelativePath = undefined;
-        let pkgContents : OpaqueDirectory = getNodePackage();
+        let pkgContents : OpaqueDirectory = nodePackage;
         
         switch (host.os) {
             case "win":
-                executable = r`${nodeWinDir}/node.exe`;
+                executable = r`node.exe`;
                 break;
             case "macOS": 
-                executable = r`${nodeOsxDir}/bin/node`;
-                break;
             case "unix": 
-                executable = r`${nodeLinuxDir}/bin/node`;
+                executable = r`bin/node`;
                 break;
             default:
                 Contract.fail(`The current NodeJs package doesn't support the current OS: ${host.os}. Esure you run on a supported OS -or- update the NodeJs package to have the version embdded.`);
@@ -126,20 +168,17 @@ namespace Node {
         Contract.assert(host.cpuArchitecture === "x64", "Only 64bit versions supported.");
     
         let executable : RelativePath = undefined;
-        let pkgContents : StaticDirectory = undefined;
+        let pkgContents : StaticDirectory = nodePackage;
         
         switch (host.os) {
             case "win":
-                pkgContents = importFrom("NodeJs.win-x64").extracted;
-                executable = r`${nodeWinDir}/node_modules/npm/bin/npm-cli.js`;
+                executable = r`node_modules/npm/bin/npm-cli.js`;
                 break;
             case "macOS": 
-                pkgContents = importFrom("NodeJs.osx-x64").extracted;
-                executable = r`${nodeOsxDir}/lib/node_modules/npm/bin/npm-cli.js`;
+                executable = r`lib/node_modules/npm/bin/npm-cli.js`;
                 break;
             case "unix": 
-                pkgContents = importFrom("NodeJs.linux-x64").extracted;
-                executable = r`${nodeLinuxDir}/lib/node_modules/npm/bin/npm-cli.js`;
+                executable = r`lib/node_modules/npm/bin/npm-cli.js`;
                 break;
             default:
                 Contract.fail(`The current NodeJs package doesn't support the current OS: ${host.os}. Ensure you run on a supported OS -or- update the NodeJs package to have the version embedded.`);
@@ -153,24 +192,48 @@ namespace Node {
      */
     @@public
     export function getNpmTool() : Transformer.ToolDefinition {
+        return Npm.getNpmTool(nodePackage, getPathToNpm());
+    }
+
+    function getPathToNpm() : RelativePath {
         const host = Context.getCurrentHost();
         let executable : RelativePath = undefined;
 
         switch (host.os) {
             case "win":
-                executable = r`${nodeWinDir}/npm.cmd`;
+                executable = r`npm.cmd`;
                 break;
             case "macOS": 
-                executable = r`${nodeOsxDir}/bin/npm`;
+                executable = r`lib/node_modules/npm/bin/npm`;
                 break;
             case "unix": 
-                executable = r`${nodeLinuxDir}/bin/npm`;
+                executable = r`lib/node_modules/npm/bin/npm`;
                 break;
             default:
                 Contract.fail(`The current NodeJs package doesn't support the current OS: ${host.os}. Ensure you run on a supported OS -or- update the NodeJs package to have the version embedded.`);
         }
-       
-        return Npm.getNpmTool(getNodePackage(), executable);
+
+        return executable;
+    }
+
+    function getNodePackageRoot(): RelativePath{
+        const host = Context.getCurrentHost();
+        let relativePath : RelativePath = undefined;
+        switch (host.os) {
+            case "win":
+                relativePath = r`${nodeWinDir}`;
+                break;
+            case "macOS": 
+                relativePath = r`${nodeOsxDir}`;
+                break;
+            case "unix": 
+                relativePath = r`${nodeLinuxDir}`;
+                break;
+            default:
+                Contract.fail(`The current NodeJs package doesn't support the current OS: ${host.os}.`);
+        }
+
+        return relativePath;
     }
 
     @@public 

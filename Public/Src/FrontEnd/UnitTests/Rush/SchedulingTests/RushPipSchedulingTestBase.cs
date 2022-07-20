@@ -22,7 +22,6 @@ namespace Test.BuildXL.FrontEnd.Rush
     /// Base class for tests that programmatically add projects and verify the corresponding scheduled process
     /// done by <see cref="RushResolver"/>
     /// </summary>
-    [TestClassIfSupported(requiresWindowsBasedOperatingSystem: true)]
     public abstract class RushPipSchedulingTestBase : PipSchedulingTestBase<JavaScriptProject, RushResolverSettings>
     {
         private AbsolutePath m_commonTempFolder = AbsolutePath.Invalid;

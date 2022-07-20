@@ -40,6 +40,8 @@ namespace BuildXL.FrontEnd.Yarn
             // If the base location was provided at configuration time, we honor it as is
             string paths;
 
+            var toolNameToFind = OperatingSystemHelper.IsWindowsOS ? new[] { "yarn.cmd" } : new[] { "yarn" };
+
             if (resolverSettings.YarnLocation != null)
             {
                 var value = resolverSettings.YarnLocation.GetValue();
@@ -52,7 +54,7 @@ namespace BuildXL.FrontEnd.Yarn
                 else
                 {
                     var pathCollection = ((IReadOnlyList<DirectoryArtifact>) value).Select(dir => dir.Path);
-                    if (!FrontEndUtilities.TryFindToolInPath(m_context, m_host, pathCollection, new[] { "yarn", "yarn.cmd" }, out finalYarnLocation))
+                    if (!FrontEndUtilities.TryFindToolInPath(m_context, m_host, pathCollection, toolNameToFind, out finalYarnLocation))
                     {
                         failure = $"'yarn' cannot be found under any of the provided paths '{string.Join(Path.PathSeparator.ToString(), pathCollection.Select(path => path.ToString(m_context.PathTable)))}'.";
                         return false;
@@ -66,7 +68,7 @@ namespace BuildXL.FrontEnd.Yarn
             // If the location was not provided, let's try to see if Yarn is under %PATH%
             paths = buildParameters["PATH"];
 
-            if (!FrontEndUtilities.TryFindToolInPath(m_context, m_host, paths, new[] { "yarn", "yarn.cmd"}, out finalYarnLocation))
+            if (!FrontEndUtilities.TryFindToolInPath(m_context, m_host, paths, toolNameToFind, out finalYarnLocation))
             {
                 failure = "A location for 'yarn' is not explicitly specified. However, 'yarn' doesn't seem to be part of PATH. You can either specify the location explicitly using 'yarnLocation' field in " +
                     $"the Yarn resolver configuration, or make sure 'yarn' is part of your PATH. Current PATH is '{paths}'.";

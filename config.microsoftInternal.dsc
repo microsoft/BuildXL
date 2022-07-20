@@ -61,9 +61,6 @@ export const pkgs = isMicrosoftInternal ? [
     // Internal pacakged version to avoid downloading from the web but the trusted stable internal feed:
     { id: "PowerShell.Core", version: "6.1.0", osSkip: [ "macOS", "unix" ] },
 
-    // Officially mantained CB package that contains Yarn. Used for Yarn tests.
-    { id: "NPM.OnCloudbuild", version: "3.1.0" },
-
     // IcM and dependencies
     { id: "Microsoft.AzureAd.Icm.Types.amd64", version: "2.2.1363.11" },
     { id: "Microsoft.AzureAd.Icm.WebService.Client.amd64", version: "2.2.1363.11" },

@@ -2714,15 +2714,6 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "NPM.OnCloudbuild",
-          "Version": "3.1.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
           "Name": "Nerdbank.Streams",
           "Version": "2.6.81"
         }

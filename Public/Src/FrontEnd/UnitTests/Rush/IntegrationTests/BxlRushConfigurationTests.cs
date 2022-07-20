@@ -5,6 +5,7 @@ using System.Linq;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using Test.BuildXL.FrontEnd.Core;
+using Test.BuildXL.TestUtilities.XUnit;
 using Xunit;
 using Xunit.Abstractions;
 using LogEventId = global::BuildXL.FrontEnd.JavaScript.Tracing.LogEventId;
@@ -46,9 +47,10 @@ namespace Test.BuildXL.FrontEnd.Rush
         }
 
         [Theory]
-        [InlineData(@"[""../output/Dir""]", new[] { "src/output/dir"})]
-        [InlineData(@"[""../output/Dir"", ""../another/dir""]", new[] { "src/output/dir", "src/another/dir" })]
-        [InlineData(@"[""<workspaceDir>/output"", ""C:\\foo""]", new[] { "output", "C:\\foo" })]
+        [InlineData(@"[""../output/dir""]", new[] { "src/output/dir"})]
+        [InlineData(@"[""../output/dir"", ""../another/dir""]", new[] { "src/output/dir", "src/another/dir" })]
+        [InlineDataIfSupported(requiresWindowsBasedOperatingSystem: true, data: new object[] {@"[""<workspaceDir>/output"", ""C:\\foo""]", new[] { "output", "C:\\foo" }})]
+        [InlineDataIfSupported(requiresUnixBasedOperatingSystem: true, data: new object[] {@"[""<workspaceDir>/output"", ""/foo""]", new[] { "output", "/foo" }})]
         public void PathPatternsAreHonored(string outputDirectoriesJSON, string[] expectedOutputDirectories)
         {
             var config = Build()
@@ -101,7 +103,7 @@ namespace Test.BuildXL.FrontEnd.Rush
 
         [Theory]
         [InlineData(@"undefined")]
-        [InlineData(@"""invalid|path""")]
+        [InlineDataIfSupported(requiresWindowsBasedOperatingSystem: true, data: new object[] {@"""invalid|path"""})]
         [InlineData(@"invalid {{ json")]
         public void MalformedConfigurationFileIsHandled(string outputDirectories)
         {

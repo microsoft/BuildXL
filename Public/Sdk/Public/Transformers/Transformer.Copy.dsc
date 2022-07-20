@@ -14,8 +14,10 @@ namespace Transformer {
     export interface CopyDirectoryArguments {
         sourceDir: Directory; 
         targetDir: Directory;
-        dependencies?: StaticDirectory[];
+        dependencies?: (StaticDirectory | File)[];
         pattern?: string;
+        // Only available on Linux/Mac
+        excludePattern?: string;
         recursive?: boolean;
         keepOutputsWritable?: boolean
     }
@@ -28,6 +30,11 @@ namespace Transformer {
      */
     @@public
     export function copyDirectory(arguments: CopyDirectoryArguments): SharedOpaqueDirectory {
+
+        if (Context.getCurrentHost().os === "win") {
+            Contract.assert(arguments.excludePattern === undefined, "Exclude pattern is not supported on Windows but was provided.");
+        }
+         
         const args: Transformer.ExecuteArguments = Context.getCurrentHost().os === "win"
             ? <Transformer.ExecuteArguments>{
                 tool: {
@@ -69,6 +76,7 @@ namespace Transformer {
                 arguments: [
                     Cmd.argument(arguments.recursive === false ? "-avh" : "-arvh"),
                     Cmd.option("--include ", arguments.pattern),
+                    Cmd.option("--exclude ", arguments.excludePattern),
                     Cmd.argument(Cmd.join("", [ Artifact.none(arguments.sourceDir), '/' ])),
                     Cmd.argument(Artifact.none(arguments.targetDir)),
                 ],

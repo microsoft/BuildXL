@@ -542,22 +542,28 @@ config({
                 // NodeJs
                 {
                     moduleName: "NodeJs.win-x64",
-                    url: "https://nodejs.org/dist/v18.3.0/node-v18.3.0-win-x64.zip",
-                    hash: "VSO0:AEABD74C344D3DE10CB5CD0E2FE49E6210E066F4EB982A86627B8E54156F3C8200",
+                    url: "https://nodejs.org/dist/v18.6.0/node-v18.6.0-win-x64.zip",
+                    hash: "VSO0:EA729EEA528055396523F3F5BD61EDD769C251EB7B4483AABFEB511333E60AA000",
                     archiveType: "zip",
                 },
                 {
                     moduleName: "NodeJs.osx-x64",
-                    url: "https://nodejs.org/dist/v18.3.0/node-v18.3.0-darwin-x64.tar.gz",
-                    hash: "VSO0:0E2D521D3E250F3969D529303E15D260D6E465FADC2DEA20215DED422CAE2EC600",
+                    url: "https://nodejs.org/dist/v18.6.0/node-v18.6.0-darwin-x64.tar.gz",
+                    hash: "VSO0:653B5954AD06BB6C9B7141853649602790FCB0031B81FDB82241333E2EE1350200",
                     archiveType: "tgz",
                 },
                 {
                     moduleName: "NodeJs.linux-x64",
-                    url: "https://nodejs.org/dist/v18.3.0/node-v18.3.0-linux-x64.tar.gz",
-                    hash: "VSO0:6CD39D92AC462BC97A2B445A7A1A3ACB5A3851AEF9C63AC7CC9F067DD067D38300",
+                    url: "https://nodejs.org/dist/v18.6.0/node-v18.6.0-linux-x64.tar.gz",
+                    hash: "VSO0:15A59CD4CC7C08A91FDF0C028F1C1129DC4B635749514739E1B2C6224E6420FB00",
                     archiveType: "tgz",
-                }
+                },
+                {
+                    moduleName: "YarnTool",
+                    extractedValueName: "yarnPackage",
+                    url: 'https://registry.npmjs.org/yarn/-/yarn-1.22.19.tgz',
+                    archiveType: "tgz"
+                },
             ],
         },
     ],

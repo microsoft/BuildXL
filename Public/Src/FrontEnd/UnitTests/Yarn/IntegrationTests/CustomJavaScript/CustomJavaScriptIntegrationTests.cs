@@ -6,6 +6,7 @@ using System.Linq;
 using BuildXL.Utilities.Configuration;
 using Test.BuildXL.FrontEnd.Core;
 using Test.BuildXL.TestUtilities.Xunit;
+using Test.BuildXL.TestUtilities.XUnit;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -130,7 +131,7 @@ namespace Test.BuildXL.FrontEnd.Yarn.IntegrationTests
         [InlineData(null, true)]
         [InlineData("this is not JSON", true)]
         [InlineData("{'' : {location: 'a/path', workspaceDependencies: []}}", true)]
-        [InlineData("{'project1' : {location: 'invalid:path', workspaceDependencies: []}}", true)]
+        [InlineDataIfSupported(requiresWindowsBasedOperatingSystem: true, data: new object[] { "{'project1' : {location: 'invalid:path', workspaceDependencies: []}}", true})]
         [InlineData("{'project2' : {location: 'a/path', workspaceDependencies: null}}", true)]
         [InlineData("{'project3' : {location: 'a/path', workspaceDependencies: ['non-existent-proj']}}", false)]
         public void CustomGraphFileErrorHandling(string fileContent, bool producesCustomProjectGraphError)
@@ -211,8 +212,8 @@ namespace Test.BuildXL.FrontEnd.Yarn.IntegrationTests
 
         [Theory]
         [InlineData("LogsDirectory", true)]
-        [InlineData("ProgramFiles", true)]
-        [InlineData("UserDefinedMount", false)]
+        [InlineDataIfSupported(requiresWindowsBasedOperatingSystem: true, data: new object[] {"ProgramFiles", true})]
+        [InlineDataIfSupported(requiresWindowsBasedOperatingSystem: true, data: new object[] {"UserDefinedMount", false})]
         public void MountsAreAccesibleDuringCustomScriptEvaluation(string mountName, bool expectSuccess)
         {
             string customGraph = @"Map.empty<string, {location: RelativePath, workspaceDependencies: string[]}>()

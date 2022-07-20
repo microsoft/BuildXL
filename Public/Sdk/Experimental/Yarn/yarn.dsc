@@ -3,23 +3,40 @@
 
 import {Transformer} from "Sdk.Transformers";
 
+// Yarn tgz sadly includes the version as a top level directory
+const yarnVersion = "yarn-v1.22.19";
+
 /**
  * Returns a static directory containing a valid Yarn installation.
  */
 @@public
 export function getYarn() : StaticDirectory {
-    if (Environment.getFlag("[Sdk.BuildXL]microsoftInternal")) {
-        // Internally in Microsoft we use a nuget package that contains Yarn.
-        return Transformer.reSealPartialDirectory(importFrom("NPM.OnCloudbuild").Contents.all, r`tools/Yarn`);
+    const yarnPackage = importFrom("YarnTool").yarnPackage;
+
+    const yarnDir = Context.getNewOutputDirectory("yarn-package");
+    const isWinOs = Context.getCurrentHost().os === "win";
+
+    // 'yarn', the linux executable that comes with the package, doesn't have the execution permissions set 
+    let executableYarn = undefined;
+    if (!isWinOs) {
+        const yarnExe = yarnPackage.assertExistence(r`${yarnVersion}/bin/yarn`);
+        executableYarn = Transformer.makeExecutable(yarnExe, p`${yarnDir}/${yarnVersion}/bin/yarn`);
     }
 
-    // For the public build, we require Yarn to be installed
-    const installedYarnLocation = d`${Context.getMount("ProgramFilesX86").path}/Yarn`;
-    const packageJson = f`${installedYarnLocation}/package.json`;
-    if (!File.exists(packageJson))
-    {
-        Contract.fail(`Could not find Yarn installed. File '${packageJson.toDiagnosticString()}' does not exist.`);
-    }
+    const sharedOpaqueYarnPackage = Transformer.copyDirectory({
+        sourceDir: yarnPackage.root, 
+        targetDir: yarnDir, 
+        dependencies: [yarnPackage, executableYarn], 
+        recursive: true, 
+        excludePattern: isWinOs? undefined : "yarn"});
 
-    return Transformer.sealDirectory(installedYarnLocation, globR(installedYarnLocation));
+    const finalDeployment = Context.getNewOutputDirectory("yarn-package-final");
+    
+    const result = Transformer.copyDirectory({
+        sourceDir: d`${sharedOpaqueYarnPackage.root}/${yarnVersion}`, 
+        targetDir: finalDeployment, 
+        dependencies: [sharedOpaqueYarnPackage, executableYarn], 
+        recursive: true});
+
+    return result;
 }

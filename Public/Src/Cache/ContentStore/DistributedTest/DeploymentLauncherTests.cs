@@ -113,7 +113,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test
                 RunInBackgroundOnStartup = false,
                 DeploymentParameters = new DeploymentParameters()
                 {
-
                 },
                 ServiceLifetimePollingIntervalSeconds = 0.01,
                 DownloadConcurrency = 1,
@@ -193,7 +192,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test
                 RunInBackgroundOnStartup = false,
                 DeploymentParameters = new DeploymentParameters()
                 {
-
+                    ServiceVersion = "10"
                 },
                 ServiceLifetimePollingIntervalSeconds = 0.01,
                 DownloadConcurrency = 1,
@@ -232,15 +231,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test
             };
 
             var configContent1 = "Config content 1";
+            var pendingFileSpec = host.TestClient.AddContent("pending file content", pending: true);
             var manifest = new LauncherManifestWithExtraMembers()
             {
-                IsComplete = true,
                 ContentId = "Deployment 1",
                 Deployment = new DeploymentManifest.LayoutSpec()
                 {
                     { executableRelativePath, host.TestClient.AddContent(firstRunExecutableContent) },
                     { @"bin\lib.dll", host.TestClient.AddContent("This is the content of lib.dll") },
                     { watchedConfigPath, host.TestClient.AddContent(configContent1) },
+                    { "bin/pending.json", pendingFileSpec },
                 },
                 Tool = new ServiceLaunchConfiguration()
                 {
@@ -285,6 +285,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test
 
             await launcher.GetDownloadAndRunDeployment(context).ShouldBeSuccess();
 
+            // Incomplete manifest does not launch process, but should download all available content
+            launcher.CurrentRun.Should().BeNull();
+            manifest.Deployment.All(e => e.Value.DownloadUrl == null || launcher.Store.Contains(new ContentHash(e.Value.Hash)));
+
+            manifest.IsComplete = true;
+            pendingFileSpec.Finish();
+            await launcher.GetDownloadAndRunDeployment(context).ShouldBeSuccess();
+
             // Test the process is launched.
             (launcher.CurrentRun?.RunningProcess).Should().NotBeNull();
             launcher.CurrentRun.IsActive.Should().BeTrue();
@@ -307,7 +315,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test
             manifest.IsComplete = false;
             manifest.ContentId = "Deployment 2";
             var secondRunExecutableContent = "This is the content of casaas.exe for run 2";
-            manifest.Deployment[executableRelativePath] = host.TestClient.AddContent(secondRunExecutableContent);
+            pendingFileSpec = host.TestClient.AddContent(secondRunExecutableContent, pending: true);
+            manifest.Deployment[executableRelativePath] = pendingFileSpec;
 
             // Verify that incomplete updated manifest does not launch new process
             await launcher.GetDownloadAndRunDeployment(context).ShouldBeSuccess();
@@ -317,6 +326,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test
 
             // Verify that complete updated manifest launches new process
             manifest.IsComplete = true;
+            pendingFileSpec.Finish();
             await launcher.GetDownloadAndRunDeployment(context).ShouldBeSuccess();
             (launcher.CurrentRun?.RunningProcess).Should().NotBe(testProcess1);
             testProcess1.IsRunningService.Should().BeFalse();
@@ -463,19 +473,36 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test
                 return Task.FromResult<Stream>(new MemoryStream(Content[downloadUrl]));
             }
 
-            public DeploymentManifest.FileSpec AddContent(string content)
+            public TestFileSpec AddContent(string content, bool pending = false)
             {
                 var bytes = Encoding.UTF8.GetBytes(content);
 
                 var hash = HashInfoLookup.GetContentHasher(HashType.MD5).GetContentHash(bytes).ToString();
                 var downloadUrl = $"casaas://files?hash={hash}";
                 Content[downloadUrl] = bytes;
-                return new DeploymentManifest.FileSpec()
+                var result = new TestFileSpec()
                 {
                     Size = bytes.Length,
                     Hash = hash,
-                    DownloadUrl = downloadUrl
+                    PendingDownloadUrl = downloadUrl
                 };
+
+                if (!pending)
+                {
+                    result.Finish();
+                }
+
+                return result;
+            }
+
+            public class TestFileSpec : DeploymentManifest.FileSpec
+            {
+                public string PendingDownloadUrl { get; set; }
+
+                public void Finish()
+                {
+                    DownloadUrl = PendingDownloadUrl;
+                }
             }
 
             public Task<string> GetProxyBaseAddress(OperationContext context, string serviceUrl, HostParameters parameters, string token)

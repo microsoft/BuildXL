@@ -63,7 +63,7 @@ namespace BuildXL.Cache.Host.Service
         /// <summary>
         /// Content store used to store files in content addressable layout under deployment root
         /// </summary>
-        private FileSystemContentStoreInternal Store { get; }
+        internal FileSystemContentStoreInternal Store { get; }
 
         protected override Tracer Tracer { get; } = new Tracer(nameof(DeploymentLauncher));
 
@@ -209,18 +209,27 @@ namespace BuildXL.Cache.Host.Service
                     // Get the launch manifest with only content id populated
                     var manifest = await GetLaunchManifestAsync(context, client).ThrowIfFailureAsync();
 
-                    // The content has changed from the active run. Get full manifest.
-                    if (!manifest.IsComplete)
+                    var pinContext = Store.CreatePinContext();
+                    using var pinContextDisposer = new Disposable(pinContext);
+                    var hashes = GetManifestHashes(manifest);
+                    var pinResults = await Store.PinAsync(context, hashes, pinContext, options: null);
+                    var deploymentInfo = new DeploymentInfo(manifest);
+
+                    var downloadResult = await DownloadFilesAsync(context, client, deploymentInfo, pinContext, watchedFilesOnly: false);
+                    if (!downloadResult)
                     {
-                        var filesExistence = CheckManifestReferencedFileExistence(manifest);
-                        if (filesExistence.MissingFileCount > 0)
-                        {
-                            return BoolResult.WithSuccessMessage($"Skipped because manifest ingestion is not complete. Id={manifest.ContentId}. {filesExistence}");
-                        }
-                        else
-                        {
-                            Tracer.Debug(context, $"Manifest is not completed but all files are present locally. Attempting to launch process. {filesExistence}");
-                        }
+                        return downloadResult;
+                    }
+
+                    // The content has changed from the active run. Get full manifest.
+                    var filesExistence = CheckManifestReferencedFileExistence(manifest);
+                    if (filesExistence.MissingFileCount > 0)
+                    {
+                        return BoolResult.WithSuccessMessage($"Skipped because manifest ingestion is not complete. Id={manifest.ContentId}. {filesExistence}");
+                    }
+                    else
+                    {
+                        Tracer.Debug(context, $"Manifest is not completed but all files are present locally. Attempting to launch process. {filesExistence}");
                     }
 
                     if (manifest.ContentId == _currentRun?.Manifest.ContentId && _currentRun.IsActive)
@@ -228,9 +237,9 @@ namespace BuildXL.Cache.Host.Service
                         return BoolResult.WithSuccessMessage($"Skipped because retrieved content id match matches active run. Id={manifest.ContentId}");
                     }
 
-                    if (_currentRun != null && _currentRun.IsActive && _currentRun.HasOnlyWatchedFileUpdates(manifest))
+                    if (_currentRun != null && _currentRun.IsActive && _currentRun.Info.HasOnlyWatchedFileUpdates(manifest))
                     {
-                        var deployResult = await DownloadAndDeployAsync(context, client, _currentRun, watchedFilesOnly: true);
+                        var deployResult = await DeployFilesAsync(context, client, _currentRun, watchedFilesOnly: true);
                         if (deployResult.Succeeded)
                         {
                             return BoolResult.WithSuccessMessage($"Manifest only has watched file changes versus active run. Id={manifest.ContentId}");
@@ -249,11 +258,9 @@ namespace BuildXL.Cache.Host.Service
                     }
 
                     var directory = new DisposableDirectory(FileSystem, new AbsolutePath(deploymentTargetDirectoryPath));
-                    var deployedTool = new DeployedTool(this, manifest, directory, Store.CreatePinContext());
-                    var hashes = GetManifestHashes(manifest);
-                    var pinResults = await Store.PinAsync(context, hashes, pinContext: deployedTool.PinRequest.PinContext, options: null);
+                    var deployedTool = new DeployedTool(this, deploymentInfo, directory, pinContext);
 
-                    var result = await DownloadAndDeployAsync(context, client, deployedTool, watchedFilesOnly: false);
+                    var result = await DeployFilesAsync(context, client, deployedTool, watchedFilesOnly: false);
                     if (!result)
                     {
                         directory.Dispose();
@@ -266,6 +273,8 @@ namespace BuildXL.Cache.Host.Service
                         await _currentRun.ShutdownAsync(context).IgnoreFailure();
                         _currentRun = null;
                     }
+
+                    pinContextDisposer.PreventDispose = true;
 
                     // Start up the tool
                     var startResult = await deployedTool.StartupAsync(context);
@@ -333,7 +342,65 @@ namespace BuildXL.Cache.Host.Service
         /// <summary>
         /// Download and store a single drop to CAS
         /// </summary>
-        private Task<BoolResult> DownloadAndDeployAsync(
+        private Task<Result<int>> DownloadFilesAsync(
+            OperationContext context,
+            IDeploymentServiceClient client,
+            DeploymentInfo deploymentInfo,
+            PinContext pinContext,
+            bool watchedFilesOnly)
+        {
+            var manifest = deploymentInfo.Manifest;
+            var pinRequest = new PinRequest(pinContext);
+
+            return context.PerformOperationWithTimeoutAsync(Tracer, async context =>
+            {
+                // Stores files into CAS and populate file specs with hash and size info
+                var results = await DownloadQueue.SelectAsync(
+                    deploymentInfo.GetFilesToDeploy(watchedFilesOnly).GroupBy(kvp => kvp.Value.Hash),
+                    async (filesByHash, index) =>
+                    {
+                        var fileInfo = filesByHash.First().Value;
+                        var file = filesByHash.First().Key;
+                        var count = filesByHash.Count();
+
+                        context.Token.ThrowIfCancellationRequested();
+                        var hash = new ContentHash(filesByHash.Key);
+                        if (pinContext.Contains(hash))
+                        {
+                            return Result.Success(0);
+                        }
+
+                        // Hash is not pinned. Need to download into cache
+                        return await context.PerformOperationAsync(
+                            Tracer,
+                            async () =>
+                            {
+                                if (fileInfo.DownloadUrl == null)
+                                {
+                                    // File doesn't have download. Return count of pending files for this hash
+                                    return Result.Success(count);
+                                }
+
+                                // Download the file matching the hash
+                                await DownloadFileAsync(context, client, fileInfo, pinRequest, file);
+
+                                return Result.Success(0);
+                            },
+                            caller: "DownloadFileAsync",
+                            extraEndMessage: r => $"Hash={fileInfo.Hash}, IsPending={fileInfo.DownloadUrl == null}, FirstFile={file}, Count={count}");
+                    });
+
+                return results.FirstOrDefault(r => !r.Succeeded) ?? Result.Success(results.Sum(r => r.Value));
+            },
+            timeout: Settings.DeployTimeout,
+            extraStartMessage: $"Id={manifest.ContentId}, Files={manifest.Deployment.Count}",
+            extraEndMessage: r => $"Id={manifest.ContentId}, PendingFiles={r.GetValueOr(-1)}, Files={manifest.Deployment.Count}");
+        }
+
+        /// <summary>
+        /// Download and store a single drop to CAS
+        /// </summary>
+        private Task<BoolResult> DeployFilesAsync(
             OperationContext context,
             IDeploymentServiceClient client,
             DeployedTool deploymentInfo,
@@ -345,12 +412,11 @@ namespace BuildXL.Cache.Host.Service
             {
                 // Stores files into CAS and populate file specs with hash and size info
                 var results = await DownloadQueue.SelectAsync(
-                    deploymentInfo.GetFilesToDeploy(watchedFilesOnly).GroupBy(kvp => kvp.Value.Hash),
-                    (filesByHash, index) =>
+                    deploymentInfo.Info.GetFilesToDeploy(watchedFilesOnly),
+                    (fileEntry, index) =>
                     {
-                        var fileInfo = filesByHash.First().Value;
-                        var file = filesByHash.First().Key;
-                        var count = filesByHash.Count();
+                        var fileInfo = fileEntry.Value;
+                        var file = fileEntry.Key;
 
                         context.Token.ThrowIfCancellationRequested();
 
@@ -358,32 +424,22 @@ namespace BuildXL.Cache.Host.Service
                             Tracer,
                             async () =>
                             {
-                                var hash = new ContentHash(filesByHash.Key);
-
-                                // Hash is not pinned. Need to download into cache
-                                if (!deploymentInfo.PinRequest.PinContext.Contains(hash))
-                                {
-                                    // Download the file matching the hash
-                                    await DownloadFileAsync(context, client, fileInfo, deploymentInfo, file);
-                                }
+                                var hash = new ContentHash(fileInfo.Hash);
 
                                 // Copy the file to additional deployment locations
-                                foreach (var additionalFile in filesByHash.Select(kvp => kvp.Key))
-                                {
-                                    await Store.PlaceFileAsync(
-                                        context,
-                                        hash,
-                                        deploymentInfo.Directory.Path / additionalFile,
-                                        deploymentInfo.IsWatchedFile(additionalFile) ? FileAccessMode.Write : FileAccessMode.ReadOnly,
-                                        FileReplacementMode.ReplaceExisting,
-                                        FileRealizationMode.Any,
-                                        deploymentInfo.PinRequest).ThrowIfFailureAsync();
-                                }
+                                await Store.PlaceFileAsync(
+                                    context,
+                                    hash,
+                                    deploymentInfo.Directory.Path / file,
+                                    deploymentInfo.Info.IsWatchedFile(file) ? FileAccessMode.Write : FileAccessMode.ReadOnly,
+                                    FileReplacementMode.ReplaceExisting,
+                                    FileRealizationMode.Any,
+                                    deploymentInfo.PinRequest).ThrowIfFailureAsync();
 
                                 return BoolResult.Success;
                             },
-                            caller: "DownloadAndPlaceFileAsync",
-                            extraEndMessage: r => $"Hash={filesByHash.Key}, FirstFile={file}");
+                            caller: "DeployFileAsync",
+                            extraEndMessage: r => $"Hash={fileInfo.Hash}, File={file}");
                     });
 
                 return results.FirstOrDefault(r => !r.Succeeded) ?? BoolResult.Success;
@@ -393,7 +449,7 @@ namespace BuildXL.Cache.Host.Service
             extraEndMessage: r => $"Id={manifest.ContentId}, Files={manifest.Deployment.Count}");
         }
 
-        private Task DownloadFileAsync(OperationContext context, IDeploymentServiceClient client, FileSpec fileInfo, DeployedTool deploymentInfo, string firstFile)
+        private Task DownloadFileAsync(OperationContext context, IDeploymentServiceClient client, FileSpec fileInfo, PinRequest pinRequest, string firstFile)
         {
             var url = new Uri(fileInfo.DownloadUrl);
             var prunedUrl = new UriBuilder()
@@ -414,7 +470,7 @@ namespace BuildXL.Cache.Host.Service
                             context,
                             downloadStream,
                             hash,
-                            deploymentInfo.PinRequest).ThrowIfFailureAsync();
+                            pinRequest).ThrowIfFailureAsync();
                     }
                 }
                 catch (Exception) when (forceUpdateOnDownloadFailure())
@@ -425,8 +481,8 @@ namespace BuildXL.Cache.Host.Service
 
                 return BoolResult.Success;
             },
-            extraStartMessage: $"Hash={fileInfo.Hash}, Size={fileInfo.Size}, Host={prunedUrl.Uri}, FirstTarget={firstFile}, Folder={deploymentInfo.Directory.Path}",
-            extraEndMessage: r => $"Hash={fileInfo.Hash}, Size={fileInfo.Size}, Host={prunedUrl.Uri}, FirstTarget={firstFile}, Folder={deploymentInfo.Directory.Path}"
+            extraStartMessage: $"Hash={fileInfo.Hash}, Size={fileInfo.Size}, Host={prunedUrl.Uri}, FirstTarget={firstFile}",
+            extraEndMessage: r => $"Hash={fileInfo.Hash}, Size={fileInfo.Size}, Host={prunedUrl.Uri}, FirstTarget={firstFile}"
             ).ThrowIfFailureAsync();
 
             bool forceUpdateOnDownloadFailure()
@@ -442,50 +498,19 @@ namespace BuildXL.Cache.Host.Service
         /// <summary>
         /// Describes location of a tool deployment with ability to run the tool
         /// </summary>
-        private class DeployedTool : StartupShutdownSlimBase, IDeployedTool
+        private class DeploymentInfo
         {
-            private readonly SemaphoreSlim _mutex = TaskUtilities.CreateMutex();
-
-            private LauncherManagedProcess _runningProcess;
-
-            /// <summary>
-            /// The active process for the tool
-            /// </summary>
-            public ILauncherProcess RunningProcess => _runningProcess?.Process;
-
-            /// <summary>
-            /// Gets whether the tool process is running
-            /// </summary>
-            public bool IsActive => !RunningProcess?.HasExited ?? false;
-
             /// <summary>
             /// The launcher manifest used to create tool deployment
             /// </summary>
             public LauncherManifest Manifest { get; set; }
 
-            /// <summary>
-            /// The directory containing the tool deployment
-            /// </summary>
-            public DisposableDirectory Directory { get; }
-
-            private DeploymentLauncher Launcher { get; }
-
-            public PinRequest PinRequest { get; set; }
-
-            public AbsolutePath DirectoryPath => Directory.Path;
-
-            private IDisposable _secretsExposer;
-
-            protected override Tracer Tracer { get; } = new Tracer(nameof(DeployedTool));
 
             private HashSet<string> WatchedFiles { get; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-            public DeployedTool(DeploymentLauncher launcher, LauncherManifest manifest, DisposableDirectory directory, PinContext pinContext)
+            public DeploymentInfo(LauncherManifest manifest)
             {
-                Launcher = launcher;
                 Manifest = manifest;
-                Directory = directory;
-                PinRequest = new PinRequest(pinContext);
 
                 foreach (var watchedFile in manifest.Tool.WatchedFiles)
                 {
@@ -545,6 +570,60 @@ namespace BuildXL.Cache.Host.Service
                 var normalizedToolManifest = Normalize(Manifest);
                 var normalizedNewManifest = Normalize(newManifest);
                 return normalizedNewManifest == normalizedToolManifest;
+            }
+        }
+
+        /// <summary>
+        /// Describes location of a tool deployment with ability to run the tool
+        /// </summary>
+        private class DeployedTool : StartupShutdownSlimBase, IDeployedTool
+        {
+            private readonly SemaphoreSlim _mutex = TaskUtilities.CreateMutex();
+
+            private LauncherManagedProcess _runningProcess;
+
+            /// <summary>
+            /// The active process for the tool
+            /// </summary>
+            public ILauncherProcess RunningProcess => _runningProcess?.Process;
+
+            /// <summary>
+            /// Gets whether the tool process is running
+            /// </summary>
+            public bool IsActive => !RunningProcess?.HasExited ?? false;
+
+            /// <summary>
+            /// The launcher manifest used to create tool deployment
+            /// </summary>
+            public LauncherManifest Manifest
+            {
+                get => Info.Manifest;
+                set => Info.Manifest = value;
+            }
+
+            /// <summary>
+            /// The directory containing the tool deployment
+            /// </summary>
+            public DisposableDirectory Directory { get; }
+
+            private DeploymentLauncher Launcher { get; }
+
+            public DeploymentInfo Info { get; }
+
+            public PinRequest PinRequest { get; set; }
+
+            public AbsolutePath DirectoryPath => Directory.Path;
+
+            private IDisposable _secretsExposer;
+
+            protected override Tracer Tracer { get; } = new Tracer(nameof(DeployedTool));
+
+            public DeployedTool(DeploymentLauncher launcher, DeploymentInfo info, DisposableDirectory directory, PinContext pinContext)
+            {
+                Launcher = launcher;
+                Info = info;
+                Directory = directory;
+                PinRequest = new PinRequest(pinContext);
             }
 
             /// <summary>
@@ -611,9 +690,9 @@ namespace BuildXL.Cache.Host.Service
                                             // Launcher hashes the configuration file and computes the ConfigurationId properly manually
                                             // because the launcher manages its own configuration in a separate repo,
                                             // so we don't need to propagate the ConfigurationId from CloudBuildConfig repo.
-                                            Launcher.Settings.DeploymentParameters.ToEnvironment(saveConfigurationId: false),
-                                            tool.EnvironmentVariables.ToDictionary(kvp => kvp.Key, kvp => ExpandTokens(kvp.Value)),
-                                            Launcher.LifetimeManager.GetDeployedInterruptableServiceVariables(tool.ServiceId)
+                                            Launcher.Settings.DeploymentParameters.ToEnvironment(saveConfigurationId: false).ToAddOrSetEntries(),
+                                            tool.EnvironmentVariables.ToDictionary(kvp => kvp.Key, kvp => ExpandTokens(kvp.Value)).ToAddOrSetEntries(),
+                                            Launcher.LifetimeManager.GetDeployedInterruptableServiceVariables(tool.ServiceId).ToAddOrSetEntries()
                                         }
                                     });
                                 _runningProcess = new LauncherManagedProcess(process, tool.ServiceId, Launcher.LifetimeManager);
@@ -686,6 +765,19 @@ namespace BuildXL.Cache.Host.Service
                     }
 
                     return BoolResult.Success;
+                }
+            }
+        }
+
+        private record Disposable(IDisposable disposable) : IDisposable
+        {
+            public bool PreventDispose { get; set; }
+
+            public void Dispose()
+            {
+                if (!PreventDispose)
+                {
+                    disposable.Dispose();
                 }
             }
         }

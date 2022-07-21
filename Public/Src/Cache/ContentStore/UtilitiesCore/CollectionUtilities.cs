@@ -59,6 +59,31 @@ namespace BuildXL.Cache.ContentStore.UtilitiesCore.Internal
         }
 
         /// <summary>
+        /// Allows adding enumerable to collection using collection initializer syntax
+        /// </summary>
+        public static void Add<TKey, TValue>(this IDictionary<TKey, TValue> map, AddOrSetEntries<TKey, TValue> values)
+        {
+            foreach (var entry in values.Entries)
+            {
+                map[entry.Key] = entry.Value;
+            }
+        }
+
+        /// <summary>
+        /// Wraps key value pairs in an <see cref="AddOrSetEntries{TKey, TValue}"/> for use with collection initializer.
+        /// </summary>
+        public static AddOrSetEntries<TKey, TValue> ToAddOrSetEntries<TKey, TValue>(this IEnumerable<KeyValuePair<TKey, TValue>> entries)
+        {
+            return new(entries);
+        }
+
+        /// <summary>
+        /// For use with <see cref="Add{TKey, TValue}(IDictionary{TKey, TValue}, AddOrSetEntries{TKey, TValue})"/> in collection initializer
+        /// to allow setting items from a collection instead of add with throws if there is a duplicate.
+        /// </summary>
+        public record struct AddOrSetEntries<TKey, TValue>(IEnumerable<KeyValuePair<TKey, TValue>> Entries);
+
+        /// <summary>
         /// Compare two operands and returns true if two instances are equivalent.
         /// </summary>
         public static bool IsCompareEquals<T>(this T x1, T x2, out int compareResult, bool greatestFirst = false)

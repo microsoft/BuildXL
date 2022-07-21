@@ -89,7 +89,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test
     'SasUrlTimeToLive': '3m',
     'Tool [Environment:MyEnvRunningOnWindows]': {
         'Executable': 'bin/service.exe',
-        'Arguments': 'myargs',
+        'Arguments': [ 'myargs' ],
         'EnvironmentVariables': {
             'ConfigPath': '../Foo.txt'
         }
@@ -279,6 +279,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test
 
             await verifyLaunchManifestAsync(new DeploymentParameters()
                 {
+                    Environment = "MyEnvRunningOnWindows",
                     Properties =
                     {
                         { "Stage", "2" },

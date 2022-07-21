@@ -1078,8 +1078,10 @@ namespace ContentStoreTest.Distributed.Sessions
         [InlineData(false)]
         public Task TestGetHashesInEvictionOrder(bool reverse)
         {
-            _overrideDistributed = s => s.ReconcileMode = ReconciliationMode.Once.ToString();
-            ConfigureWithOneMaster();
+            ConfigureWithOneMaster(d =>
+            {
+                d.ReconcileMode = ReconciliationMode.None.ToString();
+            });
 
             return RunTestAsync(
                 2,
@@ -1138,6 +1140,103 @@ namespace ContentStoreTest.Distributed.Sessions
                         descendingAges.Should().BeGreaterThan(threshold);
                     }
 
+                    await Task.Yield();
+                });
+        }
+
+        [Theory]
+        [InlineData(0.5)]
+        [InlineData(1)]
+        public Task TestEvictionPartitionGetHashesInEvictionOrder(double fraction)
+        {
+            int partitionCount = 8;
+            TimeSpan evictionPartitionInterval = TimeSpan.FromMinutes(10);
+            ConfigureWithOneMaster(d =>
+            {
+                d.ReconcileMode = ReconciliationMode.None.ToString();
+                d.UseFullEvictionSort = true;
+                d.LocationStoreSettings.EvictionPartitionFraction = fraction;
+                d.LocationStoreSettings.EvictionPartitionCount = partitionCount;
+                d.LocationStoreSettings.EvictionPartitionInterval = evictionPartitionInterval;
+            });
+
+            return RunTestAsync(
+                2,
+                async context =>
+                {
+                    var master = context.GetMaster();
+
+                    int count = 10000;
+                    var hashes = Enumerable.Range(0, count).Select(i => (delay: count - i, hash: ContentHash.Random()))
+                        .Select(
+                            c => new ContentHashWithLastAccessTimeAndReplicaCount(
+                                c.hash,
+                                TestClock.UtcNow - TimeSpan.FromSeconds(2 * c.delay)))
+                        .ToList();
+
+                    var evictionPreferredGroups = Enumerable.Range(0, partitionCount).Select(i =>
+                    {
+                        bool hasSeenNonPreferred = false;
+                        TestClock.UtcNow += evictionPartitionInterval;
+
+                        var allOrderedHashes = master.GetHashesInEvictionOrder(context, hashes).ToList();
+                        allOrderedHashes.Distinct().Count().Should().Be(count);
+
+                        return allOrderedHashes
+                            .Where(info =>
+                            {
+                                context.Context.Debug($"{i} Eviction Preferred={info.EvictionPreferred}", "Test");
+
+                                if (!info.EvictionPreferred)
+                                {
+                                    // Non-preferred should come after all preferred.
+                                    hasSeenNonPreferred = true;
+                                }
+
+                                info.EvictionPreferred.Should().Be(!hasSeenNonPreferred);
+                                return info.EvictionPreferred;
+                            }).ToList();
+
+                    }).ToList();
+
+                    // Unique set of preferred hashes per time range
+                    evictionPreferredGroups.SelectMany(i => i).Count().Should().Be((int)(count * fraction));
+
+                    foreach (var orderedHashes in evictionPreferredGroups)
+                    {
+                        context.Context.Debug($"Group count={orderedHashes.Count}", "Test");
+                        orderedHashes.Count.Should().BeLessThan(count / (partitionCount / 4));
+
+                        var visitedHashes = new HashSet<ContentHash>();
+                        TimeSpan? lastAge = null;
+                        var ascendingAges = 0;
+                        var descendingAges = 0;
+                        // All the hashes should be unique
+                        foreach (var hash in orderedHashes)
+                        {
+                            if (lastAge != null)
+                            {
+                                if (lastAge < hash.EffectiveAge)
+                                {
+                                    ascendingAges++;
+                                }
+                                else
+                                {
+                                    descendingAges++;
+                                }
+                            }
+
+                            lastAge = hash.EffectiveAge;
+                            visitedHashes.Add(hash.ContentHash).Should().BeTrue();
+                        }
+
+                        // GetLruPages returns not a fully ordered entries. Instead, it sporadically shufles some of them.
+                        // This makes impossible to assert here that the result is fully sorted.
+                        // Because of this, we allow for some error.
+                        var threshold = (int)(orderedHashes.Count * 0.99);
+                        descendingAges.Should().BeGreaterThan(threshold);
+                    }
+                    
                     await Task.Yield();
                 });
         }

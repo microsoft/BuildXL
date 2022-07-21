@@ -223,8 +223,6 @@ namespace BuildXL.Cache.Host.Service.Internal
             ApplyIfNotNull(_distributedSettings.BlobOperationLimitSpanSeconds, v => redisConfig.BlobOperationLimitSpan = TimeSpan.FromSeconds(v));
             ApplyIfNotNull(_distributedSettings.UseSeparateConnectionForRedisBlobs, v => redisConfig.UseSeparateConnectionForRedisBlobs = v);
 
-            ApplyIfNotNull(_distributedSettings.ThrottledEvictionIntervalMinutes, v => redisConfig.ThrottledEvictionInterval = TimeSpan.FromMinutes(v));
-
             // Redis-related configuration.
             ApplyIfNotNull(_distributedSettings.RedisConnectionErrorLimit, v => redisConfig.RedisConnectionErrorLimit = v);
             ApplyIfNotNull(_distributedSettings.RedisReconnectionLimitBeforeServiceRestart, v => redisConfig.RedisReconnectionLimitBeforeServiceRestart = v);

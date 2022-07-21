@@ -92,7 +92,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     DateTime distributedLastAccessTime = distributedEntry.LastAccessTimeUtc.ToDateTime();
                     lastAccessTime = distributedLastAccessTime > lastAccessTime ? distributedLastAccessTime : lastAccessTime;
 
-                    rank = GetReplicaRank(contentHash.Hash, distributedEntry, _contentResolver.LocalMachineId, _configuration, _now);
                     if (isDesignatedLocation)
                     {
                         rank = Combine(ReplicaRank.Designated, rank);
@@ -117,7 +116,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     effectiveAge: effectiveAge, 
                     replicaCount: replicaCount, 
                     size: size,
-                    rank: rank);
+                    rank: rank,
+                    timestampUtc: _now);
                 effectiveLastAccessTimes.Add(info);
             }
 
@@ -127,118 +127,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private static ReplicaRank Combine(ReplicaRank rank1, ReplicaRank rank2)
         {
             return (ReplicaRank)Math.Max((byte)rank1, (byte)rank2);
-        }
-
-        /// <summary>
-        /// Returns rank of a given hash which determines the degree to which content is preserved by altering the effective last access time
-        /// </summary>
-        /// <remarks>
-        /// When throttled eviction is enabled (<see cref="LocalLocationStoreConfiguration.ThrottledEvictionInterval"/> != 0), 
-        /// content eviction is throttled by having all but one replica consider content Protected. (Protected means EffectiveAge=0 such
-        /// that content is only evicted as a last resort).
-        /// </remarks>
-        public static ReplicaRank GetReplicaRank(
-            ContentHash hash,
-            ContentLocationEntry entry,
-            MachineId localMachineId,
-            LocalLocationStoreConfiguration configuration,
-            DateTime now)
-        {
-            var locationsCount = entry.Locations.Count;
-
-            var desiredReplicaCount = configuration.DesiredReplicaRetention;
-            if (desiredReplicaCount == 0 ||
-                locationsCount == 0) // It is possible for the entry to have 0 locations. 
-                                     // For instance, the database has 1 location but the machine is in the bad state
-            {
-                return ReplicaRank.None;
-            }
-
-            if (locationsCount <= desiredReplicaCount
-                // If using throttled eviction, we might need to upgrade the rank to Protected
-                // so don't return here
-                && configuration.ThrottledEvictionInterval == TimeSpan.Zero)
-            {
-                return ReplicaRank.Important;
-            }
-
-            // Making sure that probabilistically, some locations are considered important for the current machine.
-            long contentHashCode = unchecked((uint)HashCodeHelper.Combine(hash[0] | hash[1] << 8, hash[1]));
-
-            var importantRangeStart = contentHashCode % locationsCount;
-
-            // Getting an index of a current location in the location list
-            int currentMachineLocationIndex = entry.Locations.GetMachineIdIndex(localMachineId);
-            if (currentMachineLocationIndex == -1)
-            {
-                // This is used for testing only. The machine Id should be part of the machines.
-                // But in tests it is useful to control the behavior of this method and in some cases to guarantee that some replica won't be important.
-                return ReplicaRank.None;
-            }
-
-            // In case of important range wrapping around end of location list to start of location list
-            // we need to compute a positive offset from the range start to see if the replica exists in the range
-            // i.e. range start = 5, location count = 7, and desired location count = 3
-            // important range contains [5, 6 and 0] since it overflows the end of the list
-            var offset = currentMachineLocationIndex - importantRangeStart;
-            if (offset < 0)
-            {
-                offset += locationsCount;
-            }
-
-            var lastImportantReplicaOffset = Math.Min(desiredReplicaCount, locationsCount) - 1;
-            if (offset >= desiredReplicaCount)
-            {
-                return ReplicaRank.None;
-            }
-
-            if (offset != lastImportantReplicaOffset)
-            {
-                // All but last important replica are always Protected
-                return ReplicaRank.Protected;
-            }
-
-            if (configuration.ThrottledEvictionInterval == TimeSpan.Zero)
-            {
-                // Throttled eviction is disabled. Just mark the replica as important
-                // since its in the important range
-                return ReplicaRank.Important;
-            }
-
-            // How throttled eviction works:
-            // 1. Compute which machines consider the content important
-            // This is done by computing a hash code from the content hash modulo location count to 
-            // generate a start index into the list replicas.
-            // For instance,
-            // given locations: [4, 11, 22, 35, 73, 89]
-            // locationCount = 6,
-            // if contentHashCode % locationCount = 2 and DesiredReplicaCount = 3
-            // then the machines considering content important are [22, 35, 73]
-            // 2. All but last important replica must be consider Protected (i.e. 22, 35 have rank Protected)
-            // 3. Compute if last replica is protected.
-            // This is based of to time ranges or buckets of duration ThrottledEvictionInterval
-            // For instance,
-            // if ThrottleInterval = 20 minutes
-            // 10:00AM-10:20AM -> (timeBucketIndex = 23045230) % DesiredReplicaCount = 2 = evictableOffset
-            // 10:20AM-10:40AM -> (timeBucketIndex = 23045231) % DesiredReplicaCount = 0 = evictableOffset
-            // 10:40AM-11:00AM -> (timeBucketIndex = 23045232) % DesiredReplicaCount = 1 = evictableOffset
-            // 11:00AM-11:20AM -> (timeBucketIndex = 23045233) % DesiredReplicaCount = 2 = evictableOffset
-            // So for times 10:00AM-10:20AM and 11:00AM-11:20AM the last important replica is evictable
-            var timeBucketIndex = now.Ticks / configuration.ThrottledEvictionInterval.Ticks;
-
-            // NOTE: We add contentHashCode to timeBucketIndex so that not all Protected content is considered evictable
-            // at the same time
-            var evictableOffset = (contentHashCode + timeBucketIndex) % desiredReplicaCount;
-            if (evictableOffset == offset)
-            {
-                return ReplicaRank.Important;
-            }
-            else
-            {
-                // The replica is not currently evictable. Mark it as protected which will give it the minimum effective age
-                // so that it is only evicted as a last resort
-                return ReplicaRank.Protected;
-            }
         }
 
         /// <summary>
@@ -257,7 +145,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 var ageBucketIndex = FindAgeBucketIndex(configuration, age);
                 if (rank != ReplicaRank.None)
                 {
-                    ageBucketIndex = Math.Max(0, ageBucketIndex - configuration.ImportantReplicaBucketOffset);
+                    ageBucketIndex = Math.Max(0, ageBucketIndex - configuration.Settings.ImportantReplicaBucketOffset);
                 }
 
                 return configuration.AgeBuckets[ageBucketIndex];

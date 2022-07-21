@@ -414,10 +414,6 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public bool UseFullEvictionSort { get; set; } = false;
 
-        [DataMember]
-        [Validation.Range(0, double.MaxValue)]
-        public double? ThrottledEvictionIntervalMinutes { get; set; }
-
         /// <summary>
         /// Configures whether ages of content are updated when sorting during eviction
         /// </summary>

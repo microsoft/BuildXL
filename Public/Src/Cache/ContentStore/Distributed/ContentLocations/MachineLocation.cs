@@ -15,20 +15,15 @@ namespace BuildXL.Cache.ContentStore.Distributed
     /// <summary>
     /// Location information for a machine usually represented as UNC path with machine name and a root path.
     /// </summary>
-    public readonly struct MachineLocation : IEquatable<MachineLocation>, IEquatable<string>, IEquatable<byte[]>
+    public readonly record struct MachineLocation : IEquatable<MachineLocation>
     {
         public const string GrpcUriSchemePrefix = "grpc://";
-
-        /// <summary>
-        /// Binary representation of a machine location.
-        /// </summary>
-        public byte[] Data { get; init; }
 
         /// <summary>
         /// Gets whether the current machine location represents valid data
         /// </summary>
         [JsonIgnore]
-        public bool IsValid => Data != null;
+        public bool IsValid => Path != null;
 
         /// <summary>
         /// Gets the path representation of the machine location
@@ -36,73 +31,16 @@ namespace BuildXL.Cache.ContentStore.Distributed
         public string Path { get; init; }
 
         /// <nodoc />
-        public MachineLocation(string data)
+        public MachineLocation(string path)
         {
-            Contract.Requires(data != null);
-
-            Data = Encoding.UTF8.GetBytes(data);
-            Path = data;
+            Contract.Requires(path != null);
+            Path = path;
         }
 
         /// <inheritdoc />
         public override string ToString()
         {
             return Path;
-        }
-
-        /// <inheritdoc />
-        public bool Equals(MachineLocation other)
-        {
-            return ByteArrayComparer.ArraysEqual(Data, other.Data);
-        }
-
-        /// <inheritdoc />
-        public bool Equals(string other)
-        {
-            if (Path is null)
-            {
-                return other is null;
-            }
-
-            return Path.Equals(other);
-        }
-
-        /// <inheritdoc />
-        public bool Equals(byte[] other)
-        {
-            return ByteArrayComparer.ArraysEqual(Data, other);
-        }
-
-        /// <inheritdoc />
-        public override bool Equals(object obj)
-        {
-            if (obj is null)
-            {
-                return false;
-            }
-
-            return (obj is MachineLocation location && Equals(location))
-                || (obj is string str && Equals(str))
-                || (obj is byte[] arr && Equals(arr));
-        }
-
-        /// <nodoc />
-        public static bool operator ==(MachineLocation lhs, MachineLocation rhs)
-        {
-            return lhs.Equals(rhs);
-        }
-
-        /// <nodoc />
-        public static bool operator !=(MachineLocation lhs, MachineLocation rhs)
-        {
-            return !lhs.Equals(rhs);
-        }
-
-        /// <inheritdoc />
-        public override int GetHashCode()
-        {
-            // GetHashCode is null-safe
-            return ByteArrayComparer.Instance.GetHashCode(Data);
         }
 
         public static MachineLocation Create(string machineName, int port)

@@ -39,6 +39,7 @@ using BuildXL.Native.IO;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.ParallelAlgorithms;
+using BuildXL.Utilities.Serialization;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using static BuildXL.Cache.ContentStore.Distributed.Tracing.TracingStructuredExtensions;
@@ -159,6 +160,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private readonly ColdStorage? _coldStorage;
 
+        private readonly ReadOnlyArray<PartitionId> _evictionPartitions;
+
+        private readonly byte[] _machineHash;
+        private readonly uint _evictionPartitionOffset;
+
         /// <nodoc />
         public LocalLocationStore(
             IClock clock,
@@ -180,6 +186,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             ClusterStateManager = clusterStateManager;
             _checkpointRegistry = checkpointManager.CheckpointRegistry;
             _coldStorage = coldStorage;
+            _evictionPartitions = PartitionId.GetPartitions(Configuration.Settings.EvictionPartitionCount);
+
+            _machineHash = MurmurHash3.Create(Encoding.UTF8.GetBytes(Configuration.PrimaryMachineLocation.Path ?? String.Empty)).ToByteArray();
+
+            var reader = new SpanReader(_machineHash.AsSpan());
+            _evictionPartitionOffset = reader.Read<uint>();
 
             if (configuration.Settings.GlobalRegisterNagleInterval?.Value is TimeSpan nagleInterval)
             {
@@ -602,7 +614,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 Contract.Assert(openMachines >= 1);
 
                 return Result.Success(RestoreCheckpointPacemaker.ShouldRestoreCheckpoint(
-                    Configuration.PrimaryMachineLocation.Data,
+                    _machineHash,
                     Configuration.Checkpoint.PacemakerNumberOfBuckets ?? 0,
                     openMachines,
                     checkpointCreationTime,
@@ -1528,12 +1540,21 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             // content until we are within quota. Here we return batches of content to be removed.
 
             // contentHashesWithInfo is sorted by (local) LastAccessTime in descending order (Least Recently Used).
+            PartitionId? evictionPartition = null;
+
             if (contentHashesWithInfo.Count != 0)
             {
                 var first = contentHashesWithInfo[0];
                 var last = contentHashesWithInfo[contentHashesWithInfo.Count - 1];
 
-                Tracer.Debug(context, $"{nameof(GetHashesInEvictionOrder)} start with contentHashesWithInfo.Count={contentHashesWithInfo.Count}, firstAge={first.Age(_clock)}, lastAge={last.Age(_clock)}");
+                if (!reverse && Configuration.Settings.EvictionPartitionInterval > TimeSpan.Zero && _evictionPartitions.Length != 0
+                    && Configuration.Settings.EvictionPartitionFraction > 0)
+                {
+                    var partitionIndex = ((_clock.UtcNow.Ticks / Configuration.Settings.EvictionPartitionInterval.Value.Ticks) + _evictionPartitionOffset) % _evictionPartitions.Length;
+                    evictionPartition = _evictionPartitions[(int)partitionIndex];
+                }
+
+                Tracer.Debug(context, $"{nameof(GetHashesInEvictionOrder)} start with contentHashesWithInfo.Count={contentHashesWithInfo.Count}, firstAge={first.Age(_clock)}, lastAge={last.Age(_clock)}, evictionPartition={evictionPartition}");
             }
 
             var operationContext = new OperationContext(context);
@@ -1555,7 +1576,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     effectiveLastAccessTimeProvider,
                     comparer,
                     contentHashesWithLastAccessTimes,
-                    reverse);
+                    reverse,
+                    evictionPartition);
             }
             else
             {
@@ -1608,33 +1630,62 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             EffectiveLastAccessTimeProvider effectiveLastAccessTimeProvider,
             IComparer<ContentEvictionInfo> comparer,
             IReadOnlyList<ContentHashWithLastAccessTime> contentHashesWithInfo,
-            bool reverse)
+            bool reverse,
+            PartitionId? evictionPartition)
         {
             var candidateQueue = new PriorityQueue<ContentEvictionInfo>(Configuration.EvictionPoolSize, comparer);
+            int preferredEvictionCount = (int)Math.Max(0, Math.Min(contentHashesWithInfo.Count, contentHashesWithInfo.Count * Configuration.Settings.EvictionPartitionFraction));
 
-            foreach (var candidate in GetFullSortedContentWithEffectiveLastAccessTimes(operationContext, effectiveLastAccessTimeProvider, contentHashesWithInfo, reverse))
+            IEnumerable<ContentEvictionInfo> enumerate(Func<ContentHashWithLastAccessTime, int, bool> include, bool preferred)
             {
-                candidateQueue.Push(candidate);
+                foreach (var candidate in GetFullSortedContentWithEffectiveLastAccessTimes(
+                    operationContext,
+                    effectiveLastAccessTimeProvider,
+                    contentHashesWithInfo.Take(preferred ? preferredEvictionCount : contentHashesWithInfo.Count).Where(include),
+                    reverse))
+                {
+                    candidateQueue.Push(candidate with { EvictionPreferred = preferred });
 
-                // Only consider content when the eviction pool size is reached.
-                if (candidateQueue.Count > Configuration.EvictionPoolSize)
+                    // Only consider content when the eviction pool size is reached.
+                    if (candidateQueue.Count > Configuration.EvictionPoolSize)
+                    {
+                        yield return candidateQueue.Top;
+                        candidateQueue.Pop();
+                    }
+                }
+
+                while (candidateQueue.Count != 0)
                 {
                     yield return candidateQueue.Top;
                     candidateQueue.Pop();
                 }
             }
 
-            while (candidateQueue.Count != 0)
+            if (evictionPartition != null)
             {
-                yield return candidateQueue.Top;
-                candidateQueue.Pop();
+                foreach (var item in enumerate(include: (e, _) => evictionPartition.Value.Contains(e.Hash), preferred: true))
+                {
+                    yield return item;
+                }
+
+                foreach (var item in enumerate(include: (e, index) => index >= preferredEvictionCount || !evictionPartition.Value.Contains(e.Hash), preferred: false))
+                {
+                    yield return item;
+                }
+            }
+            else
+            {
+                foreach (var item in enumerate(include: (_, _) => true, preferred: false))
+                {
+                    yield return item;
+                }
             }
         }
 
         private IEnumerable<ContentEvictionInfo> GetFullSortedContentWithEffectiveLastAccessTimes(
             OperationContext operationContext,
             EffectiveLastAccessTimeProvider effectiveLastAccessTimeProvider,
-            IReadOnlyList<ContentHashWithLastAccessTime> contentHashesWithInfo,
+            IEnumerable<ContentHashWithLastAccessTime> contentHashesWithInfo,
             bool reverse)
         {
             var ageOnlyComparer = reverse

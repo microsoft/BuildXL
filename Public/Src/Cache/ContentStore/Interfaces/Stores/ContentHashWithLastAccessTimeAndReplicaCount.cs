@@ -18,17 +18,17 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Stores
         /// <summary>
         /// Content hash.
         /// </summary>
-        public readonly ContentHash ContentHash;
+        public readonly ContentHash ContentHash => EvictionInfo.ContentHash;
 
         /// <summary>
         /// The original last-access time.
         /// </summary>
-        public readonly DateTime LastAccessTime;
+        public readonly DateTime LastAccessTime => EvictionInfo.TimestampUtc - EvictionInfo.Age;
 
         /// <summary>
         /// Number of replicas content exists at in the datacenter.
         /// </summary>
-        public readonly long ReplicaCount;
+        public long ReplicaCount => EvictionInfo.ReplicaCount;
 
         /// <summary>
         /// Whether or not the content is evictable as determined by the datacenter.
@@ -38,7 +38,12 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Stores
         /// <summary>
         /// The effective last access time of the content
         /// </summary>
-        public readonly DateTime? EffectiveLastAccessTime;
+        public readonly DateTime? EffectiveLastAccessTime => EvictionInfo.TimestampUtc - EvictionInfo.EffectiveAge;
+
+        /// <summary>
+        /// The eviction info
+        /// </summary>
+        public readonly ContentEvictionInfo EvictionInfo;
 
         /// <nodoc />
         public TimeSpan Age(IClock clock) => clock.UtcNow - LastAccessTime;
@@ -49,13 +54,38 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Stores
         /// <summary>
         /// Initializes a new instance of the <see cref="ContentHashWithLastAccessTimeAndReplicaCount"/> struct.
         /// </summary>
-        public ContentHashWithLastAccessTimeAndReplicaCount(ContentHash contentHash, DateTime lastAccessTime, long replicaCount = 1, bool safeToEvict = false, DateTime? effectiveLastAccessTime = null)
+        public ContentHashWithLastAccessTimeAndReplicaCount(
+            ContentHash contentHash,
+            DateTime lastAccessTime,
+            int replicaCount = 1,
+            bool safeToEvict = false,
+            DateTime? effectiveLastAccessTime = null)
+            : this(CreateInfo(contentHash, lastAccessTime, replicaCount, effectiveLastAccessTime))
         {
-            ContentHash = contentHash;
-            LastAccessTime = lastAccessTime;
-            ReplicaCount = replicaCount;
             SafeToEvict = safeToEvict;
-            EffectiveLastAccessTime = effectiveLastAccessTime;
+        }
+
+        private static ContentEvictionInfo CreateInfo(ContentHash contentHash, DateTime lastAccessTime, int replicaCount, DateTime? effectiveLastAccessTime)
+        {
+            var now = DateTime.UtcNow;
+            return new ContentEvictionInfo(
+                contentHash,
+                age: now - lastAccessTime,
+                localAge: now - lastAccessTime,
+                effectiveAge: now - (effectiveLastAccessTime ?? lastAccessTime),
+                replicaCount: replicaCount,
+                size: -1,
+                rank: ReplicaRank.None,
+                timestampUtc: now);
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="ContentHashWithLastAccessTimeAndReplicaCount"/> struct.
+        /// </summary>
+        public ContentHashWithLastAccessTimeAndReplicaCount(ContentEvictionInfo evictionInfo)
+        {
+            EvictionInfo = evictionInfo;
+            SafeToEvict = true;
         }
 
         /// <inheritdoc />

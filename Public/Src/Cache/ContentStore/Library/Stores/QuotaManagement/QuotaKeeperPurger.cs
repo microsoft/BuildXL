@@ -115,6 +115,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
                 if (evictionResult.SuccessfullyEvictedHash)
                 {
+                    _context.TrackMetric(evictionResult.EvictionInfo.EvictionPreferred ? "EvictPreferred" : "EvictUnpreferred", 1, nameof(Purger));
                     evictedContent.Add(contentHashInfo.ContentHash);
                     minEffectiveAge = minEffectiveAge < contentHashInfo.EffectiveAge ? minEffectiveAge : contentHashInfo.EffectiveAge;
                 }
@@ -131,6 +132,6 @@ namespace BuildXL.Cache.ContentStore.Stores
             return BoolResult.Success;
         }
 
-        private static ContentHashWithLastAccessTimeAndReplicaCount ToContentHashListWithLastAccessTimeAndReplicaCount(ContentEvictionInfo contentHashInfo) => new ContentHashWithLastAccessTimeAndReplicaCount(contentHashInfo.ContentHash, DateTime.UtcNow - contentHashInfo.Age, contentHashInfo.ReplicaCount, safeToEvict: true, effectiveLastAccessTime: DateTime.UtcNow - contentHashInfo.EffectiveAge);
+        private static ContentHashWithLastAccessTimeAndReplicaCount ToContentHashListWithLastAccessTimeAndReplicaCount(ContentEvictionInfo contentHashInfo) => new ContentHashWithLastAccessTimeAndReplicaCount(contentHashInfo);
     }
 }

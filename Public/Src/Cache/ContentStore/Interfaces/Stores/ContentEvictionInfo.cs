@@ -12,7 +12,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Stores
     /// <summary>
     /// A wrapper for content hashes used by eviction logic.
     /// </summary>
-    public readonly struct ContentEvictionInfo
+    public readonly record struct ContentEvictionInfo
     {
         /// <nodoc />
         public ContentHash ContentHash { get; }
@@ -56,6 +56,26 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Stores
         /// </summary>
         public TimeSpan FullSortAge => EffectiveAge < Age ? EffectiveAge : Age;
 
+        /// <summary>
+        /// The timestamp when the instance was created. Used for computed absolute time values like last access time.
+        /// </summary>
+        public DateTime TimestampUtc { get; }
+
+        /// <summary>
+        /// The original last-access time.
+        /// </summary>
+        public readonly DateTime LastAccessTime => TimestampUtc - Age;
+
+        /// <summary>
+        /// The effective last access time of the content
+        /// </summary>
+        public readonly DateTime? EffectiveLastAccessTime => TimestampUtc - EffectiveAge;
+
+        /// <summary>
+        /// Gets whether the hash is in the preferred eviction partition
+        /// </summary>
+        public bool EvictionPreferred { get; init; }
+
         /// <nodoc />
         public ContentEvictionInfo(
             ContentHash contentHash,
@@ -64,7 +84,8 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Stores
             TimeSpan effectiveAge,
             int replicaCount,
             long size,
-            ReplicaRank rank)
+            ReplicaRank rank,
+            DateTime? timestampUtc = null)
         {
             ContentHash = contentHash;
             Age = age;
@@ -73,6 +94,8 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Stores
             ReplicaCount = replicaCount;
             Size = size;
             Rank = rank;
+            TimestampUtc = timestampUtc ?? DateTime.UtcNow;
+            EvictionPreferred = false;
         }
 
         /// <inheritdoc />

@@ -161,17 +161,6 @@ namespace BuildXL.Cache.ContentStore.Distributed
         public bool UseTieredDistributedEviction { get; set; }
 
         /// <summary>
-        /// Specifies the time period over which throttled eviction is used where last remaining replicas are
-        /// only allowed to be deleted in a throttled fashion
-        /// </summary>
-        public TimeSpan ThrottledEvictionInterval { get; set; }
-
-        /// <summary>
-        /// The number of buckets to offset by for important replicas. This effectively makes important replicas look younger.
-        /// </summary>
-        public int ImportantReplicaBucketOffset { get; set; } = 2;
-
-        /// <summary>
         /// Age buckets for use with tiered eviction
         /// </summary>
         public IReadOnlyList<TimeSpan> AgeBuckets { get; set; } =
@@ -187,11 +176,6 @@ namespace BuildXL.Cache.ContentStore.Distributed
                 TimeSpan.FromDays(10),
                 TimeSpan.FromDays(30),
             };
-
-        /// <summary>
-        /// Controls the desired number of replicas to retain.
-        /// </summary>
-        public int DesiredReplicaRetention { get; set; } = 3;
 
         /// <summary>
         /// Estimated decay time for content re-use.

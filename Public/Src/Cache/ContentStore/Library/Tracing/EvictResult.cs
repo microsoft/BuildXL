@@ -16,21 +16,6 @@ namespace BuildXL.Cache.ContentStore.Tracing
         /// <summary>
         ///     Initializes a new instance of the <see cref="EvictResult"/> class.
         /// </summary>
-        public EvictResult(long evictedSize, long evictedFiles, long pinnedSize, DateTime lastAccessTime, DateTime? effectiveLastAccessTime, bool successfullyEvictedHash, long replicaCount)
-        {
-            EvictedSize = evictedSize;
-            EvictedFiles = evictedFiles;
-            PinnedSize = pinnedSize;
-            LastAccessTime = lastAccessTime;
-            EffectiveLastAccessTime = effectiveLastAccessTime;
-            SuccessfullyEvictedHash = successfullyEvictedHash;
-            ReplicaCount = replicaCount;
-            CreationTime = DateTime.UtcNow;
-        }
-
-        /// <summary>
-        ///     Initializes a new instance of the <see cref="EvictResult"/> class.
-        /// </summary>
         public EvictResult(string errorMessage, string? diagnostics = null)
             : base(errorMessage, diagnostics)
         {
@@ -47,9 +32,14 @@ namespace BuildXL.Cache.ContentStore.Tracing
         /// <summary>
         ///     Initializes a new instance of the <see cref="EvictResult"/> class.
         /// </summary>
-        public EvictResult(ContentHashWithLastAccessTimeAndReplicaCount contentHash, long evictedSize, long evictedFiles, long pinnedSize, bool successfullyEvictedHash)
-            : this(evictedSize, evictedFiles, pinnedSize, contentHash.LastAccessTime, contentHash.EffectiveLastAccessTime, successfullyEvictedHash, contentHash.ReplicaCount)
+        public EvictResult(ContentHashWithLastAccessTimeAndReplicaCount info, long evictedSize, long evictedFiles, long pinnedSize, bool successfullyEvictedHash)
         {
+            EvictedSize = evictedSize;
+            EvictedFiles = evictedFiles;
+            PinnedSize = pinnedSize;
+            EvictionInfo = info.EvictionInfo;
+            SuccessfullyEvictedHash = successfullyEvictedHash;
+            CreationTime = DateTime.UtcNow;
         }
 
         /// <nodoc />
@@ -74,14 +64,19 @@ namespace BuildXL.Cache.ContentStore.Tracing
         public long PinnedSize { get; }
 
         /// <summary>
+        /// The eviction info
+        /// </summary>
+        public ContentEvictionInfo EvictionInfo { get; }
+
+        /// <summary>
         ///     Gets content's original last-access time.
         /// </summary>
-        public DateTime LastAccessTime { get; }
+        public DateTime LastAccessTime => EvictionInfo.LastAccessTime;
 
         /// <summary>
         /// The effective last access time of the content
         /// </summary>
-        public DateTime? EffectiveLastAccessTime { get; }
+        public DateTime? EffectiveLastAccessTime => EvictionInfo.EffectiveLastAccessTime;
 
         /// <summary>
         ///     Gets a value indicating whether or not the hash was fully evicted.
@@ -91,7 +86,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
         /// <summary>
         ///     Gets number of locations content exists at in the data center.
         /// </summary>
-        public long ReplicaCount { get; }
+        public long ReplicaCount => EvictionInfo.ReplicaCount;
 
         /// <summary>
         ///     Gets a value indicating the age of the hash at the time when the result was created.
@@ -123,16 +118,16 @@ namespace BuildXL.Cache.ContentStore.Tracing
         }
 
         /// <nodoc />
-        public TimeSpan Age => CreationTime - LastAccessTime;
+        public TimeSpan Age => EvictionInfo.Age;
 
         /// <nodoc />
-        public TimeSpan? EffectiveAge => CreationTime - EffectiveLastAccessTime;
+        public TimeSpan? EffectiveAge => EvictionInfo.EffectiveAge;
 
         /// <inheritdoc />
         public override string ToString()
         {
             return Succeeded
-                ? $"Success Size={EvictedSize} Files={EvictedFiles} Pinned={PinnedSize} LastAccessTime={LastAccessTime} Age={Age} ReplicaCount={ReplicaCount} EffectiveLastAccessTime={EffectiveLastAccessTime} EffectiveAge={EffectiveAge}"
+                ? $"Success Size={EvictedSize} Files={EvictedFiles} Pinned={PinnedSize} LastAccessTime={LastAccessTime} Age={EvictionInfo.Age} ReplicaCount={ReplicaCount} EffectiveLastAccessTime={EffectiveLastAccessTime} EffectiveAge={EvictionInfo.EffectiveAge} Preferred={EvictionInfo.EvictionPreferred}"
                 : GetErrorString();
         }
     }

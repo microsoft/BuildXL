@@ -5,6 +5,7 @@ using System;
 using System.Linq;
 using System.Text.Json.Serialization;
 using BuildXL.Cache.ContentStore.Distributed.MetadataService;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using BuildXL.Utilities;
@@ -49,6 +50,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public bool Contains(byte hashPrefix)
         {
             return StartValue <= hashPrefix && hashPrefix <= EndValue;
+        }
+
+        /// <summary>
+        /// Gets whether the partition contains the hash prefix (i.e. first byte of the hash)
+        /// </summary>
+        public bool Contains(ContentHash hash)
+        {
+            return Contains(hash[0]);
         }
 
         /// <inheritdoc />

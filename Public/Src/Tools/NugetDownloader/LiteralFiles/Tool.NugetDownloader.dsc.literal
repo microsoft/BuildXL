@@ -5,9 +5,11 @@ import {Artifact, Cmd, Transformer, Tool} from "Sdk.Transformers";
 
 export declare const qualifier: {};
 
+const nugetDownloaderExe : File = Context.isWindowsOS()? f`${Context.getBuildEngineDirectory()}/NugetDownloader.exe` : f`${Context.getBuildEngineDirectory()}/NugetDownloader`;
+
 const downloaderDefinition: Transformer.ToolDefinition = {
     // CODESYNC: keep in sync with deployment at Public\Src\FrontEnd\Nuget\BuildXL.FrontEnd.Nuget.dsc
-    exe: Context.isWindowsOS()? f`${Context.getBuildEngineDirectory()}/NugetDownloader.exe` : f`${Context.getBuildEngineDirectory()}/NugetDownloader`,
+    exe: nugetDownloaderExe,
     description: "BuildXL NuGet downloader",
     dependsOnCurrentHostOSDirectories: true,
     dependsOnAppDataDirectory: true,
@@ -19,6 +21,9 @@ const downloaderDefinition: Transformer.ToolDefinition = {
         // For non-windows OS we use a named mutex to control the credential provider concurrency. The mutex translates into a file created under /tmp.
         ...addIfLazy(!Context.isWindowsOS(), () => [d`/tmp/.dotnet/shm`]),
         d`${Context.getMount("UserProfile").path}/.dotnet/corefx/cryptography`
+    ],
+    untrackedFiles: [
+        nugetDownloaderExe
     ],
 };
 

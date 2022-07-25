@@ -517,7 +517,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                                         var result = await TaskUtilities.AwaitWithProgressReportingAsync(
                                                     task: CopyFileAsync(arguments.Context, sourcePath, tempLocation, hashInfo, arguments.Context.Token, options),
                                                     period: _settings.PeriodicCopyTracingInterval,
-                                                    action: timeSpan => Tracer.Debug(context, $"{Tracer.Name}.RemoteCopyFile from[{location}]) via stream in progress {(int)timeSpan.TotalSeconds}s, TotalBytesCopied=[{options.TotalBytesCopied}]."),
+                                                    action: timeSpan => Tracer.Debug(context, $"{Tracer.Name}.RemoteCopyFile from[{location}]) via stream in progress {(int)timeSpan.TotalSeconds}s, TotalBytesCopied=[{options.CopyStatistics.Bytes}]."),
                                                     reportImmediately: false,
                                                     reportAtEnd: false);
 

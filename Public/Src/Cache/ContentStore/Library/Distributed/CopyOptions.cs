@@ -1,6 +1,8 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
+using System.Threading.Tasks;
 using ContentStore.Grpc;
 
 namespace BuildXL.Cache.ContentStore.Distributed
@@ -10,32 +12,32 @@ namespace BuildXL.Cache.ContentStore.Distributed
     /// </summary>
     public class CopyOptions
     {
-        private long _totalBytesCopied;
+        private CopyStatistics _copyStatistics;
 
         /// <nodoc />
         public CopyOptions(BandwidthConfiguration? bandwidthConfiguration) => BandwidthConfiguration = bandwidthConfiguration;
 
         /// <summary>
-        /// Update the total bytes copied.
+        /// Update the total bytes copied and delay
         /// </summary>
-        public void UpdateTotalBytesCopied(long position)
+        public void UpdateTotalBytesCopied(CopyStatistics copyStatistics)
         {
             lock (this)
             {
-                _totalBytesCopied = position;
+                _copyStatistics = copyStatistics;
             }
         }
 
         /// <summary>
-        /// Gets the total bytes copied so far.
+        /// Gets the total bytes copied and time used so far
         /// </summary>
-        public long TotalBytesCopied
+        public CopyStatistics CopyStatistics
         {
             get
             {
                 lock (this)
                 {
-                    return _totalBytesCopied;
+                    return _copyStatistics;
                 }
             }
         }
@@ -53,4 +55,6 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// </remarks>
         public CopyCompression CompressionHint { get; set; }
     }
+
+    public record struct CopyStatistics(long Bytes, TimeSpan NetworkCopyDuration);
 }

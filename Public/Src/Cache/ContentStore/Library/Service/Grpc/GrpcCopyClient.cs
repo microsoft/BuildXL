@@ -19,6 +19,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
+using BuildXL.Utilities;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using ContentStore.Grpc;
@@ -174,7 +175,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <summary>
         /// Copies content from the server to the given local path.
         /// </summary>
-        public Task<CopyFileResult> CopyFileAsync(OperationContext context, ContentHash hash, AbsolutePath destinationPath, CopyOptions options)
+        public Task<CopyFileResult> CopyFileAsync(OperationContext context, ContentHash hash, Interfaces.FileSystem.AbsolutePath destinationPath, CopyOptions options)
         {
             Func<Stream> streamFactory = () => new FileStream(destinationPath.Path, FileMode.Create, FileAccess.Write, FileShare.None, _configuration.ClientBufferSizeBytes, FileOptions.SequentialScan | FileOptions.Asynchronous);
 
@@ -655,10 +656,12 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             {
                 long chunks = 0L;
                 long bytes = 0L;
+                TimeSpan copyDuration = new TimeSpan();
 
                 using (var grpcStream = new BufferedReadStream(
                     async () =>
                     {
+                        StopwatchSlim sw = StopwatchSlim.Start();
                         if (await input.MoveNext(cancellationToken))
                         {
                             if (input.Current.Header is { } header)
@@ -669,8 +672,8 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
                             chunks++;
                             bytes += input.Current.Content.Length;
-
-                            options?.UpdateTotalBytesCopied(bytes);
+                            copyDuration += sw.Elapsed;
+                            options?.UpdateTotalBytesCopied(new CopyStatistics(bytes, copyDuration));
 
                             return input.Current.Content;
                         }

@@ -10,6 +10,10 @@ using ContentStore.Grpc;
 using Google.Protobuf;
 using Grpc.Core;
 using System.Diagnostics.ContractsLight;
+using BuildXL.Utilities;
+using System.Diagnostics;
+using BuildXL.Utilities.Tracing;
+using BuildXL.Cache.ContentStore.Distributed;
 
 #nullable enable
 
@@ -53,23 +57,29 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             IAsyncStreamReader<T> input,
             Stream output,
             Func<T, ByteString> transform,
-            Action<long>? progressReport = null,
+            Action<CopyStatistics>? progressReport = null,
             CancellationToken cancellationToken = default)
         {
             long totalChunksRead = 0L;
             long totalBytesRead = 0L;
+            AsyncOut<TimeSpan> copyDuration = new AsyncOut<TimeSpan>();
 
-            Task<bool> hasCurrentElement = input.MoveNext(cancellationToken);
+            Task<bool> hasCurrentElement = MeasureCopyAsync(
+                    async () => await input.MoveNext(cancellationToken),
+                    copyDuration);
+
             while (await hasCurrentElement)
             {
                 totalChunksRead++;
                 ByteString chunk = transform(input.Current);
                 totalBytesRead += chunk.Length;
-                progressReport?.Invoke(totalBytesRead);
 
-                var fetchNextTask = input.MoveNext(cancellationToken);
+                var fetchNextTask = MeasureCopyAsync(
+                    async () => await input.MoveNext(cancellationToken),
+                    copyDuration);
+
+                progressReport?.Invoke(new CopyStatistics(totalBytesRead, copyDuration.Value));
                 await Task.WhenAll(fetchNextTask, output.WriteByteStringAsync(chunk, cancellationToken));
-
                 hasCurrentElement = fetchNextTask;
             }
 
@@ -83,11 +93,12 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             Func<ByteString, long, T> transform,
             byte[] primaryBuffer,
             byte[] secondaryBuffer,
-            Action<long>? progressReport = null,
+            Action<CopyStatistics>? progressReport = null,
             CancellationToken cancellationToken = default)
         {
             long totalChunksRead = 0L;
             long totalBytesRead = 0L;
+            AsyncOut<TimeSpan> copyDuration = new AsyncOut<TimeSpan>();
 
             byte[] buffer = primaryBuffer;
 
@@ -118,8 +129,8 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
                 // Read the next chunk while waiting for the response
                 var readNextChunkTask = readNextChunk(input, buffer, cancellationToken);
-                await Task.WhenAll(readNextChunkTask, output.WriteAsync(response));
-                progressReport?.Invoke(totalBytesRead);
+                await Task.WhenAll(readNextChunkTask, MeasureCopyAsync(async () => { await output.WriteAsync(response); return 0; }, copyDuration));
+                progressReport?.Invoke(new CopyStatistics(totalBytesRead, copyDuration.Value));
 
                 chunkSize = await readNextChunkTask;
             }
@@ -130,6 +141,19 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             {
                 var bytesRead = await input.ReadAsync(buffer, 0, buffer.Length, token);
                 return bytesRead;
+            }
+        }
+
+        public static async Task<T> MeasureCopyAsync<T>(Func<Task<T>> copyAsync, AsyncOut<TimeSpan> duration)
+        {
+            StopwatchSlim sw = StopwatchSlim.Start();
+            try
+            {
+                return await copyAsync();
+            }
+            finally
+            {
+                duration.Value += sw.Elapsed;
             }
         }
 

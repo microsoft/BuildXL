@@ -74,9 +74,8 @@ namespace BuildXL.Cache.ContentStore.Utils
                 // (given that the app is configured to fail on unobserved task exceptions).
                 var minimumSpeedInMbPerSec = _bandwidthLimitSource.GetMinimumSpeedInMbPerSec() * _config.BandwidthLimitMultiplier;
                 minimumSpeedInMbPerSec = Math.Min(minimumSpeedInMbPerSec, _config.MaxBandwidthLimit);
-
-                long startPosition = options.TotalBytesCopied;
-                long previousPosition = startPosition;
+                CopyStatistics previousCopyStat = options.CopyStatistics;
+                long startPosition = previousCopyStat.Bytes;
                 var copyCompleted = false;
                 using var copyCancellation = CancellationTokenSource.CreateLinkedTokenSource(context.Token);
 
@@ -103,9 +102,9 @@ namespace BuildXL.Cache.ContentStore.Utils
                     {
                         var result = await copyTask;
                         result.MinimumSpeedInMbPerSec = minimumSpeedInMbPerSec;
-                        var bytesCopied = result.Size ?? options.TotalBytesCopied;
+                        var bytesCopied = result.Size ?? options.CopyStatistics.Bytes;
 
-                        TrackBytesReceived(bytesCopied - previousPosition);
+                        TrackBytesReceived(bytesCopied - previousCopyStat.Bytes);
                         return (result, bytesCopied);
                     }
                     else if (context.Token.IsCancellationRequested)
@@ -115,31 +114,42 @@ namespace BuildXL.Cache.ContentStore.Utils
 
                     // Copy is not completed and operation has not been canceled, perform
                     // bandwidth check
-                    var position = options.TotalBytesCopied;
+                    CopyStatistics currentCopyStat = options.CopyStatistics;
+                    var position = currentCopyStat.Bytes;
+                    double networkDuration = currentCopyStat.NetworkCopyDuration.TotalSeconds;
 
-                    var bytesTransferredPerIteration = position - previousPosition;
+                    var bytesTransferredPerIteration = position - previousCopyStat.Bytes;
+                    var networkDelay = networkDuration - previousCopyStat.NetworkCopyDuration.TotalSeconds;
 
                     TrackBytesReceived(bytesTransferredPerIteration);
 
                     var receivedMiB = bytesTransferredPerIteration / BytesInMb;
-                    var currentSpeed = receivedMiB / configBandwidthCheckInterval.TotalSeconds;
+                    double currentSpeed;
+                    if (options.BandwidthConfiguration?.EnableNetworkCopySpeedCalculation == true && networkDelay > 0)
+                    {
+                        currentSpeed = receivedMiB / networkDelay;
+                    }
+                    else
+                    {
+                        currentSpeed = receivedMiB / configBandwidthCheckInterval.TotalSeconds;
+                    }
 
                     if (currentSpeed == 0 || currentSpeed < minimumSpeedInMbPerSec)
                     {
                         copyCancellation.Cancel();
-
+                        
                         var totalBytesCopied = position - startPosition;
                         var result = getErrorResult(
                             $"Average speed was {currentSpeed}MiB/s - under {minimumSpeedInMbPerSec}MiB/s requirement. Aborting copy with {totalBytesCopied} bytes copied (received {bytesTransferredPerIteration} bytes in {configBandwidthCheckInterval.TotalSeconds} seconds).");
                         return (result, totalBytesCopied);
                     }
 
-                    previousPosition = position;
+                    previousCopyStat = currentCopyStat;
                 }
 
                 var copyFileResult = await copyTask;
                 copyFileResult.MinimumSpeedInMbPerSec = minimumSpeedInMbPerSec;
-                return (copyFileResult, previousPosition - startPosition);
+                return (copyFileResult, previousCopyStat.Bytes - startPosition);
 
                 void traceCopyTaskFailures()
                 {

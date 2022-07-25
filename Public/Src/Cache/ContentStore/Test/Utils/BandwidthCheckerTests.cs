@@ -11,6 +11,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
+using BuildXL.Utilities;
 using ContentStoreTest.Test;
 using FluentAssertions;
 using Xunit;
@@ -32,11 +33,12 @@ namespace ContentStoreTest.Utils
 
         private static double MbPerSec(double bytesPerSec) => bytesPerSec / (1024 * 1024);
 
-        private static async Task<CopyFileResult> CopyRandomToStreamAtSpeed(CancellationToken token, Stream stream, long totalBytes, double mbPerSec, CopyOptions options)
+        private static async Task<CopyFileResult> CopyRandomToStreamAtSpeed(CancellationToken token, Stream stream, long totalBytes, double mbPerSec, CopyOptions options, double networkDelayFraction = 1.0)
         {
             var interval = TimeSpan.FromSeconds(0.1);
             var copied = 0;
             var bytesPerInterval = (int)BytesPerInterval(mbPerSec, interval);
+            AsyncOut<TimeSpan> copyDuration = new AsyncOut<TimeSpan>();
 
             Assert.True(bytesPerInterval > 0);
             var buffer = new byte[bytesPerInterval];
@@ -49,7 +51,8 @@ namespace ContentStoreTest.Utils
                 await stream.WriteAsync(buffer, 0, bytesPerInterval);
                 
                 copied += bytesPerInterval;
-                options.UpdateTotalBytesCopied(copied);
+                copyDuration.Value += TimeSpan.FromSeconds(interval.TotalSeconds * networkDelayFraction);
+                options.UpdateTotalBytesCopied(new CopyStatistics(copied, copyDuration.Value));
 
                 if (copied >= totalBytes)
                 {
@@ -172,6 +175,33 @@ namespace ContentStoreTest.Utils
                     options,
                     getErrorResult: diagnostics => new CopyFileResult(CopyResultCode.CopyBandwidthTimeoutError, diagnostics));
                 Assert.Equal(CopyResultCode.CopyBandwidthTimeoutError, result.Code);
+            }
+        }
+
+        [Fact]
+        public async Task BandwidthCheckPassesOnSlowDiskCopy()
+        {
+            var checkInterval = TimeSpan.FromSeconds(1);
+            var actualBandwidthBytesPerSec = 1024;
+            var actualBandwidth = MbPerSec(bytesPerSec: actualBandwidthBytesPerSec);
+            var bandwidthLimit = MbPerSec(bytesPerSec: actualBandwidthBytesPerSec * 2); // Lower limit is twice actual bandwidth
+            var totalBytes = actualBandwidthBytesPerSec * 2;
+            var checkerConfig = new BandwidthChecker.Configuration(checkInterval, bandwidthLimit, maxBandwidthLimit: null, bandwidthLimitMultiplier: null, historicalBandwidthRecordsStored: null);
+            var checker = new BandwidthChecker(checkerConfig);
+            BandwidthConfiguration bandwidthConfiguration = new BandwidthConfiguration
+            {
+                EnableNetworkCopySpeedCalculation = true
+            };
+
+            using (var stream = new MemoryStream())
+            {
+                var options = new CopyOptions(bandwidthConfiguration: bandwidthConfiguration);
+                var result = await checker.CheckBandwidthAtIntervalAsync(
+                    _context,
+                    token => CopyRandomToStreamAtSpeed(token, stream, totalBytes, actualBandwidth, options, networkDelayFraction: 0.01),
+                    options,
+                    getErrorResult: diagnostics => new CopyFileResult(CopyResultCode.CopyBandwidthTimeoutError, diagnostics));
+                result.ShouldBeSuccess();
             }
         }
 

@@ -42,6 +42,11 @@ namespace BuildXL.Cache.ContentStore.Distributed
         public bool FailFastIfServerIsBusy { get; set; }
 
         /// <summary>
+        /// When enabled, bandwidthchecker calculates network speed for copying
+        /// </summary>
+        public bool EnableNetworkCopySpeedCalculation { get; set; }
+
+        /// <summary>
         /// Gets the required megabytes per second.
         /// </summary>
         public double RequiredMegabytesPerSecond => (double)(RequiredBytes / BytesInMb) / Interval.TotalSeconds;

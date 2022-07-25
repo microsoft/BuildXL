@@ -141,7 +141,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
                         clientWrapper.Invalidate(context);
                         break;
                     case GrpcFileCopierConfiguration.ClientInvalidationPolicy.OnConnectivityErrors:
-                        if ((result.Code == CopyResultCode.CopyBandwidthTimeoutError && options.TotalBytesCopied == 0) ||
+                        if ((result.Code == CopyResultCode.CopyBandwidthTimeoutError && options.CopyStatistics.Bytes == 0) ||
                             result.Code == CopyResultCode.ConnectionTimeoutError)
                         {
                             if (options?.BandwidthConfiguration?.InvalidateOnTimeoutError ?? true)

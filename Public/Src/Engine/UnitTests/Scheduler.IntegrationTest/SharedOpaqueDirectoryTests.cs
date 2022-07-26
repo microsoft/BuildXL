@@ -1335,7 +1335,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             AssertVerboseEventLogged(LogEventId.DependencyViolationDoubleWrite);
         }
 
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [Fact]
         public void CacheConvergenceCanTriggerAdditionalWriteInUndeclaredFileViolations()
         {
             // Make cache look-ups always result in cache misses. This allows us to store outputs in the cache but get cache misses for the same pip next time.

@@ -3,6 +3,8 @@
 
 using System;
 using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 using BuildXL.Engine;
 using BuildXL.Native.IO;
 using BuildXL.Processes;
@@ -299,7 +301,7 @@ namespace Test.BuildXL.Engine
             XAssert.IsTrue(SharedOpaqueOutputHelper.IsSharedOpaqueOutput(producedFile), "SOD file not marked on pip failure");
         }
 
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [Fact]
         public void AllowedRewrittenSourcesAreNotFlaggedAsSharedOpaques()
         {
             var objDir = Configuration.Layout.ObjectDirectory.ToString(Context.PathTable);

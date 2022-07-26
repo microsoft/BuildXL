@@ -300,6 +300,11 @@ if [[ -n "$arg_Internal" &&  -n "$TF_BUILD" && (! -n $VSS_NUGET_EXTERNAL_FEED_EN
     export VSS_NUGET_EXTERNAL_FEED_ENDPOINTS="{\"endpointCredentials\":[{\"endpoint\":\"https://pkgs.dev.azure.com/1essharedassets/_packaging/BuildXL/nuget/v3/index.json\",\"password\":\"$PAT1esSharedAssets\"},{\"endpoint\":\"https://pkgs.dev.azure.com/cloudbuild/_packaging/BuildXL.Selfhost/nuget/v3/index.json\",\"password\":\"$PATCloudBuild\"}]}" 
 fi
 
+# For local builds we want to use the in-build Linux runtime (as opposed to the runtime.linux-x64.BuildXL package)
+if [[ -z "$TF_BUILD" ]];then
+    arg_Positional+=("/p:[Sdk.BuildXL]validateLinuxRuntime=0")
+fi
+
 compileWithBxl ${arg_Positional[@]}
 
 if [[ -n "$arg_DeployDev" ]]; then

@@ -4,12 +4,14 @@
 #pragma once
 
 #include "FileAccessHelpers.h"
+#include "FilesCheckedForAccess.h"
 
 #if _WIN32
-#include "CanonicalizedPath.h"
-typedef CanonicalizedPath CanonicalizedPathType;
+    #include "CanonicalizedPath.h"
+    typedef CanonicalizedPath CanonicalizedPathType;
 #else // _WIN32
-typedef PCPathChar CanonicalizedPathType;
+    typedef PCPathChar CanonicalizedPathType;
+    #include "bxl_observer.hpp"
 #endif // _WIN32
 
 // Result of determining an access policy for a path. This involves canonicalizing the desired path and performing a policy lookup.
@@ -162,11 +164,7 @@ public:
 
     bool AllowRead() const { return (m_policy & FileAccessPolicy_AllowRead) != 0; }
     bool AllowReadIfNonexistent() const { return (m_policy & FileAccessPolicy_AllowReadIfNonExistent) != 0; }
-#if _WIN32
-    bool AllowWrite(bool basedOnlyOnPolicy = false) const;
-#else
-    bool AllowWrite() const { return (m_policy & FileAccessPolicy_AllowWrite) != 0; }
-#endif
+    bool AllowWrite(bool basedOnlyOnPolicy) const;
     bool AllowSymlinkCreation() const { return (m_policy & FileAccessPolicy_AllowSymlinkCreation) != 0; }
     bool AllowCreateDirectory() const { return (m_policy & FileAccessPolicy_AllowCreateDirectory) != 0; }
     bool AllowRealInputTimestamps() const { return (m_policy & FileAccessPolicy_AllowRealInputTimestamps) != 0; }
@@ -228,11 +226,7 @@ public:
         // Checking for allow write considering file existence checks is comparatively more expensive than checking the access purely based on policies. Profiling shows that
         // checking for read sharing is happening frequently enough so this makes a difference. Let's stay conservative here and only check for allow write based on policies.
         // The result is that we may decide to not force read sharing for a given access that otherwise we would have forced, but that's in the end how tools decided to originally open the handle.
-#if _WIN32
         return !AllowWrite(true) && accessCheck.Result == ResultAction::Allow;
-#else
-        return !AllowWrite() && accessCheck.Result == ResultAction::Allow;
-#endif
     }
 
     // Indicates if the timestamps of this file should be virtualized to a known value.

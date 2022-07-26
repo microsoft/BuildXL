@@ -1190,7 +1190,6 @@ static bool DllProcessAttach()
     g_invariantLocale = _wcreate_locale(LC_CTYPE, L"");
     InitProcessKind();
     InitializeHandleOverlay();
-    InitializeFilesCheckedForWriteAccesses();
 
     // If there are configured processes that will break away from the sandbox, expose
     // an environment variable with the handle pointer to the detour manifest.

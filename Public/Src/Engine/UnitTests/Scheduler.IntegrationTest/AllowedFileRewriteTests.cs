@@ -26,7 +26,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         {
         }
 
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [Fact]
         public void AllowedRewriteCachingBehavior()
         {
             string sharedOpaqueDir = Path.Combine(ObjectRoot, "sod");

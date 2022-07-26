@@ -303,6 +303,10 @@ public:
     AccessCheckResult report_access_fd(const char *syscallName, es_event_type_t eventType, int fd);
     AccessCheckResult report_access_at(const char *syscallName, es_event_type_t eventType, int dirfd, const char *pathname, int oflags = 0);
 
+    // Send a special message to managed code if the policy to override allowed writes based on file existence is set
+    // and the write is allowed by policy
+    AccessCheckResult report_firstAllowWriteCheck(const char *fullPath);
+
     void reset_fd_table_entry(int fd);
     std::string fd_to_path(int fd);
     std::string normalize_path_at(int dirfd, const char *pathname, int oflags = 0);

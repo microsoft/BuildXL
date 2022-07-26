@@ -332,6 +332,38 @@ AccessCheckResult BxlObserver::report_access_at(const char *syscallName, es_even
     return report_access(syscallName, eventType, fullpath, flags);
 }
 
+AccessCheckResult BxlObserver::report_firstAllowWriteCheck(const char *fullPath)
+{
+
+    struct stat buffer;
+    DWORD error = errno;
+    // Check the path exists as file
+    bool fileExists = real___lxstat(1, fullPath, &buffer) == 0 && !S_ISDIR(buffer.st_mode); 
+    errno = error;
+     
+    AccessReport report =
+        {
+            .operation        = kOpFirstAllowWriteCheckInProcess,
+            .pid              = getpid(),
+            .rootPid          = pip_->GetProcessId(),
+            .requestedAccess  = (int) RequestedAccess::Write,
+            .status           = fileExists ? FileAccessStatus::FileAccessStatus_Denied : FileAccessStatus::FileAccessStatus_Allowed,
+            .reportExplicitly = (int) ReportLevel::Report,
+            .error            = 0,
+            .pipId            = pip_->GetPipId(),
+            .path             = {0},
+            .stats            = {0}
+        };
+
+    strlcpy(report.path, fullPath, sizeof(report.path));
+
+    SendReport(report);
+
+    AccessCheckResult result(RequestedAccess::Write, fileExists ? ResultAction::Deny : ResultAction::Allow, ReportLevel::Report);
+
+    return result;
+}
+
 ssize_t BxlObserver::read_path_for_fd(int fd, char *buf, size_t bufsiz)
 {
     char procPath[100] = {0};

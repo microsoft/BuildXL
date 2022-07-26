@@ -300,8 +300,7 @@ function execute(args: Transformer.ExecuteArguments): Transformer.ExecuteResult 
         /// </summary>
         protected CacheInitializer GetRealCacheInitializerForTests(string cacheId = null)
         {
-            var tempDir = OperatingSystemHelper.IsUnixOS ? "/tmp/buildxl-temp" : TemporaryDirectory;
-            string cacheDirectory = Path.Combine(tempDir, "cache");
+            string cacheDirectory = Path.Combine(TemporaryDirectory, "cache");
             AbsolutePath cacheConfigPath = WriteTestCacheConfigToDisk(cacheDirectory, cacheId: cacheId);
 
             var translator = new RootTranslator();
@@ -313,7 +312,7 @@ function execute(args: Transformer.ExecuteArguments): Transformer.ExecuteResult 
             translator.Seal();
 
             Configuration.Cache.CacheConfigFile = cacheConfigPath;
-            Configuration.Cache.CacheLogFilePath = AbsolutePath.Create(Context.PathTable, tempDir).Combine(Context.PathTable, "cache.log");
+            Configuration.Cache.CacheLogFilePath = AbsolutePath.Create(Context.PathTable, TemporaryDirectory).Combine(Context.PathTable, "cache.log");
 
             var maybeCacheInitializer = CacheInitializer.GetCacheInitializationTask(
                 LoggingContext,

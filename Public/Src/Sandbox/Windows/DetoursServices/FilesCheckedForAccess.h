@@ -3,32 +3,48 @@
 
 #pragma once
 
-#include "CanonicalizedPath.h"
-#include "UtilityHelpers.h"
+#include "FileAccessHelpers.h"
+
+#if _WIN32
+    #include "CanonicalizedPath.h"
+    typedef CanonicalizedPath CanonicalizedPathType;
+#else // _WIN32
+    typedef PCPathChar CanonicalizedPathType;
+#endif // _WIN32
+
 #include <unordered_set>
 #include <cwctype>
-#include <algorithm>
+#include <mutex>
+#include <shared_mutex>
+#include <cassert>
+#if _WIN32
+    #include "UtilityHelpers.h"
+    #include <algorithm>
+#endif
 
 // Keeps a set of case-insensitive paths that were checked for access 
 // All operations are thread-safe
 class FilesCheckedForAccess {
 public:
-    FilesCheckedForAccess();
+    static FilesCheckedForAccess* GetInstance();
+
     // Tries to register that a given path was checked for access
     // Returns whether the path was not registered before
-    bool TryRegisterPath(const CanonicalizedPath& path);
+    bool TryRegisterPath(const CanonicalizedPathType& path);
     
     // Returns whether the given path is registered.
-    bool IsRegistered(const CanonicalizedPath& path);
+    bool IsRegistered(const CanonicalizedPathType& path);
 
 private:
+    FilesCheckedForAccess();
+    FilesCheckedForAccess(const FilesCheckedForAccess&) = delete;
+    FilesCheckedForAccess& operator = (const FilesCheckedForAccess&) = delete;
+
+// We only want case insensitive comparisons on Windows
+#if _WIN32
     std::unordered_set<std::wstring, CaseInsensitiveStringHasher, CaseInsensitiveStringComparer> m_pathSet;
-    CRITICAL_SECTION m_lock;
+#else
+    std::unordered_set<PCPathChar> m_pathSet;
+#endif
+    std::shared_mutex m_lock;
 };
-
-// Sets up structures for recording write access checks.
-void InitializeFilesCheckedForWriteAccesses();
-
-// Returns a pointer to the global instance of FilesCheckedForWriteAccess
-// Assumes InitializeFilesCheckedForWriteAccesses() has been called
-FilesCheckedForAccess* GetGlobalFilesCheckedForAccesses();

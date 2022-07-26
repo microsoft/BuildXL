@@ -835,7 +835,7 @@ namespace BuildXL.Processes
                 // non-deterministically deny the access
                 // We store the path as an absolute path in order to guarantee canonicalization: e.g. prefixes like \\?\
                 // are not canonicalized in detours
-                if (path != null && finalPath.IsValid && !m_overrideAllowedWritePaths.ContainsKey(finalPath))
+                if (finalPath.IsValid && !m_overrideAllowedWritePaths.ContainsKey(finalPath))
                 {
                     // We should override write allowed accesses for this path if the status of the special operation was 'denied'
                     m_overrideAllowedWritePaths[finalPath] = (status == FileAccessStatus.Denied);
@@ -861,7 +861,6 @@ namespace BuildXL.Processes
             // we change the status here
             // Observe that if the access is coming from a trusted tool, that trumps file existence and we don't deny the access
             if (method != FileAccessStatusMethod.TrustedTool
-                && path != null
                 && (requestedAccess & RequestedAccess.Write) != 0
                 && status == FileAccessStatus.Allowed
                 && m_overrideAllowedWritePaths.Count > 0 // Avoid creating the absolute path if the override allowed writes flag is off

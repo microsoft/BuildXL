@@ -104,7 +104,6 @@ void PolicyResult::ReportIndeterminatePolicyAndSetLastError(FileOperationContext
         -1);
 }
 
-#if !(MAC_OS_SANDBOX) && !(MAC_OS_LIBRARY)
 bool PolicyResult::AllowWrite(bool basedOnlyOnPolicy) const {
 
     bool isWriteAllowedByPolicy = (m_policy & FileAccessPolicy_AllowWrite) != 0;
@@ -116,7 +115,7 @@ bool PolicyResult::AllowWrite(bool basedOnlyOnPolicy) const {
         // Let's check if this path was already checked for allow writes in this process. Observe this structure lifespan is the same
         // as the current process so other child processes won't share it.
         // But for the current process it will avoid probing the file system over and over for the same path.
-        FilesCheckedForAccess* filesCheckedForWriteAccess = GetGlobalFilesCheckedForAccesses();
+        FilesCheckedForAccess* filesCheckedForWriteAccess = FilesCheckedForAccess::GetInstance();
 
         if (filesCheckedForWriteAccess->TryRegisterPath(m_canonicalizedPath)) {
             DWORD error = GetLastError();
@@ -146,4 +145,3 @@ bool PolicyResult::AllowWrite(bool basedOnlyOnPolicy) const {
 
     return isWriteAllowedByPolicy;
 }
-#endif

@@ -29,7 +29,8 @@ commonSrc = \
 	../MacOs/Sandbox/Src/Kauth/OpNames.cpp \
 	../Windows/DetoursServices/PolicyResult_common.cpp \
 	../Windows/DetoursServices/PolicySearch.cpp \
-	../Windows/DetoursServices/StringOperations.cpp
+	../Windows/DetoursServices/StringOperations.cpp \
+	../Windows/DetoursServices/FilesCheckedForAccess.cpp
 
 detoursSrc = \
 	bxl_observer.cpp \

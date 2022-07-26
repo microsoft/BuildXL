@@ -6,37 +6,31 @@
 
 FilesCheckedForAccess::FilesCheckedForAccess()
 {
-    InitializeCriticalSection(&m_lock);
 }
 
-bool FilesCheckedForAccess::TryRegisterPath(const CanonicalizedPath& path) {
-    std::pair<std::unordered_set<std::wstring>::iterator, bool> result;
-    
-    EnterCriticalSection(&m_lock);
-    result = m_pathSet.insert(path.GetPathString());
-    LeaveCriticalSection(&m_lock);
+bool FilesCheckedForAccess::TryRegisterPath(const CanonicalizedPathType& path) {
+    const std::unique_lock<std::shared_mutex> lock(m_lock);
+#if _WIN32
+    auto result = m_pathSet.insert(path.GetPathString());
+#else
+    auto result = m_pathSet.insert(path);
+#endif
 
     return result.second;
 }
 
-bool FilesCheckedForAccess::IsRegistered(const CanonicalizedPath& path) {
-    std::unordered_set<std::wstring>::iterator result;
-    
-    EnterCriticalSection(&m_lock);
-    result = m_pathSet.find(path.GetPathString());
-    LeaveCriticalSection(&m_lock);
+bool FilesCheckedForAccess::IsRegistered(const CanonicalizedPathType& path) {
+    const std::shared_lock<std::shared_mutex> lock(m_lock);
+#if _WIN32
+    auto result = m_pathSet.find(path.GetPathString());
+#else
+    auto result = m_pathSet.find(path);
+#endif
 
     return (result != m_pathSet.end());
 }
 
-FilesCheckedForAccess* g_filesCheckedForAccess = NULL;
-
-void InitializeFilesCheckedForWriteAccesses() {
-    assert(g_filesCheckedForAccess == NULL);
-    g_filesCheckedForAccess = new FilesCheckedForAccess();
-}
-
-FilesCheckedForAccess* GetGlobalFilesCheckedForAccesses() {
-    assert(g_filesCheckedForAccess != NULL);
-    return g_filesCheckedForAccess;
+FilesCheckedForAccess* FilesCheckedForAccess::GetInstance() {
+    static FilesCheckedForAccess s_singleton;
+    return &s_singleton;
 }

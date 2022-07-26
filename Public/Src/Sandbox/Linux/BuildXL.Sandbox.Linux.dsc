@@ -24,7 +24,8 @@ namespace Sandbox {
         f`../MacOs/Sandbox/Src/Kauth/OpNames.cpp`,
         f`../Windows/DetoursServices/PolicyResult_common.cpp`,
         f`../Windows/DetoursServices/PolicySearch.cpp`,
-        f`../Windows/DetoursServices/StringOperations.cpp`
+        f`../Windows/DetoursServices/StringOperations.cpp`,
+        f`../Windows/DetoursServices/FilesCheckedForAccess.cpp`
     ];
     const utilsSrc   = [ f`utils.c` ];
     const bxlEnvSrc  = [ f`bxl-env.c` ];

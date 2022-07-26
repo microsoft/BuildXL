@@ -161,7 +161,7 @@ AccessCheckResult PolicyResult::CreateAccessCheckResult(bool isAllowed) const
 }
 
 AccessCheckResult PolicyResult::CheckExistingFileReadAccess() const { return CheckReadAccess(RequestedReadAccess::Read, FileReadContext(FileExistence::Existent)); }
-AccessCheckResult PolicyResult::CheckWriteAccess() const            { return CreateAccessCheckResult(AllowWrite()); }
+AccessCheckResult PolicyResult::CheckWriteAccess() const            { return CreateAccessCheckResult(AllowWrite(false)); }
 AccessCheckResult PolicyResult::CheckSymlinkCreationAccess() const  { return CreateAccessCheckResult(AllowSymlinkCreation()); }
 AccessCheckResult PolicyResult::CheckCreateDirectoryAccess() const  { return CreateAccessCheckResult(AllowCreateDirectory()); }
 AccessCheckResult PolicyResult::CheckDirectoryAccess(bool enforceCreationAccess) const
@@ -171,3 +171,32 @@ AccessCheckResult PolicyResult::CheckDirectoryAccess(bool enforceCreationAccess)
         : CheckReadAccess(RequestedReadAccess::Probe, FileReadContext(FileExistence::Existent, true));
 }
 
+#if !_WIN32
+bool PolicyResult::AllowWrite(bool basedOnlyOnPolicy) const {
+
+    bool isWriteAllowedByPolicy = (m_policy & FileAccessPolicy_AllowWrite) != 0;
+
+    // Send a special message to managed code if the policy to override allowed writes based on file existence is set
+    // and the write is allowed by policy (for the latter, if the write is denied, there is nothing to override)
+    if (!basedOnlyOnPolicy && !IndicateUntracked() && isWriteAllowedByPolicy && OverrideAllowWriteForExistingFiles()) {
+
+        // Let's check if this path was already checked for allow writes in this process. Observe this structure lifespan is the same
+        // as the current process so other child processes won't share it.
+        // But for the current process it will avoid probing the file system over and over for the same path.
+        FilesCheckedForAccess* filesCheckedForWriteAccess = FilesCheckedForAccess::GetInstance();
+
+        if (filesCheckedForWriteAccess->TryRegisterPath(m_canonicalizedPath)) {
+            // Our ultimate goal is to understand if the path represents a file that was there before the pip started (and therefore blocked for writes).
+            // The existence of the file on disk before the first time the file is written will tell us that. But the problem is that knowing when is the first
+            // time is not trivial: it involves sharing information across child processes.
+            // So what we do is just to emit a special report line with the information of whether the access should be allowed or not, based on existence, from
+            // the perspective of the running process. These special report lines are then processed outside of detours to determine the real first write attempt
+            // Observe this implies that in this case we never block accesses on detours based on file existence, but generate a DFA on managed code
+
+            BxlObserver::GetInstance()->report_firstAllowWriteCheck(GetCanonicalizedPath());
+        }
+    }
+
+    return isWriteAllowedByPolicy;
+}
+#endif

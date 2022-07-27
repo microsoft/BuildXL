@@ -334,12 +334,8 @@ AccessCheckResult BxlObserver::report_access_at(const char *syscallName, es_even
 
 AccessCheckResult BxlObserver::report_firstAllowWriteCheck(const char *fullPath)
 {
-
-    struct stat buffer;
-    DWORD error = errno;
-    // Check the path exists as file
-    bool fileExists = real___lxstat(1, fullPath, &buffer) == 0 && !S_ISDIR(buffer.st_mode); 
-    errno = error;
+    mode_t mode = get_mode(fullPath);
+    bool fileExists = mode != 0 && !S_ISDIR(mode);
      
     AccessReport report =
         {

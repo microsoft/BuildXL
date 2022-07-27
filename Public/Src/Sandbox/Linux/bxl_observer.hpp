@@ -334,10 +334,13 @@ public:
 
     mode_t get_mode(const char *path)
     {
+        int old = errno;
         struct stat buf;
-        return real___lxstat(1, path, &buf) == 0
+        mode_t result = real___lxstat(1, path, &buf) == 0
             ? buf.st_mode
             : 0;
+        errno = old;
+        return result;
     }
 
     std::string normalize_path(const char *pathname, int oflags = 0)

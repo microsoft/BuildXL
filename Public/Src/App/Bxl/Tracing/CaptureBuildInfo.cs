@@ -17,6 +17,7 @@ namespace BuildXL.Utilities.Configuration
     /// infra - identify the environment in which the build is run(CloudBuild, Azure DevOps).
     /// org - identify the orgnization triggering the build.
     /// codebase - identifies the code or product that's being built. This will typically be the name of the Git repository.
+    /// buildEntity - identifies the BuildEntity(queue/pipeline) used to build and deploy the codebase.
     /// </remarks>
     public class CaptureBuildInfo
     {
@@ -29,6 +30,19 @@ namespace BuildXL.Utilities.Configuration
         /// Org property key value.
         /// </summary>
         public const string OrgKey = "org";
+
+        ///<summary>
+        /// Codebase - identifies the code or product that's being built. This will typically be the name of the Git repository.
+        /// It will vary in other source control mechanisms.
+        /// </summary>
+        private const string CodeBaseKey = "codebase";
+
+        ///<summary>
+        /// BuildEntity - identifies the build structure used to build the code.
+        /// In CloudBuild this build structure refers to a build queue.
+        /// In ADO this build structure refers to a build pipeline
+        /// </summary>
+        private const string BuildEntityKey = "buildEntity";
 
         /// <summary>
         /// ADO predefined variable to obtain the URI of the ADO organization.
@@ -43,16 +57,20 @@ namespace BuildXL.Utilities.Configuration
         /// </summary>
         public const string AdoEnvVariableForInfra = "BUILD_DEFINITIONNAME";
 
-        ///<summary>
-        /// Codebase - identifies the code or product that's being built. This will typically be the name of the Git repository.
-        /// It will vary in other source control mechanisms.
-        /// </summary>
-        private const string CodeBaseKey = "codebase";
-
         /// <summary>
         /// ADO pre-defined environment variable to obtain the name of the repository triggering the build.
         /// </summary>
-        public static readonly string AdoPreDefinedVariableForCodebase = "BUILD_REPOSITORY_NAME";
+        public const string AdoPreDefinedVariableForCodebase = "BUILD_REPOSITORY_NAME";
+
+        /// <summary>
+        /// ADO pre-defined environment variable to obtain the id of the pipeline which was used to build the code.
+        /// </summary>
+        public const string AdoPreDefinedVariableForBuildEntity = "SYSTEM_DEFINITIONID";
+
+        /// <summary>
+        /// Represents the cloudbuildqueue property which is passed as a cmd line argument in a CB environment.
+        /// </summary>
+        public const string CloudBuildQueue = "cloudBuildQueue";
 
         /// <summary>
         /// This is the primary method in the class which is called by ComputeEnvironment(), to capture the build properties.
@@ -83,6 +101,15 @@ namespace BuildXL.Utilities.Configuration
                 if (!string.IsNullOrEmpty(codebasePropertyValue))
                 {
                     traceInfoProperties.Add(CodeBaseKey, codebasePropertyValue);
+                }
+            }
+
+            if (!traceInfoProperties.ContainsKey(BuildEntityKey))
+            {
+                string buildEntityPropertyValue = GetBuildEntity(traceInfoProperties);
+                if (!string.IsNullOrEmpty(buildEntityPropertyValue))
+                {
+                    traceInfoProperties.Add(BuildEntityKey, buildEntityPropertyValue);
                 }
             }
 
@@ -151,5 +178,26 @@ namespace BuildXL.Utilities.Configuration
             return null;
         }
 
+        /// <summary>
+        /// This method is used to set the build property called BuildEntity in the EnvString for telemetry purpose in an ADO environment.
+        /// In CB env the information about the buildqueue is passed via traceInfo. This info is used to set the property buildEntity to the buildQueue name.
+        /// This method captures the required information from the ADO pre-defined variable "System_DefinitionId"
+        /// This variable gives the id of the pipeline that is used to build the codebase.
+        /// </summary>
+        /// <returns></returns>
+        private static string GetBuildEntity(Dictionary<string, string> traceInfoProperties)
+        {
+            if (traceInfoProperties.ContainsKey(CloudBuildQueue))
+            {
+                return traceInfoProperties.GetValueOrDefault(CloudBuildQueue);
+            }
+
+            if (Environment.GetEnvironmentVariables().Contains(AdoPreDefinedVariableForBuildEntity))
+            {
+                return Environment.GetEnvironmentVariable(AdoPreDefinedVariableForBuildEntity);
+            }
+
+            return null;
+        }
     }
 }

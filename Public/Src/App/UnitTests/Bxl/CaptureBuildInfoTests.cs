@@ -159,6 +159,32 @@ namespace Test.BuildXL.Utilities.Configuration
         }
 
         /// <summary>
+        /// This test is to check if the "buildEntity" property is set to the pipeline id in an ADO env when "SYSTEM_DEFINITIONID" is present as an environment variable.
+        /// </summary>
+        [Fact]
+        public static void TestBuildEntityPropertyADO()
+        {
+            ICommandLineConfiguration configuration = new CommandLineConfiguration();
+            string[] envString = ComputeEnvBlockForTesting(configuration, CaptureBuildInfo.AdoPreDefinedVariableForBuildEntity, EnvVarExpectedValue);
+            XAssert.IsTrue(AssertEnvStringContainsTelemetryEnvProperty("buildEntity=TestADO", envString));
+        }
+
+        /// <summary>
+        /// This test is to check if the "buildEntity" property has been to set the build queue passed via traceInfo in the CB environment.
+        /// This test also tests the scenario when the buildEntity property has been passed via traceInfo in the "CloudBuild" environment and the presence of the environment variable "SYSTEM_DEFINITIONID".
+        /// In this case the buildEntity property value obtained from the traceInfo argument should be set in the envString for buildEntity. The ado defined value should be overriden by the traceInfo buildentity value.
+        /// </summary>
+        [Fact]
+        public void TestBuildEntityPropertyCloudBuild()
+        {
+            string traceInfoArgs = "/traceInfo:cloudBuildQueue=TestCB";
+            ICommandLineConfiguration configuration = AddTraceInfoArguments(traceInfoArgs);
+            string[] envString = ComputeEnvBlockForTesting(configuration, CaptureBuildInfo.AdoPreDefinedVariableForBuildEntity, EnvVarExpectedValue);
+            XAssert.IsTrue(AssertEnvStringContainsTelemetryEnvProperty("buildEntity=TestCB", envString));
+            XAssert.IsFalse(AssertEnvStringContainsTelemetryEnvProperty("buildEntity=TestADO", envString));
+        }
+
+        /// <summary>
         /// This is a helper method to avoid memory leaks with respect to the environment variables that are tested
         /// Check if there any duplicates are present in the environment string.
         /// </summary>

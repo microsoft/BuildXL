@@ -38,7 +38,9 @@ namespace BuildXL.Cache.MemoizationStore.VstsTest
 
                 using (var stream2 = new MemoryStream(stream.ToArray()))
                 {
+#pragma warning disable CA2300, CA2301 // Disable CA2301 Do not call BinaryFormatter.Deserialize without first setting BinaryFormatter.Binder
                     var newEx = (CacheServiceException)serializer.Deserialize(stream2);
+#pragma warning restore CA2300, CA2301 // Restore CA2301 Do not call BinaryFormatter.Deserialize without first setting BinaryFormatter.Binder
                     newEx.ReasonCode.Should().Be(ex.ReasonCode);
                     newEx.Message.Should().Be(ex.Message);
                     newEx.StackTrace.Should().Be(ex.StackTrace);

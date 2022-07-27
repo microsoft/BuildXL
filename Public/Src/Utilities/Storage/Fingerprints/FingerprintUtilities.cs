@@ -25,10 +25,9 @@ namespace BuildXL.Storage.Fingerprints
         /// One common way of using it is to call CreateContentHasher each time the hashing is required. Unfortunately, this creates an internal object pool
         /// by itself that causes a lots of allocations (that supposedly should be avoided all together).
         /// </remarks>
-#pragma warning disable SYSLIB0021 // Type or member is obsolete. Temporarily suppressing the warning for .net 6. Work item: 1885580
+#pragma warning disable SYSLIB0021, CA5350 // Type or member is obsolete. Temporarily suppressing the warning for .net 6. Work item: 1885580, disable CA5350 Do Not Use Weak Cryptographic Algorithms
         private static readonly ObjectPool<SHA1Managed> s_hashers = new ObjectPool<SHA1Managed>(() => new SHA1Managed(), hasher => { return hasher; });
-#pragma warning restore SYSLIB0021 // Type or member is obsolete        
-
+#pragma warning restore SYSLIB0021, CA5350 // Type or member is obsolete
         private const string UnexpectedLengthContractViolationMessage = "Created Fingerprint is of length different from 'FingerprintLength'";
 
         /// <summary>

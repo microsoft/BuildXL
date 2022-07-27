@@ -224,7 +224,9 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             {
                 if (!s_accessorVersionHash.HasValue)
                 {
+#pragma warning disable CA5351 // Disable Warning Do Not Use Broken Cryptographic Algorithms
                     using (var hashAlgorithm = MD5.Create())
+#pragma warning restore CA5351 // Restore Warning Do Not Use Broken Cryptographic Algorithms
                     {
                         byte[] data = hashAlgorithm.ComputeHash(System.Text.Encoding.UTF8.GetBytes(AccessorVersionString));
 

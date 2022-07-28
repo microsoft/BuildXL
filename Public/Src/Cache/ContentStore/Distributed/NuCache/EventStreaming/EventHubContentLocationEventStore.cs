@@ -395,7 +395,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                 Tracer.TrackMetric(context, $"QueueProcessingDelaySec_{input.ActionBlockIndex}", (long)(EventQueueDelays[input.EventQueueDelayIndex]?.TotalSeconds ?? 0));
                 Tracer.TrackMetric(context, $"QueueLocalDelaySec_{input.ActionBlockIndex}", (long)(DateTime.UtcNow - input.LocalEnqueueTime).TotalSeconds);
 
-                // Use ticks so duration is large enough to be divided by _configuration.MaxEventProcessingConcurrency getting zeroed out
+                // Use ticks so duration is large enough to be divided by Configuration.MaxEventProcessingConcurrency getting zeroed out
                 Tracer.TrackMetric(context, $"AllQueueNormalizedDurationTicks", result.Duration.Ticks / _configuration.MaxEventProcessingConcurrency);
 
                 // The error is logged

@@ -40,7 +40,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         public Task<BoolResult> SealAsync(OperationContext context, CheckpointLogId logId)
         {
             var msg = $"LogId=[{logId}]";
-            return context.PerformOperationAsync(Tracer, async () =>
+            return context.PerformOperationWithTimeoutAsync(Tracer, async context =>
             {
                 var blobReference = BlobDirectory.GetBlockBlobReference(ToSealBlobName(logId));
 
@@ -58,6 +58,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                 return BoolResult.Success;
             },
             traceOperationStarted: false,
+            timeout: Configuration.StorageInteractionTimeout,
             extraStartMessage: msg,
             extraEndMessage: _ => msg);
         }
@@ -66,13 +67,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         public Task<Result<bool>> IsSealedAsync(OperationContext context, CheckpointLogId logId)
         {
             var msg = $"LogId=[{logId}]";
-            return context.PerformOperationAsync(Tracer, async () =>
+            return context.PerformOperationWithTimeoutAsync(Tracer, async context =>
             {
                 var sealBlob = BlobDirectory.GetBlockBlobReference(ToSealBlobName(logId));
                 var isSealed = await sealBlob.ExistsAsync();
                 return Result.Success(isSealed);
             },
             traceOperationStarted: false,
+            timeout: Configuration.StorageInteractionTimeout,
             extraStartMessage: msg,
             extraEndMessage: _ => msg);
         }
@@ -95,7 +97,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             var extensionGroup = match.Groups["extension"];
             Contract.Assert(extensionGroup.Success);
 
-            logId = new CheckpointLogId(int.Parse(logIdGroup.Value));
+            logId = new CheckpointLogId(ParseInt(logIdGroup.Value));
             return true;
         }
 

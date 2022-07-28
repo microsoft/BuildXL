@@ -38,8 +38,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             var logIdGroup = match.Groups["logId"];
             var blockIdGroup = match.Groups["blockId"];
 
-            var logId = new CheckpointLogId(int.Parse(logIdGroup.Value));
-            var blockId = int.Parse(blockIdGroup.Value);
+            var logId = new CheckpointLogId(ParseInt(logIdGroup.Value));
+            var blockId = ParseInt(blockIdGroup.Value);
             cursor = (logId, blockId);
             return true;
         }

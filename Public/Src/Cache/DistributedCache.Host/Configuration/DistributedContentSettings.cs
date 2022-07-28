@@ -1208,6 +1208,9 @@ namespace BuildXL.Cache.Host.Configuration
         public string ContentMetadataLogBlobContainerName { get; set; } = "persistenteventstorage";
 
         [DataMember]
+        public TimeSpanSetting ContentMetadataLogStorageInteractionTimeout { get; set; } = "1m";
+
+        [DataMember]
         public string ContentMetadataCentralStorageContainerName { get; set; } = "contentmetadata";
 
         [DataMember]

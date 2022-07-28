@@ -3,17 +3,13 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
-using System.Text.RegularExpressions;
-using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Secrets;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
-using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore.Internal;
 using BuildXL.Cache.ContentStore.Utils;
@@ -32,12 +28,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         public string FolderName { get; init; } = "eventlogs";
 
         public string ContainerName { get; init; } = "persistenteventstorage";
+
+        public TimeSpan StorageInteractionTimeout { get; init; } = TimeSpan.FromMinutes(1);
     }
 
     /// <summary>
     /// Base class for blob based content metadata event storage
     /// </summary>
-    /// <typeparam name="TKey">the of the key used for computing blob name</typeparam>
+    /// <typeparam name="TKey">the key used for computing blob name</typeparam>
     /// <typeparam name="TData">the type of the data format (some representation of a sequence of bytes)</typeparam>
     public abstract class BlobEventStorageBase<TKey, TData> : StartupShutdownSlimBase
         where TKey : IComparable<TKey>
@@ -46,10 +44,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 
         private const long BlockSizeLimit = 4_000_000;
 
-        private readonly BlobEventStorageConfiguration _configuration;
-        private readonly CloudBlobClient _client;
         private readonly CloudBlobContainer _container;
 
+        protected readonly BlobEventStorageConfiguration Configuration;
+        
         /// <summary>
         /// The directory used to store blobs for the event storage
         /// </summary>
@@ -57,12 +55,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 
         public BlobEventStorageBase(BlobEventStorageConfiguration configuration)
         {
-            _configuration = configuration;
+            Configuration = configuration;
 
-            _client = _configuration.Credentials.CreateCloudBlobClient();
+            var client = Configuration.Credentials.CreateCloudBlobClient();
             // TODO: perhaps overwrite retry policy?
-            _container = _client.GetContainerReference(_configuration.ContainerName);
-            BlobDirectory = _container.GetDirectoryReference(_configuration.FolderName);
+            _container = client.GetContainerReference(Configuration.ContainerName);
+            BlobDirectory = _container.GetDirectoryReference(Configuration.FolderName);
         }
 
         /// <summary>
@@ -95,7 +93,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         {
             if (await _container.CreateIfNotExistsAsync())
             {
-                Tracer.Info(context, $"Created new blob container `{_configuration.ContainerName}`");
+                Tracer.Info(context, $"Created new blob container `{Configuration.ContainerName}`");
             }
 
             return BoolResult.Success;
@@ -108,7 +106,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         {
             var stream = AsStream(data);
             var msg = $"{cursor} Length=[{stream.Length}]";
-            return context.PerformOperationAsync(Tracer, async () =>
+            return context.PerformOperationWithTimeoutAsync(Tracer, async context =>
             {
                 var name = ToAppendBlobName(ToKey(cursor));
                 var blobReference = BlobDirectory.GetAppendBlobReference(name);
@@ -131,6 +129,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                 return BoolResult.Success;
             },
             traceOperationStarted: false,
+            timeout: Configuration.StorageInteractionTimeout,
             extraStartMessage: msg,
             extraEndMessage: _ => msg);
         }
@@ -199,7 +198,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         {
             var msg = $"{cursor}";
             long length = -1;
-            return context.PerformOperationAsync(Tracer, async () =>
+            return context.PerformOperationWithTimeoutAsync(Tracer, async context =>
             {
                 var appendBlob = BlobDirectory.GetAppendBlobReference(ToAppendBlobName(cursor));
                 if (!await appendBlob.ExistsAsync())
@@ -215,6 +214,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                 return Result.Success(new Optional<TData> (FromStream(memoryStream)));
             },
             traceOperationStarted: false,
+            timeout: Configuration.StorageInteractionTimeout,
             extraStartMessage: msg,
             extraEndMessage: r => $"{msg} Length=[{length}]");
         }
@@ -222,6 +222,22 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         protected string Pad(long value)
         {
             return value.ToString().PadLeft(5, '0');
+        }
+
+        /// <summary>
+        /// A helper method that parses a given <paramref name="input"/> into <see cref="int"/> but in case of an invalid
+        /// format it adds the input into the exception's error message.
+        /// </summary>
+        protected static int ParseInt(string input)
+        {
+            try
+            {
+                return int.Parse(input);
+            }
+            catch (FormatException)
+            {
+                throw new FormatException($"Input string '{input}' was not in a correct format.");
+            }
         }
     }
 }

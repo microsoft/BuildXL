@@ -169,6 +169,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
                     Credentials = Arguments.Secrets.GetStorageCredentials(new[] { DistributedContentSettings.ContentMetadataBlobSecretName }).First(),
                     FolderName = "events" + DistributedContentSettings.KeySpacePrefix,
                     ContainerName = DistributedContentSettings.ContentMetadataLogBlobContainerName,
+                    StorageInteractionTimeout = DistributedContentSettings.ContentMetadataLogStorageInteractionTimeout
                 },
                 CentralStorage = RedisContentLocationStoreConfiguration.CentralStore with
                 {

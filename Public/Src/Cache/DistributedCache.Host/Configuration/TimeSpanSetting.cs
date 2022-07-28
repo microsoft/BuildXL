@@ -12,7 +12,7 @@ namespace BuildXL.Cache.Host.Configuration
     /// Setting for representing timespan in a readable format (i.e. [-][#d][#h][#m][#s][#ms])
     /// </summary>
     [TypeConverter(typeof(StringConvertibleConverter))]
-    public struct TimeSpanSetting : IStringConvertibleSetting
+    public readonly struct TimeSpanSetting : IStringConvertibleSetting
     {
         public TimeSpan Value { get; }
 

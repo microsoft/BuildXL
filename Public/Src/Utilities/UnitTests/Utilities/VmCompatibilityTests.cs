@@ -121,7 +121,7 @@ namespace Test.BuildXL.Utilities
             });
         }
 
-        [Fact(Skip = "Waiting for a new BuildXL LKG")]
+        [Fact]
         public void VmSharedTempFolderExists()
         {
             EnsureRunInVm(() =>

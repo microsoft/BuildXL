@@ -391,26 +391,30 @@ namespace BuildXL.SandboxedProcessExecutor
             return true;
         }
 
-        private Possible<UnitValue> EnsureDirectoryExists(string directory)
+        private static Possible<UnitValue> PrepareTempDirectory(string tempDirectory, bool cleanDirectoryIfExists = true)
         {
             try
             {
                 bool exists = false;
 
-                if (FileUtilities.DirectoryExistsNoFollow(directory))
+                if (FileUtilities.DirectoryExistsNoFollow(tempDirectory))
                 {
-                    FileUtilities.DeleteDirectoryContents(directory, deleteRootDirectory: false);
+                    if (cleanDirectoryIfExists)
+                    {
+                        FileUtilities.DeleteDirectoryContents(tempDirectory, deleteRootDirectory: false);
+                    }
+
                     exists = true;
                 }
-                else if (FileUtilities.FileExistsNoFollow(directory))
+                else if (FileUtilities.FileExistsNoFollow(tempDirectory))
                 {
                     // We expect to produce a directory, but a file with the same name exists on disk.
-                    FileUtilities.DeleteFile(directory);
+                    FileUtilities.DeleteFile(tempDirectory);
                 }
 
                 if (!exists)
                 {
-                    FileUtilities.CreateDirectory(directory);
+                    FileUtilities.CreateDirectory(tempDirectory);
                 }
 
                 return UnitValue.Unit;
@@ -478,7 +482,7 @@ namespace BuildXL.SandboxedProcessExecutor
             {
                 foreach (var redirection in info.RedirectedTempFolders)
                 {
-                    var result = EnsureDirectoryExists(redirection.target);
+                    var result = PrepareTempDirectory(redirection.target);
                     if (!result.Succeeded)
                     {
                         m_logger.LogError($"Failed to prepare temporary directory '{redirection.target}': {result.Failure.DescribeIncludingInnerFailures()}");
@@ -492,7 +496,7 @@ namespace BuildXL.SandboxedProcessExecutor
                 if (info.EnvironmentVariables.ContainsKey(tmpEnvVar))
                 {
                     string tempPath = info.EnvironmentVariables[tmpEnvVar];
-                    var result = EnsureDirectoryExists(tempPath);
+                    var result = PrepareTempDirectory(tempPath);
                     if (!result.Succeeded)
                     {
                         m_logger.LogError($"Failed to prepare temporary directory '{tempPath}': {result.Failure.DescribeIncludingInnerFailures()}");
@@ -505,7 +509,8 @@ namespace BuildXL.SandboxedProcessExecutor
 
             if (!string.IsNullOrEmpty(vmSharedTemp))
             {
-                var result = EnsureDirectoryExists(vmSharedTemp);
+                // Ensure that the directory exists, but do not clean if it already exists because the directory is shared by multiple pips.
+                var result = PrepareTempDirectory(vmSharedTemp, cleanDirectoryIfExists: false);
                 if (!result.Succeeded)
                 {
                     m_logger.LogError($"Failed to prepare VM shared temporary directory '{vmSharedTemp}': {result.Failure.DescribeIncludingInnerFailures()}");
@@ -520,7 +525,7 @@ namespace BuildXL.SandboxedProcessExecutor
 
             foreach (var dir in remoteData.TempDirectories)
             {
-                var result = EnsureDirectoryExists(dir);
+                var result = PrepareTempDirectory(dir);
                 if (!result.Succeeded)
                 {
                     m_logger.LogError($"Failed to prepare temporary directory '{dir}': {result.Failure.DescribeIncludingInnerFailures()}");

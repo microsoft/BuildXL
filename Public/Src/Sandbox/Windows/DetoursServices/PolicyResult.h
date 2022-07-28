@@ -4,15 +4,21 @@
 #pragma once
 
 #include "FileAccessHelpers.h"
+
+#if !(MAC_OS_SANDBOX) && !(MAC_OS_LIBRARY)
 #include "FilesCheckedForAccess.h"
+#endif
 
 #if _WIN32
     #include "CanonicalizedPath.h"
     typedef CanonicalizedPath CanonicalizedPathType;
 #else // _WIN32
     typedef PCPathChar CanonicalizedPathType;
-    #include "bxl_observer.hpp"
 #endif // _WIN32
+
+#if !(_WIN32) && !(MAC_OS_SANDBOX) && !(MAC_OS_LIBRARY)
+    #include "bxl_observer.hpp"
+#endif
 
 // Result of determining an access policy for a path. This involves canonicalizing the desired path and performing a policy lookup.
 class PolicyResult

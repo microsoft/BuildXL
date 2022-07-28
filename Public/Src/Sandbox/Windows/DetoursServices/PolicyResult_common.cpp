@@ -171,7 +171,9 @@ AccessCheckResult PolicyResult::CheckDirectoryAccess(bool enforceCreationAccess)
         : CheckReadAccess(RequestedReadAccess::Probe, FileReadContext(FileExistence::Existent, true));
 }
 
-#if !_WIN32
+// Allow write based on file existence is only implemented for Windows and Linux. On mac we just make decisions based
+// on the configued policy
+#if !(_WIN32) && !(MAC_OS_SANDBOX) && !(MAC_OS_LIBRARY)
 bool PolicyResult::AllowWrite(bool basedOnlyOnPolicy) const {
 
     bool isWriteAllowedByPolicy = (m_policy & FileAccessPolicy_AllowWrite) != 0;
@@ -198,5 +200,10 @@ bool PolicyResult::AllowWrite(bool basedOnlyOnPolicy) const {
     }
 
     return isWriteAllowedByPolicy;
+}
+#elif !(_WIN32)
+bool PolicyResult::AllowWrite(bool) const 
+{
+    return (m_policy & FileAccessPolicy_AllowWrite) != 0;
 }
 #endif

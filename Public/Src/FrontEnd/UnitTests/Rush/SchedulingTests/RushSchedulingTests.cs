@@ -217,6 +217,20 @@ namespace Test.BuildXL.FrontEnd.Rush
         }
 
         [Fact]
+        public void SurvivingProcessIsHonored()
+        {
+            var project = CreateRushProject();
+            var survivingTest = PathAtom.Create(StringTable, "test.exe");
+            var survivingProcesses = Start(new RushResolverSettings { AllowedSurvivingChildProcesses = new[] { survivingTest } })
+                .Add(project)
+                .ScheduleAll()
+                .RetrieveSuccessfulProcess(project)
+                .AllowedSurvivingChildProcessNames;
+
+            XAssert.Contains(survivingProcesses, survivingTest);
+        }
+
+        [Fact]
         public void RetryCodesAreHonored()
         {
             var project = CreateRushProject();

@@ -43,5 +43,13 @@ namespace BuildXL.Utilities.Configuration.Resolvers
         /// Only add to this list processes that are trusted and whose accesses can be safely predicted by some other means.
         /// </remarks>
         public IReadOnlyList<PathAtom> ChildProcessesToBreakawayFromSandbox { get; }
+
+        /// <summary>
+        /// The process names, e.g. "mspdbsrv.exe", allowed to be cleaned up by a process pip sandbox job object after the main process has exited (which would otherwise throw a build error DX0041). 
+        /// </summary>
+        /// <remarks>
+        /// Observe this doesn't mean the process is allowed to survive the sandbox, only that if it tries to survive bxl will terminate it without flagging the corresponding pip as failed.
+        /// </remarks>
+        public IReadOnlyList<PathAtom> AllowedSurvivingChildProcesses { get; }
     }
 }

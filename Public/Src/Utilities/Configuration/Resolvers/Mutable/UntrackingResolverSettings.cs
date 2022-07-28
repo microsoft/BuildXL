@@ -27,6 +27,7 @@ namespace BuildXL.Utilities.Configuration.Resolvers.Mutable
             UntrackedDirectories = untrackingTemplate.UntrackedDirectories;
             UntrackedGlobalDirectoryScopes = untrackingTemplate.UntrackedGlobalDirectoryScopes;
             ChildProcessesToBreakawayFromSandbox = untrackingTemplate.ChildProcessesToBreakawayFromSandbox;
+            AllowedSurvivingChildProcesses = untrackingTemplate.AllowedSurvivingChildProcesses;
         }
 
         /// <inheritdoc />
@@ -43,5 +44,8 @@ namespace BuildXL.Utilities.Configuration.Resolvers.Mutable
 
         /// <inheritdoc/>
         public IReadOnlyList<PathAtom> ChildProcessesToBreakawayFromSandbox { get; set; }
+
+        /// <inheritdoc/>
+        public IReadOnlyList<PathAtom> AllowedSurvivingChildProcesses { get; set; }
     }
 }

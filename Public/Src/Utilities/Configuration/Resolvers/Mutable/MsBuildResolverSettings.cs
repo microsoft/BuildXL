@@ -53,6 +53,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             DotNetSearchLocations = resolverSettings.DotNetSearchLocations;
             UseManagedSharedCompilation = resolverSettings.UseManagedSharedCompilation;
             ChildProcessesToBreakawayFromSandbox = resolverSettings.ChildProcessesToBreakawayFromSandbox;
+            AllowedSurvivingChildProcesses = resolverSettings.AllowedSurvivingChildProcesses;
         }
 
         /// <inheritdoc/>
@@ -137,5 +138,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public IReadOnlyList<PathAtom> ChildProcessesToBreakawayFromSandbox { get; set; }
+
+        /// <inheritdoc />
+        public IReadOnlyList<PathAtom> AllowedSurvivingChildProcesses { get; set; }
     }
 }

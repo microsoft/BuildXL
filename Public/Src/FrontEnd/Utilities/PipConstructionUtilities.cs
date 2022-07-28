@@ -144,6 +144,11 @@ namespace BuildXL.FrontEnd.Utilities
             {
                 processBuilder.ChildProcessesToBreakawayFromSandbox = settings.ChildProcessesToBreakawayFromSandbox.Where(processName => processName.IsValid).ToReadOnlyArray();
             }
+
+            if (settings.AllowedSurvivingChildProcesses != null)
+            {
+                processBuilder.AllowedSurvivingChildProcessNames = settings.AllowedSurvivingChildProcesses.Where(processName => processName.IsValid).ToReadOnlyArray();
+            }
         }
 
         private static DirectoryArtifact ResolveAbsoluteOrRelativeDirectory(PathTable pathTable, DiscriminatingUnion<DirectoryArtifact, RelativePath> absoluteOrRelativeUnion, AbsolutePath root)

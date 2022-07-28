@@ -842,6 +842,14 @@ interface UntrackingSettings {
      * by some other means.
      */
     childProcessesToBreakawayFromSandbox?: PathAtom[];
+
+    /** 
+     * The process names, e.g. "mspdbsrv.exe", allowed to be cleaned up by a process pip sandbox job object
+     * after the main process has exited (which would otherwise throw a build error DX0041). 
+     * Observe this doesn't mean the process is allowed to survive the sandbox, only that if it tries to survive
+     * bxl will terminate it without flagging the corresponding pip as failed.
+     */
+    allowedSurvivingChildProcesses?: PathAtom[];
 }
 
 interface NuGetConfiguration extends ToolConfiguration {

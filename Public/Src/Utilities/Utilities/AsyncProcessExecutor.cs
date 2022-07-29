@@ -85,10 +85,27 @@ namespace BuildXL.Utilities
 
         private int m_processId = -1;
 
+        private int GetProcessIdSafe()
+        {
+            const int ErrorValue = -1;
+            try
+            {
+                return Process != null && !Process.HasExited
+                    ? Process.Id // if the process already exited Process.Id throws
+                    : ErrorValue;
+            }
+#pragma warning disable ERP022 // Unobserved exception in generic exception handler
+            catch
+            {
+                return ErrorValue;
+            }
+#pragma warning restore ERP022 // Unobserved exception in generic exception handler
+        }
+
         /// <summary>
         /// Process id.
         /// </summary>
-        public int ProcessId => m_processId != -1 ? m_processId : (m_processId = Process.Id);
+        public int ProcessId => m_processId != -1 ? m_processId : (m_processId = GetProcessIdSafe());
 
         /// <summary>
         /// Gets memory counters of the process

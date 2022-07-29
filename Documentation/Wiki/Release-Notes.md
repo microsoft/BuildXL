@@ -1,6 +1,11 @@
 This page is a curated list of the release notes for releases after 0.20170619.4.0 and a manual copy of notable changes from each build before that. See the repo's commit history full details for what is included in each build.
 
 =======
+# 0.1.0-20220721.4 (Release [199845](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=199845)) Released 7/27/2022
+-	Fix windows language pack file access violation for Javascript builds
+-	Enable additional unit & integration tests on Linux
+-	Misc bug fixes
+
 # 0.1.0-20220711.4.2 (Release [196363](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=196363)) Released 7/13/2022
 - Log unexpected exceptions in grpc server interceptor 
 - Capture more info related to the organization triggering the build.

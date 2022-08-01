@@ -72,7 +72,7 @@ namespace Test.BuildXL.Utilities.Configuration
         public void TestInfraPropertyForDuplicates()
         {
             string traceInfoArgs = "/traceInfo:INFRA=test";
-            ICommandLineConfiguration configuration = AddTraceInfoArguments(traceInfoArgs);
+            ICommandLineConfiguration configuration = AddTraceInfoOrEnvironmentArguments(traceInfoArgs);
             string[] envString = ComputeEnvBlockForTesting(configuration, CaptureBuildInfo.AdoEnvVariableForInfra, EnvVarExpectedValue);
             XAssert.IsTrue(AssertEnvStringContainsTelemetryEnvProperty("INFRA=test", envString));
             XAssert.IsFalse(AssertEnvStringContainsTelemetryEnvProperty("INFRA=ado", envString));
@@ -126,7 +126,7 @@ namespace Test.BuildXL.Utilities.Configuration
         public void TestOrgPropertyForTraceInfoValue()
         {
             string traceInfoArgs = "/traceInfo:org=test";
-            ICommandLineConfiguration configuration = AddTraceInfoArguments(traceInfoArgs);
+            ICommandLineConfiguration configuration = AddTraceInfoOrEnvironmentArguments(traceInfoArgs);
             string[] envString = ComputeEnvBlockForTesting(configuration, CaptureBuildInfo.EnvVariableForOrg, OrgURLNewFormatTestValue);
             XAssert.IsTrue(AssertEnvStringContainsTelemetryEnvProperty("org=test", envString));
             XAssert.IsFalse(AssertEnvStringContainsTelemetryEnvProperty("org=bxlTestCheck", envString));
@@ -152,7 +152,7 @@ namespace Test.BuildXL.Utilities.Configuration
         public void TestCodebasePropertyCloudBuild()
         {
             string traceInfoArgs = "/traceInfo:codebase=TestCB";
-            ICommandLineConfiguration configuration = AddTraceInfoArguments(traceInfoArgs);
+            ICommandLineConfiguration configuration = AddTraceInfoOrEnvironmentArguments(traceInfoArgs);
             string[] envString = ComputeEnvBlockForTesting(configuration, CaptureBuildInfo.AdoPreDefinedVariableForCodebase, EnvVarExpectedValue);
             XAssert.IsTrue(AssertEnvStringContainsTelemetryEnvProperty("codebase=TestCB", envString));
             XAssert.IsFalse(AssertEnvStringContainsTelemetryEnvProperty("codebase=TestADO", envString));
@@ -178,10 +178,77 @@ namespace Test.BuildXL.Utilities.Configuration
         public void TestBuildEntityPropertyCloudBuild()
         {
             string traceInfoArgs = "/traceInfo:cloudBuildQueue=TestCB";
-            ICommandLineConfiguration configuration = AddTraceInfoArguments(traceInfoArgs);
+            ICommandLineConfiguration configuration = AddTraceInfoOrEnvironmentArguments(traceInfoArgs);
             string[] envString = ComputeEnvBlockForTesting(configuration, CaptureBuildInfo.AdoPreDefinedVariableForBuildEntity, EnvVarExpectedValue);
             XAssert.IsTrue(AssertEnvStringContainsTelemetryEnvProperty("buildEntity=TestCB", envString));
             XAssert.IsFalse(AssertEnvStringContainsTelemetryEnvProperty("buildEntity=TestADO", envString));
+        }
+
+        /// <summary>
+        /// This test is to ensure that the traceInfo value for the stageId property is set accordingly in the Env string
+        /// </summary>
+        [Fact]
+        public void TestStageIdPropertyForTraceInfoValue()
+        {
+            string traceInfoArgs = "/traceInfo:stageId=TestCB";
+            ICommandLineConfiguration configuration = AddTraceInfoOrEnvironmentArguments(traceInfoArgs);
+            string env1 = BuildXLApp.ComputeEnvironment(configuration);
+            string[] envString = env1.Split(';');
+            AssertNoDuplicates(envString);
+            XAssert.IsTrue(AssertEnvStringContainsTelemetryEnvProperty("stageId=TestCB", envString));
+            XAssert.IsFalse(AssertEnvStringContainsTelemetryEnvProperty("stageId=TestADO", envString));
+        }
+
+        /// <summary>
+        /// This test is to ensure that the stageId property is set accordingly for Office builds in the Env string
+        /// </summary>
+        [Theory]
+        [InlineData("/environment:OfficeEnlistmentBuildLab", "enlist")]
+        [InlineData("/environment:OfficeMetaBuildLab", "meta")]
+        [InlineData("/environment:OfficeProductBuildLab", "product")]
+        [InlineData("/environment:OfficeProductBuildDev", "product")]
+        [InlineData("/environment:OfficeMetaBuildDev", "meta")]
+        [InlineData("/environment:OfficeEnlistmentBuildDev", "enlist")]
+        [InlineData("/environment:Unset", null)]
+        [InlineData("/environment:OsgLab", null)]
+        [InlineData("/environment:SelfHostPrivateBuild", null)]
+        [InlineData("/environment:SelfHostLKG", null)]
+        public void TestStageIdPropertyForOfficeBuilds(string environmentValue, string expectedValue)
+        {
+            string cmdArgs = environmentValue;
+            ICommandLineConfiguration configuration = AddTraceInfoOrEnvironmentArguments(cmdArgs);
+            string env1 = BuildXLApp.ComputeEnvironment(configuration);
+            string[] envString = env1.Split(';');
+            AssertNoDuplicates(envString);
+            if (expectedValue != null)
+            {
+                XAssert.IsTrue(AssertEnvStringContainsTelemetryEnvProperty("stageId=" + expectedValue, envString));
+            }
+            else
+            {
+                XAssert.IsFalse(AssertEnvStringContainsTelemetryEnvProperty("stageId=", envString));
+            }
+
+        }
+
+        /// <summary>
+        /// This test is used to check the scenario when it is a Office build and the user sends a specific value for the property using traceInfo flag.
+        /// In this case the user defined value should override the stageId property value set for Officebuilds.
+        /// </summary>
+        [Fact]
+        public void TestStageIdPropertyForTraceInfoPrecedence()
+        {
+            string traceInfoArgs = "/traceInfo:stageId=TestCB";
+            string environmentValue = "/environment:OfficeEnlistmentBuildLab";
+            PathTable pt = new PathTable();
+            var argsParser = new Args();
+            ICommandLineConfiguration configuration = new CommandLineConfiguration();
+            argsParser.TryParse(new[] { @"/c:" + s_specFilePath, traceInfoArgs, environmentValue }, pt, out configuration);
+            string env1 = BuildXLApp.ComputeEnvironment(configuration);
+            string[] envString = env1.Split(';');
+            AssertNoDuplicates(envString);
+            XAssert.IsTrue(AssertEnvStringContainsTelemetryEnvProperty("stageId=TestCB", envString));
+            XAssert.IsFalse(AssertEnvStringContainsTelemetryEnvProperty("stageId=Enlist", envString));
         }
 
         /// <summary>
@@ -218,7 +285,7 @@ namespace Test.BuildXL.Utilities.Configuration
         /// </summary>
         /// <param name="traceInfoArgs">traceInfo arguments to be passed to the config object</param>
         /// <returns></returns>
-        private static ICommandLineConfiguration AddTraceInfoArguments(string traceInfoArgs)
+        private static ICommandLineConfiguration AddTraceInfoOrEnvironmentArguments(string traceInfoArgs)
         {
             PathTable pt = new PathTable();
             var argsParser = new Args();

@@ -3,7 +3,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text.RegularExpressions;
 
 namespace BuildXL.Utilities.Configuration
@@ -18,6 +17,7 @@ namespace BuildXL.Utilities.Configuration
     /// org - identify the orgnization triggering the build.
     /// codebase - identifies the code or product that's being built. This will typically be the name of the Git repository.
     /// buildEntity - identifies the BuildEntity(queue/pipeline) used to build and deploy the codebase.
+    /// stageId - identifies the invocation of BXL in the stage(sequence) - Enlist, Meta, Product, Compliance and Prep build.
     /// </remarks>
     public class CaptureBuildInfo
     {
@@ -43,6 +43,14 @@ namespace BuildXL.Utilities.Configuration
         /// In ADO this build structure refers to a build pipeline
         /// </summary>
         private const string BuildEntityKey = "buildEntity";
+
+        /// <summary>
+        /// Identifies the invocation of bxl.exe in the sequence: Enlist, Meta, Product, Compliance, etc. 
+        /// Every Office build has three builds -  Enlist, Meta, Product. Each of these builds invokes BXL separately.
+        /// Every JS build has three builds - Prep, Compliance and the main build(real build). Similar to above each of these builds invokes BXL separately.
+        /// The intention of this property is to identify the stage(sequence) of the build invoking BXL.
+        /// </summary>
+        private const string StageIdKey = "stageId";
 
         /// <summary>
         /// ADO predefined variable to obtain the URI of the ADO organization.
@@ -110,6 +118,15 @@ namespace BuildXL.Utilities.Configuration
                 if (!string.IsNullOrEmpty(buildEntityPropertyValue))
                 {
                     traceInfoProperties.Add(BuildEntityKey, buildEntityPropertyValue);
+                }
+            }
+
+            if (!traceInfoProperties.ContainsKey(StageIdKey))
+            {
+                string stageIdPropertyValue = GetStageId(configuration);
+                if (!string.IsNullOrEmpty(stageIdPropertyValue))
+                {
+                    traceInfoProperties.Add(StageIdKey, stageIdPropertyValue);
                 }
             }
 
@@ -198,6 +215,31 @@ namespace BuildXL.Utilities.Configuration
             }
 
             return null;
+        }
+
+        /// <summary>
+        /// This method is used to set a build property called StageID in the EnvString for telemetry purpose.
+        /// In Office, every build has three separate builds called Product, Meta, Enlistment build.Each of this build invokes BXL separately. This information is obtained below.
+        /// In general each of this build is considered as a stage(sequence) and the name of that stage is assigned to the property "stageId".
+        /// Similarly all JS builds have three stages, Prep, Compliance and Build(main/real build). This information is passed from CB via traceInfo.
+        /// As of now Windows has only a single BXL build.
+        /// </summary>
+        private static string GetStageId(IConfiguration configuration)
+        {
+            switch(configuration.Logging.Environment)
+            {
+                case ExecutionEnvironment.OfficeEnlistmentBuildDev:
+                case ExecutionEnvironment.OfficeEnlistmentBuildLab:
+                    return "enlist";
+                case ExecutionEnvironment.OfficeMetaBuildDev:
+                case ExecutionEnvironment.OfficeMetaBuildLab:
+                    return "meta";
+                case ExecutionEnvironment.OfficeProductBuildDev:
+                case ExecutionEnvironment.OfficeProductBuildLab:
+                    return "product";
+                default: 
+                    return null;
+            }    
         }
     }
 }

@@ -3,9 +3,7 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
@@ -42,6 +40,7 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
             var settings = new MachineLocationResolver.Settings()
             {
                 PrioritizeDesignatedLocations = false,
+                Randomize = false,
             };
 
             var factory = new MachineListFactory(_clock, amountMachines, designatedLocations: 3);
@@ -102,6 +101,7 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
             var settings = new MachineLocationResolver.Settings()
             {
                 PrioritizeDesignatedLocations = false,
+                Randomize = false,
             };
 
             var factory = new MachineListFactory(_clock, amountMachines, designatedLocations, master: 0);
@@ -145,6 +145,7 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
             var settings = new MachineLocationResolver.Settings()
             {
                 PrioritizeDesignatedLocations = true,
+                Randomize = false,
             };
 
             var factory = new MachineListFactory(_clock, amountMachines, designatedLocations);
@@ -180,16 +181,23 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
                 reputation.Should().BeGreaterOrEqualTo(lastReputation);
                 lastReputation = reputation;
             }
+
+            // THe second call to machine resolution should produce exactly the same ersult, because the randomization is off in this case.
+            var anotherMachineList = factory.Create(settings);
+            // Ordering to make sure the second list is the same.
+            // But not sorted result should not be equal.
+            anotherMachineList.Should().Equal(machineList);
         }
 
         [Fact]
         public void CombineRulesWithRandomization()
         {
-            var amountMachines = 10;
+            var amountMachines = 100;
             var designatedLocations = 3;
             var settings = new MachineLocationResolver.Settings()
             {
                 PrioritizeDesignatedLocations = true,
+                Randomize = true,
             };
 
             var factory = new MachineListFactory(_clock, amountMachines, designatedLocations);
@@ -225,6 +233,14 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
                 reputation.Should().BeGreaterOrEqualTo(lastReputation);
                 lastReputation = reputation;
             }
+
+            // Resolving the list one more time and and the result must be different.
+            // The number of machines is quite high (100), so its extremely unlikely to get the same order the second time.
+            var anotherMachineList = factory.Create(settings);
+            // Ordering to make sure the second list is the same.
+            anotherMachineList.OrderBy(x => x.Path).Should().BeEquivalentTo(machineList.OrderBy(x => x.Path));
+            // But not sorted result should not be equal.
+            anotherMachineList.Should().NotEqual(machineList);
         }
 
         private class MockMasterElectionMechanism : StartupShutdownSlimBase, IMasterElectionMechanism

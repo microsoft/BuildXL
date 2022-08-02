@@ -6,6 +6,7 @@ using System.Linq;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing;
+using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.ContentStore.Utils; // Needed for .NET Standard build.
 
 #nullable enable
@@ -22,8 +23,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <nodoc />
         public record Settings
         {
-            /// <nodoc />
+            /// <summary>
+            /// If true, then designated locations from the cluster state have higher priority and appear first in resolved machine list.
+            /// </summary>
             public bool PrioritizeDesignatedLocations { get; init; }
+
+            /// <summary>
+            /// If true, the machines should be randomized first before sorting them based on reputation and designation to avoid
+            /// hitting the same machines at ones during content copy.
+            /// </summary>
+            public bool Randomize { get; init; } = true;
         }
 
         /// <summary>
@@ -40,8 +49,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             var master = GetMasterMachineId(clusterState, masterElectionMechanism);
 
+            var machineIds = locations.EnumerateMachineIds().ToList();
+            if (settings.Randomize)
+            {
+                ThreadSafeRandom.Shuffle(machineIds);
+            }
+
             // Resolving the machine locations eagerly.
-            var sortedLocations = locations.EnumerateMachineIds()
+            var sortedLocations = machineIds
                 .OrderBy(machineId => GetMachinePriority(settings, clusterState, reputationTracker, machineId, master, hash));
 
             var (resolvedLocations, unresolvedLocations) = resolveMachines(clusterState, sortedLocations, locations.Count);

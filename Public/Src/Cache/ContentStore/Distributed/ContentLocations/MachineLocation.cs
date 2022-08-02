@@ -5,7 +5,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
-using System.Text;
 using System.Text.Json.Serialization;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
@@ -15,7 +14,7 @@ namespace BuildXL.Cache.ContentStore.Distributed
     /// <summary>
     /// Location information for a machine usually represented as UNC path with machine name and a root path.
     /// </summary>
-    public readonly record struct MachineLocation : IEquatable<MachineLocation>
+    public readonly record struct MachineLocation
     {
         public const string GrpcUriSchemePrefix = "grpc://";
 

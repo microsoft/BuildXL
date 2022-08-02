@@ -4,6 +4,7 @@
 using System;
 using BuildXL.Ipc.Common.Multiplexing;
 using BuildXL.Ipc.Interfaces;
+using BuildXL.Ipc.Common;
 using Xunit;
 
 namespace Test.BuildXL.Ipc
@@ -18,19 +19,17 @@ namespace Test.BuildXL.Ipc
             {
                 // load some monikers
                 var id = Guid.NewGuid().ToString();
-                var moniker1 = provider.LoadOrCreateMoniker(id);
-                var moniker2 = provider.LoadOrCreateMoniker(id);
+                var moniker1 = IpcMoniker.Create(id);
+                var moniker2 = IpcMoniker.Create(id);
 
                 // assert they are equal and that no underlying moniker was created
                 Assert.Equal(moniker1, moniker2);
-                Assert.Equal(0, mockProvider.NumCreateMonikerCalls);
 
                 // serialize those monikers
                 provider.RenderConnectionString(moniker1);
                 provider.RenderConnectionString(moniker2);
 
                 // assert that exactly 1 underlying moniker was created
-                Assert.Equal(1, mockProvider.NumCreateMonikerCalls);
                 Assert.Equal(1, mockProvider.NumRenderConnectionStringCalls);
             }
         }
@@ -42,19 +41,15 @@ namespace Test.BuildXL.Ipc
             using (var provider = new IpcProviderWithMemoization(mockProvider))
             {
                 // create some monikers
-                var moniker1 = provider.CreateNewMoniker();
-                var moniker2 = provider.CreateNewMoniker();
-
-                // assert they are not equal and that no underlying moniker was created
+                var moniker1 = IpcMoniker.CreateNew();
+                var moniker2 = IpcMoniker.CreateNew();
                 Assert.NotEqual(moniker1, moniker2);
-                Assert.Equal(0, mockProvider.NumCreateMonikerCalls);
 
                 // serialize those monikers
                 provider.RenderConnectionString(moniker1);
                 provider.RenderConnectionString(moniker2);
 
-                // assert that exactly 2 underlying monikers were created
-                Assert.Equal(2, mockProvider.NumCreateMonikerCalls);
+                // assert that exactly 2 calls to render connection string we mde
                 Assert.Equal(2, mockProvider.NumRenderConnectionStringCalls);
             }
         }
@@ -67,24 +62,12 @@ namespace Test.BuildXL.Ipc
 
         internal class MockProvider : IIpcProvider
         {
-            internal int NumCreateMonikerCalls = 0;
             internal int NumRenderConnectionStringCalls = 0;
 
-            public IIpcMoniker CreateNewMoniker()
-            {
-                NumCreateMonikerCalls++;
-                return null;
-            }
-
-            public string RenderConnectionString(IIpcMoniker moniker)
+            public string RenderConnectionString(IpcMoniker moniker)
             {
                 NumRenderConnectionStringCalls++;
                 return string.Empty;
-            }
-
-            public IIpcMoniker LoadOrCreateMoniker(string monikerId)
-            {
-                throw new NotImplementedException();
             }
 
             public IClient GetClient(string connectionString, IClientConfig config)

@@ -9,6 +9,7 @@ using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using BuildXL.Ipc.Interfaces;
+using BuildXL.Ipc.Common;
 using BuildXL.Native.Streams.Windows;
 using BuildXL.Processes;
 using BuildXL.Processes.Sideband;
@@ -265,7 +266,7 @@ namespace Test.BuildXL.TestUtilities.Xunit
         ///     4. shuts down the server
         ///     5. waits for the server to complete.
         /// </summary>
-        protected static void WithIpcServer(IIpcProvider provider, IIpcOperationExecutor executor, IServerConfig config, Action<IIpcMoniker, IServer> testAction)
+        protected static void WithIpcServer(IIpcProvider provider, IIpcOperationExecutor executor, IServerConfig config, Action<IpcMoniker, IServer> testAction)
         {
             WithIpcServer(
                 provider,
@@ -279,11 +280,11 @@ namespace Test.BuildXL.TestUtilities.Xunit
         }
 
         /// <summary>
-        /// Async version of <see cref="WithIpcServer(IIpcProvider, IIpcOperationExecutor, IServerConfig, Action{IIpcMoniker, IServer})"/>
+        /// Async version of <see cref="WithIpcServer(IIpcProvider, IIpcOperationExecutor, IServerConfig, Action{IpcMoniker, IServer})"/>
         /// </summary>
-        protected static async Task WithIpcServer(IIpcProvider provider, IIpcOperationExecutor executor, IServerConfig config, Func<IIpcMoniker, IServer, Task> testAction)
+        protected static async Task WithIpcServer(IIpcProvider provider, IIpcOperationExecutor executor, IServerConfig config, Func<IpcMoniker, IServer, Task> testAction)
         {
-            var moniker = provider.CreateNewMoniker();
+            var moniker = IpcMoniker.CreateNew();
             var server = provider.GetServer(provider.RenderConnectionString(moniker), config);
             server.Start(executor);
             try

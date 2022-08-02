@@ -2465,7 +2465,7 @@ EXIT /b 3
         private Task WithExecutionEnvironmentAndIpcServer(
             IIpcProvider ipcProvider,
             IIpcOperationExecutor ipcExecutor,
-            Func<DummyPipExecutionEnvironment, IIpcMoniker, IServer, Task> act,
+            Func<DummyPipExecutionEnvironment, IpcMoniker, IServer, Task> act,
             Func<EngineCache> cache = null,
             Func<PathTable, SemanticPathExpander> createMountExpander = null,
             Func<PathTable, IConfiguration> config = null,

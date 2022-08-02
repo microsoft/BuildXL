@@ -32,6 +32,6 @@ namespace BuildXL.Ipc
         /// <summary>
         /// Gets a fixed moniker.
         /// </summary>
-        public static IIpcMoniker GetFixedMoniker() => StringMoniker.GetFixedMoniker();
+        public static IpcMoniker GetFixedMoniker() => IpcMoniker.GetFixedMoniker();
     }
 }

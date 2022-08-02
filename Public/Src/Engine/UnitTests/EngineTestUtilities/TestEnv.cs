@@ -12,7 +12,6 @@ using System.Threading;
 using BuildXL.Engine;
 using BuildXL.FrontEnd.Sdk.FileSystem;
 using BuildXL.Ipc.Common;
-using BuildXL.Ipc.Interfaces;
 using BuildXL.Pips;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Graph;
@@ -227,7 +226,7 @@ namespace Test.BuildXL.TestUtilities
         public sealed class TestPipGraph : IPipGraphBuilder, IPipScheduleTraversal
         {
             private readonly ConcurrentQueue<Pip> m_pips = new ConcurrentQueue<Pip>();
-            private readonly Lazy<IIpcMoniker> m_lazyApiServerMoniker = Lazy.Create(() => StringMoniker.CreateNewMoniker());
+            private readonly Lazy<IpcMoniker> m_lazyApiServerMoniker = Lazy.Create(() => IpcMoniker.CreateNew());
             private int m_reservedSealIds = 0;
 
             /// <inheritdoc />
@@ -358,7 +357,7 @@ namespace Test.BuildXL.TestUtilities
             }
 
             /// <nodoc />
-            public IIpcMoniker GetApiServerMoniker()
+            public IpcMoniker GetApiServerMoniker()
             {
                 return m_lazyApiServerMoniker.Value;
             }

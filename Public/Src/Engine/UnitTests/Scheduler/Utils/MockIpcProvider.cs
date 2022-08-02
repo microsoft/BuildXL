@@ -15,15 +15,10 @@ namespace Test.BuildXL.Scheduler.Utils
     /// </summary>
     internal sealed class MockIpcProvider : IIpcProvider
     {
-        internal Func<IIpcMoniker> CreateMonikerFn { get; set; } = new Func<IIpcMoniker>(() => new StringMoniker(Guid.NewGuid().ToString()));
-        internal Func<string, IIpcMoniker> LoadMonikerFn { get; set; } = new Func<string, IIpcMoniker>(id => new StringMoniker(id));
-        internal Func<IIpcMoniker, string> RenderMonikerFn { get; set; } = new Func<IIpcMoniker, string>(m => m.Id);
+        internal Func<IpcMoniker, string> RenderMonikerFn { get; set; } = new Func<IpcMoniker, string>(m => m.Id);
         internal Func<string, IClientConfig, IClient> GetClientFn { get; set; } = new Func<string, IClientConfig, IClient>((_, c) => new MockClient { Config = c });
         internal Func<string, IServerConfig, IServer> GetServerFn { get; set; } = new Func<string, IServerConfig, IServer>((_, c) => new MockServer { Config = c });
-
-        IIpcMoniker IIpcProvider.CreateNewMoniker() => CreateMonikerFn();
-        IIpcMoniker IIpcProvider.LoadOrCreateMoniker(string monikerId) => LoadMonikerFn(monikerId);
-        string IIpcProvider.RenderConnectionString(IIpcMoniker moniker) => RenderMonikerFn(moniker);
+        string IIpcProvider.RenderConnectionString(IpcMoniker moniker) => RenderMonikerFn(moniker);
         IClient IIpcProvider.GetClient(string connectionString, IClientConfig config) => GetClientFn(connectionString, config);
         IServer IIpcProvider.GetServer(string connectionString, IServerConfig config) => GetServerFn(connectionString, config);
     }

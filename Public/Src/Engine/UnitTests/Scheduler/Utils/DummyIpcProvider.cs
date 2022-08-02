@@ -16,7 +16,6 @@ namespace Test.BuildXL.Scheduler.Utils
     /// </summary>
     internal sealed class DummyIpcProvider : IIpcProvider
     {
-        private int m_monikerCounter = 0;
         private readonly IpcResultStatus m_statusToAlwaysReturn;
 
         internal DummyIpcProvider(IpcResultStatus statusToAlwaysReturn = IpcResultStatus.Success)
@@ -25,13 +24,7 @@ namespace Test.BuildXL.Scheduler.Utils
         }
 
         /// <inheritdoc />
-        public IIpcMoniker CreateNewMoniker() => new StringMoniker(Interlocked.Increment(ref m_monikerCounter).ToString(CultureInfo.InvariantCulture));
-
-        /// <inheritdoc />
-        public IIpcMoniker LoadOrCreateMoniker(string id) => new StringMoniker(id);
-
-        /// <inheritdoc />
-        public string RenderConnectionString(IIpcMoniker moniker) => moniker.Id;
+        public string RenderConnectionString(IpcMoniker moniker) => moniker.Id;
 
         /// <inheritdoc />
         public IClient GetClient(string connectionString, IClientConfig config) => new DummyEchoingIpcClient(m_statusToAlwaysReturn);

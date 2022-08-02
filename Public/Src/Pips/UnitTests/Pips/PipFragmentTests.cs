@@ -46,7 +46,7 @@ namespace Test.BuildXL.Pips
             var renderer = new PipFragmentRenderer(pathTable);
             DoTestRenderer(pathTable, renderer, FileContentInfo.CreateWithUnknownLength(ContentHashingUtilities.ZeroHash).Render());
 
-            var moniker = new StringMoniker("123");
+            var moniker = new IpcMoniker("123");
             XAssert.AreEqual(moniker.Id, renderer.Render(PipFragment.CreateIpcMonikerForTesting(moniker, pathTable.StringTable)));
         }
 
@@ -59,7 +59,7 @@ namespace Test.BuildXL.Pips
             var renderer = new PipFragmentRenderer(pathTable, (mId) => "XYZ:" + mId, (f) => fakeContentInfo);
             DoTestRenderer(pathTable, renderer, expectedHash);
 
-            var moniker = new StringMoniker("123");
+            var moniker = new IpcMoniker("123");
             XAssert.AreEqual("XYZ:123", renderer.Render(PipFragment.CreateIpcMonikerForTesting(moniker, pathTable.StringTable)));
         }
 

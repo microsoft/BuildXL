@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.Values;
-using BuildXL.Ipc.Interfaces;
+using BuildXL.Ipc.Common;
 using BuildXL.Utilities;
 
 namespace BuildXL.FrontEnd.Script.Ambients.Transformers
@@ -193,7 +193,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
                 return new PrimitiveValue(i);
             }
 
-            if (value is IIpcMoniker moniker)
+            if (value is IpcMoniker moniker)
             {
                 return new PrimitiveValue(moniker);
             }

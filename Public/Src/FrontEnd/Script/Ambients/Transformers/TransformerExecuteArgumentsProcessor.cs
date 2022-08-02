@@ -7,7 +7,7 @@ using System.Globalization;
 using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.Values;
 using BuildXL.Ipc.ExternalApi;
-using BuildXL.Ipc.Interfaces;
+using BuildXL.Ipc.Common;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
@@ -100,7 +100,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             AddOption(prefix, value, valueIsEmpty: value == RelativePath.Invalid, writeValue: (b, v) => b.Add(v));
         }
 
-        private void AddOption(string prefix, IIpcMoniker value)
+        private void AddOption(string prefix, IpcMoniker value)
         {
             AddOption(prefix, value, valueIsEmpty: value == null, writeValue: (b, v) => b.AddIpcMoniker(v));
         }

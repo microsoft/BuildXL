@@ -33,25 +33,11 @@ namespace Test.BuildXL.Ipc
 #endif
         }
 
-        /// <summary>
-        ///     Test that different invocations of <see cref="IIpcProvider.CreateNewMoniker"/> return monikers.
-        /// </summary>
-        [Theory]
-        [MemberData(nameof(ProvidersData))]
-        public void TestCreateNewMonikerReturnsUniqueMonikers(IIpcProvider provider)
-        {
-            var m1 = provider.CreateNewMoniker();
-            var m2 = provider.CreateNewMoniker();
-            Assert.NotNull(m1);
-            Assert.NotNull(m2);
-            Assert.NotEqual(m1, m2);
-        }
-
         [Theory]
         [MemberData(nameof(ProvidersData))]
         public void TestRenderConnectionStringReturnsSameString(IIpcProvider provider)
         {
-            var m1 = provider.CreateNewMoniker();
+            var m1 = IpcMoniker.CreateNew();
             var connStr1 = provider.RenderConnectionString(m1);
             var connStr2 = provider.RenderConnectionString(m1);
             Assert.NotNull(connStr1);
@@ -316,13 +302,13 @@ namespace Test.BuildXL.Ipc
         public void TestLoadOrCreteMoniker(IIpcProvider provider)
         {
             var monikerId = "some arbitrary string";
-            var moniker = provider.LoadOrCreateMoniker(monikerId);
+            var moniker = IpcMoniker.Create(monikerId);
             XAssert.AreEqual(monikerId, moniker.Id);
-            var monikerClone = provider.LoadOrCreateMoniker(monikerId);
+            var monikerClone = IpcMoniker.Create(monikerId);
             XAssert.AreEqual(moniker, monikerClone);
             XAssert.AreEqual(moniker.GetHashCode(), monikerClone.GetHashCode());
 
-            var differentMoniker = provider.CreateNewMoniker();
+            var differentMoniker = IpcMoniker.CreateNew();
             XAssert.AreNotEqual(moniker, differentMoniker);
             XAssert.AreNotEqual(moniker.GetHashCode(), differentMoniker.GetHashCode());
 

@@ -4,7 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
-using BuildXL.Ipc.Interfaces;
+using BuildXL.Ipc.Common;
 using BuildXL.Utilities;
 
 namespace BuildXL.Pips.Operations
@@ -186,7 +186,7 @@ namespace BuildXL.Pips.Operations
         /// <summary>
         /// Implicitly convert an IPC moniker to PipDataEntry.
         /// </summary>
-        public static PipDataEntry CreateIpcMonikerEntry(IIpcMoniker data, StringTable stringTable)
+        public static PipDataEntry CreateIpcMonikerEntry(IpcMoniker data, StringTable stringTable)
         {
             return new PipDataEntry(PipDataFragmentEscaping.Invalid, PipDataEntryType.IpcMoniker, StringId.Create(stringTable, data.Id).Value);
         }

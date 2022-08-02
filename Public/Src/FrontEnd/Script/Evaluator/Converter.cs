@@ -8,7 +8,7 @@ using System.Text.RegularExpressions;
 using BuildXL.FrontEnd.Script.Ambients.Set;
 using BuildXL.FrontEnd.Script.Literals;
 using BuildXL.FrontEnd.Script.Values;
-using BuildXL.Ipc.Interfaces;
+using BuildXL.Ipc.Common;
 using BuildXL.Pips;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
@@ -400,9 +400,9 @@ namespace BuildXL.FrontEnd.Script.Evaluator
         /// <summary>
         /// Converts an object to an IpcMoniker.
         /// </summary>
-        public static IIpcMoniker ExpectMoniker(EvaluationResult value, in ConversionContext context = default(ConversionContext))
+        public static IpcMoniker ExpectMoniker(EvaluationResult value, in ConversionContext context = default(ConversionContext))
         {
-            return ExpectRef<IIpcMoniker>(value, context);
+            return ExpectValue<IpcMoniker>(value, context);
         }
 
         /// <summary>

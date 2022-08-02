@@ -4,7 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
-using BuildXL.Ipc.Interfaces;
+using BuildXL.Ipc.Common;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 
@@ -28,7 +28,7 @@ namespace BuildXL.Pips.Operations
     /// --------------------------|----------------------------------------------|----------------------------------------------
     /// AbsolutePath              | <see cref="AbsolutePath.RawValue"/>          | Represents full path value
     /// --------------------------|----------------------------------------------|----------------------------------------------
-    /// IpcMoniker                | <see cref="IIpcMoniker.Id"/>                 | Represents id of an IPC moniker
+    /// IpcMoniker                | <see cref="IpcMoniker.Id"/>                 | Represents id of an IPC moniker
     /// --------------------------|----------------------------------------------|----------------------------------------------
     /// VsoHashEntry1Path         | <see cref="AbsolutePath.RawValue"/>          | First entry of a <see cref="PipFragmentType.VsoHash"/> fragment.
     ///                           |                                              | Its data corresponds to the <see cref="FileArtifact.Path"/> property.
@@ -292,7 +292,7 @@ namespace BuildXL.Pips.Operations
         /// <summary>
         /// Adds an IpcMoniker to the pip data.
         /// </summary>
-        public void AddIpcMoniker(IIpcMoniker moniker)
+        public void AddIpcMoniker(IpcMoniker moniker)
         {
             Contract.Requires(moniker != null);
 

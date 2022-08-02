@@ -11,7 +11,7 @@ using System.Text.RegularExpressions;
 using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.Types;
 using BuildXL.FrontEnd.Script.Values;
-using BuildXL.Ipc.Interfaces;
+using BuildXL.Ipc.Common;
 using BuildXL.Pips;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
@@ -1447,9 +1447,9 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
         private PipId InterpretFinalizationPipArguments(Context context, ObjectLiteral obj)
         {
             var tool = Converter.ExtractObjectLiteral(obj, m_executeTool, allowUndefined: true);
-            var moniker = Converter.ExtractRef<IIpcMoniker>(obj, m_ipcSendMoniker, allowUndefined: true);
+            var moniker = Converter.ExtractValue<IpcMoniker>(obj, m_ipcSendMoniker, allowUndefined: true);
 
-            if ((tool == null && moniker == null) || (tool != null && moniker != null))
+            if ((tool == null && !moniker.HasValue) || (tool != null && moniker.HasValue))
             {
                 throw new InputValidationException(
                     I($"Expected exactly one of the '{m_executeTool.ToString(StringTable)}' and '{m_ipcSendMoniker.ToString(StringTable)}' fields to be defined."),

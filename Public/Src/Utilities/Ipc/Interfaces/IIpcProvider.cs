@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using BuildXL.Ipc.Common;
+
 namespace BuildXL.Ipc.Interfaces
 {
     /// <summary>
@@ -9,23 +11,13 @@ namespace BuildXL.Ipc.Interfaces
     public interface IIpcProvider
     {
         /// <summary>
-        /// Returns a new moniker.
-        /// </summary>
-        IIpcMoniker CreateNewMoniker();
-
-        /// <summary>
-        /// Loads or creates a new moniker with a given id.
-        /// </summary>
-        IIpcMoniker LoadOrCreateMoniker(string monikerId);
-
-        /// <summary>
         /// Renders given moniker to a connection string (that can be passed to <see cref="GetClient"/> and <see cref="GetServer"/>).
         /// </summary>
         /// <remarks>
         /// This method MUST be <strong>stable</strong>, i.e., over time, it must
         /// always return the same connetion string for all monikers with the same ID.
         /// </remarks>
-        string RenderConnectionString(IIpcMoniker moniker);
+        string RenderConnectionString(IpcMoniker moniker);
 
         /// <summary>
         /// Creates an <see cref="IServer"/> instance given
@@ -33,7 +25,7 @@ namespace BuildXL.Ipc.Interfaces
         /// </summary>
         /// <remarks>
         /// The <paramref name="connectionString"/> must be a string obtained by calling
-        /// <see cref="RenderConnectionString"/> on a moniker previously returned by this provider.
+        /// <see cref="RenderConnectionString"/> on an IPC moniker.
         /// </remarks>
         IServer GetServer(string connectionString, IServerConfig config);
 

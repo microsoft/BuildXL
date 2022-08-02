@@ -28,12 +28,12 @@ namespace Test.BuildXL.Plugin
 
         private const string PluginPath1 = "test1";
         private const string PluginId1 = "test1";
-        private static readonly string m_pluginPort1 = IpcFactory.GetProvider().LoadAndRenderMoniker(IpcFactory.GetProvider().CreateNewMoniker().Id);
+        private static readonly string m_pluginPort1 = IpcFactory.GetProvider().LoadAndRenderMoniker(IpcMoniker.CreateNew().Id);
 
         private const string PluginPath2 = "test2";
         private const string PluginId2 = "test2";
-        private static readonly string m_pluginPort2 = IpcFactory.GetProvider().LoadAndRenderMoniker(IpcFactory.GetProvider().CreateNewMoniker().Id);
-        private static readonly string m_pluginPort3 = IpcFactory.GetProvider().LoadAndRenderMoniker(IpcFactory.GetProvider().CreateNewMoniker().Id);
+        private static readonly string m_pluginPort2 = IpcFactory.GetProvider().LoadAndRenderMoniker(IpcMoniker.CreateNew().Id);
+        private static readonly string m_pluginPort3 = IpcFactory.GetProvider().LoadAndRenderMoniker(IpcMoniker.CreateNew().Id);
 
         private static Func<Task<PluginResponseResult<bool>>> s_booleanResponseSucceed = () => Task.FromResult(new PluginResponseResult<bool>(true, PluginResponseState.Succeeded, "0", 0));
         private static Func<Task<PluginResponseResult<bool>>> s_booleanResponsetFailed = () => Task.FromResult(new PluginResponseResult<bool>(PluginResponseState.Failed, "0", 0, new Failure<string>("")));

@@ -60,7 +60,7 @@ namespace BuildXL.Pips.Operations
         NestedFragment,
 
         /// <summary>
-        /// IPC moniker (<see cref="BuildXL.Ipc.Interfaces.IIpcMoniker"/> to be rendered dynamically, before the pip is executed.
+        /// IPC moniker (<see cref="BuildXL.Ipc.Common.IpcMoniker"/> to be rendered dynamically, before the pip is executed.
         /// </summary>
         IpcMoniker,
 

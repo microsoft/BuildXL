@@ -55,7 +55,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
         private static EvaluationResult GetNewIpcMoniker(Context context, ModuleLiteral env, EvaluationStackFrame args)
         {
             var semiStableHash = context.GetPipConstructionHelper().GetNextSemiStableHash();
-            return EvaluationResult.Create(new StringMoniker(string.Format(CultureInfo.InvariantCulture, "{0:X16}", semiStableHash)));
+            return EvaluationResult.Create(new IpcMoniker(string.Format(CultureInfo.InvariantCulture, "{0:X16}", semiStableHash)));
         }
 
         private static EvaluationResult GetIpcServerMoniker(Context context, ModuleLiteral env, EvaluationStackFrame args)
@@ -108,7 +108,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
         private bool TryScheduleIpcPip(Context context, ObjectLiteral obj, bool allowUndefinedTargetService, bool isServiceFinalization, out FileArtifact outputFile, out PipId pipId)
         {
             // IpcClientInfo
-            IIpcMoniker moniker = Converter.ExtractRef<IIpcMoniker>(obj, m_ipcSendMoniker, allowUndefined: false);
+            IpcMoniker moniker = Converter.ExtractValue<IpcMoniker>(obj, m_ipcSendMoniker, allowUndefined: false).Value;
             int? numRetries = Converter.ExtractNumber(obj, m_ipcSendMaxConnectRetries, allowUndefined: true);
             int? retryDelayMillis = Converter.ExtractNumber(obj, m_ipcSendConnectRetryDelayMillis, allowUndefined: true);
             var clientConfig = new ClientConfig(numRetries, retryDelayMillis);

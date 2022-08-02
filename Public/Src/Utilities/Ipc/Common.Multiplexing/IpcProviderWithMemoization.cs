@@ -14,14 +14,10 @@ namespace BuildXL.Ipc.Common.Multiplexing
     /// IpcProvider with memoization for monikers, clients, and servers.
     ///
     /// It takes another <see cref="IIpcProvider"/> to which it delegates the tasks of
-    /// (1) creating of new monikers, (2) getting a client for a given moniker, and
-    /// (3) getting a server for a given moniker.
+    /// (1) getting a client for a given moniker, and
+    /// (2) getting a server for a given moniker.
     ///
-    /// This provider creates monikers whose IDs are globally unique identifiers.
-    /// Creation of a new moniker (by the underlying provider) is deferred until
-    /// <see cref="RenderConnectionString(IIpcMoniker)"/> is called.
-    /// That way, for all <see cref="LoadOrCreateMoniker(string)"/> requests
-    /// when the same ID is supplied, only one underying moniker is created.
+    /// Only one underying connection string is rendered per moniker.
     /// The connection string is remembered and returned for all subsequent
     /// requests to render a moniker that has the same ID.
     ///
@@ -51,13 +47,7 @@ namespace BuildXL.Ipc.Common.Multiplexing
         }
 
         /// <inheritdoc />
-        public IIpcMoniker CreateNewMoniker() => new StringMoniker(Guid.NewGuid().ToString());
-
-        /// <inheritdoc />
-        public IIpcMoniker LoadOrCreateMoniker(string monikerId) => new StringMoniker(monikerId);
-
-        /// <inheritdoc />
-        public string RenderConnectionString(IIpcMoniker moniker) => GetOrAddConnectionString(moniker.Id);
+        public string RenderConnectionString(IpcMoniker moniker) => GetOrAddConnectionString(moniker.Id);
 
         /// <summary>
         /// If no client has been created for a given moniker, creates and returns a new client;

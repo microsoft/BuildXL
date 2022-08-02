@@ -21,26 +21,10 @@ namespace BuildXL.Ipc.SocketBasedIpc
         private readonly ConcurrentDictionary<string, string> m_moniker2connectionString = new ConcurrentDictionary<string, string>();
 
         /// <summary>
-        /// Creates and returns a new moniker tied to an arbitrary free port.
-        /// </summary>
-        /// <remarks>
-        /// Ensures that unique monikers are returned throughout one program execution.
-        /// </remarks>
-        IIpcMoniker IIpcProvider.CreateNewMoniker()
-        {
-            return new StringMoniker(Guid.NewGuid().ToString());
-        }
-
-        IIpcMoniker IIpcProvider.LoadOrCreateMoniker(string monikerId)
-        {
-            return new StringMoniker(monikerId);
-        }
-
-        /// <summary>
         /// Returns an existing connection string for the given moniker ID or
         /// finds an unused port number and renders it to a string.
         /// </summary>
-        string IIpcProvider.RenderConnectionString(IIpcMoniker moniker)
+        string IIpcProvider.RenderConnectionString(IpcMoniker moniker)
         {
             return m_moniker2connectionString.GetOrAdd(moniker.Id, (mId) => Utils.GetUnusedPortNumber().ToString(CultureInfo.InvariantCulture));
         }

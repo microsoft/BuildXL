@@ -11,7 +11,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Ipc.Common;
-using BuildXL.Ipc.Interfaces;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.DirectedGraph;
 using BuildXL.Pips.Operations;
@@ -39,12 +38,12 @@ namespace BuildXL.Pips.Graph
             /// <summary>
             /// Lazily initialized BuildXL server IPC moniker.
             /// </summary>
-            private readonly Lazy<IIpcMoniker> m_lazyApiServerMoniker;
+            private readonly Lazy<IpcMoniker> m_lazyApiServerMoniker;
 
             /// <summary>
             /// Creates a new moniker if it hasn't already been created; otherwise returns the previously created one.
             /// </summary>
-            public IIpcMoniker GetApiServerMoniker() => m_lazyApiServerMoniker.Value;
+            public IpcMoniker GetApiServerMoniker() => m_lazyApiServerMoniker.Value;
 
             private static readonly SortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer> s_emptySealContents =
                 SortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer>.CloneAndSort(
@@ -198,8 +197,8 @@ namespace BuildXL.Pips.Graph
                 m_sourceFiles = new ConcurrentBigMap<AbsolutePath, PipId>();
 
                 m_lazyApiServerMoniker = configuration.Schedule.UseFixedApiServerMoniker
-                    ? Lazy.Create(() => StringMoniker.GetFixedMoniker())
-                    : Lazy.Create(() => StringMoniker.CreateNewMoniker());
+                    ? Lazy.Create(() => IpcMoniker.GetFixedMoniker())
+                    : Lazy.Create(() => IpcMoniker.CreateNew());
 
                 LockManager = new LockManager();
 

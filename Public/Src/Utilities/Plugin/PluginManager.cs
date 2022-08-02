@@ -225,7 +225,7 @@ namespace BuildXL.Plugin
                 PluginId = pluginId,
                 ConnectionOption = new PluginConnectionOption()
                 {
-                    IpcMoniker = IpcFactory.GetProvider().LoadAndRenderMoniker(IpcFactory.GetProvider().CreateNewMoniker().Id),
+                    IpcMoniker = IpcFactory.GetProvider().LoadAndRenderMoniker(IpcMoniker.CreateNew().Id),
                     LogDir = m_logDirectory,
                     Logger = PluginLogUtils.CreateLoggerForPluginClients(m_loggingContext, pluginId)
                 },

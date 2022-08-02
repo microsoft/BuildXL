@@ -3,7 +3,7 @@
 
 using System;
 using System.Diagnostics.ContractsLight;
-using BuildXL.Ipc.Interfaces;
+using BuildXL.Ipc.Common;
 using BuildXL.Utilities;
 
 namespace BuildXL.Pips.Operations
@@ -114,7 +114,7 @@ namespace BuildXL.Pips.Operations
         /// Factory to create a PipFragment containing an IpcMoniker.
         /// FOR TESTING PURPOSES ONLY.
         /// </summary>
-        internal static PipFragment CreateIpcMonikerForTesting(IIpcMoniker moniker, StringTable stringTable)
+        internal static PipFragment CreateIpcMonikerForTesting(IpcMoniker moniker, StringTable stringTable)
         {
             var entry = PipDataEntry.CreateIpcMonikerEntry(moniker, stringTable);
             return new PipFragment(new[] { entry }, 0);
@@ -181,7 +181,7 @@ namespace BuildXL.Pips.Operations
         }
 
         /// <summary>
-        /// Returns the current value as a StringId corresponding to the <see cref="BuildXL.Ipc.Interfaces.IIpcMoniker.Id"/> IIpcMoniker property.
+        /// Returns the current value as a StringId corresponding to the <see cref="BuildXL.Ipc.Common.IpcMoniker.Id"/> IpcMoniker property.
         /// </summary>
         /// <remarks>
         /// You can only call this function for instances where Type is equal to <see cref="PipFragmentType.IpcMoniker"/>.

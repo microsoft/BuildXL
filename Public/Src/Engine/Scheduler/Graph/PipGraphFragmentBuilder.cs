@@ -8,7 +8,6 @@ using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading;
 using BuildXL.Ipc.Common;
-using BuildXL.Ipc.Interfaces;
 using BuildXL.Pips;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Graph;
@@ -51,7 +50,7 @@ namespace BuildXL.Scheduler.Graph
         private readonly ConcurrentQueue<Pip> m_pips = new ConcurrentQueue<Pip>();
         private readonly ConcurrentBigMap<PipId, SealDirectoryKind> m_sealDirectoryPips = new ConcurrentBigMap<PipId, SealDirectoryKind>();
         private readonly ConcurrentBigMap<DirectoryArtifact, HashSet<FileArtifact>> m_outputsUnderOpaqueExistenceAssertions = new ConcurrentBigMap<DirectoryArtifact, HashSet<FileArtifact>>();
-        private readonly Lazy<IIpcMoniker> m_lazyApiServerMoniker;
+        private readonly Lazy<IpcMoniker> m_lazyApiServerMoniker;
         private PipGraph.WindowsOsDefaults m_windowsOsDefaults;
         private PipGraph.UnixDefaults m_unixDefaults;
         private readonly object m_osDefaultLock = new object();
@@ -70,8 +69,8 @@ namespace BuildXL.Scheduler.Graph
             Configuration = configuration;
             m_pipExecutionContext = pipExecutionContext;
             m_lazyApiServerMoniker = configuration.Schedule.UseFixedApiServerMoniker
-                ? Lazy.Create(() => StringMoniker.GetFixedMoniker())
-                : Lazy.Create(() => StringMoniker.CreateNewMoniker());
+                ? Lazy.Create(() => IpcMoniker.GetFixedMoniker())
+                : Lazy.Create(() => IpcMoniker.CreateNew());
             SealDirectoryTable = new SealedDirectoryTable(m_pipExecutionContext.PathTable);
 
             if (configuration.Schedule.ComputePipStaticFingerprints)
@@ -245,7 +244,7 @@ namespace BuildXL.Scheduler.Graph
         }
 
         /// <inheritdoc />
-        public IIpcMoniker GetApiServerMoniker() => m_lazyApiServerMoniker.Value;
+        public IpcMoniker GetApiServerMoniker() => m_lazyApiServerMoniker.Value;
 
         /// <inheritdoc />
         public GraphPatchingStatistics PartiallyReloadGraph([NotNull] HashSet<AbsolutePath> affectedSpecs) => default;

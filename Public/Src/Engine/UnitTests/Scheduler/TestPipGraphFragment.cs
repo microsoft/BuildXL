@@ -5,9 +5,7 @@ using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.IO;
 using BuildXL.Engine;
-using BuildXL.Ipc;
 using BuildXL.Ipc.Common;
-using BuildXL.Ipc.Interfaces;
 using BuildXL.Pips;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Graph;
@@ -164,15 +162,15 @@ namespace Test.BuildXL.Scheduler
         /// <summary>
         /// Gets API server moniker.
         /// </summary>
-        public IIpcMoniker GetApiServerMoniker() => PipGraph.GetApiServerMoniker();
+        public IpcMoniker GetApiServerMoniker() => PipGraph.GetApiServerMoniker();
 
         /// <summary>
         /// Gets an IPC moniker.
         /// </summary>
-        public IIpcMoniker GetIpcMoniker(PipConstructionHelper helper = null)
+        public IpcMoniker GetIpcMoniker(PipConstructionHelper helper = null)
         {
             var semiStableHash = (helper ?? m_defaultConstructionHelper).GetNextSemiStableHash();
-            return IpcFactory.GetProvider().LoadOrCreateMoniker(string.Format(CultureInfo.InvariantCulture, "{0:X16}", semiStableHash));
+            return IpcMoniker.Create(string.Format(CultureInfo.InvariantCulture, "{0:X16}", semiStableHash));
         }
 
         /// <summary>
@@ -185,7 +183,7 @@ namespace Test.BuildXL.Scheduler
         /// Schedules an IPC pip.
         /// </summary>
         public IpcPip ScheduleIpcPip(
-            IIpcMoniker moniker,
+            IpcMoniker moniker,
             PipId? servicePipId,
             ProcessBuilder ipcProcessBuilder,
             FileArtifact outputFile,

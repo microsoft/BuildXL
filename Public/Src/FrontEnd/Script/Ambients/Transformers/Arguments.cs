@@ -8,7 +8,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.Linq;
-using BuildXL.Ipc.Interfaces;
+using BuildXL.Ipc.Common;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using static BuildXL.Utilities.FormattableStringEx;
@@ -277,7 +277,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
         private readonly AbsolutePath m_path;
         private readonly RelativePath m_relativePath;
         private readonly PathAtom m_pathAtom;
-        private readonly IIpcMoniker m_moniker;
+        private readonly IpcMoniker m_moniker;
 
         /// <nodoc/>
         public PrimitiveValue(string value)
@@ -320,7 +320,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
         }
 
         /// <nodoc/>
-        public PrimitiveValue(IIpcMoniker moniker)
+        public PrimitiveValue(IpcMoniker moniker)
             : this()
         {
             m_moniker = moniker;
@@ -382,7 +382,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
         }
 
         /// <nodoc/>
-        public IIpcMoniker IpcMoniker
+        public IpcMoniker IpcMoniker
         {
             get
             {

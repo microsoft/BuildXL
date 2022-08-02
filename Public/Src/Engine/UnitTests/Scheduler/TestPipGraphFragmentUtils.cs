@@ -1,6 +1,7 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using BuildXL.Ipc.Common;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Pips;
 using BuildXL.Pips.Operations;
@@ -13,7 +14,7 @@ namespace Test.BuildXL.Scheduler
 {
     public static class TestPipGraphFragmentUtils
     {
-        public static (IIpcMoniker ipcMoniker, PipId servicePipId) CreateService(TestPipGraphFragment fragment, ServiceRelatedPips pips = null)
+        public static (IpcMoniker ipcMoniker, PipId servicePipId) CreateService(TestPipGraphFragment fragment, ServiceRelatedPips pips = null)
         {
             var ipcMoniker = fragment.GetIpcMoniker();
             var apiServerMoniker = fragment.GetApiServerMoniker();

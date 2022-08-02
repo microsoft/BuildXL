@@ -7,7 +7,7 @@ using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Ipc.Interfaces;
+using BuildXL.Ipc.Common;
 using BuildXL.Pips;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.DirectedGraph;
@@ -272,7 +272,7 @@ namespace BuildXL.Scheduler.Graph
         }
 
         /// <inheritdoc />
-        public IIpcMoniker GetApiServerMoniker()
+        public IpcMoniker GetApiServerMoniker()
         {
             return m_builder.GetApiServerMoniker();
         }

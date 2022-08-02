@@ -840,7 +840,7 @@ namespace Test.Tool.DropDaemon
             return new SealedDirectoryFile(fileName, new FileArtifact(new AbsolutePath(1), 1), FileContentInfo.CreateWithUnknownLength(ContentHash.Random()));
         }
 
-        private static Client CreateDummyBxlApiClient(IIpcProvider ipcProvider, IIpcMoniker moniker)
+        private static Client CreateDummyBxlApiClient(IIpcProvider ipcProvider, IpcMoniker moniker)
         {
             return new Client(new MockClient(ipcProvider.GetClient(ipcProvider.RenderConnectionString(moniker), new ClientConfig())));
         }
@@ -897,7 +897,7 @@ namespace Test.Tool.DropDaemon
         private void WithSetup(IDropClient dropClient, Action<global::Tool.DropDaemon.DropDaemon, DropEtwListener, DropConfig> action, Client apiClient = null)
         {
             var etwListener = ConfigureEtwLogging();
-            string moniker = ServicePipDaemon.IpcProvider.RenderConnectionString(ServicePipDaemon.IpcProvider.CreateNewMoniker());
+            string moniker = ServicePipDaemon.IpcProvider.RenderConnectionString(IpcMoniker.CreateNew());
             var daemonConfig = new DaemonConfig(VoidLogger.Instance, moniker: moniker, enableCloudBuildIntegration: false);
             var dropConfig = new DropConfig("test", new Uri("file://xyz"));
             var dropServiceConfig = new DropServiceConfig();

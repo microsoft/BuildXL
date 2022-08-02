@@ -2261,7 +2261,7 @@ namespace Test.BuildXL.Scheduler
             Setup();
 
             var ipcProvider = new DummyIpcProvider();
-            var moniker = ipcProvider.CreateNewMoniker();
+            var moniker = IpcMoniker.CreateNew();
             var ipcInfo = new IpcClientInfo(moniker.ToStringId(Context.StringTable), new ClientConfig());
             var ipcPip = IpcPip.CreateFromStringPayload(Context, GetWorkingDirectory(), ipcInfo, "hi", CreateProvenance());
             XAssert.IsTrue(PipGraphBuilder.AddIpcPip(ipcPip, PipId.Invalid));
@@ -2274,7 +2274,7 @@ namespace Test.BuildXL.Scheduler
         {
             Setup();
 
-            var moniker = new DummyIpcProvider().CreateNewMoniker();
+            var moniker = IpcMoniker.CreateNew();
             var ipcInfo = new IpcClientInfo(moniker.ToStringId(Context.StringTable), new ClientConfig());
 
             CopyFile copyPip1 = CreateCopyFile(CreateSourceFile(), CreateOutputFileArtifact());
@@ -2333,7 +2333,7 @@ namespace Test.BuildXL.Scheduler
         {
             Setup();
 
-            var moniker = new DummyIpcProvider().CreateNewMoniker();
+            var moniker = IpcMoniker.CreateNew();
             var ipcInfo = new IpcClientInfo(moniker.ToStringId(Context.StringTable), new ClientConfig());
 
             var copySource = CreateSourceFile();
@@ -2373,7 +2373,7 @@ namespace Test.BuildXL.Scheduler
             var copyPip = CreateCopyFile(CreateSourceFile(), CreateOutputFileArtifact());
             XAssert.IsTrue(PipGraphBuilder.AddCopyFile(copyPip));
 
-            var moniker = new DummyIpcProvider().CreateNewMoniker();
+            var moniker = IpcMoniker.CreateNew();
             var ipcInfo = new IpcClientInfo(moniker.ToStringId(Context.StringTable), new ClientConfig());
             var ipcPip = IpcPip.CreateFromStringPayload(
                 Context,

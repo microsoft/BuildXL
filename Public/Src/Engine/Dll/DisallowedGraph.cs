@@ -4,15 +4,13 @@
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
-using BuildXL.Ipc.Interfaces;
+using BuildXL.Ipc.Common;
 using BuildXL.Pips;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.Utilities.Tracing;
 
 namespace BuildXL.Engine
 {
@@ -141,9 +139,9 @@ namespace BuildXL.Engine
         /// <summary>
         /// Creates a new moniker if it hasn't already been created; otherwise returns the previously created one.
         /// </summary>
-        public IIpcMoniker GetApiServerMoniker()
+        public IpcMoniker GetApiServerMoniker()
         {
-            return null;
+            return default;
         }
 
         /// <inheritdoc />

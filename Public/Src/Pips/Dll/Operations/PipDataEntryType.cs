@@ -80,7 +80,7 @@ namespace BuildXL.Pips.Operations
         /// IPC moniker.
         /// </summary>
         /// <remarks>
-        /// Data is <see cref="BuildXL.Utilities.StringId"/> of <see cref="BuildXL.Ipc.Interfaces.IIpcMoniker.Id"/>.
+        /// Data is <see cref="BuildXL.Utilities.StringId"/> of <see cref="BuildXL.Ipc.Common.IpcMoniker.Id"/>.
         /// </remarks>
         IpcMoniker,
 

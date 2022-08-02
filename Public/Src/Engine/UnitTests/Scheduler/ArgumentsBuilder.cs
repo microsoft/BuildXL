@@ -3,7 +3,7 @@
 
 using System;
 using System.Diagnostics.ContractsLight;
-using BuildXL.Ipc.Interfaces;
+using BuildXL.Ipc.Common;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
@@ -28,7 +28,7 @@ namespace Test.BuildXL.Scheduler
         /// <summary>
         /// Adds IPC moniker.
         /// </summary>
-        IArgumentsDataBuilder AddIpcMonikerOption(string optionName, IIpcMoniker value);
+        IArgumentsDataBuilder AddIpcMonikerOption(string optionName, IpcMoniker value);
 
         /// <summary>
         /// Adds file id.
@@ -113,7 +113,7 @@ namespace Test.BuildXL.Scheduler
         }
 
         /// <inheritdoc />
-        public IArgumentsDataBuilder AddIpcMonikerOption(string optionName, IIpcMoniker value)
+        public IArgumentsDataBuilder AddIpcMonikerOption(string optionName, IpcMoniker value)
         {
             Contract.Requires(!string.IsNullOrEmpty(optionName));
             Contract.Assert(!m_finished);
@@ -232,7 +232,7 @@ namespace Test.BuildXL.Scheduler
         /// <summary>
         /// Adds IPC moniker.
         /// </summary>
-        public ArgumentsBuilder AddIpcMonikerOption(string optionName, IIpcMoniker value)
+        public ArgumentsBuilder AddIpcMonikerOption(string optionName, IpcMoniker value)
         {
             Contract.Requires(!string.IsNullOrEmpty(optionName));
             Contract.Requires(value != null);

@@ -40,7 +40,7 @@ namespace Test.Tool.DropDaemon
             var ipcProvider = new IpcProviderWithMemoization(IpcFactory.GetProvider());
             var ipcMonikers = Enumerable
                 .Range(0, numServices)
-                .Select(_ => ipcProvider.RenderConnectionString(ipcProvider.CreateNewMoniker()))
+                .Select(_ => ipcProvider.RenderConnectionString(IpcMoniker.CreateNew()))
                 .ToList();
 
             var serverTasks = ipcMonikers

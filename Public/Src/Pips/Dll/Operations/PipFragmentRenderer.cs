@@ -65,7 +65,7 @@ namespace BuildXL.Pips.Operations
         private ContentHashLookup HashLookup { get; }
 
         /// <summary>
-        /// Takes a moniker ID (<see cref="BuildXL.Ipc.Interfaces.IIpcMoniker.Id"/>) and renders its value.
+        /// Takes a moniker ID (<see cref="BuildXL.Ipc.Common.IpcMoniker.Id"/>) and renders its value.
         /// </summary>
         [CanBeNull]
         private Func<string, string> IpcMonikerRenderer { get; }

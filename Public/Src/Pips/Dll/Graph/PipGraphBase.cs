@@ -159,7 +159,7 @@ namespace BuildXL.Pips.Graph
         protected readonly ConcurrentBigMap<AbsolutePath, int> LatestWriteCountsByPath;
 
         /// <summary>
-        /// String id corresponding to the <see cref="BuildXL.Ipc.Interfaces.IIpcMoniker.Id"/> property of the moniker used by the
+        /// String id corresponding to the <see cref="BuildXL.Ipc.Common.IpcMoniker.Id"/> property of the moniker used by the
         /// BuildXL API server; <see cref="StringId.Invalid"/> indicates that no BuildXL API operation has been requested.
         /// </summary>
         public readonly StringId ApiServerMoniker;

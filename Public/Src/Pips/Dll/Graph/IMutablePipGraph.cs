@@ -2,7 +2,7 @@
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
-using BuildXL.Ipc.Interfaces;
+using BuildXL.Ipc.Common;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
@@ -80,7 +80,7 @@ namespace BuildXL.Pips.Graph
         /// <summary>
         /// Creates a new moniker if it hasn't already been created; otherwise returns the previously created one.
         /// </summary>
-        IIpcMoniker GetApiServerMoniker();
+        IpcMoniker GetApiServerMoniker();
 
         /// <summary>
         /// Partially reloads pip graph.

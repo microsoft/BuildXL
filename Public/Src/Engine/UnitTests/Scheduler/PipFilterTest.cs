@@ -187,7 +187,7 @@ namespace Test.BuildXL.Scheduler
             IpcPip p2 = IpcPip.CreateFromStringPayload(
                 Context,
                 ObjectRootPath,
-                new IpcClientInfo(new DummyIpcProvider().CreateNewMoniker().ToStringId(Context.StringTable), new ClientConfig()),
+                new IpcClientInfo(IpcMoniker.CreateNew().ToStringId(Context.StringTable), new ClientConfig()),
                 "asdf",
                 CreateProvenance(),
                 CreateOutputFileArtifact());

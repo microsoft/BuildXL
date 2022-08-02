@@ -4,7 +4,7 @@
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using BuildXL.Ipc.Interfaces;
+using BuildXL.Ipc.Common;
 using BuildXL.Pips;
 using BuildXL.Pips.Operations;
 using BuildXL.Pips.Graph;
@@ -157,7 +157,7 @@ namespace Test.BuildXL.Scheduler
         public void TestAddingAndUnifyingIpcPip()
         {
             var fragment = CreatePipGraphFragmentTest(nameof(TestAddingAndUnifyingIpcPip));
-            (IIpcMoniker moniker, PipId servicePipId) = TestPipGraphFragmentUtils.CreateService(fragment);
+            (IpcMoniker moniker, PipId servicePipId) = TestPipGraphFragmentUtils.CreateService(fragment);
 
             var processBuilder = fragment.GetProcessBuilder();
             var argumentsBuilder = new ArgumentsBuilder(processBuilder);
@@ -306,7 +306,7 @@ namespace Test.BuildXL.Scheduler
             (Process processC, ProcessOutputs outputsC) = fragment2.ScheduleProcessBuilder(processBuilderC);
 
             // Drop z and h in fragment 2.
-            (IIpcMoniker moniker, PipId servicePipId) = TestPipGraphFragmentUtils.CreateService(fragment2);
+            (IpcMoniker moniker, PipId servicePipId) = TestPipGraphFragmentUtils.CreateService(fragment2);
 
             var addZBuilder = fragment2.GetIpcProcessBuilder();
             new ArgumentsBuilder(addZBuilder)

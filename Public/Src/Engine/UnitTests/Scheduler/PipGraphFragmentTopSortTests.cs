@@ -2,7 +2,7 @@
 // Licensed under the MIT License.
 
 using System.Linq;
-using BuildXL.Ipc.Interfaces;
+using BuildXL.Ipc.Common;
 using BuildXL.Pips;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
@@ -63,7 +63,7 @@ namespace Test.BuildXL.Scheduler
 
             // Drop z and y.
             var serviceRelatedPips = new TestPipGraphFragmentUtils.ServiceRelatedPips();
-            (IIpcMoniker moniker, PipId servicePipId) = TestPipGraphFragmentUtils.CreateService(fragment, serviceRelatedPips);
+            (IpcMoniker moniker, PipId servicePipId) = TestPipGraphFragmentUtils.CreateService(fragment, serviceRelatedPips);
 
             var addZBuilder = fragment.GetIpcProcessBuilder();
             new ArgumentsBuilder(addZBuilder)

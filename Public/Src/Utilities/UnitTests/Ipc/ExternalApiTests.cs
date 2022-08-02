@@ -336,7 +336,7 @@ namespace Test.BuildXL.Ipc
         public void TestClientFactory()
         {
             var provider = IpcFactory.GetProvider();
-            var moniker = provider.CreateNewMoniker();
+            var moniker = IpcMoniker.CreateNew();
             using var apiClient = Client.Create(provider, provider.RenderConnectionString(moniker));
         }
 

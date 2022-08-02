@@ -77,32 +77,32 @@ namespace BuildXL.Ipc.Common
     public static class IpcProviderExtensions
     {
         /// <summary>
-        /// First calls <see cref="IIpcProvider.LoadOrCreateMoniker(string)"/>, then
-        /// <see cref="IIpcProvider.RenderConnectionString(IIpcMoniker)"/> on the returned moniker.
+        /// First calls <see cref="IpcMoniker.Create(string)"/>, then
+        /// <see cref="IIpcProvider.RenderConnectionString(IpcMoniker)"/> on the returned moniker.
         /// </summary>
         public static string LoadAndRenderMoniker(this IIpcProvider ipcProvider, string monikerId)
         {
-            return ipcProvider.RenderConnectionString(ipcProvider.LoadOrCreateMoniker(monikerId));
+            return ipcProvider.RenderConnectionString(IpcMoniker.Create(monikerId));
         }
 
         /// <summary>
-        /// Creates a new moniker (<see cref="IIpcProvider.CreateNewMoniker"/>) and then renders
+        /// Creates a new moniker (<see cref="IpcMoniker.CreateNew"/>) and then renders
         /// it to a connection string (<see cref="IIpcProvider.RenderConnectionString"/>).
         /// </summary>
         public static string CreateNewConnectionString(this IIpcProvider ipcProvider)
         {
-            return ipcProvider.RenderConnectionString(ipcProvider.CreateNewMoniker());
+            return ipcProvider.RenderConnectionString(IpcMoniker.CreateNew());
         }
     }
 
     /// <summary>
-    /// Extension methods for <see cref="IIpcMoniker"/>.
+    /// Extension methods for <see cref="IpcMoniker"/>.
     /// </summary>
-    public static class IIpcMonikerExtensions
+    public static class IpcMonikerExtensions
     {
         /// <summary>
-        /// Given a <see cref="StringTable"/>, returns <see cref="IIpcMoniker.Id"/> as a <see cref="StringId"/>.
+        /// Given a <see cref="StringTable"/>, returns <see cref="IpcMoniker.Id"/> as a <see cref="StringId"/>.
         /// </summary>
-        public static StringId ToStringId(this IIpcMoniker moniker, StringTable table) => StringId.Create(table, moniker.Id);
+        public static StringId ToStringId(this IpcMoniker moniker, StringTable table) => StringId.Create(table, moniker.Id);
     }
 }

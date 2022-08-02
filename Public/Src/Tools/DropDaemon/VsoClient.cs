@@ -101,7 +101,9 @@ namespace Tool.DropDaemon
 
             m_counters = new();
 
-            m_credentialFactory = new VssCredentialsFactory(pat: null, new CredentialProviderHelper(m => m_logger.Verbose(m)), m => m_logger.Verbose(m));
+            string pat = !string.IsNullOrEmpty(dropConfig.PersonalAccessTokenEnv) ? Environment.GetEnvironmentVariable(dropConfig.PersonalAccessTokenEnv) : null;
+            pat = string.IsNullOrWhiteSpace(pat) ? null : pat;
+            m_credentialFactory = new VssCredentialsFactory(pat, new CredentialProviderHelper(m => m_logger.Verbose(m)), m => m_logger.Verbose(m));
 
             // instantiate drop client
             m_dropClient = new ReloadingDropServiceClient(

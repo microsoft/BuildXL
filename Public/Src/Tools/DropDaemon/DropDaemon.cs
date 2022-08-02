@@ -318,6 +318,15 @@ namespace Tool.DropDaemon
             DefaultValue = true,
         });
 
+        // The environment variable for pat should match the env passed through to create drop in dsc
+        internal static readonly StrOption PersonalAccessTokenEnv = RegisterConfigOption(new StrOption("PersonalAccessTokenEnv")
+        {
+            ShortName = "patenv",
+            HelpText = "personal access token environment",
+            IsRequired = false,
+            DefaultValue = string.Empty,
+        });
+
         // ==============================================================================
         // 'addfile' and 'addartifacts' parameters
         // ==============================================================================
@@ -1364,7 +1373,8 @@ namespace Tool.DropDaemon
                 signBuildManifest: conf.Get(SignBuildManifest),
                 sbomPackageName: conf.Get(SbomPackageName),
                 sbomPackageVersion: conf.Get(SbomPackageVersion),
-                reportTelemetry: conf.Get(ReportIndidualDropTelemetry));
+                reportTelemetry: conf.Get(ReportIndidualDropTelemetry),
+                personalAccessTokenEnv: conf.Get(PersonalAccessTokenEnv));
         }
 
         private static T RegisterConfigOption<T>(T option) where T : Option => RegisterOption(ConfigOptions, option);

@@ -91,6 +91,11 @@ namespace Tool.DropDaemon
         ///     Whether to report telemetry for individual drops.
         /// </summary>
         public bool ReportTelemetry { get; }
+
+        /// <summary>
+        ///    Env of personal access token for authentication.
+        /// </summary>
+        public string PersonalAccessTokenEnv { get; }
         #endregion
 
         #region Defaults
@@ -146,7 +151,8 @@ namespace Tool.DropDaemon
             bool? signBuildManifest = null,
             string sbomPackageName = null,
             string sbomPackageVersion = null,
-            bool? reportTelemetry = null)
+            bool? reportTelemetry = null,
+            string personalAccessTokenEnv = null)
         {
             Name = dropName;
             Service = serviceEndpoint;
@@ -163,6 +169,7 @@ namespace Tool.DropDaemon
             SbomPackageName = sbomPackageName;
             SbomPackageVersion = sbomPackageVersion;
             ReportTelemetry = reportTelemetry ?? false;
+            PersonalAccessTokenEnv = personalAccessTokenEnv;
         }
     }
 }

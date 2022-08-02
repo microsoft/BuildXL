@@ -23,7 +23,9 @@ const downloaderDefinition: Transformer.ToolDefinition = {
         d`${Context.getMount("UserProfile").path}/.dotnet/corefx/cryptography`
     ],
     untrackedFiles: [
-        nugetDownloaderExe
+        nugetDownloaderExe,
+        // Untracks the Cloudbuild credential provider
+        ...addIfLazy(Environment.hasVariable("__CLOUDBUILD_AUTH_HELPER_ROOT__"), () => [ f`${Environment.getDirectoryValue("__CLOUDBUILD_AUTH_HELPER_ROOT__")}/Nuget/CredentialProvider.Cloudbuild.exe` ])
     ],
 };
 

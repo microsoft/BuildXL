@@ -4,6 +4,17 @@ trigger:
     include:
     - master
 
+resources:
+  repositories:
+  - repository: 1esPipelines
+    type: git
+    name: 1ESPipelineTemplates/1ESPipelineTemplates
+    ref: refs/tags/release
+
+variables:
+  PackageArtifactName: runtime.linux-x64.BuildXL.${{ parameters.LinuxRuntimePackageVersion }}
+  PackageDir: $(Build.SourcesDirectory)/Public/Src/Sandbox/Linux/bin/$(PackageArtifactName)
+
 parameters:
 - name: BuildSelfhost
   type: boolean
@@ -16,13 +27,75 @@ parameters:
   default: false
 - name: LinuxRuntimePackageVersion
   type: string
-  default: 0.1.0-$(Build.BuildNumber)
+  default: 0.1.0-$(Build.BuildNumber).$(System.JobAttempt)
 
-jobs:
-- ${{ if parameters.BuildSelfhost }}:
-  - template: job-selfhost.yml
-- ${{ if parameters.BuildLinuxRuntime }}:
-  - template: job-linux-runtime.yml
-    parameters:
-      PublishNuget: ${{ parameters.PublishLinuxRuntimeNuget }}
-      PackageVersion: ${{ parameters.LinuxRuntimePackageVersion }}
+extends:
+  template: v1/1ES.Unofficial.PipelineTemplate.yml@1esPipelines
+  parameters:
+
+    # Container in which to run *all* jobs (unfortunately 1ESPipelineTemplates allows only one container for all jobs)
+    # Chosen because the Linux runtime binaries must be built for 'manylinux2014' (more precisely, against glibc 2.17);
+    # currently, all other jobs in this pipeline opt out of containerization.
+    container:
+      image: quay.io/pypa/manylinux2014_x86_64
+
+    stages:
+    - stage: Build
+      jobs:
+      # Build and test selfhost with BuildXL
+      - ${{ if parameters.BuildSelfhost }}:
+        - template: /.azdo/linux/job-selfhost.yml@self
+
+      # Build Linux native runtime libraries with make
+      - ${{ if parameters.BuildLinuxRuntime }}:
+        - job: BuildLinuxRuntime
+          displayName: Build Linux Runtime
+          pool:
+            vmImage: ubuntu-latest
+          templateContext:
+            inputs:
+            - input: checkout
+              repository: self
+              fetchDepth: 1
+          steps:
+          - bash: make cleanall && make all -j
+            workingDirectory: Public/Src/Sandbox/Linux
+            failOnStderr: true
+            displayName: Build Native
+
+          - bash: bash mknuget.sh ${{ parameters.LinuxRuntimePackageVersion }}
+            workingDirectory: Public/Src/Sandbox/Linux
+            displayName: Pack Nuget
+
+          - task: PublishPipelineArtifact@1
+            inputs:
+              targetPath: $(PackageDir)
+              artifactName: $(PackageArtifactName)
+            condition: always()
+            continueOnError: true
+            displayName: Publish Pipeline Artifact
+
+        # Publish the built runtime in a separate job
+        # TODO: this could be merged with the previous job if the container image had all the required tools preinstalled
+        - ${{ if parameters.PublishLinuxRuntimeNuget }}:
+          - job: PublishNativeRuntimeNuget
+            displayName: Publish Linux Runtime NuGet
+            dependsOn: [ BuildLinuxRuntime ]
+            pool:
+              vmImage: ubuntu-latest
+            templateContext:
+              breakGlass:
+                justification: "Because 1ESPipelineTemplates allows only a single container for all jobs, and 'quay.io/pypa/manylinux2014_x86_64' does not have some tools needed for NuGet installed"
+            steps:
+            - checkout: none
+            - task: DownloadPipelineArtifact@2
+              inputs:
+                artifact: $(PackageArtifactName)
+                path:  $(Build.ArtifactStagingDirectory)/$(PackageArtifactName)
+            - template: /.azdo/linux/step-nuget-config.yml@self
+            - bash: |
+                set -eu
+                zip -r ../$(PackageArtifactName).nupkg *
+                dotnet nuget push --skip-duplicate --api-key "AzureDevOps" --source "$(Feed-BuildXL.Selfhost)" ../$(PackageArtifactName).nupkg
+              displayName: Push NuGet
+              workingDirectory: $(Build.ArtifactStagingDirectory)/$(PackageArtifactName)

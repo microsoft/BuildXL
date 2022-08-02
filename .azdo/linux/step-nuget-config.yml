@@ -2,17 +2,16 @@ steps:
 - bash: |
     set -eu
 
-    # install mono
-    sudo apt-get update
-    sudo apt-get install -y mono-complete mono-devel 
-    mono --version
-  displayName: Install Prerequisites
+    function addNugetSource {
+      local source="$1"
+      local name="$2"
+      local password="$3"
 
-- bash: |
-    set -eu
-    mono Shared/Tools/NuGet.exe sources remove -Name "BuildXL.Selfhost" || true
-    mono Shared/Tools/NuGet.exe sources remove -Name "BuildXL" || true
+      dotnet nuget remove source "$name" 2>&1 > /dev/null || true
+      echo "Adding '$name' -> '$source'"
+      dotnet nuget add source "$source" --name "$name" --username tsebuild --password "$password" --store-password-in-clear-text
+    }
 
-    mono Shared/Tools/NuGet.exe sources add -Name "BuildXL.Selfhost" -Source "$(Feed-BuildXL.Selfhost)" -username tsebuild -password $(PAT-TseBuild-AzureDevOps-CloudBuild)
-    mono Shared/Tools/NuGet.exe sources add -Name "BuildXL" -Source "$(Feed-BuildXL)" -username tsebuild -password $(PAT-TseBuild-AzureDevOps-1esSharedAssets)
+    addNugetSource "$(Feed-BuildXL.Selfhost)" "BuildXL.Selfhost" "$(PAT-TseBuild-AzureDevOps-CloudBuild)"
+    addNugetSource "$(Feed-BuildXL)" "BuildXL" "$(PAT-TseBuild-AzureDevOps-1esSharedAssets)"
   displayName: Add NuGet Sources

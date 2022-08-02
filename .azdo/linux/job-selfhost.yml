@@ -1,8 +1,21 @@
+parameters:
+- name: BxlCommonArgs
+  type: string
+  default: --shared-comp /ado /cacheMiss:"[Bxl.Selfhost.Linux]" /logObservedFileAccesses /cacheConfigFilePath:Out/CacheConfig.json /logoutput:FullOutputOnError /logsToRetain:10 /exp:lazysodeletion- # /p:[Sdk.BuildXL]xunitSemaphoreCount=20
+
 jobs:
 - job: Selfhost
   displayName: Build and Validate Selfhost
   pool:
     name: BuildXL-DevOpsAgents-Linux-PME
+
+  templateContext:
+    breakGlass:
+      justification: 'Because BuildXL downloads NuGet packages from the internet during the build (and there is no way to run "nuget restore" before the build because NuGet packages are specified in a BuildXL-specific way)'
+    inputs:
+    - input: checkout
+      repository: self
+      fetchDepth: 1
 
   timeoutInMinutes: 90
 
@@ -15,13 +28,7 @@ jobs:
         BxlMatrixName: ReleaseLinux
         BxlMatrixArgs: /q:ReleaseLinux
 
-  variables:
-    skipComponentGovernanceDetection: true # done elsewhere (in the main rolling pipeline)
-    BxlCommonArgs: --shared-comp /ado /cacheMiss:"[Bxl.Selfhost.Linux]" /logObservedFileAccesses /cacheConfigFilePath:Out/CacheConfig.json /logoutput:FullOutputOnError /logsToRetain:10 /exp:lazysodeletion- # /p:[Sdk.BuildXL]xunitSemaphoreCount=20
-
   steps:
-  - checkout: self
-    fetchDepth: 1
 
   # Azure Key Vault
   # Download Azure Key Vault secrets
@@ -37,7 +44,7 @@ jobs:
     inputs:
       version: 6.x
 
-  - template: step-nuget-config.yml
+  - template: step-install-mono.yml
 
   - bash: |
       set -euo pipefail
@@ -82,7 +89,7 @@ jobs:
 
   - bash: |
       set -eu
-      bash bxl.sh $(BxlCommonArgs) /logsDirectory:"Out/Logs/Build" --minimal --internal --deploy-dev-release
+      bash bxl.sh ${{ parameters.BxlCommonArgs }} /logsDirectory:"Out/Logs/Build" --minimal --internal --deploy-dev-release
     displayName: Build
     workingDirectory: /home/subst
     env:
@@ -91,7 +98,7 @@ jobs:
       VSTSPERSONALACCESSTOKEN: $(PAT-TseBuild-AzureDevOps-mseng-buildcache)
 
   - bash: |
-      echo "== Deleting Out/frontend/Nuget/tmp, Out/bin, Out/Boorstrap folders to reduce the size of the NuGet cache dir"
+      echo "== Deleting Out/frontend/Nuget/tmp, Out/bin, Out/Bootstrap folders to reduce the size of the NuGet cache dir"
       rm -rf Out/frontend/Nuget/tmp Out/Objects.noindex Out/bin Out/BootStrap
       echo "== Disk usage of folders in Out"
       du -sh Out/*
@@ -103,7 +110,7 @@ jobs:
       set -eu
       function run_build {
         # the disks on Azure Pipeline VMs are too small to build everything, so let's instead run tests
-        bash bxl.sh --use-dev $(BxlCommonArgs) /logsDirectory:"Out/Logs/$(BxlMatrixName)" $(BxlMatrixArgs) "/f:tag='test'"
+        bash bxl.sh --use-dev ${{ parameters.BxlCommonArgs }} /logsDirectory:"Out/Logs/$(BxlMatrixName)" $(BxlMatrixArgs) "/f:tag='test'"
       }
 
       run_build || {

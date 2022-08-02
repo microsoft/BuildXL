@@ -62,6 +62,7 @@ fi
 
 if [[ -z $arg_Password ]]; then
     echo "[INFO] Password not set; using the AC_PASSWORD entry from the keychain"
+    # [SuppressMessage("Microsoft.Security", "CS002:SecretInNextLine", Justification="Not a secret")]
     arg_Password="@keychain:AC_PASSWORD"
 fi
 

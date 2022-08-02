@@ -1,0 +1,9 @@
+steps:
+- bash: |
+    set -eu
+
+    # install mono
+    sudo apt-get update
+    sudo apt-get install -y mono-complete mono-devel 
+    mono --version
+  displayName: Install Mono

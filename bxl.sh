@@ -198,7 +198,8 @@ function installCredProvider() {
     fi
 
     # Download the artifacts credential provider
-    wget -q -c https://github.com/microsoft/artifacts-credprovider/releases/download/v1.0.0/Microsoft.NuGet.CredentialProvider.tar.gz -O - | tar -xz -C $destinationFolder
+    mkdir -p "$destinationFolder"
+    wget -q -c https://github.com/microsoft/artifacts-credprovider/releases/download/v1.0.0/Microsoft.NuGet.CredentialProvider.tar.gz -O - | tar -xz -C "$destinationFolder"
 
     # Remove the .exe, since we want to replace it with a script that runs on Mac/Linux
     rm "$credentialProviderExe"
@@ -250,17 +251,6 @@ if [[ -n "$arg_Cgmanifest" ]]; then
     arg_Positional+=(/generateCgManifestForNugets:"${MY_DIR}/cg/nuget/cgmanifest.json")
 fi
 
-if [[ -n "$arg_UseDev" ]]; then
-    if [[ ! -f $MY_DIR/Out/Selfhost/Dev/bxl ]]; then
-        print_error "Error: Could not find the dev deployment. Make sure you build with --deploy-dev first."
-        exit 1
-    fi
-
-    export BUILDXL_BIN=$MY_DIR/Out/Selfhost/Dev
-elif [[ -z "$BUILDXL_BIN" ]]; then
-    getLkg
-fi
-
 # if the nuget credential provider is not configured (and the build is an internal one, which is where it is needed)
 # download and install the artifacts credential provider
 if [[ -n "$arg_Internal" ]] && [[ ! -d "${NUGET_CREDENTIALPROVIDERS_PATH:-}" ]]; then
@@ -303,6 +293,17 @@ fi
 # For local builds we want to use the in-build Linux runtime (as opposed to the runtime.linux-x64.BuildXL package)
 if [[ -z "$TF_BUILD" ]];then
     arg_Positional+=("/p:[Sdk.BuildXL]validateLinuxRuntime=0")
+fi
+
+if [[ -n "$arg_UseDev" ]]; then
+    if [[ ! -f $MY_DIR/Out/Selfhost/Dev/bxl ]]; then
+        print_error "Error: Could not find the dev deployment. Make sure you build with --deploy-dev first."
+        exit 1
+    fi
+
+    export BUILDXL_BIN=$MY_DIR/Out/Selfhost/Dev
+elif [[ -z "$BUILDXL_BIN" ]]; then
+    getLkg
 fi
 
 compileWithBxl ${arg_Positional[@]}

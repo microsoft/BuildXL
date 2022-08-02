@@ -1,17 +1,18 @@
 #!/bin/bash
 
-readonly __dir=$(cd `dirname ${BASH_SOURCE[0]}` && pwd)
-
 set -euo pipefail
 
+readonly __dir=$(cd `dirname ${BASH_SOURCE[0]}` && pwd)
 readonly version="$1"
 readonly pkgName="runtime.linux-x64.BuildXL.${version}"
+readonly binDir="${__dir}/bin"
 
-cd "${__dir}"
-make cleanall
-bash build-manylinux.sh
+if [[ ! -d "${binDir}/debug" ]] || [[ ! -d "${binDir}/release" ]]; then
+  echo "One of '$binDir/{debug,release}' folders not found.  Build the native runtime libraries first"
+  exit 1
+fi
 
-cd bin
+cd "${__dir}/bin"
 
 rm -rf "${pkgName}"
 mkdir -p "${pkgName}/ref/netstandard"
@@ -38,4 +39,9 @@ cat > "${pkgName}/runtime.linux-x64.buildxl.nuspec" <<EOF
 EOF
 
 cd "${pkgName}"
-zip -v ../${pkgName}.nupkg *
+if which zip > /dev/null 2>&1; then
+  zip -r ../${pkgName}.nupkg *
+else
+  pwd
+  find . -type f
+fi

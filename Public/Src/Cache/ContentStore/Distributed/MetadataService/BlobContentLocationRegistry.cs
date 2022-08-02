@@ -10,6 +10,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Runtime.CompilerServices;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
@@ -64,17 +65,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     {
         protected override Tracer Tracer { get; } = new Tracer(nameof(BlobContentLocationRegistry));
 
-        /// <summary>
-        /// Internal use only. Test hook.
-        /// </summary>
-        internal TestObserver Observer { get; set; } = new();
-
         internal readonly BlobContentLocationRegistryConfiguration Configuration;
         private ILocalContentStore? _localContentStore;
         private readonly ClusterStateManager _clusterStateManager;
         private readonly IClock _clock;
 
         internal readonly BlobFolderStorage Storage;
+        internal NodeContext NodeCompletionTracker { get; private set; }
 
         private ClusterState ClusterState => _clusterStateManager.ClusterState;
         private MachineRecord LocalMachineRecord { get; set; }
@@ -103,6 +100,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         private readonly IRetryPolicy _putBlockRetryPolicy;
 
+        internal IBlobContentLocationRegistryScheduler Scheduler { get; set; }
+
         private bool ShouldUpdateDatabase => Configuration.UpdateDatabase && _databaseUpdateLeaseExpiry > _clock.UtcNow;
 
         public BlobContentLocationRegistry(
@@ -119,6 +118,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             _clusterStateManager = clusterStateManager;
             _clock = clock ?? SystemClock.Instance;
             Database = database;
+            Scheduler = new BlobContentLocationRegistryScheduler(configuration, clock);
+
             Storage = new BlobFolderStorage(Tracer, configuration);
             _partitionIds = PartitionId.GetPartitions(configuration.PartitionCount);
 
@@ -138,6 +139,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             {
                 RunInBackground(nameof(UpdatePartitionsLoopAsync), UpdatePartitionsLoopAsync, fireAndForget: true);
             }
+        }
+
+        protected override Task<BoolResult> StartupComponentAsync(OperationContext context)
+        {
+            NodeCompletionTracker = new NodeContext(Tracer, context, Storage.GetBlob(context.Token, $"tracker.f{Configuration.Factor}"));
+
+            return base.StartupComponentAsync(context);
         }
 
         private static bool IsPreconditionFailedError(Exception ex)
@@ -166,31 +174,66 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             while (!context.Token.IsCancellationRequested)
             {
                 await UpdatePartitionsAsync(context).IgnoreFailure();
-
-                await _clock.Delay(Configuration.PartitionsUpdateInterval, context.Token);
             }
 
             return BoolResult.Success;
         }
 
-        internal Task<BoolResult> UpdatePartitionsAsync(OperationContext context, Func<PartitionId, bool>? excludePartition = null)
+        internal async Task<BoolResult> UpdatePartitionsAsync(
+            OperationContext context,
+            Func<PartitionId, bool>? excludePartition = null)
         {
-            LocalMachineRecord = _clusterStateManager.ClusterState.PrimaryMachineRecord;
+            var start = _clock.UtcNow;
+            int phase = 0;
+            await Scheduler.WaitForStartStageAsync(context, phase++, start);
+
+            var clusterState = _clusterStateManager.ClusterState;
+            LocalMachineRecord = clusterState.PrimaryMachineRecord;
             if (LocalMachineRecord == null || _localContentStore == null)
             {
-                return BoolResult.SuccessTask;
+                return BoolResult.Success;
             }
 
             int databaseUpdates = 0;
             bool updatedDatabaseManifest = false;
 
             context = context.CreateNested(Tracer.Name);
-            return context.PerformOperationAsync(
+            return await context.PerformOperationAsync(
                 Tracer,
                 async () =>
                 {
                     var sortedEntries = await GetLocalSortedEntriesAsync(context);
-                    var partitions = sortedEntries.GetPartitionSlices(_partitionIds).ToList();
+
+                    var nodeStages = InterleaveNode.ComputeNodes(Configuration.Factor, clusterState.ComputeMaxMachineId(), _partitionIds);
+                    var submissionNode = nodeStages[0].Where(node => node.Contains(LocalMachineRecord.Id)).First();
+
+                    var nodeContext = new NodeContext(Tracer, context, Storage.GetBlob(context.Token, $"tracker.f{submissionNode.Factor}"));
+
+                    // Add a block with the machine's content to the appropriate blob
+                    await SubmitMachinePartitionContentAsync(
+                        context,
+                        submissionNode.GetBlobName(),
+                        LocalMachineRecord.MachineBlockId,
+                        sortedEntries,
+                        LocalMachineRecord.Location.ToString());
+
+                    foreach (var stage in nodeStages)
+                    {
+                        await Scheduler.WaitForStartStageAsync(context, phase++, start);
+
+                        foreach (var blobId in EnumerableExtensions.PseudoRandomEnumerate(stage))
+                        {
+                            if (excludePartition?.Invoke(blobId.PartitionId) == true
+                                || nodeContext.IsCompleted(blobId))
+                            {
+                                continue;
+                            }
+
+                            await nodeContext.UpdateCompletedNodesAsync();
+
+                            await ProcessStageBlobAsync(context, blobId, nodeContext);
+                        }
+                    }
 
                     // Randomly enumerate partitions so machines do not all operation on the same partition concurrently
                     foreach (var rangeIndex in EnumerableExtensions.PseudoRandomEnumerateRange(_partitionIds.Length))
@@ -201,31 +244,19 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                             continue;
                         }
 
-                        var partition = partitions[rangeIndex];
-
-                        // Add a block with the machine's content to the corresponding partition submission block
-                        await SubmitMachinePartitionContentAsync(context, partitionId, partition);
-
-                        if (Configuration.ProcessPartitions)
-                        {
-                            // Attempt to process the submission block for the partition into a new partition output blob
-                            await ProcessPartitionAsync(context, partitionId);
-                        }
-
                         if (ShouldUpdateDatabase)
                         {
                             databaseUpdates++;
                             await UpdateDatabasePartitionAsync(context, partitionId);
                         }
-
-                        // Add a delay to not have a hot loop of storage interaction
-                        await Task.Delay(Configuration.PerPartitionDelayInterval, context.Token);
                     }
 
                     if (ShouldUpdateDatabase)
                     {
                         updatedDatabaseManifest = true;
                         await UpdateManifestFromDatabaseRecordAsync(context).ThrowIfFailureAsync();
+
+                        await nodeContext.ClearCompletedAsync();
                     }
 
                     return BoolResult.Success;
@@ -500,32 +531,34 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         private Task SubmitMachinePartitionContentAsync(
             OperationContext context,
-            PartitionId partitionId,
-            ContentListing partition)
+            BlobName name,
+            string blockId,
+            ContentListing listing,
+            string displaySource)
         {
-            Observer.OnPutBlock(partitionId, partition);
-
             return Storage.UseBlockBlobAsync<BoolResult>(context,
-                GetPartitionSubmissionBlobName(partitionId),
+                name,
                 (context, blob) =>
                 {
-                    var hash = ContentHashingHelper.CalculateHash(partition.Bytes, HashType.MD5);
+                    var hash = ContentHashingHelper.CalculateHash(listing.Bytes, HashType.MD5);
 
                     return ExecuteWithRetryAsync(context, blob.Name, async () =>
                     {
-                        using var stream = partition.AsStream();
+                        using var stream = listing.AsStream();
                         await blob.PutBlockAsync(
-                            LocalMachineRecord.MachineBlockId,
+                            blockId,
                             stream,
                             md5Hash: hash);
                         return BoolResult.Success;
                     });
                 },
-                endMessageSuffix: _ => $" Partition={partitionId}, BlockId={LocalMachineRecord.MachineBlockId}, {partition}")
+                endMessageSuffix: _ => $"Name={name}, BlockId={blockId}, Source={displaySource}, {listing}")
                 .IgnoreFailure();
         }
 
         private record struct PartitionComputationResult(ContentListing Listing, int BlockCount, int RetainedBlockCount);
+
+        private static readonly string EmptyBlockId = new StringBuilder().Append('0', MachineRecord.BlockIdLength).ToString();
 
         /// <summary>
         /// Computes the sorted partition content from the submission blob
@@ -533,14 +566,21 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public Task<ContentListing> ComputeSortedPartitionContentAsync(
             OperationContext context,
             PartitionId partitionId,
-            bool takeLease = true)
+            BlobName? blobName = null,
+            bool takeLease = true,
+            bool filterInactiveMachineBlocks = false)
         {
             return Storage.UseBlockBlobAsync<Result<PartitionComputationResult>>(context,
-                GetPartitionSubmissionBlobName(partitionId),
+                blobName ?? GetPartitionSubmissionBlobName(partitionId),
                 timeout: TimeSpan.FromSeconds(120),
                 useAsync: async (context, b) =>
                 {
                     var blob = new PartitionBlob(partitionId, b);
+                    if (!await blob.ExistsAsync())
+                    {
+                        await blob.PutBlockAsync(EmptyBlockId, Stream.Null);
+                    }
+
                     AccessCondition leaseCondition = null;
                     if (takeLease)
                     {
@@ -552,10 +592,20 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                             BlockListingFilter.All,
                             leaseCondition);
 
-                    var distinctBlocks = blockList.Select(b => b.Name).ToHashSet();
-                    var retainedBlockList = distinctBlocks
-                        .Intersect(ClusterState.LiveRecords.Select(e => e.MachineBlockId))
-                        .ToList();
+                    var distinctBlocks = blockList.Where(b => b.Name != EmptyBlockId).Select(b => b.Name).ToHashSet();
+                    List<string> retainedBlockList;
+
+                    if (filterInactiveMachineBlocks)
+                    {
+                        // Filter to only blocks from live machines
+                        retainedBlockList = distinctBlocks
+                            .Intersect(ClusterState.LiveRecords.Select(e => e.MachineBlockId))
+                            .ToList();
+                    }
+                    else
+                    {
+                        retainedBlockList = distinctBlocks.ToList();
+                    }
 
                     await blob.PutBlockListAsync(
                         retainedBlockList,
@@ -577,7 +627,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                     return Result.Success(result);
                 },
-                endMessageSuffix: r => $" Partition={partitionId}, Value={r.GetValueOrDefault()}")
+                endMessageSuffix: r => $"Blob={blobName} Partition={partitionId}, Value={r.GetValueOrDefault()}")
                 .AsAsync(r => r.Listing)
                 .ThrowIfFailureAsync(unwrap: true);
         }
@@ -620,12 +670,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     }
                     try
                     {
-                        using var stream = reader.GetStream(value);
-                        await blob.DownloadRangeToStreamAsync(
-                            stream,
-                            range?.Offset,
-                            range?.Length,
-                            accessCondition);
+                        if (range?.Length != 0)
+                        {
+                            using var stream = reader.GetStream(value);
+                            await blob.DownloadRangeToStreamAsync(
+                                stream,
+                                range?.Offset,
+                                range?.Length,
+                                accessCondition);
+                        }
+
                         return Result.Success(value);
                     }
                     catch when (disposeOnException())
@@ -635,6 +689,59 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 },
                 extraEndMessage: r => $"Partition={blob.PartitionId}, Blob={blob.Name}, Block={blockKind} Value={r.GetValueOrDefault()}")
                 .ThrowIfFailureAsync(unwrap: true);
+        }
+
+        /// <summary>
+        /// Processes the partition submission blob against the current base snapshot to create a new output blob.
+        /// </summary>
+        private Task ProcessStageBlobAsync(
+            OperationContext context,
+            InterleaveNode node,
+            NodeContext nodeContext)
+        {
+            return context.PerformOperationAsync(
+                Tracer,
+                async () =>
+                {
+                    if (!node.IsTerminal)
+                    {
+                        using var currentListing = await ComputeSortedPartitionContentAsync(
+                            context,
+                            node.PartitionId,
+                            node.GetBlobName(),
+                            // Initial stage contains machine blocks. Need to filter out inactive machine blocks
+                            // Other stages are just aggregates so the will already be filtered
+                            filterInactiveMachineBlocks: node.Stage == 0);
+
+                        var slices = currentListing.GetPartitionSlices(node.GetChildren().Select(c => c.PartitionId))
+                            .Zip(node.GetChildren(), (listing, node) => (listing, node));
+
+                        await _actionQueue.ForEachAsync(slices, (slice, index) =>
+                        {
+                            var child = slice.node;
+                            var blobName = child.IsTerminal
+                                ? GetPartitionSubmissionBlobName(child.PartitionId)
+                                : child.GetBlobName();
+
+                            return SubmitMachinePartitionContentAsync(
+                                    context,
+                                    blobName,
+                                    node.GetBlockName(),
+                                    slice.listing,
+                                    displaySource: node.GetBlobName());
+                        });
+                    }
+                    else if (Configuration.ProcessPartitions)
+                    {
+                        await ProcessPartitionAsync(context, node.PartitionId);
+                    }
+
+                    await nodeContext.RegisterCompletedNodeAsync(node);
+
+                    return BoolResult.Success;
+                },
+                extraEndMessage: r => $" Node={node} Blob={node.GetBlobName()}")
+                .IgnoreFailure();
         }
 
         /// <summary>
@@ -734,7 +841,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                     return Result.Success(new UpdatePartitionResult(Updated: true, partitionRecord, lastUpdateTime));
                 },
-                endMessageSuffix: r => $" Partition={partitionId}, Lease={leaseId}, UpdateResult={r.GetValueOrDefault()}")
+                endMessageSuffix: r => $" Partition={partitionId}, Status={r.GetStatus()} Acquired={leaseId != null} Lease={leaseId}, UpdateResult={r.GetValueOrDefault()}")
                 .IgnoreFailure<Result<UpdatePartitionResult>>();
         }
 
@@ -978,6 +1085,62 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             public Guid GetKey() => Blob.SnapshotId.Value;
         }
 
+        internal sealed record NodeContext(Tracer Tracer, OperationContext Context, BlobWrapper NodeTrackerBlob)
+        {
+            public HashSet<string> CompletedNodeBlockNames { get; } = new();
+
+            public bool IsCompleted(InterleaveNode node)
+            {
+                return CompletedNodeBlockNames.Contains(node.GetBlockName());
+            }
+
+            public bool IsCompleted(InterleaveNode[] nodes)
+            {
+                return nodes.All(IsCompleted);
+            }
+
+            public Task UpdateCompletedNodesAsync()
+            {
+                return Context.PerformOperationAsync(
+                    Tracer,
+                    async () =>
+                    {
+                        var blockList = await NodeTrackerBlob.DownloadBlockListAsync(BlockListingFilter.Uncommitted);
+                        var blockNames = new HashSet<string>(blockList.Select(b => b.Name));
+
+                        blockNames.ExceptWith(CompletedNodeBlockNames);
+                        CompletedNodeBlockNames.UnionWith(blockNames);
+                        return Result.Success(blockNames);
+                    },
+                    extraEndMessage: r => $"Blob={NodeTrackerBlob.Name} TotalCompleted={CompletedNodeBlockNames.Count} NewlyCompletedBlocks=({r.ToStringSelectOrDefault(s => s.Count.ToString())})[{r.ToStringSelectOrDefault(s => string.Join(", ", s))}]").IgnoreFailure();
+            }
+
+            public Task RegisterCompletedNodeAsync(InterleaveNode Node)
+            {
+                return Context.PerformOperationAsync(
+                    Tracer,
+                    async () =>
+                    {
+                        await NodeTrackerBlob.PutBlockAsync(Node.GetBlockName(), Stream.Null);
+                        return BoolResult.Success;
+                    },
+                    extraEndMessage: r => $"Blob={NodeTrackerBlob.Name} Node={Node} NodeBlock={Node.GetBlockName()}").IgnoreFailure();
+            }
+
+            public Task ClearCompletedAsync()
+            {
+                return Context.PerformOperationAsync(
+                    Tracer,
+                    async () =>
+                    {
+                        await NodeTrackerBlob.PutBlockListAsync(Enumerable.Empty<string>());
+                        CompletedNodeBlockNames.Clear();
+                        return BoolResult.Success;
+                    },
+                    extraEndMessage: r => $"Blob={NodeTrackerBlob.Name}").IgnoreFailure();
+            }
+        }
+
         /// <summary>
         /// Wrapper for accessing typed values of blob metadata.
         /// 
@@ -1133,16 +1296,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             /// Content listing file containing entries for all content in the partition
             /// </summary>
             FullListing
-        }
-
-        /// <summary>
-        /// Test hook.
-        /// </summary>
-        internal class TestObserver
-        {
-            internal virtual void OnPutBlock(PartitionId partitionId, ContentListing partition)
-            {
-            }
         }
     }
 }

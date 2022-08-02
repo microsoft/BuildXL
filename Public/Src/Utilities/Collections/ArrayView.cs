@@ -200,6 +200,16 @@ namespace BuildXL.Utilities.Collections
         }
 
         /// <summary>
+        /// Implicitly convert an array to an array view over the entire array.
+        /// </summary>
+        public static implicit operator ArrayView<T>(ReadOnlyArray<T> array)
+        {
+            Contract.Requires(array.IsValid);
+
+            return array.GetSubView(0);
+        }
+
+        /// <summary>
         /// Enumerator over the array view
         /// </summary>
         public struct Enumerator : IEnumerator<T>

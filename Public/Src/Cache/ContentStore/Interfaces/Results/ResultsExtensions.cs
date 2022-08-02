@@ -493,6 +493,19 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         }
 
         /// <summary>
+        /// Returns a result of <paramref name="toStringProjection"/> call if the <paramref name="result"/> succeeded, otherwise default string value
+        /// </summary>
+        public static string ToStringSelectOrDefault<T>(this Result<T> result, Func<T, string> toStringProjection, string defaultValue = "")
+        {
+            if (!result.Succeeded)
+            {
+                return defaultValue;
+            }
+
+            return toStringProjection(result.Value);
+        }
+
+        /// <summary>
         /// Returns a string representation of the result if succeeded.
         /// </summary>
         public static string ToStringOr<T>(this Result<T> result, string defaultValue)

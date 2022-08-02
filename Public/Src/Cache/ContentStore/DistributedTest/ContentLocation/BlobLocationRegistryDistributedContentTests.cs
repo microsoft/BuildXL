@@ -53,7 +53,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
             dcs.LocationStoreSettings.BlobContentLocationRegistrySettings.PartitionsUpdateInterval = "1m";
             dcs.LocationStoreSettings.BlobContentLocationRegistrySettings.PartitionCount = 2;
-            dcs.LocationStoreSettings.BlobContentLocationRegistrySettings.PerPartitionDelayInterval = TimeSpan.Zero;
+            dcs.LocationStoreSettings.BlobContentLocationRegistrySettings.StageInterval = TimeSpan.Zero;
             dcs.LocationStoreSettings.BlobContentLocationRegistrySettings.UpdateInBackground = false;
             dcs.LocationStoreSettings.BlobContentLocationRegistrySettings.UpdateDatabase = true;
             dcs.LocationStoreSettings.EnableBlobContentLocationRegistry = true;

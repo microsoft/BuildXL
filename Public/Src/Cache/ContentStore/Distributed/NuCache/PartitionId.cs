@@ -22,7 +22,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     /// <param name="EndValue">The last included hash prefix of the range</param>
     public record struct PartitionId(byte StartValue, byte EndValue)
     {
-        private const int MaxPartitionCount = 256;
+        internal const int MaxPartitionCount = 256;
 
         /// <summary>
         /// Number of a hash prefixes included in the partition
@@ -60,6 +60,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return Contains(hash[0]);
         }
 
+        /// <summary>
+        /// Gets whether the partition ids intersect
+        /// </summary>
+        public bool Intersects(PartitionId other)
+        {
+            return
+                Contains(other.StartValue)
+                || Contains(other.EndValue)
+                || other.Contains(StartValue)
+                || other.Contains(EndValue);
+        }
+
         /// <inheritdoc />
         public override string ToString()
         {
@@ -72,11 +84,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         public static ReadOnlyArray<PartitionId> GetPartitions(int partitionCount)
         {
-            partitionCount = Math.Min(Math.Max(1, partitionCount), MaxPartitionCount);
-
-            // Round to power of two
-            var powerOfTwo = Bits.HighestBitSet((uint)partitionCount);
-            partitionCount = (int)(powerOfTwo < partitionCount ? powerOfTwo << 1 : powerOfTwo);
+            partitionCount = CoerceToPowerOfTwoInRange(partitionCount);
 
             var perRangeCount = (MaxPartitionCount + partitionCount - 1) / partitionCount;
 
@@ -88,6 +96,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     return new PartitionId((byte)start, (byte)end);
                 })
                 .ToArray();
+        }
+
+        internal static int CoerceToPowerOfTwoInRange(int partitionCount, int minValue = 1, int maxValue = MaxPartitionCount)
+        {
+            partitionCount = Math.Min(Math.Max(minValue, partitionCount), maxValue);
+
+            // Round to power of two
+            var powerOfTwo = Bits.HighestBitSet((uint)partitionCount);
+            partitionCount = (int)(powerOfTwo < partitionCount ? powerOfTwo << 1 : powerOfTwo);
+            return partitionCount;
         }
     }
 }

@@ -109,6 +109,8 @@ namespace ContentStoreTest.Test
                 }
 
                 Logger.Flush();
+
+                Logger.Dispose();
             }
         }
 

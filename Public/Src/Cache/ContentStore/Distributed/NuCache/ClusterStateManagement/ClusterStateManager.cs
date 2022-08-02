@@ -91,7 +91,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 var now = _clock.UtcNow;
                 if (nextUpdateTime > now)
                 {
-                    await Task.Delay(nextUpdateTime - now, context.Token);
+                    await _clock.Delay(nextUpdateTime - now, context.Token);
 
                     // Something else may have updated before we did
                     continue;

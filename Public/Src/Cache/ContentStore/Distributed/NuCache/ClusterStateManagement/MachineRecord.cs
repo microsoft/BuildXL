@@ -22,8 +22,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// We choose a reasonable number below that value.
         /// !!CHANGING THIS NUMBER IS A BREAKING CHANGE because all blocks in a blob
         /// must id of the same length and normally there will already be blocks for a blob.
+        /// Also number must be multiple of 4 (see <see cref="Convert.FromBase64String(string)")/>)
         /// </summary>
-        internal const int MaxBlockLength = 56;
+        internal const int BlockIdLength = 56;
 
         public MachineId Id { get; init; } = MachineId.Invalid;
 
@@ -81,7 +82,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             host = ProcessHostName(host);
             var blockId = $"//{host}+P{port ?? 0}/M{machineId.Index}/{creationTimeUtc.ToReadableString().Replace('.', '+')}/";
 
-            blockId = blockId.PadRight(MaxBlockLength, '0');
+            blockId = blockId.PadRight(BlockIdLength, '0');
             return blockId;
         }
 

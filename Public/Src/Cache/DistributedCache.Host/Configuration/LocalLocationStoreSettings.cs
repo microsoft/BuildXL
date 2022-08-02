@@ -87,9 +87,9 @@ namespace BuildXL.Cache.Host.Configuration
         public bool UpdateInBackground { get; set; } = true;
 
         /// <summary>
-        /// Delay after submitting content update for each partition
+        /// Interval between between stages of content location dataflow
         /// </summary>
-        public TimeSpanSetting PerPartitionDelayInterval { get; set; } = TimeSpan.FromSeconds(0.5);
+        public TimeSpanSetting StageInterval { get; set; } = TimeSpan.FromSeconds(30);
 
         /// <summary>
         /// Interval between updates of partitions output blob
@@ -125,6 +125,11 @@ namespace BuildXL.Cache.Host.Configuration
         /// The number of partitions to create. Changing this number causes partition to be recomputed
         /// </summary>
         public int PartitionCount { get; set; } = 256;
+
+        /// <summary>
+        /// The number of partitions to create. Changing this number causes partition to be recomputed
+        /// </summary>
+        public int Factor { get; set; } = 8;
     }
 
     [DataContract]

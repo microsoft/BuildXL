@@ -322,6 +322,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
         }
 
+        /// <summary>
+        /// Computes the max machine id
+        /// </summary>
+        public int ComputeMaxMachineId() => _clusterStateCache.RecordsByMachineId.Keys.Max(machineId => machineId.Index);
+
         #region Test-related methods
 
         /// <summary>
@@ -331,7 +336,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// Used only for tests.
         /// WARNING: not efficient!
         /// </remarks>
-        public int MaxMachineIdSlowForTest => _clusterStateCache.RecordsByMachineId.Keys.Max(machineId => machineId.Index);
+        public int MaxMachineIdSlowForTest => ComputeMaxMachineId();
 
         /// <summary>
         /// Create an empty cluster state only suitable for testing purposes.

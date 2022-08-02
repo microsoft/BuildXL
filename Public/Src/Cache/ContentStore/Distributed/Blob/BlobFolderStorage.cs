@@ -170,7 +170,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     var wrapperBlob = GetBlob(context.Token, fileName);
                     return useAsync(context, wrapperBlob);
                 },
-                extraEndMessage: r => $"FileName=[{GetDisplayPath(fileName)}]{endMessageSuffix?.Invoke(r)}",
+                extraEndMessage: r => string.Join(" ", new[] { $"FileName=[{GetDisplayPath(fileName)}]", endMessageSuffix?.Invoke(r) }.Where(s => !string.IsNullOrEmpty(s))),
                 traceOperationStarted: false,
                 caller: caller,
                 isCritical: isCritical,

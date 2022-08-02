@@ -38,6 +38,11 @@ namespace BuildXL.Utilities.Collections
         public Span<T> ItemSpan => m_items.AsSpan(0, Count);
 
         /// <summary>
+        /// Get the <see cref="ArrayView{T}"/> representing the used portion of the array
+        /// </summary>
+        public ArrayView<T> ItemView => new ArrayView<T>(m_items, 0, Count);
+
+        /// <summary>
         /// Inserts the items
         /// </summary>
         public void InsertRange(ReadOnlySpan<T> span)

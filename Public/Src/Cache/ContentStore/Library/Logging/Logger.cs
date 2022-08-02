@@ -107,13 +107,13 @@ namespace BuildXL.Cache.ContentStore.Logging
         }
 
         /// <inheritdoc />
-        public void Dispose()
+        public virtual void Dispose()
         {
             DisposeAsync().GetAwaiter().GetResult();
         }
 
         /// <inheritdoc />
-        public async ValueTask DisposeAsync()
+        public virtual async ValueTask DisposeAsync()
         {
             if (_disposed)
             {

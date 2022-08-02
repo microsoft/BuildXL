@@ -2,10 +2,12 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -17,9 +19,11 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.MetadataService;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.Utilities;
+using BuildXL.Cache.ContentStore.Extensions;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
+using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Secrets;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
@@ -34,8 +38,10 @@ using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.Host.Configuration;
 using BuildXL.Cache.Host.Service;
+using BuildXL.Cache.Logging;
 using BuildXL.Engine.Cache.KeyValueStores;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Tasks;
 using ContentStoreTest.Distributed.Redis;
 using ContentStoreTest.Test;
 using FluentAssertions;
@@ -62,8 +68,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
         private readonly static MachineLocation M1 = new MachineLocation("M1");
         private readonly LocalRedisFixture _fixture;
 
+        private Tracer Tracer { get; } = new Tracer(nameof(BlobContentLocationRegistryTests));
+
         public BlobContentLocationRegistryTests(LocalRedisFixture fixture, ITestOutputHelper output)
-            : base(TestGlobal.Logger, output)
+            : base(KustoStructuredLogger.CreateLogger("kuslogs", "logs", output), output)
         {
             _fixture = fixture;
         }
@@ -72,9 +80,130 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
         public void TestCompat()
         {
             // Changing these values are a breaking change!! An epoch reset is needed if they are changed.
-            MachineRecord.MaxBlockLength.Should().Be(56);
+            MachineRecord.BlockIdLength.Should().Be(56);
 
             Unsafe.SizeOf<MachineContentEntry>().Should().Be(24);
+        }
+
+        [Fact]
+        public void TestScheduler()
+        {
+            var cases = new List<SchedulerCheck>()
+            {
+                new ("19:55:02", "19:55:10", 0, "15m", "1m", "20:00:00"),
+                new ("19:55:02", "19:55:10", 1, "15m", "1m", "20:01:00"),
+                new ("19:55:02", "19:55:10", 2, "15m", "1m", "20:02:00"),
+                new ("19:55:02", "19:55:10", 3, "15m", "1m", "20:03:00"),
+
+                new ("19:45:00", "19:55:10", 0, "15m", "1m", "19:45:00"),
+                new ("19:45:00", "19:55:10", 1, "15m", "1m", "19:46:00"),
+                new ("19:45:00", "19:55:10", 2, "15m", "1m", "19:47:00"),
+                new ("19:45:00", "19:55:10", 3, "15m", "1m", "19:48:00"),
+            };
+
+            var context = new OperationContext(new Context(Logger));
+
+            foreach (var c in cases)
+            {
+                var clock = new MemoryClock();
+                clock.UtcNow = c.CurrentTime;
+                var configuration = new BlobContentLocationRegistryConfiguration()
+                {
+                    PartitionsUpdateInterval = c.UpdateInterval,
+                    StageInterval = c.StageInterval
+                };
+                var scheduler = new BlobContentLocationRegistryScheduler(configuration, clock);
+
+                var waitTask = scheduler.WaitForStartStageAsync(context, c.Stage, c.StartTime, BuildXL.Utilities.AsyncOut.Var<DateTime>(out var target));
+                waitTask.Forget();
+
+                target.Value.Should().Be(c.ExpectedTarget);
+            }
+        }
+
+        private record SchedulerCheck(
+            TestDateTime StartTime,
+            TestDateTime CurrentTime,
+            int Stage,
+            TimeSpanSetting UpdateInterval,
+            TimeSpanSetting StageInterval,
+            TestDateTime ExpectedTarget);
+
+        private record struct TestDateTime(string StringValue)
+        {
+            public DateTime Value { get; } = Parse(StringValue);
+
+            private static DateTime Parse(string stringValue)
+            {
+                return DateTime.Parse($"2022-08-02T{stringValue}.0000000Z");
+            }
+
+            public static implicit operator TestDateTime(string value)
+            {
+                return new TestDateTime(value);
+            }
+
+            public static implicit operator DateTime(TestDateTime value)
+            {
+                return value.Value;
+            }
+        }
+
+        [Theory]
+        [InlineData(8, 1501, 64)]
+        [InlineData(4, 999, 256)]
+        [InlineData(2, 999, 256)]
+        [InlineData(8, 15001, 64)]
+        [InlineData(8, 10, 64)]
+        [InlineData(4, 0, 64)]
+        // Parameters which are coerced to powers of two
+        [InlineData(5, 43, 67)]
+        [InlineData(1, 43, 67)]
+        public void TestNodes(int factor, int maxMachineId, int partitionCount)
+        {
+            var partitions = PartitionId.GetPartitions(partitionCount);
+            var nodeStages = InterleaveNode.ComputeNodes(factor, maxMachineId, partitions);
+
+            var totalNodes = nodeStages.Sum(n => n.Length);
+            var maxTotalNodes = Math.Max(partitions.Length, (maxMachineId + 1) / factor) * partitions.Length;
+            totalNodes.Should().BeLessOrEqualTo(maxTotalNodes);
+
+            nodeStages.Length.Should().BeGreaterThan(0);
+            foreach (var stage in nodeStages)
+            {
+                BitArray[] machinePartitionFoundMaps = Enumerable.Range(0, maxMachineId + 1)
+                    .Select(m => new BitArray(256))
+                    .ToArray();
+
+                foreach (var node in stage)
+                {
+                    for (int machineId = node.MachineStart; machineId <= Math.Min(maxMachineId, node.MachineEnd); machineId++)
+                    {
+                        var bitMap = machinePartitionFoundMaps[machineId];
+                        for (int hashPrefix = node.PartitionId.StartValue; hashPrefix <= node.PartitionId.EndValue; hashPrefix++)
+                        {
+                            bitMap[hashPrefix].Should().BeFalse("Every node should handle disjoint set of machine/partition ranges");
+                            bitMap[hashPrefix] = true;
+                        }
+                    }
+                }
+
+                for (int machine = 0; machine <= maxMachineId; machine++)
+                {
+                    for (int hashPrefix = 0; hashPrefix < 256; hashPrefix++)
+                    {
+                        machinePartitionFoundMaps[machine][hashPrefix].Should().BeTrue();
+                    }
+                }
+            }
+
+            foreach (var node in nodeStages.Last())
+            {
+                node.IsTerminal.Should().BeTrue();
+                node.PartitionId.PartitionCount.Should().Be(partitions.Length);
+                node.PartitionSpan.Length.Should().Be(1);
+                node.PartitionSpan.Partitions.Length.Should().Be(1);
+            }
         }
 
         [Theory]
@@ -113,7 +242,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
                     await context.HeartbeatAllMachines(excludeHeartbeat);
 
                     // Increment time and recompute now that all machines have registered content and expiry time 
-                    await context.UpdateAllMachinePartitionsAsync(concurrent);
+                    Tracer.Debug(context, "--- Machine should be excluded ---");
+                    await context.UpdateAllMachinePartitionsAsync(concurrent, expireMachine, excludeHeartbeat);
 
                     await CheckAllPartitionsAsync(context, excludeContentByLocation);
                 },
@@ -127,30 +257,33 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
             .Select(i => PartitionId.GetPartitions(256)[i])
             .ToArray();
 
-        private static readonly ReadOnlyArray<PartitionId> FewPartitionCountIncludedPartitions = PartitionId.GetPartitions(1).ToArray();
+        private static readonly ReadOnlyArray<PartitionId> FewPartitionCountIncludedPartitions = PartitionId.GetPartitions(4).ToArray();
 
-        private static async Task CheckAllPartitionsAsync(TestContext context, Func<MachineLocation, bool> isExcluded)
+        private async Task CheckAllPartitionsAsync(TestContext context, Func<MachineLocation, bool> isExcluded)
         {
             var primary = context.PrimaryMachine;
             context.ActualContent.Clear();
 
-            context.Arguments.Context.TracingContext.Debug("--- Checking all partitions ---", nameof(BlobContentLocationRegistryTests));
+            Tracer.Debug(context, "--- Checking all partitions ---");
             foreach (var partition in context.IncludedPartitions)
             {
                 var listing = await primary.Registry.ComputeSortedPartitionContentAsync(context, partition);
                 listing.EntrySpan.Length.Should().Be(listing.FullSpanForTests.Length, $"Partition={partition}");
                 context.CheckListing(listing, partition);
-                context.Arguments.Context.TracingContext.Debug($"Partition={partition} Entries={listing.EntrySpan.Length}", nameof(BlobContentLocationRegistryTests));
+                Tracer.Debug(context, $"Partition={partition} Entries={listing.EntrySpan.Length}");
             }
 
             var expectedContent = context.ExpectedContent.Where(t => isExcluded?.Invoke(t.Machine) != true).ToHashSet();
 
             // Using this instead for set equivalence since the built-in equivalence is very slow.
             context.ActualContent.Except(expectedContent).Should().BeEmpty("Found unexpected content. Actual content minus expected content should be empty");
-            expectedContent.Except(context.ActualContent).Should().BeEmpty("Could not find expected content. Expected content minus actual content should be empty");
+            expectedContent.Except(context.ActualContent).Should().BeEmpty($"Could not find expected content. Expected content (Count={expectedContent.Count}) minus actual content (Count={context.ActualContent.Count}) should be empty");
 
             // Ensure database is updated by setting time after interval and triggering update
             context.Clock.UtcNow += TestContext.PartitionsUpdateInterval + TimeSpan.FromSeconds(10);
+
+            Tracer.Debug(context, "--- Updating database ---");
+            context.ResetSemaphore(0);
             await context.UpdateMachinePartitionsAsync(primary).ShouldBeSuccess();
 
             var clusterState = primary.ClusterStateManager.ClusterState;
@@ -163,10 +296,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
                 var actualEntry = (entry.Hash, location, entry.Size.Value);
                 expectedContent.Should().Contain(actualEntry);
                 actualDbContent.Add(actualEntry).Should().BeTrue();
-
             }).ShouldBeSuccess().Value.ReachedEnd.Should().BeTrue();
 
-            expectedContent.Except(actualDbContent).Should().BeEmpty("Could not find expected content in database. Expected content minus actual content should be empty");
+            expectedContent.Except(actualDbContent).Should().BeEmpty($"Could not find expected content in database. Expected content (Count={expectedContent.Count}) minus actual content (Count={actualDbContent.Count}) should be empty");
         }
 
         private async Task RunTest(
@@ -180,11 +312,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
                 ? MaxPartitionCountIncludedPartitions
                 : FewPartitionCountIncludedPartitions;
 
-            var tracingContext = new Context(TestGlobal.Logger);
+            KustoStructuredLogger.SetTestName(Guid.NewGuid().ToString());
+            var tracingContext = new Context(Logger);
             var context = new OperationContext(tracingContext);
 
             var clock = new MemoryClock();
-            using var storage = AzuriteStorageProcess.CreateAndStartEmpty(_fixture, TestGlobal.Logger);
+            using var storage = AzuriteStorageProcess.CreateAndStartEmpty(_fixture, Logger);
             var arguments = new TestContextArguments(context, storage.ConnectionString, clock, TestRootDirectoryPath, includedPartitions);
             var testContext = new TestContext(arguments);
 
@@ -194,6 +327,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
 
             var hashes = Enumerable.Range(0, totalUniqueContent).Select(i => ContentHash.Random(
                 (HashType)((i % (int)HashType.Vso0) + 1))).ToArray();
+
+            var zerohash = new ShortHash("MD5:0000000000000000000000");
+            var hasZero = hashes.Any(h => zerohash.Equals(h));
 
             var perMachineContent = totalUniqueContent * machineContentFraction;
 
@@ -294,7 +430,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
             }
         }
 
-        private class TestContext : StartupShutdownComponentBase
+        private class TestContext : StartupShutdownComponentBase, IBlobContentLocationRegistryScheduler
         {
             protected override Tracer Tracer { get; } = new Tracer(nameof(TestContext));
 
@@ -315,6 +451,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
 
             public TestContextArguments Arguments { get; }
 
+            private SemaphoreSlim _stageSemaphore;
+            private int _slots;
+            private int _maxSlots;
+
             public MemoryClock Clock => Arguments.Clock;
 
             public DisposableDirectory Directory { get; }
@@ -326,6 +466,37 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
                 Arguments = data;
 
                 Directory = new DisposableDirectory(PassThroughFileSystem.Default, data.Path);
+            }
+
+            public void ResetSemaphore(int count)
+            {
+                _slots = count;
+                _maxSlots = count;
+                if (count != 0)
+                {
+                    _stageSemaphore = new SemaphoreSlim(0, count);
+                }
+            }
+
+            public Task WaitForStartStageAsync(OperationContext context, int stage, DateTime start)
+            {
+                if (_maxSlots == 0)
+                {
+                    return Task.CompletedTask;
+                }
+
+                var semaphore = _stageSemaphore;
+                var waitTask = semaphore.WaitAsync(context.Token);
+                var remainingSlots = Interlocked.Decrement(ref _slots);
+                remainingSlots.Should().BeGreaterOrEqualTo(0);
+                if (remainingSlots == 0)
+                {
+                    Tracer.Debug(context, $"--- Releasing stage: {stage} ---");
+                    ResetSemaphore(_maxSlots);
+                    semaphore.Release(_maxSlots);
+                }
+
+                return waitTask;
             }
 
             protected override void DisposeCore()
@@ -340,7 +511,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
                 {
                     FolderName = TestUniqueId.ToString(),
                     Credentials = new AzureBlobStorageCredentials(Arguments.ConnectionString),
-                    PerPartitionDelayInterval = TimeSpan.Zero,
                     PartitionsUpdateInterval = PartitionsUpdateInterval,
                     UpdateInBackground = false,
                     PartitionCount = IncludedPartitions[0].PartitionCount,
@@ -380,6 +550,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
                     store,
                     Clock);
 
+                registry.Scheduler = this;
+
                 var machine = new TestMachine(index, database, store, clusterStateManager, registry, location);
 
                 Machines.Add(machine);
@@ -405,37 +577,51 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
                 }
             }
 
-            public async Task UpdateAllMachinePartitionsAsync(bool parallel = true, Func<TestMachine, bool> excludeMachine = null)
+            public async Task UpdateAllMachinePartitionsAsync(bool parallel = true, bool isMachineExcluded = false, Func<TestMachine, bool> excludeMachine = null)
             {
-                var tasks = new List<Task>();
+                // Set the semaphore to progress when all machines are waiting for stage to progress
+                // NOTE: This is only valid when running in parallel
+                ResetSemaphore(parallel
+                    ? Machines.Count - (isMachineExcluded ? 1 : 0)
+                    : 0);
 
-                // Run twice since
-                foreach (var machine in Machines)
+                // Two iterations required when running synchronously because
+                // of bug in Azurite where latest partition is not picked.
+                for (int i = 0; i < 2; i++)
                 {
-                    if (excludeMachine?.Invoke(machine) == true)
+                    var tasks = new List<Task>();
+
+                    foreach (var machine in Machines)
                     {
-                        continue;
+                        if (excludeMachine?.Invoke(machine) == true)
+                        {
+                            continue;
+                        }
+
+                        await machine.Registry.NodeCompletionTracker.ClearCompletedAsync();
+
+                        var task = UpdateMachinePartitionsAsync(machine);
+                        tasks.Add(task);
+
+                        if (!parallel)
+                        {
+                            await task.IgnoreFailure();
+                        }
                     }
 
-                    var task = UpdateMachinePartitionsAsync(machine);
-                    tasks.Add(task);
-
-                    if (!parallel)
-                    {
-                        await task.IgnoreFailure();
-                    }
+                    await Task.WhenAll(tasks);
                 }
-
-                await Task.WhenAll(tasks);
             }
 
-            public Task<BoolResult> UpdateMachinePartitionsAsync(TestMachine machine)
+            public async Task<BoolResult> UpdateMachinePartitionsAsync(TestMachine machine)
             {
-                // Ensure the primary machine is updating its database
-                PrimaryMachine.Registry.SetDatabaseUpdateLeaseExpiry(Clock.UtcNow + TimeSpan.FromMinutes(5));
+                await PrimaryMachine.Registry.NodeCompletionTracker.ClearCompletedAsync();
 
-                return machine.Registry.UpdatePartitionsAsync(this,
-                    excludePartition: partition => !IncludedPartitions.Contains(partition))
+                // Ensure the primary machine is updating its database
+                PrimaryMachine.Registry.SetDatabaseUpdateLeaseExpiry(Clock.UtcNow + PartitionsUpdateInterval + TimeSpan.FromSeconds(1));
+
+                return await machine.Registry.UpdatePartitionsAsync(this,
+                    excludePartition: partition => !IncludedPartitions.Any(p => p == partition || p.Intersects(partition)))
                     .ThrowIfFailureAsync(s => s);
             }
 

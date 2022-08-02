@@ -29,14 +29,14 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
         [Fact]
         public void MergeWithRemovals()
         {
-            var machineId = new MachineId(42);
-            var machineId2 = new MachineId(43);
+            var machineId = 42.AsMachineId();
+            var machineId2 = 43.AsMachineId();
 
-            var left = CreateEntry(MachineIdSet.Create(exists: true, machineId));
+            var left = CreateEntry(MachineIdSet.CreateChangeSet(exists: true, machineId));
 
             left.Locations.Contains(machineId).Should().BeTrue();
 
-            var right = CreateEntry(MachineIdSet.Create(exists: true, machineId2));
+            var right = CreateEntry(MachineIdSet.CreateChangeSet(exists: true, machineId2));
 
             var merge = left.Merge(right);
             merge.Locations.Count.Should().Be(2);
@@ -44,12 +44,115 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
             merge.Locations.Contains(machineId).Should().BeTrue();
             merge.Locations.Contains(machineId2).Should().BeTrue();
 
-            var removal = CreateEntry(MachineIdSet.Create(exists: false, machineId2));
+            var removal = CreateEntry(MachineIdSet.CreateChangeSet(exists: false, machineId2));
             merge = merge.Merge(removal);
             merge.Locations.Count.Should().Be(1);
 
-            left.Locations.Contains(machineId).Should().BeTrue();
-            left.Locations.Contains(machineId2).Should().BeFalse();
+            merge.Locations.Contains(machineId).Should().BeTrue();
+            merge.Locations.Contains(machineId2).Should().BeFalse();
+        }
+        
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void TestAssociativity(bool useMergeableTouch)
+        {
+            // Making sure that the merge works even if the left hand side of the Merge call
+            // is not a state change instance.
+
+            // If the touch event is crated with an ArrayMachineIdSet instance, the merge won't work.
+            var touch = CreateEntry(useMergeableTouch ? MachineIdSet.EmptyChangeSet : MachineIdSet.Empty);
+            var remove = CreateEntry(MachineIdSet.CreateChangeSet(exists: false, 1.AsMachineId()));
+            var add = CreateEntry(MachineIdSet.CreateChangeSet(exists: true, 1.AsMachineId()));
+
+            // add + (remove + touch)
+            var merged = add.Merge(remove.Merge(touch));
+            Assert.Equal(0, merged.Locations.Count);
+
+            // add + (touch + remove)
+            var temp = touch.Merge(remove);
+            merged = add.Merge(temp);
+            Assert.Equal(0, merged.Locations.Count);
+
+            // (add + remove) + touch
+            merged = add.Merge(remove).Merge(touch);
+
+            Assert.Equal(0, merged.Locations.Count);
+
+            // This is not the right associativity, but still worth checking
+            // (add + remove) + touch
+            merged = add.Merge(touch).Merge(remove);
+
+            Assert.Equal(0, merged.Locations.Count);
+            
+            // (add + (touch + add)) + remove
+            merged = add.Merge(touch.Merge(add).Merge(remove));
+            Assert.Equal(0, merged.Locations.Count);
+
+            // add + ((touch + add) + remove)
+            merged = add.Merge(touch.Merge(add).Merge(remove));
+            Assert.Equal(0, merged.Locations.Count);
+        }
+
+        [Fact]
+        public void TestAssociativityWithNonMergeableSet()
+        {
+            // Its important that all the merge operations are associative and
+            // regardless of the combination of them we should never loose any state changes.
+
+            // If the touch event is crated with an ArrayMachineIdSet instance, the merge won't work.
+            var touch = CreateEntry(MachineIdSet.EmptyChangeSet);
+            var remove = CreateEntry(MachineIdSet.CreateChangeSet(exists: false, 1.AsMachineId()));
+            var add = CreateEntry(MachineIdSet.CreateChangeSet(exists: true, 1.AsMachineId()));
+
+            // add + (remove + touch)
+            var merged = add.Merge(remove.Merge(touch));
+            Assert.Equal(0, merged.Locations.Count);
+
+            // add + (touch + remove)
+            var temp = touch.Merge(remove);
+            merged = add.Merge(temp);
+            Assert.Equal(0, merged.Locations.Count);
+
+            // (add + remove) + touch
+            merged = add.Merge(remove).Merge(touch);
+
+            Assert.Equal(0, merged.Locations.Count);
+
+            // This is not the right associativity, but still worth checking
+            // (add + remove) + touch
+            merged = add.Merge(touch).Merge(remove);
+
+            Assert.Equal(0, merged.Locations.Count);
+            
+            // (add + (touch + add)) + remove
+            merged = add.Merge(touch.Merge(add).Merge(remove));
+            Assert.Equal(0, merged.Locations.Count);
+
+            // add + ((touch + add) + remove)
+            merged = add.Merge(touch.Merge(add).Merge(remove));
+            Assert.Equal(0, merged.Locations.Count);
+        }
+
+        [Fact]
+        public void MergeWithLastTouch()
+        {
+            var machineId = new MachineId(42);
+            var machineId2 = new MachineId(43);
+
+            var left = CreateEntry(MachineIdSet.CreateChangeSet(exists: true, machineId));
+            var right = CreateEntry(MachineIdSet.CreateChangeSet(exists: true, machineId2));
+
+            var merge = left.Merge(right);
+
+            var removal = CreateEntry(MachineIdSet.CreateChangeSet(exists: false, machineId2));
+            merge = merge.Merge(removal);
+
+            var touch = CreateEntry(MachineIdSet.Empty);
+            merge = merge.Merge(touch);
+
+            merge.Locations.Contains(machineId).Should().BeTrue();
+            merge.Locations.Contains(machineId2).Should().BeFalse();
         }
 
         private static ContentLocationEntry CreateEntry(MachineIdSet machineIdSet) => ContentLocationEntry.Create(

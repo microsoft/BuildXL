@@ -1,10 +1,6 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-
-
-#nullable enable
-
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
@@ -19,6 +15,7 @@ using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.Interfaces.Synchronization;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing;
@@ -36,6 +33,9 @@ using BuildXL.Utilities.Tracing;
 using static BuildXL.Cache.ContentStore.Distributed.Tracing.TracingStructuredExtensions;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 using TaskExtensions = BuildXL.Cache.ContentStore.Interfaces.Extensions.TaskExtensions;
+
+#nullable enable
+
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
     /// <summary>
@@ -87,7 +87,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Fine-grained locks that is used for all operations that mutate records.
         /// </summary>
-        private readonly object[] _locks = Enumerable.Range(0, ushort.MaxValue + 1).Select(s => new object()).ToArray();
+        private readonly ReaderWriterLockSlim[] _locks = Enumerable.Range(0, ushort.MaxValue + 1).Select(s => new ReaderWriterLockSlim()).ToArray();
 
         /// <summary>
         /// Event callback that's triggered when the database is permanently invalidated. 
@@ -427,7 +427,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 {
                     // Use double-checked locking to usually avoid locking, but still
                     // be safe in case we are in a race to update content location data.
-                    lock (GetLock(hash))
+                    using (var _ = GetLock(hash).AcquireWriteLock())
                     {
                         if (!TryGetEntryCore(context, hash, out entry))
                         {
@@ -448,7 +448,21 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         {
                             // If there are some bad locations, remove them.
                             Counters[ContentLocationDatabaseCounters.TotalNumberOfCleanedEntries].Increment();
-                            Store(context, hash, filteredEntry);
+
+                            if (_configuration.UseMergeOperators)
+                            {
+                                // The logic for storing inactive machine depends on whether merge operators are used or not.
+                                // In case of merge operators we need to store the removals state change for inactive machines.
+                                var inactiveMachines = _getInactiveMachines();
+                                var inactiveMachinesSet = MachineIdSet.CreateChangeSet(exists: false, inactiveMachines.ToArray());
+                                var inactiveMachinesEntry = ContentLocationEntry.Create(inactiveMachinesSet, entry.ContentSize, entry.LastAccessTimeUtc, entry.CreationTimeUtc);
+                                Store(context, hash, inactiveMachinesEntry);
+                            }
+                            else
+                            {
+                                Store(context, hash, filteredEntry);
+                            }
+
                             NagleOperationTracer?.Enqueue((context, hash, EntryOperation.RemoveMachine, OperationReason.GarbageCollect));
                         }
                     }
@@ -744,7 +758,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             var created = false;
             var reason = reconciling ? OperationReason.Reconcile : OperationReason.Unknown;
-            lock (GetLock(hash))
+
+            using (var _ = GetLock(hash).AcquireWriteLock())
             {
                 if (TryGetEntryCore(context, hash, out var entry))
                 {
@@ -898,7 +913,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </remarks>
         public abstract IEnumerable<Result<StrongFingerprint>> EnumerateStrongFingerprints(OperationContext context);
 
-        private object GetLock(ShortHash hash)
+        protected ReaderWriterLockSlim GetLock(ShortHash hash)
         {
             // NOTE: We choose not to use "random" two bytes of the hash because
             // otherwise GC which uses an ordered set of hashes would acquire the same

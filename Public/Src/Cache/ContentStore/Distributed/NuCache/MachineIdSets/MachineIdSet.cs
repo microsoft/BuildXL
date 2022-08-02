@@ -35,18 +35,21 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public static MachineIdSet Empty => ArrayMachineIdSet.EmptyInstance;
 
         /// <summary>
+        /// Returns an empty machine set that supports tracking additions and removals of the machine locations used with merge operators.
+        /// </summary>
+        public static LocationChangeMachineIdSet EmptyChangeSet => LocationChangeMachineIdSet.EmptyInstance;
+
+        /// <summary>
         /// Creates a list of machine ids that represents additions or removals of the content on them.
         /// </summary>
-        public static MachineIdSet Create(bool exists, params MachineId[] machineIds)
+        public static MachineIdSet CreateChangeSet(bool exists, params MachineId[] machineIds) // Rename it to avoid confusion.
         {
             if (machineIds.Length == 0)
             {
-                return Empty;
+                return EmptyChangeSet;
             }
 
-            return exists
-                ? Empty.Add(machineIds)
-                : LocationChangeMachineIdSet.EmptyInstance.SetExistence(MachineIdCollection.Create(machineIds), false);
+            return EmptyChangeSet.SetExistence(MachineIdCollection.Create(machineIds), exists);
         }
 
         /// <summary>
@@ -89,6 +92,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         public MachineIdSet Merge(MachineIdSet other)
         {
+            MachineIdSet currentInstance = this;
+            if (this is not LocationChangeMachineIdSet)
+            {
+                // If the current instance is not mergeable, re-creating a mergeable one to avoid losing removals.
+                currentInstance = CreateChangeSet(exists: true, EnumerateMachineIds().ToArray());
+            }
+
             if (other is LocationChangeMachineIdSet locationChanges)
             {
                 using var pooledAdditions = MachineIdListPool.GetInstance();
@@ -109,10 +119,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 var additions = MachineIdCollection.Create(pooledAdditions.Instance);
                 var removals = MachineIdCollection.Create(pooledRemovals.Instance);
 
-                return SetExistence(additions, exists: true).SetExistence(removals, exists: false);
+                return currentInstance.SetExistence(additions, exists: true).SetExistence(removals, exists: false);
             }
 
-            return SetExistence(MachineIdCollection.Create(other.ToArray()), exists: true);
+            // The 'other' instance is not a mergeable one, it means that it has only a set of machines with the content.
+            return currentInstance.SetExistence(MachineIdCollection.Create(other.ToArray()), exists: true);
         }
 
         /// <nodoc />

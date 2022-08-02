@@ -81,6 +81,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// This flag is used for backwards compatibility reasons and will be removed once the LLS-based filtering is fully rolled out.
         /// </remarks>
         public bool FilterInactiveMachines { get; set; } = true;
+
+        /// <summary>
+        /// True if RocksDb merge operators are used for the content.
+        /// </summary>
+        public bool UseMergeOperators { get; set; }
     }
 
     /// <summary>

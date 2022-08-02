@@ -2,8 +2,10 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.InterfacesTest;
 using BuildXL.Utilities;
@@ -17,6 +19,17 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
     internal static class MachineIdExtensions
     {
         public static MachineId AsMachineId(this int index) => MachineId.FromIndex(index);
+
+        public static T NotNull<T>(this T instance,
+#if NET5_0_OR_GREATER
+            [CallerArgumentExpression("instance")]
+#endif
+            string expression = "")
+        {
+            Contract.Assert(instance is not null, expression);
+
+            return instance;
+        }
     }
 
     public class LocationChangeMachineIdSetTests : TestWithOutput
@@ -60,6 +73,39 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
         }
 
         [Fact]
+        public void MergeWithEmptySet()
+        {
+            var set1 = LocationChangeMachineIdSet.EmptyInstance
+                .SetExistence(1.AsMachineId(), true)
+                .SetExistence(2.AsMachineId(), false);
+
+            set1.Count.Should().Be(1, "Removal is should not affect the Count");
+
+            // set1 should be the same as before
+            set1 = set1.Merge(MachineIdSet.Empty);
+
+            // set2 should be the same as set1,
+            // because now merges should be respected regardless of the type on the left.
+            var set2 = MachineIdSet.Empty.Merge(set1);
+
+            (set1 as LocationChangeMachineIdSet).NotNull().LocationStates.Length.Should().Be(2);
+            (set2 as LocationChangeMachineIdSet).NotNull().LocationStates.Length.Should().Be(2);
+
+            // Both machine ids should be present in the set.
+            set1.Contains(1.AsMachineId()).Should().BeTrue();
+            set2.Contains(1.AsMachineId()).Should().BeTrue();
+
+            set1.Contains(2.AsMachineId()).Should().BeFalse();
+            set2.Contains(2.AsMachineId()).Should().BeFalse();
+
+            set1[1.AsMachineId()].Should().BeTrue();
+            set2[1.AsMachineId()].Should().BeTrue();
+
+            set1[2.AsMachineId()].Should().BeFalse();
+            set2[2.AsMachineId()].Should().BeFalse();
+        }
+
+        [Fact]
         public void AdditiveMerge()
         {
             MachineIdSet set1 = LocationChangeMachineIdSet.EmptyInstance;
@@ -76,7 +122,8 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
             var merged = set1.Merge(set2);
             merged.Count.Should().Be(2, "Removal is should not affect the Count");
 
-            var setAsLocationChangeSet = (LocationChangeMachineIdSet)merged;
+
+            var setAsLocationChangeSet = (merged as LocationChangeMachineIdSet).NotNull();
             Output.WriteLine("Set: " + string.Join(", ", setAsLocationChangeSet.LocationStates.Select(s => s.ToString())));
             setAsLocationChangeSet.LocationStates.Count().Should().Be(4);
 

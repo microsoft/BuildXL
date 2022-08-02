@@ -260,7 +260,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     var mergeContext = context.CreateNested(nameof(RocksDbContentLocationDatabase), caller: "MergeContentLocationEntries");
                     
                     settings.MergeOperators.Add(
-                        ColumnFamilies.DefaultName, 
+                        ColumnFamilies.DefaultName,
                         MergeOperators.CreateAssociative(
                             "ContentLocationEntryMergeOperator",
                             (key, value1, value2, result) =>
@@ -390,6 +390,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             lastAccessTime ??= Clock.UtcNow;
             ContentLocationEntry? entry = null;
+            var now = Clock.UtcNow;
 
             EntryOperation entryOperation = EntryOperation.Invalid;
             var reason = reconciling ? OperationReason.Reconcile : OperationReason.Unknown;
@@ -397,9 +398,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             if (machine != null && existsOnMachine)
             {
                 // Add
-                var now = Clock.UtcNow;
                 entry = ContentLocationEntry.Create(
-                    MachineIdSet.Create(exists: true, machine.Value),
+                    MachineIdSet.CreateChangeSet(exists: true, machine.Value),
                     size,
                     lastAccessTimeUtc: now,
                     creationTimeUtc: now);
@@ -412,7 +412,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 // Ignoring touch frequency here because in order to avoid a write we would have to read the entry first.
                 Contract.Assert(lastAccessTime != null);
                 entry = ContentLocationEntry.Create(
-                    MachineIdSet.Empty,
+                    // All the mergeable entries should use machine id set that can track the state changes.
+                    MachineIdSet.EmptyChangeSet,
                     size,
                     lastAccessTimeUtc: lastAccessTime.Value,
                     creationTimeUtc: lastAccessTime.Value);
@@ -422,9 +423,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             else if (machine != null && existsOnMachine == false)
             {
                 // Removal
-                var now = Clock.UtcNow;
                 entry = ContentLocationEntry.Create(
-                    MachineIdSet.Create(exists: false, machine.Value),
+                    MachineIdSet.CreateChangeSet(exists: false, machine.Value),
                     size,
                     lastAccessTimeUtc: now,
                     creationTimeUtc: now);
@@ -439,6 +439,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             Contract.Assert(entry != null, "Seems like an unknown database operation.");
 
+            // The merge operations are atomic, but because the GC might delete the entry
+            // we need to use the read lock here and the write lock by the GC.
+            using var locker = GetLock(hash).AcquireReadLock();
             Persist(context, hash, entry);
             return true;
         }

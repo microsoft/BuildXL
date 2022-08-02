@@ -58,8 +58,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 
         public TimeSpan BlobRotationInterval { get; set; } = TimeSpan.FromHours(1);
 
-        public bool UseMergeOperators { get; set; }
-
         public ByteSizeSetting? MetadataSizeRotationThreshold { get; set; }
     }
 

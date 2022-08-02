@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -88,8 +89,6 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
                     entry.Locations.Count.Should().Be(2);
                     entry.LastAccessTimeUtc.Should().Be(touchTime);
                     entry.CreationTimeUtc.Should().Be(creationTime);
-
-                    
                 }, useMerge);
         }
 

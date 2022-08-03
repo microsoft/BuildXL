@@ -67,7 +67,7 @@ namespace BuildXL.Utilities.Collections
         /// </summary>
         public static IReadOnlyList<T> AsReadOnlyList<T>(this IEnumerable<T> items)
         {
-            Contract.RequiresNotNull(items);
+            Contract.Requires(items != null);
 
             if (items is IReadOnlyList<T> list)
             {
@@ -84,7 +84,7 @@ namespace BuildXL.Utilities.Collections
         /// </summary>
         public static IReadOnlyCollection<T> AsReadOnlyCollection<T>(this IEnumerable<T> items)
         {
-            Contract.RequiresNotNull(items);
+            Contract.Requires(items != null);
 
             if (items is IReadOnlyCollection<T> collection)
             {
@@ -104,7 +104,7 @@ namespace BuildXL.Utilities.Collections
         /// <returns>an read only array instance containing the elements in the collection.</returns>
         public static ReadOnlyArray<T> ToReadOnlyArray<T>(this IEnumerable<T> collection)
         {
-            Contract.RequiresNotNull(collection);
+            Contract.Requires(collection != null);
 
             return ReadOnlyArray<T>.From(collection);
         }
@@ -117,7 +117,7 @@ namespace BuildXL.Utilities.Collections
         /// <returns>a read only set instance containing the elements in the collection.</returns>
         public static ReadOnlyHashSet<T> ToReadOnlySet<T>(this IEnumerable<T> collection)
         {
-            Contract.RequiresNotNull(collection);
+            Contract.Requires(collection != null);
 
             return new ReadOnlyHashSet<T>(collection);
         }
@@ -130,7 +130,7 @@ namespace BuildXL.Utilities.Collections
         /// <returns>an array instance containing the elements in the collection.</returns>
         public static T[] AsArray<T>(this IReadOnlyCollection<T> collection)
         {
-            Contract.RequiresNotNull(collection);
+            Contract.Requires(collection != null);
 
             int count = collection.Count;
             return AsArray<T>(collection, count);
@@ -141,7 +141,7 @@ namespace BuildXL.Utilities.Collections
         /// </summary>
         public static List<T> ToListSorted<T>(this IEnumerable<T> enumerable, IComparer<T>? comparer = null)
         {
-            Contract.RequiresNotNull(enumerable);
+            Contract.Requires(enumerable != null);
 
             var list = enumerable.ToList();
             list.Sort(comparer);
@@ -158,7 +158,7 @@ namespace BuildXL.Utilities.Collections
         /// <returns>an array instance containing the elements in the collection.</returns>
         public static TResult[] SelectArray<T, TResult>(this IReadOnlyList<T> list, Func<T, TResult> select)
         {
-            Contract.RequiresNotNull(list);
+            Contract.Requires(list != null);
 
             int count = list.Count;
             var array = NewOrEmptyArray<TResult>(count);
@@ -175,8 +175,8 @@ namespace BuildXL.Utilities.Collections
         /// </summary>
         public static TResult[] SelectArray<TKey, TValue, TResult>(this Dictionary<TKey, TValue> map, Func<KeyValuePair<TKey, TValue>, TResult> selector) where TKey : notnull
         {
-            Contract.RequiresNotNull(map);
-            Contract.RequiresNotNull(selector);
+            Contract.Requires(map != null);
+            Contract.Requires(selector != null);
 
             int count = map.Count;
             var array = NewOrEmptyArray<TResult>(count);
@@ -246,7 +246,7 @@ namespace BuildXL.Utilities.Collections
         /// </summary>
         public static Dictionary<TKey, TValue> ToDictionary<TKey, TValue>(this Dictionary<TKey, TValue> map) where TKey : notnull
         {
-            Contract.RequiresNotNull(map);
+            Contract.Requires(map != null);
 
             var result = new Dictionary<TKey, TValue>(map.Count);
 
@@ -267,8 +267,8 @@ namespace BuildXL.Utilities.Collections
         /// <returns>an array instance containing the elements in the collections.</returns>
         public static T[] ConcatAsArray<T>(this IReadOnlyCollection<T> collection1, IReadOnlyCollection<T> collection2)
         {
-            Contract.RequiresNotNull(collection1);
-            Contract.RequiresNotNull(collection2);
+            Contract.Requires(collection1 != null);
+            Contract.Requires(collection2 != null);
 
             int count1 = collection1.Count;
             int count2 = collection2.Count;
@@ -300,7 +300,7 @@ namespace BuildXL.Utilities.Collections
         /// <returns>an array instance containing the elements in the collection.</returns>
         private static T[] AsArray<T>(IEnumerable<T> enumerable, int count)
         {
-            Contract.RequiresNotNull(enumerable);
+            Contract.Requires(enumerable != null);
             Contract.Requires(count >= 0);
 
             if (count == 0)
@@ -336,7 +336,7 @@ namespace BuildXL.Utilities.Collections
         /// <param name="value">the value</param>
         public static void Add<TKey, TValue>(this ConcurrentDictionary<TKey, TValue> dictionary, TKey key, TValue value) where TKey : notnull
         {
-            Contract.RequiresNotNull(dictionary);
+            Contract.Requires(dictionary != null);
 
             ((IDictionary<TKey, TValue>)dictionary).Add(key, value);
         }
@@ -352,8 +352,8 @@ namespace BuildXL.Utilities.Collections
         /// <returns>the value retrieved or added to the dictionary</returns>
         public static TValue GetOrAdd<TKey, TValue>(this IDictionary<TKey, TValue> dictionary, TKey key, Func<TKey, TValue> addValueFactory) where TKey : notnull
         {
-            Contract.RequiresNotNull(dictionary);
-            Contract.RequiresNotNull(addValueFactory);
+            Contract.Requires(dictionary != null);
+            Contract.Requires(addValueFactory != null);
 
             if (!dictionary.TryGetValue(key, out TValue? result))
             {
@@ -376,7 +376,7 @@ namespace BuildXL.Utilities.Collections
         [return: MaybeNull]
         public static TValue GetOrDefault<TKey, TValue>(this IReadOnlyDictionary<TKey, TValue> dictionary, TKey key, TValue? defaultValue = default(TValue)) where TKey : notnull
         {
-            Contract.RequiresNotNull(dictionary);
+            Contract.Requires(dictionary != null);
 
             if (!dictionary.TryGetValue(key, out TValue? value))
             {
@@ -391,7 +391,7 @@ namespace BuildXL.Utilities.Collections
         /// </summary>
         public static IReadOnlyList<TResult> SelectList<T, TResult>(this IReadOnlyList<T> list, Func<T, TResult> selector)
         {
-            Contract.RequiresNotNull(list);
+            Contract.Requires(list != null);
 
             return new SelectList<T, TResult>(list, selector);
         }
@@ -401,17 +401,17 @@ namespace BuildXL.Utilities.Collections
         /// </summary>
         public static IReadOnlyList<TResult> SelectList<T, TResult>(this IReadOnlyList<T> list, Func<T, int, TResult> selector)
         {
-            Contract.RequiresNotNull(list);
+            Contract.Requires(list != null);
 
             return new SelectList<T, TResult>(list, selector);
         }
-        
+
         /// <summary>
         /// Creates a projection list over the list using <paramref name="selector"/>
         /// </summary>
         public static IReadOnlyList<TResult> SelectList<T, TResult, TState>(this IReadOnlyList<T> list, Func<T, int, TState, TResult> selector, TState state)
         {
-            Contract.RequiresNotNull(list);
+            Contract.Requires(list != null);
 
             return new SelectList<T, TResult, TState>(list, selector, state);
         }
@@ -425,8 +425,8 @@ namespace BuildXL.Utilities.Collections
             out ArrayView<TValue> trueValues,
             out ArrayView<TValue> falseValues)
         {
-            Contract.RequiresNotNull(values);
-            Contract.RequiresNotNull(predicate);
+            Contract.Requires(values != null);
+            Contract.Requires(predicate != null);
 
             if (values.Length == 0)
             {
@@ -504,8 +504,8 @@ namespace BuildXL.Utilities.Collections
             TKey key,
             Func<TState, TKey, TValue> valueFactory) where TKey : notnull
         {
-            Contract.RequiresNotNull(dictionary, "dictionary != null");
-            Contract.RequiresNotNull(valueFactory);
+            Contract.Requires(dictionary != null, "dictionary != null");
+            Contract.Requires(valueFactory != null);
 
             if (dictionary.TryGetValue(key, out TValue? resultingValue))
             {
@@ -530,7 +530,7 @@ namespace BuildXL.Utilities.Collections
         /// </summary>
         public static void GrowArrayIfNecessary<T>(ref T[] array, int requiredLength)
         {
-            Contract.RequiresNotNull(array);
+            Contract.Requires(array != null);
 
             var newLength = array.Length;
             while (requiredLength > newLength)
@@ -549,7 +549,7 @@ namespace BuildXL.Utilities.Collections
         /// </remarks>
         public static ReadOnlyListEnumerable<T> AsStructEnumerable<T>(this IReadOnlyList<T> @this)
         {
-            Contract.RequiresNotNull(@this);
+            Contract.Requires(@this != null);
 
             return new ReadOnlyListEnumerable<T>(@this);
         }
@@ -603,6 +603,70 @@ namespace BuildXL.Utilities.Collections
                 m_index++;
                 return true;
             }
+        }
+
+        /// <inheritdoc cref="Enumerable.Count{TSource}(System.Collections.Generic.IEnumerable{TSource})"/>
+        /// <remarks>
+        /// Use this method to avoid potential perf penalties and extra allocations caused by <see cref="Enumerable.Count{TSource}(System.Collections.Generic.IEnumerable{TSource})"/> method.
+        /// The usage of this method also avoids CA1826 warning.
+        /// </remarks>
+        public static int Count<T>(this IReadOnlyList<T> list) => list.Count;
+
+        /// <inheritdoc cref="Enumerable.LongCount{TSource}(System.Collections.Generic.IEnumerable{TSource})"/>
+        /// <remarks>
+        /// Use this method to avoid potential perf penalties and extra allocations caused by <see cref="Enumerable.LongCount{TSource}(System.Collections.Generic.IEnumerable{TSource})"/> method.
+        /// The usage of this method also avoids CA1826 warning.
+        /// </remarks>
+        public static long LongCount<T>(this IReadOnlyList<T> list) => list.Count;
+
+        /// <inheritdoc cref="Enumerable.Last{TSource}(System.Collections.Generic.IEnumerable{TSource})"/>
+        /// <remarks>
+        /// Use this method to avoid potential perf penalties and extra allocations caused by <see cref="Enumerable.Last{TSource}(System.Collections.Generic.IEnumerable{TSource})"/> method.
+        /// The usage of this method also avoids CA1826 warning.
+        /// </remarks>
+        public static T Last<T>(this IReadOnlyList<T> list)
+        {
+            if (list.Count == 0)
+            {
+                ThrowCollectionIsEmpty();
+            }
+
+            return list[list.Count - 1];
+        }
+
+        /// <inheritdoc cref="Enumerable.LastOrDefault{TSource}(System.Collections.Generic.IEnumerable{TSource})"/>
+        /// <remarks>
+        /// Use this method to avoid potential perf penalties and extra allocations caused by <see cref="Enumerable.LastOrDefault{TSource}(System.Collections.Generic.IEnumerable{TSource})"/> method.
+        /// The usage of this method also avoids CA1826 warning.
+        /// </remarks>
+        public static T? LastOrDefault<T>(this IReadOnlyList<T> list) => list.Count == 0 ? default(T) : list.Last();
+
+        /// <inheritdoc cref="Enumerable.Last{TSource}(System.Collections.Generic.IEnumerable{TSource})"/>
+        /// <remarks>
+        /// Use this method to avoid potential perf penalties and extra allocations caused by <see cref="Enumerable.Last{TSource}(System.Collections.Generic.IEnumerable{TSource})"/> method.
+        /// The usage of this method also avoids CA1826 warning.
+        /// </remarks>
+        public static T First<T>(this IReadOnlyList<T> list)
+        {
+            if (list.Count == 0)
+            {
+                ThrowCollectionIsEmpty();
+            }
+
+            return list[0];
+        }
+
+        /// <inheritdoc cref="Enumerable.FirstOrDefault{TSource}(System.Collections.Generic.IEnumerable{TSource})"/>
+        /// <remarks>
+        /// Use this method to avoid potential perf penalties and extra allocations caused by <see cref="Enumerable.FirstOrDefault{TSource}(System.Collections.Generic.IEnumerable{TSource})"/> method.
+        /// The usage of this method also avoids CA1826 warning.
+        /// </remarks>
+        public static T? FirstOrDefault<T>(this IReadOnlyList<T> list) => list.Count == 0 ? default(T) : list.First();
+
+        [DoesNotReturn]
+        private static void ThrowCollectionIsEmpty()
+        {
+            throw new InvalidOperationException("A list contains no elements");
         }
     }
 }

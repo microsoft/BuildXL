@@ -1940,6 +1940,7 @@ namespace BuildXL.Engine
                                     loggingContext,
                                     Context.PathTable,
                                     Configuration.Layout.CacheDirectory.ToString(Context.PathTable),
+                                    Configuration.Logging.LogsDirectory.ToString(Context.PathTable),
                                     Configuration.Cache,
                                     rootTranslator: m_rootTranslator,
                                     recoveryStatus: recoveryStatus,

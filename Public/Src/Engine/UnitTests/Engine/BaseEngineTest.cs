@@ -318,6 +318,7 @@ function execute(args: Transformer.ExecuteArguments): Transformer.ExecuteResult 
                 LoggingContext,
                 Context.PathTable,
                 cacheDirectory,
+                Path.Combine(TemporaryDirectory, "tmplogdirectory"),
                 Configuration.Cache,
                 translator,
                 recoveryStatus: false,

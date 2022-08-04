@@ -70,6 +70,7 @@ namespace BuildXL.Engine
             LoggingContext loggingContext,
             PathTable pathTable,
             string cacheDirectory,
+            string logDirectory,
             ICacheConfiguration config,
             RootTranslator rootTranslator,
             bool? recoveryStatus,
@@ -133,6 +134,7 @@ namespace BuildXL.Engine
                 loggingContext,
                 startTime,
                 task,
+                logDirectory,
                 cancellationToken);
         }
 
@@ -592,6 +594,9 @@ namespace BuildXL.Engine
         private readonly DateTime m_initializationStart;
         private readonly Task<Possible<CacheInitializer>> m_initializationTask;
         private readonly Timer m_cacheInitWatchdog;
+        private readonly string m_logDirectory;
+        private int m_cacheInitCounter;
+        private const int CreateDumpFileCounter = 120; // 5 seconds * 120 = 10 minutes
 
         private long m_firstAwaitTimeTicks = -1;
 
@@ -605,10 +610,13 @@ namespace BuildXL.Engine
             LoggingContext loggingContext,
             DateTime initializationStart,
             Task<Possible<CacheInitializer>> initializationTask,
+            string logDirectory,
             CancellationToken cancellationToken)
         {
             m_loggingContext = loggingContext;
             m_initializationStart = initializationStart;
+            m_cacheInitCounter = 0;
+            m_logDirectory = logDirectory;
 
             // initializationTask might be done already; safe to call ContinueWith now since we initialized everything else.
             m_initializationTask = initializationTask.ContinueWith(
@@ -666,6 +674,23 @@ namespace BuildXL.Engine
             if (!m_initializationTask.IsCompleted)
             {
                 Tracing.Logger.Log.CacheIsStillBeingInitialized(m_loggingContext);
+
+                m_cacheInitCounter++;
+                // If cache initialization is taking an abnormal amount of time, dump the bxl process here
+                if (m_cacheInitCounter == CreateDumpFileCounter)
+                {
+                    var dumpDirectory = Path.Combine(m_logDirectory, "dumps");
+                    Directory.CreateDirectory(dumpDirectory);
+                    var dumpFile = Path.Combine(dumpDirectory, "CacheInitializationFailure.zip");
+
+                    Processes.ProcessDumper.TryDumpProcess(
+                        System.Diagnostics.Process.GetCurrentProcess(),
+                        dumpFile,
+                        out _,
+                        compress: true);
+
+                    Tracing.Logger.Log.CacheInitializationTakingTooLong(m_loggingContext, elapsedTime: "10", dumpFile);
+                }
             }
         }
 

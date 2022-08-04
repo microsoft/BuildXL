@@ -403,6 +403,8 @@ namespace BuildXL.Engine.Tracing
         GrpcServerTraceWarning = 7130,
         GrpcServerTrace = 7131,
 
+        CacheInitializationTakingTooLong = 7132,
+
         // max 7200
     }
 }

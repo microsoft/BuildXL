@@ -297,6 +297,7 @@ namespace Test.BuildXL.EngineTests
                 LoggingContext,
                 Context.PathTable,
                 cacheDirectory,
+                Path.Combine(TemporaryDirectory, "tmplogdirectory"),
                 new CacheConfiguration
                 {
                     CacheLogFilePath = AbsolutePath.Create(Context.PathTable, tempDir).Combine(Context.PathTable, "cache.log"),
@@ -315,6 +316,7 @@ namespace Test.BuildXL.EngineTests
                 LoggingContext,
                 Context.PathTable,
                 cacheDirectory,
+                Path.Combine(TemporaryDirectory, "tmplogdirectory"),
                 new CacheConfiguration
                 {
                     // need a different name for the log file (due to the order in which the things are initialized)

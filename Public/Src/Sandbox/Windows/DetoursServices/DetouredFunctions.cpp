@@ -2781,6 +2781,11 @@ BOOL WINAPI Detoured_CreateProcessW(
             return FALSE;
         }
 
+        if (!AdjustOperationContextAndPolicyResultWithFullyResolvedPath(operationContext, policyResult, true))
+        {
+            return INVALID_FILE_ATTRIBUTES;
+        }
+
         if (ExistsAsFile(imagePath.GetPathString()))
         {
             readContext.Existence = FileExistence::Existent;

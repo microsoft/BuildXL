@@ -1230,6 +1230,7 @@ static void SymlinkTests(const string& verb)
 
     IF_COMMAND(CallDetouredFileCreateWithSymlink);
     IF_COMMAND(CallDetouredFileCreateWithNoSymlink);
+    IF_COMMAND(CallDetouredProcessCreateWithSymlink);
     IF_COMMAND(CallCreateSymLinkOnFiles);
     IF_COMMAND(CallCreateSymLinkOnDirectories);
     IF_COMMAND(CallAccessSymLinkOnFiles);

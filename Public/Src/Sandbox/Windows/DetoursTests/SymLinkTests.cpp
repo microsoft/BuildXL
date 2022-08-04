@@ -212,6 +212,76 @@ int CallDetouredFileCreateWithSymlink()
     return (int)GetLastError();
 }
 
+int CallDetouredProcessCreateWithSymlink()
+{
+    HMODULE hModule = GetModuleHandleW(NULL);
+    WCHAR path[MAX_PATH];
+    DWORD nFileName = GetModuleFileNameW(hModule, path, MAX_PATH);
+
+    if (nFileName == 0 || nFileName == MAX_PATH) {
+        return ERROR_PATH_NOT_FOUND;
+    }
+
+ 
+    BOOLEAN retCreateSymLink = TestCreateSymbolicLinkW(
+        L"CreateSymbolicLinkTest2.exe",
+        path,
+        0);
+
+    if (retCreateSymLink == FALSE)
+    {
+        return (int)GetLastError();
+    }
+
+
+
+    STARTUPINFO si;
+    PROCESS_INFORMATION pi;
+
+    ZeroMemory(&si, sizeof(si));
+    si.cb = sizeof(si);
+    ZeroMemory(&pi, sizeof(pi));
+
+    std::wstring cmdLine(L"\"");
+    cmdLine.append(L"CreateSymbolicLinkTest2.exe");
+    cmdLine.append(L"\" ");
+    cmdLine.append(L"CallDetouredCreateFileWWrite");
+
+    if (!CreateProcess(
+        NULL,
+        &cmdLine[0],
+        NULL,
+        NULL,
+        FALSE,
+        0,
+        NULL,
+        NULL,
+        &si,
+        &pi))
+    {
+        return (int)GetLastError();
+    }
+
+    // Wait until child process exits.
+    WaitForSingleObject(pi.hProcess, INFINITE);
+
+    DWORD childExitCode;
+    if (!GetExitCodeProcess(pi.hProcess, &childExitCode))
+    {
+        return (int)GetLastError();
+    }
+
+    if (childExitCode != ERROR_SUCCESS)
+    {
+        return (int)childExitCode;
+    }
+
+    // Close process and thread handles. 
+    CloseHandle(pi.hProcess);
+    CloseHandle(pi.hThread);
+    return (int)GetLastError();
+}
+
 int CallDetouredFileCreateWithNoSymlink()
 {
     HANDLE hFile = CreateFileW(

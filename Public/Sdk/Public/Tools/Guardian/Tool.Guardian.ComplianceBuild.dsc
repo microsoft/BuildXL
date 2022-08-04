@@ -193,7 +193,7 @@ export function createGuardianCall(
         untrackedPaths: untrackedPaths,
         untrackedScopes: untrackedScopes,
         allowUndeclaredSourceReads: allowUndeclaredSourceReads,
-        passThroughEnvironmentVariables
+        passThroughEnvironmentVariables: passThroughEnvironmentVariables
     };
 
     const guardianResult = runGuardian(guardianArgs);

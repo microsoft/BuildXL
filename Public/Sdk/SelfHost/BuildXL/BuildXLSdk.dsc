@@ -42,6 +42,8 @@ const brandingDefines = [
     { key: "MainExecutableName", value: Branding.mainExecutableName},
 ];
 
+const buildXLRuleset = f`BuildXL.ruleset`;
+
 @@public
 export interface Arguments extends Managed.Arguments {
     /** Provide switch to turn skip tool that adds GetTypeInfo() calls to generated resource code, so the tool can be compiled */
@@ -284,7 +286,7 @@ namespace Flags {
      * We only want to enable it for PR builds not for local dev builds
      */
     @@public
-    export const enableRoslynAnalyzers = Environment.getFlag("[Sdk.BuildXL]enableRoslynAnalyzers");
+    export const enableRoslynAnalyzers = Environment.getFlag("[Sdk.BuildXL]enableRoslynAnalyzers") && isMicrosoftInternal;
 
     /**
      * Enable ESRP Signing
@@ -669,8 +671,14 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
         analyzers = [...analyzers, ...getInProcLogGenerators()];
     }
 
+    let ruleset : File = undefined;
+
+    if (args.enableStyleCopAnalyzers) {
+        ruleset = buildXLRuleset;
+    }
+
     // Only add roslynanalyzers for microsoft internal build since Microsoft.Internal.Analyzers is for internal use
-    if (Flags.isMicrosoftInternal && Flags.enableRoslynAnalyzers) {
+    if (Flags.enableRoslynAnalyzers) {
         analyzers = [
             ...analyzers,
             ...getAnalyzerDlls(importFrom("Microsoft.CodeAnalysis.NetAnalyzers").Contents.all),
@@ -680,8 +688,11 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
         // Required for v2.x Roslyn compilers
         // Flow analysis is used to infer the nullability of variables within executable code. The inferred nullability of a variable is independent of the variable's declared nullability.
         // Method calls are analyzed even when they are conditionally omitted. For instance, `Debug.Assert` in release mode.
-        features.push("flow-analysis");
-    }
+        features = features.push("flow-analysis");
+
+        ruleset = f`BuildXL.Recommend.Required.Error.ruleset`;
+        args = args.merge<Managed.Arguments>({implicitSources: [buildXLRuleset]});
+    } 
     
     args = Object.merge<Arguments>(
         {
@@ -725,11 +736,11 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
 
                     // TODO: Make analyzers supported in regular references by undestanding the structure in nuget packages
                     analyzers: analyzers,
-                    errorlog: Flags.isMicrosoftInternal && Flags.enableRoslynAnalyzers ? r`${assemblyName}/roslyn.csproj.diagnostics.sarif` : undefined,
-                    enableRoslynAnalyzers: Flags.isMicrosoftInternal && Flags.enableRoslynAnalyzers,
+                    errorlog: Flags.enableRoslynAnalyzers ? r`${assemblyName}/roslyn.csproj.diagnostics.sarif` : undefined,
+                    enableRoslynAnalyzers: Flags.enableRoslynAnalyzers,
 
                     features: features,
-                    codeAnalysisRuleset: args.enableStyleCopAnalyzers ? f`BuildXL.ruleset` : undefined,
+                    codeAnalysisRuleset: ruleset,
                     additionalFiles: args.enableStyleCopAnalyzers ? [f`stylecop.json`] : [],
                     keyFile: args.skipAssemblySigning ? undefined : devKey,
                     shared: Flags.useManagedSharedCompilation,

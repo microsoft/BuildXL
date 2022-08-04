@@ -378,6 +378,7 @@ function runGuardianInternal(args : GuardianArguments, guardianTool : Transforme
         Cmd.flag("no-policy", args.noPolicy),
         Cmd.option("--policy ", args.policy),
         Cmd.option("--logger-level ", args.logLevel !== undefined ? args.logLevel.toString() : undefined),
+        Cmd.option("--min-severity ", args.severity),
         ...getBaselineOrSuppressOptions(args),
     ];
 

@@ -1,0 +1,1 @@
+This empty directory is required for Roslynanalyzers to run on a repo that does not have Guardian initialized.

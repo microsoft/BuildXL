@@ -24,9 +24,9 @@ namespace Interfaces {
                 importFrom("System.Threading.Tasks.Dataflow").pkg
             ),
             ...BuildXLSdk.bclAsyncPackages,
-            importFrom("WindowsAzure.Storage").pkg,
 
             ...BuildXLSdk.systemMemoryDeployment,
+            ...getAzureBlobStorageSdkPackages(true),
         ],
         nullable: true,
         allowUnsafeBlocks: true,

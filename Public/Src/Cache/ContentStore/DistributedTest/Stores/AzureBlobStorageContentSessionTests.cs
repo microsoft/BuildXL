@@ -2,11 +2,13 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.Blobs;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
+using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Secrets;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
@@ -34,6 +36,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test
         private readonly LocalRedisFixture _fixture;
 
         protected override bool RunEvictionBasedTests { get; } = false;
+
+        protected override bool EnablePinContentSizeAssertions { get; } = false;
 
         public AzureBlobStorageContentSessionTests(LocalRedisFixture fixture, ITestOutputHelper output)
             : base(() => new PassThroughFileSystem(TestGlobal.Logger), TestGlobal.Logger, canHibernate: false, output)
@@ -119,6 +123,67 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test
         }
 
         [Fact]
+        public Task BulkPinManyFiles()
+        {
+            // This is testing that the store is not sending too many bulk subrequests within a single API call. Mainly
+            // important when using the bulk pin strategies
+            return RunTestAsync(ImplicitPin.None, null, async (context, session) =>
+            {
+                var fileCount = 1337;
+                var randomHashes = Enumerable.Range(0, fileCount).Select(i => ContentHash.Random()).ToList();
+                var results = (await session.PinAsync(context, randomHashes, Token)).ToList();
+                Assert.Equal(fileCount, results.Count);
+                foreach (var result in results)
+                {
+                    var pinResult = await result;
+                    Assert.Equal(PinResult.ResultCode.ContentNotFound, pinResult.Item.Code);
+                }
+            });
+        }
+
+        [Fact]
+        public Task RepeatedBulkPinShouldSucceedAsync()
+        {
+            // This is just testing that pinning files repeatedly doesn't have any side effects
+            return RunTestAsync(ImplicitPin.None, null, async (context, session) =>
+            {
+                var fileCount = 5;
+                var contentHashes = await session.PutRandomAsync(context, ContentHashType, false, fileCount, ContentByteCount, true);
+
+                {
+                    var results = (await session.PinAsync(context, contentHashes, Token)).ToList();
+                    Assert.Equal(fileCount, results.Count);
+                    foreach (var result in results)
+                    {
+                        var pinResult = await result;
+                        pinResult.Item.ShouldBeSuccess();
+                    }
+                }
+
+                {
+                    var result = await session.PinAsync(context, contentHashes[0], Token);
+                    result.ShouldBeSuccess();
+                }
+            });
+        }
+
+        [Fact(Skip = "Used for manual testing of whether the bulk pin logic updates the last access time correctly in Storage")]
+        public Task PinSpecificFile()
+        {
+            OverrideFolderName = "pinSpecificFile";
+            return RunTestAsync(ImplicitPin.None, null, async (context, session) =>
+            {
+                var putResult = await session.PutContentAsync(context, $"hello").ThrowIfFailureAsync();
+                var pinResult = await session.PinAsync(context, putResult.ContentHash, Token);
+                pinResult.ShouldBeSuccess();
+
+                var pinResults = (await session.PinAsync(context, new [] { putResult.ContentHash }, Token)).ToList();
+                pinResult = (await pinResults[0]).Item;
+                pinResult.ShouldBeSuccess();
+            });
+        }
+
+        [Fact]
         public async Task PlaceLargeFileAsync()
         {
             // This test downloads a file in parallel, hence why we check
@@ -148,6 +213,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test
             }
         }
 
+        internal string? OverrideFolderName { get; set; }
+
         private IDisposable CreateBlobContentStore(out AzureBlobStorageContentStore store)
         {
             var storage = AzuriteStorageProcess.CreateAndStartEmpty(
@@ -156,9 +223,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test
 
             var configuration = new AzureBlobStorageContentStoreConfiguration()
             {
-                Credentials = new AzureBlobStorageCredentials(connectionString: storage.ConnectionString),
-                FolderName = _runId.ToString(),
+                Credentials = new AzureBlobStorageCredentials(storage.ConnectionString),
+                FolderName = OverrideFolderName ?? _runId.ToString(),
                 BlobDownloadStrategyConfiguration = new BlobDownloadStrategyConfiguration(Strategy: BlobDownloadStrategy.HttpClientDownloadToMemoryMappedFile),
+                // NOTE: bulk pin strategies don't work with the storage emulator, so if you want to test these, you
+                // need to hard code a connection string to an actual storage account.
+                BulkPinStrategy = AzureBlobStorageContentSession.BulkPinStrategy.Individual,
             };
 
             store = new AzureBlobStorageContentStore(configuration);

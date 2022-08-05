@@ -31,7 +31,7 @@ namespace Service {
             importFrom("BuildXL.Utilities").Native.dll,
 
             importFrom("BuildXL.Cache.Logging").Library.dll,
-            importFrom("WindowsAzure.Storage").pkg,
+            ...importFrom("BuildXL.Cache.ContentStore").getAzureBlobStorageSdkPackages(true),
             importFrom("NLog").pkg,
 
             ...BuildXLSdk.bclAsyncPackages,

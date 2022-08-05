@@ -50,13 +50,14 @@ export const kustoPackages = [
     ]),
     importFrom("Microsoft.Azure.Management.Kusto").pkg,
     importFrom("Microsoft.IdentityModel.Clients.ActiveDirectory").pkg,
-    importFrom("WindowsAzure.Storage").pkg
+    ...getAzureBlobStorageSdkPackages(true),
 ];
 
 // Need to exclude netstandard.dll reference when calling this function for creating a nuget package.
 @@public
 export function getSerializationPackages(includeNetStandard: boolean) : (Managed.ManagedNugetPackage | Managed.Assembly)[] {
     return [
+        importFrom("System.Memory.Data").pkg,
         ...getSystemTextJson(includeNetStandard),
         ...getSerializationPackagesWithoutNetStandard()
     ];
@@ -164,6 +165,19 @@ export function getProtobufNetPackages(includeNetStandard: boolean) : (Managed.M
         importFrom("protobuf-net").pkg,
         importFrom("protobuf-net.Grpc").pkg,
         importFrom("protobuf-net.Grpc.Native").pkg,
+    ];
+}
+
+@@public
+export function getAzureBlobStorageSdkPackages(includeNetStandard: boolean) : (Managed.ManagedNugetPackage | Managed.Assembly)[] {
+    return [
+        importFrom("WindowsAzure.Storage").pkg,
+        importFrom("Azure.Storage.Blobs").pkg,
+        importFrom("Azure.Storage.Common").pkg,
+        importFrom("Azure.Core").pkg,
+        importFrom("Azure.Storage.Blobs.Batch").pkg,
+        ...getSerializationPackages(includeNetStandard),
+        ...BuildXLSdk.getSystemMemoryPackages(includeNetStandard),
     ];
 }
 

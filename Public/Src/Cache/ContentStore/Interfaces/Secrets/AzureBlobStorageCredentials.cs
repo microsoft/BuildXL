@@ -3,9 +3,13 @@
 
 using System;
 using System.Diagnostics.ContractsLight;
+using Azure;
+using Azure.Storage.Blobs;
 using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Auth;
 using Microsoft.WindowsAzure.Storage.Blob;
+
+#nullable enable
 
 namespace BuildXL.Cache.ContentStore.Interfaces.Secrets
 {
@@ -21,36 +25,53 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Secrets
         /// </summary>
         public static AzureBlobStorageCredentials StorageEmulator = new AzureBlobStorageCredentials(connectionString: "UseDevelopmentStorage=true");
 
-        /// <nodoc />
-        public string? ConnectionString { get; }
+        private readonly Secret _secret;
 
         /// <summary>
-        /// <see cref="StorageCredentials"/> can be updated from the outside, so it is a way to in fact change the way
-        /// we authenticate with Azure Blob Storage over time. Changes are accepted only within the same authentication
-        /// mode.
+        /// Creates a fixed credential; this is our default mode of authentication.
         /// </summary>
-        private StorageCredentials? StorageCredentials { get; }
-
-        /// <nodoc />
-        private string? AccountName { get; }
-
-        /// <nodoc />
-        private string? EndpointSuffix { get; }
-
-        /// <nodoc />
-        public AzureBlobStorageCredentials(PlainTextSecret secret) : this(secret.Secret)
+        /// <remarks>
+        /// This is just a convenience method that's actually equivalent to using a <see cref="PlainTextSecret"/>
+        /// </remarks>
+        public AzureBlobStorageCredentials(string connectionString)
+            : this(new PlainTextSecret(secret: connectionString))
         {
-
         }
 
         /// <nodoc />
-        public AzureBlobStorageCredentials(UpdatingSasToken sasToken) 
-            : this(CreateStorageCredentialsFromSasToken(sasToken), sasToken.Token.StorageAccount!)
+        public AzureBlobStorageCredentials(Secret secret)
         {
-
+            _secret = secret;
         }
 
-        private static StorageCredentials CreateStorageCredentialsFromSasToken(UpdatingSasToken updatingSasToken)
+        #region Blob V11 API
+
+        /// <nodoc />
+        public CloudStorageAccount CreateCloudStorageAccount()
+        {
+            if (_secret is PlainTextSecret plainText)
+            {
+                return CloudStorageAccount.Parse(plainText.Secret);
+            }
+            else if (_secret is UpdatingSasToken updatingSasToken)
+            {
+                return new CloudStorageAccount(
+                    CreateV11StorageCredentialsFromUpdatingSasToken(updatingSasToken),
+                    accountName: updatingSasToken.Token.StorageAccount,
+                    endpointSuffix: null,
+                    useHttps: true);
+            }
+
+            throw new NotImplementedException($"Unknown secret type `{_secret.GetType()}`");
+        }
+
+        /// <nodoc />
+        public CloudBlobClient CreateCloudBlobClient()
+        {
+            return CreateCloudStorageAccount().CreateCloudBlobClient();
+        }
+
+        private static StorageCredentials CreateV11StorageCredentialsFromUpdatingSasToken(UpdatingSasToken updatingSasToken)
         {
             var storageCredentials = new StorageCredentials(sasToken: updatingSasToken.Token.Token);
             updatingSasToken.TokenUpdated += (_, replacementSasToken) =>
@@ -61,50 +82,42 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Secrets
             return storageCredentials;
         }
 
-        /// <summary>
-        /// Creates a fixed credential; this is our default mode of authentication.
-        /// </summary>
-        public AzureBlobStorageCredentials(string connectionString)
-        {
-            Contract.RequiresNotNullOrEmpty(connectionString);
-            ConnectionString = connectionString;
-        }
+        #endregion
 
-        /// <summary>
-        /// Uses Azure Blob's storage credentials. This allows us to use SAS tokens, and to update shared secrets
-        /// without restarting the service.
-        /// </summary>
-        public AzureBlobStorageCredentials(StorageCredentials storageCredentials, string accountName, string? endpointSuffix = null)
-        {
-            // Unfortunately, even though you can't generate a storage credentials without an account name, it isn't
-            // stored inside object unless a shared secret is being used. Hence, we are forced to keep it here.
-            Contract.RequiresNotNull(storageCredentials);
-            Contract.RequiresNotNullOrEmpty(accountName);
-            StorageCredentials = storageCredentials;
-            AccountName = accountName;
-            EndpointSuffix = endpointSuffix;
-        }
+        #region Blob V12 API
 
         /// <nodoc />
-        public CloudStorageAccount CreateCloudStorageAccount()
+        public BlobServiceClient CreateBlobServiceClient(BlobClientOptions? blobClientOptions = null)
         {
-            if (!string.IsNullOrEmpty(ConnectionString))
+            blobClientOptions ??= new BlobClientOptions();
+
+            if (_secret is PlainTextSecret plainText)
             {
-                return CloudStorageAccount.Parse(ConnectionString);
+                return new BlobServiceClient(connectionString: plainText.Secret, blobClientOptions);
+            }
+            else if (_secret is UpdatingSasToken sasToken)
+            {
+                Uri serviceUri = new Uri($"https://{sasToken.Token.StorageAccount}.blob.core.windows.net/");
+                return new BlobServiceClient(
+                    serviceUri,
+                    CreateV12StorageCredentialsFromSasToken(sasToken),
+                    blobClientOptions);
             }
 
-            if (StorageCredentials != null)
-            {
-                return new CloudStorageAccount(StorageCredentials, AccountName, EndpointSuffix, useHttps: true);
-            }
-
-            throw new ArgumentException("Invalid credentials");
+            throw new NotImplementedException($"Unknown secret type `{_secret.GetType()}`");
         }
 
-        /// <nodoc />
-        public CloudBlobClient CreateCloudBlobClient()
+        private AzureSasCredential CreateV12StorageCredentialsFromSasToken(UpdatingSasToken updatingSasToken)
         {
-            return CreateCloudStorageAccount().CreateCloudBlobClient();
+            var credential = new AzureSasCredential(updatingSasToken.Token.Token);
+            updatingSasToken.TokenUpdated += (_, replacementSasToken) =>
+            {
+                credential.Update(replacementSasToken.Token);
+            };
+
+            return credential;
         }
+
+        #endregion
     }
 }

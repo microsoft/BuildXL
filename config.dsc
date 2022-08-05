@@ -199,9 +199,10 @@ config({
                 { id: "Azure.Identity", version: "1.4.0" },
                 { id: "Microsoft.Identity.Client", version: "4.30.1" },
                 { id: "Microsoft.Identity.Client.Extensions.Msal", version: "2.18.4" },
-                { id: "Azure.Core", version: "1.14.0", 
+                { id: "Azure.Core", version: "1.25.0", 
                     dependentPackageIdsToSkip: ["System.Buffers", "System.Text.Encodings.Web", "System.Text.Json", "System.Memory", "System.Memory.Data", "System.Numerics.Vectors" ] },
-                { id: "System.Memory.Data", version: "1.0.2" },
+                { id: "System.Memory.Data", version: "6.0.0",
+                    dependentPackageIdsToSkip: [ "System.Memory", "System.Text.Json" ] },
 
                 // Package sets
                 ...importFile(f`config.nuget.vssdk.dsc`).pkgs,
@@ -210,9 +211,18 @@ config({
                 ...importFile(f`config.nuget.grpc.dsc`).pkgs,
                 ...importFile(f`config.microsoftInternal.dsc`).pkgs,
 
-                { id: "WindowsAzure.Storage", version: "9.3.3", alias: "WindowsAzure.Storage" },
+                // Azure Blob Storage SDK V9
+                { id: "WindowsAzure.Storage", version: "9.3.3" },
                 { id: "Microsoft.Data.Services.Client", version: "5.8.2" },
                 { id: "System.Spatial", version: "5.8.2" },
+
+                // Azure Blob Storage SDK V12
+                { id: "Azure.Storage.Blobs", version: "12.13.0",
+                    dependentPackageIdsToSkip: [ "System.Text.Json" ] },
+                { id: "Azure.Storage.Common", version: "12.12.0" },
+                { id: "System.IO.Hashing", version: "6.0.0",
+                    dependentPackageIdsToSkip: [ "System.Buffers", "System.Memory" ] },
+                { id: "Azure.Storage.Blobs.Batch", version: "12.10.0" },
 
                 // xUnit
                 { id: "xunit.abstractions", version: "2.0.3" },

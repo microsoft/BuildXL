@@ -3184,65 +3184,6 @@ namespace ContentStoreTest.Distributed.Sessions
             return putResult0.ContentHash;
         }
 
-        #region SAS Tokens Tests
-        [Fact(Skip = "For manual testing only. Requires storage account credentials")]
-        public async Task BlobCentralStorageCredentialsUpdate()
-        {
-            var testBasePath = FileSystem.GetTempPath();
-            var containerName = "checkpoints";
-            var checkpointsKey = "checkpoints-eventhub";
-            if (!ReadConfiguration(out var storageAccountKey, out var storageAccountName, out _, out _))
-            {
-                Output.WriteLine("The test is skipped due to misconfiguration.");
-                return;
-            }
-
-            var credentials = new StorageCredentials(storageAccountName, storageAccountKey);
-            var account = new CloudStorageAccount(credentials, storageAccountName, endpointSuffix: null, useHttps: true);
-
-            var sasToken = account.GetSharedAccessSignature(new SharedAccessAccountPolicy
-            {
-                SharedAccessExpiryTime = DateTimeOffset.UtcNow + TimeSpan.FromMinutes(5),
-                Permissions = SharedAccessAccountPermissions.None,
-                Services = SharedAccessAccountServices.Blob,
-                ResourceTypes = SharedAccessAccountResourceTypes.Object,
-                Protocols = SharedAccessProtocol.HttpsOnly
-            });
-            var blobStoreCredentials = new StorageCredentials(sasToken);
-
-            var blobCentralStoreConfiguration = new BlobCentralStoreConfiguration(
-                new AzureBlobStorageCredentials(blobStoreCredentials, storageAccountName, endpointSuffix: null),
-                containerName,
-                checkpointsKey);
-            var blobCentralStore = new BlobCentralStorage(blobCentralStoreConfiguration);
-
-            var operationContext = new BuildXL.Cache.ContentStore.Tracing.Internal.OperationContext(new Context(Logger));
-
-            // Attempt a get of an inexistent file. It should fail due to permissions.
-            var forbiddenReadResult = await blobCentralStore.TryGetFileAsync(operationContext,
-                "fail",
-                AbsolutePath.CreateRandomFileName(testBasePath));
-            forbiddenReadResult.ShouldBeError("(403) Forbidden");
-
-            // Update the token, this would usually be done by the secret store.
-            var sasTokenWithReadPermission = account.GetSharedAccessSignature(new SharedAccessAccountPolicy
-            {
-                SharedAccessExpiryTime = DateTimeOffset.UtcNow + TimeSpan.FromMinutes(5),
-                Permissions = SharedAccessAccountPermissions.Read | SharedAccessAccountPermissions.List,
-                Services = SharedAccessAccountServices.Blob,
-                ResourceTypes = SharedAccessAccountResourceTypes.Object,
-                Protocols = SharedAccessProtocol.HttpsOnly
-            });
-            blobStoreCredentials.UpdateSASToken(sasTokenWithReadPermission);
-
-            // Attempt a get of an inexistent file. It should fail due to it not existing.
-            var allowedReadResult = await blobCentralStore.TryGetFileAsync(operationContext,
-                "fail",
-                AbsolutePath.CreateRandomFileName(testBasePath));
-            allowedReadResult.ShouldBeError(@"Checkpoint blob 'checkpoints\fail' does not exist in shard #0.");
-        }
-        #endregion
-
         #region Machine State Tracking Tests
 
         [Fact]

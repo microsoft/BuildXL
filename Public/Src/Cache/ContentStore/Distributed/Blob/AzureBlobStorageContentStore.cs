@@ -3,8 +3,9 @@
 
 using System;
 using System.Net;
-using System.Threading;
 using System.Threading.Tasks;
+using Azure.Storage.Blobs;
+using Azure.Storage.Blobs.Specialized;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Secrets;
@@ -31,6 +32,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blobs
         public TimeSpan StorageInteractionTimeout { get; set; } = TimeSpan.FromMinutes(30);
 
         public BlobDownloadStrategyConfiguration BlobDownloadStrategyConfiguration { get; set; } = new BlobDownloadStrategyConfiguration();
+
+        public AzureBlobStorageContentSession.BulkPinStrategy BulkPinStrategy { get; set; } = AzureBlobStorageContentSession.BulkPinStrategy.Individual;
     }
 
     public class AzureBlobStorageContentStore : StartupShutdownBase, IContentStore
@@ -39,17 +42,23 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blobs
 
         private readonly AzureBlobStorageContentStoreConfiguration _configuration;
 
-        private readonly CloudBlobClient _client;
-        private readonly CloudBlobContainer _container;
-        private readonly CloudBlobDirectory _directory;
+        private readonly CloudBlobClient _v9Client;
+        private readonly CloudBlobContainer _v9Container;
+        private readonly CloudBlobDirectory _v9Directory;
+
+        private readonly BlobServiceClient _v12Client;
+        private readonly BlobContainerClient _v12Container;
 
         public AzureBlobStorageContentStore(AzureBlobStorageContentStoreConfiguration configuration)
         {
             _configuration = configuration;
 
-            _client = _configuration.Credentials!.CreateCloudBlobClient();
-            _container = _client.GetContainerReference(_configuration.ContainerName);
-            _directory = _container.GetDirectoryReference(_configuration.FolderName);
+            _v9Client = _configuration.Credentials!.CreateCloudBlobClient();
+            _v9Container = _v9Client.GetContainerReference(_configuration.ContainerName);
+            _v9Directory = _v9Container.GetDirectoryReference(_configuration.FolderName);
+
+            _v12Client = _configuration.Credentials!.CreateBlobServiceClient(new BlobClientOptions(Azure.Storage.Blobs.BlobClientOptions.ServiceVersion.V2021_02_12));
+            _v12Container = _v12Client.GetBlobContainerClient(_configuration.ContainerName);
         }
 
         protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
@@ -64,7 +73,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blobs
             // The following is used only pre-.NET Core, but it is important to set these for those usages.
 
 #pragma warning disable SYSLIB0014 // Type or member is obsolete
-            var servicePoint = ServicePointManager.FindServicePoint(_client.BaseUri);
+            var servicePoint = ServicePointManager.FindServicePoint(_v9Client.BaseUri);
 #pragma warning restore SYSLIB0014 // Type or member is obsolete
 
             // See: https://github.com/Azure/azure-storage-net-data-movement#best-practice
@@ -83,7 +92,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blobs
                 Tracer,
                 async context =>
                 {
-                    return Result.Success(await _container.CreateIfNotExistsAsync(
+                    return Result.Success(await _v9Container.CreateIfNotExistsAsync(
                         accessType: BlobContainerPublicAccessType.Off,
                         options: null,
                         operationContext: null,
@@ -138,7 +147,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blobs
                     ImplicitPin: implicitPin,
                     Parent: this,
                     StorageInteractionTimeout: _configuration.StorageInteractionTimeout,
-                    BlobDownloadStrategyConfiguration: _configuration.BlobDownloadStrategyConfiguration));
+                    BlobDownloadStrategyConfiguration: _configuration.BlobDownloadStrategyConfiguration,
+                    BulkPinStrategy: _configuration.BulkPinStrategy));
         }
 
         public Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash, DeleteContentOptions? deleteOptions)
@@ -158,7 +168,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blobs
 
         internal CloudBlockBlob GetCloudBlockBlobReference(ContentHash contentHash)
         {
-            return _directory.GetBlockBlobReference($"{contentHash}.blob");
+            return _v9Directory.GetBlockBlobReference($"{contentHash}.blob");
+        }
+
+        internal BlobBatchClient GetBlobBatchClient()
+        {
+            return _v12Container.GetBlobBatchClient();
+        }
+
+        internal BlobClient GetBlobClient(ContentHash contentHash)
+        {
+            return _v12Container.GetBlobClient($"{_configuration.FolderName}/{contentHash}.blob");
         }
     }
 }

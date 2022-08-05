@@ -35,7 +35,7 @@ namespace Distributed {
         references: [
             ...eventHubPackages,
             // Intentionally using different Azure storage package
-            importFrom("WindowsAzure.Storage").pkg,
+            ...getAzureBlobStorageSdkPackages(true),
             ...addIf(BuildXLSdk.isFullFramework, BuildXLSdk.withQualifier({targetFramework: "net472"}).NetFx.Netstandard.dll),
             ...addIf(BuildXLSdk.isFullFramework || qualifier.targetFramework === "netstandard2.0", importFrom("System.Collections.Immutable").pkg),
             ...BuildXLSdk.systemThreadingTasksDataflowPackageReference,

@@ -7,6 +7,11 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
+using Azure;
+using Azure.Identity;
+using Azure.Storage.Blobs;
+using Azure.Storage.Blobs.Specialized;
+using BuildXL.Cache.ContentStore.Extensions;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
@@ -30,12 +35,57 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blobs
 {
     public sealed class AzureBlobStorageContentSession : ContentSessionBase
     {
+        /// <summary>
+        /// Which strategy to use for bulk pinning
+        /// </summary>
+        /// <remarks>
+        /// As of 2022/07/14, bulk strategies do not work when using the Storage Emulator, because the emulator doesn't
+        /// have support for the API calls required.
+        /// </remarks>
+        public enum BulkPinStrategy
+        {
+            /// <summary>
+            /// Bulk requests are split into individual pin requests, which are satisfied by individual existence
+            /// checks.
+            /// </summary>
+            Individual,
+
+            /// <summary>
+            /// Use batch requests to always fail to delete a content blob.
+            /// </summary>
+            /// <remarks>
+            /// 1. It is unsafe to delete a content blob if content backing guarantees are being assumed.
+            ///
+            /// 2. The client accessing this must have permissions to delete blobs.
+            ///
+            /// 3. If an adversary obtains the SAS token given to the client, the adversary is able to cause build
+            ///    failures by deleting blobs.
+            ///
+            /// 4. It is not possible to introduce artifacts into the build by utilizing this technique.
+            /// </remarks>
+            BulkDelete,
+
+            /// <summary>
+            /// Use batch requests to change the blob access tiers to Hot on pin.
+            /// </summary>
+            /// <remarks>
+            /// - This can only be used in non-premium storage accounts.
+            ///
+            /// - It's unknown which specific kind of SAS tokens are required to use this method.
+            ///
+            /// - This is mainly intended to be used in trusted environments (i.e., SAS token scoping is not needed)
+            ///   with non-premium storage accounts.
+            /// </remarks>
+            BulkSetTier,
+        }
+
         public record Configuration(
             string Name,
             ImplicitPin ImplicitPin,
             AzureBlobStorageContentStore Parent,
             TimeSpan StorageInteractionTimeout,
-            BlobDownloadStrategyConfiguration BlobDownloadStrategyConfiguration)
+            BlobDownloadStrategyConfiguration BlobDownloadStrategyConfiguration,
+            BulkPinStrategy BulkPinStrategy)
         {
         }
 
@@ -77,14 +127,126 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blobs
             return PinRemoteAsync(context, contentHash);
         }
 
-        protected override async Task<IEnumerable<Task<Indexed<PinResult>>>> PinCoreAsync(
+        protected override Task<IEnumerable<Task<Indexed<PinResult>>>> PinCoreAsync(
             OperationContext context,
             IReadOnlyList<ContentHash> contentHashes,
             UrgencyHint urgencyHint,
             Counter retryCounter,
             Counter fileCounter)
         {
-            // TODO: we can use blob batch API calls for deleting blobs using IfModifiedSince in the future for pinning in bulk
+            return _configuration.BulkPinStrategy switch
+            {
+                BulkPinStrategy.Individual => BulkIndividualPinAsync(context, contentHashes, urgencyHint, retryCounter),
+                BulkPinStrategy.BulkDelete or BulkPinStrategy.BulkSetTier => BulkPinAsync(context, contentHashes, _configuration.BulkPinStrategy),
+                _ => throw new NotImplementedException($"Unknown bulk pin strategy `{_configuration.BulkPinStrategy}`"),
+            };
+        }
+
+        private async Task<IEnumerable<Task<Indexed<PinResult>>>> BulkPinAsync(
+            OperationContext context,
+            IReadOnlyList<ContentHash> contentHashes,
+            BulkPinStrategy strategy)
+        {
+            var batchClient = _configuration.Parent.GetBlobBatchClient();
+
+            // The Blob Batch API doesn't support more than 256 operations per batch, so we limit it here
+            const int PageLimit = 255;
+            var tasks = new Task<IEnumerable<PinResult>>[(contentHashes.Count / PageLimit) + 1];
+            var i = 0;
+            foreach (var contentHashSubset in contentHashes.GetPages(PageLimit))
+            {
+                tasks[i++] = BulkPinRemoteAsync(context, batchClient, contentHashSubset, strategy);
+            }
+
+            var results = await TaskUtilities.SafeWhenAll(tasks);
+            return results.SelectMany((batchResults, index) =>
+            {
+                return batchResults.Select((pinResult, subindex) =>
+                {
+                    return Task.FromResult(pinResult.WithIndex(index * PageLimit + subindex));
+                });
+            });
+        }
+
+        private async Task<IEnumerable<PinResult>> BulkPinRemoteAsync(
+            OperationContext context,
+            BlobBatchClient batchClient,
+            IReadOnlyList<ContentHash> contentHashes,
+            BulkPinStrategy strategy)
+        {
+            var responses = new Response?[contentHashes.Count];
+
+            var batch = batchClient.CreateBatch();
+            foreach (var indexed in contentHashes.AsIndexed())
+            {
+                var blobClient = _configuration.Parent.GetBlobClient(indexed.Item);
+
+                Response? response = null;
+                if (!indexed.Item.IsEmptyHash())
+                {
+                    switch (strategy)
+                    {
+                        case BulkPinStrategy.BulkDelete:
+                            response = batch.DeleteBlob(
+                                blobClient.Uri,
+                                Azure.Storage.Blobs.Models.DeleteSnapshotsOption.None,
+                                new Azure.Storage.Blobs.Models.BlobRequestConditions()
+                                {
+                                    // This request condition will always fail to pass. This is on purpose.
+                                    IfModifiedSince = _clock.UtcNow + TimeSpan.FromDays(7),
+                                });
+                            break;
+                        case BulkPinStrategy.BulkSetTier:
+                            response = batch.SetBlobAccessTier(
+                                blobClient.Uri,
+                                Azure.Storage.Blobs.Models.AccessTier.Hot,
+                                Azure.Storage.Blobs.Models.RehydratePriority.Standard,
+                                leaseAccessConditions: null);
+                            break;
+                        default:
+                            throw new NotImplementedException($"Unknown bulk pin strategy `{strategy}`");
+                    }
+                }
+
+                responses[indexed.Index] = response;
+            }
+
+            var batchResponse = await batchClient.SubmitBatchAsync(
+                batch,
+                throwOnAnyFailure: false,
+                cancellationToken: context.Token);
+
+            return contentHashes.Select((contentHash, index) =>
+            {
+                var response = responses[index];
+
+                if (response is null)
+                {
+                    // Empty hash case, we didn't even send a request
+                    return PinResult.Success;
+                }
+                else if (response.Status == 404)
+                {
+                    return PinResult.ContentNotFound;
+                }
+                else if (response.Status == 412 || (response.Status >= 200 && response.Status < 300))
+                {
+                    // Condition not met. This happens when doing the bulk delete pin.
+                    return PinResult.Success;
+                }
+                else
+                {
+                    return new PinResult(errorMessage: $"Pin for content hash `{contentHash}` failed with error message: {response.ReasonPhrase}");
+                }
+            });
+        }
+
+        private async Task<IEnumerable<Task<Indexed<PinResult>>>> BulkIndividualPinAsync(
+            OperationContext context,
+            IReadOnlyList<ContentHash> contentHashes,
+            UrgencyHint urgencyHint,
+            Counter retryCounter)
+        {
             var tasks = contentHashes.WithIndices().Select((tuple, _) =>
             {
                 var (contentHash, index) = tuple;

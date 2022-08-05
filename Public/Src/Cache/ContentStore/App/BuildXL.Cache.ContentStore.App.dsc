@@ -43,7 +43,7 @@ namespace App {
 
             importFrom("BuildXL.Utilities").dll,
 
-            importFrom("WindowsAzure.Storage").pkg,
+            ...getAzureBlobStorageSdkPackages(true),
             ...BuildXLSdk.systemThreadingTasksDataflowPackageReference,
             BuildXLSdk.asyncInterfacesPackage
         ],

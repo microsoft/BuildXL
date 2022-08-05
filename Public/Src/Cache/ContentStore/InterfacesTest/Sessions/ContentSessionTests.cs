@@ -46,6 +46,11 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Sessions
         /// </summary>
         protected virtual bool RunEvictionBasedTests => true;
 
+        /// <summary>
+        /// Whether pin fills out the ContentSize field or not
+        /// </summary>
+        protected virtual bool EnablePinContentSizeAssertions => true;
+
         protected ContentSessionTests(Func<IAbsFileSystem> createFileSystemFunc, ILogger logger, bool canHibernate = true, ITestOutputHelper output = null)
             : base(createFileSystemFunc, logger, output)
         {
@@ -104,7 +109,11 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Sessions
                 {
                     var pinResult = await result;
                     pinResult.Item.ShouldBeSuccess();
-                    Assert.Equal(ContentByteCount, pinResult.Item.ContentSize);
+
+                    if (EnablePinContentSizeAssertions)
+                    {
+                        Assert.Equal(ContentByteCount, pinResult.Item.ContentSize);
+                    }
                 }
             });
         }

@@ -12,7 +12,7 @@ namespace Test {
         references: [
             Library.dll,
 
-            importFrom("WindowsAzure.Storage").pkg,
+            ...importFrom("BuildXL.Cache.ContentStore").getAzureBlobStorageSdkPackages(true),
             importFrom("NLog").pkg,
             importFrom("BuildXL.Cache.ContentStore").Interfaces.dll,
             importFrom("BuildXL.Cache.ContentStore").Library.dll,

@@ -4,12 +4,15 @@
 using System;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
+using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Tracing;
 
-namespace BuildXL.Utilities.Configuration
+namespace BuildXL
 {
     /// <summary>
     /// Collect information related to a build in a consistent fashion in CloudBuild, ADO for the purpose of telemetry.
     /// Fields to be collected about a build Infra, Org, Codebase, StageId, Label.
+    /// These fields have been moved to CaptureBuildProperties.cs for better accessibility.
     /// </summary>
     /// <remarks>
     /// Below are the list of properties which capture the required information about the build for telemetry purpose.
@@ -20,38 +23,7 @@ namespace BuildXL.Utilities.Configuration
     /// stageId - identifies the invocation of BXL in the stage(sequence) - Enlist, Meta, Product, Compliance and Prep build.
     /// </remarks>
     public class CaptureBuildInfo
-    {
-        /// <summary>
-        /// Infra property key value.
-        /// </summary>
-        public const string InfraKey = "infra";
-
-        /// <summary>
-        /// Org property key value.
-        /// </summary>
-        public const string OrgKey = "org";
-
-        ///<summary>
-        /// Codebase - identifies the code or product that's being built. This will typically be the name of the Git repository.
-        /// It will vary in other source control mechanisms.
-        /// </summary>
-        private const string CodeBaseKey = "codebase";
-
-        ///<summary>
-        /// BuildEntity - identifies the build structure used to build the code.
-        /// In CloudBuild this build structure refers to a build queue.
-        /// In ADO this build structure refers to a build pipeline
-        /// </summary>
-        private const string BuildEntityKey = "buildEntity";
-
-        /// <summary>
-        /// Identifies the invocation of bxl.exe in the sequence: Enlist, Meta, Product, Compliance, etc. 
-        /// Every Office build has three builds -  Enlist, Meta, Product. Each of these builds invokes BXL separately.
-        /// Every JS build has three builds - Prep, Compliance and the main build(real build). Similar to above each of these builds invokes BXL separately.
-        /// The intention of this property is to identify the stage(sequence) of the build invoking BXL.
-        /// </summary>
-        private const string StageIdKey = "stageId";
-
+    {        
         /// <summary>
         /// ADO predefined variable to obtain the URI of the ADO organization.
         /// In CB the same environment variable is set in the GenericBuildRunner.
@@ -88,45 +60,45 @@ namespace BuildXL.Utilities.Configuration
         public static Dictionary<string, string> CaptureTelemetryEnvProperties(IConfiguration configuration)
         {
             Dictionary<string, string> traceInfoProperties = new Dictionary<string, string>(configuration.Logging.TraceInfo, StringComparer.InvariantCultureIgnoreCase);
-            if (!traceInfoProperties.ContainsKey(InfraKey))
+            if (!traceInfoProperties.ContainsKey(CaptureBuildProperties.InfraKey))
             {
                 string infraPropertyValue = GetInfra(configuration);
-                traceInfoProperties.Add(InfraKey, infraPropertyValue);
+                traceInfoProperties.Add(CaptureBuildProperties.InfraKey, infraPropertyValue);
             }
 
-            if (!traceInfoProperties.ContainsKey(OrgKey))
+            if (!traceInfoProperties.ContainsKey(CaptureBuildProperties.OrgKey))
             {
                 string orgPropertyValue = GetOrg();
                 if (!string.IsNullOrEmpty(orgPropertyValue))
                 {
-                    traceInfoProperties.Add(OrgKey, orgPropertyValue);
+                    traceInfoProperties.Add(CaptureBuildProperties.OrgKey, orgPropertyValue);
                 }
             }
 
-            if (!traceInfoProperties.ContainsKey(CodeBaseKey))
+            if (!traceInfoProperties.ContainsKey(CaptureBuildProperties.CodeBaseKey))
             {
                 string codebasePropertyValue = GetCodebase();
                 if (!string.IsNullOrEmpty(codebasePropertyValue))
                 {
-                    traceInfoProperties.Add(CodeBaseKey, codebasePropertyValue);
+                    traceInfoProperties.Add(CaptureBuildProperties.CodeBaseKey, codebasePropertyValue);
                 }
             }
 
-            if (!traceInfoProperties.ContainsKey(BuildEntityKey))
+            if (!traceInfoProperties.ContainsKey(CaptureBuildProperties.BuildEntityKey))
             {
                 string buildEntityPropertyValue = GetBuildEntity(traceInfoProperties);
                 if (!string.IsNullOrEmpty(buildEntityPropertyValue))
                 {
-                    traceInfoProperties.Add(BuildEntityKey, buildEntityPropertyValue);
+                    traceInfoProperties.Add(CaptureBuildProperties.BuildEntityKey, buildEntityPropertyValue);
                 }
             }
 
-            if (!traceInfoProperties.ContainsKey(StageIdKey))
+            if (!traceInfoProperties.ContainsKey(CaptureBuildProperties.StageIdKey))
             {
                 string stageIdPropertyValue = GetStageId(configuration);
                 if (!string.IsNullOrEmpty(stageIdPropertyValue))
                 {
-                    traceInfoProperties.Add(StageIdKey, stageIdPropertyValue);
+                    traceInfoProperties.Add(CaptureBuildProperties.StageIdKey, stageIdPropertyValue);
                 }
             }
 

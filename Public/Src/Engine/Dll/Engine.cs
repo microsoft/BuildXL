@@ -349,7 +349,21 @@ namespace BuildXL.Engine
             var loggingConfig = Configuration.Logging;
             if (loggingConfig.OptimizeConsoleOutputForAzureDevOps || loggingConfig.OptimizeVsoAnnotationsForAzureDevOps)
             {
-                var filePath = Path.Combine(loggingConfig.LogsDirectory.ToString(Context.PathTable), loggingConfig.LogPrefix + ".Summary.md");
+                // A combination of stageId and Label is used to uniquely identify each of the .Summary.md files in ADO.
+                List<string> components = new List<string>(2);
+                string tempRetriever;
+                if (configuration.Logging.TraceInfo.TryGetValue(CaptureBuildProperties.StageIdKey, out tempRetriever))
+                {
+                    components.Add(tempRetriever);
+                }
+
+                if (configuration.Logging.TraceInfo.TryGetValue(CaptureBuildProperties.LabelKey, out tempRetriever))
+                {
+                    components.Add(tempRetriever);
+                }
+
+                var summaryFileName = components.Count > 0 ? string.Join(" - ", components) : loggingConfig.LogPrefix;
+                string filePath = Path.Combine(loggingConfig.LogsDirectory.ToString(Context.PathTable), summaryFileName + ".Summary.md");
 
                 // Tell the build viewmodel to collect a builder summary which we report to azure devops.
                 m_buildViewModel.BuildSummary = new BuildSummary(filePath);

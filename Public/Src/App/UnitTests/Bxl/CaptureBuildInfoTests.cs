@@ -3,8 +3,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Globalization;
 using System.Linq;
 using BuildXL;
 using BuildXL.Utilities;
@@ -15,7 +13,7 @@ using Xunit;
 using static Test.BuildXL.TestUtilities.Xunit.XunitBuildXLTest;
 
 
-namespace Test.BuildXL.Utilities.Configuration
+namespace Test.BuildXL
 {
     public class CaptureBuildInfoTests
     {

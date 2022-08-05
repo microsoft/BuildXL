@@ -3969,7 +3969,7 @@ namespace BuildXL.Scheduler
             }
 
             // Measure the time spent executing pip steps as opposed to the
-            // just sitting in the the queue
+            // just sitting in the queue
             using (var operationContext = runnablePip.OperationContext.StartOperation(PipExecutorCounter.ExecutePipStepDuration))
             using (runnablePip.OperationContext.StartOperation(runnablePip.Step))
             {

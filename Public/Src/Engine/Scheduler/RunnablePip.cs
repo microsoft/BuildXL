@@ -325,6 +325,13 @@ namespace BuildXL.Scheduler
         public PipExecutionStep Cancel()
         {
             IsCancelled = true;
+            // Pip might have been cancelled after we reached its execution step but before we actually started running it.
+            // Make sure that ExecutionResult is always initialized.
+            if ((PipType == PipType.Process || PipType == PipType.Ipc) && ExecutionResult == null)
+            {
+                SetExecutionResult(ExecutionResult.GetCancelledNotRunResult(LoggingContext));
+            }
+
             return PipExecutionStep.Cancel;
         }
 

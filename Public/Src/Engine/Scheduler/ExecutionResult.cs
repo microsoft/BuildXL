@@ -675,6 +675,18 @@ namespace BuildXL.Scheduler
         }
 
         /// <summary>
+        /// Gets a cancelled result without run information.
+        /// </summary>
+        public static ExecutionResult GetCancelledNotRunResult(LoggingContext loggingContext)
+        {
+            var result = new ExecutionResult();
+            result.SetResult(loggingContext, PipResultStatus.Canceled);
+            result.Seal();
+
+            return result;
+        }
+
+        /// <summary>
         /// Gets a failure result for testing purposes.
         /// </summary>
         public static ExecutionResult GetFailureResultForTesting()

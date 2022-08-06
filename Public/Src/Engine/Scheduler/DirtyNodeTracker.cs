@@ -102,7 +102,11 @@ namespace BuildXL.Scheduler
             /// <summary>
             /// Marks node clean.
             /// </summary>
-            public void MarkNodeClean(NodeId nodeId) => m_cleanNodes.TryAdd(nodeId, true);
+            public void MarkNodeClean(NodeId nodeId)
+            {
+                ThrowIfNoLongerPending();
+                m_cleanNodes.TryAdd(nodeId, true);
+            }
 
             /// <summary>
             /// Marks node materialized.
@@ -117,12 +121,20 @@ namespace BuildXL.Scheduler
             /// If a pip has not been run because of a pip filter, but an input pip has
             ///   then it will likely be marked non-materialized when it was materialized before the scheduler ran.
             /// </remarks>
-            public void MarkNodeMaterialization(NodeId nodeId, bool materialized) => m_materializedNodes[nodeId] = materialized;
+            public void MarkNodeMaterialization(NodeId nodeId, bool materialized)
+            {
+                ThrowIfNoLongerPending();
+                m_materializedNodes[nodeId] = materialized;
+            }
 
             /// <summary>
             /// Marks node perpetually dirty.
             /// </summary>
-            public void MarkNodePerpetuallyDirty(NodeId nodeId) => m_perpetuallyDirtyNodes.TryAdd(nodeId, true);
+            public void MarkNodePerpetuallyDirty(NodeId nodeId)
+            {
+                ThrowIfNoLongerPending();
+                m_perpetuallyDirtyNodes.TryAdd(nodeId, true);
+            }
 
             /// <summary>
             /// Checks if node has been marked clean.
@@ -138,6 +150,14 @@ namespace BuildXL.Scheduler
             /// Checks if this pending state is still pending.
             /// </summary>
             public bool IsStillPending { get; private set; } = true;
+
+            private void ThrowIfNoLongerPending()
+            {
+                if (!IsStillPending)
+                {
+                    throw new InvalidOperationException($"{nameof(PendingUpdatedState)} is no longer pending");
+                }
+            }
 
             /// <summary>
             /// Applies pending state, which makes this pending state unpending.

@@ -1262,13 +1262,12 @@ namespace BuildXL.Scheduler.IncrementalScheduling
                 }
                 else
                 {
-                    UpdateGraphAgnosticStateBasedOnDirtyNodeTracker();
-
                     try
                     {
+                        UpdateGraphAgnosticStateBasedOnDirtyNodeTracker();
                         Save(atomicSaveToken, incrementalSchedulingStatePath);
                     }
-                    catch (BuildXLException ex)
+                    catch (Exception ex)
                     {
                         saved = false;
                         status = "Failed";

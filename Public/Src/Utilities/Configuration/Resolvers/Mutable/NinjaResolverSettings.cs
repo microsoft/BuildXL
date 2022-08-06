@@ -27,7 +27,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
             ModuleName = template.ModuleName;
             KeepProjectGraphFile = template.KeepProjectGraphFile;
             SpecFile = pathRemapper.Remap(template.SpecFile);
-            RemoveAllDebugFlags = template.RemoveAllDebugFlags;
             Environment = template.Environment;
             AdditionalOutputDirectories = template.AdditionalOutputDirectories;
         }
@@ -48,9 +47,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public bool? KeepProjectGraphFile { get; set; }
-
-        /// <inheritdoc />
-        public bool? RemoveAllDebugFlags { get; set; }
 
         /// <inheritdoc />
         public IReadOnlyDictionary<string, EnvironmentData> Environment { get; set; }

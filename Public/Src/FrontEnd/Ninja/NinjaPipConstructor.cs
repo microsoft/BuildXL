@@ -479,26 +479,20 @@ namespace BuildXL.FrontEnd.Ninja
                 args = split.Length > 1 ? split[1].Trim() : "";
             }
 
-            args = RemovePdbOptions(args);
+            if (!EngineEnvironmentSettings.NinjaResolverAllowCxxDebugFlags)
+            {
+                args = RemovePdbOptions(args);
+            }
         }
 
         /// <summary>
         /// Remove all compiler arguments which will trigger mspdbsrv to spawn
         /// </summary>
-        /// <param name="args"></param>
-        /// <returns></returns>
-        private string RemovePdbOptions(string args)
+        private static string RemovePdbOptions(string args)
         {
-            // Remove /Zi, /ZI, and put /Z7 in its place (or nothing if we want to suppress everything)
-            // If m_suppressDebugFlags, this will be deleted anyway so don't do it
-            if (!m_settings.SuppressDebugFlags)
-            {
-                args = s_pdbOutputArgumentRegex.Replace(args, m_settings.SuppressDebugFlags ? " " : " /Z7 ", 1);
-            }
-
-            // Remove other /Zi /ZI, /MPx, /FS
-            var removeArgsRegex = m_settings.SuppressDebugFlags ? s_allDebugOptionsRegex : s_allMspdbsrvRelevantOptionsRegex;
-            return removeArgsRegex.Replace(args, " ");
+            // Remove /Zi, /ZI, and put /Z7 in its place
+            args = s_pdbOutputArgumentRegex.Replace(args, " /Z7 ", 1);
+            return s_allMspdbsrvRelevantOptionsRegex.Replace(args, " ");
         }
 
         private bool TryFindExecutablePath(string executable, out AbsolutePath result)

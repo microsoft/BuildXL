@@ -729,16 +729,7 @@ interface NinjaResolver extends ResolverBase, UntrackingSettings {
      * If a relative path is provided, it will be interpreted relative to the build's root.
      */
     additionalOutputDirectories?: (Path | RelativePath)[];
-
-    /**
-     * Remove all flags involved with the output of debug information (PDB files).
-     * If this is true the /Zi, /ZI, /Z7, /FS flags are removed from the command options
-     * This option is helpful to troubleshoot debug builds that are failing with related errors
-     * Defaults to false.
-     */
-    RemoveAllDebugFlags?: boolean;
 }
-
 
 /**
  * Resolver for projects specified with CMake
@@ -786,14 +777,6 @@ interface CMakeResolver extends ResolverBase {
      * Custom untracking settings
      */
     untrackingSettings?: UntrackingSettings;
-
-    /**
-     * Remove all flags involved with the output of debug information (PDB files).
-     * If this is true the /Zi, /ZI, /Z7, /FS flags are removed from the command options
-     * This option is helpful to troubleshoot debug builds that are failing with related errors
-     * Defaults to false.
-     */
-    RemoveAllDebugFlags?: boolean;
 }
 
 interface ToolConfiguration {

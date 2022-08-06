@@ -100,7 +100,6 @@ namespace BuildXL.FrontEnd.Ninja
                 m_frontEndName,
                 new()
                 {
-                    SuppressDebugFlags = m_ninjaResolverSettings.RemoveAllDebugFlags ?? false,
                     UserDefinedEnvironment = m_ninjaWorkspaceResolver.UserDefinedEnvironment,
                     UserDefinedPassthroughVariables = m_ninjaWorkspaceResolver.UserDefinedPassthroughVariables,
                     UntrackingSettings = m_ninjaResolverSettings,

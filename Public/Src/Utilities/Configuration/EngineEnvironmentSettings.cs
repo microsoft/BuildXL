@@ -465,6 +465,14 @@ namespace BuildXL.Utilities.Configuration
         public static readonly Setting<bool> MergeCacheLookupMaterializeDispatcher = CreateSetting("BuildXLMergeCacheLookupMaterializeDispatcher", value => value == "1");
 
         /// <summary>
+        /// The Ninja resolver replaces the /Zi and /ZI compiler switches to /Z7 to avoid outputting symbol files.
+        /// If this setting is true, we avoid this behavior and not intervene the command line. 
+        /// This flag should be temporary until we make the changes to correctly handle the MSPDBSRV.EXE concurrency issues. 
+        /// See work item #1976174.
+        /// </summary>
+        public static readonly Setting<bool> NinjaResolverAllowCxxDebugFlags = CreateSetting("BuildXLNinjaResolverAllowCxxDebugInfoOutputs", value => value == "1");
+
+        /// <summary>
         /// Sets the variable for consumption by settings
         /// </summary>
         public static void SetVariable(string name, string value)

@@ -49,15 +49,5 @@ namespace BuildXL.Utilities.Configuration
         /// User-specified untracked artifacts
         /// </summary>
         IUntrackingSettings UntrackingSettings { get;  }
-
-        /// <summary>
-        /// Remove all flags involved with the output of debug information (PDB files).
-        /// This is, remove the /Zi, /ZI, /Z7, /FS flags.
-        /// This option is helpful to troubleshoot debug builds that are failing with related errors
-        /// </summary>
-        /// <remarks>
-        /// Defaults to false
-        /// </remarks>
-        bool? RemoveAllDebugFlags { get; }
     }
 }

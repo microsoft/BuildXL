@@ -140,7 +140,6 @@ namespace Test.BuildXL.FrontEnd.Ninja.Infrastructure
                     resolverSettings.SpecFile,
                     new ()
                     {
-                        SuppressDebugFlags = resolverSettings.RemoveAllDebugFlags ?? false,
                         UserDefinedEnvironment = environment,
                         UserDefinedPassthroughVariables = passthroughEnv,
                         UntrackingSettings = resolverSettings,

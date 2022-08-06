@@ -94,7 +94,6 @@ namespace BuildXL.FrontEnd.CMake
                 m_frontEndName,
                 new NinjaPipConstructionSettings()
                 {
-                    SuppressDebugFlags = m_cMakeResolverSettings.RemoveAllDebugFlags ?? false,
                     UserDefinedEnvironment = m_cMakeWorkspaceResolver.EmbeddedNinjaWorkspaceResolver.UserDefinedEnvironment,
                     UserDefinedPassthroughVariables = m_cMakeWorkspaceResolver.EmbeddedNinjaWorkspaceResolver.UserDefinedPassthroughVariables,
                     UntrackingSettings = m_cMakeResolverSettings.UntrackingSettings,

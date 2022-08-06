@@ -26,7 +26,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
             ModuleName = template.ModuleName;
             CacheEntries = template.CacheEntries;
             CMakeSearchLocations = template.CMakeSearchLocations;
-            RemoveAllDebugFlags = template.RemoveAllDebugFlags;
             UntrackingSettings = template.UntrackingSettings;
         }
 
@@ -47,8 +46,5 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public IReadOnlyList<DirectoryArtifact> CMakeSearchLocations { get; set; }
-
-        /// <inheritdoc />
-        public bool? RemoveAllDebugFlags { get; set; }
     }
 }

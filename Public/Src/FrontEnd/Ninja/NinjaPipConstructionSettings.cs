@@ -13,9 +13,6 @@ namespace BuildXL.FrontEnd.Ninja
     /// </summary>
     internal struct NinjaPipConstructionSettings
     {
-        /// <inheritdoc cref="INinjaResolverSettings.RemoveAllDebugFlags" />
-        public bool SuppressDebugFlags { get; init; }
-
         /// <summary>
         /// Environment exposed to the pip
         /// </summary>

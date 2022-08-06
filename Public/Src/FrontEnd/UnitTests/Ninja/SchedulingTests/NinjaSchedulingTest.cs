@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
 using Test.BuildXL.FrontEnd.Ninja.Infrastructure;
 using Test.BuildXL.TestUtilities.Xunit;
@@ -84,31 +85,25 @@ namespace Test.BuildXL.FrontEnd.Ninja.SchedulingTests
         [InlineData("/SomeArg /DEBUG /AnotherArg", "/SomeArg /DEBUG /AnotherArg")]
         public void ReplacePdbOptions(string rawArguments, string processedArguments)
         {
-            var commandLine = $"{BogusExecutable} {rawArguments}";
+            // Suppress the command line editing
+            try
+            {
+                EngineEnvironmentSettings.NinjaResolverAllowCxxDebugFlags.Value = false;
 
-            var node = CreateNinjaNode(command: commandLine, outputs: Paths("foo.out"));
-            var process = Start().Add(node).ScheduleAll().RetrieveSuccessfulProcess(node);
-            XAssert.AreEqual(processedArguments, process.Arguments.ToString(PathTable));
-        }
+                var commandLine = $"{BogusExecutable} {rawArguments}";
+                var node = CreateNinjaNode(command: commandLine, outputs: Paths("foo.out"));
+                var process = Start().Add(node).ScheduleAll().RetrieveSuccessfulProcess(node);
+                XAssert.AreEqual(processedArguments, process.Arguments.ToString(PathTable));
 
-        [Theory]
-        [InlineData("/SomeArg /ZI", "/SomeArg ")]
-        [InlineData("/SomeArg /Zi", "/SomeArg ")]
-        [InlineData("/SomeArg /Zi /AnotherArg", "/SomeArg /AnotherArg")]
-        [InlineData("/SomeArg /Zi /FS /MP8 /FS /AnotherArg", "/SomeArg /AnotherArg")]
-        [InlineData("/SomeArg /DEBUG /AnotherArg", "/SomeArg /AnotherArg")]
-        public void SuppressPdbOptionsWhenSettingIsTrue(string rawArguments, string processedArguments)
-        {
-            var commandLine = $"{BogusExecutable} {rawArguments}";
-
-            var node = CreateNinjaNode(command: commandLine, outputs: Paths("foo.out"));
-
-            // We want to remove all debug flags
-            var settings = new NinjaResolverSettings();
-            settings.RemoveAllDebugFlags = true;
-
-            var process = Start(settings).Add(node).ScheduleAll().RetrieveSuccessfulProcess(node);
-            XAssert.AreEqual(processedArguments, process.Arguments.ToString(PathTable));
+                // If this setting is true, we shouldn't edit the command line
+                EngineEnvironmentSettings.NinjaResolverAllowCxxDebugFlags.Value = true;
+                process = Start().Add(node).ScheduleAll().RetrieveSuccessfulProcess(node);
+                XAssert.AreEqual(rawArguments, process.Arguments.ToString(PathTable));
+            }
+            finally
+            {
+                EngineEnvironmentSettings.NinjaResolverAllowCxxDebugFlags.Value = false;
+            }
         }
 
         [Fact]

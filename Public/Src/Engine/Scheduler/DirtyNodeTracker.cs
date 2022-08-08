@@ -7,7 +7,9 @@ using System.Collections.Generic;
 using System.Data;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Pips.DirectedGraph;
+using BuildXL.Tracing;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Tracing;
 
 namespace BuildXL.Scheduler
 {
@@ -104,7 +106,7 @@ namespace BuildXL.Scheduler
             /// </summary>
             public void MarkNodeClean(NodeId nodeId)
             {
-                ThrowIfNoLongerPending();
+                LogUnexpectedUpdateIfNoLongerPending();
                 m_cleanNodes.TryAdd(nodeId, true);
             }
 
@@ -123,7 +125,7 @@ namespace BuildXL.Scheduler
             /// </remarks>
             public void MarkNodeMaterialization(NodeId nodeId, bool materialized)
             {
-                ThrowIfNoLongerPending();
+                LogUnexpectedUpdateIfNoLongerPending();
                 m_materializedNodes[nodeId] = materialized;
             }
 
@@ -132,7 +134,7 @@ namespace BuildXL.Scheduler
             /// </summary>
             public void MarkNodePerpetuallyDirty(NodeId nodeId)
             {
-                ThrowIfNoLongerPending();
+                LogUnexpectedUpdateIfNoLongerPending();
                 m_perpetuallyDirtyNodes.TryAdd(nodeId, true);
             }
 
@@ -151,11 +153,14 @@ namespace BuildXL.Scheduler
             /// </summary>
             public bool IsStillPending { get; private set; } = true;
 
-            private void ThrowIfNoLongerPending()
+            private void LogUnexpectedUpdateIfNoLongerPending()
             {
                 if (!IsStillPending)
                 {
-                    throw new InvalidOperationException($"{nameof(PendingUpdatedState)} is no longer pending");
+                    var stackTrace = new System.Diagnostics.StackTrace(true);
+                    UnexpectedCondition.Log(
+                        Events.StaticContext,
+                        $"{nameof(DirtyNodeTracker)}'s {nameof(PendingUpdatedState)} should not be updated when the state is no longer pending: {Environment.NewLine}{stackTrace}");
                 }
             }
 

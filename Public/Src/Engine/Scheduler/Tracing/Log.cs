@@ -3793,7 +3793,7 @@ namespace BuildXL.Scheduler.Tracing
             (ushort)LogEventId.ExcessivePipRetriesDueToRetryableFailures,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            Keywords = (int)Keywords.UserMessage,
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
             EventTask = (ushort)Tasks.PipExecutor,
             Message = "[{pipDescription}] Pip retried {retryLimit} times and failed with Retry Reason: {retryReason}. Maximum allowed retries per Pip can be changed by the bxl argument /maxRetriesDueToRetryableFailures:<int>.")]
         internal abstract void ExcessivePipRetriesDueToRetryableFailures(LoggingContext loggingContext, string pipDescription, int retryLimit, string retryReason);
@@ -3910,7 +3910,7 @@ namespace BuildXL.Scheduler.Tracing
             (ushort)LogEventId.GenerateBuildManifestFileListFoundDuplicateHashes,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            Keywords = (int)Keywords.UserMessage,
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
             EventTask = (ushort)Tasks.Scheduler,
             Message = "Operation Register BuildManifest Hash for Drop '{dropName}' failed due to {duplicateEntryCount} files with mismatching hashes being registered at respective RelativePaths. Check BuildXL.wrn for more details.")]
         internal abstract void GenerateBuildManifestFileListFoundDuplicateHashes(LoggingContext loggingContext, string dropName, int duplicateEntryCount);

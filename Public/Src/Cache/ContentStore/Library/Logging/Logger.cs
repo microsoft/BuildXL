@@ -33,7 +33,7 @@ namespace BuildXL.Cache.ContentStore.Logging
         /// <summary>
         /// Gets and sets a queue length used by an async version of the logger.
         /// </summary>
-        public static int QueueLength { get; set; } = 100_000;
+        public static int QueueLength { get; set; } = 500_000;
 
         /// <summary>
         /// Gets and sets a mode that defines the behavior of the queue when its full.
@@ -119,7 +119,8 @@ namespace BuildXL.Cache.ContentStore.Logging
             {
                 return;
             }
-            _disposed = true;
+
+            Volatile.Write(ref _disposed, true);
 
             Flush();
 
@@ -305,12 +306,21 @@ namespace BuildXL.Cache.ContentStore.Logging
             Interlocked.Increment(ref _pendingRequest);
             bool written = _requests!.Writer.TryWrite(request);
 
-            if (QueueFullMode == BoundedChannelFullMode.Wait && !_disposed)
+            if (QueueFullMode == BoundedChannelFullMode.Wait && !Volatile.Read(ref _disposed))
             {
                 // Asserting that the message was written only when the full mode is 'wait', otherwise the messages can be dropped
                 // and 'written' might be false in this case.
+                // There are multiple reasons for TryWrite to return false:
+                //   - The channel is closed (should not happened, becuase _disposed flag is true.
+                //   - The channel is bounded and its full.
+                // The first case should not happen and the second case is technically not a bug, but the channel size is high enough so
+                // the second event should not be likely either.
 
-                Contract.Assert(written);
+                if (!written)
+                {
+                    int count = _requests.Reader.CanCount ? _requests.Reader.Count : -1;
+                    Contract.Assert(false, $"Failed adding logging request to the queue. QueueFullMode={QueueFullMode}, Disposed={_disposed}, Count={count}.");
+                }
             }
         }
 

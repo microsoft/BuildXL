@@ -473,15 +473,6 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "MemuraiDeveloper",
-          "Version": "2.0.3"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
           "Name": "MessagePack",
           "Version": "2.2.85"
         }
@@ -2869,15 +2860,6 @@
         "NuGet": {
           "Name": "PowerShell.Core",
           "Version": "6.1.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Redis-osx-x64",
-          "Version": "1.0.0"
         }
       }
     },

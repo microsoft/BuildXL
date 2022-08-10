@@ -18,17 +18,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
     /// Creates a gRPC connection to the CASaaS master, and returns a client that implements <typeparamref name="T"/>
     /// by talking via gRPC with it.
     /// </summary>
-    public class GrpcMasterClientFactory<T> : StartupShutdownComponentBase, IClientAccessor<T>
+    public class MasterClientFactory<T> : StartupShutdownComponentBase, IClientAccessor<T>
         where T : class
     {
-        protected override Tracer Tracer { get; } = new Tracer(nameof(GrpcMasterClientFactory<T>));
+        protected override Tracer Tracer { get; } = new Tracer(nameof(MasterClientFactory<T>));
 
         private readonly IMasterElectionMechanism _masterElectionMechanism;
         private readonly IClientAccessor<MachineLocation, T> _clientAccessor;
 
         private AsyncLazy<Result<MachineLocation>> _currentMasterLocationLazy = AsyncLazy<Result<MachineLocation>>.FromResult(null);
 
-        public GrpcMasterClientFactory(
+        public MasterClientFactory(
             IClientAccessor<MachineLocation, T> clientAccessor,
             IMasterElectionMechanism masterElectionMechanism)
         {
@@ -37,7 +37,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             LinkLifetime(clientAccessor);
         }
 
-        private async ValueTask<MachineLocation> GetClientAsync(OperationContext context)
+        private async ValueTask<MachineLocation> GetOrQueryMasterLocationAsync(OperationContext context)
         {
             var lazy = _currentMasterLocationLazy;
             var handleResult = await lazy.GetValueAsync();
@@ -51,7 +51,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                     {
                         AsyncLazy<Result<MachineLocation>> oldValue = Interlocked.CompareExchange(
                             ref _currentMasterLocationLazy,
-                            new AsyncLazy<Result<MachineLocation>>(() => GetMasterLocationAsync(context)),
+                            new AsyncLazy<Result<MachineLocation>>(() => QueryMasterLocationAsync(context)),
                             lazy);
 
                         lazy = _currentMasterLocationLazy;
@@ -63,7 +63,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             return handleResult.ThrowIfFailure();
         }
 
-        private Task<Result<MachineLocation>> GetMasterLocationAsync(OperationContext context)
+        private Task<Result<MachineLocation>> QueryMasterLocationAsync(OperationContext context)
         {
             return context.PerformOperationAsync<Result<MachineLocation>>(
                 Tracer,
@@ -89,7 +89,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 
         public async Task<TResult> UseAsync<TResult>(OperationContext context, Func<T, Task<TResult>> operation)
         {
-            var masterMachineLocation = await GetClientAsync(context);
+            var masterMachineLocation = await GetOrQueryMasterLocationAsync(context);
             return await _clientAccessor.UseAsync(context, masterMachineLocation, operation);
         }
     }

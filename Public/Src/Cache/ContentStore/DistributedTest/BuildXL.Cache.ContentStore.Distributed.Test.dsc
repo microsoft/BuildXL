@@ -46,12 +46,6 @@ namespace DistributedTest {
                         environmentVariables: envVars
                     }
                 },
-                unsafeTestRunArguments: {
-                    untrackedPaths: [
-                        f`D:\a\1\s\msvs\x64\RELEASE_DEVELOPER\memurai-services.pdb`,
-                        f`D:\a\1\s\msvs\x64\RELEASE_DEVELOPER\redis-server.pdb`,
-                    ],
-                },
             },
         //skipTestRun: BuildXLSdk.restrictTestRunToSomeQualifiers,
         assemblyBindingRedirects: BuildXLSdk.cacheBindingRedirects(),
@@ -105,14 +99,6 @@ namespace DistributedTest {
             "BuildXL.Cache.MemoizationStore.Distributed.Test",
         ],
         runtimeContent: [
-            {
-                subfolder: r`redisServer`,
-                contents: [
-                    ...BuildXLSdk.isTargetRuntimeOsx 
-                        ? importFrom("Redis-osx-x64").Contents.all.contents 
-                        : importFrom("MemuraiDeveloper").Contents.all.contents,
-                ]
-            },
             {
                 subfolder: r`azurite`,
                 contents: [

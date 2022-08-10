@@ -3,7 +3,6 @@
 
 using System;
 using BuildXL.Utilities;
-using Xunit;
 
 namespace ContentStoreTest.Distributed.Redis
 {
@@ -20,11 +19,6 @@ namespace ContentStoreTest.Distributed.Redis
     {
         public string Id { get; } = Guid.NewGuid().ToString();
 
-        public ObjectPool<LocalRedisProcessDatabase> DatabasePool { get; }
-            = new ObjectPool<LocalRedisProcessDatabase>(
-            () => new LocalRedisProcessDatabase(),
-            i => i);
-
         public ObjectPool<AzuriteStorageProcess> EmulatorPool { get; }
             = new(
             () => new AzuriteStorageProcess(),
@@ -36,16 +30,6 @@ namespace ContentStoreTest.Distributed.Redis
         public void Dispose()
         {
             Console.WriteLine("LocalRedisFixture.Dispose");
-            while (true)
-            {
-                var database = DatabasePool.GetInstance();
-                if (!database.Instance.Initialized)
-                {
-                    break;
-                }
-
-                database.Instance.Close();
-            }
 
             while (true)
             {
@@ -58,16 +42,5 @@ namespace ContentStoreTest.Distributed.Redis
                 database.Instance.Close();
             }
         }
-    }
-
-    /// <summary>
-    /// Custom collection that uses <see cref="LocalRedisFixture"/>.
-    /// </summary>
-    [CollectionDefinition("Redis-based tests")]
-    public class LocalRedisCollection : ICollectionFixture<LocalRedisFixture>
-    {
-        // This class has no code, and is never created. Its purpose is simply
-        // to be the place to apply [CollectionDefinition] and all the
-        // ICollectionFixture<> interfaces.
     }
 }

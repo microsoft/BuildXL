@@ -59,42 +59,6 @@ namespace ContentStoreTest.Distributed.Sessions
         }
 
         [Fact]
-        public Task TestPutAndRetrieveOnDifferentMachines()
-        {
-            UseGrpcServer = true;
-
-            ConfigureWithOneMaster(
-                overrideDistributed: d =>
-                {
-                    d.LocationStoreSettings.GlobalRegisterNagleInterval = "5ms";
-                    d.ContentMetadataStoreMode = d.TestMachineIndex switch
-                    {
-                        0 => ContentMetadataStoreMode.Redis,
-                        _ => ContentMetadataStoreMode.WriteBothPreferRedis
-                    };
-                });
-
-            return RunTestAsync(
-                3,
-                async context =>
-                {
-                    var sessions = context.Sessions;
-                    var contexts = context.StoreContexts;
-                    var master = context.GetMasterIndex();
-                    var worker0 = context.EnumerateWorkersIndices().ElementAt(0);
-                    var worker1 = context.EnumerateWorkersIndices().ElementAt(1);
-
-                    var workerSession0 = sessions[worker0];
-                    var workerSession1 = sessions[worker1];
-
-                    var putResult = await workerSession0.PutRandomAsync(contexts[worker0], ContentHashType, false, ContentByteCount, Token).ShouldBeSuccess();
-
-                    await OpenStreamAndDisposeAsync(workerSession1, contexts[worker1], putResult.ContentHash);
-                },
-                ensureLiveness: true);
-        }
-
-        [Fact]
         public Task TestServicePutAndRetrieveOnDifferentMachines()
         {
             UseGrpcServer = true;
@@ -137,7 +101,6 @@ namespace ContentStoreTest.Distributed.Sessions
         public Task TestServicePutAndRetrieveOnDifferentMachinesWithoutRedis()
         {
             UseGrpcServer = true;
-            DisableRedis = true;
 
             ConfigureWithOneMaster(
                 overrideDistributed: d =>

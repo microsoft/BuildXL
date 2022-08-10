@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using BuildXL.Cache.ContentStore.Distributed.MetadataService;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.Host.Configuration;
@@ -153,7 +154,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// <summary>
         /// Controls which implementation is used for content metadata store
         /// </summary>
-        public ContentMetadataStoreMode ContentMetadataStoreMode { get; set; } = ContentMetadataStoreMode.Redis;
+        public ContentMetadataStoreMode ContentMetadataStoreMode { get; set; } = ContentMetadataStoreMode.Distributed;
 
         /// <summary>
         /// Controls which memoization operation implementation is used for content metadata store
@@ -180,6 +181,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             | BlobContentMetadataStoreModeOverride.Flags();
 
         private bool _useMemoizationContentMetadataStore;
+
+        internal IClientAccessor<MachineLocation, IGlobalCacheService> GlobalCacheClientAccessorForTests { get; set; }
 
         /// <summary>
         /// Indicates whether IContentMetadataStore implementation should be used instead of RedisGlobalStore implementation

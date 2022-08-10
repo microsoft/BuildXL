@@ -14,12 +14,6 @@ namespace DistributedTest {
                 // Need to untrack the test output directory, because redis server tries to write some pdbs.
                 untrackTestDirectory: true,
                 parallelBucketCount: 8,
-                unsafeTestRunArguments: {
-                    untrackedPaths: [
-                        f`D:\a\1\s\msvs\x64\RELEASE_DEVELOPER\memurai-services.pdb`,
-                        f`D:\a\1\s\msvs\x64\RELEASE_DEVELOPER\redis-server.pdb`,
-                    ],
-                },
             },
         assemblyBindingRedirects: BuildXLSdk.cacheBindingRedirects(),
         skipTestRun: BuildXLSdk.restrictTestRunToSomeQualifiers,
@@ -53,16 +47,6 @@ namespace DistributedTest {
             ...BuildXLSdk.fluentAssertionsWorkaround,
             ...importFrom("BuildXL.Cache.ContentStore").redisPackages,
             ...BuildXLSdk.bclAsyncPackages,
-        ],
-        runtimeContent: [
-            {
-                subfolder: r`redisServer`,
-                contents: [
-                    ...BuildXLSdk.isTargetRuntimeOsx 
-                        ? importFrom("Redis-osx-x64").Contents.all.contents 
-                        : importFrom("MemuraiDeveloper").Contents.all.contents,
-                ]
-            },
         ],
     });
 }

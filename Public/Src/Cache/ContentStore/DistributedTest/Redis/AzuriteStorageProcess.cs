@@ -84,7 +84,7 @@ namespace ContentStoreTest.Distributed.Redis
             LocalRedisFixture storageFixture,
             ILogger logger)
         {
-            logger.Debug($"Fixture '{storageFixture.Id}' has {storageFixture.DatabasePool.ObjectsInPool} available storage databases.");
+            logger.Debug($"Fixture '{storageFixture.Id}' has {storageFixture.EmulatorPool.ObjectsInPool} available storage databases.");
             var instance = storageFixture.EmulatorPool.GetInstance();
             var oldOrNew = instance.Instance._process != null ? "an old" : "a new";
             logger.Debug($"LocalStorageProcessDatabase: got {oldOrNew} instance from the pool.");

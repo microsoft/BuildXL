@@ -19,16 +19,16 @@ using ProtoBuf.Grpc.Configuration;
 
 namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 {
-    public class GrpcClientPool<TService> : StartupShutdownComponentBase, IClientAccessor<MachineLocation, TService>
+    public class GrpcClientAccessor<TService> : StartupShutdownComponentBase, IClientAccessor<MachineLocation, TService>
         where TService : class
     {
-        protected override Tracer Tracer { get; } = new Tracer($"{nameof(GrpcClientPool<TService>)}<{typeof(TService).Name}>");
+        protected override Tracer Tracer { get; } = new Tracer($"{nameof(GrpcClientAccessor<TService>)}<{typeof(TService).Name}>");
 
         private readonly ConditionalWeakTable<ConnectionHandle, TService> _clientTable = new ConditionalWeakTable<ConnectionHandle, TService>();
         private readonly IClientAccessor<MachineLocation, ConnectionHandle> _connectionAccessor;
         private readonly LocalClient<TService> _localClient;
 
-        public GrpcClientPool(IClientAccessor<MachineLocation, ConnectionHandle> connectionAccessor, LocalClient<TService> localClient = null)
+        public GrpcClientAccessor(IClientAccessor<MachineLocation, ConnectionHandle> connectionAccessor, LocalClient<TService> localClient = null)
         {
             _connectionAccessor = connectionAccessor;
             _localClient = localClient;

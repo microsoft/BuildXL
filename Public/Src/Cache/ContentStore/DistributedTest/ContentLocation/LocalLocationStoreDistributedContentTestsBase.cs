@@ -30,10 +30,12 @@ using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using BuildXL.Cache.ContentStore.Service;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
+using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.Host.Configuration;
 using BuildXL.Cache.Host.Service;
 using BuildXL.Cache.Host.Service.Internal;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
+using BuildXL.Utilities.Collections;
 using ContentStoreTest.Distributed.Redis;
 using ContentStoreTest.Test;
 using Xunit.Abstractions;
@@ -91,18 +93,11 @@ namespace ContentStoreTest.Distributed.Sessions
 
         protected string _overrideScenarioName = Guid.NewGuid().ToString();
 
-        protected bool _enableSecondaryRedis = false;
-        protected bool _poolSecondaryRedisDatabase = true;
         protected bool _registerAdditionalLocationPerMachine = false;
 
-        protected bool DisableRedis = false;
-
-        protected readonly ConcurrentDictionary<(string, int), LocalRedisProcessDatabase> _localDatabases = new();
         protected readonly ConcurrentDictionary<(string, int), AzuriteStorageProcess> _localStorages = new();
 
         protected Func<AbsolutePath, int, RedisContentLocationStoreConfiguration> CreateContentLocationStoreConfiguration { get; set; }
-        protected LocalRedisProcessDatabase PrimaryGlobalStoreDatabase { get; private set; }
-        protected LocalRedisProcessDatabase _secondaryGlobalStoreDatabase;
         protected AzuriteStorageProcess StorageProcess { get; private set; }
         protected AzuriteStorageProcess ContentMetadataStorageProcess { get; private set; }
 
@@ -141,24 +136,6 @@ namespace ContentStoreTest.Distributed.Sessions
             : base(output)
         {
             _redis = redis;
-        }
-
-        protected LocalRedisProcessDatabase GetDatabase(Context context, ref int index, bool useDatabasePool = true)
-        {
-            if (!useDatabasePool)
-            {
-                return LocalRedisProcessDatabase.CreateAndStartEmpty(_redis, TestGlobal.Logger, SystemClock.Instance);
-            }
-
-            index++;
-
-            if (!_localDatabases.TryGetValue((context.TraceId, index), out var localDatabase))
-            {
-                localDatabase = LocalRedisProcessDatabase.CreateAndStartEmpty(_redis, TestGlobal.Logger, SystemClock.Instance);
-                _localDatabases.TryAdd((context.TraceId, index), localDatabase);
-            }
-
-            return localDatabase;
         }
 
         protected AzuriteStorageProcess GetStorage(Context context, ref int index)
@@ -210,17 +187,6 @@ namespace ContentStoreTest.Distributed.Sessions
         {
             var rootPath = testDirectory.Path / "Root";
 
-            int dbIndex = 0;
-
-            if (!DisableRedis)
-            {
-                PrimaryGlobalStoreDatabase = GetDatabase(context, ref dbIndex);
-                if (_enableSecondaryRedis)
-                {
-                    _secondaryGlobalStoreDatabase = GetDatabase(context, ref dbIndex, _poolSecondaryRedisDatabase);
-                }
-            }
-
             int storageIndex = 0;
             StorageProcess = GetStorage(context, ref storageIndex);
             if (UseSeparateContentMetadataStorage)
@@ -248,7 +214,7 @@ namespace ContentStoreTest.Distributed.Sessions
                         ["RedisWriteAheadEventStorage.*"] = verboseOperationLogging,
                     }
                 },
-                PreventRedisUsage = DisableRedis,
+                PreventRedisUsage = true,
                 TestMachineIndex = index,
                 TestIteration = iteration,
                 IsDistributedContentEnabled = true,
@@ -257,14 +223,11 @@ namespace ContentStoreTest.Distributed.Sessions
                 // By default, only first store is master eligible
                 IsMasterEligible = index == 0,
 
-                GlobalRedisSecretName = Host.StoreSecret("PrimaryRedis", PrimaryGlobalStoreDatabase?.ConnectionString),
-                SecondaryGlobalRedisSecretName = _enableSecondaryRedis ? Host.StoreSecret("SecondaryRedis", _secondaryGlobalStoreDatabase?.ConnectionString) : null,
                 RedisInternalLogSeverity = Severity.Info.ToString(),
 
                 // Specify event hub and storage secrets even though they are not used in tests to satisfy DistributedContentStoreFactory
                 EventHubSecretName = Host.StoreSecret("EventHub_Unspecified", "Unused"),
                 AzureStorageSecretName = Host.StoreSecret("Storage", StorageProcess?.ConnectionString ?? "Unused"),
-                ContentMetadataRedisSecretName = Host.StoreSecret("ContentMetadataRedis", PrimaryGlobalStoreDatabase?.ConnectionString),
                 ContentMetadataBlobSecretName = Host.StoreSecret("ContentMetadataBlob", ContentMetadataStorageProcess?.ConnectionString ?? "Unused"),
 
                 IsContentLocationDatabaseEnabled = true,
@@ -280,7 +243,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
                 RestoreCheckpointIntervalMinutes = 1,
                 CreateCheckpointIntervalMinutes = 1,
-                HeartbeatIntervalMinutes = InfiniteHeartbeatMinutes,
+                HeartbeatIntervalMinutes = 0.5,
 
                 RetryIntervalForCopiesMs = DistributedContentSessionTests.DefaultRetryIntervalsForTest.Select(t => (int)t.TotalMilliseconds).ToArray(),
 
@@ -375,7 +338,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 Token,
                 dataRootPath: rootPath.Path,
                 configuration: configuration,
-                keyspace: DefaultKeySpace,
+                keyspace: UniqueTestId,
                 fileSystem: FileSystem
             );
 
@@ -488,19 +451,9 @@ namespace ContentStoreTest.Distributed.Sessions
         /// <inheritdoc />
         protected override void Dispose(bool disposing)
         {
-            foreach (var database in _localDatabases.Values)
-            {
-                database.Dispose();
-            }
-
             foreach (var database in _localStorages.Values)
             {
                 database.Dispose();
-            }
-
-            if (!_poolSecondaryRedisDatabase && !_secondaryGlobalStoreDatabase.Closed)
-            {
-                _secondaryGlobalStoreDatabase.Dispose(close: true);
             }
 
             base.Dispose(disposing);
@@ -626,6 +579,12 @@ namespace ContentStoreTest.Distributed.Sessions
                 _tests._overrideRedis?.Invoke(configuration);
 
                 _tests._configurations[_storeIndex] = configuration;
+
+                if (!_tests.UseGrpcServer)
+                {
+                    var accessor = new TestGlobalCacheClientAccessor(_tests.GlobalTestContext);
+                    configuration.GlobalCacheClientAccessorForTests = accessor;
+                }
             }
 
             public override void Override(DistributedContentStoreSettings settings)
@@ -634,6 +593,36 @@ namespace ContentStoreTest.Distributed.Sessions
                 settings.SetPostInitializationCompletionAfterStartup = true;
 
                 _tests._overrideDistributedContentStooreSettings?.Invoke(settings);
+            }
+        }
+
+        protected class TestGlobalCacheClientAccessor : StartupShutdownSlimBase, IClientAccessor<MachineLocation, IGlobalCacheService>
+        {
+            protected override Tracer Tracer { get; } = new Tracer(nameof(TestGlobalCacheClientAccessor));
+
+            private readonly BoxRef<TestContext> _context;
+
+            public TestGlobalCacheClientAccessor(BoxRef<TestContext> context)
+            {
+                _context = context;
+            }
+
+            public Task<TResult> UseAsync<TResult>(OperationContext context, MachineLocation key, Func<IGlobalCacheService, Task<TResult>> operation)
+            {
+                var ctx = _context.Value;
+
+                for (var i = 0; i < ctx.Stores.Count; i++)
+                {
+                    var location = ctx.GetLocationStore(i).LocalMachineLocation;
+
+                    if (location.Equals(key))
+                    {
+                        var arg = ctx.GetContentMetadataService(i);
+                        return operation(arg);
+                    }
+                }
+
+                throw new InvalidOperationException($"Attempt to call {nameof(UseAsync)} with a non-existing machine location `{key}`");
             }
         }
 

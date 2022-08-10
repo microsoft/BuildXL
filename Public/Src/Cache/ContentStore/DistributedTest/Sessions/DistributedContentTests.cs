@@ -59,6 +59,9 @@ namespace ContentStoreTest.Distributed.Sessions
         protected static readonly CancellationToken Token = new CancellationTokenSource().Token;
 
         protected static readonly ContentStoreConfiguration Config = ContentStoreConfiguration.CreateWithMaxSizeQuotaMB(50);
+
+        protected BoxRef<TestContext> GlobalTestContext = new BoxRef<TestContext>();
+
         protected bool UseGrpcServer;
 
         public MemoryClock TestClock { get; } = new MemoryClock();
@@ -356,11 +359,6 @@ namespace ContentStoreTest.Distributed.Sessions
             public LocalLocationStore GetLocalLocationStore(int idx)
             {
                 return GetServices(idx).LocalLocationStore.Instance;
-            }
-
-            internal RedisGlobalStore GetRedisGlobalStore(int idx)
-            {
-                return GetServices(idx).RedisGlobalStore.Instance;
             }
 
             internal BlobContentLocationRegistry GetBlobContentLocationRegistry(int idx)
@@ -983,6 +981,8 @@ namespace ContentStoreTest.Distributed.Sessions
                                 grpcPort: (uint)ports[directory.Index])).ToList();
 
                     var testContext = ConfigureTestContext(new TestContext(this, context, testFileCopier, indexedDirectories.Select(p => p.Directory).ToList(), stores, iteration, ports));
+
+                    GlobalTestContext.Value = testContext;
 
                     await testContext.StartupAsync(implicitPin, storeToStartupLast, buildId, insideRingBuilderCount);
 

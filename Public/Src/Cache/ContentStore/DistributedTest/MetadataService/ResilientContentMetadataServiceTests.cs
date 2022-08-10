@@ -196,12 +196,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.MetadataService
             };
             modifyConfig?.Invoke(contentMetadataServiceConfiguration);
 
-            using var database = LocalRedisProcessDatabase.CreateAndStartEmpty(_redisFixture, TestGlobal.Logger, SystemClock.Instance);
-            var primaryFactory = await RedisDatabaseFactory.CreateAsync(
-                operationContext,
-                new LiteralConnectionStringProvider(database.ConnectionString),
-                new RedisConnectionMultiplexerConfiguration() { LoggingSeverity = Severity.Error });
-            var primaryDatabaseAdapter = new RedisDatabaseAdapter(primaryFactory, "keyspace");
+            using var storage = AzuriteStorageProcess.CreateAndStartEmpty(_redisFixture, TestGlobal.Logger);
+
 
             var centralStorage = new Dictionary<string, byte[]>();
 
@@ -209,12 +205,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.MetadataService
             {
                 Tracer.Info(operationContext, $"Running iteration {iteration}");
 
-                var redisVolatileEventStorage = new RedisWriteAheadEventStorage(new RedisVolatileEventStorageConfiguration(), primaryDatabaseAdapter, clock);
+                var blobVolatileEventStorage = new BlobWriteAheadEventStorage(new BlobEventStorageConfiguration()
+                {
+                    Credentials = new Interfaces.Secrets.AzureBlobStorageCredentials(connectionString: storage.ConnectionString),
+                });
 
                 IWriteAheadEventStorage volatileEventStorage = new FailingVolatileEventStorage();
                 if (!volatileStorageFailure)
                 {
-                    volatileEventStorage = redisVolatileEventStorage;
+                    volatileEventStorage = blobVolatileEventStorage;
                 }
 
                 IWriteBehindEventStorage persistentEventStorage = new FailingPersistentEventStorage();

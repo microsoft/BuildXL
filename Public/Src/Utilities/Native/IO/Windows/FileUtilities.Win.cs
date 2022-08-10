@@ -2311,33 +2311,46 @@ namespace BuildXL.Native.IO.Windows
         /// <inheritdoc />
         public void DisableAuditRuleInheritance(string path)
         {
-            FileInfo fileInfo = new FileInfo(path);
-
-            FileSecurity security;
             try
             {
-                security = fileInfo.GetAccessControl(AccessControlSections.Audit);
-            }
-            catch (UnauthorizedAccessException)
-            {
-                TryTakeOwnershipAndSetWriteable(path);
-                security = fileInfo.GetAccessControl(AccessControlSections.Audit);
-            }
+                FileInfo fileInfo = new FileInfo(path);
 
-            if (!security.AreAuditRulesProtected)
-            {
-                security.SetAuditRuleProtection(isProtected: true, preserveInheritance: false);
-
+                FileSecurity security;
                 try
                 {
-                    fileInfo.SetAccessControl(security);
+                    security = fileInfo.GetAccessControl(AccessControlSections.Audit);
                 }
-                catch (UnauthorizedAccessException)
+                catch (Exception)
+#pragma warning disable ERP022 // Unobserved exception in a generic exception handler
                 {
                     TryTakeOwnershipAndSetWriteable(path);
-                    fileInfo.SetAccessControl(security);
+                    security = fileInfo.GetAccessControl(AccessControlSections.Audit);
+                }
+#pragma warning restore ERP022 // Unobserved exception in a generic exception handler
+
+                if (!security.AreAuditRulesProtected)
+                {
+                    security.SetAuditRuleProtection(isProtected: true, preserveInheritance: false);
+
+                    try
+                    {
+                        fileInfo.SetAccessControl(security);
+                    }
+                    catch (Exception)
+#pragma warning disable ERP022 // Unobserved exception in a generic exception handler
+                    {
+                        TryTakeOwnershipAndSetWriteable(path);
+                        fileInfo.SetAccessControl(security);
+                    }
+#pragma warning restore ERP022 // Unobserved exception in a generic exception handler
                 }
             }
+            catch
+#pragma warning disable ERP022 // Unobserved exception in a generic exception handler
+            {
+                // Swallowing exception on purpose.
+            }
+#pragma warning restore ERP022 // Unobserved exception in a generic exception handler
         }
 
         /// <inheritdoc />

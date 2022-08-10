@@ -10,14 +10,6 @@ namespace VstsTest {
         sources: globR(d`.`,"*.cs"),
         appConfig: f`App.config`,
         skipTestRun: BuildXLSdk.restrictTestRunToSomeQualifiers,
-        runTestArgs: {
-            unsafeTestRunArguments: {
-                untrackedPaths: [
-                    f`D:\a\1\s\msvs\x64\RELEASE_DEVELOPER\memurai-services.pdb`,
-                    f`D:\a\1\s\msvs\x64\RELEASE_DEVELOPER\redis-server.pdb`,
-                ],
-            },
-        },
         references: [
             ...addIfLazy(BuildXLSdk.isFullFramework, () => [
                 NetFx.System.Xml.dll,
@@ -49,14 +41,6 @@ namespace VstsTest {
             importFrom("BuildXL.Utilities").Collections.dll,
         ],
         runtimeContent: [
-            {
-                subfolder: r`redisServer`,
-                contents: [
-                    ...BuildXLSdk.isTargetRuntimeOsx 
-                        ? importFrom("Redis-osx-x64").Contents.all.contents 
-                        : importFrom("MemuraiDeveloper").Contents.all.contents,
-                ]
-            },
             ...addIf(BuildXLSdk.isFullFramework,
                 importFrom("Microsoft.VisualStudio.Services.BlobStore.Client").pkg
             ),

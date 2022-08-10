@@ -270,16 +270,6 @@ config({
                 // This packaged is produced by the pipeline: https://dev.azure.com/mseng/Domino/_build?definitionId=13199
                 { id: "BuildXL.Azurite.Executables", version: "1.0.0-CI-20220612-002122" },
 
-                // It turns out Redis-64 ( https://www.nuget.org/packages/redis-64/ ) was deprecated several years 
-                // ago, and so we can't even build with it due to component governance. We don't actually care about 
-                // this package because we only use it for local dev testing, so any drop-in replacement will do.
-                // Instead, we use MemuraiDeveloper ( https://www.nuget.org/packages/MemuraiDeveloper/ ) which is a
-                // drop-in replacement here.
-                { id: "MemuraiDeveloper", version: "2.0.3", osSkip: [ "macOS", "unix" ] },
-                { id: "Redis-osx-x64", version: "1.0.0", osSkip: importFile(f`config.microsoftInternal.dsc`).isMicrosoftInternal
-                    ? [ "win", "unix" ]
-                    : [ "win", "macOS", "unix" ] },
-
                 // Testing
                 { id: "System.Security.Cryptography.ProtectedData", version: "5.0.0"},
                 { id: "System.Configuration.ConfigurationManager", version: "4.4.0"},

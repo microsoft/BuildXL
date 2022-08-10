@@ -22,12 +22,13 @@ namespace ContentStoreTest.Distributed.Sessions
 #if !NETCOREAPP
     [TestClassIfSupported(TestRequirements.NotSupported)]
 #endif
-    public class BlobLocationRegistryDistributedContentTests : LocalLocationStoreDistributedContentTests
+    internal class BlobLocationRegistryDistributedContentTests : LocalLocationStoreDistributedContentTests
     {
         /// <nodoc />
         public BlobLocationRegistryDistributedContentTests(LocalRedisFixture redis, ITestOutputHelper output)
             : base(redis, output)
         {
+            UseGrpcServer = true;
         }
 
         // Disable flaky test.
@@ -41,7 +42,7 @@ namespace ContentStoreTest.Distributed.Sessions
             if (dcs.IsMasterEligible)
             {
                 // Enable GCS on the master machine so checkpoint can be created.
-                dcs.MemoizationContentMetadataStoreModeOverride = ContentMetadataStoreMode.WriteBothPreferRedis;
+                dcs.MemoizationContentMetadataStoreModeOverride = ContentMetadataStoreMode.Distributed;
                 dcs.ContentMetadataEnableResilience = true;
             }
             else

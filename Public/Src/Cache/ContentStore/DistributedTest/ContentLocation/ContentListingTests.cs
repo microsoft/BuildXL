@@ -5,6 +5,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Numerics;
@@ -38,17 +39,13 @@ using Xunit.Abstractions;
 
 namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
 {
-    [Collection("Redis-based tests")]
-    [Trait("Category", "WindowsOSOnly")] // 'redis-server' executable no longer exists
     public class ContentListingTests : TestWithOutput
     {
         private readonly static MachineLocation M1 = new MachineLocation("M1");
-        private readonly LocalRedisFixture _fixture;
 
-        public ContentListingTests(LocalRedisFixture fixture, ITestOutputHelper output)
+        public ContentListingTests(ITestOutputHelper output)
             : base(output)
         {
-            _fixture = fixture;
         }
 
         [Fact]
@@ -95,7 +92,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
             var actualEntry = MemoryMarshal.Read<MachineContentEntry>(expectedBytes);
             actualEntry.Hash.Should().Be(new ShortHash("VSO0:52263072DC1FA4F49B9F42"));
             actualEntry.Size.Value.Should().Be(135_056_263_235L);
-            actualEntry.AccessTime.ToDateTime().Should().Be(DateTime.Parse("5/31/2022 9:37:00 PM"));
+            actualEntry.AccessTime.ToDateTime().Should().Be(new DateTime(2022, 05, 31, 21, 37, 00, Calendar.CurrentEra));
+
             actualEntry.PartitionId.Should().Be(82);
 
             span[0] = actualEntry;
@@ -113,8 +111,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
         }
 
         [Theory]
-        [InlineData(1_000_000)]
-        [InlineData(10_000_000)]
+        [InlineData(100_000)]
+        [InlineData(10_000)]
         public void TestSort(int count)
         {
             var byteLength = MachineContentEntry.ByteLength;

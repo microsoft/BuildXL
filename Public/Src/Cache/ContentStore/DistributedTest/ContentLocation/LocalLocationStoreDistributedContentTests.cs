@@ -44,6 +44,7 @@ using Xunit;
 using Xunit.Abstractions;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 using OperationContext = BuildXL.Cache.ContentStore.Tracing.Internal.OperationContext;
+using System.Diagnostics;
 
 namespace ContentStoreTest.Distributed.Sessions
 {
@@ -234,6 +235,8 @@ namespace ContentStoreTest.Distributed.Sessions
         [InlineData(false, false)]
         public Task SkipRestoreCheckpointTest(bool changeKeyspace, bool useMergeOperator)
         {
+            UseGrpcServer = true;
+
             // Ensure master lease is long enough that role doesn't switch between machines
             var masterLeaseExpiryTime = TimeSpan.FromMinutes(60);
             ConfigureWithOneMaster(
@@ -657,6 +660,8 @@ namespace ContentStoreTest.Distributed.Sessions
         [Fact]
         public Task LocalLocationStoreDistributedEvictionTest()
         {
+            UseGrpcServer = true;
+
             // System.Diagnostics.Debugger.Launch();
             // Use the same context in two sessions when checking for file existence
             var loggingContext = new Context(Logger);
@@ -737,136 +742,6 @@ namespace ContentStoreTest.Distributed.Sessions
                 implicitPin: ImplicitPin.None);
         }
 
-        [Theory]
-        [InlineData(true)]
-        [InlineData(false)]
-        public Task RegisterLocalLocationToGlobalRedisTest(bool testNagle)
-        {
-            ConfigureWithOneMaster(d =>
-            {
-                if (testNagle)
-                {
-                    d.LocationStoreSettings.GlobalRegisterNagleInterval = "5ms";
-                }
-            });
-
-            return RunTestAsync(
-                3,
-                async context =>
-                {
-                    var store0 = context.GetLocationStore(0);
-                    var store1 = context.GetLocationStore(1);
-
-                    var hash = ContentHash.Random();
-
-                    // Add to store 0
-                    await store0.RegisterLocalLocationAsync(context, new[] { new ContentHashWithSize(hash, 120) }, Token, UrgencyHint.Nominal, touch: true).ShouldBeSuccess();
-
-                    // Result should be available from store 1 as a global result
-                    var globalResult = await store1.GetBulkAsync(context, new[] { hash }, Token, UrgencyHint.Nominal, GetBulkOrigin.Global).ShouldBeSuccess();
-                    globalResult.ContentHashesInfo[0].Locations.Should().NotBeNullOrEmpty();
-
-                    var globalStore0 = context.GetServices(0).RedisGlobalStore.Instance;
-                    var clusterStateMgr0 = store0.LocalLocationStore.ClusterStateManager;
-                    var clusterStateMgr1 = store1.LocalLocationStore.ClusterStateManager;
-
-                    int registerContentCount = 5;
-                    int registerMachineCount = 300;
-                    HashSet<MachineId> ids = new HashSet<MachineId>();
-                    List<ContentHashWithSize> content = Enumerable.Range(0, 40).Select(i => RandomContentWithSize()).ToList();
-
-                    content.Add(new ContentHashWithSize(ContentHash.Random(), -1));
-
-                    var contentLocationIdLists = new ConcurrentDictionary<ContentHash, HashSet<MachineId>>();
-
-                    for (int i = 0; i < registerMachineCount; i++)
-                    {
-                        MachineId id;
-
-                        if (testNagle)
-                        {
-                            id = clusterStateMgr0.ClusterState.LocalMachineMappings[0].Id;
-                        }
-                        else
-                        {
-                            var location = new MachineLocation((TestRootDirectoryPath / "redis" / i.ToString()).ToString());
-                            var mapping = await clusterStateMgr0.RegisterMachineForTestsAsync(context, location).ThrowIfFailureAsync();
-                            id = mapping.Id;
-                            ids.Should().NotContain(id);
-                            ids.Add(id);
-                        }
-
-                        List<ContentHashWithSize> machineContent = Enumerable.Range(0, registerContentCount)
-                            .Select(_ => content[ThreadSafeRandom.Generator.Next(content.Count)]).ToList();
-
-                        if (testNagle)
-                        {
-                            await store0.RegisterLocalLocationAsync(context, machineContent, true).ShouldBeSuccess();
-                        }
-                        else
-                        {
-                            await globalStore0.RegisterLocationAsync(context, id, machineContent.SelectList(c => (ShortHashWithSize)c), true).ShouldBeSuccess();
-                        }
-
-                        foreach (var item in machineContent)
-                        {
-                            var locationIds = contentLocationIdLists.GetOrAdd(item.Hash, new HashSet<MachineId>());
-                            locationIds.Add(id);
-                        }
-
-                        var getBulkResult = await globalStore0.GetBulkAsync(context, machineContent.SelectList(c => (ShortHash)c.Hash)).ShouldBeSuccess();
-                        IReadOnlyList<ContentLocationEntry> entries = getBulkResult.Value;
-
-                        entries.Count.Should().Be(machineContent.Count);
-                        for (int j = 0; j < entries.Count; j++)
-                        {
-                            var entry = entries[j];
-                            var hashAndSize = machineContent[j];
-                            entry.ContentSize.Should().Be(hashAndSize.Size);
-                            entry.Locations[id].Should().BeTrue();
-                        }
-                    }
-
-                    // 
-                    await clusterStateMgr1.HeartbeatAsync(context, MachineState.Unknown).ShouldBeSuccess();
-
-                    foreach (var page in content.GetPages(10))
-                    {
-                        var globalGetBulkResult = await store1.GetBulkAsync(context, page.SelectList(c => c.Hash), Token, UrgencyHint.Nominal, GetBulkOrigin.Global).ShouldBeSuccess();
-
-                        var redisGetBulkResult = await globalStore0.GetBulkAsync(context, page.SelectList(c => (ShortHash)c.Hash)).ShouldBeSuccess();
-
-                        var infos = globalGetBulkResult.ContentHashesInfo;
-                        var entries = redisGetBulkResult.Value;
-
-                        for (int i = 0; i < page.Count; i++)
-                        {
-                            ContentHashWithSizeAndLocations info = infos[i];
-                            ContentLocationEntry entry = entries[i];
-
-                            Tracer.Debug(context.Context, $"Hash: {info.ContentHash}, Size: {info.Size}, LocCount: {info.Locations?.Count}");
-
-                            info.ContentHash.Should().Be(page[i].Hash);
-                            info.Size.Should().Be(page[i].Size);
-                            entry.ContentSize.Should().Be(page[i].Size);
-
-                            if (contentLocationIdLists.ContainsKey(info.ContentHash))
-                            {
-                                var locationIdList = contentLocationIdLists[info.ContentHash];
-                                entry.Locations.Should().BeEquivalentTo(locationIdList);
-                                entry.Locations.Should().HaveSameCount(locationIdList);
-                                info.Locations.Should().HaveSameCount(locationIdList);
-
-                            }
-                            else
-                            {
-                                info.Locations.Should().BeNullOrEmpty();
-                            }
-                        }
-                    }
-                });
-        }
-
         private ContentHashWithSize RandomContentWithSize()
         {
             var maxValue = 1L << ThreadSafeRandom.Generator.Next(1, 63);
@@ -893,12 +768,10 @@ namespace ContentStoreTest.Distributed.Sessions
                     foreach (var idx in context.EnumerateWorkersIndices())
                     {
                         var workerStore = context.GetLocationStore(idx);
-                        var globalStore = context.GetServices(idx).RedisGlobalStore.Instance;
 
                         // Add to store
                         await workerStore.RegisterLocalLocationAsync(context, hashes, Token, UrgencyHint.Nominal, touch: true).ShouldBeSuccess();
                         workerStore.LocalLocationStore.Counters[ContentLocationStoreCounters.LocationAddQueued].Value.Should().Be(0);
-                        globalStore.Counters[GlobalStoreCounters.RegisterLocalLocation].Value.Should().Be(1);
                     }
 
                     await master.RegisterLocalLocationAsync(context, hashes, Token, UrgencyHint.Nominal, touch: true).ShouldBeSuccess();
@@ -906,8 +779,8 @@ namespace ContentStoreTest.Distributed.Sessions
                     master.LocalLocationStore.Counters[ContentLocationStoreCounters.LocationAddQueued].Value.Should().Be(1,
                         "When number of replicas is over limit location adds should be set through event stream but not eagerly sent to redis");
 
-                    var masterGlobalStore = context.GetServices().RedisGlobalStore.Instance;
-                    masterGlobalStore.Counters[GlobalStoreCounters.RegisterLocalLocation].Value.Should().Be(0);
+                    var r = await master.GetBulkAsync(context, hashes.Select(hws => hws.Hash).ToArray(), GetBulkOrigin.Global).ThrowIfFailureAsync();
+                    r.ContentHashesInfo[0].Locations.Should().NotContain(master.LocalMachineLocation);
                 });
         }
 
@@ -936,9 +809,11 @@ namespace ContentStoreTest.Distributed.Sessions
                 });
         }
 
-        [Fact]
+        [Fact(Skip = "See: https://mseng.visualstudio.com/1ES/_workitems/edit/1976247")]
         public Task TestUnifiedMultiplexOperations()
         {
+            UseGrpcServer = true;
+
             _registerAdditionalLocationPerMachine = true;
 
             return RunTestAsync(
@@ -2211,6 +2086,8 @@ namespace ContentStoreTest.Distributed.Sessions
         [Fact]
         public Task IncrementalCheckpointingResetWithEpochChangeTest()
         {
+            UseGrpcServer = true;
+
             // Test Description:
             // In loop:
             // Set epoch to new value
@@ -2555,120 +2432,6 @@ namespace ContentStoreTest.Distributed.Sessions
                     }
 
                     await Task.Yield();
-                });
-        }
-
-        [Fact]
-        public Task DualRedundancyGlobalRedisTest()
-        {
-            // Disable cluster state storage in DB to ensure it doesn't interfere with testing
-            // Redis cluster state resiliency
-            _enableSecondaryRedis = true;
-            ConfigureWithOneMaster();
-            int machineCount = 3;
-
-            return RunTestAsync(
-                machineCount,
-                async context =>
-                {
-                    var sessions = context.Sessions;
-
-                    var masterSession = sessions[context.GetMasterIndex()];
-                    var workerSession = sessions[context.GetFirstWorkerIndex()];
-                    var master = context.GetMaster();
-                    var worker = context.GetFirstWorker();
-                    var masterGlobalStore = context.GetServices().RedisGlobalStore.Instance;
-
-                    // Heartbeat the master to ensure cluster state is mirrored to secondary
-                    TestClock.UtcNow += _configurations[0].ClusterStateMirrorInterval + TimeSpan.FromSeconds(1);
-                    await master.LocalLocationStore.HeartbeatAsync(context).ShouldBeSuccess();
-
-                    var keys = PrimaryGlobalStoreDatabase.Keys.ToList();
-
-                    // Ensure resiliency to removal from both primary and secondary
-                    await verifyContentResiliency(PrimaryGlobalStoreDatabase, _secondaryGlobalStoreDatabase);
-                    await verifyContentResiliency(_secondaryGlobalStoreDatabase, PrimaryGlobalStoreDatabase);
-
-                    async Task verifyContentResiliency(LocalRedisProcessDatabase redis1, LocalRedisProcessDatabase redis2)
-                    {
-                        // Insert random file in session 0
-                        var putResult = await masterSession.PutRandomAsync(context, ContentHashType, false, ContentByteCount, Token).ShouldBeSuccess();
-
-                        var globalGetBulkResult = await worker.GetBulkAsync(
-                            context,
-                            new[] { putResult.ContentHash },
-                            Token,
-                            UrgencyHint.Nominal,
-                            GetBulkOrigin.Global).ShouldBeSuccess();
-                        globalGetBulkResult.ContentHashesInfo[0].Locations.Count.Should().Be(1, "Content should be registered with the global store");
-
-                        // Delete key from primary database
-                        (await redis1.DeleteStringKeys(s => s.Contains(RedisGlobalStore.GetRedisKey(putResult.ContentHash)))).Should().BeGreaterThan(0);
-
-                        globalGetBulkResult = await worker.GetBulkAsync(
-                            context,
-                            new[] { putResult.ContentHash },
-                            Token,
-                            UrgencyHint.Nominal,
-                            GetBulkOrigin.Global).ShouldBeSuccess();
-
-                        globalGetBulkResult.ContentHashesInfo[0].Locations.Count.Should().Be(1, "Content should be registered with the global store since locations are backed up in other store");
-
-                        // Delete key from secondary database
-                        (await redis2.DeleteStringKeys(s => s.Contains(RedisGlobalStore.GetRedisKey(putResult.ContentHash)))).Should().BeGreaterThan(0);
-
-                        globalGetBulkResult = await worker.GetBulkAsync(
-                            context,
-                            new[] { putResult.ContentHash },
-                            Token,
-                            UrgencyHint.Nominal,
-                            GetBulkOrigin.Global).ShouldBeSuccess();
-                        globalGetBulkResult.ContentHashesInfo[0].Locations.Should().BeNullOrEmpty("Content should be missing from global store after removal from both redis databases");
-                    }
-                });
-        }
-
-        [Fact]
-        public Task CancelRaidedRedisTest()
-        {
-            _enableSecondaryRedis = true;
-            _poolSecondaryRedisDatabase = false;
-            ConfigureWithOneMaster();
-            int machineCount = 1;
-
-            return RunTestAsync(
-                machineCount,
-                async context =>
-                {
-                    var sessions = context.Sessions;
-
-                    var masterSession = sessions[context.GetMasterIndex()];
-                    var master = context.GetMaster();
-                    var masterGlobalStore = context.GetServices().RedisGlobalStore.Instance;
-
-                    var putResult = await masterSession.PutRandomAsync(context, ContentHashType, false, ContentByteCount, Token).ShouldBeSuccess();
-                    var globalGetBulkResult = await master.GetBulkAsync(
-                        context,
-                        new[] { putResult.ContentHash },
-                        Token,
-                        UrgencyHint.Nominal,
-                        GetBulkOrigin.Global).ShouldBeSuccess();
-                    globalGetBulkResult.ContentHashesInfo[0].Locations.Count.Should().Be(1, "Content should be registered with the global store");
-
-                    //Turn off the second redis instance, and set a retry window
-                    //The second instance should always fail and resort to timing out in the retry window limit
-                    _configurations[0].RetryWindow = TimeSpan.FromSeconds(1);
-                    _secondaryGlobalStoreDatabase.Dispose(close: true);
-
-                    masterGlobalStore.RaidedRedis.Counters[RaidedRedisDatabaseCounters.CancelRedisInstance].Value.Should().Be(0);
-                    globalGetBulkResult = await master.GetBulkAsync(
-                        context,
-                        new[] { putResult.ContentHash },
-                        Token,
-                        UrgencyHint.Nominal,
-                        GetBulkOrigin.Global).ShouldBeSuccess();
-
-                    masterGlobalStore.RaidedRedis.Counters[RaidedRedisDatabaseCounters.CancelRedisInstance].Value.Should().Be(1);
                 });
         }
 

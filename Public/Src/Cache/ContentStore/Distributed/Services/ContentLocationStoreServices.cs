@@ -236,12 +236,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
 
         private IClientAccessor<IGlobalCacheService> CreateMasterClientAccessor()
         {
-            var localClient = Dependencies.GlobalCacheService.TryGetInstance(out var localService)
-                                ? new LocalClient<IGlobalCacheService>(Configuration.PrimaryMachineLocation, localService)
-                                : null;
-            var clientPool = new GrpcClientPool<IGlobalCacheService>(Arguments.ConnectionPool, localClient);
+            var clientAccessor = Configuration.GlobalCacheClientAccessorForTests;
+            if (clientAccessor is null)
+            {
+                // This is the code-path followed outside of tests
+                var localClient = Dependencies.GlobalCacheService.TryGetInstance(out var localService)
+                    ? new LocalClient<IGlobalCacheService>(Configuration.PrimaryMachineLocation, localService)
+                    : null;
 
-            return new GrpcMasterClientFactory<IGlobalCacheService>(clientPool, MasterElectionMechanism.Instance);
+                clientAccessor = new GrpcClientAccessor<IGlobalCacheService>(Arguments.ConnectionPool, localClient);
+            }
+
+            return new MasterClientFactory<IGlobalCacheService>(clientAccessor, MasterElectionMechanism.Instance);
         }
 
         private IMasterElectionMechanism CreateMasterElectionMechanism()

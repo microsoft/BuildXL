@@ -44,7 +44,7 @@ namespace BuildXL.Cache.Host.Test
         {
             var serialized = @"
 {
-    'Mode': 'WriteBothPreferDistributed',
+    'Mode': 'Distributed',
     'TimeThreshold': '3d5h10m42s',
     'Bytes': '6pb7t2gb30mb4kb5b',
     'DoP': '0.512x',
@@ -55,7 +55,7 @@ namespace BuildXL.Cache.Host.Test
             var deserialized = DeploymentUtilities.JsonDeserialize<TestConfig>(serialized);
             var deserializedWithNulls = DeploymentUtilities.JsonDeserialize<TestConfigWithNulls>(serialized);
 
-            Assert.Equal(ContentMetadataStoreMode.WriteBothPreferDistributed, deserialized.Mode.Value);
+            Assert.Equal(ContentMetadataStoreMode.Distributed, deserialized.Mode.Value);
 
             var expectedTimeThreshold = TimeSpan.FromDays(3) + TimeSpan.FromHours(5) + TimeSpan.FromMinutes(10) + TimeSpan.FromSeconds(42);
             long expectedBytes =
@@ -69,7 +69,7 @@ namespace BuildXL.Cache.Host.Test
             Assert.Equal(expectedTimeThreshold, deserialized.TimeThreshold.Value);
             Assert.Equal(expectedBytes, deserialized.Bytes.Value);
 
-            Assert.Equal(ContentMetadataStoreMode.WriteBothPreferDistributed, deserializedWithNulls.Mode.Value.Value);
+            Assert.Equal(ContentMetadataStoreMode.Distributed, deserializedWithNulls.Mode.Value.Value);
             Assert.Equal(expectedTimeThreshold, deserializedWithNulls.TimeThreshold.Value.Value);
             Assert.Equal(expectedBytes, deserializedWithNulls.Bytes.Value.Value);
 
@@ -80,7 +80,7 @@ namespace BuildXL.Cache.Host.Test
         public class TestConfig
         {
             [DataMember]
-            public EnumSetting<ContentMetadataStoreMode> Mode { get; set; } = ContentMetadataStoreMode.Redis;
+            public EnumSetting<ContentMetadataStoreMode> Mode { get; set; } = ContentMetadataStoreMode.Distributed;
 
             [DataMember]
             public TimeSpanSetting TimeThreshold { get; set; }
@@ -98,7 +98,7 @@ namespace BuildXL.Cache.Host.Test
         public class TestConfigWithNulls
         {
             [DataMember]
-            public EnumSetting<ContentMetadataStoreMode>? Mode { get; set; } = ContentMetadataStoreMode.Redis;
+            public EnumSetting<ContentMetadataStoreMode>? Mode { get; set; } = ContentMetadataStoreMode.Distributed;
 
             [DataMember]
             public TimeSpanSetting? TimeThreshold { get; set; }

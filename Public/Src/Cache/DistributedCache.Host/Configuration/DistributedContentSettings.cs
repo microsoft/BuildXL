@@ -173,6 +173,9 @@ namespace BuildXL.Cache.Host.Configuration
             LocationContentMetadataStoreModeOverride = Configuration.ContentMetadataStoreMode.Distributed;
             BlobContentMetadataStoreModeOverride = Configuration.ContentMetadataStoreMode.Distributed;
             UseBlobVolatileStorage = true;
+            GlobalCacheBackgroundRestore = true;
+            EnableIndependentBackgroundMasterElection = true;
+            ContentMetadataEnableResilience = true;
         }
 
         /// <summary>
@@ -1223,7 +1226,7 @@ namespace BuildXL.Cache.Host.Configuration
         public int? MetadataEntryStorageThreshold { get; set; }
 
         [DataMember]
-        public EnumSetting<ContentMetadataStoreMode> ContentMetadataStoreMode { get; set; } = Configuration.ContentMetadataStoreMode.Redis;
+        public EnumSetting<ContentMetadataStoreMode> ContentMetadataStoreMode { get; set; } = Configuration.ContentMetadataStoreMode.Distributed;
 
         [DataMember]
         public EnumSetting<ContentMetadataStoreMode>? BlobContentMetadataStoreModeOverride { get; set; }

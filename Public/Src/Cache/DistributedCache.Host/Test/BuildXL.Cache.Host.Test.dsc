@@ -12,12 +12,6 @@ namespace Test {
             // Need to untrack the test output directory, because redis server tries to write some pdbs.
             untrackTestDirectory: true,
             parallelBucketCount: 4,
-            unsafeTestRunArguments: {
-                untrackedPaths: [
-                    f`D:\a\1\s\msvs\x64\RELEASE_DEVELOPER\memurai-services.pdb`,
-                    f`D:\a\1\s\msvs\x64\RELEASE_DEVELOPER\redis-server.pdb`,
-                ],
-            },
         },
         skipTestRun: BuildXLSdk.restrictTestRunToSomeQualifiers,
         assemblyBindingRedirects: BuildXLSdk.cacheBindingRedirects(),

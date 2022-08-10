@@ -13,6 +13,9 @@ namespace BuildXL.Cache.Host.Configuration
     public enum ContentMetadataStoreMode
     {
         /// <nodoc />
+        Distributed = ReadDistributed | WriteDistributed,
+
+        /// <nodoc />
         Redis = ReadRedis | WriteRedis,
 
         /// <nodoc />
@@ -26,9 +29,6 @@ namespace BuildXL.Cache.Host.Configuration
 
         /// <nodoc />
         WriteBothReadDistributed = WriteBoth | ReadDistributed,
-
-        /// <nodoc />
-        Distributed = ReadDistributed | WriteDistributed,
     }
 
     [Flags]

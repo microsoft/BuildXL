@@ -22,7 +22,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Tracing
         {
             var config = new TestConfig()
             {
-                Mode = ContentMetadataStoreMode.WriteBothPreferDistributed,
+                Mode = ContentMetadataStoreMode.Distributed,
             };
 
             var serialized = JsonConvert.SerializeObject(config);
@@ -44,14 +44,14 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Tracing
 
         public class TestConfig
         {
-            public EnumSetting<ContentMetadataStoreMode> Mode { get; set; } = ContentMetadataStoreMode.Redis;
+            public EnumSetting<ContentMetadataStoreMode> Mode { get; set; } = ContentMetadataStoreMode.Distributed;
 
             public TimeSpanSetting TimeThreshold { get; set; }
         }
 
         public class TestConfigWithNulls
         {
-            public EnumSetting<ContentMetadataStoreMode>? Mode { get; set; } = ContentMetadataStoreMode.Redis;
+            public EnumSetting<ContentMetadataStoreMode>? Mode { get; set; } = ContentMetadataStoreMode.Distributed;
 
             public TimeSpanSetting? TimeThreshold { get; set; }
         }

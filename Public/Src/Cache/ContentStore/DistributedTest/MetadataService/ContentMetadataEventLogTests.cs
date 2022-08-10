@@ -267,25 +267,22 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.MetadataService
         private async Task RunTest(
             Func<OperationContext, ContentMetadataEventStream, IFailureController, IFailureController, Task> runTestAsync,
             ContentMetadataEventStreamConfiguration contentMetadataEventStreamConfiguration = null,
-            RedisVolatileEventStorageConfiguration redisVolatileEventLogConfiguration = null,
             FailureMode persistentStorageFailure = FailureMode.None,
             FailureMode volatileStorageFailure = FailureMode.None)
         {
             var tracingContext = new Context(Logger);
             var operationContext = new OperationContext(tracingContext);
 
-            redisVolatileEventLogConfiguration ??= new RedisVolatileEventStorageConfiguration();
-            using var database = LocalRedisProcessDatabase.CreateAndStartEmpty(_redisFixture, TestGlobal.Logger, SystemClock.Instance);
-            var primaryFactory = await RedisDatabaseFactory.CreateAsync(
-                operationContext,
-                new LiteralConnectionStringProvider(database.ConnectionString),
-                new RedisConnectionMultiplexerConfiguration() { LoggingSeverity = Severity.Error });
-            var primaryDatabaseAdapter = new RedisDatabaseAdapter(primaryFactory, "keyspace");
-            var redisVolatileEventStorage = new RedisWriteAheadEventStorage(redisVolatileEventLogConfiguration, primaryDatabaseAdapter);
+            using var storage = AzuriteStorageProcess.CreateAndStartEmpty(_redisFixture, TestGlobal.Logger);
+
+            var blobVolatileEventStorage = new BlobWriteAheadEventStorage(new BlobEventStorageConfiguration()
+            {
+                Credentials = new Interfaces.Secrets.AzureBlobStorageCredentials(connectionString: storage.ConnectionString),
+            });
 
             var mockPersistentEventStorage = new MockPersistentEventStorage();
 
-            var volatileEventStorage = new FailingVolatileEventStorage(volatileStorageFailure, redisVolatileEventStorage);
+            var volatileEventStorage = new FailingVolatileEventStorage(volatileStorageFailure, blobVolatileEventStorage);
             var persistentEventStorage = new FailingPersistentEventStorage(persistentStorageFailure, mockPersistentEventStorage);
 
             contentMetadataEventStreamConfiguration ??= new ContentMetadataEventStreamConfiguration();

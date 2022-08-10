@@ -120,7 +120,7 @@ namespace BuildXL.Cache.ContentStore.App
                 {
                     switch (child.Type)
                     {
-                        case DedupNode.NodeType.ChunkLeaf:
+                        case DedupNode.NodeType.ChunkLeaf: // Case for chunks which have actual content.
                             _totalBytes += child.TransitiveContentBytes;
                             _totalChunks++;
 
@@ -145,6 +145,11 @@ namespace BuildXL.Cache.ContentStore.App
                             throw new NotImplementedException();
                     }
                 }
+            }
+            else if (root.ChildNodes == null && root.Type == DedupNode.NodeType.ChunkLeaf) // This is for the case where the root consists of single chunk.
+            {
+                _totalBytes += root.TransitiveContentBytes;
+                _uniqueBytes += root.TransitiveContentBytes;
             }
         }
     }

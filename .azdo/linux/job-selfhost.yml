@@ -115,6 +115,7 @@ jobs:
 
       run_build || {
         echo "\n**** First build failed, retrying once ***\n"
+        find Out/Objects.noindex -type d -name node_modules | xargs -r rm -rfv
         run_build
       }
     displayName: Test
@@ -132,31 +133,11 @@ jobs:
     condition: always()
     continueOnError: true
 
-  - task: CopyFiles@2
-    displayName: Copy XUnit Result Files
-    inputs:
-        sourceFolder: $(Build.SourcesDirectory)/Out/Objects.noindex/
-        contents: '**/xunit.results*.xml'
-        targetFolder: $(Build.ArtifactStagingDirectory)/xunit-logs
-        cleanTargetFolder: true
-        ignoreMakeDirErrors: true
-        flattenFolders: true
-    condition: always()
-    continueOnError: true
-
   - task: PublishTestResults@2
     displayName: Publish Test Results
     inputs:
       testResultsFormat: XUnit
-      testResultsFiles: '$(Build.ArtifactStagingDirectory)/xunit-logs/**/xunit*.xml'
-    condition: always()
-    continueOnError: true
-
-  - task: PublishPipelineArtifact@1
-    displayName: Upload XUnit Logs
-    inputs:
-      targetPath: $(Build.ArtifactStagingDirectory)/xunit-logs
-      artifactName: XUnit-Logs.$(System.JobName).$(System.JobAttempt)
+      testResultsFiles: 'Out/Objects.noindex/**/xunit-logs/**/xunit*.xml'
     condition: always()
     continueOnError: true
 

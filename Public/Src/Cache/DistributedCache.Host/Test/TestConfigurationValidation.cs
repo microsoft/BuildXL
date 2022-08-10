@@ -93,10 +93,10 @@ namespace BuildXL.Cache.Host.Test
         {
             var settings = DistributedContentSettings.CreateDisabled();
 
-            settings.BlobExpiryTimeMinutes = -1;
+            settings.EvictionMinAgeMinutes = -1;
             var errors = settings.Validate();
             errors.Count.Should().Be(1);
-            errors[0].Should().Contain(nameof(settings.BlobExpiryTimeMinutes));
+            errors[0].Should().Contain(nameof(settings.EvictionMinAgeMinutes));
 
             settings = DistributedContentSettings.CreateDisabled();
             settings.MinimumSpeedInMbPerSec = -1F;

@@ -250,7 +250,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
             };
 
             ApplyIfNotNull(DistributedContentSettings.LocationEntryExpiryMinutes, v => dbConfig.ContentRotationInterval = TimeSpan.FromMinutes(v));
-            dbConfig.BlobRotationInterval = TimeSpan.FromMinutes(DistributedContentSettings.BlobExpiryTimeMinutes);
             dbConfig.MetadataRotationInterval = DistributedContentSettings.ContentMetadataServerMetadataRotationInterval;
 
             var store = new RocksDbContentMetadataStore(
@@ -258,7 +257,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
                 new RocksDbContentMetadataStoreConfiguration()
                 {
                     DisableRegisterLocation = DistributedContentSettings.ContentMetadataDisableDatabaseRegisterLocation,
-                    MaxBlobCapacity = DistributedContentSettings.MaxBlobCapacity,
                     Database = dbConfig,
                 });
 

@@ -214,16 +214,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         public int LocationStoreBatchSize { get; set; }
 
         /// <summary>
-        /// Max size for storing blobs in the ContentLocationStore
-        /// </summary>
-        public long MaxBlobSize { get; set; }
-
-        /// <summary>
-        /// Returns true if Redis can be used for storing small files.
-        /// </summary>
-        public bool AreBlobsSupported { get; set; }
-
-        /// <summary>
         /// Minimum size to start compressing gRPC transfers
         /// </summary>
         public long? GrpcCopyCompressionSizeThreshold { get; set; }

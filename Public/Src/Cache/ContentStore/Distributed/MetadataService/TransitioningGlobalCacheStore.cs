@@ -27,15 +27,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         private readonly IGlobalCacheStore _distributedStore;
         private readonly RedisContentLocationStoreConfiguration _configuration;
 
-        public bool AreBlobsSupported { get; }
-
         public override bool AllowMultipleStartupAndShutdowns => true;
 
-        private ContentMetadataStoreMode BlobMode => (_configuration.BlobContentMetadataStoreModeOverride ?? _configuration.ContentMetadataStoreMode).Mask(_blobSupportedMask);
         private ContentMetadataStoreMode LocationMode => _configuration.LocationContentMetadataStoreModeOverride ?? _configuration.ContentMetadataStoreMode;
         private ContentMetadataStoreMode MemoizationMode => _configuration.MemoizationContentMetadataStoreModeOverride ?? _configuration.ContentMetadataStoreMode;
-
-        private readonly ContentMetadataStoreModeFlags _blobSupportedMask;
 
         protected override Tracer Tracer { get; } = new Tracer(nameof(TransitioningGlobalCacheStore));
 
@@ -48,24 +43,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             _configuration = configuration;
             _redisStore = redisStore;
             _distributedStore = distributedStore;
-            
-            if (BlobMode.HasAllFlags(ContentMetadataStoreModeFlags.PreferRedis) || BlobMode.MaskFlags(ContentMetadataStoreModeFlags.Distributed) == 0)
-            {
-                AreBlobsSupported = _redisStore.AreBlobsSupported;
-            }
-            else if (BlobMode.HasAllFlags(ContentMetadataStoreModeFlags.PreferDistributed) || BlobMode.MaskFlags(ContentMetadataStoreModeFlags.Redis) == 0)
-            {
-                AreBlobsSupported = _distributedStore.AreBlobsSupported;
-            }
-            else
-            {
-                AreBlobsSupported = _redisStore.AreBlobsSupported || _distributedStore.AreBlobsSupported;
-            }
-
-            // Mask used to only include valid flags for BlobMode based on blob support in the respective stores
-            _blobSupportedMask = ContentMetadataStoreModeFlags.All
-                .Subtract(_redisStore.AreBlobsSupported ? 0 : ContentMetadataStoreModeFlags.Redis | ContentMetadataStoreModeFlags.PreferRedis)
-                .Subtract(_distributedStore.AreBlobsSupported ? 0 : ContentMetadataStoreModeFlags.Distributed | ContentMetadataStoreModeFlags.PreferDistributed);
         }
 
         protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
@@ -99,16 +76,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                     LocationMode,
                     (context, machineId, contentHashes, touch),
                     static (store, tpl) => store.RegisterLocationAsync(tpl.context, tpl.machineId, tpl.contentHashes, tpl.touch).AsTask()));
-        }
-
-        public Task<PutBlobResult> PutBlobAsync(OperationContext context, ShortHash hash, byte[] blob)
-        {
-            return WriteAsync(context, BlobMode, store => store.PutBlobAsync(context, hash, blob));
-        }
-
-        public Task<GetBlobResult> GetBlobAsync(OperationContext context, ShortHash hash)
-        {
-            return ReadAsync(context, BlobMode, store => store.GetBlobAsync(context, hash));
         }
 
         public Task<Result<bool>> CompareExchangeAsync(OperationContext context, StrongFingerprint strongFingerprint, SerializedMetadataEntry replacement, string expectedReplacementToken)

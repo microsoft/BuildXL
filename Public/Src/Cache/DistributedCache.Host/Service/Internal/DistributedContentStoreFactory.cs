@@ -192,9 +192,6 @@ namespace BuildXL.Cache.Host.Service.Internal
                 Keyspace = _keySpace + RedisKeySpaceSalt,
                 LogReconciliationHashes = _distributedSettings.LogReconciliationHashes,
                 RedisBatchPageSize = _distributedSettings.RedisBatchPageSize,
-                BlobExpiryTime = TimeSpan.FromMinutes(_distributedSettings.BlobExpiryTimeMinutes),
-                MaxBlobCapacity = _distributedSettings.MaxBlobCapacity,
-                MaxBlobSize = _distributedSettings.MaxBlobSize,
                 UseFullEvictionSort = _distributedSettings.UseFullEvictionSort,
                 EvictionWindowSize = _distributedSettings.EvictionWindowSize,
                 EvictionPoolSize = _distributedSettings.EvictionPoolSize,
@@ -215,13 +212,8 @@ namespace BuildXL.Cache.Host.Service.Internal
                 UseMemoizationContentMetadataStore = _distributedSettings.UseMemoizationContentMetadataStore,
             };
 
-            ApplyIfNotNull(_distributedSettings.BlobContentMetadataStoreModeOverride, v => redisConfig.BlobContentMetadataStoreModeOverride = v.Value);
             ApplyIfNotNull(_distributedSettings.LocationContentMetadataStoreModeOverride, v => redisConfig.LocationContentMetadataStoreModeOverride = v.Value);
             ApplyIfNotNull(_distributedSettings.MemoizationContentMetadataStoreModeOverride, v => redisConfig.MemoizationContentMetadataStoreModeOverride = v.Value);
-
-            ApplyIfNotNull(_distributedSettings.BlobOperationLimitCount, v => redisConfig.BlobOperationLimitCount = v);
-            ApplyIfNotNull(_distributedSettings.BlobOperationLimitSpanSeconds, v => redisConfig.BlobOperationLimitSpan = TimeSpan.FromSeconds(v));
-            ApplyIfNotNull(_distributedSettings.UseSeparateConnectionForRedisBlobs, v => redisConfig.UseSeparateConnectionForRedisBlobs = v);
 
             // Redis-related configuration.
             ApplyIfNotNull(_distributedSettings.RedisConnectionErrorLimit, v => redisConfig.RedisConnectionErrorLimit = v);
@@ -251,9 +243,6 @@ namespace BuildXL.Cache.Host.Service.Internal
             ApplyIfNotNull(_distributedSettings.EvictionMinAgeMinutes, v => redisConfig.EvictionMinAge = TimeSpan.FromMinutes(v));
             ApplyIfNotNull(_distributedSettings.RetryWindowSeconds, v => redisConfig.RetryWindow = TimeSpan.FromSeconds(v));
 
-            ApplyIfNotNull(_distributedSettings.RedisGetBlobTimeoutMilliseconds, v => redisConfig.BlobTimeout = TimeSpan.FromMilliseconds(v));
-            ApplyIfNotNull(_distributedSettings.RedisGetCheckpointStateTimeoutInSeconds, v => redisConfig.ClusterRedisOperationTimeout = TimeSpan.FromSeconds(v));
-
             ApplyIfNotNull(_distributedSettings.ShouldFilterInactiveMachinesInLocalLocationStore, v => redisConfig.ShouldFilterInactiveMachinesInLocalLocationStore = v);
 
             ApplyIfNotNull(_distributedSettings.LocationStoreSettings, v => redisConfig.Settings = v);
@@ -274,11 +263,7 @@ namespace BuildXL.Cache.Host.Service.Internal
 
             if (redisConfig.AllContentMetadataStoreModeFlags.HasAnyFlag(ContentMetadataStoreModeFlags.Distributed))
             {
-                var clientContentMetadataStoreConfiguration = new ClientContentMetadataStoreConfiguration()
-                {
-                    AreBlobsSupported = _distributedSettings.ContentMetadataBlobsEnabled && redisConfig.AreBlobsSupported,
-                };
-
+                var clientContentMetadataStoreConfiguration = new ClientContentMetadataStoreConfiguration();
                 ApplyIfNotNull(_distributedSettings.ContentMetadataClientOperationTimeout, v => clientContentMetadataStoreConfiguration.OperationTimeout = v);
                 ApplyIfNotNull(_distributedSettings.ContentMetadataClientRetryMinimumWaitTime, v => clientContentMetadataStoreConfiguration.RetryMinimumWaitTime = v);
                 ApplyIfNotNull(_distributedSettings.ContentMetadataClientRetryMaximumWaitTime, v => clientContentMetadataStoreConfiguration.RetryMaximumWaitTime = v);
@@ -408,8 +393,6 @@ namespace BuildXL.Cache.Host.Service.Internal
                 RestrictedCopyReplicaCount = distributedSettings.RestrictedCopyReplicaCount,
                 CopyAttemptsWithRestrictedReplicas = distributedSettings.CopyAttemptsWithRestrictedReplicas,
                 PeriodicCopyTracingInterval = TimeSpan.FromMinutes(distributedSettings.PeriodicCopyTracingIntervalMinutes),
-                AreBlobsSupported = redisContentLocationStoreConfiguration.AreBlobsSupported,
-                MaxBlobSize = redisContentLocationStoreConfiguration.MaxBlobSize,
                 DelayForProactiveReplication = TimeSpan.FromSeconds(distributedSettings.ProactiveReplicationDelaySeconds),
                 ProactiveReplicationCopyLimit = distributedSettings.ProactiveReplicationCopyLimit,
                 EnableProactiveReplication = distributedSettings.EnableProactiveReplication,

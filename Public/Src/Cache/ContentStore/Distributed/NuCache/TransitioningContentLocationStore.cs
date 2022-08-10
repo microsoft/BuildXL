@@ -59,12 +59,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             LocalMachineLocation = localMachineLocation;
         }
 
-        /// <inheritdoc />
-        public bool AreBlobsSupported => LocalLocationStore.AreBlobsSupported;
-
-        /// <inheritdoc />
-        public long MaxBlobSize => _configuration.MaxBlobSize;
-
         /// <nodoc />
         public int PageSize => _configuration.RedisBatchPageSize;
 
@@ -243,27 +237,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 this,
                 contentHashesWithInfo,
                 reverse: reverse);
-        }
-
-        /// <inheritdoc />
-        public Task<BoolResult> PutBlobAsync(OperationContext context, ContentHash hash, byte[] blob)
-        {
-            Contract.Assert(AreBlobsSupported, "PutBlobAsync was called and blobs are not supported.");
-
-            return LocalLocationStore.AreBlobsSupported ? LocalLocationStore.PutBlobAsync(context, hash, blob) : BoolResult.SuccessTask;
-        }
-
-        /// <inheritdoc />
-        public Task<GetBlobResult> GetBlobAsync(OperationContext context, ContentHash hash)
-        {
-            Contract.Assert(AreBlobsSupported, "GetBlobAsync was called and blobs are not supported.");
-
-            if (LocalLocationStore.AreBlobsSupported)
-            {
-                return LocalLocationStore.GetBlobAsync(context, hash);
-            }
-
-            return Task.FromResult(new GetBlobResult("Blobs are not supported."));
         }
     }
 }

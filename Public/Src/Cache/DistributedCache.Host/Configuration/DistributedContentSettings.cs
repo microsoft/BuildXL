@@ -243,14 +243,6 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public bool? TreatObjectDisposedExceptionAsTransient { get; set; }
 
-        [DataMember]
-        [Validation.Range(-1, int.MaxValue)]
-        public int? RedisGetBlobTimeoutMilliseconds { get; set; }
-
-        [DataMember]
-        [Validation.Range(0, int.MaxValue)]
-        public int? RedisGetCheckpointStateTimeoutInSeconds { get; set; }
-
         // Redis retry configuration
         [DataMember]
         [Validation.Range(0, int.MaxValue, minInclusive: false)]
@@ -334,41 +326,6 @@ namespace BuildXL.Cache.Host.Configuration
 
         [DataMember]
         public bool LogReconciliationHashes { get; set; } = false;
-
-        /// <summary>
-        /// The TTL of blobs in Redis. Setting to 0 will disable blobs.
-        /// </summary>
-        [DataMember]
-        [Validation.Range(0, int.MaxValue)]
-        public int BlobExpiryTimeMinutes { get; set; } = 0;
-
-        /// <summary>
-        /// Max size of blobs in Redis. Setting to 0 will disable blobs.
-        /// </summary>
-        [DataMember]
-        [Validation.Range(0, long.MaxValue)]
-        public long MaxBlobSize { get; set; } = 1024 * 4;
-
-        /// <summary>
-        /// Max capacity that blobs can occupy in Redis. Setting to 0 will disable blobs.
-        /// </summary>
-        [DataMember]
-        [Validation.Range(0, long.MaxValue)]
-        public long MaxBlobCapacity { get; set; } = 1024 * 1024 * 1024;
-
-        /// <summary>
-        /// The span of time that will delimit the operation count limit for blob operations.
-        /// </summary>
-        [DataMember]
-        [Validation.Range(0, int.MaxValue)]
-        public int? BlobOperationLimitSpanSeconds { get; set; }
-
-        /// <summary>
-        /// The amount of blob operations that we allow to go to Redis in a given period of time.
-        /// </summary>
-        [DataMember]
-        [Validation.Range(0, int.MaxValue)]
-        public long? BlobOperationLimitCount { get; set; }
 
         /// <summary>
         /// Amount of entries to compute evictability metric for in a single pass. The larger this is, the faster the
@@ -1122,9 +1079,6 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public TimeSpan TrackingReportPeriod { get; set; } = TimeSpan.FromSeconds(30);
 
-        [DataMember]
-        public bool? UseSeparateConnectionForRedisBlobs { get; set; }
-
         /// <summary>
         /// Indicates whether distributed content store operates in special mode where content is only consumed from other machines but
         /// not available as a content replica from which other machines can copy content.
@@ -1242,9 +1196,6 @@ namespace BuildXL.Cache.Host.Configuration
 
         [DataMember]
         public int? MetadataStoreMaxOperationQueueLength { get; set; }
-
-        [DataMember]
-        public bool ContentMetadataBlobsEnabled { get; set; } = true;
 
         [DataMember]
         public TimeSpanSetting? AsyncSessionShutdownTimeout { get; set; }

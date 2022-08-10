@@ -56,8 +56,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 
         public TimeSpan MetadataRotationInterval { get; set; } = TimeSpan.FromDays(7);
 
-        public TimeSpan BlobRotationInterval { get; set; } = TimeSpan.FromHours(1);
-
         public ByteSizeSetting? MetadataSizeRotationThreshold { get; set; }
     }
 
@@ -114,8 +112,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             Metadata,
 
             MetadataHeaders,
-
-            Blobs,
 
             MergeContent,
 
@@ -562,7 +558,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                                    Columns.Content => _configuration.ContentRotationInterval,
                                    Columns.MergeContent => _configuration.ContentRotationInterval,
                                    Columns.Metadata => _configuration.MetadataRotationInterval,
-                                   Columns.Blobs => _configuration.BlobRotationInterval,
                                    _ => _configuration.GarbageCollectionInterval,
                                };
 
@@ -792,45 +787,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         public override bool IsImmutable(AbsolutePath dbFile)
         {
             return dbFile.Path.EndsWith(".sst", StringComparison.OrdinalIgnoreCase);
-        }
-
-        public bool PutBlob(ShortHash key, byte[] value)
-        {
-            return _keyValueStore.Use(
-                static (store, state) =>
-                {
-                    if (!store.Contains(state.key))
-                    {
-                        store.Put(state.key, state.value, state.db.NameOf(Columns.Blobs));
-                        return true;
-                    }
-
-                    return false;
-                },
-                (key: key.ToByteArray(), value: value, db: this)).ThrowOnError();
-        }
-
-        public bool TryGetBlob(ShortHash key, [NotNullWhen(true)] out byte[]? value)
-        {
-            value = _keyValueStore.Use(
-                static (store, state) =>
-                {
-                    if (store.TryGetValue(state.key, out var result, state.db.NameOf(Columns.Blobs)))
-                    {
-                        return result;
-                    }
-                    else if (store.TryGetValue(state.key, out result, state.db.NameOf(Columns.Blobs, state.db.GetFormerColumnGroup(Columns.Blobs))))
-                    {
-                        return result;
-                    }
-                    else
-                    {
-                        return null;
-                    }
-                },
-                (key: key.ToByteArray(), db: this)).ThrowOnError();
-
-            return value != null;
         }
 
         /// <inheritdoc />

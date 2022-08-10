@@ -70,26 +70,6 @@ namespace BuildXL.Cache.ContentStore.Distributed
         Task<BoolResult> RegisterLocalLocationAsync(Context context, IReadOnlyList<ContentHashWithSize> contentHashes, CancellationToken cts, UrgencyHint urgencyHint, bool touch = true);
 
         /// <summary>
-        /// Puts a blob into the content location store.
-        /// </summary>
-        Task<BoolResult> PutBlobAsync(OperationContext context, ContentHash contentHash, byte[] blob);
-
-        /// <summary>
-        /// Gets a blob from the content location store. Fails if the blob is not found.
-        /// </summary>
-        Task<GetBlobResult> GetBlobAsync(OperationContext context, ContentHash contentHash);
-
-        /// <summary>
-        /// Gets whether the content location store supports blobs.
-        /// </summary>
-        bool AreBlobsSupported { get; }
-
-        /// <summary>
-        /// Gets the max size for blobs.
-        /// </summary>
-        long MaxBlobSize { get; }
-
-        /// <summary>
         /// Reports about new reputation for a given location.
         /// </summary>
         void ReportReputation(MachineLocation location, MachineReputation reputation);

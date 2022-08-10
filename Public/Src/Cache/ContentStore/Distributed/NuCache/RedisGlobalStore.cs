@@ -53,10 +53,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private RedisMemoizationAdapter MemoizationAdapter { get; }
 
-        internal RedisBlobAdapter PrimaryBlobAdapter { get; }
-
-        internal RedisBlobAdapter SecondaryBlobAdapter { get; }
-
         /// <nodoc />
         public CounterCollection<GlobalStoreCounters> Counters { get; } = new CounterCollection<GlobalStoreCounters>();
 
@@ -80,8 +76,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             RedisContentLocationStoreConfiguration configuration,
             RedisDatabaseAdapter primaryRedisDb,
             RedisDatabaseAdapter secondaryRedisDb,
-            RedisDatabaseAdapter primaryRedisBlobDb,
-            RedisDatabaseAdapter secondaryRedisBlobDb,
             IMasterElectionMechanism masterElectionMechanism)
         {
             Contract.Requires(configuration.CentralStore != null);
@@ -95,21 +89,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             MemoizationAdapter = new RedisMemoizationAdapter(RaidedRedis, configuration.Memoization);
 
-            PrimaryBlobAdapter = new RedisBlobAdapter(primaryRedisBlobDb, _clock, Configuration);
-            SecondaryBlobAdapter = new RedisBlobAdapter(secondaryRedisBlobDb, _clock, Configuration);
-
             _masterElectionMechanism = masterElectionMechanism;
         }
-
-        /// <inheritdoc />
-        public bool AreBlobsSupported => Configuration.AreBlobsSupported;
 
         /// <inheritdoc />
         public CounterSet GetCounters(OperationContext context)
         {
             var counters = Counters.ToCounterSet();
-            counters.Merge(PrimaryBlobAdapter.GetCounters(), "PrimaryBlobAdapter.");
-            counters.Merge(SecondaryBlobAdapter.GetCounters(), "SecondaryBlobAdapter.");
             counters.Merge(RaidedRedis.GetCounters(context, _masterElectionMechanism.Role, Counters[GlobalStoreCounters.InfoStats]));
             return counters;
         }
@@ -321,46 +307,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         #endregion Operations
-
-        #region Blobs in Redis
-
-        /// <inheritdoc />
-        public Task<PutBlobResult> PutBlobAsync(OperationContext context, ShortHash hash, byte[] blob)
-        {
-            Contract.Assert(AreBlobsSupported, "PutBlobAsync was called and blobs are not supported.");
-
-            return context.PerformOperationWithTimeoutAsync(
-                Tracer,
-                nestedContext => GetBlobAdapter(hash).PutBlobAsync(nestedContext, hash, blob),
-                traceOperationStarted: false,
-                counter: Counters[GlobalStoreCounters.PutBlob],
-                timeout: Configuration.BlobTimeout);
-        }
-
-        /// <inheritdoc />
-        public Task<GetBlobResult> GetBlobAsync(OperationContext context, ShortHash hash)
-        {
-            Contract.Assert(AreBlobsSupported, "GetBlobAsync was called and blobs are not supported.");
-
-            return context.PerformOperationWithTimeoutAsync(
-                Tracer,
-                nestedContext => GetBlobAdapter(hash).GetBlobAsync(nestedContext, hash),
-                traceOperationStarted: false,
-                counter: Counters[GlobalStoreCounters.GetBlob],
-                timeout: Configuration.BlobTimeout);
-        }
-
-        internal RedisBlobAdapter GetBlobAdapter(ShortHash hash)
-        {
-            if (!RaidedRedis.HasSecondary)
-            {
-                return PrimaryBlobAdapter;
-            }
-
-            return hash[0] >= 128 ? PrimaryBlobAdapter : SecondaryBlobAdapter;
-        }
-
-        #endregion
 
         #region Metadata Operations
 

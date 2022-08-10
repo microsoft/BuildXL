@@ -42,15 +42,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.MetadataService
         }
 
         [Fact]
-        public void PutBlobRoundtrip()
-        {
-            var model = MetadataServiceSerializer.TypeModel;
-
-            var obj = new PutBlobRequest();
-            CheckSerializationRoundtrip(model, obj);
-        }
-
-        [Fact]
         public void ShortHashWithSizeRoundtrip()
         {
             var model = MetadataServiceSerializer.TypeModel;

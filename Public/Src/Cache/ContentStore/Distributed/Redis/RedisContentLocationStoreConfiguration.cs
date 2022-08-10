@@ -62,36 +62,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         };
 
         /// <summary>
-        /// Expiry time for all blobs stored in Redis.
-        /// </summary>
-        public TimeSpan BlobExpiryTime { get; set; } = TimeSpan.Zero;
-
-        /// <summary>
-        /// Max size for storing blobs in the ContentLocationStore
-        /// </summary>
-        public long MaxBlobSize { get; set; } = 1024 * 4;
-
-        /// <summary>
-        /// Max capacity for blobs in the ContentLocationStore
-        /// </summary>
-        public long MaxBlobCapacity { get; set; } = 1024 * 1024 * 1024;
-
-        /// <summary>
-        /// Returns true if Redis can be used for storing small files.
-        /// </summary>
-        public bool AreBlobsSupported => BlobExpiryTime > TimeSpan.Zero && MaxBlobCapacity > 0 && MaxBlobSize > 0;
-
-        /// <summary>
-        /// The span of time that will delimit the operation count limit for blob operations.
-        /// </summary>
-        public TimeSpan BlobOperationLimitSpan { get; set; } = TimeSpan.FromMinutes(1);
-
-        /// <summary>
-        /// The amount of blob operations that we allow to go to Redis in a given period of time.
-        /// </summary>
-        public long BlobOperationLimitCount { get; set; } = 600;
-
-        /// <summary>
         /// The number of consecutive redis connection errors that will trigger reconnection.
         /// </summary>
         /// <remarks>
@@ -142,16 +112,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         public RetryPolicyConfiguration RetryPolicyConfiguration { get; set; } = null;
 
         /// <summary>
-        /// Timeout for GetBlob/PutBlob operations.
-        /// </summary>
-        public TimeSpan BlobTimeout { get; set; } = TimeSpan.FromSeconds(1);
-
-        /// <summary>
-        /// Timeout for getting .
-        /// </summary>
-        public TimeSpan ClusterRedisOperationTimeout { get; set; } = TimeSpan.FromMinutes(5);
-
-        /// <summary>
         /// Controls which implementation is used for content metadata store
         /// </summary>
         public ContentMetadataStoreMode ContentMetadataStoreMode { get; set; } = ContentMetadataStoreMode.Distributed;
@@ -167,18 +127,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         public ContentMetadataStoreMode? LocationContentMetadataStoreModeOverride { get; set; }
 
         /// <summary>
-        /// Controls which blob operation implementation is used for content metadata store
-        /// </summary>
-        public ContentMetadataStoreMode? BlobContentMetadataStoreModeOverride { get; set; }
-
-        /// <summary>
         /// Gets all specified flags (including from feature-specific overrides) for controlling content metadata store mode.
         /// </summary>
         public ContentMetadataStoreModeFlags AllContentMetadataStoreModeFlags =>
             ContentMetadataStoreMode.Flags()
             | MemoizationContentMetadataStoreModeOverride.Flags()
-            | LocationContentMetadataStoreModeOverride.Flags()
-            | BlobContentMetadataStoreModeOverride.Flags();
+            | LocationContentMetadataStoreModeOverride.Flags();
 
         private bool _useMemoizationContentMetadataStore;
 

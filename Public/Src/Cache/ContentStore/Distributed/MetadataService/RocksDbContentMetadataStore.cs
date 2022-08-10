@@ -20,8 +20,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 {
     public class RocksDbContentMetadataStoreConfiguration
     {
-        public long MaxBlobCapacity { get; init; } = 100_000;
-
         public RocksDbContentMetadataDatabaseConfiguration Database { get; init; }
 
         public bool DisableRegisterLocation { get; init; }
@@ -33,13 +31,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 
         private readonly RocksDbContentMetadataStoreConfiguration _configuration;
 
-        public bool AreBlobsSupported => true;
-
         public override bool AllowMultipleStartupAndShutdowns => true;
 
         protected override Tracer Tracer { get; } = new Tracer(nameof(RocksDbContentMetadataStore));
-
-        private DatabaseCapacity _capacity;
 
         public RocksDbContentMetadataStore(
             IClock clock,
@@ -77,43 +71,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             return BoolResult.SuccessValueTask;
         }
 
-        public Task<PutBlobResult> PutBlobAsync(OperationContext context, ShortHash hash, byte[] blob)
-        {
-
-            var capacity = _capacity;
-            var currentGroup = Database.GetCurrentColumnGroup(RocksDbContentMetadataDatabase.Columns.Blobs);
-            if (capacity?.Group != currentGroup)
-            {
-                Interlocked.CompareExchange(ref _capacity, new DatabaseCapacity()
-                {
-                    Group = currentGroup,
-                    Remaining = _configuration.MaxBlobCapacity,
-                },
-                capacity);
-            }
-
-            if (_capacity.Remaining < blob.Length)
-            {
-                return Task.FromResult(PutBlobResult.OutOfCapacity(hash, blob.Length, ""));
-            }
-
-            if (Database.PutBlob(hash, blob))
-            {
-                Interlocked.Add(ref _capacity.Remaining, -blob.Length);
-                return Task.FromResult(PutBlobResult.NewRedisEntry(hash, blob.Length, "", Math.Max(_capacity.Remaining, 0)));
-            }
-            else
-            {
-                return Task.FromResult(PutBlobResult.RedisHasAlready(hash, blob.Length, ""));
-            }
-        }
-
-        public Task<GetBlobResult> GetBlobAsync(OperationContext context, ShortHash hash)
-        {
-            Database.TryGetBlob(hash, out var blob);
-            return Task.FromResult(new GetBlobResult(hash, blob));
-        }
-
         public Task<Result<bool>> CompareExchangeAsync(
             OperationContext context,
             StrongFingerprint strongFingerprint,
@@ -140,12 +97,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         {
             var result = Database.GetSerializedContentHashList(context, strongFingerprint);
             return Task.FromResult(result);
-        }
-
-        private class DatabaseCapacity
-        {
-            public RocksDbContentMetadataDatabase.ColumnGroup Group { get; init; }
-            public long Remaining;
         }
     }
 }

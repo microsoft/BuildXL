@@ -7,7 +7,6 @@ using System.Diagnostics.ContractsLight;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
-using BuildXL.Cache.ContentStore.Service;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using ProtoBuf;
 
@@ -18,13 +17,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         None,
         GetContentLocations,
         RegisterContentLocations,
-        PutBlob,
-        GetBlob,
+        PutBlob, // WARNING: deprecated
+        GetBlob, // WARNING: deprecated
         CompareExchange,
         GetLevelSelectors,
         GetContentHashList,
-        Heartbeat,
-        GetClusterUpdates,
     }
 
     public static class ServiceRequestExtensions
@@ -76,8 +73,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
     [ProtoContract]
     [ProtoInclude(10, typeof(GetContentLocationsRequest))]
     [ProtoInclude(11, typeof(RegisterContentLocationsRequest))]
-    [ProtoInclude(12, typeof(PutBlobRequest))]
-    [ProtoInclude(13, typeof(GetBlobRequest))]
+    // WARNING: 12 amd 13 are deprecated, DO NOT USE
     [ProtoInclude(14, typeof(GetContentHashListRequest))]
     [ProtoInclude(15, typeof(CompareExchangeRequest))]
     [ProtoInclude(16, typeof(GetLevelSelectorsRequest))]
@@ -107,8 +103,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
     [ProtoContract]
     [ProtoInclude(10, typeof(GetContentLocationsResponse))]
     [ProtoInclude(11, typeof(RegisterContentLocationsResponse))]
-    [ProtoInclude(12, typeof(PutBlobResponse))]
-    [ProtoInclude(13, typeof(GetBlobResponse))]
+    // WARNING: 12 amd 13 are deprecated, DO NOT USE
     [ProtoInclude(14, typeof(GetContentHashListResponse))]
     [ProtoInclude(15, typeof(CompareExchangeResponse))]
     [ProtoInclude(16, typeof(GetLevelSelectorsResponse))]
@@ -168,66 +163,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
     public record RegisterContentLocationsResponse : ServiceResponseBase
     {
         public override RpcMethodId MethodId => RpcMethodId.RegisterContentLocations;
-    }
-
-    [ProtoContract]
-    public record PutBlobRequest : ServiceRequestBase
-    {
-        public override RpcMethodId MethodId => RpcMethodId.PutBlob;
-
-        [ProtoMember(1)]
-        public ShortHash ContentHash { get; init; }
-
-        [ProtoMember(2)]
-        public byte[] Blob { get; init; }
-    }
-
-    [ProtoContract]
-    public record PutBlobResponse : ServiceResponseBase
-    {
-        public override RpcMethodId MethodId => RpcMethodId.PutBlob;
-
-        public PutBlobResult ToPutBlobResult(ShortHash contentHash, long blobSize)
-        {
-            if (ErrorMessage != null)
-            {
-                return new PutBlobResult(hash: contentHash, blobSize: blobSize, errorMessage: ErrorMessage);
-            }
-            else
-            {
-                return new PutBlobResult(hash: contentHash, blobSize: blobSize);
-            }
-        }
-    }
-
-    [ProtoContract]
-    public record GetBlobRequest : ServiceRequestBase
-    {
-        public override RpcMethodId MethodId => RpcMethodId.GetBlob;
-
-        [ProtoMember(1)]
-        public ShortHash ContentHash { get; init; }
-    }
-
-    [ProtoContract]
-    public record GetBlobResponse : ServiceResponseBase
-    {
-        public override RpcMethodId MethodId => RpcMethodId.GetBlob;
-
-        [ProtoMember(1)]
-        public byte[] Blob { get; init; }
-
-        internal GetBlobResult ToGetBlobResult(ShortHash contentHash)
-        {
-            if (ErrorMessage != null)
-            {
-                return new GetBlobResult(ErrorMessage, Diagnostics, contentHash);
-            }
-            else
-            {
-                return new GetBlobResult(contentHash, Blob);
-            }
-        }
     }
 
     [ProtoContract]

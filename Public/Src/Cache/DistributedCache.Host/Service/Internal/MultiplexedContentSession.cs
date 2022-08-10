@@ -15,7 +15,7 @@ using BuildXL.Cache.ContentStore.Sessions.Internal;
 
 namespace BuildXL.Cache.Host.Service.Internal
 {
-    public class MultiplexedContentSession : MultiplexedReadOnlyContentSession, IContentSession, ITrustedContentSession, IDecoratedStreamContentSession
+    public class MultiplexedContentSession : MultiplexedReadOnlyContentSession, IContentSession, ITrustedContentSession
     {
         /// <summary>
         ///     Initializes a new instance of the <see cref="MultiplexedContentSession"/> class.
@@ -73,20 +73,6 @@ namespace BuildXL.Cache.Host.Service.Internal
         {
             var session = GetCache<IContentSession>();
             return session.PutStreamAsync(context, hashType, stream, cts, urgencyHint);
-        }
-
-        /// <inheritdoc />
-        public Task<PutResult> PutFileAsync(Context context, AbsolutePath path, HashType hashType, FileRealizationMode realizationMode, CancellationToken cts, UrgencyHint urgencyHint, Func<Stream, Stream> wrapStream)
-        {
-            var session = GetCache<IDecoratedStreamContentSession>(path);
-            return session.PutFileAsync(context, path, hashType, realizationMode, cts, urgencyHint, wrapStream);
-        }
-
-        /// <inheritdoc />
-        public Task<PutResult> PutFileAsync(Context context, AbsolutePath path, ContentHash contentHash, FileRealizationMode realizationMode, CancellationToken cts, UrgencyHint urgencyHint, Func<Stream, Stream> wrapStream)
-        {
-            var session = GetCache<IDecoratedStreamContentSession>(path);
-            return session.PutFileAsync(context, path, contentHash, realizationMode, cts, urgencyHint, wrapStream);
         }
 
         /// <inheritdoc />

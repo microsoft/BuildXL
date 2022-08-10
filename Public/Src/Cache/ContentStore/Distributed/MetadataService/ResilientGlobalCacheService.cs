@@ -548,11 +548,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                         await RegisterContentLocationsFastAsync((RegisterContentLocationsRequest)request);
                         break;
                     }
-                    case RpcMethodId.PutBlob:
-                    {
-                        await PutBlobAsync((PutBlobRequest)request);
-                        break;
-                    }
                     case RpcMethodId.CompareExchange:
                     {
                         await CompareExchangeAsync((CompareExchangeRequest)request);
@@ -561,11 +556,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                     case RpcMethodId.GetContentLocations:
                     {
                         await GetContentLocationsAsync((GetContentLocationsRequest)request);
-                        break;
-                    }
-                    case RpcMethodId.GetBlob:
-                    {
-                        await GetBlobAsync((GetBlobRequest)request);
                         break;
                     }
                     case RpcMethodId.GetContentHashList:

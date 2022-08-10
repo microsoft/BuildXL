@@ -4,13 +4,11 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
-using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.MetadataService;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.Redis;
 using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Secrets;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
@@ -19,9 +17,7 @@ using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using BuildXL.Cache.ContentStore.InterfacesTest.Time;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
-using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Utilities.Tracing;
-using ContentStoreTest.Distributed.ContentLocation.NuCache;
 using ContentStoreTest.Distributed.Redis;
 using ContentStoreTest.Test;
 using FluentAssertions;
@@ -87,39 +83,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.MetadataService
                 getResponse.Succeeded.Should().BeTrue();
                 getResponse.Entries.Count.Should().Be(1);
                 getResponse.Entries[0].Locations.Contains(machineId).Should().BeTrue();
-            });
-        }
-
-        [Fact(Skip = "Flaky test. Work item - 1950089")]
-        public Task SimpleBlobPutAndGetTest()
-        {
-            return RunTest(async (context, service, iteration) =>
-            {
-                // First heartbeat lets the service know its master, so it's willing to process requests
-                await service.OnRoleUpdatedAsync(context, Role.Master);
-
-                var machineId = new MachineId(0);
-                var data = ThreadSafeRandom.GetBytes((int)100);
-                var contentHash = HashInfoLookup.GetContentHasher(HashType.Vso0).GetContentHash(data);
-
-                var putResponse = await service.PutBlobAsync(new PutBlobRequest()
-                {
-                    ContextId = Guid.NewGuid().ToString(),
-                    ContentHash = contentHash,
-                    Blob = data
-                });
-
-                putResponse.Succeeded.Should().BeTrue();
-
-                var getResponse = await service.GetBlobAsync(new GetBlobRequest()
-                {
-                    ContextId = Guid.NewGuid().ToString(),
-                    ContentHash = contentHash,
-                });
-
-                getResponse.Succeeded.Should().BeTrue();
-                getResponse.Blob.Should().NotBeNull();
-                getResponse.Blob.Should().BeEquivalentTo(data);
             });
         }
 

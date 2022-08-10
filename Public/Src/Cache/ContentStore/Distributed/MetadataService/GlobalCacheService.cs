@@ -104,38 +104,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             });
         }
 
-        public Task<PutBlobResponse> PutBlobAsync(PutBlobRequest request, CallContext callContext = default)
-        {
-            return ExecuteAsync(request, callContext, context =>
-            {
-                // NOTE: We don't persist put blob requests currently because they are not critical.
-                // This can be enabled by setting PersistRequest=true
-                return Store.PutBlobAsync(context, request.ContentHash, request.Blob)
-                    .SelectAsync(_ => new PutBlobResponse());
-            },
-            extraEndMessage: _ => $"Hash=[{request.ContentHash}] Size=[{request.Blob.Length}]");
-        }
-
-        public Task<GetBlobResponse> GetBlobAsync(GetBlobRequest request, CallContext callContext = default)
-        {
-            return ExecuteAsync(request, callContext, context =>
-            {
-                return Store.GetBlobAsync(context, request.ContentHash)
-                    .SelectAsync(r => new GetBlobResponse()
-                    {
-                        Blob = r.Blob,
-                    });
-            },
-            extraEndMessage: r => {
-                if (!r.Succeeded)
-                {
-                    return $"Hash=[{request.ContentHash}]";
-                }
-
-                return $"Hash=[{request.ContentHash}] Size=[{r.Value.Blob?.Length ?? -1}]";
-            });
-        }
-
         public Task<CompareExchangeResponse> CompareExchangeAsync(CompareExchangeRequest request, CallContext callContext = default)
         {
             return ExecuteAsync(request, callContext, context =>

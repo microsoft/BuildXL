@@ -121,11 +121,6 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         public readonly CopyResultCode Code;
 
         /// <summary>
-        /// Optional byte array with the bytes that were copied during a trusted copy.
-        /// </summary>
-        public byte[]? BytesFromTrustedCopy { get; set; }
-
-        /// <summary>
         /// Minimum bandwidth speed for a copy operation in MbPerSec
         /// </summary>
         public double? MinimumSpeedInMbPerSec { get; set; }

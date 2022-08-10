@@ -61,7 +61,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 return PutCoreAsync(
                     operationContext,
                     urgencyHint,
-                    (decoratedStreamSession, wrapStream) => decoratedStreamSession.PutFileAsync(operationContext, path, hashType, realizationMode, operationContext.Token, urgencyHint, wrapStream),
                     session => session.PutFileAsync(operationContext, hashType, path, realizationMode, operationContext.Token, urgencyHint));
             });
         }
@@ -82,7 +81,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 return PutCoreAsync(
                     operationContext,
                     urgencyHint,
-                    (decoratedStreamSession, wrapStream) => decoratedStreamSession.PutFileAsync(operationContext, path, contentHash, realizationMode, operationContext.Token, urgencyHint, wrapStream),
                     session => session.PutFileAsync(operationContext, contentHash, path, realizationMode, operationContext.Token, urgencyHint));
             });
         }
@@ -111,7 +109,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             return PutCoreAsync(
                 operationContext,
                 urgencyHint,
-                (decoratedStreamSession, wrapStream) => decoratedStreamSession.PutStreamAsync(operationContext, hashType, wrapStream(stream), operationContext.Token, urgencyHint),
                 session => session.PutStreamAsync(operationContext, hashType, stream, operationContext.Token, urgencyHint));
         }
 
@@ -126,7 +123,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             return PutCoreAsync(
                 operationContext,
                 urgencyHint,
-                (decoratedStreamSession, wrapStream) => decoratedStreamSession.PutStreamAsync(operationContext, contentHash, wrapStream(stream), operationContext.Token, urgencyHint),
                 session => session.PutStreamAsync(operationContext, contentHash, stream, operationContext.Token, urgencyHint));
         }
 
@@ -137,34 +133,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         private async Task<PutResult> PutCoreAsync(
             OperationContext context,
             UrgencyHint urgencyHint,
-            Func<IDecoratedStreamContentSession, Func<Stream, Stream>, Task<PutResult>> putRecordedAsync,
             Func<IContentSession, Task<PutResult>> putAsync)
         {
-            PutResult result;
-            if (ContentLocationStore.AreBlobsSupported && Inner is IDecoratedStreamContentSession decoratedStreamSession)
-            {
-                RecordingStream recorder = null;
-                result = await putRecordedAsync(decoratedStreamSession, stream =>
-                {
-                    if (stream.CanSeek && stream.Length <= ContentLocationStore.MaxBlobSize)
-                    {
-                        recorder = RecordingStream.ReadRecordingStream(inner: stream, size: stream.Length);
-                        return recorder;
-                    }
-
-                    return stream;
-                });
-
-                if (result && recorder != null)
-                {
-                    await PutBlobAsync(context, result.ContentHash, recorder.RecordedBytes);
-                }
-            }
-            else
-            {
-                result = await putAsync(Inner);
-            }
-
+            PutResult result = await putAsync(Inner);
             if (!result)
             {
                 return result;

@@ -27,8 +27,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
     /// </summary>
     public class ClientGlobalCacheStore : StartupShutdownComponentBase, IGlobalCacheStore
     {
-        public bool AreBlobsSupported => _configuration.AreBlobsSupported;
-
         /// <inheritdoc />
         public override bool AllowMultipleStartupAndShutdowns => true;
 
@@ -173,35 +171,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                     var csv = string.Join(",", contentHashes.Select(s => s.Hash));
                     return $"MachineId=[{machineId}] Touch=[{touch}] Hashes=(#{contentHashes.Count})[{csv}]";
                 }));
-        }
-
-        public Task<PutBlobResult> PutBlobAsync(OperationContext context, ShortHash hash, byte[] blob)
-        {
-            return ExecuteAsync(context, async (context, callOptions, service) =>
-            {
-                var response = await service.PutBlobAsync(new PutBlobRequest()
-                {
-                    ContentHash = hash,
-                    Blob = blob,
-                }, callOptions);
-
-                return response.ToPutBlobResult(hash, blob.Length);
-            },
-            extraEndMessage: _ => $"Hash=[{hash}] Size=[{blob.Length}]");
-        }
-
-        public Task<GetBlobResult> GetBlobAsync(OperationContext context, ShortHash hash)
-        {
-            return ExecuteAsync(context, async (context, callOptions, service) =>
-            {
-                var response = await service.GetBlobAsync(new GetBlobRequest()
-                {
-                    ContentHash = hash,
-                }, callOptions);
-
-                return response.ToGetBlobResult(hash);
-            },
-            extraEndMessage: r => $"Hash=[{hash}] Size=[{r.Blob?.Length ?? -1}]");
         }
 
         public Task<Result<bool>> CompareExchangeAsync(

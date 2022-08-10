@@ -40,21 +40,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         /// because this method can be called a lot at start time of the service.
         /// </remarks>
         ValueTask<BoolResult> RegisterLocationAsync(OperationContext context, MachineId machineId, IReadOnlyList<ShortHashWithSize> contentHashes, bool touch);
-
-        /// <summary>
-        /// Puts a blob into the content location store.
-        /// </summary>
-        Task<PutBlobResult> PutBlobAsync(OperationContext context, ShortHash hash, byte[] blob);
-
-        /// <summary>
-        /// Gets a blob from the content location store.
-        /// </summary>
-        Task<GetBlobResult> GetBlobAsync(OperationContext context, ShortHash hash);
-
-        /// <summary>
-        /// Gets a value indicating whether the store supports storing and retrieving blobs.
-        /// </summary>
-        bool AreBlobsSupported { get; }
     }
 
     public interface IMetadataStore : IStartupShutdownSlim

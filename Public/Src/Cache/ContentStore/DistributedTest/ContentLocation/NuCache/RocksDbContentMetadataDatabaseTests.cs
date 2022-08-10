@@ -49,8 +49,7 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
         private enum KeyCheckResult
         {
             Missing,
-            Different,
-            Valid
+            Existing
         }
 
         [Fact]
@@ -129,25 +128,19 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
             var context = new Context(Logger);
             var ctx = new OperationContext(context);
 
+            var machineId = new MachineId(0);
             var keys = Enumerable.Range(0, 10).Select(i => (ShortHash)ContentHash.Random()).ToArray();
 
             void setBlob(RocksDbContentMetadataDatabase db, ShortHash key)
             {
-                db.PutBlob(key, key.ToByteArray());
+                db.LocationAdded(ctx, machineId, new[] { new ShortHashWithSize(key, 10) }, touch: false);
             }
 
             KeyCheckResult checkBlob(RocksDbContentMetadataDatabase db, ShortHash key)
             {
-                if (db.TryGetBlob(key, out var blob))
+                if (db.TryGetEntry(ctx, key, out var entry))
                 {
-                    if (ByteArrayComparer.ArraysEqual(blob, key.ToByteArray()))
-                    {
-                        return KeyCheckResult.Valid;
-                    }
-                    else
-                    {
-                        return KeyCheckResult.Different;
-                    }
+                    return KeyCheckResult.Existing;
                 }
                 else
                 {
@@ -160,16 +153,16 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
                 await db.StartupAsync(ctx).ShouldBeSuccess();
                 db.SetGlobalEntry("test", "hello");
                 setBlob(db, keys[0]);
-                checkBlob(db, keys[0]).Should().Be(KeyCheckResult.Valid);
+                checkBlob(db, keys[0]).Should().Be(KeyCheckResult.Existing);
 
                 await db.GarbageCollectAsync(ctx, force: true).ShouldBeSuccess();
                 setBlob(db, keys[1]);
-                checkBlob(db, keys[0]).Should().Be(KeyCheckResult.Valid);
-                checkBlob(db, keys[1]).Should().Be(KeyCheckResult.Valid);
+                checkBlob(db, keys[0]).Should().Be(KeyCheckResult.Existing);
+                checkBlob(db, keys[1]).Should().Be(KeyCheckResult.Existing);
 
                 await db.GarbageCollectAsync(ctx, force: true).ShouldBeSuccess();
                 checkBlob(db, keys[0]).Should().Be(KeyCheckResult.Missing);
-                checkBlob(db, keys[1]).Should().Be(KeyCheckResult.Valid);
+                checkBlob(db, keys[1]).Should().Be(KeyCheckResult.Existing);
 
                 await db.ShutdownAsync(ctx).ShouldBeSuccess();
             }
@@ -184,13 +177,13 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
                 setBlob(db, keys[2]);
 
                 checkBlob(db, keys[0]).Should().Be(KeyCheckResult.Missing);
-                checkBlob(db, keys[1]).Should().Be(KeyCheckResult.Valid);
-                checkBlob(db, keys[2]).Should().Be(KeyCheckResult.Valid);
+                checkBlob(db, keys[1]).Should().Be(KeyCheckResult.Existing);
+                checkBlob(db, keys[2]).Should().Be(KeyCheckResult.Existing);
                 await db.GarbageCollectAsync(ctx, force: true).ShouldBeSuccess();
 
                 checkBlob(db, keys[0]).Should().Be(KeyCheckResult.Missing);
                 checkBlob(db, keys[1]).Should().Be(KeyCheckResult.Missing);
-                checkBlob(db, keys[2]).Should().Be(KeyCheckResult.Valid);
+                checkBlob(db, keys[2]).Should().Be(KeyCheckResult.Existing);
 
                 await db.ShutdownAsync(ctx).ShouldBeSuccess();
             }
@@ -204,7 +197,7 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
                 var db = new RocksDbContentMetadataDatabase(Clock, configuration);
                 await db.StartupAsync(ctx).ShouldBeSuccess();
 
-                checkBlob(db, keys[2]).Should().Be(KeyCheckResult.Valid);
+                checkBlob(db, keys[2]).Should().Be(KeyCheckResult.Existing);
 
                 await db.GarbageCollectAsync(ctx, force: false).ShouldBeSuccess();
 

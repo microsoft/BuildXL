@@ -19,11 +19,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public TimeSpan OperationTimeout { get; set; } = TimeSpan.FromMinutes(20);
 
         /// <summary>
-        /// Whether the server-side supports blob operations
-        /// </summary>
-        public bool AreBlobsSupported { get; set; } = true;
-
-        /// <summary>
         /// Minimum wait time between retries
         /// </summary>
         public TimeSpan RetryMinimumWaitTime { get; set; } = TimeSpan.FromMilliseconds(5);

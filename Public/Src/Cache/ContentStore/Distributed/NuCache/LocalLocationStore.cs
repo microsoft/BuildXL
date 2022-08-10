@@ -283,11 +283,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return (Configuration.Checkpoint.WorkingDirectory / $"reconcileMarker.{machineId.Index}.txt").Path;
         }
 
-        /// <summary>
-        /// Gets a value indicating whether the store supports storing and retrieving blobs.
-        /// </summary>
-        public bool AreBlobsSupported => GlobalCacheStore.AreBlobsSupported;
-
         private ContentLocationEventStore CreateEventStore(LocalLocationStoreConfiguration configuration, string subfolder)
         {
             return ContentLocationEventStore.Create(
@@ -2348,18 +2343,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                     return BoolResult.Success;
                 });
-        }
-
-        /// <nodoc />
-        public async Task<BoolResult> PutBlobAsync(OperationContext context, ContentHash hash, byte[] blob)
-        {
-            return await GlobalCacheStore.PutBlobAsync(context, hash, blob);
-        }
-
-        /// <nodoc />
-        public Task<GetBlobResult> GetBlobAsync(OperationContext context, ContentHash hash)
-        {
-            return GlobalCacheStore.GetBlobAsync(context, hash);
         }
 
         private void OnContentLocationDatabaseInvalidation(OperationContext context, Failure<Exception> failure)

@@ -250,7 +250,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Tracing
                           + $"MachineReputationEnabled={configuration.ReputationTrackerConfiguration?.Enabled ?? false}, "
                           + $"Checkpoint={configuration.Checkpoint != null}, "
                           + $"RaidedRedis={configuration.RedisGlobalStoreSecondaryConnectionString != null}, "
-                          + $"SmallFilesInRedis={configuration.AreBlobsSupported}, "
                           + $"DistributedCentralStore={configuration.DistributedCentralStore != null}, "
                           + $"EventHub={configuration.EventStore is EventHubContentLocationEventStoreConfiguration}, "
                           + blobStoreConfigurationAsText

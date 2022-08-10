@@ -366,11 +366,6 @@ namespace BuildXL.Cache.ContentStore.Distributed
         public bool TouchContentHashLists { get; set; }
 
         /// <summary>
-        /// Whether to create a separate Redis connection for blob operations.
-        /// </summary>
-        public bool UseSeparateConnectionForRedisBlobs { get; set; } = false;
-
-        /// <summary>
         /// Whether to filter out inactive machines in <see cref="LocalLocationStore"/> or rely on the old behavior when the filtering was happening on the database level only.
         /// </summary>
         public bool ShouldFilterInactiveMachinesInLocalLocationStore { get; set; } = false;

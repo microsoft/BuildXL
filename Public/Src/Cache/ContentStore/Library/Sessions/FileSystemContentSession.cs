@@ -21,7 +21,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
     /// <summary>
     ///     An <see cref="IContentSession"/> implemented over a <see cref="FileSystemContentStoreInternal"/>
     /// </summary>
-    public class FileSystemContentSession : ReadOnlyFileSystemContentSession, ITrustedContentSession, IDecoratedStreamContentSession
+    public class FileSystemContentSession : ReadOnlyFileSystemContentSession, ITrustedContentSession
     {
         /// <summary>
         ///     Initializes a new instance of the <see cref="FileSystemContentSession" /> class.
@@ -87,18 +87,6 @@ namespace BuildXL.Cache.ContentStore.Sessions
             Counter retryCounter)
         {
             return Store.PutStreamAsync(operationContext, stream, contentHash, MakePinRequest(ImplicitPin.Put));
-        }
-
-        /// <inheritdoc />
-        public Task<PutResult> PutFileAsync(Context context, AbsolutePath path, HashType hashType, FileRealizationMode realizationMode, CancellationToken cts, UrgencyHint urgencyHint, Func<Stream, Stream> wrapStream)
-        {
-            return Store.PutFileAsync(context, path, hashType, realizationMode,  wrapStream, MakePinRequest(ImplicitPin.Put));
-        }
-
-        /// <inheritdoc />
-        public Task<PutResult> PutFileAsync(Context context, AbsolutePath path, ContentHash contentHash, FileRealizationMode realizationMode, CancellationToken cts, UrgencyHint urgencyHint, Func<Stream, Stream> wrapStream)
-        {
-            return Store.PutFileAsync(context, path, contentHash, realizationMode, wrapStream, MakePinRequest(ImplicitPin.Put));
         }
 
         /// <inheritdoc />

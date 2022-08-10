@@ -304,25 +304,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
                 "secondaryRedisDatabase",
                 optional: true);
 
-            RedisDatabaseAdapter redisBlobDatabase;
-            RedisDatabaseAdapter? secondaryRedisBlobDatabase;
-            if (Configuration.UseSeparateConnectionForRedisBlobs)
-            {
-                // To prevent blob opoerations from blocking other operations, create a separate connections for them.
-                redisBlobDatabase = ConfigurableRedisDatabaseFactory.CreateDatabase(Configuration, redisDatabaseFactoryForRedisGlobalStore, "primaryRedisBlobDatabase");
-                secondaryRedisBlobDatabase = ConfigurableRedisDatabaseFactory.CreateDatabase(
-                    Configuration,
-                    redisDatabaseFactoryForRedisGlobalStoreSecondary,
-                    "secondaryRedisBlobDatabase",
-                    optional: true);
-            }
-            else
-            {
-                redisBlobDatabase = redisDatabaseForGlobalStore;
-                secondaryRedisBlobDatabase = secondaryRedisDatabaseForGlobalStore;
-            }
-
-            var globalStore = new RedisGlobalStore(Arguments.Clock, Configuration, redisDatabaseForGlobalStore, secondaryRedisDatabaseForGlobalStore, redisBlobDatabase, secondaryRedisBlobDatabase, MasterElectionMechanism.Instance);
+            var globalStore = new RedisGlobalStore(Arguments.Clock, Configuration, redisDatabaseForGlobalStore, secondaryRedisDatabaseForGlobalStore, MasterElectionMechanism.Instance);
             return globalStore;
         }
     }

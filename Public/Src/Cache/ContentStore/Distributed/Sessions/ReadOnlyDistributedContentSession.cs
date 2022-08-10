@@ -870,21 +870,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 Tracer.Debug(operationContext, $"Copying {hashInfo.ContentHash.ToShortString()} with {hashInfo.Locations?.Count ?? 0 } locations");
             }
 
-            if (ContentLocationStore.AreBlobsSupported && hashInfo.Size > 0 && hashInfo.Size <= ContentLocationStore.MaxBlobSize)
-            {
-                var smallFileResult = await ContentLocationStore.GetBlobAsync(operationContext, hashInfo.ContentHash);
-
-                if (smallFileResult.Succeeded && smallFileResult.Blob != null)
-                {
-                    using (var stream = new MemoryStream(smallFileResult.Blob))
-                    {
-                        return await Inner.PutStreamAsync(context, hashInfo.ContentHash, stream, cts, urgencyHint);
-                    }
-                }
-            }
-
-            byte[]? bytes = null;
-
             var copyCompression = CopyCompression.None;
             var copyCompressionThreshold = Settings.GrpcCopyCompressionSizeThreshold ?? 0;
             if (copyCompressionThreshold > 0 && hashInfo.Size > copyCompressionThreshold)
@@ -912,51 +897,19 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                             FileRealizationMode.Move,
                             cts,
                             urgencyHint);
-
-                        // BytesFromTrustedCopy will only be non-null when the trusted copy exposes the bytes it copied because AreBlobsSupported evaluated to true
-                        //  and the file size is smaller than BlobMaxSize.
-                        if (innerPutResult && copyFileResult.BytesFromTrustedCopy != null)
-                        {
-                            bytes = copyFileResult.BytesFromTrustedCopy;
-                        }
                     }
                     else
                     {
                         // Pass the HashType, not the Hash. This prompts a re-hash of the file, which places it where its actual hash requires.
                         // If the actual hash differs from the expected hash, then we fail below and move to the next location.
                         // Also, record the bytes if the file is small enough to be put into the ContentLocationStore.
-                        if (actualSize >= 0 && actualSize <= ContentLocationStore.MaxBlobSize &&
-                            ContentLocationStore.AreBlobsSupported && Inner is IDecoratedStreamContentSession decoratedStreamSession)
-                        {
-                            RecordingStream? recorder = null;
-                            innerPutResult = await decoratedStreamSession.PutFileAsync(
-                                context,
-                                tempLocation,
-                                hashInfo.ContentHash.HashType,
-                                FileRealizationMode.Move,
-                                cts,
-                                urgencyHint,
-                                stream =>
-                                {
-                                    recorder = RecordingStream.ReadRecordingStream(inner: stream, size: actualSize);
-                                    return recorder;
-                                });
-
-                            if (innerPutResult && recorder != null)
-                            {
-                                bytes = recorder.RecordedBytes;
-                            }
-                        }
-                        else
-                        {
-                            innerPutResult = await Inner.PutFileAsync(
-                                context,
-                                hashInfo.ContentHash.HashType,
-                                tempLocation,
-                                FileRealizationMode.Move,
-                                cts,
-                                urgencyHint);
-                        }
+                        innerPutResult = await Inner.PutFileAsync(
+                            context,
+                            hashInfo.ContentHash.HashType,
+                            tempLocation,
+                            FileRealizationMode.Move,
+                            cts,
+                            urgencyHint);
                     }
 
                     return innerPutResult;
@@ -970,38 +923,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             }
 
             var putResult = await DistributedCopier.TryCopyAndPutAsync(operationContext, copyRequest);
-            if (bytes != null && putResult.Succeeded)
-            {
-                await PutBlobAsync(operationContext, putResult.ContentHash, bytes);
-            }
 
             return putResult;
-        }
-
-        /// <summary>
-        /// Puts a given blob into redis (either inline or not depending on the settings).
-        /// </summary>
-        /// <remarks>
-        /// This method won't fail, because all the errors are traced and swallowed.
-        /// </remarks>
-        protected async Task PutBlobAsync(OperationContext context, ContentHash contentHash, byte[] bytes)
-        {
-            if (Settings.InlineOperationsForTests)
-            {
-                // Failures already traced. No need to trace it here one more time.
-                await ContentLocationStore.PutBlobAsync(context, contentHash, bytes).IgnoreFailure();
-            }
-            else
-            {
-                // Fire and forget since this step is optional.
-                // Since the rest of the operation is done asynchronously, create new context to stop cancelling operation prematurely.
-                WithStoreCancellationAsync(
-                        context,
-                        opContext => ContentLocationStore.PutBlobAsync(opContext, contentHash, bytes)
-                    )
-                    // Tracing unhandled errors only because normal failures already traced by the operation provider.
-                    .TraceIfFailure(context, failureSeverity: Severity.Debug, traceTaskExceptionsOnly: true, operation: "PutBlobAsync");
-            }
         }
 
         /// <summary>

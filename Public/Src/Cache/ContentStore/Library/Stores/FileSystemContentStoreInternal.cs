@@ -2984,22 +2984,6 @@ namespace BuildXL.Cache.ContentStore.Stores
             return maxContentPathLengthRelativeToCacheRoot;
         }
 
-        /// <summary>
-        ///     Adds the content to the store, while providing an option to wrap the stream used while hashing with another stream.
-        /// </summary>
-        public Task<PutResult> PutFileAsync(Context context, AbsolutePath path, HashType hashType, FileRealizationMode realizationMode, Func<Stream, Stream> wrapStream, PinRequest? pinRequest = null)
-        {
-            return PutFileImplAsync(context, path, realizationMode, hashType, pinRequest, trustedHashWithSize: null, wrapStream);
-        }
-
-        /// <summary>
-        /// Adds the content to the store without rehashing it. If hashing ends up being necessary, provides an option to wrap the stream used while hashing with another stream.
-        /// </summary>
-        public Task<PutResult> PutFileAsync(Context context, AbsolutePath path, ContentHash contentHash, FileRealizationMode realizationMode, Func<Stream, Stream> wrapStream, PinRequest? pinRequest = null)
-        {
-            return PutFileImplAsync(context, path, realizationMode, contentHash, pinRequest, wrapStream);
-        }
-
         private class NonClosingEmptyMemoryStream : MemoryStream
         {
             public NonClosingEmptyMemoryStream()

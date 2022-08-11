@@ -136,7 +136,22 @@ namespace BuildXL.Ipc.GrpcBasedIpc
                     var result = await rpc;
                         
                     operation.Timestamp.Request_AfterServerAckTime = DateTime.UtcNow;
-                    return result.FromGrpc();
+
+                    var beforeDeserialize = DateTime.UtcNow;
+                    var deserializedResult = result.FromGrpc();
+
+                    var now = DateTime.UtcNow;
+                    deserializedResult.Timestamp.Response_BeforeDeserializeTime = beforeDeserialize;
+                    deserializedResult.Timestamp.Response_AfterDeserializeTime = now;
+
+                    // These statistics are only meaningful in the MutiplexingClient implementation
+                    // and should be removed or tweaked a bit once we transition to this implementation.
+                    // They are used to calculate some counters (see PipExecutor.cs) so we set them here
+                    // to avoid garbage calculations.
+                    deserializedResult.Timestamp.Response_BeforeSetTime = now;
+                    deserializedResult.Timestamp.Response_AfterSetTime = now;
+
+                    return deserializedResult;
                 }
                 catch (RpcException e)
                 {

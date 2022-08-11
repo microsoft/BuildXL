@@ -8,6 +8,11 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 -	Add performance optimized extension methods for IReadOnlyList.
 -	Various bug fixes.
 
+# 0.1.0-20220728.5 (Release [202601](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=202601)) Released 8/3/2022
+-	Track source rewrites on Linux
+-	Expose allowed surviving processes in JS/MSBuild resolvers
+-	Some bug fixes 
+
 # 0.1.0-20220721.4 (Release [199845](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=199845)) Released 7/27/2022
 -	Fix windows language pack file access violation for Javascript builds
 -	Enable additional unit & integration tests on Linux

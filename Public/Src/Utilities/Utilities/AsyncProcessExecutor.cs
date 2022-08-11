@@ -90,7 +90,7 @@ namespace BuildXL.Utilities
             const int ErrorValue = -1;
             try
             {
-                return Process != null && !Process.HasExited
+                return Process != null
                     ? Process.Id // if the process already exited Process.Id throws
                     : ErrorValue;
             }
@@ -234,6 +234,7 @@ namespace BuildXL.Utilities
             }
 
             StartTime = DateTime.UtcNow;
+            m_processId = Process.Id;
             Log($"started at {StartTime}");
         }
 
@@ -333,11 +334,7 @@ namespace BuildXL.Utilities
 
         private void Log(FormattableString message)
         {
-            var pid = -1;
-#pragma warning disable ERP022 // Unobserved exception in generic exception handler
-            try { pid = ProcessId; } catch { }
-#pragma warning restore ERP022 // Unobserved exception in generic exception handler
-            m_logger?.Invoke(FormattableStringEx.I($"Process({pid}) - {message}"));
+            m_logger?.Invoke(FormattableStringEx.I($"Process({ProcessId}) - {message}"));
         }
 
         private static void FeedOutputBuilder(TaskSourceSlim<Unit> signalCompletion, string line, Action<string> eat)

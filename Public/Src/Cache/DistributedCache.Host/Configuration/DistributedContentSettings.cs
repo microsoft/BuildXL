@@ -820,6 +820,12 @@ namespace BuildXL.Cache.Host.Configuration
         public double? CreateCheckpointIntervalMinutes { get; set; }
 
         [DataMember]
+        public TimeSpanSetting? GlobalCacheCreateCheckpointInterval { get; set; }
+
+        [DataMember]
+        public TimeSpanSetting? GlobalCacheRestoreCheckpointInterval { get; set; }
+
+        [DataMember]
         [Validation.Range(0, double.MaxValue, minInclusive: false)]
         public double? RestoreCheckpointIntervalMinutes { get; set; }
 

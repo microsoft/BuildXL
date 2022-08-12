@@ -184,7 +184,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
                 },
                 Checkpoint = RedisContentLocationStoreConfiguration.Checkpoint with
                 {
-                    WorkingDirectory = Arguments.PrimaryCacheRoot / "cmschkpt"
+                    WorkingDirectory = Arguments.PrimaryCacheRoot / "cmschkpt",
+                    RestoreCheckpointInterval = DistributedContentSettings.GlobalCacheRestoreCheckpointInterval ?? RedisContentLocationStoreConfiguration.Checkpoint.RestoreCheckpointInterval,
+                    CreateCheckpointInterval = DistributedContentSettings.GlobalCacheCreateCheckpointInterval ?? RedisContentLocationStoreConfiguration.Checkpoint.CreateCheckpointInterval
                 },
             };
         }

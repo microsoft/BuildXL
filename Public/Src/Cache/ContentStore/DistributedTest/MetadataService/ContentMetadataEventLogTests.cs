@@ -102,19 +102,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.MetadataService
 
                 var cursor = await stream.BeforeCheckpointAsync(context).ThrowIfFailureAsync();
 
-                if (volatileStorageFailure == FailureMode.All)
-                {
-                    await CollectStream(context, stream, cursor).ShouldBeError();
-                }
-                else
-                {
-                    var events = await CollectStream(context, stream, cursor).ThrowIfFailureAsync();
-                    events.Count.Should().Be(testSize);
+                var events = await CollectStream(context, stream, cursor).ThrowIfFailureAsync();
+                events.Count.Should().Be(testSize);
 
-                    for (var i = 0; i < requests.Length; i++)
-                    {
-                        (events[i] as RegisterContentLocationsRequest).MachineId.Should().BeEquivalentTo(requests[i].MachineId);
-                    }
+                for (var i = 0; i < requests.Length; i++)
+                {
+                    (events[i] as RegisterContentLocationsRequest).MachineId.Should().BeEquivalentTo(requests[i].MachineId);
                 }
             },
             persistentStorageFailure: persistentStorageFailure,
@@ -145,15 +138,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.MetadataService
 
                 var cursor = await stream.BeforeCheckpointAsync(context).ThrowIfFailureAsync();
 
-                if (volatileStorageFailure == FailureMode.All)
-                {
-                    await CollectStream(context, stream, cursor).ShouldBeError();
-                }
-                else
-                {
-                    var events = await CollectStream(context, stream, cursor).ThrowIfFailureAsync();
-                    events.Count.Should().Be(testSize);
-                }
+                var events = await CollectStream(context, stream, cursor).ThrowIfFailureAsync();
+                events.Count.Should().Be(testSize);
             }, contentMetadataEventStreamConfiguration: new ContentMetadataEventStreamConfiguration()
             {
                 LogBlockRefreshInterval = logRefreshFrequency,
@@ -186,15 +172,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.MetadataService
                     // all events we have posted
                 }
 
-                if (volatileStorageFailure == FailureMode.All)
-                {
-                    await CollectStream(context, stream, cursors[0]).ShouldBeError();
-                }
-                else
-                {
-                    var events = await CollectStream(context, stream, cursors[0]).ThrowIfFailureAsync();
-                    events.Count.Should().Be(testSize);
-                }
+                var events = await CollectStream(context, stream, cursors[0]).ThrowIfFailureAsync();
+                events.Count.Should().Be(testSize);
             },
             persistentStorageFailure: persistentStorageFailure,
             volatileStorageFailure: volatileStorageFailure);
@@ -230,15 +209,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.MetadataService
                     // all events we have posted
                 }
 
-                if (volatileStorageFailure == FailureMode.All)
-                {
-                    await CollectStream(context, stream, cursors[0]).ShouldBeError();
-                }
-                else
-                {
-                    var events = await CollectStream(context, stream, cursors[0]).ThrowIfFailureAsync();
-                    events.Count.Should().Be(2 * testSize);
-                }
+                var events = await CollectStream(context, stream, cursors[0]).ThrowIfFailureAsync();
+                events.Count.Should().Be(2 * testSize);
             }, contentMetadataEventStreamConfiguration: new ContentMetadataEventStreamConfiguration()
             {
                 LogBlockRefreshInterval = logRefreshFrequency,

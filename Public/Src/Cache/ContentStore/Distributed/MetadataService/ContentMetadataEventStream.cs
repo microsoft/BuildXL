@@ -182,7 +182,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                                 return BoolResult.Success;
                             },
                             caller: "ReadWriteBehindEventsAsync",
-                            extraEndMessage: _ => $"IsSealed=[{isSealed}], LogId=[{logId}], BlockId=[{blockId}], Bytes=[{bytes}] Events=[{operationReadEvents}]").ThrowIfFailureAsync();
+                            extraEndMessage: _ => $"IsSealed=[{isSealed}], LogId=[{logId}], BlockId=[{blockId}], Bytes=[{bytes}] Events=[{operationReadEvents}]").IgnoreFailure();
 
                         if (!isSealed && hasWriteBehindLog)
                         {
@@ -191,7 +191,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                             bool moveNext = true;
                             while (moveNext)
                             {
-                                moveNext = await context.PerformOperationAsync(
+                                moveNext = (await context.PerformOperationAsync(
                                     Tracer,
                                     async () =>
                                     {
@@ -221,7 +221,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                                         return Result.Success(true);
                                     },
                                     caller: "ReadWriteAheadEventsAsync",
-                                    extraEndMessage: _ => $"LogId=[{logId}], BlockId=[{blockId}], Bytes=[{bytes}], Events=[{operationReadEvents}]").ThrowIfFailureAsync();
+                                    extraEndMessage: _ => $"LogId=[{logId}], BlockId=[{blockId}], Bytes=[{bytes}], Events=[{operationReadEvents}]")).GetValueOrDefault();
                             }
                         }
 

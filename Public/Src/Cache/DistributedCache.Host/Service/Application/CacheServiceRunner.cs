@@ -182,7 +182,7 @@ namespace BuildXL.Cache.Host.Service
                     var host = createHost(hostParameters, config, token);
 
                     await DistributedCacheServiceFacade.RunWithConfigurationAsync(
-                        logger: context.TracingContext.Logger,
+                        tracingContext: context,
                         host: host,
                         hostInfo: hostInfo,
                         telemetryFieldsProvider: new HostTelemetryFieldsProvider(hostParameters),

@@ -402,7 +402,7 @@ namespace BuildXL.Cache.Tests
             AssertSuccess(await cache.ShutdownAsync());
         }
 
-        [Fact(Skip = "Flaky test")]
+        [Fact(Skip = "Flaky test. Work item - 1950089")]
         public async Task TestGcMulti()
         {
             // To keep test time down, we do all of the "safely skipped during GC" tests in one go

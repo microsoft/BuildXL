@@ -9,6 +9,7 @@ using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using System.Xml;
+using BuildXL.Cache.ContentStore.Distributed.Redis;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
@@ -20,6 +21,10 @@ using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.Host.Configuration;
 using BuildXL.Cache.Logging;
 using BuildXL.Cache.Logging.External;
+using BuildXL.Utilities.ConfigurationHelpers;
+using BuildXL.Utilities.Tasks;
+
+#nullable enable
 
 namespace BuildXL.Cache.Host.Service
 {
@@ -29,6 +34,7 @@ namespace BuildXL.Cache.Host.Service
     public static class LoggerFactory
     {
         private static readonly Tracer Tracer = new Tracer(nameof(LoggerFactory));
+
         /// <summary>
         ///     This method allows CASaaS to replace the host's logger for our own logger.
         /// </summary>
@@ -43,19 +49,19 @@ namespace BuildXL.Cache.Host.Service
         ///     host's logger, in which case we don't consider that we own it, because clean up may happen on whatever
         ///     code is actually using us, so we don't want to dispose in that case.
         /// </remarks>
-        public static (ILogger Logger, IDisposable DisposableToken) CreateReplacementLogger(LoggerFactoryArguments arguments)
+        public static (ILogger Logger, IDisposable? DisposableToken) ReplaceLogger(LoggerFactoryArguments arguments)
         {
             var logger = arguments.Logger;
 
             var loggingSettings = arguments.LoggingSettings;
-            if (string.IsNullOrEmpty(loggingSettings?.NLogConfigurationPath))
+            if (loggingSettings is null || string.IsNullOrEmpty(loggingSettings.NLogConfigurationPath))
             {
-                return (logger, null);
+                return (logger, DisposableToken: null);
             }
 
             // This context is associated to the host's logger. In this way, we can make sure that if we have any
             // issues with our logging, we can always go and read the host's logs to figure out what's going on.
-            var context = new Context(logger);
+            var context = arguments.TracingContext;
             var operationContext = new OperationContext(context);
 
             Tracer.Info(context, $"Replacing cache logger for NLog-based implementation using configuration file at `{loggingSettings.NLogConfigurationPath}`");
@@ -63,7 +69,11 @@ namespace BuildXL.Cache.Host.Service
             try
             {
                 var nLogAdapter = CreateNLogAdapter(operationContext, arguments);
-                context = new Context(nLogAdapter);
+
+                // Replacing a logger passed to the context to allow the components that saved the context to its internal state
+                // to trace messages to Kusto and Mdm as well.
+                context.ReplaceLogger(nLogAdapter);
+                
                 if (arguments.Logger is IOperationLogger operationLogger)
                 {
                     // NOTE(jubayard): the MetricsAdapter doesn't own the loggers, and hence won't dispose them. This
@@ -72,20 +82,22 @@ namespace BuildXL.Cache.Host.Service
                     var wrapper = new MetricsAdapter(nLogAdapter, operationLogger);
                     return (wrapper, nLogAdapter);
                 }
+
                 // The current implementation now supports the mdm metrics as well.
-                if (!string.IsNullOrEmpty(arguments.LoggingSettings.MdmAccountName))
+                if (!string.IsNullOrEmpty(loggingSettings.MdmAccountName))
                 {
                     Tracer.Debug(context, "Creating MetricsLogger with an in-proc MdmOperationLogger.");
-                    operationLogger = MdmOperationLogger.Create(context, arguments.LoggingSettings.MdmAccountName, GetDefaultDimensions(arguments));
+                    operationLogger = MdmOperationLogger.Create(context, loggingSettings.MdmAccountName, GetDefaultDimensions(arguments));
                     var wrapper = new MetricsAdapter(nLogAdapter, operationLogger);
                     return (wrapper, nLogAdapter);
                 }
+
                 return (nLogAdapter, nLogAdapter);
             }
             catch (Exception e)
             {
                 Tracer.Error(context, $"Failed to instantiate NLog-based logger with error: {e}");
-                return (logger, null);
+                return (logger, DisposableToken: null);
             }
         }
 
@@ -158,7 +170,7 @@ namespace BuildXL.Cache.Host.Service
             var processStartTimeUtc = SystemClock.Instance.UtcNow.ToString("o", System.Globalization.CultureInfo.InvariantCulture);
             NLog.LayoutRenderers.LayoutRenderer.Register("ProcessStartTimeUtc", _ => processStartTimeUtc);
 
-            var configurationContent = File.ReadAllText(arguments.LoggingSettings.NLogConfigurationPath);
+            var configurationContent = File.ReadAllText(arguments.LoggingSettings.NLogConfigurationPath!);
 
             foreach (var replacement in arguments.LoggingSettings.NLogConfigurationReplacements)
             {
@@ -175,7 +187,7 @@ namespace BuildXL.Cache.Host.Service
         
         private static async Task<AzureBlobStorageLog> CreateAzureBlobStorageLogAsync(OperationContext operationContext, LoggerFactoryArguments arguments)
         {
-            var configuration = arguments.LoggingSettings.Configuration;
+            var configuration = arguments.LoggingSettings?.Configuration;
             Contract.AssertNotNull(configuration);
 
             // There is a big issue here: on the one hand, we'd like to be able to configure everything from the XML
@@ -206,40 +218,16 @@ namespace BuildXL.Cache.Host.Service
 
         private static AzureBlobStorageLogConfiguration ToInternalConfiguration(AzureBlobStorageLogPublicConfiguration configuration)
         {
-            Contract.RequiresNotNullOrEmpty(configuration.SecretName);
             Contract.RequiresNotNullOrEmpty(configuration.WorkspaceFolderPath);
 
             var result = new AzureBlobStorageLogConfiguration(new ContentStore.Interfaces.FileSystem.AbsolutePath(configuration.WorkspaceFolderPath));
 
-            if (configuration.ContainerName != null)
-            {
-                result.ContainerName = configuration.ContainerName;
-            }
-
-            if (configuration.WriteMaxDegreeOfParallelism != null)
-            {
-                result.WriteMaxDegreeOfParallelism = configuration.WriteMaxDegreeOfParallelism.Value;
-            }
-
-            if (configuration.WriteMaxIntervalSeconds != null)
-            {
-                result.WriteMaxInterval = TimeSpan.FromSeconds(configuration.WriteMaxIntervalSeconds.Value);
-            }
-
-            if (configuration.WriteMaxBatchSize != null)
-            {
-                result.WriteMaxBatchSize = configuration.WriteMaxBatchSize.Value;
-            }
-
-            if (configuration.UploadMaxDegreeOfParallelism != null)
-            {
-                result.UploadMaxDegreeOfParallelism = configuration.UploadMaxDegreeOfParallelism.Value;
-            }
-
-            if (configuration.UploadMaxIntervalSeconds != null)
-            {
-                result.UploadMaxInterval = TimeSpan.FromSeconds(configuration.UploadMaxIntervalSeconds.Value);
-            }
+            configuration.ContainerName.ApplyIfNotNull(v => result.ContainerName = v);
+            configuration.WriteMaxDegreeOfParallelism.ApplyIfNotNull(v => result.WriteMaxDegreeOfParallelism = v);
+            configuration.WriteMaxIntervalSeconds.ApplyIfNotNull(v => result.WriteMaxInterval = TimeSpan.FromSeconds(v));
+            configuration.WriteMaxBatchSize.ApplyIfNotNull(v => result.WriteMaxBatchSize = v);
+            configuration.UploadMaxDegreeOfParallelism.ApplyIfNotNull(v => result.UploadMaxDegreeOfParallelism = v);
+            configuration.UploadMaxIntervalSeconds.ApplyIfNotNull(v => result.UploadMaxInterval = TimeSpan.FromSeconds(v));
 
             return result;
         }

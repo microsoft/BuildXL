@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
+using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.Host.Configuration;
 
 #nullable enable
@@ -14,7 +15,9 @@ namespace BuildXL.Cache.Host.Service
     public record LoggerFactoryArguments
     {
         /// <nodoc />
-        public ILogger Logger { get; internal set; }
+        public ILogger Logger => TracingContext.Logger;
+
+        public Context TracingContext { get; }
 
         /// <nodoc />
         public LoggingSettings? LoggingSettings { get; }
@@ -27,12 +30,12 @@ namespace BuildXL.Cache.Host.Service
 
         /// <nodoc />
         public LoggerFactoryArguments(
-            ILogger logger,
+            Context context,
             ISecretsProvider secretsProvider,
             LoggingSettings? loggingSettings,
             ITelemetryFieldsProvider telemetryFieldsProvider)
         {
-            Logger = logger;
+            TracingContext = context;
             LoggingSettings = loggingSettings;
             SecretsProvider = secretsProvider;
             TelemetryFieldsProvider = telemetryFieldsProvider;

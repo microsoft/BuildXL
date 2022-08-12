@@ -329,7 +329,7 @@ namespace ContentStoreTest.Distributed.Sessions
             var configuration = new DistributedCacheServiceConfiguration(localCasSettings, settings);
 
             var arguments = new DistributedCacheServiceArguments(
-                Logger,
+                new Context(Logger),
                 new MockTelemetryFieldsProvider(),
                 fileCopier,
                 (IContentCommunicationManager)fileCopier,

@@ -330,7 +330,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 buildId: buildId);
         }
 
-        [Theory]
+        [Theory(Skip = "Flaky test. Work item - 1950089")]
         [InlineData(true)]
         [InlineData(false)]
         public Task ProactiveReplicationTest(bool usePreferredLocations)

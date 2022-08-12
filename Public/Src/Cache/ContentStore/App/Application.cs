@@ -634,7 +634,7 @@ namespace BuildXL.Cache.ContentStore.App
             var config = new DistributedCacheServiceConfiguration(localCasSettings, dcs, loggingSettings);
 
             return new DistributedCacheServiceArguments(
-                _logger, telemetryFieldsProvider, copier, copyRequester, distributedCacheServiceHost, host, ct, dataRootPath, config, null);
+                context, telemetryFieldsProvider, copier, copyRequester, distributedCacheServiceHost, host, ct, dataRootPath, config, null);
         }
     }
 }

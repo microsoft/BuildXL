@@ -248,7 +248,8 @@ namespace BuildXL.Cache.Logging
 
             return _context.PerformOperationAsync(Tracer, () => UploadToBlobStorageAsync(_context, logFilePaths[0]),
                 counter: Counters[AzureBlobStorageLogCounters.ProcessBatchCalls],
-                traceErrorsOnly: true,
+                traceOperationStarted: false,
+                traceErrorsOnly: false, // We're calling this method once a minute, so its ok to trace this operation.
                 // This isn't traced because we always have a single element in the batch, which gets traced inside
                 // the individual upload.
                 silentOperationDurationThreshold: TimeSpan.MaxValue,

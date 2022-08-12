@@ -34,9 +34,10 @@ namespace BuildXL.Launcher.Server
 
             var consoleLog = new ConsoleLog(useShortLayout: false, printSeverity: true);
             var logger = new Logger(consoleLog);
+            var tracingContext = new BuildXL.Cache.ContentStore.Interfaces.Tracing.Context(logger);
             var arguments = new LoggerFactoryArguments(
-                logger, 
-                new EnvironmentVariableHost(new BuildXL.Cache.ContentStore.Interfaces.Tracing.Context(logger)),
+                tracingContext, 
+                new EnvironmentVariableHost(tracingContext),
                 configuration.LoggingSettings,
                 new HostTelemetryFieldsProvider(HostParameters.FromEnvironment()));
 
@@ -51,7 +52,7 @@ namespace BuildXL.Launcher.Server
             services.AddSingleton<ILogger>(sp =>
             {
                 var lifetime = sp.GetRequiredService<IHostApplicationLifetime>();
-                var replacementLogger = LoggerFactory.CreateReplacementLogger(arguments);
+                var replacementLogger = LoggerFactory.ReplaceLogger(arguments);
                 lifetime.ApplicationStopped.Register(() =>
                 {
                     replacementLogger.DisposableToken?.Dispose();

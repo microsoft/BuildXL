@@ -52,23 +52,25 @@ namespace BuildXL.Cache.ContentStore.App
                 runAsync().GetAwaiter().GetResult();
                 async Task runAsync()
                 {
+                    var tracingContext = new Context(_logger);
                     if (shutdown)
                     {
-                        var context = new OperationContext(new Context(_logger), _cancellationToken);
+                        var context = new OperationContext(tracingContext, _cancellationToken);
                         await launcher.LifetimeManager.GracefulShutdownServiceAsync(context, settings.LauncherServiceId).IgnoreFailure(); // The error was already been logged.
                         return;
                     }
 
-                    var host = new EnvironmentVariableHost(new Context(_logger));
+                    
+                    var host = new EnvironmentVariableHost(tracingContext);
                     settings.DeploymentParameters.AuthorizationSecret ??= await host.GetPlainSecretAsync(settings.DeploymentParameters.AuthorizationSecretName, _cancellationToken);
                     
                     var telemetryFieldsProvider = new HostTelemetryFieldsProvider(settings.DeploymentParameters)
                     {
                         ServiceName = "DeploymentLauncher"
                     };
-                    var arguments = new LoggerFactoryArguments(_logger, host, settings.LoggingSettings, telemetryFieldsProvider);
+                    var arguments = new LoggerFactoryArguments(tracingContext, host, settings.LoggingSettings, telemetryFieldsProvider);
 
-                    var replacementLogger = LoggerFactory.CreateReplacementLogger(arguments);
+                    var replacementLogger = LoggerFactory.ReplaceLogger(arguments);
                     using (replacementLogger.DisposableToken)
                     {
                         var token = _cancellationToken;

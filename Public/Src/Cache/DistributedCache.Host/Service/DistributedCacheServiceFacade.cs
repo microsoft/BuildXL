@@ -36,7 +36,7 @@ namespace BuildXL.Cache.Host.Service
         /// </summary>
         /// <exception cref="CacheException">thrown when cache startup fails</exception>
         public static Task RunWithConfigurationAsync(
-            ILogger logger,
+            Context tracingContext,
             IDistributedCacheServiceHost host,
             HostInfo hostInfo,
             ITelemetryFieldsProvider telemetryFieldsProvider,
@@ -44,10 +44,10 @@ namespace BuildXL.Cache.Host.Service
             CancellationToken token,
             string? keyspace = null)
         {
-            logger.Info($"CAS log severity set to {config.MinimumLogSeverity}");
+            tracingContext.Logger.Info($"CAS log severity set to {config.MinimumLogSeverity}");
            
             var arguments = new DistributedCacheServiceArguments(
-                logger: logger,
+                tracingContext: tracingContext,
                 telemetryFieldsProvider,
                 copier: null,
                 copyRequester: null,
@@ -104,8 +104,8 @@ namespace BuildXL.Cache.Host.Service
             // client's decision with our own.
             // The disposableToken helps ensure that we shutdown properly and all logs are sent to their final
             // destination.
-            var loggerReplacement = LoggerFactory.CreateReplacementLogger(AdjustLoggingConfigurationIfNeeded(arguments));
-            arguments.Logger = loggerReplacement.Logger;
+            var loggerReplacement = LoggerFactory.ReplaceLogger(AdjustLoggingConfigurationIfNeeded(arguments));
+
             using var disposableToken = loggerReplacement.DisposableToken;
 
             var context = new Context(arguments.Logger);

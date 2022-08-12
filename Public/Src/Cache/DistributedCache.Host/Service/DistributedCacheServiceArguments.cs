@@ -8,6 +8,7 @@ using BuildXL.Cache.ContentStore.Distributed;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
+using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.Host.Configuration;
 
 #nullable enable
@@ -65,7 +66,9 @@ namespace BuildXL.Cache.Host.Service
         /// <nodoc />
         public string Keyspace { get; }
 
-        /// <inheritdoc />
+        /// <summary>
+        /// A backward compat constructor.
+        /// </summary>
         public DistributedCacheServiceArguments(
             ILogger logger,
             ITelemetryFieldsProvider telemetryFieldsProvider,
@@ -78,14 +81,30 @@ namespace BuildXL.Cache.Host.Service
             DistributedCacheServiceConfiguration configuration,
             string? keyspace,
             IAbsFileSystem? fileSystem = null)
-            : base(logger, host, configuration.LoggingSettings, telemetryFieldsProvider)
+            : this(new Context(logger), telemetryFieldsProvider, copier, copyRequester, host, hostInfo, cancellation, dataRootPath, configuration, keyspace, fileSystem)
         {
-            Contract.Requires(logger != null);
+        }
+
+        /// <inheritdoc />
+        public DistributedCacheServiceArguments(
+            Context tracingContext,
+            ITelemetryFieldsProvider telemetryFieldsProvider,
+            IRemoteFileCopier? copier,
+            IContentCommunicationManager? copyRequester,
+            IDistributedCacheServiceHost host,
+            HostInfo hostInfo,
+            CancellationToken cancellation,
+            string dataRootPath,
+            DistributedCacheServiceConfiguration configuration,
+            string? keyspace,
+            IAbsFileSystem? fileSystem = null)
+            : base(tracingContext, host, configuration.LoggingSettings, telemetryFieldsProvider)
+        {
+            Contract.Requires(tracingContext != null);
             Contract.Requires(host != null);
             Contract.Requires(hostInfo != null);
             Contract.Requires(configuration != null);
 
-            Logger = logger;
             Copier = copier;
             CopyRequester = copyRequester;
             Host = host;
@@ -93,7 +112,7 @@ namespace BuildXL.Cache.Host.Service
             Cancellation = cancellation;
             DataRootPath = dataRootPath;
             Configuration = configuration;
-            FileSystem = fileSystem ?? new PassThroughFileSystem(logger);
+            FileSystem = fileSystem ?? new PassThroughFileSystem(tracingContext.Logger);
 
             Keyspace = ComputeKeySpace(hostInfo, configuration, keyspace);
         }

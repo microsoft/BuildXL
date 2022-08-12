@@ -138,7 +138,7 @@ namespace BuildXL.Cache.ContentStore.App
             distributedCacheServiceConfiguration.UseStampBasedIsolation = false;
 
             var distributedCacheServiceArguments = new DistributedCacheServiceArguments(
-                logger: _logger,
+                tracingContext: new Context(_logger),
                 telemetryFieldsProvider: new TelemetryFieldsProvider(ringId, stampId, serviceName: "Service"),
                 copier: new DistributedCopier(),
                 copyRequester: null,

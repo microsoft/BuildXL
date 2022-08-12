@@ -3,6 +3,7 @@
 
 using System;
 using System.Runtime.CompilerServices;
+using System.Diagnostics.ContractsLight;
 using System.Threading;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
@@ -111,7 +112,19 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
         /// <summary>
         ///     Gets the associated tracing logger.
         /// </summary>
-        public ILogger Logger { get; }
+        public ILogger Logger { get; private set; }
+
+        /// <summary>
+        ///     Replaces an existing logger with a given one.
+        /// </summary>
+        public void ReplaceLogger(ILogger logger)
+        {
+            // The logger can be null, but the new logger must not be null, otherwise
+            // we could have a race condition and fail with NRE, when the old logger was not null and 'IsEnabled'
+            // property is true.
+            Contract.Requires(logger != null);
+            Logger = logger;
+        }
 
         /// <summary>
         ///     Gets a value indicating whether tracing for this context is enabled.

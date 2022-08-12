@@ -1,0 +1,166 @@
+{
+  "version": "latest",
+  "baselines": {
+    "default": {
+      "name": "default",
+      "createdDate": "2022-05-12 20:19:24Z",
+      "lastUpdatedDate": "2022-05-12 20:19:24Z"
+    }
+  },
+  "results": {
+    "413cb2cc61abc009eced5f2a5d37d8fe66bc32d2d79f34557d1b735ab1c45c3a": {
+        "signature": "413cb2cc61abc009eced5f2a5d37d8fe66bc32d2d79f34557d1b735ab1c45c3a",
+        "alternativeSignatures": [],
+        "target": "file:///B:/Documentation/Wiki/Release-Notes.md",
+        "memberOf": [
+            "default"
+        ],
+        "tool": "policheck",
+        "ruleId": "80411",
+        "justification": "Replace whitelist with more specific terms such as approved list or safe recipients list.",
+        "createdDate": "2022-05-12 20:19:24Z",
+        "expirationDate": null,
+        "type": null
+    },
+    "afb8457d194258d9811850a1a2f89fd1e39e0b1d7403b4e492c31d66830df8fe": {
+        "signature": "afb8457d194258d9811850a1a2f89fd1e39e0b1d7403b4e492c31d66830df8fe",
+        "alternativeSignatures": [],
+        "target": "file:///B:/Public/Src/Cache/Kusto/NLog.example.config",
+        "memberOf": [
+        "default"
+        ],
+        "tool": "policheck",
+        "ruleId": "80411",
+        "justification": "Replace whitelist with more specific terms such as approved list or safe recipients list.",
+        "createdDate": "2022-05-12 20:19:24Z",
+        "expirationDate": null,
+        "type": null
+    },
+    "14b27f77e962fddd9d00b2b7ffa9372de4e64e1ebdeace8770bd3aa060aad3a3": {
+        "signature": "14b27f77e962fddd9d00b2b7ffa9372de4e64e1ebdeace8770bd3aa060aad3a3",
+        "alternativeSignatures": [],
+        "target": "file:///B:/Public/Src/Tools/Execution.Analyzer/AnalysisMode.cs",
+        "memberOf": [
+        "default"
+        ],
+        "tool": "policheck",
+        "ruleId": "80411",
+        "justification": "Replace whitelist with more specific terms such as approved list or safe recipients list.",
+        "createdDate": "2022-05-12 20:19:24Z",
+        "expirationDate": null,
+        "type": null
+    },
+    "aa7f39305fb0191b0236417dc9b13fce5448fd513abefa0ad2716d781097d499": {
+        "signature": "aa7f39305fb0191b0236417dc9b13fce5448fd513abefa0ad2716d781097d499",
+        "alternativeSignatures": [],
+        "target": "file:///B:/Public/Src/Tools/Execution.Analyzer/Args.cs",
+        "memberOf": [
+        "default"
+        ],
+        "tool": "policheck",
+        "ruleId": "80411",
+        "justification": "Replace whitelist with more specific terms such as approved list or safe recipients list.",
+        "createdDate": "2022-05-12 20:19:24Z",
+        "expirationDate": null,
+        "type": null
+    },
+    "13f5ba2d4e9a02cf8fba8ebd5c2a58ec699a4d565bff48304d31f8d96d938118": {
+        "signature": "13f5ba2d4e9a02cf8fba8ebd5c2a58ec699a4d565bff48304d31f8d96d938118",
+        "alternativeSignatures": [],
+        "target": "file:///B:/Public/Src/Utilities/Configuration/IModuleConfiguration.cs",
+        "memberOf": [
+        "default"
+        ],
+        "tool": "policheck",
+        "ruleId": "80411",
+        "justification": "Replace whitelist with more specific terms such as approved list or safe recipients list.",
+        "createdDate": "2022-05-12 20:19:24Z",
+        "expirationDate": null,
+        "type": null
+    },
+    "cf77a2ae5fff28d12ed9f5b1afbed7ead055968e79b826a6d8274ce5ea79bcd5": {
+        "signature": "cf77a2ae5fff28d12ed9f5b1afbed7ead055968e79b826a6d8274ce5ea79bcd5",
+        "alternativeSignatures": [],
+        "target": "file:///B:/Public/Src/Engine/UnitTests/Scheduler.IntegrationTest/AllowlistTests.cs",
+        "memberOf": [
+        "default"
+        ],
+        "tool": "policheck",
+        "ruleId": "80411",
+        "justification": "Replace whitelist with more specific terms such as approved list or safe recipients list.",
+        "createdDate": "2022-05-12 20:19:23Z",
+        "expirationDate": null,
+        "type": null
+    },
+    "c39866c23fb2aca6dbfe2c1ea864d8465dd9ae515fc3ea980ca70e8e0406df74": {
+        "signature": "c39866c23fb2aca6dbfe2c1ea864d8465dd9ae515fc3ea980ca70e8e0406df74",
+        "alternativeSignatures": [],
+        "target": "file:///B:/Public/Src/Tools/Execution.Analyzer/Analyzers.Partner/AllowlistAnalyzer.cs",
+        "memberOf": [
+        "default"
+        ],
+        "tool": "policheck",
+        "ruleId": "80411",
+        "justification": "Replace whitelist with more specific terms such as approved list or safe recipients list.",
+        "createdDate": "2022-05-12 20:19:23Z",
+        "expirationDate": null,
+        "type": null
+    },
+    "2ea8245da7169a5c8e8c84a33f2305c5d3d72ab3eefbf92a43adf9f0aac82dc1": {
+        "signature": "2ea8245da7169a5c8e8c84a33f2305c5d3d72ab3eefbf92a43adf9f0aac82dc1",
+        "alternativeSignatures": [],
+        "target": "file:///B:/Public/Src/Utilities/Configuration/Mutable/ModuleConfiguration.cs",
+        "memberOf": [
+        "default"
+        ],
+        "tool": "policheck",
+        "ruleId": "80411",
+        "justification": "Replace whitelist with more specific terms such as approved list or safe recipients list.",
+        "createdDate": "2022-05-12 20:19:23Z",
+        "expirationDate": null,
+        "type": null
+    },
+    "835a8c24611e7c9ebf4ee2cb8bcff2dfac79b188c88223711d5d5fbd7befabdf": {
+        "signature": "835a8c24611e7c9ebf4ee2cb8bcff2dfac79b188c88223711d5d5fbd7befabdf",
+        "alternativeSignatures": [],
+        "target": "file:///B:/Public/Src/FrontEnd/Script/Ambients/Transformers/AmbientTransformer.Process.cs",
+        "memberOf": [
+        "default"
+        ],
+        "tool": "policheck",
+        "ruleId": "80411",
+        "justification": "Replace whitelist with more specific terms such as approved list or safe recipients list.",
+        "createdDate": "2022-05-12 20:19:23Z",
+        "expirationDate": null,
+        "type": null
+    },
+    "0b91b0c42bc5f2778c36921faef9db657d3e20165d4d4cfbc8fe7221be91638a": {
+        "signature": "0b91b0c42bc5f2778c36921faef9db657d3e20165d4d4cfbc8fe7221be91638a",
+        "alternativeSignatures": [],
+        "target": "file:///B:/Public/Src/Cache/Kusto/NLog.example.config",
+        "memberOf": [
+        "default"
+        ],
+        "tool": "policheck",
+        "ruleId": "79459",
+        "justification": "Replace blacklist with more specific terms such as block list.",
+        "createdDate": "2022-05-12 20:19:24Z",
+        "expirationDate": null,
+        "type": null
+    },
+    "79e7e708cc3343d6ff6fc58162d21a08d1c92e66db7c32bd2ad6094b13ab3b08": {
+        "signature": "79e7e708cc3343d6ff6fc58162d21a08d1c92e66db7c32bd2ad6094b13ab3b08",
+        "alternativeSignatures": [],
+        "target": "file:///B:/Public/Src/Cache/ContentStore/Distributed/Redis/RedisDatabaseAdapter.cs",
+        "memberOf": [
+        "default"
+        ],
+        "tool": "policheck",
+        "ruleId": "80241",
+        "justification": "Replace slave with replica, secondary or other appropriate terms depending on context.",
+        "createdDate": "2022-05-12 20:19:23Z",
+        "expirationDate": null,
+        "type": null
+    }
+  }
+}

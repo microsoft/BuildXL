@@ -50,20 +50,6 @@
       "expirationDate": null,
       "type": null
     },
-    "413cb2cc61abc009eced5f2a5d37d8fe66bc32d2d79f34557d1b735ab1c45c3a": {
-      "signature": "413cb2cc61abc009eced5f2a5d37d8fe66bc32d2d79f34557d1b735ab1c45c3a",
-      "alternativeSignatures": [],
-      "target": "file:///B:/Documentation/Wiki/Release-Notes.md",
-      "memberOf": [
-        "default"
-      ],
-      "tool": "policheck",
-      "ruleId": "80411",
-      "justification": null,
-      "createdDate": "2022-05-12 20:19:24Z",
-      "expirationDate": null,
-      "type": null
-    },
     "cdb0db601f693ba4546e3cfe98cad07f74b5ae8b792fabe4add51a57e83761ba": {
       "signature": "cdb0db601f693ba4546e3cfe98cad07f74b5ae8b792fabe4add51a57e83761ba",
       "alternativeSignatures": [],
@@ -87,34 +73,6 @@
       ],
       "tool": "policheck",
       "ruleId": "203635",
-      "justification": null,
-      "createdDate": "2022-05-12 20:19:24Z",
-      "expirationDate": null,
-      "type": null
-    },
-    "afb8457d194258d9811850a1a2f89fd1e39e0b1d7403b4e492c31d66830df8fe": {
-      "signature": "afb8457d194258d9811850a1a2f89fd1e39e0b1d7403b4e492c31d66830df8fe",
-      "alternativeSignatures": [],
-      "target": "file:///B:/Public/Src/Cache/Kusto/NLog.example.config",
-      "memberOf": [
-        "default"
-      ],
-      "tool": "policheck",
-      "ruleId": "80411",
-      "justification": null,
-      "createdDate": "2022-05-12 20:19:24Z",
-      "expirationDate": null,
-      "type": null
-    },
-    "0b91b0c42bc5f2778c36921faef9db657d3e20165d4d4cfbc8fe7221be91638a": {
-      "signature": "0b91b0c42bc5f2778c36921faef9db657d3e20165d4d4cfbc8fe7221be91638a",
-      "alternativeSignatures": [],
-      "target": "file:///B:/Public/Src/Cache/Kusto/NLog.example.config",
-      "memberOf": [
-        "default"
-      ],
-      "tool": "policheck",
-      "ruleId": "79459",
       "justification": null,
       "createdDate": "2022-05-12 20:19:24Z",
       "expirationDate": null,
@@ -148,48 +106,6 @@
       "expirationDate": null,
       "type": null
     },
-    "14b27f77e962fddd9d00b2b7ffa9372de4e64e1ebdeace8770bd3aa060aad3a3": {
-      "signature": "14b27f77e962fddd9d00b2b7ffa9372de4e64e1ebdeace8770bd3aa060aad3a3",
-      "alternativeSignatures": [],
-      "target": "file:///B:/Public/Src/Tools/Execution.Analyzer/AnalysisMode.cs",
-      "memberOf": [
-        "default"
-      ],
-      "tool": "policheck",
-      "ruleId": "80411",
-      "justification": null,
-      "createdDate": "2022-05-12 20:19:24Z",
-      "expirationDate": null,
-      "type": null
-    },
-    "aa7f39305fb0191b0236417dc9b13fce5448fd513abefa0ad2716d781097d499": {
-      "signature": "aa7f39305fb0191b0236417dc9b13fce5448fd513abefa0ad2716d781097d499",
-      "alternativeSignatures": [],
-      "target": "file:///B:/Public/Src/Tools/Execution.Analyzer/Args.cs",
-      "memberOf": [
-        "default"
-      ],
-      "tool": "policheck",
-      "ruleId": "80411",
-      "justification": null,
-      "createdDate": "2022-05-12 20:19:24Z",
-      "expirationDate": null,
-      "type": null
-    },
-    "13f5ba2d4e9a02cf8fba8ebd5c2a58ec699a4d565bff48304d31f8d96d938118": {
-      "signature": "13f5ba2d4e9a02cf8fba8ebd5c2a58ec699a4d565bff48304d31f8d96d938118",
-      "alternativeSignatures": [],
-      "target": "file:///B:/Public/Src/Utilities/Configuration/IModuleConfiguration.cs",
-      "memberOf": [
-        "default"
-      ],
-      "tool": "policheck",
-      "ruleId": "80411",
-      "justification": null,
-      "createdDate": "2022-05-12 20:19:24Z",
-      "expirationDate": null,
-      "type": null
-    },
     "9742832e83ae164347d104d7f9eb841b40f072512b58ebf5788c9e0b31da1aab": {
       "signature": "9742832e83ae164347d104d7f9eb841b40f072512b58ebf5788c9e0b31da1aab",
       "alternativeSignatures": [],
@@ -199,20 +115,6 @@
       ],
       "tool": "policheck",
       "ruleId": "79577",
-      "justification": null,
-      "createdDate": "2022-05-12 20:19:23Z",
-      "expirationDate": null,
-      "type": null
-    },
-    "cf77a2ae5fff28d12ed9f5b1afbed7ead055968e79b826a6d8274ce5ea79bcd5": {
-      "signature": "cf77a2ae5fff28d12ed9f5b1afbed7ead055968e79b826a6d8274ce5ea79bcd5",
-      "alternativeSignatures": [],
-      "target": "file:///B:/Public/Src/Engine/UnitTests/Scheduler.IntegrationTest/AllowlistTests.cs",
-      "memberOf": [
-        "default"
-      ],
-      "tool": "policheck",
-      "ruleId": "80411",
       "justification": null,
       "createdDate": "2022-05-12 20:19:23Z",
       "expirationDate": null,
@@ -232,48 +134,6 @@
       "expirationDate": null,
       "type": null
     },
-    "c39866c23fb2aca6dbfe2c1ea864d8465dd9ae515fc3ea980ca70e8e0406df74": {
-      "signature": "c39866c23fb2aca6dbfe2c1ea864d8465dd9ae515fc3ea980ca70e8e0406df74",
-      "alternativeSignatures": [],
-      "target": "file:///B:/Public/Src/Tools/Execution.Analyzer/Analyzers.Partner/AllowlistAnalyzer.cs",
-      "memberOf": [
-        "default"
-      ],
-      "tool": "policheck",
-      "ruleId": "80411",
-      "justification": null,
-      "createdDate": "2022-05-12 20:19:23Z",
-      "expirationDate": null,
-      "type": null
-    },
-    "2ea8245da7169a5c8e8c84a33f2305c5d3d72ab3eefbf92a43adf9f0aac82dc1": {
-      "signature": "2ea8245da7169a5c8e8c84a33f2305c5d3d72ab3eefbf92a43adf9f0aac82dc1",
-      "alternativeSignatures": [],
-      "target": "file:///B:/Public/Src/Utilities/Configuration/Mutable/ModuleConfiguration.cs",
-      "memberOf": [
-        "default"
-      ],
-      "tool": "policheck",
-      "ruleId": "80411",
-      "justification": null,
-      "createdDate": "2022-05-12 20:19:23Z",
-      "expirationDate": null,
-      "type": null
-    },
-    "79e7e708cc3343d6ff6fc58162d21a08d1c92e66db7c32bd2ad6094b13ab3b08": {
-      "signature": "79e7e708cc3343d6ff6fc58162d21a08d1c92e66db7c32bd2ad6094b13ab3b08",
-      "alternativeSignatures": [],
-      "target": "file:///B:/Public/Src/Cache/ContentStore/Distributed/Redis/RedisDatabaseAdapter.cs",
-      "memberOf": [
-        "default"
-      ],
-      "tool": "policheck",
-      "ruleId": "80241",
-      "justification": null,
-      "createdDate": "2022-05-12 20:19:23Z",
-      "expirationDate": null,
-      "type": null
-    },
     "75e2131f4e85806a830158963ef4f858befe5f7fb7b922258fade48b101a7ad9": {
       "signature": "75e2131f4e85806a830158963ef4f858befe5f7fb7b922258fade48b101a7ad9",
       "alternativeSignatures": [],
@@ -283,20 +143,6 @@
       ],
       "tool": "policheck",
       "ruleId": "202278",
-      "justification": null,
-      "createdDate": "2022-05-12 20:19:23Z",
-      "expirationDate": null,
-      "type": null
-    },
-    "835a8c24611e7c9ebf4ee2cb8bcff2dfac79b188c88223711d5d5fbd7befabdf": {
-      "signature": "835a8c24611e7c9ebf4ee2cb8bcff2dfac79b188c88223711d5d5fbd7befabdf",
-      "alternativeSignatures": [],
-      "target": "file:///B:/Public/Src/FrontEnd/Script/Ambients/Transformers/AmbientTransformer.Process.cs",
-      "memberOf": [
-        "default"
-      ],
-      "tool": "policheck",
-      "ruleId": "80411",
       "justification": null,
       "createdDate": "2022-05-12 20:19:23Z",
       "expirationDate": null,
@@ -397,150 +243,6 @@
       "ruleId": "79577",
       "justification": null,
       "createdDate": "2022-05-12 20:19:18Z",
-      "expirationDate": null,
-      "type": null
-    },
-    "4ea9bfe9e5da299112880357be33900959617c18232f6f58995592380b20af37": {
-      "signature": "4ea9bfe9e5da299112880357be33900959617c18232f6f58995592380b20af37",
-      "alternativeSignatures": [
-        "25dd38c1ca5e0acd97440cb6eb388d4c804c62be2daea6a7dbf9c391c93eb70e"
-      ],
-      "target": "Public/Src/Cache/MemoizationStore/VstsApp/Application.cs",
-      "memberOf": [
-        "default"
-      ],
-      "tool": "roslynanalyzers",
-      "ruleId": "RA004",
-      "justification": null,
-      "createdDate": "2022-07-23 17:31:56Z",
-      "expirationDate": null,
-      "type": null
-    },
-    "2b691fc8d76f8aba6ad447a48eb10e76868176535911a2c27712bd487455fdef": {
-      "signature": "2b691fc8d76f8aba6ad447a48eb10e76868176535911a2c27712bd487455fdef",
-      "alternativeSignatures": [
-        "225c4fda9e70dad045c11c9b114652e09998497b421c7fb3ee76fc1466257fea"
-      ],
-      "target": "Public/Src/Cache/MemoizationStore/VstsApp/Application.cs",
-      "memberOf": [
-        "default"
-      ],
-      "tool": "roslynanalyzers",
-      "ruleId": "RA006",
-      "justification": null,
-      "createdDate": "2022-07-23 17:31:56Z",
-      "expirationDate": null,
-      "type": null
-    },
-    "cad030ee53af08b694a9bf4f989a79bfe8b1310178fb478735ea0e1e69fff14f": {
-      "signature": "cad030ee53af08b694a9bf4f989a79bfe8b1310178fb478735ea0e1e69fff14f",
-      "alternativeSignatures": [
-        "cff36e110e0a70c700f5856578957d332b0147cb65dfce1c1d22e3dd8c1505f0"
-      ],
-      "target": "Public/Src/Cache/MemoizationStore/VstsApp/Application.cs",
-      "memberOf": [
-        "default"
-      ],
-      "tool": "roslynanalyzers",
-      "ruleId": "RA004",
-      "justification": null,
-      "createdDate": "2022-07-23 17:31:56Z",
-      "expirationDate": null,
-      "type": null
-    },
-    "3d73e68cd176ab27ab1b4120f71939ad6c10d5f708b0b4f478a6f46690a8402e": {
-      "signature": "3d73e68cd176ab27ab1b4120f71939ad6c10d5f708b0b4f478a6f46690a8402e",
-      "alternativeSignatures": [
-        "1a42a451eeffcbccc95439ceb768a6ea24429da45bcba8f039f4832a2675dd00"
-      ],
-      "target": "Public/Src/Cache/MemoizationStore/VstsApp/Application.cs",
-      "memberOf": [
-        "default"
-      ],
-      "tool": "roslynanalyzers",
-      "ruleId": "RA006",
-      "justification": null,
-      "createdDate": "2022-07-23 17:31:56Z",
-      "expirationDate": null,
-      "type": null
-    },
-    "680fe1e5ef990106e78fae0232bff03b7fae096179919e208810e899ef4357b9": {
-      "signature": "680fe1e5ef990106e78fae0232bff03b7fae096179919e208810e899ef4357b9",
-      "alternativeSignatures": [
-        "7cc7065d83e4dfa28c3b4976c837b7f72e5fe1d5641421f99b4d6c537001269b"
-      ],
-      "target": "Public/Src/Cache/MemoizationStore/VstsApp/Application.cs",
-      "memberOf": [
-        "default"
-      ],
-      "tool": "roslynanalyzers",
-      "ruleId": "CA1822",
-      "justification": null,
-      "createdDate": "2022-07-23 17:31:56Z",
-      "expirationDate": null,
-      "type": null
-    },
-    "0179541aae15474f41e7e747ad56255c8c1904a8dab8492cbb6d7bfbb47a964f": {
-      "signature": "0179541aae15474f41e7e747ad56255c8c1904a8dab8492cbb6d7bfbb47a964f",
-      "alternativeSignatures": [
-        "1c395131d32ad61eedb6d27c77f322ba379ca88c4eb78663d5fd2d8ba4400d18"
-      ],
-      "target": "Public/Src/Cache/MemoizationStore/VstsApp/ScrapeFingerprints.cs",
-      "memberOf": [
-        "default"
-      ],
-      "tool": "roslynanalyzers",
-      "ruleId": "CA1822",
-      "justification": null,
-      "createdDate": "2022-07-23 17:31:56Z",
-      "expirationDate": null,
-      "type": null
-    },
-    "5b2440596e68cf2840520b72f9aaaa9eaf603854e02b7b4222f9e5fc3ae96088": {
-      "signature": "5b2440596e68cf2840520b72f9aaaa9eaf603854e02b7b4222f9e5fc3ae96088",
-      "alternativeSignatures": [
-        "af03388d6916cb51a65726dd2eeb88da177226008d690893ceb9c2a4e143073b"
-      ],
-      "target": "Public/Src/App/Bxl/Program.cs",
-      "memberOf": [
-        "default"
-      ],
-      "tool": "roslynanalyzers",
-      "ruleId": "CA5386",
-      "justification": null,
-      "createdDate": "2022-07-23 17:43:50Z",
-      "expirationDate": null,
-      "type": null
-    },
-    "e1157671337aa870eb78013fcd438e19b7c287120974f603554551be7593222f": {
-      "signature": "e1157671337aa870eb78013fcd438e19b7c287120974f603554551be7593222f",
-      "alternativeSignatures": [
-        "dd5f9ac9ac571f107671cfe66319fead57857b9aa4fe5cbf58cba1da0eb89157"
-      ],
-      "target": "Public/Src/Tools/SymbolDaemon/Program.cs",
-      "memberOf": [
-        "default"
-      ],
-      "tool": "roslynanalyzers",
-      "ruleId": "CA5386",
-      "justification": null,
-      "createdDate": "2022-07-23 17:29:46Z",
-      "expirationDate": null,
-      "type": null
-    },
-    "4b8d75fe3345a8ff6619ba5695319afcec1bab1937b2f6cda65813a2d5473a99": {
-      "signature": "4b8d75fe3345a8ff6619ba5695319afcec1bab1937b2f6cda65813a2d5473a99",
-      "alternativeSignatures": [
-        "b998f1b73a08d14c0f01b26c1c2210b16bc03c0ddef2efe8b07ee02386388f6e"
-      ],
-      "target": "Public/Src/Tools/DropDaemon/Program.cs",
-      "memberOf": [
-        "default"
-      ],
-      "tool": "roslynanalyzers",
-      "ruleId": "CA5386",
-      "justification": null,
-      "createdDate": "2022-07-23 17:39:13Z",
       "expirationDate": null,
       "type": null
     }

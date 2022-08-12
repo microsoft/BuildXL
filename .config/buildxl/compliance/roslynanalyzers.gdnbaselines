@@ -1,0 +1,156 @@
+{
+  "version": "latest",
+  "baselines": {
+    "default": {
+      "name": "default",
+      "createdDate": "2022-08-05 23:17:14Z",
+      "lastUpdatedDate": "2022-08-05 23:17:14Z"
+    }
+  },
+  "results": {
+    "4ea9bfe9e5da299112880357be33900959617c18232f6f58995592380b20af37": {
+      "signature": "4ea9bfe9e5da299112880357be33900959617c18232f6f58995592380b20af37",
+      "alternativeSignatures": [
+        "25dd38c1ca5e0acd97440cb6eb388d4c804c62be2daea6a7dbf9c391c93eb70e"
+      ],
+      "target": "Public/Src/Cache/MemoizationStore/VstsApp/Application.cs",
+      "memberOf": [
+        "default"
+      ],
+      "tool": "roslynanalyzers",
+      "ruleId": "RA004",
+      "justification": null,
+      "createdDate": "2022-08-05 23:17:14Z",
+      "expirationDate": null,
+      "type": null
+    },
+    "2b691fc8d76f8aba6ad447a48eb10e76868176535911a2c27712bd487455fdef": {
+      "signature": "2b691fc8d76f8aba6ad447a48eb10e76868176535911a2c27712bd487455fdef",
+      "alternativeSignatures": [
+        "225c4fda9e70dad045c11c9b114652e09998497b421c7fb3ee76fc1466257fea"
+      ],
+      "target": "Public/Src/Cache/MemoizationStore/VstsApp/Application.cs",
+      "memberOf": [
+        "default"
+      ],
+      "tool": "roslynanalyzers",
+      "ruleId": "RA006",
+      "justification": null,
+      "createdDate": "2022-08-05 23:17:14Z",
+      "expirationDate": null,
+      "type": null
+    },
+    "cad030ee53af08b694a9bf4f989a79bfe8b1310178fb478735ea0e1e69fff14f": {
+      "signature": "cad030ee53af08b694a9bf4f989a79bfe8b1310178fb478735ea0e1e69fff14f",
+      "alternativeSignatures": [
+        "cff36e110e0a70c700f5856578957d332b0147cb65dfce1c1d22e3dd8c1505f0"
+      ],
+      "target": "Public/Src/Cache/MemoizationStore/VstsApp/Application.cs",
+      "memberOf": [
+        "default"
+      ],
+      "tool": "roslynanalyzers",
+      "ruleId": "RA004",
+      "justification": null,
+      "createdDate": "2022-08-05 23:17:14Z",
+      "expirationDate": null,
+      "type": null
+    },
+    "3d73e68cd176ab27ab1b4120f71939ad6c10d5f708b0b4f478a6f46690a8402e": {
+      "signature": "3d73e68cd176ab27ab1b4120f71939ad6c10d5f708b0b4f478a6f46690a8402e",
+      "alternativeSignatures": [
+        "1a42a451eeffcbccc95439ceb768a6ea24429da45bcba8f039f4832a2675dd00"
+      ],
+      "target": "Public/Src/Cache/MemoizationStore/VstsApp/Application.cs",
+      "memberOf": [
+        "default"
+      ],
+      "tool": "roslynanalyzers",
+      "ruleId": "RA006",
+      "justification": null,
+      "createdDate": "2022-08-05 23:17:14Z",
+      "expirationDate": null,
+      "type": null
+    },
+    "680fe1e5ef990106e78fae0232bff03b7fae096179919e208810e899ef4357b9": {
+      "signature": "680fe1e5ef990106e78fae0232bff03b7fae096179919e208810e899ef4357b9",
+      "alternativeSignatures": [
+        "7cc7065d83e4dfa28c3b4976c837b7f72e5fe1d5641421f99b4d6c537001269b"
+      ],
+      "target": "Public/Src/Cache/MemoizationStore/VstsApp/Application.cs",
+      "memberOf": [
+        "default"
+      ],
+      "tool": "roslynanalyzers",
+      "ruleId": "CA1822",
+      "justification": null,
+      "createdDate": "2022-08-05 23:17:14Z",
+      "expirationDate": null,
+      "type": null
+    },
+    "0179541aae15474f41e7e747ad56255c8c1904a8dab8492cbb6d7bfbb47a964f": {
+      "signature": "0179541aae15474f41e7e747ad56255c8c1904a8dab8492cbb6d7bfbb47a964f",
+      "alternativeSignatures": [
+        "1c395131d32ad61eedb6d27c77f322ba379ca88c4eb78663d5fd2d8ba4400d18"
+      ],
+      "target": "Public/Src/Cache/MemoizationStore/VstsApp/ScrapeFingerprints.cs",
+      "memberOf": [
+        "default"
+      ],
+      "tool": "roslynanalyzers",
+      "ruleId": "CA1822",
+      "justification": null,
+      "createdDate": "2022-08-05 23:17:14Z",
+      "expirationDate": null,
+      "type": null
+    },
+    "e1157671337aa870eb78013fcd438e19b7c287120974f603554551be7593222f": {
+      "signature": "e1157671337aa870eb78013fcd438e19b7c287120974f603554551be7593222f",
+      "alternativeSignatures": [
+        "dd5f9ac9ac571f107671cfe66319fead57857b9aa4fe5cbf58cba1da0eb89157"
+      ],
+      "target": "Public/Src/Tools/SymbolDaemon/Program.cs",
+      "memberOf": [
+        "default"
+      ],
+      "tool": "roslynanalyzers",
+      "ruleId": "CA5386",
+      "justification": null,
+      "createdDate": "2022-08-05 23:18:07Z",
+      "expirationDate": null,
+      "type": null
+    },
+    "5b2440596e68cf2840520b72f9aaaa9eaf603854e02b7b4222f9e5fc3ae96088": {
+      "signature": "5b2440596e68cf2840520b72f9aaaa9eaf603854e02b7b4222f9e5fc3ae96088",
+      "alternativeSignatures": [
+        "af03388d6916cb51a65726dd2eeb88da177226008d690893ceb9c2a4e143073b"
+      ],
+      "target": "Public/Src/App/Bxl/Program.cs",
+      "memberOf": [
+        "default"
+      ],
+      "tool": "roslynanalyzers",
+      "ruleId": "CA5386",
+      "justification": null,
+      "createdDate": "2022-08-05 23:12:36Z",
+      "expirationDate": null,
+      "type": null
+    },
+    "4b8d75fe3345a8ff6619ba5695319afcec1bab1937b2f6cda65813a2d5473a99": {
+      "signature": "4b8d75fe3345a8ff6619ba5695319afcec1bab1937b2f6cda65813a2d5473a99",
+      "alternativeSignatures": [
+        "b998f1b73a08d14c0f01b26c1c2210b16bc03c0ddef2efe8b07ee02386388f6e"
+      ],
+      "target": "Public/Src/Tools/DropDaemon/Program.cs",
+      "memberOf": [
+        "default"
+      ],
+      "tool": "roslynanalyzers",
+      "ruleId": "CA5386",
+      "justification": null,
+      "createdDate": "2022-08-05 23:17:23Z",
+      "expirationDate": null,
+      "type": null
+    }
+  }
+}

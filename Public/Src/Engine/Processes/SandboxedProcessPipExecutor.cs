@@ -881,6 +881,13 @@ namespace BuildXL.Processes
                             ?? SandboxedProcessInfo.DefaultPipeReadRetryOnCancellationCount,
                     };
 
+                    if (m_sandboxConfig.AdminRequiredProcessExecutionMode.ExecuteExternalVm()
+                        || VmSpecialEnvironmentVariables.IsRunningInVm)
+                    {
+                        // When need to execute in VM, or is already in VM (e.g., executing integration tests in VM), we need the host shared unc drive translation.
+                        TranslateHostSharedUncDrive(info);
+                    }
+
                     var result = ShouldSandboxedProcessExecuteExternal
                         ? await RunExternalAsync(info, allInputPathsUnderSharedOpaques, sandboxPrepTime, cancellationToken)
                         : await RunInternalAsync(info, allInputPathsUnderSharedOpaques, sandboxPrepTime, cancellationToken);
@@ -1107,11 +1114,6 @@ namespace BuildXL.Processes
 
             info.RedirectedTempFolders = m_tempFolderRedirectionForVm.Select(kvp => (kvp.Key.ToString(m_pathTable), kvp.Value.ToString(m_pathTable))).ToArray();
 
-            if (m_sandboxConfig.AdminRequiredProcessExecutionMode.ExecuteExternalVm())
-            {
-                TranslateHostSharedUncDrive(info);
-            }
-
             ISandboxedProcess process = null;
 
             try
@@ -1244,12 +1246,15 @@ namespace BuildXL.Processes
         /// accesses D:\E\f.txt, the process actually accesses D:\E\f.txt in the host. Thus, the file access manifest constructed in the host
         /// is often sufficient for running pips in VMs. However, some tools, like dotnet.exe, can access the path in UNC format, i.e.,
         /// \\192.168.0.1\D\E\f.txt. In this case, we need to supply a directory translation from that UNC path to the non-UNC path.
+        /// 
+        /// TODO(erickul): Explain why we need to add UNC long path.
         /// </remarks>
         private void TranslateHostSharedUncDrive(SandboxedProcessInfo info)
         {
             DirectoryTranslator newTranslator = info.FileAccessManifest.DirectoryTranslator?.GetUnsealedClone() ?? new DirectoryTranslator();
             newTranslator.AddTranslation($@"\\{VmConstants.Host.IpAddress}\{VmConstants.Host.NetUseDrive}", $@"{VmConstants.Host.NetUseDrive}:");
             newTranslator.AddTranslation($@"\\{VmConstants.Host.Name}\{VmConstants.Host.NetUseDrive}", $@"{VmConstants.Host.NetUseDrive}:");
+            newTranslator.AddTranslation($@"UNC\{VmConstants.Host.Name}\{VmConstants.Host.NetUseDrive}".ToLower(), $@"{VmConstants.Host.NetUseDrive}:");
             newTranslator.Seal();
             info.FileAccessManifest.DirectoryTranslator = newTranslator;
         }

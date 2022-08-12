@@ -96,6 +96,10 @@ void TranslateFilePath(_In_ const std::wstring& inFileName, _Out_ std::wstring& 
             bool mayBeDirectoryPath = false;
 
             int comp = lowCaseFinalPath.compare(0, targetLen, lowCaseTargetPath);
+            if (debug)
+            {
+                Dbg(L"TranslateFilePath-.5: comparing: '%ws' and %ws", lowCaseFinalPath.c_str(), lowCaseTargetPath.c_str());
+            }
 
             if (comp != 0)
             {
@@ -640,6 +644,74 @@ static void LoadSubstituteProcessExecutionPluginDll()
     }
 }
 
+
+/// <summary>
+/// Gets the final full path by handle.
+/// </summary>
+/// <remarks>
+/// This function encapsulates calls to <code>GetFinalPathNameByHandleW</code> and allocates memory as needed.
+/// </remarks>
+static DWORD DetourGetFinalPathByHandle(_In_ HANDLE hFile, _Inout_ std::wstring& fullPath)
+{
+    // First, try with a fixed-sized buffer which should be good enough for all practical cases.
+    wchar_t wszBuffer[MAX_PATH];
+    DWORD nBufferLength = std::extent<decltype(wszBuffer)>::value;
+
+    DWORD result = GetFinalPathNameByHandleW(hFile, wszBuffer, nBufferLength, FILE_NAME_NORMALIZED);
+    if (result == 0)
+    {
+        DWORD ret = GetLastError();
+        return ret;
+    }
+
+    if (result < nBufferLength)
+    {
+        // The buffer was big enough. The return value indicates the length of the full path, NOT INCLUDING the terminating null character.
+        // https://msdn.microsoft.com/en-us/library/windows/desktop/aa364962(v=vs.85).aspx
+        fullPath.assign(wszBuffer, static_cast<size_t>(result));
+    }
+    else
+    {
+        // Second, if that buffer wasn't big enough, we try again with a dynamically allocated buffer with sufficient size.
+        // Note that in this case, the return value indicates the required buffer length, INCLUDING the terminating null character.
+        // https://msdn.microsoft.com/en-us/library/windows/desktop/aa364962(v=vs.85).aspx
+        unique_ptr<wchar_t[]> buffer(new wchar_t[result]);
+        assert(buffer.get());
+
+        DWORD next_result = GetFinalPathNameByHandleW(hFile, buffer.get(), result, FILE_NAME_NORMALIZED);
+        if (next_result == 0)
+        {
+            DWORD ret = GetLastError();
+            return ret;
+        }
+
+        if (next_result < result)
+        {
+            fullPath.assign(buffer.get(), next_result);
+        }
+        else
+        {
+            return ERROR_NOT_ENOUGH_MEMORY;
+        }
+    }
+
+    return ERROR_SUCCESS;
+}
+
+/// <summary>
+/// Checks if Detours should resolve all reparse points contained in a path.
+/// Only used when creating process to resolve the path to executable.
+/// </summary>
+static bool ShouldResolveReparsePointsInPath(
+    _In_     const PolicyResult& policyResult)
+{
+    bool ignoreReparsePointForPath =
+        IgnoreReparsePoints() ||
+        (IgnoreFullReparsePointResolving() && !policyResult.EnableFullReparsePointParsing()) ||
+        policyResult.IndicateUntracked();
+    return !ignoreReparsePointForPath;
+}
+
 bool ParseFileAccessManifest(
     const void* payload,
     DWORD)
@@ -989,6 +1061,70 @@ bool ParseFileAccessManifest(
     FileReadContext fileReadContext;
     fileReadContext.Existence = FileExistence::Existent; // Clearly this process started somehow.
     fileReadContext.OpenedDirectory = false;
+
+    if (ShouldResolveReparsePointsInPath(policyResult))
+    {
+        HANDLE hFile = CreateFileW(
+            wszFileName,
+                GENERIC_READ,
+                FILE_SHARE_READ | FILE_SHARE_DELETE | FILE_SHARE_WRITE,
+                NULL,
+                OPEN_EXISTING,
+                FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS,
+                NULL);
+
+        if (hFile == INVALID_HANDLE_VALUE)
+        {
+            return false;
+        }
+
+        std::wstring fullyResolvedPath;
+        DWORD getFinalNameResult = DetourGetFinalPathByHandle(hFile, fullyResolvedPath);
+        CloseHandle(hFile);
+        if (getFinalNameResult != ERROR_SUCCESS)
+        {
+            return false;
+        }
+
+        std::wstring translatedName;
+        TranslateFilePath(fullyResolvedPath, translatedName, false);
+
+        std::wstring canonicalizedPathNoPrefix = std::wstring(CanonicalizedPath::Canonicalize(translatedName.c_str()).GetPathStringWithoutTypePrefix());
+        std::wstring canonicalizedPath = std::wstring(CanonicalizedPath::Canonicalize(translatedName.c_str()).GetPathString());
+
+        // Reset policy result because the fully resolved path is likely to be different.
+        PolicyResult newPolicyResult;
+        if (!newPolicyResult.Initialize(canonicalizedPathNoPrefix.c_str()))
+        {
+            fileOperationContext.AdjustPath(canonicalizedPath.c_str());
+            newPolicyResult.ReportIndeterminatePolicyAndSetLastError(fileOperationContext);
+            return true;
+        }
+
+        std::wstring newPolicyPath = std::wstring(newPolicyResult.GetCanonicalizedPath().GetPathString());
+        size_t newLen = newPolicyPath.length();
+        std::wstring oldPolicyPath = std::wstring(policyResult.GetCanonicalizedPath().GetPathString());
+        size_t oldLen = oldPolicyPath.length();
+
+        Dbg(L",Resolved reparse point from:\t'%ws' to '%ws'\ttranslated to:\t%ws\tcanonicalized to:\t%ws\twithout prefix: %ws\tnew policy path:\t%ws %zu [%wc]\told policy result path:\t%ws %zu [%wc] [%wc] [%wc] [%wc] [%wc]",
+            wszFileName,
+            fullyResolvedPath.c_str(),
+            translatedName.c_str(),
+            canonicalizedPath.c_str(),
+            canonicalizedPathNoPrefix.c_str(),
+            newPolicyPath.c_str(),
+            newLen,
+            newPolicyPath[newLen - 1],
+            oldPolicyPath.c_str(),
+            oldLen,
+            oldPolicyPath[0],
+            oldPolicyPath[1],
+            oldPolicyPath[10],
+            oldPolicyPath[50],
+            oldPolicyPath[oldLen - 1]);
+        fileOperationContext.AdjustPath(newPolicyPath.c_str());
+        policyResult = newPolicyResult;
+    }
 
     AccessCheckResult readCheck = policyResult.CheckReadAccess(RequestedReadAccess::Read, fileReadContext);
 

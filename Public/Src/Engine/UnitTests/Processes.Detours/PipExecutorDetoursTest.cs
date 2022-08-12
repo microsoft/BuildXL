@@ -1716,6 +1716,62 @@ namespace Test.BuildXL.Processes.Detours
         }
 
         [FactIfSupported(requiresSymlinkPermission: true)]
+        public async Task CallDetouredProcessCreateWithDirectorySymlinkAndNoIgnore()
+        {
+            var context = BuildXLContext.CreateInstanceForTesting();
+            var pathTable = context.PathTable;
+
+            using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory))
+            {
+                AbsolutePath createdDirSymlink = tempFiles.GetFileName(pathTable, "CreateSymLinkOnDirectories1.dir");
+                AbsolutePath createdFile = tempFiles.GetFileName(pathTable, "CreateFile");
+
+                string currentCodeFolder = Path.GetDirectoryName(AssemblyHelper.GetAssemblyLocation(Assembly.GetExecutingAssembly()));
+                string executable = Path.Combine(currentCodeFolder, DetourTestFolder, DetoursTestsExe);
+
+                XAssert.IsTrue(File.Exists(executable));
+                AbsolutePath detoursPath = AbsolutePath.Create(pathTable, executable);
+
+                var process = CreateDetourProcess(
+                    context,
+                    pathTable,
+                    tempFiles,
+                    argumentStr: "CallDetouredProcessCreateWithDirectorySymlink",
+                    inputFiles: ReadOnlyArray<FileArtifact>.Empty,
+                    inputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
+                    outputFiles: ReadOnlyArray<FileArtifactWithAttributes>.FromWithoutCopy(
+                        FileArtifactWithAttributes.FromFileArtifact(FileArtifact.CreateSourceFile(createdFile), FileExistence.Required),
+                        FileArtifactWithAttributes.FromFileArtifact(FileArtifact.CreateSourceFile(createdDirSymlink), FileExistence.Required)),
+                    outputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
+                    untrackedScopes: ReadOnlyArray<AbsolutePath>.Empty);
+
+                string errorString = null;
+                SandboxedProcessPipExecutionResult result = await RunProcessAsync(
+                    pathTable: pathTable,
+                    ignoreSetFileInformationByHandle: false,
+                    ignoreZwRenameFileInformation: false,
+                    monitorNtCreate: true,
+                    ignoreReparsePoints: false,
+                    ignoreFullReparsePointResolving: false,
+                    disableDetours: false,
+                    context: context,
+                    pip: process,
+                    errorString: out errorString);
+
+                VerifyNormalSuccess(context, result);
+                VerifyProcessCreations(context, result.AllReportedFileAccesses, new[] { DetoursTestsExe });
+                VerifyFileAccesses(
+                    context,
+                    result.AllReportedFileAccesses,
+                    new[]
+                    {
+                        (createdDirSymlink, RequestedAccess.Write, FileAccessStatus.Allowed),
+                        (detoursPath, RequestedAccess.Read, FileAccessStatus.Allowed)
+                    });
+            }
+        }
+
+        [FactIfSupported(requiresSymlinkPermission: true)]
         public async Task CallDetouredProcessCreateWithSymlinkAndNoIgnore()
         {
             var context = BuildXLContext.CreateInstanceForTesting();
@@ -8123,7 +8179,8 @@ namespace Test.BuildXL.Processes.Detours
             executableNameSet.ExceptWith(reportedProcessCreations);
 
             var remain = string.Join(", ", executableNameSet);
-            XAssert.AreEqual(0, executableNameSet.Count, $"Non created processes are '{{{remain}}}'");
+            var processCreationsString = string.Join(", ", reportedProcessCreations);
+            XAssert.AreEqual(0, executableNameSet.Count, $"Created processes are '{{{processCreationsString}}}'. Non created processes are '{{{remain}}}'");
         }
 
         private static void VerifyFileAccessViolations(SandboxedProcessPipExecutionResult result, int expectedCount)

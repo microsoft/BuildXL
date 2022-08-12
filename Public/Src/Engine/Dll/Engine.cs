@@ -592,11 +592,15 @@ namespace BuildXL.Engine
         /// </summary>
         private static void InjectDirectoryTranslationValuesIntoEnvironment(PathTable pathTable, CommandLineConfiguration commandLineConfiguration)
         {
-            var environmentVariable = DirectoryTranslator.GetEnvironmentVaribleRepresentationForTranslations(
-                commandLineConfiguration.Engine.DirectoriesToTranslate.Select(d => new DirectoryTranslator.Translation(d.FromPath.ToString(pathTable), d.ToPath.ToString(pathTable))).ToList());
+            var translations = new List<DirectoryTranslator.Translation>(commandLineConfiguration.Engine.DirectoriesToTranslate.Count + 1)
+            {
+                new DirectoryTranslator.Translation(commandLineConfiguration.Logging.SubstSource.ToString(pathTable), commandLineConfiguration.Logging.SubstTarget.ToString(pathTable))
+            };
+            translations.AddRange(commandLineConfiguration.Engine.DirectoriesToTranslate.Select(d => new DirectoryTranslator.Translation(d.FromPath.ToString(pathTable), d.ToPath.ToString(pathTable))));
+            var (variable, value) = DirectoryTranslator.GetEnvironmentVaribleRepresentationForTranslations(translations);
 
-            Environment.SetEnvironmentVariable(environmentVariable.variable, environmentVariable.value);
-            commandLineConfiguration.Sandbox.GlobalUnsafePassthroughEnvironmentVariables.Add(environmentVariable.variable);
+            Environment.SetEnvironmentVariable(variable, value);
+            commandLineConfiguration.Sandbox.GlobalUnsafePassthroughEnvironmentVariables.Add(variable);
         }
 
         private static AbsolutePath AppendNoIndexSuffixToLayoutDirectoryIfNeeded(PathTable pathTable, AbsolutePath directory, ILayoutConfiguration layout, bool inTestMode)

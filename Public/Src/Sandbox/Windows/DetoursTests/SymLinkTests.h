@@ -5,6 +5,7 @@
 
 int CallDetouredFileCreateWithSymlink();
 int CallDetouredFileCreateWithNoSymlink();
+int CallDetouredProcessCreateWithDirectorySymlink();
 int CallDetouredProcessCreateWithSymlink();
 int CallCreateSymLinkOnFiles();
 int CallCreateSymLinkOnDirectories();

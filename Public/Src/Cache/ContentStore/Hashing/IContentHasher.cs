@@ -121,4 +121,17 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// </summary>
         CounterSet GetCounters();
     }
+
+    /// <summary>
+    /// A DedupContent hashing object.
+    /// </summary>
+    public interface IDedupContentHasher: IContentHasher
+    {
+        /// <summary>
+        /// Computes a Hash from the given stream and returns a DedupNode.
+        /// </summary>
+        /// <param name="content"></param>
+        /// <returns></returns>
+        Task<DedupNode> HashContentAndGetDedupNodeAsync(StreamWithLength content);
+    }
 }

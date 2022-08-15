@@ -282,7 +282,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
         /// <nodoc />
         internal static async Task<DedupNode> GetDedupNodeFromFileAsync(HashType hashType, string path)
         {
-            var contentHasher = (DedupContentHasher<DedupNodeOrChunkHashAlgorithm>)HashInfoLookup.GetContentHasher(hashType);
+            var contentHasher = (IDedupContentHasher)HashInfoLookup.GetContentHasher(hashType);
             using (var stream = FileStreamUtility.OpenFileStreamForAsync(path, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete))
             {
                 return await contentHasher.HashContentAndGetDedupNodeAsync(stream);

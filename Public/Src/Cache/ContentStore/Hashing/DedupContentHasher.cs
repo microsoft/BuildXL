@@ -7,7 +7,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
     /// <summary>
     /// Dedup content hasher which is hashtype aware.
     /// </summary>
-    public class DedupContentHasher<T> : ContentHasher<T> where T : DedupNodeOrChunkHashAlgorithm, new()
+    public class DedupContentHasher<T> : ContentHasher<T>, IDedupContentHasher where T : DedupNodeOrChunkHashAlgorithm, new()
     {
         /// <nodoc />
         public DedupContentHasher(HashInfo info) : base(info)

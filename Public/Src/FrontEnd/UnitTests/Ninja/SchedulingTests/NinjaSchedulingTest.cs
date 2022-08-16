@@ -89,20 +89,23 @@ namespace Test.BuildXL.FrontEnd.Ninja.SchedulingTests
             try
             {
                 EngineEnvironmentSettings.NinjaResolverAllowCxxDebugFlags.Value = false;
+                EngineEnvironmentSettings.NinjaResolverAllowPdbOutputFlags.Value = false;
 
                 var commandLine = $"{BogusExecutable} {rawArguments}";
                 var node = CreateNinjaNode(command: commandLine, outputs: Paths("foo.out"));
                 var process = Start().Add(node).ScheduleAll().RetrieveSuccessfulProcess(node);
                 XAssert.AreEqual(processedArguments, process.Arguments.ToString(PathTable));
 
-                // If this setting is true, we shouldn't edit the command line
+                // If these setting are true, we shouldn't edit the command line
                 EngineEnvironmentSettings.NinjaResolverAllowCxxDebugFlags.Value = true;
+                EngineEnvironmentSettings.NinjaResolverAllowPdbOutputFlags.Value = true;
                 process = Start().Add(node).ScheduleAll().RetrieveSuccessfulProcess(node);
                 XAssert.AreEqual(rawArguments, process.Arguments.ToString(PathTable));
             }
             finally
             {
                 EngineEnvironmentSettings.NinjaResolverAllowCxxDebugFlags.Value = false;
+                EngineEnvironmentSettings.NinjaResolverAllowPdbOutputFlags.Value = false;
             }
         }
 

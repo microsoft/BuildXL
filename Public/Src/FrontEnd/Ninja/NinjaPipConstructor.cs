@@ -29,7 +29,7 @@ namespace BuildXL.FrontEnd.Ninja
     internal sealed class NinjaPipConstructor
     {
         private static readonly Regex s_pdbOutputArgumentRegex = new Regex(@"\s/Z[iI](\s|$)");
-        private static readonly Regex s_allMspdbsrvRelevantOptionsRegex = new Regex(@"(\s/(Z[iI]|FS|MP\d*))+(\s|$)");
+        private static readonly Regex s_allMspdbsrvRelevantOptionsRegex = new Regex(@"(\s/(FS|MP\d*))+(\s|$)");
         private static readonly Regex s_allDebugOptionsRegex = new Regex(@"(\s/(Z[iI7]|FS|MP\d*|DEBUG))+(\s|$)");
 
         private readonly FrontEndContext m_context;
@@ -479,19 +479,29 @@ namespace BuildXL.FrontEnd.Ninja
                 args = split.Length > 1 ? split[1].Trim() : "";
             }
 
+
+            if (!EngineEnvironmentSettings.NinjaResolverAllowPdbOutputFlags)
+            {
+                // Remove /Zi, /ZI, and put /Z7 in its place
+                // This will make the compiler embed the debugging information in the object file
+                // instead of outputting to a PDB
+                // https://docs.microsoft.com/en-us/cpp/build/reference/z7-zi-zi-debug-information-format
+                args = s_pdbOutputArgumentRegex.Replace(args, " /Z7 ", 1);
+            }
+
             if (!EngineEnvironmentSettings.NinjaResolverAllowCxxDebugFlags)
             {
-                args = RemovePdbOptions(args);
+                // Remove /MP and /FS, the arguments that cause MSPDBSRV.EXE to spawn and be used
+                // https://docs.microsoft.com/en-us/cpp/build/reference/fs-force-synchronous-pdb-writes
+                args = RemoveMspdbsrvOptions(args);
             }
         }
 
         /// <summary>
         /// Remove all compiler arguments which will trigger mspdbsrv to spawn
         /// </summary>
-        private static string RemovePdbOptions(string args)
+        private static string RemoveMspdbsrvOptions(string args)
         {
-            // Remove /Zi, /ZI, and put /Z7 in its place
-            args = s_pdbOutputArgumentRegex.Replace(args, " /Z7 ", 1);
             return s_allMspdbsrvRelevantOptionsRegex.Replace(args, " ");
         }
 

@@ -231,7 +231,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Format of a machine id set.
         /// </summary>
-        protected enum SetFormat
+        public enum SetFormat
         {
             /// <summary>
             /// Based on a bit vector.

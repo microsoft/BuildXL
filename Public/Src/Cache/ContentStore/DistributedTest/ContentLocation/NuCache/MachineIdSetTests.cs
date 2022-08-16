@@ -14,18 +14,24 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
 {
     public class MachineIdSetTests
     {
-        [Fact]
-        public void MachineIdIndexShouldBePresent()
+        [Theory]
+        [InlineData(MachineIdSet.SetFormat.Array)]
+        [InlineData(MachineIdSet.SetFormat.Bits)]
+        [InlineData(MachineIdSet.SetFormat.LocationChange)]
+        public void MachineIdIndexShouldBePresent(MachineIdSet.SetFormat format)
         {
-            var set1 = MachineIdSet.Empty;
+            var set1 = CreateMachineIdSet(format);
 
             set1 = set1.Add(MachineId.FromIndex(1));
             set1.GetMachineIdIndex(MachineId.FromIndex(1)).Should().Be(0);
             set1.GetMachineIdIndex(MachineId.FromIndex(2)).Should().Be(-1);
         }
 
-        [Fact]
-        public void BitMachineIdSet_SetExistenceForEmptyTests()
+        [Theory]
+        [InlineData(MachineIdSet.SetFormat.Array)]
+        [InlineData(MachineIdSet.SetFormat.Bits)]
+        [InlineData(MachineIdSet.SetFormat.LocationChange)]
+        public void BitMachineIdSet_SetExistenceForEmptyTests(MachineIdSet.SetFormat format)
         {
             var set1 = MachineIdSet.Empty;
 
@@ -33,8 +39,51 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
             set1[1].Should().BeTrue();
         }
 
-        [Fact]
-        public void BitMachineIdSet_ExhaustiveTests()
+        [Theory]
+        [InlineData(MachineIdSet.SetFormat.Array)]
+        [InlineData(MachineIdSet.SetFormat.Bits)]
+        [InlineData(MachineIdSet.SetFormat.LocationChange)]
+        public void TestSetMachineId(MachineIdSet.SetFormat format)
+        {
+            var set1 = CreateMachineIdSet(format);
+            set1 = set1.SetExistence(1.AsMachineId(), exists: true);
+            set1 = set1.SetExistence(2.AsMachineId(), exists: true);
+            set1 = set1.SetExistence(3.AsMachineId(), exists: true);
+
+            var span = SerializeToByteArray(set1).AsSpan();
+            MachineIdSet.HasMachineId(span, 1).Should().BeTrue();
+            MachineIdSet.HasMachineId(span, 2).Should().BeTrue();
+            MachineIdSet.HasMachineId(span, 3).Should().BeTrue();
+
+            set1 = set1.SetExistence(2.AsMachineId(), exists: false);
+            span = SerializeToByteArray(set1).AsSpan();
+
+            MachineIdSet.HasMachineId(span, 2).Should().BeFalse();
+
+            set1 = set1.SetExistence(MachineIdCollection.Create(Enumerable.Range(1, 100).Select(n => n.AsMachineId()).ToArray()), exists: true);
+            set1 = set1.SetExistence(MachineIdCollection.Create(Enumerable.Range(101, 100).Select(n => n.AsMachineId()).ToArray()), exists: false);
+            span = SerializeToByteArray(set1).AsSpan();
+
+            MachineIdSet.HasMachineId(span, 99).Should().BeTrue();
+            MachineIdSet.HasMachineId(span, 105).Should().BeFalse();
+        }
+
+        private static MachineIdSet CreateMachineIdSet(MachineIdSet.SetFormat format)
+        {
+            return format switch
+            {
+                MachineIdSet.SetFormat.Bits => BitMachineIdSet.EmptyInstance,
+                MachineIdSet.SetFormat.Array => ArrayMachineIdSet.EmptyInstance,
+                MachineIdSet.SetFormat.LocationChange => LocationChangeMachineIdSet.EmptyInstance,
+                _ => throw new ArgumentOutOfRangeException(nameof(format), format, null)
+            };
+        }
+
+        [Theory]
+        [InlineData(MachineIdSet.SetFormat.Array)]
+        [InlineData(MachineIdSet.SetFormat.Bits)]
+        [InlineData(MachineIdSet.SetFormat.LocationChange)]
+        public void BitMachineIdSet_ExhaustiveTests(MachineIdSet.SetFormat format)
         {
             for (int length = 0; length < 15; length++)
             {
@@ -56,8 +105,11 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
             }
         }
 
-        [Fact]
-        public void MachineIdSets_Are_TheSame_ExhaustiveTests()
+        [Theory]
+        [InlineData(MachineIdSet.SetFormat.Array)]
+        [InlineData(MachineIdSet.SetFormat.Bits)]
+        [InlineData(MachineIdSet.SetFormat.LocationChange)]
+        public void MachineIdSets_Are_TheSame_ExhaustiveTests(MachineIdSet.SetFormat format)
         {
             // This test makes sure that the main functionality provides the same results for both BitMachineIdSet and ArrayMachineIdSet
             for (int length = 0; length < 15; length++)
@@ -78,14 +130,15 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
 
                     var index2 = arrayIdSet.GetMachineIdIndex(new MachineId(machineId));
                     index2.Should().Be(index);
-
-                    
                 }
             }
         }
 
-        [Fact]
-        public void ArrayMachineIdSet_ExhaustiveTests()
+        [Theory]
+        [InlineData(MachineIdSet.SetFormat.Array)]
+        [InlineData(MachineIdSet.SetFormat.Bits)]
+        [InlineData(MachineIdSet.SetFormat.LocationChange)]
+        public void MachineIdSet_ExhaustiveTests(MachineIdSet.SetFormat format)
         {
             for (int length = 0; length < 15; length++)
             {
@@ -143,6 +196,20 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
                 Assert.Equal(readFromBinaryReader, readFromSpan);
 
                 return readFromSpan;
+            }
+        }
+
+        private static byte[] SerializeToByteArray(MachineIdSet source)
+        {
+            using (var memoryStream = new MemoryStream())
+            {
+                using (var writer = BuildXLWriter.Create(memoryStream, leaveOpen: true))
+                {
+                    source.Serialize(writer);
+                }
+
+                memoryStream.Position = 0;
+                return memoryStream.ToArray();
             }
         }
 

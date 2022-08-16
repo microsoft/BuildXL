@@ -219,8 +219,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             for (int i = 0; i < count; i++)
             {
-                var machineId = (ushort)reader.ReadInt32Compact();
-                if (machineId == index)
+                var locationChange = new LocationChange(reader.ReadUInt16());
+                if (locationChange.IsAdd && locationChange.Index == index)
                 {
                     return true;
                 }

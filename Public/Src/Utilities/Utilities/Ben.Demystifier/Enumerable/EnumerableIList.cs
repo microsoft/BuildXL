@@ -1,34 +1,31 @@
-// Copyright (c) Microsoft Corporation.
-// Licensed under the MIT License.
+// Copyright (c) Ben A Adams. All rights reserved.
+// Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
+
+#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
+
+#nullable enable
 
 namespace System.Collections.Generic.Enumerable
 {
-    /// <nodoc />
     public static class EnumerableIList
     {
-        /// <nodoc />
         public static EnumerableIList<T> Create<T>(IList<T> list) => new EnumerableIList<T>(list);
     }
 
-    /// <nodoc />
-    public readonly struct EnumerableIList<T> : IEnumerableIList<T>, IList<T>
+    public struct EnumerableIList<T> : IEnumerableIList<T>, IList<T>
     {
         private readonly IList<T> _list;
 
-        /// <nodoc />
         public EnumerableIList(IList<T> list) => _list = list;
 
-        /// <nodoc />
         public EnumeratorIList<T> GetEnumerator() => new EnumeratorIList<T>(_list);
 
-        /// <nodoc />
         public static implicit operator EnumerableIList<T>(List<T> list) => new EnumerableIList<T>(list);
 
-        /// <nodoc />
         public static implicit operator EnumerableIList<T>(T[] array) => new EnumerableIList<T>(array);
 
-        /// <nodoc />
-        public static readonly EnumerableIList<T> Empty = default(EnumerableIList<T>);
+        public static EnumerableIList<T> Empty = default;
+
 
         // IList pass through
 

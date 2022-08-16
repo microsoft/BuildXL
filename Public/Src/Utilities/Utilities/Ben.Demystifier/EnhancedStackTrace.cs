@@ -1,24 +1,33 @@
-// Copyright (c) Microsoft Corporation.
-// Licensed under the MIT License.
+// Copyright (c) Ben A Adams. All rights reserved.
+// Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System.Collections;
 using System.Collections.Generic;
+using System.Collections.Generic.Enumerable;
+using System.IO;
 using System.Text;
+
+#nullable enable
 
 namespace System.Diagnostics
 {
-    /// <nodoc />
-    public partial class EnhancedStackTrace : StackTrace, IEnumerable<EnhancedStackFrame>
+    internal partial class EnhancedStackTrace : StackTrace, IEnumerable<EnhancedStackFrame>
     {
-        /// <nodoc />
         public static EnhancedStackTrace Current() => new EnhancedStackTrace(new StackTrace(1 /* skip this one frame */, true));
 
-        private readonly List<EnhancedStackFrame> m_frames;
+        private readonly List<EnhancedStackFrame> _frames;
 
-        /// <summary>
-        /// Initializes a new instance of the System.Diagnostics.StackTrace class using the
-        ///     provided exception object.
-        /// </summary>
+        // Summary:
+        //     Initializes a new instance of the System.Diagnostics.StackTrace class using the
+        //     provided exception object.
+        //
+        // Parameters:
+        //   e:
+        //     The exception object from which to construct the stack trace.
+        //
+        // Exceptions:
+        //   T:System.ArgumentNullException:
+        //     The parameter e is null.
         public EnhancedStackTrace(Exception e)
         {
             if (e == null)
@@ -26,10 +35,9 @@ namespace System.Diagnostics
                 throw new ArgumentNullException(nameof(e));
             }
 
-            m_frames = GetFrames(e);
+            _frames = GetFrames(e);
         }
 
-        /// <nodoc />
         public EnhancedStackTrace(StackTrace stackTrace)
         {
             if (stackTrace == null)
@@ -37,21 +45,21 @@ namespace System.Diagnostics
                 throw new ArgumentNullException(nameof(stackTrace));
             }
 
-            m_frames = GetFrames(stackTrace);
+            _frames = GetFrames(stackTrace);
         }
 
         /// <summary>
         /// Gets the number of frames in the stack trace.
         /// </summary>
         /// <returns>The number of frames in the stack trace.</returns>
-        public override int FrameCount => m_frames.Count;
+        public override int FrameCount => _frames.Count;
 
         /// <summary>
         /// Gets the specified stack frame.
         /// </summary>
         /// <param name="index">The index of the stack frame requested.</param>
         /// <returns>The specified stack frame.</returns>
-        public override StackFrame GetFrame(int index) => m_frames[index];
+        public override StackFrame GetFrame(int index) => _frames[index];
 
         /// <summary>
         ///     Returns a copy of all stack frames in the current stack trace.
@@ -60,7 +68,7 @@ namespace System.Diagnostics
         ///     An array of type System.Diagnostics.StackFrame representing the function calls
         ///     in the stack trace.
         /// </returns>
-        public override StackFrame[] GetFrames() => m_frames.ToArray();
+        public override StackFrame[] GetFrames() => _frames.ToArray();
 
         /// <summary>
         /// Builds a readable representation of the stack trace.
@@ -68,10 +76,7 @@ namespace System.Diagnostics
         /// <returns>A readable representation of the stack trace.</returns>
         public override string ToString()
         {
-            if (m_frames == null || m_frames.Count == 0)
-            {
-                return "";
-            }
+            if (_frames == null || _frames.Count == 0) return "";
 
             var sb = new StringBuilder();
 
@@ -82,7 +87,7 @@ namespace System.Diagnostics
 
         internal void Append(StringBuilder sb)
         {
-            var frames = m_frames;
+            var frames = _frames;
             var count = frames.Count;
 
             for (var i = 0; i < count; i++)
@@ -97,27 +102,13 @@ namespace System.Diagnostics
                 sb.Append("   at ");
                 frame.MethodInfo.Append(sb);
 
-                var filePath = frame.GetFileName();
-                if (!string.IsNullOrEmpty(filePath))
+                if (frame.GetFileName() is { } fileName
+                    // IsNullOrEmpty alone wasn't enough to disable the null warning
+                    && !string.IsNullOrEmpty(fileName))
                 {
                     sb.Append(" in ");
-                    try
-                    {
-                        var uri = new Uri(filePath);
+                    sb.Append(TryGetFullPath(fileName));
 
-                        if (uri.IsFile)
-                        {
-                            sb.Append(IO.Path.GetFullPath(filePath));
-                        }
-                        else
-                        {
-                            sb.Append(uri);
-                        }
-                    }
-                    catch (UriFormatException)
-                    {
-                        sb.Append(filePath);
-                    }
                 }
 
                 var lineNo = frame.GetFileLineNumber();
@@ -129,7 +120,22 @@ namespace System.Diagnostics
             }
         }
 
-        IEnumerator<EnhancedStackFrame> IEnumerable<EnhancedStackFrame>.GetEnumerator() => m_frames.GetEnumerator();
-        IEnumerator IEnumerable.GetEnumerator() => m_frames.GetEnumerator();
+        EnumerableIList<EnhancedStackFrame> GetEnumerator() => EnumerableIList.Create(_frames);
+        IEnumerator<EnhancedStackFrame> IEnumerable<EnhancedStackFrame>.GetEnumerator() => _frames.GetEnumerator();
+        IEnumerator IEnumerable.GetEnumerator() => _frames.GetEnumerator();
+
+        /// <summary>
+        /// Tries to convert a given <paramref name="filePath"/> to a full path.
+        /// Returns original value if the conversion isn't possible or a given path is relative.
+        /// </summary>
+        public static string TryGetFullPath(string filePath)
+        {
+            if (Uri.TryCreate(filePath, UriKind.Absolute, out var uri) && uri.IsFile)
+            {
+                return Uri.UnescapeDataString(uri.AbsolutePath);
+            }
+
+            return filePath;
+        }
     }
 }

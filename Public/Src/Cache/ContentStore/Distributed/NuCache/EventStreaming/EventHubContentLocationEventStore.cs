@@ -18,6 +18,7 @@ using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Native.IO;
+using BuildXL.Utilities;
 using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
@@ -207,7 +208,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                         // If the error is not retryable, then the entire operation will fail and we don't need to double trace the error.
                         if (TransientEventHubErrorDetectionStrategy.IsRetryable(e))
                         {
-                            Tracer.Debug(context, $"{Tracer.Name}.{nameof(SendEventsCoreAsync)} failed with retryable error=[{e}]");
+                            Tracer.Debug(context, $"{Tracer.Name}.{nameof(SendEventsCoreAsync)} failed with retryable error=[{e.ToStringDemystified()}]");
                         }
 
                         throw;

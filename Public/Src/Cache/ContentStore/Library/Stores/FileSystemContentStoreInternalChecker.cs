@@ -366,7 +366,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             }
             catch (Exception e)
             {
-                _tracer.Warning(context, $"SelfCheck: Content hash is invalid. Hash={expectedHash.ToShortString()}, Error={e}");
+                _tracer.Warning(context, $"SelfCheck: Content hash is invalid. Hash={expectedHash.ToShortString()}, Error={e.DemystifyToString()}");
 
                 return (isValid: true, error: string.Empty);
             }

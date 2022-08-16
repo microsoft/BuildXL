@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -260,6 +261,7 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
         }
 
         /// <nodoc />
+        [StackTraceHidden]
         protected T RunOperationAndConvertExceptionToError<T>(Func<T> operation)
             where T : ResultBase
         {
@@ -276,6 +278,7 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
         }
 
         /// <nodoc />
+        [StackTraceHidden]
         protected async Task<T> RunOperationAndConvertExceptionToErrorAsync<T>(Func<Task<T>> operation, StopwatchSlim stopwatch)
             where T : ResultBase
         {
@@ -347,6 +350,7 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
         }
 
         /// <nodoc />
+        [StackTraceHidden]
         public async Task<TResult> RunAsync([CallerMemberName] string? caller = null)
         {
             // If the caller was not set by 'WithOptions' call, setting it here.
@@ -429,6 +433,7 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
         }
 
         /// <nodoc />
+        [StackTraceHidden]
         public virtual async Task<TResult> RunAsync([CallerMemberName] string? caller = null)
         {
             // If the caller was not set by 'WithOptions' call, setting it here.
@@ -470,6 +475,7 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
         }
 
         /// <nodoc />
+        [StackTraceHidden]
         public PerformAsyncOperationWithTimeoutBuilder<TResult> WithTimeout(TimeSpan? timeout)
         {
             _timeout = timeout;
@@ -477,6 +483,7 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
         }
 
         /// <nodoc />
+        [StackTraceHidden]
         public virtual async Task<TResult> RunAsync([CallerMemberName] string? caller = null)
         {
             // If the caller was not set by 'WithOptions' call, setting it here.
@@ -496,6 +503,7 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
         }
 
         /// <nodoc />
+        [StackTraceHidden]
         protected async Task<T> RunOperationAndConvertExceptionToErrorAsync<T>(Func<OperationContext, Task<T>> operation, StopwatchSlim stopwatch)
             where T : ResultBase
         {
@@ -515,6 +523,7 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
         }
 
         /// <nodoc />
+        [StackTraceHidden]
         public static async Task<T> WithOptionalTimeoutAsync<T>(Func<OperationContext, Task<T>> operation, TimeSpan? timeout, OperationContext context, [CallerMemberName] string? caller = null) where T : ResultBase
         {
             if (timeout == null || timeout.Value == TimeSpan.MaxValue)

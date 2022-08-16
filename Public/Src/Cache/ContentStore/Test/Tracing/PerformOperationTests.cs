@@ -25,12 +25,9 @@ namespace BuildXL.Cache.ContentStore.Test.Tracing
 {
     public class PerformOperationTests : TestWithOutput
     {
-        private readonly ITestOutputHelper _testOutputHelper;
-
-        public PerformOperationTests(ITestOutputHelper output, ITestOutputHelper testOutputHelper)
+        public PerformOperationTests(ITestOutputHelper output)
         : base(output)
         {
-            _testOutputHelper = testOutputHelper;
         }
 
         public enum AsyncOperationKind
@@ -146,6 +143,61 @@ namespace BuildXL.Cache.ContentStore.Test.Tracing
 
             // The final result should contain an original method that threw the error.
             finalErrorResult.Should().Contain("nested");
+            finalErrorResult.Should().NotContain(nameof(Interfaces.Results.ResultsExtensions.ThrowIfFailure));
+
+            // Both the full string and the error message should have the original error message
+            finalErrorResult.Should().Contain(errorMessage);
+            r3.ErrorMessage.Should().Contain(errorMessage);
+
+            // The error message should not be repeated multiple times.
+            finalErrorResult.Split(new string[] { errorMessage }, StringSplitOptions.RemoveEmptyEntries).Length.Should().Be(2);
+        }
+
+        [Fact]
+        public async Task TestResultPropagationExceptionInAsyncMethod()
+        {
+            const string errorMessage = "Invalid operation error";
+            var tracer = new Tracer("MyTracer");
+            var context = new OperationContext(new Context(TestGlobal.Logger));
+
+            var r1 = context.PerformOperationAsync(
+                tracer,
+                () =>
+                {
+                    new BoolResult(exceptionWithStackTrace()).ThrowIfFailure();
+                    return BoolResult.SuccessTask;
+
+                    Exception exceptionWithStackTrace()
+                    {
+                        try
+                        {
+                            nested();
+                            throw new InvalidOperationException("Should not get here!");
+                        }
+                        catch (Exception e)
+                        {
+                            return e;
+                        }
+                    }
+
+                    void nested() => throw new InvalidOperationException(errorMessage);
+                });
+
+            var r3 = await context.PerformOperationAsync(
+                tracer,
+                async () =>
+                {
+                    await r1.ThrowIfFailureAsync();
+                    return BoolResult.Success;
+                }, extraStartMessage: "Final operation");
+
+            var finalErrorResult = r3.ToString();
+
+            Output.WriteLine("R1: " + (await r1));
+
+            // The final result should contain an original method that threw the error.
+            finalErrorResult.Should().Contain("nested");
+            finalErrorResult.Should().NotContain(nameof(Interfaces.Results.ResultsExtensions.ThrowIfFailureAsync));
 
             // Both the full string and the error message should have the original error message
             finalErrorResult.Should().Contain(errorMessage);

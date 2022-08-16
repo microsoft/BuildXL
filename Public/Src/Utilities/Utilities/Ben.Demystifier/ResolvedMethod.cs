@@ -1,60 +1,62 @@
-// Copyright (c) Microsoft Corporation.
-// Licensed under the MIT License.
+// Copyright (c) .NET Foundation. All rights reserved.
+// Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System.Collections.Generic.Enumerable;
 using System.Reflection;
 using System.Text;
 
+#nullable enable
+
 namespace System.Diagnostics
 {
-    /// <nodoc />
-    public class ResolvedMethod
+    internal class ResolvedMethod
     {
-        /// <nodoc />
-        public MethodBase MethodBase { get; set; }
+        public MethodBase? MethodBase { get; set; }
 
-        /// <nodoc />
-        public string DeclaringTypeName { get; set; }
+        public Type? DeclaringType { get; set; }
 
-        /// <nodoc />
         public bool IsAsync { get; set; }
 
-        /// <nodoc />
         public bool IsLambda { get; set; }
 
-        /// <nodoc />
-        public ResolvedParameter ReturnParameter { get; set; }
+        public ResolvedParameter? ReturnParameter { get; set; }
 
-        /// <nodoc />
-        public string Name { get; set; }
+        public string? Name { get; set; }
 
-        /// <nodoc />
         public int? Ordinal { get; set; }
 
-        /// <nodoc />
-        public string GenericArguments { get; set; }
+        public string? GenericArguments { get; set; }
 
-        /// <nodoc />
-        public Type[] ResolvedGenericArguments { get; set; }
+        public Type[]? ResolvedGenericArguments { get; set; }
 
-        /// <nodoc />
-        public MethodBase SubMethodBase { get; set; }
+        public MethodBase? SubMethodBase { get; set; }
 
-        /// <nodoc />
-        public string SubMethod { get; set; }
+        public string? SubMethod { get; set; }
 
-        /// <nodoc />
         public EnumerableIList<ResolvedParameter> Parameters { get; set; }
 
-        /// <nodoc />
         public EnumerableIList<ResolvedParameter> SubMethodParameters { get; set; }
+        public int RecurseCount { get; internal set; }
 
-        /// <inheritdoc />
+        internal bool IsSequentialEquivalent(ResolvedMethod obj)
+        {
+            return
+                IsAsync == obj.IsAsync &&
+                DeclaringType == obj.DeclaringType &&
+                Name == obj.Name &&
+                IsLambda == obj.IsLambda &&
+                Ordinal == obj.Ordinal &&
+                GenericArguments == obj.GenericArguments &&
+                SubMethod == obj.SubMethod;
+        }
+
         public override string ToString() => Append(new StringBuilder()).ToString();
 
-        internal StringBuilder Append(StringBuilder builder)
-        {
+        public StringBuilder Append(StringBuilder builder)
+            => Append(builder, true);
 
+        public StringBuilder Append(StringBuilder builder, bool fullName)
+        {
             if (IsAsync)
             {
                 builder.Append("async ");
@@ -66,26 +68,24 @@ namespace System.Diagnostics
                 builder.Append(" ");
             }
 
-            if (!string.IsNullOrEmpty(DeclaringTypeName))
+            if (DeclaringType != null)
             {
+
                 if (Name == ".ctor")
                 {
                     if (string.IsNullOrEmpty(SubMethod) && !IsLambda)
-                    {
                         builder.Append("new ");
-                    }
 
-                    builder.Append(DeclaringTypeName);
+                    AppendDeclaringTypeName(builder, fullName);
                 }
                 else if (Name == ".cctor")
                 {
                     builder.Append("static ");
-                    builder.Append(DeclaringTypeName);
+                    AppendDeclaringTypeName(builder, fullName);
                 }
                 else
                 {
-                    builder
-                        .Append(DeclaringTypeName)
+                    AppendDeclaringTypeName(builder, fullName)
                         .Append(".")
                         .Append(Name);
                 }
@@ -100,7 +100,7 @@ namespace System.Diagnostics
             if (MethodBase != null)
             {
                 var isFirst = true;
-                foreach(var param in Parameters)
+                foreach (var param in Parameters)
                 {
                     if (isFirst)
                     {
@@ -158,7 +158,17 @@ namespace System.Diagnostics
                 }
             }
 
+            if (RecurseCount > 0)
+            {
+                builder.Append($" x {RecurseCount + 1:0}");
+            }
+
             return builder;
+        }
+
+        private StringBuilder AppendDeclaringTypeName(StringBuilder builder, bool fullName = true)
+        {
+            return DeclaringType != null ? builder.AppendTypeDisplayName(DeclaringType, fullName: fullName, includeGenericParameterNames: true) : builder;
         }
     }
 }

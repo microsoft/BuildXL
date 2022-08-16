@@ -1,44 +1,63 @@
-// Copyright (c) Microsoft Corporation.
-// Licensed under the MIT License.
+// Copyright (c) Ben A Adams. All rights reserved.
+// Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System.Text;
 
+#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
+
+#nullable enable
+
 namespace System.Diagnostics
 {
-    /// <nodoc />
     public class ResolvedParameter
     {
-        /// <nodoc />
-        public string Name { get; set; }
+        public string? Name { get; set; }
 
-        /// <nodoc />
-        public string Type { get; set; }
-
-        /// <nodoc />
         public Type ResolvedType { get; set; }
 
-        /// <nodoc />
-        public string Prefix { get; set; }
+        public string? Prefix { get; set; }
+        public bool IsDynamicType { get; set; }
 
-        /// <inheritdoc />
+        public ResolvedParameter(Type resolvedType) => ResolvedType = resolvedType;
+
         public override string ToString() => Append(new StringBuilder()).ToString();
 
-        internal StringBuilder Append(StringBuilder sb)
+        public StringBuilder Append(StringBuilder sb)
         {
+            if (ResolvedType.Assembly.ManifestModule.Name == "FSharp.Core.dll" && ResolvedType.Name == "Unit")
+                return sb;
+
             if (!string.IsNullOrEmpty(Prefix))
             {
                 sb.Append(Prefix)
-                  .Append(" ");
+                    .Append(" ");
             }
 
-            sb.Append(Type);
+            if (IsDynamicType)
+            {
+                sb.Append("dynamic");
+            }
+            else if (ResolvedType != null)
+            {
+                AppendTypeName(sb);
+            }
+            else
+            {
+                sb.Append("?");
+            }
+
             if (!string.IsNullOrEmpty(Name))
             {
                 sb.Append(" ")
-                  .Append(Name);
+                    .Append(Name);
             }
 
             return sb;
+        }
+
+        protected virtual void AppendTypeName(StringBuilder sb)
+        {
+            sb.AppendTypeDisplayName(ResolvedType, fullName: false, includeGenericParameterNames: true);
         }
     }
 }

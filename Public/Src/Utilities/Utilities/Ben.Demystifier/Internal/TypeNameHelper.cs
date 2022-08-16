@@ -1,15 +1,19 @@
-// Copyright (c) Microsoft Corporation.
-// Licensed under the MIT License.
+// Copyright (c) .NET Foundation. All rights reserved.
+// Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System.Collections.Generic;
 using System.Text;
 
-namespace System.Diagnostics.Internal
+#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
+
+#nullable enable
+
+namespace System.Diagnostics
 {
     // Adapted from https://github.com/aspnet/Common/blob/dev/shared/Microsoft.Extensions.TypeNameHelper.Sources/TypeNameHelper.cs
-    internal class TypeNameHelper
+    public static class TypeNameHelper
     {
-        private static readonly Dictionary<Type, string> _builtInTypeNames = new Dictionary<Type, string>
+        public static readonly Dictionary<Type, string> BuiltInTypeNames = new Dictionary<Type, string>
         {
             { typeof(void), "void" },
             { typeof(bool), "bool" },
@@ -29,6 +33,15 @@ namespace System.Diagnostics.Internal
             { typeof(ushort), "ushort" }
         };
 
+        public static readonly Dictionary<string, string> FSharpTypeNames = new Dictionary<string, string>
+        {
+            { "Unit", "void" },
+            { "FSharpOption", "Option" },
+            { "FSharpAsync", "Async" },
+            { "FSharpOption`1", "Option" },
+            { "FSharpAsync`1", "Async" }
+        };
+
         /// <summary>
         /// Pretty print a type name.
         /// </summary>
@@ -43,6 +56,12 @@ namespace System.Diagnostics.Internal
             return builder.ToString();
         }
 
+        public static StringBuilder AppendTypeDisplayName(this StringBuilder builder, Type type, bool fullName = true, bool includeGenericParameterNames = false)
+        {
+            ProcessType(builder, type, new DisplayNameOptions(fullName, includeGenericParameterNames));
+            return builder;
+        }
+
         /// <summary>
         /// Returns a name of given generic type without '`'.
         /// </summary>
@@ -54,29 +73,42 @@ namespace System.Diagnostics.Internal
             }
 
             var genericPartIndex = type.Name.IndexOf('`');
-            Debug.Assert(genericPartIndex >= 0);
 
-            return type.Name.Substring(0, genericPartIndex);
+            return (genericPartIndex >= 0) ? type.Name.Substring(0, genericPartIndex) : type.Name;
         }
 
         private static void ProcessType(StringBuilder builder, Type type, DisplayNameOptions options)
         {
             if (type.IsGenericType)
             {
-                var genericArguments = type.GetGenericArguments();
-                ProcessGenericType(builder, type, genericArguments, genericArguments.Length, options);
+                var underlyingType = Nullable.GetUnderlyingType(type);
+                if (underlyingType != null)
+                {
+                    ProcessType(builder, underlyingType, options);
+                    builder.Append('?');
+                }
+                else
+                {
+                    var genericArguments = type.GetGenericArguments();
+                    ProcessGenericType(builder, type, genericArguments, genericArguments.Length, options);
+                }
             }
             else if (type.IsArray)
             {
                 ProcessArrayType(builder, type, options);
             }
-            else if (_builtInTypeNames.TryGetValue(type, out var builtInName))
+            else if (BuiltInTypeNames.TryGetValue(type, out var builtInName))
             {
                 builder.Append(builtInName);
             }
             else if (type.Namespace == nameof(System))
             {
                 builder.Append(type.Name);
+            }
+            else if (type.Assembly.ManifestModule.Name == "FSharp.Core.dll"
+                     && FSharpTypeNames.TryGetValue(type.Name, out builtInName))
+            {
+                builder.Append(builtInName);
             }
             else if (type.IsGenericParameter)
             {
@@ -96,7 +128,10 @@ namespace System.Diagnostics.Internal
             var innerType = type;
             while (innerType.IsArray)
             {
-                innerType = innerType.GetElementType();
+                if (innerType.GetElementType() is { } inner)
+                {
+                    innerType = inner;
+                }
             }
 
             ProcessType(builder, innerType, options);
@@ -106,21 +141,25 @@ namespace System.Diagnostics.Internal
                 builder.Append('[');
                 builder.Append(',', type.GetArrayRank() - 1);
                 builder.Append(']');
-                type = type.GetElementType();
+                if (type.GetElementType() is not { } elementType)
+                {
+                    break;
+                }
+                type = elementType;
             }
         }
 
         private static void ProcessGenericType(StringBuilder builder, Type type, Type[] genericArguments, int length, DisplayNameOptions options)
         {
             var offset = 0;
-            if (type.IsNested)
+            if (type.IsNested && type.DeclaringType is not null)
             {
                 offset = type.DeclaringType.GetGenericArguments().Length;
             }
 
             if (options.FullName)
             {
-                if (type.IsNested)
+                if (type.IsNested && type.DeclaringType is not null)
                 {
                     ProcessGenericType(builder, type.DeclaringType, genericArguments, offset, options);
                     builder.Append('+');
@@ -139,7 +178,15 @@ namespace System.Diagnostics.Internal
                 return;
             }
 
-            builder.Append(type.Name, 0, genericPartIndex);
+            if (type.Assembly.ManifestModule.Name == "FSharp.Core.dll"
+                     && FSharpTypeNames.TryGetValue(type.Name, out var builtInName))
+            {
+                builder.Append(builtInName);
+            }
+            else
+            {
+                builder.Append(type.Name, 0, genericPartIndex);
+            }
 
             builder.Append('<');
             for (var i = offset; i < length; i++)
@@ -159,7 +206,7 @@ namespace System.Diagnostics.Internal
             builder.Append('>');
         }
 
-        private readonly struct DisplayNameOptions
+        private struct DisplayNameOptions
         {
             public DisplayNameOptions(bool fullName, bool includeGenericParameterNames)
             {

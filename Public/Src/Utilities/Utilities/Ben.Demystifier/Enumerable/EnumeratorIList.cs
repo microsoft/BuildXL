@@ -1,25 +1,25 @@
-// Copyright (c) Microsoft Corporation.
-// Licensed under the MIT License.
+// Copyright (c) Ben A Adams. All rights reserved.
+// Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
+
+#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
+
+#nullable enable
 
 namespace System.Collections.Generic.Enumerable
 {
-    /// <nodoc />
     public struct EnumeratorIList<T> : IEnumerator<T>
     {
         private readonly IList<T> _list;
         private int _index;
 
-        /// <nodoc />
         public EnumeratorIList(IList<T> list)
         {
             _index = -1;
             _list = list;
         }
 
-        /// <nodoc />
         public T Current => _list[_index];
-        
-        /// <nodoc />
+
         public bool MoveNext()
         {
             _index++;
@@ -27,12 +27,8 @@ namespace System.Collections.Generic.Enumerable
             return _index < (_list?.Count ?? 0);
         }
 
-        /// <nodoc />
         public void Dispose() { }
-
-        object IEnumerator.Current => Current;
-
-        /// <nodoc />
+        object? IEnumerator.Current => Current;
         public void Reset() => _index = -1;
     }
 }

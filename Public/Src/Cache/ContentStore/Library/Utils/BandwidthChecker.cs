@@ -163,7 +163,7 @@ namespace BuildXL.Cache.ContentStore.Utils
                         {
                             if (!(t.Exception?.InnerException is ObjectDisposedException))
                             {
-                                context.TracingContext.Debug($"Checked copy failed. {t.Exception}", component: nameof(BandwidthChecker), operation: nameof(CheckBandwidthAtIntervalAsync));
+                                context.TracingContext.Debug($"Checked copy failed. {t.Exception?.DemystifyToString()}", component: nameof(BandwidthChecker), operation: nameof(CheckBandwidthAtIntervalAsync));
                             }
                         }
                     });

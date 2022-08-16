@@ -6,21 +6,23 @@ using System.Collections.Generic.Enumerable;
 using System.Reflection;
 using BuildXL.Utilities;
 
+#nullable enable
+
 namespace System.Diagnostics
 {
     /// <nodoc />
-    public static class ExceptionExtentions
+    public static class ExceptionExtensions
     {
-        private static readonly FieldInfo stackTraceString = typeof(Exception).GetField("_stackTraceString", BindingFlags.Instance | BindingFlags.NonPublic);
+        private static readonly FieldInfo stackTraceString = typeof(Exception).GetField("_stackTraceString", BindingFlags.Instance | BindingFlags.NonPublic)!;
 
         /// <nodoc />
-        private static T Demystify<T>(this T exception, Dictionary<Exception, string> originalStacks) where T : Exception
+        private static T Demystify<T>(this T exception, Dictionary<Exception, string> originalStacks, bool rethrowException = false) where T : Exception
         {
             try
             {
                 if (!originalStacks.ContainsKey(exception))
                 {
-                    originalStacks[exception] = (string)stackTraceString.GetValue(exception);
+                    originalStacks[exception] = (string)stackTraceString.GetValue(exception)!;
                 }
 
                 var stackTrace = new EnhancedStackTrace(exception);
@@ -30,8 +32,7 @@ namespace System.Diagnostics
                     stackTraceString.SetValue(exception, stackTrace.ToString());
                 }
 
-                var aggEx = exception as AggregateException;
-                if (aggEx != null)
+                if (exception is AggregateException aggEx)
                 {
                     foreach (var ex in EnumerableIList.Create(aggEx.InnerExceptions))
                     {
@@ -44,6 +45,10 @@ namespace System.Diagnostics
 #pragma warning disable ERP022 // Processing exceptions shouldn't throw exceptions; if it fails
             catch
             {
+                if (rethrowException)
+                {
+                    throw;
+                }
             }
 #pragma warning restore ERP022
 
@@ -51,13 +56,13 @@ namespace System.Diagnostics
         }
         
         /// <nodoc />
-        public static string DemystifyToString(this Exception exception)
+        public static string DemystifyToString(this Exception exception, bool rethrowException = false)
         {
             try
             {
                 Analysis.IgnoreResult(exception.ToString(), "Need to trigger string computation first to materialized the stack trace");
                 var originalStacks = new Dictionary<Exception, string>();
-                exception.Demystify(originalStacks);
+                exception.Demystify(originalStacks, rethrowException);
 
                 string result = exception.ToString();
 
@@ -71,6 +76,10 @@ namespace System.Diagnostics
 #pragma warning disable ERP022 // Processing exceptions shouldn't throw exceptions; if it fails
             catch
             {
+                if (rethrowException)
+                {
+                    throw;
+                }
             }
 #pragma warning restore ERP022
 
@@ -78,7 +87,7 @@ namespace System.Diagnostics
         }
         
         /// <nodoc />
-        public static string DemystifyStackTrace(this Exception exception)
+        public static string DemystifyStackTrace(this Exception exception, bool rethrowException = false)
         {
             try
             {
@@ -93,14 +102,17 @@ namespace System.Diagnostics
                     stackTraceString.SetValue(kvp.Key, kvp.Value);
                 }
 
-                return result;
+                return result ?? string.Empty;
             }
 #pragma warning disable ERP022 // Processing exceptions shouldn't throw exceptions; if it fails
             catch
             {
+                if (rethrowException)
+                {
+                    throw;
+                }
             }
 #pragma warning restore ERP022
-
             return exception.ToString();
         }
     }

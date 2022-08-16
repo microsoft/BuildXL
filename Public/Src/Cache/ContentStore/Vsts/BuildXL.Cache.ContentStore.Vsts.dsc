@@ -27,6 +27,8 @@ namespace Vsts {
             importFrom("Microsoft.VisualStudio.Services.Client").pkg,
             importFrom("Microsoft.VisualStudio.Services.InteractiveClient").pkg,
             ...BuildXLSdk.systemThreadingTasksDataflowPackageReference,
+            ...BuildXLSdk.systemThreadingChannelsPackages,
+            ...BuildXLSdk.bclAsyncPackages,
         ],
         internalsVisibleTo: [
             "BuildXL.Cache.MemoizationStore.Vsts",

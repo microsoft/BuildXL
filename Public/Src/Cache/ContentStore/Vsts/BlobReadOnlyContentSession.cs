@@ -20,11 +20,12 @@ using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
-using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using BuildXL.Cache.ContentStore.Sessions;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
+using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using Microsoft.VisualStudio.Services.BlobStore.Common;
 using Microsoft.VisualStudio.Services.BlobStore.WebApi;
@@ -57,6 +58,14 @@ namespace BuildXL.Cache.ContentStore.Vsts
             /// </summary>
             VstsDownloadUriFetchedInMemory
         }
+
+        /// <summary>
+        /// Reused http client for http downloads
+        /// </summary>
+        /// <remarks>
+        /// <see cref="HttpClient"/> is meant to be static
+        /// </remarks>
+        private static readonly HttpClient HttpClient = new HttpClient();
 
         /// <inheritdoc />
         public BackingContentStoreExpiryCache ExpiryCache { get; } = new BackingContentStoreExpiryCache();
@@ -113,12 +122,19 @@ namespace BuildXL.Cache.ContentStore.Vsts
 
         private const int DefaultReadSizeInBytes = 64 * 1024;
 
+        /// <summary>
+        /// This is the maximum number of requests that BlobStore is willing to process in parallel.
+        /// </summary>
+        private const int BulkPinMaximumHashes = 1000;
+
         private readonly ParallelHttpDownload.DownloadConfiguration _parallelSegmentDownloadConfig;
 
-        /// <summary>
-        /// Reused http client for http downloads
-        /// </summary>
-        private readonly HttpClient _httpClient = new HttpClient();
+        private record BackgroundPinRequest(
+            ContentHash ContentHash,
+            DateTime EndTime,
+            TaskSourceSlim<PinResult> PinResult);
+
+        private NagleQueue<BackgroundPinRequest>? _backgroundPinQueue;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="BlobReadOnlyContentSession"/> class.
@@ -151,6 +167,76 @@ namespace BuildXL.Cache.ContentStore.Vsts
         }
 
         /// <inheritdoc />
+        protected override Task<BoolResult> StartupCoreAsync(OperationContext context)
+        {
+            _backgroundPinQueue = NagleQueue<BackgroundPinRequest>.Create(
+                (batch) => PerformBackgroundBulkPinAsync(context, batch),
+                Environment.ProcessorCount,
+                TimeSpan.FromMilliseconds(50),
+                BulkPinMaximumHashes);
+
+            return base.StartupCoreAsync(context);
+        }
+
+        /// <inheritdoc />
+        protected async override Task<BoolResult> ShutdownCoreAsync(OperationContext context)
+        {
+            BoolResult result = BoolResult.Success;
+            try
+            {
+                await _backgroundPinQueue!.DisposeAsync();
+            }
+            catch (Exception exception)
+            {
+                result &= new BoolResult(exception, message: "Failed to dispose the background pin queue");
+            }
+
+            result &= await base.ShutdownCoreAsync(context);
+
+            return result;
+        }
+
+        private Task PerformBackgroundBulkPinAsync(OperationContext context, BackgroundPinRequest[] batch)
+        {
+            return context.PerformNonResultOperationAsync(Tracer, async () =>
+            {
+                var contentHashes = new ContentHash[batch.Length];
+                var endDateTime = DateTime.MinValue;
+
+                var i = 0;
+                foreach (var pinRequest in batch)
+                {
+                    contentHashes[i++] = pinRequest.ContentHash;
+
+                    if (pinRequest.EndTime > endDateTime)
+                    {
+                        endDateTime = pinRequest.EndTime;
+                    }
+                }
+
+                try
+                {
+                    var results = await TaskUtilities.SafeWhenAll(await PinCoreImplAsync(context, contentHashes, endDateTime));
+                    foreach (var indexed in results)
+                    {
+                        batch[indexed.Index].PinResult.TrySetResult(indexed.Item);
+                    }
+                }
+                catch (Exception exception)
+                {
+                    foreach (var pinRequest in batch)
+                    {
+                        pinRequest.PinResult.TrySetException(exception);
+                    }
+                }
+
+                return Unit.Void;
+            },
+            traceOperationStarted: false,
+            extraEndMessage: _ => $"Count=[{batch.Length}]");
+        }
+
+        /// <inheritdoc />
         protected override void DisposeCore() => TempDirectory.Dispose();
 
         /// <inheritdoc />
@@ -159,8 +245,20 @@ namespace BuildXL.Cache.ContentStore.Vsts
         {
             try
             {
-                var bulkResults = await PinAsync(context, new[] { contentHash }, context.Token, urgencyHint);
-                return await bulkResults.SingleAwaitIndexed();
+                var endTime = DateTime.UtcNow + TimeToKeepContent;
+
+                var inMemoryResult = CheckPinInMemory(contentHash, endTime);
+                if (inMemoryResult.Succeeded)
+                {
+                    return inMemoryResult;
+                }
+
+                var request = new BackgroundPinRequest(
+                    ContentHash: contentHash,
+                    EndTime: endTime,
+                    PinResult: TaskSourceSlim.Create<PinResult>());
+                _backgroundPinQueue!.Enqueue(request);
+                return await request.PinResult.Task;
             }
             catch (Exception e)
             {
@@ -257,10 +355,16 @@ namespace BuildXL.Cache.ContentStore.Vsts
 
         /// <inheritdoc />
         [SuppressMessage("Microsoft.Design", "CA1031:DoNotCatchGeneralExceptionTypes")]
-        protected override Task<IEnumerable<Task<Indexed<PinResult>>>> PinCoreAsync(OperationContext context, IReadOnlyList<ContentHash> contentHashes, UrgencyHint urgencyHint, Counter retryCounter, Counter fileCounter)
+        protected override async Task<IEnumerable<Task<Indexed<PinResult>>>> PinCoreAsync(OperationContext context, IReadOnlyList<ContentHash> contentHashes, UrgencyHint urgencyHint, Counter retryCounter, Counter fileCounter)
         {
+            if (contentHashes.Count == 1)
+            {
+                var result = await PinCoreAsync(context, contentHashes[0], urgencyHint, retryCounter);
+                return new[] { Task.FromResult(new Indexed<PinResult>(result!, 0)) };
+            }
+
             var endDateTime = DateTime.UtcNow + TimeToKeepContent;
-            return PinCoreImplAsync(context, contentHashes, endDateTime);
+            return await PinCoreImplAsync(context, contentHashes, endDateTime);
         }
 
         private async Task<IEnumerable<Task<Indexed<PinResult>>>> PinCoreImplAsync(OperationContext context, IReadOnlyList<ContentHash> contentHashes, DateTime keepUntil)
@@ -281,6 +385,9 @@ namespace BuildXL.Cache.ContentStore.Vsts
         }
 
         /// <inheritdoc />
+        /// <remarks>
+        /// PlaceBulk is both unsupported and unused in this implementation.
+        /// </remarks>
         protected override Task<IEnumerable<Task<Indexed<PlaceFileResult>>>> PlaceFileCoreAsync(OperationContext context, IReadOnlyList<ContentHashWithPath> hashesWithPaths, FileAccessMode accessMode, FileReplacementMode replacementMode, FileRealizationMode realizationMode, UrgencyHint urgencyHint, Counter retryCounter)
             => throw new NotImplementedException();
 
@@ -483,7 +590,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
                 _parallelSegmentDownloadConfig,
                 new AppTraceSourceContextAdapter(context, Tracer.Name, SourceLevels.All),
                 VssClientHttpRequestSettings.Default.SessionId,
-                _httpClient);
+                HttpClient);
             var uri = await GetUriAsync(context, contentHash);
             if (uri == null)
             {

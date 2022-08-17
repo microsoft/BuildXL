@@ -22,6 +22,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
@@ -399,7 +400,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                                 reason: CopyReason.ProactiveBackground);
 
                             wasPreviousCopyNeeded = true;
-                            switch (GetProactiveReplicationStatus(result))
+                            switch (GetProactiveBackgroundReplicationStatus(result))
                             {
                                 case ProactivePushStatus.Success:
                                     CounterCollection[Counters.ProactiveReplication_Succeeded].Increment();
@@ -437,28 +438,30 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 counter: CounterCollection[Counters.ProactiveReplication]);
         }
 
-        private ProactivePushStatus GetProactiveReplicationStatus(ProactiveCopyResult result)
+        private static ProactivePushStatus GetProactiveBackgroundReplicationStatus(ProactiveCopyResult result)
         {
-            // When both Inside and Outside Copy fails, that is considered as failure
-            if (result.InsideRingCopyResult?.Succeeded != true && result.OutsideRingCopyResult?.Succeeded != true)
-            {
-                return ProactivePushStatus.Error;
-            }
+            // For background replication, we only attempt outside-ring replication, so we only examine the outside ring result
+            ProactivePushResult? outsideResult = result.OutsideRingCopyResult;
 
-            // Status is skipped when both Inside and Outside Copy was disabled or when Copy wasn't required in either ring
-            if (result.Skipped)
+            // Outside result being null indicates the that no push was attempted, ususally because content appears already sufficiently replicated
+            if (outsideResult is null)
             {
                 return ProactivePushStatus.Skipped;
             }
 
-            // Status is Rejected when both Inside and Outside Copy was rejected
-            if (result.InsideRingCopyResult?.Rejected == true || result.OutsideRingCopyResult?.Rejected == true)
+            // Test for rejected explicitly first, otherwise it will appear as success or error
+            if (outsideResult.Rejected)
             {
                 return ProactivePushStatus.Rejected;
             }
 
-            // All other cases are considered success
-            return ProactivePushStatus.Success;
+            if (outsideResult.Succeeded)
+            {
+                return ProactivePushStatus.Success;
+            }
+
+            return ProactivePushStatus.Error;
+        
         }
 
         /// <inheritdoc />

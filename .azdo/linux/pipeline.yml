@@ -57,6 +57,21 @@ extends:
             - input: checkout
               repository: self
               fetchDepth: 1
+            outputs:
+            - output: pipelineArtifact
+              targetPath: $(PackageDir)
+              artifactName: $(PackageArtifactName)
+              condition: always()
+              continueOnError: true
+              displayName: Publish Pipeline Artifact
+            os: linux
+            sdl:
+              credscan:
+                enabled: false
+              antimalwareScan:
+                enabled: false
+              publishLogs:
+                enabled: false
           steps:
           - bash: make cleanall && make all -j
             workingDirectory: Public/Src/Sandbox/Linux
@@ -66,14 +81,6 @@ extends:
           - bash: bash mknuget.sh ${{ parameters.LinuxRuntimePackageVersion }}
             workingDirectory: Public/Src/Sandbox/Linux
             displayName: Pack Nuget
-
-          - task: PublishPipelineArtifact@1
-            inputs:
-              targetPath: $(PackageDir)
-              artifactName: $(PackageArtifactName)
-            condition: always()
-            continueOnError: true
-            displayName: Publish Pipeline Artifact
 
         # Publish the built runtime in a separate job
         # TODO: this could be merged with the previous job if the container image had all the required tools preinstalled

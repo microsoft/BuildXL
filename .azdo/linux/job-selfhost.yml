@@ -16,6 +16,21 @@ jobs:
     - input: checkout
       repository: self
       fetchDepth: 1
+    outputs:
+    - output: pipelineArtifact
+      targetPath: $(Build.SourcesDirectory)/Out/Logs
+      artifactName: BuildXL-Logs.$(System.JobName).$(System.JobAttempt)
+      condition: always()
+      continueOnError: true
+      displayName: Upload BuildXL Logs
+    os: linux
+    sdl:
+      credscan:
+        enabled: false
+      antimalwareScan:
+        enabled: false
+      publishLogs:
+        enabled: false
 
   timeoutInMinutes: 90
 
@@ -124,14 +139,6 @@ jobs:
       PAT1esSharedAssets: $(PAT-TseBuild-AzureDevOps-1esSharedAssets-Package-Read)
       PATCloudBuild: $(PAT-TseBuild-AzureDevOps-CloudBuild-Packaging-Read)
       VSTSPERSONALACCESSTOKEN: $(PAT-TseBuild-AzureDevOps-mseng-buildcache)
-
-  - task: PublishPipelineArtifact@1
-    displayName: Upload BuildXL Logs
-    inputs:
-      targetPath: $(Build.SourcesDirectory)/Out/Logs
-      artifactName: BuildXL-Logs.$(System.JobName).$(System.JobAttempt)
-    condition: always()
-    continueOnError: true
 
   - task: PublishTestResults@2
     displayName: Publish Test Results

@@ -5,7 +5,6 @@ const isMicrosoftInternal = Environment.getFlag("[Sdk.BuildXL]microsoftInternal"
 
 const artifactNugetVersion = "19.208.32712-buildid17682333";
 const azureDevopsNugetVersion = "19.208.0-internal202207122";
-const sbomApiVersion = "2.1.35";
 
 // These packages are Microsoft internal packages.
 // These consist of internally repackaged products that we can't push to a public feed and have to rely on users installing locally.
@@ -73,13 +72,13 @@ export const pkgs = isMicrosoftInternal ? [
     { id: "VisualCppTools.Internal.VS2017Layout", version: "14.16.27034", osSkip: [ "macOS", "unix" ] },
 
     // SBOM Generation
-    { id: "Microsoft.SBOMCore", version: sbomApiVersion, dependentPackageIdsToSkip: ["Microsoft.Extensions.Logging.Abstractions"] },
-    { id: "Microsoft.Parsers.ManifestGenerator", version: sbomApiVersion, dependentPackageIdsToSkip: ["Newtonsoft.Json"]},
-    { id: "Microsoft.Parsers.SPDX22SBOMParser", version: sbomApiVersion },
-    { id: "Microsoft.SBOM.Adapters", version: sbomApiVersion, dependentPackageIdsToSkip : ["Newtonsoft.Json", "PackageUrl"] },
+    { id: "Microsoft.SBOMCore", version: "2.1.35", dependentPackageIdsToSkip: ["Microsoft.Extensions.Logging.Abstractions"] },
+    { id: "Microsoft.Parsers.ManifestGenerator", version: "2.1.35", dependentPackageIdsToSkip: ["Newtonsoft.Json"]},
+    { id: "Microsoft.Parsers.SPDX22SBOMParser", version: "2.1.35" },
+    { id: "Microsoft.SBOM.Adapters", version: "2.1.35", dependentPackageIdsToSkip : ["Newtonsoft.Json", "PackageUrl"] },
     { id: "Microsoft.ComponentDetection.Contracts", version: "1.2.3", dependentPackageIdsToSkip: ["Newtonsoft.Json"] },
-    { id: "Microsoft.ManifestInterface", version: sbomApiVersion, dependentPackageIdsToSkip: ["System.Text.Json"] },
-    { id: "Microsoft.Sbom.Contracts", version: sbomApiVersion },
+    { id: "Microsoft.ManifestInterface", version: "2.1.35", dependentPackageIdsToSkip: ["System.Text.Json"] },
+    { id: "Microsoft.Sbom.Contracts", version: "2.1.35" },
     { id: "Microsoft.Bcl.HashCode", version: "1.1.1" },
 
     // Process remoting

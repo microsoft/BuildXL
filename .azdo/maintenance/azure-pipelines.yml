@@ -36,7 +36,7 @@ stages:
       - task: PowerShell@2
         inputs:
           targetType: 'inline'
-          script: .\BuildXLReleaseManagement.exe updatePackages --OneEsPat $(PAT-TseBuild-AzureDevOps-1EsSharedAssets) --CbPat $(PAT-TseBuild-AzureDevOps-CloudBuild) --MsEngGitPat $(PAT-TseBuild-AzureDevOps-MsEng) --NcPath "$(UserProfile)\.nuget\plugins\netfx\CredentialProvider.Microsoft\" --SourceRoot "$(Build.SourcesDirectory)/BuildXL.Internal"
+          script: .\BuildXLReleaseManagement.exe updatePackages --Packages Microsoft.SBOMCore@latest Microsoft.Parsers.ManifestGenerator@latest Microsoft.Parsers.SPDX22SBOMParser@latest Microsoft.SBOM.Adapters@latest Microsoft.ManifestInterface@latest Microsoft.Sbom.Contracts@latest Microsoft.ComponentDetection.Contracts@latest --OneEsPat $(PAT-TseBuild-AzureDevOps-1EsSharedAssets) --CbPat $(PAT-TseBuild-AzureDevOps-CloudBuild) --MsEngGitPat $(PAT-TseBuild-AzureDevOps-MsEng) --SourceRoot "$(Build.SourcesDirectory)/BuildXL.Internal"
           showWarnings: true
           pwsh: false
           workingDirectory: '$(Build.ArtifactStagingDirectory)/BuildXLReleaseManagement'

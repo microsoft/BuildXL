@@ -262,6 +262,7 @@ namespace BuildXL.Engine.Distribution.Grpc
                     RewriteCount = i.RewriteCount,
                     IsSourceAffected = i.IsSourceAffected,
                     IsAllowedFileRewrite = i.IsAllowedFileRewrite,
+                    IsExecutable = i.IsExecutable,
                 };
 
                 if (i.ReparsePointTarget != null)
@@ -336,6 +337,7 @@ namespace BuildXL.Engine.Distribution.Grpc
                     RewriteCount = i.RewriteCount,
                     IsSourceAffected = i.IsSourceAffected,
                     IsAllowedFileRewrite = i.IsAllowedFileRewrite,
+                    IsExecutable = i.IsExecutable
                 });
             }
 

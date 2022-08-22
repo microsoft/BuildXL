@@ -329,7 +329,8 @@ namespace BuildXL.Scheduler
             // Make sure that ExecutionResult is always initialized.
             if ((PipType == PipType.Process || PipType == PipType.Ipc) && ExecutionResult == null)
             {
-                SetExecutionResult(ExecutionResult.GetCancelledNotRunResult(LoggingContext));
+                Contract.Assert(Environment.IsTerminating, "Attempted to cancel a pip prior its execution but the scheduler is not terminating.");
+                SetExecutionResult(ExecutionResult.GetRetryableNotRunResult(LoggingContext, RetryInfo.GetDefault(RetryReason.StoppedWorker)));
             }
 
             return PipExecutionStep.Cancel;

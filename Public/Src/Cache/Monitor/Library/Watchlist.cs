@@ -26,34 +26,11 @@ namespace BuildXL.Cache.Monitor.App
         /// WARNING: this class maps one to one to the result of the CacheMonitorWatchlist function. If changing,
         /// update both to ensure nothing breaks.
         /// </remarks>
-        public class DynamicStampProperties : IEquatable<DynamicStampProperties>
+        public record DynamicStampProperties : IEquatable<DynamicStampProperties>
         {
             public string Stamp = string.Empty;
 
             public string Ring = string.Empty;
-
-            public bool RedisAutoscalingEnabled;
-
-            public long RedisAutoscalingMaximumClusterMemoryAllowedMb;
-
-            public override bool Equals(object? obj)
-            {
-                return obj is DynamicStampProperties properties && Equals(properties);
-            }
-
-            public bool Equals(DynamicStampProperties? properties)
-            {
-                return properties != null &&
-                       Stamp.Equals(properties.Stamp, StringComparison.InvariantCultureIgnoreCase) &&
-                       Ring.Equals(properties.Ring, StringComparison.InvariantCultureIgnoreCase) &&
-                       RedisAutoscalingEnabled == properties.RedisAutoscalingEnabled &&
-                       RedisAutoscalingMaximumClusterMemoryAllowedMb == properties.RedisAutoscalingMaximumClusterMemoryAllowedMb;
-            }
-
-            public override int GetHashCode()
-            {
-                return (Stamp, Ring, RedisAutoscalingEnabled, RedisAutoscalingMaximumClusterMemoryAllowedMb).GetHashCode();
-            }
         }
 #pragma warning restore CS0649
 

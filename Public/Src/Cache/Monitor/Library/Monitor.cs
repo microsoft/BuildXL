@@ -14,13 +14,10 @@ using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.Monitor.App.Notifications;
 using BuildXL.Cache.Monitor.App.Rules;
-using BuildXL.Cache.Monitor.App.Rules.Autoscaling;
 using BuildXL.Cache.Monitor.App.Rules.Kusto;
 using BuildXL.Cache.Monitor.App.Scheduling;
-using BuildXL.Cache.Monitor.Library.Az;
 using BuildXL.Cache.Monitor.Library.IcM;
 using BuildXL.Cache.Monitor.Library.Notifications;
-using BuildXL.Cache.Monitor.Library.Rules.Autoscaling;
 using BuildXL.Cache.Monitor.Library.Rules.Kusto;
 using BuildXL.Cache.Monitor.Library.Scheduling;
 using Kusto.Cloud.Platform.Utils;
@@ -67,8 +64,6 @@ namespace BuildXL.Cache.Monitor.App
                     // Kusto rules always perform some amount of Kusto queries. If we run too many of them at once,
                     // we'll overload the cluster and make queries fail.
                     { "Kusto", 10 },
-                    // The autoscaling rules may take arbitrarily long to run, so we keep them on a separate bucket.
-                    { "RedisAutoscaler", int.MaxValue },
                 },
             };
 
@@ -174,16 +169,10 @@ namespace BuildXL.Cache.Monitor.App
             var azure = ExternalDependenciesFactory.CreateAzureClient(configuration.AzureCredentials).ThrowIfFailure();
             var monitorManagementClient = await ExternalDependenciesFactory.CreateAzureMetricsClientAsync(configuration.AzureCredentials).ThrowIfFailureAsync();
 
-            var redisCaches =
-                (await azure
-                    .RedisCaches
-                    .ListAsync(cancellationToken: context.Token))
-                .ToDictionary(cache => cache.Name, cache => cache);
-
             var kustoClient = ExternalDependenciesFactory.CreateKustoQueryClient(configuration.KustoCredentials).ThrowIfFailure();
 
             context.Token.ThrowIfCancellationRequested();
-            return new EnvironmentResources(azure, monitorManagementClient, redisCaches, kustoClient);
+            return new EnvironmentResources(azure, monitorManagementClient, kustoClient);
         }
 
         private Monitor(Configuration configuration, IKustoIngestClient kustoIngestClient, IIcmClient icmClient, IClock clock, IReadOnlyDictionary<MonitorEnvironment, EnvironmentResources> environmentResources, ILogger logger)
@@ -231,16 +220,18 @@ namespace BuildXL.Cache.Monitor.App
             {
                 // This rule takes care of updating the watchlist and triggering the action when it has effectively
                 // changed. The action will take care of restarting the entire application.
-                _scheduler.Add(new LambdaRule(
-                    identifier: "WatchlistUpdate",
-                    concurrencyBucket: "Kusto",
-                    lambda: async (ruleContext) =>
-                    {
-                        if (await watchlist.RefreshAsync())
+                _scheduler.Add(
+                    rule: new LambdaRule(
+                        identifier: "WatchlistUpdate",
+                        concurrencyBucket: "Kusto",
+                        lambda: async (ruleContext) =>
                         {
-                            onWatchlistChange?.Invoke();
-                        }
-                    }), TimeSpan.FromMinutes(30));
+                            if (await watchlist.RefreshAsync())
+                            {
+                                onWatchlistChange?.Invoke();
+                            }
+                        }),
+                    pollingPeriod: TimeSpan.FromDays(1));
             }
 
             Tracer.Info(context, "Entering scheduler loop");
@@ -401,16 +392,6 @@ namespace BuildXL.Cache.Monitor.App
 
             OncePerEnvironment(arguments =>
             {
-                var configuration = new DeploymentsRule.Configuration(arguments.BaseConfiguration);
-                return Analysis.Utilities.Yield(new Instantiation()
-                {
-                    Rule = new DeploymentsRule(configuration),
-                    PollingPeriod = configuration.AlertPeriod,
-                });
-            }, watchlist);
-
-            OncePerEnvironment(arguments =>
-            {
                 var configuration = new LongCopyRule.Configuration(arguments.BaseConfiguration);
                 return Analysis.Utilities.Yield(new Instantiation()
                 {
@@ -418,85 +399,6 @@ namespace BuildXL.Cache.Monitor.App
                     PollingPeriod = TimeSpan.FromMinutes(30),
                 });
             }, watchlist);
-
-            OncePerEnvironment(arguments =>
-            {
-                var configuration = new MachineReimagesRule.Configuration(arguments.BaseConfiguration);
-
-                return Analysis.Utilities.Yield(new Instantiation()
-                {
-                    Rule = new MachineReimagesRule(configuration),
-                    PollingPeriod = configuration.LookbackPeriod,
-                });
-            }, watchlist);
-
-            OncePerEnvironment(arguments =>
-            {
-                var configuration = new KeySpaceRule.Configuration(arguments.BaseConfiguration);
-
-                return Analysis.Utilities.Yield(new Instantiation()
-                {
-                    Rule = new KeySpaceRule(configuration),
-                    PollingPeriod = TimeSpan.FromMinutes(10),
-                });
-            }, watchlist);
-
-            OncePerEnvironment(arguments =>
-            {
-                var configuration = new DiskCorruptionRule.Configuration(arguments.BaseConfiguration);
-
-                return Analysis.Utilities.Yield(new Instantiation()
-                {
-                    Rule = new DiskCorruptionRule(configuration),
-                    PollingPeriod = configuration.LookbackPeriod,
-                });
-            }, watchlist);
-
-            OncePerStamp(GenerateRedisAutoscalingRules, watchlist);
-        }
-
-        private IEnumerable<Instantiation> GenerateRedisAutoscalingRules(SingleStampRuleArguments arguments)
-        {
-            if (!arguments.DynamicStampProperties.RedisAutoscalingEnabled)
-            {
-                yield break;
-            }
-
-            if (!arguments.EnvironmentResources.RedisCaches.ContainsKey(arguments.StampId.PrimaryRedisName) || !arguments.EnvironmentResources.RedisCaches.ContainsKey(arguments.StampId.SecondaryRedisName))
-            {
-                _logger.Error($"Attempt to create Redis autoscaler for stamp `{arguments.StampId}` failed due to missing Redis instance. Skipping rule");
-                yield break;
-            }
-
-            var autoscalingAgentConfiguration = new RedisAutoscalingAgent.Configuration();
-            if (arguments.DynamicStampProperties.RedisAutoscalingMaximumClusterMemoryAllowedMb > 0)
-            {
-                autoscalingAgentConfiguration.MaximumClusterMemoryAllowedMb = arguments.DynamicStampProperties.RedisAutoscalingMaximumClusterMemoryAllowedMb;
-            }
-
-            var azureMetricsClient = new AzureMetricsClient(arguments.EnvironmentResources.MonitorManagementClient);
-            var redisAutoscalingAgent = new RedisAutoscalingAgent(autoscalingAgentConfiguration, azureMetricsClient);
-            var configuration = new RedisAutoscalingRule.Configuration(arguments.BaseConfiguration);
-
-            var primaryRedisInstance = RedisInstance
-                .FromPreloaded(
-                    arguments.EnvironmentResources.Azure,
-                    arguments.EnvironmentResources.RedisCaches[arguments.StampId.PrimaryRedisName],
-                    readOnly: _configuration.ReadOnly)
-                .ThrowIfFailure();
-
-            var secondaryRedisInstance = RedisInstance
-                .FromPreloaded(
-                    arguments.EnvironmentResources.Azure,
-                    arguments.EnvironmentResources.RedisCaches[arguments.StampId.SecondaryRedisName],
-                    readOnly: _configuration.ReadOnly)
-                .ThrowIfFailure();
-
-            yield return new Instantiation
-            {
-                Rule = new RedisAutoscalingRule(configuration, redisAutoscalingAgent, primaryRedisInstance, secondaryRedisInstance),
-                PollingPeriod = TimeSpan.FromMinutes(10),
-            };
         }
 
         /// <summary>

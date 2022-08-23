@@ -69,30 +69,27 @@ namespace BuildXL.Cache.Host.Service
             try
             {
                 var nLogAdapter = CreateNLogAdapter(operationContext, arguments);
-
-                // Replacing a logger passed to the context to allow the components that saved the context to its internal state
-                // to trace messages to Kusto and Mdm as well.
-                context.ReplaceLogger(nLogAdapter);
+                ILogger replacementLogger = nLogAdapter;
                 
                 if (arguments.Logger is IOperationLogger operationLogger)
                 {
                     // NOTE(jubayard): the MetricsAdapter doesn't own the loggers, and hence won't dispose them. This
                     // means we don't change the disposableToken.
                     Tracer.Debug(context, "Creating MetricsAdapter with an existing 'operationLogger'.");
-                    var wrapper = new MetricsAdapter(nLogAdapter, operationLogger);
-                    return (wrapper, nLogAdapter);
+                    replacementLogger = new MetricsAdapter(nLogAdapter, operationLogger);
                 }
-
                 // The current implementation now supports the mdm metrics as well.
-                if (!string.IsNullOrEmpty(loggingSettings.MdmAccountName))
+                else if (!string.IsNullOrEmpty(loggingSettings.MdmAccountName))
                 {
                     Tracer.Debug(context, "Creating MetricsLogger with an in-proc MdmOperationLogger.");
                     operationLogger = MdmOperationLogger.Create(context, loggingSettings.MdmAccountName, GetDefaultDimensions(arguments));
-                    var wrapper = new MetricsAdapter(nLogAdapter, operationLogger);
-                    return (wrapper, nLogAdapter);
+                    replacementLogger = new MetricsAdapter(nLogAdapter, operationLogger);
                 }
 
-                return (nLogAdapter, nLogAdapter);
+                // Replacing a logger passed to the context to allow the components that saved the context to its internal state
+                // to trace messages to Kusto and Mdm as well.
+                context.ReplaceLogger(replacementLogger);
+                return (replacementLogger, nLogAdapter);
             }
             catch (Exception e)
             {

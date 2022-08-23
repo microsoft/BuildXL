@@ -7,6 +7,7 @@ using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Net;
 using System.Text;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
@@ -273,7 +274,7 @@ namespace BuildXL.Cache.Logging
                         // We need to make sure we close the compression stream before we take the fileStream's
                         // position, because the compression stream won't write everything until it's been closed,
                         // which leads to bad recorded values in compressedSizeBytes.
-                        using (var gzipStream = new GZipStream(fileStream, CompressionLevel.Fastest, leaveOpen: true))
+                        using (var gzipStream = new GZipStream(fileStream, CompressionLevel.Optimal, leaveOpen: true))
                         {
                             using var recordingStream = new CountingStream(gzipStream);
                             using var streamWriter = new StreamWriter(recordingStream, Encoding.UTF8, bufferSize: 32 * 1024, leaveOpen: true);
@@ -341,16 +342,8 @@ namespace BuildXL.Cache.Logging
                 {
                     var blob = _container.GetBlockBlobReference(logFilePath.FileName);
 
-                    if (await blob.ExistsAsync())
-                    {
-                        Tracer.Debug(context, $"Log file `{logFilePath}` already exists");
-                        _fileSystem.DeleteFile(logFilePath);
-
-                        Tracer.TrackMetric(context, $"UploadAlreadyExists", 1);
-                        return BoolResult.Success;
-                    }
-
                     var uploadSucceeded = true;
+                    var repeatUpload = false;
                     try
                     {
                         if (_additionalBlobMetadata != null)
@@ -368,12 +361,19 @@ namespace BuildXL.Cache.Logging
 
                         await blob.UploadFromFileAsync(
                             logFilePath.ToString(),
-                            accessCondition: AccessCondition.GenerateEmptyCondition(),
+                            accessCondition: AccessCondition.GenerateIfNotExistsCondition(),
                             options: new BlobRequestOptions()
                             {
                                 RetryPolicy = new Microsoft.WindowsAzure.Storage.RetryPolicies.ExponentialRetry(),
                             },
                             operationContext: null);
+                    }
+                    catch (StorageException exception) when (
+                        exception.RequestInformation.HttpStatusCode == (int)HttpStatusCode.PreconditionFailed
+                        // Used only in the development storage case
+                        || exception.RequestInformation.ErrorCode == "BlobAlreadyExists")
+                    {
+                        repeatUpload = true;
                     }
                     catch (Exception)
                     {
@@ -386,7 +386,12 @@ namespace BuildXL.Cache.Logging
                         {
                             _fileSystem.DeleteFile(logFilePath);
 
-                            if (uploadTask.CompressedSizeBytes != null)
+                            if (repeatUpload)
+                            {
+                                Tracer.Debug(context, $"Log file `{logFilePath}` already exists");
+                                Tracer.TrackMetric(context, $"UploadAlreadyExists", 1);
+                            }
+                            else if (uploadTask.CompressedSizeBytes != null)
                             {
                                 Tracer.TrackMetric(context, $"UploadedBytes", uploadTask.CompressedSizeBytes.Value);
                             }

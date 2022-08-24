@@ -64,7 +64,7 @@ namespace Test.BuildXL.Utilities
             }
         }
 
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [FactIfSupported(requiresWindowsOrLinuxOperatingSystem: true)]
         public void TestBadPathNameFileExistence()
         {
             var result = FileUtilities.TryProbePathExistence(@"\\mscorlib.dll", followSymlink: false);

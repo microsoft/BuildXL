@@ -166,6 +166,29 @@ namespace BuildXL.Interop.Unix
         }
 
         /// <summary>
+        /// Resolves all symlinks within a path including intermediate paths using the realpath syscall.
+        /// </summary>
+        /// <param name="path">Path to resolve</param>
+        /// <param name="stringBuilder">String builder to store result. String builder *must* be initialized with a fixed size (usually max path).</param>
+        /// <returns>0 if successful or errno if a failure occurs.</returns>
+        internal static int RealPath(string path, StringBuilder stringBuilder)
+        {
+            Contract.Requires(!string.IsNullOrEmpty(path));
+            Contract.Requires(stringBuilder != null);
+
+            var error = 0;
+            var resolvedPathPtr = realpath(path, stringBuilder);
+
+            // realpath returns a pointer to the resolved path set in the stringBuilder if successful
+            if (resolvedPathPtr == IntPtr.Zero)
+            {
+                error = Marshal.GetLastWin32Error();
+            }
+
+            return error;
+        }
+
+        /// <summary>
         /// Linux specific implementation of <see cref="IO.GetFilePermissionsForFilePath"/>
         /// </summary>
         internal static int GetFilePermissionsForFilePath(string path, bool followSymlink)
@@ -401,22 +424,6 @@ namespace BuildXL.Interop.Unix
             return s_sortedDrives.Value.FirstOrDefault(di => path.StartsWith(di.Name))?.Name;
         }
 
-        [DllImport(Libraries.LibC, SetLastError = true)]
-        unsafe internal static extern int lsetxattr(
-            [MarshalAs(UnmanagedType.LPStr)] string path,
-            [MarshalAs(UnmanagedType.LPStr)] string name,
-            void *value,
-            ulong size,
-            int flags);
-
-        [DllImport(Libraries.LibC, SetLastError = true)]
-        internal static extern long lgetxattr(
-            [MarshalAs(UnmanagedType.LPStr)] string path,
-            [MarshalAs(UnmanagedType.LPStr)] string name,
-            ref long value,
-            ulong size,
-            int flags);
-
         private static bool IsSymlink(string path)
         {
             var buf = new stat_buf();
@@ -617,6 +624,24 @@ namespace BuildXL.Interop.Unix
         [DllImport(LibC, SetLastError = true, CharSet = CharSet.Ansi)]
         internal static extern long sysconf(int name);
 
+        [DllImport(Libraries.LibC, SetLastError = true)]
+        unsafe internal static extern int lsetxattr(
+            [MarshalAs(UnmanagedType.LPStr)] string path,
+            [MarshalAs(UnmanagedType.LPStr)] string name,
+            void* value,
+            ulong size,
+            int flags);
+
+        [DllImport(Libraries.LibC, SetLastError = true)]
+        internal static extern long lgetxattr(
+            [MarshalAs(UnmanagedType.LPStr)] string path,
+            [MarshalAs(UnmanagedType.LPStr)] string name,
+            ref long value,
+            ulong size,
+            int flags);
+
+        [DllImport(LibC, SetLastError = true)]
+        internal static extern IntPtr realpath(string path, StringBuilder resolved_path);
         #pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
 
         #endregion

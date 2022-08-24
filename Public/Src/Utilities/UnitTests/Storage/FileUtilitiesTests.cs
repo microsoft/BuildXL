@@ -101,7 +101,9 @@ namespace Test.BuildXL.Storage
             XAssert.AreEqual(0, m_testFileSystem.EnumerateFiles(GetFullPath(Target), pattern: "foo", recursive: true).Count);
         }
 
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)] // can not make assumption about case - Mac OS Extended (Journaled) is not sensitive
+        // can not make assumption about case - Mac OS Extended (Journaled) is not sensitive
+        // Supported Linux file systems are case sensitive so test does not apply.
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public void GetFileNameCasing()
         {
             const string UppercaseFileName = @"UPPERCASE.txt";
@@ -329,7 +331,8 @@ namespace Test.BuildXL.Storage
             XAssert.AreEqual(Contents, File.ReadAllText(GetFullPath(Target)));
         }
 
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)] // written from WriteAllByeAsync is true... fails XAssert
+        // Written from WriteAllBytesAsync is true but fails XAssert (TODO: verify if this still fails on macos)
+        [FactIfSupported(requiresWindowsOrLinuxOperatingSystem: true)]
         public async Task WriteAllBytesPredicate()
         {
             const string Target = "target";
@@ -371,6 +374,7 @@ namespace Test.BuildXL.Storage
             XAssert.IsTrue(written);
         }
 
+        // FileUtilities.TryWriteUsnCloseRecordByHandle not implemented for Unix
         [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public async Task WriteAllBytesCallback()
         {
@@ -433,6 +437,7 @@ namespace Test.BuildXL.Storage
             }
         }
 
+        // FileUtilities.ReadFileUsnByHandle not implemented for Unix
         [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public void CreateReplacementFileReplacesFileEvenIfTruncationWasPossible()
         {
@@ -551,6 +556,7 @@ namespace Test.BuildXL.Storage
             }
         }
 
+        // Junctions are only supported on Windows
         [FactIfSupported(requiresSymlinkPermission: true, requiresWindowsBasedOperatingSystem: true)]
         public void GetChainOfJunctions()
         {
@@ -576,7 +582,8 @@ namespace Test.BuildXL.Storage
             }
         }
 
-        [FactIfSupported(requiresSymlinkPermission: true, requiresWindowsBasedOperatingSystem: true)] // TODO: Fix for non Windows
+        // TODO: Verify that this works on macOS, see FileSystemUnix.TryResolveReparsePointRelativeTarget for context
+        [FactIfSupported(requiresSymlinkPermission: true, requiresWindowsOrLinuxOperatingSystem: true)]
         public void GetChainOfSymlinksWithDirectorySymlink()
         {
             // File and directory layout:
@@ -697,8 +704,7 @@ namespace Test.BuildXL.Storage
             }
         }
 
-        // Windows OS only because junctions do not exist on other platforms.
-        [TheoryIfSupported(requiresSymlinkPermission: true, requiresWindowsBasedOperatingSystem: true)]
+        [TheoryIfSupported(requiresSymlinkPermission: true, requiresWindowsOrLinuxOperatingSystem: true)]
         [MemberData(nameof(TruthTable.GetTable), 2, MemberType = typeof(TruthTable))]
         public void TestResolveSymlinkWithDirectorySymlinkOrJunction(bool useJunction, bool oneDotDot)
         {
@@ -713,6 +719,12 @@ namespace Test.BuildXL.Storage
             //    |
             //    \---Target
             //            file.txt
+
+            if (OperatingSystemHelper.IsUnixOS && useJunction)
+            {
+                // Skip the junction part of the test on Unix.
+                return;
+            }
 
             // Create a symlink Enlist/Intermediate/Current/file.lnk --> ../../Target/file.txt (or ../Target/file.txt)
             string symlinkFile = GetFullPath(R("Enlist", "Intermediate", "Current", "file.lnk"));
@@ -1060,7 +1072,7 @@ namespace Test.BuildXL.Storage
             }
         }
 
-        [TheoryIfSupported(requiresSymlinkPermission: true, requiresWindowsBasedOperatingSystem: true)]
+        [TheoryIfSupported(requiresSymlinkPermission: true, requiresWindowsOrLinuxOperatingSystem: true)]
         [InlineData(true)]
         [InlineData(false)]
         public void TestDeleteDirectorySymlink(bool useFileDelete)
@@ -1091,6 +1103,7 @@ namespace Test.BuildXL.Storage
             XAssert.IsFalse(FileUtilities.DirectoryExistsNoFollow(directorySymlinkPath));
         }
 
+        // TODO: re-enable this for Linux after fixing work item #1981689
         [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public void HasWritableAccessControlTest()
         {
@@ -1098,15 +1111,28 @@ namespace Test.BuildXL.Storage
             File.WriteAllText(testFilePath, "hello");
 
             XAssert.IsTrue(FileUtilities.HasWritableAccessControl(testFilePath));
-            XAssert.IsTrue(FileUtilities.HasWritableAttributeAccessControl(testFilePath));
+            if (OperatingSystemHelper.IsWindowsOS)
+            {
+                // There is no write attribute specific permissions for unix
+                XAssert.IsTrue(FileUtilities.HasWritableAttributeAccessControl(testFilePath));
+            }
 
             FileUtilities.SetFileAccessControl(testFilePath, FileSystemRights.WriteData, false);
-            XAssert.IsTrue(FileUtilities.HasWritableAttributeAccessControl(testFilePath));
             XAssert.IsFalse(FileUtilities.HasWritableAccessControl(testFilePath));
 
-            FileUtilities.SetFileAccessControl(testFilePath, FileSystemRights.WriteAttributes, false);
-            XAssert.IsFalse(FileUtilities.HasWritableAccessControl(testFilePath));
-            XAssert.IsFalse(FileUtilities.HasWritableAttributeAccessControl(testFilePath)); 
+            if (OperatingSystemHelper.IsWindowsOS)
+            {
+                // There is no write attribute specific permissions for unix
+                XAssert.IsTrue(FileUtilities.HasWritableAttributeAccessControl(testFilePath));
+
+                FileUtilities.SetFileAccessControl(testFilePath, FileSystemRights.WriteAttributes, false);
+                XAssert.IsFalse(FileUtilities.HasWritableAccessControl(testFilePath));
+                XAssert.IsFalse(FileUtilities.HasWritableAttributeAccessControl(testFilePath));
+            }
+
+            // Tests that the file can still be deleted after removing write permissions
+            FileUtilities.DeleteFile(testFilePath);
+            XAssert.IsFalse(FileUtilities.FileExistsNoFollow(testFilePath));
         }
 
         /// <summary>

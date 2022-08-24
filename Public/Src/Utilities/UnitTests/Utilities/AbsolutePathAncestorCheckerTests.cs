@@ -8,7 +8,7 @@ using Xunit.Abstractions;
 
 namespace Test.BuildXL.Utilities
 {
-    [TestClassIfSupported(requiresWindowsBasedOperatingSystem: true)]
+    [TestClassIfSupported(requiresWindowsOrLinuxOperatingSystem: true)]
     public sealed class AbsolutePathAncestorCheckerTests : XunitBuildXLTest
     {
         public AbsolutePathAncestorCheckerTests(ITestOutputHelper output)
@@ -22,8 +22,8 @@ namespace Test.BuildXL.Utilities
             AbsolutePathAncestorChecker checker = new AbsolutePathAncestorChecker();
             PathTable pt = new PathTable();
 
-            var pathToSomething = AbsolutePath.Create(pt, @"C:\path\to\something");
-            var pathToSomethingElse = AbsolutePath.Create(pt, @"C:\path\to\something-else");
+            var pathToSomething = AbsolutePath.Create(pt, X(@"/c/path/to/something"));
+            var pathToSomethingElse = AbsolutePath.Create(pt, X(@"/c/path/to/something-else"));
 
             checker.AddPath(pathToSomething);
             checker.AddPath(pathToSomethingElse);
@@ -32,8 +32,8 @@ namespace Test.BuildXL.Utilities
             XAssert.IsTrue(checker.HasKnownAncestor(pt, pathToSomething.Combine(pt, RelativePath.Create(pt.StringTable, @"a\deeper\descendant"))));
             XAssert.IsTrue(checker.HasKnownAncestor(pt, pathToSomethingElse));
 
-            XAssert.IsFalse(checker.HasKnownAncestor(pt, AbsolutePath.Create(pt, @"C:\path\to")));
-            XAssert.IsFalse(checker.HasKnownAncestor(pt, AbsolutePath.Create(pt, @"G:\unrelated\path")));
+            XAssert.IsFalse(checker.HasKnownAncestor(pt, AbsolutePath.Create(pt, X(@"/c/path/to"))));
+            XAssert.IsFalse(checker.HasKnownAncestor(pt, AbsolutePath.Create(pt, X(@"/c/unrelated/path"))));
         }
 
         [Fact]
@@ -42,7 +42,7 @@ namespace Test.BuildXL.Utilities
             AbsolutePathAncestorChecker checker = new AbsolutePathAncestorChecker();
             PathTable pt = new PathTable();
 
-            var pathToSomething = AbsolutePath.Create(pt, @"C:\path\to\something");
+            var pathToSomething = AbsolutePath.Create(pt, X(@"/c/path/to/something"));
 
             checker.AddPath(pathToSomething);
 

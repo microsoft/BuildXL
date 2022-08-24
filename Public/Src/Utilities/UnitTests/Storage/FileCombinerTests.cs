@@ -199,7 +199,7 @@ namespace Test.BuildXL.Storage
             AssertWarningEventLogged(LogEventId.FileCombinerVersionIncremented);
         }
 
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)] // need to investigate if equivalent behavior on Unix
+        [FactIfSupported(requiresWindowsOrLinuxOperatingSystem: true)] // need to investigate if equivalent behavior on macOS
         public void FileInUse()
         {
             // Open the backing file so the FileCombiner can't open it

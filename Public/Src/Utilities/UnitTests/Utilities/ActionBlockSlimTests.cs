@@ -15,7 +15,7 @@ namespace Test.BuildXL.Utilities
 {
     public class ActionBlockSlimTests
     {
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [FactIfSupported(requiresWindowsOrLinuxOperatingSystem: true)]
         public async Task ExceptionIsThrownWhenTheBlockIsFull()
         {
             var tcs = new TaskCompletionSource<object>();
@@ -39,7 +39,7 @@ namespace Test.BuildXL.Utilities
             actionBlock.Post(1);
         }
 
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [FactIfSupported(requiresWindowsOrLinuxOperatingSystem: true)]
         public async Task ExceptionIsNotThrownWhenTheBlockIsFullOrComplete()
         {
             ConcurrentQueue<int> seenInputs = new();
@@ -80,7 +80,7 @@ namespace Test.BuildXL.Utilities
             Assert.DoesNotContain(seenInputs, i => i < 0);
         }
         
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [FactIfSupported(requiresWindowsOrLinuxOperatingSystem: true)]
         public async Task CompletionAsync_Succeeded_When_CancellationToken_Is_Canceled()
         {
 

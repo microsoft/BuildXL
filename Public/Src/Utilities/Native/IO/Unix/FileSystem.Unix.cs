@@ -1239,7 +1239,44 @@ namespace BuildXL.Native.IO.Unix
         /// <inheritdoc />
         public Possible<string> TryResolveReparsePointRelativeTarget(string path, string relativeTarget)
         {
-            return FileUtilities.TryResolveRelativeTarget(path, relativeTarget);
+            var resolvedSourcePath = path;
+
+            // readlink on Linux returns a relative path that is relative to a source path that is fully resolved
+            // This means that if there is a directory symlink in the middle of the path we cannot simply 
+            // append the relativeTarget to the given path.
+            // Example:
+            // Root
+            // |
+            // +--Enlist
+            //    |
+            //    +---Intermediate
+            //    |   \---Current
+            //    |           file.lnk ==> ..\..\Target\file.txt
+            //    |
+            //    +---Source ==> Intermediate\Current
+            //    |
+            //    \---Target
+            //            file.txt
+            // When Root/Enlist/Source/file.lnk is the sourcePath, readlink will return ../../Target/file.txt
+            // the returned resolved symlink target for a relative symlink will be
+            // Root/Target/file.txt rather than Root/Enlist/Target/file.txt when calling FileUtilities.TryResolveRelativeTarget
+            // TODO: verify this behaviour on macos
+            if (OperatingSystemHelper.IsLinuxOS)
+            {
+                // Full resolve up to the parent of the source path to avoid the problem described above
+                var resolvedPathSb = new StringBuilder(MaxDirectoryPathLength());
+                var error = RealPath(Path.GetDirectoryName(path), resolvedPathSb);
+
+                if (error != 0)
+                {
+                    // An error occured with resolving the path
+                    return new NativeFailure(error);
+                }
+
+                resolvedSourcePath = Path.Combine(resolvedPathSb.ToString(), Path.GetFileName(path));
+            }
+
+            return FileUtilities.TryResolveRelativeTarget(resolvedSourcePath, relativeTarget);
         }
 
         /// <inheritdoc />

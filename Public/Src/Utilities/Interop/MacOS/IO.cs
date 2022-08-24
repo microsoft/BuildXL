@@ -394,6 +394,17 @@ namespace BuildXL.Interop.Unix
             ? throw new NotImplementedException()
             : Impl_Linux.posix_fadvise(ToInt(handle), offset, length, (int)hint);
 
+        /// <summary>
+        /// Resolves all symlinks within a path including intermediate symlinks.
+        /// </summary>
+        /// <param name="path">Path to resolve.</param>
+        /// <param name="stringBuilder">String builder to store result. String builder *must* be initialized with a fixed size (usually max path).</param>
+        /// <returns>0 if successful or errno if a failure occurs.</returns>
+        /// <exception cref="NotImplementedException">Not tested on macos</exception>
+        public static int RealPath(string path, StringBuilder stringBuilder) => IsMacOS
+            ? throw new NotImplementedException()
+            : Impl_Linux.RealPath(path, stringBuilder);
+
     }
 
     public static class UnixPaths

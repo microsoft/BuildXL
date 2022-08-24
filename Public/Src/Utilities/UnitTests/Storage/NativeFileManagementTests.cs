@@ -18,7 +18,8 @@ namespace Test.BuildXL.Storage
     /// </summary>
     public sealed class NativeFileManagementTests : TemporaryStorageTestBase
     {
-        [Fact]
+        // TODO - need to investigate equivalent on Unix
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public void DeleteDispositionResultsInDeletion()
         {
             string path = Path.Combine(TemporaryDirectory, "toDelete");
@@ -37,21 +38,13 @@ namespace Test.BuildXL.Storage
                 XAssert.IsNotNull(handle);
                 XAssert.IsTrue(openResult.Succeeded);
                 XAssert.IsTrue(openResult.OpenedOrTruncatedExistingFile);
-
-                // WindowsOSOnly - need to investigate equivalent on Unix
-                if (!OperatingSystemHelper.IsUnixOS)
-                {
-                    XAssert.IsTrue(FileUtilities.TrySetDeletionDisposition(handle), "Failed to set deletion disposition");
-                }
+                XAssert.IsTrue(FileUtilities.TrySetDeletionDisposition(handle), "Failed to set deletion disposition");
             }
 
-            // WindowsOSOnly - need to investigate equivalent on Unix
-            if (!OperatingSystemHelper.IsUnixOS)
-            {
-                XAssert.IsFalse(File.Exists(path), "File not unlinked after handle close.");
-            }
+            XAssert.IsFalse(File.Exists(path), "File not unlinked after handle close.");
         }
 
+        // TryReOpenFile not supported on Unix
         [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public void ReOpenFileSuccess()
         {
@@ -84,6 +77,7 @@ namespace Test.BuildXL.Storage
             }
         }
 
+        // TryReOpenFile not supported on Unix
         [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public void ReOpenFileSharingViolation()
         {

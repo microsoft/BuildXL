@@ -298,11 +298,10 @@ config({
                 { id: "Validation", version: "2.5.42"},
 
                 // VSTS managed API
-                { id: "Microsoft.TeamFoundationServer.Client", version: "15.122.1-preview"},
-                { id: "Microsoft.TeamFoundation.DistributedTask.WebApi", version: "15.122.1-preview",
+                { id: "Microsoft.TeamFoundationServer.Client", version: "16.170.0"},
+                { id: "Microsoft.TeamFoundation.DistributedTask.WebApi", version: "16.170.0",
                     dependentPackageIdsToSkip: ["*"] },
-                { id: "Microsoft.TeamFoundation.DistributedTask.Common", version: "15.112.1"},
-                { id: "Microsoft.TeamFoundation.DistributedTask.Common.Contracts", version: "16.137.0-preview"},
+                { id: "Microsoft.TeamFoundation.DistributedTask.Common.Contracts", version: "16.170.0"},
 
                 // MSBuild. These should be used for compile references only, as at runtime one can only practically use MSBuilds from Visual Studio / dotnet CLI
                 { id: "Microsoft.Build", version: "17.0.0",

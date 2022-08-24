@@ -3,7 +3,7 @@
 
 using System;
 
-namespace BuildXL.Orchestrator.Vsts
+namespace BuildXL.AdoBuildRunner.Vsts
 {
     /// <summary>
     /// Interface that defines the methods that must be implemented by VSTS loggers

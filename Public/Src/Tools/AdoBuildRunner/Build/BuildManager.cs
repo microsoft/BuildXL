@@ -6,9 +6,9 @@ using System.Linq;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Threading.Tasks;
-using BuildXL.Orchestrator.Vsts;
+using BuildXL.AdoBuildRunner.Vsts;
 
-namespace BuildXL.Orchestrator.Build
+namespace BuildXL.AdoBuildRunner.Build
 {
     /// <summary>
     /// A class managing execution of orchestrated builds depending on VSTS agent states
@@ -63,7 +63,7 @@ namespace BuildXL.Orchestrator.Build
             m_logger.Info($@"Value of the job position in the phase: {m_vstsApi.JobPositionInPhase}");
             m_logger.Info($@"Value of the total jobs in the phase: {m_vstsApi.TotalJobsInPhase}");
 
-            var returnCode = 1;
+            int returnCode;
 
             // Only one agent participating in the build, hence a singe machine build
             if (m_vstsApi.TotalJobsInPhase == 1)
@@ -74,7 +74,7 @@ namespace BuildXL.Orchestrator.Build
             // Currently the agent spawned last in a multi-agent build is the elected master
             else if (m_vstsApi.TotalJobsInPhase == m_vstsApi.JobPositionInPhase)
             {
-                await m_vstsApi.SetMachineReadyToBuild(GetAgentHostName(), GetAgentIPAddress(), isMaster: true);
+                await m_vstsApi.SetMachineReadyToBuild(GetAgentHostName(), GetAgentIPAddress(false), GetAgentIPAddress(true), isMaster: true);
                 await m_vstsApi.WaitForOtherWorkersToBeReady();
 
                 var machines = (await m_vstsApi.GetWorkerAddressInformationAsync()).ToList();
@@ -89,16 +89,19 @@ namespace BuildXL.Orchestrator.Build
             // Any agent spawned < total number of agents is a dedicated worker
             else
             {
-                await m_vstsApi.WaitForMasterToBeReady();
-                await m_vstsApi.SetMachineReadyToBuild(GetAgentHostName(), GetAgentIPAddress());
+                m_executor.InitializeAsWorker(buildContext, m_buildArguments);
 
+                await m_vstsApi.WaitForMasterToBeReady();
                 var masterInfo = (await m_vstsApi.GetMasterAddressInformationAsync()).FirstOrDefault();
+
                 if (masterInfo == null)
                 {
                     throw new ApplicationException($"Couldn't get master address info, aborting!");
                 }
 
                 m_logger.Info($@"Found master: {masterInfo[Constants.MachineHostName]}@{masterInfo[Constants.MachineIpV4Address]}");
+
+                await m_vstsApi.SetMachineReadyToBuild(GetAgentHostName(), GetAgentIPAddress(false), GetAgentIPAddress(true));
 
                 returnCode = m_executor.ExecuteDistributedBuildAsWorker(buildContext, m_buildArguments, masterInfo);
                 LogExitCode(returnCode);
@@ -112,7 +115,8 @@ namespace BuildXL.Orchestrator.Build
             return System.Net.Dns.GetHostName();
         }
 
-        private string GetAgentIPAddress()
+        /// <nodoc />
+        public static string GetAgentIPAddress(bool ipv6)
         {
             var firstUpInterface = NetworkInterface.GetAllNetworkInterfaces()
                 .OrderByDescending(c => c.Speed)
@@ -121,15 +125,32 @@ namespace BuildXL.Orchestrator.Build
             if (firstUpInterface != null)
             {
                 var props = firstUpInterface.GetIPProperties();
-                // get first IPV4 address assigned to this interface
-                var ipV4Address = props.UnicastAddresses
+
+                if (!ipv6)
+                {
+                    // get first IPV4 address assigned to this interface
+                    var ipV4Address = props.UnicastAddresses
                     .Where(c => c.Address.AddressFamily == AddressFamily.InterNetwork)
-                    .Select(c => c.Address)
+                    .Select(c => c.Address.ToString())
                     .FirstOrDefault();
 
-                if (ipV4Address != null)
+                    if (ipV4Address != null)
+                    {
+                        return ipV4Address;
+                    }
+                }
+                else
                 {
-                    return ipV4Address.ToString();
+                    var ipV6Address = props.UnicastAddresses
+                    .Where(c => c.Address.AddressFamily == AddressFamily.InterNetworkV6)
+                    .Select(c => c.Address.ToString())
+                    .Select(a => a.Split('%').FirstOrDefault() ?? a)
+                    .FirstOrDefault();
+
+                    if (ipV6Address != null)
+                    {
+                        return ipV6Address;
+                    }
                 }
             }
 

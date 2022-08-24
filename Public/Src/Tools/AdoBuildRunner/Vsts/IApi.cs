@@ -5,7 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
-namespace BuildXL.Orchestrator.Vsts
+namespace BuildXL.AdoBuildRunner.Vsts
 {
     /// <summary>
     /// Defines the interactions with the VSTS API
@@ -94,7 +94,7 @@ namespace BuildXL.Orchestrator.Vsts
         /// Indicate that this machine is ready to build using a timeline record
         /// </summary>
         /// <returns></returns>
-        Task SetMachineReadyToBuild(string hostName, string ipV4Address, bool isMaster = false);
+        Task SetMachineReadyToBuild(string hostName, string ipV4Address, string ipv6Address, bool isMaster = false);
 
         /// <summary>
         /// Wait until all the other workers are ready

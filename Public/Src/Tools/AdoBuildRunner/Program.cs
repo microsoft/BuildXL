@@ -2,10 +2,10 @@
 // Licensed under the MIT License.
 
 using System;
-using BuildXL.Orchestrator.Build;
-using BuildXL.Orchestrator.Vsts;
+using BuildXL.AdoBuildRunner.Build;
+using BuildXL.AdoBuildRunner.Vsts;
 
-namespace BuildXL.Orchestrator
+namespace BuildXL.AdoBuildRunner
 {
     class Program
     {
@@ -21,8 +21,19 @@ namespace BuildXL.Orchestrator
 
             try
             {
-                logger.Info($"Trying to orchestrate build for command: {string.Join(" ", args)}");
-                var buildManager = new BuildManager(new Api(logger), new BuildExecutor(logger), args, logger);
+                IBuildExecutor executor;
+                if (args[0] == "ping")
+                {
+                    logger.Info("Performing connectivity test");
+                    executor = new PingExecutor(logger);
+                }
+                else
+                {
+                    logger.Info($"Trying to orchestrate build for command: {string.Join(" ", args)}");
+                    executor = new BuildExecutor(logger);
+                }
+
+                var buildManager = new BuildManager(new Api(logger), executor, args, logger);
                 return buildManager.BuildAsync().GetAwaiter().GetResult();
             }
             catch (Exception e)

@@ -5,11 +5,11 @@ import { NetFx } from "Sdk.BuildXL";
 import * as Managed from "Sdk.Managed";
 import * as BuildXLSdk from "Sdk.BuildXL";
 
-namespace Orchestrator {
+namespace AdoBuildRunner {
 
     @@public
     export const exe = BuildXLSdk.executable({
-        assemblyName: "Orchestrator",
+        assemblyName: "AdoBuildRunner",
         sources: [
             ...globR(d`./Build/`, "*.cs"),
             ...globR(d`./Vsts/`, "*.cs"),
@@ -17,12 +17,13 @@ namespace Orchestrator {
             f`Program.cs`,
         ],
         references: [
+            ...importFrom("BuildXL.Utilities").Native.securityDlls,
             importFrom("Newtonsoft.Json").pkg,
             importFrom("Microsoft.AspNet.WebApi.Client").pkg,
             importFrom("Microsoft.TeamFoundationServer.Client").pkg,
             importFrom("Microsoft.VisualStudio.Services.Client").pkg,
             importFrom("Microsoft.TeamFoundation.DistributedTask.WebApi").pkg,
-            importFrom("Microsoft.TeamFoundation.DistributedTask.Common.Contracts").pkg
+            importFrom("Microsoft.TeamFoundation.DistributedTask.Common.Contracts").pkg,
         ],
     });
 }

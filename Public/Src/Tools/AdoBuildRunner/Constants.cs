@@ -1,7 +1,7 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-namespace BuildXL.Orchestrator
+namespace BuildXL.AdoBuildRunner
 {
     /// <summary>
     /// Collection of constants used for orchestration, mostly VSTS agent environment variables
@@ -74,9 +74,9 @@ namespace BuildXL.Orchestrator
         public const string RepositoryUrlVariableName = "BUILD_REPOSITORY_URI";
 
         /// <summary>
-        /// The name of the VSTS orchestration task
+        /// Name of the variable of the current task's display name
         /// </summary>
-        public const string BuildOrchestrationTaskName = "VSTSBuildOrchestrationTask";
+        public const string TaskDisplayNameVariableName = "SYSTEM_TASKDISPLAYNAME";
 
         /// <summary>
         /// Variable indicating the current agent type
@@ -89,9 +89,14 @@ namespace BuildXL.Orchestrator
         public const string MachineHostName = "MachineHostName";
 
         /// <summary>
-        /// Name of the task variable used to determine if the machine is ready to build
+        /// Name of the task variable used to communicate the machine IPV4 address
         /// </summary>
         public const string MachineIpV4Address = "MachineIpV4Address";
+
+        /// <summary>
+        /// Name of the task variable used to communicate the machine IPV4 address
+        /// </summary>
+        public const string MachineIpV6Address = "MachineIpV6Address";
 
         /// <summary>
         /// The port used to establish GRPC based connections for distributed builds
@@ -101,7 +106,12 @@ namespace BuildXL.Orchestrator
         /// <summary>
         /// The maximum time an agent waits for the other agents to get ready before failing
         /// </summary>
-        public const int MaxWaitingPeriodBeforeFailingInSeconds = 600;
+        public const int DefaultMaximumWaitForWorkerSeconds = 600;
+
+        /// <summary>
+        /// The maximum time an agent waits for the other agents to get ready before failing
+        /// </summary>
+        public const string MaximumWaitForWorkerSecondsVariableName = "MaximumWaitForWorkerSeconds";
 
         /// <summary>
         /// The time the agent waits before re-checking if the other agents are ready

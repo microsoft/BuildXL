@@ -10,7 +10,7 @@ using Microsoft.TeamFoundation.DistributedTask.WebApi;
 using Microsoft.VisualStudio.Services.Common;
 using TimelineRecord = Microsoft.TeamFoundation.DistributedTask.WebApi.TimelineRecord;
 
-namespace BuildXL.Orchestrator.Vsts
+namespace BuildXL.AdoBuildRunner.Vsts
 {
     /// <summary>
     /// Concrete implementation of the VSTS API interface for build orchestration purposes
@@ -30,6 +30,9 @@ namespace BuildXL.Orchestrator.Vsts
         private readonly ILogger m_logger;
 
         private const string HubType = "build";
+
+        // Timeouts
+        private readonly int m_maxWaitingTimeSeconds;
 
         /// <nodoc />
         public string BuildId { get; }
@@ -114,6 +117,25 @@ namespace BuildXL.Orchestrator.Vsts
 
             m_taskClient = new TaskHttpClient(server, cred);
             m_buildClient = new BuildHttpClient(server, cred);
+
+            m_maxWaitingTimeSeconds = Constants.DefaultMaximumWaitForWorkerSeconds;
+            var userMaxWaitingTime = Environment.GetEnvironmentVariable(Constants.MaximumWaitForWorkerSecondsVariableName);
+            if (!string.IsNullOrEmpty(userMaxWaitingTime))
+            {
+                if (!int.TryParse(userMaxWaitingTime, out var maxWaitingTime))
+                {
+                    m_logger.Warning($"Couldn't parse value '{userMaxWaitingTime}' for {Constants.MaximumWaitForWorkerSecondsVariableName}." +
+                        $"Using the default value of {Constants.DefaultMaximumWaitForWorkerSeconds}");
+                }
+                else 
+                {
+                    m_maxWaitingTimeSeconds = maxWaitingTime;
+                }
+            }
+            
+            m_maxWaitingTimeSeconds =  string.IsNullOrEmpty(userMaxWaitingTime) ?
+                Constants.DefaultMaximumWaitForWorkerSeconds
+                : int.Parse(userMaxWaitingTime);
         }
 
         private async Task<IEnumerable<IDictionary<string, string>>> GetAddressInformationAsync(AgentType type)
@@ -142,11 +164,15 @@ namespace BuildXL.Orchestrator.Vsts
 
         private async Task<List<TimelineRecord>> GetTimelineRecords()
         {
-            List<TimelineRecord> records = await m_taskClient.GetRecordsAsync(new Guid(TeamProjectId), HubType, new Guid(PlanId), new Guid(TimelineId));
-            List<TimelineRecord> timelineRecords =
-                records.Where(r => r.Name.Equals(Constants.BuildOrchestrationTaskName, StringComparison.OrdinalIgnoreCase)).ToList();
+            var currentTask = Environment.GetEnvironmentVariable(Constants.TaskDisplayNameVariableName);
 
-            return timelineRecords;
+            m_logger.Debug($"Getting timeline records for task '{currentTask}'");
+
+            var allRecords = await m_taskClient.GetRecordsAsync(new Guid(TeamProjectId), HubType, new Guid(PlanId), new Guid(TimelineId));
+            var records = allRecords.Where(r => r.Name == currentTask).ToList();
+
+            m_logger.Debug($"Found {records.Count} records");
+            return records;
         }
 
         /// <inherit />
@@ -162,17 +188,17 @@ namespace BuildXL.Orchestrator.Vsts
         }
 
         /// <inherit />
-        public async Task SetMachineReadyToBuild(string hostName, string ipV4Address, bool isMaster)
+        public async Task SetMachineReadyToBuild(string hostName, string ipV4Address, string ipv6Address, bool isMaster)
         {
-            List<TimelineRecord> records = await GetTimelineRecords();
+            // Inject the information into a timeline record for this worker
+            var records = await GetTimelineRecords();
             TimelineRecord record = records.FirstOrDefault(t => t.WorkerName.Equals(AgentName, StringComparison.OrdinalIgnoreCase));
-
             if (record != null)
             {
-                // Add / update agent info for the build orchestration
                 record.Variables[Constants.MachineType] = (isMaster ? AgentType.Master : AgentType.Worker).ToString();
                 record.Variables[Constants.MachineHostName] = hostName;
                 record.Variables[Constants.MachineIpV4Address] = ipV4Address;
+                record.Variables[Constants.MachineIpV6Address] = ipv6Address;
 
                 await m_taskClient.UpdateTimelineRecordsAsync(
                     new Guid(TeamProjectId),
@@ -180,6 +206,12 @@ namespace BuildXL.Orchestrator.Vsts
                     new Guid(PlanId),
                     new Guid(TimelineId),
                     new List<TimelineRecord>() { record });
+
+                m_logger.Info("Marked machine as ready to build in the timeline records");
+            }
+            else
+            {
+                throw new ApplicationException("No records found for this worker");
             }
         }
 
@@ -202,10 +234,12 @@ namespace BuildXL.Orchestrator.Vsts
             var otherAgentsAreReady = false;
             var elapsedTime = 0;
 
-            while (!otherAgentsAreReady && elapsedTime < Constants.MaxWaitingPeriodBeforeFailingInSeconds)
+            while (!otherAgentsAreReady && elapsedTime < m_maxWaitingTimeSeconds)
             {
                 List<TimelineRecord> records = await GetTimelineRecords();
-                if (records.Any(r => r.ErrorCount.HasValue && r.ErrorCount.Value != 0))
+
+                var errors = records.Where(r => r.ErrorCount.HasValue && r.ErrorCount.Value != 0);
+                if (errors.Any())
                 {
                     throw new ApplicationException("One of the agents failed during the orchestration task with errors, aborting build!");
                 }
@@ -235,7 +269,7 @@ namespace BuildXL.Orchestrator.Vsts
                 }
             }
 
-            if (elapsedTime >= Constants.MaxWaitingPeriodBeforeFailingInSeconds)
+            if (elapsedTime >= m_maxWaitingTimeSeconds)
             {
                 throw new ApplicationException("Waiting for all agents to get ready failed, aborting!");
             }

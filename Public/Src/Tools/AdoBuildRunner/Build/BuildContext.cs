@@ -1,7 +1,7 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-namespace BuildXL.Orchestrator.Build
+namespace BuildXL.AdoBuildRunner.Build
 {
     /// <summary>
     /// A build context represents an ongoing VSTS build and its most important properties

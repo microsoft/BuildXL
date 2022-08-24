@@ -4,7 +4,7 @@
 using System;
 using Newtonsoft.Json;
 
-namespace BuildXL.Orchestrator.Vsts
+namespace BuildXL.AdoBuildRunner.Vsts
 {
     /// <summary>
     /// This is a special logger for VSTS task using the special vso logging commands ##vso
@@ -29,7 +29,7 @@ namespace BuildXL.Orchestrator.Vsts
         /// <nodoc />
         public void Error(string message)
         {
-            string errorCommand = string.Format(LogErrorFormat, message);
+            string errorCommand = string.Format(LogErrorFormat, WithTimeStamp(message));
             Console.WriteLine(errorCommand);
         }
 
@@ -71,21 +71,23 @@ namespace BuildXL.Orchestrator.Vsts
         /// <nodoc />
         public void Warning(string message)
         {
-            string warningCommand = string.Format(LogWarningFormat, message);
+            string warningCommand = string.Format(LogWarningFormat, WithTimeStamp(message));
             Console.WriteLine(warningCommand);
         }
 
         /// <nodoc />
         public void Debug(string message)
         {
-            string debugCommand = string.Format(LogDebugFormat, message);
+            string debugCommand = string.Format(LogDebugFormat, WithTimeStamp(message));
             Console.WriteLine(debugCommand);
         }
 
         /// <nodoc />
         public void Info(string message)
         {
-            Console.WriteLine(message);
+            Console.WriteLine(WithTimeStamp(message));
         }
+
+        private string WithTimeStamp(string message) => string.Format("[{0}] {1}", DateTime.UtcNow.ToString("HH:mm:ss.ff"), message);
     }
 }

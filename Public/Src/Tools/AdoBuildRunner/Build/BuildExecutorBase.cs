@@ -2,9 +2,9 @@
 // Licensed under the MIT License.
 
 using System;
-using BuildXL.Orchestrator.Vsts;
+using BuildXL.AdoBuildRunner.Vsts;
 
-namespace BuildXL.Orchestrator.Build
+namespace BuildXL.AdoBuildRunner.Build
 {
     /// <summary>
     /// A build executor base class with common properties

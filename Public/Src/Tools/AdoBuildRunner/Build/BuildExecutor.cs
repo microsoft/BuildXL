@@ -5,9 +5,9 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using BuildXL.Orchestrator.Vsts;
+using BuildXL.AdoBuildRunner.Vsts;
 
-namespace BuildXL.Orchestrator.Build
+namespace BuildXL.AdoBuildRunner.Build
 {
     /// <summary>
     /// A build executor that can execute a build engine depending on agent status and build arguments
@@ -115,6 +115,12 @@ namespace BuildXL.Orchestrator.Build
                 $" /distributedBuildRole:worker /distributedBuildServicePort:{Constants.MachineGrpcPort}",
                 buildContext.SourcesDirectory
             );
+        }
+
+        /// <inheritdoc />
+        public void InitializeAsWorker(BuildContext buildContext, string[] buildArguments)
+        {
+            // No prep work to do
         }
     }
 }

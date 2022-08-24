@@ -3,7 +3,7 @@
 
 using System.Collections.Generic;
 
-namespace BuildXL.Orchestrator.Build
+namespace BuildXL.AdoBuildRunner.Build
 {
     /// <summary>
     /// Defines the interface to execute a distributed build
@@ -32,6 +32,13 @@ namespace BuildXL.Orchestrator.Build
         /// <param name="workerInfo">An array of worker address information</param>
         /// <returns>Status code of the build argument execution</returns>
         int ExecuteDistributedBuildAsMaster(BuildContext buildContext, string[] buildArguments, List<IDictionary<string, string>> workerInfo);
+
+        /// <summary>
+        /// Perfrorm any work before setting the machine "ready" to build
+        /// </summary>
+        /// <param name="buildContext">The build context</param>
+        /// <param name="buildArguments">Arguments to be executed when orchestration succeeds</param>
+        void InitializeAsWorker(BuildContext buildContext, string[] buildArguments);
 
         /// <summary>
         ///  Execute a build with a given context and arguments as orchestrated worker

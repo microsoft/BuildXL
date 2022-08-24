@@ -35,7 +35,10 @@ namespace BuildXL {
                 importFrom("BuildXL.Tools").CMakeRunner.exe,
                 importFrom("BuildXL.Tools").NinjaGraphBuilder.exe,
                 importFrom("BuildXL.Tools.Ninjson").pkg.contents
-            ])
+            ]),
+            
+            // ado build runner
+            importFrom("BuildXL.Tools").AdoBuildRunner.exe,
         ]
     };
 

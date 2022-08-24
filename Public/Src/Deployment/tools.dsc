@@ -34,7 +34,7 @@ namespace Tools {
         });
     }
 
-    namespace Orchestrator {
+    namespace AdoBuildRunner {
 
         export declare const qualifier: BuildXLSdk.NetCoreAppQualifier;
 
@@ -42,13 +42,13 @@ namespace Tools {
             contents: [
                 importFrom("BuildXL.Tools").withQualifier({
                     targetFramework: qualifier.targetFramework,
-                }).Orchestrator.exe
+                }).AdoBuildRunner.exe
             ],
         };
 
         const deployed = BuildXLSdk.DeploymentHelpers.deploy({
             definition: deployment,
-            targetLocation: Helpers.getTargetLocation("Orchestrator"),
+            targetLocation: Helpers.getTargetLocation("AdoBuildRunner"),
         });
     }
 

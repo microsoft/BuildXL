@@ -338,9 +338,9 @@ namespace NugetPackages {
     });
 
     // Currently we deploy tools as self-contained .NET Core binaries for macOS only!
-    const toolsOrchestrator = pack({
-        id: `${packageNamePrefix}.Tools.Orchestrator.osx-x64`,
-        deployment: Tools.Orchestrator.withQualifier({
+    const toolsAdoBuildRunner = pack({
+        id: `${packageNamePrefix}.Tools.AdoBuildRunner.osx-x64`,
+        deployment: Tools.AdoBuildRunner.withQualifier({
             targetFramework: defaultTargetFramework,
             targetRuntime: "osx-x64"
         }).deployment
@@ -363,7 +363,7 @@ namespace NugetPackages {
                 engineCache
             ]),
             sdks,
-            ...addIf(!BuildXLSdk.Flags.genVSSolution, osxX64, linuxX64, toolsOrchestrator),
+            ...addIf(!BuildXLSdk.Flags.genVSSolution, osxX64, linuxX64, toolsAdoBuildRunner),
             toolsSandBoxExec
         ]
     };

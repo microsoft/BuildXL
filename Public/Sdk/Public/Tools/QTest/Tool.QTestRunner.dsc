@@ -320,10 +320,16 @@ export function runQTest(args: QTestArguments): Result {
         Cmd.option("--qCodeCoverageEnumType ", qCodeCoverageEnumType),
         Cmd.option("--QTestCcTargetsFile  ", changeAffectedInputListWrittenFile),
         Cmd.option("--AzureDevOpsLogUploadMode ", args.qTestAzureDevOpsLogUploadMode),
-        Cmd.flag("--EnableBlameCollector", args.qTestEnableBlameCollector),
+        Cmd.option(
+            "--BlameCollectorMode ",
+            args.qTestBlameCollectorMode !== undefined
+            ? args.qTestBlameCollectorMode
+            : args.qTestEnableBlameCollector ? "Always" : "Failure"
+        ),
         Cmd.flag("--EnableMsTestTraceLogging", args.qTestEnableMsTestTraceLogging),
         Cmd.option("--VstestConsoleLoggerOptions ", args.qTestVstestConsoleLoggerOptions),
-        Cmd.option("--msBuildToolsRoot ", Artifact.input(args.qTestMsTestPlatformRootPath))
+        Cmd.option("--msBuildToolsRoot ", Artifact.input(args.qTestMsTestPlatformRootPath)),
+        Cmd.option("--additionalQTestArgumentsFile ", Artifact.none(args.additionalQTestArgumentsFile))
     ];
 
     if (isJSProject) {
@@ -578,7 +584,7 @@ export interface QTestArguments extends Transformer.RunnerArguments {
     qTestDotNetFramework?: QTestDotNetFramework;
     /** Optional directory where all QTest logs can be written to */
     qTestLogs?: Directory;
-    /** Specifies to automatically retry failing tests */
+    /** Specifies to automatically retry failing tests (Deprecated. Use qTestRetryOnFailureMode.) */
     qTestRetryOnFailure?: boolean;
     /** Specifies to the mode under which to automatically retry failing tests:
      *      'Full': Retry full test target.
@@ -635,14 +641,20 @@ export interface QTestArguments extends Transformer.RunnerArguments {
     qTestParserType?: string;
     /** Specifies the upload behavior to Azure DevOps for QTest logs. Default mode is OnlyFailedTargets.*/
     qTestAzureDevOpsLogUploadMode?: "AllTargets" | "OnlyFailedTargets" | "None"; 
-    /** When true, additional options are passed to enable blame collector for collecting dmp files.*/
+    /** When true, additional options are passed to enable blame collector for collecting dmp files. (Deprecated. Use qTestBlameCollectorMode.) */
     qTestEnableBlameCollector?: boolean;
+    /** Specifies behavior of Blame Collector. Default is 'Failure' (Only enable when first attempt fails.) */
+    qTestBlameCollectorMode?: "Always" | "Failure" | "Never";
     /** When true, the DBS.QTest.exe invokes VsTest with diagnostic tracing.*/
     qTestEnableMsTestTraceLogging?: boolean;
     /** Allows additional options to be appended to console logger.*/
     qTestVstestConsoleLoggerOptions?: string;
     /** Specifies the path for tools/net451 directory from Microsoft.TestPlatform package used to acquire vstest.console.exe */
     qTestMsTestPlatformRootPath?: StaticDirectory;
+    /** Specifies the path for additional arguments to be passed to DBS.QTest.exe. Not to be confused with qTestAdditionalOptions which passes arguments to the test runner.
+     * List of DBS.QTest.exe arguments can be found here: https://dev.azure.com/mseng/Domino/_git/CloudBuild?path=/private/QTest/QTestExe/QTestExeArgumentObject.cs
+    */
+    additionalQTestArgumentsFile?: File;
     /** Nested tool options */
     tools?: {
         /** 

@@ -1795,8 +1795,10 @@ namespace BuildXL.Scheduler
                         m_hasFailures = true;
                         RequestTermination(cancelQueue: false);
                     }
-                    else if (everAvailableWorkers < warningThreshold)
+                    else if (everAvailableWorkers < warningThreshold && !m_workers.Any(w => w.IsEarlyReleaseInitiated))
                     {
+                        // Warn of a low-worker count only if we didn't decide to early release,
+                        // in which case the warning is not warranted
                         Logger.Log.WorkerCountBelowWarningThreshold(m_executePhaseLoggingContext, warningThreshold, everAvailableWorkers);
                     }
 

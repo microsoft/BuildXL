@@ -64,6 +64,15 @@ namespace npmPackages {
                                     configuration: qualifier.configuration}).minimalDeployment,
                               ]
                 },
+                {
+                    subfolder: r`build/linux-x64`,
+                    contents: [
+                                importFrom("BuildXL.App").withQualifier({
+                                    targetFramework: Managed.TargetFrameworks.DefaultTargetFramework,
+                                    targetRuntime: "linux-x64",
+                                    configuration: qualifier.configuration}).minimalDeployment,
+                              ]
+                },
             ]
         };
     

@@ -41,7 +41,7 @@ namespace BuildXL.AdoBuildRunner.Build
         }
 
         /// <inherit />
-        public int ExecuteDistributedBuildAsMaster(BuildContext buildContext, string[] buildArguments, List<IDictionary<string, string>> machines)
+        public int ExecuteDistributedBuildAsOrchestrator(BuildContext buildContext, string[] buildArguments, List<IDictionary<string, string>> machines)
         {
             Logger.Info($@"Launching ping test as orchestrator");
 
@@ -67,14 +67,14 @@ namespace BuildXL.AdoBuildRunner.Build
         }
 
         /// <inherit />
-        public int ExecuteDistributedBuildAsWorker(BuildContext buildContext, string[] buildArguments, IDictionary<string, string> masterInfo)
+        public int ExecuteDistributedBuildAsWorker(BuildContext buildContext, string[] buildArguments, IDictionary<string, string> orchestratorInfo)
         {
             Logger.Info($@"Launching ping & connectivity test as worker");
-            WaitMessageFromMaster().GetAwaiter().GetResult();
+            WaitMessageFromOrchestrator().GetAwaiter().GetResult();
             return 0;
         }
 
-        private async Task WaitMessageFromMaster()
+        private async Task WaitMessageFromOrchestrator()
         {
             try
             {

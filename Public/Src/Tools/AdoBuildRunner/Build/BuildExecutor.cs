@@ -88,9 +88,9 @@ namespace BuildXL.AdoBuildRunner.Build
         }
 
         /// <inherit />
-        public int ExecuteDistributedBuildAsMaster(BuildContext buildContext, string[] buildArguments, List<IDictionary<string, string>> machines)
+        public int ExecuteDistributedBuildAsOrchestrator(BuildContext buildContext, string[] buildArguments, List<IDictionary<string, string>> machines)
         {
-            Logger.Info($@"Launching distributed build as master!");
+            Logger.Info($@"Launching distributed build as orchestrator");
 
             var workers = machines.Select(d => $"/distributedBuildWorker:{d[Constants.MachineIpV4Address]}:{Constants.MachineGrpcPort}");
             var workerFlags = string.Join(" ", workers);
@@ -105,7 +105,7 @@ namespace BuildXL.AdoBuildRunner.Build
         }
 
         /// <inherit />
-        public int ExecuteDistributedBuildAsWorker(BuildContext buildContext, string[] buildArguments, IDictionary<string, string> masterInfo)
+        public int ExecuteDistributedBuildAsWorker(BuildContext buildContext, string[] buildArguments, IDictionary<string, string> orchestratorInfo)
         {
             Logger.Info($@"Launching distributed build as worker!");
 

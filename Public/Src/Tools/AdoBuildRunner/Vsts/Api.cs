@@ -19,7 +19,7 @@ namespace BuildXL.AdoBuildRunner.Vsts
     {
         private enum AgentType
         {
-            Master,
+            Orchestrator,
             Worker
         }
 
@@ -157,9 +157,9 @@ namespace BuildXL.AdoBuildRunner.Vsts
         }
 
         /// <inherit />
-        public Task<IEnumerable<IDictionary<string, string>>> GetMasterAddressInformationAsync()
+        public Task<IEnumerable<IDictionary<string, string>>> GetOrchestratorAddressInformationAsync()
         {
-            return GetAddressInformationAsync(AgentType.Master);
+            return GetAddressInformationAsync(AgentType.Orchestrator);
         }
 
         private async Task<List<TimelineRecord>> GetTimelineRecords()
@@ -188,14 +188,14 @@ namespace BuildXL.AdoBuildRunner.Vsts
         }
 
         /// <inherit />
-        public async Task SetMachineReadyToBuild(string hostName, string ipV4Address, string ipv6Address, bool isMaster)
+        public async Task SetMachineReadyToBuild(string hostName, string ipV4Address, string ipv6Address, bool isOrchestrator)
         {
             // Inject the information into a timeline record for this worker
             var records = await GetTimelineRecords();
             TimelineRecord record = records.FirstOrDefault(t => t.WorkerName.Equals(AgentName, StringComparison.OrdinalIgnoreCase));
             if (record != null)
             {
-                record.Variables[Constants.MachineType] = (isMaster ? AgentType.Master : AgentType.Worker).ToString();
+                record.Variables[Constants.MachineType] = (isOrchestrator ? AgentType.Orchestrator : AgentType.Worker).ToString();
                 record.Variables[Constants.MachineHostName] = hostName;
                 record.Variables[Constants.MachineIpV4Address] = ipV4Address;
                 record.Variables[Constants.MachineIpV6Address] = ipv6Address;
@@ -223,10 +223,10 @@ namespace BuildXL.AdoBuildRunner.Vsts
         }
 
         /// <inherit />
-        public Task WaitForMasterToBeReady()
+        public Task WaitForOrchestratorToBeReady()
         {
-            m_logger.Info("Waiting for master to get ready...");
-            return WaitForAgentsToBeReady(AgentType.Master);
+            m_logger.Info("Waiting for orchestrator to get ready...");
+            return WaitForAgentsToBeReady(AgentType.Orchestrator);
         }
 
         private async Task WaitForAgentsToBeReady(AgentType type)
@@ -252,7 +252,7 @@ namespace BuildXL.AdoBuildRunner.Vsts
 
                 switch (type)
                 {
-                    case AgentType.Master:
+                    case AgentType.Orchestrator:
                         otherAgentsAreReady = (filteredMachines.Count == 1);
                         break;
                     case AgentType.Worker:

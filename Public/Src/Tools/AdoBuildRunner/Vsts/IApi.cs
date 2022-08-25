@@ -79,10 +79,10 @@ namespace BuildXL.AdoBuildRunner.Vsts
         Task<IEnumerable<IDictionary<string, string>>> GetWorkerAddressInformationAsync();
 
         /// <summary>
-        /// Get the address information of the master
+        /// Get the address information of the orchestrator
         /// </summary>
-        /// <returns>Address information of the master, consisting of hostname and IP address entries</returns>
-        Task<IEnumerable<IDictionary<string, string>>> GetMasterAddressInformationAsync();
+        /// <returns>Address information of the orchestrator, consisting of hostname and IP address entries</returns>
+        Task<IEnumerable<IDictionary<string, string>>> GetOrchestratorAddressInformationAsync();
 
         /// <summary>
         /// Get the starting time of the build according to VSTS
@@ -94,7 +94,7 @@ namespace BuildXL.AdoBuildRunner.Vsts
         /// Indicate that this machine is ready to build using a timeline record
         /// </summary>
         /// <returns></returns>
-        Task SetMachineReadyToBuild(string hostName, string ipV4Address, string ipv6Address, bool isMaster = false);
+        Task SetMachineReadyToBuild(string hostName, string ipV4Address, string ipv6Address, bool isOrchestrator = false);
 
         /// <summary>
         /// Wait until all the other workers are ready
@@ -103,9 +103,9 @@ namespace BuildXL.AdoBuildRunner.Vsts
         Task WaitForOtherWorkersToBeReady();
 
         /// <summary>
-        /// Wait until the master is ready
+        /// Wait until the orchestrator is ready
         /// </summary>
         /// <returns></returns>
-        Task WaitForMasterToBeReady();
+        Task WaitForOrchestratorToBeReady();
     }
 }

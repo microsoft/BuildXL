@@ -42,7 +42,7 @@ namespace BuildXL.AdoBuildRunner.Build
         }
 
         /// <summary>
-        /// Executes a build depending on master / worker context
+        /// Executes a build depending on orchestrator / worker context
         /// </summary>
         /// <returns>The exit code returned by the worker process</returns>
         public async Task<int> BuildAsync()
@@ -78,10 +78,10 @@ namespace BuildXL.AdoBuildRunner.Build
                 returnCode = m_executor.ExecuteSingleMachineBuild(buildContext, m_buildArguments);
                 LogExitCode(returnCode);
             }
-            // Currently the agent spawned last in a multi-agent build is the elected master
+            // Currently the agent spawned last in a multi-agent build is the elected orchestrator
             else if (m_vstsApi.TotalJobsInPhase == m_vstsApi.JobPositionInPhase)
             {
-                await m_vstsApi.SetMachineReadyToBuild(GetAgentHostName(), GetAgentIPAddress(false), GetAgentIPAddress(true), isMaster: true);
+                await m_vstsApi.SetMachineReadyToBuild(GetAgentHostName(), GetAgentIPAddress(false), GetAgentIPAddress(true), isOrchestrator: true);
                 await m_vstsApi.WaitForOtherWorkersToBeReady();
 
                 var machines = (await m_vstsApi.GetWorkerAddressInformationAsync()).ToList();
@@ -90,7 +90,7 @@ namespace BuildXL.AdoBuildRunner.Build
                     m_logger.Info($@"Found worker: {entry[Constants.MachineHostName]}@{entry[Constants.MachineIpV4Address]}");
                 }
 
-                returnCode = m_executor.ExecuteDistributedBuildAsMaster(buildContext, m_buildArguments, machines);
+                returnCode = m_executor.ExecuteDistributedBuildAsOrchestrator(buildContext, m_buildArguments, machines);
                 LogExitCode(returnCode);
             }
             // Any agent spawned < total number of agents is a dedicated worker
@@ -98,19 +98,19 @@ namespace BuildXL.AdoBuildRunner.Build
             {
                 m_executor.InitializeAsWorker(buildContext, m_buildArguments);
 
-                await m_vstsApi.WaitForMasterToBeReady();
-                var masterInfo = (await m_vstsApi.GetMasterAddressInformationAsync()).FirstOrDefault();
+                await m_vstsApi.WaitForOrchestratorToBeReady();
+                var orchestratorInfo = (await m_vstsApi.GetOrchestratorAddressInformationAsync()).FirstOrDefault();
 
-                if (masterInfo == null)
+                if (orchestratorInfo == null)
                 {
-                    throw new ApplicationException($"Couldn't get master address info, aborting!");
+                    throw new ApplicationException($"Couldn't get orchestrator address info, aborting!");
                 }
 
-                m_logger.Info($@"Found master: {masterInfo[Constants.MachineHostName]}@{masterInfo[Constants.MachineIpV4Address]}");
+                m_logger.Info($@"Found orchestrator: {orchestratorInfo[Constants.MachineHostName]}@{orchestratorInfo[Constants.MachineIpV4Address]}");
 
                 await m_vstsApi.SetMachineReadyToBuild(GetAgentHostName(), GetAgentIPAddress(false), GetAgentIPAddress(true));
 
-                returnCode = m_executor.ExecuteDistributedBuildAsWorker(buildContext, m_buildArguments, masterInfo);
+                returnCode = m_executor.ExecuteDistributedBuildAsWorker(buildContext, m_buildArguments, orchestratorInfo);
                 LogExitCode(returnCode);
             }
 

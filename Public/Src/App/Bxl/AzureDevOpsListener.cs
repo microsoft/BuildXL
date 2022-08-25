@@ -9,8 +9,6 @@ using System.Linq;
 using System.Threading;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes.Tracing;
-using BuildXL.Scheduler.Distribution;
-using BuildXL.Tracing.CloudBuild;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Instrumentation.Common;
@@ -52,7 +50,6 @@ namespace BuildXL
         private readonly int m_initialFrequencyMs;
         private int m_loggingFrequencyMs;
         private DateTime m_statusLogTime;
-        private bool m_emitTargetErrorEvent;
 
         /// <nodoc />
         public AzureDevOpsListener(
@@ -63,8 +60,7 @@ namespace BuildXL
             bool useCustomPipDescription,
             [CanBeNull] WarningMapper warningMapper,
             int initialFrequencyMs,
-            int adoConsoleMaxIssuesToLog,
-            bool emitTargetErrorEvent = false)
+            int adoConsoleMaxIssuesToLog)
             : base(eventSource, baseTime, warningMapper: warningMapper, level: EventLevel.Verbose, captureAllDiagnosticMessages: false, timeDisplay: TimeDisplay.Seconds, useCustomPipDescription: useCustomPipDescription)
         {
             Contract.RequiresNotNull(console);
@@ -74,7 +70,6 @@ namespace BuildXL
             m_buildViewModel = buildViewModel;
             m_adoConsoleMaxIssuesToLog = adoConsoleMaxIssuesToLog;
             m_initialFrequencyMs = initialFrequencyMs;
-            m_emitTargetErrorEvent = emitTargetErrorEvent;
         }
 
         /// <inheritdoc />
@@ -189,26 +184,7 @@ namespace BuildXL
         {
             LogIssueWithLimit(ref m_errorCount, eventData, "error");
 
-            switch (eventData.EventId)
-            {
-                case (int)LogEventId.PipProcessError:
-                {
-                    addPipErrors(new PipProcessErrorEventFields(eventData.Payload, false), LocalWorker.MachineName);
-                }
-                break;
-                case (int)SharedLogEventId.DistributionWorkerForwardedError:
-                {
-                    var actualEventId = (int)eventData.Payload[1];
-                    if (actualEventId == (int)LogEventId.PipProcessError)
-                    {
-                        var pipProcessErrorEventFields = new PipProcessErrorEventFields(eventData.Payload, true);
-                        addPipErrors(pipProcessErrorEventFields, (string)eventData.Payload[16]);
-                    }
-                }
-                break;
-            }
-
-            void addPipErrors(PipProcessErrorEventFields pipProcessErrorEventFields, string workerId)
+            CloudBuildListener.ApplyIfPipError(eventData, (pipProcessErrorEventFields, workerId) =>
             {
                 string semiStableHash = Pip.FormatSemiStableHash(pipProcessErrorEventFields.PipSemiStableHash);
                 m_buildViewModel.BuildSummary.AddPipError(new BuildSummaryPipDiagnostic
@@ -219,23 +195,10 @@ namespace BuildXL
                     ToolName = pipProcessErrorEventFields.PipExe,
                     ExitCode = pipProcessErrorEventFields.ExitCode,
                     Output = pipProcessErrorEventFields.OutputToLog,
-                    
+
                 },
                 MaxErrorsToIncludeInSummary);
-
-                if (m_emitTargetErrorEvent)
-                {
-                    Tracing.CloudBuildEventSource.Log.TargetFailedEvent(new TargetFailedEvent
-                    {
-                        WorkerId = workerId,
-                        TargetId = semiStableHash,
-                        StdOutputPath = pipProcessErrorEventFields.OutputToLog,
-                        PipDescription = pipProcessErrorEventFields.PipDescription,
-                        ShortPipDescription = pipProcessErrorEventFields.ShortPipDescription,
-                        PipExecutionTimeMs = pipProcessErrorEventFields.PipExecutionTimeMs
-                    });
-                }
-            }
+            });
         }
 
         /// <inheritdoc />
@@ -286,7 +249,7 @@ namespace BuildXL
 
                 body = string.Format(CultureInfo.CurrentCulture, message, args);
                 builder.Append(";]");
-                
+
                 // DX code
                 builder.Append("DX");
                 builder.Append(dxCode.ToString("D4"));

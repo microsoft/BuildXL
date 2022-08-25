@@ -25,7 +25,7 @@ namespace BuildXL.Tracing.CloudBuild
         /// <remarks>
         /// WARNING: INCREMENT IF YOU UPDATE THE PRIMITIVE MEMBERS!
         /// </remarks>
-        public override int Version { get; set; } = 1;
+        public override int Version { get; set; } = 2;
 
         /// <inheritdoc />
         public override EventKind Kind { get; set; } = EventKind.DominoCompleted;
@@ -47,5 +47,10 @@ namespace BuildXL.Tracing.CloudBuild
         /// High level categorization of what was performed
         /// </summary>
         public ExitKind ExitKind { get; set; }
+
+        /// <summary>
+        /// BuildXL's categorization of what failed in this build
+        /// </summary>
+        public string? ErrorBucket { get; set; }
     }
 }

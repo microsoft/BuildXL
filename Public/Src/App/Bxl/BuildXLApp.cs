@@ -429,9 +429,10 @@ namespace BuildXL
             using (var appLoggers = new AppLoggers(m_startTimeUtc, m_console, m_configuration.Logging, m_pathTable,
                    notWorker: m_configuration.Distribution.BuildRole != DistributedBuildRoles.Worker,
                    buildViewModel: m_buildViewModel,
-                   cancellationToken: m_cancellationSource.Token,
                    // TODO: Remove this once we can add timestamps for all logs by default
-                   displayWarningErrorTime: m_configuration.InCloudBuild()))
+                   displayWarningErrorTime: m_configuration.InCloudBuild(),
+                   inCloudBuild: m_configuration.InCloudBuild(),
+                   cancellationToken: m_cancellationSource.Token))
             {
                 // Mapping roots. Error is logged here to console because file logging may be set up under
                 // the mapped path. In success case, logging of root mappings is done below to ensure it goes
@@ -1096,7 +1097,16 @@ namespace BuildXL
         /// <summary>
         /// Logging DominoCompletion with an extra CloudBuild event
         /// </summary>
-        public static void LogDominoCompletion(LoggingContext context, int exitCode, ExitKind exitKind, ExitKind cloudBuildExitKind, string errorBucket, string bucketMessage, int processRunningTime, long utcTicks, bool inCloudBuild)
+        public static void LogDominoCompletion(
+            LoggingContext context,
+            int exitCode,
+            ExitKind exitKind,
+            ExitKind cloudBuildExitKind,
+            string errorBucket,
+            string bucketMessage,
+            int processRunningTime,
+            long utcTicks,
+            bool inCloudBuild)
         {
             Logger.Log.DominoCompletion(context,
                 exitCode,
@@ -1111,9 +1121,10 @@ namespace BuildXL
             {
                 BuildXL.Tracing.CloudBuildEventSource.Log.DominoCompletedEvent(new BuildXL.Tracing.CloudBuild.DominoCompletedEvent
                 {
-                    ExitCode = exitCode,
                     UtcTicks = utcTicks,
-                    ExitKind = cloudBuildExitKind,
+                    ExitCode = exitCode,
+                    ExitKind = exitKind,
+                    ErrorBucket = errorBucket,
                 });
             }
         }
@@ -1417,6 +1428,7 @@ namespace BuildXL
                 bool notWorker,
                 BuildViewModel buildViewModel,
                 bool displayWarningErrorTime,
+                bool inCloudBuild,
                 CancellationToken cancellationToken)
             {
                 Contract.RequiresNotNull(console);
@@ -1453,6 +1465,23 @@ namespace BuildXL
                 {
                     ConfigureAzureDevOpsLogging(buildViewModel);
                 }
+
+                if (notWorker && inCloudBuild)
+                {
+                    ConfigureCloudBuildLogging();
+                }
+            }
+
+            private void ConfigureCloudBuildLogging()
+            {
+                var listener = new CloudBuildListener(
+                    Events.Log,
+                    m_baseTime,
+                    m_configuration.UseCustomPipDescriptionOnConsole,
+                    m_warningManager.GetState
+                );
+
+                AddListener(listener);
             }
 
             private static WarningManager CreateWarningManager(IWarningHandling configuration)
@@ -1615,8 +1644,7 @@ namespace BuildXL
                     m_configuration.UseCustomPipDescriptionOnConsole,
                     m_warningManager.GetState,
                     initialFrequency,
-                    m_configuration.AdoConsoleMaxIssuesToLog,
-                    emitTargetErrorEvent: true
+                    m_configuration.AdoConsoleMaxIssuesToLog
                 );
 
                 AddListener(listener);

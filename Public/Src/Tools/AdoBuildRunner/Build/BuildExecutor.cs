@@ -98,7 +98,7 @@ namespace BuildXL.AdoBuildRunner.Build
             return ExecuteBuild(
                 buildArguments[0],
                 ExtractAndEscapeCommandLineArguments(buildArguments) +
-                $" /distributedBuildRole:master /distributedBuildServicePort:{Constants.MachineGrpcPort} " +
+                $" /distributedBuildRole:master /distributedBuildServicePort:{Constants.MachineGrpcPort} /relatedActivityId:{buildContext.SessionId} " +
                 workerFlags,
                 buildContext.SourcesDirectory
             );
@@ -112,7 +112,7 @@ namespace BuildXL.AdoBuildRunner.Build
             return ExecuteBuild(
                 buildArguments[0],
                 ExtractAndEscapeCommandLineArguments(buildArguments) +
-                $" /distributedBuildRole:worker /distributedBuildServicePort:{Constants.MachineGrpcPort}",
+                $" /distributedBuildRole:worker /distributedBuildServicePort:{Constants.MachineGrpcPort} /relatedActivityId:{buildContext.SessionId} ",
                 buildContext.SourcesDirectory
             );
         }

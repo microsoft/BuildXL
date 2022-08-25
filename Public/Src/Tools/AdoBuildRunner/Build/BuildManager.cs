@@ -5,6 +5,8 @@ using System;
 using System.Linq;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
+using System.Security.Cryptography;
+using System.Text;
 using System.Threading.Tasks;
 using BuildXL.AdoBuildRunner.Vsts;
 
@@ -45,7 +47,12 @@ namespace BuildXL.AdoBuildRunner.Build
         /// <returns>The exit code returned by the worker process</returns>
         public async Task<int> BuildAsync()
         {
-            string sessionId = (await m_vstsApi.GetBuildStartTimeAsync()).ToString("MMdd_HHmmss");
+            // Create a GUID that is stable across workers of this build but unique across builds
+            // We use the task name which is required to be unique for parallel builds in the same pipeline
+            // as we use it to get the build records.
+            string taskName = Environment.GetEnvironmentVariable(Constants.TaskDisplayNameVariableName);
+            string startTime = (await m_vstsApi.GetBuildStartTimeAsync()).ToString("MMdd_HHmmss");
+            string sessionId = GuidFromString($"{m_vstsApi.TeamProjectId}-{m_vstsApi.BuildId}-{startTime}-{taskName}");
 
             var buildContext = new BuildContext()
             {
@@ -114,6 +121,20 @@ namespace BuildXL.AdoBuildRunner.Build
         {
             return System.Net.Dns.GetHostName();
         }
+
+#pragma warning disable CA5350 // GuidFromString uses a weak cryptographic algorithm SHA1.
+        private static string GuidFromString(string value)
+        {
+            using var hash = SHA1.Create();
+            byte[] bytesToHash = Encoding.Unicode.GetBytes(value);
+            hash.TransformFinalBlock(bytesToHash, 0, bytesToHash.Length);
+            
+            // Guid takes a 16-byte array
+            byte[] low16 = new byte[16];
+            Array.Copy(hash.Hash, low16, 16);
+            return new Guid(low16).ToString("D");
+        }
+#pragma warning restore CA5350 // GuidFromString uses a weak cryptographic algorithm SHA1.
 
         /// <nodoc />
         public static string GetAgentIPAddress(bool ipv6)

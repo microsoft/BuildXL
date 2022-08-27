@@ -229,6 +229,12 @@ namespace BuildXL.Scheduler.Tracing
         {
             return !m_disabledEvents[(int)eventId];
         }
+
+        /// <nodoc />
+        public virtual void DynamicDirectoryContentsDecided(DynamicDirectoryContentsDecidedEventData data)
+        {
+            ReportUnhandledEvent(data);
+        }
     }
 
     /// <summary>

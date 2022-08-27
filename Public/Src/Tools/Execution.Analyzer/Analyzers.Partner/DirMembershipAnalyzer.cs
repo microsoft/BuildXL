@@ -7,6 +7,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using BuildXL.Pips;
+using BuildXL.Scheduler;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities;
@@ -70,6 +71,7 @@ namespace BuildXL.Execution.Analyzer
             public readonly List<string> Files = new List<string>();
             public readonly PipId PipId;
             public readonly string EnumeratePatternRegex;
+            public readonly DirectoryEnumerationMode DirEnumMode;
 
             public DirData(string path, DirectoryMembershipHashedEventData eventData)
             {
@@ -78,11 +80,13 @@ namespace BuildXL.Execution.Analyzer
                 PipId = eventData.PipId;
                 IsSearchPath = eventData.IsSearchPath;
                 EnumeratePatternRegex = eventData.EnumeratePatternRegex;
+                DirEnumMode = eventData.EnumerationMode;
             }
 
             public IEnumerable<string> GetFlags()
             {
                 yield return IsStatic ? "static" : "dynamic";
+                yield return DirEnumMode.ToString();
 
                 if (IsSearchPath)
                 {

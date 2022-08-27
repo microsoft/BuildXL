@@ -1946,6 +1946,7 @@ namespace BuildXL.Scheduler.Fingerprints
 
                 // If (1) the enumeration does not use the search-based filter and (2) the directory is not enumerated via the minimal graph, cache the fingerprint.
                 bool cacheableFingerprint = !eventData.IsSearchPath && enumerationMode != DirectoryEnumerationMode.MinimalGraph && enumerationMode != DirectoryEnumerationMode.MinimalGraphWithAlienFiles;
+                eventData.EnumerationMode = enumerationMode;
 
                 if (filter == DirectoryMembershipFilter.AllowAllFilter && AllowAllFilterPaths.Add(directoryPath))
                 {

@@ -55,6 +55,11 @@ namespace BuildXL.Scheduler.Tracing
         void FileArtifactContentDecided(FileArtifactContentDecidedEventData data);
 
         /// <summary>
+        /// The members for a dynamic directory have been established. This must happen before any consumers of this directory artifact are processed.
+        /// </summary>
+        void DynamicDirectoryContentsDecided(DynamicDirectoryContentsDecidedEventData data);
+
+        /// <summary>
         /// Save the list of workers for this particular build
         /// </summary>
         void WorkerList(WorkerListEventData data);
@@ -205,6 +210,11 @@ namespace BuildXL.Scheduler.Tracing
         /// See <see cref="IExecutionLogTarget.RecordFileForBuildManifest"/>
         /// </summary>
         RecordFileForBuildManifest = 15,
+
+        /// <summary>
+        /// See <see cref="IExecutionLogTarget.DynamicDirectoryContentsDecided"/>
+        /// </summary>
+        DynamicDirectoryContentsDecided = 16,
     }
 
     /// <summary>
@@ -220,6 +230,14 @@ namespace BuildXL.Scheduler.Tracing
             new ExecutionLogEventMetadata<FileArtifactContentDecidedEventData>(
                 ExecutionEventId.FileArtifactContentDecided,
                 (data, target) => target.FileArtifactContentDecided(data));
+
+        /// <summary>
+        /// Event description for <see cref="IExecutionLogTarget.FileArtifactContentDecided"/>
+        /// </summary>
+        public static readonly ExecutionLogEventMetadata<DynamicDirectoryContentsDecidedEventData> DynamicDirectoryContentsDecided =
+            new ExecutionLogEventMetadata<DynamicDirectoryContentsDecidedEventData>(
+                ExecutionEventId.DynamicDirectoryContentsDecided,
+                (data, target) => target.DynamicDirectoryContentsDecided(data));
 
         /// <summary>
         /// Event description for <see cref="IExecutionLogTarget.WorkerList"/>
@@ -344,7 +362,8 @@ namespace BuildXL.Scheduler.Tracing
                                                                                      PipCacheMiss,
                                                                                      PipExecutionDirectoryOutputs,
                                                                                      CacheMaterializationError,
-                                                                                     RecordFileForBuildManifest
+                                                                                     RecordFileForBuildManifest,
+                                                                                     DynamicDirectoryContentsDecided
                                                                                  };
     }
 
@@ -656,6 +675,47 @@ namespace BuildXL.Scheduler.Tracing
     }
 
     /// <summary>
+    /// Information dynamic directory members
+    /// </summary>
+    [SuppressMessage("Microsoft.Performance", "CA1815:OverrideEqualsAndOperatorEqualsOnValueTypes")]
+    public struct DynamicDirectoryContentsDecidedEventData : IExecutionLogEventData<DynamicDirectoryContentsDecidedEventData>
+    {
+        /// <summary>
+        /// The file
+        /// </summary>
+        public AbsolutePath Directory;
+
+        /// <summary>
+        /// The members of the directory
+        /// </summary>
+        public ReadOnlyArray<FileArtifact> Contents;
+
+        /// <summary>
+        /// The origin information
+        /// </summary>
+        public PipOutputOrigin OutputOrigin;
+
+        /// <inheritdoc />
+        public ExecutionLogEventMetadata<DynamicDirectoryContentsDecidedEventData> Metadata => ExecutionLogMetadata.DynamicDirectoryContentsDecided;
+
+        /// <inheritdoc />
+        public void Serialize(BinaryLogger.EventWriter writer)
+        {
+            writer.Write(Directory);
+            writer.WriteReadOnlyList(Contents, (w, f) => w.Write(f));
+            writer.Write((byte)OutputOrigin);
+        }
+
+        /// <inheritdoc />
+        public void DeserializeAndUpdate(BinaryLogReader.EventReader reader)
+        {
+            Directory = reader.ReadAbsolutePath();
+            Contents = reader.ReadReadOnlyArray(r => r.ReadFileArtifact());
+            OutputOrigin = (PipOutputOrigin)reader.ReadByte();
+        }
+    }
+
+    /// <summary>
     /// Information about the list of workers in a build
     /// </summary>
     [SuppressMessage("Microsoft.Performance", "CA1815:OverrideEqualsAndOperatorEqualsOnValueTypes")]
@@ -875,6 +935,11 @@ namespace BuildXL.Scheduler.Tracing
         }
 
         /// <summary>
+        /// EnumerationMode
+        /// </summary>
+        public DirectoryEnumerationMode EnumerationMode;
+
+        /// <summary>
         /// If true membership was calculated using search paths enumeration
         /// semantics whereby only accessed/explicit dependencies file names are included
         /// </summary>
@@ -924,6 +989,7 @@ namespace BuildXL.Scheduler.Tracing
             writer.Write(Directory);
             DirectoryFingerprint.Hash.Serialize(writer);
             writer.Write((byte)m_flags);
+            writer.Write((byte)EnumerationMode);
             PipId.Serialize(writer);
 
             writer.WriteCompact(Members.Count);
@@ -941,6 +1007,7 @@ namespace BuildXL.Scheduler.Tracing
             Directory = reader.ReadAbsolutePath();
             DirectoryFingerprint = new DirectoryFingerprint(new ContentHash(reader));
             m_flags = (Flags)reader.ReadByte();
+            EnumerationMode = (DirectoryEnumerationMode)reader.ReadByte();
             PipId = PipId.Deserialize(reader);
 
             int count = reader.ReadInt32Compact();

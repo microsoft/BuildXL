@@ -736,8 +736,15 @@ namespace BuildXL.Scheduler.Artifacts
                     }
                 }
 
-                m_sealContents.GetOrAdd(directoryArtifact, artifacts, (key, contents2) =>
+                var result = m_sealContents.GetOrAdd(directoryArtifact, artifacts, (key, contents2) =>
                     SortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer>.CloneAndSort(contents2, OrdinalFileArtifactComparer.Instance));
+
+                m_host?.ExecutionLog?.DynamicDirectoryContentsDecided(new DynamicDirectoryContentsDecidedEventData()
+                {
+                    Directory = directoryArtifact.Path,
+                    Contents = result.Item.Value.BaseArray,
+                    OutputOrigin = outputOrigin
+                });
             }
 
             RegisterDirectoryContents(directoryArtifact);

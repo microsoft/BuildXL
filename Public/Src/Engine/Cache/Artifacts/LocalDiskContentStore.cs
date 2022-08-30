@@ -908,7 +908,10 @@ namespace BuildXL.Engine.Cache.Artifacts
             var possibleFileName = TryGetFileName(path);
             if (!possibleFileName.Succeeded)
             {
-                return possibleFileName.Failure;
+                // A failure here means the file is inaccessable after being noted as an output. This could be due to
+                // another pip or non-build process modifying the file concurrently. Create a specific failure so
+                // a different error can be logged later.
+                return new TryPrepareFailure(possibleFileName.Failure.DescribeIncludingInnerFailures());
             }
 
             return new PrepareFileToTrackOrStoreResult(possibleFileName.Result);
@@ -1249,6 +1252,38 @@ namespace BuildXL.Engine.Cache.Artifacts
             TrackedFileContentInfo = trackedFileContentInfo;
             Origin = origin;
             HashingDuration = hashingDuration;
+        }
+    }
+
+    /// <summary>
+    /// Represents a failure in the <see cref="TryPrepareFailure"/> of <see cref="LocalDiskContentStore"/>.
+    /// </summary>
+    public sealed class TryPrepareFailure : Failure
+    {
+        private readonly string m_failureMessage;
+
+        /// <nodoc/>
+        public TryPrepareFailure(string failureMessage)
+        {
+            m_failureMessage = failureMessage;
+        }
+
+        /// <nodoc/>
+        public override BuildXLException CreateException()
+        {
+            return new BuildXLException(m_failureMessage);
+        }
+
+        /// <nodoc/>
+        public override string Describe()
+        {
+            return m_failureMessage;
+        }
+
+        /// <nodoc/>
+        public override BuildXLException Throw()
+        {
+            throw CreateException();
         }
     }
 }

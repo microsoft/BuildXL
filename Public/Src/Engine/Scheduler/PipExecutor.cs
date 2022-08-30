@@ -5368,11 +5368,22 @@ namespace BuildXL.Scheduler
 
             if (!possiblyStored.Succeeded)
             {
-                Logger.Log.StorageCachePutContentFailed(
-                    operationContext,
-                    process.GetDescription(environment.Context),
-                    outputFileArtifact.Path.ToString(environment.Context.PathTable),
-                    possiblyStored.Failure.DescribeIncludingInnerFailures());;
+                if (possiblyStored.Failure is TryPrepareFailure)
+                {
+                    Logger.Log.StoragePrepareOutputFailed(
+                        operationContext,
+                        process.GetDescription(environment.Context),
+                        outputFileArtifact.Path.ToString(environment.Context.PathTable),
+                        possiblyStored.Failure.DescribeIncludingInnerFailures());
+                }
+                else
+                {
+                    Logger.Log.StorageCachePutContentFailed(
+                        operationContext,
+                        process.GetDescription(environment.Context),
+                        outputFileArtifact.Path.ToString(environment.Context.PathTable),
+                        possiblyStored.Failure.DescribeIncludingInnerFailures());
+                }
             }
 
             return possiblyStored;

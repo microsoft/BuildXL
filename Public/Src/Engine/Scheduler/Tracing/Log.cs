@@ -164,6 +164,16 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void StorageTrackOutputFailed(LoggingContext loggingContext, string pipDescription, string path, string errorMessage);
 
         [GeneratedEvent(
+            (ushort)LogEventId.StoragePrepareOutputFailed,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
+            EventTask = (ushort)Tasks.Storage,
+            Message = "[{pipDescription}] Preparing output '{path}' for storage into cache resulted in error. " +
+            "The file may have been modified prior to being stored. Check for disallowed file access violations in prior errors. Details: {errorMessage}")]
+        internal abstract void StoragePrepareOutputFailed(LoggingContext loggingContext, string pipDescription, string path, string errorMessage);
+
+        [GeneratedEvent(
             (ushort)LogEventId.PipOutputProduced,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,

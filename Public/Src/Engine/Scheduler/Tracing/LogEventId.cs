@@ -29,6 +29,7 @@ namespace BuildXL.Scheduler.Tracing
         PipsFailedStats = 228,
         StatsPerformanceLog = 459,
         StorageTrackOutputFailed = 745,
+        StoragePrepareOutputFailed = 747,
 
         CacheDescriptorHitForContentFingerprint = 200,
         CacheDescriptorMissForContentFingerprint = 201,

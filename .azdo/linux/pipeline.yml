@@ -52,6 +52,7 @@ extends:
           displayName: Build Linux Runtime
           pool:
             vmImage: ubuntu-latest
+            os: linux
           templateContext:
             inputs:
             - input: checkout
@@ -64,7 +65,6 @@ extends:
               condition: always()
               continueOnError: true
               displayName: Publish Pipeline Artifact
-            os: linux
             sdl:
               credscan:
                 enabled: false
@@ -90,6 +90,7 @@ extends:
             dependsOn: [ BuildLinuxRuntime ]
             pool:
               vmImage: ubuntu-latest
+              os: linux
             templateContext:
               breakGlass:
                 justification: "Because 1ESPipelineTemplates allows only a single container for all jobs, and 'quay.io/pypa/manylinux2014_x86_64' does not have some tools needed for NuGet installed"

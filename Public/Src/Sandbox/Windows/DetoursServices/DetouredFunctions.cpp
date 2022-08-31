@@ -4734,10 +4734,8 @@ HANDLE WINAPI Detoured_FindFirstFileExW(
 
     if (!IgnoreFullReparsePointResolvingForPath(policyResult))
     {
-        // Both of the currently understood info levels return WIN32_FIND_DATAW.
-        LPWIN32_FIND_DATAW findFileDataAtLevel = (LPWIN32_FIND_DATAW)lpFindFileData;
         FileOperationContext readOpContext = FileOperationContext::CreateForRead(L"FindFirstFileExW_Resolve", lpFileName);
-        readOpContext.FlagsAndAttributes = findFileDataAtLevel->dwFileAttributes;
+        readOpContext.FlagsAndAttributes = dwAdditionalFlags;
      
         if (!policyInitSuccess)
         {

@@ -12,6 +12,7 @@ jobs:
   displayName: Build and Validate Selfhost (${{ parameters.validationName }})
   pool:
     name: BuildXL-DevOpsAgents-Linux-PME
+    os: linux
 
   templateContext:
     breakGlass:
@@ -27,7 +28,6 @@ jobs:
       condition: always()
       continueOnError: true
       displayName: Upload BuildXL Logs
-    os: linux
     sdl:
       credscan:
         enabled: false

@@ -38,13 +38,21 @@ extends:
     # currently, all other jobs in this pipeline opt out of containerization.
     container:
       image: quay.io/pypa/manylinux2014_x86_64
-
+        
     stages:
     - stage: Build
       jobs:
       # Build and test selfhost with BuildXL
       - ${{ if parameters.BuildSelfhost }}:
         - template: /.azdo/linux/job-selfhost.yml@self
+          parameters:
+            ValidationName: PublicRelease
+            BxlExtraArgs: /q:ReleaseLinux
+
+        - template: /.azdo/linux/job-selfhost.yml@self
+          parameters:
+            ValidationName: InternalRelease
+            BxlExtraArgs: --internal /q:ReleaseLinux
 
       # Build Linux native runtime libraries with make
       - ${{ if parameters.BuildLinuxRuntime }}:

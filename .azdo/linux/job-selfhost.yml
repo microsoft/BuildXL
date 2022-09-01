@@ -2,10 +2,14 @@ parameters:
 - name: BxlCommonArgs
   type: string
   default: --shared-comp /ado /cacheMiss:"[Bxl.Selfhost.Linux]" /logObservedFileAccesses /cacheConfigFilePath:Out/CacheConfig.json /logoutput:FullOutputOnError /logsToRetain:10 /exp:lazysodeletion- # /p:[Sdk.BuildXL]xunitSemaphoreCount=20
+- name: BxlExtraArgs
+  type: string
+- name: ValidationName
+  type: string
 
 jobs:
-- job: Selfhost
-  displayName: Build and Validate Selfhost
+- job: Selfhost_${{ parameters.validationName }}
+  displayName: Build and Validate Selfhost (${{ parameters.validationName }})
   pool:
     name: BuildXL-DevOpsAgents-Linux-PME
 
@@ -19,7 +23,7 @@ jobs:
     outputs:
     - output: pipelineArtifact
       targetPath: $(Build.SourcesDirectory)/Out/Logs
-      artifactName: BuildXL-Logs.$(System.JobName).$(System.JobAttempt)
+      artifactName: BuildXL-Logs.${{ parameters.validationName }}.$(System.JobName).$(System.JobAttempt)
       condition: always()
       continueOnError: true
       displayName: Upload BuildXL Logs
@@ -35,13 +39,7 @@ jobs:
   timeoutInMinutes: 90
 
   strategy:
-    matrix:
-      InternalRelease:
-        BxlMatrixName: InternalReleaseLinux
-        BxlMatrixArgs: --internal /q:ReleaseLinux
-      PublicRelease:
-        BxlMatrixName: ReleaseLinux
-        BxlMatrixArgs: /q:ReleaseLinux
+    parallel: 2
 
   steps:
 
@@ -111,7 +109,7 @@ jobs:
       PAT1esSharedAssets: $(PAT-TseBuild-AzureDevOps-1esSharedAssets-Package-Read)
       PATCloudBuild: $(PAT-TseBuild-AzureDevOps-CloudBuild-Packaging-Read)
       VSTSPERSONALACCESSTOKEN: $(PAT-TseBuild-AzureDevOps-mseng-buildcache)
-
+      
   - bash: |
       echo "== Deleting Out/frontend/Nuget/tmp, Out/bin, Out/Bootstrap folders to reduce the size of the NuGet cache dir"
       rm -rf Out/frontend/Nuget/tmp Out/Objects.noindex Out/bin Out/BootStrap
@@ -122,23 +120,53 @@ jobs:
     displayName: Free up disk space
 
   - bash: |
-      set -eu
-      function run_build {
-        # the disks on Azure Pipeline VMs are too small to build everything, so let's instead run tests
-        bash bxl.sh --use-dev ${{ parameters.BxlCommonArgs }} /logsDirectory:"Out/Logs/$(BxlMatrixName)" $(BxlMatrixArgs) "/f:tag='test'"
+      set -euo pipefail
+      rm -f Out/CacheConfig.json
+      tee Out/CacheConfig.json << EOF
+      {
+      "RemoteIsReadOnly": false,
+      "SkipDeterminismRecovery": true,
+      "WriteThroughCasData": true,
+      "RemoteConstructionTimeoutMilliseconds":  10000,
+      "Assembly":  "BuildXL.Cache.VerticalAggregator",
+      "Type":  "BuildXL.Cache.VerticalAggregator.VerticalCacheAggregatorFactory",
+      "RemoteCache":  {
+                          "CacheServiceFingerprintEndpoint":  "https://mseng.artifacts.visualstudio.com/DefaultCollection",
+                          "RequiredContentKeepUntilHours":  1,
+                          "Assembly":  "BuildXL.Cache.BuildCacheAdapter",
+                          "CacheServiceContentEndpoint":  "https://mseng.vsblob.visualstudio.com/DefaultCollection",
+                          "Type":  "BuildXL.Cache.BuildCacheAdapter.BuildCacheFactory",
+                          "CacheLogPath":  "[BuildXLSelectedLogPath].Remote.log",
+                          "CacheId":  "L3Cache",
+                          "CacheNamespace":  "BuildXLSelfhost.Linux",
+                          "UseBlobContentHashLists":  true
+                      },
+      "LocalCache":  {
+                        "MaxCacheSizeInMB":  20240,
+                        "Assembly":  "BuildXL.Cache.MemoizationStoreAdapter",
+                        "UseStreamCAS":  true,
+                        "Type":  "BuildXL.Cache.MemoizationStoreAdapter.MemoizationStoreCacheFactory",
+                        "CacheLogPath":  "[BuildXLSelectedLogPath]",
+                        "CacheRootPath":  "[BuildXLSelectedRootPath]",
+                        "CacheId":  "SelfhostCS2L1",
+                        "UseRocksDbMemoizationStore":  true
+                    }
       }
+      EOF
+    displayName: Write cache config file for distributed build
 
-      run_build || {
-        echo "\n**** First build failed, retrying once ***\n"
-        find Out/Objects.noindex -type d -name node_modules | xargs -r rm -rfv
-        run_build
-      }
-    displayName: Test
+  - bash: |
+      set -eu
+      chmod +x Out/Selfhost/Dev/AdoBuildRunner
+      # the disks on Azure Pipeline VMs are too small to build everything, so let's instead run tests
+      ./Out/Selfhost/Dev/AdoBuildRunner bash bxl.sh --use-dev ${{ parameters.BxlCommonArgs }} /logsDirectory:"Out/Logs/${{ parameters.validationName }}" ${{ parameters.bxlExtraArgs }} "/f:tag='test'"
+    displayName: Test (${{ parameters.validationName }})
     workingDirectory: /home/subst
     env:
       PAT1esSharedAssets: $(PAT-TseBuild-AzureDevOps-1esSharedAssets-Package-Read)
       PATCloudBuild: $(PAT-TseBuild-AzureDevOps-CloudBuild-Packaging-Read)
       VSTSPERSONALACCESSTOKEN: $(PAT-TseBuild-AzureDevOps-mseng-buildcache)
+      SYSTEM_ACCESSTOKEN: $(System.AccessToken)
 
   - task: PublishTestResults@2
     displayName: Publish Test Results

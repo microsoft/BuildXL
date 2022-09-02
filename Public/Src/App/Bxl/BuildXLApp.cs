@@ -1146,7 +1146,7 @@ namespace BuildXL
             string startupDirectory,
             string mainConfigurationFile)
         {
-            Logger.Log.DominoInvocation(context, ScrubCommandLine(commandLine, 100000, 100000), buildInfo, machineInfo, sessionIdentifier, relatedSessionIdentifier, startupDirectory, mainConfigurationFile);
+            Logger.Log.DominoInvocation(context, ScrubCommandLine(commandLine, 10000, 10000), buildInfo, machineInfo, sessionIdentifier, relatedSessionIdentifier, startupDirectory, mainConfigurationFile);
             Logger.Log.DominoInvocationForLocalLog(context, commandLine, buildInfo, machineInfo, sessionIdentifier, relatedSessionIdentifier, startupDirectory, mainConfigurationFile);
 
             if (inCloudBuild)

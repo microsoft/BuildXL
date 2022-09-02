@@ -71,9 +71,9 @@ namespace BuildXL.Scheduler.Tracing
         /// <summary>
         /// All root operations
         /// </summary>
-        private readonly ConcurrentBigSet<RootOperation> m_activeRootOperations = new ConcurrentBigSet<RootOperation>();
+        private readonly HashSet<RootOperation> m_activeRootOperations = new HashSet<RootOperation>();
 
-        private readonly ConcurrentBigSet<Operation> m_activeThreadAndNestedOperations = new ConcurrentBigSet<Operation>();
+        private readonly HashSet<Operation> m_activeThreadAndNestedOperations = new HashSet<Operation>();
 
         /// <summary>
         /// Hierarchical counters for operations
@@ -128,7 +128,11 @@ namespace BuildXL.Scheduler.Tracing
         public OperationContext StartOperation(OperationKind kind, PipId pipId, PipType pipType, LoggingContext loggingContext, Action<OperationKind, TimeSpan> onOperationCompleted = null)
         {
             var root = GetOrCreateRootOperation();
-            m_activeRootOperations.Add(root);
+            lock (m_activeRootOperations)
+            {
+                m_activeRootOperations.Add(root);
+            }
+
             root.Initialize(pipId, pipType, kind, onOperationCompleted);
             TraceDebugData(root);
             return new OperationContext(loggingContext, root);
@@ -330,6 +334,9 @@ namespace BuildXL.Scheduler.Tracing
             }
         }
 
+        /// <summary>
+        /// Runs every 30 seconds.
+        /// </summary>
         private void RecomputeOutstandingCounters()
         {
             m_countersWithAssociatedOperations.Clear();
@@ -339,33 +346,39 @@ namespace BuildXL.Scheduler.Tracing
                 outstandingCounter.Reset();
             }
 
-            foreach (var rootOperation in m_activeRootOperations.UnsafeGetList())
+            lock (m_activeRootOperations)
             {
-                if (!rootOperation.IsComplete)
+                foreach (var rootOperation in m_activeRootOperations)
                 {
-                    rootOperation.Counter.OutstandingCounter.Add(rootOperation.Duration);
+                    if (!rootOperation.IsComplete)
+                    {
+                        rootOperation.Counter.OutstandingCounter.Add(rootOperation.Duration);
+                    }
                 }
             }
 
-            foreach (var operation in m_activeThreadAndNestedOperations.UnsafeGetList())
+            lock (m_activeThreadAndNestedOperations)
             {
-                if (!operation.IsComplete)
+                foreach (var operation in m_activeThreadAndNestedOperations)
                 {
-                    var info = operation.Capture();
-                    if (info.HasValue)
+                    if (!operation.IsComplete)
                     {
-                        var outstandingCounter = operation.Counter.OutstandingCounter;
-                        outstandingCounter.Add(info.Value.Duration);
-
-                        if (info.Value.Artifact.IsValid || info.Value.PipId.IsValid)
+                        var info = operation.Capture();
+                        if (info.HasValue)
                         {
-                            outstandingCounter.AssociatedOperations.Add(info.Value);
-                            m_countersWithAssociatedOperations.Add(outstandingCounter);
+                            var outstandingCounter = operation.Counter.OutstandingCounter;
+                            outstandingCounter.Add(info.Value.Duration);
 
-                            if (info.Value.Duration > s_maxOpsThreshold)
+                            if (info.Value.Artifact.IsValid || info.Value.PipId.IsValid)
                             {
-                                operation.Counter.AssociatedOperations.Add(info.Value);
-                                m_countersWithAssociatedOperations.Add(operation.Counter);
+                                outstandingCounter.AssociatedOperations.Add(info.Value);
+                                m_countersWithAssociatedOperations.Add(outstandingCounter);
+
+                                if (info.Value.Duration > s_maxOpsThreshold)
+                                {
+                                    operation.Counter.AssociatedOperations.Add(info.Value);
+                                    m_countersWithAssociatedOperations.Add(operation.Counter);
+                                }
                             }
                         }
                     }
@@ -950,7 +963,11 @@ namespace BuildXL.Scheduler.Tracing
                     newOp = CreateUnitializedOperation(Tracker.m_nestedOperationPool, s_nestedFactory);
                 }
 
-                Tracker.m_activeThreadAndNestedOperations.Add(newOp);
+                lock (Tracker.m_activeThreadAndNestedOperations)
+                {
+                    Tracker.m_activeThreadAndNestedOperations.Add(newOp);
+                }
+
                 return newOp;
             }
 
@@ -978,7 +995,10 @@ namespace BuildXL.Scheduler.Tracing
             {
                 TraceDebugData(this);
 
-                Tracker.m_activeRootOperations.Remove(this);
+                lock (Tracker.m_activeRootOperations)
+                {
+                    Tracker.m_activeRootOperations.Remove(this);
+                }
 
                 Tracker.m_rootOperationPool.Enqueue(this);
             }
@@ -993,11 +1013,15 @@ namespace BuildXL.Scheduler.Tracing
                 Assert(operation, Thread.ActiveOperation != operation, "Returned operations must not remain active");
 
                 OnOperationCompleted?.Invoke(operation.Kind, operation.Duration);
-                
+
                 OnOperationCompleted = null;
 
                 Tracker.m_nestedOperationPool.Enqueue(operation);
-                Tracker.m_activeThreadAndNestedOperations.Remove(operation);
+
+                lock (Tracker.m_activeThreadAndNestedOperations)
+                { 
+                    Tracker.m_activeThreadAndNestedOperations.Remove(operation);
+                }
             }
 
             /// <summary>
@@ -1010,7 +1034,11 @@ namespace BuildXL.Scheduler.Tracing
                 Assert(thread, Thread.ActiveOperation != thread, "Returned operations must not remain active");
 
                 Tracker.m_operationThreadPool.Enqueue(thread);
-                Tracker.m_activeThreadAndNestedOperations.Remove(thread);
+
+                lock (Tracker.m_activeThreadAndNestedOperations)
+                {
+                    Tracker.m_activeThreadAndNestedOperations.Remove(thread);
+                }
             }
 
             internal string GetChildOperationName(Operation operation)

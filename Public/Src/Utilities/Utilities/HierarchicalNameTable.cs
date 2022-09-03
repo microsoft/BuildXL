@@ -92,9 +92,9 @@ namespace BuildXL.Utilities
             /// ID of the next sibling (node sharing the same container). Nodes directly under a container form a singly linked list.
             /// </summary>
             /// <remarks>
-            /// Mutability: Immutable. Siblings are inserted at the head (<see cref="FirstChild"/> of the container is modified).
+            /// Mutability: only changes during initial insertion setup, once the container points at this node it is immutable
             /// </remarks>
-            public readonly HierarchicalNameId NextSibling;
+            public HierarchicalNameId NextSibling;
 
             /// <summary>
             /// Integer representation of <see cref="FirstChild"/>; needed as a mutable int for <see cref="InterlockedSetFirstChild"/>.
@@ -120,18 +120,6 @@ namespace BuildXL.Utilities
                 NextSibling = nextSibling;
                 DepthAndExtendedFlags = depthAndExtendedFlags;
                 m_firstChildValue = default(HierarchicalNameId).Value;
-            }
-
-            /// <summary>
-            /// Updates the node to have the given next sibling.
-            /// </summary>
-            /// <remarks>
-            /// Node cannot already have a next sibling.
-            /// </remarks>
-            public Node WithSibling(HierarchicalNameId nextSibling)
-            {
-                Contract.Assert(!NextSibling.IsValid);
-                return new Node(Component, ContainerAndFlags, Depth, nextSibling);
             }
 
             /// <summary>
@@ -1356,22 +1344,21 @@ namespace BuildXL.Utilities
                 return GetIdFromIndex(getOrAddResult.Index);
             }
 
-            // getOrAddResult.Item is the node that was added.
-            Node newChildNode = getOrAddResult.Item;
+            // because of the above return it is possible the Node can have children being added to it concurrently
+            // thus we need to update the node in the buffer with the next sibling
+            m_nodes.GetEntryBuffer(getOrAddResult.Index, out int bufferIndex, out Node[] buffer);
 
             // A real node has been added (by this thread).
             // We now need to link it into the container's child list (FirstChild and NextSibling pointers).
             HierarchicalNameId newChildId = GetIdFromIndex(getOrAddResult.Index);
 
-            HierarchicalNameId nextSibling;
+            HierarchicalNameId containerExistingFirstChild;
             do
             {
-                var containerNode = containerBuffer[containerBufferIndex];
-                nextSibling = containerNode.FirstChild;
-                var updatedChildNode = newChildNode.WithSibling(nextSibling);
-                m_nodes[getOrAddResult.Index] = updatedChildNode;
+                containerExistingFirstChild = containerBuffer[containerBufferIndex].FirstChild;
+                buffer[bufferIndex].NextSibling = containerExistingFirstChild;
             }
-            while (!containerBuffer[containerBufferIndex].InterlockedSetFirstChild(newChildId, nextSibling));
+            while (!containerBuffer[containerBufferIndex].InterlockedSetFirstChild(newChildId, containerExistingFirstChild));
 
             // all done
             Contract.Assert(newChildId.IsValid);

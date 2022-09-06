@@ -657,6 +657,7 @@ namespace BuildXL.Execution.Analyzer
                 m_html.CreateRow("DirectoryArtifact", SerializeDirectoryArtifact(pip.Directory)),
                 m_html.CreateRow("ComposedDirectories", pip.ComposedDirectories),
                 pip.ContentFilter.HasValue ? m_html.CreateRow("ContentFilter", contentFilterToString(pip.ContentFilter.Value)) : null,
+                pip.Patterns.IsValid ? m_html.CreateRow("Patterns", string.Join(",", pip.Patterns.Select(a => a.ToString(StringTable)))) : null,
                 m_html.CreateRow("Contents", pip.Contents),
                 pip.Kind == SealDirectoryKind.SharedOpaque ? m_html.CreateRow("Dynamic contents", dynamicDirectoryContent) : null);
 

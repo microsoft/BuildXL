@@ -1229,6 +1229,7 @@ namespace BuildXL.Utilities
             private byte[][] m_byteArrays;
             private int m_indexCursor;
             private long m_size;
+            private object m_initLocker = new object();
 
             /// <summary>
             /// Total size of strings (in bytes)
@@ -1238,24 +1239,26 @@ namespace BuildXL.Utilities
             /// <summary>
             /// Number of strings stored
             /// </summary>
-            internal int Count => Math.Min(m_indexCursor + 1, m_byteArrays.Length);
+            internal int Count => Math.Min(m_indexCursor + 1, m_byteArrays != null ? m_byteArrays.Length : 0);
 
             internal OverflowBuffer()
             {
                 m_indexCursor = -1;
-                m_byteArrays = new byte[BytesPerBuffer][];
             }
 
             private OverflowBuffer(BuildXLReader reader)
             {
                 m_indexCursor = reader.ReadInt32();
                 m_size = reader.ReadInt64();
-                m_byteArrays = reader.ReadArray(r =>
+                if (m_indexCursor > -1)
                 {
-                    var length = r.ReadInt32Compact();
-                    return r.ReadBytes(length);
-                },
-                minimumLength: BytesPerBuffer);
+                    m_byteArrays = reader.ReadArray(r =>
+                    {
+                        var length = r.ReadInt32Compact();
+                        return r.ReadBytes(length);
+                    },
+                    minimumLength: BytesPerBuffer);
+                };
             }
 
             internal static OverflowBuffer Deserialize(BuildXLReader reader)
@@ -1268,17 +1271,33 @@ namespace BuildXL.Utilities
                 writer.Write(m_indexCursor);
                 writer.Write(m_size);
 
-                var serializedByteArrays = new ArrayView<byte[]>(m_byteArrays, 0, Count);
-
-                writer.WriteReadOnlyList(serializedByteArrays, (w, b) =>
+                if (m_indexCursor > -1)
                 {
-                    w.WriteCompact(b.Length);
-                    w.Write(b);
-                });
+                    var serializedByteArrays = new ArrayView<byte[]>(m_byteArrays, 0, Count);
+
+                    writer.WriteReadOnlyList(serializedByteArrays, (w, b) =>
+                    {
+                        w.WriteCompact(b.Length);
+                        w.Write(b);
+                    });
+                }
             }
 
             internal bool TryReserveSlot(out int index)
             {
+                // Lazily initialize the backing buffer to avoid unpopulated arrays when overflow is not needed.
+                // If uninitialized, it is necessary to synchronize threads attempting to reserve a slot before assigning one.
+                if (m_byteArrays == null)
+                {
+                    lock (m_initLocker)
+                    {
+                        if (m_byteArrays == null)
+                        {
+                            m_byteArrays = new byte[BytesPerBuffer][];
+                        }
+                    }
+                }
+
                 index = Interlocked.Increment(ref m_indexCursor);
                 return index < m_byteArrays.Length;
             }
@@ -1292,10 +1311,12 @@ namespace BuildXL.Utilities
             {
                 get
                 {
+                    Contract.Assert(m_indexCursor > -1, "Attempting to retrieve a value for uninitialized OverflowBuffer");
                     return m_byteArrays[index];
                 }
                 set
                 {
+                    Contract.Assert(m_indexCursor > -1, "Attempting to set a value for uninitialized OverflowBuffer");
                     var priorValue = Interlocked.CompareExchange(ref m_byteArrays[index], value, null);
                     Contract.Assert(priorValue == null);
                     Interlocked.Add(ref m_size, value.Length);

@@ -468,6 +468,8 @@ namespace BuildXL.Utilities
                         LastId = m_lastId,
                     });
             }
+
+            m_availableWritablePageStreams.Clear();
         }
 
         private static void Serialize(BuildXLWriter writer, SerializedState state)

@@ -145,15 +145,16 @@ namespace BuildXL.Utilities.Tracing
                         fileStream.Seek(positionToDeserialize, SeekOrigin.Begin);
 
                         EventHeader header = EventHeader.ReadFrom(parallelEventReader);
+                        var eventId = header.EventId;
                         // Ensure that event id is NOT an AddPath event
-                        Contract.Assert((BinaryLogger.LogSupportEventId)header.EventId != BinaryLogger.LogSupportEventId.AddPath);
+                        Contract.Assert((BinaryLogger.LogSupportEventId)eventId != BinaryLogger.LogSupportEventId.AddPath);
 
                         var startOfNextEvent = fileStream.Position + header.EventPayloadSize;
 
                         // Handle the internal events
-                        if (header.EventId < (uint)BinaryLogger.LogSupportEventId.Max)
+                        if (eventId < (uint)BinaryLogger.LogSupportEventId.Max)
                         {
-                            switch ((BinaryLogger.LogSupportEventId)header.EventId)
+                            switch ((BinaryLogger.LogSupportEventId)eventId)
                             {
                                 case BinaryLogger.LogSupportEventId.StartTime:
                                     ReadStartTimeEvent(parallelEventReader);
@@ -168,14 +169,14 @@ namespace BuildXL.Utilities.Tracing
                         }
                         else
                         {
-                            header.EventId -= (uint)BinaryLogger.LogSupportEventId.Max;
+                            eventId -= (uint)BinaryLogger.LogSupportEventId.Max;
                         }
 
                         EventHandler handler;
-                        if ((m_handlers.Length > header.EventId) &&
-                            ((handler = m_handlers[header.EventId]) != null))
+                        if ((m_handlers.Length > eventId) &&
+                            ((handler = m_handlers[eventId]) != null))
                         {
-                            handler(header.EventId, header.WorkerId, header.Timestamp, parallelEventReader);
+                            handler(eventId, header.WorkerId, header.Timestamp, parallelEventReader);
                             Contract.Assert(fileStream.Position <= startOfNextEvent, "Event handler read beyond the event payload");
                         }
                     }

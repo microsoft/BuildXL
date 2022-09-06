@@ -6,42 +6,29 @@ namespace BuildXL.Utilities.Tracing
     /// <summary>
     /// Represents the information contained in the header of an execution event
     /// </summary>
-    internal class EventHeader
+    /// <param name="EventId">The event id</param>
+    /// <param name="WorkerId">The id of the worker the event originated on</param>
+    /// <param name="Timestamp">The event timestamp</param>
+    /// <param name="EventPayloadSize">The event payload size</param>
+    internal readonly record struct EventHeader(
+        uint EventId,
+        uint WorkerId,
+        long Timestamp,
+        int EventPayloadSize)
     {
-        /// <summary>
-        /// The event id
-        /// </summary>
-        public uint EventId;
-
-        /// <summary>
-        /// The id of the worker the event originated on
-        /// </summary>
-        public uint WorkerId;
-
-        /// <summary>
-        /// The event timestamp
-        /// </summary>
-        public long Timestamp;
-
-        /// <summary>
-        /// The event pay load size
-        /// </summary>
-        public int EventPayloadSize;
-
         /// <summary>
         /// Reads and returns an <see cref="EventHeader"/> given a <see cref="BuildXLReader"/>. 
         /// It is the callers responsibility to ensure the reader's initial position is set correctly.
         /// </summary>
         public static EventHeader ReadFrom(BuildXLReader reader)
         {
-            var eventHeader = new EventHeader();
             // Order matters!
-            eventHeader.EventId = reader.ReadUInt32Compact();
-            eventHeader.WorkerId = reader.ReadUInt32Compact();
-            eventHeader.Timestamp = reader.ReadInt64Compact();
-            eventHeader.EventPayloadSize = reader.ReadInt32Compact();
+            var eventId = reader.ReadUInt32Compact();
+            var workerId = reader.ReadUInt32Compact();
+            var timestamp = reader.ReadInt64Compact();
+            var eventPayloadSize = reader.ReadInt32Compact();
 
-            return eventHeader;
+            return new EventHeader(eventId, workerId, timestamp, eventPayloadSize);
         }
     }
 }

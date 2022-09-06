@@ -191,11 +191,11 @@ namespace BuildXL.Utilities.Tracing
                     }
 
                     m_nextReadPosition = position + header.EventPayloadSize;
-
+                    var eventId = header.EventId;
                     // Handle the internal events
-                    if (header.EventId < (uint)BinaryLogger.LogSupportEventId.Max)
+                    if (eventId < (uint)BinaryLogger.LogSupportEventId.Max)
                     {
-                        switch ((BinaryLogger.LogSupportEventId)header.EventId)
+                        switch ((BinaryLogger.LogSupportEventId)eventId)
                         {
                             case BinaryLogger.LogSupportEventId.StartTime:
                                 ReadStartTimeEvent(m_logStreamReader);
@@ -213,14 +213,14 @@ namespace BuildXL.Utilities.Tracing
                     }
                     else
                     {
-                        header.EventId -= (uint)BinaryLogger.LogSupportEventId.Max;
+                        eventId -= (uint)BinaryLogger.LogSupportEventId.Max;
                     }
 
                     EventHandler handler;
-                    if ((m_handlers.Length > header.EventId) &&
-                        ((handler = m_handlers[header.EventId]) != null))
+                    if ((m_handlers.Length > eventId) &&
+                        ((handler = m_handlers[eventId]) != null))
                     {
-                        handler(header.EventId, header.WorkerId, header.Timestamp, m_logStreamReader);
+                        handler(eventId, header.WorkerId, header.Timestamp, m_logStreamReader);
                         Contract.Assert(LogStream.Position <= (position + header.EventPayloadSize), "Event handler read beyond the event payload");
                     }
 

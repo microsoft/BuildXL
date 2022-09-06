@@ -2116,30 +2116,11 @@ namespace BuildXL.Scheduler
 
             foreach (var perfData in m_runnablePipPerformance)
             {
-                for (int i = 0; i < perfData.Value.QueueDurations.Value.Length; i++)
-                {
-                    totalQueueDurations[i] += (long)perfData.Value.QueueDurations.Value[i].TotalMilliseconds;
-                }
-
-                for (int i = 0; i < perfData.Value.StepDurations.Length; i++)
-                {
-                    totalStepDurations[i] += (long)perfData.Value.StepDurations[i].TotalMilliseconds;
-                }
-
-                for (int i = 0; i < perfData.Value.RemoteStepDurations.Value.Length; i++)
-                {
-                    totalRemoteStepDurations[i] += (long)perfData.Value.RemoteStepDurations.Value[i].TotalMilliseconds;
-                }
-
-                for (int i = 0; i < perfData.Value.QueueRequestDurations.Value.Length; i++)
-                {
-                    totalQueueRequestDurations[i] += (long)perfData.Value.QueueRequestDurations.Value[i].TotalMilliseconds;
-                }
-
-                for (int i = 0; i < perfData.Value.SendRequestDurations.Value.Length; i++)
-                {
-                    totalSendRequestDurations[i] += (long)perfData.Value.SendRequestDurations.Value[i].TotalMilliseconds;
-                }
+                UpdateDurationList(totalQueueDurations, perfData.Value.QueueDurations);
+                UpdateDurationList(totalStepDurations, perfData.Value.StepDurations);
+                UpdateDurationList(totalRemoteStepDurations, perfData.Value.RemoteStepDurations);
+                UpdateDurationList(totalQueueRequestDurations, perfData.Value.QueueRequestDurations);
+                UpdateDurationList(totalSendRequestDurations, perfData.Value.SendRequestDurations);
             }
 
             var perfStatsName = "PipPerfStats.{0}_{1}";
@@ -3848,7 +3829,8 @@ namespace BuildXL.Scheduler
                 runnablePip.SetWorker(LocalWorker);
                 m_executionStepTracker.Transition(pipId, step.Value);
             }
-            else
+            // Only keep performance info for Process and Ipc pips
+            else if (pipType == PipType.Process || runnablePip.PipType == PipType.Ipc)
             {
                 // Only on orchestrator, we keep performance info per pip
                 m_runnablePipPerformance.Add(pipId, runnablePip.Performance);
@@ -5560,7 +5542,7 @@ namespace BuildXL.Scheduler
 
             PipExecutionStep step = perfInfo.IsExecuted ? PipExecutionStep.ExecuteProcess : PipExecutionStep.RunFromCache;
 
-            var workerId = perfInfo.Workers.Value[(int)step];
+            var workerId = perfInfo.Workers.GetOrDefault(step, (uint)0);
             var worker = m_workers[(int)workerId];
             bool isWorkerReleasedEarly = worker.WorkerEarlyReleasedTime != null;
 
@@ -5688,6 +5670,11 @@ namespace BuildXL.Scheduler
 
                 foreach (var node in criticalPath)
                 {
+                    if (!m_runnablePipPerformance.ContainsKey(node.pipId))
+                    {
+                        continue;
+                    }
+
                     RunnablePipPerformanceInfo performance = m_runnablePipPerformance[node.pipId];
 
                     LogPipPerformanceInfo(detailedLog, node.pipId, performance);
@@ -5745,11 +5732,11 @@ namespace BuildXL.Scheduler
                             });
                     }
 
-                    totalStepDurations = totalStepDurations.Zip(performance.StepDurations, (x, y) => (x + (long)y.TotalMilliseconds)).ToList();
-                    totalOrchestratorQueueDurations = totalOrchestratorQueueDurations.Zip(performance.QueueDurations.Value, (x, y) => (x + (long)y.TotalMilliseconds)).ToList();
-                    totalRemoteQueueDurations = totalRemoteQueueDurations.Zip(performance.RemoteQueueDurations.Value, (x, y) => (x + (long)y.TotalMilliseconds)).ToList();
-                    totalSendRequestDurations = totalSendRequestDurations.Zip(performance.SendRequestDurations.Value, (x, y) => (x + (long)y.TotalMilliseconds)).ToList();
-                    totalQueueRequestDurations = totalQueueRequestDurations.Zip(performance.QueueRequestDurations.Value, (x, y) => (x + (long)y.TotalMilliseconds)).ToList();
+                    UpdateDurationList(totalStepDurations, performance.StepDurations);
+                    UpdateDurationList(totalRemoteQueueDurations, performance.RemoteQueueDurations);
+                    UpdateDurationList(totalSendRequestDurations, performance.SendRequestDurations);
+                    UpdateDurationList(totalQueueRequestDurations, performance.QueueRequestDurations);
+                    UpdateDurationList(totalOrchestratorQueueDurations, performance.QueueDurations);
 
                     totalCacheLookupStepDurations = totalCacheLookupStepDurations
                         .Zip(performance.CacheLookupPerfInfo.CacheLookupStepCounters, (x, y) => (x + (long)(new TimeSpan(y.durationTicks).TotalMilliseconds))).ToList();
@@ -5784,7 +5771,7 @@ namespace BuildXL.Scheduler
                 builder.AppendLine(I($"Fine-grained Duration (ms) for Top 5 Pips Sorted by CacheLookup Duration"));
                 var topCacheLookupDurations =
                     (from a in m_runnablePipPerformance
-                     let i = a.Value.StepDurations[(int)PipExecutionStep.CacheLookup].TotalMilliseconds
+                     let i = a.Value.StepDurations.GetOrDefault(PipExecutionStep.CacheLookup, new TimeSpan()).TotalMilliseconds
                      where i > 0
                      orderby i descending
                      select a).Take(5);
@@ -5798,7 +5785,7 @@ namespace BuildXL.Scheduler
                 builder.AppendLine(I($"Fine-grained Duration (ms) for Top 5 Pips Sorted by ExecuteProcess Duration"));
                 var topExecuteDurations =
                     (from a in m_runnablePipPerformance
-                     let i = a.Value.StepDurations[(int)PipExecutionStep.ExecuteProcess].TotalMilliseconds
+                     let i = a.Value.StepDurations.GetOrDefault(PipExecutionStep.ExecuteProcess, new TimeSpan()).TotalMilliseconds
                      where i > 0
                      orderby i descending
                      select a).Take(5);
@@ -5957,41 +5944,41 @@ namespace BuildXL.Scheduler
                 stringBuilder.AppendLine(I($"\t\t{"Explicitly Scheduled",-90}: {isExplicitlyScheduled,10}"));
             }
 
-            for (int i = 0; i < performanceInfo.QueueDurations.Value.Length; i++)
+            foreach (KeyValuePair<DispatcherKind, TimeSpan> kv in performanceInfo.QueueDurations)
             {
-                var duration = (long)performanceInfo.QueueDurations.Value[i].TotalMilliseconds;
+                var duration = (long)kv.Value.TotalMilliseconds;
                 if (duration != 0)
                 {
-                    stringBuilder.AppendLine(I($"\t\tQueue - {(DispatcherKind)i,-82}: {duration,10}"));
-                }
+                    stringBuilder.AppendLine(I($"\t\tQueue - {kv.Key,-82}: {duration,10}"));
+                }            
             }
 
-            for (int i = 0; i < performanceInfo.StepDurations.Length; i++)
+            for (int i = 0; i < (int)PipExecutionStep.Done + 1; i++)
             {
                 var step = (PipExecutionStep)i;
-                var stepDuration = (long)performanceInfo.StepDurations[i].TotalMilliseconds;
+                var stepDuration = (long)performanceInfo.StepDurations.GetOrDefault(step, new TimeSpan()).TotalMilliseconds;
                 if (stepDuration != 0)
                 {
                     stringBuilder.AppendLine(I($"\t\tStep  - {step,-82}: {stepDuration,10}"));
                 }
 
                 long remoteStepDuration = 0;
-                uint workerId = performanceInfo.Workers.Value[i];
+                uint workerId = performanceInfo.Workers.GetOrDefault(step, (uint)0);
                 if (workerId != 0)
                 {
                     string workerName = $"{$"W{workerId}",10}:{m_workers[(int)workerId].Name}";
                     stringBuilder.AppendLine(I($"\t\t  {"WorkerName",-88}: {workerName}"));
 
-                    var queueRequest = (long)performanceInfo.QueueRequestDurations.Value[i].TotalMilliseconds;
+                    var queueRequest = (long)performanceInfo.QueueRequestDurations.GetOrDefault(step, new TimeSpan()).TotalMilliseconds;
                     stringBuilder.AppendLine(I($"\t\t  {"OrchestratorQueueRequest",-88}: {queueRequest,10}"));
 
-                    var sendRequest = (long)performanceInfo.SendRequestDurations.Value[i].TotalMilliseconds;
+                    var sendRequest = (long)performanceInfo.SendRequestDurations.GetOrDefault(step, new TimeSpan()).TotalMilliseconds;
                     stringBuilder.AppendLine(I($"\t\t  {"OrchestratorSendRequest",-88}: {sendRequest,10}"));
 
-                    var remoteQueueDuration = (long)performanceInfo.RemoteQueueDurations.Value[i].TotalMilliseconds;
+                    var remoteQueueDuration = (long)performanceInfo.RemoteQueueDurations.GetOrDefault(step, new TimeSpan()).TotalMilliseconds;
                     stringBuilder.AppendLine(I($"\t\t  {"RemoteQueue",-88}: {remoteQueueDuration,10}"));
 
-                    remoteStepDuration = (long)performanceInfo.RemoteStepDurations.Value[i].TotalMilliseconds;
+                    remoteStepDuration = (long)performanceInfo.RemoteStepDurations.GetOrDefault(step, new TimeSpan()).TotalMilliseconds;
                     stringBuilder.AppendLine(I($"\t\t  {"RemoteStep",-88}: {remoteStepDuration,10}"));
 
                 }
@@ -6050,6 +6037,34 @@ namespace BuildXL.Scheduler
                         stringBuilder.AppendLine(I($"\t\t  {"Queue.Materialize.InBackground",-88}: {(long)performanceInfo.QueueWaitDurationForMaterializeOutputsInBackground.TotalMilliseconds,10}"));
                     }
                 }
+            }
+        }
+
+        /// <summary>
+        /// Helper function to update duration list with pip execution steps performance info 
+        /// </summary>
+        /// <param name="durationList"></param>
+        /// <param name="durationDictionary"></param>
+        private void UpdateDurationList(IList<long> durationList, Dictionary<PipExecutionStep, TimeSpan> durationDictionary)
+        {
+            foreach (KeyValuePair<PipExecutionStep, TimeSpan> kv in durationDictionary)
+            {
+                int step = (int)kv.Key;
+                durationList[step] += (long)kv.Value.TotalMilliseconds;
+            }
+        }
+
+        /// <summary>
+        /// Helper function to update duration list with different dispatcher kind performance info 
+        /// </summary>
+        /// <param name="durationList"></param>
+        /// <param name="durationDictionary"></param>
+        private void UpdateDurationList(IList<long> durationList, Dictionary<DispatcherKind, TimeSpan> durationDictionary)
+        {
+            foreach (KeyValuePair<DispatcherKind, TimeSpan> kv in durationDictionary)
+            {
+                int dispatcher = (int)kv.Key;
+                durationList[dispatcher] += (long)kv.Value.TotalMilliseconds;
             }
         }
 

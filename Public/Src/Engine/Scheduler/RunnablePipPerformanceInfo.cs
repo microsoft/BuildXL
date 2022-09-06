@@ -2,11 +2,13 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading;
 using BuildXL.Processes;
 using BuildXL.Scheduler.WorkDispatcher;
+using BuildXL.Utilities.Collections;
 
 namespace BuildXL.Scheduler
 {
@@ -28,21 +30,21 @@ namespace BuildXL.Scheduler
 
         private DateTime m_queueEnterTime;
 
-        internal TimeSpan[] StepDurations { get; }
+        internal Dictionary<PipExecutionStep, TimeSpan> StepDurations { get; }
 
         // The rest is needed only for pips that are executed remotely, so they are lazily created.
 
-        internal Lazy<TimeSpan[]> RemoteStepDurations { get; }
+        internal Dictionary<PipExecutionStep, TimeSpan> RemoteStepDurations { get; }
 
-        internal Lazy<TimeSpan[]> RemoteQueueDurations { get; }
+        internal Dictionary<PipExecutionStep, TimeSpan> RemoteQueueDurations { get; }
 
-        internal Lazy<TimeSpan[]> QueueRequestDurations { get; }
+        internal Dictionary<PipExecutionStep, TimeSpan> QueueRequestDurations { get; }
 
-        internal Lazy<TimeSpan[]> SendRequestDurations { get; }
+        internal Dictionary<PipExecutionStep, TimeSpan> SendRequestDurations { get; }
 
-        internal Lazy<TimeSpan[]> QueueDurations { get; }
+        internal Dictionary<DispatcherKind, TimeSpan> QueueDurations { get; }
 
-        internal Lazy<uint[]> Workers { get; }
+        internal Dictionary<PipExecutionStep, uint> Workers { get; }
 
         internal CacheLookupPerfInfo CacheLookupPerfInfo => m_cacheLookupPerfInfo ?? (m_cacheLookupPerfInfo = new CacheLookupPerfInfo());
 
@@ -91,14 +93,14 @@ namespace BuildXL.Scheduler
         internal RunnablePipPerformanceInfo(DateTime scheduleTime)
         {
             ScheduleTime = scheduleTime;
-            StepDurations = new TimeSpan[(int)PipExecutionStep.Done + 1];
+            StepDurations = new Dictionary<PipExecutionStep, TimeSpan>();
 
-            RemoteStepDurations = new Lazy<TimeSpan[]>(() => new TimeSpan[(int)PipExecutionStep.Done + 1], isThreadSafe: false);
-            RemoteQueueDurations = new Lazy<TimeSpan[]>(() => new TimeSpan[(int)PipExecutionStep.Done + 1], isThreadSafe: false);
-            QueueRequestDurations = new Lazy<TimeSpan[]>(() => new TimeSpan[(int)PipExecutionStep.Done + 1], isThreadSafe: false);
-            SendRequestDurations = new Lazy<TimeSpan[]>(() => new TimeSpan[(int)PipExecutionStep.Done + 1], isThreadSafe: false);
-            QueueDurations = new Lazy<TimeSpan[]>(() => new TimeSpan[(int)DispatcherKind.Materialize + 1], isThreadSafe: false);
-            Workers = new Lazy<uint[]>(() => new uint[(int)PipExecutionStep.Done + 1], LazyThreadSafetyMode.PublicationOnly);
+            RemoteStepDurations = new Dictionary<PipExecutionStep, TimeSpan>();
+            RemoteQueueDurations = new Dictionary<PipExecutionStep, TimeSpan>();
+            QueueRequestDurations = new Dictionary<PipExecutionStep, TimeSpan>();
+            SendRequestDurations = new Dictionary<PipExecutionStep, TimeSpan>();
+            QueueDurations = new Dictionary<DispatcherKind, TimeSpan>();
+            Workers = new Dictionary<PipExecutionStep, uint>();
         }
 
         internal void Retried(RetryInfo pipRetryInfo)
@@ -142,7 +144,7 @@ namespace BuildXL.Scheduler
                 }
                 else
                 {
-                    QueueDurations.Value[(int)m_currentQueue] += duration;
+                    QueueDurations[m_currentQueue] = QueueDurations.GetOrDefault(m_currentQueue, new TimeSpan()) + duration;
                 }
 
                 m_currentQueue = DispatcherKind.None;
@@ -153,7 +155,7 @@ namespace BuildXL.Scheduler
         {
             lock (m_lock)
             {
-                StepDurations[(int)step] += duration;
+                StepDurations[step] = StepDurations.GetOrDefault(step, new TimeSpan()) + duration;
             }
 
             if (step == PipExecutionStep.ExecuteProcess)
@@ -182,12 +184,12 @@ namespace BuildXL.Scheduler
         {
             lock (m_lock)
             {
-                Workers.Value[(int)step] = workerId;
+                Workers[step] = workerId;
 
-                RemoteStepDurations.Value[(int)step] += remoteStepDuration;
-                RemoteQueueDurations.Value[(int)step] += remoteQueueDuration;
-                QueueRequestDurations.Value[(int)step] += queueRequestDuration;
-                SendRequestDurations.Value[(int)step] += sendRequestDuration;
+                RemoteStepDurations[step] = RemoteStepDurations.GetOrDefault(step, new TimeSpan()) + remoteStepDuration;
+                RemoteQueueDurations[step] = RemoteQueueDurations.GetOrDefault(step, new TimeSpan()) + remoteQueueDuration;
+                QueueRequestDurations[step] = QueueRequestDurations.GetOrDefault(step, new TimeSpan()) + queueRequestDuration;
+                SendRequestDurations[step] = SendRequestDurations.GetOrDefault(step, new TimeSpan()) + sendRequestDuration;
             }
         }
 
@@ -202,12 +204,11 @@ namespace BuildXL.Scheduler
         internal long CalculatePipDurationMs(IPipExecutionEnvironment environment)
         {
             long pipDuration = 0;
-            for (int i = 0; i < StepDurations.Length; i++)
+            foreach (KeyValuePair<PipExecutionStep, TimeSpan> kv in StepDurations)
             {
-                var step = (PipExecutionStep)i;
-                if (step.IncludeInRunningTime(environment))
+                if (kv.Key.IncludeInRunningTime(environment))
                 {
-                    pipDuration += (long)StepDurations[i].TotalMilliseconds;
+                    pipDuration += (long)kv.Value.TotalMilliseconds;
                 }
             }
 
@@ -216,7 +217,7 @@ namespace BuildXL.Scheduler
 
         internal long CalculateQueueDurationMs()
         {
-            return QueueDurations.Value.Sum(a => (long)a.TotalMilliseconds);
+            return QueueDurations.Values.Sum(a => (long)a.TotalMilliseconds);
         }
 
         internal void SetInputMaterializationCost(long costMbForBestWorker, long costMbForChosenWorker)

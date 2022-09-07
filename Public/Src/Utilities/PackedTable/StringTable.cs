@@ -10,38 +10,53 @@ namespace BuildXL.Utilities.PackedTable
     /// <summary>
     /// Boilerplate ID type to avoid ID confusion in code.
     /// </summary>
-#pragma warning disable CS0660 // Type defines operator == or operator != but does not override Object.Equals(object o)
-#pragma warning disable CS0661 // Type defines operator == or operator != but does not override Object.GetHashCode()
-    public struct StringId : Id<StringId>
-#pragma warning restore CS0661 // Type defines operator == or operator != but does not override Object.GetHashCode()
-#pragma warning restore CS0660 // Type defines operator == or operator != but does not override Object.Equals(object o)
+    public readonly struct StringId : Id<StringId>, IEquatable<StringId>
     {
         /// <summary>Comparer.</summary>
         public struct EqualityComparer : IEqualityComparer<StringId>
         {
             /// <summary>Comparison.</summary>
             public bool Equals(StringId x, StringId y) => x.Value == y.Value;
+
             /// <summary>Hashing.</summary>
             public int GetHashCode(StringId obj) => obj.Value;
         }
 
-        private readonly int m_value;
+        /// <summary>A global comparer to avoid boxing allocation on each usage</summary>
+        public static IEqualityComparer<StringId> EqualityComparerInstance { get; } = new EqualityComparer();
+
         /// <summary>Value as int.</summary>
-        public int Value => m_value;
+        public int Value { get; }
+
         /// <summary>Constructor.</summary>
-        public StringId(int value) { Id<StringId>.CheckValidId(value); m_value = value; }
+        public StringId(int value) { Id<StringId>.CheckValidId(value); Value = value; }
+        
         /// <summary>Constructor via interface.</summary>
         public StringId CreateFrom(int value) => new(value);
+        
         /// <summary>Debugging.</summary>
         public override string ToString() => $"StringId[{Value}]";
+        
         /// <summary>Comparison.</summary>
         public static bool operator ==(StringId x, StringId y) => x.Equals(y);
+        
         /// <summary>Comparison.</summary>
         public static bool operator !=(StringId x, StringId y) => !x.Equals(y);
+
         /// <summary>Comparison.</summary>
-        public IEqualityComparer<StringId> Comparer => default(EqualityComparer);
+        public IEqualityComparer<StringId> Comparer => EqualityComparerInstance; // Using a global instance to avoid boxing allocation every time.
+
         /// <summary>Comparison via IComparable.</summary>
         public int CompareTo([AllowNull] StringId other) => Value.CompareTo(other.Value);
+
+        /// <inheritdoc />
+        public override bool Equals(object obj) => StructUtilities.Equals(this, obj);
+
+        /// <inheritdoc />
+        public bool Equals(StringId other) => Value == other.Value;
+
+        /// <inheritdoc />
+        public override int GetHashCode() => Value;
     }
 
     /// <summary>
@@ -59,7 +74,7 @@ namespace BuildXL.Utilities.PackedTable
         /// <summary>
         /// Not the most efficient plan, but: actually append newlines to every addition, via copying through this buffer.
         /// </summary>
-        private SpannableList<char> m_buffer = new SpannableList<char>(DefaultCapacity);
+        private readonly SpannableList<char> m_buffer = new SpannableList<char>(DefaultCapacity);
 
         /// <summary>
         /// Construct a StringTable.

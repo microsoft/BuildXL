@@ -11,11 +11,7 @@ namespace BuildXL.Utilities.PackedExecution
     /// <summary>
     /// IDs of files; corresponds to BuildXL FileArtifact.
     /// </summary>
-#pragma warning disable CS0660 // Type defines operator == or operator != but does not override Object.Equals(object o)
-#pragma warning disable CS0661 // Type defines operator == or operator != but does not override Object.GetHashCode()
-    public readonly struct FileId : Id<FileId>
-#pragma warning restore CS0661 // Type defines operator == or operator != but does not override Object.GetHashCode()
-#pragma warning restore CS0660 // Type defines operator == or operator != but does not override Object.Equals(object o)
+    public readonly struct FileId : Id<FileId>, IEquatable<FileId>
     {
         /// <nodoc />
         public struct EqualityComparer : IEqualityComparer<FileId>
@@ -26,17 +22,19 @@ namespace BuildXL.Utilities.PackedExecution
             public int GetHashCode(FileId obj) => obj.Value;
         }
 
-        private readonly int m_value;
+        /// <summary>A global comparer to avoid boxing allocation on each usage</summary>
+        public static IEqualityComparer<FileId> EqualityComparerInstance { get; } = new EqualityComparer();
 
         /// <summary>Value as int.</summary>
-        public int Value => m_value;
+        public int Value { get; }
 
         /// <nodoc />
         public FileId(int value)
         { 
             Id<FileId>.CheckValidId(value);
-            m_value = value;
+            Value = value;
         }
+
         /// <nodoc />
         public FileId CreateFrom(int value) => new(value);
 
@@ -50,10 +48,20 @@ namespace BuildXL.Utilities.PackedExecution
         public static bool operator !=(FileId x, FileId y) => !(x == y);
 
         /// <nodoc />
-        public IEqualityComparer<FileId> Comparer => default(EqualityComparer);
+        public IEqualityComparer<FileId> Comparer => EqualityComparerInstance;
 
         /// <nodoc />
         public int CompareTo([AllowNull] FileId other) => Value.CompareTo(other.Value);
+
+        /// <inheritdoc />
+        public override bool Equals(object obj) => StructUtilities.Equals(this, obj);
+
+        /// <inheritdoc />
+        public bool Equals(FileId other) => Value == other.Value;
+
+        /// <inheritdoc />
+        public override int GetHashCode() => Value;
+
     }
 
     /// <summary>

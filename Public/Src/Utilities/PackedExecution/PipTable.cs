@@ -72,11 +72,7 @@ namespace BuildXL.Utilities.PackedExecution
     /// <summary>
     /// Boilerplate ID type to avoid ID confusion in code.
     /// </summary>
-#pragma warning disable CS0660 // Type defines operator == or operator != but does not override Object.Equals(object o)
-#pragma warning disable CS0661 // Type defines operator == or operator != but does not override Object.GetHashCode()
-    public readonly struct PipId : Id<PipId>, IComparable<PipId>
-#pragma warning restore CS0661 // Type defines operator == or operator != but does not override Object.GetHashCode()
-#pragma warning restore CS0660 // Type defines operator == or operator != but does not override Object.Equals(object o)
+    public readonly struct PipId : Id<PipId>, IEquatable<PipId>
     {
         /// <summary>Comparer.</summary>
         public struct EqualityComparer : IEqualityComparer<PipId>
@@ -87,16 +83,17 @@ namespace BuildXL.Utilities.PackedExecution
             public int GetHashCode(PipId obj) => obj.Value;
         }
 
-        private readonly int m_value;
+        /// <summary>A global comparer to avoid boxing allocation on each usage</summary>
+        public static IEqualityComparer<PipId> EqualityComparerInstance { get; } = new EqualityComparer();
 
         /// <nodoc/>
-        public int Value => m_value;
+        public int Value { get; }
 
         /// <nodoc/>
         public PipId(int value)
         { 
             Id<PipId>.CheckValidId(value);
-            m_value = value;
+            Value = value;
         }
 
         /// <nodoc/>
@@ -112,10 +109,19 @@ namespace BuildXL.Utilities.PackedExecution
         public static bool operator !=(PipId x, PipId y) => !(x == y);
 
         /// <nodoc/>
-        public IEqualityComparer<PipId> Comparer => default(EqualityComparer);
+        public IEqualityComparer<PipId> Comparer => EqualityComparerInstance;
 
         /// <nodoc/>
         public int CompareTo([AllowNull] PipId other) => Value.CompareTo(other.Value);
+
+        /// <inheritdoc />
+        public override bool Equals(object obj) => StructUtilities.Equals(this, obj);
+
+        /// <inheritdoc />
+        public bool Equals(PipId other) => Value == other.Value;
+
+        /// <inheritdoc />
+        public override int GetHashCode() => Value;
     }
 
     /// <summary>

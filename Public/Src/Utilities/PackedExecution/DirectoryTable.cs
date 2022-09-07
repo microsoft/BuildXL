@@ -1,6 +1,7 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
@@ -11,11 +12,7 @@ namespace BuildXL.Utilities.PackedExecution
     /// <summary>
     /// IDs of directories; corresponds to BuildXL DirectoryArtifact.
     /// </summary>
-#pragma warning disable CS0660 // Type defines operator == or operator != but does not override Object.Equals(object o)
-#pragma warning disable CS0661 // Type defines operator == or operator != but does not override Object.GetHashCode()
-    public struct DirectoryId : Id<DirectoryId>
-#pragma warning restore CS0661 // Type defines operator == or operator != but does not override Object.GetHashCode()
-#pragma warning restore CS0660 // Type defines operator == or operator != but does not override Object.Equals(object o)
+    public readonly struct DirectoryId : Id<DirectoryId>, IEquatable<DirectoryId>
     {
         /// <nodoc />
         public readonly struct EqualityComparer : IEqualityComparer<DirectoryId>
@@ -26,16 +23,17 @@ namespace BuildXL.Utilities.PackedExecution
             public int GetHashCode(DirectoryId obj) => obj.Value;
         }
 
-        private readonly int m_value;
+        /// <summary>A global comparer to avoid boxing allocation on each usage</summary>
+        public static IEqualityComparer<DirectoryId> EqualityComparerInstance { get; } = new EqualityComparer();
 
         /// <nodoc />
-        public int Value => m_value;
+        public int Value { get; }
 
         /// <nodoc />
         public DirectoryId(int value)
         {
             Id<DirectoryId>.CheckValidId(value);
-            m_value = value;
+            Value = value;
         }
 
         /// <nodoc />
@@ -51,10 +49,20 @@ namespace BuildXL.Utilities.PackedExecution
         public static bool operator !=(DirectoryId x, DirectoryId y) => !(x == y);
 
         /// <nodoc />
-        public IEqualityComparer<DirectoryId> Comparer => default(EqualityComparer);
+        public IEqualityComparer<DirectoryId> Comparer => EqualityComparerInstance;
 
         /// <nodoc />
         public int CompareTo([AllowNull] DirectoryId other) => Value.CompareTo(other.Value);
+
+        /// <inheritdoc />
+        public override bool Equals(object obj) => StructUtilities.Equals(this, obj);
+
+        /// <inheritdoc />
+        public bool Equals(DirectoryId other) => Value == other.Value;
+
+        /// <inheritdoc />
+        public override int GetHashCode() => Value;
+
     }
 
     /// <summary>

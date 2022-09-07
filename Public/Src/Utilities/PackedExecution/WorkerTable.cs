@@ -1,6 +1,7 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using BuildXL.Utilities.PackedTable;
@@ -10,11 +11,7 @@ namespace BuildXL.Utilities.PackedExecution
     /// <summary>
     /// Boilerplate ID type to avoid ID confusion in code.
     /// </summary>
-#pragma warning disable CS0660 // Type defines operator == or operator != but does not override Object.Equals(object o)
-#pragma warning disable CS0661 // Type defines operator == or operator != but does not override Object.GetHashCode()
-    public readonly struct WorkerId : Id<WorkerId>
-#pragma warning restore CS0661 // Type defines operator == or operator != but does not override Object.GetHashCode()
-#pragma warning restore CS0660 // Type defines operator == or operator != but does not override Object.Equals(object o)
+    public readonly struct WorkerId : Id<WorkerId>, IEquatable<WorkerId>
     {
         /// <nodoc/>
         public readonly struct EqualityComparer : IEqualityComparer<WorkerId>
@@ -25,16 +22,17 @@ namespace BuildXL.Utilities.PackedExecution
             public int GetHashCode(WorkerId obj) => obj.Value;
         }
 
-        private readonly int m_value;
+        /// <summary>A global comparer to avoid boxing allocation on each usage</summary>
+        public static IEqualityComparer<WorkerId> EqualityComparerInstance { get; } = new EqualityComparer();
 
         /// <nodoc/>
-        public int Value => m_value;
+        public int Value { get; }
 
         /// <nodoc/>
         public WorkerId(int value)
         {
             Id<WorkerId>.CheckValidId(value);
-            m_value = value;
+            Value = value;
         }
         /// <nodoc/>
         public WorkerId CreateFrom(int value) => new(value);
@@ -49,11 +47,19 @@ namespace BuildXL.Utilities.PackedExecution
         public static bool operator !=(WorkerId x, WorkerId y) => !(x == y);
 
         /// <nodoc/>
-        public IEqualityComparer<WorkerId> Comparer => default(EqualityComparer);
+        public IEqualityComparer<WorkerId> Comparer => EqualityComparerInstance;
 
         /// <nodoc/>
         public int CompareTo([AllowNull] WorkerId other) => Value.CompareTo(other.Value);
 
+        /// <inheritdoc />
+        public override bool Equals(object obj) => StructUtilities.Equals(this, obj);
+
+        /// <inheritdoc />
+        public bool Equals(WorkerId other) => Value == other.Value;
+
+        /// <inheritdoc />
+        public override int GetHashCode() => Value;
     }
 
     /// <summary>

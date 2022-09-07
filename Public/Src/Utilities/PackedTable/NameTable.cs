@@ -1,7 +1,6 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using BuildXL.Utilities;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
@@ -11,11 +10,7 @@ namespace BuildXL.Utilities.PackedTable
     /// <summary>
     /// Boilerplate ID type to avoid ID confusion in code.
     /// </summary>
-#pragma warning disable CS0660 // Type defines operator == or operator != but does not override Object.Equals(object o)
-#pragma warning disable CS0661 // Type defines operator == or operator != but does not override Object.GetHashCode()
-    public struct NameId : Id<NameId>
-#pragma warning restore CS0661 // Type defines operator == or operator != but does not override Object.GetHashCode()
-#pragma warning restore CS0660 // Type defines operator == or operator != but does not override Object.Equals(object o)
+    public readonly struct NameId : Id<NameId>, IEquatable<NameId>
     {
         /// <summary>Comparer.</summary>
         public struct EqualityComparer : IEqualityComparer<NameId>
@@ -26,21 +21,39 @@ namespace BuildXL.Utilities.PackedTable
             public int GetHashCode(NameId obj) => obj.Value;
         }
 
-        private readonly int m_value;
+        /// <summary>A global comparer to avoid boxing allocation on each usage</summary>
+        public static IEqualityComparer<NameId> EqualityComparerInstance { get; } = new EqualityComparer();
+
         /// <summary>Value as int.</summary>
-        public int Value => m_value;
+        public int Value { get; }
+
         /// <summary>Constructor.</summary>
-        public NameId(int value) { Id<NameId>.CheckValidId(value); m_value = value; }
+        public NameId(int value) { Id<NameId>.CheckValidId(value); Value = value; }
+        
         /// <summary>Constructor via interface.</summary>
         public NameId CreateFrom(int value) => new(value);
+        
         /// <summary>Debugging.</summary>
         public override string ToString() => $"NameId[{Value}]";
+
+        /// <inheritdoc />
+        public override bool Equals(object obj) => StructUtilities.Equals(this, obj);
+
+        /// <inheritdoc />
+        public override int GetHashCode() => Value;
+
+        /// <inheritdoc />
+        public bool Equals(NameId other) => Value == other.Value;
+
         /// <summary>Comparison.</summary>
         public static bool operator ==(NameId x, NameId y) => x.Value == y.Value;
+        
         /// <summary>Comparison.</summary>
         public static bool operator !=(NameId x, NameId y) => !(x == y);
+        
         /// <summary>Comparison.</summary>
-        public IEqualityComparer<NameId> Comparer => default(EqualityComparer);
+        public IEqualityComparer<NameId> Comparer => EqualityComparerInstance;
+        
         /// <summary>Comparison via IComparable.</summary>
         public int CompareTo([AllowNull] NameId other) => Value.CompareTo(other.Value);
     }
@@ -48,7 +61,7 @@ namespace BuildXL.Utilities.PackedTable
     /// <summary>
     /// Suffix tree representation, where all prefixes are maximally shared.
     /// </summary>
-    public struct NameEntry
+    public readonly struct NameEntry : IEquatable<NameEntry>
     {
         /// <summary>
         /// Prefix of this name (e.g. all the portion of the name before this final atom).
@@ -63,6 +76,15 @@ namespace BuildXL.Utilities.PackedTable
         /// Construct a NameEntry.
         /// </summary>
         public NameEntry(NameId prefix, StringId atom) { Prefix = prefix; Atom = atom; }
+
+        /// <inheritdoc />
+        public override bool Equals(object obj) => StructUtilities.Equals(this, obj);
+
+        /// <inheritdoc />
+        public override int GetHashCode() => (Prefix.GetHashCode(), Atom.GetHashCode()).GetHashCode();
+
+        /// <inheritdoc />
+        public bool Equals(NameEntry other) => Prefix == other.Prefix && Atom == other.Atom;
 
         /// <summary>
         /// Equality for NameEntries.
@@ -234,7 +256,8 @@ namespace BuildXL.Utilities.PackedTable
                 while (span.Length > 0)
                 {
                     // Get the next atom (without allocating).
-                    ReadOnlySpan<char> nextAtom = span.SplitPrefix(NameTable.Separator, CharComparer);
+                    // Using an explicit lambda expression and not a method group to avoid delegate allocation on each call.
+                    ReadOnlySpan<char> nextAtom = span.SplitPrefix(NameTable.Separator, static (left, right) => CharComparer(left, right));
 
                     // Look up the next atom and add it to the string table
                     // (allocating only if we're expanding the string table's backing store).

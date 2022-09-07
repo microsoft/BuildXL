@@ -24,7 +24,7 @@ namespace BuildXL.Utilities.PackedTable
     /// are all unused. This is immensely inefficient but the limitations of C# polymorphism don't allow
     /// doing much better. (If you have ideas, please share!)
     /// </remarks>
-    public struct CharSpan
+    public readonly struct CharSpan
     {
         /// <summary>
         /// The backing string, if any.
@@ -115,7 +115,7 @@ namespace BuildXL.Utilities.PackedTable
         /// <summary>
         /// Compare CharSpans, where some CharSpans may be over strings from the given StringTable.
         /// </summary>
-        public struct EqualityComparer : IEqualityComparer<CharSpan>
+        public readonly struct EqualityComparer : IEqualityComparer<CharSpan>
         {
             private readonly StringTable m_stringTable;
 
@@ -139,7 +139,9 @@ namespace BuildXL.Utilities.PackedTable
             /// <summary>
             /// Hashing.
             /// </summary>
-            public int GetHashCode([DisallowNull] CharSpan obj) => SpanUtilities.GetHashCode(obj.AsSpan(m_stringTable), CharToInt);
+            public int GetHashCode([DisallowNull] CharSpan obj) 
+                // Using an explicit action for the 'converter' argument to avoid delegate construction on each call.
+                => obj.AsSpan(m_stringTable).GetHashCode(static c => CharToInt(c));
         }
     }
 }

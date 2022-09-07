@@ -69,10 +69,14 @@ namespace BuildXL.Ipc.GrpcBasedIpc
             };
 
 
-            var defaultMethodConfig = new MethodConfig
+            var methodConfig = new MethodConfig
             {
                 Names = { MethodName.Default },
-                RetryPolicy = new RetryPolicy
+            };
+
+            if (Config.MaxConnectRetries > 0)
+            {
+                methodConfig.RetryPolicy = new RetryPolicy
                 {
                     MaxAttempts = Config.MaxConnectRetries + 1, // Attempts = Retries + 1
                     InitialBackoff = Config.ConnectRetryDelay,
@@ -82,12 +86,12 @@ namespace BuildXL.Ipc.GrpcBasedIpc
                             StatusCode.Unavailable,
                             StatusCode.Internal,
                             StatusCode.Unknown }
-                }
-            };
+                };
+            }
 
             channelOptions.ServiceConfig = new ServiceConfig
             {
-                MethodConfigs = { defaultMethodConfig },
+                MethodConfigs = { methodConfig },
                 LoadBalancingConfigs = { new PickFirstConfig() },
             };
 

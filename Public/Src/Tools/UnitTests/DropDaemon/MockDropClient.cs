@@ -57,7 +57,7 @@ namespace Test.Tool.DropDaemon
             }
 
             // We have some issues with versioning old legacy assemblies
-            if (name.Version.Major == 15 && name.Version.Minor == 1280)
+            if (name.Version != null && name.Version.Major == 15 && name.Version.Minor == 1280)
             {
                 name.Version = new Version(1, 0);
                 return Assembly.Load(name);

@@ -21,7 +21,7 @@ namespace BuildXL.Ipc
         public static IIpcProvider GetProvider()
         {
 #if NET6_0_OR_GREATER
-            if (Environment.GetEnvironmentVariable("BuildXLEnableGrpcIpc") == "1")  // AB Testing shoud be done setting this variable as passthrough for the daemons
+            if (Environment.GetEnvironmentVariable("BuildXLEnableGrpcIpc") != "0")  // AB Testing shoud be done setting this variable as passthrough for the daemons
             {
                 return new GrpcBasedIpc.GrpcIpcProvider();
             }

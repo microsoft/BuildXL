@@ -971,6 +971,13 @@ namespace BuildXL.Engine.Distribution
 
                     int numStringPathFiles = 0;
 
+#if NET6_0_OR_GREATER // EnsureCapacity is only available starting from .net6
+                    lock (m_hashListLock)
+                    {
+                        // Making sure the target collection is large enough to avoid excessive allocations when the content is added to it.
+                        hashes.EnsureCapacity(hashes.Count + files.Count);
+                    }
+#endif
                     foreach (var file in files)
                     {
                         var fileMaterializationInfo = environment.State.FileContentManager.GetInputContent(file);
@@ -991,7 +998,7 @@ namespace BuildXL.Engine.Distribution
                         {
                             hash.AssociatedDirectories = new List<BondDirectoryArtifact>();
 
-                            foreach (var dynamicDirectory in dynamicDirectories)
+                            foreach (var dynamicDirectory in dynamicDirectories.AsStructEnumerable())
                             {
                                 hash.AssociatedDirectories.Add(new BondDirectoryArtifact
                                 {

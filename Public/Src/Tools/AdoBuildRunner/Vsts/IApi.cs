@@ -107,5 +107,18 @@ namespace BuildXL.AdoBuildRunner.Vsts
         /// </summary>
         /// <returns></returns>
         Task WaitForOrchestratorToBeReady();
+
+        /// <summary>
+        /// Wait until the orchestrator is finished, and indicate success or failure of the build
+        /// </summary>
+        /// <returns>true if tue build succeeded in the orchestrator, false otherwise</returns>
+        Task<bool> WaitForOrchestratorExit();
+
+        /// <summary>
+        /// Indicates the build result in this machine
+        /// </summary>
+        /// <returns></returns>
+        Task SetBuildResult(bool success);
+
     }
 }

@@ -79,6 +79,11 @@ namespace BuildXL.AdoBuildRunner
         public const string TaskDisplayNameVariableName = "SYSTEM_TASKDISPLAYNAME";
 
         /// <summary>
+        /// Name of the variable of the job attempt number
+        /// </summary>
+        public const string JobAttemptVariableName = "SYSTEM_JOBATTEMPT";
+
+        /// <summary>
         /// Variable indicating the current agent type
         /// </summary>
         public const string MachineType = "MachineType";
@@ -99,9 +104,35 @@ namespace BuildXL.AdoBuildRunner
         public const string MachineIpV6Address = "MachineIpV6Address";
 
         /// <summary>
+        /// Name of the task variable used to communicate to the workers if the build failed
+        /// </summary>
+        public const string BuildStatus = "BuildStatus";
+
+        /// <summary>
+        /// Value used to communicate to the workers that the build has not started
+        /// </summary>
+        public const string BuildStatusNotFinished = "BuildStatusNotFinished";
+
+        /// <summary>
+        /// Value used to communicate to the workers that the build has succeeded
+        /// </summary>
+        public const string BuildStatusSuccess = "BuildStatusSuccess";
+        
+        /// <summary>
+        /// Value used to communicate to the workers that the build has failed
+        /// </summary>
+        public const string BuildStatusFailure = "BuildStatusFailure";
+
+        /// <summary>
         /// The port used to establish GRPC based connections for distributed builds
         /// </summary>
         public const int MachineGrpcPort = 6979;
+
+
+        /// <summary>
+        /// The port used to establish GRPC based connections for distributed builds
+        /// </summary>
+        public const int OrchestratorFailedWorkerReturnCode = 21;
 
         /// <summary>
         /// The maximum time an agent waits for the other agents to get ready before failing

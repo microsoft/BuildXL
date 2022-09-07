@@ -199,6 +199,7 @@ namespace BuildXL.AdoBuildRunner.Vsts
                 record.Variables[Constants.MachineHostName] = hostName;
                 record.Variables[Constants.MachineIpV4Address] = ipV4Address;
                 record.Variables[Constants.MachineIpV6Address] = ipv6Address;
+                record.Variables[Constants.BuildStatus] = Constants.BuildStatusNotFinished;
 
                 await m_taskClient.UpdateTimelineRecordsAsync(
                     new Guid(TeamProjectId),
@@ -216,10 +217,65 @@ namespace BuildXL.AdoBuildRunner.Vsts
         }
 
         /// <inherit />
+        public async Task SetBuildResult(bool isSuccess)
+        {
+            // Inject the information into a timeline record for this worker
+            var records = await GetTimelineRecords();
+
+            // Retrieve the buildstatus record for this machine
+            var record = records.First(r =>
+                r.WorkerName.Equals(AgentName, StringComparison.OrdinalIgnoreCase) &&
+                r.Variables.ContainsKey(Constants.BuildStatus));
+
+            var resultStatus = isSuccess ? Constants.BuildStatusSuccess : Constants.BuildStatusFailure;
+            record.Variables[Constants.BuildStatus] = resultStatus;
+            await m_taskClient.UpdateTimelineRecordsAsync(
+                new Guid(TeamProjectId),
+                HubType,
+                new Guid(PlanId),
+                new Guid(TimelineId),
+                new List<TimelineRecord>() { record });
+            
+            m_logger.Info($"Marked machine build status as {resultStatus}");
+        }
+
+        /// <inherit />
         public Task WaitForOtherWorkersToBeReady()
         {
             m_logger.Info("Waiting for workers to get ready...");
             return WaitForAgentsToBeReady(AgentType.Worker);
+        }
+
+
+        /// <inherit />
+        public async Task<bool> WaitForOrchestratorExit()
+        {
+            m_logger.Info("Waiting for the orchestrator to exit the build");
+
+            var elapsedTime = 0;
+            while (elapsedTime < m_maxWaitingTimeSeconds)
+            {
+                // Get the orchestrator record that indicates its build result
+                List<TimelineRecord> records = await GetTimelineRecords();
+                var record = records.Where(r =>
+                    r.Variables.ContainsKey(Constants.BuildStatus) &&
+                    (((AgentType)Enum.Parse(typeof(AgentType), r.Variables[Constants.MachineType].Value)) == AgentType.Orchestrator)).First();
+
+                if (record.Variables[Constants.BuildStatus].Value == Constants.BuildStatusSuccess)
+                {
+                    return true;
+                }
+                if (record.Variables[Constants.BuildStatus].Value == Constants.BuildStatusFailure)
+                {
+                    return false;
+                }
+
+                await Task.Delay(TimeSpan.FromSeconds(Constants.PollRetryPeriodInSeconds));
+                elapsedTime += Constants.PollRetryPeriodInSeconds;
+            }
+
+            m_logger.Info("Timed out waiting for the orchestrator to exit");
+            return false;
         }
 
         /// <inherit />

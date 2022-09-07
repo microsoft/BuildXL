@@ -47,16 +47,9 @@ namespace BuildXL.AdoBuildRunner.Build
         /// <returns>The exit code returned by the worker process</returns>
         public async Task<int> BuildAsync()
         {
-            // Create a GUID that is stable across workers of this build but unique across builds
-            // We use the task name which is required to be unique for parallel builds in the same pipeline
-            // as we use it to get the build records.
-            string taskName = Environment.GetEnvironmentVariable(Constants.TaskDisplayNameVariableName);
-            string startTime = (await m_vstsApi.GetBuildStartTimeAsync()).ToString("MMdd_HHmmss");
-            string sessionId = GuidFromString($"{m_vstsApi.TeamProjectId}-{m_vstsApi.BuildId}-{startTime}-{taskName}");
-
             var buildContext = new BuildContext()
             {
-                SessionId        = sessionId,
+                SessionId        = await GetBuildSessionId(),
                 BuildId          = m_vstsApi.BuildId,
                 SourcesDirectory = m_vstsApi.SourcesDirectory,
                 RepositoryUrl    = m_vstsApi.RepositoryUrl,
@@ -91,6 +84,8 @@ namespace BuildXL.AdoBuildRunner.Build
                 }
 
                 returnCode = m_executor.ExecuteDistributedBuildAsOrchestrator(buildContext, m_buildArguments, machines);
+
+                await m_vstsApi.SetBuildResult(success: returnCode == 0);
                 LogExitCode(returnCode);
             }
             // Any agent spawned < total number of agents is a dedicated worker
@@ -112,9 +107,36 @@ namespace BuildXL.AdoBuildRunner.Build
 
                 returnCode = m_executor.ExecuteDistributedBuildAsWorker(buildContext, m_buildArguments, orchestratorInfo);
                 LogExitCode(returnCode);
+
+                if (returnCode == 0)
+                {
+                    // If the worker finished successfully but the build fails, we still want to fail this task
+                    // so the task can be retried as a distributed build with the same number of workers by
+                    // running "retry failed tasks".
+                    var orchestratorSucceeded = await m_vstsApi.WaitForOrchestratorExit();
+                    if (!orchestratorSucceeded)
+                    {
+                        m_logger.Error($"The build finished with errors in the orchestrator. Failing this task with exit code {Constants.OrchestratorFailedWorkerReturnCode} so this worker will participate in retries.");
+                        returnCode = Constants.OrchestratorFailedWorkerReturnCode;
+                    }
+                }
+
             }
 
             return returnCode;
+        }
+
+        /// <summary>
+        /// Returns the build id (related session id) as a GUID that is stable across workers of this build but unique across builds
+        /// </summary>
+        private async Task<string> GetBuildSessionId()
+        {
+            // We use the task name which is required to be unique for parallel builds in the same pipeline
+            // as we use it to get the build records. The attempt number is also relevant.
+            string taskName = Environment.GetEnvironmentVariable(Constants.TaskDisplayNameVariableName);
+            string attemptNumber = Environment.GetEnvironmentVariable(Constants.JobAttemptVariableName);
+            string startTime = (await m_vstsApi.GetBuildStartTimeAsync()).ToString("MMdd_HHmmss");
+            return GuidFromString($"{m_vstsApi.TeamProjectId}-{m_vstsApi.BuildId}-{startTime}-{taskName}-{attemptNumber}");
         }
 
         private string GetAgentHostName()

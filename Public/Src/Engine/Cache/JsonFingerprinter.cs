@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
@@ -23,17 +24,17 @@ namespace BuildXL.Engine.Cache
         /// <summary>
         /// Used to write JSON objects.
         /// </summary>
-        private JsonTextWriter Writer { get; set; }
+        private JsonTextWriter Writer { get; }
 
         /// <summary>
         /// Used to expand <see cref="AbsolutePath"/>s.
         /// </summary>
-        private PathTable PathTable { get; set; }
+        private PathTable PathTable { get; }
 
         /// <summary>
         /// The tokenizer used to handle path roots.
         /// </summary>
-        public PathExpander PathExpander { get; private set; }
+        public PathExpander PathExpander { get; }
 
         /// <summary>
         /// Uses the same underlying state as the owning <see cref="JsonFingerprinter"/>, but provides access to additional functions.
@@ -87,7 +88,7 @@ namespace BuildXL.Engine.Cache
         /// Constructor.
         /// </summary>
         public JsonFingerprinter(
-            StringBuilder stringBuilder, 
+            StringBuilder stringBuilder,
             Formatting formatting = Formatting.None,
             PathTable pathTable = null,
             PathExpander pathExpander = null)
@@ -115,12 +116,21 @@ namespace BuildXL.Engine.Cache
         /// <summary>
         /// Adds a named value.
         /// </summary>
-        private void WriteJson<T>(string name, T value)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void WriteJson(string name, string value)
         {
-            WriteNamedJsonObject(name, () =>
+            WriteNamedJsonObject(name, static (writer, value) =>
             {
-                Writer.WriteValue(value);
-            });
+                writer.WriteValue(value);
+            }, value);
+        }
+
+        /// <summary>
+        /// Adds a value.
+        /// </summary>
+        private void WriteJson(string value)
+        {
+            Writer.WriteValue(value);
         }
 
         /// <summary>
@@ -154,7 +164,7 @@ namespace BuildXL.Engine.Cache
         {
             WriteJson(name, value.ToString());
         }
-        
+
         /// <inheritdoc />
         public void Add(string name, long value)
         {
@@ -200,12 +210,13 @@ namespace BuildXL.Engine.Cache
         /// <inheritdoc />
         public void AddNested(string name, Action<IFingerprinter> addOps)
         {
-            WriteNamedJsonObject(name, () =>
+            WriteNamedJsonObject(name, static (writer, tpl) =>
             {
-                Writer.WriteStartObject();
-                addOps(Fingerprinter);
-                Writer.WriteEndObject();
-            });
+                var (addOps, fingerprinter) = tpl;
+                writer.WriteStartObject();
+                addOps(fingerprinter);
+                writer.WriteEndObject();
+            }, (addOps, Fingerprinter));
         }
 
         /// <inheritdoc />
@@ -221,7 +232,7 @@ namespace BuildXL.Engine.Cache
         }
 
         /// <inheritdoc />
-        public void AddCollection<TValue, TCollection>(string name, TCollection elements, Action<ICollectionFingerprinter, TValue> addElement) 
+        public void AddCollection<TValue, TCollection>(string name, TCollection elements, Action<ICollectionFingerprinter, TValue> addElement)
             where TCollection : IEnumerable<TValue>
         {
             WriteNamedJsonObject(name, () =>
@@ -254,6 +265,16 @@ namespace BuildXL.Engine.Cache
         {
             Writer.WritePropertyName(name);
             addOps();
+        }
+
+        /// <summary>
+        /// Writes a named JSON object.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        protected virtual void WriteNamedJsonObject<TState>(string name, Action<JsonTextWriter, TState> addOps, TState state)
+        {
+            Writer.WritePropertyName(name);
+            addOps(Writer, state);
         }
 
         /// <summary>
@@ -297,7 +318,7 @@ namespace BuildXL.Engine.Cache
         /// <summary>
         /// Extends a <see cref="JsonFingerprinter"/> to implement <see cref="ICollectionFingerprinter"/>.
         /// This can only be accessed through an existing <see cref="JsonFingerprinter"/> during 
-        /// <see cref="AddCollection{TValue, TCollection}(string, TCollection, Action{ICollectionFingerprinter, TValue})"/>
+        /// <see cref="JsonFingerprinter.AddCollection{TValue,TCollection}"/>
         /// to prevent invalid JSON from being created.
         /// </summary>
         protected class JsonCollectionFingerprinter : JsonFingerprinter, ICollectionFingerprinter
@@ -327,6 +348,18 @@ namespace BuildXL.Engine.Cache
 
                 Writer.WritePropertyName(name);
                 addOps();
+
+                Writer.WriteEndObject();
+            }
+
+            /// <inheritdoc />
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            protected override void WriteNamedJsonObject<TState>(string name, Action<JsonTextWriter, TState> addOps, TState state)
+            {
+                Writer.WriteStartObject();
+
+                Writer.WritePropertyName(name);
+                addOps(Writer, state);
 
                 Writer.WriteEndObject();
             }

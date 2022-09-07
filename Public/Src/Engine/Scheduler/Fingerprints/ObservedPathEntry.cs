@@ -52,9 +52,15 @@ namespace BuildXL.Scheduler.Fingerprints
     /// </summary>
     public readonly struct ObservedPathEntry : IEquatable<ObservedPathEntry>
     {
-        public readonly AbsolutePath Path;
         public readonly string EnumeratePatternRegex;
+        // Storing a value from 'AbsolutePath' and not an 'AbsolutePath' itself to reduce the size of this struct.
+        // When the CLR packs a struct it adds paddings and the logic depends of whether an int is wrapped or not.
+        // For instance, the current size of the struct is 16 bytes, but if AbsolutePath instance is stored the struct size is 24.
+        // even though 'sizeof(AbsolutePath)' == 'sizeof(int)' == 4.
+        private readonly int m_absolutePathValue;
         internal readonly ObservedPathEntryFlags Flags;
+
+        public AbsolutePath Path => new AbsolutePath(m_absolutePathValue);
 
         public bool IsSearchPath => (Flags & ObservedPathEntryFlags.IsSearchPath) != 0;
 
@@ -72,7 +78,7 @@ namespace BuildXL.Scheduler.Fingerprints
         {
             Contract.Requires(path.IsValid);
 
-            Path = path;
+            m_absolutePathValue = path.RawValue;
             Flags = ObservedPathEntryFlags.None;
             Flags |= isFileProbe ? ObservedPathEntryFlags.FileProbe : ObservedPathEntryFlags.None;
             Flags |= isSearchPathEnumeration ? ObservedPathEntryFlags.IsSearchPath : ObservedPathEntryFlags.None;
@@ -90,7 +96,7 @@ namespace BuildXL.Scheduler.Fingerprints
         {
             Contract.Requires(path.IsValid);
 
-            Path = path;
+            m_absolutePathValue = path.RawValue;
             Flags = flags;
             EnumeratePatternRegex = enumeratePatternRegex;
         }
@@ -130,10 +136,10 @@ namespace BuildXL.Scheduler.Fingerprints
         /// <inheritdoc />
         public override int GetHashCode()
         {
-            return HashCodeHelper.Combine(
+            return (
                 Path.GetHashCode(), 
                 Flags.GetHashCode(), 
-                EnumeratePatternRegex == null ? 0 : EnumeratePatternRegex.GetHashCode());
+                EnumeratePatternRegex == null ? 0 : EnumeratePatternRegex.GetHashCode()).GetHashCode();
         }
 
         public void Serialize(BuildXLWriter writer)

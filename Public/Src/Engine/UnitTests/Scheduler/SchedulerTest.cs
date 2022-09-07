@@ -519,7 +519,8 @@ namespace Test.BuildXL.Scheduler
             AssertErrorEventLogged(LogEventId.TerminatingDueToPipFailure);
         }
 
-        [Fact]
+        // TODO: Bug 1984802 - Test is flaky on linux
+        [FactIfSupported(requiresWindowsOrMacOperatingSystem:true)]
         public async Task TestSemaphores()
         {
             Setup(maxProcesses: 100);

@@ -101,14 +101,14 @@ namespace BuildXL.Cache.Host.Service
             var preprocessor = DeploymentUtilities.GetHostJsonPreprocessor(hostParameters);
             var preprocessedConfigJson = preprocessor.Preprocess(configJson);
 
-            configHash = HashInfoLookup.GetContentHasher(HashType.Murmur).GetContentHash(Encoding.UTF8.GetBytes(configJson)).ToHex().Substring(0, 12);
+            configHash = HashInfoLookup.GetContentHasher(HashType.Murmur).GetContentHash(Encoding.UTF8.GetBytes(configJson)).ToHex(stringLength: 12);
 
             if (overlayConfigurationPath != null && File.Exists(overlayConfigurationPath))
             {
                 var overlayConfigJson = File.ReadAllText(overlayConfigurationPath);
                 var preprocessedOverlayJson = preprocessor.Preprocess(overlayConfigJson);
 
-                configHash += HashInfoLookup.GetContentHasher(HashType.Murmur).GetContentHash(Encoding.UTF8.GetBytes(overlayConfigJson)).ToHex().Substring(0, 12);
+                configHash += HashInfoLookup.GetContentHasher(HashType.Murmur).GetContentHash(Encoding.UTF8.GetBytes(overlayConfigJson)).ToHex(stringLength: 12);
 
                 preprocessedConfigJson = JsonMerger.Merge(preprocessedConfigJson, overlayJson: preprocessedOverlayJson);
             }

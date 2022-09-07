@@ -430,7 +430,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
         /// <remarks>Does not guarantee anything is at the returned path</remarks>
         public AbsolutePath GetPath(ContentHash contentHash)
         {
-            return _storePath / contentHash.HashType.Serialize() / new RelativePath(contentHash.ToHex().Substring(0, HashDirectoryNameLength)) / string.Format(CultureInfo.InvariantCulture, "{0}.{1}", contentHash.ToHex(), BlobNameExtension);
+            return _storePath / contentHash.HashType.Serialize() / new RelativePath(contentHash.ToHex(stringLength: HashDirectoryNameLength)) / string.Format(CultureInfo.InvariantCulture, "{0}.{1}", contentHash.ToHex(), BlobNameExtension);
         }
 
         /// <summary>

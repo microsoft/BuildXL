@@ -284,8 +284,7 @@ namespace BuildXL.Engine.Cache
         public static string ContentHashToString(ContentHash hash)
         {
             Contract.Requires(hash.HashType != HashType.Unknown);
-            var fullString = hash.ToHex();
-            return hash.ToHex().Substring(0, 10);
+            return hash.ToHex(stringLength: 10);
         }
 
         /// <inheritdoc />

@@ -45,6 +45,26 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
 
         [Theory]
         [MemberData(nameof(HashTypesWithStringLengths))]
+        public void ToHexWithLength(HashType hashType, int length)
+        {
+            var randomHash = ContentHash.Random(hashType);
+
+            checkEquality(randomHash, length);
+            checkEquality(randomHash, length / 2);
+            checkEquality(randomHash, 2);
+            checkEquality(randomHash, 1);
+            checkEquality(randomHash, 0);
+
+            static void checkEquality(ContentHash hash, int stringLength)
+            {
+                var hex = hash.ToHex(stringLength);
+                var hex2 = hash.ToHex().Substring(0, stringLength);
+                Assert.Equal(hex2, hex);
+            }
+        }
+
+        [Theory]
+        [MemberData(nameof(HashTypesWithStringLengths))]
         public void ValidStringLength(HashType hashType, int length)
         {
             Assert.Equal(length, ContentHash.Random(hashType).StringLength);

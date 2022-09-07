@@ -1530,7 +1530,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
         private static RelativePath GetHashSubDirectory(ContentHash contentHash)
         {
-            return new RelativePath(contentHash.ToHex().Substring(0, HashDirectoryNameLength));
+            return new RelativePath(contentHash.ToHex(stringLength: HashDirectoryNameLength));
         }
 
         internal bool TryGetFileInfo(ContentHash contentHash, [NotNullWhen(true)] out ContentFileInfo? fileInfo) => ContentDirectory.TryGetFileInfo(contentHash, out fileInfo);

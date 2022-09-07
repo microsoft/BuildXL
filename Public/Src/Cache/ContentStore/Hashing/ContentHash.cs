@@ -253,9 +253,24 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <summary>
         ///     Give the hash bytes as a hex string.
         /// </summary>
-        public string ToHex()
+        public string ToHex(int? stringLength = null)
         {
-            return _bytes.ToHex(ByteLength);
+
+            Contract.Check((stringLength ?? StringLength) <= StringLength)?.Requires($"stringLength is incorrect. stringLength = {stringLength}");
+
+            // _bytes.ToHex takes 'length' argument that represents the number of bytes that needs to be converted to a final string.
+            // But 'stringLength' represents the final size of the string, not the number of bytes converted.
+            // So if the requested string length is an odd number, then we still have to remove one character from the final string.
+            stringLength ??= StringLength;
+
+            var result = _bytes.ToHex((stringLength.Value + 1) / 2);
+            if (stringLength.Value % 2 != 0)
+            {
+                // The requested string length is odd
+                result = result.Substring(0, stringLength.Value);
+            }
+
+            return result;
         }
 
         /// <summary>

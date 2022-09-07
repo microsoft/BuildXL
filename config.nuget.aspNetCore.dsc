@@ -9,10 +9,10 @@ const aspRefVersion = "3.1.10";
 const aspRuntimeVersion = "3.1.24";
 
 const asp5RefVersion = "5.0.0";
-const asp5RuntimeVersion = "5.0.16";
+const asp5RuntimeVersion = "5.0.17";
 
-const asp6RefVersion = "6.0.4";
-const asp6RuntimeVersion = "6.0.4";
+const asp6RefVersion = "6.0.8";
+const asp6RuntimeVersion = "6.0.8";
 
 export const pkgs = [
     // aspnet web api

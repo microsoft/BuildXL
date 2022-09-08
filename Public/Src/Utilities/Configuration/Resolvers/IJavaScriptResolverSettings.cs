@@ -121,6 +121,11 @@ namespace BuildXL.Utilities.Configuration
         /// A process returning an exit code specified in 'retryExitCodes' will be retried at most the specified number of times.
         /// </remarks>
         int? ProcessRetries { get; }
+
+        /// <summary>
+        /// The timeout in milliseconds that the execution sandbox waits for child processes started by the top-level process to exit after the top-level process exits.
+        /// </summary>
+        int? NestedProcessTerminationTimeoutMs { get; }
     }
 
     /// <nodoc/>

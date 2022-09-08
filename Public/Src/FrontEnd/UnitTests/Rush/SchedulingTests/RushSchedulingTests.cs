@@ -271,5 +271,19 @@ namespace Test.BuildXL.FrontEnd.Rush
 
             XAssert.AreEqual(processRetries, 42);
         }
+
+        [Fact]
+        public void ProcessNestedTerminationTimeoutIsHonored()
+        {
+            var project = CreateRushProject();
+
+            var nestedProcessTerminationTimeout = Start(new RushResolverSettings { NestedProcessTerminationTimeoutMs = 42 })
+                .Add(project)
+                .ScheduleAll()
+                .RetrieveSuccessfulProcess(project)
+                .NestedProcessTerminationTimeout;
+
+            XAssert.AreEqual(nestedProcessTerminationTimeout, TimeSpan.FromMilliseconds(42));
+        }
     }
 }

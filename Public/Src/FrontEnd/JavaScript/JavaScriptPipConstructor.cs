@@ -430,6 +430,12 @@ namespace BuildXL.FrontEnd.JavaScript
                 processBuilder.SetProcessRetries(m_resolverSettings.ProcessRetries.Value);
             }
 
+            // If defined, nested process termination timeout at the resolver level applies to every pip
+            if (m_resolverSettings.NestedProcessTerminationTimeoutMs.HasValue)
+            {
+                processBuilder.NestedProcessTerminationTimeout = TimeSpan.FromMilliseconds(m_resolverSettings.NestedProcessTerminationTimeoutMs.Value);
+            }
+
             PipConstructionUtilities.UntrackUserConfigurableArtifacts(m_context.PathTable, project.ProjectFolder, m_allProjectRoots, processBuilder, m_resolverSettings);
 
             var logDirectory = GetLogDirectory(project);

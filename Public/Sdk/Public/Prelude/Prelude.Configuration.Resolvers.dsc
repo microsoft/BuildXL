@@ -833,6 +833,13 @@ interface UntrackingSettings {
      * bxl will terminate it without flagging the corresponding pip as failed.
      */
     allowedSurvivingChildProcesses?: PathAtom[];
+
+    /** 
+     * The timeout in milliseconds that the execution sandbox waits for child processes
+     * started by the top-level process to exit after the top-level process exits.
+     * Defaults to 30000 (30 seconds). 
+     */
+    nestedProcessTerminationTimeoutMs?: number;
 }
 
 interface NuGetConfiguration extends ToolConfiguration {

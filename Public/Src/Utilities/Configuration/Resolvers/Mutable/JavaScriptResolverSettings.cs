@@ -45,6 +45,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             RetryExitCodes = resolverSettings.RetryExitCodes;
             ProcessRetries = resolverSettings.ProcessRetries;
             AdditionalDependencies = resolverSettings.AdditionalDependencies?.Select(additionalDependency => new JavaScriptDependency(additionalDependency, pathRemapper))?.ToList();
+            NestedProcessTerminationTimeoutMs = resolverSettings.NestedProcessTerminationTimeoutMs;
         }
 
         /// <inheritdoc/>
@@ -100,5 +101,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc/>
         public IReadOnlyList<IJavaScriptDependency> AdditionalDependencies { get; set; }
+
+        /// <inheritdoc/>
+        public int? NestedProcessTerminationTimeoutMs { get; set; }
     }
 }

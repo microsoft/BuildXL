@@ -8,7 +8,6 @@ namespace Cache {
     export const cacheBondSchemaPath: File = f`Fingerprints/PipCacheDescriptor.bond`;
 
     const openBondCacheDescriptorOutput = importFrom("Sdk.Protocols.Bond").generate({bondFile: cacheBondSchemaPath});
-    const openBondDistributionOutput = importFrom("Sdk.Protocols.Bond").generate({bondFile: f`Fingerprints/OpenBondDistribution.bond`, includeFiles: [ cacheBondSchemaPath ]});
 
     @@public
     export const dll = BuildXLSdk.library({
@@ -17,7 +16,6 @@ namespace Cache {
         sources: [
             ...globR(d`.`, "*.cs"),
             openBondCacheDescriptorOutput.csharpResult.typesFile,
-            openBondDistributionOutput.csharpResult.typesFile,
         ],
         references: [
             ...addIf(BuildXLSdk.isFullFramework,

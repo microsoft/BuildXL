@@ -36,12 +36,10 @@ namespace BuildXL.Engine.Distribution.Grpc
         public void Dispose()
         { }
 
-        public async Task<RpcCallResult<Unit>> AttachAsync(OpenBond.BuildStartData message, CancellationToken cancellationToken)
+        public async Task<RpcCallResult<Unit>> AttachAsync(BuildStartData message, CancellationToken cancellationToken)
         {
-            var grpcMessage = message.ToGrpc();
-
             var attachment = await m_connectionManager.CallAsync(
-                async (callOptions) => await m_client.AttachAsync(grpcMessage, options: callOptions),
+                async (callOptions) => await m_client.AttachAsync(message, options: callOptions),
                 "Attach",
                 cancellationToken,
                 waitForConnection: true);
@@ -54,28 +52,19 @@ namespace BuildXL.Engine.Distribution.Grpc
             return attachment;
         }
 
-        public Task<RpcCallResult<Unit>> ExecutePipsAsync(OpenBond.PipBuildRequest message, IList<long> semiStableHashes)
+        public Task<RpcCallResult<Unit>> ExecutePipsAsync(PipBuildRequest message, IList<long> semiStableHashes)
         {
-            var grpcMessage = message.ToGrpc();
-
             return m_connectionManager.CallAsync(
-               async (callOptions) => await m_client.ExecutePipsAsync(grpcMessage, options: callOptions),
+               async (callOptions) => await m_client.ExecutePipsAsync(message, options: callOptions),
                GetExecuteDescription(semiStableHashes, message.Hashes.Count));
         }
 
-        public Task<RpcCallResult<Unit>> ExitAsync(OpenBond.BuildEndData message, CancellationToken cancellationToken)
+        public Task<RpcCallResult<Unit>> ExitAsync(BuildEndData message, CancellationToken cancellationToken)
         {
-            var grpcBuildEndData = new BuildEndData();
-
-            if (message.Failure != null)
-            {
-                grpcBuildEndData.Failure = message.Failure;
-            }
-
             m_connectionManager.ReadyForExit();
 
             return m_connectionManager.CallAsync(
-                async (callOptions) => await m_client.ExitAsync(grpcBuildEndData, options: callOptions),
+                async (callOptions) => await m_client.ExitAsync(message, options: callOptions),
                 "Exit",
                 cancellationToken);
         }

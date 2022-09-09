@@ -12,9 +12,12 @@ using System.Net;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.UtilitiesCore.Internal;
+using BuildXL.Distribution.Grpc;
 using BuildXL.Engine.Cache.Artifacts;
 using BuildXL.Engine.Cache.Fingerprints;
-using BuildXL.Engine.Distribution.OpenBond;
+using BuildXL.Engine.Distribution.Grpc;
 using BuildXL.Pips;
 using BuildXL.Pips.Filter;
 using BuildXL.Pips.Graph;
@@ -30,10 +33,13 @@ using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
+using Google.Protobuf;
 using static BuildXL.Engine.Distribution.Grpc.ClientConnectionManager;
 using static BuildXL.Utilities.FormattableStringEx;
 using static BuildXL.Utilities.Tasks.TaskUtilities;
 using Logger = BuildXL.Engine.Tracing.Logger;
+using BuildXL.Cache.ContentStore.Service.Grpc;
+using BuildXL.Cache.ContentStore.Extensions;
 
 namespace BuildXL.Engine.Distribution
 {
@@ -233,11 +239,11 @@ namespace BuildXL.Engine.Distribution
 
                     using (var watch = m_orchestratorService.Environment.Counters.StartStopwatch(PipExecutorCounter.RemoteWorker_BuildRequestSendDuration))
                     {
-                        callResult = m_workerClient.ExecutePipsAsync(new PipBuildRequest
-                            {
-                                Pips = m_buildRequestList,
-                                Hashes = m_hashList
-                            },
+                        var pipRequest = new PipBuildRequest();
+                        pipRequest.Pips.AddRange(m_buildRequestList);
+                        pipRequest.Hashes.AddRange(m_hashList);
+
+                        callResult = m_workerClient.ExecutePipsAsync(pipRequest,
                             m_pipCompletionTaskList.Select(a => a.Pip.SemiStableHash).ToList()).GetAwaiter().GetResult();
 
                         sendDuration = watch.Elapsed;
@@ -280,7 +286,7 @@ namespace BuildXL.Engine.Distribution
 
         public async Task LogExecutionBlobAsync(WorkerNotificationArgs notification)
         {
-            Contract.Requires(notification.ExecutionLogData.Count != 0);
+            Contract.Requires(notification.ExecutionLogData.Count() != 0);
 
             if (m_executionBlobQueue.IsCompleted)
             {
@@ -314,7 +320,7 @@ namespace BuildXL.Engine.Distribution
                 Contract.Assert(m_executionBlobQueue.TryTake(out executionBlobNotification), "The executionBlob queue cannot be empty");
 
                 int blobSequenceNumber = executionBlobNotification.ExecutionLogBlobSequenceNumber;
-                ArraySegment<byte> executionLogBlob = executionBlobNotification.ExecutionLogData;
+                var executionLogBlob = executionBlobNotification.ExecutionLogData;
 
                 if (m_workerExecutionLogTarget == null)
                 {
@@ -344,7 +350,13 @@ namespace BuildXL.Engine.Distribution
 
                     // Write the new execution log event content into buffer starting at beginning of buffer stream
                     m_executionLogBufferStream.SetLength(0);
-                    m_executionLogBufferStream.Write(executionLogBlob.Array, executionLogBlob.Offset, executionLogBlob.Count);
+
+#if NETCOREAPP
+                    m_executionLogBufferStream.Write(executionLogBlob.Memory.Span);
+#else
+                    var blobArray = executionLogBlob.ToByteArray();
+                    m_executionLogBufferStream.Write(blobArray, 0, blobArray.Length);
+#endif
 
                     // Reset the buffer stream to beginning and reset reader to ensure it reads events starting from beginning
                     m_executionLogBufferStream.Position = 0;
@@ -378,7 +390,7 @@ namespace BuildXL.Engine.Distribution
                     m_workerExecutionLogTarget = null;
                 }
 
-                Logger.Log.RemoteWorkerProcessedExecutionBlob(m_appLoggingContext, $"Worker#{WorkerId} - {Name}", $"{blobSequenceNumber} - {executionLogBlob.Count}");
+                Logger.Log.RemoteWorkerProcessedExecutionBlob(m_appLoggingContext, $"Worker#{WorkerId} - {Name}", $"{blobSequenceNumber} - {executionLogBlob.Count()}");
 
                 if (m_executionBlobQueue.IsCompleted)
                 {
@@ -467,22 +479,23 @@ namespace BuildXL.Engine.Distribution
         }
 
         private async Task<bool> TryAttachAsync()
-        {
+        { 
             var startData = new BuildStartData
             {
                 SessionId = m_appLoggingContext.Session.Id,
                 WorkerId = WorkerId,
-                CachedGraphDescriptor = m_orchestratorService.CachedGraphDescriptor,
-                SymlinkFileContentHash = m_orchestratorService.SymlinkFileContentHash.ToBondContentHash(),
+                CachedGraphDescriptor = m_orchestratorService.CachedGraphDescriptor.ToGrpc(),
+                SymlinkFileContentHash = m_orchestratorService.SymlinkFileContentHash.ToByteString(),
                 FingerprintSalt = m_orchestratorService.Environment.ContentFingerprinter.FingerprintSalt,
                 OrchestratorLocation = new ServiceLocation
                 {
                     IpAddress = Dns.GetHostName(),
                     Port = m_orchestratorService.Port,
                 },
-                EnvironmentVariables = m_orchestratorService.Environment.State.PipEnvironment
-                       .FullEnvironmentVariables.ToDictionary().ToDictionary(kvp => kvp.Key, kvp => kvp.Value),
             };
+
+            startData.EnvironmentVariables.Add(m_orchestratorService.Environment.State.PipEnvironment
+                       .FullEnvironmentVariables.ToDictionary());
 
             var sw = System.Diagnostics.Stopwatch.StartNew();
             while (sw.Elapsed < EngineEnvironmentSettings.WorkerAttachTimeout && !m_schedulerCompletion.IsCompleted)
@@ -675,10 +688,13 @@ namespace BuildXL.Engine.Distribution
                 // this task will be completed eventually (see SignalExitCancellation)
                 await m_attachCompletion.Task;
 
-                var buildEndData = new BuildEndData()
+                var buildEndData = new BuildEndData();
+
+                var failure = buildFailure ?? m_exitFailure; 
+                if (failure is not null)    // Don't set the protobuf field to null
                 {
-                    Failure = buildFailure ?? m_exitFailure
-                };
+                    buildEndData.Failure = failure;
+                }
 
                 var callResult = await m_workerClient.ExitAsync(buildEndData, m_exitCancellation.Token);
                 m_isConnectionLost = !callResult.Succeeded;
@@ -884,7 +900,7 @@ namespace BuildXL.Engine.Distribution
             {
                 ActivityId = operationContext.LoggingContext.ActivityId.ToString(),
                 PipIdValue = pipId.Value,
-                Fingerprint = fingerprint.Hash.ToBondFingerprint(),
+                Fingerprint = ByteString.CopyFrom(fingerprint.Hash.ToByteArray()),
                 Priority = runnable.Priority,
                 Step = (int)step,
                 ExpectedPeakWorkingSetMb = processRunnable?.ExpectedMemoryCounters?.PeakWorkingSetMb ?? 0,
@@ -985,22 +1001,25 @@ namespace BuildXL.Engine.Distribution
 
                         bool sendStringPath = m_pipGraph.MaxAbsolutePathIndex < file.Path.Value.Index;
 
-                        var hash = new FileArtifactKeyedHash
+                        var keyedHash = new FileArtifactKeyedHash
                         {
                             IsSourceAffected = environment.State.FileContentManager.SourceChangeAffectedInputs.IsSourceChangedAffectedFile(file),
                             RewriteCount = file.RewriteCount,
                             PathValue = sendStringPath ? AbsolutePath.Invalid.RawValue : file.Path.RawValue,
-                            PathString = sendStringPath ? file.Path.ToString(pathTable) : null,
                             IsAllowedFileRewrite = environment.State.FileContentManager.IsAllowedFileRewriteOutput(file.Path)
                         }.SetFileMaterializationInfo(pathTable, fileMaterializationInfo);
 
+                        // Never set a gRPC field to null
+                        if (sendStringPath)
+                        {
+                            keyedHash.PathString = file.Path.ToString(pathTable);
+                        }
+
                         if (isDynamicFile)
                         {
-                            hash.AssociatedDirectories = new List<BondDirectoryArtifact>();
-
                             foreach (var dynamicDirectory in dynamicDirectories.AsStructEnumerable())
                             {
-                                hash.AssociatedDirectories.Add(new BondDirectoryArtifact
+                                keyedHash.AssociatedDirectories.Add(new GrpcDirectoryArtifact
                                 {
                                     // Path id of dynamic directory input can be sent to the remote worker because it appears in the pip graph, and thus in path table.
                                     DirectoryPathValue = dynamicDirectory.Path.RawValue,
@@ -1017,7 +1036,7 @@ namespace BuildXL.Engine.Distribution
 
                         lock (m_hashListLock)
                         {
-                            hashes.Add(hash);
+                            hashes.Add(keyedHash);
                         }
                     }
 
@@ -1273,7 +1292,7 @@ namespace BuildXL.Engine.Distribution
                 return;
             }
 
-            m_cacheValidationContentHash = attachCompletionInfo.WorkerCacheValidationContentHash;
+            m_cacheValidationContentHash = attachCompletionInfo.WorkerCacheValidationContentHash.ToBondContentHash();
             TotalProcessSlots = attachCompletionInfo.MaxProcesses;
             TotalCacheLookupSlots = attachCompletionInfo.MaxCacheLookup;
             TotalMaterializeInputSlots = attachCompletionInfo.MaxMaterialize;
@@ -1337,11 +1356,11 @@ namespace BuildXL.Engine.Distribution
                 var pip = pipCompletionTask.Pip;
                 pipCompletionTask.SetDuration(pipCompletionData.ExecuteStepTicks, pipCompletionData.QueueTicks);
 
-                int dataSize = pipCompletionData.ResultBlob.Count;
+                int dataSize = pipCompletionData.ResultBlob.Length;
                 m_orchestratorService.Counters.AddToCounter(pip.PipType == PipType.Process ? DistributionCounter.ProcessExecutionResultSize : DistributionCounter.IpcExecutionResultSize, dataSize);
 
                 ExecutionResult result = m_orchestratorService.ResultSerializer.DeserializeFromBlob(
-                    pipCompletionData.ResultBlob,
+                    pipCompletionData.ResultBlob.Memory.Span,
                     WorkerId);
 
                 pipCompletionTask.RunnablePip.ThreadId = pipCompletionData.ThreadId;

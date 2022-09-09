@@ -5,11 +5,12 @@ using System;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Distribution.Grpc;
 using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Engine.Distribution.Grpc;
-using BuildXL.Engine.Distribution.OpenBond;
 using BuildXL.Engine.Tracing;
 using BuildXL.Pips;
 using BuildXL.Scheduler;
@@ -20,6 +21,7 @@ using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using static BuildXL.Engine.Distribution.Grpc.ClientConnectionManager;
+using PipGraphCacheDescriptor = BuildXL.Engine.Cache.Fingerprints.PipGraphCacheDescriptor;
 
 namespace BuildXL.Engine.Distribution
 {
@@ -271,7 +273,7 @@ namespace BuildXL.Engine.Distribution
                 return false;
             }
 
-            descriptor = BuildStartData.CachedGraphDescriptor;
+            descriptor = BuildStartData.CachedGraphDescriptor.ToOpenBond();
             return true;
         }
 

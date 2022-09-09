@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Collections.Concurrent;
 using System.Diagnostics.ContractsLight;
 using System.IO;
@@ -252,6 +253,14 @@ namespace BuildXL.Storage
         public static ContentHash CreateFrom(byte[] value, int offset = 0)
         {
             return new ContentHash(HashInfo.HashType, value, offset);
+        }
+
+        /// <summary>
+        /// Create a ContentHash from the given bytes, which must match exactly with the select type.
+        /// </summary>
+        public static ContentHash FromSpan(ReadOnlySpan<byte> value)
+        {
+            return new ContentHash(HashInfo.HashType, value);
         }
 
         /// <summary>

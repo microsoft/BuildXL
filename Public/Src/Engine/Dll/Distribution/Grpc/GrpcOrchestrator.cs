@@ -24,19 +24,14 @@ namespace BuildXL.Engine.Distribution.Grpc
         /// <inheritdoc/>
         public override Task<RpcResponse> AttachCompleted(AttachCompletionInfo message, ServerCallContext context)
         {
-            var bondMessage = message.ToOpenBond();
-
-            m_orchestratorService.AttachCompleted(bondMessage);
-
+            m_orchestratorService.AttachCompleted(message);
             return Task.FromResult(new RpcResponse());
         }
 
         /// <inheritdoc/>
         public override async Task<RpcResponse> Notify(WorkerNotificationArgs message, ServerCallContext context)
         {
-            var bondMessage = message.ToOpenBond();
-
-            var notifyTask = m_orchestratorService.ReceivedWorkerNotificationAsync(bondMessage);
+            var notifyTask = m_orchestratorService.ReceivedWorkerNotificationAsync(message);
             if (EngineEnvironmentSettings.InlineWorkerXLGHandling)
             {
                 await notifyTask;

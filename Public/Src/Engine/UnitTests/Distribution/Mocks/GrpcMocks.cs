@@ -9,8 +9,6 @@ using BuildXL.Utilities;
 using System.Collections.Generic;
 using System.Threading;
 using PipGraphCacheDescriptor = BuildXL.Distribution.Grpc.PipGraphCacheDescriptor;
-using AttachCompletionInfo = BuildXL.Engine.Distribution.OpenBond.AttachCompletionInfo;
-using WorkerNotificationArgs = BuildXL.Engine.Distribution.OpenBond.WorkerNotificationArgs;
 using PipBuildRequest = BuildXL.Distribution.Grpc.PipBuildRequest;
 using SinglePipBuildRequest = BuildXL.Distribution.Grpc.SinglePipBuildRequest;
 using GrpcPipBuildRequest = BuildXL.Distribution.Grpc.PipBuildRequest;
@@ -21,6 +19,7 @@ using BuildXL.Scheduler;
 using System.Linq;
 using static BuildXL.Engine.Distribution.Grpc.ClientConnectionManager;
 using BuildXL.Engine.Cache.Fingerprints;
+using Google.Protobuf;
 
 namespace Test.BuildXL.Distribution
 {
@@ -49,10 +48,7 @@ namespace Test.BuildXL.Distribution
                 MaxMaterialize = 100,
                 AvailableRamMb = 100000,
                 AvailableCommitMb = 100000,
-                WorkerCacheValidationContentHash = new BondContentHash
-                {
-                    Data = new ArraySegment<byte>()
-                }
+                WorkerCacheValidationContentHash = ByteString.Empty
             };
 
 
@@ -127,14 +123,12 @@ namespace Test.BuildXL.Distribution
         // These should emulate what the homonymous methods do in GrpcWorker
         public void Attach(BuildStartData message)
         {
-            var bondMessage = message.ToOpenBond();
-            WorkerService.Attach(bondMessage, "OrchestratorName");
+            WorkerService.Attach(message, "OrchestratorName");
         }
 
         public void ExecutePips(GrpcPipBuildRequest message)
         {
-            var bondMessage = message.ToOpenBond();
-            WorkerService.ExecutePipsAsync(bondMessage).Forget();
+            WorkerService.ExecutePipsAsync(message).Forget();
         }
 
         public void Exit(BuildEndData message)

@@ -5,7 +5,7 @@ using System;
 using System.Diagnostics;
 using System.Diagnostics.Tracing;
 using System.Threading;
-using BuildXL.Engine.Distribution.OpenBond;
+using BuildXL.Distribution.Grpc;
 using BuildXL.Processes.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Instrumentation.Common;

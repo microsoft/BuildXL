@@ -8,6 +8,7 @@ using System.IO;
 using System.Linq;
 using System.Net.Sockets;
 using System.Text;
+using BuildXL.Distribution.Grpc;
 using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Engine.Tracing;
 using BuildXL.Utilities;
@@ -113,7 +114,7 @@ namespace BuildXL.Engine.Distribution
             }
         }
 
-        internal static string GetNotifyDescription(OpenBond.WorkerNotificationArgs notificationArgs, IList<long> semiStableHashes)
+        internal static string GetNotifyDescription(WorkerNotificationArgs notificationArgs, IList<long> semiStableHashes)
         {
             using (var sbPool = Pools.GetStringBuilder())
             {
@@ -125,9 +126,10 @@ namespace BuildXL.Engine.Distribution
                     AppendSemiStableHashes(sb, semiStableHashes);
                 }
 
-                if (notificationArgs.ExecutionLogData.Count > 0)
+                var xlgDataCount = notificationArgs.ExecutionLogData.Count();
+                if (xlgDataCount > 0)
                 {
-                    sb.AppendFormat(" ExecutionLogData: Size={0}, SequenceNumber={1}", notificationArgs.ExecutionLogData.Count, notificationArgs.ExecutionLogBlobSequenceNumber);
+                    sb.AppendFormat(" ExecutionLogData: Size={0}, SequenceNumber={1}", xlgDataCount, notificationArgs.ExecutionLogBlobSequenceNumber);
                 }
 
                 if (notificationArgs.ForwardedEvents?.Count > 0)

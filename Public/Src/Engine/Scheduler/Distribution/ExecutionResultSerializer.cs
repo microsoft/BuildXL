@@ -8,6 +8,7 @@ using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
 using System.Text;
+using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Engine.Cache;
 using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Native.IO;
@@ -70,14 +71,18 @@ namespace BuildXL.Scheduler.Distribution
         }
 
         /// <summary>
-        /// Deserialize result from the byte array segment
+        /// Deserialize result from the blob data
         /// </summary>
-        public ExecutionResult DeserializeFromBlob(ArraySegment<byte> blobData, uint workerId)
+        public ExecutionResult DeserializeFromBlob(ReadOnlySpan<byte> blobData, uint workerId)
         {
             using (var pooledReader = m_readerPool.GetInstance())
             {
                 var reader = pooledReader.Instance;
-                reader.BaseStream.Write(blobData.Array, blobData.Offset, blobData.Count);
+#if NETCOREAPP
+                reader.BaseStream.Write(blobData);
+#else
+                reader.BaseStream.Write(blobData.ToArray(), 0, blobData.Length);
+#endif
                 reader.BaseStream.Position = 0;
 
                 return Deserialize(reader, workerId);

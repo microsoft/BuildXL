@@ -10,7 +10,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Engine.Cache.Fingerprints;
-using BuildXL.Engine.Distribution.OpenBond;
 using BuildXL.Engine.Tracing;
 using BuildXL.Pips;
 using BuildXL.Pips.Operations;
@@ -29,6 +28,8 @@ using static BuildXL.Tracing.Diagnostics;
 using static BuildXL.Utilities.FormattableStringEx;
 using System.Linq.Expressions;
 using System.Linq;
+using BuildXL.Distribution.Grpc;
+using Google.Protobuf;
 
 namespace BuildXL.Engine.Distribution
 {
@@ -61,7 +62,7 @@ namespace BuildXL.Engine.Distribution
         /// <summary>
         /// Report inputs needed to execute pip steps to the file content manager
         /// </summary>
-        Possible<Unit> TryReportInputs(List<FileArtifactKeyedHash> hashes);
+        Possible<Unit> TryReportInputs(IEnumerable<FileArtifactKeyedHash> hashes);
         
         /// <summary>
         /// Starts executing the requested pip step
@@ -158,9 +159,9 @@ namespace BuildXL.Engine.Distribution
                     MaxMaterialize = Config.Schedule.MaxMaterialize,
                     MaxCacheLookup = Config.Schedule.MaxCacheLookup,
                     MaxLightProcesses = Config.Schedule.MaxLightProcesses,
-                    AvailableRamMb = m_scheduler.LocalWorker.TotalRamMb,
-                    AvailableCommitMb = m_scheduler.LocalWorker.TotalCommitMb,
-                    WorkerCacheValidationContentHash = cacheValidationContentHash.ToBondContentHash(),
+                    AvailableRamMb = m_scheduler.LocalWorker.TotalRamMb ?? 0,
+                    AvailableCommitMb = m_scheduler.LocalWorker.TotalCommitMb ?? 0,
+                    WorkerCacheValidationContentHash = ByteString.CopyFrom(cacheValidationContentHash.ToHashByteArray()),
                 };
 
                 Contract.Assert(attachCompletionInfo.WorkerCacheValidationContentHash != null, "worker cache validation content hash is null");
@@ -250,7 +251,7 @@ namespace BuildXL.Engine.Distribution
             }
 
             /// <inheritdoc />
-            Possible<Unit> IWorkerPipExecutionService.TryReportInputs(List<FileArtifactKeyedHash> hashes)
+            Possible<Unit> IWorkerPipExecutionService.TryReportInputs(IEnumerable<FileArtifactKeyedHash> hashes)
             {
                 var dynamicDirectoryMap = new Dictionary<DirectoryArtifact, List<FileArtifactWithAttributes>>();
                 var failedFiles = new List<(FileArtifact file, ContentHash hash)>();
@@ -271,7 +272,7 @@ namespace BuildXL.Engine.Distribution
                         fileArtifactKeyedHash.PathValue = AbsolutePath.Create(m_environment.Context.PathTable, fileArtifactKeyedHash.PathString).RawValue;
                     }
 
-                    var file = fileArtifactKeyedHash.File;
+                    var file = fileArtifactKeyedHash.GetFileArtifact();
 
                     if (fileArtifactKeyedHash.IsSourceAffected)
                     {
@@ -297,7 +298,7 @@ namespace BuildXL.Engine.Distribution
                     if (fileArtifactKeyedHash.AssociatedDirectories?.Count > 0)
                     {
                         var fileWithAttributes = FileArtifactWithAttributes.Create(
-                            fileArtifactKeyedHash.File,
+                            fileArtifactKeyedHash.GetFileArtifact(),
                             FileExistence.Required,
                             isUndeclaredFileRewrite: fileArtifactKeyedHash.IsAllowedFileRewrite);
 
@@ -371,7 +372,7 @@ namespace BuildXL.Engine.Distribution
 
                             // Set the cache miss result with fingerprint so ExecuteProcess step can use it
                             // We don't know the miss reason here, but we don't really need it, so set it to Invalid.
-                            var fingerprint = pipBuildRequest.Fingerprint.ToFingerprint();
+                            var fingerprint = new BuildXL.Cache.MemoizationStore.Interfaces.Sessions.Fingerprint(new ReadOnlyFixedBytes(pipBuildRequest.Fingerprint.Span), pipBuildRequest.Fingerprint.Length);
                             processRunnable.SetCacheResult(RunnableFromCacheResult.CreateForMiss(new WeakContentFingerprint(fingerprint), PipCacheMissType.Invalid));
 
                             processRunnable.ExpectedMemoryCounters = ProcessMemoryCounters.CreateFromMb(

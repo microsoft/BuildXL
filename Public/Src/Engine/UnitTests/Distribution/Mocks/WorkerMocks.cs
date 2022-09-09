@@ -7,8 +7,6 @@ using System.Threading.Tasks;
 using BuildXL.Engine;
 using BuildXL.Engine.Distribution;
 using BuildXL.Utilities;
-using BuildXL.Engine.Distribution.OpenBond;
-using OpenBondBuildStartData = BuildXL.Engine.Distribution.OpenBond.BuildStartData;
 using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Pips;
 using BuildXL.Scheduler;
@@ -18,6 +16,8 @@ using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Instrumentation.Common;
 using System.Threading;
 using System.Diagnostics.ContractsLight;
+using BuildXL.Distribution.Grpc;
+using Google.Protobuf;
 
 namespace Test.BuildXL.Distribution
 {
@@ -103,17 +103,14 @@ namespace Test.BuildXL.Distribution
                 MaxMaterialize = 3,
                 AvailableRamMb = 100000,
                 AvailableCommitMb = 200000,
-                WorkerCacheValidationContentHash = new BondContentHash
-                {
-                    Data = new ArraySegment<byte>(new byte[10]),
-                }
+                WorkerCacheValidationContentHash = ByteString.CopyFrom(new byte[10])
             };
 
             return Task.FromResult(new Possible<AttachCompletionInfo>(aci));
         }
 
 
-        void IWorkerPipExecutionService.Start(EngineSchedule schedule, OpenBondBuildStartData buildStartData)
+        void IWorkerPipExecutionService.Start(EngineSchedule schedule, BuildStartData buildStartData)
         {
             Started = true;
         }
@@ -122,7 +119,7 @@ namespace Test.BuildXL.Distribution
         {
         }
 
-        Possible<Unit> IWorkerPipExecutionService.TryReportInputs(List<FileArtifactKeyedHash> hashes) => new Possible<Unit>(Unit.Void);
+        Possible<Unit> IWorkerPipExecutionService.TryReportInputs(IEnumerable<FileArtifactKeyedHash> hashes) => new Possible<Unit>(Unit.Void);
 
         async Task IWorkerPipExecutionService.StartPipStepAsync(PipId pipId, ExtendedPipCompletionData pipCompletionData, SinglePipBuildRequest pipBuildRequest, Possible<Unit> reportInputsResult)
         {

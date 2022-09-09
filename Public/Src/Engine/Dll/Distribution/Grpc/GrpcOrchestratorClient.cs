@@ -48,13 +48,12 @@ namespace BuildXL.Engine.Distribution.Grpc
             return m_connectionManager.CloseAsync();
         }
 
-        public async Task<RpcCallResult<Unit>> AttachCompletedAsync(OpenBond.AttachCompletionInfo message)
+        public async Task<RpcCallResult<Unit>> AttachCompletedAsync(AttachCompletionInfo message)
         {
             Contract.Assert(m_initialized);
 
-            var grpcMessage = message.ToGrpc();
             var attachmentCompletion = await m_connectionManager.CallAsync(
-                async (callOptions) => await m_client.AttachCompletedAsync(grpcMessage, options: callOptions),
+                async (callOptions) => await m_client.AttachCompletedAsync(message, options: callOptions),
                 "AttachCompleted",
                 waitForConnection: true);
 
@@ -66,13 +65,12 @@ namespace BuildXL.Engine.Distribution.Grpc
             return attachmentCompletion;
         }
 
-        public Task<RpcCallResult<Unit>> NotifyAsync(OpenBond.WorkerNotificationArgs message, IList<long> semiStableHashes, CancellationToken cancellationToken = default)
+        public Task<RpcCallResult<Unit>> NotifyAsync(WorkerNotificationArgs message, IList<long> semiStableHashes, CancellationToken cancellationToken = default)
         {
             Contract.Assert(m_initialized);
 
-            var grpcMessage = message.ToGrpc();
             return m_connectionManager.CallAsync(
-               async (callOptions) => await m_client.NotifyAsync(grpcMessage, options: callOptions),
+               async (callOptions) => await m_client.NotifyAsync(message, options: callOptions),
                DistributionHelpers.GetNotifyDescription(message, semiStableHashes),
                cancellationToken: cancellationToken);
         }

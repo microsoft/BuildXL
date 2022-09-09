@@ -38,7 +38,7 @@ namespace BuildXL.Engine.Distribution
                     using (DistributionService.Counters.StartStopwatch(DistributionCounter.WorkerServiceResultSerializationDuration))
                     {
                         m_resultSerializer.SerializeExecutionResult(pipCompletion);
-                        DistributionService.Counters.AddToCounter(pipCompletion.PipType == PipType.Process ? DistributionCounter.ProcessExecutionResultSize : DistributionCounter.IpcExecutionResultSize, pipCompletion.SerializedData.ResultBlob.Count);
+                        DistributionService.Counters.AddToCounter(pipCompletion.PipType == PipType.Process ? DistributionCounter.ProcessExecutionResultSize : DistributionCounter.IpcExecutionResultSize, pipCompletion.SerializedData.ResultBlob.Length);
                     }
 
                     ReadyToSendResultList.Add(pipCompletion);

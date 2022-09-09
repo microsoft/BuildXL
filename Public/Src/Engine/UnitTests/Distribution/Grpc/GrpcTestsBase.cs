@@ -152,13 +152,13 @@ namespace Test.BuildXL.Distribution
 
             #region IWorkerService methods
 
-            void IWorkerService.Attach(global::BuildXL.Engine.Distribution.OpenBond.BuildStartData buildStartData, string sender)
+            void IWorkerService.Attach(BuildStartData buildStartData, string sender)
             {
                 Delay();
                 ReceivedAttachCall = true;
             }
 
-            Task IWorkerService.ExecutePipsAsync(global::BuildXL.Engine.Distribution.OpenBond.PipBuildRequest request)
+            Task IWorkerService.ExecutePipsAsync(PipBuildRequest request)
             {
                 Delay();
                 return Task.CompletedTask;
@@ -231,11 +231,11 @@ namespace Test.BuildXL.Distribution
 
             #region IOrchestratorService methods
 
-            void IOrchestratorService.AttachCompleted(global::BuildXL.Engine.Distribution.OpenBond.AttachCompletionInfo attachCompletionInfo)
+            void IOrchestratorService.AttachCompleted(AttachCompletionInfo attachCompletionInfo)
             {
             }
 
-            Task IOrchestratorService.ReceivedWorkerNotificationAsync(global::BuildXL.Engine.Distribution.OpenBond.WorkerNotificationArgs notification)
+            Task IOrchestratorService.ReceivedWorkerNotificationAsync(WorkerNotificationArgs notification)
             {
                 return Task.CompletedTask;
             }
@@ -269,20 +269,20 @@ namespace Test.BuildXL.Distribution
             public Task<RpcCallResult<Unit>> AttachAsync()
             {
                 var buildStartData = GrpcMockData.BuildStartData;
-                return WorkerClient.AttachAsync(buildStartData.ToOpenBond(), CancellationToken.None);
+                return WorkerClient.AttachAsync(buildStartData, CancellationToken.None);
             }
 
             public Task<RpcCallResult<Unit>> SendBuildRequestAsync()
             {
                 var pipRequest = GrpcMockData.PipBuildRequest(m_nextPipSequenceNumber++, (0, PipExecutionStep.CacheLookup));
-                return WorkerClient.ExecutePipsAsync(pipRequest.ToOpenBond(), new List<long> { 0 });
+                return WorkerClient.ExecutePipsAsync(pipRequest, new List<long> { 0 });
             }
 
             public async Task<RpcCallResult<Unit>> ExitAsync(bool exitWithFailure = false)
             {
-                var buildEndData = new global::BuildXL.Engine.Distribution.OpenBond.BuildEndData()
+                var buildEndData = new BuildEndData()
                 {
-                    Failure = exitWithFailure ? "Some failure" : null
+                    Failure = exitWithFailure ? "Some failure" : ""
                 };
 
                 var result = await WorkerClient.ExitAsync(buildEndData, CancellationToken.None);

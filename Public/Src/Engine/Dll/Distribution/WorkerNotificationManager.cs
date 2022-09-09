@@ -10,14 +10,14 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
-using BuildXL.Engine.Distribution.OpenBond;
+using BuildXL.Distribution.Grpc;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler;
-using BuildXL.Scheduler.Distribution;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
+using Google.Protobuf;
 
 namespace BuildXL.Engine.Distribution
 {
@@ -86,7 +86,6 @@ namespace BuildXL.Engine.Distribution
         // Reusable objects for send thread
         private readonly List<ExtendedPipCompletionData> m_executionResults = new List<ExtendedPipCompletionData>();
         private readonly List<EventMessage> m_eventList = new List<EventMessage>();
-        private readonly WorkerNotificationArgs m_notification = new WorkerNotificationArgs();
 
         /// <nodoc/>
         public WorkerNotificationManager(DistributionService distributionService, IWorkerPipExecutionService executionService, LoggingContext loggingContext)
@@ -183,7 +182,7 @@ namespace BuildXL.Engine.Distribution
                 m_orchestratorClient.NotifyAsync(new WorkerNotificationArgs()
                 {
                     ExecutionLogBlobSequenceNumber = m_xlgBlobSequenceNumber++,
-                    ExecutionLogData = new ArraySegment<byte>(m_flushedExecutionLog.GetBuffer(), 0, (int)m_flushedExecutionLog.Length),
+                    ExecutionLogData = ByteString.CopyFrom(m_flushedExecutionLog.GetBuffer(), 0, (int)m_flushedExecutionLog.Length),
                 },
                 null,
                 m_sendCancellationSource.Token).Wait();
@@ -367,24 +366,28 @@ namespace BuildXL.Engine.Distribution
                 }
 
                 // Send notification
-                m_notification.WorkerId = ExecutionService.WorkerId;
-                m_notification.CompletedPips = m_executionResults.Select(p => p.SerializedData).ToList();
-                m_notification.ForwardedEvents = m_eventList;
+                var notification = new WorkerNotificationArgs
+                {
+                    WorkerId = ExecutionService.WorkerId
+                };
+
+                notification.CompletedPips.AddRange(m_executionResults.Select(p => p.SerializedData));
+                notification.ForwardedEvents.AddRange(m_eventList);
 
                 if (m_flushedExecutionLog.Length > 0)
                 {
-                    m_notification.ExecutionLogBlobSequenceNumber = m_xlgBlobSequenceNumber++;
-                    m_notification.ExecutionLogData = new ArraySegment<byte>(m_flushedExecutionLog.GetBuffer(), 0, (int)m_flushedExecutionLog.Length);
+                    notification.ExecutionLogBlobSequenceNumber = m_xlgBlobSequenceNumber++;
+                    notification.ExecutionLogData = ByteString.CopyFrom(m_flushedExecutionLog.GetBuffer(), 0, (int)m_flushedExecutionLog.Length);
                 }
                 else
                 {
-                    m_notification.ExecutionLogBlobSequenceNumber = 0;
-                    m_notification.ExecutionLogData = new ArraySegment<byte>();
+                    notification.ExecutionLogBlobSequenceNumber = 0;
+                    notification.ExecutionLogData = ByteString.Empty;
                 }
 
                 using (DistributionService.Counters.StartStopwatch(DistributionCounter.SendNotificationDuration))
                 {
-                    var callResult = m_orchestratorClient.NotifyAsync(m_notification,
+                    var callResult = m_orchestratorClient.NotifyAsync(notification,
                         m_executionResults.Select(a => a.SemiStableHash).ToList(),
                         cancellationToken).GetAwaiter().GetResult();
 

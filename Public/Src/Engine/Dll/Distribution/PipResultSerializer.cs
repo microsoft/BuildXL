@@ -11,6 +11,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using BuildXL.Scheduler;
 using BuildXL.Pips.Operations;
+using Google.Protobuf;
 
 namespace BuildXL.Engine.Distribution
 {
@@ -55,10 +56,10 @@ namespace BuildXL.Engine.Distribution
             {
                 var writer = pooledWriter.Instance;
                 m_serializer.Serialize(writer, completionData.ExecutionResult, completionData.PreservePathSetCasing);
-
-                // TODO: ToArray is expensive here. Think about alternatives.
-                var dataByte = ((MemoryStream)writer.BaseStream).ToArray();
-                completionData.SerializedData.ResultBlob = new ArraySegment<byte>(dataByte);
+                
+                // Write from the beginning of the stream
+                writer.BaseStream.Position = 0;
+                completionData.SerializedData.ResultBlob = ByteString.FromStream(writer.BaseStream);
             }
         }
     }

@@ -10,8 +10,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
+using BuildXL.Distribution.Grpc;
 using BuildXL.Engine.Cache.Fingerprints;
-using BuildXL.Engine.Distribution.OpenBond;
 using BuildXL.Engine.Tracing;
 using BuildXL.Pips;
 using BuildXL.Scheduler;
@@ -21,6 +21,7 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
+using PipGraphCacheDescriptor = BuildXL.Engine.Cache.Fingerprints.PipGraphCacheDescriptor;
 
 namespace BuildXL.Engine.Distribution
 {
@@ -148,7 +149,7 @@ namespace BuildXL.Engine.Distribution
         {
             var worker = GetWorkerById(notification.WorkerId);
 
-            if (notification.ExecutionLogData.Count != 0)
+            if (notification.ExecutionLogData.Count() != 0)
             {
                 // The channel is unblocked and ACK is sent after we put the execution blob to the queue in 'LogExecutionBlobAsync' method.
                 await worker.LogExecutionBlobAsync(notification);

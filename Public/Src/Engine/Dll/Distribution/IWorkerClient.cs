@@ -5,7 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Engine.Distribution.OpenBond;
+using BuildXL.Distribution.Grpc;
 using BuildXL.Utilities.Tasks;
 
 namespace BuildXL.Engine.Distribution

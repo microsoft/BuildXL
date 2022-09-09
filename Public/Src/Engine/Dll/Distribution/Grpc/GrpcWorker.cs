@@ -25,11 +25,9 @@ namespace BuildXL.Engine.Distribution.Grpc
         /// <inheritdoc/>
         public override Task<RpcResponse> Attach(BuildStartData message, ServerCallContext context)
         {
-            var bondMessage = message.ToOpenBond();
-
             GrpcSettings.ParseHeader(context.RequestHeaders, out string sender, out var _, out var _, out var _);
 
-            m_workerService.Attach(bondMessage, sender);
+            m_workerService.Attach(message, sender);
 
             return Task.FromResult(new RpcResponse());
         }
@@ -37,9 +35,7 @@ namespace BuildXL.Engine.Distribution.Grpc
         /// <inheritdoc/>
         public override Task<RpcResponse> ExecutePips(PipBuildRequest message, ServerCallContext context)
         {
-            var bondMessage = message.ToOpenBond();
-
-            m_workerService.ExecutePipsAsync(bondMessage).Forget();
+            m_workerService.ExecutePipsAsync(message).Forget();
             return Task.FromResult(new RpcResponse());
         }
 

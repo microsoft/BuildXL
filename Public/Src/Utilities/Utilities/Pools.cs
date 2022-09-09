@@ -20,7 +20,14 @@ namespace BuildXL.Utilities
         public static readonly ObjectPool<MemoryStream> MemoryStreamPool = new ObjectPool<MemoryStream>(
             () => new MemoryStream(),
             // Use Func instead of Action to avoid redundant delegate reconstruction.
-            stream => { stream.Position = 0; return stream; });
+            stream =>
+            {
+                // It is important to set the stream's length to 0
+                // because we don't want the old data to be observable by the new users of a pooled instance.
+                // SetLength call sets both the length and the position to 0.
+                stream.SetLength(0);
+                return stream;
+            });
 
         /// <summary>
         /// Global pool of HashSet&lt;PathAtom&gt; instances.

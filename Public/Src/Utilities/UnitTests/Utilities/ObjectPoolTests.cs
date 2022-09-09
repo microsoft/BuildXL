@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -16,6 +17,49 @@ namespace Test.BuildXL.Utilities
     {
         public ObjectPoolTests(ITestOutputHelper output)
             : base(output) { }
+
+        [Fact]
+        public void MemoryStreamPoolTests()
+        {
+            useMemoryStreamFromPool();
+
+            // the length and the position of an instance obtained from the pool should always be 0.
+            using var wrapper = Pools.MemoryStreamPool.GetInstance();
+            Assert.Equal(0, wrapper.Instance.ToArray().Length);
+            Assert.Equal(0, wrapper.Instance.Length);
+            Assert.Equal(0, wrapper.Instance.Position);
+
+            static void useMemoryStreamFromPool()
+            {
+                using var wrapper = Pools.MemoryStreamPool.GetInstance();
+                wrapper.Instance.WriteByte(42);
+            }
+        }
+        
+        [Fact]
+        public void BinaryWriterWithPooledMemoryStreamWorksAsExpected()
+        {
+            useMemoryStreamFromPool();
+
+            using (var pools = Pools.MemoryStreamPool.GetInstance())
+            using (var writer = new BinaryWriter(pools.Instance, System.Text.Encoding.UTF8, leaveOpen: true))
+            {
+                writer.Write(42);
+                var data = pools.Instance.ToArray();
+                // The length is 4, because of aligning.
+                Assert.Equal(4, data.Length); // with the old code the data.Length is 5, not 4
+            }
+
+            static void useMemoryStreamFromPool()
+            {
+                using var wrapper = Pools.MemoryStreamPool.GetInstance();
+                wrapper.Instance.WriteByte(42);
+                wrapper.Instance.WriteByte(42);
+                wrapper.Instance.WriteByte(42);
+                wrapper.Instance.WriteByte(42);
+                wrapper.Instance.WriteByte(42);
+            }
+        }
 
         [Fact]
         public void ObjectPoolWillReturnNewInstanceIfCleanupMethodCreatesNewInstance()

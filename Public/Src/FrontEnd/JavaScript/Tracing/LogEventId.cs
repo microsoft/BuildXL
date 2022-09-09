@@ -36,5 +36,6 @@ namespace BuildXL.FrontEnd.JavaScript.Tracing
         CustomScriptsFailure = 11919,
         CannotLoadScriptsFromJsonFile = 11920,
         InvalidRegexInProjectSelector = 11921,
+        IgnoredDependency = 11922,
     }
 }

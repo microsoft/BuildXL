@@ -48,7 +48,11 @@ namespace BuildXL.FrontEnd.JavaScript
         /// </summary>
         internal const string BxlConfigurationFilename = "bxlconfig.json";
 
-        private IReadOnlyDictionary<string, IReadOnlyList<IJavaScriptCommandDependency>> m_computedCommands;
+        /// <summary>
+        /// Script commands to execute to list of dependencies
+        /// </summary>
+        protected IReadOnlyDictionary<string, IReadOnlyList<IJavaScriptCommandDependency>> m_computedCommands;
+        
         private IReadOnlyDictionary<string, IReadOnlyList<string>> m_commandGroups;
 
         private FullSymbol AllProjectsSymbol { get; set; }
@@ -1087,11 +1091,12 @@ namespace BuildXL.FrontEnd.JavaScript
                 var projectDependencies = new List<JavaScriptProject>();
                 foreach (string dependency in deserializedProject.Dependencies)
                 {
-                    // When the execution semantics is provided by the graph builder tool, it is expected to be complete
+                    // Some providers (e.g. Lage) list dependencies to nodes that don't actually exist. This is typically when, for example, project A depends on B, A has a 'build' verb
+                    // but B doesn't. B#build will be listed as a dependency for A#build, but B#build won't be defined as a node in the graph. The dependency in the case should be ignored.
                     if (!resolvedProjects.TryGetValue(dependency, out var value))
                     {
-                        return new JavaScriptProjectSchedulingFailure(javaScriptProject,
-                            $"Project dependency '{dependency}' is missing. Dependency required by '{javaScriptProject.ProjectFolder.ToString(m_context.PathTable)}'");
+                        Tracing.Logger.Log.IgnoredDependency(m_context.LoggingContext, m_resolverSettings.Location(m_context.PathTable), dependency, deserializedProject.Name);
+                        continue;
                     }
 
                     projectDependencies.Add(GetGroupProjectIfDefined(resolvedCommandGroupMembership, value.JavaScriptProject));

@@ -1,16 +1,13 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System;
-using System.IO;
+using System.Collections.Generic;
 using BuildXL.FrontEnd.JavaScript;
-using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.FrontEnd.Lage.ProjectGraph;
+using BuildXL.FrontEnd.Utilities;
+using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
-using System.Linq;
-using System.Collections.Generic;
-using BuildXL.FrontEnd.Utilities;
 
 namespace BuildXL.FrontEnd.Lage
 {
@@ -72,8 +69,8 @@ namespace BuildXL.FrontEnd.Lage
             // Use forward slashes for all node.exe arguments to avoid this.
             string pathToRepoRoot = m_resolverSettings.Root.ToString(m_context.PathTable, PathFormat.Script);
 
-            IEnumerable<string> commands = m_resolverSettings.Execute.Select(command => command.GetCommandName());
-
+            IEnumerable<string> commands = m_computedCommands.Keys;
+            
             // Pass the 6th argument (lage location) as "undefined" string. This argument is used by Office implementation.
             var args = $@"""{nodeExeLocation}"" ""{bxlGraphConstructionToolPath.ToString(m_context.PathTable, PathFormat.Script)}"" ""{pathToRepoRoot}"" ""{outputFile.ToString(m_context.PathTable, PathFormat.Script)}"" ""{toolLocation.ToString(m_context.PathTable, PathFormat.Script)} "" ""{string.Join(" ", commands)}"" ""undefined""";
             

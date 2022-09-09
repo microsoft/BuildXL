@@ -257,7 +257,8 @@ namespace Node {
     export function runNpmPackageInstall(
         targetFolder: Directory, 
         dependencies: (File | StaticDirectory)[], 
-        package: {name: string, version: string}) : SharedOpaqueDirectory {
+        package: {name: string, version: string},
+        noBinLinks?: boolean) : SharedOpaqueDirectory {
         
         const nodeModules = d`${targetFolder}/node_modules`;
 
@@ -268,7 +269,7 @@ namespace Node {
             package: package,
             targetFolder: targetFolder,
             additionalDependencies: dependencies,
-            noBinLinks: true,
+            noBinLinks: noBinLinks === undefined? true : noBinLinks,
             userNpmrcLocation: "local",
             globalNpmrcLocation: "local"}, 
             [nodeModules]);

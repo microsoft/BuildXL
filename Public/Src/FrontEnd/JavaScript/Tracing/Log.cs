@@ -215,5 +215,14 @@ namespace BuildXL.FrontEnd.JavaScript.Tracing
             Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
         public abstract void InvalidRegexInProjectSelector(LoggingContext context, Location location, string selector, string failure);
 
+        [GeneratedEvent(
+            (ushort)LogEventId.IgnoredDependency,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Message = EventConstants.LabeledProvenancePrefix + "Dependency '{dependency}' for project '{project}' was ignored since it is not defined.",
+            EventTask = (ushort)Tasks.Engine,
+            EventOpcode = (byte)Tasks.Parser,
+            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
+        public abstract void IgnoredDependency(LoggingContext context, Location location, string dependency, string project);
     }
 }

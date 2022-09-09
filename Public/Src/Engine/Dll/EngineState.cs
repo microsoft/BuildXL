@@ -36,7 +36,7 @@ namespace BuildXL.Engine
             }
         }
 
-        private readonly StringTable m_stringTable;
+        private StringTable m_stringTable;
 
         /// <summary>
         /// Path table
@@ -50,7 +50,7 @@ namespace BuildXL.Engine
             }
         }
 
-        private readonly PathTable m_pathTable;
+        private PathTable m_pathTable;
 
         /// <summary>
         /// Symbol table
@@ -64,7 +64,7 @@ namespace BuildXL.Engine
             }
         }
 
-        private readonly SymbolTable m_symbolTable;
+        private SymbolTable m_symbolTable;
 
         /// <summary>
         /// Qualifier table
@@ -78,9 +78,9 @@ namespace BuildXL.Engine
             }
         }
 
-        private readonly QualifierTable m_qualifierTable;
+        private QualifierTable m_qualifierTable;
 
-        private readonly HistoricTableSizes m_historicTableSizes;
+        private HistoricTableSizes m_historicTableSizes;
 
         /// <summary>
         /// Historic table sizes
@@ -106,7 +106,7 @@ namespace BuildXL.Engine
             }
         }
 
-        private readonly PipTable m_pipTable;
+        private PipTable m_pipTable;
 
         /// <summary>
         /// Pip graph
@@ -120,7 +120,7 @@ namespace BuildXL.Engine
             }
         }
 
-        private readonly PipGraph m_pipGraph;
+        private PipGraph m_pipGraph;
 
         /// <summary>
         /// Mount path expander
@@ -134,7 +134,7 @@ namespace BuildXL.Engine
             }
         }
 
-        private readonly MountPathExpander m_mountPathExpander;
+        private MountPathExpander m_mountPathExpander;
 
         /// <summary>
         /// Scheduler state
@@ -148,7 +148,7 @@ namespace BuildXL.Engine
             }
         }
 
-        private readonly SchedulerState m_schedulerState;
+        private SchedulerState m_schedulerState;
 
         /// <summary>
         /// File content table
@@ -162,7 +162,7 @@ namespace BuildXL.Engine
             }
         }
 
-        private readonly FileContentTable m_fileContentTable;
+        private FileContentTable m_fileContentTable;
 
         /// <summary>
         /// Whether this instance got disposed.
@@ -306,6 +306,8 @@ namespace BuildXL.Engine
             Contract.Requires(!IsDisposed);
             
             IsDisposed = true;
+            m_fileContentTable = null;
+
             return new EngineState(
                 m_graphId,
                 m_stringTable,
@@ -328,6 +330,16 @@ namespace BuildXL.Engine
             IsDisposed = true;
             m_pipTable?.Dispose();
             m_schedulerState?.Dispose();
+            m_stringTable = null;
+            m_pathTable = null;
+            m_symbolTable = null;
+            m_qualifierTable = null;
+            m_pipTable = null;
+            m_pipGraph = null;
+            m_mountPathExpander = null;
+            m_schedulerState = null;
+            m_historicTableSizes = null;
+            m_fileContentTable = null;
         }
 
         internal CachedGraphLoader TryLoad(

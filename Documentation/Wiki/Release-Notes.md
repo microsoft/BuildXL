@@ -1,6 +1,24 @@
 This page is a curated list of the release notes for releases after 0.20170619.4.0 and a manual copy of notable changes from each build before that. See the repo's commit history full details for what is included in each build.
 
 =======
+# 0.1.0-20220831.2 (Release [215995](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=215995)) Released 9/7/2022
+-	Reduce storage operations and bandwidth utilization when uploading logs
+-	QTest on BuildXL: Allow additional QTest arguments to be passed in a rsp file
+-	Avoid warning for low worker count if we performed early releases
+-	Log a specific error when a file is unavailable to be stored to cache
+-	[Linux] BuildXL npm package updates
+-	Some bug fixes and memory optimizations
+
+# 0.1.0-20220818.0.1 (Release [212415](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=212415)) Released 8/26/22
+-	Fix crash caused by pip cancellation
+-	Resolve reparse points when creating a process
+
+# 0.1.0-20220811.1 (Release [208433](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=208433)) Released 8/18/2022
+-	Resolve reparse points when creating a process
+-	Change Ninja resolver settings to intervene CXX command lines into an environment setting
+-	Change BuildXL.Summary.md to make it easier to differentiate between different builds in ADO
+-	Various bug fixes
+
 # 0.1.0-20220804.0 (Release [205184](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=205184)) Released 8/10/2022
 -	Add StageId property to captured build info.
 -	Redesign of IpcMoniker abstraction.

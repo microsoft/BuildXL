@@ -52,6 +52,12 @@ namespace BuildXL.Utilities.Configuration
         int MaxChooseWorkerCacheLookup { get; }
 
         /// <summary>
+        /// Specifies the maximum number of concurrent worker selections for light pips.
+        /// Default is 100.
+        /// </summary>
+        int MaxChooseWorkerLight { get; }
+
+        /// <summary>
         /// Specifies the maximum number of processes that BuildXL will launch at one time locally. The default value is the total number of processors in the current machine.
         /// </summary>
         /// <remarks>

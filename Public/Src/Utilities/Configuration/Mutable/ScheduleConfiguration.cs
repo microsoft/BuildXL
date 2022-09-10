@@ -51,6 +51,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
             MaxChooseWorkerCpu = 5;
             MaxChooseWorkerCacheLookup = 1;
+            MaxChooseWorkerLight = 1;
 
             CanonicalizeFilterOutputs = true;
 
@@ -118,6 +119,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             MaxLightProcesses = template.MaxLightProcesses;
             MaxIO = template.MaxIO;
             MaxChooseWorkerCpu = template.MaxChooseWorkerCpu;
+            MaxChooseWorkerLight = template.MaxChooseWorkerLight;
             MaxChooseWorkerCacheLookup = template.MaxChooseWorkerCacheLookup;
 
             MaxCacheLookup = template.MaxCacheLookup;
@@ -226,6 +228,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public int MaxChooseWorkerCpu { get; set; }
+
+        /// <inheritdoc />
+        public int MaxChooseWorkerLight { get; set; }
 
         /// <inheritdoc />
         public int MaxChooseWorkerCacheLookup { get; set; }

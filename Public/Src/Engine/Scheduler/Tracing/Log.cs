@@ -2358,8 +2358,8 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.PipExecutor,
-            Message = "Initialized PipQueue with concurrencies: IO:{0}, ChooseWorkerCacheLookup:{1}, CacheLookup:{2}, ChooseWorkerCpu:{3}, CPU:{4}, Materialize:{5}, Light:{6}, OrchestratorCacheLookupMultiplier: {7}, OrchestratorCpuMultiplier: {8}")]
-        public abstract void PipQueueConcurrency(LoggingContext context, int io, int chooseWorkerCacheLookup, int cacheLookup, int chooseWorkerCpu, int cpu, int materialize, int light, string orchestratorCacheLookupMultiplier, string orchestratorCpuMultiplier);
+            Message = "Initialized PipQueue with concurrencies: IO:{0}, ChooseWorkerCacheLookup:{1}, CacheLookup:{2}, ChooseWorkerCpu:{3}, CPU:{4}, Materialize:{5}, Light:{6}, OrchestratorCacheLookupMultiplier: {7}, OrchestratorCpuMultiplier: {8}, ChooseWorkerLight: {9}")]
+        public abstract void PipQueueConcurrency(LoggingContext context, int io, int chooseWorkerCacheLookup, int cacheLookup, int chooseWorkerCpu, int cpu, int materialize, int light, string orchestratorCacheLookupMultiplier, string orchestratorCpuMultiplier, int chooseWorkerLight);
 
         [GeneratedEvent(
             (int)LogEventId.UnableToCreateExecutionLogFile,

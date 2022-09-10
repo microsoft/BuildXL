@@ -188,7 +188,7 @@ namespace BuildXL
             hw.WriteOption(
                 "/maxNumPipTelemetryBatches:<int>",
                 Strings.HelpText_DisplayHelp_MaxNumPipTelemetryBatches);
-            
+
             hw.WriteOption(
                 "/logsDirectory:<path>",
                 Strings.HelpText_DisplayHelp_LogsDirectory);
@@ -393,7 +393,7 @@ namespace BuildXL
             hw.WriteOption(
                 "/dumpFailedPipsLogLimit:<number>",
                 Strings.HelpText_DisplayHelp_DumpFailedPipsLogLimit);
-            
+
             #endregion
 
             hw.WriteBanner(Strings.HelpText_DisplayHelp_ErrorsAndWarningsBanner);
@@ -615,7 +615,15 @@ namespace BuildXL
 
             hw.WriteOption(
                 "/maxChooseWorker:<number of concurrent choose worker operations>",
-                Strings.HelpText_DisplayHelp_MaxCacheLookup);
+                Strings.HelpText_DisplayHelp_MaxChooseWorker);
+
+            hw.WriteOption(
+                "/maxChooseWorkerCacheLookup:<number of concurrent choose worker cache lookup operations>",
+                Strings.HelpText_DisplayHelp_MaxChooseWorkerCacheLookup);
+
+            hw.WriteOption(
+                "/maxChooseWorkerLight:<number of concurrent choose worker operations for light pips>",
+                Strings.HelpText_DisplayHelp_MaxChooseWorkerLight);
 
             hw.WriteOption(
                 "/maxMaterialize:<number of concurrent materialize operations>",
@@ -629,7 +637,7 @@ namespace BuildXL
                 "/enableHistoricCommitMemoryProjection[+|-]",
                 Strings.HelpText_DisplayHelp_EnableHistoricCommitMemoryProjection,
                 HelpLevel.Verbose);
-            
+
             hw.WriteOption(
                 "/maxCommitUtilizationPercentage:<number>",
                 Strings.HelpText_DisplayHelp_MaxCommitUtilizationPercentage,

@@ -165,7 +165,7 @@ namespace BuildXL.Scheduler
             // If adaptive IO is enabled, then start with the half of the maxIO.
             var ioLimit = m_scheduleConfig.AdaptiveIO ? (m_scheduleConfig.MaxIO + 1) / 2 : m_scheduleConfig.MaxIO;
 
-            m_chooseWorkerLightQueue = new ChooseWorkerQueue(this, 1);
+            m_chooseWorkerLightQueue = new ChooseWorkerQueue(this, m_scheduleConfig.MaxChooseWorkerLight);
             m_chooseWorkerCacheLookupQueue = new ChooseWorkerQueue(this, m_scheduleConfig.MaxChooseWorkerCacheLookup);
             m_chooseWorkerCpuQueue = m_scheduleConfig.ModuleAffinityEnabled() ?
                 new NestedChooseWorkerQueue(this, m_scheduleConfig.MaxChooseWorkerCpu, config.Distribution.BuildWorkers.Count + 1) :
@@ -197,7 +197,8 @@ namespace BuildXL.Scheduler
                 m_scheduleConfig.MaxMaterialize,
                 m_scheduleConfig.MaxLightProcesses,
                 m_scheduleConfig.OrchestratorCacheLookupMultiplier.ToString(),
-                m_scheduleConfig.OrchestratorCpuMultiplier.ToString());
+                m_scheduleConfig.OrchestratorCpuMultiplier.ToString(),
+                m_scheduleConfig.MaxChooseWorkerLight);
         }
 
         /// <inheritdoc/>

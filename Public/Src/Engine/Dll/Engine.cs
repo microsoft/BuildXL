@@ -961,6 +961,7 @@ namespace BuildXL.Engine
                 // No additional choose worker threads needed in single machine builds, workers, or orchestrators when module affinity is enabled
                 mutableConfig.Schedule.MaxChooseWorkerCpu = 1;
                 mutableConfig.Schedule.MaxChooseWorkerCacheLookup = 1;
+                mutableConfig.Schedule.MaxChooseWorkerLight = 1;
             }
 
             // Caching overrides

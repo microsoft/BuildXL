@@ -778,6 +778,12 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   <data name="HelpText_DisplayHelp_MaxChooseWorker" xml:space="preserve">
     <value>Specifies the maximum number of choose worker operations that {ShortProductName} will launch at one time for distributed builds. The default value is 1/4 of the number of processors in the current machine, but at least 1.</value>
   </data>
+  <data name="HelpText_DisplayHelp_MaxChooseWorkerCacheLookup" xml:space="preserve">
+    <value>Specifies the maximum number of choose worker cache lookup operations that {ShortProductName} will launch at one time for distributed builds. The default is 1.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_MaxChooseWorkerLight" xml:space="preserve">
+    <value>Specifies the maximum number of choose worker operations that {ShortProductName} will launch at one time for light pips in distributed builds. The default is 1.</value>
+  </data>
   <data name="HelpText_DisplayHelp_MaxMaterialize" xml:space="preserve">
     <value>Specifies the maximum number of materialize operations that {ShortProductName} will launch at one time. Defaults to twice the number of processors in the current machine.</value>
   </data>

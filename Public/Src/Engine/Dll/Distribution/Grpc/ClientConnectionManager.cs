@@ -540,7 +540,7 @@ namespace BuildXL.Engine.Distribution.Grpc
         }
 
         public async Task<RpcCallResult<Unit>> CallAsync(
-            Func<CallOptions, Task<RpcResponse>> func, 
+            Func<CallOptions, Task<RpcResponse>> func,
             string operation,
             CancellationToken cancellationToken = default(CancellationToken),
             bool waitForConnection = false)
@@ -567,6 +567,11 @@ namespace BuildXL.Engine.Distribution.Grpc
             headers.Add(GrpcMetadata.RelatedActivityIdKey, m_invocationId.RelatedActivityId);
             headers.Add(GrpcMetadata.EnvironmentKey, m_invocationId.Environment);
             headers.Add(GrpcMetadata.SenderKey, DistributionHelpers.MachineName);
+
+            if (EngineEnvironmentSettings.GrpcDotNetCompressionEnabled)
+            {
+                headers.Add(GrpcMetadata.CompressionKey, GrpcMetadata.CompressionType);
+            }
 
             RpcCallResultState state = RpcCallResultState.Succeeded;
             Failure failure = null;

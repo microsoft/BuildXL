@@ -20,6 +20,8 @@ namespace BuildXL.Engine.Distribution.Grpc
         public const string EnvironmentKey = "environment";
         public const string SenderKey = "sender";
         public const string AuthKey = "authorization";
+        public const string CompressionKey = "grpc-internal-encoding-request";
+        public const string CompressionType = "gzip";
 
         // Values
         public const string True = "1";

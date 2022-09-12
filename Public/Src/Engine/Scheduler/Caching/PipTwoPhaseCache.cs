@@ -179,8 +179,9 @@ namespace BuildXL.Scheduler.Cache
             bool preservePathCasing,
             ContentHash? pathSetHash = null)
         {
-            using (var pathSetBuffer = new MemoryStream())
+            using (var pooledPathSetBuffer = Pools.MemoryStreamPool.GetInstance())
             {
+                var pathSetBuffer = pooledPathSetBuffer.Instance;
                 var hash = await SerializePathSetAsync(pathSet, pathSetBuffer, preservePathCasing, pathSetHash);
                 var maybeStored = await storeAsync(hash, pathSetBuffer);
                 if (!maybeStored.Succeeded)

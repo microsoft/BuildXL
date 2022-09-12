@@ -16,31 +16,35 @@ namespace Test.DScript.Ast.Consumers.Office
         {
         }
 
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [FactIfSupported(requiresWindowsOrLinuxOperatingSystem: true)]
         public void CmdUses()
         {
-            const string Spec = @"
+            var rootPath = X("/D/xyz/abc");
+            var outFile1 = X("/D/xyz/out.txt");
+            var outFile2 = X("/D/xyz/file.txt");
+
+            string spec = $@"
 // Any change will break Office.
-import {Artifact, Cmd} from 'Sdk.Transformers';
+import {{Artifact, Cmd}} from 'Sdk.Transformers';
 const arguments = [
     Cmd.startUsingResponseFileWithPrefix("""", true),
     Cmd.rawArgument(""foo bar""),
     Cmd.flag(""/nologo:"", true),
     Cmd.option(""/uid:"", ""1234""),
     Cmd.option(""/projects:"", Cmd.join("";"", [""orapi"", ""ppt""])),
-    Cmd.option(""/rt:"", Artifact.none(d`D:/xyz/abc`)),
-    Cmd.option(""/out:"", Artifact.output(p`D:/xyz/out.txt`)),
-    Cmd.argument(Artifact.input(f`D:/xyz/file.txt`))
+    Cmd.option(""/rt:"", Artifact.none(d`{rootPath}`)),
+    Cmd.option(""/out:"", Artifact.output(p`{outFile1}`)),
+    Cmd.argument(Artifact.input(f`{outFile2}`))
 ];
 const argumentsInString = Debug.dumpArgs(arguments);
 ";
             var results = Build()
-                .Spec(Spec)
+                .Spec(spec)
                 .AddFullPrelude()
                 .EvaluateExpressionsWithNoErrors("argumentsInString");
 
             Assert.Equal(
-                @"foo bar /nologo: /uid:1234 /projects:orapi;ppt /rt:D:\xyz\abc /out:D:\xyz\out.txt D:\xyz\file.txt".ToUpperInvariant(),
+                $@"foo bar /nologo: /uid:1234 /projects:orapi;ppt /rt:{rootPath} /out:{outFile1} {outFile2}".ToUpperInvariant(),
                 ((string)results["argumentsInString"]).ToUpperInvariant());
         }
     }

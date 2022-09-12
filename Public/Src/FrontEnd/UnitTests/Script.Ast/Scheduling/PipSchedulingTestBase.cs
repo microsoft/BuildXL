@@ -28,7 +28,7 @@ namespace Test.DScript.Ast.Scheduling
     /// Meant to be used in conjunction with <see cref="ProjectBuilder{TProject, TResolverSettings}"/>
     /// No pips are run by this class, the engine phase is set to <see cref="EnginePhases.Schedule"/>
     /// </remarks>
-    [TestClassIfSupported(requiresWindowsBasedOperatingSystem: true)]
+    [TestClassIfSupported(requiresWindowsOrLinuxOperatingSystem: true)]
     public abstract class PipSchedulingTestBase<TProject, TResolverSettings> : DsTestWithCacheBase 
         where TProject : IProjectWithDependencies<TProject>
         where TResolverSettings : class, IProjectGraphResolverSettings

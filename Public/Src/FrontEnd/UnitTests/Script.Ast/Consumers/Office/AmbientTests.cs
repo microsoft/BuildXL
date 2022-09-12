@@ -29,7 +29,7 @@ namespace Test.DScript.Ast.Consumers.Office
         {
         }
 
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [FactIfSupported(requiresWindowsOrLinuxOperatingSystem: true)]
         public void TestAmbientArrayUses()
         {
             const string Spec = @"
@@ -65,21 +65,23 @@ const testUnique = testMapMany.unique();
             CheckArray<int>(CreateArrayLiteral(new object[] {1, 2, 3, 4, 5}), results["testUnique"]);
         }
 
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [FactIfSupported(requiresWindowsOrLinuxOperatingSystem: true)]
         public void TestAmbientContextUses()
         {
-            const string Config = @"
-config({
+            var nugetCacheDirectory = X("/D/NuGetCache");
+
+            string config = $@"
+config({{
      mounts: [
-        {
+        {{
             name: a`NuGetCache`,
-            path: p`D:/NuGetCache`,
+            path: p`{nugetCacheDirectory}`,
             trackSourceFileChanges: true,
             isWritable: false,
             isReadable: true
-        },
+        }},
     ],
-});";
+}});";
             const string Spec = @"
 // Any change will break Office.
 const outDir = Context.getNewOutputDirectory(""testOut"");
@@ -91,7 +93,7 @@ const moduleName = Context.getLastActiveUseModuleName();
 const userHomeDir = Context.getUserHomeDirectory();
 ";
                 var results = Build()
-                .LegacyConfiguration(Config)
+                .LegacyConfiguration(config)
                 .Spec(Spec)
                 .EvaluateExpressionsWithNoErrors(
                     "outDir",
@@ -105,13 +107,13 @@ const userHomeDir = Context.getUserHomeDirectory();
             Assert.IsType<DirectoryArtifact>(results["outDir"]);
             Assert.IsType<DirectoryArtifact>(results["tempDir"]);
             Assert.True((bool) results["hasMount"]);
-            Assert.Equal(CreateAbsolutePath(@"D:\NuGetCache"), results["mountPath"]);
+            Assert.Equal(CreateAbsolutePath(nugetCacheDirectory), results["mountPath"]);
             Assert.Equal("name", (string)results["name"]);
             Assert.Equal("__Config__", (string)results["moduleName"]); // This test evaluates in the main config context for simplicity so that is why this returns a 'funny' module name.
             Assert.IsType<DirectoryArtifact>(results["userHomeDir"]);
         }
 
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [FactIfSupported(requiresWindowsOrLinuxOperatingSystem: true)]
         public void TestAmbientContractUses()
         {
             const string Spec = @"
@@ -133,7 +135,7 @@ const x = g();
             Assert.Equal(1, result);
         }
 
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [FactIfSupported(requiresWindowsOrLinuxOperatingSystem: true)]
         public void TestAmbientDebugUses()
         {
             const string Spec = @"
@@ -144,23 +146,26 @@ const x = Debug.writeLine(""Hello World!"");
             Assert.Equal(UndefinedValue.Instance, result);
         }
 
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [FactIfSupported(requiresWindowsOrLinuxOperatingSystem: true)]
         public void TestAmbientPathQueryUses()
         {
-            const string Spec = @"
+            var testPath = X("/D/path/to/a/file.txt");
+            var pathTo = X("/D/path/to");
+
+            string spec = $@"
 // Any change will break Office.
-const path = p`D:/path/to/a/file.txt`;
+const path = p`{testPath}`;
 const extension = path.extension;
 const hasExtension = path.hasExtension;
 const parent = path.parent;
 const hasParent = path.hasParent;
 const name = path.name;
 const nameWithoutExtension = path.nameWithoutExtension;
-const isWithin = path.isWithin(p`D:/path/to`);
-const relative = p`D:/path/to`.getRelative(path);
+const isWithin = path.isWithin(p`{pathTo}`);
+const relative = p`{pathTo}`.getRelative(path);
 ";
             var results = EvaluateExpressionsWithNoErrors(
-                Spec,
+                spec,
                 "extension",
                 "hasExtension",
                 "parent",
@@ -172,7 +177,7 @@ const relative = p`D:/path/to`.getRelative(path);
 
             Assert.Equal(CreatePathAtom(".txt"), results["extension"]);
             Assert.True((bool)results["hasExtension"]);
-            Assert.Equal(CreateAbsolutePath(@"D:\path\to\a"), results["parent"]);
+            Assert.Equal(CreateAbsolutePath(X("/D/path/to/a")), results["parent"]);
             Assert.True((bool)results["hasParent"]);
             Assert.Equal(CreatePathAtom("file.txt"), results["name"]);
             Assert.Equal(CreatePathAtom("file"), results["nameWithoutExtension"]);
@@ -180,34 +185,41 @@ const relative = p`D:/path/to`.getRelative(path);
             Assert.Equal(CreateRelativePath("a/file.txt"), results["relative"]);
         }
 
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [FactIfSupported(requiresWindowsOrLinuxOperatingSystem: true)]
         public void TestAmbientPathUses()
         {
-            const string Spec = @"
+            var originalChangeExtensionPath = X("/D/path/to/a/file.in");
+            var updatedChangeExtensionPath = X("/D/path/to/a/file.out");
+            var originalPath = X("/D/a/b/foo.cs");
+            var relocatedPath = X(@"/D/c/d/foo.cs");
+
+            string spec = $@"
 // Any change will break Office.
-const changeExtension = p`D:/path/to/a/file.in`.changeExtension("".out"");
-const relocated = p`D:/a/b/foo.cs`.relocate(d`D:/a/b`, d`D:/c/d`);
+const changeExtension = p`{originalChangeExtensionPath}`.changeExtension("".out"");
+const relocated = p`{originalPath}`.relocate(d`{X("/D/a/b")}`, d`{X("/D/c/d")}`);
 ";
-            var results = EvaluateExpressionsWithNoErrors(Spec, "changeExtension", "relocated");
-            Assert.Equal(CreateAbsolutePath(@"D:\path\to\a\file.out"), results["changeExtension"]);
-            Assert.Equal(CreateAbsolutePath(@"D:\c\d\foo.cs"), results["relocated"]);
+            var results = EvaluateExpressionsWithNoErrors(spec, "changeExtension", "relocated");
+            Assert.Equal(CreateAbsolutePath(updatedChangeExtensionPath), results["changeExtension"]);
+            Assert.Equal(CreateAbsolutePath(relocatedPath), results["relocated"]);
         }
         
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [FactIfSupported(requiresWindowsOrLinuxOperatingSystem: true)]
         public void TestAmbientDirectoryUses()
         {
-            const string Spec = @"
+            var directoryPath = X("/D/path/to/a/directory");
+
+            string spec = $@"
 // Any change will break Office.
-const dir = d`D:/path/to/a/directory`;
+const dir = d`{directoryPath}`;
 const dirPath = dir.path;
 ";
-            var results = EvaluateExpressionsWithNoErrors(Spec, "dir", "dirPath");
+            var results = EvaluateExpressionsWithNoErrors(spec, "dir", "dirPath");
 
             Assert.IsType<DirectoryArtifact>(results["dir"]);
-            Assert.Equal(CreateAbsolutePath(@"D:\path\to\a\directory"), results["dirPath"]);
+            Assert.Equal(CreateAbsolutePath(directoryPath), results["dirPath"]);
         }
 
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [FactIfSupported(requiresWindowsOrLinuxOperatingSystem: true)]
         public void TestAmbientPathAtomUses()
         {
             const string Spec = @"
@@ -223,7 +235,7 @@ const changeExtension = a`file.txt.in`.changeExtension("".out"");
             Assert.Equal(CreatePathAtom("file.txt.out"), results["changeExtension"]);
         }
 
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [FactIfSupported(requiresWindowsOrLinuxOperatingSystem: true)]
         public void TestAmbientRelativePathUses()
         {
             const string Spec = @"
@@ -257,49 +269,56 @@ const nameWithoutExtension = relative.nameWithoutExtension;
             Assert.Equal(CreatePathAtom("file.txt"), results["nameWithoutExtension"]);
         }
 
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [FactIfSupported(requiresWindowsOrLinuxOperatingSystem: true)]
         public void TestAmbientStaticDirectoryUses()
         {
-            const string Spec = @"
-import {Transformer} from 'Sdk.Transformers';
+            var sealDirectoryRoot = X("/D/path/to/dir");
+            var pathA = X("/D/path/to/dir/a.txt");
+            var pathB = X("/D/path/to/dir/b.txt");
+            var pathC = X("/D/path/to/dir/subdir/c.txt");
+
+            string spec = $@"
+import {{Transformer}} from 'Sdk.Transformers';
 
 // Any change will break Office.
-const sealedDir = Transformer.sealDirectory(d`D:/path/to/dir`, [ f`D:/path/to/dir/a.txt`, f`D:/path/to/dir/b.txt`, f`D:/path/to/dir/subdir/c.txt`]);
+const sealedDir = Transformer.sealDirectory(d`{sealDirectoryRoot}`, [ f`{pathA}`, f`{pathB}`, f`{pathC}`]);
 const dirPath = sealedDir.root.path;
 const contents = sealedDir.contents;
 ";
-            var results = EvaluateExpressionsWithNoErrors(Spec, "dirPath", "contents");
-            Assert.Equal(CreateAbsolutePath(@"D:\path\to\dir"), results["dirPath"]);
+            var results = EvaluateExpressionsWithNoErrors(spec, "dirPath", "contents");
+            Assert.Equal(CreateAbsolutePath(sealDirectoryRoot), results["dirPath"]);
             Assert.IsAssignableFrom<ArrayLiteral>(results["contents"]);
             var arrayContent = results["contents"] as ArrayLiteral;
             Assert.NotNull(arrayContent);
             Assert.Equal(3, arrayContent.Length);
-            Assert.Equal(CreateSourceFile(@"D:\path\to\dir\a.txt"), arrayContent[0]);
-            Assert.Equal(CreateSourceFile(@"D:\path\to\dir\b.txt"), arrayContent[1]);
-            Assert.Equal(CreateSourceFile(@"D:\path\to\dir\subdir\c.txt"), arrayContent[2]);
+            Assert.Equal(CreateSourceFile(pathA), arrayContent[0]);
+            Assert.Equal(CreateSourceFile(pathB), arrayContent[1]);
+            Assert.Equal(CreateSourceFile(pathC), arrayContent[2]);
         }
 
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [FactIfSupported(requiresWindowsOrLinuxOperatingSystem: true)]
         public void TestPathInterpolationUses()
         {
-            const string Spec = @"
+            var rootDirectoryPath = X("/D/path/to/a/dir");
+
+            string spec = $@"
 // Any change will break Office.
-const dir = d`D:/path/to/a/dir`;
+const dir = d`{X("/D/path/to/a/dir")}`;
 const fileName = a`file.txt`;
 const relative = r`subdir/subsubdir`;
 const name = ""file"";
 const relativeString = ""subdir/subsubdir"";
-const iPath1 = p`${dir}/x/${relative}/y/${fileName}`;
-const iPath2 = p`${dir}/x/${relativeString}/y/${name + "".txt""}`;
+const iPath1 = p`${{dir}}/x/${{relative}}/y/${{fileName}}`;
+const iPath2 = p`${{dir}}/x/${{relativeString}}/y/${{name + "".txt""}}`;
 ";
-            var results = EvaluateExpressionsWithNoErrors(Spec, "iPath1", "iPath2");
-            var path = CreateAbsolutePath(@"D:\path\to\a\dir\x\subdir\subsubdir\y\file.txt");
+            var results = EvaluateExpressionsWithNoErrors(spec, "iPath1", "iPath2");
+            var path = CreateAbsolutePath(X("/D/path/to/a/dir/x/subdir/subsubdir/y/file.txt"));
 
             Assert.Equal(path, results["iPath1"]);
             Assert.Equal(path, results["iPath2"]);
         }
 
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [FactIfSupported(requiresWindowsOrLinuxOperatingSystem: true)]
         public void TestAmbientGlobalUses()
         {
             const string Spec = @"
@@ -324,7 +343,7 @@ const globRResult = [...globResult, f`dir/subdir/c.txt`];
 
         }
 
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [FactIfSupported(requiresWindowsOrLinuxOperatingSystem: true)]
         public void TestAmbientStringUses()
         {
             const string Spec = @"
@@ -367,7 +386,7 @@ const interpolate = `Excuse me, ${slice}, BuildXL!`;
             Assert.Equal("Excuse me, Hello, BuildXL!", results["interpolate"]);
         }
 
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [FactIfSupported(requiresWindowsOrLinuxOperatingSystem: true)]
         public void TestAmbientObjectUses()
         {
             const string Spec = @"
@@ -391,17 +410,32 @@ const e = y.e;
         [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public void TestAmbientEnvironmentUses()
         {
-            const string Spec = @"
+            string spec = @"
 // Any change will break Office.
 const newLine = Environment.newLine();
-const hasVariable = Environment.hasVariable(""ProgramFiles(x86)"");
+";
+
+            if (OperatingSystemHelper.IsWindowsOS)
+            {
+               spec += @"const hasVariable = Environment.hasVariable(""ProgramFiles(x86)"");
 const stringValue = Environment.getStringValue(""UserName"");
 const pathValue = Environment.getPathValue(""ProgramFiles(x86)"");
 const fileValue = Environment.getFileValue(""ProgramFiles(x86)""); // yes, I know it's not a file.
 const pathValues = Environment.getPathValues(""Path"", "";"");
 ";
+            }
+            else
+            {
+                spec += @"const hasVariable = Environment.hasVariable(""HOME"");
+const stringValue = Environment.getStringValue(""USER"");
+const pathValue = Environment.getPathValue(""HOME"");
+const fileValue = Environment.getFileValue(""HOME)""); // yes, I know it's not a file.
+const pathValues = Environment.getPathValues(""PATH"", "":"");
+";
+            }    
+
             var results = EvaluateExpressionsWithNoErrors(
-                Spec,
+                spec,
                 "newLine",
                 "hasVariable",
                 "stringValue",
@@ -409,18 +443,19 @@ const pathValues = Environment.getPathValues(""Path"", "";"");
                 "fileValue",
                 "pathValues");
 
-            string programFileX86 = Environment.GetEnvironmentVariable("ProgramFiles(x86)");
-            string userName = Environment.GetEnvironmentVariable("UserName");
-            string path = Environment.GetEnvironmentVariable("Path");
+            string testPath = Environment.GetEnvironmentVariable(OperatingSystemHelper.IsWindowsOS ? "ProgramFiles(x86)" : "HOME");
+            string userName = Environment.GetEnvironmentVariable(OperatingSystemHelper.IsWindowsOS ? "UserName" : "USER");
+            string path = Environment.GetEnvironmentVariable(OperatingSystemHelper.IsWindowsOS ? "Path" : "PATH");
 
             Assert.Equal(Environment.NewLine, results["newLine"]);
-            Assert.Equal(programFileX86 != null, results["hasVariable"]);
+            Assert.Equal(testPath != null, results["hasVariable"]);
             Assert.Equal(userName != null ? (object) userName : UndefinedValue.Instance, results["stringValue"]);
+            // TODO: investigate why the result is a Path type instead of a Name type on Linux when comparing the value
             Assert.Equal(
-                programFileX86 != null ? (object) CreateAbsolutePath(programFileX86).Value : UndefinedValue.Instance,
+                testPath != null ? (object) CreateAbsolutePath(testPath).Value : UndefinedValue.Instance,
                 results["pathValue"]);
             Assert.Equal(
-                programFileX86 != null ? (object) CreateSourceFile(programFileX86).Value : UndefinedValue.Instance,
+                testPath != null ? (object) CreateSourceFile(testPath).Value : UndefinedValue.Instance,
                 results["fileValue"]);
 
             if (path != null)
@@ -438,20 +473,20 @@ const pathValues = Environment.getPathValues(""Path"", "";"");
             }
         }
 
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [FactIfSupported(requiresWindowsOrLinuxOperatingSystem: true)]
         public void TestAmbientSetUses()
         {
-            const string Spec = @"
+            string spec = $@"
 // Any change will break Office.
-const paths = [p`D:/file/to/drop/x`, p`D:/file/to/drop/y`, p`D:/file/to/drop/z`];
-const pathsExtra = [...paths, p`D:/file/to/drop/y`];
+const paths = [p`{X("/D/file/to/drop/x")}`, p`{X("/D/file/to/drop/y")}`, p`{X("/D/file/to/drop/z")}`];
+const pathsExtra = [...paths, p`{X("/D/file/to/drop/y")}`];
 const pathSet = Set.empty<Path>().add(...pathsExtra);
-const contains = pathSet.contains(p`D:/file/to/drop/x`);
-const notContains = pathSet.contains(p`D:/file/to/drop/w`);
+const contains = pathSet.contains(p`{X("/D/file/to/drop/x")}`);
+const notContains = pathSet.contains(p`{X("/D/file/to/drop/w")}`);
 const toArray = pathSet.toArray();
 ";
             var results = EvaluateExpressionsWithNoErrors(
-                Spec,
+                spec,
                 "paths",
                 "contains",
                 "notContains",
@@ -462,13 +497,13 @@ const toArray = pathSet.toArray();
             Assert.False((bool) results["notContains"]);
         }
 
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [FactIfSupported(requiresWindowsOrLinuxOperatingSystem: true)]
         public void TestAmbientMapUses()
         {
-            const string Spec = @"
+            string spec = $@"
 // Any change will break Office.
-const kvps: [PathAtom, File[]][] = [[a`x`, [f`D:/path1/x`, f`D:/path2/x`]], [a`y`, [f`D:/path/y`]]];
-const map = Map.empty<PathAtom, File[]>().addRange([a`z`, [f`D:/path/z`]], ...kvps);
+const kvps: [PathAtom, File[]][] = [[a`x`, [f`{X("/D/path1/x")}`, f`{X("/D/path2/x")}`]], [a`y`, [f`{X("/D/path/y")}`]]];
+const map = Map.empty<PathAtom, File[]>().addRange([a`z`, [f`{X("/D/path/z")}`]], ...kvps);
 const containsKey = map.containsKey(a`y`);
 const notContainsKey = map.containsKey(a`w`);
 const x = map.get(a`x`);
@@ -476,7 +511,7 @@ const z = map.get(a`z`);
 const w = map.get(a`w`);
 ";
             var results = EvaluateExpressionsWithNoErrors(
-                Spec,
+                spec,
                 "containsKey",
                 "notContainsKey",
                 "x",
@@ -486,62 +521,61 @@ const w = map.get(a`w`);
             Assert.True((bool) results["containsKey"]);
             Assert.False((bool) results["notContainsKey"]);
             CheckArray<FileArtifact>(
-                CreateArrayLiteral(new object[] {CreateSourceFile(@"D:\path1\x").Value, CreateSourceFile(@"D:\path2\x").Value}),
+                CreateArrayLiteral(new object[] {CreateSourceFile(X("/D/path1/x")).Value, CreateSourceFile(X("/D/path2/x")).Value}),
                 results["x"]);
             CheckArray<FileArtifact>(
-                CreateArrayLiteral(new object[] {CreateSourceFile(@"D:\path\z").Value}),
+                CreateArrayLiteral(new object[] {CreateSourceFile(X("/D/path/z")).Value}),
                 results["z"]);
             Assert.Equal(UndefinedValue.Instance, results["w"]);
         }
 
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [FactIfSupported(requiresWindowsOrLinuxOperatingSystem: true)]
         public void TestAmbientTransformerUses()
         {
-            const string Spec = @"
-import {Transformer} from 'Sdk.Transformers';
+            string spec = $@"
+import {{Transformer}} from 'Sdk.Transformers';
 
 // Any change will break Office.
-const tool: Transformer.ToolDefinition = {
-    exe: f`O:/path/to/tool.exe`,
-    runtimeDependencies: [f`O:/path/to/tool.exe.config`],
-    runtimeDirectoryDependencies: [Transformer.sealDirectory(d`O:/path/to/aux`, [f`O:/path/to/aux/dep.in`])],
+const tool: Transformer.ToolDefinition = {{
+    exe: f`{X("/O/path/to/tool.exe")}`,
+    runtimeDependencies: [f`{X("/O/path/to/tool.exe.config")}`],
+    runtimeDirectoryDependencies: [Transformer.sealDirectory(d`{X("/O/path/to/aux")}`, [f`{X("/O/path/to/aux/dep.in")}`])],
     prepareTempDirectory: true,
     dependsOnWindowsDirectories: true,
-    untrackedDirectoryScopes: [d`O:/dir/to/untracked`]
-};
-const sealedDir = Transformer.sealDirectory(d`O:/dir/subdirA`, [f`O:/dir/subdirA/1.txt`, f`O:/dir/subdirA/2.txt`]);
-const sealedSourceDir = Transformer.sealSourceDirectory(d`O:/src/dev`, Transformer.SealSourceDirectoryOption.allDirectories);
-const partiallySealedDir = Transformer.sealPartialDirectory(d`O:/dir/subdirB`, [f`O:/dir/subdirB/1.txt`, f`O:/dir/subdirB/2.txt`]);
-const writtenFile = Transformer.writeFile(p`O:/out/dir/script.bat`, [""content1"", ""content2""]);
-const execResult = Transformer.execute({
+    untrackedDirectoryScopes: [d`{X("/O/dir/to/untracked")}`]
+}};
+const sealedDir = Transformer.sealDirectory(d`{X("/O/dir/subdirA")}`, [f`{X("/O/dir/subdirA/1.txt")}`, f`{X("/O/dir/subdirA/2.txt")}`]);
+const sealedSourceDir = Transformer.sealSourceDirectory(d`{X("/O/src/dev")}`, Transformer.SealSourceDirectoryOption.allDirectories);
+const partiallySealedDir = Transformer.sealPartialDirectory(d`{X("/O/dir/subdirB")}`, [f`{X("/O/dir/subdirB/1.txt")}`, f`{X("/O/dir/subdirB/2.txt")}`]);
+const writtenFile = Transformer.writeFile(p`{X("/O/out/dir/script.bat")}`, [""content1"", ""content2""]);
+const execResult = Transformer.execute({{
     tool: tool,
-    description: ""O:/a/b/c/nmake_rule(10, 20)"",
+    description: ""{X("/O/a/b/c/nmake_rule")}(10, 20)"",
     tags: [""platform:x64|configuration:debug"", ""noculture""],
-    arguments: [{ name: undefined, value: ""start"" }],
+    arguments: [{{ name: undefined, value: ""start"" }}],
     workingDirectory: d`.`,
     dependencies: [
-        f`O:/src/file.txt`,
+        f`{X("/O/src/file.txt")}`,
         writtenFile,
         sealedDir,
         partiallySealedDir
     ],
-    implicitOutputs: [p`O:/out/dir/outputFile.txt`, d`O:/out/dir/outputDir`],
+    implicitOutputs: [p`{X("/O/out/dir/outputFile.txt")}`, d`{X("/O/out/dir/outputDir")}`],
     environmentVariables: [
-        { name: ""NAME1"", value: f`O:/some/path` },
-        { name: ""NAME2"", value: ""SomeValue"" }
+        {{ name: ""NAME1"", value: f`{X("/O/some/path")}` }},
+        {{ name: ""NAME2"", value: ""SomeValue"" }}
     ],
-    additionalTempDirectories: [d`O:/temp/dir1`, d`O:/tmp/dir2`],
-    unsafe: {
-        untrackedScopes: [d`O:/dir/to/untracked2`],
+    additionalTempDirectories: [d`{X("/O/temp/dir1")}`, d`{X("/O/tmp/dir2")}`],
+    unsafe: {{
+        untrackedScopes: [d`{X("/O/dir/to/untracked2")}`],
         allowPreservedOutputs: false
-    }
-});
-const outputFile = execResult.getOutputFile(p`O:/out/dir/outputFile.txt`);
-const outputDir = execResult.getOutputDirectory(d`O:/out/dir/outputDir`);
+    }}
+}});
+const outputFile = execResult.getOutputFile(p`{X("/O/out/dir/outputFile.txt")}`);
+const outputDir = execResult.getOutputDirectory(d`{X("/O/out/dir/outputDir")}`);
 ";
-
             var results = EvaluateExpressionsWithNoErrors(
-                Spec,
+                spec,
                 "sealedDir",
                 "sealedSourceDir",
                 "partiallySealedDir",
@@ -553,16 +587,16 @@ const outputDir = execResult.getOutputDirectory(d`O:/out/dir/outputDir`);
             Assert.IsType<StaticDirectory>(results["sealedDir"]);
             Assert.IsType<StaticDirectory>(results["sealedSourceDir"]);
             Assert.IsType<StaticDirectory>(results["partiallySealedDir"]);
-            Assert.Equal(CreateAbsolutePath(@"O:\dir\subdirA"), ((StaticDirectory) results["sealedDir"]).Path);
-            Assert.Equal(CreateAbsolutePath(@"O:\src\dev"), ((StaticDirectory) results["sealedSourceDir"]).Path);
-            Assert.Equal(CreateAbsolutePath(@"O:\dir\subdirB"), ((StaticDirectory) results["partiallySealedDir"]).Path);
+            Assert.Equal(CreateAbsolutePath(X(@"/O/dir/subdirA")), ((StaticDirectory) results["sealedDir"]).Path);
+            Assert.Equal(CreateAbsolutePath(X(@"/O/src/dev")), ((StaticDirectory) results["sealedSourceDir"]).Path);
+            Assert.Equal(CreateAbsolutePath(X(@"/O/dir/subdirB")), ((StaticDirectory) results["partiallySealedDir"]).Path);
             Assert.IsType<FileArtifact>(results["writtenFile"]);
-            Assert.Equal(CreateOutputFile(@"O:\out\dir\script.bat"), results["writtenFile"]);
+            Assert.Equal(CreateOutputFile(X(@"/O/out/dir/script.bat")), results["writtenFile"]);
             Assert.IsAssignableFrom<ObjectLiteral>(results["execResult"]);
             Assert.IsType<FileArtifact>(results["outputFile"]);
-            Assert.Equal(CreateOutputFile(@"O:\out\dir\outputFile.txt"), results["outputFile"]);
+            Assert.Equal(CreateOutputFile(X(@"/O/out/dir/outputFile.txt")), results["outputFile"]);
             Assert.IsType<StaticDirectory>(results["outputDir"]);
-            Assert.Equal(CreateAbsolutePath(@"O:\out\dir\outputDir"), ((StaticDirectory) results["outputDir"]).Path);
+            Assert.Equal(CreateAbsolutePath(X(@"/O/out/dir/outputDir")), ((StaticDirectory) results["outputDir"]).Path);
         }
 
         /// <summary>

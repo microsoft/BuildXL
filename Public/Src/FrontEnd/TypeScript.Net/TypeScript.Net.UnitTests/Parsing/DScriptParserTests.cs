@@ -54,6 +54,7 @@ namespace TypeScript.Net.UnitTests.Parsing
             Assert.NotNull(literal);
         }
 
+        // TODO: Verify why package relative paths are not being parsed properly on Linux
         [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public void ConvertPackageRelativeFileLiteral()
         {

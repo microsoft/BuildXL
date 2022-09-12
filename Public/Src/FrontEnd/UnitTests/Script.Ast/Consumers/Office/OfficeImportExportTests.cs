@@ -25,7 +25,7 @@ namespace Test.DScript.Ast.Consumers.Office
             return result;
         }
 
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [FactIfSupported(requiresWindowsOrLinuxOperatingSystem: true)]
         public void ExternalPackageEvaluationViaOrphanedProjectShouldBeOnDemand()
         {
             var testWriter = CreateTestWriter(@"ImportExportTest\MySolution");

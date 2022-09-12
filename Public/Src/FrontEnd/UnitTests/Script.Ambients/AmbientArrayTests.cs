@@ -432,6 +432,16 @@ namespace M {{
             TestSort(array, expectedPaths.Cast<object>().ToArray());
         }
 
+        [TheoryIfSupported(requiresUnixBasedOperatingSystem: true)]
+        [InlineData("[p`/C/a/b`, p`/C/a/a`, p`/C/a/c`]", new[] { "/C/a/a", "/C/a/b", "/C/a/c" })]
+        [InlineData("[p`/C/b`, p`/C/a/a`, p`/C/a/c`]", new[] { "/C/a/a", "/C/a/c", "/C/b" })]
+        [InlineData("[p`/C/mscordaccore.dll`, p`/C/mscordaccore_amd64_amd64_4.700.19.56402.dll`]", new[] { "/C/mscordaccore.dll", "/C/mscordaccore_amd64_amd64_4.700.19.56402.dll" })]
+        public void TestSortPathsUnix(string array, string[] expectedResult)
+        {
+            var expectedPaths = expectedResult.Select(p => AbsolutePath.Create(PathTable, p)).ToArray();
+            TestSort(array, expectedPaths.Cast<object>().ToArray());
+        }
+
         private void TestSort(string array, object[] expectedResult, string cmpFunc = "")
         {
             string spec = I($"namespace M {{ export const x = {array}.sort({cmpFunc}); }}");

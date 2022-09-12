@@ -64,7 +64,7 @@ namespace BuildXL.Pips
             Contract.Requires(!IsDisposed);
 
             m_serializationQueue.Complete();
-            return m_serializationQueue.CompletionAsync();
+            return m_serializationQueue.Completion;
         }
 
         /// <summary>

@@ -22,8 +22,8 @@ namespace BuildXL.Utilities.ParallelAlgorithms
         /// <inheritdoc cref="ActionBlockSlim{T}.Complete"/>
         public void Complete() => m_actionBlock.Complete();
 
-        /// <inheritdoc cref="ActionBlockSlim{T}.CompletionAsync"/>
-        public Task CompletionAsync() => m_actionBlock.CompletionAsync();
+        /// <inheritdoc cref="ActionBlockSlim{T}.Completion"/>
+        public Task CompletionAsync() => m_actionBlock.Completion;
 
         /// <nodoc />
         public ActionQueue(int degreeOfParallelism, int? capacityLimit = null)

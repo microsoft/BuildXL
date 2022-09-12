@@ -69,7 +69,7 @@ namespace Test.BuildXL.Utilities
             actionBlock.Post(23);
 
             actionBlock.Complete();
-            await actionBlock.CompletionAsync();
+            await actionBlock.Completion;
 
             Assert.True(actionBlock.IsComplete);
             Assert.False(actionBlock.TryPost(-43, throwOnFullOrComplete: false));
@@ -102,7 +102,7 @@ namespace Test.BuildXL.Utilities
             tcs.SetResult(null);
 
             actionBlock.Complete();
-            await actionBlock.CompletionAsync();
+            await actionBlock.Completion;
         }
         
         [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
@@ -121,14 +121,14 @@ namespace Test.BuildXL.Utilities
                 cancellationToken: CancellationToken.None);
 
             actionBlock.Complete(cancelPending: true);
-            await actionBlock.CompletionAsync();
+            await actionBlock.Completion;
         }
 
         [Fact]
         public async Task CompletionTaskIsDoneWhenCompletedIsCalled()
         {
             var actionBlock = ActionBlockSlim.Create<int>(42, n => { });
-            var task = actionBlock.CompletionAsync();
+            var task = actionBlock.Completion;
 
             Assert.NotEqual(TaskStatus.RanToCompletion, task.Status);
 
@@ -137,15 +137,41 @@ namespace Test.BuildXL.Utilities
 
             Assert.Equal(TaskStatus.RanToCompletion, task.Status);
         }
-        
+
         [Fact]
-        public void CompletionTaskIsDoneWhenCompletedWith0ConcurrencyIsCalled()
+        public async Task CompletionIsAwaitableBeforeCompletedIsCalled()
         {
             var actionBlock = ActionBlockSlim.Create<int>(0, n => { });
-            var task = actionBlock.CompletionAsync();
+            var task = actionBlock.Completion;
 
-            Assert.Equal(TaskStatus.RanToCompletion, task.Status);
+            bool completed = false;
+            var concurrentWaiter = Task.Run(async () =>
+            {
+                await task;
+                completed = true;
+            });
+
+            Assert.False(completed);
+
+            actionBlock.IncreaseConcurrencyTo(10);
+            actionBlock.Complete();
+
+            await actionBlock.Completion;
+            await concurrentWaiter;
+
+            Assert.True(completed);
         }
+
+        [Fact]
+        public Task CompletionTaskIsNotDoneWhenCompletedWith0ConcurrencyIsCalled()
+        {
+            var actionBlock = ActionBlockSlim.Create<int>(0, n => { });
+            var task = actionBlock.Completion;
+            Assert.NotEqual(TaskStatus.RanToCompletion, task.Status);
+            actionBlock.Complete();
+            return task;
+        }
+
 
         [Fact]
         public async Task AllTheElementsAreFinished()
@@ -155,7 +181,7 @@ namespace Test.BuildXL.Utilities
                 42,
                 n => { Interlocked.Increment(ref count); Thread.Sleep(1); });
 
-            var task = actionBlock.CompletionAsync();
+            var task = actionBlock.Completion;
             actionBlock.Post(1);
             actionBlock.Post(2);
 
@@ -180,7 +206,7 @@ namespace Test.BuildXL.Utilities
             }
 
             actionBlock.Complete();
-            await actionBlock.CompletionAsync();
+            await actionBlock.Completion;
 
             Assert.Equal(maxCount, count);
         }
@@ -200,7 +226,7 @@ namespace Test.BuildXL.Utilities
             }
 
             actionBlock.Complete();
-            await actionBlock.CompletionAsync();
+            await actionBlock.Completion;
 
             Assert.Equal(maxCount, count);
         }
@@ -243,7 +269,7 @@ namespace Test.BuildXL.Utilities
             // but the count should be incremented
             Assert.Equal(2, count);
 
-            var task = actionBlock.CompletionAsync();
+            var task = actionBlock.Completion;
 
             // The task should not be completed yet!
             Assert.NotEqual(TaskStatus.RanToCompletion, task.Status);

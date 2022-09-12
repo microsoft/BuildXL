@@ -978,7 +978,7 @@ namespace BuildXL.Scheduler.Tracing
 
                     for (int i = 0; i < m_actionBlocks.Length; ++i)
                     {
-                        m_actionBlocks[i].CompletionAsync().Wait();
+                        m_actionBlocks[i].Completion.Wait();
                     }
                 }
             }

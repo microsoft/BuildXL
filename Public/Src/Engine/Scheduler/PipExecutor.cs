@@ -4658,7 +4658,7 @@ namespace BuildXL.Scheduler
 
                     try 
                     {
-                        await storeOutputsQueue.CompletionAsync();
+                        await storeOutputsQueue.Completion;
                     }
                     catch (TaskCanceledException)
                     {

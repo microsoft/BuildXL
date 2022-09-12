@@ -238,7 +238,7 @@ namespace BuildXL.Execution.Analyzer
             Console.WriteLine($"Analyzing");
 
             m_block.Complete();
-            m_block.CompletionAsync().GetAwaiter().GetResult();
+            m_block.Completion.GetAwaiter().GetResult();
 
             Console.WriteLine($"Writing Graph");
 

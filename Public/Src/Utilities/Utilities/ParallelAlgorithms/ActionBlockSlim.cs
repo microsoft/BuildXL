@@ -9,6 +9,7 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
+using BuildXL.Utilities.Tasks;
 
 namespace BuildXL.Utilities.ParallelAlgorithms
 {
@@ -236,6 +237,7 @@ namespace BuildXL.Utilities.ParallelAlgorithms
             if (Interlocked.CompareExchange(ref m_schedulingCompleted, value: 1, comparand: 0) == 0)
             {
                 m_channel.Writer.Complete();
+                Task.WhenAll(Tasks.ToArray()).ContinueWith(_ => m_tcs.TrySetResult(Unit.Void)).Forget();
             }
         }
 
@@ -286,13 +288,8 @@ namespace BuildXL.Utilities.ParallelAlgorithms
         /// <summary>
         /// Returns a task that will be completed when <see cref="Complete"/> method is called and all the items added to the queue are processed.
         /// </summary>
-        public virtual Task CompletionAsync()
-        {
-            // The number of processing task could be changed via IncreaseConcurrencyTo method calls,
-            // so we need to make sure that Complete method was called by "awaiting" for the task completion source.
-
-            return Task.WhenAll(Tasks.ToArray());
-        }
+        public virtual Task Completion => m_tcs.Task;
+        private readonly TaskCompletionSource<Unit> m_tcs = new();
 
         /// <summary>
         /// Increases the current concurrency level from <see cref="DegreeOfParallelism"/> to <paramref name="maxDegreeOfParallelism"/>.

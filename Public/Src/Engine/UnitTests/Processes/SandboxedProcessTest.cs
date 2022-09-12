@@ -1343,7 +1343,7 @@ namespace Test.BuildXL.Processes
             }
         }
 
-        [Theory]
+        [Theory(Skip = "Flaky test. Work item - 1950089")]
         [MemberData(nameof(TruthTable.GetTable), 3, MemberType = typeof(TruthTable))]
         public async Task HandleHardNativeCrash(bool shouldParentCrash, bool shouldChildCrash, bool waitForChildToFinish)
         {

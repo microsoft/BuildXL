@@ -2244,8 +2244,7 @@ namespace BuildXL
                         m_commandLineArguments));
             }
 
-
-            var loggingQueue = m_configuration.Logging.EnableAsyncLogging.GetValueOrDefault() ? new LoggingQueue() : null;
+            ILoggingQueue loggingQueue = createLoggingQueueIfEnabled();
             var asyncLoggingContext = new LoggingContext(loggingContext.ActivityId, loggingContext.LoggerComponentInfo, loggingContext.Session, loggingContext, loggingQueue);
 
             BuildXLEngineResult result = null;
@@ -2316,6 +2315,17 @@ namespace BuildXL
             }
 
             return result.EngineState;
+
+            ILoggingQueue createLoggingQueueIfEnabled()
+            {
+                if (!m_configuration.Logging.EnableAsyncLogging.GetValueOrDefault())
+                {
+                    return null;
+                }
+
+                return new BuildXL.Utilities.Tracing.LoggingQueue(
+                    static (loggingContext, statistics) => BuildXL.Tracing.Logger.Log.LoggerStatistics(loggingContext, statistics));
+            }
         }
 
         /// <summary>

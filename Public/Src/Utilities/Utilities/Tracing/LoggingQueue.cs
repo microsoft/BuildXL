@@ -2,72 +2,80 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Threading;
+using System.Threading.Channels;
+using System.Threading.Tasks;
 using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.Utilities.Tracing;
+using BuildXL.Utilities.ParallelAlgorithms;
 using static BuildXL.Utilities.FormattableStringEx;
 
-namespace BuildXL.Tracing
+#nullable enable
+
+namespace BuildXL.Utilities.Tracing
 {
     /// <summary>
     /// Asynchronous logging queue which queues log messages and processes them on a dedicated logging thread.
     /// </summary>
-    [SuppressMessage("Microsoft.Design", "CA1001:TypesThatOwnDisposableFieldsShouldBeDisposable")]
-    internal class LoggingQueue : ILoggingQueue
+    public sealed class LoggingQueue : ILoggingQueue
     {
+        private readonly Action<LoggingContext, Dictionary<string, long>> m_traceAsyncLoggingStats;
+
         /// <summary>
         /// Indicates whether async logging is currently enabled
         /// </summary>
         private volatile bool m_isAsyncLoggingEnabled = false;
 
         /// <summary>
-        /// The timestamp when async logging was initiated
-        /// </summary>
-        private TimeSpan m_completeAsyncLoggingStart;
-
-        /// <summary>
         /// Logging context for logging statistics about async logging upon completion
         /// </summary>
-        private LoggingContext m_loggingContext;
+        private LoggingContext? m_loggingContext;
 
         /// <summary>
         /// Counters for events. Only counters for logged events are actually created
         /// </summary>
-        private readonly EventCounter[] m_counters = new EventCounter[ushort.MaxValue];
+        private readonly EventCounter?[] m_counters = new EventCounter?[ushort.MaxValue];
 
         /// <summary>
         /// Queue of log actions and associated counters
         /// </summary>
-        private readonly BlockingCollection<(EventCounter, Action)> m_logActionQueue = new BlockingCollection<(EventCounter, Action)>();
+        private readonly Channel<(EventCounter, Action)> m_logActionChannel;
+
+        private readonly Task m_logActionTask;
+
+        [MemberNotNullWhen(true, nameof(m_loggingContext))]
+        private bool AsyncLoggingEnabled => m_isAsyncLoggingEnabled;
 
         private long m_totalLoggingQueueAddDurationMs;
 
-        /// <summary>
-        /// Enqueues a log action for async logging
-        /// </summary>
-        public void EnqueueLogAction(int eventId, Action logAction, string eventName)
+        /// <nodoc />
+        public LoggingQueue(Action<LoggingContext, Dictionary<string, long>> traceAsyncLoggingStats)
+        {
+            m_traceAsyncLoggingStats = traceAsyncLoggingStats;
+
+            // Creating an channel and the log processing task even if the async logging would be off (which is unlikely).
+            m_logActionChannel = Channel.CreateUnbounded<(EventCounter, Action)>(
+                new UnboundedChannelOptions() {AllowSynchronousContinuations = true, SingleReader = true, SingleWriter = false,});
+            m_logActionTask = CreateDrainLoggingQueueTask();
+        }
+
+        /// <inheritdoc />
+        public void EnqueueLogAction(int eventId, Action logAction, string? eventName)
         {
             Contract.RequiresNotNull(logAction);
 
             var eventCounter = GetEventCounter(eventId, eventName);
 
-            if (m_isAsyncLoggingEnabled)
+            if (AsyncLoggingEnabled)
             {
                 var stopwatch = StopwatchSlim.Start();
+                
                 try
                 {
-                    m_logActionQueue.Add((eventCounter, logAction));
+                    m_logActionChannel.Writer.TryWrite((eventCounter, logAction));
                     return;
-                }
-                catch (InvalidOperationException)
-                {
-                    // Async logging has been completed as m_logActionQueue has marked as completed.
-                    // Synchronously log this event.
                 }
                 finally
                 {
@@ -92,7 +100,7 @@ namespace BuildXL.Tracing
         /// <summary>
         /// Gets or creates the counter for a specific event
         /// </summary>
-        private EventCounter GetEventCounter(int eventId, string eventName)
+        private EventCounter GetEventCounter(int eventId, string? eventName)
         {
             Contract.Requires(eventId < m_counters.Length);
             var counter = m_counters[eventId];
@@ -105,9 +113,7 @@ namespace BuildXL.Tracing
             return counter;
         }
 
-        /// <summary>
-        /// Activates async logging which queues log operations to dedicated thread
-        /// </summary>
+        /// <inheritdoc />
         public IDisposable EnterAsyncLoggingScope(LoggingContext loggingContext)
         {
             Contract.Requires(!m_isAsyncLoggingEnabled, "EnterAsyncLoggingScope must only be called once");
@@ -115,46 +121,51 @@ namespace BuildXL.Tracing
             return new AsyncLoggingScope(this);
         }
 
-        /// <summary>
-        /// Completes async logging
-        /// </summary>
-        private void CompleteAsyncLogging()
+        private Task CreateDrainLoggingQueueTask()
         {
-            m_completeAsyncLoggingStart = TimestampUtilities.Timestamp;
-
-            m_isAsyncLoggingEnabled = false;
-            m_logActionQueue.CompleteAdding();
+            return Task.Run(
+                async () =>
+                {
+                    while (await m_logActionChannel.WaitToReadOrCanceledAsync(CancellationToken.None).ConfigureAwait(false))
+                    {
+                        while (m_logActionChannel.Reader.TryRead(out var item))
+                        {
+                            MeasuredLog(item.Item1, item.Item2, threadSafe: true);
+                        }
+                    }
+                });
         }
 
         /// <summary>
-        /// Called by dedicated logging thread to drain the logging queue
+        /// Completes async logging and waits for all the messages to be processed.
         /// </summary>
-        private void DrainLoggingQueue()
+        private void CompleteAsyncLoggingAndWaitForCompletion()
         {
-            try
+            var completionDurationTracker = StopwatchSlim.Start();
+
+            if (!AsyncLoggingEnabled)
             {
-                foreach (var item in m_logActionQueue.GetConsumingEnumerable())
-                {
-                    MeasuredLog(item.Item1, item.Item2, threadSafe:true);
-                }
-            }
-            catch (InvalidOperationException)
-            {
-                // InvalidOperationException is thrown when calling Take() for a marked-as-completed blocking collection.
-                // However, GetConsumingEnumerable throws an InvalidOperationException here, which is unusual. 
-                // In further investigations, we discovered that it might throw one if the collection in BlockingCollection 
-                // is passed in the constructor and we externally modify that collection outside of BlockingCollection. 
-                // Even we do not do that, we rarely have InvalidOperationException here, which is a NetCore bug.
-                // We reported the bug; but for now, we swallow that exception and we treat it as a signal for completion.
+                return;
             }
 
+            m_isAsyncLoggingEnabled = false;
+
+            m_logActionChannel.Writer.Complete();
+
+            // Waiting for all the events to be processed.
+            m_logActionTask.GetAwaiter().GetResult();
+
+            TraceStatistics(m_loggingContext, completionDurationTracker.Elapsed);
+        }
+        
+        private void TraceStatistics(LoggingContext loggingContext, TimeSpan asyncLoggingOverhang)
+        {
             // Compute statistics about async logging
-            Dictionary<string, long> statistics = new Dictionary<string, long>();
+            var statistics = new Dictionary<string, long>();
 
-            var asyncLoggingOverhang = TimestampUtilities.Timestamp - m_completeAsyncLoggingStart;
             statistics["AsyncLoggingOverhangMs"] = (long)asyncLoggingOverhang.TotalMilliseconds;
             statistics["AddLoggingQueueOverheadMs"] = m_totalLoggingQueueAddDurationMs;
-            long totalOccurrences = 0; 
+            long totalOccurrences = 0;
             TimeSpan totalDuration = TimeSpan.Zero;
 
             foreach (var counter in m_counters)
@@ -172,7 +183,7 @@ namespace BuildXL.Tracing
             statistics["TotalOccurrences"] = totalOccurrences;
             statistics["TotalDurationMs"] = (long)totalDuration.TotalMilliseconds;
 
-            BuildXL.Tracing.Logger.Log.LoggerStatistics(m_loggingContext, statistics);
+            m_traceAsyncLoggingStats(loggingContext, statistics);
         }
 
         /// <summary>
@@ -186,7 +197,7 @@ namespace BuildXL.Tracing
             private long m_elapsedTicks;
             private long m_occurrences;
 
-            public EventCounter(int eventId, string eventName)
+            public EventCounter(int eventId, string? eventName)
             {
                 Id = eventId;
                 string eventIdText = eventId.ToString().PadLeft(4, '0');
@@ -249,24 +260,16 @@ namespace BuildXL.Tracing
         private class AsyncLoggingScope : IDisposable
         {
             private readonly LoggingQueue m_loggingQueue;
-            private readonly Thread m_thread;
 
             public AsyncLoggingScope(LoggingQueue loggingQueue)
             {
                 m_loggingQueue = loggingQueue;
                 m_loggingQueue.m_isAsyncLoggingEnabled = true;
-                m_thread = new Thread(m_loggingQueue.DrainLoggingQueue)
-                {
-                    Name = "Async Logging Thread"
-                };
-
-                m_thread.Start();
             }
 
             public void Dispose()
             {
-                m_loggingQueue.CompleteAsyncLogging();
-                m_thread.Join();
+                m_loggingQueue.CompleteAsyncLoggingAndWaitForCompletion();
             }
         }
     }

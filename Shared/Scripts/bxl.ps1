@@ -562,7 +562,7 @@ function Log-Error {
 function Mirror-Directory {
     param([string]$src, [string]$dst)
 
-    robocopy /MT /MIR /NJH /NP /NDL /NFL /NC /NS $src $dst;
+    robocopy /MT /MIR /NJH /NP /NDL /NFL /NC /NS $src $dst /xd BuildXLServerDeploymentCache;
     if ($LastExitCode -ge 8) {
         throw "Robocopy failed with exit code $LastExitCode";
     }

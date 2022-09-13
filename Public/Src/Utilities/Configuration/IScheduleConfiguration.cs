@@ -53,7 +53,7 @@ namespace BuildXL.Utilities.Configuration
 
         /// <summary>
         /// Specifies the maximum number of concurrent worker selections for light pips.
-        /// Default is 100.
+        /// Default is 1.
         /// </summary>
         int MaxChooseWorkerLight { get; }
 

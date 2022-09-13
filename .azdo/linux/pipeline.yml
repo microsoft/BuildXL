@@ -33,11 +33,18 @@ extends:
   template: v1/1ES.Unofficial.PipelineTemplate.yml@1esPipelines
   parameters:
 
-    # Container in which to run *all* jobs (unfortunately 1ESPipelineTemplates allows only one container for all jobs)
-    # Chosen because the Linux runtime binaries must be built for 'manylinux2014' (more precisely, against glibc 2.17);
-    # currently, all other jobs in this pipeline opt out of containerization.
-    container:
-      image: quay.io/pypa/manylinux2014_x86_64
+    # quay.io/pypa/manylinux2014_x86_64 chosen because the Linux runtime binaries must be built for 'manylinux2014' (more precisely, against glibc 2.17)
+    pool:
+      name: 1ES-Shared-Hosted-Pool_Linux-Mariner-2
+      os: linux
+    containers:
+      default_linux_container:
+        image: quay.io/pypa/manylinux2014_x86_64
+      linux_container:
+        image: 1espipelinesdevpme.azurecr.io/linux/ubuntu-1804:latest
+        registry: 1espipelinesdevpme.azurecr.io
+        tenantId: PME
+        identityType: 1ESPipelineIdentity
         
     stages:
     - stage: Build
@@ -58,9 +65,6 @@ extends:
       - ${{ if parameters.BuildLinuxRuntime }}:
         - job: BuildLinuxRuntime
           displayName: Build Linux Runtime
-          pool:
-            vmImage: ubuntu-latest
-            os: linux
           templateContext:
             inputs:
             - input: checkout
@@ -96,12 +100,7 @@ extends:
           - job: PublishNativeRuntimeNuget
             displayName: Publish Linux Runtime NuGet
             dependsOn: [ BuildLinuxRuntime ]
-            pool:
-              vmImage: ubuntu-latest
-              os: linux
-            templateContext:
-              breakGlass:
-                justification: "Because 1ESPipelineTemplates allows only a single container for all jobs, and 'quay.io/pypa/manylinux2014_x86_64' does not have some tools needed for NuGet installed"
+            container: linux_container
             steps:
             - checkout: none
             - task: DownloadPipelineArtifact@2

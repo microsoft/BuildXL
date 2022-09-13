@@ -51,7 +51,8 @@ namespace Tool.DropDaemon
                 FullFilePath = $"{LongFileNamePrefix}{FullFilePath}";
             }
 
-            RelativeDropPath = relativeDropPath ?? Path.GetFileName(FullFilePath);
+            // normalize the path, so we only use forward slashes
+            RelativeDropPath = (relativeDropPath ?? Path.GetFileName(FullFilePath)).Replace('\\', '/');
             if (fileContentInfo != null)
             {
                 var contentInfo = fileContentInfo.Value;
@@ -169,5 +170,8 @@ namespace Tool.DropDaemon
                     throw new ArgumentException($"ContentHash has unsupported type when converting to BlobIdentifier: {contentHash.HashType}");
             }
         }
+
+        /// <nodoc/>
+        public override string ToString() => FullFilePath;
     }
 }

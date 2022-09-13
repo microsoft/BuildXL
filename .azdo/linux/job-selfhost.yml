@@ -42,16 +42,6 @@ jobs:
     parallel: 2
 
   steps:
-
-  # Azure Key Vault
-  # Download Azure Key Vault secrets
-  - task: AzureKeyVault@2
-    inputs:
-      connectedServiceName: CloudBuild-PME-PROD-KV-01
-      keyVaultName: BuildXLVaultRelease
-      secretsFilter: '*'
-      runAsPreJob: true 
-
   - task: UseDotNet@2
     displayName: Use .NET Core sdk 6.x
     inputs:

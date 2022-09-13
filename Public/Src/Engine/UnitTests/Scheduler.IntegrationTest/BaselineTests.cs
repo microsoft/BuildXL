@@ -274,6 +274,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             }
         }
 
+        // TODO: Investigate why this times out on Linux, work item#1984802
         [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public void VerifyGracefulTeardownWhenAvailableDiskSpaceReducesBelowMinimumDiskSpaceForPipGb()
         {
@@ -1351,7 +1352,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             AssertWarningEventLogged(LogEventId.FileMonitoringWarning, count: 1);
         }
 
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)] // WriteFile operation failed on MacOS; need further investigation.
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)] // WriteFile operation failed on MacOS and Linux; need further investigation.
         public void MoveDirectory()
         {
             // Create \temp.
@@ -1400,7 +1401,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         /// <summary>
         /// This test shows our limitation in supporting MoveDirectory.
         /// </summary>
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)] // WriteFile operation failed on MacOS; need further investigation.
+        [FactIfSupported(requiresWindowsOrLinuxOperatingSystem: true)] // WriteFile operation failed on MacOS; need further investigation.
         public void MoveDirectoryFailed()
         {
             // Create \temp.
@@ -1784,6 +1785,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             AssertErrorEventLogged(ProcessesLogEventId.PipProcessError, count: 1);
         }
 
+        // TODO: On Linux the tempOutput is a DFA. Work item #1984802
         [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public void TestSpecialTempOutputFile()
         {
@@ -1991,6 +1993,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             AssertVerboseEventLogged(LogEventId.ResumeProcess);
         }
 
+        // TODO: Investigate why this times out on Linux, work item#1984802
         [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public void SingleSuspendedPipIsCancelledUnderContinuousMemoryPressure()
         {

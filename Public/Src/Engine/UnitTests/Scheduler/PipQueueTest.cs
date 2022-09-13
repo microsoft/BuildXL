@@ -80,6 +80,7 @@ namespace Test.BuildXL.Scheduler
             }
         }
 
+        // TODO: Investigate further why this is failing on Linux (phase 2 pip queue drain is not working as expected) - Work item #1985456
         [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         [SuppressMessage("AsyncUsage", "AsyncFixer02", Justification = "ReadAllText and WriteAllText have async versions in .NET Standard which cannot be used in full framework.")]
         public async Task Stress()

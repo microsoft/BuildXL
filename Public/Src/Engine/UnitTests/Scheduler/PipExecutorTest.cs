@@ -1132,7 +1132,7 @@ namespace Test.BuildXL.Scheduler
 
 
         [Trait(BuildXL.TestUtilities.Features.Feature, BuildXL.TestUtilities.Features.NonStandardOptions)]
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [FactIfSupported(requiresWindowsOrLinuxOperatingSystem: true)]
         public Task ProcessUncacheableDueToFileMonitoringViolationsInSealedDirectory()
         {
             return WithCachingExecutionEnvironment(
@@ -1171,7 +1171,7 @@ namespace Test.BuildXL.Scheduler
                 });
         }
 
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [FactIfSupported(requiresWindowsOrLinuxOperatingSystem: true)]
         public Task ProcessFailsDueToFileMonitoringViolationsInSealedDirectory()
         {
             return WithExecutionEnvironment(
@@ -1207,6 +1207,7 @@ namespace Test.BuildXL.Scheduler
                 });
         }
 
+        // TODO: investigate why the MustBeConsideredPerpetuallyDirty is unexpectedly being set here on Linux - work item #1985456
         [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public Task ProcessCachedWithAllowlistedFileMonitoringViolations()
         {
@@ -1436,6 +1437,7 @@ namespace Test.BuildXL.Scheduler
                 });
         }
 
+        // TODO: Investigate why PipProcessDisallowedFileAccessAllowlistedNonCacheable is not logged on Linux - work item#1985456
         [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public Task ProcessNotCachedWithAllowlistedFileMonitoringViolationsInSealedDirectory()
         {

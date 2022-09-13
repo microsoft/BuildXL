@@ -9,7 +9,6 @@ using BuildXL.Pips.Operations;
 using BuildXL.Pips.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
-using BuildXL.Utilities.Tracing;
 using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.Scheduler;
 using Test.BuildXL.TestUtilities;
@@ -57,7 +56,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
 
-        [TheoryIfSupportedAttribute(requiresWindowsBasedOperatingSystem: true)] // The test is skipped because its falky on mac
+        [TheoryIfSupportedAttribute(requiresWindowsOrLinuxOperatingSystem: true)] // The test is skipped because its flaky on mac
         [InlineData(TempArtifactType.AdditionalTempDirectory)]
         [InlineData(TempArtifactType.TempDirectory)]
         [InlineData(TempArtifactType.TempFile)]

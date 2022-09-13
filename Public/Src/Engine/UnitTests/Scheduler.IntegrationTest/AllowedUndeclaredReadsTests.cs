@@ -406,7 +406,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         /// <summary>
         /// TODO: blocking writes on existing undeclared inputs is not implemented on Mac yet
         /// </summary>
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [FactIfSupported(requiresWindowsOrLinuxOperatingSystem: true)]
         public void WritingUndeclaredInputsUnderSharedOpaquesAreBlocked()
         {
             // Create an undeclared source file under the cone of a shared opaque
@@ -427,7 +427,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         /// <summary>
         /// TODO: blocking writes on existing undeclared inputs is not implemented on Mac yet
         /// </summary>
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [FactIfSupported(requiresWindowsOrLinuxOperatingSystem: true)]
         public void WritingUntrackedUndeclaredInputsUnderSharedOpaquesAreAllowed()
         {
             // Create an undeclared source file under the cone of a shared opaque
@@ -445,6 +445,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler().AssertSuccess();
         }
 
+        // TODO: fix this test case for Linux where writes under a shared opaque are DFAs. Work item #1984802
         [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)]
         [InlineData(true)]
         [InlineData(false)]

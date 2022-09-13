@@ -26,6 +26,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         {
         }
 
+        // AugmentedWrite not supported on Linux/macOS
         [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public void BreakawayProcessCompensatesWithAugmentedAccesses()
         {

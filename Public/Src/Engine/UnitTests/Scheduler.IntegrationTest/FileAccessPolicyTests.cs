@@ -188,6 +188,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             ValidateCachingBehaviorUntrackedMount(nonhashableFile, nonhashableDir, undefinedMount: false);
         }
 
+        // TODO: On Linux this pip is a cache miss when it should have been a cache hit, work item #1980999
         [Feature(Features.Mount)]
         [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public virtual void ValidateCachingUndefinedMount_Bug1087986()

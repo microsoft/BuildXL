@@ -12,7 +12,6 @@ using BuildXL.Scheduler.Tracing;
 using BuildXL.Storage;
 using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Tracing;
 using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.Scheduler;
 using Test.BuildXL.TestUtilities.Xunit;
@@ -36,10 +35,9 @@ namespace IntegrationTest.BuildXL.Scheduler
         /// least A) and thus changes for every iteration over the threshold.
         /// </summary>
         /// <remarks>
-        /// TODO: This test failed on Linux. This test passes when `Analysis.IgnoreResult(e.ToArray())` in the enumerate operation is removed.
         /// TODO: This test is flaky on Mac. Fails on the "Set of paths is not changing" assertion sometimes
         /// </remarks>
-        [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [TheoryIfSupported(requiresWindowsOrLinuxOperatingSystem: true)]
         [InlineData(true)]
         [InlineData(false)]
         public void AugmentedWeakFingerprint(bool augmentWeakFingerprint)

@@ -18,8 +18,6 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
-using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.Utilities.Tracing;
 using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
@@ -1047,7 +1045,7 @@ namespace Test.BuildXL.Processes.Detours
         /// <summary>
         /// Blocking accesses under shared opaques based on file existence is a Windows-only feature for now.
         /// </summary>
-        [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [TheoryIfSupported(requiresWindowsOrLinuxOperatingSystem: true)]
         [InlineData(true)]
         [InlineData(false)]
         public async Task ProcessFileAccessesBlockedBasedOnFileExistenceUnderSharedOpaques(bool pipCreatesFile)
@@ -1057,7 +1055,7 @@ namespace Test.BuildXL.Processes.Detours
 
             using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory))
             {
-                string executable = CmdHelper.CmdX64;
+                string executable = CmdHelper.OsShellExe;
                 FileArtifact executableFileArtifact = FileArtifact.CreateSourceFile(AbsolutePath.Create(context.PathTable, executable));
 
                 string workingDirectory = tempFiles.GetUniqueDirectory();
@@ -1080,20 +1078,21 @@ namespace Test.BuildXL.Processes.Detours
                 }
 
                 var arguments = new PipDataBuilder(context.PathTable.StringTable);
-                arguments.Add("/d");
-                arguments.Add("/c");
-                using (arguments.StartFragment(PipDataFragmentEscaping.CRuntimeArgumentRules, " "))
+
+                if (OperatingSystemHelper.IsWindowsOS)
                 {
-                    // Writes into 'input/in.txt' (under the shared opaque input) twice
-                    arguments.Add("echo");
-                    arguments.Add("foo");
-                    arguments.Add(">");
-                    arguments.Add(@"input\in.txt");
-                    arguments.Add("&&");
-                    arguments.Add("echo");
-                    arguments.Add("bar");
-                    arguments.Add(">");
-                    arguments.Add(@"input\in.txt");
+                    arguments.Add("/d");
+                    arguments.Add("/c");
+                    using (arguments.StartFragment(PipDataFragmentEscaping.CRuntimeArgumentRules, " "))
+                    {
+                        // Writes into 'input/in.txt' (under the shared opaque input) twice
+                        addCommonArguments(arguments);
+                    }
+                }
+                else
+                {
+                    arguments.Add("-c");
+                    addCommonArguments(arguments);
                 }
 
                 var pip = new Process(
@@ -1162,6 +1161,19 @@ namespace Test.BuildXL.Processes.Detours
                     // No violations when the pip is the one creating the file
                     XAssert.AreEqual(null, result.UnexpectedFileAccesses.FileAccessViolationsNotAllowlisted);
                 }
+            }
+
+            static void addCommonArguments(PipDataBuilder arguments)
+            {
+                arguments.Add("echo");
+                arguments.Add("foo");
+                arguments.Add(">");
+                arguments.Add(@"input\in.txt");
+                arguments.Add("&&");
+                arguments.Add("echo");
+                arguments.Add("bar");
+                arguments.Add(">");
+                arguments.Add(@"input\in.txt");
             }
         }
 

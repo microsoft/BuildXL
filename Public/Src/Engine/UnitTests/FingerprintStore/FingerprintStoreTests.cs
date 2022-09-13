@@ -131,8 +131,8 @@ namespace Test.BuildXL.FingerprintStore
         /// Content addressable entries like content hashes don't need to be replaced if an entry with the
         /// same key already exists.
         /// </summary>
-        [Trait("Category", "WindowsOSOnly")] // TODO: counters.GetCounterValue(FingerprintStoreCounters.NumPathSetEntriesPut) returns 2 instead of 1 (??)
-        [Fact]
+        // TODO: counters.GetCounterValue(FingerprintStoreCounters.NumPathSetEntriesPut) returns 2 instead of 1 (??)
+        [FactIfSupported(requiresWindowsOrLinuxOperatingSystem: true)]
         public void DontOverwriteExistingContentAddressableEntries()
         {
             var dir = CreateOutputDirectoryArtifact(ReadonlyRoot);

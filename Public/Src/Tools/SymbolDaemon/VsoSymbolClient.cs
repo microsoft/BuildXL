@@ -443,7 +443,9 @@ namespace Tool.SymbolDaemon
 
         internal async Task<Possible<bool>> ReportSymbolTelemetryDataAsync(string daemonName)
         {
-            if (!m_config.ReportTelemetry)
+            // Return right away if telemetry reporting is disabled or there is nothing to report
+            // (i.e., the request has not been created yet)
+            if (!m_config.ReportTelemetry || m_requestId == null)
             {
                 return true;
             }

@@ -233,6 +233,10 @@ pushd "$MY_DIR"
 
 parseArgs "$@"
 
+if [[ -n "$arg_Internal" && -n "$TF_BUILD" ]]; then
+    readonly ADOBuild="1"
+fi
+
 findMono
 
 if [[ -n "$arg_DeployDev" || -n "$arg_Minimal" ]]; then
@@ -275,7 +279,7 @@ fi
 # If this is an internal build running on ADO, the nuget authentication is non-interactive and therefore we need to setup
 # VSS_NUGET_EXTERNAL_FEED_ENDPOINTS if not configured, so the Microsoft credential provider can pick that up. The script assumes the corresponding
 # secrets to be exposed in the environment
-if [[ -n "$arg_Internal" &&  -n "$TF_BUILD" && (! -n $VSS_NUGET_EXTERNAL_FEED_ENDPOINTS)]];then
+if [[ -n "$ADOBuild" && (! -n $VSS_NUGET_EXTERNAL_FEED_ENDPOINTS)]];then
 
     if [[ (! -n $PAT1esSharedAssets) ]]; then
         print_error "Environment variable PAT1esSharedAssets is not set."
@@ -293,6 +297,13 @@ fi
 # For local builds we want to use the in-build Linux runtime (as opposed to the runtime.linux-x64.BuildXL package)
 if [[ -z "$TF_BUILD" ]];then
     arg_Positional+=("/p:[Sdk.BuildXL]validateLinuxRuntime=0")
+fi
+
+# Indicates that XUnit tests should be retried on ADO builds due to flakiness with certain tests 
+if [[ -n "$ADOBuild" ]]; then
+    # RetryXunitTests will specify a retry exit code of 1 for all xunit pips, and NumXunitRetries will specify the number of times to retry the xunit pip
+    arg_Positional+=("/p:RetryXunitTests=1")
+    arg_Positional+=("/p:NumXunitRetries=2")
 fi
 
 if [[ -n "$arg_UseDev" ]]; then

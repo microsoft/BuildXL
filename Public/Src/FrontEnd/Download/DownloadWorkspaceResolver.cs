@@ -318,7 +318,7 @@ namespace BuildXL.FrontEnd.Download
                 arguments: [
                     {{name: '/url:', value: '{data.DownloadUri}'}},
                     {{name: '/downloadDirectory:', value: p`{downloadDirectory}`}},
-                    {(data.ContentHash.HasValue? $"{{name: '/hash:', value: '{data.ContentHash.Value}'}}," : string.Empty)}
+                    {(data.ContentHash.HasValue ? $"{{name: '/hash:', value: '{data.ContentHash.Value}'}}," : string.Empty)}
                     {(!string.IsNullOrEmpty(data.Settings.FileName) ? $"{{name: '/fileName:', value: '{data.Settings.FileName}'}}," : string.Empty)}
                 ],
                 outputs: [f`{data.DownloadedFilePath.ToString(m_context.PathTable)}`],
@@ -365,14 +365,14 @@ namespace BuildXL.FrontEnd.Download
                 new[] { downloadData.ModuleSpecFile },
                 allowedModuleDependencies: null,
                 cyclicalFriendModules: null,
-                mounts: new Mount[] { 
-                    new Mount { 
-                        Name = PathAtom.Create(m_context.StringTable, $"Download#{resolverSettingsIndex}"), 
-                        Path = downloadData.ModuleRoot, 
-                        TrackSourceFileChanges = true, 
-                        IsWritable = true, 
+                mounts: new Mount[] {
+                    new Mount {
+                        Name = PathAtom.Create(m_context.StringTable, $"Download#{resolverSettingsIndex}"),
+                        Path = downloadData.ModuleRoot,
+                        TrackSourceFileChanges = true,
+                        IsWritable = true,
                         IsReadable = true,
-                        IsScrubbable = true } 
+                        IsScrubbable = true }
                 }); // A Download package does not have any module dependency restrictions nor allowlist cycles
 
             m_descriptors.Add(descriptor);

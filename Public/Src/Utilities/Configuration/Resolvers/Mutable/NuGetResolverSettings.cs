@@ -17,6 +17,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             Packages = new List<INugetPackage>();
             DoNotEnforceDependencyVersions = false;
             Configuration = new NugetConfiguration();
+            EsrpSignConfiguration = null;
         }
 
         /// <nodoc />
@@ -40,6 +41,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
             }
 
             DoNotEnforceDependencyVersions = template.DoNotEnforceDependencyVersions;
+            EsrpSignConfiguration = template.EsrpSignConfiguration == null 
+                ? null : new EsrpSignConfiguration(template.EsrpSignConfiguration, pathRemapper);
         }
 
         /// <inheritdoc />
@@ -61,5 +64,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         IReadOnlyList<INugetPackage> INugetResolverSettings.Packages => Packages;
+
+        /// <inheritdoc />
+        public IEsrpSignConfiguration EsrpSignConfiguration { get; set; }
     }
 }

@@ -27,6 +27,16 @@ namespace Download {
             importFrom("BuildXL.FrontEnd").TypeScript.Net.dll,
             importFrom("SharpZipLib").pkg,
         ],
+        runtimeContent: [
+            {
+                subfolder: r`Sdk/Sdk.Managed.Tools.BinarySigner`,
+                contents: glob(d`../DscLibs/BinarySigner`, "*.dsc"),
+            },
+            {
+                subfolder: r`Sdk/Sdk.Json`,
+                contents: glob(d`../DscLibs/Json`, "*.dsc"),
+            }
+        ],
         runTestArgs: {
             unsafeTestRunArguments: {
                 // These tests require Detours to run itself, so we won't detour the test runner process itself

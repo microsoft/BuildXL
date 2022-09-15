@@ -429,17 +429,17 @@ namespace Transformer {
         /** List of nested tools used by current executable. */
         nestedTools?: ToolDefinition[];
 
-        /**
+        /** 
          * The files that are runtime dependencies for this executable.
-         *
+         * 
          * Unlike "untrackedFiles", BuildXL is tracking if these files change.
          */
         runtimeDependencies?: File[];
 
-        /**
+        /** 
          * The directories that are runtime dependencies for this executable.
          * The executable may access any files under these directories.
-         *
+         * 
          * Unlike "untrackedDirectoryScopes", BuildXL is tracking if these files change.
          */
         runtimeDirectoryDependencies?: StaticDirectory[];
@@ -453,9 +453,15 @@ namespace Transformer {
         /** True if the executable depends on Windows directories. This signals that accesses to the Windows Directories should be allowed. */
         dependsOnWindowsDirectories?: boolean;
 
-        /**
+        /** 
+          * True if the executable depends on directories that comprise the current host OS. 
+          * For instance on windows this signals that accesses to the Windows Directories %WINDIR% should be allowed. 
+          */
+        dependsOnCurrentHostOSDirectories?: boolean;
+
+        /** 
          * True if the executable depends on the per-user AppData directory. Setting this to true means that AppData
-         * will be an untracked directory scope and the specific location of AppData will not be included in the pip's fingerpint.
+         * will be an untracked directory scope and the specific location of AppData will not be included in the pip's fingerpint. 
          */
         dependsOnAppDataDirectory?: boolean;
 
@@ -471,7 +477,7 @@ namespace Transformer {
         /** Provides a hard timeout after which the Process will be marked as failure due to timeout and terminated. */
         timeoutInMilliseconds?: number;
 
-        /**
+        /** 
          * Sets an interval value that indicates after which time BuildXL will issue a warnings that the process is running longer
          * than anticipated */
         warningTimeoutInMilliseconds?: number;

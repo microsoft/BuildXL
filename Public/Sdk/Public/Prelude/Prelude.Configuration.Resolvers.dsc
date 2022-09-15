@@ -82,6 +82,11 @@ interface NuGetResolver extends ResolverBase {
      * match the package version specified in the configuration file.
      * This is enforced if not specified */
     doNotEnforceDependencyVersions?: boolean;
+
+    /**
+     * Specify Esrp sign configuration to sign the dll and exe binary files in nuget packages with Microsoft Certificate
+     */
+    esrpSignConfiguration?: EsrpSignConfiguration;
 }
 
 interface DownloadResolver extends ResolverBase {
@@ -848,6 +853,21 @@ interface NuGetConfiguration extends ToolConfiguration {
      * Equivalent to configuring timeoutInMilliseconds for the corresponding Transformers.ToolDefinition
      */
     downloadTimeoutMin?: number
+}
+
+interface EsrpSignConfiguration {
+
+    /** Sign tool exe file */
+    signToolPath: Path;
+
+    /** ESRP session information config, ESRPClient's -c argument */
+    signToolConfiguration: Path;
+
+    /** ESRP policy information config, ESRPClient's -p argument */
+    signToolEsrpPolicy: Path;
+
+    /** EsrpAuthentication.json */
+    signToolAadAuth: Path;
 }
 
 interface ScriptResolverDefaults {

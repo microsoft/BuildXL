@@ -34,6 +34,8 @@ namespace BuildXL.FrontEnd.Nuget
         private readonly PathAtom m_pdbExtension;
         private readonly int? m_timeoutInMinutes;
 
+        private readonly IEsrpSignConfiguration m_esrpSignConfiguration;
+
         /// <summary>Current spec generation format version</summary>
         public const int SpecGenerationFormatVersion = 13;
 
@@ -43,7 +45,8 @@ namespace BuildXL.FrontEnd.Nuget
             NugetAnalyzedPackage analyzedPackage, 
             IReadOnlyDictionary<string, string> repositories,
             AbsolutePath sourceDirectory,
-            int? timeoutInMinutes = null)
+            int? timeoutInMinutes = null,
+            IEsrpSignConfiguration esrpSignConfiguration = null)
         {
             m_pathTable = pathTable;
             m_analyzedPackage = analyzedPackage;
@@ -55,6 +58,7 @@ namespace BuildXL.FrontEnd.Nuget
 
             m_xmlExtension = PathAtom.Create(pathTable.StringTable, ".xml");
             m_pdbExtension = PathAtom.Create(pathTable.StringTable, ".pdb");
+            m_esrpSignConfiguration = esrpSignConfiguration;
         }
 
         /// <summary>
@@ -319,6 +323,19 @@ namespace BuildXL.FrontEnd.Nuget
             if (m_timeoutInMinutes != null)
             {
                 downloadCallArgs.Add(("timeoutInMinutes", new LiteralExpression(m_timeoutInMinutes.Value)));
+            }
+
+            if (m_esrpSignConfiguration != null)
+            {
+                var esrpSignArgs = new List<(string, IExpression expression)>
+                {
+                    ("signToolPath", PathLikeLiteral(InterpolationKind.PathInterpolation, m_esrpSignConfiguration.SignToolPath.ToString(m_pathTable, PathFormat.Script))),
+                    ("signToolConfiguration", PathLikeLiteral(InterpolationKind.PathInterpolation, m_esrpSignConfiguration.SignToolConfiguration.ToString(m_pathTable, PathFormat.Script))),
+                    ("signToolEsrpPolicy", PathLikeLiteral(InterpolationKind.PathInterpolation, m_esrpSignConfiguration.SignToolEsrpPolicy.ToString(m_pathTable, PathFormat.Script))),
+                    ("signToolAadAuth", PathLikeLiteral(InterpolationKind.PathInterpolation, m_esrpSignConfiguration.SignToolAadAuth.ToString(m_pathTable, PathFormat.Script))),
+                };
+
+                downloadCallArgs.Add(("esrpSignConfiguration", ObjectLiteral(esrpSignArgs.ToArray())));
             }
 
             return new ModuleDeclaration(

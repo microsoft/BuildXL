@@ -94,6 +94,14 @@ namespace Test.Rush {
                 subfolder: a`node`,
                 contents: [Node.nodePackage]
             },
+            {
+                subfolder: r`Sdk/Sdk.Managed.Tools.BinarySigner`,
+                contents: glob(d`../DscLibs/BinarySigner`, "*.dsc"),
+            },
+            {
+                subfolder: r`Sdk/Sdk.Json`,
+                contents: glob(d`../DscLibs/Json`, "*.dsc"),
+            }
         ],
     });
 }

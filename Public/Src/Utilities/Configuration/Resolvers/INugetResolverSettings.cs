@@ -30,5 +30,10 @@ namespace BuildXL.Utilities.Configuration
         /// Whether to enforce that the version range specified for dependencies in a NuGet package match the package version specified in the configuration file
         /// </summary>
         bool DoNotEnforceDependencyVersions { get; }
+
+        /// <summary>
+        /// ESRP Sign Configuration
+        /// </summary>
+        IEsrpSignConfiguration EsrpSignConfiguration { get; }
     }
 }

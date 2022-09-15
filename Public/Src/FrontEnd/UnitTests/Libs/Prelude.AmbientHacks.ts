@@ -17,9 +17,10 @@ namespace _PreludeAmbientHack_ValueCache {
     export declare function getOrAddWithState<TKey, TState, TValue>(key: TKey, state: TState, createValue: (s: TState) => TValue): TValue;
 }
 
-namespace _PreludeAmbientHack_Json{
+namespace _PreludeAmbientHack_Json {
     /** Writes an object as Json */
     export declare function write<T extends Object>(destinationFile: Path, data: T): File;
+    export declare function write<T extends Object>(destinationFile: Path, data: T, quoteChar?: "'" | "\"", tags?: string[], description?: string, additionalOptions?: Object): File;
 }
 
 namespace _PreludeAmbientHack_Xml {

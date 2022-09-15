@@ -33,7 +33,7 @@ export function signDirectory(esrpSignConfiguration: EsrpSignConfiguration, seal
     );
 
     const sealedDirPath = sealedDir.path;
-    // Deduplicate the files. Nuget packages may contain duplicate entries for the same file if their zip central directory was not built properly.
+    // Deduplicate the files. Currrently there is a nuget package has two files with same name. It's possible that nuget zip is not built properly.
     const fileList = sealedDir.contents.toSet();
     // Sign the dll and exe binary files and copy other files into signed directory.
     let signedFiles : File[] = fileList.map(originalFile => {

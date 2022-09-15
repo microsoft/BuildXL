@@ -957,7 +957,7 @@ namespace BuildXL.FrontEnd.Nuget
             FileUtilities.CreateDirectory(packageSpecDirStr);
             
             var nugetSpecGenerator = new NugetSpecGenerator(PathTable, analyzedPackage, m_resolverSettings.Repositories, 
-                m_configuration.Layout.SourceDirectory, m_resolverSettings.Configuration.DownloadTimeoutMin);
+                m_configuration.Layout.SourceDirectory, m_resolverSettings.Configuration.DownloadTimeoutMin, m_resolverSettings.EsrpSignConfiguration);
 
             var possibleProjectFile = TryWriteSourceFile(
                 analyzedPackage.PackageOnDisk.Package,

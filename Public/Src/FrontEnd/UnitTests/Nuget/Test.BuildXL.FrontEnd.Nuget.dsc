@@ -11,9 +11,12 @@ namespace Nuget {
                 NetFx.System.Xml.dll,
                 NetFx.System.Xml.Linq.dll
             ),
+            Script.dll,
             Core.dll,
             importFrom("BuildXL.Core.UnitTests").EngineTestUtilities.dll,
             importFrom("BuildXL.Engine").Engine.dll,
+            importFrom("BuildXL.Engine").Processes.dll,
+            importFrom("BuildXL.Engine").Scheduler.dll,
             importFrom("BuildXL.FrontEnd").Core.dll,
             importFrom("BuildXL.FrontEnd").Nuget.dll,
             importFrom("BuildXL.FrontEnd").Script.dll,
@@ -25,8 +28,25 @@ namespace Nuget {
             importFrom("BuildXL.Utilities").Script.Constants.dll,
             importFrom("BuildXL.Utilities").Storage.dll,
             importFrom("BuildXL.Utilities.Instrumentation").Common.dll,
+            importFrom("BuildXL.Pips").dll,
             importFrom("Newtonsoft.Json").pkg,
             ...BuildXLSdk.tplPackages,
         ],
+        runtimeContent: [
+            {
+                subfolder: r`Sdk/Sdk.Managed.Tools.BinarySigner`,
+                contents: glob(d`../DscLibs/BinarySigner`, "*.dsc"),
+            },
+            {
+                subfolder: r`Sdk/Sdk.Json`,
+                contents: glob(d`../DscLibs/Json`, "*.dsc"),
+            }
+        ],
+        runTestArgs: {
+            unsafeTestRunArguments: {
+                // These tests require Detours to run itself, so we won't detour the test runner process itself
+                runWithUntrackedDependencies: true,
+            },
+        }
     });
 }

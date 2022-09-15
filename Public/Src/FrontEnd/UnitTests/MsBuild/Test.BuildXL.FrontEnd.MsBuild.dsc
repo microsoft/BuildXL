@@ -59,6 +59,14 @@ namespace Test.MsBuild {
                 subfolder: a`tools`,
                 contents: [importFrom("BuildXL.Tools").MsBuildGraphBuilder.deployment]
             },
+            {
+                subfolder: r`Sdk/Sdk.Managed.Tools.BinarySigner`,
+                contents: glob(d`../DscLibs/BinarySigner`, "*.dsc"),
+            },
+            {
+                subfolder: r`Sdk/Sdk.Json`,
+                contents: glob(d`../DscLibs/Json`, "*.dsc"),
+            },
             // We need csc.exe for integration tests
             {
                 subfolder: a`Compilers`,

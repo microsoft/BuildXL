@@ -314,7 +314,7 @@ export const dotNetFramework = isDotNetCoreBuild
 export function library(args: Arguments): Managed.Assembly {
     args = processArguments(args, "library");
     let result = Managed.library(args);
-    return Flags.enableESRP ? Signing.esrpSignAssembly(args.esrpSignArguments, result) : result;
+    return Flags.enableESRP ? Signing.esrpSignAssembly(result) : result;
 }
 
 /**
@@ -393,7 +393,7 @@ export function executable(args: Arguments): Managed.Assembly {
 
     let result = Managed.executable(args);
 
-    return Flags.enableESRP ? Signing.esrpSignAssembly(args.esrpSignArguments, result) : result;
+    return Flags.enableESRP ? Signing.esrpSignAssembly(result) : result;
 }
 
 @@public
@@ -882,9 +882,7 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
     // Add esrp arguments
     if (Flags.enableESRP) {
         args = args.merge({
-            esrpSignArguments: {
-                signToolPath: f`${Environment.expandEnvironmentVariablesInString(Environment.getStringValue("SIGN_TOOL_PATH"))}`,
-            }
+            esrpSignConfiguration: Signing.createEsrpConfiguration()
         });
     }
 
@@ -990,7 +988,7 @@ namespace Native {
 
         if (Flags.enableESRP) {
             return result.override<NativeSdk.Dll.NativeDllImage>({
-                binaryFile : Signing.esrpSignFile(createSignArguments(), result.binaryFile)
+                binaryFile : Signing.esrpSignFile(result.binaryFile)
             });
         }
         
@@ -1009,17 +1007,10 @@ namespace Native {
 
         if (Flags.enableESRP) {
             return result.override<NativeSdk.Exe.NativeExeImage>({
-                binaryFile : Signing.esrpSignFile(createSignArguments(), result.binaryFile)
+                binaryFile : Signing.esrpSignFile(result.binaryFile)
             });
         }
 
         return result;
-    }
-
-    /** Create esrp sign arguments for native dll signing */
-    function createSignArguments() : BinarySigner.ESRPSignArguments {
-        return {
-            signToolPath: f`${Environment.expandEnvironmentVariablesInString(Environment.getStringValue("SIGN_TOOL_PATH"))}`,
-        };
     }
 }

@@ -9,6 +9,7 @@ config({
                 f`package.config.dsc`,
                 f`../../../../../Sdk/Public/Prelude/Package.config.dsc`,
                 f`../../../../../Sdk/Public/Transformers/package.config.dsc`,
+                f`../../../../../Sdk/Public/Managed/Tools/BinarySigner/module.config.dsc`,
             ]
         }
     ],

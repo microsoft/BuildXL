@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 import {Artifact, Cmd, Transformer, Tool} from "Sdk.Transformers";
+import * as BinarySigner from "Sdk.Managed.Tools.BinarySigner";
 
 export declare const qualifier: {};
 
@@ -42,6 +43,7 @@ export interface Arguments extends Transformer.RunnerArguments {
     repositories: [string, string][];
     credentialProviderPath?: File;
     timeoutInMinutes?: number;
+    esrpSignConfiguration?: EsrpSignConfiguration;
 }
 
 /**
@@ -129,6 +131,16 @@ export function downloadPackage(args: Arguments) : PartialStaticContentDirectory
     };
 
     const result = Transformer.execute(transformerExecuteArgs);
+    const resultDir = Transformer.sealPartialDirectory(d`${downloadDirectory.combine(directoryName)}`, result.getOutputFiles());
 
-    return Transformer.sealPartialDirectory(d`${downloadDirectory.combine(directoryName)}`, result.getOutputFiles());
+    // If current host is windowns, esrp sign configuration and sign tool path is configured, sign the dll binary files.
+    if (Context.getCurrentHost().os === "win" && args.esrpSignConfiguration !== undefined) {
+        const signedFilesDirectoryName = `${args.id}.${args.version}.signed`;
+        const signedDir = d`${downloadDirectory.combine(signedFilesDirectoryName)}`;
+
+        let signFiles = BinarySigner.signDirectory(args.esrpSignConfiguration, resultDir, signedDir);
+        return Transformer.sealPartialDirectory(signedDir, signFiles);
+    }
+
+    return resultDir;
 }

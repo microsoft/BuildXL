@@ -54,6 +54,8 @@ interface NuGetResolver {
      * match the package version specified in the configuration file.
      * This is enforced if not specified */
     doNotEnforceDependencyVersions?: boolean;
+
+    esrpSignConfiguration?: EsrpSignConfiguration;
 }
 
 // We represent a passthrough environment variable with unit
@@ -276,6 +278,21 @@ interface InlineModuleDefinition {
      * If not provided, all the .dsc files in the same folder as the main configuration file will be included
      */
     projects?: (Path | File)[];
+}
+
+interface EsrpSignConfiguration {
+
+    /** Sign tool exe file */
+    signToolPath: Path;
+
+    /** ESRP session information config, ESRPClient's -c argument */
+    signToolConfiguration: Path;
+
+    /** ESRP policy information config, ESRPClient's -p argument */
+    signToolEsrpPolicy: Path;
+
+    /** EsrpAuthentication.json */
+    signToolAadAuth: Path;
 }
 
 type Resolver = DScriptResolver | NuGetResolver | MsBuildResolver | DownloadResolver;

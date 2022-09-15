@@ -10,6 +10,7 @@ config({
                 ...globR(d`${Environment.getPathValue("BUILDXL_BIN_DIRECTORY")}/Sdk`, "package.config.dsc"),
                 ...globR(d`${Environment.getPathValue("BUILDXL_BIN_DIRECTORY")}/Sdk`, "module.config.dsc"),
                 ...globR(d`${Environment.getPathValue("BUILDXL_BIN_DIRECTORY")}/Sdk`, "module.config.bm"),
+                f`${Environment.getPathValue("ENLISTMENTROOT")}/Public/Sdk/Public/Managed/Tools/BinarySigner/module.config.dsc`,
             ]
         },
     ],

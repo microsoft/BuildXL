@@ -351,9 +351,8 @@ function processDeploymentStyle(args: Arguments, targetType: Csc.TargetType, fra
 
         // When ESRP is enabled, get the patched .exe file and sign it.
         let patchOutputFile = patchResult.patchOutputFile;
-        if (args.esrpSignArguments && patchOutputFile.extension === a`.exe`) {
-            let signInfo = BinarySigner.esrpSignFileInfoTemplate(args.esrpSignArguments).override<BinarySigner.SignFileInfo>({file: patchOutputFile});
-            patchOutputFile = BinarySigner.signBinary(args.esrpSignArguments, signInfo);
+        if (args.esrpSignConfiguration && patchOutputFile.extension === a`.exe`) {
+            patchOutputFile = BinarySigner.signBinary(args.esrpSignConfiguration.merge<BinarySigner.ESRPSignArguments>({file: patchOutputFile}));
         }
 
         runtimeContent = [
@@ -524,7 +523,7 @@ export interface Arguments {
     gcHeapCount?: number;
 
     /** ESRP sign arguments */
-    esrpSignArguments?: BinarySigner.ESRPSignArguments;
+    esrpSignConfiguration?: EsrpSignConfiguration;
 }
 
 @@public

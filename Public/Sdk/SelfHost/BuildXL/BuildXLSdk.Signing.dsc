@@ -7,12 +7,25 @@ import * as Managed from "Sdk.Managed";
 
 namespace Signing {
     export declare const qualifier: {};
+
+    /**
+     * Create Esrp sign configuration using Environment variables
+     */
+    @@public
+    export function createEsrpConfiguration() : EsrpSignConfiguration {
+        return {
+            signToolPath: p`${Environment.expandEnvironmentVariablesInString(Environment.getStringValue("SIGN_TOOL_PATH"))}`,
+            signToolConfiguration: Environment.getPathValue("ESRP_SESSION_CONFIG"),
+            signToolEsrpPolicy: Environment.getPathValue("ESRP_POLICY_CONFIG"),
+            signToolAadAuth: p`${Context.getMount("SourceRoot").path}/Secrets/CodeSign/EsrpAuthentication.json`
+        };
+    }
     
     /** Build a signed assembly */
     @@public
-    export function esrpSignAssembly(signArgs: BinarySigner.ESRPSignArguments, assemblyResult: Managed.Assembly) : Managed.Assembly {
+    export function esrpSignAssembly(assemblyResult: Managed.Assembly) : Managed.Assembly {
         let signedRuntime = assemblyResult.runtime.override<Managed.Binary>({
-            binary: esrpSignFile(signArgs, assemblyResult.runtime.binary)
+            binary: esrpSignFile(assemblyResult.runtime.binary)
         });
         return assemblyResult.override<Managed.Assembly>({
             runtime : signedRuntime
@@ -23,14 +36,13 @@ namespace Signing {
      * Request Binary signature for a given file via ESRPClient
      */
     @@public
-    export function esrpSignFile(signArgs: BinarySigner.ESRPSignArguments, file: File) : File { 
+    export function esrpSignFile(file: File) : File { 
         Contract.requires(
             file !== undefined,
             "BuildXLSdk.esrpSignFile file argument must not be undefined."
         );
 
-        // A local esrpSignFileInfoTemplate can be introduced for specific applications of signing tool
-        let signInfo = BinarySigner.esrpSignFileInfoTemplate(signArgs).override<BinarySigner.SignFileInfo>({file: file});
-        return BinarySigner.signBinary(signArgs, signInfo);
+        let signArgs = createEsrpConfiguration().merge<BinarySigner.ESRPSignArguments>({file: file});
+        return BinarySigner.signBinary(signArgs);
     }
 }

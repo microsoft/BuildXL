@@ -157,48 +157,63 @@ namespace Test.BuildXL
         }
 
         /// <summary>
-        /// This test is to check if the "buildEntity" property is set to the pipeline id in an ADO env when "SYSTEM_DEFINITIONID" is present as an environment variable.
+        /// This test is to check if the "pipelineID" property is set to the pipeline id in an ADO env when "SYSTEM_DEFINITIONID" is present as an environment variable.
         /// </summary>
         [Fact]
-        public static void TestBuildEntityPropertyADO()
+        public static void TestPipelineIdPropertyADO()
         {
             ICommandLineConfiguration configuration = new CommandLineConfiguration();
-            string[] envString = ComputeEnvBlockForTesting(configuration, CaptureBuildInfo.AdoPreDefinedVariableForBuildEntity, EnvVarExpectedValue);
-            XAssert.IsTrue(AssertEnvStringContainsTelemetryEnvProperty("buildEntity=TestADO", envString));
+            string[] envString = ComputeEnvBlockForTesting(configuration, CaptureBuildInfo.AdoPreDefinedVariableForPipelineId, EnvVarExpectedValue);
+            XAssert.IsTrue(AssertEnvStringContainsTelemetryEnvProperty("pipelineid=TestADO", envString));
         }
 
         /// <summary>
-        /// This test is to check if the "buildEntity" property has been to set the build queue passed via traceInfo in the CB environment.
-        /// This test also tests the scenario when the buildEntity property has been passed via traceInfo in the "CloudBuild" environment and the presence of the environment variable "SYSTEM_DEFINITIONID".
-        /// In this case the buildEntity property value obtained from the traceInfo argument should be set in the envString for buildEntity. The ado defined value should be overriden by the traceInfo buildentity value.
+        /// This test is to check if the "pipelineid" property has been set to the pipeline id passed via traceInfo.
+        /// This test also tests the scenario when the pipelineid property has been passed via traceInfo and the presence of the environment variable "SYSTEM_DEFINITIONID".
+        /// In this case the pipelineid property value obtained from the traceInfo argument should be set in the envString for pipelineid.
         /// </summary>
         [Fact]
-        public void TestBuildEntityPropertyCloudBuild()
+        public void TestPipelineIdTraceInfoPropertyADO()
+        {
+            string traceInfoArgs = "/traceInfo:pipelineid=TestADOTraceInfo";
+            ICommandLineConfiguration configuration = AddTraceInfoOrEnvironmentArguments(traceInfoArgs);
+            string[] envString = ComputeEnvBlockForTesting(configuration, CaptureBuildInfo.AdoPreDefinedVariableForCodebase, EnvVarExpectedValue);
+            XAssert.IsTrue(AssertEnvStringContainsTelemetryEnvProperty("pipelineid=TestADOTraceInfo", envString));
+            XAssert.IsFalse(AssertEnvStringContainsTelemetryEnvProperty("pipelineid=TestADO", envString));
+        }
+
+        /// <summary>
+        /// This test is to check if the "cloudBuildQueue" property has been to set the build queue passed via traceInfo in the CB environment.
+        /// This test also tests the scenario when the cloudBuildQueue property has been passed via traceInfo in the "CloudBuild" environment and the presence of the environment variable "SYSTEM_DEFINITIONID".
+        /// In this case the env string should contain both the cloudBuildQueue and the pipelineid property.
+        /// </summary>
+        [Fact]
+        public void TestBuildQueuePropertyCloudBuild()
         {
             string traceInfoArgs = "/traceInfo:cloudBuildQueue=TestCB";
             ICommandLineConfiguration configuration = AddTraceInfoOrEnvironmentArguments(traceInfoArgs);
-            string[] envString = ComputeEnvBlockForTesting(configuration, CaptureBuildInfo.AdoPreDefinedVariableForBuildEntity, EnvVarExpectedValue);
-            XAssert.IsTrue(AssertEnvStringContainsTelemetryEnvProperty("buildEntity=TestCB", envString));
-            XAssert.IsFalse(AssertEnvStringContainsTelemetryEnvProperty("buildEntity=TestADO", envString));
+            string[] envString = ComputeEnvBlockForTesting(configuration, CaptureBuildInfo.AdoPreDefinedVariableForPipelineId, EnvVarExpectedValue);
+            XAssert.IsTrue(AssertEnvStringContainsTelemetryEnvProperty("cloudBuildQueue=TestCB", envString));
+            XAssert.IsTrue(AssertEnvStringContainsTelemetryEnvProperty("pipelineid=TestADO", envString));
         }
 
         /// <summary>
-        /// This test is to ensure that the traceInfo value for the stageId property is set accordingly in the Env string
+        /// This test is to ensure that the traceInfo value for the stageid property is set accordingly in the Env string
         /// </summary>
         [Fact]
         public void TestStageIdPropertyForTraceInfoValue()
         {
-            string traceInfoArgs = "/traceInfo:stageId=TestCB";
+            string traceInfoArgs = "/traceInfo:stageid=TestCB";
             ICommandLineConfiguration configuration = AddTraceInfoOrEnvironmentArguments(traceInfoArgs);
             string env1 = BuildXLApp.ComputeEnvironment(configuration);
             string[] envString = env1.Split(';');
             AssertNoDuplicates(envString);
-            XAssert.IsTrue(AssertEnvStringContainsTelemetryEnvProperty("stageId=TestCB", envString));
-            XAssert.IsFalse(AssertEnvStringContainsTelemetryEnvProperty("stageId=TestADO", envString));
+            XAssert.IsTrue(AssertEnvStringContainsTelemetryEnvProperty("stageid=TestCB", envString));
+            XAssert.IsFalse(AssertEnvStringContainsTelemetryEnvProperty("stageid=TestADO", envString));
         }
 
         /// <summary>
-        /// This test is to ensure that the stageId property is set accordingly for Office builds in the Env string
+        /// This test is to ensure that the stageid property is set accordingly for Office builds in the Env string
         /// </summary>
         [Theory]
         [InlineData("/environment:OfficeEnlistmentBuildLab", "enlist")]
@@ -220,7 +235,7 @@ namespace Test.BuildXL
             AssertNoDuplicates(envString);
             if (expectedValue != null)
             {
-                XAssert.IsTrue(AssertEnvStringContainsTelemetryEnvProperty("stageId=" + expectedValue, envString));
+                XAssert.IsTrue(AssertEnvStringContainsTelemetryEnvProperty("stageid=" + expectedValue, envString));
             }
             else
             {
@@ -231,12 +246,12 @@ namespace Test.BuildXL
 
         /// <summary>
         /// This test is used to check the scenario when it is a Office build and the user sends a specific value for the property using traceInfo flag.
-        /// In this case the user defined value should override the stageId property value set for Officebuilds.
+        /// In this case the user defined value should override the stageid property value set for Officebuilds.
         /// </summary>
         [Fact]
         public void TestStageIdPropertyForTraceInfoPrecedence()
         {
-            string traceInfoArgs = "/traceInfo:stageId=TestCB";
+            string traceInfoArgs = "/traceInfo:stageid=TestCB";
             string environmentValue = "/environment:OfficeEnlistmentBuildLab";
             PathTable pt = new PathTable();
             var argsParser = new Args();
@@ -245,8 +260,8 @@ namespace Test.BuildXL
             string env1 = BuildXLApp.ComputeEnvironment(configuration);
             string[] envString = env1.Split(';');
             AssertNoDuplicates(envString);
-            XAssert.IsTrue(AssertEnvStringContainsTelemetryEnvProperty("stageId=TestCB", envString));
-            XAssert.IsFalse(AssertEnvStringContainsTelemetryEnvProperty("stageId=Enlist", envString));
+            XAssert.IsTrue(AssertEnvStringContainsTelemetryEnvProperty("stageid=TestCB", envString));
+            XAssert.IsFalse(AssertEnvStringContainsTelemetryEnvProperty("stageid=Enlist", envString));
         }
 
         /// <summary>

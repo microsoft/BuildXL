@@ -11,7 +11,7 @@ namespace BuildXL
 {
     /// <summary>
     /// Collect information related to a build in a consistent fashion in CloudBuild, ADO for the purpose of telemetry.
-    /// Fields to be collected about a build Infra, Org, Codebase, StageId, Label.
+    /// Fields to be collected about a build infra, org, codebase, stageid, label, pipelineid, cloudbuildqueue.
     /// These fields have been moved to CaptureBuildProperties.cs for better accessibility.
     /// </summary>
     /// <remarks>
@@ -19,11 +19,12 @@ namespace BuildXL
     /// infra - identify the environment in which the build is run(CloudBuild, Azure DevOps).
     /// org - identify the orgnization triggering the build.
     /// codebase - identifies the code or product that's being built. This will typically be the name of the Git repository.
-    /// buildEntity - identifies the BuildEntity(queue/pipeline) used to build and deploy the codebase.
-    /// stageId - identifies the invocation of BXL in the stage(sequence) - Enlist, Meta, Product, Compliance and Prep build.
+    /// pipelineid - identifies the pipeline used to build and deploy the codebase.
+    /// cloudbuildqueue - identifies the CB buildqueue used to build and deploy the codebase.
+    /// stageid - identifies the invocation of BXL in the stage(sequence) - Enlist, Meta, Product, Compliance and Prep build.
     /// </remarks>
     public class CaptureBuildInfo
-    {        
+    {
         /// <summary>
         /// ADO predefined variable to obtain the URI of the ADO organization.
         /// In CB the same environment variable is set in the GenericBuildRunner.
@@ -45,12 +46,7 @@ namespace BuildXL
         /// <summary>
         /// ADO pre-defined environment variable to obtain the id of the pipeline which was used to build the code.
         /// </summary>
-        public const string AdoPreDefinedVariableForBuildEntity = "SYSTEM_DEFINITIONID";
-
-        /// <summary>
-        /// Represents the cloudbuildqueue property which is passed as a cmd line argument in a CB environment.
-        /// </summary>
-        public const string CloudBuildQueue = "cloudBuildQueue";
+        public const string AdoPreDefinedVariableForPipelineId = "SYSTEM_DEFINITIONID";
 
         /// <summary>
         /// This is the primary method in the class which is called by ComputeEnvironment(), to capture the build properties.
@@ -74,22 +70,29 @@ namespace BuildXL
                     traceInfoProperties.Add(CaptureBuildProperties.OrgKey, orgPropertyValue);
                 }
             }
-
-            if (!traceInfoProperties.ContainsKey(CaptureBuildProperties.CodeBaseKey))
+          
+           if (!traceInfoProperties.ContainsKey(CaptureBuildProperties.CodeBaseKey))
             {
-                string codebasePropertyValue = GetCodebase();
+                // This method is used to set a build property called codebase in the EnvString for telemetry purpose in an ADO environment. 
+                // For CB, the codebase information is passed as a part of traceInfo.
+                // This method captures the required information from the ADO pre-defined variable "Build_Repository_Name"
+                // This variable gives the name of the triggering repository.
+                string codebasePropertyValue = Environment.GetEnvironmentVariable(AdoPreDefinedVariableForCodebase);
                 if (!string.IsNullOrEmpty(codebasePropertyValue))
                 {
                     traceInfoProperties.Add(CaptureBuildProperties.CodeBaseKey, codebasePropertyValue);
                 }
             }
 
-            if (!traceInfoProperties.ContainsKey(CaptureBuildProperties.BuildEntityKey))
+            if (!traceInfoProperties.ContainsKey(CaptureBuildProperties.PipelineIdKey))
             {
-                string buildEntityPropertyValue = GetBuildEntity(traceInfoProperties);
-                if (!string.IsNullOrEmpty(buildEntityPropertyValue))
+                // This method is used to set the build property called pipelineid in the EnvString for telemetry purpose in an ADO environment.
+                // This method captures the required information from the ADO pre-defined variable "System_DefinitionId"
+                // This variable gives the id of the pipeline that is used to build the codebase.
+                string pipelineIdPropertyValue = Environment.GetEnvironmentVariable(AdoPreDefinedVariableForPipelineId);
+                if (!string.IsNullOrEmpty(pipelineIdPropertyValue))
                 {
-                    traceInfoProperties.Add(CaptureBuildProperties.BuildEntityKey, buildEntityPropertyValue);
+                    traceInfoProperties.Add(CaptureBuildProperties.PipelineIdKey, pipelineIdPropertyValue);
                 }
             }
 
@@ -106,7 +109,7 @@ namespace BuildXL
         }
 
         /// <summary>
-        /// This method is used to set a build property called Infra.
+        /// This method is used to set a build property called infra.
         /// </summary>
         /// <param name="configuration">Configuration object has the InCloudBuild(), which set returns true only for CB env</param>  
         private static string GetInfra(IConfiguration configuration)
@@ -124,7 +127,7 @@ namespace BuildXL
         }
 
         /// <summary>
-        /// This method is used to set a property called Org in the EnvString for telemetry purpose. The method parses the URL and capture the organization name.
+        /// This method is used to set a property called org in the EnvString for telemetry purpose. The method parses the URL and capture the organization name.
         /// </summary>
         private static string GetOrg()
         {
@@ -151,54 +154,15 @@ namespace BuildXL
         }
 
         /// <summary>
-        /// This method is used to set a build property called Codebase in the EnvString for telemetry purpose in an ADO environment. 
-        /// For CB, the codebase information is passed as a part of traceInfo.
-        /// This method captures the required information from the ADO pre-defined variable "Build_Repository_Name"
-        /// This variable gives the name of the triggering repository.
-        /// </summary>
-        private static string GetCodebase()
-        {
-            // For ADO the build property BUILD_REPOSITORY_NAME is used to extract the codebase information.
-            if (Environment.GetEnvironmentVariables().Contains(AdoPreDefinedVariableForCodebase))
-            {
-                return Environment.GetEnvironmentVariable(AdoPreDefinedVariableForCodebase);
-            }
-
-            return null;
-        }
-
-        /// <summary>
-        /// This method is used to set the build property called BuildEntity in the EnvString for telemetry purpose in an ADO environment.
-        /// In CB env the information about the buildqueue is passed via traceInfo. This info is used to set the property buildEntity to the buildQueue name.
-        /// This method captures the required information from the ADO pre-defined variable "System_DefinitionId"
-        /// This variable gives the id of the pipeline that is used to build the codebase.
-        /// </summary>
-        /// <returns></returns>
-        private static string GetBuildEntity(Dictionary<string, string> traceInfoProperties)
-        {
-            if (traceInfoProperties.ContainsKey(CloudBuildQueue))
-            {
-                return traceInfoProperties.GetValueOrDefault(CloudBuildQueue);
-            }
-
-            if (Environment.GetEnvironmentVariables().Contains(AdoPreDefinedVariableForBuildEntity))
-            {
-                return Environment.GetEnvironmentVariable(AdoPreDefinedVariableForBuildEntity);
-            }
-
-            return null;
-        }
-
-        /// <summary>
-        /// This method is used to set a build property called StageID in the EnvString for telemetry purpose.
+        /// This method is used to set a build property called stageid in the EnvString for telemetry purpose.
         /// In Office, every build has three separate builds called Product, Meta, Enlistment build.Each of this build invokes BXL separately. This information is obtained below.
-        /// In general each of this build is considered as a stage(sequence) and the name of that stage is assigned to the property "stageId".
+        /// In general each of this build is considered as a stage(sequence) and the name of that stage is assigned to the property "stageid".
         /// Similarly all JS builds have three stages, Prep, Compliance and Build(main/real build). This information is passed from CB via traceInfo.
         /// As of now Windows has only a single BXL build.
         /// </summary>
         private static string GetStageId(IConfiguration configuration)
         {
-            switch(configuration.Logging.Environment)
+            switch (configuration.Logging.Environment)
             {
                 case ExecutionEnvironment.OfficeEnlistmentBuildDev:
                 case ExecutionEnvironment.OfficeEnlistmentBuildLab:
@@ -209,9 +173,9 @@ namespace BuildXL
                 case ExecutionEnvironment.OfficeProductBuildDev:
                 case ExecutionEnvironment.OfficeProductBuildLab:
                     return "product";
-                default: 
+                default:
                     return null;
-            }    
+            }
         }
     }
 }

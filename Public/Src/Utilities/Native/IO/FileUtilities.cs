@@ -69,7 +69,10 @@ namespace BuildXL.Native.IO
             ? ((Unix.FileUtilitiesUnix)s_fileUtilities).FileSystem
             : ((Windows.FileUtilitiesWin)s_fileUtilities).FileSystem;
 
-        private static readonly ObjectPool<List<StringSegment>> StringSegmentListPool = Pools.CreateListPool<StringSegment>();
+        /// <summary>
+        /// Directory separator as string.
+        /// </summary>
+        public static readonly string DirectorySeparatorString = Path.DirectorySeparatorChar.ToString();
 
         /// <summary>
         /// Counters

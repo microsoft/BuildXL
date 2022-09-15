@@ -594,7 +594,7 @@ namespace Test.BuildXL.Processes
 
                 XAssert.AreEqual(0, result.ExitCode);
                 string stdout = await result.StandardOutput.ReadValueAsync();
-                XAssert.ArrayEqual(inputLines, ToLines(stdout));
+                XAssert.ArrayEqual(inputLines, ToLines(stdout.Trim(new char[] { '\uFEFF', '\u200B' })));
             }
         }
 
@@ -1293,9 +1293,8 @@ namespace Test.BuildXL.Processes
             var rfaPath = rfa.GetPath(pathTable);
             var rfaDescribe = rfa.Describe();
             var message = new StringBuilder();
-            message.AppendFormat("Expected the following access: {0}: {1}\n", rfaPath, rfaDescribe);
-
-            message.AppendLine("These were actually reported (same manifest path):");
+            message.Append($"Expected the following access: {rfaPath}: {rfaDescribe}{Environment.NewLine}");
+            message.Append($"These were actually reported (same manifest path):{Environment.NewLine}");
             foreach (ReportedFileAccess actual in result)
             {
                 var actualPath = actual.GetPath(pathTable);
@@ -1307,7 +1306,7 @@ namespace Test.BuildXL.Processes
                         return;
                     }
 
-                    message.AppendFormat("\t{0} : {1}\n", actualPath, actualDescribe);
+                    message.Append($"\t{actualPath}: {actualDescribe}{Environment.NewLine}");
                 }
             }
 
@@ -1317,7 +1316,7 @@ namespace Test.BuildXL.Processes
                 var actualPath = actual.GetPath(pathTable);
                 if (actualPath != rfaPath)
                 {
-                    message.AppendFormat("\t{0} : {1}\n", actualPath, actual.Describe());
+                    message.Append($"\t{actualPath}: {actual.Describe()}{Environment.NewLine}");
                 }
             }
 
@@ -1573,7 +1572,7 @@ namespace Test.BuildXL.Processes
                 DesiredAccess.GENERIC_READ,
                 ShareMode.FILE_SHARE_READ,
                 CreationDisposition.OPEN_EXISTING,
-                FlagsAndAttributes.FILE_FLAG_OPEN_NO_RECALL | FlagsAndAttributes.FILE_FLAG_SEQUENTIAL_SCAN,
+                FlagsAndAttributes.FILE_FLAG_OPEN_NO_RECALL,
                 path);
         }
 
@@ -1594,7 +1593,7 @@ namespace Test.BuildXL.Processes
                 DesiredAccess.GENERIC_WRITE,
                 ShareMode.FILE_SHARE_READ,
                 CreationDisposition.OPEN_ALWAYS,
-                FlagsAndAttributes.FILE_FLAG_OPEN_NO_RECALL | FlagsAndAttributes.FILE_FLAG_SEQUENTIAL_SCAN,
+                FlagsAndAttributes.FILE_FLAG_OPEN_NO_RECALL,
                 path);
         }
 

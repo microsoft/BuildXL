@@ -3832,6 +3832,35 @@ namespace BuildXL.Processes
             }
         }
 
+        private IEnumerable<ReportedFileAccess> GetEnumeratedFileAccessesForIncrementalTool(SandboxedProcessResult result) =>
+            result.ExplicitlyReportedFileAccesses
+                .Where(r => r.RequestedAccess == RequestedAccess.Enumerate && IsIncrementalToolAccess(r) && r.Operation == ReportedFileOperation.NtQueryDirectoryFile)
+                .SelectMany(r =>
+                {
+                    string maybeDirectory = r.GetPath(m_context.PathTable);
+                    if (!Directory.Exists(maybeDirectory))
+                    {
+                        return Enumerable.Empty<ReportedFileAccess>();
+                    }
+
+                    return Directory.EnumerateFiles(maybeDirectory, string.IsNullOrEmpty(r.EnumeratePattern) ? "*" : r.EnumeratePattern)
+                        .Select(f => new ReportedFileAccess(
+                            ReportedFileOperation.NtQueryDirectoryFile,
+                            r.Process,
+                            RequestedAccess.EnumerationProbe,
+                            r.Status,
+                            r.ExplicitlyReported,
+                            r.Error,
+                            r.Usn,
+                            DesiredAccess.GENERIC_READ,
+                            ShareMode.FILE_SHARE_READ,
+                            CreationDisposition.OPEN_EXISTING,
+                            FlagsAndAttributes.FILE_ATTRIBUTE_NORMAL,
+                            AbsolutePath.Create(m_context.PathTable, f),
+                            f,
+                            null));
+                });
+
         /// <summary>
         /// Creates an <see cref="ObservedFileAccess"/> for each unique path accessed.
         /// The returned array is sorted by the expanded path and additionally contains no duplicates.
@@ -3876,8 +3905,8 @@ namespace BuildXL.Processes
             {
                 Dictionary<AbsolutePath, CompactSet<ReportedFileAccess>> accessesByPath = accessesByPathWrapper.Instance;
                 var excludedToolsAndPaths = new HashSet<(AbsolutePath, AbsolutePath)>();
-
-                foreach (ReportedFileAccess reported in result.ExplicitlyReportedFileAccesses)
+                
+                foreach (ReportedFileAccess reported in result.ExplicitlyReportedFileAccesses.Concat(GetEnumeratedFileAccessesForIncrementalTool(result)))
                 {
                     Contract.Assert(
                         reported.Status == FileAccessStatus.Allowed || reported.Method == FileAccessStatusMethod.FileExistenceBased,
@@ -3998,7 +4027,7 @@ namespace BuildXL.Processes
                             // If isDirectoryLocation was not already set, try one of the methods below
                             isDirectoryLocation |=
                                 // If the path is available and ends with a trailing backlash, we know that represents a directory
-                                   (access.Path != null && access.Path.EndsWith("\\", StringComparison.OrdinalIgnoreCase))
+                                   (access.Path != null && access.Path.EndsWith(FileUtilities.DirectorySeparatorString, StringComparison.OrdinalIgnoreCase))
                                 // If FILE_ATTRIBUTE_DIRECTORY flag is present, that means detours understood the operation as happening on a directory. TODO: this flag is not properly propagated for all detours operations.
                                 || access.FlagsAndAttributes.HasFlag(FlagsAndAttributes.FILE_ATTRIBUTE_DIRECTORY)
                                 // The IsOpenedHandleDirectory function uses attributes that report symlink/junction for directories as directories rather than files. This one is the most reliable.

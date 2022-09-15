@@ -26,7 +26,7 @@ namespace TestProcess {
                     subfolder: r`TestProcess/Win`,
                     contents: [
                         $.withQualifier({
-                            targetFramework: "net472",
+                            targetFramework: "net6.0",
                             targetRuntime: "win-x64"
                         }).testProcessExe
                     ]

@@ -150,6 +150,11 @@ namespace Test.BuildXL.Executables.TestProcess
             EnumerateDir,
 
             /// <summary>
+            /// Type for enumerating a directory with Directory.EnumerateFileSystemEntries
+            /// </summary>
+            EnumerateFileSystemEntries,
+
+            /// <summary>
             /// Type for creating a symlink to a file or directory
             /// </summary>
             CreateSymlink,
@@ -749,7 +754,22 @@ namespace Test.BuildXL.Executables.TestProcess
         /// </summary>
         public static Operation EnumerateDir(FileOrDirectoryArtifact path, bool doNotInfer = false, string enumeratePattern = null)
         {
-            return new Operation(Type.EnumerateDir, path, doNotInfer: doNotInfer, additionalArgs: enumeratePattern);
+            string pattern = string.IsNullOrEmpty(enumeratePattern) ? "*" : enumeratePattern;
+            return new Operation(Type.EnumerateDir, path, doNotInfer: doNotInfer, additionalArgs: $"pattern={pattern}|useDotNetEnumerationOnWindows=false");
+        }
+
+        /// <summary>
+        /// Create a enumerate directory operation
+        /// </summary>
+        /// <param name="path"></param>
+        /// <param name="useDotNetEnumerationOnWindows">Whether or not to use Diretory.EnumerateFileSystemEntries on Windows</param>
+        /// <param name="doNotInfer"></param>
+        /// <param name="enumeratePattern"></param>
+        /// <returns></returns>
+        public static Operation EnumerateDir(FileOrDirectoryArtifact path, bool useDotNetEnumerationOnWindows, bool doNotInfer = false, string enumeratePattern = null)
+        {
+            string pattern = string.IsNullOrEmpty(enumeratePattern) ? "*" : enumeratePattern;
+            return new Operation(Type.EnumerateDir, path, doNotInfer: doNotInfer, additionalArgs: $"pattern={pattern}|useDotNetEnumerationOnWindows={useDotNetEnumerationOnWindows}");
         }
 
         /// <summary>
@@ -1299,14 +1319,23 @@ namespace Test.BuildXL.Executables.TestProcess
         private void DoDirProbe()
         {
             // Trailing backslash is needed for BuildXL to interpret it as a directory probe.
-            Directory.Exists(PathAsString + (OperatingSystemHelper.IsUnixOS ? "/" : @"\"));
+            string path = PathAsString;
+            if (!path.EndsWith(FileUtilities.DirectorySeparatorString, StringComparison.OrdinalIgnoreCase))
+            {
+                path += FileUtilities.DirectorySeparatorString;
+            }
+
+            Analysis.IgnoreResult(FileUtilities.TryProbePathExistence(path, followSymlink: true));
         }
 
         private void DoEnumerateDir()
         {
             try
             {
-                string enumeratePattern = AdditionalArgs ?? "*";
+
+                string[] additionalArgs = AdditionalArgs.Split('|');
+                string enumeratePattern = additionalArgs[0].Split('=')[1];
+                bool useDotNetEnumerationOnWindows = bool.Parse(additionalArgs[1].Split('=')[1]);
 
                 // For Windows, we call EnumerateWinFileSystemEntriesForTest whose underlying implementation
                 // calls FindFirstFile/FindNextFile. This is a workaround for testing enumeration with pattern.
@@ -1318,7 +1347,7 @@ namespace Test.BuildXL.Executables.TestProcess
                 //
                 // The Linux Detours does not detect/report the search pattern simply because the search pattern is not passed to opendir.
                 // So it always treats directory enumerations as if they had the * pattern.
-                IEnumerable<string> e = OperatingSystemHelper.IsUnixOS
+                IEnumerable<string> e = OperatingSystemHelper.IsUnixOS || useDotNetEnumerationOnWindows
                     ? Directory.EnumerateFileSystemEntries(PathAsString, enumeratePattern)
                     : FileSystemWin.EnumerateWinFileSystemEntriesForTest(PathAsString, enumeratePattern, SearchOption.TopDirectoryOnly);
                 Analysis.IgnoreResult(e.ToArray());

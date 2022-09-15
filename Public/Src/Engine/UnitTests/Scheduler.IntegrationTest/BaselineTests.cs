@@ -807,6 +807,11 @@ namespace IntegrationTest.BuildXL.Scheduler
         [InlineData(false)]
         public void ValidateTreatAbsentDirectoryAsExistentUnderOpaque(bool disableTreatAbsentDirectoryAsExistentUnderOpaque)
         {
+            // if (!disableTreatAbsentDirectoryAsExistentUnderOpaque)
+            // {
+            //     System.Diagnostics.Debugger.Launch();
+            // }
+
             if (disableTreatAbsentDirectoryAsExistentUnderOpaque)
             {
                 // Only set it in case of disableTreatAbsentDirectoryAsExistentUnderOpaque,
@@ -2072,6 +2077,65 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             RunScheduler(testHooks: testHook, updateStatusTimerEnabled: true, cancellationToken: tokenSource.Token).AssertFailure();
             AllowErrorEventLoggedAtLeastOnce(global::BuildXL.App.Tracing.LogEventId.CancellationRequested);
+        }
+
+        [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [MemberData(nameof(TruthTable.GetTable), 1, MemberType = typeof(TruthTable))]
+        public void TestEnumeratePattern(bool useDotNetEnumerateOnWindows)
+        {
+            AbsolutePath directory = CreateUniqueDirectory();
+            string dirString = directory.ToString(Context.PathTable);
+            FileArtifact aCFile = CreateFileArtifactWithName("a.c", dirString);
+            WriteSourceFile(aCFile);
+            FileArtifact aHFile = CreateFileArtifactWithName("a.h", dirString);
+            WriteSourceFile(aHFile);
+
+            DirectoryArtifact sealedDir = CreateAndScheduleSealDirectoryArtifact(directory, SealDirectoryKind.SourceAllDirectories);
+
+            var builder = CreatePipBuilder(new Operation[]
+            {
+                // Enumerate directory with different Enumerate methods, and set the enumeratePattern to *.h.
+                Operation.EnumerateDir(sealedDir, useDotNetEnumerateOnWindows, doNotInfer: true, enumeratePattern: "*.h"),
+                Operation.WriteFile(CreateOutputFileArtifact())
+            });
+
+            builder.AddInputDirectory(sealedDir);
+
+            var pip = SchedulePipBuilder(builder).Process;
+
+            RunScheduler().AssertCacheMiss(pip.PipId);
+            RunScheduler().AssertCacheHit(pip.PipId);
+
+            // Modify .c file, pip should cache hit.
+            WriteSourceFile(aCFile);
+            RunScheduler().AssertCacheHit(pip.PipId);
+
+            // Modify .h file, pip should cache hit.
+            WriteSourceFile(aHFile);
+            RunScheduler().AssertCacheHit(pip.PipId);
+
+            // Add a .c file, pip should cache hit.
+            FileArtifact bCFile = CreateFileArtifactWithName("b.c", dirString);
+            WriteSourceFile(bCFile);
+
+            // If useDotNetEnumerateOnWindows for net6.0 framework is true, EnumerateDir calls NtQueryDirectoryFile with no pattern,
+            // which BuildXL treats as "*" pattern (.NET does the filtering in the managed layer, which is not visible by Detours).
+            // Thus, when useDotNetEnumerateOnWindows is true, the pip will have a cache miss even though EnumerateDir specified "*.h" as a pattern.
+            // When useDotNetEnumerateOnWindows is false, EnumerateDir calls FindFirstFile/FindNextFile to enumerate the directory.
+            // For such calls, Detours is aware of the enumeration pattern and can report it accurately to BuildXL.
+            // Thus, when useDotNetEnumerateOnWindows is false, the pip will have a cache hit.
+            if (useDotNetEnumerateOnWindows)
+            {
+                RunScheduler().AssertCacheMiss(pip.PipId);
+            }
+
+            RunScheduler().AssertCacheHit(pip.PipId);
+
+            // Add a .h file, pip should cache miss.
+            FileArtifact bHFile = CreateFileArtifactWithName("b.h", dirString);
+            WriteSourceFile(bHFile);
+            RunScheduler().AssertCacheMiss(pip.PipId);
+            RunScheduler().AssertCacheHit(pip.PipId);
         }
 
         private Operation ProbeOp(string root, string relativePath = "")

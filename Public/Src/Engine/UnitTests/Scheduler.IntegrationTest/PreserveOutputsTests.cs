@@ -794,6 +794,67 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         /// <summary>
+        /// Test Incremental Tool with Directory.EnumerateFileSystemEntries used on Windows
+        /// </summary>
+        [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [MemberData(nameof(TruthTable.GetTable), 2, MemberType = typeof(TruthTable))]
+        public void IncrementalToolEnumerateTest(bool enableIncrementalTool, bool useDotNetEnumerationOnWindows)
+        {
+            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.PreserveOutputs = PreserveOutputsMode.Enabled;
+            Configuration.IncrementalTools = new List<RelativePath>
+            {
+                RelativePath.Create(Context.StringTable, TestProcessToolName)
+            };
+
+            // Create directory and source files
+            var directory = CreateUniqueDirectory();
+            string dirString = directory.ToString(Context.PathTable);
+            FileArtifact aCFile = CreateFileArtifactWithName("a.c", dirString);
+            WriteSourceFile(aCFile);
+
+            DirectoryArtifact sealedDir = CreateAndScheduleSealDirectoryArtifact(directory, SealDirectoryKind.SourceAllDirectories);
+
+            var builder = CreatePipBuilder(new Operation[]
+            {
+                // When useDotNetEnumerationOnWindows is set to true, the enumeration is performed using .NET Directory.EnumerateFileSystemEntries
+                // instead of FileSystemWin.EnumerateWinFileSystemEntriesForTest. The former, since net5, calls NtQueryDirectoryFile API, while the latter
+                // calls FindFirstFile/FindNextFile API. Most modern tools (e.g., later version of Gradle) enumerate directory for caching purpose by calling
+                // NtQueryDirectoryFile API.
+                Operation.EnumerateDir(sealedDir, useDotNetEnumerationOnWindows, doNotInfer: true),
+                Operation.WriteFile(CreateOutputFileArtifact())
+            });
+
+            builder.AddInputDirectory(sealedDir);
+
+            if (enableIncrementalTool)
+            {
+                builder.Options |= Process.Options.AllowPreserveOutputs;
+                builder.Options |= Process.Options.IncrementalTool;
+            }
+
+            var pip = SchedulePipBuilder(builder).Process;
+
+            RunScheduler().AssertCacheMiss(pip.PipId);
+            RunScheduler().AssertCacheHit(pip.PipId);
+
+            WriteSourceFile(aCFile);
+            if (enableIncrementalTool)
+            {
+                // Pip should cache miss because incremental tool observed the file change
+                RunScheduler().AssertCacheMiss(pip.PipId);
+            }
+
+            // Pip should cache hit because incremental tool is disabled, the file change is not observed
+            RunScheduler().AssertCacheHit(pip.PipId);
+
+            // Pip should cache miss because adding file is observed
+            FileArtifact aHFile = CreateFileArtifactWithName("a.h", dirString);
+            WriteSourceFile(aHFile);
+            RunScheduler().AssertCacheMiss(pip.PipId);
+            RunScheduler().AssertCacheHit(pip.PipId);
+        }
+
+        /// <summary>
         /// Testing that preserved output can be consumed.
         /// </summary>
         [Fact]

@@ -926,12 +926,15 @@ namespace IntegrationTest.BuildXL.Scheduler
         [Trait("Category", "WindowsOSOnly")] // TODO: investigate why this is flaky on Linux
         public void AbsentFileProbeFollowedByDynamicWriteIsBlockedWhenPipsAreIndependent(bool forceDependency)
         {
-            var signaligFile = CreateSourceFile();
-            File.Delete(signaligFile.Path.ToString(Context.PathTable));
             var sharedOpaqueDir = Path.Combine(ObjectRoot, "sharedopaquedir");
             AbsolutePath sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
+            
             FileArtifact absentFile = CreateOutputFileArtifact(sharedOpaqueDir);
+            Analysis.IgnoreResult(FileUtilities.TryDeleteFile(absentFile.Path.ToString(Context.PathTable)));
+            
             var dummyOut = CreateOutputFileArtifact(prefix: "dummyOut");
+            Analysis.IgnoreResult(FileUtilities.TryDeleteFile(dummyOut.Path.ToString(Context.PathTable)));
+
             var builderA = CreatePipBuilder(new Operation[]
                                                    {
                                                        Operation.Probe(absentFile, doNotInfer: true),
@@ -943,27 +946,27 @@ namespace IntegrationTest.BuildXL.Scheduler
             var pipAoutput = pipA.ProcessOutputs.GetOutputFile(dummyOut);
             var builderB = CreatePipBuilder(new Operation[]
                                                    {
-                                                       Operation.WaitUntilFileExists(signaligFile),
                                                        forceDependency
-                                                           ? Operation.ReadFile(pipAoutput)                                // force a BuildXL dependency
-                                                           : Operation.WaitUntilFileExists(pipAoutput, doNotInfer: true),  // force that writing to 'absentFile' happens after pipA
+                                                           ? Operation.ReadFile(pipAoutput) // force a BuildXL dependency
+                                                           : Operation.Echo("Test"),        // represent no-op
                                                        Operation.WriteFile(absentFile, doNotInfer: true),
                                                    });
             builderB.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
             builderB.AddUntrackedFile(pipAoutput);
             var pipB = SchedulePipBuilder(builderB);
 
-            // We want to force the Pips to complete in a particular order so we utilze an external signaling file to delay
-            // the second process until the first has completed writing its output.
-            Thread t = new Thread(() =>
-            {
-                while (!File.Exists(dummyOut.Path.ToString(Context.PathTable)))
-                {
-                    Thread.Sleep(20);
-                }
-                File.WriteAllText(signaligFile.Path.ToString(Context.PathTable), "signaled");
-            });
-            t.Start();
+            //// We want to force the Pips to complete in a particular order so we utilze an external signaling file to delay
+            //// the second process until the first has completed writing its output.
+            //Thread t = new Thread(() =>
+            //{
+            //    while (!File.Exists(dummyOut.Path.ToString(Context.PathTable)))
+            //    {
+            //        Thread.Sleep(20);
+            //    }
+
+            //    File.WriteAllText(signalingFile.Path.ToString(Context.PathTable), "signaled");
+            //});
+            //t.Start();
 
             if (forceDependency)
             {
@@ -971,15 +974,13 @@ namespace IntegrationTest.BuildXL.Scheduler
             }
             else
             {
-                RunScheduler().AssertFailure();
+                RunScheduler(constraintExecutionOrder: new (Pip, Pip)[] {(pipA.Process, pipB.Process)}).AssertFailure();
 
                 // We are expecting a write after an absent path probe
                 AssertVerboseEventLogged(LogEventId.DependencyViolationWriteOnAbsentPathProbe);
                 AssertVerboseEventLogged(LogEventId.AbsentPathProbeInsideUndeclaredOpaqueDirectory);
                 AssertErrorEventLogged(LogEventId.FileMonitoringError);
             }
-
-            t.Join();
         }
 
         [Theory]

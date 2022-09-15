@@ -58,7 +58,7 @@ namespace Test.BuildXL.Storage
             File.WriteAllText(Path.Combine(nestedDirectory, "sub_file.txt"), "my text");
 
             var entries = m_testFileSystem.EnumerateDirectories(GetFullPath(Target), pattern: "sub*", recursive: true);
-            XAssert.SetEqual(new []{"sub1", "sub2", "sub3", "sub_file.txt"}, entries.Select(e => e.FileName).ToHashSet());
+            XAssert.SetEqual(new[] { "sub1", "sub2", "sub3", "sub_file.txt" }, entries.Select(e => e.FileName).ToHashSet());
 
             // Enumerate directory does not provide the size.
             XAssert.AreEqual(0, entries.First(e => e.FileName == "sub_file.txt").Size);
@@ -69,7 +69,7 @@ namespace Test.BuildXL.Storage
 
             // Non recursive case
             XAssert.AreEqual(0, m_testFileSystem.EnumerateDirectories(GetFullPath(Target), pattern: "*.txt", recursive: false).Count);
-            
+
             // Pattern with 0 matches
             XAssert.AreEqual(0, m_testFileSystem.EnumerateDirectories(GetFullPath(Target), pattern: "foo", recursive: true).Count);
         }
@@ -85,7 +85,7 @@ namespace Test.BuildXL.Storage
             File.WriteAllText(Path.Combine(nestedDirectory, "sub_file.txt"), Content);
 
             var entries = m_testFileSystem.EnumerateFiles(GetFullPath(Target), pattern: "sub*", recursive: true);
-            XAssert.SetEqual(new []{"sub_file.txt"}, entries.Select(e => e.FileName).ToHashSet());
+            XAssert.SetEqual(new[] { "sub_file.txt" }, entries.Select(e => e.FileName).ToHashSet());
 
             // Checking the size of the file.
             XAssert.AreEqual(Content.Length, entries.First(e => e.FileName == "sub_file.txt").Size);
@@ -93,10 +93,10 @@ namespace Test.BuildXL.Storage
             XAssert.AreEqual(0, m_testFileSystem.EnumerateFiles(GetFullPath(Target), pattern: "sub1", recursive: true).Count);
             XAssert.AreEqual(1, m_testFileSystem.EnumerateFiles(GetFullPath(Target), pattern: "sub_file*", recursive: true).Count);
             XAssert.AreEqual(1, m_testFileSystem.EnumerateFiles(GetFullPath(Target), pattern: "*.txt", recursive: true).Count);
-            
+
             // Non recursive case
             XAssert.AreEqual(0, m_testFileSystem.EnumerateFiles(GetFullPath(Target), pattern: "*.txt", recursive: false).Count);
-            
+
             // Pattern with 0 matches
             XAssert.AreEqual(0, m_testFileSystem.EnumerateFiles(GetFullPath(Target), pattern: "foo", recursive: true).Count);
         }
@@ -232,6 +232,57 @@ namespace Test.BuildXL.Storage
             XAssert.IsTrue(Directory.Exists(GetFullPath(Target)));
         }
 
+        /// <summary>
+        /// This test checks the error handling scope of CreateDirectory when one of the parent directories is a dangling symlink.
+        /// Checks if the BuildXLException has been thrown when directory creation has failed.
+        /// </summary>
+        [FactIfSupported(requiresSymlinkPermission: true, requiresAdmin: true)]
+        public void CreateDirectoryWithDanglingIntermediateSymlinkTest()
+        {
+            // create root directory 'a'
+            string rootDir = GetFullPath(R("a"));
+            FileUtilities.DeleteDirectoryContents(rootDir);
+            FileUtilities.CreateDirectory(Path.GetDirectoryName(rootDir));
+
+            // Create dangling directory symlink a/b --> a/doesNotExist(NE)
+            string nonexistingTarget = Path.Combine(rootDir, "doesNotExist");
+            XAssert.IsTrue(FileUtilities.TryCreateReparsePoint(Path.Combine(rootDir, "b"), nonexistingTarget, ReparsePointType.DirectorySymlink).Succeeded);
+
+            // CreateDirectory throws BuildXLException because it doesn't know whether to create b as a normal directory or to create the target of b.
+            // CreateDirectory throws the Exception as it expects the intermediate parents in the path and the targets of dirSymlinks to be present.
+            // One possible solution to this problem is to create the target if it is in the path and is non existent.
+            // Another solution is to delete the dangling symlink and create a new directory.
+            // Some of the concerns implementing the above two solutions is that CreateDirectory() calls not associated with pips.
+            // Another issue is that if a there is a dangling symlink d:/a/b --> d:/a/c(does not exist).
+            // Then deleting it and creating new directory or creating the target might cause DFA's as there is a new path created now which is different from what was specified.
+            string expectedErrorMessage = "valid reparse point but does not point to an existing target";
+            var e = Assert.Throws<BuildXLException>(()=> FileUtilities.CreateDirectory(Path.Combine(rootDir, "b", "c")));
+            Assert.Contains(expectedErrorMessage, e.Message, StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
+        /// This test checks the error handling scope of TryCreateReparsePoint when one of the parent directories is a dangling directory symlink.
+        /// </summary>
+        [FactIfSupported(requiresSymlinkPermission: true, requiresAdmin: true)]
+        public void CreateReparsePointWithDanglingIntermediateSymlinkTest()
+        {
+            // create root directory 'a'
+            string rootDir = GetFullPath(R("a"));
+            FileUtilities.DeleteDirectoryContents(rootDir);
+            FileUtilities.CreateDirectory(Path.GetDirectoryName(rootDir));
+
+            // Create dangling directory symlink a/b(NE) --> a/doesNotExist(NE)
+            string nonexistingTarget = Path.Combine(rootDir, "doesNotExist");
+            XAssert.IsTrue(FileUtilities.TryCreateReparsePoint(Path.Combine(rootDir, "b"), nonexistingTarget, ReparsePointType.DirectorySymlink).Succeeded);
+            XAssert.IsFalse(Directory.Exists(nonexistingTarget));
+
+            // Create Reparse point a/b/c/d --> a/reparsePointTarget(NE)
+            // It throws a Failure and does not crash the test.
+            // CreateDirectory method is invoked as a part of the implementation of TryCreateReparsePoint(), but since dir 'b' is also pointing to a non-existent target, this method throws an Exception.
+            // To avoid crashing of the application a failure is thrown to handle this scenario.
+            XAssert.IsFalse(FileUtilities.TryCreateReparsePoint(Path.Combine(rootDir, "b", "c", "d"), Path.Combine(rootDir, "reparsePointTarget"), ReparsePointType.DirectorySymlink).Succeeded);
+        }
+
         [Fact]
         public void CreateDirectoryNested()
         {
@@ -241,7 +292,7 @@ namespace Test.BuildXL.Storage
             XAssert.IsTrue(Directory.Exists(GetFullPath(Target)));
         }
 
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true, requiresAdmin:true)]
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true, requiresAdmin: true)]
         public void CreateDirectoryWithoutPermissions()
         {
             string pathWithoutPermissions = GetFullPath("NoPermissions");
@@ -681,7 +732,7 @@ namespace Test.BuildXL.Storage
                 // Z:\E1\f8.lnk --> Z:\E2\f8.txt ==> Z:\E2\f8.txt
                 (GetFullPath(R("E1", "f8.lnk")), GetFullPath(R("E2", "f8.txt")), GetFullPath(R("E2", "f8.txt"))),
             };
-            
+
             foreach (var (symlinkPath, target, expectedResult) in tests)
             {
                 VerifyResolveSymlink(symlinkPath, target, expectedResult);
@@ -827,33 +878,33 @@ namespace Test.BuildXL.Storage
         {
             VerifyResolveRelativeSymlink(
                 expected: R("A1", "A2", "A4", "A5", "A7"),
-                link:     C(DL(R("A1", "A2", "A3"), R("A4")), R("A5", "A6")), 
-                target:   R("A7"));
+                link: C(DL(R("A1", "A2", "A3"), R("A4")), R("A5", "A6")),
+                target: R("A7"));
 
             VerifyResolveRelativeSymlink(
                 expected: R("B1", "B4", "B7"),
-                link:     C(DL(R("B1", "B2", "B3"), R("..", "B4")), R("B5", "B6")),
-                target:   R("..", "B7"));
+                link: C(DL(R("B1", "B2", "B3"), R("..", "B4")), R("B5", "B6")),
+                target: R("..", "B7"));
 
             VerifyResolveRelativeSymlink(
                 expected: R("C1", "C2", "C3", "C5", "C7"),
-                link:     C(J(R("C1", "C2", "C3"), R("C4")), R("C5", "C6")),
-                target:   R("C7"));
+                link: C(J(R("C1", "C2", "C3"), R("C4")), R("C5", "C6")),
+                target: R("C7"));
 
             VerifyResolveRelativeSymlink(
                 expected: R("D1", "D2", "D3", "D7"),
-                link:     C(J(R("D1", "D2", "D3"), R("D1", "D4")), R("D5", "D6")),
-                target:   R("..", "D7"));
+                link: C(J(R("D1", "D2", "D3"), R("D1", "D4")), R("D5", "D6")),
+                target: R("..", "D7"));
 
             VerifyResolveRelativeSymlink(
                 expected: R("E1", "E2", "E3", "E7", "E10"),
-                link:     C(DL(J(R("E1", "E2", "E3"), R("E1", "E4")), R("E5", "E6"), R("..", "E7")), R("E8", "E9")),
-                target:   R("..", "E10"));
+                link: C(DL(J(R("E1", "E2", "E3"), R("E1", "E4")), R("E5", "E6"), R("..", "E7")), R("E8", "E9")),
+                target: R("..", "E10"));
 
             VerifyResolveRelativeSymlink(
                 expected: R("F1", "F4", "F5", "F6", "F10"),
-                link:     C(J(DL(R("F1", "F2", "F3"), R("..", "F4")), R("F5", "F6"), R("F1", "F7")), R("F8", "F9")),
-                target:   R("..", "F10"));
+                link: C(J(DL(R("F1", "F2", "F3"), R("..", "F4")), R("F5", "F6"), R("F1", "F7")), R("F8", "F9")),
+                target: R("..", "F10"));
         }
 
         private void VerifyResolveRelativeSymlink(string expected, string link, string target)
@@ -1011,7 +1062,7 @@ namespace Test.BuildXL.Storage
 
             var possiblyCopyOnWrite = FileUtilities.TryCreateCopyOnWrite(file, clonedFile, followSymlink: false);
             XAssert.IsTrue(possiblyCopyOnWrite.Succeeded);
-            
+
             var fileTimestamp = FileUtilities.GetFileTimestamps(file);
             var clonedFileTimestamp = FileUtilities.GetFileTimestamps(clonedFile);
 
@@ -1045,8 +1096,8 @@ namespace Test.BuildXL.Storage
             var possiblyCopyOnWrite = FileUtilities.TryCreateCopyOnWrite(symlink, clonedFile, followSymlink: followSymlink);
             XAssert.IsTrue(possiblyCopyOnWrite.Succeeded);
 
-            var verifiedTimestamp = followSymlink 
-                ? FileUtilities.GetFileTimestamps(file) 
+            var verifiedTimestamp = followSymlink
+                ? FileUtilities.GetFileTimestamps(file)
                 : FileUtilities.GetFileTimestamps(symlink);
             var clonedFileTimestamp = FileUtilities.GetFileTimestamps(clonedFile);
 
@@ -1195,7 +1246,7 @@ namespace Test.BuildXL.Storage
                 return false;
             }
 
-            if(status == CreateHardLinkStatus.Failed)
+            if (status == CreateHardLinkStatus.Failed)
             {
                 return false;
             }
@@ -1272,9 +1323,9 @@ namespace Test.BuildXL.Storage
             return FL(Path.Combine(path, relative), target);
         }
 
-        private string C(string path, string relative) 
-            => m_testFileSystem.IsPathRooted(path) 
-            ? Path.Combine(path, relative) 
+        private string C(string path, string relative)
+            => m_testFileSystem.IsPathRooted(path)
+            ? Path.Combine(path, relative)
             : Path.Combine(GetFullPath(path), relative);
 
         private static void WithNewFileMemoryMapped(string path, Action action)

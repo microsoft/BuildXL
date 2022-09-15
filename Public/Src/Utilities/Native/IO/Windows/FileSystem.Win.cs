@@ -1810,11 +1810,13 @@ namespace BuildXL.Native.IO.Windows
             // Now start creating directories from the top-most non-existent parent.
             bool result = true;
             int firstFoundError = NativeIOConstants.ErrorSuccess;
+            // Adding this property to capture the directory at which the create directory operation has failed.
+            string currentDir = null;
 
             while (stackDirs.Count > 0)
             {
-                string dir = stackDirs.Pop();
-                result = CreateDirectoryW(ToLongPathIfExceedMaxPath(dir), IntPtr.Zero);
+                currentDir = stackDirs.Pop();
+                result = CreateDirectoryW(ToLongPathIfExceedMaxPath(currentDir), IntPtr.Zero);
                 string lastAccessDeniedDir = null;
 
                 if (!result && (firstFoundError == NativeIOConstants.ErrorSuccess))
@@ -1824,12 +1826,12 @@ namespace BuildXL.Native.IO.Windows
                     if (currentError != NativeIOConstants.ErrorAlreadyExists)
                     {
                         // We may be able to address an access denied by taking file ownership and adding more permissive access on the parent
-                        if (currentError == NativeIOConstants.ErrorAccessDenied && lastAccessDeniedDir != dir)
+                        if (currentError == NativeIOConstants.ErrorAccessDenied && lastAccessDeniedDir != currentDir)
                         {
-                            lastAccessDeniedDir = dir;
-                            if (TryTakeOwnershipAndSetWriteable(Path.GetDirectoryName(dir)))
+                            lastAccessDeniedDir = currentDir;
+                            if (TryTakeOwnershipAndSetWriteable(Path.GetDirectoryName(currentDir)))
                             {
-                                stackDirs.Push(dir);
+                                stackDirs.Push(currentDir);
                                 continue;
                             }
                         }
@@ -1841,7 +1843,7 @@ namespace BuildXL.Native.IO.Windows
                     }
                     else
                     {
-                        if (FileExistsNoFollow(dir) || (DirectoryExistsNoFollow(dir) && currentError == NativeIOConstants.ErrorAccessDenied))
+                        if (FileExistsNoFollow(currentDir) || (DirectoryExistsNoFollow(currentDir) && currentError == NativeIOConstants.ErrorAccessDenied))
                         {
                             // The directory or its parents may have existed as files or creation results in denied access.
                             firstFoundError = currentError;
@@ -1853,7 +1855,12 @@ namespace BuildXL.Native.IO.Windows
             // Only throw an exception if creating the exact directory failed.
             if (!result && firstFoundError != NativeIOConstants.ErrorSuccess)
             {
-                throw new BuildXLException(I($"Failed to create directory '{directoryPath}'"), CreateWin32Exception(firstFoundError, "CreateDirectoryW"));
+                var maybeExistence = TryProbePathExistence(currentDir, followSymlink: true);
+                if (!maybeExistence.Succeeded || maybeExistence.Result == PathExistence.Nonexistent)
+                {
+                    throw new BuildXLException(I($"Failed to create directory as current dir : {currentDir} is a valid reparse point but does not point to an existing target. Complete directory path - '{directoryPath}'"), CreateWin32Exception(firstFoundError, "CreateDirectoryW"));
+                }
+                throw new BuildXLException(I($"Failed to create directory: {currentDir}  Complete directory path - '{directoryPath}'"), CreateWin32Exception(firstFoundError, "CreateDirectoryW"));
             }
         }
 

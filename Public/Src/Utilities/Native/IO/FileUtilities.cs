@@ -10,6 +10,7 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Security.AccessControl;
 using System.Text;
+using BuildXL.Tracing;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Native.IO.Windows;
@@ -102,11 +103,11 @@ namespace BuildXL.Native.IO
         /// </summary>
         /// <exception cref="BuildXLException">
         /// Thrown if the directory creation fails in a recoverable manner (e.g. access denied).
+        /// This method also throws an Exception when the target to the directory symlink does not exist, this can lead to a failure in directory creation.
         /// </exception>
         public static void CreateDirectory(string path)
         {
             Contract.Requires(!string.IsNullOrEmpty(path));
-
             s_fileSystem.CreateDirectory(path);
         }
 
@@ -770,12 +771,20 @@ namespace BuildXL.Native.IO
             }
             else
             {
-                CreateDirectory(Path.GetDirectoryName(path));
-
-                var maybeSymbolicLink = s_fileSystem.TryCreateSymbolicLink(path, reparsePointTarget, isTargetFile: type != ReparsePointType.DirectorySymlink);
-                if (!maybeSymbolicLink.Succeeded)
+                // Adding this exception handling block to handle errors in directory creation.
+                try
                 {
-                    return maybeSymbolicLink.Failure;
+                    CreateDirectory(Path.GetDirectoryName(path));
+
+                    var maybeSymbolicLink = s_fileSystem.TryCreateSymbolicLink(path, reparsePointTarget, isTargetFile: type != ReparsePointType.DirectorySymlink);
+                    if (!maybeSymbolicLink.Succeeded)
+                    {
+                        return maybeSymbolicLink.Failure;
+                    }
+                }
+                catch (BuildXLException e)
+                {
+                    return new Failure<BuildXLException>(e);
                 }
             }
 

@@ -150,6 +150,10 @@ function parseArgs() {
             arg_Positional+=("/p:[Sdk.BuildXL]useManagedSharedCompilation=1")
             shift
             ;;
+        --use-adobuildrunner)
+            arg_Positional+=("--use-adobuildrunner")
+            shift
+            ;;
         --vs)
             arg_Positional+=(
                 "/vs"

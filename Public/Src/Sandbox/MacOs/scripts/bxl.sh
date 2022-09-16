@@ -21,6 +21,7 @@ declare arg_SymlinkSdksInto=""
 declare arg_checkKextLogInterval=""
 declare arg_loadKext=""
 declare arg_installDaemon=""
+declare arg_useAdoBuildRunner=""
 
 declare g_bxlCmdArgs=()
 
@@ -194,9 +195,17 @@ function build {
     local bxlExe="$arg_BuildXLBin/bxl"
     chmod u=rx "$bxlExe" || true # could already be executable
 
-    print_info "${tputBold}Running bxl:${tputReset} '$bxlExe' ${g_bxlCmdArgs[@]}"
+    if [[ -n "$arg_useAdoBuildRunner" ]]; then
+        local adoBuildRunnerExe="$arg_BuildXLBin/AdoBuildRunner"
+        chmod u=rx "$adoBuildRunnerExe" || true
+        print_info "${tputBold}Running AdoBuildRunner:${tputReset} '$adoBuildRunnerExe' '$bxlExe' ${g_bxlCmdArgs[@]}"
 
-    "$bxlExe" "${g_bxlCmdArgs[@]}"
+        "$adoBuildRunnerExe" "$bxlExe" "${g_bxlCmdArgs[@]}"
+    else
+        print_info "${tputBold}Running bxl:${tputReset} '$bxlExe' ${g_bxlCmdArgs[@]}"
+
+        "$bxlExe" "${g_bxlCmdArgs[@]}"
+    fi
     local bxlExitCode=$?
 
     if [[ $bxlExitCode == 0 ]]; then
@@ -267,6 +276,10 @@ function parseArgs {
                 ;;
             --install-daemon)
                 arg_installDaemon="1"
+                shift
+                ;;
+            --use-adobuildrunner)
+                arg_useAdoBuildRunner="1"
                 shift
                 ;;
             *)

@@ -147,9 +147,8 @@ jobs:
 
   - bash: |
       set -eu
-      chmod +x Out/Selfhost/Dev/AdoBuildRunner
       # the disks on Azure Pipeline VMs are too small to build everything, so let's instead run tests
-      ./Out/Selfhost/Dev/AdoBuildRunner bash bxl.sh --use-dev ${{ parameters.BxlCommonArgs }} /logsDirectory:"Out/Logs/${{ parameters.validationName }}" ${{ parameters.bxlExtraArgs }} "/f:tag='test' /p:BUILDXL_FINGERPRINT_SALT='KickLinuxDistributed_9_2_2022'"
+      ./bxl.sh --use-dev --use-adobuildrunner ${{ parameters.BxlCommonArgs }} /logsDirectory:"Out/Logs/${{ parameters.validationName }}" ${{ parameters.bxlExtraArgs }} "/f:tag='test' /p:BUILDXL_FINGERPRINT_SALT='KickLinuxDistributed_9_2_2022'"
     displayName: Test (${{ parameters.validationName }})
     workingDirectory: /home/subst
     env:

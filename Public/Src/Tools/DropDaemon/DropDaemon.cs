@@ -956,13 +956,12 @@ namespace Tool.DropDaemon
             if (string.IsNullOrWhiteSpace(bcdeOutputJsonPath))
             {
                 // This shouldn't happen, but SBOM creation can still happen without it a set of packages. So, log it and return an empty set.
-                // TODO [pgunasekara]: Change this to a Warning. Currently this is only Info level until CB changes are fully rolled out to avoid generating warnings unnecessarily.
-                logger.Info($"[GetSbomPackages] The '{Constants.ComponentGovernanceBCDEOutputFilePath}' environment variable was not found. Component detection data will not be included in build manifest.");
+                logger.Error($"[GetSbomPackages] The '{Constants.ComponentGovernanceBCDEOutputFilePath}' environment variable was not found. Component detection data will not be included in build manifest.");
                 return new List<SBOMPackage>();
             }
             else if (!System.IO.File.Exists(bcdeOutputJsonPath))
             {
-                logger.Warning($"[GetSbomPackages] Component detection output file not found at path '{bcdeOutputJsonPath}'. Component detection data will not be included in build manifest.");
+                logger.Error($"[GetSbomPackages] Component detection output file not found at path '{bcdeOutputJsonPath}'. Component detection data will not be included in build manifest.");
                 return new List<SBOMPackage>();
             }
 

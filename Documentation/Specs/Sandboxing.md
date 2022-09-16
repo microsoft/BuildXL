@@ -21,6 +21,16 @@ In terms of performance, this implementation adds 1-5% of time overhead to runni
 
 Technical note: The top-level process initiating Detours calls must be a 64-bit process. Detours bootstrapping code is hard-coded to start from 64-bit, matching the requirements for large memory needs for the BuildXL engine for parsing and tracking large repos.
 
+## Linux Sandboxing
+
+Akin to Detouring on Windows, the [dynamic loader](https://www.man7.org/linux/man-pages/man8/ld.so.8.html) allows for *library preloading* (a.k.a. function interposing) to hook various system calls.  Just like on Windows, the BuildXL sandbox leverages this feature to intercept all relevant filesystem-related system calls from the standard C library (`libc`) and handle them appropriately (e.g., report all requested accesses to the BuildXL process, block disallowed accesses, etc.).
+
+For a full list of all interposed system calls, see [syscalls.md](/Public/Src/Sandbox/Linux/syscalls.md).
+
+The semantics of how various high-level filesystem operations (e.g., absent probes, directory enumerations, reads, writes, etc.) are handled is expected to be the same on all supported operating systems.
+
+A clear **limitation** of this approach is that in only applies to executables that are **dynamically linked** to `libc`.  In Linux, that is the case for the vast majority of executables.  Notable exceptions, however, are programs written in [`Go`](https://go.dev/) which are by default statically linked.
+
 ## macOS Sandboxing
 Interposing system calls (akin to Detouring on Windows) is possible on macOS, but comes with a major restriction: it is not applicable to "protected" system processes.  Another drawback of this approach is making sure that all relevant system calls are interposed, the list of which may be huge and not readily available.  Our sandbox for macOS avoids those restrictions by being implemented as a Darwin kernel extension, producing similar data and blocking capabilities as noted above for Windows.
 

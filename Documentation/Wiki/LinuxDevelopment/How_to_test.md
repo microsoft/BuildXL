@@ -1,27 +1,46 @@
-# How to simply test *libDetours.so*
-* `cd Public/Src/Sandbox/Linux`
-* `make`
-* `echo > libDetours.log`
-* `env __BUILDXL_LOG_PATH=$(pwd)/libDetours.log LD_PRELOAD=$(pwd)/bin/debug/libDetours.so ls -l`
+# How to run unit tests
+To run all unit tests (i.e., all pips tagged 'test')
+```bash
+./bxl.sh --internal "/f:tag='test'"
+```
 
-# How to run BuildXL unit tests on Linux
-## Build unit test binaries on a Windows Machine
-We currently do not support building BuildXL banaires in Linux machines. BuildXL unit test binaries need to be built in Windows.
-* `bxl /q:DebugLinux /f:output='out/bin/linux-x64-tests/*'`
+Standard bxl pip filtering options apply.
 
-## Build Linux sandbox binaries on a Linux Machine/VM
-* `cd Public/Src/Sandbox/Linux`
-* `make`
+To conveniently filter by test class or method name, you can use use the shortcut `--test-class` and `--test-method` switches provided by the `bxl.sh` script.
 
-## Deploy test binaries and Linux sandbox binaries to a Linux Machine/VM
-*Example:*
-* `scp -r Out/Bin/linux-x64-tests/debug/* AnyBuildTestVM:~/bxl-tests-linux-x64/`
-* `scp -r Public/Src/Sandbox/Linux/bin/debug/*.so AnyBuildTestVM:~/bxl-tests-linux-x64/TestProj/tests/shared_bin`
+# How to debug a `bxl` process running on Linux from Visual Studio running on Windows
 
-## Run tests
-* `cd ~/bxl-tests-linux-x64/`
-* `./bash_runner.sh`
+* (Linux) set `BuildXLDebugOnStart` env var to `1` before starting your `bxl` process
+    * e.g., `env BuildXLDebugOnStart=1 ./bxl.sh ...`
+    * this won't automatically attach a debugger; instead it will pause and print out a 'press Enter when the debugger is attached' message
+* (Windows) follow [remote-debugging](https://docs.microsoft.com/en-us/visualstudio/debugger/remote-debugging-dotnet-core-linux-with-ssh?view=vs-2022) instructions to attach to your `bxl` process from Visual Studio over SSH
+    * make sure your local source code is in sync with what you are debugging and that symbols match
+    * set breakpoints and stuff before proceeding
+* (Linux) press Enter to resume the `bxl` process
+    * the process will break in your Visual Studio instance if it hits any of the set breakpoints
 
-## Logs
-* Unit test logs can be found in *~/bxl-tests-linux-x64/TestProj/tests/shared_bin/XunitLogs*
-* Linux sandbox log can be found in */tmp* with name similar to *bxl_Pip1234.31870.log*
+# How to debug unit tests
+The most straightforward (but not very convenient) method is running a test from the command line (see above) and then inspecting the produced log files.
+
+Some options for trying to get the VSCode debugger to work:
+* generate csproj files (e.g., `./bxl.sh --internal --minimal --vs`), then try to load the projects in VSCode, then try to run unit tests directly from VSCode
+* build a test assembly of interest with BuildXL then create a VSCode task (in `tasks.json`) to run/debug that assembly with XUnit
+
+Debugging from Visual Studio over SSH (see the previous section) could also be an option.
+
+# How to test/debug the sandbox as a standalone library
+```bash
+set -eu
+
+# build the sandbox binaries
+./bxl.sh --internal "/f:output='*/Out/Bin/debug/linux-x64/lib*'"
+
+# run any process (e.g., 'ls -l') with LD_PRELOAD set to newly build 'libDetours.so' and __BUILDXL_LOG_PATH to an empty log file
+echo > bxl.log
+env 
+  __BUILDXL_LOG_PATH="$(pwd)/bxl.log" \
+  LD_PRELOAD="$(pwd)/Out/Bin/debug/linux-x64/libDetours.so" \
+  ls -l
+
+# inspect the bxl.log file to see reported accesses
+```

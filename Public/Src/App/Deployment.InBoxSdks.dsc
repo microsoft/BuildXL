@@ -34,6 +34,16 @@ function createSdkDeploymentDefinition(serverDeployment: boolean, minimalDeploym
                         subfolder: "Sdk.Transformers",
                         contents: glob(d`${sdkRoot}/Transformers`, "*.dsc")
                     },
+                    {
+                        subfolder: "Sdk.Managed.Tools.BinarySigner",
+                        contents: glob(d`${sdkRoot}/Managed/Tools/BinarySigner`, "*.dsc")
+                    },
+                    {
+                        subfolder: "Sdk.Json",
+                        contents: [ 
+                            importFrom("Sdk.Json").deployment
+                        ]
+                    },
                     // If any new deployment is added below, please consider adding an 'evaluation only' version of it. This
                     // consists of just the specs, but not binaries. The evaluation only SDK is used to deploy SDKs alongside
                     // the VSCode plugin. The plugin only needs specs to evaluate, and adding binaries will make the vsix 
@@ -79,12 +89,6 @@ function createSdkDeploymentDefinition(serverDeployment: boolean, minimalDeploym
                             subfolder: "Sdk.JavaScript",
                             contents: [ 
                                 importFrom("Sdk.JavaScript").deployment
-                            ]
-                        },
-                        {
-                            subfolder: "Sdk.Json",
-                            contents: [ 
-                                importFrom("Sdk.Json").deployment
                             ]
                         },
                         {

@@ -11,6 +11,7 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 using BuildXL.Interop.Unix;
 using BuildXL.Native.Processes;
 using BuildXL.Utilities;
@@ -176,7 +177,7 @@ namespace BuildXL.Processes
         }
 
         /// <inheritdoc />
-        public void NotifyPipReady(LoggingContext loggingContext, FileAccessManifest fam, SandboxedProcessUnix process) {}
+        public void NotifyPipReady(LoggingContext loggingContext, FileAccessManifest fam, SandboxedProcessUnix process, Task reportCompletion) {}
 
         /// <inheritdoc />
         public bool NotifyPipStarted(LoggingContext loggingContext, FileAccessManifest fam, SandboxedProcessUnix process)

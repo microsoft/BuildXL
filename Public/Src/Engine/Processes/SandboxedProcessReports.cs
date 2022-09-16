@@ -153,10 +153,10 @@ namespace BuildXL.Processes
         /// Returns a list of still active child processes for which we only received a ProcessCreate but no
         /// ProcessExit event.
         /// </summary>
-        internal IReadOnlyList<ReportedProcess> GetActiveProcesses()
+        internal IEnumerable<ReportedProcess> GetActiveProcesses()
         {
             var matches = new HashSet<uint>(m_processesExits.Select(entry => entry.Key));
-            return m_activeProcesses.Where(entry => !matches.Contains(entry.Key)).Select(entry => entry.Value).ToList();
+            return m_activeProcesses.Where(entry => !matches.Contains(entry.Key)).Select(entry => entry.Value);
         }
 
         /// <summary>

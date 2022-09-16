@@ -11,6 +11,7 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 using BuildXL.Interop.Unix;
 using BuildXL.Native.Processes;
 using BuildXL.Utilities;
@@ -248,7 +249,7 @@ Use the the following command to load/reload the sandbox kernel extension and fi
         }
 
         /// <inheritdoc />
-        public void NotifyPipReady(LoggingContext loggingContext, FileAccessManifest fam, SandboxedProcessUnix process) {}
+        public void NotifyPipReady(LoggingContext loggingContext, FileAccessManifest fam, SandboxedProcessUnix process, Task reportCompletion) {}
 
         /// <inheritdoc />
         public bool NotifyPipStarted(LoggingContext loggingContext, FileAccessManifest fam, SandboxedProcessUnix process)

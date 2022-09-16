@@ -78,7 +78,6 @@ namespace BuildXL.Processes
 
             private readonly Sandbox.ManagedFailureCallback m_failureCallback;
             private readonly Dictionary<string, PathCacheRecord> m_pathCache; // TODO: use AbsolutePath instead of string
-            private readonly CancellationTokenSource m_waitToCompleteCts;
             private readonly bool m_isInTestMode;
 
             /// <remarks>
@@ -100,7 +99,6 @@ namespace BuildXL.Processes
             private int m_completeAccessReportProcessingCounter;
 
             private static readonly TimeSpan ActiveProcessesCheckerInterval = TimeSpan.FromSeconds(1);
-            private static readonly TimeSpan MaxWaitForReceiveAccessReports = TimeSpan.FromMinutes(1);
 
             private static ArrayPool<byte> ByteArrayPool { get; } = new ArrayPool<byte>(4096);
 
@@ -114,7 +112,6 @@ namespace BuildXL.Processes
                 ReportsFifoPath = reportsFifoPath;
                 FamPath = famPath;
 
-                m_waitToCompleteCts = new CancellationTokenSource();
                 m_pathCache = new Dictionary<string, PathCacheRecord>();
                 m_activeProcesses = new ConcurrentDictionary<int, byte>();
                 m_activeProcessesChecker = new CancellableTimedAction(
@@ -125,7 +122,7 @@ namespace BuildXL.Processes
                 // the 'read' syscall won't receive EOF until we close this writer
                 m_lazyWriteHandle = new Lazy<SafeFileHandle>(() =>
                 {
-                    LogDebug($"Opening FIFO '{ReportsFifoPath}' for writing");
+                    Process.LogProcessState($"Opening FIFO '{ReportsFifoPath}' for writing");
                     return IO.Open(ReportsFifoPath, IO.OpenFlags.O_WRONLY, 0);
                 });
 
@@ -157,12 +154,13 @@ namespace BuildXL.Processes
                 {
                     if (!Dispatch.IsProcessAlive(pid))
                     {
+                        Process.LogProcessState("CheckActiveProcesses");
                         RemovePid(pid);
                     }
                 }
             }
 
-            private void CompleteAccessReportProcessing(bool logWarningIfNotAlreadyCompleted = false)
+            private void CompleteAccessReportProcessing()
             {
                 var cnt = Interlocked.Increment(ref m_completeAccessReportProcessingCounter);
                 if (cnt > 1)
@@ -170,15 +168,10 @@ namespace BuildXL.Processes
                     return; // already completed
                 }
 
-                if (logWarningIfNotAlreadyCompleted)
-                {
-                    LogDebug($"[WARNING] Access report processing not completed after {MaxWaitForReceiveAccessReports} for pip {Process.PipId}");
-                }
-
                 m_accessReportProcessingBlock.Complete();
                 m_accessReportProcessingBlock.Completion.ContinueWith(t =>
                 {
-                    LogDebug("Posting OpProcessTreeCompleted message");
+                    Process.LogProcessState("Posting OpProcessTreeCompleted message");
                     Process.PostAccessReport(new AccessReport
                     {
                         Operation = FileOperation.OpProcessTreeCompleted,
@@ -198,32 +191,15 @@ namespace BuildXL.Processes
                     return; // already stopped
                 }
 
-                LogDebug($"Closing the write handle for FIFO '{ReportsFifoPath}'");
+                Process.LogProcessState($"Closing the write handle for FIFO '{ReportsFifoPath}'");
                 // this will cause read() on the other end of the FIFO to return EOF once all native writers are done writing
                 m_lazyWriteHandle.Value.Dispose();
                 m_activeProcessesChecker.Cancel();
 
-                // The m_workerThread might still be processing access reports from the FIFO so don't complete m_accessReportProcessingBlock yet.
-                // However, in the event of a catastrophic filesystem failure, the worker thread might get stuck; to make sure we eventually
-                // make progress, here we complete the action block after a certain timeout.
-                //
-                // NOTE: passing a cancellation token here which will get triggered as soon as this object is disposed.  Consequently, this "Delay"
-                //       task will be completed right after that instead of waiting for full 'MaxWaitForReceiveAccessReports'; otherwise, it would
-                //       continue to run even after this object has been disposed, holding a reference to 'this', and unnecessarily preventing garbage collection.
-                if (!m_waitToCompleteCts.IsCancellationRequested)
-                {
-                    try
-                    {
-                        Task.Delay(MaxWaitForReceiveAccessReports, m_waitToCompleteCts.Token)
-                            .ContinueWith(t => CompleteAccessReportProcessing(logWarningIfNotAlreadyCompleted: true))
-                            .Forget();
-                    }
-                    catch (ObjectDisposedException)
-                    {
-                        // happens if m_waitToCompleteCts has already been disposed
-                        // (in which case reading its Token property throws)
-                    }
-                }
+                // There are no more active processes and RequestStop() was called. This means
+                // we are done processing reports, since both reads and writes on the FIFO are blocking, so
+                // in order for processes to exit, we should have drained the corresponding reports already on managed side
+                CompleteAccessReportProcessing();
             }
 
             /// <summary>Adds <paramref name="pid" /> to the set of active processes</summary>
@@ -277,7 +253,7 @@ namespace BuildXL.Processes
             internal void LogError(string message)
             {
                 message = $"{message} (errno: {Marshal.GetLastWin32Error()})";
-                Process.LogDebug("[ERROR]: " + message);
+                Process.LogProcessState("[ERROR]: " + message);
                 m_failureCallback?.Invoke(1, message);
             }
 
@@ -291,8 +267,6 @@ namespace BuildXL.Processes
             {
                 RequestStop();
                 m_activeProcessesChecker.Join();
-                m_waitToCompleteCts.Cancel();
-                m_waitToCompleteCts.Dispose();
                 m_pathCache.Clear();
                 m_activeProcesses.Clear();
                 Analysis.IgnoreResult(FileUtilities.TryDeleteFile(ReportsFifoPath, retryOnFailure: false));
@@ -424,7 +398,7 @@ namespace BuildXL.Processes
                     var numRead = Read(readHandle, messageLengthBytes, 0, messageLengthBytes.Length);
                     if (numRead == 0) // EOF
                     {
-                        LogDebug("Exiting 'receive reports' loop.");
+                        Process.LogProcessState("Exiting 'receive reports' loop.");
                         break;
                     }
 
@@ -554,7 +528,7 @@ namespace BuildXL.Processes
         }
 
         /// <inheritdoc />
-        public void NotifyPipReady(LoggingContext loggingContext, FileAccessManifest fam, SandboxedProcessUnix process)
+        public void NotifyPipReady(LoggingContext loggingContext, FileAccessManifest fam, SandboxedProcessUnix process, Task reportCompletion)
         {
             Contract.Requires(!process.Started);
             Contract.Requires(process.PipId != 0);
@@ -580,7 +554,7 @@ namespace BuildXL.Processes
                 File.WriteAllBytes(famPath, manifestBytes.ToArray());
             }
 
-            process.LogDebug($"Saved FAM to '{famPath}'");
+            process.LogProcessState($"Saved FAM to '{famPath}'");
 
             // create a FIFO (named pipe)
             Analysis.IgnoreResult(FileUtilities.TryDeleteFile(fifoPath, retryOnFailure: false));
@@ -589,7 +563,7 @@ namespace BuildXL.Processes
                 throw new BuildXLException($"Creating FIFO {fifoPath} failed. (errno: {Marshal.GetLastWin32Error()})");
             }
 
-            process.LogDebug($"Created FIFO at '{fifoPath}'");
+            process.LogProcessState($"Created FIFO at '{fifoPath}'");
 
             // create and save info for this pip
             var info = new Info(m_failureCallback, process, fifoPath, famPath, debugLogPath, IsInTestMode);
@@ -597,6 +571,9 @@ namespace BuildXL.Processes
             {
                 throw new BuildXLException($"Process with PidId {process.PipId} already exists");
             }
+
+            // Make sure we dispose the process info after report processing is completed
+            reportCompletion.ContinueWith(t => info.Dispose(), TaskContinuationOptions.OnlyOnRanToCompletion | TaskContinuationOptions.RunContinuationsAsynchronously);
 
             info.Start();
 
@@ -624,9 +601,8 @@ namespace BuildXL.Processes
         /// <inheritdoc />
         public bool NotifyPipFinished(long pipId, SandboxedProcessUnix process)
         {
-            if (m_pipProcesses.TryRemove(pipId, out var info))
+            if (m_pipProcesses.TryRemove(pipId, out _))
             {
-                info.Dispose();
                 return true;
             }
             else

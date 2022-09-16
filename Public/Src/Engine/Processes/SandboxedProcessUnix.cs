@@ -188,7 +188,7 @@ namespace BuildXL.Processes
             m_pendingReports = new ActionBlock<AccessReport>(HandleAccessReport, executionOptions);
 
             // install 'ProcessReady' and 'ProcessStarted' handlers to inform the sandbox
-            ProcessReady += () => SandboxConnection.NotifyPipReady(info.LoggingContext, info.FileAccessManifest, this);
+            ProcessReady += () => SandboxConnection.NotifyPipReady(info.LoggingContext, info.FileAccessManifest, this, m_pendingReports.Completion);
             ProcessStarted += (pid) => OnProcessStartedAsync(info).GetAwaiter().GetResult();
         }
 
@@ -403,7 +403,6 @@ namespace BuildXL.Processes
                 var awaitedTask = await Task.WhenAny(m_pendingReports.Completion, m_processTreeTimeoutTask);
                 if (awaitedTask == m_processTreeTimeoutTask)
                 {
-                    LogProcessState("Waiting for reports timed out; any surviving processes will be forcefully killed.");
                     await KillAsync();
                 }
             }
@@ -427,7 +426,7 @@ namespace BuildXL.Processes
 
             m_timeoutTaskCancelationSource.Cancel();
 
-            ulong reportCount = (ulong) Counters.GetCounterValue(SandboxedProcessCounters.AccessReportCount);
+            ulong reportCount = (ulong)Counters.GetCounterValue(SandboxedProcessCounters.AccessReportCount);
             if (reportCount > 0)
             {
                 Counters.AddToCounter(SandboxedProcessCounters.SumOfAccessReportAvgQueueTimeUs, (long)(m_sumOfReportQueueTimesUs / reportCount));
@@ -455,9 +454,9 @@ namespace BuildXL.Processes
         /// The callers must make sure that when they call this method no concurrent modifications are
         /// being done to <see cref="m_reports"/>.
         /// </summary>
-        private IReadOnlyList<ReportedProcess> GetCurrentlyActiveChildProcesses()
+        private IEnumerable<ReportedProcess> GetCurrentlyActiveChildProcesses()
         {
-            return m_reports.GetActiveProcesses().Where(p => p.ProcessId > 0 && p.ProcessId != ProcessId).ToList();
+            return m_reports.GetActiveProcesses().Where(p => p.ProcessId > 0 && p.ProcessId != ProcessId);
         }
 
         private void KillAllChildProcesses()
@@ -475,6 +474,13 @@ namespace BuildXL.Processes
 
         private bool ShouldWaitForSurvivingChildProcesses()
         {
+            var activeProcesses = GetCurrentlyActiveChildProcesses();
+
+            if (!activeProcesses.Any())
+            {
+                return false;
+            }
+
             // Wait for surviving child processes if no allowable process names are explicitly specified.
             if (AllowedSurvivingChildProcessNames == null || AllowedSurvivingChildProcessNames.Length == 0)
             {
@@ -482,7 +488,10 @@ namespace BuildXL.Processes
             }
 
             // Otherwise, wait if there are any alive processes that are not explicitly allowed to survive
-            var aliveProcessesNames = CoalesceProcesses(GetCurrentlyActiveChildProcesses()).Select(p => Path.GetFileName(p.Path));
+            var aliveProcessesNames = CoalesceProcesses(activeProcesses).Select(p => Path.GetFileName(p.Path));
+
+            LogProcessState("surviving processes: " + string.Join(",", aliveProcessesNames));
+
             return aliveProcessesNames
                 .Except(AllowedSurvivingChildProcessNames)
                 .Any();
@@ -673,11 +682,11 @@ namespace BuildXL.Processes
         {
             var report = new Sandbox.AccessReport
             {
-                Operation      = FileOperation.OpProcessStart,
-                Pid            = Process.Id,
-                PipId          = PipId,
+                Operation = FileOperation.OpProcessStart,
+                Pid = Process.Id,
+                PipId = PipId,
                 PathOrPipStats = Sandbox.AccessReport.EncodePath(Process.StartInfo.FileName),
-                Status         = (uint)FileAccessStatus.Allowed
+                Status = (uint)FileAccessStatus.Allowed
             };
 
             ReportFileAccess(ref report);
@@ -734,10 +743,10 @@ namespace BuildXL.Processes
                             bool shouldWait = ShouldWaitForSurvivingChildProcesses();
                             if (shouldWait)
                             {
+                                LogProcessState($"Main process exited but some child processes are still alive. Waiting the specified nested child process timeout to see whether they end naturally.");
                                 await Task.Delay(ChildProcessTimeout);
                             }
 
-                            LogProcessState($"Process timed out because nested process termination timeout limit was reached.");
                             processTreeTimeoutSource.SetResult(Unit.Void);
                             break;
                         }
@@ -950,17 +959,17 @@ namespace BuildXL.Processes
 
                 bool isWrite = (report.RequestedAccess & (byte)RequestedAccess.Write) != 0;
 
-                explicitlyReported              = report.ExplicitLogging > 0;
-                error                           = report.Error;
-                usn                             = ReportedFileAccess.NoUsn;
-                desiredAccess                   = isWrite ? DesiredAccess.GENERIC_WRITE : DesiredAccess.GENERIC_READ;
-                shareMode                       = ShareMode.FILE_SHARE_READ;
-                creationDisposition             = CreationDisposition.OPEN_ALWAYS;
-                flagsAndAttributes              = 0;
+                explicitlyReported = report.ExplicitLogging > 0;
+                error = report.Error;
+                usn = ReportedFileAccess.NoUsn;
+                desiredAccess = isWrite ? DesiredAccess.GENERIC_WRITE : DesiredAccess.GENERIC_READ;
+                shareMode = ShareMode.FILE_SHARE_READ;
+                creationDisposition = CreationDisposition.OPEN_ALWAYS;
+                flagsAndAttributes = 0;
                 openedFileOrDirectoryAttributes = 0;
-                path                            = report.DecodePath();
-                enumeratePattern                = string.Empty;
-                processArgs                     = string.Empty;
+                path = report.DecodePath();
+                enumeratePattern = string.Empty;
+                processArgs = string.Empty;
 
                 AbsolutePath.TryCreate(PathTable, path, out manifestPath);
 
@@ -974,15 +983,15 @@ namespace BuildXL.Processes
 
         internal static string AccessReportToString(AccessReport report)
         {
-            var operation       = report.DecodeOperation();
-            var pid             = report.Pid.ToString("X");
+            var operation = report.DecodeOperation();
+            var pid = report.Pid.ToString("X");
             var requestedAccess = report.RequestedAccess;
-            var status          = report.Status;
+            var status = report.Status;
             var explicitLogging = report.ExplicitLogging != 0 ? 1 : 0;
-            var error           = report.Error;
-            var path            = report.DecodePath();
-            ulong processTime   = (report.Statistics.EnqueueTime - report.Statistics.CreationTime) / 1000;
-            ulong queueTime     = (report.Statistics.DequeueTime - report.Statistics.EnqueueTime) / 1000;
+            var error = report.Error;
+            var path = report.DecodePath();
+            ulong processTime = (report.Statistics.EnqueueTime - report.Statistics.CreationTime) / 1000;
+            ulong queueTime = (report.Statistics.DequeueTime - report.Statistics.EnqueueTime) / 1000;
 
             return
                 I($"{operation}:{pid}|{requestedAccess}|{status}|{explicitLogging}|{error}|{path}|e:{report.Statistics.EnqueueTime}|h:{processTime}us|q:{queueTime}us");

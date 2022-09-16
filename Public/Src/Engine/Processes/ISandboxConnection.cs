@@ -5,6 +5,7 @@ using System;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Configuration;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace BuildXL.Processes
 {
@@ -45,7 +46,11 @@ namespace BuildXL.Processes
         /// <summary>
         /// Notifies the sandbox that a new pip process is ready to be launched.
         /// </summary>
-        void NotifyPipReady(LoggingContext loggingContext, FileAccessManifest fam, SandboxedProcessUnix process);
+        /// <remarks>
+        /// A task that completes when the report processing for the pip is passed as a way for the sandbox connection
+        /// deal with clean up operations that may not be directly associated with the root process ending/the pip finishing
+        /// </remarks>
+        void NotifyPipReady(LoggingContext loggingContext, FileAccessManifest fam, SandboxedProcessUnix process, Task reportCompletion);
 
         /// <summary>
         /// Notifies the sandbox that a new pip process has started. Since the sandbox expects to receive the

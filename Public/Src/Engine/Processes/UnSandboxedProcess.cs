@@ -408,7 +408,7 @@ namespace BuildXL.Processes
         protected virtual bool ReportsCompleted() => true;
 
         /// <nodoc />
-        protected void LogProcessState(string message)
+        internal void LogProcessState(string message)
         {
             string fullMessage = I($"Exited: {m_processExecutor?.ExitCompleted ?? false}, StdOut: {m_processExecutor?.StdOutCompleted ?? false}, StdErr: {m_processExecutor?.StdErrCompleted ?? false}, Reports: {ReportsCompleted()} :: {message}");
 

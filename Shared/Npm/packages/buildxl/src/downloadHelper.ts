@@ -17,7 +17,14 @@ async function downloadNugetPackage(targetDir: string, packageName: string, vers
     const feed = "https://pkgs.dev.azure.com/ms/BuildXL/_packaging/BuildXL/nuget/v3/index.json";
 
     // Clear 
-    await fs.promises.rmdir(targetDir, {recursive: true});
+    try {
+        await fs.promises.rmdir(targetDir, {recursive: true});
+    } catch (err) {
+        // Ignore folder not found error
+        if ((err as {code?: unknown}).code !== 'ENOENT') {
+            throw err;
+        }
+    }
 
     // Pull nuget.exe
     console.log('Downloading nuget tool.');

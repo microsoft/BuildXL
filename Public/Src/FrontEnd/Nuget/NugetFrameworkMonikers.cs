@@ -100,7 +100,10 @@ namespace BuildXL.FrontEnd.Nuget
         public PathAtom NetApp50 { get; }
 
         /// <nodoc />
-        public PathAtom NetApp60 { get; }
+        public PathAtom Net60 { get; }
+
+        /// <nodoc />
+        public PathAtom Net70 { get; }
 
         /// <nodoc />
         public PathAtom BuildFolderName { get; }
@@ -169,11 +172,12 @@ namespace BuildXL.FrontEnd.Nuget
             NetCoreApp30  = Register(stringTable, "netcoreapp3.0",  ".NETCoreApp3.0", NetCoreVersionHistory);
             NetCoreApp31  = Register(stringTable, "netcoreapp3.1",  ".NETCoreApp3.1", NetCoreVersionHistory);
             NetApp50      = Register(stringTable, "net5.0",  ".NETCoreApp5.0", NetCoreVersionHistory);
-            NetApp60      = Register(stringTable, "net6.0",  ".NETCoreApp6.0", NetCoreVersionHistory);
+            Net60      = Register(stringTable, "net6.0",  ".NETCoreApp6.0", NetCoreVersionHistory);
+            Net70         = Register(stringTable, "net7.0",  ".NETCoreApp7.0", NetCoreVersionHistory);
 
             NetStandard21 = Register(stringTable, "netstandard2.1", ".NETStandard2.1", NetCoreVersionHistory);
 
-            NetCoreAppVersionHistory = new List<PathAtom>() { NetCoreApp20, NetCoreApp21, NetCoreApp22, NetCoreApp30, NetCoreApp31, NetApp50, NetApp60 };
+            NetCoreAppVersionHistory = new List<PathAtom>() { NetCoreApp20, NetCoreApp21, NetCoreApp22, NetCoreApp30, NetCoreApp31, NetApp50, Net60, Net70 };
 
             Net10  = Register(stringTable, "net10",  ".NETFramework1.0", FullFrameworkVersionHistory);
             Net11  = Register(stringTable, "net11",  ".NETFramework1.1", FullFrameworkVersionHistory);

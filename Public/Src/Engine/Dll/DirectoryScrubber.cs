@@ -12,7 +12,6 @@ using BuildXL.Native.IO;
 using BuildXL.Pips;
 using BuildXL.Tracing;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using static BuildXL.Utilities.FormattableStringEx;
@@ -160,10 +159,10 @@ namespace BuildXL.Engine
                         loggingContext,
                         new Dictionary<string, long>
                         {
-                            [I($"{Category}.DirectoriesEncountered")] = directoriesEncountered,
-                            [I($"{Category}.FilesEncountered")] = filesEncountered,
-                            [I($"{Category}.FilesRemoved")] = filesRemoved,
-                            [I($"{Category}.DirectoriesRemovedRecursively")] = directoriesRemovedRecursively,
+                            [I($"{statisticIdentifier}.DirectoriesEncountered")] = directoriesEncountered,
+                            [I($"{statisticIdentifier}.FilesEncountered")] = filesEncountered,
+                            [I($"{statisticIdentifier}.FilesRemoved")] = filesRemoved,
+                            [I($"{statisticIdentifier}.DirectoriesRemovedRecursively")] = directoriesRemovedRecursively,
                         });
                 }))
             using (var timer = new Timer(

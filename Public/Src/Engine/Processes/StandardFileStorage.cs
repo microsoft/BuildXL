@@ -30,6 +30,8 @@ namespace BuildXL.Processes
                     return m_sandboxedProcessStandardFiles.StandardError;
                 case SandboxedProcessFile.StandardOutput:
                     return m_sandboxedProcessStandardFiles.StandardOutput;
+                case SandboxedProcessFile.Trace:
+                    return m_sandboxedProcessStandardFiles.Trace;
                 default:
                     Contract.Assert(false);
                     return null;

@@ -535,6 +535,7 @@ namespace BuildXL.Execution.Analyzer
                     m_html.CreateRow("StdIn Data", pip.StandardInput.Data),
                     m_html.CreateRow("StdOut", pip.StandardOutput),
                     m_html.CreateRow("StdErr", pip.StandardError),
+                    m_html.CreateRow("TraceFile", pip.TraceFile),
                     m_html.CreateRow("Std Directory", pip.StandardDirectory),
                     m_html.CreateRow("Warning RegEx", pip.WarningRegex.Pattern),
                     m_html.CreateRow("Error RegEx", pip.ErrorRegex.Pattern)),

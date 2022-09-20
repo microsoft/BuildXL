@@ -267,6 +267,11 @@ namespace Transformer {
          * When set, weak fingerprint augmentation is enforced when performing cache lookup.
          */
         enforceWeakFingerprintAugmentation?: boolean;
+
+        /** When set, a file with observations reported by the sandbox will be created at the specified location.
+         *  Details: Documentation\Wiki\Advanced-Features\TraceFile.md
+         */
+        fileAccessTraceFile?: Path;
     }
 
     @@public

@@ -67,6 +67,11 @@ namespace BuildXL.Processes
         public SandboxedProcessOutput StandardError { get; set; }
 
         /// <summary>
+        /// Sandbox trace file.
+        /// </summary>
+        public SandboxedProcessOutput TraceFile { get; set; }
+
+        /// <summary>
         /// Optional set of all file and scope accesses, only non-null when file access monitoring was requested and ReportFileAccesses was specified in manifest
         /// </summary>
         public ISet<ReportedFileAccess> FileAccesses { get; set; }
@@ -195,6 +200,7 @@ namespace BuildXL.Processes
             writer.Write(DetoursMaxHeapSize);
             writer.Write(LastMessageCount);
             writer.Write(MessageCountSemaphoreCreated);
+            writer.Write(TraceFile, (w, v) => v.Serialize(w));
         }
 
         /// <summary>
@@ -239,6 +245,7 @@ namespace BuildXL.Processes
             long detoursMaxHeapSize = reader.ReadInt64();
             int lastMessageCount = reader.ReadInt32();
             bool messageCountSemaphoreCreated = reader.ReadBoolean();
+            SandboxedProcessOutput trace = reader.ReadNullable(r => SandboxedProcessOutput.Deserialize(r));
 
             return new SandboxedProcessResult()
             {
@@ -251,6 +258,7 @@ namespace BuildXL.Processes
                 JobAccountingInformation = jobAccountingInformation,
                 StandardOutput = standardOutput,
                 StandardError = standardError,
+                TraceFile = trace,
                 FileAccesses = fileAccesses != null ? new HashSet<ReportedFileAccess>(fileAccesses) : null,
                 ExplicitlyReportedFileAccesses = explicitlyReportedFileAccesses != null ? new HashSet<ReportedFileAccess>(explicitlyReportedFileAccesses) : null,
                 AllUnexpectedFileAccesses = allUnexpectedFileAccesses != null ? new HashSet<ReportedFileAccess>(allUnexpectedFileAccesses) : null,

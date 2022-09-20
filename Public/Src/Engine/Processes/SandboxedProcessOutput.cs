@@ -85,6 +85,11 @@ namespace BuildXL.Processes
                 w.WriteNullableString(v.Message);
                 w.WriteCompact((uint)v.RootCause);
             });
+            if (m_file == SandboxedProcessFile.Trace)
+            {
+                // TODO: Remove this per bug #1989497
+                writer.Write(m_fileStorage, (w, v) => SandboxedProcessStandardFiles.From(v).SerializeForTrace(w));
+            }
         }
 
         /// <summary>
@@ -104,6 +109,16 @@ namespace BuildXL.Processes
             }
             SandboxedProcessFile file = (SandboxedProcessFile)reader.ReadUInt32Compact();
             BuildXLException exception = reader.ReadNullable(r => new BuildXLException(r.ReadNullableString(), (ExceptionRootCause)r.ReadUInt32Compact()));
+            if (file == SandboxedProcessFile.Trace)
+            {
+                // TODO: Remove this per bug #1989497
+                // Override standard files and file storage for trace file.
+                standardFiles = reader.ReadNullable(r => SandboxedProcessStandardFiles.DeserializeForTrace(r));
+                if (standardFiles != null)
+                {
+                    fileStorage = new StandardFileStorage(standardFiles);
+                }
+            }
 
             return new SandboxedProcessOutput(
                 length,

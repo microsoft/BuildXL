@@ -84,6 +84,12 @@ namespace BuildXL.Pips.Operations
         public FileArtifact StandardError { get; }
 
         /// <summary>
+        /// If valid, create and store sandbox trace file at that location.
+        /// </summary>
+        [PipCaching(FingerprintingRole = FingerprintingRole.Semantic)]
+        public FileArtifact TraceFile { get; }
+
+        /// <summary>
         /// Location where standard output / error may be written to.
         /// Must be valid if any of <see cref="StandardOutput" />, <see cref="StandardError" /> properties are not valid.
         /// </summary>
@@ -438,7 +444,8 @@ namespace BuildXL.Pips.Operations
             ReadOnlyArray<PathAtom>? childProcessesToBreakawayFromSandbox = null,
             ReadOnlyArray<AbsolutePath>? outputDirectoryExclusions = null,
             int? processRetries = null,
-            StringId retryAttemptEnvironmentVariable = default)
+            StringId retryAttemptEnvironmentVariable = default,
+            FileArtifact traceFile = default)
         {
             Contract.Requires(executable.IsValid);
             Contract.Requires(workingDirectory.IsValid);
@@ -557,6 +564,7 @@ namespace BuildXL.Pips.Operations
             OutputDirectoryExclusions = outputDirectoryExclusions ?? ReadOnlyArray<AbsolutePath>.Empty;
             ProcessRetries = processRetries;
             RetryAttemptEnvironmentVariable = retryAttemptEnvironmentVariable;
+            TraceFile = traceFile;
         }
 
         /// <summary>
@@ -608,7 +616,8 @@ namespace BuildXL.Pips.Operations
             int? priority = null,
             ReadOnlyArray<AbsolutePath>? preserveOutputAllowlist = null,
             FileArtifact? changeAffectedInputListWrittenFilePath = default,
-            int? preserveOutputsTrustLevel = null)
+            int? preserveOutputsTrustLevel = null,
+            FileArtifact? traceFile = default)
         {
             return new Process(
                 executable ?? Executable,
@@ -656,7 +665,8 @@ namespace BuildXL.Pips.Operations
                 priority,
                 preserveOutputAllowlist ?? PreserveOutputAllowlist,
                 changeAffectedInputListWrittenFilePath ?? ChangeAffectedInputListWrittenFile,
-                preserveOutputsTrustLevel ?? PreserveOutputsTrustLevel);
+                preserveOutputsTrustLevel ?? PreserveOutputsTrustLevel,
+                traceFile: traceFile ?? TraceFile);
 
         }
 
@@ -987,8 +997,8 @@ namespace BuildXL.Pips.Operations
                 outputDirectoryExclusions: reader.ReadReadOnlyArray(reader1 => reader1.ReadAbsolutePath()),
                 processRetries: reader.ReadBoolean() ? (int?)reader.ReadInt32Compact() : null,
                 retryAttemptEnvironmentVariable: reader.ReadStringId(),
-                succeedFastExitCodes: reader.ReadReadOnlyArray(r => r.ReadInt32())
-                );
+                succeedFastExitCodes: reader.ReadReadOnlyArray(r => r.ReadInt32()),
+                traceFile: reader.ReadFileArtifact());
         }
 
         /// <inheritdoc />
@@ -1047,6 +1057,7 @@ namespace BuildXL.Pips.Operations
             }
             writer.Write(RetryAttemptEnvironmentVariable);
             writer.Write(SucceedFastExitCodes, (w, v) => w.Write(v));
+            writer.Write(TraceFile);
         }
         #endregion
     }

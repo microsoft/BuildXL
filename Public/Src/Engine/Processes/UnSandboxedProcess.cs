@@ -300,6 +300,7 @@ namespace BuildXL.Processes
                 JobAccountingInformation            = GetJobAccountingInfo(),
                 StandardOutput                      = m_output.Freeze(),
                 StandardError                       = m_error.Freeze(),
+                TraceFile                           = null,
                 HasReadWriteToReadFileAccessRequest = reports?.HasReadWriteToReadFileAccessRequest ?? false,
                 AllUnexpectedFileAccesses           = reports?.FileUnexpectedAccesses ?? EmptyFileAccessesSet,
                 FileAccesses                        = fileAccesses,

@@ -4344,7 +4344,7 @@ namespace BuildXL.Scheduler
         public static bool IsUnconditionallyPerpetuallyDirty(Pip pip, IPipGraphFileSystemView pipGraphView)
             => pip.PipType == PipType.Process && pip is Process process &&
                (process.HasSharedOpaqueDirectoryOutputs || 
-                process.DirectoryOutputs.Any(directory => pipGraphView.GetExistenceAssertionsUnderOpaqueDirectory(directory).Count > 0)); 
+                process.DirectoryOutputs.Any(directory => pipGraphView.GetExistenceAssertionsUnderOpaqueDirectory(directory).Count > 0));
 
         /// <summary>
         /// Discovers the content hashes of a process pip's outputs, which must now be on disk.

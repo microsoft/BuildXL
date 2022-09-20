@@ -64,6 +64,7 @@ namespace BuildXL.Processes
         private bool m_processStarted;
         private SandboxedProcessOutputBuilder m_error;
         private SandboxedProcessOutputBuilder m_output;
+        private readonly SandboxedProcessTraceBuilder m_traceBuilder;
         private SandboxedProcessReports m_reports;
         private IAsyncPipeReader m_reportReader;
         private readonly SemaphoreSlim m_reportReaderSemaphore = TaskUtilities.CreateMutex();
@@ -86,6 +87,9 @@ namespace BuildXL.Processes
         {
             Contract.Requires(info != null);
             Contract.Requires(!info.Timeout.HasValue || info.Timeout.Value <= Process.MaxTimeout);
+            Contract.Requires(!info.CreateSandboxTraceFile 
+                || info.FileAccessManifest.ReportFileAccesses && info.FileAccessManifest.LogProcessData && info.FileAccessManifest.ReportProcessArgs, 
+                "Trace file is enabled, but some of the required options in the file access manifest are not.");
 
             // there could be a race here, but it just doesn't matter
             if (s_binaryPaths == null)
@@ -129,6 +133,10 @@ namespace BuildXL.Processes
                     SandboxedProcessFile.StandardError,
                     info.StandardErrorObserver);
 
+            m_traceBuilder = info.CreateSandboxTraceFile
+                ? new SandboxedProcessTraceBuilder(info.FileStorage, info.PathTable)
+                : null;
+
             m_reports = m_fileAccessManifest != null ?
                 new SandboxedProcessReports(
                     m_fileAccessManifest,
@@ -138,7 +146,8 @@ namespace BuildXL.Processes
                     info.LoggingContext,
                     info.DetoursEventListener,
                     info.SidebandWriter,
-                    info.FileSystemView) : null;
+                    info.FileSystemView,
+                    m_traceBuilder) : null;
 
             Contract.Assume(inputEncoding != null);
             Contract.Assert(errorEncoding != null);
@@ -733,6 +742,7 @@ namespace BuildXL.Processes
                     JobAccountingInformation = jobAccountingInformation,
                     StandardOutput = m_output.Freeze(),
                     StandardError = m_error.Freeze(),
+                    TraceFile = m_traceBuilder?.Freeze(),
                     AllUnexpectedFileAccesses = m_reports?.FileUnexpectedAccesses,
                     FileAccesses = m_reports?.FileAccesses,
                     DetouringStatuses = m_reports?.ProcessDetoursStatuses,

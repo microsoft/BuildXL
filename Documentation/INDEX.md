@@ -76,6 +76,7 @@ Keep this as the sole primary landing page for documentation and avoid creating 
 * [Execution Analyzer](Wiki/Advanced-Features/Execution-Analyzer.md) 
 * [XLG Debugger](Wiki/Advanced-Features/XLG-Debugger/INDEX.md) 
 * [Cache Miss Analysis](Wiki/Advanced-Features/Cache-Miss-Analysis.md)
+* [File Access Trace File](Wiki/Advanced-Features/TraceFile.md)
 
 ## DScript
 * [Introduction](Wiki/DScript/Introduction.md)

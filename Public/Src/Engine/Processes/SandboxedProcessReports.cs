@@ -114,6 +114,8 @@ namespace BuildXL.Processes
         /// </summary>
         public Failure<string> MessageProcessingFailure { get; internal set; }
 
+        private readonly SandboxedProcessTraceBuilder m_traceBuilder;
+
         public SandboxedProcessReports(
             FileAccessManifest manifest,
             PathTable pathTable,
@@ -122,7 +124,8 @@ namespace BuildXL.Processes
             LoggingContext loggingContext,
             [CanBeNull] IDetoursEventListener detoursEventListener,
             [CanBeNull] SidebandWriter sharedOpaqueOutputLogger,
-            [CanBeNull] ISandboxFileSystemView fileSystemView)
+            [CanBeNull] ISandboxFileSystemView fileSystemView,
+            [CanBeNull] SandboxedProcessTraceBuilder traceBuilder = null)
         {
             Contract.RequiresNotNull(manifest);
             Contract.RequiresNotNull(pathTable);
@@ -139,6 +142,7 @@ namespace BuildXL.Processes
             m_sharedOpaqueOutputLogger = sharedOpaqueOutputLogger;
             m_loggingContext = loggingContext;
             m_fileSystemView = fileSystemView;
+            m_traceBuilder = traceBuilder;
         }
 
         /// <summary>
@@ -758,6 +762,7 @@ namespace BuildXL.Processes
                 process = new ReportedProcess(processId, path, processArgs);
                 m_activeProcesses[processId] = process;
                 Processes.Add(process);
+                m_traceBuilder?.ReportProcess(process);
             }
             else
             {
@@ -821,6 +826,8 @@ namespace BuildXL.Processes
                     m_pathCache[path] = path;
                 }
             }
+
+            m_traceBuilder?.ReportFileAccess(processId, operation, requestedAccess, manifestPath, path, error, isAnAugmentedFileAccess, enumeratePattern);
 
             if (operation == ReportedFileOperation.FirstAllowWriteCheckInProcess)
             {

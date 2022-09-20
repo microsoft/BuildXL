@@ -879,6 +879,7 @@ namespace BuildXL.Processes
                         MonitoringConfig = new SandboxedProcessResourceMonitoringConfig(enabled: m_sandboxConfig.MeasureProcessCpuTimes, refreshInterval: TimeSpan.FromSeconds(2)),
                         NumRetriesPipeReadOnCancel = EngineEnvironmentSettings.SandboxNumRetriesPipeReadOnCancel.Value
                             ?? SandboxedProcessInfo.DefaultPipeReadRetryOnCancellationCount,
+                        CreateSandboxTraceFile = m_pip.TraceFile.IsValid,
                     };
 
                     if (m_sandboxConfig.AdminRequiredProcessExecutionMode.ExecuteExternalVm()
@@ -1687,7 +1688,7 @@ namespace BuildXL.Processes
             ProcessTimes primaryProcessTimes = result.PrimaryProcessTimes;
             JobObject.AccountingInformation? jobAccounting = result.JobAccountingInformation;
 
-            var start = DateTime.UtcNow;
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
             // If this operation fails, error was logged already
             bool sharedOpaqueProcessingSuccess = TryGetObservedFileAccesses(
                     result,
@@ -1697,7 +1698,7 @@ namespace BuildXL.Processes
                     out SortedReadOnlyArray<ObservedFileAccess, ObservedFileAccessExpandedPathComparer> observed,
                     out IReadOnlySet<AbsolutePath> createdDirectories);
 
-            LogSubPhaseDuration(m_loggingContext, m_pip, SandboxedProcessCounters.SandboxedPipExecutorPhaseGettingObservedFileAccesses, DateTime.UtcNow.Subtract(start), $"(count: {observed.Length})");
+            LogSubPhaseDuration(m_loggingContext, m_pip, SandboxedProcessCounters.SandboxedPipExecutorPhaseGettingObservedFileAccesses, stopwatch.Elapsed, $"(count: {observed.Length})");
 
             TimeSpan time = primaryProcessTimes.TotalWallClockTime;
             if (result.TimedOut)
@@ -1808,7 +1809,7 @@ namespace BuildXL.Processes
                     azWatsonDeadProcess.ProcessId);
             }
 
-            start = DateTime.UtcNow;
+            stopwatch.Restart();
 
             var fileAccessReportingContext = new FileAccessReportingContext(
                 loggingContext,
@@ -1897,9 +1898,9 @@ namespace BuildXL.Processes
                 }
             }
 
-            LogSubPhaseDuration(m_loggingContext, m_pip, SandboxedProcessCounters.SandboxedPipExecutorPhaseProcessingStandardOutputs, DateTime.UtcNow.Subtract(start));
+            LogSubPhaseDuration(m_loggingContext, m_pip, SandboxedProcessCounters.SandboxedPipExecutorPhaseProcessingStandardOutputs, stopwatch.Elapsed);
 
-            start = DateTime.UtcNow;
+            stopwatch.Restart();
 
             // After standard output and error may been saved, and shared dynamic write accesses were identified, we can merge
             // outputs back to their original locations
@@ -1947,7 +1948,16 @@ namespace BuildXL.Processes
                 }
             }
 
-            LogSubPhaseDuration(m_loggingContext, m_pip, SandboxedProcessCounters.SandboxedPipExecutorPhaseLoggingOutputs, DateTime.UtcNow.Subtract(start));
+            LogSubPhaseDuration(m_loggingContext, m_pip, SandboxedProcessCounters.SandboxedPipExecutorPhaseLoggingOutputs, stopwatch.Elapsed);
+
+            bool shouldCreateTraceFile = m_pip.TraceFile.IsValid;
+            if (shouldCreateTraceFile)
+            {
+                if (!await TrySaveTraceFileAsync(result))
+                {
+                    loggingSuccess = false;
+                }
+            }
 
             // N.B. here 'observed' means 'all', not observed in the terminology of SandboxedProcessPipExecutor.
             List<ReportedFileAccess> allFileAccesses = null;
@@ -2399,7 +2409,7 @@ namespace BuildXL.Processes
                     {
                         var output = attributedOutput.ToFileArtifact();
 
-                        if (output != pip.StandardOutput && output != pip.StandardError)
+                        if (output != pip.StandardOutput && output != pip.StandardError && output != pip.TraceFile)
                         {
                             // We mask 'report' here, since outputs are expected written and should never fail observed-access validation (directory dependency, etc.)
                             // Note that they would perhaps fail otherwise (simplifies the observed access checks in the first place).
@@ -2589,6 +2599,13 @@ namespace BuildXL.Processes
                 if (m_sandboxConfig.LogFileAccessTables)
                 {
                     LogFileAccessTables(pip);
+                }
+
+                if (m_pip.TraceFile.IsValid)
+                {
+                    m_fileAccessManifest.ReportFileAccesses = true;
+                    m_fileAccessManifest.ReportProcessArgs = true;
+                    m_fileAccessManifest.LogProcessData = true;
                 }
             }
 
@@ -3905,7 +3922,7 @@ namespace BuildXL.Processes
             {
                 Dictionary<AbsolutePath, CompactSet<ReportedFileAccess>> accessesByPath = accessesByPathWrapper.Instance;
                 var excludedToolsAndPaths = new HashSet<(AbsolutePath, AbsolutePath)>();
-                
+
                 foreach (ReportedFileAccess reported in result.ExplicitlyReportedFileAccesses.Concat(GetEnumeratedFileAccessesForIncrementalTool(result)))
                 {
                     Contract.Assert(
@@ -4557,6 +4574,7 @@ namespace BuildXL.Processes
             return output.IsRequiredOutputFile &&
                     (output.Path != m_pip.StandardError.Path) &&
                     (output.Path != m_pip.StandardOutput.Path) &&
+                    (output.Path != m_pip.TraceFile.Path) &&
 
                     // Rewritten files are not required to be written by the tool
                     output.RewriteCount <= 1 &&
@@ -4651,6 +4669,21 @@ namespace BuildXL.Processes
             return true;
         }
 
+        private async Task<bool> TrySaveTraceFileAsync(SandboxedProcessResult result)
+        {
+            try
+            {
+                await result.TraceFile.SaveAsync();
+            }
+            catch (BuildXLException ex)
+            {
+                PipStandardIOFailed(GetFileName(SandboxedProcessFile.Trace), ex);
+                return false;
+            }
+
+            return true;
+        }
+
         private void LogChildrenSurvivedKilled()
         {
             Tracing.Logger.Log.PipProcessChildrenSurvivedKilled(
@@ -4695,7 +4728,8 @@ namespace BuildXL.Processes
 
                     if (!FileExistsNoFollow(expectedOutputPath, fileOutputsAreRedirected) &&
                         expectedOutput != m_pip.StandardOutput &&
-                        expectedOutput != m_pip.StandardError)
+                        expectedOutput != m_pip.StandardError &&
+                        expectedOutput != m_pip.TraceFile)
                     {
                         allOutputsPresent = false;
                         Tracing.Logger.Log.PipProcessMissingExpectedOutputOnCleanExit(

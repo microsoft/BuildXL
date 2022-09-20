@@ -23,10 +23,15 @@ namespace BuildXL.Processes
         /// The standard error
         /// </summary>
         StandardError,
+
+        /// <summary>
+        /// Trace file (sandbox observations).
+        /// </summary>
+        Trace,
     }
 
     /// <summary>
-    /// Logic to provide default file locations for stdout and stderr
+    /// Logic to provide default file locations for stdout, stderr, and a trace file
     /// </summary>
     public static class SandboxedProcessFileExtenstions
     {
@@ -41,14 +46,16 @@ namespace BuildXL.Processes
             {
                 case SandboxedProcessFile.StandardOutput:
                     return "out.txt";
-                default:
-                    Contract.Assert(file == SandboxedProcessFile.StandardError);
+                case SandboxedProcessFile.StandardError:
                     return "err.txt";
+                default:
+                    Contract.Assert(file == SandboxedProcessFile.Trace);
+                    return "trace.txt";
             }
         }
 
         /// <summary>
-        /// Get the file artifact that corresponds to stdout or stderr
+        /// Get the file artifact that corresponds to stdout, stderr, or a trace file
         /// </summary>
         /// <param name="file">The output stream</param>
         /// <param name="pip">The pip this request is about</param>
@@ -59,9 +66,11 @@ namespace BuildXL.Processes
             {
                 case SandboxedProcessFile.StandardOutput:
                     return pip.StandardOutput;
-                default:
-                    Contract.Assert(file == SandboxedProcessFile.StandardError);
+                case SandboxedProcessFile.StandardError:
                     return pip.StandardError;
+                default:
+                    Contract.Assert(file == SandboxedProcessFile.Trace);
+                    return pip.TraceFile;
             }
         }
     }

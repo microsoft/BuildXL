@@ -1377,6 +1377,9 @@ namespace BuildXL.Pips.Graph
                 Contract.Assert(
                     !process.StandardError.IsValid || outputsByPath.ContainsKey(process.StandardError.Path),
                     "Output set must contain the standard error file, if specified.");
+                Contract.Assert(
+                    !process.TraceFile.IsValid || outputsByPath.ContainsKey(process.TraceFile.Path),
+                    "Output set must contain the trace file, if specified.");
 
                 return true;
             }

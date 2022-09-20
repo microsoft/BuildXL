@@ -261,7 +261,7 @@ namespace BuildXL.Processes
             string error,
             string hint)
         {
-            var standardFiles = new SandboxedProcessStandardFiles(GetStdOutPath(hint), GetStdErrPath(hint));
+            var standardFiles = new SandboxedProcessStandardFiles(GetStdOutPath(hint), GetStdErrPath(hint), trace: null);
             var storage = new StandardFileStorage(standardFiles);
 
             return new SandboxedProcessResult

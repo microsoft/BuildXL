@@ -278,6 +278,7 @@ namespace BuildXL.Pips.Graph
 
             AddFileOutput(fingerprinter, nameof(Process.StandardError), process.StandardError);
             AddFileOutput(fingerprinter, nameof(Process.StandardOutput), process.StandardOutput);
+            AddFileOutput(fingerprinter, nameof(Process.TraceFile), process.TraceFile);
 
             fingerprinter.AddOrderIndependentCollection<FileArtifact, IEnumerable<FileArtifact>>(nameof(Process.Dependencies), GetRelevantProcessDependencies(process), (fp, f) => AddFileDependency(fp, f), m_expandedPathFileArtifactComparer);
             fingerprinter.AddOrderIndependentCollection<DirectoryArtifact, ReadOnlyArray<DirectoryArtifact>>(nameof(Process.DirectoryDependencies), process.DirectoryDependencies, (fp, d) => AddDirectoryDependency(fp, d), DirectoryComparer);

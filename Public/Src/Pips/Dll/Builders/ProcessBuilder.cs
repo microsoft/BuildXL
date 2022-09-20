@@ -78,6 +78,8 @@ namespace BuildXL.Pips.Builders
 
         private FileArtifact m_standardErrorFile;
 
+        private FileArtifact m_traceFile;
+
         // RewrittenWork. This list is lazily created
         private List<(FileArtifact, AbsolutePath)> m_filesToCopyBeforeWrite;
 
@@ -441,6 +443,16 @@ namespace BuildXL.Pips.Builders
         }
 
         /// <nodoc />
+        public void SetTraceFile(AbsolutePath path)
+        {
+            Contract.Requires(path.IsValid);
+            Contract.Assert(!m_traceFile.IsValid, "Value already set");
+
+            AddOutputFile(path, FileExistence.Required);
+            m_traceFile = FileArtifact.CreateOutputFile(path);
+        }
+
+        /// <nodoc />
         public void SetChangeAffectedInputListWrittenFile(AbsolutePath path)
         {
             Contract.Requires(path.IsValid);
@@ -685,6 +697,15 @@ namespace BuildXL.Pips.Builders
                 return false;
             }
 
+            // TODO (olkonone): Bug 1989281: Enable trace file for Linux and MacOS
+            if (m_traceFile.IsValid && !OperatingSystemHelper.IsWindowsOS)
+            {
+                processOutputs = null;
+                process = null;
+
+                return false;
+            }
+
             process = new Process(
                 executable: Executable,
                 workingDirectory: WorkingDirectory.IsValid ? WorkingDirectory : defaultDirectory,
@@ -697,6 +718,7 @@ namespace BuildXL.Pips.Builders
                 standardOutput: m_standardOutputFile,
                 standardError: m_standardErrorFile,
                 standardDirectory: (m_standardOutputFile.IsValid && m_standardErrorFile.IsValid) ? AbsolutePath.Invalid : defaultDirectory,
+                traceFile: m_traceFile,
 
                 dependencies: ReadOnlyArray<FileArtifact>.From(m_inputFiles.Instance),
                 directoryDependencies: ReadOnlyArray<DirectoryArtifact>.From(m_inputDirectories.Instance),

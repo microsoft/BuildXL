@@ -50,7 +50,7 @@ namespace Test.BuildXL.Processes.Detours
             }
             else
             {
-                standardFiles = new SandboxedProcessStandardFiles(A("C", "pip", "pip.out"), A("C", "pip", "pip.err"));
+                standardFiles = new SandboxedProcessStandardFiles(A("C", "pip", "pip.out"), A("C", "pip", "pip.err"), A("C", "pip", "pip.trace"));
                 fileStorage = new StandardFileStorage(standardFiles);
             }
 
@@ -92,6 +92,7 @@ namespace Test.BuildXL.Processes.Detours
                 {
                     WarningRegex = new ExpandedRegexDescriptor("*warn", System.Text.RegularExpressions.RegexOptions.Compiled)
                 },
+                CreateSandboxTraceFile = true,
             };
 
             // Serialize and deserialize.
@@ -162,6 +163,8 @@ namespace Test.BuildXL.Processes.Detours
                     // this validator examines serialized FAM bytes using the same Windows-only native parser used by Detours
                     ValidationDataCreator.TestManifestRetrieval(vac.DataItems, readInfo.FileAccessManifest, false);
                 }
+
+                XAssert.AreEqual(info.CreateSandboxTraceFile, readInfo.CreateSandboxTraceFile);
             }
         }
 

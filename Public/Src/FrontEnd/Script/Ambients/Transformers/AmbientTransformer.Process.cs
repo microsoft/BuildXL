@@ -87,6 +87,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
         private SymbolAtom m_executeConsoleInput;
         private SymbolAtom m_executeConsoleOutput;
         private SymbolAtom m_executeConsoleError;
+        private SymbolAtom m_executeTraceFile;
         private SymbolAtom m_executeEnvironmentVariables;
         private SymbolAtom m_executeAcquireSemaphores;
         private SymbolAtom m_executeAcquireMutexes;
@@ -232,6 +233,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             m_executeConsoleInput = Symbol("consoleInput");
             m_executeConsoleOutput = Symbol("consoleOutput");
             m_executeConsoleError = Symbol("consoleError");
+            m_executeTraceFile = Symbol("fileAccessTraceFile");
             m_executeEnvironmentVariables = Symbol("environmentVariables");
             m_executeAcquireSemaphores = Symbol("acquireSemaphores");
             m_executeAcquireMutexes = Symbol("acquireMutexes");
@@ -443,6 +445,13 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             if (consoleErrorOutput.IsValid)
             {
                 processBuilder.SetStandardErrorFile(consoleErrorOutput);
+            }
+
+            // Trace file
+            var traceFileOutput = Converter.ExtractPath(obj, m_executeTraceFile, allowUndefined: true);
+            if (traceFileOutput.IsValid)
+            {
+                processBuilder.SetTraceFile(traceFileOutput);
             }
 
             var changeAffectedInputListWrittenFile = Converter.ExtractPath(obj, m_changeAffectedInputListWrittenFile, allowUndefined: true);

@@ -858,6 +858,17 @@ namespace Test.BuildXL.Scheduler
                 outputs.Add(standardOutput.WithAttributes());
             }
 
+            FileArtifact traceFile = source.Vary(p => p.TraceFile);
+            if (traceFile.IsValid)
+            {
+                if (traceFile.IsSourceFile)
+                {
+                    traceFile = traceFile.CreateNextWrittenVersion();
+                }
+
+                outputs.Add(traceFile.WithAttributes());
+            }
+
             for (int i = 0; i < outputs.Count; i++)
             {
                 if (outputs[i].IsSourceFile)
@@ -985,7 +996,8 @@ namespace Test.BuildXL.Scheduler
                 preserveOutputAllowlist: preserveOutputAllowlist,
                 changeAffectedInputListWrittenFile: changeAffectedInputListWrittenFile,
                 outputDirectoryExclusions: ReadOnlyArray<AbsolutePath>.From(source.Vary(p => p.OutputDirectoryExclusions)),
-                retryAttemptEnvironmentVariable: source.Vary(p => p.RetryAttemptEnvironmentVariable));
+                retryAttemptEnvironmentVariable: source.Vary(p => p.RetryAttemptEnvironmentVariable),
+                traceFile: traceFile);
         }
 
         private CopyFile CreateCopyFileVariant(VariationSource<CopyFile> source)

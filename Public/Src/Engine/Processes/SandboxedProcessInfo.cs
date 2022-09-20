@@ -512,6 +512,11 @@ namespace BuildXL.Processes
         /// </summary>
         public ExternalVMSandboxedProcessData ExternalVMSandboxedProcessData { get; set; }
 
+        /// <summary>
+        /// Whether to create a sandbox trace file.
+        /// </summary>
+        public bool CreateSandboxTraceFile { get; init; }
+
         #region Serialization
 
         /// <nodoc />
@@ -576,6 +581,7 @@ namespace BuildXL.Processes
                 writer.Write(CreateJobObjectForCurrentProcess);
                 writer.WriteNullableString(DetoursFailureFile);
                 writer.Write(ExternalVMSandboxedProcessData, (w, v) => v.Serialize(w));
+                writer.Write(CreateSandboxTraceFile);
 
                 // File access manifest should be serialized the last.
                 writer.Write(FileAccessManifest, (w, v) => FileAccessManifest.Serialize(stream));
@@ -623,6 +629,7 @@ namespace BuildXL.Processes
                 var createJobObjectForCurrentProcess = reader.ReadBoolean();
                 var detoursFailureFile = reader.ReadNullableString();
                 var externalVMSandboxedProcessData = reader.ReadNullable(r => ExternalVMSandboxedProcessData.Deserialize(r));
+                var createSandboxTraceFile = reader.ReadBoolean();
 
                 var fam = reader.ReadNullable(r => FileAccessManifest.Deserialize(stream));
 
@@ -663,6 +670,7 @@ namespace BuildXL.Processes
                     DetoursFailureFile = detoursFailureFile,
                     ExternalVMSandboxedProcessData = externalVMSandboxedProcessData,
                     NumRetriesPipeReadOnCancel = numRetriesPipeReadOnCancel,
+                    CreateSandboxTraceFile = createSandboxTraceFile,
                 };
             }
         }

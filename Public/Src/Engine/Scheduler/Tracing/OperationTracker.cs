@@ -58,22 +58,20 @@ namespace BuildXL.Scheduler.Tracing
         private static readonly TimeSpan s_maxOpsThreshold = TimeSpan.FromMilliseconds(10);
 
         /// <summary>
+        /// The currently active root operations for pips
+        /// </summary>
+        private readonly ConcurrentBigSet<RootOperation> m_activePipOperations
+            = new ConcurrentBigSet<RootOperation>();
+
+        /// <summary>
         /// The root operation pool
         /// </summary>
         private readonly ConcurrentQueue<RootOperation> m_rootOperationPool = new ConcurrentQueue<RootOperation>();
 
-        // Operation thread pool
-        private readonly ConcurrentQueue<OperationThread> m_operationThreadPool = new ConcurrentQueue<OperationThread>();
-
-        // Nested operation pool
-        private readonly ConcurrentQueue<NestedOperation> m_nestedOperationPool = new ConcurrentQueue<NestedOperation>();
-
         /// <summary>
         /// All root operations
         /// </summary>
-        private readonly HashSet<RootOperation> m_activeRootOperations = new HashSet<RootOperation>();
-
-        private readonly HashSet<Operation> m_activeThreadAndNestedOperations = new HashSet<Operation>();
+        private readonly ConcurrentQueue<RootOperation> m_allRootOperations = new ConcurrentQueue<RootOperation>();
 
         /// <summary>
         /// Hierarchical counters for operations
@@ -128,11 +126,7 @@ namespace BuildXL.Scheduler.Tracing
         public OperationContext StartOperation(OperationKind kind, PipId pipId, PipType pipType, LoggingContext loggingContext, Action<OperationKind, TimeSpan> onOperationCompleted = null)
         {
             var root = GetOrCreateRootOperation();
-            lock (m_activeRootOperations)
-            {
-                m_activeRootOperations.Add(root);
-            }
-
+            m_activePipOperations.Add(root);
             root.Initialize(pipId, pipType, kind, onOperationCompleted);
             TraceDebugData(root);
             return new OperationContext(loggingContext, root);
@@ -155,6 +149,7 @@ namespace BuildXL.Scheduler.Tracing
             if (!m_rootOperationPool.TryDequeue(out root))
             {
                 root = new RootOperation(this);
+                m_allRootOperations.Enqueue(root);
             }
 
             return root;
@@ -334,9 +329,6 @@ namespace BuildXL.Scheduler.Tracing
             }
         }
 
-        /// <summary>
-        /// Runs every 30 seconds.
-        /// </summary>
         private void RecomputeOutstandingCounters()
         {
             m_countersWithAssociatedOperations.Clear();
@@ -346,38 +338,32 @@ namespace BuildXL.Scheduler.Tracing
                 outstandingCounter.Reset();
             }
 
-            lock (m_activeRootOperations)
+            foreach (var rootOperation in m_allRootOperations)
             {
-                foreach (var rootOperation in m_activeRootOperations)
+                if (!rootOperation.IsComplete)
                 {
-                    if (!rootOperation.IsComplete)
-                    {
-                        rootOperation.Counter.OutstandingCounter.Add(rootOperation.Duration);
-                    }
-                }
-            }
+                    rootOperation.Counter.OutstandingCounter.Add(rootOperation.Duration);
 
-            lock (m_activeThreadAndNestedOperations)
-            {
-                foreach (var operation in m_activeThreadAndNestedOperations)
-                {
-                    if (!operation.IsComplete)
+                    foreach (var operation in rootOperation.CreatedOperations)
                     {
-                        var info = operation.Capture();
-                        if (info.HasValue)
+                        if (!operation.IsComplete)
                         {
-                            var outstandingCounter = operation.Counter.OutstandingCounter;
-                            outstandingCounter.Add(info.Value.Duration);
-
-                            if (info.Value.Artifact.IsValid || info.Value.PipId.IsValid)
+                            var info = operation.Capture();
+                            if (info.HasValue)
                             {
-                                outstandingCounter.AssociatedOperations.Add(info.Value);
-                                m_countersWithAssociatedOperations.Add(outstandingCounter);
+                                var outstandingCounter = operation.Counter.OutstandingCounter;
+                                outstandingCounter.Add(info.Value.Duration);
 
-                                if (info.Value.Duration > s_maxOpsThreshold)
+                                if (info.Value.Artifact.IsValid || info.Value.PipId.IsValid)
                                 {
-                                    operation.Counter.AssociatedOperations.Add(info.Value);
-                                    m_countersWithAssociatedOperations.Add(operation.Counter);
+                                    outstandingCounter.AssociatedOperations.Add(info.Value);
+                                    m_countersWithAssociatedOperations.Add(outstandingCounter);
+
+                                    if (info.Value.Duration > s_maxOpsThreshold)
+                                    {
+                                        operation.Counter.AssociatedOperations.Add(info.Value);
+                                        m_countersWithAssociatedOperations.Add(operation.Counter);
+                                    }
                                 }
                             }
                         }
@@ -913,10 +899,14 @@ namespace BuildXL.Scheduler.Tracing
             /// </summary>
             public Action<OperationKind, TimeSpan> OnOperationCompleted { get; set; }
 
-#if DEBUG
+            // Operation thread pool
+            private readonly Stack<OperationThread> m_operationThreadPool = new Stack<OperationThread>();
+
+            // Nested operation pool
+            private readonly Stack<NestedOperation> m_operationPool = new Stack<NestedOperation>();
+
             // All the created operations (this is used for debugging purposes only)
             public readonly ConcurrentQueue<Operation> CreatedOperations = new ConcurrentQueue<Operation>();
-#endif
 
             // Factory for operation threads
             private static readonly Func<RootOperation, OperationThread> s_threadFactory = root => new OperationThread(root);
@@ -953,41 +943,37 @@ namespace BuildXL.Scheduler.Tracing
             /// </summary>
             public Operation CreateUnitializedOperation(bool newThread = false)
             {
-                Operation newOp;
                 if (newThread)
                 {
-                    newOp = CreateUnitializedOperation(Tracker.m_operationThreadPool, s_threadFactory);
+                    return CreateUnitializedOperation(m_operationThreadPool, s_threadFactory);
                 }
                 else
                 {
-                    newOp = CreateUnitializedOperation(Tracker.m_nestedOperationPool, s_nestedFactory);
+                    return CreateUnitializedOperation(m_operationPool, s_nestedFactory);
                 }
-
-                lock (Tracker.m_activeThreadAndNestedOperations)
-                {
-                    Tracker.m_activeThreadAndNestedOperations.Add(newOp);
-                }
-
-                return newOp;
             }
 
             private T CreateUnitializedOperation<T>(
-                ConcurrentQueue<T> pool,
+                Stack<T> pool,
                 Func<RootOperation, T> factory)
                 where T : Operation
             {
-                T operation;
-                if (!pool.TryDequeue(out operation))
+                lock (pool)
                 {
-                    operation = factory(this);
-                    TraceDebugData(operation);
+                    if (pool.Count == 0)
+                    {
+                        var operation = factory(this);
+                        TraceDebugData(operation);
 
-#if DEBUG
-                    CreatedOperations.Enqueue(operation);
-#endif
+                        CreatedOperations.Enqueue(operation);
+
+                        return operation;
+                    }
+                    else
+                    {
+                        return pool.Pop();
+                    }
                 }
-
-                return operation;
             }
 
             /// <inheritdoc />
@@ -995,11 +981,7 @@ namespace BuildXL.Scheduler.Tracing
             {
                 TraceDebugData(this);
 
-                lock (Tracker.m_activeRootOperations)
-                {
-                    Tracker.m_activeRootOperations.Remove(this);
-                }
-
+                Tracker.m_activePipOperations.Remove(this);
                 Tracker.m_rootOperationPool.Enqueue(this);
             }
 
@@ -1014,13 +996,9 @@ namespace BuildXL.Scheduler.Tracing
 
                 OnOperationCompleted?.Invoke(operation.Kind, operation.Duration);
 
-                OnOperationCompleted = null;
-
-                Tracker.m_nestedOperationPool.Enqueue(operation);
-
-                lock (Tracker.m_activeThreadAndNestedOperations)
-                { 
-                    Tracker.m_activeThreadAndNestedOperations.Remove(operation);
+                lock (m_operationPool)
+                {
+                    m_operationPool.Push(operation);
                 }
             }
 
@@ -1033,17 +1011,14 @@ namespace BuildXL.Scheduler.Tracing
 
                 Assert(thread, Thread.ActiveOperation != thread, "Returned operations must not remain active");
 
-                Tracker.m_operationThreadPool.Enqueue(thread);
-
-                lock (Tracker.m_activeThreadAndNestedOperations)
+                lock (m_operationThreadPool)
                 {
-                    Tracker.m_activeThreadAndNestedOperations.Remove(thread);
+                    m_operationThreadPool.Push(thread);
                 }
             }
 
             internal string GetChildOperationName(Operation operation)
             {
-#if DEBUG
                 foreach (var child in CreatedOperations)
                 {
                     if (child.Parent == operation)
@@ -1051,7 +1026,6 @@ namespace BuildXL.Scheduler.Tracing
                         return I($"{child.Kind.Name} -> {GetChildOperationName(child)}");
                     }
                 }
-#endif
 
                 return "[Unknown]";
             }

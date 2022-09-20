@@ -163,6 +163,10 @@ function parseArgs() {
                 "/vsTargetFramework:netstandard2.1")
             shift
             ;;
+        --disable-xunitretry)
+            arg_DisableXunitRetry="1"
+            shift
+            ;;
         *)
             arg_Positional+=("$1")
             shift
@@ -305,8 +309,8 @@ if [[ -z "$TF_BUILD" ]];then
     arg_Positional+=("/p:[Sdk.BuildXL]validateLinuxRuntime=0")
 fi
 
-# Indicates that XUnit tests should be retried on ADO builds due to flakiness with certain tests 
-if [[ -n "$ADOBuild" ]]; then
+# Indicates that XUnit tests should be retried due to flakiness with certain tests 
+if [[ ! -n "$arg_DisableXunitRetry" ]]; then
     # RetryXunitTests will specify a retry exit code of 1 for all xunit pips, and NumXunitRetries will specify the number of times to retry the xunit pip
     arg_Positional+=("/p:RetryXunitTests=1")
     arg_Positional+=("/p:NumXunitRetries=2")

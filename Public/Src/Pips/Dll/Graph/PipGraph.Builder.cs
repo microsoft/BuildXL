@@ -121,7 +121,7 @@ namespace BuildXL.Pips.Graph
             /// <summary>
             /// Manages locking of paths and pips for pip graph and scheduler
             /// </summary>
-            internal readonly LockManager LockManager;
+            internal LockManager LockManager;
 
             /// <summary>
             /// The names of temp environment variables
@@ -235,59 +235,64 @@ namespace BuildXL.Pips.Graph
             /// </summary>
             public PipGraph Build()
             {
-                using (LockManager.AcquireGlobalExclusiveLock())
+                if (!IsImmutable)
                 {
-                    MutableDataflowGraph.Seal();
-
-                    if (!IsImmutable)
+                    using (LockManager?.AcquireGlobalExclusiveLock())
                     {
-                        StringId apiServerMonikerId = m_lazyApiServerMoniker.IsValueCreated || m_servicePipToServiceInfoMap.Count > 0
-                            ? StringId.Create(Context.StringTable, m_lazyApiServerMoniker.Value.Id)
-                            : StringId.Invalid;
-
-                        var semistableProcessFingerprint =
-                            ComputeGraphSemistableFingerprint(LoggingContext, PipTable, Context.PathTable);
-
-                        var pipGraphState = new SerializedState(
-                            values: Values,
-                            specFiles: SpecFiles,
-                            modules: Modules,
-                            pipProducers: PipProducers,
-                            opaqueDirectoryProducers: OutputDirectoryProducers,
-                            outputsUnderOpaqueExistenceAssertions: OutputsUnderOpaqueExistenceAssertions,
-                            outputDirectoryExclusions: OutputDirectoryExclusions,
-                            outputDirectoryRoots: OutputDirectoryRoots,
-                            compositeSharedOpaqueProducers: CompositeOutputDirectoryProducers,
-                            sourceSealedDirectoryRoots: SourceSealedDirectoryRoots,
-                            temporaryPaths: TemporaryPaths,
-                            sealDirectoryNodes: SealDirectoryTable.FinishAndMarkReadOnly(),
-                            rewritingPips: RewritingPips,
-                            rewrittenPips: RewrittenPips,
-                            latestWriteCountsByPath: LatestWriteCountsByPath,
-                            servicePipClients: m_servicePipClients,
-                            apiServerMoniker: apiServerMonikerId,
-
-                            // If there are N paths in the path table (including AbsolutePath.Invalid), the path table count will be N and the value
-                            // of the last added absolute path will be N - 1. Therefore, the max absolute path should be N - 1.
-                            // Capture this here so we know that all paths < PathTable.Count are valid to use with serialized pip graph.
-                            maxAbsolutePath: Context.PathTable.Count - 1,
-                            semistableProcessFingerprint: semistableProcessFingerprint,
-                            pipStaticFingerprints: m_pipStaticFingerprints);
-
-                        m_immutablePipGraph = new PipGraph(
-                            pipGraphState,
-                            MutableDataflowGraph,
-                            PipTable,
-                            Context,
-                            SemanticPathExpander);
-
-                        if (!ScheduleConfiguration.UnsafeDisableGraphPostValidation && !IsValidGraph())
+                        if (!IsImmutable)
                         {
-                            m_isValidConstructedGraph = false;
-                            return null;
-                        }
+                            MutableDataflowGraph.Seal();
 
-                        m_counters.LogAsStatistics("PipGraph.Builder", LoggingContext);
+                            StringId apiServerMonikerId = m_lazyApiServerMoniker.IsValueCreated || m_servicePipToServiceInfoMap.Count > 0
+                                ? StringId.Create(Context.StringTable, m_lazyApiServerMoniker.Value.Id)
+                                : StringId.Invalid;
+
+                            var semistableProcessFingerprint =
+                                ComputeGraphSemistableFingerprint(LoggingContext, PipTable, Context.PathTable);
+
+                            var pipGraphState = new SerializedState(
+                                values: Values,
+                                specFiles: SpecFiles,
+                                modules: Modules,
+                                pipProducers: PipProducers,
+                                opaqueDirectoryProducers: OutputDirectoryProducers,
+                                outputsUnderOpaqueExistenceAssertions: OutputsUnderOpaqueExistenceAssertions,
+                                outputDirectoryExclusions: OutputDirectoryExclusions,
+                                outputDirectoryRoots: OutputDirectoryRoots,
+                                compositeSharedOpaqueProducers: CompositeOutputDirectoryProducers,
+                                sourceSealedDirectoryRoots: SourceSealedDirectoryRoots,
+                                temporaryPaths: TemporaryPaths,
+                                sealDirectoryNodes: SealDirectoryTable.FinishAndMarkReadOnly(),
+                                rewritingPips: RewritingPips,
+                                rewrittenPips: RewrittenPips,
+                                latestWriteCountsByPath: LatestWriteCountsByPath,
+                                servicePipClients: m_servicePipClients,
+                                apiServerMoniker: apiServerMonikerId,
+
+                                // If there are N paths in the path table (including AbsolutePath.Invalid), the path table count will be N and the value
+                                // of the last added absolute path will be N - 1. Therefore, the max absolute path should be N - 1.
+                                // Capture this here so we know that all paths < PathTable.Count are valid to use with serialized pip graph.
+                                maxAbsolutePath: Context.PathTable.Count - 1,
+                                semistableProcessFingerprint: semistableProcessFingerprint,
+                                pipStaticFingerprints: m_pipStaticFingerprints);
+
+                            m_immutablePipGraph = new PipGraph(
+                                pipGraphState,
+                                MutableDataflowGraph,
+                                PipTable,
+                                Context,
+                                SemanticPathExpander);
+
+                            if (!ScheduleConfiguration.UnsafeDisableGraphPostValidation && !IsValidGraph())
+                            {
+                                m_isValidConstructedGraph = false;
+                                return null;
+                            }
+
+                            m_counters.LogAsStatistics("PipGraph.Builder", LoggingContext);
+
+                            LockManager = null;
+                        }
                     }
                 }
 

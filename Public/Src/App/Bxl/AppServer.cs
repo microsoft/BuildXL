@@ -147,13 +147,26 @@ namespace BuildXL
                         // Disconnecting is required to make this instance usable again - even if the client has gone away already.
                         pipeInstance.Disconnect();
 
-                        // Perform a final GC to minimize the memory footprint of the server process. This should only
-                        // be done after the client is disconnected otherwise it would slow down the actual build
-                        GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
-                        GC.Collect();
+                        // Clean object pools that potentially use lots of memory, so that we can reduce the memory footprint of the server process
+                        // without affecting the performance of the next build. Then, perform a final GC.
+                        GarbageCollect();
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// Clean object pools with potentially high memory usage and perform garbage collection
+        /// </summary>
+        private void GarbageCollect()
+        {
+            GlobalObjectPools.Reset();
+            Pools.StringBuilderPool.Clear();
+
+            // Perform a final GC to minimize the memory footprint of the server process. This should only
+            // be done after the client is disconnected otherwise it would slow down the actual build
+            GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
+            GC.Collect();
         }
 
         [SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope", Justification = "Caller is responsible for disposing")]

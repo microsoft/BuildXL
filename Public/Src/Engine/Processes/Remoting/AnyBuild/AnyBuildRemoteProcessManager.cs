@@ -264,7 +264,8 @@ namespace BuildXL.Processes.Remoting
                     // Experimental options.
                     ForceFetchNonPredictedDirectoryMetadataForPreRendering = true,
                     PreRenderDirectoryEntriesOfEnumeratedDirectories = false, // Avoid creations of a large number of placeholders because directories can have many entries.
-                    DisableAbsentPathPreRendering = false
+                    DisableAbsentPathPreRendering = false,
+                    RespondToAgentAsynchronously = true
                 },
                 Agents = new
                 {

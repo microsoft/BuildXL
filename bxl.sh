@@ -195,7 +195,9 @@ function installCredProvider() {
 
     export NUGET_CREDENTIALPROVIDERS_PATH="$credentialProvider"
     
-    if [ -f "$credentialProviderExe" ];
+    # If not on ADO, do not install the cred provider if it is already installed.
+    # On ADO, just make sure we have the right thing, the download time is not significant for a lab build
+    if [[ (! -n "$ADOBuild") && -f "$credentialProviderExe" ]];
     then
         print_info "Credential provider already installed under $destinationFolder"
         return;

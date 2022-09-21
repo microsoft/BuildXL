@@ -116,7 +116,12 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
                 name = $"ccc{name}";
             }
 
-            return name.Substring(0, 63);
+            if (name.Length > 63)
+            {
+                name = name.Substring(0, 63);
+            }
+
+            return name;
         }
 
         private static bool IsValidAzureBlobStorageContainerName(string name)

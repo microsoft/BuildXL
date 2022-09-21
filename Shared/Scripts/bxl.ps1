@@ -216,7 +216,8 @@ if ($DominoArguments -eq $null) {
 $isMicrosoftInternal = [Environment]::GetEnvironmentVariable("[Sdk.BuildXL]microsoftInternal") -eq "1"
 
 # TF_BUILD is an environment variable which is always present when running on ADO
-[bool] $isRunningOnADO = [Environment]::GetEnvironmentVariable("TF_BUILD")
+$tfBuild = [Environment]::GetEnvironmentVariable("TF_BUILD")
+[bool] $isRunningOnADO = If ($tfBuild -eq $null) { $false } Else { $tfBuild }
 
 # Even if managed shared compilation was requested to be on, we turn it off when:
 # - /ado option is present, so AzDevOps scenarios are kept unchanged. 

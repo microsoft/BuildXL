@@ -7,22 +7,23 @@ using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
-using BuildXL.Cache.ContentStore.Distributed.Redis;
 using BuildXL.Cache.ContentStore.FileSystem;
+using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Secrets;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
-using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.Host.Configuration;
 using BuildXL.Cache.Logging;
 using BuildXL.Cache.Logging.External;
+using BuildXL.Utilities;
 using BuildXL.Utilities.ConfigurationHelpers;
-using BuildXL.Utilities.Tasks;
+using NLog.LayoutRenderers;
 
 #nullable enable
 
@@ -144,22 +145,25 @@ namespace BuildXL.Cache.Host.Service
 
             NLog.Targets.Target.Register<AzureBlobStorageLogTarget>(nameof(AzureBlobStorageLogTarget));
 
+            // Using a custom renderer to make the exceptions stack traces clearer.
+            LayoutRenderer.Register<DemystifiedExceptionLayoutRenderer>("exception");
+
             // This is done in order to allow our logging configuration to access key telemetry information.
             var telemetryFieldsProvider = arguments.TelemetryFieldsProvider;
 
-            NLog.LayoutRenderers.LayoutRenderer.Register("APEnvironment", _ => telemetryFieldsProvider.APEnvironment);
-            NLog.LayoutRenderers.LayoutRenderer.Register("APCluster", _ => telemetryFieldsProvider.APCluster);
-            NLog.LayoutRenderers.LayoutRenderer.Register("APMachineFunction", _ => telemetryFieldsProvider.APMachineFunction);
-            NLog.LayoutRenderers.LayoutRenderer.Register("MachineName", _ => telemetryFieldsProvider.MachineName);
-            NLog.LayoutRenderers.LayoutRenderer.Register("ServiceName", _ => telemetryFieldsProvider.ServiceName);
-            NLog.LayoutRenderers.LayoutRenderer.Register("ServiceVersion", _ => telemetryFieldsProvider.ServiceVersion);
-            NLog.LayoutRenderers.LayoutRenderer.Register("Stamp", _ => telemetryFieldsProvider.Stamp);
-            NLog.LayoutRenderers.LayoutRenderer.Register("Ring", _ => telemetryFieldsProvider.Ring);
-            NLog.LayoutRenderers.LayoutRenderer.Register("ConfigurationId", _ => telemetryFieldsProvider.ConfigurationId);
-            NLog.LayoutRenderers.LayoutRenderer.Register("CacheVersion", _ => Utilities.Branding.Version);
+            LayoutRenderer.Register("APEnvironment", _ => telemetryFieldsProvider.APEnvironment);
+            LayoutRenderer.Register("APCluster", _ => telemetryFieldsProvider.APCluster);
+            LayoutRenderer.Register("APMachineFunction", _ => telemetryFieldsProvider.APMachineFunction);
+            LayoutRenderer.Register("MachineName", _ => telemetryFieldsProvider.MachineName);
+            LayoutRenderer.Register("ServiceName", _ => telemetryFieldsProvider.ServiceName);
+            LayoutRenderer.Register("ServiceVersion", _ => telemetryFieldsProvider.ServiceVersion);
+            LayoutRenderer.Register("Stamp", _ => telemetryFieldsProvider.Stamp);
+            LayoutRenderer.Register("Ring", _ => telemetryFieldsProvider.Ring);
+            LayoutRenderer.Register("ConfigurationId", _ => telemetryFieldsProvider.ConfigurationId);
+            LayoutRenderer.Register("CacheVersion", _ => Utilities.Branding.Version);
 
-            NLog.LayoutRenderers.LayoutRenderer.Register("Role", _ => GlobalInfoStorage.GetGlobalInfo(GlobalInfoKey.LocalLocationStoreRole));
-            NLog.LayoutRenderers.LayoutRenderer.Register("BuildId", _ => GlobalInfoStorage.GetGlobalInfo(GlobalInfoKey.BuildId));
+            LayoutRenderer.Register("Role", _ => GlobalInfoStorage.GetGlobalInfo(GlobalInfoKey.LocalLocationStoreRole));
+            LayoutRenderer.Register("BuildId", _ => GlobalInfoStorage.GetGlobalInfo(GlobalInfoKey.BuildId));
 
             // Follows ISO8601 without timezone specification.
             // See: https://kusto.azurewebsites.net/docs/query/scalar-data-types/datetime.html
@@ -227,6 +231,15 @@ namespace BuildXL.Cache.Host.Service
             configuration.UploadMaxIntervalSeconds.ApplyIfNotNull(v => result.UploadMaxInterval = TimeSpan.FromSeconds(v));
 
             return result;
+        }
+
+        internal class DemystifiedExceptionLayoutRenderer : ExceptionLayoutRenderer
+        {
+            /// <inheritdoc />
+            protected override void AppendToString(StringBuilder sb, Exception ex)
+            {
+                sb.Append(ex.ToStringDemystified());
+            }
         }
     }
 }

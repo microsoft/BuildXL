@@ -7,6 +7,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.Linq;
+using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
@@ -227,7 +228,7 @@ namespace BuildXL.Cache.ContentStore.Logging
         public void ErrorThrow(Exception exception, string messageFormat, params object[] messageArgs)
         {
             Error(exception, messageFormat, messageArgs);
-            throw exception;
+            ExceptionDispatchInfo.Capture(exception).Throw();
         }
 
         /// <inheritdoc />
@@ -251,7 +252,7 @@ namespace BuildXL.Cache.ContentStore.Logging
         /// <inheritdoc />
         public void Debug(Exception exception)
         {
-            LogString(Severity.Debug, exception.ToString());
+            LogString(Severity.Debug, Interfaces.Results.Error.GetExceptionString(exception));
         }
 
         /// <inheritdoc />

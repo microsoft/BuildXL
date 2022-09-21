@@ -98,6 +98,9 @@ param(
     [Parameter(Mandatory=$false)]
     [string]$DefaultConfig,
 
+    [Parameter(Mandatory=$false)]
+    [switch]$UseAdoBuildRunner = $false,
+
     [switch]$Vanilla,
 
     [switch]$Minimal = $false,
@@ -267,6 +270,7 @@ if ($DeployDev) {
 
 $BuildXLExeName = "bxl.exe";
 $BuildXLRunnerExeName = "RunInSubst.exe";
+$AdoBuildRunnerExeName = "AdoBuildRunner.exe";
 $NugetDownloaderName = "NugetDownloader.exe";
 
 if ($Analyze)
@@ -387,6 +391,7 @@ function New-Deployment {
         dir = $dir;
         domino = Join-Path $dir $BuildXLExeName;
         dominoRunner = Join-Path $dir $BuildXLRunnerExeName;
+        adoBuildRunner = Join-Path $dir $AdoBuildRunnerExeName;
         nugetDownloader = Join-Path $dir $NugetDownloaderName
         buildDir = Join-Path $Root $buildRelativeDir;
         enableServerMode = $enableServerMode;
@@ -491,49 +496,26 @@ function Call-Subst {
     return @($s);
 }
 
-function Run-WithNormalizedPath {
-    param([scriptblock]$normalizedPathAction);
-
-    # The locking protocol:
-    # - First, acquire our own lock (e.g. S:\BuildXL\Out\.NormalizationLock). A conflict here amounts to concurrent builds with the same enlistment.
-    # - Then, try to point $NormalizationDrive (e.g. B:) to this enlistment. If this succeeds, then e.g. B:\Out\.NormalizationLock is locked (by prior point!)
-    #   * If $NormalizationDrive already points here, we're done (B:\Out\.NormalizationLock is held by us)
-    #   * If it points somewhere else, we must *acquire the lock for that current mapping*, and then re-point it.
-    #   * If it points nowhere, just create it.
-    $selfLockPath = Join-Path $enlistmentRoot $NormalizationLockRelativePath
-    # Should pass canonicalized paths to subst.
-    $mappingPath = (Resolve-Path $enlistmentRoot).Path;
-
-    return &$normalizedPathAction;
-}
-
 function Remap-PathToNormalizedDrive {
     param([string[]]$paths);
 
     return $paths -replace ([Regex]::Escape($enlistmentRoot.TrimEnd("\")) + "(\\|\z)"), ($NormalizationDrive + "\");
 }
 
-function Run-ProcessWithNormalizedPath {
-    param([string]$executableRunner, [string]$executable, [string[]]$processArgs);
-    return Run-WithNormalizedPath {
-        [string]$remappedExecutableRunner = $executableRunner;
-        [string]$remappedExecutable = @(Remap-PathToNormalizedDrive $executable);
-        $enlistmentrootTrimmed = $enlistmentRoot.TrimEnd('\')
-        [string[]]$remappedArgs = "$NormalizationDriveLetter=$enlistmentrootTrimmed";
-        $remappedArgs += "$remappedExecutable";
-        $remappedArgs += @(Remap-PathToNormalizedDrive $processArgs);
-        $remappedArgs += "/substTarget:$NormalizationDrive\ /substSource:$enlistmentrootTrimmed\"
 
-        $remappedArgs += " /logProcessDetouringStatus+ /logProcessData+ /logProcesses+";
-
-        Write-Host -ForegroundColor Green $remappedExecutableRunner @remappedArgs;
-        $p = Start-Process -FilePath $remappedExecutableRunner -ArgumentList $remappedArgs -WorkingDirectory (pwd).Path -NoNewWindow -PassThru;
-        Wait-Process -InputObject $p;
-        return $p.ExitCode;
-    };
+function Get-NormalizedPathArguments {
+    param([string]$executable, [string[]]$processArgs);
+    [string]$remappedExecutable = @(Remap-PathToNormalizedDrive $executable);
+    $enlistmentrootTrimmed = $enlistmentRoot.TrimEnd('\')
+    [string[]]$remappedArgs = "$NormalizationDriveLetter=$enlistmentrootTrimmed";
+    $remappedArgs += "$remappedExecutable";
+    $remappedArgs += @(Remap-PathToNormalizedDrive $processArgs);
+    $remappedArgs += "/substTarget:$NormalizationDrive\ /substSource:$enlistmentrootTrimmed\"
+    $remappedArgs += " /logProcessDetouringStatus+ /logProcessData+ /logProcesses+";
+    return $remappedArgs;
 }
 
-function Run-ProcessWithoutNormalizedPath {
+function Run-Process {
     param([string]$executable, [string[]]$processArgs);
     Write-Host -ForegroundColor Green $executable $processArgs;
     $p = Start-Process -FilePath $executable -ArgumentList $processArgs -WorkingDirectory (pwd).Path -NoNewWindow -PassThru;
@@ -812,10 +794,22 @@ if ($isMicrosoftInternal -and (-not $isRunningOnADO)) {
 }
 
 if ($NoSubst) {
-    $bxlExitCode = Run-ProcessWithoutNormalizedPath $useDeployment.domino $DominoArguments;
+    $executable = $useDeployment.domino;
+    $arguments = $DominoArguments
 } else {
-    $bxlExitCode = Run-ProcessWithNormalizedPath $useDeployment.dominoRunner $useDeployment.domino $DominoArguments;
+    # Wrap the invocation with RunInSubst
+    $executable = $useDeployment.dominoRunner
+    $arguments = Get-NormalizedPathArguments $useDeployment.domino $DominoArguments
 }
+
+if ($UseAdoBuildRunner) {
+    # Wrap the invocation with the AdoBuildRunner
+    $arguments = @($executable) + $arguments
+    $arguments = $arguments.Replace("""", "\""")
+    $executable = $useDeployment.adoBuildRunner
+}
+
+$bxlExitCode = Run-Process $executable $arguments;
 $bxlSuccess = ($bxlExitCode -eq 0);
 
 if ($bxlSuccess) {

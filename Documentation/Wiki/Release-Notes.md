@@ -1,6 +1,17 @@
 This page is a curated list of the release notes for releases after 0.20170619.4.0 and a manual copy of notable changes from each build before that. See the repo's commit history full details for what is included in each build.
 
 =======
+# 0.1.0-20220916.6 (Release [221995](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=221995) Release 9/21/2022)
+-	Remove the OpenBond distribution layer.
+-	Add grpc option to enable gzip compression.
+-	Added ability to config chooseworkerlight and default to 100.
+-	Enabling various unit tests on Linux.
+-	Developer Guide for Linux.
+-	Introducing multiple container support and migrating off of azure pipeline.
+-	Add nuget resolver signing.
+-	Perf bash changes related to using pooled memory stream in PipTwoPhaseCache.
+-	Various bug fixes.
+
 # 0.1.0-20220908.0 (Release [218898](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=218898)) Released 9/14/2022
 -	Various optimizations for bxl.exe memory footprint and performance
 -	Improvement for domioninvocation telemetry retention

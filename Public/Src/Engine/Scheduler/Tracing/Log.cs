@@ -635,6 +635,15 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void PipDirectoryMembershipFingerprintingError(LoggingContext loggingContext, string pipDescription, string path);
 
         [GeneratedEvent(
+           (ushort)LogEventId.FailedToDeserializeLRUMap,
+           EventGenerators = EventGenerators.LocalAndTelemetry,
+           EventLevel = Level.Warning,
+           Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureError),
+           EventTask = (ushort)Tasks.PipExecutor,
+           Message = "Failed to deserialize LRUEntriesMap, Exception encountered - {message}")]
+        internal abstract void FailedToDeserializeLRUEntriesMap(LoggingContext loggingContext, string message);
+
+        [GeneratedEvent(
             (ushort)LogEventId.TryBringContentToLocalCache,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,

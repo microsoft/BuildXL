@@ -519,6 +519,7 @@ namespace BuildXL.Scheduler.Tracing
 
         UnableToMonitorDriveWithSubst = 14534,
         SchedulerCompleteExceptMaterializeOutputs = 14535,
+        FailedToDeserializeLRUMap = 14536
 
         // was DependencyViolationGenericWithRelatedPip_AsError = 25000,
         // was DependencyViolationGeneric_AsError = 25001,

@@ -52,7 +52,7 @@ namespace BuildXL.Scheduler.Tracing
         /// The label for related session Id of a build.
         /// </summary>
         public const string RelatedSessionId = nameof(RelatedSessionId);
-        
+
         /// <summary>
         /// The label for <see cref="PipCacheMissInfo.PipId"/>s.
         /// </summary>
@@ -879,7 +879,7 @@ namespace BuildXL.Scheduler.Tracing
 
             // Don't track or modify TTL of entries during read only sessions
             m_lruEntryTracker = Accessor.ReadOnly ? null : new LruEntryTracker();
-            
+
             // The capacity was calculated by using the Outlook client-web queue, which is likely an upper
             // bound in terms of the ratio of hashes coming from directory enumerations over number of pips/overall build size
             m_hashCache = new ObjectCache<(string, string), bool>(HashCodeHelper.GetGreaterOrEqualPrime(1000));
@@ -933,8 +933,21 @@ namespace BuildXL.Scheduler.Tracing
         {
             if (TryGetValueInternal(MetadataNames.LruEntriesMap, out var serializedMap, columnFamilyName))
             {
-                lruEntriesMap = BinaryDeserialize(serializedMap, reader => LruEntriesMap.Deserialize(reader), FingerprintStoreCounters.DeserializeLruEntriesMapTime);
-                return true;
+                try
+                {
+                    lruEntriesMap = BinaryDeserialize(serializedMap, reader => LruEntriesMap.Deserialize(reader), FingerprintStoreCounters.DeserializeLruEntriesMapTime);
+                    return true;
+                }                
+                catch (Exception e) when (
+                   e is ObjectDisposedException
+                   || e is EndOfStreamException
+                   || e is IOException)
+                {
+                    Logger.Log.FailedToDeserializeLRUEntriesMap(m_loggingContext, e.ToString());
+                    lruEntriesMap = null;
+                    return false;
+                }
+
             }
 
             lruEntriesMap = null;
@@ -1513,8 +1526,8 @@ namespace BuildXL.Scheduler.Tracing
                 // For test always use m_garbageCollectionTimeLimitSec 
                 var inUseDurationS1_3 = (int)(garbageCollectionTimestamp - m_createTimeUtc).TotalSeconds / 10; // 1/10 of fingerprint store in use time.
                 var timeLimit = m_testHooks != null
-                    ? m_garbageCollectionTimeLimitSec 
-                    : ( m_garbageCollectionTimeLimitSec < inUseDurationS1_3 ? m_garbageCollectionTimeLimitSec : inUseDurationS1_3 );
+                    ? m_garbageCollectionTimeLimitSec
+                    : (m_garbageCollectionTimeLimitSec < inUseDurationS1_3 ? m_garbageCollectionTimeLimitSec : inUseDurationS1_3);
 
 #if !DEBUG
                 GarbageCollectCancellationToken.CancelAfter(TimeSpan.FromSeconds(timeLimit));
@@ -1725,7 +1738,7 @@ namespace BuildXL.Scheduler.Tracing
                                 var storeFile = Path.Combine(directory, file);
                                 var logFile = Path.Combine(logDirectory, file);
 
-                                if (testHooks != null && testHooks.MinimalIO && 
+                                if (testHooks != null && testHooks.MinimalIO &&
                                     Path.GetFileName(file).ToUpperInvariant().Contains(KeyValueStoreAccessor.LogFileName))
                                 {
                                     // Skip copying extra files

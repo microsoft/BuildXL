@@ -345,6 +345,9 @@ void ReportProcessDetouringStatus(
     }
 }
 
+/// <summary>
+/// Report process data. Avoid dynamic memory allocation in this method as this method is called during DLL_PROCESS_DETACH where heaps may be in inconsistent state.
+/// </summary>
 void ReportProcessData(
     IO_COUNTERS const& ioCounters,
     FILETIME const& creationTime,
@@ -383,23 +386,15 @@ void ReportProcessData(
         (20 * 6) /*IO Counters*/ +
         (10 * 7) /*Creation, exit, kernel, user times*/ +
         29 /*Separators*/ +
-        wcslen(fileName) + /*Module file name*/ +
+        MAX_PATH + /*Module file name*/ +
         10 /*Process exit code*/ +
         10 /*Parent process id*/ +
         120 /*Detours max memory heap size * and payload size, final heap allocated, max and final HandleHeapEntries, allocated pool entries for the non-locking list. */ +
         3; /*\r\n null*/
 
-    unique_ptr<wchar_t[]> report(new wchar_t[reportBufferSize]);
+    wchar_t report[reportBufferSize];
 
-    // Unlike the file-access, this data is only useful for analyzing the times processes
-    // take in the build. So, do not crash or assert if we cannot allocate memory for the
-    // report string. Just silently bail on the operation.
-    if (report.get() == nullptr)
-    {
-        return;
-    }
-
-    int const constructReportResult = swprintf_s(report.get(), reportBufferSize, L"%u,%lu|%I64u|%I64u|%I64u|%I64u|%I64u|%I64u|%lu|%lu|%lu|%lu|%lu|%lu|%lu|%lu|%s|%lu|%lu|%I64u|%lu|%I64u|%lu|%I64u|%I64u\r\n",
+    int const constructReportResult = swprintf_s(report, reportBufferSize, L"%u,%lu|%I64u|%I64u|%I64u|%I64u|%I64u|%I64u|%lu|%lu|%lu|%lu|%lu|%lu|%lu|%lu|%s|%lu|%lu|%I64u|%lu|%I64u|%lu|%I64u|%I64u\r\n",
         ReportType::ReportType_ProcessData,
         GetCurrentProcessId(),
         ioCounters.ReadOperationCount,
@@ -430,6 +425,6 @@ void ReportProcessData(
 
     if (constructReportResult > 0)
     {
-        SendReportString(report.get());
+        SendReportString(report);
     }
 }

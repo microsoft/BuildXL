@@ -82,7 +82,7 @@ function lageToBuildXL(lage: Report): JavaScriptGraph {
 
 
 try {
-    let script  = lageLocation === undefined ? `${npmLocation} run lage --silent --` : `${lageLocation}`;
+    let script  = lageLocation === undefined ? `"${npmLocation}" run lage --silent --` : `"${lageLocation}"`;
     script  = `${script} info ${targets} --reporter json`;
     console.log(`Starting lage export: ${script}`);
     const lageJson = execSync(script).toString();

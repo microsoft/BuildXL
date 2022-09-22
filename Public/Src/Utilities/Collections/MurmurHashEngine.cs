@@ -24,6 +24,7 @@ namespace BuildXL.Utilities
         private ulong m_length;
         private ulong m_high;
         private ulong m_low;
+        private readonly byte[] m_buffer = new byte[HashLengthInBytes];
 
         /// <nodoc />
         public MurmurHashEngine()
@@ -93,7 +94,7 @@ namespace BuildXL.Utilities
                 m_low += m_high;
             }
 
-            var buffer = new byte[HashLengthInBytes];
+            var buffer = m_buffer;
             unsafe
             {
                 fixed (byte* b = buffer)

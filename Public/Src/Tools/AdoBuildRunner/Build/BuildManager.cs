@@ -69,10 +69,11 @@ namespace BuildXL.AdoBuildRunner.Build
             if (m_vstsApi.TotalJobsInPhase == 1)
             {
                 returnCode = m_executor.ExecuteSingleMachineBuild(buildContext, m_buildArguments);
+                PublishRoleInEnvironment(isOrchestrator: true);
                 LogExitCode(returnCode);
             }
-            // Currently the agent spawned last in a multi-agent build is the elected orchestrator
-            else if (m_vstsApi.TotalJobsInPhase == m_vstsApi.JobPositionInPhase)
+            // The first agent spawned in a multi-agent build is the elected orchestrator
+            else if (m_vstsApi.JobPositionInPhase == 1)
             {
                 await m_vstsApi.SetMachineReadyToBuild(GetAgentHostName(), GetAgentIPAddress(false), GetAgentIPAddress(true), isOrchestrator: true);
                 await m_vstsApi.WaitForOtherWorkersToBeReady();
@@ -86,6 +87,7 @@ namespace BuildXL.AdoBuildRunner.Build
                 returnCode = m_executor.ExecuteDistributedBuildAsOrchestrator(buildContext, m_buildArguments, machines);
 
                 await m_vstsApi.SetBuildResult(success: returnCode == 0);
+                PublishRoleInEnvironment(isOrchestrator: true);
                 LogExitCode(returnCode);
             }
             // Any agent spawned < total number of agents is a dedicated worker
@@ -107,6 +109,7 @@ namespace BuildXL.AdoBuildRunner.Build
 
                 returnCode = m_executor.ExecuteDistributedBuildAsWorker(buildContext, m_buildArguments, orchestratorInfo);
                 LogExitCode(returnCode);
+                PublishRoleInEnvironment(isOrchestrator: false);
 
                 if (returnCode == 0)
                 {
@@ -120,10 +123,18 @@ namespace BuildXL.AdoBuildRunner.Build
                         returnCode = Constants.OrchestratorFailedWorkerReturnCode;
                     }
                 }
-
             }
 
             return returnCode;
+        }
+
+        // Some post-build steps in the job may be interested in which build role
+        // was adopted by this agent. We expose this fact through an environment variable
+        private void PublishRoleInEnvironment(bool isOrchestrator)
+        {
+            var role = isOrchestrator ? Constants.BuildRoleOrchestrator : Constants.BuildRoleWorker;
+            m_logger.Info($"Setting environment variable {Constants.BuildRoleVariableName}={role}");
+            Console.WriteLine($"##vso[task.setvariable variable={Constants.BuildRoleVariableName}]{role}");
         }
 
         /// <summary>
@@ -150,7 +161,7 @@ namespace BuildXL.AdoBuildRunner.Build
             using var hash = SHA1.Create();
             byte[] bytesToHash = Encoding.Unicode.GetBytes(value);
             hash.TransformFinalBlock(bytesToHash, 0, bytesToHash.Length);
-            
+
             // Guid takes a 16-byte array
             byte[] low16 = new byte[16];
             Array.Copy(hash.Hash, low16, 16);

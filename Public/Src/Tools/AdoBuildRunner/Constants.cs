@@ -117,17 +117,28 @@ namespace BuildXL.AdoBuildRunner
         /// Value used to communicate to the workers that the build has succeeded
         /// </summary>
         public const string BuildStatusSuccess = "BuildStatusSuccess";
-        
+
         /// <summary>
         /// Value used to communicate to the workers that the build has failed
         /// </summary>
         public const string BuildStatusFailure = "BuildStatusFailure";
 
         /// <summary>
+        /// Some post-build steps in the job may be interested in which build role
+        /// was adopted by this agent. We expose this fact through this environment variable
+        /// </summary>
+        public const string BuildRoleVariableName = "BUILDXL_DISTRIBUTED_ROLE";
+
+        /// <nodoc />
+        public const string BuildRoleOrchestrator = "BuildXLOrchestrator";
+
+        /// <nodoc />
+        public const string BuildRoleWorker = "BuildXLWorker";
+
+        /// <summary>
         /// The port used to establish GRPC based connections for distributed builds
         /// </summary>
         public const int MachineGrpcPort = 6979;
-
 
         /// <summary>
         /// The port used to establish GRPC based connections for distributed builds

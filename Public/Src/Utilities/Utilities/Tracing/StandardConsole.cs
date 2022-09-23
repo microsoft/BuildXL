@@ -124,10 +124,7 @@ namespace BuildXL.Utilities.Tracing
 
             try
             {
-                // https://github.com/dotnet/corefx/issues/4636
-                int width = BuildXL.Utilities.OperatingSystemHelper.IsUnixOS ? Math.Max(defaultWidth, Console.WindowWidth) : Console.BufferWidth;
-
-                return width;
+                return Console.BufferWidth;
             }
             catch (IOException)
             {

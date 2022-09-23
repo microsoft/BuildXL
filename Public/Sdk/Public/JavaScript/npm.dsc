@@ -105,7 +105,11 @@ namespace Npm {
                 ...addIf(!preserveCacheFolder, <Transformer.DirectoryOutput>{directory: npmCachePath, kind: "shared"})
             ],
             environmentVariables: environment,
-            dependencies: args.additionalDependencies,
+            dependencies: [
+                ...(args.additionalDependencies || []),
+                ...addIfLazy(Context.isWindowsOS() && Environment.getDirectoryValue("CommonProgramFiles") !== undefined,
+                            () => [f`${Environment.getDirectoryValue("CommonProgramFiles")}/SSL/openssl.cnf`])
+                ],
             unsafe: {
                 // if we preserve the cache folder, just untrack it
                 untrackedScopes: [...addIf(preserveCacheFolder, npmCachePath)],

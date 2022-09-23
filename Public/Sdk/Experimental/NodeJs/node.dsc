@@ -50,6 +50,10 @@ namespace Node {
             {
                 tool: tool,
                 workingDirectory: tool.exe.parent,
+                dependencies: [ 
+                    ...addIfLazy(Context.isWindowsOS() && Environment.getDirectoryValue("CommonProgramFiles") !== undefined, 
+                                () => [f`${Environment.getDirectoryValue("CommonProgramFiles")}/SSL/openssl.cnf`])
+                ],
                 unsafe: {
                     passThroughEnvironmentVariables: userSpecificEnvrionmentVariables
                 }

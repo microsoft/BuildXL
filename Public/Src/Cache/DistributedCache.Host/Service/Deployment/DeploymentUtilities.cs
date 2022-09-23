@@ -51,6 +51,11 @@ namespace BuildXL.Cache.Host.Service
         public static JsonDocumentOptions ConfigurationDocumentOptions => JsonUtilities.DefaultDocumentOptions;
 
         /// <summary>
+        /// Name of the deployment manifest file in storage
+        /// </summary>
+        public static string DeploymentManifestFileName { get; } = "DeploymentManifest.json";
+
+        /// <summary>
         /// Relative path to root of CAS for deployment files
         /// </summary>
         private static RelativePath CasRelativeRoot { get; } = new RelativePath("cas");
@@ -63,12 +68,17 @@ namespace BuildXL.Cache.Host.Service
         /// <summary>
         /// Relative path to deployment manifest from deployment root
         /// </summary>
-        private static RelativePath DeploymentManifestRelativePath { get; } = new RelativePath("DeploymentManifest.json");
+        public static RelativePath DeploymentManifestRelativePath { get; } = new RelativePath(DeploymentManifestFileName);
 
         /// <summary>
         /// File name of deployment configuration in synthesized config drop
         /// </summary>
         public static string DeploymentConfigurationFileName { get; } = "DeploymentConfiguration.json";
+
+        /// <summary>
+        /// File name of the ingester configuration file
+        /// </summary>
+        public static string IngesterConfigurationFileName { get; } = "IngesterConfiguration.json";
 
         /// <summary>
         /// Gets the relative from deployment root to the file with given hash in CAS

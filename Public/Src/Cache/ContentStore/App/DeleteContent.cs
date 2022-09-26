@@ -5,6 +5,8 @@
 
 using System;
 using System.Linq;
+using System.Runtime.InteropServices;
+using BuildXL.Cache.ContentStore.Grpc;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
@@ -20,9 +22,10 @@ namespace BuildXL.Cache.ContentStore.App
         [Verb(Description = "Remove content from the cache")]
         internal void Delete
             (
-            [Required, Description(GrpcPortDescription)] int grpcPort,
             [Required, Description(HashTypeDescription)] string hashType,
-            [Required, Description("Content hash value of referenced content to place")] string hash
+            [Required, Description("Content hash value of referenced content to place")] string hash,
+            [Optional, Description(GrpcPortDescription), DefaultValue(GrpcConstants.DefaultEncryptedGrpcPort)] int grpcPort,
+            [Optional, Description("Whether to enable encryption"), DefaultValue(true)] bool encrypt
             )
         {
             Initialize();
@@ -43,7 +46,13 @@ namespace BuildXL.Cache.ContentStore.App
                 GrpcContentClient client = new GrpcContentClient(
                     new ServiceClientContentSessionTracer(nameof(Delete)),
                     _fileSystem,
-                    new ServiceClientRpcConfiguration(grpcPort),
+                    new ServiceClientRpcConfiguration(grpcPort)
+                    {
+                        GrpcCoreClientOptions = new()
+                        {
+                            EncryptionEnabled = encrypt,
+                        }
+                    },
                     _scenario);
                 
                 var deleteResult = client.DeleteContentAsync(operationContext, contentHash, deleteLocalOnly: false).GetAwaiter().GetResult();

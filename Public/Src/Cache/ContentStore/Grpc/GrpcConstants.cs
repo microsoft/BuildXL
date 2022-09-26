@@ -15,9 +15,9 @@ namespace BuildXL.Cache.ContentStore.Grpc
         public static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(30);
 
         /// <nodoc />
-        public static readonly int DefaultGrpcPort = 7089;
+        public const int DefaultGrpcPort = 7089;
 
         /// <nodoc />
-        public static readonly int DefaultEncryptedGrpcPort = 7090;
+        public const int DefaultEncryptedGrpcPort = 7090;
     }
 }

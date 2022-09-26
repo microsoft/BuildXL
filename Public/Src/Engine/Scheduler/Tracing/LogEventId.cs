@@ -58,6 +58,8 @@ namespace BuildXL.Scheduler.Tracing
 
         OutputFileStats = 243,
 
+        TerminatingDueToInternalError = 249,
+
         ProcessStart = 253,
         ProcessEnd = 254,
         CopyFileStart = 255,

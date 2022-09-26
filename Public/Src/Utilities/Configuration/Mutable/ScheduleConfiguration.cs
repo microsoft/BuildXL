@@ -128,6 +128,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
             DisableProcessRetryOnResourceExhaustion = template.DisableProcessRetryOnResourceExhaustion;
             StopOnFirstError = template.StopOnFirstError;
+            StopOnFirstInternalError = template.StopOnFirstInternalError;
             LowPriority = template.LowPriority;
             EnableLazyOutputMaterialization = template.EnableLazyOutputMaterialization;
             ForceSkipDependencies = template.ForceSkipDependencies;
@@ -210,6 +211,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public bool StopOnFirstError { get; set; }
+
+        /// <inheritdoc />
+        public bool? StopOnFirstInternalError { get; set; }
 
         /// <inheritdoc />
         public int MaxProcesses { get; set; }

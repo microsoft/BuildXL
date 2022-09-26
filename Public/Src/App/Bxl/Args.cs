@@ -1049,6 +1049,12 @@ namespace BuildXL
                                 schedulingConfiguration.StopOnFirstError = sign;
                                 frontEndConfiguration.CancelEvaluationOnFirstFailure = sign;
                             }),
+                        OptionHandlerFactory.CreateBoolOption(
+                            "stopOnFirstInternalError",
+                            sign =>
+                            {
+                                schedulingConfiguration.StopOnFirstInternalError = sign;
+                            }),
 
                         // TODO:not used. Deprecate
                         OptionHandlerFactory.CreateOption2(

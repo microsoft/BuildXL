@@ -2,6 +2,8 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.Tracing;
 using System.Globalization;
@@ -482,6 +484,51 @@ namespace Test.BuildXL.Utilities
             public void InfoEvent(string message)
             {
                 WriteEvent(1, message);
+            }
+        }
+
+        [Fact]
+        public void TestEarlyTerminationAction()
+        {
+            // Why not define as a [Theory]? Specifying actions as attribute parameters doesn't work well
+            runMiniTest(() => TestEvents.Log.UserErrorEvent("userError"), (ushort)EventId.UserErrorEvent, false);
+            runMiniTest(() => TestEvents.Log.InfrastructureErrorEvent("Infra error"), (ushort)EventId.InfrastructureErrorEvent, false);
+            runMiniTest(() => TestEvents.Log.ErrorEvent("internalError"), (ushort)EventId.ErrorEvent, false);
+
+            void runMiniTest(Action logMethod, ushort eventErrorCode, bool expectActionCalled)
+            {
+                LoggingContext loggingContext = new LoggingContext("testContext");
+                bool actionCalled = false;
+                using (var listener = new TrackingEventListener(Events.Log))
+                {
+                    listener.RegisterEventSource(TestEvents.Log);
+
+                    // Register an action that we can exetrnally observe that it was invoked
+                    listener.RegisterInternalErrorAction(loggingContext, internalErrorAction: () =>
+                    {
+                        actionCalled = true;
+                        Assert.True(loggingContext.ErrorWasLogged, "Error must be registered by the logging context prior to performing action");
+                    });
+
+                    // call the log method and specify that the error was logged. The second part emulates what would happen through a generated logger
+                    logMethod();
+                    loggingContext.SpecifyErrorWasLogged(eventErrorCode);
+
+                    // May need to wait a bit while the background task triggers the action
+                    if (expectActionCalled)
+                    {
+                        Stopwatch sw = Stopwatch.StartNew();
+                        while (sw.Elapsed.TotalSeconds < 1)
+                        {
+                            if (!actionCalled)
+                            {
+                                System.Threading.Thread.Sleep(5);
+                            }
+                        }
+                    }
+
+                    Assert.Equal(expectActionCalled, actionCalled);
+                }
             }
         }
 

@@ -7,6 +7,7 @@ using System.Diagnostics.ContractsLight;
 using System.Diagnostics.Tracing;
 using System.Globalization;
 using System.Threading;
+using System.Threading.Tasks;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Instrumentation.Common;
 
@@ -28,6 +29,12 @@ namespace BuildXL.Utilities.Tracing
         private int m_numEventSourceInternalWarnings;
 
         private readonly BigBuffer<int> m_eventCounts = new BigBuffer<int>(entriesPerBufferBitWidth: 14);
+
+        // state needed for cancelling a build early on an internal error
+        private Action m_internalErrorAction = null;
+        private LoggingContext m_loggingContext;
+        private Task m_cancellationTask = null;
+        private int m_earlyTerminationRequested;
 
         /// <summary>
         /// The UTC time representing time 0 for this listener
@@ -176,6 +183,18 @@ namespace BuildXL.Utilities.Tracing
         /// </remarks>
         public bool HasFailuresOrWarnings => TotalErrorCount > 0 || CriticalCount > 0 || WarningCount > 0;
 
+        /// <summary>
+        /// Registers an action to take place after an internal or infrastructure error has been logged and the LoggingContext has been updated
+        /// </summary>
+        /// <remarks>
+        /// Only a single action is supported. Unset an action by passing null. Only the first internal error will trigger the action
+        /// </remarks>
+        public void RegisterInternalErrorAction(LoggingContext loggingContext, Action internalErrorAction)
+        {
+            m_internalErrorAction = internalErrorAction;
+            m_loggingContext = loggingContext;
+        }
+
         /// <inheritdoc />
         protected override void OnCritical(EventWrittenEventArgs eventData)
         {
@@ -230,6 +249,41 @@ namespace BuildXL.Utilities.Tracing
                 string eventMessage = FormattingEventListener.CreateFullMessageString(eventData, "error", eventData.Message, DateTime.Now, useCustomPipDescription: false);
                 // The configuration promoted a warning to an error. That's a user error
                 UserErrorDetails.RegisterError(eventData.EventName, eventMessage);
+            }
+
+            if (m_loggingContext != null && m_internalErrorAction != null)
+            {
+                if (InfrastructureErrorDetails.Count > 0 || InternalErrorDetails.Count > 0)
+                {
+                    TriggerInternalErrorAction();
+                }
+            }
+
+        }
+
+        /// <summary>
+        /// Calls the <see cref="m_internalErrorAction"/> once the LoggingContext signals that an error was logged
+        /// </summary>
+        /// <remarks>
+        /// The primary purpose of the <see cref="m_internalErrorAction"/> is to terminate the build on an internal error.
+        /// It is important that the originating error has an opportunity to be logged before that termination is requested.
+        /// So this method kicks off a background task to trigger that action only after the LoggingContext has signaled
+        /// that the original error has been logged.
+        /// This method also guards that the action function can only be triggered a single time.
+        /// </remarks>
+        private void TriggerInternalErrorAction()
+        {
+            if (m_earlyTerminationRequested == 0 && Interlocked.Increment(ref m_earlyTerminationRequested) == 1)
+            {
+                m_cancellationTask = Task.Run(async () =>
+                {
+                    while (!m_loggingContext.ErrorWasLogged)
+                    {
+                        await Task.Delay(10);
+                    }
+
+                    m_internalErrorAction();
+                });
             }
         }
 

@@ -419,6 +419,10 @@ namespace BuildXL
                 Strings.HelpText_DisplayHelp_StopOnFirstError);
 
             hw.WriteOption(
+                "/stopOnFirstInternalError[+|-]",
+                Strings.HelpText_DisplayHelp_StopOnFirstInternalError);
+            
+            hw.WriteOption(
                 "/color[+|-]",
                 Strings.HelpText_DisplayHelp_Color,
                 HelpLevel.Verbose);

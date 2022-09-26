@@ -481,6 +481,10 @@ namespace BuildXL.Engine
                 mutableInitialConfig.Startup.EnsurePropertiesWhenRunInCloudBuild();
                 ApplyTemporaryHackWhenRunInCloudBuild(pathTable, mutableInitialConfig);
                 InjectDirectoryTranslationValuesIntoEnvironment(pathTable, mutableInitialConfig);
+                if (!mutableInitialConfig.Schedule.StopOnFirstInternalError.HasValue)
+                {
+                    mutableInitialConfig.Schedule.StopOnFirstInternalError = true;
+                }
             }
 
             if (mutableInitialConfig.Layout.RedirectedUserProfileJunctionRoot.IsValid && !OperatingSystemHelper.IsUnixOS)
@@ -2033,6 +2037,11 @@ namespace BuildXL.Engine
                                 if (disposeFrontEnd)
                                 {
                                     CleanUpFrontEndOnSuccess(success, constructScheduleResult);
+                                }
+
+                                if (m_initialCommandLineConfiguration.Schedule.StopOnFirstInternalError ?? false)
+                                {
+                                    m_trackingEventListener.RegisterInternalErrorAction(loggingContext, () => engineSchedule.Scheduler.TerminateForInternalError());
                                 }
 
                                 // Build workers don't allow CleanOnly builds since the orchestrator selects which pips they run

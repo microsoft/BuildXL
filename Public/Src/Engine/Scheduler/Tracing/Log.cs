@@ -1437,6 +1437,15 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void ScheduleCancelingPipSinceScheduleIsTerminating(LoggingContext loggingContext, string pipDescription);
 
         [GeneratedEvent(
+            (ushort)LogEventId.TerminatingDueToInternalError,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)(Keywords.UserMessage),
+            EventTask = (ushort)Tasks.Scheduler,
+            Message = "The execution schedule is being terminated due to a previously encountered unrecoverable internal error.")]
+        internal abstract void TerminatingDueToInternalError(LoggingContext loggingContext);
+
+        [GeneratedEvent(
             (ushort)LogEventId.PipFailedDueToFailedPrerequisite,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,

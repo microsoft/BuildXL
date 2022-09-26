@@ -3092,6 +3092,19 @@ namespace BuildXL.Scheduler
         }
 
         /// <summary>
+        /// Allows the scheduler to be externally signaled for termination in the case of an internal or infrastructure error.
+        /// </summary>
+        public void TerminateForInternalError()
+        {
+            if (!IsTerminating && !IsDistributedWorker)
+            {
+                Logger.Log.TerminatingDueToInternalError(m_executePhaseLoggingContext);
+                
+                RequestTermination(cancelQueue: false);
+            }
+        }
+
+        /// <summary>
         /// Callback event that gets raised when a Pip finished executing
         /// </summary>
         /// <remarks>
@@ -3266,21 +3279,8 @@ namespace BuildXL.Scheduler
                     // We stop on the first error only on the orchestrator or single-machine builds.
                     // During cancellation, orchestrator coordinates with workers to stop the build.
 
-
-                    //// ErrorsLoggedById is a ConcurrentBag. Its Contains() isn't particularly performant. It copies everything to a new list and then enumerates that.
-                    //bool hasMaterializationErrorHappened = m_executePhaseLoggingContext.ErrorsLoggedById.Contains((ushort)EventId.PipMaterializeDependenciesFromCacheFailure)
-                    //    || m_executePhaseLoggingContext.ErrorsLoggedById.Contains((ushort)EventId.PipMaterializeDependenciesFailureUnrelatedToCache);
-
-                    // TODO(seokur): It is currently disabled to cancel the pips on the first materialization error.
-                    // We just want to see how many materialization errors would occur in total.
-                    bool hasMaterializationErrorHappened = false;
-
-                    // Early terminate the build if
-                    // (1) StopOnFirstError is enabled or
-                    // (2) a materialization error is occurred in a distributed build.
-                    bool earlyTerminate = m_scheduleConfiguration.StopOnFirstError || (hasMaterializationErrorHappened && IsDistributedOrchestrator);
-
-                    if (!IsTerminating && earlyTerminate)
+                    // Early terminate the build if stopOnFirstError is enabled
+                    if (!IsTerminating && m_scheduleConfiguration.StopOnFirstError)
                     {
                         Logger.Log.ScheduleTerminatingDueToPipFailure(m_executePhaseLoggingContext, pipDescription);
 

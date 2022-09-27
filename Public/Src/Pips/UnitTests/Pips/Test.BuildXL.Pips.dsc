@@ -7,6 +7,12 @@ namespace Core {
         assemblyName: "Test.BuildXL.Pips",
         sources: globR(d`.`, "*.cs"),
         references: [
+            ...addIf(
+                BuildXLSdk.isFullFramework,
+                NetFx.Netstandard.dll
+            ),
+
+            importFrom("ObjectLayoutInspector").pkg,
             importFrom("BuildXL.Cache.ContentStore").Hashing.dll,
             importFrom("BuildXL.Cache.ContentStore").UtilitiesCore.dll,
             importFrom("BuildXL.Cache.ContentStore").Interfaces.dll,

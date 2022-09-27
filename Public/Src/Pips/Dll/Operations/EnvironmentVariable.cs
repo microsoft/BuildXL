@@ -12,21 +12,55 @@ namespace BuildXL.Pips.Operations
     /// </summary>
     public readonly struct EnvironmentVariable : IEquatable<EnvironmentVariable>
     {
+        // This struct used to have the following structure:
+        // readonly record struct EnvironmentVariable(StringId Name, PipData Value, bool IsPassThrough);
+        // Unfortunately, due to layout issues, the old version was 48 bytes in size even though we can manually
+        // pack all the required data into 32 bytes.
+
+        // StringId
+        private readonly int m_nameValue;
+
+        // PipData
+        private readonly bool m_pipDataAvailable;
+
+        // PipData.EntriesBinarySegmentPointer
+        private readonly int m_pipDataEntriesBinarySegmentPointer;
+        // PipData.HeaderEntry
+        private readonly PipDataEntryType m_pipDataEntryType;
+        private readonly PipDataFragmentEscaping m_pipDataEscaping;
+        private readonly int m_pipDataValue;
+        // PipData.Entries
+        private readonly PipDataEntryList m_pipDataEntries;
+
         /// <summary>
         /// Name of the variable.
         /// </summary>
-        public readonly StringId Name;
+        public StringId Name => StringId.UnsafeCreateFrom(m_nameValue);
 
         /// <summary>
         /// Value of the variable.
         /// </summary>
-        public readonly PipData Value;
+        public PipData Value
+        {
+            get
+            {
+                if (!m_pipDataAvailable)
+                {
+                    return PipData.Invalid;
+                }
+
+                return PipData.CreateInternal(
+                    new PipDataEntry(m_pipDataEscaping, m_pipDataEntryType, m_pipDataValue),
+                    m_pipDataEntries,
+                    StringId.UnsafeCreateFrom(m_pipDataEntriesBinarySegmentPointer));
+            }
+        }
 
         /// <summary>
         /// Whether this is a pass-through environment variable
         /// </summary>
-        public readonly bool IsPassThrough;
-
+        public bool IsPassThrough { get; }
+        
         /// <summary>
         /// Creates an environment variable definition.
         /// </summary>
@@ -35,8 +69,26 @@ namespace BuildXL.Pips.Operations
             Contract.Requires(name.IsValid);
             Contract.Requires(value.IsValid || isPassThrough);
 
-            Name = name;
-            Value = value;
+            m_nameValue = name.Value;
+            if (value.IsValid)
+            {
+                m_pipDataAvailable = true;
+                m_pipDataEntriesBinarySegmentPointer = value.EntriesBinarySegmentPointer.Value;
+                m_pipDataEntryType = value.HeaderEntry.EntryType;
+                m_pipDataEscaping = value.HeaderEntry.RawEscaping;
+                m_pipDataValue = value.HeaderEntry.RawData;
+                m_pipDataEntries = value.Entries;
+            }
+            else
+            {
+                m_pipDataAvailable = false;
+                m_pipDataEntriesBinarySegmentPointer = default;
+                m_pipDataEntryType = default;
+                m_pipDataEscaping = default;
+                m_pipDataValue = default;
+                m_pipDataEntries = default;
+            }
+
             IsPassThrough = isPassThrough;
         }
 

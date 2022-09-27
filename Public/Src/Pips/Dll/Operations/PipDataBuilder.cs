@@ -15,7 +15,7 @@ namespace BuildXL.Pips.Operations
     /// </summary>
     /// <remarks>
     /// Representation of PipData is now a sequence of <see cref="PipDataEntry"/> values.
-    /// Each value is comprised of a single byte code and a 4 byte integer <see cref="PipDataEntry.m_data"/>.
+    /// Each value is comprised of a single byte code and a 4 byte integer <see cref="PipDataEntry.RawData"/>.
     /// The code stores the <see cref="PipDataEntryType"/> and optionally the <see cref="PipDataFragmentEscaping"/>.
     ///
     /// Entry types and interpretation:

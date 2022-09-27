@@ -2813,6 +2813,15 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "ObjectLayoutInspector",
+          "Version": "0.1.4"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "PackageUrl",
           "Version": "1.0.0"
         }

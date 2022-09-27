@@ -340,6 +340,8 @@ config({
 
                 { id: "SharpZipLib", version: "1.3.3" },
 
+                { id: "ObjectLayoutInspector", version: "0.1.4" },
+
                 // Ninja JSON graph generation helper
                 { id: "BuildXL.Tools.Ninjson", version: "0.0.6" },
                 { id: "BuildXL.Tools.AppHostPatcher", version: "1.0.0" },

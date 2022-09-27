@@ -24,8 +24,11 @@ namespace BuildXL.Pips.Operations
         /// </summary>
         public PipDataEntryType EntryType { get; }
 
-        private readonly PipDataFragmentEscaping m_escaping;
-        private readonly int m_data;
+        /// <nodoc />
+        internal readonly PipDataFragmentEscaping RawEscaping;
+
+        /// <nodoc />
+        internal readonly int RawData;
 
         /// <nodoc />
         public PipDataEntry(PipDataFragmentEscaping escaping, PipDataEntryType entryType, uint data)
@@ -40,8 +43,8 @@ namespace BuildXL.Pips.Operations
         {
             Contract.Requires(escaping == PipDataFragmentEscaping.Invalid || entryType == PipDataEntryType.NestedDataHeader);
             EntryType = entryType;
-            m_escaping = escaping;
-            m_data = data;
+            RawEscaping = escaping;
+            RawData = data;
         }
 
         /// <summary>
@@ -55,7 +58,7 @@ namespace BuildXL.Pips.Operations
             get
             {
                 Contract.Requires(EntryType == PipDataEntryType.NestedDataHeader);
-                return m_escaping;
+                return RawEscaping;
             }
         }
 
@@ -99,7 +102,7 @@ namespace BuildXL.Pips.Operations
         public AbsolutePath GetPathValue()
         {
             Contract.Requires(EntryType == PipDataEntryType.AbsolutePath || EntryType == PipDataEntryType.VsoHashEntry1Path || EntryType == PipDataEntryType.FileId1Path);
-            return new AbsolutePath(m_data);
+            return new AbsolutePath(RawData);
         }
 
         /// <summary>
@@ -117,7 +120,7 @@ namespace BuildXL.Pips.Operations
                 EntryType == PipDataEntryType.NestedDataEnd ||
                 EntryType == PipDataEntryType.VsoHashEntry2RewriteCount ||
                 EntryType == PipDataEntryType.FileId2RewriteCount);
-            return m_data;
+            return RawData;
         }
 
         /// <summary>
@@ -131,7 +134,7 @@ namespace BuildXL.Pips.Operations
         {
             Contract.Requires(
                 EntryType == PipDataEntryType.DirectoryIdHeaderSealId);
-            return unchecked((uint)m_data);
+            return unchecked((uint)RawData);
         }
 
         /// <summary>
@@ -148,7 +151,7 @@ namespace BuildXL.Pips.Operations
                 EntryType == PipDataEntryType.StringLiteral ||
                 EntryType == PipDataEntryType.NestedDataHeader ||
                 EntryType == PipDataEntryType.IpcMoniker);
-            return new StringId(m_data);
+            return new StringId(RawData);
         }
 
         #region Conversions
@@ -244,8 +247,8 @@ namespace BuildXL.Pips.Operations
 
         public void Write(byte[] bytes, ref int index)
         {
-            bytes[index++] = checked((byte)(((int)EntryType << 4) | (int)m_escaping));
-            Bits.WriteInt32(bytes, ref index, m_data);
+            bytes[index++] = checked((byte)(((int)EntryType << 4) | (int)RawEscaping));
+            Bits.WriteInt32(bytes, ref index, RawData);
         }
 
         public static PipDataEntry Read<TBytes>(TBytes bytes, ref int index)
@@ -264,28 +267,28 @@ namespace BuildXL.Pips.Operations
         {
             Contract.Requires(writer != null);
             Contract.Assert((int)EntryType < 16);
-            Contract.Assert((int)m_escaping < 16);
-            writer.Write(checked((byte)(((int)EntryType << 4) | (int)m_escaping)));
+            Contract.Assert((int)RawEscaping < 16);
+            writer.Write(checked((byte)(((int)EntryType << 4) | (int)RawEscaping)));
             switch (EntryType)
             {
                 case PipDataEntryType.NestedDataHeader:
                 case PipDataEntryType.StringLiteral:
-                    writer.Write(new StringId(m_data));
+                    writer.Write(new StringId(RawData));
                     break;
                 case PipDataEntryType.NestedDataStart:
                 case PipDataEntryType.NestedDataEnd:
                 case PipDataEntryType.VsoHashEntry2RewriteCount:
                 case PipDataEntryType.FileId2RewriteCount:
                 case PipDataEntryType.DirectoryIdHeaderSealId:
-                    writer.WriteCompact(m_data);
+                    writer.WriteCompact(RawData);
                     break;
                 case PipDataEntryType.AbsolutePath:
                 case PipDataEntryType.VsoHashEntry1Path:
                 case PipDataEntryType.FileId1Path:
-                    writer.Write(new AbsolutePath(m_data));
+                    writer.Write(new AbsolutePath(RawData));
                     break;
                 case PipDataEntryType.IpcMoniker:
-                    writer.Write(new StringId(m_data));
+                    writer.Write(new StringId(RawData));
                     break;
                 default:
                     Contract.Assert(false, "EntryType not handled: " + EntryType);
@@ -340,7 +343,7 @@ namespace BuildXL.Pips.Operations
         /// <inheritdoc />
         public override int GetHashCode()
         {
-            return HashCodeHelper.Combine((int)EntryType, (int)m_escaping, m_data);
+            return HashCodeHelper.Combine((int)EntryType, (int)RawEscaping, RawData);
         }
 
         /// <inheritdoc />
@@ -353,8 +356,8 @@ namespace BuildXL.Pips.Operations
         public bool Equals(PipDataEntry other)
         {
             return other.EntryType == EntryType &&
-                other.m_data == m_data &&
-                other.m_escaping == m_escaping;
+                other.RawData == RawData &&
+                other.RawEscaping == RawEscaping;
         }
 
         public static bool operator ==(PipDataEntry left, PipDataEntry right)

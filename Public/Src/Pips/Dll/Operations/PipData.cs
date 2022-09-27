@@ -59,6 +59,7 @@ namespace BuildXL.Pips.Operations
 
         internal readonly PipDataEntry HeaderEntry;
         internal readonly PipDataEntryList Entries;
+        internal StringId EntriesBinarySegmentPointer => m_entriesBinarySegmentPointer;
 
         private PipData(PipDataEntry entry, PipDataEntryList entries, StringId entriesBinarySegmentPointer)
         {

@@ -11,7 +11,7 @@ Param(
  [String]$OneEsPat,
  [Parameter(mandatory=$true)]
  [String]$CbPat,
- [Parameter(mandatory=$true)]
+ [Parameter(mandatory=$false)]
  [String]$NcPath,
  [Parameter(mandatory=$true)]
  [String]$MsEngGitPat,
@@ -50,9 +50,13 @@ Param(
 [Environment]::SetEnvironmentVariable("1ESSHAREDASSETS_BUILDXL_FEED_PAT", $OneEsPat, "Process")
 [Environment]::SetEnvironmentVariable("CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT", $CbPat, "Process")
 [Environment]::SetEnvironmentVariable("MSENG_GIT_PAT", $MsEngGitPat, "Process")
-[Environment]::SetEnvironmentVariable("NUGET_CREDENTIALPROVIDERS_PATH", $NcPath, "Process")
 [Environment]::SetEnvironmentVariable("VSTSPERSONALACCESSTOKEN", $VstsPat, "Process")
 [Environment]::SetEnvironmentVariable("ARTIFACT_CREDENTIALPROVIDERS_PATH", $VstsCredProviderPath, "Process")
+
+if ($NcPath)
+{
+    [Environment]::SetEnvironmentVariable("NUGET_CREDENTIALPROVIDERS_PATH", $NcPath, "Process")
+}
 
 [Environment]::SetEnvironmentVariable("VSS_NUGET_EXTERNAL_FEED_ENDPOINTS", "
 {

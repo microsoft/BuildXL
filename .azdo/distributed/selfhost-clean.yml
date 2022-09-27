@@ -1,0 +1,87 @@
+# This pipeline does a clean build of the BuildXL repo as a distributed build
+# The BuildXL version to download from drop and use for the build (e.g., 0.1.0-20221026.0)
+# should be specified via the queue-time variable $(BuildXLPackageVersion) 
+trigger: none   # This pipeline is explicitly scheduled
+
+variables:
+  - group: "BuildXL Common variables"
+  - group: "BuildXL Secrets"
+  - name: Domino.DogfoodPackagePath
+    value: $(System.DefaultWorkingDirectory)\$(Build.BuildId)\Dogfood
+  - name: BuildXL.RepoDirectory
+    value: $(Build.Repository.LocalPath)
+  - name: BuildXL.LogsDirectory
+    value: $(BuildXL.RepoDirectory)\Out\Logs
+  - name: PatArgs
+    value: -OneEsPat $(PAT-TseBuild-AzureDevOps-1esSharedAssets-Package-Read) -CbPat $(PAT-TseBuild-AzureDevOps-CloudBuild-Packaging-Read) -MsEngGitPat $(PAT-TseBuild-AzureDevOps-MsEng-ReadCode) -VstsPat $(PAT-TseBuild-AzureDevOps-mseng-buildcache)
+  - name: DogfoodDropName
+    value: buildxl.dogfood.$(BuildXLPackageVersion)
+  - name: BxlScriptArgs
+    value: -UseAdoBuildRunner -SharedCacheMode ConsumeAndPublish -Use Dev -DevRoot $(Domino.DogfoodPackagePath)\release\win-x64
+  - name: BuildXLArgs
+    value: /q:ReleaseDotNet6 /server- /p:[Sdk.BuildXL]microsoftInternal=1 /p:BUILDXL_FINGERPRINT_SALT=* /p:BuildXLWorkerAttachTimeoutMin=5 /logOutput:FullOutputOnWarningOrError /p:RetryXunitTests=1 /processRetries:3 /traceinfo:valdation=ReleasePipelineDistribution /enableIncrementalFrontEnd- /p:xunitSemaphoreCount=12
+
+pool:
+  name: BuildXL-DevOpsAgents-PME
+
+jobs:
+- job: Distributed_Clean
+  strategy:
+    parallel: 2
+  displayName: Clean distributed build
+  steps:
+  - checkout: self
+    fetchDepth: 1
+  
+  - template: ../common/set-artifacts-pat.yml
+    parameters:
+      AzDevPAT: $(PAT-TseBuild-AzureDevOps-MsEng)
+
+  - template: ../common/journaling.yml
+  - template: ../common/set-msvc-version.yml
+
+  - task: ms-vscs-artifact.build-tasks.artifactDropDownloadTask-1.artifactDropDownloadTask@1
+    displayName: 'Download $(DogfoodDropName) from drop'
+    inputs:
+      dropServiceURI: 'https://mseng.artifacts.visualstudio.com/DefaultCollection'
+      buildNumber: '$(DogfoodDropName)'
+      destinationPath: '$(Domino.DogfoodPackagePath)'
+      rootPaths: 'release/win-x64'
+
+  - script: |
+      netsh advfirewall set allprofiles state off
+    displayName: Disable local firewall
+
+  - task: PowerShell@2
+    inputs:
+      targetType: filePath
+      filePath: 'RunBxlWithPAT.ps1'
+      arguments: '$(PatArgs) $(BxlScriptArgs) $(BuildXLArgs) /logsDirectory:$(BuildXL.LogsDirectory) /ado'
+      workingDirectory: $(BuildXL.RepoDirectory)
+    displayName: 'Run clean selfhost build distributed'
+    env:
+      SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+  
+  - powershell: |
+      $bxlWithRemotingLogDir = "$(BuildXL.LogsDirectory)"
+      $statsContent = Get-Content -Path (Join-Path $bxlWithRemotingLogDir "BuildXL.stats") | Out-String
+      $stats = ConvertFrom-StringData -StringData $statsContent
+      $runDistributedCount = $stats.Get_Item("PipExecution.ProcessesExecutedRemotely")
+      
+      Write-Host "Pips run on remote workers: $runDistributedCount"
+
+      if ($runDistributedCount -eq 0)
+      {
+          Write-Error "##[error]No process pip ran in distributed workers."
+          exit 1
+      }
+            
+      exit 0
+    displayName: 'Validate that distribution happened'
+    condition: and(succeeded(), eq(variables['BUILDXL_DISTRIBUTED_ROLE'], 'BuildXLOrchestrator')) 
+
+  - task: PublishPipelineArtifact@1
+    displayName: 'Upload logs'
+    inputs:
+      targetPath: $(BuildXL.LogsDirectory)
+    condition: always()

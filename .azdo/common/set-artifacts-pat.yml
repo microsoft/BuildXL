@@ -1,0 +1,9 @@
+parameters:
+- name: AzDevPAT
+  type: string
+
+steps:
+- powershell: |
+   # Set environment variable for authenticating with Azure DevOps with a PAT as specified by AzureDevOps Artifact Services Drop task
+   Write-Host "##vso[task.setvariable variable=ArtifactServices.Drop.PAT;issecret=true]${{ parameters.AzDevPAT }}"
+  displayName: 'Set ArtifactServices Drop PAT'

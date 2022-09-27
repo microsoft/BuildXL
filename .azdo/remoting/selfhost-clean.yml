@@ -1,0 +1,100 @@
+# This pipeline does a clean build of the BuildXL repo with remoting enabled
+# The BuildXL version to download from drop and use for the build (e.g., 0.1.0-20221026.0)
+# should be specified via the queue-time variable $(BuildXLPackageVersion) 
+trigger: none   # This pipeline is explicitly scheduled
+
+variables:
+  - group: "BuildXL Common variables"
+  - group: "BuildXL Secrets"
+  - name: Domino.DogfoodPackagePath
+    value: $(System.DefaultWorkingDirectory)\$(Build.BuildId)\Dogfood
+  - name: BuildXL.RepoDirectory
+    value: $(Build.Repository.LocalPath)
+  - name: BuildXL.LogsDirectory
+    value: $(BuildXL.RepoDirectory)\Out\Logs
+  - name: BuildXLRemotingArgs
+    value: /numRemoteAgentLeases:64 /remotingThresholdMultiplier:1.25
+  - name: AnyBuildExtraArgs
+    value: --ClientApplicationId~~$(BuildXLPipelinesAppId)~~--ClientSecretEnvironmentVariable~~AnyBuildServicePrincipalPasswd~~--NoCheckForUpdates
+  - name: PatArgs
+    value: -OneEsPat $(PAT-TseBuild-AzureDevOps-1esSharedAssets-Package-Read) -CbPat $(PAT-TseBuild-AzureDevOps-CloudBuild-Packaging-Read) -MsEngGitPat $(PAT-TseBuild-AzureDevOps-MsEng-ReadCode) -VstsPat $(PAT-TseBuild-AzureDevOps-mseng-buildcache)
+  - name: DogfoodDropName
+    value: buildxl.dogfood.$(BuildXLPackageVersion)
+  - name: BxlScriptArgs
+    value: -SharedCacheMode Disable -Use Dev -DevRoot $(Domino.DogfoodPackagePath)\release\win-x64 -EnableProcessRemoting
+  - name: BuildXLArgs
+    value: /q:ReleaseDotNet6 /server- /p:[Sdk.BuildXL]microsoftInternal=1 /p:BUILDXL_FINGERPRINT_SALT=* /p:BuildXLWorkerAttachTimeoutMin=5 /logOutput:FullOutputOnWarningOrError /p:RetryXunitTests=1 /processRetries:3 /traceinfo:valdation=ReleasePipelineRemoting /enableIncrementalFrontEnd- /p:xunitSemaphoreCount=12 /p:BUILDXL_ANYBUILD_EXTRA_ARGS=$(AnyBuildExtraArgs)
+
+pool:
+  name: BuildXL-DevOpsAgents-PME
+
+jobs:
+- job: Distributed_Remoting
+  displayName: Clean build with remoting
+  steps:
+  - checkout: self
+    fetchDepth: 1
+  
+  - template: ../common/set-artifacts-pat.yml
+    parameters:
+      AzDevPAT: $(PAT-TseBuild-AzureDevOps-MsEng)
+
+  - template: ./az-login.yml
+  - template: ../common/journaling.yml
+  - template: ../common/set-msvc-version.yml
+
+  - task: ms-vscs-artifact.build-tasks.artifactDropDownloadTask-1.artifactDropDownloadTask@1
+    displayName: 'Download $(DogfoodDropName) from drop'
+    inputs:
+      dropServiceURI: 'https://mseng.artifacts.visualstudio.com/DefaultCollection'
+      buildNumber: '$(DogfoodDropName)'
+      destinationPath: '$(Domino.DogfoodPackagePath)'
+      rootPaths: 'release/win-x64'
+
+  - powershell: 'Remove-Item -Force -Recurse "$env:LOCALAPPDATA\Microsoft\AnyBuild" -ea SilentlyContinue'
+    displayName: 'Remove Existing AnyBuild'
+
+  - task: PowerShell@2
+    inputs:
+      targetType: filePath
+      filePath: 'RunBxlWithPAT.ps1'
+      arguments: '$(PatArgs) $(BxlScriptArgs) $(BuildXLArgs) $(BuildXLRemotingArgs) /logsDirectory:$(BuildXL.LogsDirectory) /ado'
+      workingDirectory: $(BuildXL.RepoDirectory)
+    displayName: 'Run clean selfhost build with remoting enabled'
+    env:
+      SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+      AnyBuildServicePrincipalPasswd: $(AzureApp-BuildXL-Pipelines)
+  
+  - powershell: |
+      $bxlWithRemotingLogDir = "$(BuildXL.LogsDirectory)"
+      $statsContent = Get-Content -Path (Join-Path $bxlWithRemotingLogDir "BuildXL.stats") | Out-String
+      $stats = ConvertFrom-StringData -StringData $statsContent
+      $runRemoteCount = $stats.Get_Item("PipExecution.TotalRunRemoteProcesses")
+      $runDistributedCount = $stats.Get_Item("PipExecution.ProcessesExecutedRemotely")
+      $runLocalFallbackCount = $stats.Get_Item("PipExecution.TotalRemoteFallbackRetries")
+      
+      Write-Host "Run remote (AnyBuild): $runRemoteCount"
+      Write-Host "Run on remote workers: $runDistributedCount"
+      Write-Host "Run local due to fallback: $runLocalFallbackCount"
+      
+      $exitcode = 0
+
+      if ($runRemoteCount -eq 0)
+      {
+          Write-Error "##[error]No process pip ran remotely. Please check AnyBuild.log."
+          $exitcode = 1
+      }
+      
+      if ($runLocalFallbackCount -ne 0)
+      {
+          Write-Warning "##[warning]$runLocalFallbackCount remoted process pip(s) ran locally"
+      }
+      
+      exit $exitcode
+    displayName: 'Validate process remoting'
+
+  - task: PublishPipelineArtifact@1
+    displayName: 'Upload logs'
+    inputs:
+      targetPath: $(BuildXL.LogsDirectory)
+    condition: always()

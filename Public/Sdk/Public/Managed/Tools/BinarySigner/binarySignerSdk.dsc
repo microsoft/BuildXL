@@ -103,7 +103,9 @@ export function signBinary(args: ESRPSignArguments): File {
             ],
             dependencies: [
                 args.file,
-                f`${args.signToolAadAuth}`
+                f`${args.signToolAadAuth}`,
+                f`${args.signToolEsrpPolicy}`,
+                f`${args.signToolConfiguration}`
             ],
             outputs: [
                 signedFile

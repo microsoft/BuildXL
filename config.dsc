@@ -47,6 +47,13 @@ config({
                 hash: "VSO0:17E8C8C0CDCCA3A6D1EE49836847148C4623ACEA5E6E36E10B691DA7FDC4C39200"
             },
 
+            esrpSignConfiguration :  Context.getCurrentHost().os === "win" && Environment.getFlag("ENABLE_ESRP") ? {
+                signToolPath: p`${Environment.expandEnvironmentVariablesInString(Environment.getStringValue("SIGN_TOOL_PATH"))}`,
+                signToolConfiguration: Environment.getPathValue("ESRP_SESSION_CONFIG"),
+                signToolEsrpPolicy: Environment.getPathValue("ESRP_POLICY_CONFIG"),
+                signToolAadAuth: p`${Context.getMount("SourceRoot").path}/Secrets/CodeSign/EsrpAuthentication.json`,
+            } : undefined,
+
             repositories: importFile(f`config.microsoftInternal.dsc`).isMicrosoftInternal
                 ? {
                     // If nuget resolver failed to download VisualCpp tool, then download it

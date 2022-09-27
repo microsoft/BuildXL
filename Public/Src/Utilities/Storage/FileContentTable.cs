@@ -18,6 +18,7 @@ using BuildXL.Storage.ChangeTracking;
 using BuildXL.Storage.FileContentTableAccessor;
 using BuildXL.Tracing;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
@@ -68,7 +69,7 @@ namespace BuildXL.Storage
         /// <summary>
         /// These are the (global file ID) -> (USN, hash) mappings recorded or retrieved in this session.
         /// </summary>
-        private readonly ConcurrentDictionary<FileIdAndVolumeId, Entry> m_entries = new ConcurrentDictionary<FileIdAndVolumeId, Entry>();
+        private readonly ConcurrentBigMap<FileIdAndVolumeId, Entry> m_entries = new ConcurrentBigMap<FileIdAndVolumeId, Entry>();
 
         /// <summary>
         /// In the event a volume has a disabled change journal or not all files have USNs (journal enabled after last write to a
@@ -444,12 +445,16 @@ namespace BuildXL.Storage
                 // So, concurrently creating and recording (or even just recording) different links is possible, and
                 // keeping the last stored entry (rather than highest-USN entry) can introduce false positives.
                 var fileIdAndVolumeId = new FileIdAndVolumeId(identity.VolumeSerialNumber, identity.FileId);
-
+                
                 m_entries.AddOrUpdate(
-                    new FileIdAndVolumeId(identity.VolumeSerialNumber, identity.FileId),
-                    newEntry,
-                    updateValueFactory: (key, existingEntry) =>
+                    fileIdAndVolumeId,
+                    (@this: this, path, newEntry),
+                    addValueFactory: static (key, state) => state.newEntry,
+                    updateValueFactory: static (key, state, existingEntry) =>
                     {
+                        FileContentTable @this = state.@this;
+                        Entry newEntry = state.newEntry;
+                        string path = state.path;
                         if (existingEntry.Usn > newEntry.Usn)
                         {
                             return existingEntry;
@@ -457,12 +462,12 @@ namespace BuildXL.Storage
 
                         if (newEntry.Hash == existingEntry.Hash)
                         {
-                            Counters.IncrementCounter(FileContentTableCounters.NumUsnMismatch);
+                            @this.Counters.IncrementCounter(FileContentTableCounters.NumUsnMismatch);
 
                             if (ETWLogger.Log.IsEnabled(BuildXL.Tracing.Diagnostics.EventLevel.Verbose, Keywords.Diagnostics))
                             {
                                 Tracing.Logger.Log.StorageUsnMismatchButContentMatch(
-                                    m_loggingContext,
+                                    @this.m_loggingContext,
                                     path,
                                     existingEntry.Usn.Value,
                                     newEntry.Usn.Value,
@@ -471,8 +476,8 @@ namespace BuildXL.Storage
                         }
                         else
                         {
-                        // Stale USN.
-                        Counters.IncrementCounter(FileContentTableCounters.NumContentMismatch);
+                            // Stale USN.
+                            @this.Counters.IncrementCounter(FileContentTableCounters.NumContentMismatch);
                         }
 
                         return newEntry;

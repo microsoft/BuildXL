@@ -52,7 +52,7 @@ namespace BuildXL.Native.IO
         /// <inheritdoc />
         public override int GetHashCode()
         {
-            return FileId.GetHashCode() ^ VolumeSerialNumber.GetHashCode();
+            return HashCodeHelper.Combine(FileId.GetHashCode(), VolumeSerialNumber.GetHashCode());
         }
 
         /// <nodoc />

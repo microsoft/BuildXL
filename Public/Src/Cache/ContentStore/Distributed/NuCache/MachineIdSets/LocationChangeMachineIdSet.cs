@@ -44,7 +44,22 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             // Need to count the number of machines with the location information because some of the states
             // represent the location removal events.
-            Count = EnumerateMachineIds().Count();
+            Count = countMachineIds(machineIds);
+
+            static int countMachineIds(ImmutableArray<LocationChange> machineIds)
+            {
+                int result = 0;
+                foreach (var locationState in machineIds)
+                {
+                    var locationChange = locationState;
+                    if (locationState.IsAdd)
+                    {
+                        result++;
+                    }
+                }
+
+                return result;
+            }
         }
 
         /// <nodoc />
@@ -60,7 +75,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             {
                 // 'isRemove' flag is ignored during the search.
                 var inputLocation = LocationChange.Create(new MachineId(index), isRemove: true);
-                var arrayIndex = _locationStates.IndexOf(inputLocation, LocationChangeMachineIdComparer.Instance);
+                var arrayIndex = _locationStates.IndexOf(
+                    inputLocation,
+                    startIndex: 0,
+                    count: _locationStates.Length,
+                    LocationChangeMachineIdComparer.Instance);
                 if (arrayIndex == -1)
                 {
                     return false;
@@ -91,7 +110,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             // In IndexOf the 'IsRemove' property will be ignored.
             var locationChange = LocationChange.Create(machineId, isRemove: !exists);
-            var arrayIndex = _locationStates.IndexOf(locationChange, LocationChangeMachineIdComparer.Instance);
+            var arrayIndex = _locationStates.IndexOf(
+                locationChange,
+                startIndex: 0,
+                count: _locationStates.Length,
+                LocationChangeMachineIdComparer.Instance);
             if (arrayIndex != -1)
             {
                 locationStates = locationStates.RemoveAt(arrayIndex);

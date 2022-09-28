@@ -3861,21 +3861,28 @@ namespace BuildXL.Processes
                     }
 
                     return Directory.EnumerateFiles(maybeDirectory, string.IsNullOrEmpty(r.EnumeratePattern) ? "*" : r.EnumeratePattern)
-                        .Select(f => new ReportedFileAccess(
-                            ReportedFileOperation.NtQueryDirectoryFile,
-                            r.Process,
-                            RequestedAccess.EnumerationProbe,
-                            r.Status,
-                            r.ExplicitlyReported,
-                            r.Error,
-                            r.Usn,
-                            DesiredAccess.GENERIC_READ,
-                            ShareMode.FILE_SHARE_READ,
-                            CreationDisposition.OPEN_EXISTING,
-                            FlagsAndAttributes.FILE_ATTRIBUTE_NORMAL,
-                            AbsolutePath.Create(m_context.PathTable, f),
-                            f,
-                            null));
+                        .Select(f =>
+                        {
+                            AbsolutePath absF = AbsolutePath.Create(m_context.PathTable, f);
+                            bool findManifest = m_fileAccessManifest.TryFindManifestPathFor(absF, out AbsolutePath manifestPath, out FileAccessPolicy nodePolicy);
+                            bool explicitlyReported = findManifest && nodePolicy.HasFlag(FileAccessPolicy.ReportAccess);
+                            return new ReportedFileAccess(
+                                ReportedFileOperation.NtQueryDirectoryFile,
+                                r.Process,
+                                RequestedAccess.EnumerationProbe,
+                                r.Status,
+                                explicitlyReported,
+                                r.Error,
+                                r.Usn,
+                                DesiredAccess.GENERIC_READ,
+                                ShareMode.FILE_SHARE_READ,
+                                CreationDisposition.OPEN_EXISTING,
+                                FlagsAndAttributes.FILE_ATTRIBUTE_NORMAL,
+                                absF,
+                                f,
+                                null);
+                        })
+                        .Where(r => r.ExplicitlyReported);
                 });
 
         /// <summary>

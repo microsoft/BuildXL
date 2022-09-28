@@ -854,6 +854,61 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler().AssertCacheHit(pip.PipId);
         }
 
+        [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [MemberData(nameof(TruthTable.GetTable), 2, MemberType = typeof(TruthTable))]
+        public void IncrementalToolEnumerateNonSealedDirectoryTest(bool hasExplicitMemberDependency, bool useDotNetEnumerationOnWindows)
+        {
+            // System.Diagnostics.Debugger.Launch();
+            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.PreserveOutputs = PreserveOutputsMode.Enabled;
+            Configuration.IncrementalTools = new List<RelativePath>
+            {
+                RelativePath.Create(Context.StringTable, TestProcessToolName)
+            };
+
+            // Create directory and source files
+            var directory = CreateUniqueDirectoryArtifact(prefix: "dir");
+            FileArtifact aCFile = CreateFileArtifactWithName("a.c", directory.Path.ToString(Context.PathTable));
+            WriteSourceFile(aCFile);
+
+            var builder = CreatePipBuilder(new Operation[]
+            {
+                hasExplicitMemberDependency ? Operation.ReadFile(aCFile) : Operation.Echo("no op"),
+                Operation.EnumerateDir(directory, useDotNetEnumerationOnWindows: useDotNetEnumerationOnWindows, doNotInfer: true),
+                Operation.WriteFile(CreateOutputFileArtifact())
+            });
+
+            builder.Options |= Process.Options.AllowPreserveOutputs;
+            builder.Options |= Process.Options.IncrementalTool;
+
+            var pip = SchedulePipBuilder(builder).Process;
+
+            RunScheduler().AssertCacheMiss(pip.PipId);
+            RunScheduler().AssertCacheHit(pip.PipId);
+
+            WriteSourceFile(aCFile);
+
+            if (hasExplicitMemberDependency)
+            {
+                // Pip should cache miss because of explicit dependency.
+                // When there is no such an explicit dependency, the file a.c does not have
+                // ReportAccess policy and is not reported as a file read. Therefore, cache hit.
+                RunScheduler().AssertCacheMiss(pip.PipId);
+            }
+            
+            // Pip should cache hit because incremental tool is disabled, the file change is not observed
+            RunScheduler().AssertCacheHit(pip.PipId);
+
+            // Pip should cache miss because adding file is observed
+            FileArtifact aHFile = CreateFileArtifactWithName("a.h", directory.Path.ToString(Context.PathTable));
+            WriteSourceFile(aHFile);
+
+            // Because the enumerated directory is not under any source sealed directory, the enumeration
+            // in the observed input processor will use the minimal graph mode. In this case the minimal
+            // graph will only include a.c because it is specified as file dependency in the graph. Thus,
+            // adding another file will not affect the directory fingerprint.
+            RunScheduler().AssertCacheHit(pip.PipId);
+        }
+
         /// <summary>
         /// Testing that preserved output can be consumed.
         /// </summary>

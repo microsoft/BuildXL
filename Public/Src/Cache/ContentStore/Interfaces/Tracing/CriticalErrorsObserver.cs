@@ -9,6 +9,9 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
     /// <summary>
     /// Global handler for observing critical and non-critical exception that occur in a cache code.
     /// </summary>
+    /// <remarks>
+    /// This is used in the BuildXL executable to fail-fast on cache critical failures.
+    /// </remarks>
     public static class CriticalErrorsObserver
     {
         /// <summary>

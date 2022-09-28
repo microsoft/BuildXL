@@ -3,6 +3,7 @@
 
 using System;
 using System.Diagnostics.ContractsLight;
+using System.Runtime.CompilerServices;
 using System.Threading;
 
 namespace BuildXL.Utilities.Threading
@@ -59,6 +60,7 @@ namespace BuildXL.Utilities.Threading
         /// can be triggered later by calling <see cref="ExcludeReads()"/>
         /// </remarks>
         /// <param name="allowReads">indicates whether the write lock allows reads to continue during write</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public WriteLock AcquireWriteLock(bool allowReads = false)
         {
             EnterWriteLock(allowReads);

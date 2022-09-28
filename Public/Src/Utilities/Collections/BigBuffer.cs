@@ -3,6 +3,7 @@
 
 using System;
 using System.Diagnostics.ContractsLight;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -14,10 +15,17 @@ namespace BuildXL.Utilities.Collections
     /// <typeparam name="TEntry">the entry type</typeparam>
     public sealed class BigBuffer<TEntry>
     {
+        private static int s_entrySize = TryComputeEntrySize();
+
         /// <summary>
         /// The default number of bits for an entry buffer
         /// </summary>
         public const int DefaultEntriesPerBufferBitWidth = 12;
+
+        /// <summary>
+        /// The default number of items in an entry buffer.
+        /// </summary>
+        public static int DefaultEntriesPerBuffer = 1 << DefaultEntriesPerBufferBitWidth;
 
         /// <summary>
         /// Create a new entry buffer for a range
@@ -34,7 +42,10 @@ namespace BuildXL.Utilities.Collections
         private readonly int m_entriesPerBufferMask;
         private readonly int m_entriesPerBuffer;
 
-        private TEntry[][] m_entryBuffers;
+        /// <summary>
+        /// Entries. Keeping the entries as a lazy array to avoid excessive allocations when the arrays are not actually being used.
+        /// </summary>
+        private Lazy<TEntry[]>[] m_entryBuffers;
 
         /// <summary>
         /// The current capacity of the buffer
@@ -49,11 +60,16 @@ namespace BuildXL.Utilities.Collections
         public int EntriesPerBufferBitWidth => m_entriesPerBufferBitWidth;
 
         /// <summary>
+        /// Gets the number of entries per buffer.
+        /// </summary>
+        public int EntriesPerBuffer => m_entriesPerBuffer;
+
+        /// <summary>
         /// Creates a new concurrent block allocator
         /// </summary>
         /// <param name="entriesPerBufferBitWidth">the bit width of number of entries in a buffer (buffer size is 2^<paramref name="entriesPerBufferBitWidth"/>)</param>
         /// <param name="initialBufferSlotCount">the initial number of buffer slots</param>
-        public BigBuffer(int entriesPerBufferBitWidth = DefaultEntriesPerBufferBitWidth, int initialBufferSlotCount = 4)
+        public BigBuffer(int entriesPerBufferBitWidth, int initialBufferSlotCount = 4)
         {
             Contract.Requires(entriesPerBufferBitWidth > 0 && entriesPerBufferBitWidth < 32);
             Contract.Requires(initialBufferSlotCount > 0);
@@ -64,6 +80,63 @@ namespace BuildXL.Utilities.Collections
 
             m_entryBuffers = Resize(initialBufferSlotCount);
             m_accessor = new Accessor(this);
+        }
+
+        /// <summary>
+        /// Creates a new concurrent block allocator
+        /// </summary>
+        public BigBuffer(int? entriesPerBufferBitWidth)
+            : this(entriesPerBufferBitWidth ?? ComputeDefaultEntriesPerBufferBitWidth())
+        {
+        }
+        
+        /// <summary>
+        /// Creates a new concurrent block allocator
+        /// </summary>
+        public BigBuffer()
+            : this(ComputeDefaultEntriesPerBufferBitWidth())
+        {
+        }
+
+        /// <summary>
+        /// A helper method that computes the default buffer bit width to avoid allocating an array in the LOH.
+        /// </summary>
+        internal static int ComputeDefaultEntriesPerBufferBitWidth(int defaultEntriesPerBufferBitWidth = DefaultEntriesPerBufferBitWidth)
+        {
+            if (s_entrySize == -1)
+            {
+                return defaultEntriesPerBufferBitWidth;
+            }
+
+            try
+            {
+                // (2 ^ x) * sizeof(T) < 85K
+                // x = log(85K / sizeof(T)) / log(2)
+                const int LargeObjectHeapLimit = 85_000;
+                return (int)(Math.Log((double)LargeObjectHeapLimit / s_entrySize) / Math.Log(2));
+            }
+            catch
+            {
+                // Making sure that any issues with type inspection won't break anything.
+#pragma warning disable ERP022 // Unobserved exception in a generic exception handler
+                return defaultEntriesPerBufferBitWidth;
+#pragma warning restore ERP022 // Unobserved exception in a generic exception handler
+
+            }
+        }
+
+        private static int TryComputeEntrySize()
+        {
+            try
+            {
+                return TypeInspector.GetSize(typeof(TEntry)).size;
+            }
+            catch
+            {
+#pragma warning disable ERP022 // Unobserved exception in a generic exception handler
+                return -1;
+#pragma warning restore ERP022 // Unobserved exception in a generic exception handler
+            }
         }
 
         /// <summary>
@@ -81,16 +154,18 @@ namespace BuildXL.Utilities.Collections
         /// </summary>
         public TEntry this[int index]
         {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
                 GetBufferNumberAndEntryIndexFromId(index, out int bufferNumber, out int entryIndex);
-                return m_entryBuffers[bufferNumber][entryIndex];
+                return m_entryBuffers[bufferNumber].Value[entryIndex];
             }
 
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             set
             {
                 GetBufferNumberAndEntryIndexFromId(index, out int bufferNumber, out int entryIndex);
-                m_entryBuffers[bufferNumber][entryIndex] = value;
+                m_entryBuffers[bufferNumber].Value[entryIndex] = value;
             }
         }
 
@@ -106,6 +181,14 @@ namespace BuildXL.Utilities.Collections
         {
             if (m_capacity < minimumCapacity)
             {
+                // This method is called a lot. Making it inline friendly.
+                initializeSlow();
+            }
+
+            return m_capacity;
+
+            void initializeSlow()
+            {
                 lock (m_syncRoot)
                 {
                     var currentCapacity = m_capacity;
@@ -119,10 +202,8 @@ namespace BuildXL.Utilities.Collections
                     }
                 }
             }
-
-            return m_capacity;
         }
-
+        
         private void InternalInitializeToNewCapacity(int newCapacity, BufferInitializer? initializer, bool initializeSequentially)
         {
             Resize(newCapacity / m_entriesPerBuffer);
@@ -130,9 +211,20 @@ namespace BuildXL.Utilities.Collections
             Action<int> initBuffer =
                 bufferNumber =>
                 {
-                    m_entryBuffers[bufferNumber] = initializer != null
-                        ? initializer(bufferNumber * m_entriesPerBuffer, m_entriesPerBuffer)
-                        : new TEntry[m_entriesPerBuffer];
+                    Lazy<TEntry[]> value;
+                    if (initializer != null)
+                    {
+                        // initializer might have a side effect (like reading actual elements during deserialization)
+                        // so we have to call it eagerly.
+                        var result = initializer(bufferNumber * m_entriesPerBuffer, m_entriesPerBuffer);
+                        value = new Lazy<TEntry[]>(() => result);
+                    }
+                    else
+                    {
+                        value = new Lazy<TEntry[]>(() => new TEntry[m_entriesPerBuffer]);
+                    }
+
+                    m_entryBuffers[bufferNumber] = value;
                 };
 
             var start = m_capacity / m_entriesPerBuffer;
@@ -155,7 +247,7 @@ namespace BuildXL.Utilities.Collections
             m_capacity = newCapacity;
         }
 
-        private TEntry[][] Resize(int newSize)
+        private Lazy<TEntry[]>[] Resize(int newSize)
         {
             var newEntryBuffers = m_entryBuffers;
             Array.Resize(ref newEntryBuffers, newSize);
@@ -169,10 +261,9 @@ namespace BuildXL.Utilities.Collections
         /// <param name="index">the index in the big buffer</param>
         public BufferPointer<TEntry> GetBufferPointer(int index)
         {
-
             GetBufferNumberAndEntryIndexFromId(index, out int bufferNumber, out int entryIndex);
-            TEntry[] entryBuffer = m_entryBuffers[bufferNumber];
-            return new BufferPointer<TEntry>(entryBuffer, entryIndex);
+            Lazy<TEntry[]> entryBuffer = m_entryBuffers[bufferNumber];
+            return new BufferPointer<TEntry>(entryBuffer.Value, entryIndex);
         }
 
         /// <summary>
@@ -183,9 +274,8 @@ namespace BuildXL.Utilities.Collections
         /// <param name="entryBuffer">the index in the entry buffer which corresponds to the given index</param>
         public void GetEntryBuffer(int index, out int entryIndex, out TEntry[] entryBuffer)
         {
-
             GetBufferNumberAndEntryIndexFromId(index, out int bufferNumber, out entryIndex);
-            entryBuffer = m_entryBuffers[bufferNumber];
+            entryBuffer = m_entryBuffers[bufferNumber].Value;
         }
 
         private void GetBufferNumberAndEntryIndexFromId(int current, out int bufferNum, out int entryIndex)
@@ -243,6 +333,7 @@ namespace BuildXL.Utilities.Collections
             /// </summary>
             public TEntry this[int index]
             {
+                [MethodImpl(MethodImplOptions.AggressiveInlining)]
                 get
                 {
                     GetEntryBuffer(index, out int entryIndex, out TEntry[] entryBuffer);
@@ -250,6 +341,7 @@ namespace BuildXL.Utilities.Collections
                     return entryBuffer[entryIndex];
                 }
 
+                [MethodImpl(MethodImplOptions.AggressiveInlining)]
                 set
                 {
                     GetEntryBuffer(index, out int entryIndex, out TEntry[] entryBuffer);
@@ -270,7 +362,7 @@ namespace BuildXL.Utilities.Collections
                 entryBuffer = m_lastBuffer!;
                 if (bufferNumber != m_lastBufferNumber)
                 {
-                    entryBuffer = Buffer.m_entryBuffers[bufferNumber];
+                    entryBuffer = Buffer.m_entryBuffers[bufferNumber].Value;
                     m_lastBuffer = entryBuffer;
                     m_lastBufferNumber = bufferNumber;
                 }

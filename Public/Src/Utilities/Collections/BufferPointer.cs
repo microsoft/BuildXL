@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Diagnostics.CodeAnalysis;
 
 namespace BuildXL.Utilities.Collections
@@ -12,6 +13,7 @@ namespace BuildXL.Utilities.Collections
     [SuppressMessage("Microsoft.Performance", "CA1815:OverrideEqualsAndOperatorEqualsOnValueTypes")]
     public readonly struct BufferPointer<T>
     {
+        private readonly T[] m_buffer;
         /// <summary>
         /// The index in the buffer
         /// </summary>
@@ -21,14 +23,14 @@ namespace BuildXL.Utilities.Collections
         /// The buffer
         /// </summary>
         [SuppressMessage("Microsoft.Security", "CA2105:ArrayFieldsShouldNotBeReadOnly")]
-        public readonly T[] Buffer;
+        public T[] Buffer => m_buffer;
 
         /// <summary>
         /// Constructor
         /// </summary>
         public BufferPointer(T[] buffer, int index)
         {
-            Buffer = buffer;
+            m_buffer = buffer;
             Index = index;
         }
 

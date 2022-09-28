@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -148,7 +149,7 @@ namespace BuildXL.Utilities.Collections
             int capacity = DefaultCapacity,
             int ratio = DefaultBucketToItemsRatio,
             BigBuffer<TItem> backingItemsBuffer = null,
-            int itemsPerEntryBufferBitWidth = 12)
+            int? itemsPerEntryBufferBitWidth = null)
             : this(concurrencyLevel, backingItemsBuffer, null, null, nodeLength: 0, capacity: capacity, ratio: ratio, itemsPerEntryBufferBitWidth: itemsPerEntryBufferBitWidth)
         {
             Contract.Requires(concurrencyLevel >= 1);
@@ -163,7 +164,7 @@ namespace BuildXL.Utilities.Collections
             int nodeLength,
             int capacity = DefaultCapacity,
             int ratio = DefaultBucketToItemsRatio,
-            int itemsPerEntryBufferBitWidth = 12)
+            int? itemsPerEntryBufferBitWidth = null)
         {
             Contract.Requires(concurrencyLevel >= 1);
             Contract.Requires(ratio >= 1);
@@ -294,6 +295,8 @@ namespace BuildXL.Utilities.Collections
             var itemsPerBufferBitWidth = reader.ReadInt32();
             var capacity = Math.Max(MinConcurrencyLevel, Math.Max(nodeLength, concurrencyLevel));
 
+            // The previous version could have bigger buffer sizes, but because this is a deserialization process
+            // its easier to allocate the same buffers.
             var items = new BigBuffer<TItem>(itemsPerBufferBitWidth);
             items.Initialize(capacity);
             var nodes = new BigBuffer<Node>(NodesPerEntryBufferBitWidth);

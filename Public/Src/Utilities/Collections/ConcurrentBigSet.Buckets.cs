@@ -4,6 +4,7 @@
 using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Threading;
 
 namespace BuildXL.Utilities.Collections
@@ -277,12 +278,20 @@ namespace BuildXL.Utilities.Collections
             /// <summary>
             /// Grows the buckets if the count is above the split threshold
             /// </summary>
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public static bool GrowIfNecessary(ref Buckets buckets, int count)
             {
                 var oldBuckets = buckets;
 
                 // If necessary, trigger a split.
                 if (count >= oldBuckets.SplitThreshold)
+                {
+                    return growIfNecessarySlow(ref buckets, ref oldBuckets, count);
+                }
+
+                return false;
+
+                static bool growIfNecessarySlow(ref Buckets buckets, ref Buckets oldBuckets, int count)
                 {
                     if (Interlocked.CompareExchange(ref oldBuckets.IsSplitting, SPLITTING_TRUE, SPLITTING_FALSE) == SPLITTING_FALSE)
                     {
@@ -295,9 +304,9 @@ namespace BuildXL.Utilities.Collections
                             return true;
                         }
                     }
-                }
 
-                return false;
+                    return false;
+                }
             }
 
             /// <summary>
@@ -315,6 +324,7 @@ namespace BuildXL.Utilities.Collections
             /// <summary>
             /// Attempts to get the next bucket that requires splitting if splitting is active
             /// </summary>
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public bool TryGetBucketToSplit(out int bucketToSplitNo, out int targetBucketNo)
             {
                 targetBucketNo = -1;
@@ -322,13 +332,21 @@ namespace BuildXL.Utilities.Collections
 
                 if (Volatile.Read(ref IsSplitting) == SPLITTING_TRUE)
                 {
-                    bucketToSplitNo = Interlocked.Increment(ref m_splitBucketCursor);
-                    bool isValidBucketToSplit = unchecked((uint)bucketToSplitNo < (uint)m_preSplitBucketsLength);
-                    if (isValidBucketToSplit)
+                    return tryGetBucketToSplitSlow(out bucketToSplitNo, out targetBucketNo);
+                    
+                    bool tryGetBucketToSplitSlow(out int bucketToSplitNo, out int targetBucketNo)
                     {
-                        targetBucketNo = bucketToSplitNo + m_preSplitBucketsLength;
-                        m_buckets.Initialize(targetBucketNo + 1, m_bucketsBufferInitializer);
-                        return true;
+                        targetBucketNo = -1;
+
+                        bucketToSplitNo = Interlocked.Increment(ref m_splitBucketCursor);
+                        bool isValidBucketToSplit = unchecked((uint)bucketToSplitNo < (uint)m_preSplitBucketsLength);
+                        if (isValidBucketToSplit)
+                        {
+                            targetBucketNo = bucketToSplitNo + m_preSplitBucketsLength;
+                            m_buckets.Initialize(targetBucketNo + 1, m_bucketsBufferInitializer);
+                            return true;
+                        }
+                        return false;
                     }
                 }
 

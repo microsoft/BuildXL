@@ -40,8 +40,6 @@ export const azureSdk = [
     importFrom("Microsoft.Azure.Management.TrafficManager.Fluent").pkg,
 
     // These are the actual packages we care about
-    importFrom("Microsoft.Azure.Management.Redis").pkg,
-    importFrom("Microsoft.Azure.Management.Redis.Fluent").pkg,
     importFrom("Microsoft.Azure.Management.ResourceManager.Fluent").pkg,
     importFrom("Microsoft.Azure.Management.Fluent").pkg,
     importFrom("Microsoft.Azure.Management.Monitor.Fluent").pkg,

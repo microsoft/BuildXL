@@ -214,7 +214,6 @@ namespace ContentStoreTest.Distributed.Sessions
                         ["RedisWriteAheadEventStorage.*"] = verboseOperationLogging,
                     }
                 },
-                PreventRedisUsage = true,
                 TestMachineIndex = index,
                 TestIteration = iteration,
                 IsDistributedContentEnabled = true,
@@ -223,8 +222,6 @@ namespace ContentStoreTest.Distributed.Sessions
                 // By default, only first store is master eligible
                 IsMasterEligible = index == 0,
 
-                RedisInternalLogSeverity = Severity.Info.ToString(),
-
                 // Specify event hub and storage secrets even though they are not used in tests to satisfy DistributedContentStoreFactory
                 EventHubSecretName = Host.StoreSecret("EventHub_Unspecified", "Unused"),
                 AzureStorageSecretName = Host.StoreSecret("Storage", StorageProcess?.ConnectionString ?? "Unused"),
@@ -232,7 +229,6 @@ namespace ContentStoreTest.Distributed.Sessions
 
                 IsContentLocationDatabaseEnabled = true,
                 UseDistributedCentralStorage = true,
-                RedisMemoizationExpiryTimeMinutes = 60,
                 MachineActiveToClosedIntervalMinutes = 5,
                 MachineActiveToExpiredIntervalMinutes = 10,
                 IsRepairHandlingEnabled = true,
@@ -247,7 +243,6 @@ namespace ContentStoreTest.Distributed.Sessions
 
                 RetryIntervalForCopiesMs = DistributedContentSessionTests.DefaultRetryIntervalsForTest.Select(t => (int)t.TotalMilliseconds).ToArray(),
 
-                RedisBatchPageSize = 100,
                 CheckLocalFiles = true,
 
                 // Tests disable reconciliation by default

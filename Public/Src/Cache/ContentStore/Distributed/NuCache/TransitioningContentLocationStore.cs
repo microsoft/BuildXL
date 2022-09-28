@@ -59,9 +59,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             LocalMachineLocation = localMachineLocation;
         }
 
-        /// <nodoc />
-        public int PageSize => _configuration.RedisBatchPageSize;
-
         /// <inheritdoc />
         protected override Tracer Tracer { get; } = new Tracer(nameof(TransitioningContentLocationStore));
 

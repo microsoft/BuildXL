@@ -209,11 +209,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         public TimeSpan PeriodicCopyTracingInterval { get; set; } = TimeSpan.FromMinutes(5);
 
         /// <summary>
-        /// The batch size used by the location store
-        /// </summary>
-        public int LocationStoreBatchSize { get; set; }
-
-        /// <summary>
         /// Minimum size to start compressing gRPC transfers
         /// </summary>
         public long? GrpcCopyCompressionSizeThreshold { get; set; }

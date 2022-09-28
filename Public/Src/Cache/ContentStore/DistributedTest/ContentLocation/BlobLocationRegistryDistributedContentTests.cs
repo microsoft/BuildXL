@@ -42,7 +42,6 @@ namespace ContentStoreTest.Distributed.Sessions
             if (dcs.IsMasterEligible)
             {
                 // Enable GCS on the master machine so checkpoint can be created.
-                dcs.MemoizationContentMetadataStoreModeOverride = ContentMetadataStoreMode.Distributed;
                 dcs.ContentMetadataEnableResilience = true;
             }
             else

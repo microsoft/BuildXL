@@ -10,8 +10,6 @@ namespace VfsTest {
         assemblyName: "BuildXL.Cache.ContentStore.Vfs.Test",
         sources: globR(d`.`, "*.cs"),
         runTestArgs: {
-                // Need to untrack the test output directory, because redis server tries to write some pdbs.
-                untrackTestDirectory: true,
                 parallelBucketCount: 8,
             },
         skipTestRun: !BuildXLSdk.isHostOsWin || BuildXLSdk.restrictTestRunToSomeQualifiers,

@@ -3,7 +3,6 @@
 
 using System;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.Services;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
@@ -59,18 +58,10 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
                 var distributedSettings = services.Arguments.DistributedContentSettings;
                 MemoizationDatabase getGlobalMemoizationDatabase()
                 {
-                    if (locationStoreServices.Configuration.UseMemoizationContentMetadataStore)
-                    {
-                        return new MetadataStoreMemoizationDatabase(
-                            locationStoreServices.GlobalCacheStore.Instance,
-                            locationStoreServices.Configuration.MetadataStoreMemoization,
-                            locationStoreServices.CentralStorage.Instance);
-                    }
-                    else
-                    {
-                        var redisStore = locationStoreServices.RedisGlobalStore.Instance;
-                        return new RedisMemoizationDatabase(redisStore.RaidedRedis, locationStoreServices.Configuration.Memoization);
-                    }
+                    return new MetadataStoreMemoizationDatabase(
+                        locationStoreServices.GlobalCacheStore.Instance,
+                        locationStoreServices.Configuration.MetadataStoreMemoization,
+                        locationStoreServices.CentralStorage.Instance);
                 }
 
                 MemoizationDatabase getLocalMemoizationDatabase()

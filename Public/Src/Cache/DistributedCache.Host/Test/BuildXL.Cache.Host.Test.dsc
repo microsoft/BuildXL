@@ -9,8 +9,6 @@ namespace Test {
         assemblyName: "BuildXL.Cache.Host.Test",
         sources: globR(d`.`,"*.cs"),
         runTestArgs: {
-            // Need to untrack the test output directory, because redis server tries to write some pdbs.
-            untrackTestDirectory: true,
             parallelBucketCount: 4,
         },
         skipTestRun: BuildXLSdk.restrictTestRunToSomeQualifiers,

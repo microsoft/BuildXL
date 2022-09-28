@@ -55,11 +55,6 @@ namespace BuildXL.Cache.ContentStore.Distributed
         Task<BoolResult> TouchBulkAsync(Context context, IReadOnlyList<ContentHashWithSize> contentHashes, CancellationToken cts, UrgencyHint urgencyHint);
 
         /// <summary>
-        /// Gets the page size used to do bulk calls into the content location store.
-        /// </summary>
-        int PageSize { get; }
-
-        /// <summary>
         /// Gets the counters.
         /// </summary>
         CounterSet GetCounters(Context context);

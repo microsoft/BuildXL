@@ -290,7 +290,6 @@ namespace NugetPackages {
             // because we reference things inconsistently. If someone depends on the ProtoBuf.Net functionality, they 
             // must themselves refer to the required packages.
             // ...importFrom("BuildXL.Cache.ContentStore").withQualifier(net472PackageQualifer).getProtobufNetPackages(false),
-            ...importFrom("BuildXL.Cache.ContentStore").withQualifier(net472PackageQualifer).redisPackages,
             ...importFrom("BuildXL.Cache.ContentStore").withQualifier(net472PackageQualifer).getSerializationPackagesWithoutNetStandard(),
             ...importFrom("BuildXL.Cache.ContentStore").withQualifier(net472PackageQualifer).getSystemTextJsonWithoutNetStandard(),
             importFrom("Microsoft.VisualStudio.Services.ArtifactServices.Shared").withQualifier(net472PackageQualifer).pkg,

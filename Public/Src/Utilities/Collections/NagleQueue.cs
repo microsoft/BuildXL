@@ -28,6 +28,9 @@ namespace BuildXL.Utilities.Collections
         private bool _eventsSuspended;
         private readonly ConcurrentQueue<T> _suspendedEvents = new ConcurrentQueue<T>();
 
+        /// <nodoc />
+        public int BatchSize => _batchBlock.BatchSize;
+
         /// <summary>
         /// Creates an instance of a nagle queue.
         /// </summary>

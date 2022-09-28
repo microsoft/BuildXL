@@ -74,12 +74,9 @@ namespace BuildXL.Cache.Host.Service.Internal
             _arguments = arguments;
             _distributedSettings = arguments.Configuration.DistributedContentSettings;
 
-            if (_distributedSettings.PreventRedisUsage)
-            {
-                _distributedSettings.DisableRedis();
-            }
+            _distributedSettings.DisableRedis();
 
-            _keySpace = string.IsNullOrWhiteSpace(_arguments.Keyspace) ? RedisContentLocationStoreConstants.DefaultKeySpace : _arguments.Keyspace;
+            _keySpace = string.IsNullOrWhiteSpace(_arguments.Keyspace) ? "Default:" : _arguments.Keyspace;
             _fileSystem = arguments.FileSystem;
             _secretRetriever = new DistributedCacheSecretRetriever(arguments);
 
@@ -188,10 +185,8 @@ namespace BuildXL.Cache.Host.Service.Internal
 
             var redisConfig = new RedisContentLocationStoreConfiguration
             {
-                PreventRedisUsage = _distributedSettings.PreventRedisUsage,
                 Keyspace = _keySpace + RedisKeySpaceSalt,
                 LogReconciliationHashes = _distributedSettings.LogReconciliationHashes,
-                RedisBatchPageSize = _distributedSettings.RedisBatchPageSize,
                 UseFullEvictionSort = _distributedSettings.UseFullEvictionSort,
                 EvictionWindowSize = _distributedSettings.EvictionWindowSize,
                 EvictionPoolSize = _distributedSettings.EvictionPoolSize,
@@ -199,37 +194,13 @@ namespace BuildXL.Cache.Host.Service.Internal
                 EvictionRemovalFraction = _distributedSettings.EvictionRemovalFraction,
                 EvictionDiscardFraction = _distributedSettings.EvictionDiscardFraction,
                 UseTieredDistributedEviction = _distributedSettings.UseTieredDistributedEviction,
-                Memoization =
-                {
-                    ExpiryTime = TimeSpan.FromMinutes(_distributedSettings.RedisMemoizationExpiryTimeMinutes),
-                },
                 ProactiveCopyLocationsThreshold = _distributedSettings.ProactiveCopyLocationsThreshold,
                 UseBinManager = _distributedSettings.UseBinManager || _distributedSettings.ProactiveCopyUsePreferredLocations,
                 PreferredLocationsExpiryTime = TimeSpan.FromMinutes(_distributedSettings.PreferredLocationsExpiryTimeMinutes),
                 PrimaryMachineLocation = OrderedResolvedCacheSettings[0].MachineLocation,
                 MachineListPrioritizeDesignatedLocations = _distributedSettings.PrioritizeDesignatedLocationsOnCopies,
                 TouchContentHashLists = _distributedSettings.TouchContentHashLists,
-                UseMemoizationContentMetadataStore = _distributedSettings.UseMemoizationContentMetadataStore,
             };
-
-            ApplyIfNotNull(_distributedSettings.LocationContentMetadataStoreModeOverride, v => redisConfig.LocationContentMetadataStoreModeOverride = v.Value);
-            ApplyIfNotNull(_distributedSettings.MemoizationContentMetadataStoreModeOverride, v => redisConfig.MemoizationContentMetadataStoreModeOverride = v.Value);
-
-            // Redis-related configuration.
-            ApplyIfNotNull(_distributedSettings.RedisConnectionErrorLimit, v => redisConfig.RedisConnectionErrorLimit = v);
-            ApplyIfNotNull(_distributedSettings.RedisReconnectionLimitBeforeServiceRestart, v => redisConfig.RedisReconnectionLimitBeforeServiceRestart = v);
-            ApplyIfNotNull(_distributedSettings.DefaultRedisOperationTimeoutInSeconds, v => redisConfig.OperationTimeout = TimeSpan.FromSeconds(v));
-            ApplyIfNotNull(_distributedSettings.MinRedisReconnectInterval, v => redisConfig.MinRedisReconnectInterval = v);
-            ApplyIfNotNull(_distributedSettings.CancelBatchWhenMultiplexerIsClosed, v => redisConfig.CancelBatchWhenMultiplexerIsClosed = v);
-
-            if (_distributedSettings.RedisExponentialBackoffRetryCount != null)
-            {
-                redisConfig.RetryCount = _distributedSettings.RedisExponentialBackoffRetryCount;
-                redisConfig.RetryPolicyConfiguration = RetryPolicyConfiguration.Exponential(
-                    minimumRetryWindow: IfNotNull(_distributedSettings.RedisExponentialBackoffMinIntervalInSeconds, v => TimeSpan.FromSeconds(v)),
-                    maximumRetryWindow: IfNotNull(_distributedSettings.RedisExponentialBackoffMaxIntervalInSeconds, v => TimeSpan.FromSeconds(v)),
-                    delta: IfNotNull(_distributedSettings.RedisExponentialBackoffDeltaIntervalInSeconds, v => TimeSpan.FromSeconds(v)));
-            }
 
             ApplyIfNotNull(_distributedSettings.ReplicaCreditInMinutes, v => redisConfig.ContentLifetime = TimeSpan.FromMinutes(v));
             ApplyIfNotNull(_distributedSettings.MachineRisk, v => redisConfig.MachineRisk = v);
@@ -261,16 +232,13 @@ namespace BuildXL.Cache.Host.Service.Internal
                 ApplySecretSettingsForLls(redisConfig, primaryCacheRoot, dbConfig);
             }
 
-            if (redisConfig.AllContentMetadataStoreModeFlags.HasAnyFlag(ContentMetadataStoreModeFlags.Distributed))
-            {
-                var clientContentMetadataStoreConfiguration = new ClientContentMetadataStoreConfiguration();
-                ApplyIfNotNull(_distributedSettings.ContentMetadataClientOperationTimeout, v => clientContentMetadataStoreConfiguration.OperationTimeout = v);
-                ApplyIfNotNull(_distributedSettings.ContentMetadataClientRetryMinimumWaitTime, v => clientContentMetadataStoreConfiguration.RetryMinimumWaitTime = v);
-                ApplyIfNotNull(_distributedSettings.ContentMetadataClientRetryMaximumWaitTime, v => clientContentMetadataStoreConfiguration.RetryMaximumWaitTime = v);
-                ApplyIfNotNull(_distributedSettings.ContentMetadataClientRetryDelta, v => clientContentMetadataStoreConfiguration.RetryDelta = v);
+            var clientContentMetadataStoreConfiguration = new ClientContentMetadataStoreConfiguration();
+            ApplyIfNotNull(_distributedSettings.ContentMetadataClientOperationTimeout, v => clientContentMetadataStoreConfiguration.OperationTimeout = v);
+            ApplyIfNotNull(_distributedSettings.ContentMetadataClientRetryMinimumWaitTime, v => clientContentMetadataStoreConfiguration.RetryMinimumWaitTime = v);
+            ApplyIfNotNull(_distributedSettings.ContentMetadataClientRetryMaximumWaitTime, v => clientContentMetadataStoreConfiguration.RetryMaximumWaitTime = v);
+            ApplyIfNotNull(_distributedSettings.ContentMetadataClientRetryDelta, v => clientContentMetadataStoreConfiguration.RetryDelta = v);
 
-                redisConfig.MetadataStore = clientContentMetadataStoreConfiguration;
-            }
+            redisConfig.MetadataStore = clientContentMetadataStoreConfiguration;
 
             _arguments.Overrides.Override(redisConfig);
 
@@ -389,7 +357,6 @@ namespace BuildXL.Cache.Host.Service.Internal
                 ProactiveCopyLocationsThreshold = distributedSettings.ProactiveCopyLocationsThreshold,
                 ProactiveCopyRejectOldContent = distributedSettings.ProactiveCopyRejectOldContent,
                 EnableRepairHandling = distributedSettings.IsRepairHandlingEnabled,
-                LocationStoreBatchSize = distributedSettings.RedisBatchPageSize,
                 RestrictedCopyReplicaCount = distributedSettings.RestrictedCopyReplicaCount,
                 CopyAttemptsWithRestrictedReplicas = distributedSettings.CopyAttemptsWithRestrictedReplicas,
                 PeriodicCopyTracingInterval = TimeSpan.FromMinutes(distributedSettings.PeriodicCopyTracingIntervalMinutes),
@@ -562,7 +529,6 @@ namespace BuildXL.Cache.Host.Service.Internal
 
             var checkpointConfiguration = configuration.Checkpoint;
 
-            ApplyIfNotNull(_distributedSettings.MirrorClusterState, value => configuration.MirrorClusterState = value);
             ApplyIfNotNull(
                 _distributedSettings.HeartbeatIntervalMinutes,
                 value => checkpointConfiguration.HeartbeatInterval = TimeSpan.FromMinutes(value));
@@ -598,7 +564,6 @@ namespace BuildXL.Cache.Host.Service.Internal
 
             configuration.ReconciliationAddLimit = _distributedSettings.ReconciliationAddLimit;
             configuration.ReconciliationRemoveLimit = _distributedSettings.ReconciliationRemoveLimit;
-            configuration.ContentMetadataStoreMode = _distributedSettings.ContentMetadataStoreMode;
 
             ApplyIfNotNull(_distributedSettings.DistributedContentConsumerOnly, value =>
             {
@@ -606,24 +571,7 @@ namespace BuildXL.Cache.Host.Service.Internal
             });
             ApplyIfNotNull(_distributedSettings.IncrementalCheckpointDegreeOfParallelism, value => configuration.Checkpoint.IncrementalCheckpointDegreeOfParallelism = value);
 
-            ApplyIfNotNull(_distributedSettings.RedisMemoizationDatabaseOperationTimeoutInSeconds, value => configuration.Memoization.OperationTimeout = TimeSpan.FromSeconds(value));
-            ApplyIfNotNull(_distributedSettings.RedisMemoizationSlowOperationCancellationTimeoutInSeconds, value => configuration.Memoization.SlowOperationCancellationTimeout = TimeSpan.FromSeconds(value));
-
-
             ApplyIfNotNull(_distributedSettings.MetadataEntryStorageThreshold, value => configuration.MetadataStoreMemoization.StorageMetadataEntrySizeThreshold = value);
-
-            if (!string.IsNullOrEmpty(_distributedSettings.GlobalRedisSecretName))
-            {
-                configuration.RedisGlobalStoreConnectionString = ((PlainTextSecret)GetRequiredSecret(_distributedSettings.GlobalRedisSecretName)).Secret;
-            }
-            
-            if (!string.IsNullOrEmpty(_distributedSettings.SecondaryGlobalRedisSecretName))
-            {
-                configuration.RedisGlobalStoreSecondaryConnectionString = ((PlainTextSecret)GetRequiredSecret(
-                    _distributedSettings.SecondaryGlobalRedisSecretName)).Secret;
-            }
-
-            configuration.RedisConnectionMultiplexerConfiguration = RedisConnectionMultiplexerConfiguration.FromDistributedContentSettings(_distributedSettings);
 
             ApplyIfNotNull(_distributedSettings.LocationEntryExpiryMinutes, value => configuration.LocationEntryExpiry = TimeSpan.FromMinutes(value));
 

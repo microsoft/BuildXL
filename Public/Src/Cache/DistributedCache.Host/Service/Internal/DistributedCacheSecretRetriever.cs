@@ -65,9 +65,6 @@ namespace BuildXL.Cache.Host.Service.Internal
                 _logger.Debug(
                     $"{nameof(_distributedSettings.EventHubSecretName)}: {_distributedSettings.EventHubSecretName}, " +
                     $"{nameof(_distributedSettings.AzureStorageSecretName)}: {_distributedSettings.AzureStorageSecretName}, " +
-                    $"{nameof(_distributedSettings.GlobalRedisSecretName)}: {_distributedSettings.GlobalRedisSecretName}, " +
-                    $"{nameof(_distributedSettings.SecondaryGlobalRedisSecretName)}: {_distributedSettings.SecondaryGlobalRedisSecretName}, " +
-                    $"{nameof(_distributedSettings.ContentMetadataRedisSecretName)}: {_distributedSettings.ContentMetadataRedisSecretName}, " +
                     $"{nameof(_distributedSettings.GlobalCacheWriteAheadBlobSecretName)}: {_distributedSettings.GlobalCacheWriteAheadBlobSecretName}, " +
                     $"{nameof(_distributedSettings.ContentMetadataBlobSecretName)}: {_distributedSettings.ContentMetadataBlobSecretName}");
 
@@ -93,9 +90,6 @@ namespace BuildXL.Cache.Host.Service.Internal
                 }
 
                 addOptionalSecret(_distributedSettings.EventHubSecretName);
-                addOptionalSecret(_distributedSettings.GlobalRedisSecretName);
-                addOptionalSecret(_distributedSettings.SecondaryGlobalRedisSecretName);
-                addOptionalSecret(_distributedSettings.ContentMetadataRedisSecretName);
 
                 var azureBlobStorageCredentialsKind = _distributedSettings.AzureBlobStorageUseSasTokens ? SecretKind.SasToken : SecretKind.PlainText;
                 addOptionalSecret(_distributedSettings.ContentMetadataBlobSecretName, azureBlobStorageCredentialsKind);

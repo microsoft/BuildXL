@@ -261,8 +261,6 @@ config({
                 { id: "Microsoft.Bcl.AsyncInterfaces", version: "5.0.0", dependentPackageIdsToSkip: ["System.Threading.Tasks.Extensions"] },
                 { id: "Microsoft.Bcl.Build", version: "1.0.14" },
                 
-                { id: "StackExchange.Redis", version: "2.2.4",
-                    dependentPackageIdsToSkip: ["System.IO.Pipelines", "System.Threading.Channels", "Pipelines.Sockets.Unofficial"] },
                 { id: "Pipelines.Sockets.Unofficial", version: "2.2.0",
                     dependentPackageIdsToSkip: ["System.IO.Pipelines", "System.Runtime.CompilerServices.Unsafe", "Microsoft.Bcl.AsyncInterfaces"] },
                 { id: "System.Diagnostics.PerformanceCounter", version: "5.0.0" },

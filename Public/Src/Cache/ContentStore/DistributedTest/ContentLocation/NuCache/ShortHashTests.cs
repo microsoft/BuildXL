@@ -129,19 +129,6 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
             shortHash.Should().Be(shortHashFromShortString);
         }
 
-        [Fact]
-        public void GetRedisKeyShouldReturn20Characters()
-        {
-            // Hash.ToString is a very important method, because the result of it is used as keys in Redis.
-            // So the output oof GetRedisKey should not change even when ShortHash.ToString() implementation has changed.
-            var hash = ContentHash.Random();
-            var redisKey = RedisGlobalStore.GetRedisKey(hash);
-
-            redisKey.Should().NotBe(hash.AsShortHash().ToString());
-            const int expectedLength = 25; // 'VSO0' + 20 characters for the hash.
-            redisKey.Length.Should().Be(expectedLength);
-        }
-
         private static ContentHash ParseContentHash(string str)
         {
             bool parsed = ContentHash.TryParse(str, out var result);

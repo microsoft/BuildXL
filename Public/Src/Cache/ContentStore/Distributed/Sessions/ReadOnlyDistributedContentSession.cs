@@ -983,35 +983,31 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             var pinningOptions = new ExecutionDataflowBlockOptions() { CancellationToken = cancel, MaxDegreeOfParallelism = Settings.PinConfiguration?.MaxIOOperations ?? 1 };
             var pinningAction = new ActionBlock<RemotePinning>(async pinning => await PinRemoteAsync(operationContext, pinning, isLocal: origin == GetBulkOrigin.Local, updateContentTracker: false, succeedWithOneLocation: succeedWithOneLocation), pinningOptions);
 
-            // Process the requests in pages so we can make bulk calls, but not too big bulk calls, to the content location store.
-            foreach (IReadOnlyList<ContentHash> pageHashes in hashes.GetPages(ContentLocationStore.PageSize))
-            {
-                // Make a bulk call to content location store to get location records for all hashes on the page.
-                // NOTE: We use GetBulkStackedAsync so that when Global results are retrieved we also include Local results to ensure we get a full view of available content
-                GetBulkLocationsResult pageLookup = await ContentLocationStore.GetBulkStackedAsync(operationContext, pageHashes, cancel, urgency, origin);
+            // Make a bulk call to content location store to get location records for all hashes on the page.
+            // NOTE: We use GetBulkStackedAsync so that when Global results are retrieved we also include Local results to ensure we get a full view of available content
+            GetBulkLocationsResult pageLookup = await ContentLocationStore.GetBulkStackedAsync(operationContext, hashes, cancel, urgency, origin);
 
-                // If successful, fire off the remote pinning logic for each hash. If not, set all pins to failed.
-                if (pageLookup.Succeeded)
+            // If successful, fire off the remote pinning logic for each hash. If not, set all pins to failed.
+            if (pageLookup.Succeeded)
+            {
+                foreach (ContentHashWithSizeAndLocations record in pageLookup.ContentHashesInfo)
                 {
-                    foreach (ContentHashWithSizeAndLocations record in pageLookup.ContentHashesInfo)
-                    {
-                        RemotePinning pinning = new RemotePinning(record);
-                        pinnings.Add(pinning);
-                        bool accepted = await pinningAction.SendAsync(pinning, cancel);
-                        Contract.Assert(accepted);
-                    }
+                    RemotePinning pinning = new RemotePinning(record);
+                    pinnings.Add(pinning);
+                    bool accepted = await pinningAction.SendAsync(pinning, cancel);
+                    Contract.Assert(accepted);
                 }
-                else
+            }
+            else
+            {
+                foreach (ContentHash hash in hashes)
                 {
-                    foreach (ContentHash hash in pageHashes)
+                    Tracer.Warning(operationContext, $"Pin failed for hash {hash.ToShortString()}: directory query failed with error {pageLookup.ErrorMessage}");
+                    RemotePinning pinning = new RemotePinning(new ContentHashWithSizeAndLocations(hash, -1L))
                     {
-                        Tracer.Warning(operationContext, $"Pin failed for hash {hash.ToShortString()}: directory query failed with error {pageLookup.ErrorMessage}");
-                        RemotePinning pinning = new RemotePinning(new ContentHashWithSizeAndLocations(hash, -1L))
-                        {
-                            Result = new PinResult(pageLookup)
-                        };
-                        pinnings.Add(pinning);
-                    }
+                        Result = new PinResult(pageLookup)
+                    };
+                    pinnings.Add(pinning);
                 }
             }
 

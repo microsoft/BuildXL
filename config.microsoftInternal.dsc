@@ -64,10 +64,6 @@ export const pkgs = isMicrosoftInternal ? [
     { id: "Microsoft.AzureAd.Icm.Types.amd64", version: "2.2.1363.11" },
     { id: "Microsoft.AzureAd.Icm.WebService.Client.amd64", version: "2.2.1363.11" },
 
-    // Internal version of Redis
-    { id: "Microsoft.Caching.Redis", version: "3.0.57",
-        dependentPackageIdsToSkip: [ "System.Runtime.CompilerServices.Unsafe", "System.IO.Pipelines", "System.Threading.Channels", "Pipelines.Sockets.Unofficial" ] },
-
     // Cpp Sdk
     { id: "VisualCppTools.Internal.VS2017Layout", version: "14.16.27034", osSkip: [ "macOS", "unix" ] },
 

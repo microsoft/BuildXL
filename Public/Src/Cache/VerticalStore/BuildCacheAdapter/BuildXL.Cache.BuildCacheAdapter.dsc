@@ -35,7 +35,6 @@ namespace BuildCacheAdapter {
             importFrom("Microsoft.AspNet.WebApi.Client").pkg,
 
             ...BuildXLSdk.visualStudioServicesArtifactServicesWorkaround,
-            ...importFrom("BuildXL.Cache.ContentStore").redisPackages,
             ...importFrom("BuildXL.Cache.ContentStore").getAzureBlobStorageSdkPackages(true),
         ]
     });

@@ -38,9 +38,8 @@ namespace DistributedTest {
         sources: globR(d`.`, "*.cs"),
         allowUnsafeBlocks: true,
         runTestArgs: {
-                // Need to untrack the test output directory, because redis server tries to write some pdbs.
-                untrackTestDirectory: true,
                 parallelBucketCount: 8,
+                untrackTestDirectory: true, // GRPC server may create memory-mapped files in this directory
                 tools: {
                     exec: {
                         environmentVariables: envVars
@@ -63,7 +62,6 @@ namespace DistributedTest {
                 importFrom("Microsoft.IdentityModel.Clients.ActiveDirectory").pkg,
                 importFrom("System.IdentityModel.Tokens.Jwt").pkg
             ),
-            ...redisPackages,
             ...getSerializationPackages(true),
             Distributed.dll,
             ...Distributed.eventHubPackages,
@@ -94,6 +92,25 @@ namespace DistributedTest {
             ...BuildXLSdk.getSystemMemoryPackages(true),
             importFrom("System.ServiceModel.Http").pkg,
             importFrom("System.ServiceModel.Primitives").pkg,
+
+            ...(BuildXLSdk.isFullFramework 
+                ? [ 
+                    // Needed because net472 -> netstandard2.0 translation is not yet supported by the NuGet resolver.
+                    importFrom("System.IO.Pipelines").withQualifier({ targetFramework: "netstandard2.0" }).pkg,
+                    importFrom("System.Runtime.CompilerServices.Unsafe").withQualifier({ targetFramework: "netstandard2.0" }).pkg,
+                    importFrom("Pipelines.Sockets.Unofficial").withQualifier({ targetFramework: "netstandard2.0" }).pkg,
+                ] 
+                : [
+                    importFrom("System.IO.Pipelines").pkg,            
+                    ...(BuildXLSdk.isDotNetCoreApp ? [] : [
+                        importFrom("System.Runtime.CompilerServices.Unsafe").pkg,
+                    ]),
+                    importFrom("Pipelines.Sockets.Unofficial").pkg,
+                ]),
+            ...BuildXLSdk.systemThreadingChannelsPackages,
+            ...BuildXLSdk.bclAsyncPackages,
+            // Needed because of snipped dependencies for System.IO.Pipelines and System.Threading.Channels
+            importFrom("System.Threading.Tasks.Extensions").pkg,
         ],
         internalsVisibleTo: [
             "BuildXL.Cache.MemoizationStore.Distributed.Test",

@@ -1,14 +1,12 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Cache.ContentStore.Distributed.MetadataService;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.Redis;
 using BuildXL.Cache.ContentStore.Distributed.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
-using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.Host.Configuration;
 using BuildXL.Utilities.Tracing;
 
@@ -72,9 +70,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
         public IServiceDefinition<IClientAccessor<IGlobalCacheService>> MasterClientAccessor { get; }
 
         /// <nodoc />
-        public IServiceDefinition<RedisGlobalStore> RedisGlobalStore { get; }
-
-        /// <nodoc />
         public IServiceDefinition<IMasterElectionMechanism> MasterElectionMechanism { get; }
 
         /// <nodoc />
@@ -107,8 +102,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
             Arguments = arguments;
 
             var context = arguments.Copier.Context;
-
-            RedisGlobalStore = Create(() => CreateRedisGlobalStore(context));
 
             MasterElectionMechanism = Create(() => CreateMasterElectionMechanism());
 
@@ -218,20 +211,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
 
         private IGlobalCacheStore CreateGlobalCacheStore()
         {
-            if (Configuration.AllContentMetadataStoreModeFlags.HasAnyFlag(ContentMetadataStoreModeFlags.Distributed)
-                && ClientGlobalCacheStore.TryGetInstance(out var distributedStore))
-            {
-                if (!Configuration.AllContentMetadataStoreModeFlags.HasAnyFlag(ContentMetadataStoreModeFlags.Redis))
-                {
-                    return distributedStore;
-                }
-
-                return new TransitioningGlobalCacheStore(Configuration, RedisGlobalStore.Instance, distributedStore);
-            }
-            else
-            {
-                return RedisGlobalStore.Instance;
-            }
+            return ClientGlobalCacheStore.GetRequiredInstance();
         }
 
         private IClientAccessor<IGlobalCacheService> CreateMasterClientAccessor()
@@ -277,35 +257,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
         {
             Contract.Assert(Configuration.BlobClusterStateStorageConfiguration is not null);
             return new ClusterStateManager(Configuration, new BlobClusterStateStorage(Configuration.BlobClusterStateStorageConfiguration, Clock), Clock);
-        }
-
-        private RedisGlobalStore CreateRedisGlobalStore(Context context)
-        {
-            Contract.Assert(!Configuration.PreventRedisUsage, "Attempt to use Redis when it is disabled");
-
-            var redisDatabaseFactoryForRedisGlobalStore = RedisDatabaseFactory.Create(
-                context,
-                new LiteralConnectionStringProvider(Configuration.RedisGlobalStoreConnectionString),
-                Configuration.RedisConnectionMultiplexerConfiguration);
-
-            RedisDatabaseFactory? redisDatabaseFactoryForRedisGlobalStoreSecondary = null;
-            if (Configuration.RedisGlobalStoreSecondaryConnectionString != null)
-            {
-                redisDatabaseFactoryForRedisGlobalStoreSecondary = RedisDatabaseFactory.Create(
-                    context,
-                    new LiteralConnectionStringProvider(Configuration.RedisGlobalStoreSecondaryConnectionString),
-                    Configuration.RedisConnectionMultiplexerConfiguration);
-            }
-
-            var redisDatabaseForGlobalStore = ConfigurableRedisDatabaseFactory.CreateDatabase(Configuration, redisDatabaseFactoryForRedisGlobalStore, "primaryRedisDatabase");
-            var secondaryRedisDatabaseForGlobalStore = ConfigurableRedisDatabaseFactory.CreateDatabase(
-                Configuration,
-                redisDatabaseFactoryForRedisGlobalStoreSecondary,
-                "secondaryRedisDatabase",
-                optional: true);
-
-            var globalStore = new RedisGlobalStore(Arguments.Clock, Configuration, redisDatabaseForGlobalStore, secondaryRedisDatabaseForGlobalStore, MasterElectionMechanism.Instance);
-            return globalStore;
         }
     }
 }

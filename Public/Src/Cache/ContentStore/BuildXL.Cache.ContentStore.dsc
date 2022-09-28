@@ -14,29 +14,6 @@ export {BuildXLSdk};
 export const NetFx = BuildXLSdk.NetFx;
 
 @@public
-export const redisPackages = [
-    BuildXLSdk.Flags.isMicrosoftInternal ? importFrom("Microsoft.Caching.Redis").pkg : importFrom("StackExchange.Redis").pkg,
-    ...(BuildXLSdk.isFullFramework 
-        ? [ 
-            // Needed because net472 -> netstandard2.0 translation is not yet supported by the NuGet resolver.
-            importFrom("System.IO.Pipelines").withQualifier({ targetFramework: "netstandard2.0" }).pkg,
-            importFrom("System.Runtime.CompilerServices.Unsafe").withQualifier({ targetFramework: "netstandard2.0" }).pkg,
-            importFrom("Pipelines.Sockets.Unofficial").withQualifier({ targetFramework: "netstandard2.0" }).pkg,
-          ] 
-        : [
-            importFrom("System.IO.Pipelines").pkg,            
-            ...(BuildXLSdk.isDotNetCoreApp ? [] : [
-                importFrom("System.Runtime.CompilerServices.Unsafe").pkg,
-            ]),
-            importFrom("Pipelines.Sockets.Unofficial").pkg,
-          ]),
-    ...BuildXLSdk.systemThreadingChannelsPackages,
-    ...BuildXLSdk.bclAsyncPackages,
-    // Needed because of snipped dependencies for System.IO.Pipelines and System.Threading.Channels
-    importFrom("System.Threading.Tasks.Extensions").pkg,
-];
-
-@@public
 export const kustoPackages = [
     ...(BuildXLSdk.isDotNetCoreBuild ? [
         importFrom("Microsoft.Azure.Kusto.Data.NETStandard").pkg,

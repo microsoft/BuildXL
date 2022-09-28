@@ -1,15 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System.Linq;
-using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Logging;
-using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using Xunit;
-using BuildXL.Cache.Host;
 using BuildXL.Cache.Host.Configuration;
 using Newtonsoft.Json;
-using System.Runtime.Serialization;
 using Newtonsoft.Json.Linq;
 using System;
 
@@ -22,7 +16,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Tracing
         {
             var config = new TestConfig()
             {
-                Mode = ContentMetadataStoreMode.Distributed,
+                Mode = TestEnum.B,
             };
 
             var serialized = JsonConvert.SerializeObject(config);
@@ -42,16 +36,22 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Tracing
             Assert.Equal(expectedTimeThreshold, deserializedWithNulls.TimeThreshold.Value.Value);
         }
 
+        public enum TestEnum
+        {
+            A,
+            B,
+        }
+
         public class TestConfig
         {
-            public EnumSetting<ContentMetadataStoreMode> Mode { get; set; } = ContentMetadataStoreMode.Distributed;
+            public EnumSetting<TestEnum> Mode { get; set; }
 
             public TimeSpanSetting TimeThreshold { get; set; }
         }
 
         public class TestConfigWithNulls
         {
-            public EnumSetting<ContentMetadataStoreMode>? Mode { get; set; } = ContentMetadataStoreMode.Distributed;
+            public EnumSetting<TestEnum>? Mode { get; set; }
 
             public TimeSpanSetting? TimeThreshold { get; set; }
         }

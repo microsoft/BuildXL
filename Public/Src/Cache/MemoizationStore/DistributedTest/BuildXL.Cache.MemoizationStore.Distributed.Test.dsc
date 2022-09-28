@@ -11,8 +11,6 @@ namespace DistributedTest {
         assemblyName: "BuildXL.Cache.MemoizationStore.Distributed.Test",
         sources: globR(d`.`, "*.cs"),
         runTestArgs: {
-                // Need to untrack the test output directory, because redis server tries to write some pdbs.
-                untrackTestDirectory: true,
                 parallelBucketCount: 8,
             },
         assemblyBindingRedirects: BuildXLSdk.cacheBindingRedirects(),
@@ -45,7 +43,6 @@ namespace DistributedTest {
             importFrom("BuildXL.Utilities").Collections.dll,
 
             ...BuildXLSdk.fluentAssertionsWorkaround,
-            ...importFrom("BuildXL.Cache.ContentStore").redisPackages,
             ...BuildXLSdk.bclAsyncPackages,
         ],
     });

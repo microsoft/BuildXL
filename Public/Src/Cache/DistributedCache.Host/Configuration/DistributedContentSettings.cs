@@ -163,108 +163,12 @@ namespace BuildXL.Cache.Host.Configuration
 
         // Redis-related configuration
 
-        [DataMember]
-        public bool PreventRedisUsage { get; set; } = false;
-
         public void DisableRedis()
         {
-            ContentMetadataStoreMode = Configuration.ContentMetadataStoreMode.Distributed;
-            MemoizationContentMetadataStoreModeOverride = Configuration.ContentMetadataStoreMode.Distributed;
-            LocationContentMetadataStoreModeOverride = Configuration.ContentMetadataStoreMode.Distributed;
-            BlobContentMetadataStoreModeOverride = Configuration.ContentMetadataStoreMode.Distributed;
-            UseBlobVolatileStorage = true;
             GlobalCacheBackgroundRestore = true;
             EnableIndependentBackgroundMasterElection = true;
             ContentMetadataEnableResilience = true;
         }
-
-        /// <summary>
-        /// TTL to be set in Redis for memoization entries.
-        /// </summary>
-        [DataMember]
-        [Validation.Range(1, int.MaxValue)]
-        public int RedisMemoizationExpiryTimeMinutes { get; set; } = 1500;
-
-        [DataMember]
-        [Validation.Range(1, int.MaxValue)]
-        public int RedisBatchPageSize { get; set; } = 500;
-
-        [DataMember]
-        [Validation.Range(1, int.MaxValue)]
-        public int? RedisConnectionErrorLimit { get; set; }
-
-        #region Redis Connection Multiplexer Configuration
-
-        [DataMember]
-        public bool? UseRedisPreventThreadTheftFeature { get; set; }
-
-        [DataMember]
-        [Validation.Enum(typeof(Severity), allowNull: true)]
-        public string RedisInternalLogSeverity { get; set; }
-
-        [DataMember]
-        [Validation.Range(1, int.MaxValue)]
-        public int? RedisConfigCheckInSeconds { get; set; }
-
-        [DataMember]
-        [Validation.Range(1, int.MaxValue)]
-        public int? RedisKeepAliveInSeconds { get; set; }
-
-        [DataMember]
-        [Validation.Range(1, int.MaxValue)]
-        public int? RedisConnectionTimeoutInSeconds { get; set; }
-
-        [DataMember]
-        [Validation.Range(1, int.MaxValue)]
-        public int? RedisMultiplexerOperationTimeoutTimeoutInSeconds { get; set; }
-        #endregion Redis Connection Multiplexer Configuration
-
-        [DataMember]
-        [Validation.Range(0, double.MaxValue, minInclusive: false)]
-        public double? RedisMemoizationDatabaseOperationTimeoutInSeconds { get; set; }
-
-        [DataMember]
-        [Validation.Range(0, double.MaxValue, minInclusive: false)]
-        public double? RedisMemoizationSlowOperationCancellationTimeoutInSeconds { get; set; }
-
-        [DataMember]
-        [Validation.Range(1, int.MaxValue)]
-        public int? RedisReconnectionLimitBeforeServiceRestart { get; set; }
-
-        [DataMember]
-        public double? DefaultRedisOperationTimeoutInSeconds { get; set; }
-
-        [DataMember]
-        public TimeSpan? MinRedisReconnectInterval { get; set; }
-
-        [DataMember]
-        public bool? CancelBatchWhenMultiplexerIsClosed { get; set; }
-
-        [DataMember]
-        public bool? TreatObjectDisposedExceptionAsTransient { get; set; }
-
-        // Redis retry configuration
-        [DataMember]
-        [Validation.Range(0, int.MaxValue, minInclusive: false)]
-        public int? RedisFixedIntervalRetryCount { get; set; }
-
-        // Just setting this value is enough to configure a custom exponential back-off policy with default min/max/interval.
-        [DataMember]
-        [Validation.Range(0, int.MaxValue, minInclusive: false)]
-        public int? RedisExponentialBackoffRetryCount { get; set; }
-
-        [DataMember]
-        [Validation.Range(0, double.MaxValue, minInclusive: false)]
-        public double? RedisExponentialBackoffMinIntervalInSeconds { get; set; }
-
-        [DataMember]
-        [Validation.Range(0, double.MaxValue, minInclusive: false)]
-        public double? RedisExponentialBackoffMaxIntervalInSeconds { get; set; }
-
-        [DataMember]
-        [Validation.Range(0, double.MaxValue, minInclusive: false)]
-        public double? RedisExponentialBackoffDeltaIntervalInSeconds { get; set; }
-
 
         // TODO: file a work item to remove the flag!
         [DataMember]
@@ -803,12 +707,6 @@ namespace BuildXL.Cache.Host.Configuration
         public string EventHubEpoch { get; set; } = ".LLS_V1.2";
 
         [DataMember]
-        public string GlobalRedisSecretName { get; set; }
-
-        [DataMember]
-        public string SecondaryGlobalRedisSecretName { get; set; }
-
-        [DataMember]
         public bool? MirrorClusterState { get; set; }
 
         [DataMember]
@@ -942,12 +840,6 @@ namespace BuildXL.Cache.Host.Configuration
 
         [DataMember]
         public bool EnableDistributedCache { get; set; } = false;
-
-        [DataMember]
-        public bool UseRedisMetadataStore { get; set; } = false;
-
-        [DataMember]
-        public bool UseMemoizationContentMetadataStore { get; set; } = false;
 
         [DataMember]
         public bool EnablePublishingCache { get; set; } = false;
@@ -1120,12 +1012,6 @@ namespace BuildXL.Cache.Host.Configuration
         public bool ContentMetadataUseMergeWrites { get; set; }
 
         [DataMember]
-        public bool UseBlobVolatileStorage { get; set; }
-
-        [DataMember]
-        public string ContentMetadataRedisSecretName { get; set; }
-
-        [DataMember]
         public string ContentMetadataBlobSecretName { get; set; }
 
         [DataMember]
@@ -1162,9 +1048,6 @@ namespace BuildXL.Cache.Host.Configuration
         public TimeSpanSetting? ContentMetadataClientRetryDelta { get; set; }
 
         [DataMember]
-        public TimeSpanSetting ContentMetadataRedisMaximumKeyLifetime { get; set; } = TimeSpan.FromMinutes(120);
-
-        [DataMember]
         public TimeSpanSetting? ContentMetadataCheckpointMaxAge { get; set; } = null;
 
         [DataMember]
@@ -1177,25 +1060,10 @@ namespace BuildXL.Cache.Host.Configuration
         public string ContentMetadataCentralStorageContainerName { get; set; } = "contentmetadata";
 
         [DataMember]
-        public string RedisWriteAheadKeyPrefix { get; set; } = "rwalog";
-
-        [DataMember]
         public bool ContentMetadataBatchVolatileWrites { get; set; } = true;
 
         [DataMember]
         public int? MetadataEntryStorageThreshold { get; set; }
-
-        [DataMember]
-        public EnumSetting<ContentMetadataStoreMode> ContentMetadataStoreMode { get; set; } = Configuration.ContentMetadataStoreMode.Distributed;
-
-        [DataMember]
-        public EnumSetting<ContentMetadataStoreMode>? BlobContentMetadataStoreModeOverride { get; set; }
-
-        [DataMember]
-        public EnumSetting<ContentMetadataStoreMode>? LocationContentMetadataStoreModeOverride { get; set; }
-
-        [DataMember]
-        public EnumSetting<ContentMetadataStoreMode>? MemoizationContentMetadataStoreModeOverride { get; set; }
 
         [DataMember]
         public int? MetadataStoreMaxOperationConcurrency { get; set; }

@@ -16,7 +16,7 @@ export interface ConsoleArguments {
     /** Maximum thread count for collection/assembly parallelization (0 - unbounded; >0 - limit to that number) */
     maxThreads?: number;
 
-    /** If true, then a test directory is added as an untracked directory. Needed for running redis server. */
+    /** If true, then a test directory is added as an untracked directory. */
     untrackTestDirectory?: boolean;
     
     //-----------------------------------------------------------------------------

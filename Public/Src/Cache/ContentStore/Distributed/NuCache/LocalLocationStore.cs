@@ -198,7 +198,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 _registerNagleQueue = new(
                     configuration.Settings.GlobalRegisterNagleParallelism,
                     nagleInterval,
-                    RedisContentLocationStoreConstants.DefaultBatchSize);
+                    configuration.Settings.GlobalRegisterNagleBatchSize);
             }
 
             _recentlyAddedHashes = new VolatileSet<ShortHash>(clock);
@@ -385,7 +385,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     resultCount++;
 
                     if (i == (batch.Count - 1)
-                        || hashes.Count >= RedisContentLocationStoreConstants.DefaultBatchSize)
+                        || hashes.Count >= _registerNagleQueue.BatchSize)
                     {
                         var registerContext = context.CreateNested(Tracer.Name, nameof(RegisterLocalLocationAsync));
                         var result = await GlobalRegisterAsync(registerContext, _localMachineId.Value, hashes, touch: true);

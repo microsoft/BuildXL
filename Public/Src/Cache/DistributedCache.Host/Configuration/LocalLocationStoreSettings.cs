@@ -59,6 +59,11 @@ namespace BuildXL.Cache.Host.Configuration
         public int GlobalRegisterNagleParallelism { get; set; } = 1;
 
         /// <summary>
+        /// Batch size for nagle RegisterLocation operations against global store
+        /// </summary>
+        public int GlobalRegisterNagleBatchSize { get; set; } = 100;
+
+        /// <summary>
         /// Controls delay for RegisterLocation operation to allow for throttling
         /// </summary>
         public TimeSpanSetting? RegisterLocationDelay { get; set; }

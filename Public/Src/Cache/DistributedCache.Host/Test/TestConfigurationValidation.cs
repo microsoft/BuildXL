@@ -23,12 +23,10 @@ namespace BuildXL.Cache.Host.Test
         {
             var settings = DistributedContentSettings.CreateDisabled();
             settings.ProactiveCopyMode = "Some invalid string";
-            settings.RedisInternalLogSeverity = "";
 
             var errors = settings.Validate();
-            errors.Count.Should().Be(2);
-            errors[0].Should().Contain(nameof(Severity));
-            errors[1].Should().Contain(nameof(ProactiveCopyMode));
+            errors.Count.Should().Be(1);
+            errors[0].Should().Contain(nameof(ProactiveCopyMode));
         }
 
         [Fact]

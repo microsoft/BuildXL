@@ -33,13 +33,17 @@ namespace BuildXL.Cache.MemoizationStore.VstsTest
             using (var stream = new MemoryStream())
             {
                 BinaryFormatter serializer = new BinaryFormatter();
+#pragma warning disable SYSLIB0011 // Type or member is obsolete
                 serializer.Serialize(stream, ex);
+#pragma warning restore SYSLIB0011 // Type or member is obsolete
                 stream.Length.Should().BeGreaterThan(0);
 
                 using (var stream2 = new MemoryStream(stream.ToArray()))
                 {
 #pragma warning disable CA2300, CA2301 // Disable CA2301 Do not call BinaryFormatter.Deserialize without first setting BinaryFormatter.Binder
+#pragma warning disable SYSLIB0011 // Type or member is obsolete
                     var newEx = (CacheServiceException)serializer.Deserialize(stream2);
+#pragma warning restore SYSLIB0011 // Type or member is obsolete
 #pragma warning restore CA2300, CA2301 // Restore CA2301 Do not call BinaryFormatter.Deserialize without first setting BinaryFormatter.Binder
                     newEx.ReasonCode.Should().Be(ex.ReasonCode);
                     newEx.Message.Should().Be(ex.Message);

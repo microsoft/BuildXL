@@ -67,7 +67,6 @@ namespace ContentStoreTest.Distributed.Sessions
                 overrideDistributed: d =>
                 {
                     d.ContentMetadataEnableResilience = true;
-                    d.ContentMetadataStoreMode = ContentMetadataStoreMode.Distributed;
                     d.ContentMetadataPersistInterval = "1000s";
                     d.ContentMetadataUseMergeWrites = true;
                 },
@@ -105,9 +104,7 @@ namespace ContentStoreTest.Distributed.Sessions
             ConfigureWithOneMaster(
                 overrideDistributed: d =>
                 {
-                    d.PreventRedisUsage = true;
                     d.ContentMetadataEnableResilience = true;
-                    d.ContentMetadataStoreMode = ContentMetadataStoreMode.Distributed;
                     d.ContentMetadataPersistInterval = "1000s";
                 },
                 overrideRedis: r =>
@@ -172,7 +169,6 @@ namespace ContentStoreTest.Distributed.Sessions
                     d.HeartbeatIntervalMinutes = 1;
                     d.EnableIndependentBackgroundMasterElection = true;
                     d.ContentMetadataEnableResilience = true;
-                    d.ContentMetadataStoreMode = ContentMetadataStoreMode.Distributed;
                     d.ContentMetadataPersistInterval = "1000s";
                     d.BlobMasterElectionReleaseLeaseOnShutdown = true;
                     d.BlobMasterElectionLeaseExpiryTime = TimeSpan.FromMinutes(5);
@@ -243,7 +239,6 @@ namespace ContentStoreTest.Distributed.Sessions
                     // On second iteration, both machines may be master machines
                     d.IsMasterEligible = d.TestIteration >= d.TestMachineIndex;
                     d.ContentMetadataEnableResilience = true;
-                    d.ContentMetadataStoreMode = ContentMetadataStoreMode.Distributed;
                     d.ContentMetadataPersistInterval = "1000s";
                     d.CreateCheckpointIntervalMinutes = 10;
                 });
@@ -325,7 +320,6 @@ namespace ContentStoreTest.Distributed.Sessions
                 overrideDistributed: d =>
                 {
                     d.ContentMetadataEnableResilience = true;
-                    d.ContentMetadataStoreMode = ContentMetadataStoreMode.Distributed;
                     d.ContentMetadataPersistInterval = "1000s";
                     d.CreateCheckpointIntervalMinutes = 10;
                 });

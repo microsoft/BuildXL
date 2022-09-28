@@ -27,11 +27,6 @@ namespace Distributed {
         assemblyName: "BuildXL.Cache.ContentStore.Distributed",
         sources: globR(d`.`,"*.cs"),
         allowUnsafeBlocks: true,
-        embeddedResources: [
-            {
-                linkedContent: glob(d`Redis/Scripts`,"*.lua"),
-            },
-        ],
         references: [
             ...eventHubPackages,
             // Intentionally using different Azure storage package
@@ -39,7 +34,6 @@ namespace Distributed {
             ...addIf(BuildXLSdk.isFullFramework, BuildXLSdk.withQualifier({targetFramework: "net472"}).NetFx.Netstandard.dll),
             ...addIf(BuildXLSdk.isFullFramework || qualifier.targetFramework === "netstandard2.0", importFrom("System.Collections.Immutable").pkg),
             ...BuildXLSdk.systemThreadingTasksDataflowPackageReference,
-            ...redisPackages,
 
             UtilitiesCore.dll,
             Hashing.dll,
@@ -71,9 +65,27 @@ namespace Distributed {
             importFrom("System.ServiceModel.Primitives").pkg,
             ...addIf(qualifier.targetFramework === "net472",
                 importFrom("System.Private.ServiceModel").pkg),
-
             importFrom("Polly").pkg,
             importFrom("Polly.Contrib.WaitAndRetry").pkg,
+
+            ...(BuildXLSdk.isFullFramework 
+                ? [ 
+                    // Needed because net472 -> netstandard2.0 translation is not yet supported by the NuGet resolver.
+                    importFrom("System.IO.Pipelines").withQualifier({ targetFramework: "netstandard2.0" }).pkg,
+                    importFrom("System.Runtime.CompilerServices.Unsafe").withQualifier({ targetFramework: "netstandard2.0" }).pkg,
+                    importFrom("Pipelines.Sockets.Unofficial").withQualifier({ targetFramework: "netstandard2.0" }).pkg,
+                ] 
+                : [
+                    importFrom("System.IO.Pipelines").pkg,            
+                    ...(BuildXLSdk.isDotNetCoreApp ? [] : [
+                        importFrom("System.Runtime.CompilerServices.Unsafe").pkg,
+                    ]),
+                    importFrom("Pipelines.Sockets.Unofficial").pkg,
+                ]),
+            ...BuildXLSdk.systemThreadingChannelsPackages,
+            ...BuildXLSdk.bclAsyncPackages,
+            // Needed because of snipped dependencies for System.IO.Pipelines and System.Threading.Channels
+            importFrom("System.Threading.Tasks.Extensions").pkg,
         ],
         runtimeReferences: [
             importFrom("System.Private.ServiceModel").pkg

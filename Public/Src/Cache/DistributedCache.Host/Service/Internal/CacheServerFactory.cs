@@ -315,26 +315,19 @@ namespace BuildXL.Cache.Host.Service.Internal
         {
             var distributedSettings = _arguments.Configuration.DistributedContentSettings;
 
-            if (distributedSettings.UseRedisMetadataStore)
+            var config = new RocksDbMemoizationStoreConfiguration()
             {
-                return RedisMemoizationStoreFactory.CreateMemoizationStore(factory.Services.ContentLocationStoreServices.Instance);
-            }
-            else
-            {
-                var config = new RocksDbMemoizationStoreConfiguration()
-                {
-                    Database = RocksDbContentLocationDatabaseConfiguration.FromDistributedContentSettings(
-                        distributedSettings,
-                        databasePath: path / "RocksDbMemoizationStore",
-                        logsBackupPath: null,
-                        logsKeepLongTerm: true),
-                };
+                Database = RocksDbContentLocationDatabaseConfiguration.FromDistributedContentSettings(
+                    distributedSettings,
+                    databasePath: path / "RocksDbMemoizationStore",
+                    logsBackupPath: null,
+                    logsKeepLongTerm: true),
+            };
 
-                config.Database.CleanOnInitialize = false;
-                config.Database.OnFailureDeleteExistingStoreAndRetry = true;
+            config.Database.CleanOnInitialize = false;
+            config.Database.OnFailureDeleteExistingStoreAndRetry = true;
 
-                return new RocksDbMemoizationStore(SystemClock.Instance, config);
-            }
+            return new RocksDbMemoizationStore(SystemClock.Instance, config);
         }
 
         private static LocalServerConfiguration CreateLocalServerConfiguration(

@@ -93,8 +93,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
         /// <nodoc />
         public IServiceDefinition<ContentLocationStoreServices> ContentLocationStoreServices { get; }
 
-        internal IServiceDefinition<RedisWriteAheadEventStorage> RedisWriteAheadEventStorage { get; }
-
         internal IServiceDefinition<ICheckpointRegistry> CacheServiceCheckpointRegistry { get; }
 
         internal IServiceDefinition<AzureBlobStorageCheckpointRegistry> CacheServiceBlobCheckpointRegistry { get; }
@@ -103,8 +101,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
         {
             Arguments = arguments;
 
-            bool isGlobalCacheServiceEnabled = DistributedContentSettings.IsMasterEligible
-                && RedisContentLocationStoreConfiguration.AllContentMetadataStoreModeFlags.HasAnyFlag(ContentMetadataStoreModeFlags.Distributed);
+            bool isGlobalCacheServiceEnabled = DistributedContentSettings.IsMasterEligible;
 
             GlobalCacheServiceConfiguration = Create(() => CreateGlobalCacheServiceConfiguration());
 
@@ -149,8 +146,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
                     Arguments.RedisContentLocationStoreConfiguration);
             });
 
-            RedisWriteAheadEventStorage = Create(() => CreateRedisWriteAheadEventStorage());
-
             CacheServiceCheckpointRegistry = Create(() => CreateCacheServiceBlobCheckpointRegistry());
         }
 
@@ -189,25 +184,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
                     CreateCheckpointInterval = DistributedContentSettings.GlobalCacheCreateCheckpointInterval ?? RedisContentLocationStoreConfiguration.Checkpoint.CreateCheckpointInterval
                 },
             };
-        }
-
-        internal RedisWriteAheadEventStorage CreateRedisWriteAheadEventStorage()
-        {
-            Contract.Assert(!DistributedContentSettings.PreventRedisUsage, "Attempt to use Redis when it is disabled");
-
-            var clock = Arguments.Clock;
-
-            var redisVolatileEventStorageConfiguration = new RedisVolatileEventStorageConfiguration()
-            {
-                ConnectionString = (Arguments.Secrets.GetRequiredSecret(DistributedContentSettings.ContentMetadataRedisSecretName) as PlainTextSecret).Secret,
-                KeyPrefix = DistributedContentSettings.RedisWriteAheadKeyPrefix,
-                MaximumKeyLifetime = DistributedContentSettings.ContentMetadataRedisMaximumKeyLifetime,
-            };
-
-            return new RedisWriteAheadEventStorage(
-                    redisVolatileEventStorageConfiguration,
-                    new ConfigurableRedisDatabaseFactory(RedisContentLocationStoreConfiguration),
-                    clock);
         }
 
         internal AzureBlobStorageCheckpointRegistry CreateCacheServiceBlobCheckpointRegistry()
@@ -337,23 +313,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
             }
             else
             {
-                IWriteAheadEventStorage volatileEventStorage;
-                if (DistributedContentSettings.UseBlobVolatileStorage)
+                var volatileConfig = configuration.PersistentEventStorage with
                 {
-                    var volatileConfig = configuration.PersistentEventStorage with
-                    {
-                        Credentials = DistributedContentSettings.GlobalCacheWriteAheadBlobSecretName != null
-                            ? Arguments.Secrets.GetStorageCredentials(new[] { DistributedContentSettings.GlobalCacheWriteAheadBlobSecretName })[0]
-                            : configuration.PersistentEventStorage.Credentials,
-                        ContainerName = "volatileeventstorage"
-                    };
+                    Credentials = DistributedContentSettings.GlobalCacheWriteAheadBlobSecretName != null
+                        ? Arguments.Secrets.GetStorageCredentials(new[] { DistributedContentSettings.GlobalCacheWriteAheadBlobSecretName })[0]
+                        : configuration.PersistentEventStorage.Credentials,
+                    ContainerName = "volatileeventstorage"
+                };
 
-                    volatileEventStorage = new BlobWriteAheadEventStorage(volatileConfig);
-                }
-                else
-                {
-                    volatileEventStorage = RedisWriteAheadEventStorage.Instance;
-                }
+                var volatileEventStorage = new BlobWriteAheadEventStorage(volatileConfig);
 
                 var checkpointManager = GlobalCacheCheckpointManager.Instance;
 

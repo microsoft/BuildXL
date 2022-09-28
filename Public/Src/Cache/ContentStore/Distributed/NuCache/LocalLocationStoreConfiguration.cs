@@ -138,19 +138,6 @@ namespace BuildXL.Cache.ContentStore.Distributed
         public ObservableMasterElectionMechanismConfiguration ObservableMasterElectionMechanismConfiguration { get; } = new ObservableMasterElectionMechanismConfiguration();
 
         /// <summary>
-        /// Gets the connection string used by the redis global store.
-        /// </summary>
-        public string? RedisGlobalStoreConnectionString { get; set; }
-
-        /// <nodoc />
-        public RedisConnectionMultiplexerConfiguration RedisConnectionMultiplexerConfiguration { get; set; } = new RedisConnectionMultiplexerConfiguration();
-
-        /// <summary>
-        /// Gets the connection string used by the redis global store.
-        /// </summary>
-        public string? RedisGlobalStoreSecondaryConnectionString { get; set; }
-
-        /// <summary>
         /// Configuration of reputation tracker.
         /// </summary>
         public MachineReputationTrackerConfiguration ReputationTrackerConfiguration { get; set; } = new MachineReputationTrackerConfiguration();

@@ -17,6 +17,8 @@ namespace BuildXL.Cache.ContentStore.Utils
     {
         private readonly NagleQueue<(T item, TaskSourceSlim<TResult> completion)> _innerQueue;
 
+        public int BatchSize => _innerQueue.BatchSize;
+
         /// <nodoc />
         public ResultNagleQueue(int maxDegreeOfParallelism, TimeSpan interval, int batchSize)
         {

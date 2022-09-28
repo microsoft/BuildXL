@@ -5,7 +5,7 @@ namespace VstsTest {
     export declare const qualifier : BuildXLSdk.DefaultQualifierWithNet472;
     
     @@public
-    export const dll = !BuildXLSdk.Flags.isVstsArtifactsEnabled || BuildXLSdk.isDotNetCoreBuild ? undefined : BuildXLSdk.cacheTest({
+    export const dll = !BuildXLSdk.Flags.isVstsArtifactsEnabled ? undefined : BuildXLSdk.cacheTest({
         assemblyName: "BuildXL.Cache.MemoizationStore.Vsts.Test",
         sources: globR(d`.`,"*.cs"),
         appConfig: f`App.config`,
@@ -32,7 +32,6 @@ namespace VstsTest {
             Vsts.dll,
 
             importFrom("Newtonsoft.Json").pkg,
-            ...importFrom("BuildXL.Cache.ContentStore").redisPackages,
             importFrom("Microsoft.VisualStudio.Services.Client").pkg,
             ...BuildXLSdk.visualStudioServicesArtifactServicesWorkaround,
             ...BuildXLSdk.fluentAssertionsWorkaround,

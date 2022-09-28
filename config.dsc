@@ -435,7 +435,10 @@ config({
                 { id: "System.Text.Encodings.Web", version: "5.0.1", dependentPackageIdsToSkip: ["System.Buffers", "System.Memory"], alias: "System.Text.Encodings.Web.v5.0.1" },
                 { id: "packageurl-dotnet", version: "1.0.0" },
                 { id: "PackageUrl", version: "1.0.0" },
-                { id: "System.Reactive", version: "4.4.1" }            
+                { id: "System.Reactive", version: "4.4.1" },
+
+                // Windows CoW on ReFS
+                { id: "CopyOnWrite", version: "0.2.1" },
             ],
 
             doNotEnforceDependencyVersions: true,

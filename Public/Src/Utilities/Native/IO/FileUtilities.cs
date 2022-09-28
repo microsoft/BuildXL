@@ -257,9 +257,14 @@ namespace BuildXL.Native.IO
                 using (Counters?.StartStopwatch(StorageCounters.CopyOnWriteDuration))
                 {
                     Counters?.IncrementCounter(StorageCounters.CopyOnWriteCount);
-                    s_fileUtilities.CloneFile(source, destination, followSymlink);
-                    Counters?.IncrementCounter(StorageCounters.SuccessfulCopyOnWriteCount);
-                    return Unit.Void;
+                    Possible<Unit> result = s_fileUtilities.CloneFile(source, destination, followSymlink);
+
+                    if (result.Succeeded)
+                    {
+                        Counters?.IncrementCounter(StorageCounters.SuccessfulCopyOnWriteCount);
+                    }
+
+                    return result;
                 }
             }
             catch (NativeWin32Exception ex)
@@ -1083,11 +1088,7 @@ namespace BuildXL.Native.IO
         public static bool IsCopyOnWriteSupportedByEnlistmentVolume
         {
             get => s_fileSystem.IsCopyOnWriteSupportedByEnlistmentVolume;
-
-            set
-            {
-                s_fileSystem.IsCopyOnWriteSupportedByEnlistmentVolume = value;
-            }
+            set => s_fileSystem.IsCopyOnWriteSupportedByEnlistmentVolume = value;
         }
 
         /// <see cref="IFileSystem.IsCopyOnWriteSupportedByEnlistmentVolume"/>

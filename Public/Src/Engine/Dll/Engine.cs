@@ -862,22 +862,19 @@ namespace BuildXL.Engine
             PathTable pathTable,
             LoggingContext loggingContext)
         {
-            if (OperatingSystemHelper.IsUnixOS)
-            {
-                string mainConfigFile = initialCommandLineConfiguration.Startup.ConfigFile.ToString(pathTable);
+            string mainConfigFile = initialCommandLineConfiguration.Startup.ConfigFile.ToString(pathTable);
 
-                if (FileUtilities.FileExistsNoFollow(mainConfigFile))
+            if (FileUtilities.FileExistsNoFollow(mainConfigFile))
+            {
+                // This method is also called from tests, but they may have non-existent config file.
+                using (var configFileStream = FileUtilities.CreateFileStream(
+                    mainConfigFile,
+                    FileMode.Open,
+                    FileAccess.Read,
+                    FileShare.Read | FileShare.Delete))
                 {
-                    // This method is also called from tests, but they may have non-existent config file.
-                    using (var configFileStream = FileUtilities.CreateFileStream(
-                        mainConfigFile,
-                        FileMode.Open,
-                        FileAccess.Read,
-                        FileShare.Read | FileShare.Delete))
-                    {
-                        FileUtilities.IsPreciseFileVersionSupportedByEnlistmentVolume = VersionedFileIdentity.HasPreciseFileVersion(configFileStream.SafeFileHandle);
-                        FileUtilities.IsCopyOnWriteSupportedByEnlistmentVolume = FileUtilities.CheckIfVolumeSupportsCopyOnWriteByHandle(configFileStream.SafeFileHandle);
-                    }
+                    FileUtilities.IsPreciseFileVersionSupportedByEnlistmentVolume = VersionedFileIdentity.HasPreciseFileVersion(configFileStream.SafeFileHandle);
+                    FileUtilities.IsCopyOnWriteSupportedByEnlistmentVolume = FileUtilities.CheckIfVolumeSupportsCopyOnWriteByHandle(configFileStream.SafeFileHandle);
                 }
             }
         }

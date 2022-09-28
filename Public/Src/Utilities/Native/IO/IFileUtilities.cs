@@ -150,7 +150,7 @@ namespace BuildXL.Native.IO
         /// This method must be implemented if <see cref="IFileSystem.IsCopyOnWriteSupportedByEnlistmentVolume"/> returns true.
         /// </remarks>
         /// <exception cref="NativeWin32Exception">Throw native exception upon failure.</exception>
-        void CloneFile(string source, string destination, bool followSymlink);
+        Possible<Unit> CloneFile(string source, string destination, bool followSymlink);
 
         /// <summary>
         /// Copy a file using in-kernel file descriptors to avoid user mode read/write buffer overheads.

@@ -1055,8 +1055,11 @@ namespace Test.BuildXL.Storage
                 return;
             }
 
-            // Currently only APFS supports copy-on-write.
-            XAssert.AreEqual(FileSystemType.APFS, GetFileSystemType(file));
+            // Currently only APFS and ReFS support copy-on-write.
+            XAssert.AreEqual(
+                OperatingSystemHelper.IsUnixOS ? FileSystemType.APFS : FileSystemType.ReFS,
+                GetFileSystemType(file));
+            XAssert.IsTrue(FileUtilities.IsCopyOnWriteSupportedByEnlistmentVolume);
 
             var clonedFile = GetFullPath(nameof(TestCopyOnWrite) + "_cloned");
 
@@ -1066,12 +1069,20 @@ namespace Test.BuildXL.Storage
             var fileTimestamp = FileUtilities.GetFileTimestamps(file);
             var clonedFileTimestamp = FileUtilities.GetFileTimestamps(clonedFile);
 
-            // The access time and modified time must be equal, but not the last status change time.
+            // On Unix, the access time and modified time must be equal, but not the last status change time.
             // The latter is hard to test when the underlying file system doesn't support high-precision file timestamp.
-            XAssert.AreEqual(fileTimestamp.AccessTime, clonedFileTimestamp.AccessTime);
-            XAssert.AreEqual(fileTimestamp.LastWriteTime, clonedFileTimestamp.LastWriteTime);
-        }
+            // On Windows, the cloned file will always have new timestamps.
+            if (OperatingSystemHelper.IsUnixOS)
+            {
+                XAssert.AreEqual(fileTimestamp.AccessTime, clonedFileTimestamp.AccessTime);
+                XAssert.AreEqual(fileTimestamp.LastWriteTime, clonedFileTimestamp.LastWriteTime);
+            }
 
+            string fileContents = File.ReadAllText(file);
+            string cloneFileContents = File.ReadAllText(clonedFile);
+            Assert.Equal(fileContents, cloneFileContents);
+        }
+    
         [TheoryIfSupported(requiresSymlinkPermission: true)]
         [InlineData(true)]
         [InlineData(false)]
@@ -1085,8 +1096,11 @@ namespace Test.BuildXL.Storage
                 return;
             }
 
-            // Currently only APFS supports copy-on-write.
-            XAssert.AreEqual(FileSystemType.APFS, GetFileSystemType(file));
+            // Currently only APFS and ReFS support copy-on-write.
+            XAssert.AreEqual(
+                OperatingSystemHelper.IsUnixOS ? FileSystemType.APFS : FileSystemType.ReFS,
+                GetFileSystemType(file));
+            XAssert.IsTrue(FileUtilities.IsCopyOnWriteSupportedByEnlistmentVolume);
 
             var symlink = GetFullPath(nameof(TestCopyOnWriteWithSymlink) + "_symlink");
             XAssert.PossiblySucceeded(FileUtilities.TryCreateSymbolicLink(symlink, file, isTargetFile: true));
@@ -1101,10 +1115,18 @@ namespace Test.BuildXL.Storage
                 : FileUtilities.GetFileTimestamps(symlink);
             var clonedFileTimestamp = FileUtilities.GetFileTimestamps(clonedFile);
 
-            // The access time and modified time must be equal, but not the last status change time.
+            // On Unix, the access time and modified time must be equal, but not the last status change time.
             // The latter is hard to test when the underlying file system doesn't support high-precision file timestamp.
-            XAssert.AreEqual(verifiedTimestamp.AccessTime, clonedFileTimestamp.AccessTime);
-            XAssert.AreEqual(verifiedTimestamp.LastWriteTime, clonedFileTimestamp.LastWriteTime);
+            // On Windows, the cloned file will always have new timestamps.
+            if (OperatingSystemHelper.IsUnixOS)
+            {
+                XAssert.AreEqual(verifiedTimestamp.AccessTime, clonedFileTimestamp.AccessTime);
+                XAssert.AreEqual(verifiedTimestamp.LastWriteTime, clonedFileTimestamp.LastWriteTime);
+            }
+
+            string fileContents = File.ReadAllText(file);
+            string cloneFileContents = File.ReadAllText(clonedFile);
+            Assert.Equal(fileContents, cloneFileContents);
         }
 
         [Fact]
@@ -1357,6 +1379,11 @@ namespace Test.BuildXL.Storage
 
         private static bool SupportCopyOnWrite(string path)
         {
+            if (OperatingSystemHelper.IsWindowsOS)
+            {
+                Environment.SetEnvironmentVariable("EnableCopyOnWriteWin", "1");
+            }
+
             using (FileStream fileStream = FileUtilities.CreateFileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete))
             {
                 return FileUtilities.CheckIfVolumeSupportsCopyOnWriteByHandle(fileStream.SafeFileHandle);

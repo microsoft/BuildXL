@@ -491,14 +491,16 @@ namespace BuildXL.Native.IO.Unix
         }
 
         /// <inheritdoc />
-        public void CloneFile(string source, string destination, bool followSymlink)
+        public Possible<Unit> CloneFile(string source, string destination, bool followSymlink)
         {
             var flags = followSymlink ? CloneFileFlags.CLONE_NONE : CloneFileFlags.CLONE_NOFOLLOW;
             int result = Interop.Unix.IO.CloneFile(source, destination, flags);
             if (result != 0)
             {
-                throw new NativeWin32Exception(Marshal.GetLastWin32Error(), I($"Failed to clone '{source}' to '{destination}'"));
+                return new NativeFailure(Marshal.GetLastWin32Error(), I($"Failed to clone '{source}' to '{destination}'"));
             }
+
+            return Unit.Void;
         }
 
         /// <inheritdoc />

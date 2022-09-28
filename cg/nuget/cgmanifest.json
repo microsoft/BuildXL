@@ -239,6 +239,15 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "CopyOnWrite",
+          "Version": "0.2.1"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "DeduplicationSigned",
           "Version": "1.0.14"
         }

@@ -66,6 +66,7 @@ namespace Native {
             ...securityDlls,
             Collections.dll,
             Configuration.dll,
+            importFrom("CopyOnWrite").pkg,
         ],
         runtimeContent: [
             ...nativeMac,

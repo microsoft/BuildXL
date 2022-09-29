@@ -852,3 +852,86 @@ int CallModifyDirectorySymlinkThroughDifferentPathIgnoreFullyResolve()
     CloseHandle(hFile);
     return 0;
 }
+
+int CallOpenNonExistentFileThroughDirectorySymlink()
+{
+    HANDLE hFile = CreateFileW(
+        L"A.lnk\\B\\absent.txt",
+        GENERIC_READ,
+        FILE_SHARE_READ,
+        0,
+        OPEN_EXISTING,
+        FILE_ATTRIBUTE_NORMAL,
+        NULL);
+
+    if (hFile == INVALID_HANDLE_VALUE)
+    {
+        return (int)GetLastError();
+    }
+
+    CloseHandle(hFile);
+
+    return (int)GetLastError();
+}
+
+int CallNtOpenNonExistentFileThroughDirectorySymlink()
+{
+    HANDLE hFile = INVALID_HANDLE_VALUE;
+    OBJECT_ATTRIBUTES objAttribs = { 0 };
+
+    wstring fullPath;
+    if (!TryGetNtFullPath(L"A.lnk\\B\\absent.txt", fullPath))
+    {
+        return (int)GetLastError();
+    }
+
+    NTSTATUS status = OpenFileWithNtCreateFile(
+        &hFile,
+        fullPath.c_str(),
+        NULL,
+        GENERIC_READ,
+        FILE_ATTRIBUTE_NORMAL,
+        FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE,
+        FILE_OPEN,
+        FILE_DIRECTORY_FILE);
+
+    if (!NT_SUCCESS(status))
+    {
+        return (int)RtlNtStatusToDosError(status);
+    }
+
+    if (hFile == INVALID_HANDLE_VALUE)
+    {
+        return (int)GetLastError();
+    }
+
+    CloseHandle(hFile);
+
+    return (int)RtlNtStatusToDosError(status);
+}
+
+int CallDirectoryEnumerationThroughDirectorySymlink()
+{
+    WIN32_FIND_DATA ffd;
+    HANDLE hFind = INVALID_HANDLE_VALUE;
+    DWORD dwError = 0;
+
+    hFind = FindFirstFile(L"Dir.lnk\\*", &ffd);
+
+    if (INVALID_HANDLE_VALUE == hFind)
+    {
+        return 21;
+    }
+
+    // List all the files
+    while (FindNextFile(hFind, &ffd) != 0);
+
+    dwError = GetLastError();
+    if (dwError == ERROR_NO_MORE_FILES)
+    {
+        dwError = ERROR_SUCCESS;
+    }
+
+    FindClose(hFind);
+    return (int)dwError;
+}

@@ -176,3 +176,12 @@ bool TryGetNtFullPath(_In_ LPCWSTR path, _Out_ wstring& fullPath);
 bool TryGetNtEscapedFullPath(_In_ LPCWSTR path, _Out_ wstring& fullPath);
 BOOLEAN TestCreateSymbolicLinkW(_In_ LPCWSTR lpSymlinkFileName, _In_ LPCWSTR lpTargetFileName, _In_ DWORD dwFlags);
 BOOLEAN TestCreateSymbolicLinkA(_In_ LPCSTR lpSymlinkFileName, _In_ LPCSTR lpTargetFileName, _In_ DWORD dwFlags);
+NTSTATUS OpenFileWithNtCreateFile(
+    PHANDLE FileHandle,
+    LPCWSTR path,
+    HANDLE rootDirectory,
+    ACCESS_MASK DesiredAccess,
+    ULONG FileAttributes,
+    ULONG ShareAccess,
+    ULONG CreateDisposition,
+    ULONG CreateOptions);

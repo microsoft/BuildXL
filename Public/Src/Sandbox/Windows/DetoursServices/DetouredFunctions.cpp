@@ -1259,7 +1259,7 @@ static bool ResolveAllReparsePointsAndEnforceAccess(
         wstring target = L"";
         wstring resolved = drive.get();
 
-        wchar_t* context;
+        wchar_t* context = nullptr;
         wchar_t* next = wcstok_s(directory.get(), L"\\/", &context);
 
         // Fist lets resolve the part of path that consists of directories e.g. XXXX:\a\b\c\XXXX -> resolve 'a\b\c'
@@ -1269,12 +1269,12 @@ static bool ResolveAllReparsePointsAndEnforceAccess(
             resolved += next;
             level++;
             
-            if (!first || level >= levelToEnforceReparsePointParsingFrom)
+            // Avoid opening handle by not calling TryGetReparsePointTarget when reparse point has been fouond (foundReparsePoint == true).
+            if ((!first || level >= levelToEnforceReparsePointParsingFrom) && !foundReparsePoint)
             {
-
                 bool result = TryGetReparsePointTarget(resolved, INVALID_HANDLE_VALUE, target, policyResult);
                 bool isFilteredPath = PathContainedInPathTranslations(resolved) || PathContainedInPathTranslations(target, true);
-                if (!foundReparsePoint && result && !isFilteredPath)
+                if (result && !isFilteredPath)
                 {
                     order->push_back(resolved);
                     resolvedPaths->emplace(resolved, ResolvedPathType::Intermediate);
@@ -1584,10 +1584,10 @@ static bool EnforceChainOfReparsePointAccessesForNonCreateFile(
 }
 
 /// <summary>
-/// Resolves the input policy path and re-adjusts the operation context and policy pahts with the resolved result.
+/// Resolves the input policy path and re-adjusts the operation context and policy path with the resolved result.
 /// </summary>
 /// /// <remarks>
-/// If 'preserveLastReparsePoint' is true, and the last part of the policy path is a reparse point, it does not
+/// If 'preserveLastReparsePoint' is true, and the last part of the policy path is a reparse point, that reparse point does not
 /// get resolved. This is important depending on the call site of this function. Some detoured functions work on
 /// the reparse point itself e.g. GetFileAttributes*(...) and we don't want to resolve the path fully in those cases.
 /// EnforceReparsePointAccess(...) contains several examples for full resolving, here is another one illustrating
@@ -1609,7 +1609,7 @@ static bool AdjustOperationContextAndPolicyResultWithFullyResolvedPath(
     const bool preserveLastReparsePoint,
     const bool isCreateDirectory = false)
 {
-    if (IgnoreFullReparsePointResolvingForPath(policyResult) || IgnoreReparsePoints())
+    if (IgnoreReparsePoints() || IgnoreFullReparsePointResolvingForPath(policyResult))
     {
         return true;
     }
@@ -3033,6 +3033,11 @@ HANDLE WINAPI Detoured_CreateFileW(
         return INVALID_HANDLE_VALUE;
     }
 
+    if (!AdjustOperationContextAndPolicyResultWithFullyResolvedPath(opContext, policyResult, true))
+    {
+        return FALSE;
+    }
+
     // We start with allow / ignore (no access requested) and then restrict based on read / write (maybe both, maybe neither!)
     AccessCheckResult accessCheck(RequestedAccess::None, ResultAction::Allow, ReportLevel::Ignore);
     bool forceReadOnlyForRequestedRWAccess = false;
@@ -3055,7 +3060,7 @@ HANDLE WINAPI Detoured_CreateFileW(
                     dwShareMode,
                     dwCreationDisposition,
                     dwFlagsAndAttributes,
-                    lpFileName);
+                    policyResult.GetCanonicalizedPath().GetPathString());
 
                 ReportFileAccess(
                     operationContext,
@@ -3962,8 +3967,8 @@ BOOL WINAPI Detoured_MoveFileWithProgressW(
         if (!ValidateMoveDirectory(
                 L"MoveFileWithProgress_Source",
                 L"MoveFileWithProgress_Dest",
-                sourceOpContext.NoncanonicalPath,
-                destinationOpContext.NoncanonicalPath,
+                sourcePolicyResult.GetCanonicalizedPath().GetPathString(),
+                destPolicyResult.GetCanonicalizedPath().GetPathString(),
                 filesAndDirectoriesToReport))
         {
             return FALSE;
@@ -4290,7 +4295,10 @@ BOOL WINAPI Detoured_CreateHardLinkW(
         return FALSE;
     }
 
-    if (!AdjustOperationContextAndPolicyResultWithFullyResolvedPath(sourceOpContext, sourcePolicyResult, true))
+    if (!AdjustOperationContextAndPolicyResultWithFullyResolvedPath(
+        sourceOpContext,
+        sourcePolicyResult,
+        true /* If the path lpExistingFileName points to a symbolic link, CreateHardLinkW creates a hard link to the symbolic link. */))
     {
         return FALSE;
     }
@@ -4311,10 +4319,7 @@ BOOL WINAPI Detoured_CreateHardLinkW(
         return FALSE;
     }
 
-    if (!AdjustOperationContextAndPolicyResultWithFullyResolvedPath(
-        destinationOpContext,
-        destPolicyResult,
-        false /* CreateHardLinkW always creates a hardlink to the target of the reparse point */))
+    if (!AdjustOperationContextAndPolicyResultWithFullyResolvedPath(destinationOpContext, destPolicyResult, true))
     {
         return FALSE;
     }
@@ -4362,6 +4367,7 @@ BOOL WINAPI Detoured_CreateHardLinkW(
         result = FALSE;
         error = sourceAccessCheck.DenialError();
     }
+
     SetLastError(error);
 
     return result;
@@ -4434,7 +4440,11 @@ BOOLEAN WINAPI Detoured_CreateSymbolicLinkW(
     PathCache_Invalidate(policyResultSrc.GetCanonicalizedPath().GetPathStringWithoutTypePrefix(), false, policyResultSrc);
 
     // When creating symbolic links, only resolve and report the intermediates on the symbolic link path, the target is never accessed
-    if (!AdjustOperationContextAndPolicyResultWithFullyResolvedPath(opContextSrc, policyResultSrc, true, (dwFlags & SYMBOLIC_LINK_FLAG_DIRECTORY) != 0))
+    if (!AdjustOperationContextAndPolicyResultWithFullyResolvedPath(
+        opContextSrc,
+        policyResultSrc,
+        true,
+        (dwFlags & SYMBOLIC_LINK_FLAG_DIRECTORY) != 0))
     {
         return FALSE;
     }
@@ -4443,7 +4453,7 @@ BOOLEAN WINAPI Detoured_CreateSymbolicLinkW(
     AccessCheckResult accessCheckSrc = policyResultSrc.CheckWriteAccess();
     accessCheckSrc = AccessCheckResult::Combine(accessCheckSrc, policyResultSrc.CheckSymlinkCreationAccess());
 
-    opContextSrc.OpenedFileOrDirectoryAttributes = FILE_ATTRIBUTE_NORMAL | 
+    opContextSrc.OpenedFileOrDirectoryAttributes = FILE_ATTRIBUTE_NORMAL |
         ((dwFlags & SYMBOLIC_LINK_FLAG_DIRECTORY) != 0
             ? FILE_ATTRIBUTE_DIRECTORY
             : 0UL);
@@ -4464,13 +4474,7 @@ BOOLEAN WINAPI Detoured_CreateSymbolicLinkW(
 
     error = GetLastError();
 
-    if (!IgnoreFullReparsePointResolvingForPath(policyResultSrc) && (dwFlags & SYMBOLIC_LINK_FLAG_DIRECTORY) != 0)
-    {
-        // When running in full symlink resolving mode and creating a directory symlink with an approved write access,
-        // we need to adjust the report level to make sure we send the report to BuildXL. This normally does not happen,
-        // because file access reports regarding directories are skipped completely.
-        accessCheckSrc.Level = ReportLevel::Report;
-    }
+    // We do not report directory only for ReadAccess. So there is no need to enforce report level to ReportLevel::Report.
 
     ReportIfNeeded(accessCheckSrc, opContextSrc, policyResultSrc, error);
     PathCache_Invalidate(policyResultSrc.GetCanonicalizedPath().GetPathStringWithoutTypePrefix(), false, policyResultSrc);
@@ -4560,6 +4564,14 @@ HANDLE WINAPI ReportFindFirstFileExWAccesses(
     // First, get the policy for the directory itself; this entails removing the last component.
     PolicyResult directoryPolicyResult;
     directoryPolicyResult.Initialize(canonicalizedPathIncludingFilter.RemoveLastComponent());
+
+    if (!AdjustOperationContextAndPolicyResultWithFullyResolvedPath(
+        fileOperationContext,
+        directoryPolicyResult,
+        false /* Need to fully resolve the directory */))
+    {
+        return INVALID_HANDLE_VALUE;
+    }
 
     DWORD error = ERROR_SUCCESS;
     HANDLE searchHandle = Real_FindFirstFileExW(lpFileName, fInfoLevelId, lpFindFileData, fSearchOp, lpSearchFilter, dwAdditionalFlags);
@@ -4728,35 +4740,7 @@ HANDLE WINAPI Detoured_FindFirstFileExW(
     {
         return Real_FindFirstFileExW(lpFileName, fInfoLevelId, lpFindFileData, fSearchOp, lpSearchFilter, dwAdditionalFlags);
     }
-
-    PolicyResult policyResult;
-    bool policyInitSuccess = policyResult.Initialize(lpFileName);
-
-    if (!IgnoreFullReparsePointResolvingForPath(policyResult))
-    {
-        FileOperationContext readOpContext = FileOperationContext::CreateForRead(L"FindFirstFileExW_Resolve", lpFileName);
-        readOpContext.FlagsAndAttributes = dwAdditionalFlags;
-     
-        if (!policyInitSuccess)
-        {
-            policyResult.ReportIndeterminatePolicyAndSetLastError(readOpContext);
-            return INVALID_HANDLE_VALUE;
-        }
-
-        if (!AdjustOperationContextAndPolicyResultWithFullyResolvedPath(readOpContext, policyResult, true))
-        {
-            Dbg(L"FindFirstFileEx: Failed to resolve input path: %s", lpFileName);
-            return INVALID_HANDLE_VALUE;
-        }
-
-        return ReportFindFirstFileExWAccesses(policyResult.GetCanonicalizedPath().GetPathStringWithoutTypePrefix(),
-            fInfoLevelId,
-            lpFindFileData,
-            fSearchOp,
-            lpSearchFilter,
-            dwAdditionalFlags);
-    }
-
+    
     return ReportFindFirstFileExWAccesses(lpFileName, fInfoLevelId, lpFindFileData, fSearchOp, lpSearchFilter, dwAdditionalFlags);
 }
 
@@ -5451,7 +5435,7 @@ BOOL WINAPI Detoured_CreateDirectoryW(
         return FALSE;
     }
 
-    if (!AdjustOperationContextAndPolicyResultWithFullyResolvedPath(opContext, policyResult, false))
+    if (!AdjustOperationContextAndPolicyResultWithFullyResolvedPath(opContext, policyResult, true, true))
     {
         return FALSE;
     }
@@ -5611,7 +5595,7 @@ BOOL WINAPI Detoured_RemoveDirectoryW(_In_ LPCWSTR lpPathName)
     if (!ValidateMoveDirectory(
         L"RemoveDirectory_Source",
         nullptr,
-        opContext.NoncanonicalPath,
+        policyResult.GetCanonicalizedPath().GetPathString(),
         nullptr,
         filesAndDirectoriesToReport))
     {
@@ -6390,6 +6374,11 @@ NTSTATUS NTAPI Detoured_ZwCreateFile(
         return DETOURS_STATUS_ACCESS_DENIED;
     }
 
+    if (!AdjustOperationContextAndPolicyResultWithFullyResolvedPath(opContext, policyResult, true))
+    {
+        return DETOURS_STATUS_ACCESS_DENIED;
+    }
+
     bool isDirectoryCreation = CheckIfNtCreateFileOptionsExcludeOpeningFiles(CreateOptions);
 
     // We start with allow / ignore (no access requested) and then restrict based on read / write (maybe both, maybe neither!)
@@ -6444,7 +6433,7 @@ NTSTATUS NTAPI Detoured_ZwCreateFile(
                     ShareAccess,
                     MapNtCreateDispositionToWin32Disposition(CreateDisposition),
                     MapNtCreateOptionsToWin32FileFlags(CreateOptions),
-                    path.GetPathString());
+                    policyResult.GetCanonicalizedPath().GetPathString());
 
                 ReportFileAccess(
                     operationContext,
@@ -6561,7 +6550,7 @@ NTSTATUS NTAPI Detoured_ZwCreateFile(
 
     bool isHandleToReparsePoint = (CreateOptions & FILE_OPEN_REPARSE_POINT) != 0;
     bool shouldReportAccessCheck = true;
-    bool shouldResolveReparsePointsInPath = ShouldResolveReparsePointsInPath(path, opContext.DesiredAccess, opContext.FlagsAndAttributes, policyResult);
+    bool shouldResolveReparsePointsInPath = ShouldResolveReparsePointsInPath(policyResult.GetCanonicalizedPath(), opContext.DesiredAccess, opContext.FlagsAndAttributes, policyResult);
 
     if (shouldResolveReparsePointsInPath)
     {
@@ -6689,6 +6678,11 @@ NTSTATUS NTAPI Detoured_NtCreateFile(
     if (!policyResult.Initialize(path.GetPathString()))
     {
         policyResult.ReportIndeterminatePolicyAndSetLastError(opContext);
+        return DETOURS_STATUS_ACCESS_DENIED;
+    }
+
+    if (!AdjustOperationContextAndPolicyResultWithFullyResolvedPath(opContext, policyResult, true))
+    {
         return DETOURS_STATUS_ACCESS_DENIED;
     }
 
@@ -6868,7 +6862,7 @@ NTSTATUS NTAPI Detoured_NtCreateFile(
     bool isHandleToReparsePoint = (CreateOptions & FILE_OPEN_REPARSE_POINT) != 0;
     bool shouldReportAccessCheck = true;
 
-    bool shouldResolveReparsePointsInPath = ShouldResolveReparsePointsInPath(path, opContext.DesiredAccess, opContext.FlagsAndAttributes, policyResult);
+    bool shouldResolveReparsePointsInPath = ShouldResolveReparsePointsInPath(policyResult.GetCanonicalizedPath(), opContext.DesiredAccess, opContext.FlagsAndAttributes, policyResult);
     if (shouldResolveReparsePointsInPath)
     {
         NTSTATUS ntStatus;
@@ -6941,7 +6935,6 @@ NTSTATUS NTAPI Detoured_NtCreateFile(
     return result;
 }
 
-// TODO: Why do we not simply call ZwCreateFile, just like NtOpenFile?
 IMPLEMENTED(Detoured_ZwOpenFile)
 NTSTATUS NTAPI Detoured_ZwOpenFile(
     _Out_ PHANDLE            FileHandle,
@@ -6951,271 +6944,19 @@ NTSTATUS NTAPI Detoured_ZwOpenFile(
     _In_  ULONG              ShareAccess,
     _In_  ULONG              OpenOptions)
 {
-    DetouredScope scope;
-
-    CanonicalizedPath path;
-
-    if (scope.Detoured_IsDisabled() ||
-        !MonitorZwCreateOpenQueryFile() ||
-        ObjectAttributes == nullptr ||
-        !PathFromObjectAttributes(ObjectAttributes, path, OpenOptions) ||
-        IsSpecialDeviceName(path.GetPathString()))
-    {
-        return Real_ZwOpenFile(
-            FileHandle,
-            DesiredAccess,
-            ObjectAttributes,
-            IoStatusBlock,
-            ShareAccess,
-            OpenOptions);
-    }
-
-    FileOperationContext opContext(
-        L"ZwOpenFile",
-        DesiredAccess,
-        ShareAccess,
-        MapNtCreateDispositionToWin32Disposition(FILE_OPEN),
-        MapNtCreateOptionsToWin32FileFlags(OpenOptions),
-        path.GetPathString());
-
-    PolicyResult policyResult;
-    if (!policyResult.Initialize(path.GetPathString()))
-    {
-        policyResult.ReportIndeterminatePolicyAndSetLastError(opContext);
-        return DETOURS_STATUS_ACCESS_DENIED;
-    }
-
-    bool isDirectoryCreation = CheckIfNtCreateFileOptionsExcludeOpeningFiles(OpenOptions);
-
-    // We start with allow / ignore (no access requested) and then restrict based on read / write (maybe both, maybe neither!)
-    AccessCheckResult accessCheck(RequestedAccess::None, ResultAction::Allow, ReportLevel::Ignore);
-    bool forceReadOnlyForRequestedRWAccess = false;
-    // Note that write operations are quite sneaky, and can perhaps be implied by any of options, dispositions, or desired access.
-    // (consider FILE_DELETE_ON_CLOSE and FILE_OVERWRITE).
-    // If we are operating on a directory, allow access - BuildXL allows accesses to directories (creation/deletion/etc.) always, as long as they are on a readable mount (at lease).
-    if ((WantsWriteAccess(opContext.DesiredAccess) ||
-         CheckIfNtCreateDispositionImpliesWriteOrDelete(FILE_OPEN) ||
-         CheckIfNtCreateMayDeleteFile(OpenOptions, DesiredAccess)) &&
-        // Force directory checking using path, instead of handle, because the value of *FileHandle is still undefined, i.e., neither valid nor not valid.
-        !IsHandleOrPathToDirectory(INVALID_HANDLE_VALUE, path.GetPathString(), opContext.DesiredAccess, OpenOptions, &policyResult, /*ref*/opContext.OpenedFileOrDirectoryAttributes))
-    {
-        accessCheck = policyResult.CheckWriteAccess();
-
-        // Note: The MonitorNtCreateFile() flag is temporary until OSG (we too) fixes all newly discovered dependencies.
-        if (accessCheck.Result != ResultAction::Allow && !MonitorZwCreateOpenQueryFile())
-        {
-            // TODO: As part of gradually turning on NtCreateFile detour reports, we currently only enforce deletes (some cmd builtins delete this way),
-            //       and we ignore potential deletes on *directories* (specifically, robocopy likes to open target directories with delete access, without actually deleting them).
-            if (!CheckIfNtCreateMayDeleteFile(OpenOptions, DesiredAccess))
-            {
-#if SUPER_VERBOSE
-                Dbg(L"NtCreateFile: Ignoring a write-level access since it is not a delete: %s", policyResult.GetCanonicalizedPath().GetPathString());
-#endif // SUPER_VERBOSE
-                accessCheck = AccessCheckResult(RequestedAccess::None, ResultAction::Allow, ReportLevel::Ignore);
-            }
-            else if (isDirectoryCreation)
-            {
-#if SUPER_VERBOSE
-                Dbg(L"NtCreateFile: Ignoring a delete-level access since it will only apply to directories: %s", policyResult.GetCanonicalizedPath().GetPathString());
-#endif // SUPER_VERBOSE
-                accessCheck = AccessCheckResult(RequestedAccess::None, ResultAction::Allow, ReportLevel::Ignore);
-            }
-        }
-
-        if (ForceReadOnlyForRequestedReadWrite() && accessCheck.Result != ResultAction::Allow)
-        {
-            // If ForceReadOnlyForRequestedReadWrite() is true, then we allow read for requested read-write access so long as the tool is allowed to read.
-            // In such a case, we change the desired access to read only (see the call to Real_CreateFileW below).
-            // As a consequence, the tool can fail if it indeed wants to write to the file.
-            if (WantsReadAccess(DesiredAccess) && policyResult.AllowRead())
-            {
-                accessCheck = AccessCheckResult(RequestedAccess::Read, ResultAction::Allow, ReportLevel::Ignore);
-                FileOperationContext operationContext(
-                    L"ChangedReadWriteToReadAccess",
-                    DesiredAccess,
-                    ShareAccess,
-                    MapNtCreateDispositionToWin32Disposition(FILE_OPEN),
-                    MapNtCreateOptionsToWin32FileFlags(OpenOptions),
-                    path.GetPathString());
-
-                ReportFileAccess(
-                    operationContext,
-                    FileAccessStatus::FileAccessStatus_Allowed,
-                    policyResult,
-                    AccessCheckResult(RequestedAccess::None, ResultAction::Deny, ReportLevel::Report),
-                    0,
-                    -1);
-
-                forceReadOnlyForRequestedRWAccess = true;
-            }
-        }
-
-        if (!forceReadOnlyForRequestedRWAccess && accessCheck.ShouldDenyAccess())
-        {
-            ReportIfNeeded(accessCheck, opContext, policyResult, accessCheck.DenialError());
-            return accessCheck.DenialNtStatus();
-        }
-    }
-
-    // At this point and beyond, we know we are either dealing with a write request that has been approved, or a
-    // read request which may or may not have been approved (due to special exceptions for directories and non-existent files).
-    // It is safe to go ahead and perform the real NtCreateFile() call, and then to reason about the results after the fact.
-
-    // Note that we need to add FILE_SHARE_DELETE to dwShareMode to leverage NTFS hardlinks to avoid copying cache
-    // content, i.e., we need to be able to delete one of many links to a file. Unfortunately, share-mode is aggregated only per file
-    // rather than per-link, so in order to keep unused links delete-able, we should ensure in-use links are delete-able as well.
-    // However, adding FILE_SHARE_DELETE may be unexpected, for example, some unit tests may test for sharing violation. Thus,
-    // we only add FILE_SHARE_DELETE if the file is tracked.
-
-    // We also add FILE_SHARE_READ when it is safe to do so, since some tools accidentally ask for exclusive access on their inputs.
-
-    DWORD desiredAccess = DesiredAccess;
-    DWORD sharedAccess = ShareAccess;
-
-    if (!policyResult.IndicateUntracked())
-    {
-        DWORD readSharingIfNeeded = policyResult.ShouldForceReadSharing(accessCheck) ? FILE_SHARE_READ : 0UL;
-        desiredAccess = !forceReadOnlyForRequestedRWAccess ? desiredAccess : (desiredAccess & FILE_GENERIC_READ);
-        sharedAccess = sharedAccess | readSharingIfNeeded | FILE_SHARE_DELETE;
-    }
-
-    DWORD error = ERROR_SUCCESS;
-
-    NTSTATUS result = Real_ZwOpenFile(
+    return Detoured_ZwCreateFile(
         FileHandle,
         DesiredAccess,
         ObjectAttributes,
         IoStatusBlock,
+        (PLARGE_INTEGER)NULL, // AllocationSize
+        0L, // Attributes
         ShareAccess,
-        OpenOptions);
-
-    error = GetLastError();
-
-    if (!NT_SUCCESS(result))
-    {
-        // If we failed, just report. No need to execute anything below.
-        FileReadContext readContext;
-        readContext.InferExistenceFromNtStatus(result);
-        readContext.OpenedDirectory = IsHandleOrPathToDirectory(
-            INVALID_HANDLE_VALUE, // Do not use *FileHandle because even though it is not NT_SUCCESS, *FileHandle can be different from INVALID_HANDLE_VALUE
-            path.GetPathString(),
-            opContext.DesiredAccess,
-            OpenOptions,
-            &policyResult,
-            /*ref*/ opContext.OpenedFileOrDirectoryAttributes);
-
-        // Note: The MonitorNtCreateFile() flag is temporary until OSG (we too) fixes all newly discovered dependencies.
-        if (MonitorZwCreateOpenQueryFile())
-        {
-            if (WantsReadAccess(opContext.DesiredAccess))
-            {
-                // We've now established all of the read context, which can further inform the access decision.
-                // (e.g. maybe we we allow read only if the file doesn't exist).
-                accessCheck = AccessCheckResult::Combine(accessCheck, policyResult.CheckReadAccess(RequestedReadAccess::Read, readContext));
-            }
-            else if (WantsProbeOnlyAccess(opContext.DesiredAccess))
-            {
-                accessCheck = AccessCheckResult::Combine(accessCheck, policyResult.CheckReadAccess(RequestedReadAccess::Probe, readContext));
-            }
-        }
-
-        ReportIfNeeded(accessCheck, opContext, policyResult, RtlNtStatusToDosError(result));
-        SetLastError(error);
-
-        return result;
-    }
-
-    FileReadContext readContext;
-    readContext.InferExistenceFromNtStatus(result);
-    readContext.OpenedDirectory = IsHandleOrPathToDirectory(*FileHandle, path.GetPathString(), opContext.DesiredAccess, OpenOptions, &policyResult, /*ref*/ opContext.OpenedFileOrDirectoryAttributes);
-
-    // Note: The MonitorNtCreateFile() flag is temporary until OSG (we too) fixes all newly discovered dependencies.
-    if (MonitorZwCreateOpenQueryFile())
-    {
-        if (WantsReadAccess(opContext.DesiredAccess))
-        {
-            // We've now established all of the read context, which can further inform the access decision.
-            // (e.g. maybe we we allow read only if the file doesn't exist).
-            accessCheck = AccessCheckResult::Combine(accessCheck, policyResult.CheckReadAccess(RequestedReadAccess::Read, readContext));
-        }
-        else if (WantsProbeOnlyAccess(opContext.DesiredAccess))
-        {
-            accessCheck = AccessCheckResult::Combine(accessCheck, policyResult.CheckReadAccess(RequestedReadAccess::Probe, readContext));
-        }
-    }
-
-    bool isHandleToReparsePoint = (OpenOptions & FILE_OPEN_REPARSE_POINT) != 0;
-    bool shouldReportAccessCheck = true;
-
-    bool shouldResolveReparsePointsInPath = ShouldResolveReparsePointsInPath(path, opContext.DesiredAccess, opContext.FlagsAndAttributes, policyResult);
-    if (shouldResolveReparsePointsInPath)
-    {
-        NTSTATUS ntStatus;
-
-        bool accessResult = EnforceChainOfReparsePointAccesses(
-            policyResult.GetCanonicalizedPath(),
-            isHandleToReparsePoint != 0 ? *FileHandle : INVALID_HANDLE_VALUE,
-            desiredAccess,
-            sharedAccess,
-            FILE_OPEN,
-            0L,
-            true,
-            policyResult,
-            &ntStatus,
-            true,
-            isDirectoryCreation,
-            nullptr,
-            true,
-            isHandleToReparsePoint);
-
-        if (!accessResult)
-        {
-            // If we don't have access to the target, close the handle to the reparse point.
-            // This way we don't have a leaking handle.
-            // (See below we do the same when a normal file access is not allowed and close the file.)
-            NtClose(*FileHandle);
-            *FileHandle = INVALID_HANDLE_VALUE;
-            ntStatus = DETOURS_STATUS_ACCESS_DENIED;
-
-            return ntStatus;
-        }
-
-        if (!IgnoreFullReparsePointResolvingForPath(policyResult))
-        {
-            shouldReportAccessCheck = false;
-        }
-    }
-
-    if (shouldReportAccessCheck)
-    {
-        ReportIfNeeded(accessCheck, opContext, policyResult, RtlNtStatusToDosError(result));
-    }
-
-    InvalidateReparsePointCacheIfNeeded(shouldResolveReparsePointsInPath, opContext.DesiredAccess, opContext.FlagsAndAttributes, readContext.OpenedDirectory,
-        policyResult.GetCanonicalizedPath().GetPathStringWithoutTypePrefix(), policyResult);
-
-    bool hasValidHandle = result == ERROR_SUCCESS && !IsNullOrInvalidHandle(*FileHandle);
-    if (accessCheck.ShouldDenyAccess())
-    {
-        error = accessCheck.DenialError();
-
-        if (hasValidHandle)
-        {
-            NtClose(*FileHandle);
-        }
-
-        *FileHandle = INVALID_HANDLE_VALUE;
-        result = accessCheck.DenialNtStatus();
-    }
-    else if (hasValidHandle)
-    {
-        HandleType handleType = readContext.OpenedDirectory ? HandleType::Directory : HandleType::File;
-        RegisterHandleOverlay(*FileHandle, accessCheck, policyResult, handleType);
-    }
-
-    SetLastError(error);
-
-    return result;
+        FILE_OPEN,
+        OpenOptions,
+        (PVOID)NULL, // EaBuffer,
+        0L // EaLength
+    );
 }
 
 IMPLEMENTED(Detoured_NtOpenFile)

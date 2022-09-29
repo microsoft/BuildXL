@@ -7298,22 +7298,163 @@ namespace Test.BuildXL.Processes.Detours
                     // Uncached initial ReparsePointTarget reports
                     (firstDirectorySymlink, RequestedAccess.Read, FileAccessStatus.Allowed, new ReportedFileOperation?(ReportedFileOperation.ReparsePointTarget)),
                     (secondDirectorySymlink, RequestedAccess.Read, FileAccessStatus.Allowed, new ReportedFileOperation?(ReportedFileOperation.ReparsePointTarget)),
-                    (outputFile, RequestedAccess.Write, FileAccessStatus.Allowed, new ReportedFileOperation?(ReportedFileOperation.ReparsePointTarget)),
+                    (outputFile, RequestedAccess.Write, FileAccessStatus.Allowed, null),
 
                     // ResolvedPathCache reports ReparsePointTargetCached reports
                     (firstDirectorySymlink, RequestedAccess.Read, FileAccessStatus.Allowed, new ReportedFileOperation?(ReportedFileOperation.ReparsePointTargetCached)),
                     (secondDirectorySymlink, RequestedAccess.Read, FileAccessStatus.Allowed, new ReportedFileOperation?(ReportedFileOperation.ReparsePointTargetCached)),
-                    (outputFile, RequestedAccess.Read, FileAccessStatus.Allowed, new ReportedFileOperation?(ReportedFileOperation.ReparsePointTargetCached)),
+                    (outputFile, RequestedAccess.Read, FileAccessStatus.Allowed, null),
                 });
 
                 // We use a Detours event listener to get every reported file access to avoid deduplication in the sandboxed process results, if we don't the same reports after
                 // invalidating the cache only show up once.
                 XAssert.IsTrue(directlyReportedFileAccesses.Count > 0);
-                // Assert we have six ReparsePointTarget reports, three before the cache got populated and three after the cache got invalidated
-                XAssert.AreEqual(6, directlyReportedFileAccesses.Where(report => report.Operation == ReportedFileOperation.ReparsePointTarget).Count());
+
+                // Assert we have at least 4 ReparsePointTarget reports, 2 before the cache got populated and 2 after the cache got invalidated.
+                // Note that in the normal case the resolved path after the adjustment is a fully resolved path and so there is no enforcement of symlink chain. However,
+                // in case like CB where its output folder is a reparse point (e.g., d:\dbs\el\bxlint\out), the fully resolved path gets into the enforcement of the symlink chain. Thus
+                // instead of being reported with CreateFileW as its operation, the fully resolve path is reported with ReparsePointTarget.
+                XAssert.IsTrue(directlyReportedFileAccesses.Where(report => report.Operation == ReportedFileOperation.ReparsePointTarget).Count() >= 4);
+
                 // Assert we have three ReparsePointTargetCached reports, those get reported once the process tries to read the output file through the symbolic link chain and resolving
                 // does not need to happen again, as the cache is populated
-                XAssert.IsTrue(directlyReportedFileAccesses.Where(report => report.Operation == ReportedFileOperation.ReparsePointTargetCached).Count() == 3);
+                XAssert.IsTrue(directlyReportedFileAccesses.Where(report => report.Operation == ReportedFileOperation.ReparsePointTargetCached).Count() >= 2);
+            }
+        }
+
+        [TheoryIfSupported(requiresSymlinkPermission: true)]
+        [MemberData(nameof(TruthTable.GetTable), 1, MemberType = typeof(TruthTable))]
+        public async Task CallOpenNonExistentFileThroughDirectorySymlink(bool useNtOpen)
+        {
+            var context = BuildXLContext.CreateInstanceForTesting();
+            var pathTable = context.PathTable;
+
+            using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory))
+            {
+                var targetDirectory = tempFiles.GetDirectory("A");
+                var nestedDirectory = tempFiles.GetDirectory(@"A\B");
+                var absentFile = tempFiles.GetFileName(@"A\B\absent.txt");
+
+                var symlink = tempFiles.GetFileName("A.lnk");
+                XAssert.PossiblySucceeded(FileUtilities.TryCreateSymbolicLink(symlink, targetDirectory, false));
+
+                var symlinkPath = AbsolutePath.Create(pathTable, symlink);
+                var absentFilePath = AbsolutePath.Create(pathTable, absentFile);
+
+                var process = CreateDetourProcess(
+                    context,
+                    pathTable,
+                    tempFiles,
+                    argumentStr: useNtOpen ? "CallNtOpenNonExistentFileThroughDirectorySymlink" : "CallOpenNonExistentFileThroughDirectorySymlink",
+                    inputFiles: ReadOnlyArray<FileArtifact>.FromWithoutCopy(new FileArtifact[] { FileArtifact.CreateSourceFile(symlinkPath) }),
+                    inputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
+                    outputFiles: ReadOnlyArray<FileArtifactWithAttributes>.Empty,
+                    outputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
+                    untrackedScopes: ReadOnlyArray<AbsolutePath>.Empty);
+
+                var directlyReportedFileAccesses = new List<ReportedFileAccess>();
+                var accumulator = new AccessReportAccumulator(context, process.Executable, (ReportedFileAccess report) => directlyReportedFileAccesses.Add(report));
+                accumulator.SetMessageHandlingFlags(MessageHandlingFlags.FileAccessNotify | MessageHandlingFlags.FileAccessCollect | MessageHandlingFlags.ProcessDataCollect | MessageHandlingFlags.ProcessDetoursStatusCollect);
+
+                string errorString = null;
+                SandboxedProcessPipExecutionResult result = await RunProcessAsync(
+                    pathTable: pathTable,
+                    ignoreSetFileInformationByHandle: false,
+                    ignoreZwRenameFileInformation: false,
+                    monitorNtCreate: true,
+                    ignoreReparsePoints: false,
+                    disableDetours: false,
+                    context: context,
+                    pip: process,
+                    errorString: out errorString,
+                    unexpectedFileAccessesAreErrors: false,
+                    ignoreFullReparsePointResolving: false,
+                    detoursListener: accumulator);
+
+                VerifyExecutionStatus(context, result, SandboxedProcessPipExecutionStatus.ExecutionFailed);
+                VerifyExitCode(context, result, NativeIOConstants.ErrorFileNotFound);
+
+                VerifyFileAccesses(
+                    context,
+                    result.AllReportedFileAccesses,
+                    new[]
+                    {
+                        (symlinkPath, RequestedAccess.Read, FileAccessStatus.Allowed, new ReportedFileOperation?(ReportedFileOperation.ReparsePointTarget)),
+                        (absentFilePath, RequestedAccess.Read, FileAccessStatus.Allowed, null),
+                    },
+                    pathsToFalsify: new[]
+                    {
+                        // No path accesss from unresolved symlink path.
+                        symlinkPath.Combine(pathTable, @"B").Combine(pathTable, "absent.txt")
+                    });
+                SetExpectedFailures(1, 0);
+            }
+        }
+
+        [FactIfSupported(requiresSymlinkPermission: true)]
+        public async Task CallDirectoryEnumerationThroughDirectorySymlink()
+        {
+            var context = BuildXLContext.CreateInstanceForTesting();
+            var pathTable = context.PathTable;
+
+            using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory))
+            {
+                var targetDirectory = tempFiles.GetDirectory("Dir");
+                var directoryMember = tempFiles.GetFileName(@"Dir\file.txt");
+                File.WriteAllText(directoryMember, string.Empty);
+
+                var symlink = tempFiles.GetFileName("Dir.lnk");
+                XAssert.PossiblySucceeded(FileUtilities.TryCreateSymbolicLink(symlink, targetDirectory, false));
+
+                var symlinkPath = AbsolutePath.Create(pathTable, symlink);
+                var targetDirectoryPath = AbsolutePath.Create(pathTable, targetDirectory);
+                var directoryMemberPath = AbsolutePath.Create(pathTable, directoryMember);
+
+                var process = CreateDetourProcess(
+                    context,
+                    pathTable,
+                    tempFiles,
+                    argumentStr: "CallDirectoryEnumerationThroughDirectorySymlink",
+                    inputFiles: ReadOnlyArray<FileArtifact>.FromWithoutCopy(new FileArtifact[] { FileArtifact.CreateSourceFile(symlinkPath) }),
+                    inputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
+                    outputFiles: ReadOnlyArray<FileArtifactWithAttributes>.Empty,
+                    outputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
+                    untrackedScopes: ReadOnlyArray<AbsolutePath>.Empty);
+
+                var directlyReportedFileAccesses = new List<ReportedFileAccess>();
+                var accumulator = new AccessReportAccumulator(context, process.Executable, (ReportedFileAccess report) => directlyReportedFileAccesses.Add(report));
+                accumulator.SetMessageHandlingFlags(MessageHandlingFlags.FileAccessNotify | MessageHandlingFlags.FileAccessCollect | MessageHandlingFlags.ProcessDataCollect | MessageHandlingFlags.ProcessDetoursStatusCollect);
+
+                string errorString = null;
+                SandboxedProcessPipExecutionResult result = await RunProcessAsync(
+                    pathTable: pathTable,
+                    ignoreSetFileInformationByHandle: false,
+                    ignoreZwRenameFileInformation: false,
+                    monitorNtCreate: true,
+                    ignoreReparsePoints: false,
+                    disableDetours: false,
+                    context: context,
+                    pip: process,
+                    errorString: out errorString,
+                    unexpectedFileAccessesAreErrors: false,
+                    ignoreFullReparsePointResolving: false,
+                    detoursListener: accumulator);
+
+                VerifyNormalSuccess(context, result);
+
+                VerifyFileAccesses(
+                    context,
+                    result.AllReportedFileAccesses,
+                    new[]
+                    {
+                        (symlinkPath, RequestedAccess.Read, FileAccessStatus.Allowed, new ReportedFileOperation?(ReportedFileOperation.ReparsePointTarget)),
+                        (targetDirectoryPath, RequestedAccess.Enumerate, FileAccessStatus.Allowed, null),
+                        (directoryMemberPath, RequestedAccess.EnumerationProbe, FileAccessStatus.Allowed, null),
+                    },
+                    pathsToFalsify: new[]
+                    {
+                        symlinkPath.Combine(pathTable, "file.txt")
+                    });
             }
         }
 
@@ -7374,21 +7515,21 @@ namespace Test.BuildXL.Processes.Detours
                 {
                     // Uncached initial ReparsePointTarget reports
                     (firstDirectorySymlink, RequestedAccess.Read, FileAccessStatus.Allowed, new ReportedFileOperation?(ReportedFileOperation.ReparsePointTarget)),
-                    (outputFile, RequestedAccess.Write, FileAccessStatus.Allowed, new ReportedFileOperation?(ReportedFileOperation.ReparsePointTarget)),
+                    (outputFile, RequestedAccess.Write, FileAccessStatus.Allowed, null),
 
                     // ResolvedPathCache reports ReparsePointTargetCached reports
                     (firstDirectorySymlink, RequestedAccess.Read, FileAccessStatus.Allowed, new ReportedFileOperation?(ReportedFileOperation.ReparsePointTargetCached)),
-                    (outputFile, RequestedAccess.Read, FileAccessStatus.Allowed, new ReportedFileOperation?(ReportedFileOperation.ReparsePointTargetCached)),
+                    (outputFile, RequestedAccess.Read, FileAccessStatus.Allowed, null),
                 });
 
                 // We use a Detours event listener to get every reported file access to avoid deduplication in the sandboxed process results, if we don't the same reports after
                 // invalidating the cache only show up once.
                 XAssert.IsTrue(directlyReportedFileAccesses.Count > 0);
-                // Assert we have four ReparsePointTarget reports, two before the cache got populated and two after the cache got invalidated
-                XAssert.AreEqual(4, directlyReportedFileAccesses.Where(report => report.Operation == ReportedFileOperation.ReparsePointTarget).Count());
-                // Assert we have two ReparsePointTargetCached reports, those get reported once the process tries to read the output file through the symbolic link chain and resolving
-                // does not need to happen again, as the cache is populated
-                XAssert.IsTrue(directlyReportedFileAccesses.Where(report => report.Operation == ReportedFileOperation.ReparsePointTargetCached).Count() == 2);
+
+                // Assert we have at least 2 ReparsePointTarget reports, 1 before the cache got populated and 1 after the cache got invalidated.
+                // See CallDetoursResolvedPathCacheTests why we cannot assert the exact number.
+                XAssert.IsTrue(directlyReportedFileAccesses.Where(report => report.Operation == ReportedFileOperation.ReparsePointTarget).Count() >= 2);
+                XAssert.IsTrue(directlyReportedFileAccesses.Where(report => report.Operation == ReportedFileOperation.ReparsePointTargetCached).Count() >= 1);
             }
         }
 
@@ -8082,7 +8223,10 @@ namespace Test.BuildXL.Processes.Detours
                         if (observation.Item4.HasValue)
                         {
                             operationDoesMatch = pathSpecificAccess.Operation == observation.Item4.Value;
-                            if (!operationDoesMatch) continue; // Look at all available operations to find a match
+                            if (!operationDoesMatch)
+                            {
+                                continue; // Look at all available operations to find a match
+                            }
                         }
 
                         foundExpectedAccess = true;
@@ -8092,14 +8236,16 @@ namespace Test.BuildXL.Processes.Detours
 
                 XAssert.IsTrue(
                     foundExpectedAccess,
-                    "Expected access for path '{0}' with requested access '{1}' and access status '{2}' is missing from the reported file accesses; reported accesses are as follows: {3}{4}",
+                    "Expected access for path '{0}' with requested access '{1}' and access status '{2}' (operation: '{3}') is missing from the reported file accesses; reported accesses are as follows: {4}{5}",
                     observation.absolutePath.ToString(pathTable),
                     observation.requestedAccess.ToString(),
                     observation.fileAccessStatus.ToString(),
+                    observation.operation?.ToString() ?? string.Empty,
                     Environment.NewLine,
                     string.Join(
                         Environment.NewLine,
-                        pathSpecificAccesses.Select(r => "--- " + r.RequestedAccess.ToString() + " | " + r.Status.ToString())));
+                        pathSpecificAccesses.Select(r => $"---  {r.RequestedAccess} | {r.Status} | {r.Operation}")));
+
             }
 
             if (pathsToFalsify != null)

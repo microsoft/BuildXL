@@ -759,47 +759,6 @@ int CallCreateFileOnNtEscapedPath()
     return (int)GetLastError();
 }
 
-NTSTATUS OpenFileWithNtCreateFile(
-    PHANDLE FileHandle, 
-    LPCWSTR path, 
-    HANDLE rootDirectory, 
-    ACCESS_MASK DesiredAccess, 
-    ULONG FileAttributes, 
-    ULONG ShareAccess, 
-    ULONG CreateDisposition, 
-    ULONG CreateOptions)
-{
-    _NtCreateFile NtCreateFile = GetNtCreateFile();
-    _RtlInitUnicodeString RtlInitUnicodeString = GetRtlInitUnicodeString();
-
-    OBJECT_ATTRIBUTES objAttribs = { 0 };
-
-    UNICODE_STRING unicodeString;
-    RtlInitUnicodeString(&unicodeString, path);
-
-    InitializeObjectAttributes(&objAttribs, &unicodeString, OBJ_CASE_INSENSITIVE, rootDirectory, NULL);
-
-    const int allocSize = 2048;
-    LARGE_INTEGER largeInteger = { 0 };
-    largeInteger.QuadPart = allocSize;
-
-    IO_STATUS_BLOCK ioStatusBlock = { 0 };
-    NTSTATUS status = NtCreateFile(
-        FileHandle,
-        DesiredAccess,
-        &objAttribs,
-        &ioStatusBlock,
-        &largeInteger,
-        FileAttributes,
-        ShareAccess,
-        CreateDisposition,
-        CreateOptions,
-        NULL,
-        NULL);
-
-    return status;
-}
-
 HANDLE OpenFileByIndexForRead(HANDLE hVolume, DWORDLONG FileId)
 {
     _NtCreateFile NtCreateFile = GetNtCreateFile();
@@ -1260,6 +1219,9 @@ static void SymlinkTests(const string& verb)
     IF_COMMAND(CallOpenFileThroughMultipleDirectorySymlinks);
     IF_COMMAND(CallOpenFileThroughDirectorySymlinksSelectivelyEnforce);
     IF_COMMAND(CallModifyDirectorySymlinkThroughDifferentPathIgnoreFullyResolve);
+    IF_COMMAND(CallOpenNonExistentFileThroughDirectorySymlink);
+    IF_COMMAND(CallNtOpenNonExistentFileThroughDirectorySymlink);
+    IF_COMMAND(CallDirectoryEnumerationThroughDirectorySymlink);
     
 #undef IF_COMMAND1
 #undef IF_COMMAND2

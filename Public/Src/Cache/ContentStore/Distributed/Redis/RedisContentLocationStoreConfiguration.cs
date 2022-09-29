@@ -27,11 +27,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// </summary>
         public TimeSpan MachineActiveToExpiredInterval { get; set; } = TimeSpan.FromHours(1);
 
-        /// <summary>
-        /// Whether to cancel existing batches when a connection multiplexer used for creating it is closed.
-        /// </summary>
-        public bool CancelBatchWhenMultiplexerIsClosed { get; set; } = false;
-
         internal IClientAccessor<MachineLocation, IGlobalCacheService> GlobalCacheClientAccessorForTests { get; set; }
 
         /// <nodoc />

@@ -180,10 +180,10 @@ namespace BuildXL.Native.Processes.Unix
         public bool IsWciAndBindFiltersAvailable() => false;
 
         /// <inheritdoc />
-        public bool SetupProcessDumps(string logsDirectory, out string coreDumpDirectory)
+        public bool SetupProcessDumps(string logsDirectory, out string coreDumpDirectory, out string error)
         {
             var sb = new StringBuilder(NativeIOConstants.MaxPath);
-            var result = Process.SetupProcessDumps(logsDirectory, sb, sb.MaxCapacity);
+            var result = Process.SetupProcessDumps(logsDirectory, sb, sb.MaxCapacity, out error);
             coreDumpDirectory = sb.ToString();
 
             return result;

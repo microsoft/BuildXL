@@ -78,7 +78,7 @@ namespace BuildXL.Utilities
         /// Provenance for logging and exception purpose.
         /// </summary>
         private readonly string m_provenance;
-
+        private readonly Action m_dumpProcessTree;
         private readonly Action<string> m_logger;
         private readonly Action<string> m_outputBuilder;
         private readonly Action<string> m_errorBuilder;
@@ -138,7 +138,8 @@ namespace BuildXL.Utilities
             Action<string> outputBuilder = null,
             Action<string> errorBuilder = null,
             string provenance = null,
-            Action<string> logger = null)
+            Action<string> logger = null,
+            Action dumpProcessTree = null)
         {
             Contract.RequiresNotNull(process);
 
@@ -161,6 +162,7 @@ namespace BuildXL.Utilities
 
             m_timeout = timeout;
             m_provenance = provenance;
+            m_dumpProcessTree = dumpProcessTree;
         }
 
         /// <summary>
@@ -304,6 +306,8 @@ namespace BuildXL.Utilities
             {
                 if (!Process.HasExited)
                 {
+                    m_dumpProcessTree?.Invoke();
+
                     Log($"calling Kill({Process.Id})");
                     Process.Kill();
                 }

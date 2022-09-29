@@ -34,6 +34,11 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         MachineNotFound,
 
         /// <summary>
+        /// Could not find any in-ring eligible machines because the location information for in-ring machines is missing.
+        /// </summary>
+        InRingMachineListIsEmpty,
+
+        /// <summary>
         /// BuildId was not specified, so machines in the build ring cannot be found
         /// </summary>
         BuildIdNotSpecified,

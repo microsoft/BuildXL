@@ -1452,6 +1452,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             {
                 return ProactivePushResult.FromStatus(ProactivePushStatus.BuildIdNotSpecified, attempt);
             }
+
+            // Having an explicit case to check if the in-ring machine list is empty to separate the case
+            // when the machine list is not empty but all the candidates are unavailable.
+            if (_buildRingMachines.Length == 0)
+            {
+                return ProactivePushResult.FromStatus(ProactivePushStatus.InRingMachineListIsEmpty, attempt);
+            }
             
             var candidates = GetInRingActiveMachines();
 

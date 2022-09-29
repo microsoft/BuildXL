@@ -64,8 +64,8 @@ namespace BuildXL.AdoBuildRunner.Vsts
         /// <nodoc />
         public void Error(Exception ex, string errorMessage)
         {
-            string errorCommand = $"{errorMessage}\n{JsonConvert.SerializeObject(ex)}";
-            Error(errorCommand);
+            Error(errorMessage);
+            Error($"Full exception details:\n{JsonConvert.SerializeObject(ex)}");
         }
 
         /// <nodoc />

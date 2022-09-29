@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using AdoBuildRunner.Vsts;
 using Microsoft.TeamFoundation.Build.WebApi;
 using Microsoft.TeamFoundation.DistributedTask.WebApi;
 using Microsoft.VisualStudio.Services.Common;
@@ -13,7 +14,7 @@ using TimelineRecord = Microsoft.TeamFoundation.DistributedTask.WebApi.TimelineR
 namespace BuildXL.AdoBuildRunner.Vsts
 {
     /// <summary>
-    /// Concrete implementation of the VSTS API interface for build orchestration purposes
+    /// Concrete implementation of the VSTS API interface for build coordination purposes
     /// </summary>
     public class Api : IApi
     {
@@ -98,7 +99,7 @@ namespace BuildXL.AdoBuildRunner.Vsts
             {
                 if (!int.TryParse(jobPositionInPhase, out int position))
                 {
-                    throw new ApplicationException($"The env var {Constants.JobsPositionInPhaseVarName} contains a value that cannot be parsed to int");
+                    LogAndThrow($"The env var {Constants.JobsPositionInPhaseVarName} contains a value that cannot be parsed to int");
                 }
 
                 JobPositionInPhase = position;
@@ -106,7 +107,7 @@ namespace BuildXL.AdoBuildRunner.Vsts
 
                 if (!int.TryParse(totalJobsInPhase, out int totalJobs))
                 {
-                    throw new ApplicationException($"The env var {Constants.TotalJobsInPhaseVarName} contains a value that cannot be parsed to int");
+                    LogAndThrow($"The env var {Constants.TotalJobsInPhaseVarName} contains a value that cannot be parsed to int");
                 }
 
                 TotalJobsInPhase = totalJobs;
@@ -180,7 +181,7 @@ namespace BuildXL.AdoBuildRunner.Vsts
         {
             if (!int.TryParse(BuildId, out int buildId))
             {
-                throw new ApplicationException($"{Constants.BuildIdVarName} is not set or cannot be parsed into an int value");
+                LogAndThrow($"{Constants.BuildIdVarName} is not set or cannot be parsed into an int value");
             }
 
             var build = await m_buildClient.GetBuildAsync(new Guid(TeamProjectId), buildId);
@@ -212,7 +213,7 @@ namespace BuildXL.AdoBuildRunner.Vsts
             }
             else
             {
-                throw new ApplicationException("No records found for this worker");
+                LogAndThrow("No records found for this worker");
             }
         }
 
@@ -297,7 +298,7 @@ namespace BuildXL.AdoBuildRunner.Vsts
                 var errors = records.Where(r => r.ErrorCount.HasValue && r.ErrorCount.Value != 0);
                 if (errors.Any())
                 {
-                    throw new ApplicationException("One of the agents failed during the orchestration task with errors, aborting build!");
+                    LogAndThrow("One of the other agents participating in this build failed during the pre-build coordination. The task on this agent will be aborted.");
                 }
 
                 var filteredMachines = records.Where(r =>
@@ -327,8 +328,13 @@ namespace BuildXL.AdoBuildRunner.Vsts
 
             if (elapsedTime >= m_maxWaitingTimeSeconds)
             {
-                throw new ApplicationException("Waiting for all agents to get ready failed, aborting!");
+                LogAndThrow($"Waiting for all agents to get ready failed after {m_maxWaitingTimeSeconds} seconds. Aborting...");
             }
+        }
+
+        private void LogAndThrow(string error)
+        {
+            CoordinationException.LogAndThrow(m_logger, error);
         }
     }
 }

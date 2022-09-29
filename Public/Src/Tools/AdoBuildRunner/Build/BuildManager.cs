@@ -8,6 +8,7 @@ using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
+using AdoBuildRunner.Vsts;
 using BuildXL.AdoBuildRunner.Vsts;
 
 namespace BuildXL.AdoBuildRunner.Build
@@ -100,7 +101,7 @@ namespace BuildXL.AdoBuildRunner.Build
 
                 if (orchestratorInfo == null)
                 {
-                    throw new ApplicationException($"Couldn't get orchestrator address info, aborting!");
+                    CoordinationException.LogAndThrow(m_logger, "Couldn't get orchestrator address info, aborting!");
                 }
 
                 m_logger.Info($@"Found orchestrator: {orchestratorInfo[Constants.MachineHostName]}@{orchestratorInfo[Constants.MachineIpV4Address]}");

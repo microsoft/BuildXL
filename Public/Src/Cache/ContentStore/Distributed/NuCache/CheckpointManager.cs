@@ -2,7 +2,6 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -11,8 +10,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
 using BuildXL.Cache.ContentStore.Distributed.Redis;
-using BuildXL.Cache.ContentStore.Distributed.Utilities;
-using BuildXL.Cache.ContentStore.Extensions;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
@@ -21,7 +18,6 @@ using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Native.IO;
-using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Utilities.Tracing;
 
@@ -43,9 +39,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private const string CheckpointInfoKey = "CheckpointManager.CheckpointState";
         private const string CheckpointManifestKey = "CheckpointManager.Manifest";
 
-        private const string IncrementalCheckpointInfoEntrySeparator = "\n";
-        private const string JsonManifestPrefix = "// ";
-        private const string JsonManifestHeader = JsonManifestPrefix + "{} \n";
         public ContentLocationDatabase Database { get; }
         public ICheckpointRegistry CheckpointRegistry { get; }
 
@@ -512,20 +505,20 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private void DumpCheckpointManifest(AbsolutePath path, CheckpointManifest checkpointInfo)
         {
-            File.WriteAllText(path.Path, SerializeCheckpointManifest(checkpointInfo));
+            File.WriteAllText(path.Path, checkpointInfo.ToJson());
         }
 
         /// <nodoc />
         public static CheckpointManifest LoadCheckpointManifest(AbsolutePath checkpointFile)
         {
-            return DeserializeCheckpointManifest(File.ReadAllText(checkpointFile.ToString()));
+            return CheckpointManifest.FromJson(File.ReadAllText(checkpointFile.ToString()));
         }
 
         private void DatabaseWriteManifest(OperationContext context, CheckpointManifest manifest)
         {
             try
             {
-                Database.SetGlobalEntry(CheckpointManifestKey, SerializeCheckpointManifest(manifest));
+                Database.SetGlobalEntry(CheckpointManifestKey, manifest.ToJson());
             }
             catch (Exception e)
             {
@@ -539,7 +532,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             {
                 if (Database.TryGetGlobalEntry(CheckpointManifestKey, out var value))
                 {
-                    return DeserializeCheckpointManifest(value);
+                    return CheckpointManifest.FromJson(value);
                 }
                 else
                 {
@@ -552,64 +545,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 Tracer.Debug(context, $"Failed to read latest checkpoint manifest from database: {e}");
                 return null;
             }
-        }
-
-        private static T Deserialize<T>(string value, Func<T> customDeserialize)
-        {
-            // First line in json blobs is a comment to delineate it from custom deserialization case
-            if (value.StartsWith(JsonManifestPrefix))
-            {
-                return JsonUtilities.JsonDeserialize<T>(value);
-            }
-            else
-            {
-                return customDeserialize();
-            }
-        }
-
-        private string SerializeCheckpointManifest(CheckpointManifest manifest)
-        {
-            string result;
-            if (_configuration.StoreJsonData)
-            {
-                result = JsonManifestHeader + JsonUtilities.JsonSerialize(manifest, true);
-            }
-            else
-            {
-                // Format is newline (IncrementalCheckpointInfoEntrySeparator) separated entries with {Key}={Value}
-                result = string.Join(IncrementalCheckpointInfoEntrySeparator, manifest.ContentByPath.Select(s => $"{s.RelativePath}={s.StorageId}"));
-            }
-
-            return result;
-        }
-
-        private static CheckpointManifest DeserializeCheckpointManifest(string serialized)
-        {
-            return Deserialize(serialized, () =>
-            {
-                var manifest = new CheckpointManifest();
-                // Format is newline (IncrementalCheckpointInfoEntrySeparator) separated entries with {Key}={Value}
-                var mapping = serialized
-                    .Split(new[] { IncrementalCheckpointInfoEntrySeparator }, StringSplitOptions.RemoveEmptyEntries)
-                    .Select(entry => entry.Split('='))
-                    .ToDictionary(
-                        entry => entry[0],
-                        entry => entry[1],
-                        StringComparer.OrdinalIgnoreCase);
-
-                foreach ((string relativePath, string storageId) in mapping)
-                {
-                    manifest.Add(new ContentEntry()
-                    {
-                        Hash = default,
-                        Size = -1,
-                        StorageId = storageId,
-                        RelativePath = relativePath
-                    });
-                }
-
-                return manifest;
-            });
         }
 
         private ContentEntry AddEntry(CheckpointManifest manifest, string relativePath, string storageId)

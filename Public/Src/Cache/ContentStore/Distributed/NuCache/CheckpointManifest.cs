@@ -144,5 +144,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 return RelativePath;
             }
         }
+
+        public static CheckpointManifest FromJson(string serialized)
+        {
+            return JsonUtilities.JsonDeserialize<CheckpointManifest>(serialized);
+        }
+
+        public string ToJson()
+        {
+            return JsonUtilities.JsonSerialize(this, indent: true);
+        }
     }
 }

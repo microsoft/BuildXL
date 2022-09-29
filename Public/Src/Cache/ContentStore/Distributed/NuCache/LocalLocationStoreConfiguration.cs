@@ -510,11 +510,6 @@ namespace BuildXL.Cache.ContentStore.Distributed
         public TimeSpan RestoreCheckpointTimeout { get; set; } = TimeSpan.MaxValue;
 
         /// <summary>
-        /// Indicates whether to store checkpoint manifest as json instead of legacy format
-        /// </summary>
-        public bool StoreJsonData { get; set; } = true;
-
-        /// <summary>
         /// Gets whether the checkpoint manager has a timer loop to restore checkpoints. This is normally handled by
         /// the database owner (i.e. LLS or GCS). But is provided as an option for the case where GCS DB is synced to workers.
         /// </summary>

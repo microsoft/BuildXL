@@ -114,7 +114,7 @@ namespace BuildXL.Engine
             if (layout.FrontEndDirectory.IsValid)
             {
                 // This location is used only for storing nuget packages and generated specs so far.
-                table.AddStaticMount("FrontEnd", layout.FrontEndDirectory, isWriteable: true, isScrubbable: false);
+                table.AddStaticMount("FrontEnd", layout.FrontEndDirectory, isWriteable: true, isScrubbable: true);
             }
             if (layout.TempDirectory.IsValid)
             {

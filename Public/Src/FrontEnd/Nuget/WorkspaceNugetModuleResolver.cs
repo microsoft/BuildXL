@@ -1092,8 +1092,10 @@ namespace BuildXL.FrontEnd.Nuget
                                     {
                                         "pkgDepSkips=" + UppercaseSortAndJoinStrings(package.DependentPackageIdsToSkip),
                                         "pkgDepsIgnore=" + UppercaseSortAndJoinStrings(package.DependentPackageIdsToIgnore),
-                                        "forceFullOnly=" + (package.ForceFullFrameworkQualifiersOnly ? "1" : "0")
+                                        "forceFullOnly=" + (package.ForceFullFrameworkQualifiersOnly ? "1" : "0"),
+                                        "esrpSignConfiguration=" + (m_resolverSettings.EsrpSignConfiguration != null ? "1" : "0")
                                     };
+            
             return  restoreFingerPrint + "&" + string.Join("&", fingerprintParams);
         }
 

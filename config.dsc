@@ -715,6 +715,26 @@ config({
                 isWritable: true,
                 trackSourceFileChanges: true
             }
+        ] : []),
+        ...(Environment.hasVariable("ESRP_POLICY_CONFIG") ?
+        [
+            {
+                name: a`EsrpPolicyConfig`,
+                path: Environment.getPathValue("ESRP_POLICY_CONFIG").parent,
+                isReadable: true,
+                isWritable: false,
+                trackSourceFileChanges: true
+            }
+        ] : []),
+        ...(Environment.hasVariable("ESRP_SESSION_CONFIG") ? 
+        [
+            { 
+                name: a`EsrpSessionConfig`,
+                path: Environment.getPathValue("ESRP_SESSION_CONFIG").parent,
+                isReadable: true,
+                isWritable: false,
+                trackSourceFileChanges: true
+            }
         ] : [])
     ],
 

@@ -335,6 +335,30 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
             }
         }
 
+        /// <summary>
+        /// Emits mdm metrics for a finished operation.
+        /// </summary>
+        /// <remarks>
+        /// This is useful when a component is on a critical path and we can't afford using the full logging infrastructure but still want to trace the duration and the count.
+        /// </remarks>
+        public void TrackOperationFinishedMetrics(string operationName, string componentName, TimeSpan duration)
+        {
+            if (Logger is IOperationLogger operationLogger)
+            {
+                var operationResult = new OperationResult(
+                    "Empty message",
+                    operationName,
+                    componentName,
+                    OperationStatus.Success,
+                    duration,
+                    OperationKind.None,
+                    exception: null,
+                    _idAsString,
+                    Severity.Info);
+                operationLogger.OperationFinished(operationResult);
+            }
+        }
+
         /// <nodoc />
         public void TrackMetric(string name, long value, string tracerName)
         {

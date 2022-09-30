@@ -370,80 +370,86 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             bool reconciling)
         {
             using var counter = Counters[ContentLocationDatabaseCounters.SetMachineExistenceAndUpdateDatabase].Start();
-            context.TrackMetric("ContentLocationDatabase_SetMachineExistenceAndUpdateDatabase", Counters[ContentLocationDatabaseCounters.SetMachineExistenceAndUpdateDatabase].Value, Tracer.Name);
 
-            if (!_configuration.UseMergeOperatorForContentLocations)
+            try
             {
-                return base.SetMachineExistenceAndUpdateDatabase(context, hash, machine, existsOnMachine, size, lastAccessTime, reconciling);
+                if (!_configuration.UseMergeOperatorForContentLocations)
+                {
+                    return base.SetMachineExistenceAndUpdateDatabase(context, hash, machine, existsOnMachine, size, lastAccessTime, reconciling);
+                }
+
+                // When the merge is used its hard to track the total content size, just because its not possible to know
+                // whether the entry was actually created or not.
+
+                // This is an implementation that uses merge operators which is quite different compared to the standard behavior.
+                // 1. We don't need any locks
+                // 2. We just create an entry that will be merged on retrieval or compaction
+
+                // machine, existsOnMachine, lastAccessTime: null => add
+                // machine: null, existsOnMachine: false => touch
+                // machine, existsOnMachine: false => remove
+
+                lastAccessTime ??= Clock.UtcNow;
+                ContentLocationEntry? entry = null;
+                var now = Clock.UtcNow;
+
+                EntryOperation entryOperation = EntryOperation.Invalid;
+                var reason = reconciling ? OperationReason.Reconcile : OperationReason.Unknown;
+
+                if (machine != null && existsOnMachine)
+                {
+                    // Add
+                    entry = ContentLocationEntry.Create(
+                        MachineIdSet.CreateChangeSet(exists: true, machine.Value),
+                        size,
+                        lastAccessTimeUtc: now,
+                        creationTimeUtc: now);
+                    Counters[ContentLocationDatabaseCounters.MergeAdd].Increment();
+                    entryOperation = EntryOperation.MergeAdd;
+                }
+                else if (machine == null && existsOnMachine == false)
+                {
+                    // Touch. Last access time must not be null
+                    // Ignoring touch frequency here because in order to avoid a write we would have to read the entry first.
+                    Contract.Assert(lastAccessTime != null);
+                    entry = ContentLocationEntry.Create(
+                        // All the mergeable entries should use machine id set that can track the state changes.
+                        MachineIdSet.EmptyChangeSet,
+                        size,
+                        lastAccessTimeUtc: lastAccessTime.Value,
+                        creationTimeUtc: lastAccessTime.Value);
+                    Counters[ContentLocationDatabaseCounters.MergeTouch].Increment();
+                    entryOperation = EntryOperation.MergeTouch;
+                }
+                else if (machine != null && existsOnMachine == false)
+                {
+                    // Removal
+                    entry = ContentLocationEntry.Create(
+                        MachineIdSet.CreateChangeSet(exists: false, machine.Value),
+                        size,
+                        lastAccessTimeUtc: now,
+                        creationTimeUtc: now);
+                    Counters[ContentLocationDatabaseCounters.MergeRemove].Increment();
+                    entryOperation = EntryOperation.MergeRemove;
+                }
+
+                if (entry != null)
+                {
+                    NagleOperationTracer?.Enqueue((context, hash, entryOperation, reason));
+                }
+
+                Contract.Assert(entry != null, "Seems like an unknown database operation.");
+
+                // The merge operations are atomic, but because the GC might delete the entry
+                // we need to use the read lock here and the write lock by the GC.
+                using var locker = GetLock(hash).AcquireReadLock();
+                Persist(context, hash, entry);
+                return true;
             }
-
-            // When the merge is used its hard to track the total content size, just because its not possible to know
-            // whether the entry was actually created or not.
-
-            // This is an implementation that uses merge operators which is quite different compared to the standard behavior.
-            // 1. We don't need any locks
-            // 2. We just create an entry that will be merged on retrieval or compaction
-
-            // machine, existsOnMachine, lastAccessTime: null => add
-            // machine: null, existsOnMachine: false => touch
-            // machine, existsOnMachine: false => remove
-
-            lastAccessTime ??= Clock.UtcNow;
-            ContentLocationEntry? entry = null;
-            var now = Clock.UtcNow;
-
-            EntryOperation entryOperation = EntryOperation.Invalid;
-            var reason = reconciling ? OperationReason.Reconcile : OperationReason.Unknown;
-
-            if (machine != null && existsOnMachine)
+            finally
             {
-                // Add
-                entry = ContentLocationEntry.Create(
-                    MachineIdSet.CreateChangeSet(exists: true, machine.Value),
-                    size,
-                    lastAccessTimeUtc: now,
-                    creationTimeUtc: now);
-                Counters[ContentLocationDatabaseCounters.MergeAdd].Increment();
-                entryOperation = EntryOperation.MergeAdd;
+                context.TracingContext.TrackOperationFinishedMetrics(nameof(SetMachineExistenceAndUpdateDatabase), Tracer.Name, counter.Elapsed);
             }
-            else if (machine == null && existsOnMachine == false)
-            {
-                // Touch. Last access time must not be null
-                // Ignoring touch frequency here because in order to avoid a write we would have to read the entry first.
-                Contract.Assert(lastAccessTime != null);
-                entry = ContentLocationEntry.Create(
-                    // All the mergeable entries should use machine id set that can track the state changes.
-                    MachineIdSet.EmptyChangeSet,
-                    size,
-                    lastAccessTimeUtc: lastAccessTime.Value,
-                    creationTimeUtc: lastAccessTime.Value);
-                Counters[ContentLocationDatabaseCounters.MergeTouch].Increment();
-                entryOperation = EntryOperation.MergeTouch;
-            }
-            else if (machine != null && existsOnMachine == false)
-            {
-                // Removal
-                entry = ContentLocationEntry.Create(
-                    MachineIdSet.CreateChangeSet(exists: false, machine.Value),
-                    size,
-                    lastAccessTimeUtc: now,
-                    creationTimeUtc: now);
-                Counters[ContentLocationDatabaseCounters.MergeRemove].Increment();
-                entryOperation = EntryOperation.MergeRemove;
-            }
-
-            if (entry != null)
-            {
-                NagleOperationTracer?.Enqueue((context, hash, entryOperation, reason));
-            }
-
-            Contract.Assert(entry != null, "Seems like an unknown database operation.");
-
-            // The merge operations are atomic, but because the GC might delete the entry
-            // we need to use the read lock here and the write lock by the GC.
-            using var locker = GetLock(hash).AcquireReadLock();
-            Persist(context, hash, entry);
-            return true;
         }
 
         private void BackupLogs(OperationContext context, string instancePath, string name)
@@ -766,16 +772,22 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <inheritdoc />
         internal override void Persist(OperationContext context, ShortHash hash, ContentLocationEntry? entry)
         {
-            Counters[ContentLocationDatabaseCounters.DatabaseChanges].Increment();
-            context.TrackMetric("ContentLocationDatabase_DatabaseChange", Counters[ContentLocationDatabaseCounters.DatabaseChanges].Value, Tracer.Name);
+            using var counter = Counters[ContentLocationDatabaseCounters.DatabaseChanges].Start();
 
-            if (entry == null)
+            try
             {
-                DeleteFromDb(hash);
+                if (entry == null)
+                {
+                    DeleteFromDb(hash);
+                }
+                else
+                {
+                    SaveToDb(hash, entry);
+                }
             }
-            else
+            finally
             {
-                SaveToDb(hash, entry);
+                context.TracingContext.TrackOperationFinishedMetrics(nameof(Persist), Tracer.Name, counter.Elapsed);
             }
         }
 

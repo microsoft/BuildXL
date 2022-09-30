@@ -676,11 +676,8 @@ namespace BuildXL.Cache.Host.Service.Internal
             ApplyIfNotNull(_distributedSettings.BlobMasterElectionRetryPolicy, v => azureBlobStorageMasterElectionMechanismConfiguration.RetryPolicy = v);
 
             configuration.AzureBlobStorageMasterElectionMechanismConfiguration = azureBlobStorageMasterElectionMechanismConfiguration;
-            if (_distributedSettings.EnableIndependentBackgroundMasterElection)
-            {
-                configuration.ObservableMasterElectionMechanismConfiguration.GetRoleInterval = configuration.Checkpoint.HeartbeatInterval;
-                configuration.ObservableMasterElectionMechanismConfiguration.GetRoleOnStartup = true;
-            }
+            configuration.ObservableMasterElectionMechanismConfiguration.GetRoleInterval = configuration.Checkpoint.HeartbeatInterval;
+            configuration.ObservableMasterElectionMechanismConfiguration.GetRoleOnStartup = true;
 
             var blobClusterStateStorageConfiguration = new BlobClusterStateStorageConfiguration()
             {

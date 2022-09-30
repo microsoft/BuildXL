@@ -59,7 +59,6 @@ namespace ContentStoreTest.Distributed.Sessions
             dcs.LocationStoreSettings.EnableBlobContentLocationRegistry = true;
             dcs.GlobalCacheDatabaseValidationMode = DatabaseValidationMode.LogAndError;
             dcs.ContentMetadataUseMergeWrites = true;
-            dcs.EnableIndependentBackgroundMasterElection = true;
             return base.ModifySettings(dcs);
         }
 

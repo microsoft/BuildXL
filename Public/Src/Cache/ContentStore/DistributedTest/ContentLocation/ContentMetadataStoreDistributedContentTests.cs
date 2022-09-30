@@ -54,7 +54,6 @@ namespace ContentStoreTest.Distributed.Sessions
         {
             arguments.Configuration.DistributedContentSettings.GlobalCacheDatabaseValidationMode = DatabaseValidationMode.Log;
             arguments.Configuration.DistributedContentSettings.ContentMetadataUseMergeWrites = UseMergeOperators;
-            arguments.Configuration.DistributedContentSettings.EnableIndependentBackgroundMasterElection = true;
             return base.ModifyArguments(arguments);
         }
 
@@ -167,7 +166,6 @@ namespace ContentStoreTest.Distributed.Sessions
                     }
 
                     d.HeartbeatIntervalMinutes = 1;
-                    d.EnableIndependentBackgroundMasterElection = true;
                     d.ContentMetadataEnableResilience = true;
                     d.ContentMetadataPersistInterval = "1000s";
                     d.BlobMasterElectionReleaseLeaseOnShutdown = true;

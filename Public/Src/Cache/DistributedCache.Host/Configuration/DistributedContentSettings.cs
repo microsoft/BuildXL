@@ -166,7 +166,6 @@ namespace BuildXL.Cache.Host.Configuration
         public void DisableRedis()
         {
             GlobalCacheBackgroundRestore = true;
-            EnableIndependentBackgroundMasterElection = true;
             ContentMetadataEnableResilience = true;
         }
 
@@ -1106,13 +1105,6 @@ namespace BuildXL.Cache.Host.Configuration
 
         [DataMember]
         public RetryPolicyConfiguration BlobMasterElectionRetryPolicy { get; set; }
-
-        /// <summary>
-        /// Gets whether independent master election is enabled which performs master election
-        /// on a timer loop independent of LLS heartbeat
-        /// </summary>
-        [DataMember]
-        public bool EnableIndependentBackgroundMasterElection { get; set; } = false;
 
         #endregion
 

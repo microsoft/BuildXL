@@ -190,10 +190,10 @@ namespace BuildXL.Utilities.PackedTable
                 {
                     bool isMatch = matches[i].matchType switch
                     {
-                        MatchType.Contains => MemoryExtensions.Contains(atom, matches[i].toMatch.AsSpan(), StringComparison.InvariantCultureIgnoreCase),
-                        MatchType.StartsWith => MemoryExtensions.StartsWith(atom, matches[i].toMatch.AsSpan(), StringComparison.InvariantCultureIgnoreCase),
-                        MatchType.EndsWith => MemoryExtensions.EndsWith(atom, matches[i].toMatch.AsSpan(), StringComparison.InvariantCultureIgnoreCase),
-                        MatchType.Equals => MemoryExtensions.Equals(atom, matches[i].toMatch.AsSpan(), StringComparison.InvariantCultureIgnoreCase),
+                        MatchType.Contains => System.MemoryExtensions.Contains(atom, matches[i].toMatch.AsSpan(), StringComparison.InvariantCultureIgnoreCase),
+                        MatchType.StartsWith => System.MemoryExtensions.StartsWith(atom, matches[i].toMatch.AsSpan(), StringComparison.InvariantCultureIgnoreCase),
+                        MatchType.EndsWith => System.MemoryExtensions.EndsWith(atom, matches[i].toMatch.AsSpan(), StringComparison.InvariantCultureIgnoreCase),
+                        MatchType.Equals => System.MemoryExtensions.Equals(atom, matches[i].toMatch.AsSpan(), StringComparison.InvariantCultureIgnoreCase),
                         _ => throw new InvalidOperationException($"Unknown MatchType {matches[i].Item1}"),
                     };
                     if (isMatch)

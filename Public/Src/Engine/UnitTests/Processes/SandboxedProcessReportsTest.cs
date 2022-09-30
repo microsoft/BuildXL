@@ -8,6 +8,9 @@ using BuildXL.Processes;
 using BuildXL.Native.IO;
 using BuildXL.Utilities;
 using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace Test.BuildXL.Processes
 {
@@ -25,6 +28,55 @@ namespace Test.BuildXL.Processes
             var ok = FileAccessReportLine.TryParse(ref line, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out string error);
             XAssert.IsTrue(ok, error);
         }
+
+        [Fact]
+        public void TestRealCase()
+        {
+            var line = @"GetFileAttributes:15b8|453|0|4|1|1|3|ffffffffffffffff|80000000|1|3|8100000|ffffffff|1000c868|D:\a\_work\1\s\Out\Objects\nuget\Microsoft.Net.Compilers.4.0.1\tools\en\AsyncFixer.resources.dll|";
+            var ok = FileAccessReportLine.TryParse(ref line, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out string error);
+            XAssert.IsTrue(ok, error);
+        }
+        
+        [Fact]
+        public void ParseWithInvalidStatus()
+        {
+            // The status (the fifth element) is invalid here.
+            var line = "Process:1|2|3|0|10|1|1|1|1|1|1|1|1|1|1";
+            var ok = FileAccessReportLine.TryParse(ref line, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out string error);
+            XAssert.IsFalse(ok, error);
+        }
+        
+        [Fact]
+        public void ParseWithInvalidRequestAccess()
+        {
+            // The status (the fifth element) is invalid here.
+            var line = "Process:1|2|3|12312|1|1|1|1|1|1|1|1|1|1|1";
+            var ok = FileAccessReportLine.TryParse(ref line, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out string error);
+            XAssert.IsFalse(ok, error);
+        }
+        
+        [Fact]
+        public void Test14ItemsShouldNotCrash()
+        {
+            // There was a bug in the old implementation that was causing IndexOutOfRange error on the input with exactly 14 elements.
+            // (the min number of items is 15).
+            var line = "Process:1|1|0|0|1|1|1|1|1|1|1|1|1|1";
+            var ok = FileAccessReportLine.TryParse(ref line, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out string error);
+            XAssert.IsFalse(ok);
+            XAssert.IsNotNull(error);
+        }
+        
+        [Theory]
+        [MemberData(nameof(InsufficientItemsSource))]
+        public void ParseFailsWithLackOfData(int items)
+        {
+            var line = $"Process:{string.Join("|", Enumerable.Range(1, items))}";
+            var ok = FileAccessReportLine.TryParse(ref line, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out string error);
+            XAssert.IsFalse(ok);
+            XAssert.IsNotNull(error);
+        }
+
+        public static IEnumerable<object[]> InsufficientItemsSource => Enumerable.Range(0, 15).Select(x => new object[] {x});
 
         [Fact]
         public void AugmentedFileAccessReportLineRountrip()

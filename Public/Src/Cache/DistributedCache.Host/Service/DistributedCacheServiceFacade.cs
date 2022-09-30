@@ -272,10 +272,7 @@ namespace BuildXL.Cache.Host.Service
 
         private static void InitializeActivityTrackerIfNeeded(Context context, DistributedContentSettings settings)
         {
-            if (settings.EnableCacheActivityTracker)
-            {
-                CacheActivityTracker.Start(context, SystemClock.Instance, settings.TrackingActivityWindow, settings.TrackingSnapshotPeriod, settings.TrackingReportPeriod);
-            }
+            CacheActivityTracker.Start(context, SystemClock.Instance, settings.TrackingActivityWindow, settings.TrackingSnapshotPeriod, settings.TrackingReportPeriod);
         }
 
         private class DistributedCacheServiceHostBasedLifetimeManager : ILifetimeManager

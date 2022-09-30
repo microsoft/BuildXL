@@ -962,13 +962,10 @@ namespace BuildXL.Cache.Host.Configuration
         public bool TouchContentHashLists { get; set; }
 
         [DataMember]
-        public bool EnableCacheActivityTracker { get; set; }
-
-        [DataMember]
         public TimeSpan TrackingActivityWindow { get; set; } = TimeSpan.FromMinutes(1);
 
         [DataMember]
-        public TimeSpan TrackingSnapshotPeriod { get; set; } = TimeSpan.FromSeconds(30);
+        public TimeSpan TrackingSnapshotPeriod { get; set; } = TimeSpan.FromSeconds(10);
 
         [DataMember]
         public TimeSpan TrackingReportPeriod { get; set; } = TimeSpan.FromSeconds(30);

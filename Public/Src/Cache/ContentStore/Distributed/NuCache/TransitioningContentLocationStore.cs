@@ -79,12 +79,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 if (LocalLocationStore.ClusterState.TryResolveMachineId(LocalMachineLocation, out var localMachineId))
                 {
                     LocalMachineId = localMachineId;
-                    if (_configuration.ReconcileMode == ReconciliationMode.Once)
-                    {
-                        await ReconcileAfterInitializationAsync(context)
-                            .FireAndForgetOrInlineAsync(context, _configuration.InlinePostInitialization)
-                            .ThrowIfFailure();
-                    }
                 }
                 else if (_configuration.DistributedContentConsumerOnly)
                 {
@@ -99,31 +93,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
 
             return success;
-        }
-
-        private async Task<BoolResult> ReconcileAfterInitializationAsync(OperationContext context)
-        {
-            context = context.CreateNested(nameof(TransitioningContentLocationStore));
-
-            await Task.Yield();
-
-            await LocalLocationStore.EnsureInitializedAsync().ThrowIfFailure();
-
-            return await ReconcileAsync(context);
-        }
-
-        /// <summary>
-        /// Triggers reconciliation process between local content store and LLS.
-        /// </summary>
-        public Task<ReconciliationResult> ReconcileAsync(OperationContext context, bool force = false)
-        {
-            if (force)
-            {
-                // Need to invalidate reconciliation state to prevent skipping when reconcile is true.
-                LocalLocationStore.MarkReconciled(LocalMachineId, reconciled: false);
-            }
-
-            return LocalLocationStore.ReconcileAsync(context, LocalMachineId, LocalContentStore);
         }
 
         /// <inheritdoc />

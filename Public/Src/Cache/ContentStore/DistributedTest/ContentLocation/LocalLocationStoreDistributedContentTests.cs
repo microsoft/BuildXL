@@ -2,7 +2,6 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -18,7 +17,6 @@ using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Distributed;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
-using BuildXL.Cache.ContentStore.Interfaces.Secrets;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
@@ -32,19 +30,14 @@ using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.Host.Service.Internal;
 using BuildXL.Utilities.Collections;
-using BuildXL.Cache.ContentStore.Utils;
-using BuildXL.Cache.Host.Configuration;
 using BuildXL.Utilities.Tracing;
 using ContentStoreTest.Distributed.ContentLocation;
 using ContentStoreTest.Distributed.Redis;
 using FluentAssertions;
-using Microsoft.WindowsAzure.Storage;
-using Microsoft.WindowsAzure.Storage.Auth;
 using Xunit;
 using Xunit.Abstractions;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 using OperationContext = BuildXL.Cache.ContentStore.Tracing.Internal.OperationContext;
-using System.Diagnostics;
 
 namespace ContentStoreTest.Distributed.Sessions
 {
@@ -620,44 +613,6 @@ namespace ContentStoreTest.Distributed.Sessions
         }
 
         [Fact]
-        public Task LocalLocationStoreRedundantReconcileTest()
-        {
-            ConfigureWithOneMaster();
-
-            return RunTestAsync(
-                2,
-                async context =>
-                {
-                    var worker = context.GetFirstWorker();
-
-                    worker.LocalLocationStore.IsReconcileUpToDate(worker.LocalMachineId).Should().BeFalse();
-
-                    await worker.ReconcileAsync(context).ThrowIfFailure();
-
-                    var result = await worker.ReconcileAsync(context).ThrowIfFailure();
-                    result.Value.totalLocalContentCount.Should().Be(-1, "Amount of local content should be unknown because reconcile is skipped");
-
-                    worker.LocalLocationStore.IsReconcileUpToDate(worker.LocalMachineId).Should().BeTrue();
-
-                    TestClock.UtcNow += LocalLocationStoreConfiguration.DefaultLocationEntryExpiry.Multiply(0.5);
-
-                    worker.LocalLocationStore.IsReconcileUpToDate(worker.LocalMachineId).Should().BeTrue();
-
-                    TestClock.UtcNow += LocalLocationStoreConfiguration.DefaultLocationEntryExpiry.Multiply(0.5);
-
-                    worker.LocalLocationStore.IsReconcileUpToDate(worker.LocalMachineId).Should().BeFalse();
-
-                    worker.LocalLocationStore.MarkReconciled(worker.LocalMachineId);
-
-                    worker.LocalLocationStore.IsReconcileUpToDate(worker.LocalMachineId).Should().BeTrue();
-
-                    worker.LocalLocationStore.MarkReconciled(worker.LocalMachineId, reconciled: false);
-
-                    worker.LocalLocationStore.IsReconcileUpToDate(worker.LocalMachineId).Should().BeFalse();
-                });
-        }
-
-        [Fact]
         public Task LocalLocationStoreDistributedEvictionTest()
         {
             UseGrpcServer = true;
@@ -787,8 +742,6 @@ namespace ContentStoreTest.Distributed.Sessions
         [Fact]
         public Task TestEvictionBelowMinimumAge()
         {
-            ConfigureWithOneMaster(s => s.ReconcileMode = ReconciliationMode.Once.ToString());
-
             return RunTestAsync(
                 storeCount: 1,
                 testFunc: async context =>
@@ -1132,7 +1085,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 );
 
                 var cycles = await ReconcileAndGetNumberOfReconciliationCycles(removeCount: 100, addCount: 10);
-                cycles.Should().Be(1);
+                cycles.Should().Be(15);
             }
             finally
             {
@@ -1152,16 +1105,16 @@ namespace ContentStoreTest.Distributed.Sessions
                 );
 
             var cycles = await ReconcileAndGetNumberOfReconciliationCycles(removeCount: 100, addCount: 10);
-            cycles.Should().Be(3);
+            cycles.Should().Be(15);
         }
 
         [Theory]
-        [InlineData(1000 - 1, 0, 0.5)]
+        [InlineData(1000 - 1, 0, 0.5, 1)]
         // -1 is needed for the next cases because reconciliation stppps only when the number of hashes is less then the limit
         // i.e. reconciling 1000 hashes with the cycle size of 1000 requires 2 cycles.
-        [InlineData(1000 - 4 - 1, 4, 0.5)]
-        [InlineData(1000 - 100 - 1, 100, 30)]
-        public async Task TestReconciliationCausedByReimage(int removeContent, int addContent, double maxRemoveToAddPercentage)
+        [InlineData(1000 - 4 - 1, 4, 0.5, 15)]
+        [InlineData(1000 - 100 - 1, 100, 30, 15)]
+        public async Task TestReconciliationCausedByReimage(int removeContent, int addContent, double maxRemoveToAddPercentage, long expectedCycles)
         {
             // Covering the case where due to a way bigger number of removals caused by machine re-imaging
             // the reconciliation is still done in one cycle.
@@ -1173,7 +1126,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 );
 
             var cycles = await ReconcileAndGetNumberOfReconciliationCycles(removeContent, addContent);
-            cycles.Should().Be(1);
+            cycles.Should().Be(expectedCycles);
         }
 
         [Fact]
@@ -1207,7 +1160,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
             // Need 2 cycles, because we allow only 5 removals to consider the reconciliation be caused by re-imaging.
             var cycles = await ReconcileAndGetNumberOfReconciliationCycles(removeCount: 10000 - 10, addCount: 9);
-            cycles.Should().Be(1);
+            cycles.Should().Be(15);
         }
 
         [Fact]
@@ -1215,7 +1168,7 @@ namespace ContentStoreTest.Distributed.Sessions
         {
             ConfigureReconciliationPerCheckpoint(addLimit: 100, removeLimit: 100);
 
-            var cycles = await ReconcileAndGetNumberOfReconciliationCycles(removeCount: 100, addCount: 100, reconcilePerCheckpoint: true);
+            var cycles = await ReconcileAndGetNumberOfReconciliationCycles(removeCount: 100, addCount: 100);
             cycles.Should().Be(1);
         }
 
@@ -1225,7 +1178,7 @@ namespace ContentStoreTest.Distributed.Sessions
             ConfigureReconciliationPerCheckpoint(addLimit: 100, removeLimit: 100);
 
             // add/remove counts must be greater than the limits to trigger multiple cycles
-            var cycles = await ReconcileAndGetNumberOfReconciliationCycles(removeCount: 300, addCount: 200, reconcilePerCheckpoint: true);
+            var cycles = await ReconcileAndGetNumberOfReconciliationCycles(removeCount: 300, addCount: 200);
 
             // Each cycle we can add/remove up to the add/remove limits, so we need 3 cycles for 300 removes.
             // We finish the adds in the first 2 cycles.
@@ -1238,7 +1191,7 @@ namespace ContentStoreTest.Distributed.Sessions
             ConfigureReconciliationPerCheckpoint(addLimit: 100, removeLimit: 100);
 
             // add/remove counts must be greater than the limits to trigger multiple cycles
-            var cycles = await ReconcileAndGetNumberOfReconciliationCycles(removeCount: 300, addCount: 0, reconcilePerCheckpoint: true);
+            var cycles = await ReconcileAndGetNumberOfReconciliationCycles(removeCount: 300, addCount: 0);
 
             // Each cycle we can add/remove up to the add/remove limits, so we need 3 cycles for 300 removes.
             cycles.Should().Be(3);
@@ -1250,7 +1203,7 @@ namespace ContentStoreTest.Distributed.Sessions
             ConfigureReconciliationPerCheckpoint(addLimit: 100, removeLimit: 100);
 
             // add/remove counts must be greater than the limits to trigger multiple cycles
-            var cycles = await ReconcileAndGetNumberOfReconciliationCycles(removeCount: 0, addCount: 0, reconcilePerCheckpoint: true);
+            var cycles = await ReconcileAndGetNumberOfReconciliationCycles(removeCount: 0, addCount: 0);
 
             // Each cycle we can add/remove up to the add/remove limits, so we need 3 cycles for 300 removes.
             // We finish the adds in the first 2 cycles.
@@ -1293,7 +1246,7 @@ namespace ContentStoreTest.Distributed.Sessions
                                    {
                                        s.LogReconciliationHashes = true;
                                        s.UseContextualEntryDatabaseOperationLogging = true;
-                                       s.ReconcileMode = ReconciliationMode.Once.ToString();
+                                       s.ReconcileMode = ReconciliationMode.Checkpoint.ToString();
                                        s.ReconciliationMaxCycleSize = reconciliationMaxCycleSize;
                                        s.ReconciliationMaxRemoveHashesCycleSize = reconciliationMaxRemoveHashesCycleSize;
                                        s.ReconciliationMaxRemoveHashesAddPercentage = reconciliationMaxRemoveHashesAddPercentage;
@@ -1301,8 +1254,6 @@ namespace ContentStoreTest.Distributed.Sessions
                                    },
                 r =>
                 {
-                    r.AllowSkipReconciliation = false;
-
                     if (reconciliationCycleFrequencyMinutes == null)
                     {
                         // Verify that configuration propagated and change it to 1ms rather than 1 minute
@@ -1326,13 +1277,12 @@ namespace ContentStoreTest.Distributed.Sessions
                 s.ReconcileHashesLogLimit = 10;
                 s.MaxProcessingDelayToReconcileMinutes = processingDelayLimitMinutes;
             },
-                r =>
-                {
-                    r.AllowSkipReconciliation = false;
-                });
+            r =>
+            {
+            });
         }
 
-        private async Task<long> ReconcileAndGetNumberOfReconciliationCycles(int removeCount, int addCount, bool reconcilePerCheckpoint = false)
+        private async Task<long> ReconcileAndGetNumberOfReconciliationCycles(int removeCount, int addCount)
         {
             ThreadSafeRandom.SetSeed(1);
 
@@ -1352,7 +1302,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
                     // We will always have exactly one reconciliation call as we start up. Since we don't have any
                     // content, it should do a single cycle.
-                    var initialReconciliationCycles = reconcilePerCheckpoint ? worker.LocalLocationStore.Counters[ContentLocationStoreCounters.Reconcile].Value : worker.LocalLocationStore.Counters[ContentLocationStoreCounters.ReconciliationCycles].Value;
+                    var initialReconciliationCycles = worker.LocalLocationStore.Counters[ContentLocationStoreCounters.Reconcile].Value;
 
                     var workerSession = context.Sessions[context.GetFirstWorkerIndex()];
 
@@ -1384,22 +1334,15 @@ namespace ContentStoreTest.Distributed.Sessions
                             .BeFalse();
                     }
 
-                    if (reconcilePerCheckpoint)
+                    if (removeCount == 0 && addCount == 0)
                     {
-                        if (removeCount == 0 && addCount == 0)
-                        {
-                            await UploadCheckpointOnMasterAndRestoreOnWorkers(context, reconcile: false);
-                        }
-
-                        while (worker.LocalLocationStore.Counters[ContentLocationStoreCounters.Reconcile_AddedContent].Value < addCount ||
-                               worker.LocalLocationStore.Counters[ContentLocationStoreCounters.Reconcile_RemovedContent].Value < removeCount)
-                        {
-                            await UploadCheckpointOnMasterAndRestoreOnWorkers(context, reconcile: false);
-                        }
+                        await UploadCheckpointOnMasterAndRestoreOnWorkers(context);
                     }
-                    else
+
+                    while (worker.LocalLocationStore.Counters[ContentLocationStoreCounters.Reconcile_AddedContent].Value < addCount ||
+                           worker.LocalLocationStore.Counters[ContentLocationStoreCounters.Reconcile_RemovedContent].Value < removeCount)
                     {
-                        await UploadCheckpointOnMasterAndRestoreOnWorkers(context, reconcile: true);
+                        await UploadCheckpointOnMasterAndRestoreOnWorkers(context);
                     }
 
                     int removedIndex = 0;
@@ -1416,7 +1359,7 @@ namespace ContentStoreTest.Distributed.Sessions
                             .BeTrue(addedHash.ToString());
                     }
 
-                    var finalCycles = reconcilePerCheckpoint ? worker.LocalLocationStore.Counters[ContentLocationStoreCounters.Reconcile].Value : worker.LocalLocationStore.Counters[ContentLocationStoreCounters.ReconciliationCycles].Value;
+                    var finalCycles = worker.LocalLocationStore.Counters[ContentLocationStoreCounters.Reconcile].Value;
                     numberOfCycles = finalCycles - initialReconciliationCycles;
                 });
 
@@ -2973,7 +2916,6 @@ namespace ContentStoreTest.Distributed.Sessions
                     state.Should().Be(MachineState.Open);
 
                     // Once the worker finishes reconciliation and heartbeats, the machine should be open
-                    await worker.ReconcileAsync(ctx, force: false).ShouldBeSuccess();
                     await worker.LocalLocationStore.HeartbeatAsync(ctx, inline: true).ShouldBeSuccess();
                     state = (await lls.SetOrGetMachineStateAsync(ctx, MachineState.Unknown).ShouldBeSuccess()).Value;
                     state.Should().Be(MachineState.Open);
@@ -3019,7 +2961,6 @@ namespace ContentStoreTest.Distributed.Sessions
                     var ctx = new OperationContext(context);
 
                     // Ensure initialization finishes on the worker
-                    await worker.ReconcileAsync(ctx, force: false).ShouldBeSuccess();
                     await worker.LocalLocationStore.HeartbeatAsync(ctx, inline: true).ShouldBeSuccess();
 
                     var workerPrimaryMachineId = worker.LocalLocationStore.ClusterState.PrimaryMachineId;
@@ -3068,7 +3009,6 @@ namespace ContentStoreTest.Distributed.Sessions
                     }
 
                     // Ensure initialization finishes on the worker, setting state to active
-                    await worker.ReconcileAsync(ctx, force: true).ShouldBeSuccess();
                     await worker.LocalLocationStore.HeartbeatAsync(ctx, inline: true).ShouldBeSuccess();
 
                     var workerState = (await worker.LocalLocationStore.SetOrGetMachineStateAsync(ctx, MachineState.Unknown)).ShouldBeSuccess().Value;
@@ -3115,7 +3055,6 @@ namespace ContentStoreTest.Distributed.Sessions
                     }
 
                     // Ensure initialization finishes on the worker, setting state to active
-                    await worker.ReconcileAsync(ctx, force: true).ShouldBeSuccess();
                     await worker.LocalLocationStore.HeartbeatAsync(ctx, inline: true).ShouldBeSuccess();
 
                     var workerState = (await worker.LocalLocationStore.SetOrGetMachineStateAsync(ctx, MachineState.Unknown)).ShouldBeSuccess().Value;

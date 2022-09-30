@@ -562,7 +562,7 @@ namespace BuildXL.Cache.Host.Configuration
 
         [DataMember]
         [Validation.Enum(typeof(ReconciliationMode))]
-        public string ReconcileMode { get; set; } = ReconciliationMode.Once.ToString();
+        public string ReconcileMode { get; set; } = ReconciliationMode.Checkpoint.ToString();
 
         [DataMember]
         [Validation.Range(1, int.MaxValue)]

@@ -17,11 +17,6 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Distributed
         None,
 
         /// <summary>
-        /// Reconcile once during startup
-        /// </summary>
-        Once,
-
-        /// <summary>
         /// Reconcile after every restore checkpoint
         /// </summary>
         Checkpoint,

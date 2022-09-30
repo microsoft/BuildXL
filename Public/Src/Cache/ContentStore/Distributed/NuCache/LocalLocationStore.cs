@@ -237,52 +237,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             _localContentStore = localContentStore;
         }
 
-        /// <summary>
-        /// Checks whether the reconciliation for the store is up to date
-        /// </summary>
-        public bool IsReconcileUpToDate(MachineId machineId)
-        {
-            if (!File.Exists(GetReconcileFilePath(machineId)))
-            {
-                return false;
-            }
-
-            var contents = File.ReadAllText(GetReconcileFilePath(machineId));
-            var parts = contents.Split('|');
-            if (parts.Length != 2 || parts[0] != Configuration.GetCheckpointPrefix())
-            {
-                return false;
-            }
-
-            var reconcileTime = DateTimeUtilities.FromReadableTimestamp(parts[1]);
-            if (reconcileTime == null)
-            {
-                return false;
-            }
-
-            return reconcileTime.Value.IsRecent(_clock.UtcNow, Configuration.LocationEntryExpiry.Multiply(0.75));
-        }
-
-        /// <summary>
-        /// Marks reconciliation for the store is up to date with the current time stamp
-        /// </summary>
-        public void MarkReconciled(MachineId machineId, bool reconciled = true)
-        {
-            if (reconciled)
-            {
-                File.WriteAllText(GetReconcileFilePath(machineId), $"{Configuration.GetCheckpointPrefix()}|{_clock.UtcNow.ToReadableString()}");
-            }
-            else
-            {
-                FileUtilities.DeleteFile(GetReconcileFilePath(machineId));
-            }
-        }
-
-        private string GetReconcileFilePath(MachineId machineId)
-        {
-            return (Configuration.Checkpoint.WorkingDirectory / $"reconcileMarker.{machineId.Index}.txt").Path;
-        }
-
         private ContentLocationEventStore CreateEventStore(LocalLocationStoreConfiguration configuration, string subfolder)
         {
             return ContentLocationEventStore.Create(
@@ -1781,235 +1735,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     traceErrorsOnly: true);
         }
 
-        private enum ReconciliationCycleCounters
-        {
-            Limit,
-            Adds,
-            Deletes,
-        }
-
-        /// <summary>
-        /// Forces reconciliation process between local content store and LLS.
-        /// </summary>
-        public async Task<ReconciliationResult> ReconcileAsync(OperationContext context, MachineId machineId, ILocalContentStore? localContentStore)
-        {
-            var token = context.Token;
-            var postInitializationResult = await EnsureInitializedAsync();
-            if (!postInitializationResult)
-            {
-                return new ReconciliationResult(postInitializationResult);
-            }
-
-            var result = await context.PerformOperationAsync(
-                Tracer,
-                async () =>
-                {
-                    if (localContentStore == null)
-                    {
-                        return new ReconciliationResult(new ErrorResult("Local content store is not provided"));
-                    }
-
-                    if (Configuration.DistributedContentConsumerOnly || (Configuration.AllowSkipReconciliation && IsReconcileUpToDate(machineId)))
-                    {
-                        return new ReconciliationResult(addedCount: 0, removedCount: 0, totalLocalContentCount: -1);
-                    }
-
-                    token.ThrowIfCancellationRequested();
-
-                    var cycleGuid = Guid.NewGuid();
-
-                    var totalAddedContent = 0;
-                    var totalRemovedContent = 0;
-                    var allLocalStoreContentCount = 0;
-                    ShortHash? lastProcessedHash = null;
-                    var isFinished = false;
-
-                    int iteration = 0;
-                    for (iteration = 0; !isFinished; iteration++)
-                    {
-                        var delayTask = Task.Delay(Configuration.ReconciliationCycleFrequency, token);
-
-                        await context.PerformOperationAsync(
-                            Tracer,
-                            operation: performReconciliationCycleAsync,
-                            caller: "PerformReconciliationCycleAsync",
-                            counter: Counters[ContentLocationStoreCounters.ReconciliationCycles],
-                            extraEndMessage: r =>
-                            {
-                                if (!r.Succeeded)
-                                {
-                                    return string.Empty;
-                                }
-
-                                var counter = r.Value;
-                                return $"Limit=[{counter[ReconciliationCycleCounters.Limit].Value}] Adds=[{counter[ReconciliationCycleCounters.Adds].Value}] Deletes=[{counter[ReconciliationCycleCounters.Deletes].Value}]";
-                            }).ThrowIfFailure();
-
-                        if (!isFinished)
-                        {
-                            await delayTask;
-                        }
-                    }
-
-                    // Need to ensure we don't mark the reconcile as complete if canceled (i.e. during shutdown). Cancellation will
-                    // terminate db enumeration without throwing so we need to check explicitly here so we don't think the operation
-                    // finished enumerating the db.
-                    token.ThrowIfCancellationRequested();
-                    MarkReconciled(machineId);
-
-                    return new ReconciliationResult(addedCount: totalAddedContent, removedCount: totalRemovedContent, totalLocalContentCount: allLocalStoreContentCount);
-
-                    async Task<Result<CounterCollection<ReconciliationCycleCounters>>> performReconciliationCycleAsync()
-                    {
-                        // Pause events in main event store while sending reconciliation events via temporary event store
-                        // to ensure reconciliation does cause some content to be lost due to apply reconciliation changes
-                        // in the wrong order. For instance, if a machine has content [A] and [A] is removed during reconciliation.
-                        // It is possible that remove event could be sent before reconciliation event and the final state
-                        // in the database would still have missing content [A].
-                        using (EventStore.PauseSendingEvents())
-                        {
-                            var allLocalStoreContentInfos = await localContentStore.GetContentInfoAsync(token);
-                            token.ThrowIfCancellationRequested();
-
-                            var allLocalStoreContent = allLocalStoreContentInfos
-                                .Select(c => (hash: new ShortHash(c.ContentHash), size: c.Size))
-                                .OrderBy(c => c.hash)
-                                .SkipWhile(hashWithSize => lastProcessedHash.HasValue && hashWithSize.hash < lastProcessedHash.Value)
-                                .ToList();
-
-                            allLocalStoreContentCount = allLocalStoreContent.Count;
-
-                            var dbContent = Database.EnumerateSortedHashesWithContentSizeForMachineId(context, machineId, startingPoint: lastProcessedHash);
-                            token.ThrowIfCancellationRequested();
-
-                            // Diff the two views of the local machines content (left = local store, right = content location db)
-                            // Then send changes as events
-                            var diffedContent = NuCacheCollectionUtilities.DistinctDiffSorted(leftItems: allLocalStoreContent, rightItems: dbContent, t => t.hash);
-
-                            var addedContent = new List<ShortHashWithSize>();
-                            var removedContent = new List<ShortHash>();
-
-                            var removalsOnlyLimit = Configuration.ReconciliationMaxRemoveHashesCycleSize ?? Configuration.ReconciliationMaxCycleSize;
-                            var maximumAddsOnRemoveBatch = (removalsOnlyLimit * (Configuration.ReconciliationMaxRemoveHashesAddPercentage ?? 0)) / 100;
-
-                            var limit = Configuration.ReconciliationMaxCycleSize;
-                            var limitThreshold = Math.Min(limit, removalsOnlyLimit);
-                            foreach (var diffItem in diffedContent)
-                            {
-                                if (addedContent.Count + removedContent.Count >= limit)
-                                {
-                                    break;
-                                }
-
-                                if (diffItem.mode == MergeMode.LeftOnly)
-                                {
-                                    // Content is not in DB but is in the local store need to send add event
-                                    addedContent.Add(new ShortHashWithSize(diffItem.item.hash, diffItem.item.size));
-                                }
-                                else
-                                {
-                                    // Content is in DB but is not local store need to send remove event
-                                    removedContent.Add(diffItem.item.hash);
-                                }
-
-                                // Potentially adjusting the limit of the cycle size once we reached the limit threshold.
-                                if (addedContent.Count + removedContent.Count >= limitThreshold)
-                                {
-                                    // Using normal (lower) limit if the number of adds exceeds the threshold.
-                                    // Or using a "re-imaging" (higher) limit otherwise.
-                                    if (addedContent.Count >= maximumAddsOnRemoveBatch)
-                                    {
-                                        limit = Configuration.ReconciliationMaxCycleSize;
-                                    }
-                                    else
-                                    {
-                                        limit = removalsOnlyLimit;
-                                    }
-                                }
-
-                                lastProcessedHash = diffItem.item.hash;
-                            }
-
-                            Counters[ContentLocationStoreCounters.Reconcile_AddedContent].Add(addedContent.Count);
-                            Counters[ContentLocationStoreCounters.Reconcile_RemovedContent].Add(removedContent.Count);
-                            totalAddedContent += addedContent.Count;
-                            totalRemovedContent += removedContent.Count;
-
-                            // Only call reconcile if content needs to be updated for machine
-                            if (addedContent.Count != 0 || removedContent.Count != 0)
-                            {
-                                await SendReconciliationEventsAsync(
-                                    context,
-                                    suffix: $".{cycleGuid}.iter{iteration}",
-                                    machineId: machineId,
-                                    addedContent: addedContent,
-                                    removedContent: removedContent);
-                            }
-
-                            // Corner case where they are equal and we have finished should be very unlikely.
-                            isFinished = (addedContent.Count + removedContent.Count) < limit;
-
-                            var counters = new CounterCollection<ReconciliationCycleCounters>();
-                            counters[ReconciliationCycleCounters.Limit].Add(limit);
-                            counters[ReconciliationCycleCounters.Adds].Add(addedContent.Count);
-                            counters[ReconciliationCycleCounters.Deletes].Add(removedContent.Count);
-                            return counters;
-                        }
-                    }
-                },
-                Counters[ContentLocationStoreCounters.Reconcile]);
-
-            if (result.Succeeded)
-            {
-                await SetOrGetMachineStateAsync(context, MachineState.Open).IgnoreFailure();
-            }
-
-            return result;
-        }
-
-        private async Task SendReconciliationEventsAsync(
-            OperationContext context,
-            string suffix,
-            MachineId machineId,
-            List<ShortHashWithSize> addedContent,
-            List<ShortHash> removedContent)
-        {
-            // Create separate event store for reconciliation events so they are dispatched first before
-            // events in normal event store which may be queued during reconciliation operation.
-
-            // Setting 'FailWhenSendEventsFails' to true, to fail reconciliation if we fail to send the events to event hub.
-            // In this case 'ShutdownEventQueueAndWaitForCompletionAsync' will propagate an exception from a failed SendEventsAsync method.
-            var reconciliationStoreConfiguration = Configuration with { EventStore = Configuration.EventStore with { FailWhenSendEventsFails = true } };
-            var reconciliationEventStore = CreateEventStore(reconciliationStoreConfiguration, subfolder: "reconcile");
-
-            try
-            {
-                await reconciliationEventStore.StartupAsync(context).ThrowIfFailure();
-
-                await reconciliationEventStore.ReconcileAsync(
-                    context,
-                    machineId,
-                    addedContent,
-                    removedContent,
-                    suffix).ThrowIfFailure();
-
-                if (Configuration.LogReconciliationHashes)
-                {
-                    LogContentLocationOperations(
-                        context,
-                        Tracer.Name,
-                        addedContent.Select(s => (s.Hash, EntryOperation.AddMachine, OperationReason.Reconcile))
-                            .Concat(removedContent.Select(s => (s, EntryOperation.RemoveMachine, OperationReason.Reconcile))));
-                }
-
-                // It is very important to wait till all the messages are sent before shutting down the store!
-                await reconciliationEventStore.ShutdownEventQueueAndWaitForCompletionAsync();
-            }
-            finally
-            {
-                await reconciliationEventStore.ShutdownAsync(context).ThrowIfFailure();
-            }
-        }
+        #region Reconciliation
 
         /// <summary>
         /// Forces reconciliation process between local content store and LLS.
@@ -2315,6 +2041,50 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
         }
 
+        private async Task SendReconciliationEventsAsync(
+            OperationContext context,
+            string suffix,
+            MachineId machineId,
+            List<ShortHashWithSize> addedContent,
+            List<ShortHash> removedContent)
+        {
+            // Create separate event store for reconciliation events so they are dispatched first before
+            // events in normal event store which may be queued during reconciliation operation.
+
+            // Setting 'FailWhenSendEventsFails' to true, to fail reconciliation if we fail to send the events to event hub.
+            // In this case 'ShutdownEventQueueAndWaitForCompletionAsync' will propagate an exception from a failed SendEventsAsync method.
+            var reconciliationStoreConfiguration = Configuration with { EventStore = Configuration.EventStore with { FailWhenSendEventsFails = true } };
+            var reconciliationEventStore = CreateEventStore(reconciliationStoreConfiguration, subfolder: "reconcile");
+
+            try
+            {
+                await reconciliationEventStore.StartupAsync(context).ThrowIfFailure();
+
+                await reconciliationEventStore.ReconcileAsync(
+                    context,
+                    machineId,
+                    addedContent,
+                    removedContent,
+                    suffix).ThrowIfFailure();
+
+                if (Configuration.LogReconciliationHashes)
+                {
+                    LogContentLocationOperations(
+                        context,
+                        Tracer.Name,
+                        addedContent.Select(s => (s.Hash, EntryOperation.AddMachine, OperationReason.Reconcile))
+                            .Concat(removedContent.Select(s => (s, EntryOperation.RemoveMachine, OperationReason.Reconcile))));
+                }
+
+                // It is very important to wait till all the messages are sent before shutting down the store!
+                await reconciliationEventStore.ShutdownEventQueueAndWaitForCompletionAsync();
+            }
+            finally
+            {
+                await reconciliationEventStore.ShutdownAsync(context).ThrowIfFailure();
+            }
+        }
+
         private bool AddToRecentReconcileAdds(ShortHash hash, TimeSpan timeToLive)
         {
             _reconcileRemoveRecents.Invalidate(hash);
@@ -2327,6 +2097,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return _reconcileRemoveRecents.Add(hash, timeToLive);
         }
 
+        #endregion Reconciliation
+
         /// <nodoc />
         public Task<BoolResult> InvalidateLocalMachineAsync(OperationContext context, MachineId machineId)
         {
@@ -2334,9 +2106,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 Tracer,
                 async () =>
                 {
-                    // Unmark reconcile since the machine is invalidated
-                    MarkReconciled(machineId, reconciled: false);
-
                     // TODO: Setting machine state to DeadUnavailable is too aggressive as the machine may not shutdown immediately.
                     // Instead we need to mark the machine as untrusted.
                     await SetOrGetMachineStateAsync(context, MachineState.DeadUnavailable).IgnoreFailure();

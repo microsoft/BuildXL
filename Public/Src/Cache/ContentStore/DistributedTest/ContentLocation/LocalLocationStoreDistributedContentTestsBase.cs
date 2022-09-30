@@ -380,11 +380,6 @@ namespace ContentStoreTest.Distributed.Sessions
             // Heartbeat master first to upload checkpoint
             await CreateCheckpointAsync(masterStore, context).ShouldBeSuccess();
 
-            if (reconcile)
-            {
-                await masterStore.ReconcileAsync(context, force: true).ShouldBeSuccess();
-            }
-
             if (clearStoragePrefix != null)
             {
                 await StorageProcess.ClearAsync(clearStoragePrefix);
@@ -394,11 +389,7 @@ namespace ContentStoreTest.Distributed.Sessions
             foreach (var workerStore in context.EnumerateWorkers())
             {
                 await RestoreCheckpointAsync(workerStore, context).ShouldBeSuccess();
-
-                if (reconcile)
-                {
-                    await workerStore.ReconcileAsync(context, force: true).ShouldBeSuccess();
-                }
+                // TODO: if reconcile, wait until we have completed reconciliation
             }
         }
 

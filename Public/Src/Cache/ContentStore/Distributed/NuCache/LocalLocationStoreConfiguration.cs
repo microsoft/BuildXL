@@ -204,7 +204,7 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// <remarks>
         /// Reconciliation is a very critical feature and disabling it can cause build failures because machine's state can be out of sync with LLS's data.
         /// </remarks>
-        public ReconciliationMode ReconcileMode { get; set; } = ReconciliationMode.Once;
+        public ReconciliationMode ReconcileMode { get; set; } = ReconciliationMode.Checkpoint;
 
         /// <summary>
         /// Indicates whether post-initialization steps (like reconciliation or processing state from the central store) are inlined during initialization. If false, operation is executed asynchronously and not awaited.
@@ -218,11 +218,6 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// The frequency by which reconciliation cycles should be done.
         /// </summary>
         public TimeSpan ReconciliationCycleFrequency { get; set; } = TimeSpan.FromMinutes(30);
-
-        /// <summary>
-        /// Allows skipping reconciliation if the latest reconcile is sufficiently recent.
-        /// </summary>
-        public bool AllowSkipReconciliation { get; set; } = true;
 
         /// <summary>
         /// Diagnostic purposes only (extremely verbose). Gets or sets whether to log hashes which are added/removed in reconcile events.

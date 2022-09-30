@@ -996,7 +996,7 @@ namespace ContentStoreTest.Distributed.Sessions
                             var state = (await localStore.LocalLocationStore.SetOrGetMachineStateAsync(testContext, MachineState.Unknown).ShouldBeSuccess()).Value;
                             if (state == MachineState.Closed)
                             {
-                                await localStore.ReconcileAsync(testContext, force: true).ShouldBeSuccess();
+                                // TODO: wait until reconciliation completes
                                 await localStore.LocalLocationStore.HeartbeatAsync(testContext, inline: true).ShouldBeSuccess();
                             }
                         }

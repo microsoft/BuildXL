@@ -16,14 +16,13 @@ namespace BuildXL.Cache.ContentStore.Hashing
     public class Murmur3HashAlgorithm : HashAlgorithm
     {
         private const int AlgorithmSeed = 0;
-        private const byte AlgorithmId = 1;
         private const int PagesPerBlock = 1;
         private const int PageSize = 64 * 1024;
         private const int BlockSize = PagesPerBlock * PageSize; // 1 * 64 * 1024 = 64KB
         private static readonly byte[] EmptyHashBytes = HexUtilities.HexToBytes("1E57CF2792A900D06C1CDFB3C453F35BC86F72788AA9724C96C929D1CC6B456A00");
         private readonly byte[] _buffer = new byte[BlockSize];
         private readonly byte[] _blockHashes = new byte[BlockSize];
-        private readonly byte[] finalHash = new byte[33];
+        private readonly byte[] _finalHash = new byte[33];
         private uint _currentBlockOffset;
         private uint _currentOffset;
 
@@ -45,7 +44,12 @@ namespace BuildXL.Cache.ContentStore.Hashing
                     while (cbSize > 0)
                     {
                         int bytesToCopy = (int)Math.Min(cbSize, BlockSize - _currentOffset);
-                        if (bytesToCopy < BlockSize)
+                        if (bytesToCopy == 0)
+                        {
+                            AddBlockHash(MurmurHash3.Create(_buffer, AlgorithmSeed));
+                            _currentOffset = 0;
+                        }
+                        else if (bytesToCopy < BlockSize)
                         {
                             Buffer.BlockCopy(array, ibStart, _buffer, (int)_currentOffset, bytesToCopy);
                             _currentOffset += (uint)bytesToCopy;
@@ -90,10 +94,10 @@ namespace BuildXL.Cache.ContentStore.Hashing
 
             for (int i = 0; i < 8; i++)
             {
-                finalHash[i] = _blockHashes[i];
+                _finalHash[i] = _blockHashes[i];
             }
 
-            return finalHash;
+            return _finalHash;
         }
 
         private void AddBlockHash(MurmurHash3 hash)

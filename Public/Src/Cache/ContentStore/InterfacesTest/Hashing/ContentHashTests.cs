@@ -27,6 +27,48 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
         public static IEnumerable<object[]> HashTypesWithStringLengths => HashInfoLookup.All().Distinct().Select(i => new object[] { i.HashType, i.StringLength });
 
         [Fact]
+        public void MurmurHasherShouldNotStuck()
+        {
+            // It used to be an issue with Murmur hash implementation
+            // that was causing an infinite loop when the exact 65K bytes were processed.
+            // This test hashes 1Mb one byte at a time and then compares that the hash is the same if
+            // we hash the entire data in one shot.
+            ValidateHashingByteAtATime(HashType.Murmur, 1 * 1024 * 1024);
+        }
+
+        private static void ValidateHashingByteAtATime(HashType hashType, int length)
+        {
+            var hasher = HashInfoLookup.GetContentHasher(hashType);
+
+            using var token = hasher.CreateToken();
+            var hashAlgorithm = token.Hasher;
+
+            var data = new byte[] { 42 };
+            for (int i = 0; i < length; i++)
+            {
+                hashAlgorithm.TransformBlock(data, 0, inputCount: data.Length, outputBuffer: null, outputOffset: 0);
+            }
+
+            hashAlgorithm.TransformFinalBlock(Array.Empty<byte>(), 0, 0);
+            var hash = hashAlgorithm.Hash;
+            Assert.NotNull(hash);
+
+            var hashOfOneBlock = hasher.GetContentHash(Enumerable.Range(1, length).Select(_ => (byte)42).ToArray());
+            Assert.Equal(hashOfOneBlock, new ContentHash(hashType, hash));
+        }
+
+        [Theory]
+        [MemberData(nameof(HashTypes))]
+        public void HashingByteAtATime(HashType hashType)
+        {
+            int[] inputLengths = new int[] {1, 2 << 15, (2 << 15) + 1, 2 << 20, (2 << 20) + 1};
+            foreach (var length in inputLengths)
+            {
+                ValidateHashingByteAtATime(hashType, length);
+            }
+        }
+
+        [Fact]
         public void TestGetHashCodeWithDefaultInstanceShouldNotThrow()
         {
             var hash = default(ContentHash);

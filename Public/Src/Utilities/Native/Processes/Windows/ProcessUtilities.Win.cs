@@ -434,11 +434,9 @@ namespace BuildXL.Native.Processes.Windows
         private static extern bool ExternTerminateJobObject(IntPtr hJob, int exitCode);
 
         /// <inheritdoc />
-        public bool SetupProcessDumps(string logsDirectory, out string coreDumpDirectory, out string error)
+        public bool SetupProcessDumps(string logsDirectory, out string coreDumpDirectory)
         {
             coreDumpDirectory = "Not implemented on Windows machines.";
-            error = string.Empty;
-
             return true;
         }
 

@@ -11,6 +11,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Management;
+using System.Net;
 using System.Runtime.InteropServices;
 using BuildXL.Native.IO;
 using BuildXL.Native.Processes.Windows;
@@ -21,7 +22,7 @@ namespace BuildXL.Processes
     /// <summary>
     /// Dumps processes
     /// </summary>
-    public static partial class ProcessDumper
+    public static class ProcessDumper
     {
         /// <summary>
         /// Protects calling <see cref="ProcessUtilitiesWin.MiniDumpWriteDump(IntPtr, uint, SafeHandle, uint, IntPtr, IntPtr, IntPtr)"/>, since all Windows DbgHelp functions are single threaded.
@@ -35,17 +36,12 @@ namespace BuildXL.Processes
         /// <summary>
         /// Attempts to create a process memory dump at the requested location. Any file already existing at that location will be overwritten
         /// </summary>
-        public static bool TryDumpProcess(Process process, string dumpPath, out Exception dumpCreationException, bool compress = false, Action<string> debugLogger = null)
+        public static bool TryDumpProcess(Process process, string dumpPath, out Exception dumpCreationException, bool compress = false)
         {
-            if (OperatingSystemHelper.IsMacOS)
+            if (OperatingSystemHelper.IsUnixOS)
             {
                 dumpCreationException = new PlatformNotSupportedException();
                 return false;
-            }
-
-            if (OperatingSystemHelper.IsLinuxOS)
-            {
-                return TryDumpLinuxProcess(process.Id, dumpPath, out dumpCreationException, debugLogger);
             }
 
             string processName = "Exited";
@@ -155,9 +151,9 @@ namespace BuildXL.Processes
         /// <summary>
         /// Attempts to dump all processes in a process tree. Any files existing in the dump directory will be deleted.
         /// </summary>
-        public static bool TryDumpProcessAndChildren(int parentProcessId, string dumpDirectory, out Exception primaryDumpCreationException, int maxTreeDepth = 10, Action<string> debugLogger = null)
+        public static bool TryDumpProcessAndChildren(int parentProcessId, string dumpDirectory, out Exception primaryDumpCreationException, int maxTreeDepth = 10)
         {
-            if (OperatingSystemHelper.IsMacOS)
+            if (OperatingSystemHelper.IsUnixOS)
             {
                 primaryDumpCreationException = new PlatformNotSupportedException();
                 return false;
@@ -189,7 +185,7 @@ namespace BuildXL.Processes
             }
 
             // When dumping individual processes, allow any one dump to fail and keep on processing to collect
-            // as many dumps as possible. We keep the first exception only, which is what we report
+            // as many dumps as possible
             bool success = true;
             primaryDumpCreationException = null;
             foreach (var process in processesToDump)
@@ -197,7 +193,7 @@ namespace BuildXL.Processes
                 var maybeProcess = TryGetProcesById(process.Value);
                 if (!maybeProcess.Succeeded)
                 {
-                    primaryDumpCreationException = primaryDumpCreationException ?? maybeProcess.Failure.CreateException();
+                    primaryDumpCreationException = maybeProcess.Failure.CreateException();
                     success = false;
                     continue;
                 }
@@ -214,7 +210,7 @@ namespace BuildXL.Processes
                 {
                     if (!p.HasExited)
                     {
-                        primaryDumpCreationException = primaryDumpCreationException ?? ex;
+                        primaryDumpCreationException = ex;
                         return false;
                     }
                 }
@@ -230,12 +226,12 @@ namespace BuildXL.Processes
                 }
                 
                 var dumpPath = Path.Combine(dumpDirectory, process.Key + ".dmp");
-                if (!TryDumpProcess(p, dumpPath, out var e, debugLogger: debugLogger))
+                if (!TryDumpProcess(p, dumpPath, out var e))
                 {
                     if (e != null) {
                         Contract.Assume(e != null, $"Exception should not be null on failure. Dump-path: {dumpPath}");
                     }
-                    primaryDumpCreationException = primaryDumpCreationException ?? e;
+                    primaryDumpCreationException = e;
                     success = false;
                 }
             }
@@ -274,11 +270,6 @@ namespace BuildXL.Processes
         /// <exception cref="BuildXLException">May throw a BuildXLException on failure</exception>
         internal static List<KeyValuePair<string, int>> GetProcessTreeIds(int parentProcessId, int maxTreeDepth)
         {
-            if (OperatingSystemHelper.IsLinuxOS)
-            {
-                return GetChildLinuxProcessTreeIds(parentProcessId, maxTreeDepth, isRootQuery: true);
-            }
-
             return GetChildProcessTreeIds(parentProcessId, maxTreeDepth, isRootQuery: true);
         }
 
@@ -312,11 +303,11 @@ namespace BuildXL.Processes
                                 continue;
                             }
 
-                            result.Add(GetCoreDumpName(counter, processId, processName));
+                            result.Add(new KeyValuePair<string, int>(counter.ToString(CultureInfo.InvariantCulture) + "_" + processName, processId));
 
                             foreach (var child in GetChildProcessTreeIds(processId, maxTreeDepth - 1, false))
                             {
-                                result.Add(GetCoreDumpName(counter, child.Value, child.Key));
+                                result.Add(new KeyValuePair<string, int>(counter.ToString(CultureInfo.InvariantCulture) + "_" + child.Key, child.Value));
                             }
                         }
                     }
@@ -338,8 +329,6 @@ namespace BuildXL.Processes
             }
         }
 
-        private static KeyValuePair<string, int> GetCoreDumpName(int counter, int processId, string name) => new(counter.ToString(CultureInfo.InvariantCulture) + "_" + name, processId);
-
         private static Possible<Process> TryGetProcesById(int processId)
         {
             try
@@ -348,11 +337,11 @@ namespace BuildXL.Processes
             }
             catch (InvalidOperationException ex)
             {
-                return new Failure<string>("Could not get process by id: " + ex.GetLogEventMessage());
+                return new Failure<string>("Could not get process by id: " + ex);
             }
             catch (ArgumentException ex)
             {
-                return new Failure<string>("Could not get process by id: " + ex.GetLogEventMessage());
+                return new Failure<string>("Could not get process by id: " + ex);
             }
         }
     }

@@ -486,9 +486,9 @@ namespace BuildXL
                     sendFinalStatistics: () => appLoggers.SendFinalStatistics(),
                     run: (pm) =>
                     {
-                        if (!ProcessNativeMethods.SetupProcessDumps(m_configuration.Logging.LogsDirectory.ToString(m_pathTable), out var coreDumpDirectory, out var error))
+                        if (!ProcessNativeMethods.SetupProcessDumps(m_configuration.Logging.LogsDirectory.ToString(m_pathTable), out var coreDumpDirectory))
                         {
-                            Logger.Log.DisplayCoreDumpDirectoryNoPermissionsWarning(pm.LoggingContext, coreDumpDirectory, error);
+                            Logger.Log.DisplayCoreDumpDirectoryNoPermissionsWarning(pm.LoggingContext, coreDumpDirectory);
                         }
 
                         if (remoteTelemetryEnabled)

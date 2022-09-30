@@ -110,28 +110,18 @@ namespace BuildXL.Interop.Unix
             : Impl_Linux.GetResourceUsageForProcessTree(pid, includeChildren: true);
 
         /// <summary>
-        /// Retrieve the (immediate) child processes of the given process
-        /// </summary>
-        public static IEnumerable<int> GetChildProcesses(int processId) => IsMacOS
-            ? throw new NotImplementedException()
-            : Impl_Linux.GetChildProcesses(processId);
-
-        /// <summary>
         /// Returns true if core dump file creation for abnormal process exits has been set up successfully, and passes out
         /// the path where the system writes core dump files.
         /// </summary>
         /// <param name="logsDirectory">The logs directory</param>
         /// <param name="buffer">A buffer to hold the core dump file directory</param>
         /// <param name="length">The buffer length</param>
-        /// <param name="error">Detailed error</param>
-        public static bool SetupProcessDumps(string logsDirectory, StringBuilder buffer, long length, out string error)
-        {
-            error = string.Empty;
-            return IsMacOS ? Impl_Mac.SetupProcessDumps(logsDirectory, buffer, length) : true;
-        }
-            
+        public static bool SetupProcessDumps(string logsDirectory, StringBuilder buffer, long length) => IsMacOS
+            ? Impl_Mac.SetupProcessDumps(logsDirectory, buffer, length)
+            : false;
+
         /// <summary>
-        /// Cleans up the core dump facilities created by calling <see cref="SetupProcessDumps(string, StringBuilder, long, out string)"/>
+        /// Cleans up the core dump facilities created by calling <see cref="SetupProcessDumps(string, StringBuilder, long)"/>
         /// </summary>
         public static void TeardownProcessDumps()
         {

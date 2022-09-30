@@ -770,6 +770,17 @@ namespace BuildXL.Processes
             m_sumOfReportQueueTimesUs += (stats.DequeueTime - stats.EnqueueTime) / 1000;
         }
 
+        /// <summary>
+        /// Logs a detailed message if <see cref="FileAccessManifest.ReportFileAccesses"/> is set.
+        /// </summary>
+        internal void LogDebug(string message)
+        {
+            if (BuildXL.Processes.SandboxConnection.IsInDebugMode || ShouldReportFileAccesses)
+            {
+                LogProcessState(message);
+            }
+        }
+
         private void HandleAccessReport(AccessReport report)
         {
             if (ShouldReportFileAccesses)

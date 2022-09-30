@@ -124,8 +124,8 @@ namespace BuildXL.Native.Processes
         /// <summary><see cref="ProcessUtilities.IsWciAndBindFiltersAvailable()"/></summary>
         bool IsWciAndBindFiltersAvailable();
 
-        /// <summary><see cref="ProcessUtilities.SetupProcessDumps(string, out string, out string)"/></summary>
-        bool SetupProcessDumps(string logsDirectory, out string coreDumpDirectory, out string error);
+        /// <summary><see cref="ProcessUtilities.SetupProcessDumps(string, out string)"/></summary>
+        bool SetupProcessDumps(string logsDirectory, out string coreDumpDirectory);
 
         /// <summary><see cref="ProcessUtilities.TeardownProcessDumps()"/></summary>
         void TeardownProcessDumps();

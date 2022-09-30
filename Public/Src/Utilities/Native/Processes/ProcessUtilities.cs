@@ -339,11 +339,10 @@ namespace BuildXL.Native.Processes
         /// </summary>
         /// <param name="logsDirectory">The engine logs directory</param>
         /// <param name="coreDumpDirectory">The core dump directory specified by the system</param>
-        /// <param name="error">Detailed error</param>
-        public static bool SetupProcessDumps(string logsDirectory, out string coreDumpDirectory, out string error) => s_nativeMethods.SetupProcessDumps(logsDirectory, out coreDumpDirectory, out error);
+        public static bool SetupProcessDumps(string logsDirectory, out string coreDumpDirectory) => s_nativeMethods.SetupProcessDumps(logsDirectory, out coreDumpDirectory);
 
         /// <summary>
-        /// Tears down all resources and facilities that were created when <see cref="SetupProcessDumps(string, out string, out string)"/> was invoked.
+        /// Tears down all resources and facilities that were created when <see cref="SetupProcessDumps(string, out string)"/> was invoked.
         /// </summary>
         public static void TeardownProcessDumps() => s_nativeMethods.TeardownProcessDumps();
     }

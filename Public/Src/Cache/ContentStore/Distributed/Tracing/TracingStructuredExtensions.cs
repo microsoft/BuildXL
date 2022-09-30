@@ -247,7 +247,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Tracing
             var message = $"{tracer.Name}: Starting content location store. "
                           + "Features: "
                           + $"ReconciliationEnabled={configuration.ReconcileMode > ReconciliationMode.None}, "
-                          + $"MachineReputationEnabled={configuration.ReputationTrackerConfiguration?.Enabled ?? false}, "
                           + $"Checkpoint={configuration.Checkpoint != null}, "
                           + $"DistributedCentralStore={configuration.DistributedCentralStore != null}, "
                           + $"EventHub={configuration.EventStore is EventHubContentLocationEventStoreConfiguration}, "

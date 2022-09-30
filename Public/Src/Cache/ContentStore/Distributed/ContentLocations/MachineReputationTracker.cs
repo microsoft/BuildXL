@@ -63,11 +63,6 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// Timeout when a missing reputation is removed for a machine.
         /// </summary>
         public TimeSpan MissingContentReputationTtl { get; set; } = TimeSpan.FromMinutes(20);
-
-        /// <summary>
-        /// If true machine reputation tracking is on.
-        /// </summary>
-        public bool Enabled { get; set; } = true;
     }
 
     /// <summary>
@@ -82,8 +77,6 @@ namespace BuildXL.Cache.ContentStore.Distributed
         private readonly MachineReputationTrackerConfiguration _configuration;
         private readonly ClusterState _clusterState;
         private readonly ConcurrentDictionary<MachineId, ReputationState> _reputations = new ();
-
-        private bool Enabled => _configuration.Enabled;
 
         /// <nodoc />
         public MachineReputationTracker(
@@ -103,11 +96,6 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// </summary>
         public virtual void ReportReputation(MachineLocation location, MachineReputation reputation)
         {
-            if (!Enabled)
-            {
-                return;
-            }
-
             if (_clusterState.TryResolveMachineId(location, out var machineId))
             {
                 var reputationState = _reputations.GetOrAdd(machineId, _ => new ReputationState());
@@ -144,11 +132,6 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// </remarks>
         public virtual MachineReputation GetReputation(MachineId machineId)
         {
-            if (!Enabled)
-            {
-                return MachineReputation.Good;
-            }
-
             if (_clusterState.IsMachineMarkedInactive(machineId) || _clusterState.IsMachineMarkedClosed(machineId))
             {
                 return MachineReputation.Inactive;

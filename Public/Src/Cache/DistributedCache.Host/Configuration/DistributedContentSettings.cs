@@ -576,9 +576,6 @@ namespace BuildXL.Cache.Host.Configuration
         public bool IsContentLocationDatabaseEnabled { get; set; } = false;
 
         [DataMember]
-        public bool IsMachineReputationEnabled { get; set; } = true;
-
-        [DataMember]
         [Validation.Range(1, int.MaxValue)]
         public int? IncrementalCheckpointDegreeOfParallelism { get; set; }
 

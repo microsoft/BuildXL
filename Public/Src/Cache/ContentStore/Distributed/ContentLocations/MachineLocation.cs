@@ -36,6 +36,21 @@ namespace BuildXL.Cache.ContentStore.Distributed
             Path = path;
         }
 
+        public bool Equals(MachineLocation other)
+        {
+            if (Path is null)
+            {
+                return other.Path is null;
+            }
+
+            return Path.Equals(other.Path, StringComparison.InvariantCultureIgnoreCase);
+        }
+
+        public override int GetHashCode()
+        {
+            return Path is not null ? StringComparer.InvariantCultureIgnoreCase.GetHashCode(Path) : 42;
+        }
+
         /// <inheritdoc />
         public override string ToString()
         {

@@ -213,9 +213,6 @@ namespace BuildXL.Cache.Host.Configuration
         public double? ReserveSpaceTimeoutInMinutes { get; set; }
 
         [DataMember]
-        public bool UseMdmCounters { get; set; } = true;
-
-        [DataMember]
         public bool UseContextualEntryDatabaseOperationLogging { get; set; } = false;
 
         [DataMember]
@@ -631,10 +628,6 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public bool? ContentLocationDatabaseMetadataGarbageCollectionLogEnabled { get; set; }
 
-        [DataMember]
-        [Validation.Range(1, int.MaxValue)]
-        public int? MaximumNumberOfMetadataEntriesToStore { get; set; }
-
         #endregion
 
         [DataMember]
@@ -700,9 +693,6 @@ namespace BuildXL.Cache.Host.Configuration
         public string EventHubEpoch { get; set; } = ".LLS_V1.2";
 
         [DataMember]
-        public bool? MirrorClusterState { get; set; }
-
-        [DataMember]
         [Validation.Range(0, double.MaxValue, minInclusive: false)]
         public double? HeartbeatIntervalMinutes { get; set; }
 
@@ -747,15 +737,6 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         [Validation.Range(1, int.MaxValue)]
         public int? RestoreCheckpointAgeThresholdMinutes { get; set; }
-
-        [DataMember]
-        public bool? PacemakerEnabled { get; set; }
-
-        [DataMember]
-        public uint? PacemakerNumberOfBuckets { get; set; }
-
-        [DataMember]
-        public bool? PacemakerUseRandomIdentifier { get; set; }
 
         [DataMember]
         [Validation.Range(1, int.MaxValue)]

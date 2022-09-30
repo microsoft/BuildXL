@@ -19,18 +19,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     public static class RestoreCheckpointPacemaker
     {
         /// <nodoc />
-        public static (uint Buckets, uint Bucket, TimeSpan RestoreTime) ShouldRestoreCheckpoint(byte[] primaryMachineLocation, uint numberOfBuckets, int activeMachines, DateTime checkpointCreationTime, TimeSpan createCheckpointInterval)
+        public static (uint Buckets, uint Bucket, TimeSpan RestoreTime) ShouldRestoreCheckpoint(byte[] primaryMachineLocation, int activeMachines, DateTime checkpointCreationTime, TimeSpan createCheckpointInterval)
         {
             Contract.Assert(activeMachines >= 1);
 
             // Number of buckets needed to reach the number of machines over time
-            var buckets = numberOfBuckets;
-            if (buckets <= 0)
-            {
-                // 10 is the default because it's enough to accommodate 1024 machines, which is a rough upper bound on
-                // the number of machines we keep on stamps.
-                buckets = activeMachines > 1 ? (uint)Math.Ceiling(Math.Log(activeMachines, 2)) : 10;
-            }
+            var buckets = activeMachines > 1 ? (uint)Math.Ceiling(Math.Log(activeMachines, 2)) : 10;
 
             var uniformRandomSample = SampleIdentifier(primaryMachineLocation, checkpointCreationTime);
             var bucket = SampleBucket(buckets, uniformRandomSample);

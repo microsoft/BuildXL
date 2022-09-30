@@ -541,20 +541,5 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// The interval by which LLS' heartbeat will update the cluster state. Default is to do it on every heartbeat.
         /// </summary>
         public TimeSpan UpdateClusterStateInterval { get; set; } = TimeSpan.FromMinutes(1);
-
-        /// <summary>
-        /// Whether to enable the ability of machines to restore at a given interval.
-        /// </summary>
-        public bool PacemakerEnabled { get; set; } = false;
-
-        /// <summary>
-        /// Exact number of buckets to use. Allows us to skew the distribution.
-        /// </summary>
-        public uint? PacemakerNumberOfBuckets { get; set; } = null;
-
-        /// <summary>
-        /// Whether to use a random identifier at every heartbeat, or to use a deterministic identifier per checkpoint.
-        /// </summary>
-        public bool PacemakerUseRandomIdentifier { get; set; } = false;
     }
 }

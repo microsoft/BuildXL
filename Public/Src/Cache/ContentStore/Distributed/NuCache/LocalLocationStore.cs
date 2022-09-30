@@ -550,11 +550,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 return true;
             }
 
-            if (!Configuration.Checkpoint.PacemakerEnabled)
-            {
-                return false;
-            }
-
             // At this point, we know we don't need to restore a checkpoint in this heartbeat, however, we can do so
             // anyways if the bucketing allows.
             var result = context.PerformOperation(Tracer, () =>
@@ -564,7 +559,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                 return Result.Success(RestoreCheckpointPacemaker.ShouldRestoreCheckpoint(
                     _machineHash,
-                    Configuration.Checkpoint.PacemakerNumberOfBuckets ?? 0,
                     openMachines,
                     checkpointCreationTime,
                     Configuration.Checkpoint.CreateCheckpointInterval));

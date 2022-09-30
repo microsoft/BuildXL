@@ -214,9 +214,6 @@ namespace BuildXL.Cache.Host.Configuration
         public double? ReserveSpaceTimeoutInMinutes { get; set; }
 
         [DataMember]
-        public bool IsRepairHandlingEnabled { get; set; } = false;
-
-        [DataMember]
         public bool UseMdmCounters { get; set; } = true;
 
         [DataMember]
@@ -737,7 +734,7 @@ namespace BuildXL.Cache.Host.Configuration
 
         [DataMember]
         [Validation.Range(0, double.MaxValue, minInclusive: false)]
-        public double? UpdateClusterStateIntervalSeconds { get; set; }
+        public double? UpdateClusterStateIntervalSeconds { get; set; } = 500;
 
         [DataMember]
         [Validation.Range(1, int.MaxValue)]
@@ -1125,10 +1122,16 @@ namespace BuildXL.Cache.Host.Configuration
         public string BlobClusterStateStorageFileName { get; set; }
 
         [DataMember]
-        public TimeSpanSetting? BlobClusterStateStorageStorageInteractionTimeout { get; set; }
+        public TimeSpanSetting? BlobClusterStateStorageStorageInteractionTimeout { get; set; } = "1m";
 
         [DataMember]
-        public RetryPolicyConfiguration BlobClusterStateStorageRetryPolicy { get; set; }
+        public RetryPolicyConfiguration BlobClusterStateStorageRetryPolicy { get; set; } = new RetryPolicyConfiguration()
+        {
+            RetryPolicy = StandardRetryPolicy.ExponentialSpread,
+            MinimumRetryWindow = "1ms",
+            MaximumRetryWindow = "5s",
+            WindowJitter = 1,
+        };
 
         #endregion
 

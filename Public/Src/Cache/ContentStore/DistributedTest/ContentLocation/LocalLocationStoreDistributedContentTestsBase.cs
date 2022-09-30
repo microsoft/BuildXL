@@ -231,7 +231,6 @@ namespace ContentStoreTest.Distributed.Sessions
                 UseDistributedCentralStorage = true,
                 MachineActiveToClosedIntervalMinutes = 5,
                 MachineActiveToExpiredIntervalMinutes = 10,
-                IsRepairHandlingEnabled = true,
 
                 UseUnsafeByteStringConstruction = true,
 

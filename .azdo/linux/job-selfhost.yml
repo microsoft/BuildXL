@@ -117,6 +117,7 @@ jobs:
       "RemoteIsReadOnly": false,
       "SkipDeterminismRecovery": true,
       "WriteThroughCasData": true,
+      "FailIfRemoteFails": true,
       "RemoteConstructionTimeoutMilliseconds":  30000,
       "Assembly":  "BuildXL.Cache.VerticalAggregator",
       "Type":  "BuildXL.Cache.VerticalAggregator.VerticalCacheAggregatorFactory",

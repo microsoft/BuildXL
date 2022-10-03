@@ -28,16 +28,6 @@ namespace Processes {
             disableCodeCoverage: true,
             parallelGroups: ["FileAccessExplicitReportingTest", "DetoursCrossBitnessTest"]
         },
-        assemblyBindingRedirects: [
-            ...BuildXLSdk.bxlBindingRedirects(),
-            {
-                name: "System.Numerics.Vectors",
-                publicKeyToken: "b03f5f7f11d50a3a",
-                culture: "neutral",
-                oldVersion: "0.0.0.0-4.1.4.0",
-                newVersion: "4.1.4.0", // Corresponds to: { id: "System.Numerics.Vectors", version: "4.5.0" },
-            },
-        ],
         references: [
             EngineTestUtilities.dll,
             Scheduler.dll,

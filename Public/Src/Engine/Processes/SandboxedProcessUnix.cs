@@ -940,7 +940,7 @@ namespace BuildXL.Processes
                 id = SandboxedProcessReports.FileAccessNoId;
                 correlationId = SandboxedProcessReports.FileAccessNoId;
 
-                if (!FileAccessReportLine.TryGetOperation(report.DecodeOperation(), out operation))
+                if (!FileAccessReportLine.Operations.TryGetValue(report.DecodeOperation(), out operation))
                 {
                     errorMessages.Add($"Unknown operation '{report.DecodeOperation()}'");
                 }

@@ -570,9 +570,6 @@ namespace BuildXL.Cache.Host.Configuration
         public int? ReconcileHashesLogLimit { get; set; }
 
         [DataMember]
-        public bool IsContentLocationDatabaseEnabled { get; set; } = false;
-
-        [DataMember]
         [Validation.Range(1, int.MaxValue)]
         public int? IncrementalCheckpointDegreeOfParallelism { get; set; }
 

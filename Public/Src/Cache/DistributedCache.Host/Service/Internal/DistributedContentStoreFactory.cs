@@ -218,17 +218,14 @@ namespace BuildXL.Cache.Host.Service.Internal
 
             ApplyIfNotNull(_distributedSettings.LocationStoreSettings, v => redisConfig.Settings = v);
 
-            if (_distributedSettings.IsContentLocationDatabaseEnabled)
-            {
-                var dbConfig = RocksDbContentLocationDatabaseConfiguration.FromDistributedContentSettings(
-                    _distributedSettings,
-                    primaryCacheRoot / "LocationDb",
-                    primaryCacheRoot / "LocationDbLogs",
-                    logsKeepLongTerm: true
-                    );
-                redisConfig.Database = dbConfig;
-                ApplySecretSettingsForLls(redisConfig, primaryCacheRoot, dbConfig);
-            }
+            var dbConfig = RocksDbContentLocationDatabaseConfiguration.FromDistributedContentSettings(
+                _distributedSettings,
+                primaryCacheRoot / "LocationDb",
+                primaryCacheRoot / "LocationDbLogs",
+                logsKeepLongTerm: true
+                );
+            redisConfig.Database = dbConfig;
+            ApplySecretSettingsForLls(redisConfig, primaryCacheRoot, dbConfig);
 
             var clientContentMetadataStoreConfiguration = new ClientContentMetadataStoreConfiguration();
             ApplyIfNotNull(_distributedSettings.ContentMetadataClientOperationTimeout, v => clientContentMetadataStoreConfiguration.OperationTimeout = v);

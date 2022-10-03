@@ -227,7 +227,6 @@ namespace ContentStoreTest.Distributed.Sessions
                 AzureStorageSecretName = Host.StoreSecret("Storage", StorageProcess?.ConnectionString ?? "Unused"),
                 ContentMetadataBlobSecretName = Host.StoreSecret("ContentMetadataBlob", ContentMetadataStorageProcess?.ConnectionString ?? "Unused"),
 
-                IsContentLocationDatabaseEnabled = true,
                 UseDistributedCentralStorage = true,
                 MachineActiveToClosedIntervalMinutes = 5,
                 MachineActiveToExpiredIntervalMinutes = 10,

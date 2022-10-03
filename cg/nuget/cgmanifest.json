@@ -330,7 +330,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Google.Protobuf",
-          "Version": "3.19.4"
+          "Version": "3.19.5"
         }
       }
     },
@@ -339,7 +339,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Google.Protobuf.Tools",
-          "Version": "3.19.4"
+          "Version": "3.19.5"
         }
       }
     },

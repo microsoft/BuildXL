@@ -222,7 +222,7 @@ namespace BuildXL.Engine.Tracing
 
         FailedToDeserializeDueToFileNotFound = 2876,
         FailedToInitalizeFileAccessAllowlist = 2877,
-        FailedToAcquireDirectoryDeletionLock = 2878,
+        FailedToCreateEngineOutputDirectories = 2878,
 
         FetchedSerializedGraphFromCache = 2879,
         DuplicateDirectoryMembershipFingerprinterRule = 2880,

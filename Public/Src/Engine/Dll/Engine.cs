@@ -1838,10 +1838,9 @@ namespace BuildXL.Engine
                 Logger.Log.EndEngineRun))
             {
                 var engineLoggingContext = pm.LoggingContext;
-                bool directoryDeletionLockSuccess;
-                using (CreateOutputDirectories(Context.PathTable, engineLoggingContext, out directoryDeletionLockSuccess))
+                using (CreateOutputDirectories(Context.PathTable, engineLoggingContext, out var directoryCreationSuccess))
                 {
-                    if (!directoryDeletionLockSuccess)
+                    if (!directoryCreationSuccess)
                     {
                         Contract.Assume(engineLoggingContext.ErrorWasLogged, "An error should have been logged during output directory creation.");
                         return BuildXLEngineResult.Failed(engineState);
@@ -2444,58 +2443,57 @@ namespace BuildXL.Engine
         }
 
         /// <summary>
-        /// Creates output directories for the engine, and returns a disposable object that (until disposed)
-        /// prevents them from being deleted.
+        /// Creates output directories for the engine, and returns a disposable object that when disposed will delete the redirected links.
         /// </summary>
         [SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope")]
-        public DirectoryDeletionLock CreateOutputDirectories(PathTable pathTable, LoggingContext loggingContext, out bool success)
+        public DirectoryRedirectionTracker CreateOutputDirectories(PathTable pathTable, LoggingContext loggingContext, out bool success)
         {
             Contract.Requires(pathTable != null);
 
-            var locker = new DirectoryDeletionLock();
+            var container = new DirectoryRedirectionTracker(loggingContext);
             var layout = Configuration.Layout;
             success = false;
             try
             {
-                locker.CreateAndPreventDeletion(layout.ObjectDirectory.ToString(pathTable));
-                locker.CreateAndPreventDeletion(layout.CacheDirectory.ToString(pathTable));
-                locker.CreateAndPreventDeletion(layout.EngineCacheDirectory.ToString(pathTable));
-                locker.CreateAndPreventDeletion(Configuration.Logging.LogsDirectory.ToString(pathTable));
+                FileUtilities.CreateDirectoryWithRetry(layout.ObjectDirectory.ToString(pathTable));
+                FileUtilities.CreateDirectoryWithRetry(layout.CacheDirectory.ToString(pathTable));
+                FileUtilities.CreateDirectoryWithRetry(layout.EngineCacheDirectory.ToString(pathTable));
+                FileUtilities.CreateDirectoryWithRetry(Configuration.Logging.LogsDirectory.ToString(pathTable));
 
                 if (Configuration.Logging.RedirectedLogsDirectory.IsValid)
                 {
-                    locker.CreateRedirectionAndPreventDeletion(
+                    container.CreateRedirection(
                         Configuration.Logging.RedirectedLogsDirectory.ToString(pathTable),
                         Configuration.Logging.LogsDirectory.ToString(pathTable),
                         deleteExisting: true,
-                        deleteOnClose: true);
+                        deleteOnDispose: true);
                 }
 
-                locker.CreateAndPreventDeletion(m_moveDeleteTempDirectory);
+                FileUtilities.CreateDirectoryWithRetry(m_moveDeleteTempDirectory);
                 if (Configuration.Layout.NormalizedBuildEngineDirectory.IsValid)
                 {
-                    locker.CreateRedirectionAndPreventDeletion(
+                    container.CreateRedirection(
                         layout.NormalizedBuildEngineDirectory.ToString(pathTable),
                         Directory.GetParent(AssemblyHelper.GetAssemblyLocation(Assembly.GetExecutingAssembly())).FullName,
                         deleteExisting: true,
-                        deleteOnClose: false);
+                        deleteOnDispose: false);
                 }
 
                 success = true;
             }
             catch (BuildXLException ex)
             {
-                Logger.Log.FailedToAcquireDirectoryDeletionLock(loggingContext, ex.Message);
+                Logger.Log.FailedToCreateEngineOutputDirectories(loggingContext, ex.Message);
             }
             finally
             {
                 if (!success)
                 {
-                    locker.Dispose();
+                    container.Dispose();
                 }
             }
 
-            return locker;
+            return success ? container : null;
         }
 
         /// <summary>

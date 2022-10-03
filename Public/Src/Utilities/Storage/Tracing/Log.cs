@@ -770,6 +770,16 @@ namespace BuildXL.Storage.Tracing
             Message = "Failed to track GVFS projection file '{0}'; error: {1}")]
         public abstract void TrackChangesToGvfsProjectionFailed(LoggingContext context, string gvfsProjectionFile, string errorMessage);
 
+        [GeneratedEvent(
+            (int)LogEventId.DirectoryRedirectionTrackerFailedDelete,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.Storage,
+            Message = "DirectoryRedirectionTracker failed to delete directory '{0}'; error: {1}")]
+        public abstract void DirectoryRedirectionTrackerFailedDelete(LoggingContext context, string path, string exception);
+
+
         public class FileCombinerStats
         {
             public long BeginCount;

@@ -1531,13 +1531,13 @@ If you can't update and need this feature after July 2018 please reach out to th
         public abstract void FailedToDeserializeDueToFileNotFound(LoggingContext context, string file);
 
         [GeneratedEvent(
-            (int)LogEventId.FailedToAcquireDirectoryDeletionLock,
+            (int)LogEventId.FailedToCreateEngineOutputDirectories,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureError),
             EventTask = (int)Tasks.Engine,
-            Message = "Failed to acquire a lock to prevent directory deletion. This may be due to invoking concurrent builds with overlapping directories. Kill all instances of {ShortProductName} if concurrent builds are unexpected. Error: {0}")]
-        public abstract void FailedToAcquireDirectoryDeletionLock(LoggingContext context, string message);
+            Message = "Failed to create BuildXL engine output directories. This may be due to invoking concurrent builds with overlapping directories. Kill all instances of {ShortProductName} if concurrent builds are unexpected. Error: {0}")]
+        public abstract void FailedToCreateEngineOutputDirectories(LoggingContext context, string message);
 
         [GeneratedEvent(
             (int)LogEventId.FailedToAcquireDirectoryLock,

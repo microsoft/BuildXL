@@ -1759,7 +1759,8 @@ namespace IntegrationTest.BuildXL.Scheduler
             }
         }
 
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        // TODO (#BUG 1995797)
+        // [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public void TimeoutPipWithChildExitingWithAzWatsonDeadExitCodeIsNotRetried()
         {
             Configuration.Sandbox.RetryOnAzureWatsonExitCode = true;

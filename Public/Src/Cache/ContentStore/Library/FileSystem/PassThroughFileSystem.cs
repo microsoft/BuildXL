@@ -499,10 +499,7 @@ namespace BuildXL.Cache.ContentStore.FileSystem
         {
             try
             {
-                if (FileSystemDefaults.UseAsynchronousFileStreamOptionByDefault)
-                {
-                    options |= FileOptions.Asynchronous;
-                }
+                options |= FileOptions.Asynchronous;
 
                 if (OperatingSystemHelper.IsUnixOS)
                 {

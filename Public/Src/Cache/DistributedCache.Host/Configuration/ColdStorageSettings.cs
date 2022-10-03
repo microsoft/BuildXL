@@ -48,9 +48,6 @@ namespace BuildXL.Cache.Host.Configuration
         public double? ReserveSpaceTimeoutInMinutes { get; set; }
 
         [DataMember]
-        public bool? UseAsynchronousFileStreamOptionByDefault { get; set; }
-
-        [DataMember]
         public bool? UseHierarchicalTraceIds { get; set; }
 
         [DataMember]

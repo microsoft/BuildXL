@@ -781,9 +781,6 @@ namespace BuildXL.Cache.Host.Configuration
         public bool TraceFileSystemContentStoreDiagnosticMessages { get; set; } = false;
 
         [DataMember]
-        public bool? UseAsynchronousFileStreamOptionByDefault { get; set; }
-
-        [DataMember]
         public bool TraceProactiveCopy { get; set; } = false;
 
         [DataMember]

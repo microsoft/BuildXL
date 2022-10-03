@@ -114,6 +114,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private readonly VolatileSet<ShortHash> _recentlyRemovedHashes;
 
         private DateTime _lastCheckpointTime;
+
+        // The time when the checkpoint was produced by the master.
+        private DateTime _llsCheckpointCreationTime;
         private Task<BoolResult> _pendingProcessCheckpointTask = BoolResult.SuccessTask;
         private readonly object _pendingProcessCheckpointTaskLock = new object();
 
@@ -716,7 +719,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             UpdateSerializableClusterStateValues(context);
 
-            return await CheckpointManager.CreateCheckpointAsync(context, currentSequencePoint);
+            var result = await CheckpointManager.CreateCheckpointAsync(context, currentSequencePoint);
+
+            if (result.Succeeded)
+            {
+                // Updating last checkpoint creation time used for determining how stale LLS data is only when the checkpoint was successfully saved.
+                _llsCheckpointCreationTime = _clock.UtcNow;
+            }
+
+            return result;
         }
 
         private void UpdateSerializableClusterStateValues(OperationContext context)
@@ -725,7 +736,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             if (manager != null)
             {
                 var serializeResult = manager.Serialize();
-                if (serializeResult)
+                if (serializeResult.Succeeded)
                 {
                     var bytes = serializeResult.Value;
                     var serializedString = Convert.ToBase64String(bytes);
@@ -746,6 +757,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             // anything other than reporting.
             var latestCheckpoint = CheckpointManager.DatabaseGetLatestCheckpointInfo(context);
             var latestCheckpointAge = _clock.UtcNow - latestCheckpoint?.checkpointTime;
+
+            if (latestCheckpoint?.checkpointTime != null)
+            {
+                // Updating the last checkpoint creation time based on the current state of the database.
+                _llsCheckpointCreationTime = latestCheckpoint.Value.checkpointTime;
+            }
 
             // Only skip if this is the first restore and it is sufficiently recent
             // NOTE: _lastRestoreTime will be set since skipping this operation will return successful result.
@@ -797,6 +814,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                     Counters[ContentLocationStoreCounters.RestoreCheckpointsSucceeded].Increment();
                     _lastCheckpointId = checkpointState.CheckpointId;
+                    _llsCheckpointCreationTime = checkpointState.CheckpointTime;
                     if (Configuration.ReconcileMode == ReconciliationMode.Checkpoint)
                     {
                         await CancelCurrentReconciliationAsync(context);
@@ -897,15 +915,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 string? filteredOutLocations = r.Succeeded ? r.GetShortHashesTraceStringForInactiveMachines() : null;
                 filteredOutLocations = filteredOutLocations != null ? $", Inactive: {filteredOutLocations}" : null;
 
-                DateTime lastRestoreTime = _lastRestoreTime;
-                if (lastRestoreTime == default)
+                DateTime lastCheckpointCreationTime = _llsCheckpointCreationTime;
+                if (lastCheckpointCreationTime == default)
                 {
                     // If the checkpoint was not restored, consider the start time as the time of the last restore.
                     // This is not 100% correct, but good enough for diagnostics purposes.
-                    lastRestoreTime = Process.GetCurrentProcess().StartTime;
+                    // Need to get UTC time because 'StartTime' returns the local time.
+                    lastCheckpointCreationTime = Process.GetCurrentProcess().StartTime.ToUniversalTime();
                 }
 
-                var timeSinceLastRestore = _clock.UtcNow - lastRestoreTime;
+                var timeSinceLastRestore = _clock.UtcNow - lastCheckpointCreationTime;
                 // Checking if the checkpoint is stale (only valid for the local case).
                 string isCheckpointStaleMessage =
                     r.Succeeded && origin == GetBulkOrigin.Local && timeSinceLastRestore > Configuration.LocationEntryExpiry

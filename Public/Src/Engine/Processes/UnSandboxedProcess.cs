@@ -170,7 +170,15 @@ namespace BuildXL.Processes
                 m_output.HookOutputStream ? line => FeedStdOut(m_output, line) : null,
                 m_error.HookOutputStream ? line => FeedStdErr(m_error, line) : null,
                 info.Provenance,
-                msg => LogProcessState(msg));
+                msg => LogProcessState(msg),
+                () => {
+                    LogProcessState($"Dumping process '{ProcessId}' and children into '{TimeoutDumpDirectory}'");
+                    
+                    if (!ProcessDumper.TryDumpProcessAndChildren(ProcessId, TimeoutDumpDirectory, out m_dumpCreationException, debugLogger: (message) => LogDebug(message)))
+                    {
+                        LogProcessState($"Unable to generate core dump: {m_dumpCreationException.GetLogEventMessage()}");
+                    }
+                });
         }
 
         /// <summary>
@@ -331,8 +339,6 @@ namespace BuildXL.Processes
         {
             Contract.Requires(Started);
 
-            ProcessDumper.TryDumpProcessAndChildren(ProcessId, TimeoutDumpDirectory, out m_dumpCreationException);
-
             LogProcessState($"UnsandboxedProcess::KillAsync({ProcessId})");
             return m_processExecutor.KillAsync();
         }
@@ -441,6 +447,17 @@ namespace BuildXL.Processes
             if (line != null)
             {
                 output.AppendLine(line);
+            }
+        }
+
+        /// <summary>
+        /// Logs a detailed message if <see cref="FileAccessManifest.ReportFileAccesses"/> is set.
+        /// </summary>
+        internal void LogDebug(string message)
+        {
+            if (BuildXL.Processes.SandboxConnection.IsInDebugMode || ShouldReportFileAccesses)
+            {
+                LogProcessState(message);
             }
         }
 

@@ -253,7 +253,10 @@ namespace BuildXL.Interop.Unix
             #pragma warning restore
         }
 
-        private static IEnumerable<int> GetChildren(int processId)
+        /// <summary>
+        /// Retrieve the (immediate) child processes of the given process
+        /// </summary>
+        internal static IEnumerable<int> GetChildProcesses(int processId)
         {
             IEnumerable<int> childPids = Enumerable.Empty<int>();
             try
@@ -330,7 +333,7 @@ namespace BuildXL.Interop.Unix
                 var resourceUsage = CreateProcessResourceUsageForPid(next);
                 if (includeChildren)
                 {
-                    var children = GetChildren(next);
+                    var children = GetChildProcesses(next);
                     foreach (var child in children)
                     {
                         stack.Push(child);
@@ -642,7 +645,8 @@ namespace BuildXL.Interop.Unix
 
         [DllImport(LibC, SetLastError = true)]
         internal static extern IntPtr realpath(string path, StringBuilder resolved_path);
-        #pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
+
+#pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
 
         #endregion
     }

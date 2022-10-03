@@ -385,8 +385,8 @@ namespace BuildXL.App.Tracing
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.HostApplication,
-            Message = "Setting up core dump creation for abnormal program exits has failed. Make sure you have permissions to read and write the core dump directory at '{directory}'.")]
-        public abstract void DisplayCoreDumpDirectoryNoPermissionsWarning(LoggingContext context, string directory);
+            Message = "Setting up core dump creation for abnormal program exits has failed. Make sure you have permissions to read and write the core dump directory at '{directory}'. {error}")]
+        public abstract void DisplayCoreDumpDirectoryNoPermissionsWarning(LoggingContext context, string directory, string error);
 
         [GeneratedEvent(
             (int)LogEventId.CrashReportProcessing,

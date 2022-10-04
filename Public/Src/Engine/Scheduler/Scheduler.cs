@@ -5550,11 +5550,15 @@ namespace BuildXL.Scheduler
         {
             var producer = m_fileContentManager.GetDeclaredProducer(artifact);
 
-            RunnablePipPerformanceInfo perfInfo = m_runnablePipPerformance[producer.PipId];
+            PipExecutionStep step = PipExecutionStep.RunFromCache;
+            uint workerId = 0;
 
-            PipExecutionStep step = perfInfo.IsExecuted ? PipExecutionStep.ExecuteProcess : PipExecutionStep.RunFromCache;
+            if (m_runnablePipPerformance.TryGetValue(producer.PipId, out var perfInfo))
+            {
+                step = perfInfo.IsExecuted ? PipExecutionStep.ExecuteProcess : step;
+                workerId = perfInfo.Workers.GetOrDefault(step, (uint)0);
+            }
 
-            var workerId = perfInfo.Workers.GetOrDefault(step, (uint)0);
             var worker = m_workers[(int)workerId];
             bool isWorkerReleasedEarly = worker.WorkerEarlyReleasedTime != null;
 

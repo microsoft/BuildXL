@@ -6472,7 +6472,8 @@ namespace BuildXL.Scheduler
                     m_fileChangeTracker,
                     DirectoryTranslator,
                     fileChangeTrackingSelector,
-                    vfsCasRoot: m_configuration.Cache.VfsCasRoot);
+                    vfsCasRoot: m_configuration.Cache.VfsCasRoot,
+                    inCloudBuild: m_configuration.InCloudBuild());
 
                 m_pipOutputMaterializationTracker = new PipOutputMaterializationTracker(this, IncrementalSchedulingState);
 

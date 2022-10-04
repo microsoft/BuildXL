@@ -243,6 +243,17 @@ namespace BuildXL.Storage
             return new VersionedFileIdentity(VolumeSerialNumber, FileId, Usn, kind: IdentityKind.WeakUsn);
         }
 
+        /// <summary>
+        /// Updates this identity to be strong.
+        /// </summary>
+        public VersionedFileIdentity ToStrongIdentity()
+        {
+            Contract.Requires(Kind.IsWeakOrStrong());
+            Contract.Requires(!IsAnonymous);
+
+            return new VersionedFileIdentity(VolumeSerialNumber, FileId, Usn, kind: IdentityKind.StrongUsn);
+        }
+
         /// <inheritdoc />
         public bool Equals(VersionedFileIdentity other)
         {

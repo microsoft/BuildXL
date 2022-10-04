@@ -228,33 +228,42 @@ namespace BuildXL.Storage
         }
 
         /// <summary>
+        /// Retrieves an already-known <see cref="ContentHash" /> for the given file handle. 
+        /// </summary>
+        public VersionedFileIdentityAndContentInfo? TryGetKnownContentHash(string path, SafeFileHandle handle)
+        {
+            Contract.Requires(handle != null);
+
+            Possible<VersionedFileIdentity, Failure<VersionedFileIdentity.IdentityUnavailabilityReason>> possibleVersionedIdentity =
+                    TryQueryWeakIdentity(handle);
+
+            if (!possibleVersionedIdentity.Succeeded)
+            {
+                // We fail quietly for disabled journals on the query side; instead attempting to record a hash will fail.
+                Contract.Assume(
+                    possibleVersionedIdentity.Failure.Content == VersionedFileIdentity.IdentityUnavailabilityReason.NotSupported);
+                Tracing.Logger.Log.StorageVersionedFileIdentityNotSupportedMiss(m_loggingContext, path);
+                return null;
+            }
+
+            return TryGetKnownContentHash(path, possibleVersionedIdentity.Result);
+        }
+
+        /// <summary>
         /// Retrieves an already-known <see cref="ContentHash" /> for the given file handle. If no such hash is available (such as
         /// if the file has been modified since a hash was last recorded), null is returned instead.
+        /// If we cannot reuse the hash, we save weakIdentity to be used later for performance reasons. It can be used instead of strong identity when recording the new hash.
         /// </summary>
         /// <remarks>
         /// Note that this results in a small amount of I/O (e.g., on Windows, a file open and USN query), but never hashes the file or reads its contents.
         /// </remarks>
-        public VersionedFileIdentityAndContentInfo? TryGetKnownContentHash(string path, SafeFileHandle handle)
+        public VersionedFileIdentityAndContentInfo? TryGetKnownContentHash(string path, VersionedFileIdentity weakIdentity)
         {
             Contract.Requires(!string.IsNullOrWhiteSpace(path));
-            Contract.Requires(handle != null);
 
             using (Counters.StartStopwatch(FileContentTableCounters.GetContentHashDuration))
             {
-                Possible<VersionedFileIdentity, Failure<VersionedFileIdentity.IdentityUnavailabilityReason>> possibleVersionedIdentity =
-                    TryQueryWeakIdentity(handle);
-
-                if (!possibleVersionedIdentity.Succeeded)
-                {
-                    // We fail quietly for disabled journals on the query side; instead attempting to record a hash will fail.
-                    Contract.Assume(
-                        possibleVersionedIdentity.Failure.Content == VersionedFileIdentity.IdentityUnavailabilityReason.NotSupported);
-                    Tracing.Logger.Log.StorageVersionedFileIdentityNotSupportedMiss(m_loggingContext, path);
-                    return null;
-                }
-
-                VersionedFileIdentity identity = possibleVersionedIdentity.Result;
-                var fileIdInfo = new FileIdAndVolumeId(identity.VolumeSerialNumber, identity.FileId);
+                var fileIdInfo = new FileIdAndVolumeId(weakIdentity.VolumeSerialNumber, weakIdentity.FileId);
 
                 // We have a valid identity, but that identity is 'weak' and may correspond to an intermediate record (one without 'close' set).
                 // We cannot discard such records here since we can't obtain a real 'Reason' field for a file's current USN record.
@@ -269,15 +278,15 @@ namespace BuildXL.Storage
                     Tracing.Logger.Log.StorageUnknownFileMiss(
                         m_loggingContext,
                         path,
-                        identity.FileId.High,
-                        identity.FileId.Low,
-                        identity.VolumeSerialNumber,
-                        identity.Usn.Value);
+                        weakIdentity.FileId.High,
+                        weakIdentity.FileId.Low,
+                        weakIdentity.VolumeSerialNumber,
+                        weakIdentity.Usn.Value);
 
                     return null;
                 }
 
-                var staleUsn = identity.Usn != knownEntry.Usn;
+                var staleUsn = weakIdentity.Usn != knownEntry.Usn;
 
                 if (staleUsn)
                 {
@@ -286,10 +295,10 @@ namespace BuildXL.Storage
                         Tracing.Logger.Log.StorageUnknownUsnMiss(
                             m_loggingContext,
                             path,
-                            identity.FileId.High,
-                            identity.FileId.Low,
-                            identity.VolumeSerialNumber,
-                            readUsn: identity.Usn.Value,
+                            weakIdentity.FileId.High,
+                            weakIdentity.FileId.Low,
+                            weakIdentity.VolumeSerialNumber,
+                            readUsn: weakIdentity.Usn.Value,
                             knownUsn: knownEntry.Usn.Value,
                             knownContentHash: knownEntry.Hash.ToHex());
                     }
@@ -305,9 +314,9 @@ namespace BuildXL.Storage
                     Tracing.Logger.Log.StorageKnownUsnHit(
                         m_loggingContext,
                         path,
-                        identity.FileId.High,
-                        identity.FileId.Low,
-                        identity.VolumeSerialNumber,
+                        weakIdentity.FileId.High,
+                        weakIdentity.FileId.Low,
+                        weakIdentity.VolumeSerialNumber,
                         usn: knownEntry.Usn.Value,
                         contentHash: knownEntry.Hash.ToHex());
                 }
@@ -316,9 +325,9 @@ namespace BuildXL.Storage
                 // actually corresponds to a strong identity (see RecordContentHashAsync).
                 return new VersionedFileIdentityAndContentInfo(
                     new VersionedFileIdentity(
-                        identity.VolumeSerialNumber,
-                        identity.FileId,
-                        identity.Usn,
+                        weakIdentity.VolumeSerialNumber,
+                        weakIdentity.FileId,
+                        weakIdentity.Usn,
                         VersionedFileIdentity.IdentityKind.StrongUsn),
                     new FileContentInfo(knownEntry.Hash, knownEntry.Length));
             }
@@ -399,44 +408,49 @@ namespace BuildXL.Storage
         /// The <paramref name="strict"/> corresponds to the <c>flush</c> parameter of <see cref="VersionedFileIdentity.TryEstablishStrong"/>
         /// </remarks>
         public VersionedFileIdentity RecordContentHash(
-            string path, 
-            SafeFileHandle handle, 
-            ContentHash hash, 
+            string path,
+            SafeFileHandle handle,
+            ContentHash hash,
             long length,
-            bool? strict = default)
+            bool? strict = default,
+            VersionedFileIdentity? strongIdentity = null)
         {
             Contract.Requires(handle != null);
             Contract.Requires(!string.IsNullOrWhiteSpace(path));
+            Contract.Requires(!strongIdentity.HasValue || strongIdentity.Value.Kind == VersionedFileIdentity.IdentityKind.StrongUsn);
 
             using (Counters.StartStopwatch(FileContentTableCounters.RecordContentHashDuration))
             {
-                // TODO: The contract below looks very nice but breaks tons of UT
-                // Fix the tests and enable the contract.
-                // Contract.Requires(FileContentInfo.IsValidLength(length, hash));
-                // Here we write a new change journal record for this file to get a 'strong' identity. This means that the USN -> hash table
-                // only ever contains USNs whose records have the 'close' reason set. Recording USNs without that
-                // reason set would not be correct; it would be possible that multiple separate changes (e.g. writes)
-                // were represented with the same USN, and so intermediate USNs do not necessarily correspond to exactly
-                // one snapshot of a file. See http://msdn.microsoft.com/en-us/library/windows/desktop/aa363803(v=vs.85).aspx
-                Possible<VersionedFileIdentity, Failure<VersionedFileIdentity.IdentityUnavailabilityReason>> possibleVersionedIdentity =
-                    TryEstablishStrongIdentity(handle, flush: strict == true);
+                // If a strong identity is given, we should reuse the USN number and file id from that because EstablishStrongIdentity is an expensive call.
 
-                if (!possibleVersionedIdentity.Succeeded)
+                if (!strongIdentity.HasValue || strongIdentity.Value.Kind != VersionedFileIdentity.IdentityKind.StrongUsn)
                 {
-                    if (Interlocked.CompareExchange(ref m_changeJournalWarningLogged, 1, 0) == 0)
+                    // TODO: The contract below looks very nice but breaks tons of UT
+                    // Fix the tests and enable the contract.
+                    // Contract.Requires(FileContentInfo.IsValidLength(length, hash));
+                    // Here we write a new change journal record for this file to get a 'strong' identity. This means that the USN -> hash table
+                    // only ever contains USNs whose records have the 'close' reason set except for the source files in CloudBuild.
+                    // Recording USNs without that reason set would not be correct; it would be possible that multiple separate changes (e.g. writes)
+                    // were represented with the same USN, and so intermediate USNs do not necessarily correspond to exactly
+                    // one snapshot of a file. See http://msdn.microsoft.com/en-us/library/windows/desktop/aa363803(v=vs.85).aspx
+                    var possibleVersionedIdentity = TryEstablishStrongIdentity(handle, flush: strict == true);
+                    if (!possibleVersionedIdentity.Succeeded)
                     {
-                        Tracing.Logger.Log.StorageFileContentTableIgnoringFileSinceVersionedFileIdentityIsNotSupported(
-                            m_loggingContext,
-                            path,
-                            possibleVersionedIdentity.Failure.DescribeIncludingInnerFailures());
+                        if (Interlocked.CompareExchange(ref m_changeJournalWarningLogged, 1, 0) == 0)
+                        {
+                            Tracing.Logger.Log.StorageFileContentTableIgnoringFileSinceVersionedFileIdentityIsNotSupported(
+                                m_loggingContext,
+                                path,
+                                possibleVersionedIdentity.Failure.DescribeIncludingInnerFailures());
+                        }
+
+                        return VersionedFileIdentity.Anonymous;
                     }
 
-                    return VersionedFileIdentity.Anonymous;
+                    strongIdentity = possibleVersionedIdentity.Result;
                 }
 
-                VersionedFileIdentity identity = possibleVersionedIdentity.Result;
-
-                var newEntry = new Entry(identity.Usn, hash, length, EntryTimeToLive);
+                var newEntry = new Entry(strongIdentity.Value.Usn, hash, length, EntryTimeToLive);
 
                 // We allow concurrent update attempts with different observed USNs.
                 // This is useful and relevant for two reasons:
@@ -444,7 +458,7 @@ namespace BuildXL.Storage
                 // - Creating hardlinks generates 'hardlink change' records.
                 // So, concurrently creating and recording (or even just recording) different links is possible, and
                 // keeping the last stored entry (rather than highest-USN entry) can introduce false positives.
-                var fileIdAndVolumeId = new FileIdAndVolumeId(identity.VolumeSerialNumber, identity.FileId);
+                var fileIdAndVolumeId = new FileIdAndVolumeId(strongIdentity.Value.VolumeSerialNumber, strongIdentity.Value.FileId);
                 
                 m_entries.AddOrUpdate(
                     fileIdAndVolumeId,
@@ -488,20 +502,23 @@ namespace BuildXL.Storage
                     Tracing.Logger.Log.StorageRecordNewKnownUsn(
                         m_loggingContext,
                         path,
-                        identity.FileId.High,
-                        identity.FileId.Low,
-                        identity.VolumeSerialNumber,
-                        identity.Usn.Value,
+                        strongIdentity.Value.FileId.High,
+                        strongIdentity.Value.FileId.Low,
+                        strongIdentity.Value.VolumeSerialNumber,
+                        strongIdentity.Value.Usn.Value,
                         hash.ToHex());
                 }
 
-                return identity;
+                return strongIdentity.Value;
             }
         }
 
         #endregion Content hash recording
 
-        private Possible<VersionedFileIdentity, Failure<VersionedFileIdentity.IdentityUnavailabilityReason>> TryQueryWeakIdentity(SafeFileHandle handle)
+        /// <summary>
+        /// Queries a weak version-identity for the given file handle.
+        /// </summary>
+        public Possible<VersionedFileIdentity, Failure<VersionedFileIdentity.IdentityUnavailabilityReason>> TryQueryWeakIdentity(SafeFileHandle handle)
         {
             if (IsStub)
             {

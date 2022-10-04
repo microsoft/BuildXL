@@ -62,6 +62,29 @@ namespace Test.BuildXL.Engine.Cache
         }
 
         [Fact]
+        public async Task DiscoveryTracksFileWithUnknownHashReuseWeakIdentity()
+        {
+            var harness = CreateHarness(inCloudBuild: true);
+
+            AbsolutePath tempPath = harness.GetFullPath("SomeFile");
+            FileContentInfo info = harness.WriteFileAndHashContents(tempPath, "Fancy contents");
+
+            Possible<ContentDiscoveryResult> possiblyDiscovered = await harness.Store.TryDiscoverAsync(FileArtifact.CreateSourceFile(tempPath));
+            if (!possiblyDiscovered.Succeeded)
+            {
+                XAssert.Fail("Failed to discover content after initial write: {0}", possiblyDiscovered.Failure.DescribeIncludingInnerFailures());
+            }
+
+            ContentDiscoveryResult result = possiblyDiscovered.Result;
+            XAssert.AreEqual(info, result.TrackedFileContentInfo.FileContentInfo, "Wrong file content info (incorrect hashing on discovery?)");
+            XAssert.IsTrue(result.TrackedFileContentInfo.IsTracked, "Should have registered the file for tracking");
+            XAssert.AreEqual(DiscoveredContentHashOrigin.NewlyHashed, result.Origin);
+
+            harness.AssertPathIsTracked(tempPath);
+            harness.AssertContentIsAbsentInLocalCache(info.Hash);
+        }
+
+        [Fact]
         public async Task DiscoveryTracksFileWithKnownHash()
         {
             var harness = CreateHarness();
@@ -850,18 +873,21 @@ namespace Test.BuildXL.Engine.Cache
             bool useDummyFileContentTable = false, 
             DirectoryTranslator directoryTranslator = null,
             bool verifyKnownIdentityOnTrackingFile = true,
-            IArtifactContentCacheForTest contentCacheForTest = null)
+            IArtifactContentCacheForTest contentCacheForTest = null,
+            bool inCloudBuild = false)
         {
             return new Harness(
                 TemporaryDirectory, 
                 useDummyFileContentTable: useDummyFileContentTable, 
                 directoryTranslator: directoryTranslator,
                 verifyKnownIdentityOnTrackingFile: verifyKnownIdentityOnTrackingFile,
-                contentCacheForTest: contentCacheForTest);
+                contentCacheForTest: contentCacheForTest,
+                inCloudBuild: inCloudBuild);
         }
 
         private class Harness : IArtifactContentCache
         {
+            private readonly bool m_inCloudBuild;
             private readonly AbsolutePath m_outputRoot;
             private readonly DirectoryTranslator m_directoryTranslator;
             private LocalDiskContentStore m_store;
@@ -878,7 +904,8 @@ namespace Test.BuildXL.Engine.Cache
                         FileContentTable, 
                         Tracker, 
                         m_directoryTranslator,
-                        new TestFileChangeTrackingSelector(this));
+                        new TestFileChangeTrackingSelector(this),
+                        inCloudBuild: m_inCloudBuild);
                     return m_store;
                 }
             }
@@ -896,10 +923,11 @@ namespace Test.BuildXL.Engine.Cache
                 bool useDummyFileContentTable, 
                 DirectoryTranslator directoryTranslator,
                 bool verifyKnownIdentityOnTrackingFile, 
-                IArtifactContentCacheForTest contentCacheForTest)
+                IArtifactContentCacheForTest contentCacheForTest,
+                bool inCloudBuild)
             {
                 m_directoryTranslator = directoryTranslator;
-
+                m_inCloudBuild = inCloudBuild;
                 // Dummy FCT should always prevent tracking from succeeding.
                 FilesShouldBeTracked = !useDummyFileContentTable;
 

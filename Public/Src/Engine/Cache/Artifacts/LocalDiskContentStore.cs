@@ -62,6 +62,7 @@ namespace BuildXL.Engine.Cache.Artifacts
         private readonly SemaphoreSlim m_hashingSemaphore = new SemaphoreSlim(EngineEnvironmentSettings.HashingConcurrency);
         private readonly LoggingContext m_loggingContext;
         private readonly string m_vfsCasRoot;
+        private readonly bool m_inCloudBuild;
 
         /// <summary>
         /// Creates a store which tracks files and content with the provided <paramref name="fileContentTable"/> and <paramref name="fileChangeTracker"/>.
@@ -75,7 +76,8 @@ namespace BuildXL.Engine.Cache.Artifacts
             IFileChangeTrackingSubscriptionSource fileChangeTracker,
             DirectoryTranslator directoryTranslator = null,
             FileChangeTrackingSelector changeTrackingFilter = null,
-            AbsolutePath vfsCasRoot = default)
+            AbsolutePath vfsCasRoot = default,
+            bool inCloudBuild = false)
         {
             Contract.Requires(loggingContext != null);
             Contract.Requires(pathTable != null);
@@ -88,6 +90,7 @@ namespace BuildXL.Engine.Cache.Artifacts
             m_pathToNormalizedPathTranslator = directoryTranslator;
             m_normalizedPathToRealPathTranslator = directoryTranslator?.GetReverseTranslator();
             m_fileChangeTrackerSelector = changeTrackingFilter ?? FileChangeTrackingSelector.CreateAllowAllFilter(m_loggingContext, pathTable, fileChangeTracker);
+            m_inCloudBuild = inCloudBuild;
             m_vfsCasRoot = vfsCasRoot.IsValid ? vfsCasRoot.ToString(pathTable) : null;
             if (m_vfsCasRoot != null && m_normalizedPathToRealPathTranslator != null)
             {
@@ -487,6 +490,7 @@ namespace BuildXL.Engine.Cache.Artifacts
 
                 using (SafeFileHandle handle = maybeHandle.Result)
                 {
+                    VersionedFileIdentity weakIdentity = default;
                     DiscoveredContentHashOrigin origin = DiscoveredContentHashOrigin.Cached;
                     VersionedFileIdentityAndContentInfo info = default;
                     ReparsePointType reparsePointType = ReparsePointType.None;
@@ -506,7 +510,12 @@ namespace BuildXL.Engine.Cache.Artifacts
                         {
                             using (Counters.StartStopwatch(LocalDiskContentStoreCounter.TryDiscoverTime_TryGetKnownContentHash))
                             {
-                                maybeKnownHash = m_fileContentTable.TryGetKnownContentHash(expandedPath, handle);
+                                var possibleWeakIdentity = m_fileContentTable.TryQueryWeakIdentity(handle);
+                                if (possibleWeakIdentity.Succeeded)
+                                {
+                                    weakIdentity = possibleWeakIdentity.Result;
+                                    maybeKnownHash = m_fileContentTable.TryGetKnownContentHash(expandedPath, weakIdentity);
+                                }
                             }
                         }
 
@@ -587,11 +596,21 @@ namespace BuildXL.Engine.Cache.Artifacts
                                     }
                                 }
 
+                                VersionedFileIdentity? strongIdentity = null;
+
+                                // We can reuse weakIdentity for source files in CloudBuild where we know that there are not recent changes in those files. 
+                                // Instead of establishing a strong identity, we can use the USN and file id from the weak identity when recording the new content hash.
+                                if (m_inCloudBuild && fileArtifact.IsSourceFile && !weakIdentity.IsAnonymous)
+                                {
+                                    strongIdentity = weakIdentity.ToStrongIdentity();
+                                }
+
                                 var identity = m_fileContentTable.RecordContentHash(
                                     contentPath,
                                     readHandle,
                                     hash,
-                                    contentLength);
+                                    contentLength,
+                                    strongIdentity: strongIdentity);
                                 info = new VersionedFileIdentityAndContentInfo(identity, new FileContentInfo(hash, contentLength));
                                 Counters.AddToCounter(LocalDiskContentStoreCounter.HashFileContentSizeBytes, info.FileContentInfo.Length);
                             }

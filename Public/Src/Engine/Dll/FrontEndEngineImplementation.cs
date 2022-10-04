@@ -148,14 +148,15 @@ namespace BuildXL.Engine
             {
                 m_allBuildParameters.TryAdd(kvp.Key, new TrackedValue(kvp.Value, false));
             }
-
+            
             m_localDiskContentStore = new LocalDiskContentStore(
                 loggingContext, 
                 PathTable, 
                 m_getFileContentTable(), 
                 m_inputTracker.FileChangeTracker, 
                 directoryTranslator,
-                vfsCasRoot: configuration.Cache.VfsCasRoot);
+                vfsCasRoot: configuration.Cache.VfsCasRoot,
+                inCloudBuild: configuration.InCloudBuild());
 
             m_localDiskContentStoreConcurrencyLimiter = ActionBlockSlim.CreateWithAsyncAction<MaterializeFileRequest>(
                 Environment.ProcessorCount,

@@ -233,6 +233,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             configuration.RocksDbPerformanceSettings = settings.RocksDbPerformanceSettings;
 
+            ApplyIfNotNull(settings.TraceStateChangeDatabaseOperations, v => configuration.TraceOperations = v);
             ApplyIfNotNull(settings.TraceNoStateChangeDatabaseOperations, v => configuration.TraceNoStateChangeOperations = v);
 
             ApplyIfNotNull(settings.ContentLocationDatabaseGcIntervalMinutes, v => configuration.GarbageCollectionInterval = TimeSpan.FromMinutes(v));

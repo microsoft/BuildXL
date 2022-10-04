@@ -552,13 +552,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
             }
 
             /// <nodoc />
-            public void Complete(int messageCount)
+            public void Complete(int messageCount, int actionBlockIndex)
             {
                 if (Interlocked.Add(ref _remainingMessageCount, -messageCount) == 0)
                 {
                     int duration = (int)_stopwatch.Elapsed.TotalMilliseconds;
                     Store.UpdatingPendingEventProcessingStates();
-                    Context.LogProcessEventsOverview(EventStoreCounters, duration, UpdatedHashesVisitor);
+                    Context.LogProcessEventsOverview(EventStoreCounters, duration, actionBlockIndex, UpdatedHashesVisitor);
 
                     Store.Counters.Append(EventStoreCounters);
                 }
@@ -607,7 +607,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
             public void Complete()
             {
                 Interlocked.Decrement(ref _store._queueSize);
-                State.Complete(Messages.Count());
+                State.Complete(Messages.Count(), ActionBlockIndex);
             }
         }
 

@@ -216,6 +216,9 @@ namespace BuildXL.Cache.Host.Configuration
         public bool UseContextualEntryDatabaseOperationLogging { get; set; } = false;
 
         [DataMember]
+        public bool? TraceStateChangeDatabaseOperations { get; set; }
+
+        [DataMember]
         public bool TraceTouches { get; set; } = true;
 
         [DataMember]

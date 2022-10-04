@@ -435,7 +435,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                 if (entry != null)
                 {
-                    NagleOperationTracer?.Enqueue((context, hash, entryOperation, reason));
+                    // Do not tracing touches if configured.
+                    if (entryOperation != EntryOperation.MergeTouch || !_configuration.TraceTouches)
+                    {
+                        NagleOperationTracer?.Enqueue((context, hash, entryOperation, reason));
+                    }
                 }
 
                 Contract.Assert(entry != null, "Seems like an unknown database operation.");

@@ -1400,7 +1400,7 @@ namespace ContentStoreTest.Distributed.Sessions
              });
         }
 
-        [Fact]
+        [Fact(Skip = "Flaky test. Work item - 1950089")]
         public Task SkipRedundantTouchAndAddTest()
         {
             ConfigureWithOneMaster();

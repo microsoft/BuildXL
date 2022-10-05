@@ -348,7 +348,7 @@ config({
                 { id: "ObjectLayoutInspector", version: "0.1.4" },
 
                 // Ninja JSON graph generation helper
-                { id: "BuildXL.Tools.Ninjson", version: "0.0.6" },
+                { id: "BuildXL.Tools.Ninjson", version: "1.11.1" },
                 { id: "BuildXL.Tools.AppHostPatcher", version: "1.0.0" },
 
                 // Kusto SDK (for netstandard)

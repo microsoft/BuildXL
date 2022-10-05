@@ -1575,10 +1575,13 @@ namespace BuildXL
                     engineConfiguration.ReuseEngineState = false;
                 }
 
-                if (ideConfiguration.IsEnabled)
+                if (ideConfiguration.IsEnabled || ideConfiguration.IsNewEnabled)
                 {
                     // Disable incrementalScheduling if the /vs is passed. IDE generator needs to catch all scheduled nodes and should not ignore the skipped ones due to the incremental scheduling
                     schedulingConfiguration.IncrementalScheduling = false;
+
+                    // Initializing the remote cache client is expensive. Don't do this when generating a VS solution which doesn't perform a build anyway.
+                    cacheConfiguration.UseLocalOnly = true;
                 }
 
                 // Disable any options that may prevent cache convergence

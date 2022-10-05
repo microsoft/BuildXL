@@ -212,6 +212,24 @@ namespace Test.BuildXL
 
             XAssert.IsTrue(argsParser.TryParse(args, pt, out var config4));
             XAssert.AreEqual(chosen, config4.Startup.ChosenABTestingKey);
-        }        
+        }
+
+        [Fact]
+        public void RemoteCacheDisabledForIDE()
+        {
+            PathTable pt = new PathTable();
+            var argsParser = new Args();
+
+            // Expect no value for UserLocalOnly by default
+            ICommandLineConfiguration config;
+            XAssert.IsTrue(argsParser.TryParse(new[] { "/c:" + m_specFilePath }, pt, out config));
+            XAssert.IsNull(config.Cache.UseLocalOnly);
+
+            XAssert.IsTrue(argsParser.TryParse(new[] { "/c:" + m_specFilePath, "/vs" }, pt, out config));
+            XAssert.IsTrue(config.Cache.UseLocalOnly.Value);
+
+            XAssert.IsTrue(argsParser.TryParse(new[] { "/c:" + m_specFilePath, "/vsnew" }, pt, out config));
+            XAssert.IsTrue(config.Cache.UseLocalOnly.Value);
+        }
     }
 }

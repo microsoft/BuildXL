@@ -119,7 +119,7 @@ namespace BuildXL.Scheduler.Distribution
         }
 
         /// <inheritdoc />
-        public override async Task<PipResultStatus> MaterializeInputsAsync(RunnablePip runnablePip)
+        public override async Task<PipResultStatus> MaterializeInputsAsync(ProcessRunnablePip runnablePip)
         {
             using (OnPipExecutionStarted(runnablePip))
             {
@@ -210,8 +210,18 @@ namespace BuildXL.Scheduler.Distribution
                 var environment = runnablePip.Environment;
                 var ipcPip = (IpcPip)runnablePip.Pip;
                 var operationContext = runnablePip.OperationContext;
+                ExecutionResult executionResult;
 
-                var executionResult = await PipExecutor.ExecuteIpcAsync(operationContext, environment, ipcPip);
+                var result = await PipExecutor.MaterializeInputsAsync(runnablePip.OperationContext, runnablePip.Environment, runnablePip.Pip);
+                if (result == PipResultStatus.Failed)
+                {
+                    executionResult = ExecutionResult.GetFailureNotRunResult(operationContext);
+                }
+                else
+                {
+                    executionResult = await PipExecutor.ExecuteIpcAsync(operationContext, environment, ipcPip);
+                }
+
                 runnablePip.SetExecutionResult(executionResult);
 
                 return RunnablePip.CreatePipResultFromExecutionResult(runnablePip.StartTime, executionResult);

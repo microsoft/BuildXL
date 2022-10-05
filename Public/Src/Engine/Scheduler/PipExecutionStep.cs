@@ -331,7 +331,6 @@ WARNING: SYNC WITH PipExecutionUtils.AsString
 
                 case PipExecutionStep.MaterializeInputs:
                     return toStep == PipExecutionStep.ExecuteProcess
-                        || toStep == PipExecutionStep.ExecuteNonProcessPip
                         || toStep == PipExecutionStep.ChooseWorkerCpu       /* retry */
                         || toStep == PipExecutionStep.HandleResult;         /* failure */
 

@@ -4515,26 +4515,24 @@ namespace BuildXL.Scheduler
                     }
 
                     runnablePip.SetWorker(worker);
-                    if (InputsLazilyMaterialized)
-                    {
-                        // Materialize inputs if lazy materialization is enabled or this is a distributed build
-                        return PipExecutionStep.MaterializeInputs;
-                    }
 
                     if (pipType == PipType.Process)
                     {
-                        return PipExecutionStep.ExecuteProcess;
+                        // Materialize inputs if lazy materialization is enabled or this is a distributed build
+                        return InputsLazilyMaterialized ? PipExecutionStep.MaterializeInputs : PipExecutionStep.ExecuteProcess;
                     }
 
                     Contract.Assert(pipType == PipType.Ipc);
+
+                    // We materialize inputs of IPC pips as a part of IPC execution.
                     return PipExecutionStep.ExecuteNonProcessPip;
                 }
 
                 case PipExecutionStep.MaterializeInputs:
                 {
-                    Contract.Assert(pipType == PipType.Process || pipType == PipType.Ipc);
+                    Contract.Assert(pipType == PipType.Process);
 
-                    PipResultStatus materializationResult = await worker.MaterializeInputsAsync(runnablePip);
+                    PipResultStatus materializationResult = await worker.MaterializeInputsAsync(processRunnable);
                     if (materializationResult.IndicatesFailure())
                     {
                         return runnablePip.SetPipResult(materializationResult);
@@ -4542,9 +4540,7 @@ namespace BuildXL.Scheduler
 
                     worker.OnInputMaterializationCompletion(runnablePip.Pip, this);
 
-                    return pipType == PipType.Process ?
-                        PipExecutionStep.ExecuteProcess :
-                        PipExecutionStep.ExecuteNonProcessPip;
+                    return PipExecutionStep.ExecuteProcess;
                 }
 
                 case PipExecutionStep.ExecuteNonProcessPip:

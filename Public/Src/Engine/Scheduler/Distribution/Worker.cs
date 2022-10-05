@@ -828,7 +828,7 @@ namespace BuildXL.Scheduler.Distribution
         /// <summary>
         /// Materializes the inputs of the pip
         /// </summary>
-        public virtual Task<PipResultStatus> MaterializeInputsAsync(RunnablePip runnablePip)
+        public virtual Task<PipResultStatus> MaterializeInputsAsync(ProcessRunnablePip runnablePip)
         {
             Contract.Requires(runnablePip.Step == PipExecutionStep.MaterializeInputs);
             throw Contract.AssertFailure(I($"MaterializeInputsAsync is not supported for worker {Name}"));

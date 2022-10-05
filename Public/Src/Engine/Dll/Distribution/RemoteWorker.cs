@@ -740,7 +740,7 @@ namespace BuildXL.Engine.Distribution
         }
 
         /// <inheritdoc />
-        public override async Task<PipResultStatus> MaterializeInputsAsync(RunnablePip runnablePip)
+        public override async Task<PipResultStatus> MaterializeInputsAsync(ProcessRunnablePip runnablePip)
         {
             var result = await ExecutePipRemotelyAsync(runnablePip);
             return result.Result;
@@ -941,8 +941,9 @@ namespace BuildXL.Engine.Distribution
                 
             bool requiresHashes = materializingOutputs
                 || step == PipExecutionStep.MaterializeInputs
-                || step == PipExecutionStep.CacheLookup;
-            
+                || step == PipExecutionStep.CacheLookup
+                || step == PipExecutionStep.ExecuteNonProcessPip;
+
             if (!requiresHashes)
             {
                 return;

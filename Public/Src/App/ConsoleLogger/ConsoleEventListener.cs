@@ -287,41 +287,31 @@ namespace BuildXL
                     {
                         StringBuilder sb = wrap.Instance;
 
-                        if (m_notWorker)
-                        {
-                            sb.Append("{{9,{0}}}");     // Percentage shown only on the orchestrator
-                        }
-
-                        sb.Append("Processes: [");
-
-                        // Only show completed pips and cache hits on the orchestrator
-                        if (m_notWorker)
-                        {
-                            sb.Append(@"{{4,{0}}} done ({{5}} hit), ");
-                        }
+                        // Only show cache hits when this isn't a worker.
+                        sb.Append(m_notWorker ? @"{{9,{0}}}Processes:[{{4,{0}}} done ({{5}} hit)," : @" {{4,{0}}} done,");
 
                         if (pipsFailed > 0)
                         {
-                            sb.Append(@"{{0,{0}}} succeeded, {{1,{0}}} failed, ");
+                            sb.Append(@" {{0,{0}}} succeeded, {{1,{0}}} failed,");
                         }
 
                         if (pipsSkipped > 0)
                         {
-                            sb.Append(@"{{6,{0}}} skipped, ");
+                            sb.Append(@" {{6,{0}}} skipped,");
                         }
 
                         if (remoteProcs > 0)
                         {
-                            sb.Append(@"{{8,{0}}} executing ({{14}} remote), {{2,{0}}} waiting]");
+                            sb.Append(@" {{8,{0}}} executing ({{14}} remote), {{2,{0}}} waiting]");
                         }
                         else
                         {
-                            sb.Append(@"{{8,{0}}} executing, {{2,{0}}} waiting]");
+                            sb.Append(@" {{8,{0}}} executing, {{2,{0}}} waiting]");
                         }
 
                         if (pipsWaitingOnSemaphore > 0)
                         {
-                            sb.Append(@" ({{3,{0}}} on semaphores)");
+                            sb.Append(@" ({{3,{0}}} on semaphores).");
                         }
 
                         if (servicePipsRunning > 0)
@@ -329,7 +319,7 @@ namespace BuildXL
                             sb.Append(@". Services: {{7}}.");
                         }
 
-                        if (filePipsTotal > 0 && m_notWorker)
+                        if (filePipsTotal > 0)
                         {
                             sb.Append(@" Files:[{{12}}/{{13}}]");
                         }

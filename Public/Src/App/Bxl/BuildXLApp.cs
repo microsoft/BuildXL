@@ -1458,11 +1458,12 @@ namespace BuildXL
                     ConfigureConsoleLogging(notWorker, buildViewModel);
                 }
 
-                if (m_configuration.OptimizeConsoleOutputForAzureDevOps
+                if (notWorker
+                    && (m_configuration.OptimizeConsoleOutputForAzureDevOps
                     || m_configuration.OptimizeVsoAnnotationsForAzureDevOps
-                    || m_configuration.OptimizeProgressUpdatingForAzureDevOps)
+                    || m_configuration.OptimizeProgressUpdatingForAzureDevOps))
                 {
-                    ConfigureAzureDevOpsLogging(buildViewModel, notWorker);
+                    ConfigureAzureDevOpsLogging(buildViewModel);
                 }
 
                 if (notWorker && inCloudBuild)
@@ -1632,7 +1633,7 @@ namespace BuildXL
                 AddListener(listener);
             }
 
-            private void ConfigureAzureDevOpsLogging(BuildViewModel buildViewModel, bool notWorker)
+            private void ConfigureAzureDevOpsLogging(BuildViewModel buildViewModel)
             {
                 var initialFrequency = Scheduler.Scheduler.GetLoggingPeriodInMsForExecution(m_configuration);
                 var listener = new AzureDevOpsListener(
@@ -1640,7 +1641,6 @@ namespace BuildXL
                     m_console,
                     m_baseTime,
                     buildViewModel,
-                    notWorker,
                     m_configuration.UseCustomPipDescriptionOnConsole,
                     m_warningManager.GetState,
                     initialFrequency,

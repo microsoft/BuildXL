@@ -42,11 +42,6 @@ namespace BuildXL
         private readonly BuildViewModel m_buildViewModel;
 
         /// <summary>
-        /// True if the agent is not running as a distributed worker (i.e., orchestrator or single-build)
-        /// </summary>
-        private readonly bool m_notWorker;
-
-        /// <summary>
         /// The last reported percentage. To avoid double reporting the same percentage over and over
         /// </summary>
         private int m_lastReportedProgress = -1;
@@ -62,7 +57,6 @@ namespace BuildXL
             IConsole console,
             DateTime baseTime,
             BuildViewModel buildViewModel,
-            bool notWorker,
             bool useCustomPipDescription,
             [CanBeNull] WarningMapper warningMapper,
             int initialFrequencyMs,
@@ -76,7 +70,6 @@ namespace BuildXL
             m_buildViewModel = buildViewModel;
             m_adoConsoleMaxIssuesToLog = adoConsoleMaxIssuesToLog;
             m_initialFrequencyMs = initialFrequencyMs;
-            m_notWorker = notWorker;
         }
 
         /// <inheritdoc />
@@ -115,12 +108,6 @@ namespace BuildXL
                 case (int)SharedLogEventId.PipStatus:
                 case (int)BuildXL.Scheduler.Tracing.LogEventId.PipStatusNonOverwriteable:
                 {
-                    // Skip reporting progress on distributed workers
-                    if (!m_notWorker)
-                    {
-                        break;
-                    }
-
                     var payload = eventData.Payload;
 
                     var executing = (long)payload[10];

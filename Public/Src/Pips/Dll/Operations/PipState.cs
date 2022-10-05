@@ -56,14 +56,6 @@ namespace BuildXL.Pips.Operations
         /// Pip was canceled despite being eligible to run (e.g. early schedule termination).
         /// </summary>
         Canceled,
-
-        /// <summary>
-        /// The worker finished executing this step. A pip transitions to this state
-        /// after running a step in the worker, and it can transition from this state back 
-        /// to Waiting if a new request is sent to the worker.
-        /// This is only ever used on distributed workers.
-        /// </summary>
-        DoneOnWorker,
     }
 
     /// <summary>
@@ -74,7 +66,7 @@ namespace BuildXL.Pips.Operations
         /// <summary>
         /// Max integer value of a valid <see cref="PipState"/>.
         /// </summary>
-        public const int MaxValue = (int)PipState.DoneOnWorker;
+        public const int MaxValue = (int)PipState.Canceled;
 
         /// <summary>
         /// Min integer value of a valid <see cref="PipState"/>.
@@ -104,8 +96,7 @@ namespace BuildXL.Pips.Operations
                 case PipState.Waiting:
                     // Initial state on pip addition / explicit scheduling.
                     return current == PipState.Ignored ||
-                           /* fail establish pip fingerprint */ current == PipState.Running ||
-                           /* worker has executed a previous step */ current == PipState.DoneOnWorker;
+                           /* fail establish pip fingerprint */ current == PipState.Running;
                 case PipState.Ready:
                     // Pending pips are the staging area on the way to being queued - they may have unsatisfied dependencies
                     return current == PipState.Waiting;
@@ -124,7 +115,6 @@ namespace BuildXL.Pips.Operations
                     return current == PipState.Running;
                 case PipState.Failed:
                 case PipState.Done:
-                case PipState.DoneOnWorker:
                     // Completion.
                     return current == PipState.Running;
                 default:

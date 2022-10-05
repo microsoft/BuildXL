@@ -2489,7 +2489,7 @@ namespace BuildXL.Scheduler
                         servicePipsRunning: m_serviceManager.RunningServicesCount,
                         perfInfoForConsole: m_perfInfo.ConsoleResourceSummary,
                         pipsWaitingOnResources: pipsWaitingOnResources,
-                        procsExecuting: LocalWorker.RunningProcesses,
+                        procsExecuting: LocalWorker.RunningPipExecutorProcesses.Count,
                         procsSucceeded: m_processStateCountersSnapshot[PipState.Done],
                         procsFailed: m_processStateCountersSnapshot[PipState.Failed],
                         procsSkippedDueToFailedDependencies: m_processStateCountersSnapshot[PipState.Skipped],
@@ -3862,16 +3862,9 @@ namespace BuildXL.Scheduler
 
             // Start by updating the pip to the ready state
             PipRuntimeInfo pipRuntimeInfo = GetPipRuntimeInfo(pipId);
-
-            if (!pipRuntimeInfo.TryTransition(m_pipStateCounters, m_pipTable.GetPipType(pipId), PipState.Ignored, PipState.Waiting))
-            {
-                // We ran a different step for this pip before so we transition from DoneOnWorker
-                var transitioned = pipRuntimeInfo.TryTransition(m_pipStateCounters, m_pipTable.GetPipType(pipId), PipState.DoneOnWorker, PipState.Waiting);
-                Contract.Assert(transitioned, "Transition from DoneOnWorker to Waiting should succeed");
-            }
-
-            pipRuntimeInfo.Transition(m_pipStateCounters, m_pipTable.GetPipType(pipId), PipState.Ready);
-            pipRuntimeInfo.Transition(m_pipStateCounters, m_pipTable.GetPipType(pipId), PipState.Running);
+            pipRuntimeInfo.TryTransition(m_pipStateCounters, m_pipTable.GetPipType(pipId), PipState.Ignored, PipState.Waiting);
+            pipRuntimeInfo.TryTransition(m_pipStateCounters, m_pipTable.GetPipType(pipId), PipState.Waiting, PipState.Ready);
+            pipRuntimeInfo.TryTransition(m_pipStateCounters, m_pipTable.GetPipType(pipId), PipState.Ready, PipState.Running);
 
             SchedulePip(pipId, m_pipTable.GetPipType(pipId), observer, step: step, priority: priority).GetAwaiter().GetResult();
         }
@@ -4005,12 +3998,7 @@ namespace BuildXL.Scheduler
 
             if (IsDistributedWorker)
             {
-                var pipId = runnablePip.PipId;
-                
                 runnablePip.End();
-                // Update the state
-                var pipRuntimeInfo = GetPipRuntimeInfo(pipId);
-                pipRuntimeInfo.Transition(m_pipStateCounters, m_pipTable.GetPipType(pipId), PipState.DoneOnWorker);
                 m_executionStepTracker.Transition(runnablePip.PipId, PipExecutionStep.None);
 
                 // Distributed workers do not traverse state machine

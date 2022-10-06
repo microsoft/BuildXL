@@ -285,5 +285,19 @@ namespace Test.BuildXL.FrontEnd.Rush
 
             XAssert.AreEqual(nestedProcessTerminationTimeout, TimeSpan.FromMilliseconds(42));
         }
+
+        [FactIfSupported(requiresUnixBasedOperatingSystem: true)]
+        public void SandboxLoggingIsHonored()
+        {
+            var project = CreateRushProject();
+
+            var environment = Start(new RushResolverSettings { EnableSandboxLogging = true })
+                .Add(project)
+                .ScheduleAll()
+                .RetrieveSuccessfulProcess(project)
+                .EnvironmentVariables;
+
+            XAssert.IsTrue(environment.Any(var => var.Name.ToString(StringTable) == "__BUILDXL_LOG_PATH"));
+        }
     }
 }

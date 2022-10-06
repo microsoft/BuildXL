@@ -845,6 +845,13 @@ interface UntrackingSettings {
      * Defaults to 30000 (30 seconds). 
      */
     nestedProcessTerminationTimeoutMs?: number;
+
+    /**
+     * Debug option to enable sandbox logging. Corresponding logs will be sent to the project-level log folder.
+     * Enabling this option may affect performance. Intended for debugging only.
+     * Only supported on Linux.
+     */
+    enableSandboxLogging?: boolean;
 }
 
 interface NuGetConfiguration extends ToolConfiguration {

@@ -221,8 +221,16 @@ namespace BuildXL.FrontEnd.JavaScript
             string nodeModulesBin = project.ProjectFolder.Combine(PathTable, RelativePath.Create(PathTable.StringTable, "node_modules/.bin")).ToString(PathTable);
             env["PATH"] = nodeModulesBin + (env.ContainsKey("PATH")? $"{Path.PathSeparator}{env["PATH"]}" : string.Empty);
             
+            // If sandbox debugging is enabled, for Linux this translates into setting an environment variable for the executing pip
+            if (m_resolverSettings.EnableSandboxLogging == true && OperatingSystemHelper.IsLinuxOS)
+            {
+                env["__BUILDXL_LOG_PATH"] = GetSandboxLogPath(project).ToString(PathTable);
+            }
+
             return env;
         }
+
+        private AbsolutePath GetSandboxLogPath(JavaScriptProject project) => GetLogDirectory(project).Combine(PathTable, "sandbox.log");
 
         private bool TryCreateProcess(
             PipConstructionHelper pipConstructionHelper,
@@ -346,6 +354,12 @@ namespace BuildXL.FrontEnd.JavaScript
 
             // Add additional output directories configured in the main config file
             PipConstructionUtilities.AddAdditionalOutputDirectories(processBuilder, m_resolverSettings.AdditionalOutputDirectories, project.ProjectFolder, PathTable);
+
+            // If sandbox debugging is enabled, declare the produced log file as an optional output
+            if (m_resolverSettings.EnableSandboxLogging == true && OperatingSystemHelper.IsLinuxOS)
+            {
+                processBuilder.AddOutputFile(GetSandboxLogPath(project), FileExistence.Optional);
+            }
         }
 
         private void ComputeTransitiveDependenciesFor(JavaScriptProject project, HashSet<JavaScriptProject> accumulatedDependencies)

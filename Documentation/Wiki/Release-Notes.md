@@ -1,7 +1,22 @@
 This page is a curated list of the release notes for releases after 0.20170619.4.0 and a manual copy of notable changes from each build before that. See the repo's commit history full details for what is included in each build.
 
 =======
-# 0.1.0-20220916.6 (Release [221995](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=221995) Release 9/21/2022)
+# 0.1.0-20221003.19.1 (Release [228699](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=228699) Released 10/06/2022)
+- Update Google.Protobuf to 3.19.5
+- Remove directory deletion lock
+- Do not emit stale location traces on master
+- Various performance optimizations
+- Add Linux support for capturing process dumps
+
+# 0.1.0-20220923.4.1 (Release [226434](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=226434) Released 9/28/2022)
+- Add support for trace files (sandbox observations) on Windows
+- Avoid dynamic memory allocation in ReportProcessData
+- Fix DFA due incremental tool enumeration
+- Promote SBOM package parsing failures to errors
+- Clean some object pools for server process
+- Fix to handle crash during the failure of deserialization in FingerprintStore
+
+# 0.1.0-20220916.6 (Release [221995](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=221995) Released 9/21/2022)
 -	Remove the OpenBond distribution layer.
 -	Add grpc option to enable gzip compression.
 -	Added ability to config chooseworkerlight and default to 100.

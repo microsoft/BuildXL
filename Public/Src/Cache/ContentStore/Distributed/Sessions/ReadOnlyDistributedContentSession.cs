@@ -966,6 +966,20 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             bool succeedWithOneLocation,
             UrgencyHint urgencyHint = UrgencyHint.Nominal)
         {
+            // Pinning a content based on a number of location is inherently dangerous in case of eviction storms in a system.
+            // The LLS data might be stale because of event processing delay and the global information can be inaccurate because
+            // the trim events are not sent to the global store.
+            // We can't do anything when the LLS data is stale, but in some stamps its beneficial not to rely on the global loctions.
+            if (Settings.PinConfiguration.UseLocalLocationsOnlyOnUnverifiedPin)
+            {
+                return PinFromContentLocationStoreOriginAsync(
+                    context,
+                    contentHashes,
+                    GetBulkOrigin.Local,
+                    succeedWithOneLocation: succeedWithOneLocation,
+                    urgencyHint);
+            }
+
             return Workflows.RunWithFallback(
                 contentHashes,
                 hashes => PinFromContentLocationStoreOriginAsync(context, hashes, GetBulkOrigin.Local, succeedWithOneLocation: succeedWithOneLocation, urgencyHint),
@@ -975,13 +989,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
         // This method creates pages of hashes, makes one bulk call to the content location store to get content location record sets for all the hashes on the page,
         // and fires off processing of the returned content location record sets while proceeding to the next page of hashes in parallel.
-        private async Task<IEnumerable<Task<Indexed<PinResult>>>> PinFromContentLocationStoreOriginAsync(OperationContext operationContext, IReadOnlyList<ContentHash> hashes, GetBulkOrigin origin, bool succeedWithOneLocation, UrgencyHint urgency = UrgencyHint.Nominal)
+        private async Task<IEnumerable<Task<Indexed<PinResult>>>> PinFromContentLocationStoreOriginAsync(
+            OperationContext operationContext, IReadOnlyList<ContentHash> hashes, GetBulkOrigin origin, bool succeedWithOneLocation, UrgencyHint urgency = UrgencyHint.Nominal)
         {
             CancellationToken cancel = operationContext.Token;
             // Create an action block to process all the requested remote pins while limiting the number of simultaneously executed.
             var pinnings = new List<RemotePinning>(hashes.Count);
             var pinningOptions = new ExecutionDataflowBlockOptions() { CancellationToken = cancel, MaxDegreeOfParallelism = Settings.PinConfiguration?.MaxIOOperations ?? 1 };
-            var pinningAction = new ActionBlock<RemotePinning>(async pinning => await PinRemoteAsync(operationContext, pinning, isLocal: origin == GetBulkOrigin.Local, updateContentTracker: false, succeedWithOneLocation: succeedWithOneLocation), pinningOptions);
+            var pinningAction = new ActionBlock<RemotePinning>(
+                async pinning => await PinRemoteAsync(operationContext, pinning, isLocal: origin == GetBulkOrigin.Local, updateContentTracker: false, succeedWithOneLocation: succeedWithOneLocation), pinningOptions);
 
             // Make a bulk call to content location store to get location records for all hashes on the page.
             // NOTE: We use GetBulkStackedAsync so that when Global results are retrieved we also include Local results to ensure we get a full view of available content
@@ -1112,7 +1128,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             if (locations.Count >= Settings.PinConfiguration.PinMinUnverifiedCount)
             {
                 SessionCounters[Counters.PinUnverifiedCountSatisfied].Increment();
-                var result = DistributedPinResult.EnoughReplicas(locations.Count);
+
+                // Tracing extra data if the locations were merged to separate the local locations and the global locations that we added to the final result.
+                string? extraMessage = null;
+                if (!isLocal)
+                {
+                    // Extra locations does make sense only for the global case when the entries were merged.
+                    extraMessage = $"ExtraGlobal: {remote.ExtraMergedLocations}";
+                }
+
+                var result = DistributedPinResult.EnoughReplicas(locations.Count, extraMessage);
 
                 // Triggering an async copy if the number of replicas are close to a PinMinUnverifiedCount threshold.
                 int threshold = Settings.PinConfiguration.PinMinUnverifiedCount +

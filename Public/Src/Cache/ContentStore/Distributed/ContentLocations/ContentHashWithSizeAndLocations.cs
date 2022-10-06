@@ -34,6 +34,11 @@ namespace BuildXL.Cache.ContentStore.Distributed
         public IReadOnlyList<MachineLocation>? FilteredOutInactiveMachineLocations { get; }
 
         /// <summary>
+        /// Gets the number of extra locations that we added to the current instance by merging two lists. Used for tracing only.
+        /// </summary>
+        public int ExtraMergedLocations { get; init; }
+
+        /// <summary>
         /// The content hash for the specified locations.
         /// </summary>
         public ContentHash ContentHash { get; }
@@ -89,13 +94,17 @@ namespace BuildXL.Cache.ContentStore.Distributed
         {
             Contract.Requires(left.ContentHash == right.ContentHash);
             Contract.Requires(left.Size == -1 || right.Size == -1 || right.Size == left.Size);
-            var finalList = (left.Locations ?? Enumerable.Empty<MachineLocation>()).Union(right.Locations ?? Enumerable.Empty<MachineLocation>());
+            var finalList = (left.Locations ?? Enumerable.Empty<MachineLocation>()).Union(right.Locations ?? Enumerable.Empty<MachineLocation>()).ToList();
+
             return new ContentHashWithSizeAndLocations(
                 left.ContentHash,
                 Math.Max(left.Size, right.Size),
-                finalList.ToList(),
+                finalList,
                 ContentLocationEntry.MergeEntries(left.Entry, right.Entry),
-                origin: left.Origin ?? right.Origin);
+                origin: left.Origin ?? right.Origin)
+                   {
+                        ExtraMergedLocations = finalList.Count - (left.Locations?.Count ?? 0)
+                   };
         }
 
         /// <inheritdoc />

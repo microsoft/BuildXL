@@ -5,7 +5,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using BuildXL.Cache.ContentStore.Distributed;
-using BuildXL.Cache.ContentStore.Interfaces.Distributed;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.InterfacesTest.Utils;
@@ -56,6 +55,21 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Results
 
         private static GetBulkLocationsResult ToResult(GetBulkOrigin origin, params ContentHashWithSizeAndLocations[] contentHashes)
             => new GetBulkLocationsResult(contentHashes, origin);
+
+        [Fact]
+        public void MergeKeepsStoresExtraLocations()
+        {
+            var hash1 = ContentHash.Random();
+            var locations1 = FromHashAndLocations(hash1, new AbsolutePath(Path1), new AbsolutePath(Path2));
+            var locations2 = FromHashAndLocations(hash1, new AbsolutePath(Path2), new AbsolutePath(Path3));
+            var left = ToResult(GetBulkOrigin.Local, locations1);
+            var right = ToResult(GetBulkOrigin.Global, locations2);
+
+            var merge = left.Merge(right);
+            Assert.Equal(3, merge.ContentHashesInfo[0].Locations?.Count);
+            Assert.Equal(1, merge.ContentHashesInfo[0].ExtraMergedLocations);
+
+        }
 
         [Fact]
         public void SubtractFromItselfShouldNotChangeOrigin()

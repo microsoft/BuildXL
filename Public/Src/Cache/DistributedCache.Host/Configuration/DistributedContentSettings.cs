@@ -479,6 +479,9 @@ namespace BuildXL.Cache.Host.Configuration
         [Validation.Range(1, int.MaxValue)]
         public int? PinMinUnverifiedCount { get; set; }
 
+        [DataMember]
+        public bool? UseLocalLocationsOnlyOnUnverifiedPin { get; set; }
+
         /// <summary>
         /// Obsolete: will be removed in favor of AsyncCopyOnPinThreshold.
         /// </summary>

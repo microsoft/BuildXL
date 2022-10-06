@@ -332,6 +332,7 @@ namespace BuildXL.Cache.Host.Service.Internal
 
             PinConfiguration pinConfiguration = new PinConfiguration();
             ApplyIfNotNull(distributedSettings.PinMinUnverifiedCount, v => pinConfiguration.PinMinUnverifiedCount = v);
+            ApplyIfNotNull(distributedSettings.UseLocalLocationsOnlyOnUnverifiedPin, v => pinConfiguration.UseLocalLocationsOnlyOnUnverifiedPin = v);
             ApplyIfNotNull(distributedSettings.StartCopyWhenPinMinUnverifiedCountThreshold, v => pinConfiguration.AsyncCopyOnPinThreshold = v);
             ApplyIfNotNull(distributedSettings.AsyncCopyOnPinThreshold, v => pinConfiguration.AsyncCopyOnPinThreshold = v);
             ApplyIfNotNull(distributedSettings.MaxIOOperations, v => pinConfiguration.MaxIOOperations = v);

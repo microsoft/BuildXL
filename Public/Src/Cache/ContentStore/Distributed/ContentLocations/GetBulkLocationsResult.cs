@@ -9,6 +9,29 @@ using BuildXL.Cache.ContentStore.Interfaces.Results;
 
 namespace BuildXL.Cache.ContentStore.Distributed
 {
+    public class MergedGetBulkLocationsResult : GetBulkLocationsResult
+    {
+        public MergedGetBulkLocationsResult(IReadOnlyList<ContentHashWithSizeAndLocations> contentHashesInfo, GetBulkOrigin origin = GetBulkOrigin.Global)
+            : base(contentHashesInfo, origin)
+        {
+        }
+
+        public MergedGetBulkLocationsResult(string errorMessage, string diagnostics = null)
+            : base(errorMessage, diagnostics)
+        {
+        }
+
+        public MergedGetBulkLocationsResult(Exception exception, string message = null)
+            : base(exception, message)
+        {
+        }
+
+        public MergedGetBulkLocationsResult(ResultBase other, string message = null)
+            : base(other, message)
+        {
+        }
+    }
+
     /// <summary>
     /// Result of the GetBulk call
     /// </summary>

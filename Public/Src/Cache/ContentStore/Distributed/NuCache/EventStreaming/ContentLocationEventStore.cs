@@ -75,7 +75,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         /// <summary>
         /// Nagle queue for all events send via event hub.
         /// </summary>
-        protected NagleQueue<(OperationContext context, ContentLocationEventData data)>? EventNagleQueue;
+        protected INagleQueue<(OperationContext context, ContentLocationEventData data)>? EventNagleQueue;
 
         /// <inheritdoc />
         protected ContentLocationEventStore(
@@ -359,13 +359,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         /// <inheritdoc />
         protected override Task<BoolResult> StartupCoreAsync(OperationContext context)
         {
-            EventNagleQueue = NagleQueue<(OperationContext context, ContentLocationEventData data)>.Create(
+            EventNagleQueue = NagleQueueFactory.Create<(OperationContext context, ContentLocationEventData data)>(
                 // If nagle queue is triggered by time and has just one entry, we can use the context from that entry.
                 // Otherwise we'll create a nested context.
 
                 // The operation should fail if configured. This is important, because the flag to fail is set for reconciliation
                 // and we want to fail reconciliation operation if we'll fail to send the data to event hub.
-                input => SendEventsAsync(input.Length == 1 ? input[0].context : context.CreateNested(nameof(ContentLocationEventStore)), input.SelectArray(d => d.data))
+                input => SendEventsAsync(input.Count == 1 ? input[0].context : context.CreateNested(nameof(ContentLocationEventStore)), input.SelectArray(d => d.data))
                     .ThrowIfNeededAsync(_configuration.FailWhenSendEventsFails),
                 maxDegreeOfParallelism: 1,
                 interval: _configuration.EventNagleInterval,

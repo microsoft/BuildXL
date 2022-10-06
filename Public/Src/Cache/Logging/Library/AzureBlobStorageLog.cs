@@ -118,11 +118,13 @@ namespace BuildXL.Cache.Logging
             _additionalBlobMetadata = additionalBlobMetadata;
 
             _writeQueue = NagleQueue<string>.CreateUnstarted(
+                WriteBatchAsync,
                 configuration.WriteMaxDegreeOfParallelism,
                 configuration.WriteMaxInterval,
                 configuration.WriteMaxBatchSize);
 
             _uploadQueue = NagleQueue<LogFile>.CreateUnstarted(
+                UploadBatchAsync,
                 configuration.UploadMaxDegreeOfParallelism,
                 configuration.UploadMaxInterval,
                 1);
@@ -158,9 +160,8 @@ namespace BuildXL.Cache.Logging
 
             _fileSystem.CreateDirectory(_configuration.UploadFolderPath);
 
-            _writeQueue.Start(WriteBatchAsync);
-
-            _uploadQueue.Start(UploadBatchAsync);
+            _writeQueue.Start();
+            _uploadQueue.Start();
 
             return RecoverFromCrash(context);
         }

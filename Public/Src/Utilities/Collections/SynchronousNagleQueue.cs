@@ -13,18 +13,16 @@ namespace BuildXL.Utilities.Collections
     /// <typeparam name="T"></typeparam>
     internal sealed class SynchronousNagleQueue<T> : NagleQueue<T>
     {
-        private  Func<T[], Task>? _processBatch;
+        private readonly Func<T[], Task> _processBatch;
 
         /// <nodoc />
-        internal SynchronousNagleQueue(int maxDegreeOfParallelism, TimeSpan interval, int batchSize)
-            : base(maxDegreeOfParallelism, interval, batchSize)
+        internal SynchronousNagleQueue(Func<T[], Task> processBatch, int maxDegreeOfParallelism, TimeSpan interval, int batchSize)
+            : base(processBatch, maxDegreeOfParallelism, interval, batchSize)
         {
             Contract.Requires(maxDegreeOfParallelism == 1);
             Contract.Requires(batchSize == 1);
+            _processBatch = processBatch;
         }
-
-        /// <inheritdoc />
-        public override void Start(Func<T[], Task> processBatch) => _processBatch = processBatch;
 
         /// <inheritdoc />
         protected override void EnqueueCore(T item, bool fromResume)

@@ -157,7 +157,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private const string EventProcessingDelayKey = "LocalLocationStore.EventProcessingDelay";
 
-        private readonly ResultNagleQueue<IReadOnlyList<ShortHashWithSize>, (BoolResult Result, string TraceId)>? _registerNagleQueue;
+        private ResultNagleQueue<IReadOnlyList<ShortHashWithSize>, (BoolResult Result, string TraceId)>? _registerNagleQueue;
 
         private readonly MachineLocationResolver.Settings _machineListSettings;
 
@@ -195,14 +195,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             var reader = new SpanReader(_machineHash.AsSpan());
             _evictionPartitionOffset = reader.Read<uint>();
-
-            if (configuration.Settings.GlobalRegisterNagleInterval?.Value is TimeSpan nagleInterval)
-            {
-                _registerNagleQueue = new(
-                    configuration.Settings.GlobalRegisterNagleParallelism,
-                    nagleInterval,
-                    configuration.Settings.GlobalRegisterNagleBatchSize);
-            }
 
             _recentlyAddedHashes = new VolatileSet<ShortHash>(clock);
             _recentlyTouchedHashes = new VolatileSet<ShortHash>(clock);
@@ -330,31 +322,38 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             Database.DatabaseInvalidated = OnContentLocationDatabaseInvalidation;
 
-            _registerNagleQueue?.Start(async batch =>
+            if (Configuration.Settings.GlobalRegisterNagleInterval?.Value is TimeSpan nagleInterval)
             {
-                var results = new (BoolResult, string)[batch.Count];
-                var hashes = new List<ShortHashWithSize>();
-                int resultCount = 0;
-                var resultsMemory = results.AsMemory();
-                for (int i = 0; i < batch.Count; i++)
-                {
-                    hashes.AddRange(batch[i]);
-                    resultCount++;
-
-                    if (i == (batch.Count - 1)
-                        || hashes.Count >= _registerNagleQueue.BatchSize)
+                var batchSize = Configuration.Settings.GlobalRegisterNagleBatchSize;
+                _registerNagleQueue = ResultNagleQueue<IReadOnlyList<ShortHashWithSize>, (BoolResult Result, string TraceId)>.CreateAndStart(
+                    async batch =>
                     {
-                        var registerContext = context.CreateNested(Tracer.Name, nameof(RegisterLocalLocationAsync));
-                        var result = await GlobalRegisterAsync(registerContext, _localMachineId.Value, hashes, touch: true);
-                        resultsMemory.Span.Slice(0, resultCount).Fill((result, registerContext.TracingContext.TraceId));
-                        resultsMemory = resultsMemory.Slice(resultCount);
-                        resultCount = 0;
-                        hashes.Clear();
-                    }
-                }
+                        var results = new (BoolResult, string)[batch.Count];
+                        var hashes = new List<ShortHashWithSize>();
+                        int resultCount = 0;
+                        var resultsMemory = results.AsMemory();
+                        for (int i = 0; i < batch.Count; i++)
+                        {
+                            hashes.AddRange(batch[i]);
+                            resultCount++;
 
-                return results;
-            });
+                            if (i == (batch.Count - 1) || hashes.Count >= batchSize)
+                            {
+                                var registerContext = context.CreateNested(Tracer.Name, nameof(RegisterLocalLocationAsync));
+                                var result = await GlobalRegisterAsync(registerContext, _localMachineId.Value, hashes, touch: true);
+                                resultsMemory.Span.Slice(0, resultCount).Fill((result, registerContext.TracingContext.TraceId));
+                                resultsMemory = resultsMemory.Slice(resultCount);
+                                resultCount = 0;
+                                hashes.Clear();
+                            }
+                        }
+
+                        return results;
+                    },
+                    Configuration.Settings.GlobalRegisterNagleParallelism,
+                    nagleInterval,
+                    batchSize);
+            }
 
             return BoolResult.Success;
         }

@@ -73,18 +73,18 @@ namespace ContentStoreTest.Utils
             async Task createAndUseResultNagleQueue()
             {
                 using var queue = new ResultNagleQueue<int, int>(
-                    maxDegreeOfParallelism: 1,
-                    interval: TimeSpan.FromMilliseconds(1),
-                    batchSize: 2);
-
-                queue.Start(
                     async list =>
                     {
                         await Task.Yield();
                         _outputHelper.WriteLine("Inside Start's callback.");
                         var e = new Exception(string.Join(", ", list.Select(n => n.ToString())));
                         throw e;
-                    });
+                    },
+                    maxDegreeOfParallelism: 1,
+                    interval: TimeSpan.FromMilliseconds(1),
+                    batchSize: 2);
+
+                queue.Start();
 
                 // Enqueue more item then the batch size.
                 // It is very important to enqueue more item then the batch size
@@ -108,15 +108,16 @@ namespace ContentStoreTest.Utils
         public async Task TestBasicUsage()
         {
             using var queue = new ResultNagleQueue<int, int>(
+                async values =>
+                {
+                    await Task.Yield();
+                    return values.Select(i => i + 1).ToList();
+                },
                 maxDegreeOfParallelism: 1,
                 interval: TimeSpan.FromMilliseconds(1),
                 batchSize: 10);
 
-            queue.Start(async values =>
-            {
-                await Task.Yield();
-                return values.Select(i => i + 1).ToList();
-            });
+            queue.Start();
 
             var values = new[] { 1, 20, 50, 121 };
 

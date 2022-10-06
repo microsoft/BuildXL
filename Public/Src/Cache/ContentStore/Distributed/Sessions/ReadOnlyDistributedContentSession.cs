@@ -67,7 +67,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         private ContentHash? _buildIdHash = null;
         private MachineLocation[] _buildRingMachines = CollectionUtilities.EmptyArray<MachineLocation>();
         private readonly ConcurrentBigSet<ContentHash> _pendingProactivePuts = new ConcurrentBigSet<ContentHash>();
-        private readonly ResultNagleQueue<ContentHash, ContentHashWithSizeAndLocations> _proactiveCopyGetBulkNagleQueue;
+        private ResultNagleQueue<ContentHash, ContentHashWithSizeAndLocations>? _proactiveCopyGetBulkNagleQueue;
 
         // The method used for remote pins depends on which pin configuration is enabled.
         private readonly RemotePinAsync _remotePinner;
@@ -140,11 +140,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             PutAndPlaceFileGate = new SemaphoreSlim(Settings.MaximumConcurrentPutAndPlaceFileOperations);
 
             _coldStorage = coldStorage;
-
-            _proactiveCopyGetBulkNagleQueue = new ResultNagleQueue<ContentHash, ContentHashWithSizeAndLocations>(
-                maxDegreeOfParallelism: 1,
-                interval: Settings.ProactiveCopyGetBulkInterval,
-                batchSize: Settings.ProactiveCopyGetBulkBatchSize);
         }
 
         /// <inheritdoc />
@@ -154,7 +149,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             Tracer.Debug(context, $"Session {Name} {canHibernate} hibernate");
             await Inner.StartupAsync(context).ThrowIfFailure();
 
-            _proactiveCopyGetBulkNagleQueue.Start(hashes => GetLocationsForProactiveCopyAsync(context.CreateNested(Tracer.Name), hashes));
+            _proactiveCopyGetBulkNagleQueue = new ResultNagleQueue<ContentHash, ContentHashWithSizeAndLocations>(
+                execute: hashes => GetLocationsForProactiveCopyAsync(context.CreateNested(Tracer.Name), hashes),
+                maxDegreeOfParallelism: 1,
+                interval: Settings.ProactiveCopyGetBulkInterval,
+                batchSize: Settings.ProactiveCopyGetBulkBatchSize);
+            _proactiveCopyGetBulkNagleQueue.Start();
 
             TryRegisterMachineWithBuildId(context);
 
@@ -227,7 +227,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
             await Inner.ShutdownAsync(context).ThrowIfFailure();
 
-            _proactiveCopyGetBulkNagleQueue.Dispose();
+            _proactiveCopyGetBulkNagleQueue?.Dispose();
             Tracer.TraceStatisticsAtShutdown(context, counterSet, prefix: "DistributedContentSessionStats");
 
             return BoolResult.Success;
@@ -1266,7 +1266,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             bool tryBuildRing,
             CopyReason reason)
         {
-            ContentHashWithSizeAndLocations result = await _proactiveCopyGetBulkNagleQueue.EnqueueAsync(hash);
+            var nagleQueue = _proactiveCopyGetBulkNagleQueue;
+            if (nagleQueue is null)
+            {
+                return new ProactiveCopyResult(new ErrorResult("StartupAsync was not called"));
+            }
+
+            ContentHashWithSizeAndLocations result = await nagleQueue.EnqueueAsync(hash);
             return await ProactiveCopyIfNeededAsync(context, result, tryBuildRing, reason);
         }
 

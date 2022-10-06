@@ -90,6 +90,7 @@ namespace BuildXL.Utilities.ParallelAlgorithms
     /// </summary>
     public class ActionBlockSlim<T>
     {
+        private readonly TaskCompletionSource<Unit> m_tcs = new();
         private readonly Channel<T> m_channel;
         private readonly CancellationToken m_cancellationToken;
 
@@ -176,9 +177,9 @@ namespace BuildXL.Utilities.ParallelAlgorithms
         /// Add a given <paramref name="item"/> to a processing queue.
         /// </summary>
         /// <exception cref="ActionBlockIsFullException">If the queue is full and the queue was configured to limit the queue size.</exception>
-        public void Post(T item)
+        public void Post(T item, bool throwOnFullOrComplete = true)
         {
-            TryPost(item, throwOnFullOrComplete: true);
+            TryPost(item, throwOnFullOrComplete);
         }
 
         /// <summary>
@@ -227,7 +228,7 @@ namespace BuildXL.Utilities.ParallelAlgorithms
         /// <summary>
         /// Marks the action block as completed.
         /// </summary>
-        public void Complete(bool cancelPending = false)
+        public void Complete(bool cancelPending = false, bool propagateExceptionsFromCallback = false)
         {
             if (cancelPending)
             {
@@ -237,7 +238,22 @@ namespace BuildXL.Utilities.ParallelAlgorithms
             if (Interlocked.CompareExchange(ref m_schedulingCompleted, value: 1, comparand: 0) == 0)
             {
                 m_channel.Writer.Complete();
-                Task.WhenAll(Tasks.ToArray()).ContinueWith(_ => m_tcs.TrySetResult(Unit.Void)).Forget();
+
+                Task.WhenAll(Tasks.ToArray()).ContinueWith(
+                    t =>
+                    {
+                        if (propagateExceptionsFromCallback && t.Exception is not null)
+                        {
+                            // If the AggregateException has a single one, then passing it to the target tcs
+                            // to avoid adding layer of AggregateExceptions.
+                            var exception = t.Exception.InnerExceptions.Count == 1 ? t.Exception.InnerException : t.Exception;
+                            m_tcs.TrySetException(exception);
+                        }
+                        else
+                        {
+                            m_tcs.TrySetResult(Unit.Void);
+                        }
+                    }).Forget();
             }
         }
 
@@ -289,7 +305,6 @@ namespace BuildXL.Utilities.ParallelAlgorithms
         /// Returns a task that will be completed when <see cref="Complete"/> method is called and all the items added to the queue are processed.
         /// </summary>
         public virtual Task Completion => m_tcs.Task;
-        private readonly TaskCompletionSource<Unit> m_tcs = new();
 
         /// <summary>
         /// Increases the current concurrency level from <see cref="DegreeOfParallelism"/> to <paramref name="maxDegreeOfParallelism"/>.

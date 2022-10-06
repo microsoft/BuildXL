@@ -17,6 +17,7 @@ namespace Collections {
             importFrom("BuildXL.Cache.ContentStore").Hashing.dll,
             ...BuildXLSdk.systemThreadingTasksDataflowPackageReference,
             ...BuildXLSdk.systemMemoryDeployment,
+            ...BuildXLSdk.bclAsyncPackages,
         ]
     });
 }

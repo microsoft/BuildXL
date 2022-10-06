@@ -24,11 +24,18 @@ namespace ContentStoreTest.Utils
         {
         }
 
+        protected virtual INagleQueue<T> CreateNagleQueue<T>(Func<T[], Task> processBatch, int maxDegreeOfParallelism, TimeSpan interval, int batchSize, bool start = true)
+        {
+            return start
+                ? NagleQueue<T>.Create(processBatch, maxDegreeOfParallelism, interval, batchSize)
+                : NagleQueue<T>.CreateUnstarted(processBatch, maxDegreeOfParallelism, interval, batchSize);
+        }
+
         [Fact]
         public void ResumeShouldTriggerBatchOnTime()
         {
             bool processBatchIsCalled = false;
-            var queue = NagleQueue<int>.Create(
+            var queue = CreateNagleQueue<int>(
                 processBatch: data =>
                               {
                                   processBatchIsCalled = true;
@@ -60,13 +67,13 @@ namespace ContentStoreTest.Utils
                 await testCore(i);
             }
 
-            static async Task testCore(int attempt)
+            async Task testCore(int attempt)
             {
                 var log = TestGlobal.Logger;
                 TestGlobal.Logger.Debug($"Running {attempt} attempt.");
                 Task task = null;
 
-                using (var queue = NagleQueue<int>.Create(
+                using (var queue = CreateNagleQueue<int>(
                     processBatch: data => { return Task.FromResult(42); },
                     maxDegreeOfParallelism: 1,
                     interval: TimeSpan.FromMilliseconds(1),
@@ -102,9 +109,10 @@ namespace ContentStoreTest.Utils
         public void EnqueingItemsInfrequentlyShouldAlwaysTriggerCallbackOnTime()
         {
             int processBatchIsCalled = 0;
-            var queue = NagleQueue<int>.Create(
+            var queue = CreateNagleQueue<int>(
                 processBatch: data =>
                               {
+                                  Output.WriteLine("Called. Data.Length=" + data.Length);
                                   processBatchIsCalled++;
                                   return Task.FromResult(42);
                               },
@@ -126,7 +134,7 @@ namespace ContentStoreTest.Utils
         [Fact]
         public void PostAfterDispose()
         {
-            var queue = NagleQueue<int>.Create(
+            var queue = CreateNagleQueue<int>(
                 processBatch: data =>
                               {
                                   return Task.FromResult(42);
@@ -145,7 +153,7 @@ namespace ContentStoreTest.Utils
             var logger = TestGlobal.Logger;
             logger.Debug("Starting...");
             var tcs = TaskSourceSlim.Create<object>();
-            var queue = NagleQueue<int>.Create(
+            var queue = CreateNagleQueue<int>(
                 processBatch: async data =>
                               {
                                   await Task.Delay(1000);
@@ -168,7 +176,7 @@ namespace ContentStoreTest.Utils
         {
             var logger = TestGlobal.Logger;
             logger.Debug("Starting...");
-            var queue = NagleQueue<int>.Create(
+            var queue = CreateNagleQueue<int>(
                 processBatch: async data =>
                 {
                     await Task.Yield();
@@ -180,7 +188,7 @@ namespace ContentStoreTest.Utils
             var sw = Stopwatch.StartNew();
             queue.Enqueue(42);
 
-            await Assert.ThrowsAsync<InvalidOperationException>(() => queue.DisposeAsync());
+            await Assert.ThrowsAsync<InvalidOperationException>(async () => await queue.DisposeAsync());
             logger.Debug($"Disposed. Elapsed: {sw.ElapsedMilliseconds}");
         }
 
@@ -188,7 +196,7 @@ namespace ContentStoreTest.Utils
         public void PendingItemsAreProcessedOnDispose()
         {
             bool processBatchWasCalled = false;
-            var queue = NagleQueue<int>.Create(
+            var queue = CreateNagleQueue<int>(
                 processBatch: data =>
                               {
                                   processBatchWasCalled = true;
@@ -211,7 +219,7 @@ namespace ContentStoreTest.Utils
             int dataLength = 0;
             var processBatchWasCalled = false;
             var processBatchEvent = new ManualResetEvent(false);
-            using (var queue = NagleQueue<int>.Create(
+            using (var queue = CreateNagleQueue<int>(
                 processBatch: data =>
                               {
                                   dataLength = data.Length;
@@ -235,7 +243,7 @@ namespace ContentStoreTest.Utils
         public void TwoItemsAreProcessedInParallel()
         {
             var threads = new List<int>();
-            using (var queue = NagleQueue<int>.Create(
+            using (var queue = CreateNagleQueue<int>(
                 processBatch: async data =>
                               {
                                   lock (threads)
@@ -243,6 +251,7 @@ namespace ContentStoreTest.Utils
                                       threads.Add(Thread.CurrentThread.ManagedThreadId);
                                   }
 
+                                  Output.WriteLine("Data: " + string.Join(", ", data.Select(x => x.ToString())));
                                   await Task.Delay(1);
                               },
                 maxDegreeOfParallelism: 2,
@@ -263,7 +272,7 @@ namespace ContentStoreTest.Utils
         {
             var processBatchWasCalled = false;
             var processBatchEvent = new ManualResetEvent(false);
-            using (var queue = NagleQueue<int>.Create(
+            using (var queue = CreateNagleQueue<int>(
                 processBatch: data =>
                               {
                                   processBatchWasCalled = true;
@@ -285,7 +294,7 @@ namespace ContentStoreTest.Utils
         public void ItemsAreProcessedInBatches()
         {
             int batchSize = 0;
-            using (var queue = NagleQueue<int>.Create(
+            using (var queue = CreateNagleQueue<int>(
                 processBatch: data =>
                               {
                                   batchSize = data.Length;
@@ -306,18 +315,19 @@ namespace ContentStoreTest.Utils
         public void TestExceptionHandling()
         {
             int callbackCount = 0;
-            var queue = NagleQueue<int>.CreateUnstarted(
+            var queue = CreateNagleQueue<int>(
+                async data =>
+                {
+                    callbackCount++;
+                    await Task.Yield();
+                    var e = new InvalidOperationException(string.Join(", ", data.Select(n => n.ToString())));
+                    throw e;
+                },
                 maxDegreeOfParallelism: 1,
                 interval: TimeSpan.FromMilliseconds(10),
-                batchSize: 2);
-            queue.Start(
-                processBatch: async data =>
-                              {
-                                  callbackCount++;
-                                  await Task.Yield();
-                                  var e = new InvalidOperationException(string.Join(", ", data.Select(n => n.ToString())));
-                                  throw e;
-                              });
+                batchSize: 2,
+                start: false);
+            queue.Start();
             queue.Enqueue(1);
             queue.Enqueue(2);
             queue.Enqueue(3);

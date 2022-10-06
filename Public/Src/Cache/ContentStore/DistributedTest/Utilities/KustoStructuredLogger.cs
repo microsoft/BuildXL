@@ -80,71 +80,73 @@ namespace BuildXL.Cache.Logging
 
             bool created = false;
 
-            TableUpdateQueue = NagleQueue<Action>.CreateUnstarted(1, TimeSpan.FromSeconds(5), 100000);
-
-            TableUpdateQueue.Start(async batch =>
-            {
-                if (!created)
+            TableUpdateQueue = NagleQueue<Action>.CreateUnstarted(
+                async batch =>
                 {
-                    created = true;
-                    await blob.CreateOrReplaceAsync();
-
-                    var schema = new StringBuilder();
-                    foreach (DataColumn column in _table.DataTable.Columns)
+                    if (!created)
                     {
-                        schema.Append($"{column.ColumnName}:{column.DataType.Name.ToString().ToLower()}, ");
-                    }
+                        created = true;
+                        await blob.CreateOrReplaceAsync();
 
-                    output.WriteLine($"Schema: {schema}");
-                }
-
-                foreach (var item in batch)
-                {
-                    item();
-                }
-                try
-                {
-                    foreach (DataRow row in _table.DataTable.Rows)
-                    {
+                        var schema = new StringBuilder();
                         foreach (DataColumn column in _table.DataTable.Columns)
                         {
-                            if (!row.IsNull(column))
-                            {
-                                var value = row[column];
-                                if (column.DataType == typeof(DateTime))
-                                {
-                                    _sb.Write(((DateTime)value).ToString("o"));
-                                }
-                                else if (column.DataType == typeof(TimeSpan))
-                                {
-                                    _sb.Write(((TimeSpan)value).ToString("G"));
-                                }
-                                else if (value != null)
-                                {
-                                    var stringValue = value.ToString();
-                                    _sb.Write(EscapeRegex.Replace(stringValue, static m => Replace(m)));
-                                }
-                            }
-
-                            _sb.Write("\t");
+                            schema.Append($"{column.ColumnName}:{column.DataType.Name.ToString().ToLower()}, ");
                         }
 
-                        _sb.WriteLine();
+                        output.WriteLine($"Schema: {schema}");
                     }
 
-                    _sb.Flush();
-                    _sb.BaseStream.Position = 0;
+                    foreach (var item in batch)
+                    {
+                        item();
+                    }
+                    try
+                    {
+                        foreach (DataRow row in _table.DataTable.Rows)
+                        {
+                            foreach (DataColumn column in _table.DataTable.Columns)
+                            {
+                                if (!row.IsNull(column))
+                                {
+                                    var value = row[column];
+                                    if (column.DataType == typeof(DateTime))
+                                    {
+                                        _sb.Write(((DateTime)value).ToString("o"));
+                                    }
+                                    else if (column.DataType == typeof(TimeSpan))
+                                    {
+                                        _sb.Write(((TimeSpan)value).ToString("G"));
+                                    }
+                                    else if (value != null)
+                                    {
+                                        var stringValue = value.ToString();
+                                        _sb.Write(EscapeRegex.Replace(stringValue, static m => Replace(m)));
+                                    }
+                                }
 
-                    await blob.AppendFromStreamAsync(_sb.BaseStream);
-                }
-                catch (Exception ex)
-                {
-                    TestGlobal.Logger.Error(ex, "Error while logging");
-                }
+                                _sb.Write("\t");
+                            }
 
-                _sb.BaseStream.SetLength(0);
-                _table.DataTable.Clear();
-            });
+                            _sb.WriteLine();
+                        }
+
+                        _sb.Flush();
+                        _sb.BaseStream.Position = 0;
+
+                        await blob.AppendFromStreamAsync(_sb.BaseStream);
+                    }
+                    catch (Exception ex)
+                    {
+                        TestGlobal.Logger.Error(ex, "Error while logging");
+                    }
+
+                    _sb.BaseStream.SetLength(0);
+                    _table.DataTable.Clear();
+                },
+                1, TimeSpan.FromSeconds(5), 100000);
+
+            TableUpdateQueue.Start();
         }
 
         private static string Replace(Match m)

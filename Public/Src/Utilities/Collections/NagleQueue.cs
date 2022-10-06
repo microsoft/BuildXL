@@ -12,9 +12,35 @@ using System.Threading.Tasks.Dataflow;
 namespace BuildXL.Utilities.Collections
 {
     /// <summary>
+    /// Interface for batch processing items based on time or a number of items.
+    /// </summary>
+    public interface INagleQueue<T> : IAsyncDisposable, IDisposable
+    {
+        /// <summary>
+        /// Suspends processing data until the resulting object is disposed.
+        /// </summary>
+        IDisposable Suspend();
+
+        /// <summary>
+        /// Starts the processing.
+        /// </summary>
+        void Start();
+
+        /// <summary>
+        /// Adds an <paramref name="item"/> for asynchronous processing.
+        /// </summary>
+        void Enqueue(T item);
+
+        /// <summary>
+        /// Adds <paramref name="items"/> for asynchronous processing.
+        /// </summary>
+        void EnqueueAll(IEnumerable<T> items);
+    }
+
+    /// <summary>
     /// Nagling queue for processing data in batches based on the size or a time interval.
     /// </summary>
-    public class NagleQueue<T> : IDisposable
+    public class NagleQueue<T> : INagleQueue<T>
     {
         private bool _disposed;
         private bool _batchIsCompleted;
@@ -34,7 +60,7 @@ namespace BuildXL.Utilities.Collections
         /// <summary>
         /// Creates an instance of a nagle queue.
         /// </summary>
-        protected NagleQueue(int maxDegreeOfParallelism, TimeSpan interval, int batchSize)
+        protected NagleQueue(Func<T[], Task> processBatch, int maxDegreeOfParallelism, TimeSpan interval, int batchSize)
         {
             Contract.Requires(maxDegreeOfParallelism > 0);
             Contract.Requires(batchSize > 0);
@@ -47,20 +73,22 @@ namespace BuildXL.Utilities.Collections
                 MaxDegreeOfParallelism = maxDegreeOfParallelism
             });
 
+            _processBatch = processBatch;
+
             _intervalTimer = new Timer(SendIncompleteBatch, null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
         }
 
         /// <summary>
-        /// Creates a unstarted nagle queue which is not started until <see cref="Start(Func{T[], Task})"/> is called.
+        /// Creates a unstarted nagle queue which is not started until <see cref="Start()"/> is called.
         /// </summary>
-        public static NagleQueue<T> CreateUnstarted(int maxDegreeOfParallelism, TimeSpan interval, int batchSize)
+        public static NagleQueue<T> CreateUnstarted(Func<T[], Task> processBatch, int maxDegreeOfParallelism, TimeSpan interval, int batchSize)
         {
             if (maxDegreeOfParallelism == 1 && batchSize == 1)
             {
-                return new SynchronousNagleQueue<T>(maxDegreeOfParallelism, interval, batchSize);
+                return new SynchronousNagleQueue<T>(processBatch, maxDegreeOfParallelism, interval, batchSize);
             }
 
-            return new NagleQueue<T>(maxDegreeOfParallelism, interval, batchSize);
+            return new NagleQueue<T>(processBatch, maxDegreeOfParallelism, interval, batchSize);
         }
 
         /// <summary>
@@ -68,8 +96,8 @@ namespace BuildXL.Utilities.Collections
         /// </summary>
         public static NagleQueue<T> Create(Func<T[], Task> processBatch, int maxDegreeOfParallelism, TimeSpan interval, int batchSize)
         {
-            var queue = CreateUnstarted(maxDegreeOfParallelism, interval, batchSize);
-            queue.Start(processBatch);
+            var queue = CreateUnstarted(processBatch, maxDegreeOfParallelism, interval, batchSize);
+            queue.Start();
             return queue;
         }
 
@@ -83,7 +111,7 @@ namespace BuildXL.Utilities.Collections
             // In this case we still return ResumeBlockDisposable that will do nothing at the end.
 
             _eventsSuspended = true;
-            return new ResumeBlockDisposable(this);
+            return new DisposeAction<NagleQueue<T>>(this, @this => @this.Resume());
         }
 
         private void Resume()
@@ -104,33 +132,18 @@ namespace BuildXL.Utilities.Collections
             }
         }
 
-        private class ResumeBlockDisposable : IDisposable
-        {
-            private readonly NagleQueue<T> _nagleQueue;
-
-            public ResumeBlockDisposable(NagleQueue<T> nagleQueue) => _nagleQueue = nagleQueue;
-
-            public void Dispose() => _nagleQueue.Resume();
-        }
-
         /// <summary>
-        /// Starts the unstarted nagle queue created with <see cref="CreateUnstarted"/> using the given batch processing operation.
+        /// Starts data processing.
         /// </summary>
-        public virtual void Start(Func<T[], Task> processBatch)
+        public void Start()
         {
-            Contract.Requires(processBatch != null);
             ThrowIfDisposed();
-
-            var originalValue = Interlocked.CompareExchange(ref _processBatch, processBatch, null);
-            Contract.Assert(originalValue == null, "Nagle queue already started");
 
             _batchBlock.LinkTo(_actionBlock);
             ResetTimer();
         }
 
-        /// <summary>
-        /// Add an item for asynchronous processing.
-        /// </summary>
+        /// <inheritdoc />
         public void Enqueue(T item)
         {
             ThrowIfDisposed();
@@ -158,9 +171,7 @@ namespace BuildXL.Utilities.Collections
             Contract.Assert(result || (fromResume && Volatile.Read(ref _batchIsCompleted)));
         }
 
-        /// <summary>
-        /// Adds items for asynchronous processing.
-        /// </summary>
+        /// <inheritdoc />
         public void EnqueueAll(IEnumerable<T> items)
         {
             Contract.Requires(items != null);
@@ -169,10 +180,8 @@ namespace BuildXL.Utilities.Collections
             _batchBlock.PostAll(items);
         }
 
-        /// <summary>
-        /// Async version of dispose method.
-        /// </summary>
-        public async Task DisposeAsync()
+        /// <inheritdoc />
+        public async ValueTask DisposeAsync()
         {
             if (_disposed)
             {

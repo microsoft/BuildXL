@@ -72,7 +72,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private readonly Func<IReadOnlyList<MachineId>> _getInactiveMachines;
 
-        protected NagleQueue<(Context, IToStringConvertible entry, EntryOperation op, OperationReason reason)>? NagleOperationTracer;
+        protected INagleQueue<(Context, IToStringConvertible entry, EntryOperation op, OperationReason reason)>? NagleOperationTracer;
         private readonly ContentLocationDatabaseConfiguration _configuration;
 
         protected bool IsDatabaseWriteable;
@@ -164,7 +164,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <inheritdoc />
         protected override Task<BoolResult> StartupCoreAsync(OperationContext context)
         {
-            NagleOperationTracer = !_configuration.TraceOperations ? null : NagleQueue<(Context context, IToStringConvertible entry, EntryOperation op, OperationReason reason)>.Create(
+            NagleOperationTracer = !_configuration.TraceOperations ? null : NagleQueueFactory.Create<(Context context, IToStringConvertible entry, EntryOperation op, OperationReason reason)>(
                 ops =>
                 {
                     if (_configuration.UseContextualEntryOperationLogging)

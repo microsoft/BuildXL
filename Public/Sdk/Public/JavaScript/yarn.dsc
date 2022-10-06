@@ -53,6 +53,18 @@ namespace Yarn {
      */
     @@public
     export function runYarnInstall(arguments: YarnInstallArguments) : Transformer.ExecuteResult {
+        return runYarnInstallLikeCommand(arguments, "install");
+    }
+
+    /**
+     * Runs Yarn fast as specified in the arguments.
+     */
+    @@public
+    export function runYarnFast(arguments: YarnInstallArguments) : Transformer.ExecuteResult {
+        return runYarnInstallLikeCommand(arguments, "fast");
+    }
+
+    function runYarnInstallLikeCommand(arguments: YarnInstallArguments, installCommand: string) : Transformer.ExecuteResult {
         // If not specified explicitly, look for the nuget cache folder, otherwise use an arbitrary output folder
         const cacheFolder = arguments.yarnCacheFolder || 
             (Environment.hasVariable("NugetMachineInstallRoot") 
@@ -119,7 +131,7 @@ namespace Yarn {
             workingDirectory: arguments.repoRoot,
             environmentVariables: environment,
             arguments:[
-                Cmd.rawArgument("install"),
+                Cmd.rawArgument(installCommand),
                 Cmd.flag("--frozen-lockfile", arguments.frozenLockfile || false),
                 Cmd.flag("--verbose", arguments.verbose),
                 Cmd.flag("--ignore-optional", arguments.ignoreOptionalDependencies),

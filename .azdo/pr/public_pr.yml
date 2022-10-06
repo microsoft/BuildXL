@@ -1,0 +1,63 @@
+trigger: none  # Explicitly scheduled for PRs
+
+variables:
+  - group: "BuildXL Secrets"
+  - group: "BuildXL Common variables"
+  - name: BuildXL.LogsDirectory.LKG
+    value: $(Build.SourcesDirectory)\Out\Logs\pr-$(Build.BuildNumber)-lkg
+  - name: BuildXL.LogsDirectory
+    value: $(Build.SourcesDirectory)\Out\Logs\pr-$(Build.BuildNumber)
+  - name: BuildXL.PreReleaseTag
+    value: pr.public.win
+  - name: BuildXL.SemanticVersion
+    value: 0.0.$(Build.BuildNumber)
+  - name: BuildXL.Configuration
+    value: Release
+  - name: BuildXL.PackageName 
+    value: BuildXL.win-x64
+  
+jobs:
+- job: Public_Validation
+  displayName: Public PR Validation
+  timeoutInMinutes: 120
+  cancelTimeoutInMinutes: 1
+  pool:
+    name: BuildXL-DevOpsAgents-PME
+  steps:
+  - checkout: self
+    fetchDepth: 1
+
+  - template: ../common/journaling.yml # Enable journaling
+
+  # Step 1. Build bits and deploy to dev
+  - task: PowerShell@2
+    displayName: Build BuildXL and deploy to Dev
+    inputs:
+      targetType: filePath
+      filePath: ./RunBxlWithPat.ps1
+      arguments: -minimal -deploy Dev -deployconfig Release -OneEsPat $(PAT-TseBuild-AzureDevOps-1esSharedAssets-Package-Read) -CbPat $(PAT-TseBuild-AzureDevOps-CloudBuild-Packaging-Read) -MsEngGitPat $(PAT-TseBuild-AzureDevOps-MsEng-ReadCode) -VstsPat $(PAT-TseBuild-AzureDevOps-mseng-buildcache) -CacheNamespace BuildXL.Public -SharedCacheMode ConsumeAndPublish /p:[Sdk.BuildXL]microsoftInternal=1 /q:ReleaseDotNet6 /p:[BuildXL.Branding]SemanticVersion=$(BuildXL.SemanticVersion) /p:[BuildXL.Branding]PrereleaseTag=$(BuildXL.PreReleaseTag) /server- /logOutput:FullOutputOnWarningOrError /traceInfo:prvalidation=Public /ado /scrubDirectory:Out\objects /logsDirectory:$(BuildXL.LogsDirectory.LKG) /cachemiss:[BxlPublicValidation]
+
+  - task: PublishPipelineArtifact@1
+    displayName: Upload cache miss log
+    condition: succeededOrFailed()
+    continueOnError: True
+    inputs:
+      path: $(BuildXL.LogsDirectory.LKG)\BuildXL.CacheMiss.log
+      artifactName: Cache miss analysis for LKG bootstrap build  
+
+  # Step 2. Build microsoftInternal=0 using the built bits
+  - template: ../common/set-msvc-version.yml
+
+  - task: CmdLine@2
+    displayName: Run bxl.cmd -Use Dev (microsoftInternal=0) 
+    inputs:
+      script: 'bxl.cmd -Use Dev -UseBlobL3 -SharedCacheMode ConsumeAndPublish -CacheNamespace BuildXL.Public.Validation /p:[Sdk.BuildXL]microsoftInternal=0 /server- /ado /q:$(BuildXL.Configuration)DotNet6 /q:$(BuildXL.Configuration)DotNetCoreMac /logOutput:FullOutputOnWarningOrError /p:RetryXunitTests=1 /processRetries:3 /traceInfo:prvalidation=PublicLKG /p:xunitSemaphoreCount=12 /logsDirectory:$(BuildXL.LogsDirectory) /scrubDirectory:Out\objects'
+
+  - task: PublishPipelineArtifact@0
+    displayName: Upload logs
+    condition: always()
+    continueOnError: True
+    inputs:
+      artifactName: buildxl-public-lkg.logs.$(BuildXL.PackageName)-$(BuildXL.Configuration).$(Build.BuildNumber).$(System.JobAttempt)
+      targetPath: $(BuildXL.LogsDirectory)
+...

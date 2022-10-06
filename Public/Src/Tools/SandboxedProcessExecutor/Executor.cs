@@ -476,8 +476,6 @@ namespace BuildXL.SandboxedProcessExecutor
 
         private bool TryPrepareTemporaryDirectories(SandboxedProcessInfo info, RemoteData? remoteData)
         {
-            Contract.Requires(info != null);
-
             if (info.RedirectedTempFolders != null)
             {
                 foreach (var redirection in info.RedirectedTempFolders)

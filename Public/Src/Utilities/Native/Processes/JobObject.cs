@@ -22,6 +22,8 @@ using Microsoft.Win32.SafeHandles;
 using SafeProcessHandle = BuildXL.Interop.Windows.SafeProcessHandle;
 #endif
 
+#nullable enable
+
 namespace BuildXL.Processes
 {
     /// <summary>
@@ -75,7 +77,7 @@ namespace BuildXL.Processes
         /// Event indicating a transition to <c>m_done == true</c>
         /// This event is populated lazily, only if <see cref="WaitAsync"/> is called before completion.
         /// </summary>
-        private ManualResetEvent m_doneEvent;
+        private ManualResetEvent? m_doneEvent;
 
         /// <summary>
         /// When set, the job has been disposed and can no longer service new waits or processes.
@@ -148,13 +150,11 @@ namespace BuildXL.Processes
         #endregion
 
         /// <summary>
-        /// Creates a job
+        /// Creates a job object wrapper for a new Windows job object.
         /// </summary>
-        /// <remarks>
-        /// If name is null, an anonymous object is created.
-        /// </remarks>
+        /// <param name="name">Optional name to use for the kernel object. Null means an anonymous object.</param>
         [SuppressMessage("Microsoft.Naming", "CA2204:Literals should be spelled correctly", MessageId = "ExtendedLimitInformation")]
-        internal JobObject(string name)
+        internal JobObject(string? name)
             : base(true)
         {
             IntPtr jobHandle = Native.Processes.ProcessUtilities.CreateJobObject(IntPtr.Zero, name);
@@ -269,9 +269,9 @@ namespace BuildXL.Processes
         /// Checks whether there are any active processes for this job
         /// </summary>
         /// <remarks>If in doubt, it returns <code>true</code>.</remarks>
-        internal bool HasAnyProcesses(LoggingContext loggingContext) => !TryGetProcessIds(loggingContext, out uint[] processIds) || processIds.Length > 0;
+        internal bool HasAnyProcesses(LoggingContext loggingContext) => !TryGetProcessIds(loggingContext, out uint[]? processIds) || processIds!.Length > 0;
 
-        internal bool TryGetProcessIds(LoggingContext loggingContext, out uint[] processIds)
+        internal bool TryGetProcessIds(LoggingContext loggingContext, out uint[]? processIds)
         {
             if (!TryGetProcessIds(loggingContext, InitialProcessIdListLength, out processIds, out uint requiredLength))
             {
@@ -294,7 +294,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// Tries to retrieve the list of active process ids for this job.
         /// </summary>
-        private bool TryGetProcessIds(LoggingContext loggingContext, uint length, out uint[] processIds, out uint requiredLength)
+        private bool TryGetProcessIds(LoggingContext loggingContext, uint length, out uint[]? processIds, out uint requiredLength)
         {
             requiredLength = 0;
 
@@ -441,13 +441,15 @@ namespace BuildXL.Processes
         /// </summary>
         public bool ContainsProcess(SafeProcessHandle processHandle)
         {
-            Contract.Requires(!processHandle.IsInvalid);
+            if (processHandle.IsInvalid)
+            {
+                return false;
+            }
 
-            bool result;
             if (!Native.Processes.ProcessUtilities.IsProcessInJob(
                 processHandle,
                 handle,
-                out result))
+                out bool result))
             {
                 throw new NativeWin32Exception(Marshal.GetLastWin32Error(), "IsProcessInJob failed");
             }
@@ -578,7 +580,7 @@ namespace BuildXL.Processes
             Contract.Requires(timeout >= TimeSpan.Zero);
             Contract.Requires(timeout.TotalMilliseconds < uint.MaxValue);
 
-            ManualResetEvent doneEvent;
+            ManualResetEvent? doneEvent;
 
             lock (m_lock)
             {
@@ -610,7 +612,7 @@ namespace BuildXL.Processes
             // doneEvent is now an event that was (at one point) m_doneEvent.
             // It may be set already, but RegisterWaitForSingleObject is robust to that case.
             var waiter = TaskSourceSlim.Create<bool>();
-            RegisteredWaitHandle waitPoolHandle = null;
+            RegisteredWaitHandle? waitPoolHandle = null;
             waitPoolHandle = ThreadPool.RegisterWaitForSingleObject(
                 doneEvent,
                 (state, timedOut) =>
@@ -657,8 +659,6 @@ namespace BuildXL.Processes
 
             public void Register(IntPtr key, JobObject value)
             {
-                Contract.Requires(value != null);
-
                 if (!m_jobs.TryAdd(key, value))
                 {
                     throw new InvalidOperationException("Invoking Wait concurrently on the same instance is not supported.");
@@ -667,8 +667,7 @@ namespace BuildXL.Processes
 
             public bool TryUnregister(IntPtr key)
             {
-                JobObject job;
-                return m_jobs.TryRemove(key, out job);
+                return m_jobs.TryRemove(key, out _);
             }
 
             /// <summary>
@@ -686,7 +685,7 @@ namespace BuildXL.Processes
             /// including the JOB_OBJECT_MSG_ACTIVE_PROCESS_ZERO message we are interested in here.
             /// </remarks>
             [SuppressMessage("Microsoft.Performance", "CA1801")]
-            private void ProcessCompletionPortsBackgroundThread(object state)
+            private void ProcessCompletionPortsBackgroundThread(object? state)
             {
                 while (true)
                 {
@@ -705,9 +704,8 @@ namespace BuildXL.Processes
 
                     // Mark the associate job as done and stop tracking it (they are only allowed to complete once).
                     // Since we allow jobs to be disposed without waiting on them, it is okay for the job to have been unregistered already.
-                    JobObject job;
                     if (completionCode == Native.Processes.ProcessUtilities.JOB_OBJECT_MSG_ACTIVE_PROCESS_ZERO &&
-                        m_jobs.TryRemove(completionKey, out job))
+                        m_jobs.TryRemove(completionKey, out JobObject? job))
                     {
                         job.MarkDone();
                     }

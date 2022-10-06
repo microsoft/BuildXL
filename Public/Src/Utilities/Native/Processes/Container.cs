@@ -1,11 +1,14 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Instrumentation.Common;
 using JetBrains.Annotations;
+
+#nullable enable
 
 namespace BuildXL.Processes.Containers
 {
@@ -19,7 +22,11 @@ namespace BuildXL.Processes.Containers
         private readonly LoggingContext m_loggingContext;
 
         /// <nodoc/>
-        public Container([CanBeNull] string name, ContainerConfiguration containerConfiguration, [CanBeNull] LoggingContext loggingContext) : base(name)
+        public Container(
+            string? name,
+            ContainerConfiguration containerConfiguration,
+            LoggingContext? loggingContext)
+            : base(name)
         {
             Contract.Requires(containerConfiguration.IsIsolationEnabled);
             m_containerConfiguration = containerConfiguration;
@@ -42,7 +49,7 @@ namespace BuildXL.Processes.Containers
                             handle,
                             m_containerConfiguration.RedirectedDirectories,
                             m_containerConfiguration.EnableWciFilter,
-                            m_containerConfiguration.BindFltExcludedPaths.Select(p => p.ToString()),
+                            m_containerConfiguration.BindFltExcludedPaths?.Select(p => p.ToString()) ?? Enumerable.Empty<string>(),
                             m_containerConfiguration.BindFltFlags,
                             m_containerConfiguration.CustomJobObjectCustomization,
                             out var warnings);

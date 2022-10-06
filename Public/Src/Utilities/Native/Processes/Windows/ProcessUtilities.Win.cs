@@ -252,7 +252,7 @@ namespace BuildXL.Native.Processes.Windows
         }
 
         /// <inheritdoc />
-        public IntPtr CreateJobObject(IntPtr lpJobAttributes, string lpName)
+        public IntPtr CreateJobObject(IntPtr lpJobAttributes, string? lpName)
             => ExternCreateJobObject(lpJobAttributes, lpName);
 
         /// <inheritdoc />
@@ -419,7 +419,7 @@ namespace BuildXL.Native.Processes.Windows
             out IO.Usn expectedUsn);
 
         [DllImport(ExternDll.Kernel32, EntryPoint = "CreateJobObject", SetLastError = true, CharSet = CharSet.Unicode)]
-        private static extern IntPtr ExternCreateJobObject([In] IntPtr lpJobAttributes, string lpName);
+        private static extern IntPtr ExternCreateJobObject([In] IntPtr lpJobAttributes, string? lpName);
 
         [DllImport(ExternDll.Kernel32, EntryPoint = "QueryInformationJobObject", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]

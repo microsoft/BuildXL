@@ -227,7 +227,7 @@ namespace BuildXL.Native.Processes
         /// </param>
         /// <param name="lpName">The name of the job</param>
         /// <returns>If the function succeeds, the return value is a handle to the job object</returns>
-        public static IntPtr CreateJobObject(IntPtr lpJobAttributes, string lpName)
+        public static IntPtr CreateJobObject(IntPtr lpJobAttributes, string? lpName)
             => s_nativeMethods.CreateJobObject(lpJobAttributes, lpName);
 
         /// <summary>

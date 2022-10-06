@@ -94,7 +94,7 @@ namespace BuildXL.Native.Processes
         bool ApplyDriveMappings(PathMapping[] mappings);
 
         /// <summary><see cref="ProcessUtilities.CreateJobObject"/></summary>
-        IntPtr CreateJobObject(IntPtr lpJobAttributes, string lpName);
+        IntPtr CreateJobObject(IntPtr lpJobAttributes, string? lpName);
 
         /// <summary><see cref="ProcessUtilities.QueryInformationJobObject"/></summary>
         unsafe bool QueryInformationJobObject(IntPtr hJob, JOBOBJECTINFOCLASS JobObjectInformationClass, void* lpJobObjectInfo, uint cbJobObjectInfoLength, out uint lpReturnLength);

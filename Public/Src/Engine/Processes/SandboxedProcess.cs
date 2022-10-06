@@ -777,20 +777,14 @@ namespace BuildXL.Processes
                     false,
                     processId))
                 {
-                    if (processHandle.IsInvalid)
-                    {
-                        // we are too late: could not open process
-                        continue;
-                    }
-
                     if (!jobObject.ContainsProcess(processHandle))
                     {
-                        // we are too late: process id got reused by another process
+                        // We are too late: process handle is invalid because it closed already,
+                        // or process id got reused by another process.
                         continue;
                     }
 
-                    int exitCode;
-                    if (!ProcessUtilities.GetExitCodeProcess(processHandle, out exitCode))
+                    if (!ProcessUtilities.GetExitCodeProcess(processHandle, out int exitCode))
                     {
                         // we are too late: process id got reused by another process
                         continue;
@@ -956,7 +950,7 @@ namespace BuildXL.Processes
         }
 
         /// <summary>
-        /// Start a sand-boxed process asynchronously. The result will only be available once the process terminates.
+        /// Start a sandboxed process asynchronously. The result will only be available once the process terminates.
         /// </summary>
         /// <exception cref="BuildXLException">
         /// Thrown if the process creation fails in a recoverable manner due do some obscure problem detected by the underlying

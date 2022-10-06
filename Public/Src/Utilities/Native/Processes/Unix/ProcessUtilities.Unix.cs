@@ -144,7 +144,7 @@ namespace BuildXL.Native.Processes.Unix
             => throw new NotImplementedException();
 
         /// <inheritdoc />
-        public IntPtr CreateJobObject(IntPtr lpJobAttributes, string lpName)
+        public IntPtr CreateJobObject(IntPtr lpJobAttributes, string? lpName)
             => throw new NotImplementedException();
 
         /// <inheritdoc />

@@ -202,7 +202,7 @@ namespace BuildXL.Native.Processes.Windows
             BINDFLT_FLAG_MERGED_BIND_MAPPING = 0x00000002,
 
             /// <summary>
-            /// Use the binding mapping attached to the mapped-in job object instead of the default global mapping.
+            /// Use the binding mapping attached to the mapped-in job object (silo) instead of the default global mapping.
             /// </summary>
             BINDFLT_FLAG_USE_CURRENT_SILO_MAPPING = 0x00000004,
 

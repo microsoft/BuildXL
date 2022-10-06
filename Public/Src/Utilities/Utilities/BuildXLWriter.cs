@@ -11,6 +11,8 @@ using System.Text;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Qualifier;
 
+#nullable enable
+
 namespace BuildXL.Utilities
 {
     /// <summary>
@@ -61,7 +63,6 @@ namespace BuildXL.Utilities
         /// </summary>
         public static BuildXLWriter Create(Stream stream, bool leaveOpen = false)
         {
-            Contract.RequiresNotNull(stream);
             return new BuildXLWriter(debug: false, stream: stream, leaveOpen: leaveOpen, logStats: false);
         }
 
@@ -81,7 +82,6 @@ namespace BuildXL.Utilities
         [Conditional("MEASURE_PIPTABLE_DETAILS")]
         public void Start(Type type)
         {
-            Contract.RequiresNotNull(type);
             int typeId = BuildXLWriterStats.GetTypeId(type);
             Start(typeId);
         }
@@ -320,7 +320,6 @@ namespace BuildXL.Utilities
         /// </summary>
         public void Write<T>(IReadOnlySet<T> value, Action<BuildXLWriter, T> write)
         {
-            Contract.RequiresNotNull(value);
             WriteReadOnlyListCore(value.ToReadOnlyArray(), write);
         }
 
@@ -337,14 +336,12 @@ namespace BuildXL.Utilities
         /// </summary>
         public void WriteReadOnlyList<T>(IReadOnlyList<T> value, Action<BuildXLWriter, T> write)
         {
-            Contract.RequiresNotNull(value);
             WriteReadOnlyListCore(value, write);
         }
 
         private void WriteReadOnlyListCore<T, TReadOnlyList>(TReadOnlyList value, Action<BuildXLWriter, T> write)
             where TReadOnlyList : IReadOnlyList<T>
         {
-            Contract.RequiresNotNull(write);
             Start<TReadOnlyList>();
             WriteCompact(value.Count);
             for (int i = 0; i < value.Count; i++)
@@ -358,7 +355,7 @@ namespace BuildXL.Utilities
         /// <summary>
         /// Writes a byte array
         /// </summary>
-        public void WriteNullableByteArray(byte[] bytes)
+        public void WriteNullableByteArray(byte[]? bytes)
         {
             if (bytes == null)
             {
@@ -377,7 +374,6 @@ namespace BuildXL.Utilities
         /// </summary>
         public void Write<T>(T? value, Action<BuildXLWriter, T> writer) where T : struct
         {
-            Contract.RequiresNotNull(writer);
             Start<T?>();
             if (value.HasValue)
             {
@@ -393,11 +389,10 @@ namespace BuildXL.Utilities
         }
 
         /// <summary>
-        /// Writes a custom action
+        /// Writes an object via a custom action.
         /// </summary>
-        public void Write<T>(T value, Action<BuildXLWriter, T> writer) where T : class
+        public void Write<T>(T? value, Action<BuildXLWriter, T> writer) where T : class
         {
-            Contract.RequiresNotNull(writer);
             Start<T>();
             if (value != null)
             {
@@ -437,7 +432,6 @@ namespace BuildXL.Utilities
         /// </summary>
         public void Write(Encoding value)
         {
-            Contract.RequiresNotNull(value);
             Start<Encoding>();
             Write(value.CodePage);
             End();
@@ -448,7 +442,6 @@ namespace BuildXL.Utilities
         /// </summary>
         public void Write(Token token)
         {
-            Contract.RequiresNotNull(token);
             Start<Token>();
             token.Serialize(this);
             End();
@@ -531,7 +524,6 @@ namespace BuildXL.Utilities
             where TComparer : class, IComparer<TValue>
         {
             Contract.Requires(value.IsValid);
-            Contract.RequiresNotNull(writer);
             Start<SortedReadOnlyArray<TValue, TComparer>>();
             Write(value.BaseArray, writer);
             End();
@@ -542,7 +534,6 @@ namespace BuildXL.Utilities
         /// </summary>
         public void Write(StringTable value)
         {
-            Contract.RequiresNotNull(value);
             Start<StringTable>();
             value.Serialize(this);
             End();
@@ -554,7 +545,6 @@ namespace BuildXL.Utilities
         [SuppressMessage("Microsoft.Design", "CA1011:ConsiderPassingBaseTypesAsParameters")]
         public void Write(TokenTextTable value)
         {
-            Contract.RequiresNotNull(value);
             Start<TokenTextTable>();
             value.Serialize(this);
             End();
@@ -566,7 +556,6 @@ namespace BuildXL.Utilities
         [SuppressMessage("Microsoft.Design", "CA1011:ConsiderPassingBaseTypesAsParameters")]
         public void Write(SymbolTable value)
         {
-            Contract.RequiresNotNull(value);
             Start<SymbolTable>();
             value.Serialize(this);
             End();
@@ -578,7 +567,6 @@ namespace BuildXL.Utilities
         [SuppressMessage("Microsoft.Design", "CA1011:ConsiderPassingBaseTypesAsParameters")]
         public void Write(PathTable value)
         {
-            Contract.RequiresNotNull(value);
             Start<PathTable>();
             value.Serialize(this);
             End();

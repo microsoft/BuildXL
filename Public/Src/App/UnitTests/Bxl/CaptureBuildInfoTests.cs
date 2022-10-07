@@ -8,6 +8,7 @@ using BuildXL;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
+using BuildXL.Utilities.Tracing;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using static Test.BuildXL.TestUtilities.Xunit.XunitBuildXLTest;
@@ -165,6 +166,18 @@ namespace Test.BuildXL
             ICommandLineConfiguration configuration = new CommandLineConfiguration();
             string[] envString = ComputeEnvBlockForTesting(configuration, CaptureBuildInfo.AdoPreDefinedVariableForPipelineId, EnvVarExpectedValue);
             XAssert.IsTrue(AssertEnvStringContainsTelemetryEnvProperty("pipelineid=TestADO", envString));
+        }
+
+
+        /// <summary>
+        /// This test is to check if the "adobuildid" property is set to the pipeline id in an ADO env when "BUILD_BUILID" is present as an environment variable.
+        /// </summary>
+        [Fact]
+        public static void TestBuildIdPropertyADO()
+        {
+            ICommandLineConfiguration configuration = new CommandLineConfiguration();
+            string[] envString = ComputeEnvBlockForTesting(configuration, CaptureBuildInfo.AdoPreDefinedVariableForBuildId, EnvVarExpectedValue);
+            XAssert.IsTrue(AssertEnvStringContainsTelemetryEnvProperty($"{CaptureBuildProperties.AdoBuildIdKey}={EnvVarExpectedValue}", envString));
         }
 
         /// <summary>

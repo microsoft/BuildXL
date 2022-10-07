@@ -34,13 +34,18 @@ namespace BuildXL.Utilities.Tracing
         /// </summary>
         public const string CodeBaseKey = "codebase";
 
-        ///<summary>
+        /// <summary>
         /// pipelineid property key name.
         /// In ADO this build structure refers to the ID of the build pipeline.
         /// </summary>
         public const string PipelineIdKey = "pipelineid";
+        
+        /// <summary>
+        /// Build Id of the run that launched this build.
+        /// </summary>
+        public const string AdoBuildIdKey = "adobuildid";
 
-        ///<summary>
+        /// <summary>
         /// cloudBuildQueue property key name.
         /// In CB this build structure refers to the CB queue name.
         /// This information is already passed via traceInfo.

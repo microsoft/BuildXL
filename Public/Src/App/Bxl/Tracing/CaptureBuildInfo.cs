@@ -49,64 +49,58 @@ namespace BuildXL
         public const string AdoPreDefinedVariableForPipelineId = "SYSTEM_DEFINITIONID";
 
         /// <summary>
+        /// ADO pre-defined environment variable to obtain the id of the ADO build which ran BuildXL.
+        /// </summary>
+        public const string AdoPreDefinedVariableForBuildId = "BUILD_BUILDID";
+
+        /// <summary>
         /// This is the primary method in the class which is called by ComputeEnvironment(), to capture the build properties.
         /// </summary>
         /// <param name="configuration">This configuration object contains computed telemetry env properties and traceInfo flag fields.</param>
         /// <returns>The traceInfo Dictionary with build properties for is returned </returns>        
         public static Dictionary<string, string> CaptureTelemetryEnvProperties(IConfiguration configuration)
         {
-            Dictionary<string, string> traceInfoProperties = new Dictionary<string, string>(configuration.Logging.TraceInfo, StringComparer.InvariantCultureIgnoreCase);
-            if (!traceInfoProperties.ContainsKey(CaptureBuildProperties.InfraKey))
-            {
-                string infraPropertyValue = GetInfra(configuration);
-                traceInfoProperties.Add(CaptureBuildProperties.InfraKey, infraPropertyValue);
-            }
+            var traceInfoProperties = new Dictionary<string, string>(configuration.Logging.TraceInfo, StringComparer.InvariantCultureIgnoreCase);
 
-            if (!traceInfoProperties.ContainsKey(CaptureBuildProperties.OrgKey))
-            {
-                string orgPropertyValue = GetOrg();
-                if (!string.IsNullOrEmpty(orgPropertyValue))
-                {
-                    traceInfoProperties.Add(CaptureBuildProperties.OrgKey, orgPropertyValue);
-                }
-            }
-          
-           if (!traceInfoProperties.ContainsKey(CaptureBuildProperties.CodeBaseKey))
-            {
-                // This method is used to set a build property called codebase in the EnvString for telemetry purpose in an ADO environment. 
-                // For CB, the codebase information is passed as a part of traceInfo.
-                // This method captures the required information from the ADO pre-defined variable "Build_Repository_Name"
-                // This variable gives the name of the triggering repository.
-                string codebasePropertyValue = Environment.GetEnvironmentVariable(AdoPreDefinedVariableForCodebase);
-                if (!string.IsNullOrEmpty(codebasePropertyValue))
-                {
-                    traceInfoProperties.Add(CaptureBuildProperties.CodeBaseKey, codebasePropertyValue);
-                }
-            }
+            // The organization name
+            CaptureNewProperty(traceInfoProperties, CaptureBuildProperties.OrgKey, GetOrg);
 
-            if (!traceInfoProperties.ContainsKey(CaptureBuildProperties.PipelineIdKey))
-            {
-                // This method is used to set the build property called pipelineid in the EnvString for telemetry purpose in an ADO environment.
-                // This method captures the required information from the ADO pre-defined variable "System_DefinitionId"
-                // This variable gives the id of the pipeline that is used to build the codebase.
-                string pipelineIdPropertyValue = Environment.GetEnvironmentVariable(AdoPreDefinedVariableForPipelineId);
-                if (!string.IsNullOrEmpty(pipelineIdPropertyValue))
-                {
-                    traceInfoProperties.Add(CaptureBuildProperties.PipelineIdKey, pipelineIdPropertyValue);
-                }
-            }
+            // The name of the triggering repository.
+            CaptureNewPropertyFromEnvironment(traceInfoProperties, CaptureBuildProperties.CodeBaseKey, AdoPreDefinedVariableForCodebase);
 
-            if (!traceInfoProperties.ContainsKey(CaptureBuildProperties.StageIdKey))
-            {
-                string stageIdPropertyValue = GetStageId(configuration);
-                if (!string.IsNullOrEmpty(stageIdPropertyValue))
-                {
-                    traceInfoProperties.Add(CaptureBuildProperties.StageIdKey, stageIdPropertyValue);
-                }
-            }
+            // The id of the pipeline that is used to build the codebase.
+            CaptureNewPropertyFromEnvironment(traceInfoProperties, CaptureBuildProperties.PipelineIdKey, AdoPreDefinedVariableForPipelineId);
+
+            // The build id for the pipeline run that triggers this build (ADO only)
+            CaptureNewPropertyFromEnvironment(traceInfoProperties, CaptureBuildProperties.AdoBuildIdKey, AdoPreDefinedVariableForBuildId);
+
+            // See GetStageId and GetInfra
+            CaptureNewProperty(traceInfoProperties, CaptureBuildProperties.StageIdKey, () => GetStageId(configuration));
+            CaptureNewProperty(traceInfoProperties, CaptureBuildProperties.InfraKey, () => GetInfra(configuration));
 
             return traceInfoProperties;
         }
+
+        /// <summary>
+        /// If the key is not present in the dictionary, this method captures a property using the provided producer and adds it to it 
+        /// </summary>
+        private static void CaptureNewProperty(Dictionary<string, string> properties, string key, Func<string> valueProducer)
+        {
+            if (!properties.ContainsKey(key))
+            {
+                var value = valueProducer();
+                if (!string.IsNullOrEmpty(value))
+                {
+                    properties.Add(key, value);
+                }
+            }
+        }
+
+        private static void CaptureNewPropertyFromEnvironment(Dictionary<string, string> properties, string key, string envVariableName)
+        {
+            CaptureNewProperty(properties, key, () => Environment.GetEnvironmentVariable(envVariableName));
+        }
+
 
         /// <summary>
         /// This method is used to set a build property called infra.

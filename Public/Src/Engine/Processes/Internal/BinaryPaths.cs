@@ -5,6 +5,8 @@ using System.IO;
 using System.Reflection;
 using BuildXL.Utilities;
 
+#nullable enable
+
 namespace BuildXL.Processes.Internal
 {
     internal sealed class BinaryPaths
@@ -16,7 +18,7 @@ namespace BuildXL.Processes.Internal
 
         public BinaryPaths()
         {
-            string directory = Path.GetDirectoryName(AssemblyHelper.GetAssemblyLocation(typeof(BinaryPaths).GetTypeInfo().Assembly));
+            string directory = Path.GetDirectoryName(AssemblyHelper.GetAssemblyLocation(typeof(BinaryPaths).GetTypeInfo().Assembly)) ?? string.Empty;
 
             DllNameX86 = Path.Combine(directory, Native.Processes.Windows.ExternDll.DetoursServices32);
             DllNameX64 = Path.Combine(directory, Native.Processes.Windows.ExternDll.DetoursServices64);
@@ -24,8 +26,8 @@ namespace BuildXL.Processes.Internal
             VerifyFileExists(DllNameX86);
             VerifyFileExists(DllNameX64);
 
-            DllDirectoryX86 = Path.GetDirectoryName(DllNameX86);
-            DllDirectoryX64 = Path.GetDirectoryName(DllNameX64);
+            DllDirectoryX86 = Path.GetDirectoryName(DllNameX86) ?? string.Empty;
+            DllDirectoryX64 = Path.GetDirectoryName(DllNameX64) ?? string.Empty;
         }
 
         private static void VerifyFileExists(string fileName)

@@ -23,6 +23,8 @@ using static BuildXL.Interop.Unix.Sandbox;
 using static BuildXL.Processes.SandboxedProcessFactory;
 using static BuildXL.Utilities.FormattableStringEx;
 
+#nullable enable
+
 namespace BuildXL.Processes
 {
     /// <summary>
@@ -35,15 +37,15 @@ namespace BuildXL.Processes
 
         private readonly ActionBlock<AccessReport> m_pendingReports;
 
-        private readonly CancellableTimedAction m_perfCollector;
+        private readonly CancellableTimedAction? m_perfCollector;
 
-        private readonly Dictionary<string, Process.ProcessResourceUsage> m_processResourceUsage = null;
+        private readonly Dictionary<string, Process.ProcessResourceUsage>? m_processResourceUsage;
 
-        private IEnumerable<ReportedProcess> m_survivingChildProcesses = null;
+        private IEnumerable<ReportedProcess>? m_survivingChildProcesses;
 
-        private PipKextStats? m_pipKextStats = null;
+        private PipKextStats? m_pipKextStats;
 
-        private long m_processKilledFlag = 0;
+        private long m_processKilledFlag;
 
         private ulong m_processExitTimeNs = ulong.MaxValue;
 
@@ -79,7 +81,7 @@ namespace BuildXL.Processes
             ? ReportQueueProcessTimeoutForTests ?? TimeSpan.FromSeconds(100)
             : TimeSpan.FromMinutes(45);
 
-        private Task m_processTreeTimeoutTask;
+        private Task? m_processTreeTimeoutTask;
 
         /// <summary>
         /// Allowed surviving child process names.
@@ -111,7 +113,7 @@ namespace BuildXL.Processes
 
         internal static string EnsureDeploymentFile(string relativePath, bool setExecuteBit = false)
         {
-            var deploymentDir = Path.GetDirectoryName(AssemblyHelper.GetThisProgramExeLocation());
+            var deploymentDir = Path.GetDirectoryName(AssemblyHelper.GetThisProgramExeLocation()) ?? string.Empty;
             var fullPath = Path.Combine(deploymentDir, relativePath);
             if (!File.Exists(fullPath))
             {
@@ -134,7 +136,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// Optional directory where root jail should be established.
         /// </summary>
-        internal string RootJail => RootJailInfo?.RootJail;
+        internal string? RootJail => RootJailInfo?.RootJail;
 
         private const double NanosecondsToMillisecondsFactor = 1000000d;
 
@@ -213,7 +215,7 @@ namespace BuildXL.Processes
                     var key = $"{update.ProcessId}-{update.Name}";
 
                     // Remove and replace the snapshot value to reflect changes of processes that are potentially being snapshotted several times
-                    m_processResourceUsage[key] = update;
+                    m_processResourceUsage![key] = update;
                 }
             }
         }
@@ -328,7 +330,7 @@ namespace BuildXL.Processes
                 m_perfCollector?.Start();
             }
 
-            string processStdinFileName = await FlushStandardInputToFileIfNeededAsync(info);
+            string? processStdinFileName = await FlushStandardInputToFileIfNeededAsync(info);
 
             if (!SandboxConnection.NotifyPipStarted(info.LoggingContext, info.FileAccessManifest, this))
             {
@@ -357,11 +359,11 @@ namespace BuildXL.Processes
             }
         }
 
-        private string DetoursFile => Path.Combine(Path.GetDirectoryName(AssemblyHelper.GetThisProgramExeLocation()), "libBuildXLDetours.dylib");
+        private string DetoursFile => Path.Combine(Path.GetDirectoryName(AssemblyHelper.GetThisProgramExeLocation()) ?? string.Empty, "libBuildXLDetours.dylib");
         private const string DetoursEnvVar = "DYLD_INSERT_LIBRARIES";
 
         /// <inheritdoc />
-        protected override IEnumerable<ReportedProcess> GetSurvivingChildProcesses()
+        protected override IEnumerable<ReportedProcess>? GetSurvivingChildProcesses()
         {
             return m_survivingChildProcesses;
         }
@@ -394,13 +396,13 @@ namespace BuildXL.Processes
         /// After all the children have been taken care of, the method waits for pending report processing to finish, then returns the
         /// collected reports.
         /// </summary>
-        internal override async Task<SandboxedProcessReports> GetReportsAsync()
+        internal override async Task<SandboxedProcessReports?>? GetReportsAsync()
         {
             SandboxConnection.NotifyRootProcessExited(PipId, this);
 
             if (!Killed)
             {
-                var awaitedTask = await Task.WhenAny(m_pendingReports.Completion, m_processTreeTimeoutTask);
+                var awaitedTask = await Task.WhenAny(m_pendingReports.Completion, m_processTreeTimeoutTask!);
                 if (awaitedTask == m_processTreeTimeoutTask)
                 {
                     await KillAsync();
@@ -461,14 +463,17 @@ namespace BuildXL.Processes
 
         private void KillAllChildProcesses()
         {
-            var distinctProcessIds = CoalesceProcesses(GetCurrentlyActiveChildProcesses())
+            var distinctProcessIds = CoalesceProcesses(GetCurrentlyActiveChildProcesses())?
                 .Select(p => p.ProcessId)
                 .ToHashSet();
-            foreach (int processId in distinctProcessIds)
+            if (distinctProcessIds != null)
             {
-                bool killed = BuildXL.Interop.Unix.Process.ForceQuit(processId);
-                LogProcessState($"KillAllChildProcesses: kill({processId}) = {killed}");
-                SandboxConnection.NotifyPipProcessTerminated(PipId, processId);
+                foreach (int processId in distinctProcessIds)
+                {
+                    bool killed = BuildXL.Interop.Unix.Process.ForceQuit(processId);
+                    LogProcessState($"KillAllChildProcesses: kill({processId}) = {killed}");
+                    SandboxConnection.NotifyPipProcessTerminated(PipId, processId);
+                }
             }
         }
 
@@ -488,13 +493,17 @@ namespace BuildXL.Processes
             }
 
             // Otherwise, wait if there are any alive processes that are not explicitly allowed to survive
-            var aliveProcessesNames = CoalesceProcesses(activeProcesses).Select(p => Path.GetFileName(p.Path));
+            var aliveProcessNames = CoalesceProcesses(activeProcesses)?.Select(p => Path.GetFileName(p.Path));
+            if (aliveProcessNames != null)
+            {
+                LogProcessState("surviving processes: " + string.Join(",", aliveProcessNames));
 
-            LogProcessState("surviving processes: " + string.Join(",", aliveProcessesNames));
+                return aliveProcessNames
+                    .Except(AllowedSurvivingChildProcessNames)
+                    .Any();
+            }
 
-            return aliveProcessesNames
-                .Except(AllowedSurvivingChildProcessNames)
-                .Any();
+            return false;
         }
 
         /// <nodoc />
@@ -508,7 +517,7 @@ namespace BuildXL.Processes
             m_pendingReports.Post(report);
         }
 
-        private static string EnsureQuoted(string cmdLineArgs)
+        private static string? EnsureQuoted(string cmdLineArgs)
         {
 #if NETCOREAPP
             if (cmdLineArgs == null)
@@ -538,7 +547,7 @@ namespace BuildXL.Processes
 #endif
         }
 
-        private async Task FeedStdInAsync(SandboxedProcessInfo info, [CanBeNull] string processStdinFileName)
+        private async Task FeedStdInAsync(SandboxedProcessInfo info, string? processStdinFileName)
         {
             Contract.Requires(info.RootJailInfo == null || !NeedsShellWrapping(), $"Cannot run root jail on this OS");
 
@@ -597,13 +606,13 @@ namespace BuildXL.Processes
             Process.StandardInput.Close();
         }
 
-        private IEnumerable<(string, string)> AdditionalEnvVars(SandboxedProcessInfo info)
+        private IEnumerable<(string, string?)> AdditionalEnvVars(SandboxedProcessInfo info)
         {
             return info.SandboxConnection
                 .AdditionalEnvVarsToSet(info, UniqueName)
                 .Concat(info.SandboxConnection.Kind == SandboxKind.MacOsHybrid || info.SandboxConnection.Kind == SandboxKind.MacOsDetours
-                    ? new[] { (DetoursEnvVar, DetoursFile) }
-                    : Array.Empty<(string, string)>());
+                    ? new (string, string?)[] { (DetoursEnvVar, DetoursFile) }
+                    : Array.Empty<(string, string?)>());
         }
 
         internal override void FeedStdErr(SandboxedProcessOutputBuilder builder, string line)
@@ -875,7 +884,7 @@ namespace BuildXL.Processes
         /// If <see cref="SandboxedProcessInfo.StandardInputReader"/> is set, it flushes the content of that reader
         /// to a file in the process's working directory and returns the absolute path of that file; otherwise returns null.
         /// </summary>
-        private async Task<string> FlushStandardInputToFileIfNeededAsync(SandboxedProcessInfo info)
+        private async Task<string?> FlushStandardInputToFileIfNeededAsync(SandboxedProcessInfo info)
         {
             if (info.StandardInputReader == null)
             {
@@ -907,7 +916,7 @@ namespace BuildXL.Processes
             return stdinFileName;
         }
 
-        private IReadOnlyList<T> NullIfEmpty<T>(IReadOnlyList<T> list)
+        private IReadOnlyList<T>? NullIfEmpty<T>(IReadOnlyList<T>? list)
         {
             return list == null || list.Count == 0
                 ? null

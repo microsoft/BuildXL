@@ -31,6 +31,8 @@ using static BuildXL.Utilities.OperatingSystemHelper;
 using SafeProcessHandle = BuildXL.Interop.Windows.SafeProcessHandle;
 #endif
 
+#nullable enable
+
 namespace BuildXL.Processes
 {
     /// <summary>
@@ -44,7 +46,7 @@ namespace BuildXL.Processes
     public sealed class SandboxedProcess : ISandboxedProcess
     {
         private const int MaxProcessPathLength = 1024;
-        private static BinaryPaths s_binaryPaths;
+        private static BinaryPaths? s_binaryPaths;
         private static readonly Guid s_payloadGuid = new Guid("7CFDBB96-C3D6-47CD-9026-8FA863C52FEC");
         private static readonly UIntPtr s_defaultMin = new UIntPtr(204800);
 
@@ -52,28 +54,28 @@ namespace BuildXL.Processes
 
         private readonly PooledObjectWrapper<MemoryStream> m_fileAccessManifestStreamWrapper;
         private MemoryStream FileAccessManifestStream => m_fileAccessManifestStreamWrapper.Instance;
-        private FileAccessManifest m_fileAccessManifest;
+        private FileAccessManifest? m_fileAccessManifest;
 
         private readonly TaskSourceSlim<SandboxedProcessResult> m_resultTaskCompletionSource =
             TaskSourceSlim.Create<SandboxedProcessResult>();
 
-        private readonly TextReader m_standardInputReader;
+        private readonly TextReader? m_standardInputReader;
         private readonly TimeSpan m_nestedProcessTerminationTimeout;
         private readonly LoggingContext m_loggingContext;
-        private DetouredProcess m_detouredProcess;
+        private DetouredProcess? m_detouredProcess;
         private bool m_processStarted;
         private SandboxedProcessOutputBuilder m_error;
         private SandboxedProcessOutputBuilder m_output;
-        private readonly SandboxedProcessTraceBuilder m_traceBuilder;
-        private SandboxedProcessReports m_reports;
-        private IAsyncPipeReader m_reportReader;
+        private readonly SandboxedProcessTraceBuilder? m_traceBuilder;
+        private SandboxedProcessReports? m_reports;
+        private IAsyncPipeReader? m_reportReader;
         private readonly SemaphoreSlim m_reportReaderSemaphore = TaskUtilities.CreateMutex();
-        private Dictionary<uint, ReportedProcess> m_survivingChildProcesses;
+        private Dictionary<uint, ReportedProcess>? m_survivingChildProcesses;
         private readonly uint m_timeoutMins;
         private TaskSourceSlim<bool> m_standardInputTcs;
         private readonly PathTable m_pathTable;
-        private readonly string[] m_allowedSurvivingChildProcessNames;
-        private readonly string m_survivingPipProcessChildrenDumpDirectory;
+        private readonly string[]? m_allowedSurvivingChildProcessNames;
+        private readonly string? m_survivingPipProcessChildrenDumpDirectory;
         private readonly int m_numRetriesPipeReadOnCancel;
 
         private readonly PerformanceCollector.Aggregation m_peakWorkingSet = new PerformanceCollector.Aggregation();
@@ -85,10 +87,10 @@ namespace BuildXL.Processes
         [SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope", Justification = "We own these objects.")]
         internal SandboxedProcess(SandboxedProcessInfo info)
         {
-            Contract.Requires(info != null);
             Contract.Requires(!info.Timeout.HasValue || info.Timeout.Value <= Process.MaxTimeout);
-            Contract.Requires(!info.CreateSandboxTraceFile 
-                || info.FileAccessManifest.ReportFileAccesses && info.FileAccessManifest.LogProcessData && info.FileAccessManifest.ReportProcessArgs, 
+            Contract.Requires(!info.CreateSandboxTraceFile
+                || info.FileAccessManifest == null
+                || (info.FileAccessManifest.ReportFileAccesses && info.FileAccessManifest.LogProcessData && info.FileAccessManifest.ReportProcessArgs),
                 "Trace file is enabled, but some of the required options in the file access manifest are not.");
 
             // there could be a race here, but it just doesn't matter
@@ -149,10 +151,6 @@ namespace BuildXL.Processes
                     info.FileSystemView,
                     m_traceBuilder) : null;
 
-            Contract.Assume(inputEncoding != null);
-            Contract.Assert(errorEncoding != null);
-            Contract.Assert(outputEncoding != null);
-
             m_detouredProcess =
                 new DetouredProcess(
                     SandboxedProcessInfo.BufferSize,
@@ -173,7 +171,7 @@ namespace BuildXL.Processes
                     info.ContainerConfiguration,
                     // If there is any process configured to breakway from the sandbox, then we need to allow
                     // this to happen at the job object level
-                    setJobBreakawayOk: m_fileAccessManifest.ProcessesCanBreakaway,
+                    setJobBreakawayOk: m_fileAccessManifest?.ProcessesCanBreakaway ?? false,
                     info.CreateJobObjectForCurrentProcess,
                     info.DiagnosticsEnabled,
                     m_numRetriesPipeReadOnCancel,
@@ -225,7 +223,7 @@ namespace BuildXL.Processes
             if (isSuspend)
             {
                 // We start measuring here to avoid being considered timed-out while we are doing the visitation below
-                m_detouredProcess.StartMeasuringSuspensionTime();
+                m_detouredProcess?.StartMeasuringSuspensionTime();
             }
             var visitResult = TryVisitJobObjectProcesses((processHandle, pid) =>
             {
@@ -425,11 +423,8 @@ namespace BuildXL.Processes
             m_detouredProcess?.Dispose();
             m_detouredProcess = null;
 
-            m_output?.Dispose();
-            m_output = null;
-
-            m_error?.Dispose();
-            m_error = null;
+            m_output.Dispose();
+            m_error.Dispose();
 
             m_reports = null;
 
@@ -472,15 +467,15 @@ namespace BuildXL.Processes
             Contract.Assume(!m_processStarted);
 
             Encoding reportEncoding = Encoding.Unicode;
-            SafeFileHandle childHandle = null;
-            DetouredProcess detouredProcess = m_detouredProcess;
+            SafeFileHandle? childHandle = null;
+            DetouredProcess detouredProcess = m_detouredProcess!;
 
             bool useManagedPipeReader = !PipeReaderFactory.ShouldUseLegacyPipeReader();
 
             using (m_reportReaderSemaphore.AcquireSemaphore())
             {
-                NamedPipeServerStream pipeStream = null;
-                SafeFileHandle reportHandle = null;
+                NamedPipeServerStream? pipeStream = null;
+                SafeFileHandle? reportHandle = null;
 
                 try
                 {
@@ -504,8 +499,8 @@ namespace BuildXL.Processes
                     var setup = new FileAccessSetup
                     {
                         ReportPath = "#" + childHandle.DangerousGetHandle().ToInt64(),
-                        DllNameX64 = s_binaryPaths.DllNameX64,
-                        DllNameX86 = s_binaryPaths.DllNameX86,
+                        DllNameX64 = s_binaryPaths!.DllNameX64,
+                        DllNameX86 = s_binaryPaths!.DllNameX86,
                     };
 
                     bool debugFlagsMatch = true;
@@ -525,8 +520,8 @@ namespace BuildXL.Processes
                         s_payloadGuid,
                         manifestBytes,
                         childHandle,
-                        s_binaryPaths.DllNameX64,
-                        s_binaryPaths.DllNameX86);
+                        s_binaryPaths!.DllNameX64,
+                        s_binaryPaths!.DllNameX86);
 
                     // At this point, we believe calling 'kill' will result in an eventual callback for job teardown.
                     // This knowledge is significant for ensuring correct cleanup if we did vs. did not start a process;
@@ -564,13 +559,13 @@ namespace BuildXL.Processes
                     }
                 }
 
-                StreamDataReceived reportLineReceivedCallback = m_reports == null ? null : ReportLineReceived;
+                StreamDataReceived? reportLineReceivedCallback = m_reports == null ? null : ReportLineReceived;
 
                 if (useManagedPipeReader)
                 {
                     m_reportReader = PipeReaderFactory.CreateManagedPipeReader(
                         pipeStream,
-                        message => reportLineReceivedCallback(message),
+                        message => reportLineReceivedCallback?.Invoke(message) ?? true,
                         reportEncoding,
                         m_bufferSize);
                 }
@@ -602,13 +597,13 @@ namespace BuildXL.Processes
             SandboxedProcessFactory.Counters.IncrementCounter(SandboxedProcessFactory.SandboxedProcessCounters.AccessReportCount);
             using (SandboxedProcessFactory.Counters.StartStopwatch(SandboxedProcessFactory.SandboxedProcessCounters.HandleAccessReportDuration))
             {
-                return m_reports.ReportLineReceived(data);
+                return m_reports!.ReportLineReceived(data);
             }
         }
 
-        private void DebugPipeConnection(string data) => m_reports.ReportLineReceived($"{(int)ReportType.DebugMessage},{data}");
+        private void DebugPipeConnection(string data) => m_reports?.ReportLineReceived($"{(int)ReportType.DebugMessage},{data}");
 
-        private static async Task FeedStandardInputAsync(DetouredProcess detouredProcess, TextReader reader, TaskSourceSlim<bool> stdInTcs)
+        private static async Task FeedStandardInputAsync(DetouredProcess detouredProcess, TextReader? reader, TaskSourceSlim<bool> stdInTcs)
         {
             try
             {
@@ -617,8 +612,7 @@ namespace BuildXL.Processes
                 {
                     while (true)
                     {
-                        string line = await reader.ReadLineAsync();
-
+                        string? line = await reader.ReadLineAsync();
                         if (line == null)
                         {
                             break;
@@ -653,7 +647,7 @@ namespace BuildXL.Processes
 
         private async Task OnProcessExitingAsync()
         {
-            JobObject jobObject = m_detouredProcess.GetJobObject();
+            JobObject? jobObject = m_detouredProcess?.GetJobObject();
             if (jobObject != null)
             {
                 if (ShouldWaitForSurvivingChildProcesses(jobObject))
@@ -675,14 +669,14 @@ namespace BuildXL.Processes
         private async Task OnProcessExitedAsync()
         {
             // Wait until all incoming report messages from the detoured process have been handled.
-            await WaitUntilReportEof(m_detouredProcess.Killed);
+            await WaitUntilReportEof(m_detouredProcess!.Killed);
 
             // Ensure no further modifications to the report
             m_reports?.Freeze();
 
             // We can get extended accounting information (peak memory, etc. rolled up for the entire process tree) if this process was wrapped in a job.
             JobObject.AccountingInformation? jobAccountingInformation = null;
-            JobObject jobObject = m_detouredProcess.GetJobObject();
+            JobObject? jobObject = m_detouredProcess.GetJobObject();
 
             if (jobObject != null)
             {
@@ -705,7 +699,7 @@ namespace BuildXL.Processes
 
             ProcessTimes primaryProcessTimes = m_detouredProcess.GetTimesForPrimaryProcess();
 
-            IOException standardInputException = null;
+            IOException? standardInputException = null;
 
             try
             {
@@ -760,9 +754,9 @@ namespace BuildXL.Processes
             SetResult(result);
         }
 
-        private Dictionary<uint, ReportedProcess> GetSurvivingChildProcesses(JobObject jobObject)
+        private Dictionary<uint, ReportedProcess>? GetSurvivingChildProcesses(JobObject jobObject)
         {
-            if (!jobObject.TryGetProcessIds(m_loggingContext, out uint[] survivingChildProcessIds) || survivingChildProcessIds.Length == 0)
+            if (!jobObject.TryGetProcessIds(m_loggingContext, out uint[]? survivingChildProcessIds) || survivingChildProcessIds!.Length == 0)
             {
                 return null;
             }
@@ -855,18 +849,18 @@ namespace BuildXL.Processes
             if (TryGetProcessById(processId, out var childProcess))
             {
                 string dumpPath = Path.Combine(m_survivingPipProcessChildrenDumpDirectory, $"SurvivingChildProcess_{processId}.zip");
-                if (!ProcessDumper.TryDumpProcess(childProcess, dumpPath, out Exception dumpException, compress: true))
+                if (!ProcessDumper.TryDumpProcess(childProcess!, dumpPath, out Exception dumpException, compress: true))
                 {
-                    Tracing.Logger.Log.DumpSurvivingPipProcessChildrenStatus(m_loggingContext, childProcess.ProcessName, $"Failed with Exception: {dumpException?.Message}");
+                    Tracing.Logger.Log.DumpSurvivingPipProcessChildrenStatus(m_loggingContext, childProcess!.ProcessName, $"Failed with Exception: {dumpException?.Message}");
                 }
                 else
                 {
-                    Tracing.Logger.Log.DumpSurvivingPipProcessChildrenStatus(m_loggingContext, childProcess.ProcessName, $"Succeeded at path: {dumpPath}");
+                    Tracing.Logger.Log.DumpSurvivingPipProcessChildrenStatus(m_loggingContext, childProcess!.ProcessName, $"Succeeded at path: {dumpPath}");
                 }
             }
         }
 
-        private bool TryGetProcessById(int pid, out System.Diagnostics.Process process)
+        private bool TryGetProcessById(int pid, out System.Diagnostics.Process? process)
         {
             process = null;
             try
@@ -897,16 +891,13 @@ namespace BuildXL.Processes
 
         private bool ShouldWaitForSurvivingChildProcesses(JobObject jobObject)
         {
-            Contract.Requires(jobObject != null);
-
             if (m_allowedSurvivingChildProcessNames == null || m_allowedSurvivingChildProcessNames.Length == 0)
             {
                 // Wait for surviving child processes if no allowable process names are explicitly specified.
                 return true;
             }
 
-            Dictionary<uint, ReportedProcess> survivingChildProcesses = GetSurvivingChildProcesses(jobObject);
-
+            Dictionary<uint, ReportedProcess>? survivingChildProcesses = GetSurvivingChildProcesses(jobObject);
             if (survivingChildProcesses != null && survivingChildProcesses.Count > 0)
             {
                 foreach (string processPath in survivingChildProcesses.Select(kvp => kvp.Value.Path))
@@ -938,7 +929,7 @@ namespace BuildXL.Processes
 
             if (m_survivingChildProcesses != null && m_survivingChildProcesses.Count > 0)
             {
-                m_detouredProcess.Kill(ExitCodes.KilledSurviving);
+                m_detouredProcess!.Kill(ExitCodes.KilledSurviving);
             }
         }
 

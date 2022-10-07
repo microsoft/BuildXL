@@ -5,6 +5,8 @@ using System;
 using System.Threading.Tasks;
 using BuildXL.Interop;
 
+#nullable enable
+
 namespace BuildXL.Processes
 {
     /// <summary>
@@ -24,7 +26,7 @@ namespace BuildXL.Processes
         /// Returns the string representation of the accessed file path.
         /// </summary>
         /// <param name="reportedFileAccess">The file access object on which to get the path location.</param>
-        string GetAccessedFileName(ReportedFileAccess reportedFileAccess);
+        string? GetAccessedFileName(ReportedFileAccess reportedFileAccess);
 
         /// <summary>
         /// Gets the peak working set size for the executing process tree. If the root process exits, the peak working set is considered null.

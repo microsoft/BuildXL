@@ -266,7 +266,17 @@ namespace BuildXL.Processes
             public void Dispose()
             {
                 RequestStop();
-                m_activeProcessesChecker.Join();
+                
+                try
+                {
+                    m_activeProcessesChecker.Join();
+                }
+                catch(ThreadStateException)
+                {
+                    // The active process checker is only started once the main thread exits and child processes are still active. So we can start disposing the connection
+                    // without that being the case
+                }
+
                 m_pathCache.Clear();
                 m_activeProcesses.Clear();
                 Analysis.IgnoreResult(FileUtilities.TryDeleteFile(ReportsFifoPath, retryOnFailure: false));

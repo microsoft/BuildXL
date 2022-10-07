@@ -49,7 +49,7 @@ namespace BuildXL.Demo
                 this,
                 pathToProcess,
                 CreateManifestToLogProcessData(m_pathTable),
-                disableConHostSharing: true,
+                disableConHostSharing: false,
                 containerConfiguration: ContainerConfiguration.DisabledIsolation,
                 loggingContext: m_loggingContext)
             {

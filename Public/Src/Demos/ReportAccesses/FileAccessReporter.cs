@@ -39,7 +39,7 @@ namespace BuildXL.Demo
                 this,
                 pathToProcess,
                 CreateManifestToAllowAllAccesses(PathTable),
-                disableConHostSharing: true,
+                disableConHostSharing: false,
                 containerConfiguration: ContainerConfiguration.DisabledIsolation,
                 loggingContext: m_loggingContext)
             {

@@ -57,7 +57,7 @@ var info =
         new SimpleSandboxedProcessFileStorage(workingDirectory), 
         pathToProcess,
         CreateManifestToAllowAllAccesses(PathTable),
-        disableConHostSharing: true,
+        disableConHostSharing: false,
         loggingContext: m_loggingContext)
     {
         Arguments = arguments,

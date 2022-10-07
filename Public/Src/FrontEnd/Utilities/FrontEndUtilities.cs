@@ -121,7 +121,7 @@ namespace BuildXL.FrontEnd.Utilities
                     toolBuildStorage,
                     pathToTool,
                     fileAccessManifest,
-                    disableConHostSharing: true,
+                    disableConHostSharing: false,
                     ContainerConfiguration.DisabledIsolation,
                     loggingContext: context.LoggingContext)
                 {

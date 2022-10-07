@@ -253,8 +253,24 @@ namespace BuildXL.Processes
         public ISandboxedProcessFileStorage FileStorage { get; }
 
         /// <summary>
-        /// Access to disableConHostSharing
+        /// When stdout or stderr are redirected and this flag is true, disables sharing of the instance of
+        /// Windows conhost.exe from the current process and instead creates a new instance
+        /// through use of the CREATE_NO_WINDOW flag on Windows process creation.
+        /// When this flag is false, shared parent conhost.exe use is only disabled when the current process
+        /// has a parent console window, i.e. when GetConsoleWindow() returns a nonzero handle.
+        ///
+        /// Set this flag to true on Windows if you are using a "headless" parent console process with child
+        /// process console stream redirection, but want to ensure the parent conhost is not used. This can
+        /// be important if the process tree running in the sandbox reads from the console. Specifying
+        /// true adds 30-40 msec of overhead and is usually not needed, as conhost does not perform
+        /// file I/O hence does not need to have a new instance in a Detours sandbox.
         /// </summary>
+        /// <remarks>
+        /// Windows console apps in Win7+ split apps like 'cmd.exe' or any other app marked as console (non-GUI)
+        /// from the underlying Console API and window manager, with communication between the two via IOCTLs to
+        /// ConDrv.sys in the kernel. More information:
+        /// https://devblogs.microsoft.com/commandline/windows-command-line-inside-the-windows-console/
+        /// </remarks>
         public bool DisableConHostSharing { get; }
 
         /// <summary>

@@ -568,7 +568,7 @@ namespace Test.BuildXL.Processes
         }
 
         // The following test tests only that enabling and disabling the ConHost sharing is not crashing.
-        // There is no validation of process hierarchy..
+        // There is no validation of process hierarchy.
         [Theory]
         [InlineData(true)]
         [InlineData(false)]

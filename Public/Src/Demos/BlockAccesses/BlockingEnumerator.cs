@@ -54,7 +54,7 @@ namespace BuildXL.Demo
                 this,
                 pathToProcess,
                 CreateManifest(AbsolutePath.Create(m_pathTable, pathToProcess), directoriesToBlock),
-                disableConHostSharing: true,
+                disableConHostSharing: false,
                 containerConfiguration: ContainerConfiguration.DisabledIsolation,
                 loggingContext: m_loggingContext)
             {

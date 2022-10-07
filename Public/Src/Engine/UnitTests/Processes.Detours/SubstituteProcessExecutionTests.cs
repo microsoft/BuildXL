@@ -507,7 +507,7 @@ namespace Test.BuildXL.Processes.Detours
                 context.PathTable,
                 new LocalSandboxedFileStorage(),
                 executable,
-                disableConHostSharing: true,
+                disableConHostSharing: false,
                 loggingContext: CreateLoggingContext(),
                 fileAccessManifest: fileAccessManifest)
             {

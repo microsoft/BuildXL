@@ -391,7 +391,7 @@ namespace BuildXL.SandboxExec
                 new PathTable(),
                 fileStorage: instance,
                 fileName: processFileName,
-                disableConHostSharing: true,
+                disableConHostSharing: false,
                 sandboxConnection: instance.m_sandboxConnection,
                 loggingContext: s_loggingContext);
             sandboxProcessInfo.PipDescription = processFileName;

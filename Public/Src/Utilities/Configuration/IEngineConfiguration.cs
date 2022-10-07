@@ -56,6 +56,7 @@ namespace BuildXL.Utilities.Configuration
 
         /// <summary>
         /// Disable sharing of the same ConHost by all the executing pips.
+        /// Also see comments on the same property in SandboxedProcessInfo.
         /// </summary>
         bool DisableConHostSharing { get; }
 

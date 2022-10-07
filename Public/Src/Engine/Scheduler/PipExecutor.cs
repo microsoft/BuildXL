@@ -1984,27 +1984,42 @@ namespace BuildXL.Scheduler
 
                 result.SuspendedDurationMs = resourceScope.SuspendedDurationMs;
 
-                if (result.Status == SandboxedProcessPipExecutionStatus.Canceled && resourceScope.CancellationReason.HasValue)
+                if (result.Status == SandboxedProcessPipExecutionStatus.Canceled)
                 {
-                    result.RetryInfo = RetryInfo.GetDefault(RetryReason.ResourceExhaustion);
+                    if (resourceScope.CancellationReason.HasValue) 
+                    {
+                        // Canceled due to resource exhaustion
+                        result.RetryInfo = RetryInfo.GetDefault(RetryReason.ResourceExhaustion);
 
-                    counters.IncrementCounter(resourceScope.CancellationReason == ProcessResourceManager.ResourceScopeCancellationReason.ResourceLimits ?
-                        PipExecutorCounter.ProcessRetriesDueToResourceLimits :
-                        PipExecutorCounter.ProcessRetriesDueToSuspendOrResumeFailure);
+                        counters.IncrementCounter(resourceScope.CancellationReason == ProcessResourceManager.ResourceScopeCancellationReason.ResourceLimits ?
+                            PipExecutorCounter.ProcessRetriesDueToResourceLimits :
+                            PipExecutorCounter.ProcessRetriesDueToSuspendOrResumeFailure);
 
-                    TimeSpan? cancelTime = TimestampUtilities.Timestamp - cancellationStartTime;
+                        TimeSpan? cancelTime = TimestampUtilities.Timestamp - cancellationStartTime;
 
-                    Logger.Log.CancellingProcessPipExecutionDueToResourceExhaustion(
-                        operationContext,
-                        processDescription,
-                        resourceScope.CancellationReason.ToString(),
-                        (long)(operationContext.Duration?.TotalMilliseconds ?? -1),
-                        peakMemoryMb: result.JobAccountingInformation?.MemoryCounters.PeakWorkingSetMb ?? 0,
-                        expectedMemoryMb: expectedMemoryCounters.PeakWorkingSetMb,
-                        peakCommitMb: result.JobAccountingInformation?.MemoryCounters.PeakCommitSizeMb ?? 0,
-                        expectedCommitMb: expectedMemoryCounters.PeakCommitSizeMb,
-                        cancelMilliseconds: (int)(cancelTime?.TotalMilliseconds ?? 0));
+                        Logger.Log.CancellingProcessPipExecutionDueToResourceExhaustion(
+                            operationContext,
+                            processDescription,
+                            resourceScope.CancellationReason.ToString(),
+                            (long)(operationContext.Duration?.TotalMilliseconds ?? -1),
+                            peakMemoryMb: result.JobAccountingInformation?.MemoryCounters.PeakWorkingSetMb ?? 0,
+                            expectedMemoryMb: expectedMemoryCounters.PeakWorkingSetMb,
+                            peakCommitMb: result.JobAccountingInformation?.MemoryCounters.PeakCommitSizeMb ?? 0,
+                            expectedCommitMb: expectedMemoryCounters.PeakCommitSizeMb,
+                            cancelMilliseconds: (int)(cancelTime?.TotalMilliseconds ?? 0));
+                    }
+                    else if (environment.Context.CancellationToken.IsCancellationRequested
+                             && environment.Configuration.Distribution.BuildRole == DistributedBuildRoles.Worker)
+                    {
+                        // The pip was cancelled due to the scheduler terminating on this distributed worker.
+                        // In case this pip result is reported back to the orchestrator (it might not if the worker is disconnected),
+                        // we want to make the pip retry on another worker. For this, we need to set RetryInfo, or the pip
+                        // will not be marked as cancelled (notice that the setting on PipResultStatus.Canceled
+                        // in the ExecuteProcessAsync that wraps this method requires this).
+                        result.RetryInfo = RetryInfo.GetDefault(RetryReason.StoppedWorker);
+                    }
                 }
+
 
                 if (userRetry)
                 {

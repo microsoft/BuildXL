@@ -2076,8 +2076,9 @@ namespace IntegrationTest.BuildXL.Scheduler
                 },
             };
 
-            RunScheduler(testHooks: testHook, updateStatusTimerEnabled: true, cancellationToken: tokenSource.Token).AssertFailure();
+            var result = RunScheduler(testHooks: testHook, updateStatusTimerEnabled: true, cancellationToken: tokenSource.Token).AssertFailure();
             AllowErrorEventLoggedAtLeastOnce(global::BuildXL.App.Tracing.LogEventId.CancellationRequested);
+            result.AssertPipResultStatus((processA.Process.PipId, PipResultStatus.Canceled));
         }
 
         [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)]

@@ -22,24 +22,25 @@ using BuildXL.Storage.Fingerprints;
 using BuildXL.Tracing.CloudBuild;
 using BuildXL.Utilities;
 using BuildXL.Utilities.CLI;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Instrumentation.Common;
+using BuildXL.Utilities.SBOMUtilities;
 using BuildXL.Utilities.Tasks;
-using Microsoft.VisualStudio.Services.Common;
-using Microsoft.VisualStudio.Services.Drop.WebApi;
-using Microsoft.VisualStudio.Services.WebApi;
+using BuildXL.Utilities.Tracing;
 using Microsoft.Sbom.Adapters;
+using Microsoft.Sbom.Adapters.Report;
 using Microsoft.Sbom.Contracts;
 using Microsoft.Sbom.Contracts.Entities;
 using Microsoft.Sbom.Contracts.Enums;
-using SBOMCore;
+using Microsoft.VisualStudio.Services.Common;
+using Microsoft.VisualStudio.Services.Drop.WebApi;
+using Microsoft.VisualStudio.Services.WebApi;
 using Newtonsoft.Json.Linq;
+using SBOMCore;
 using Tool.ServicePipDaemon;
+using static BuildXL.Ipc.ExternalApi.Commands.GenerateBuildManifestFileListResult;
 using static BuildXL.Utilities.FormattableStringEx;
 using static Tool.ServicePipDaemon.Statics;
-using BuildXL.Utilities.SBOMUtilities;
-using BuildXL.Utilities.Tracing;
-using Microsoft.Sbom.Adapters.Report;
-using BuildXL.Utilities.Collections;
 
 namespace Tool.DropDaemon
 {
@@ -810,7 +811,18 @@ namespace Tool.DropDaemon
                 return new IpcResult(IpcResultStatus.ExecutionError, $"GenerateBuildManifestData API call failed for Drop: {dropConfig.Name}. Failure: {bxlResult.Failure.DescribeIncludingInnerFailures()}");
             }
 
-            IEnumerable<SBOMFile> manifestFileList = bxlResult.Result.Select(fileInfo => ToSbomFile(fileInfo));
+            if (bxlResult.Result.Status == OperationStatus.InternalError)
+            {
+                return new IpcResult(IpcResultStatus.ExecutionError, $"Failed to create build manifest file list for Drop: {dropConfig.Name}. Failure: {bxlResult.Result.Error}");
+            }
+            else if (bxlResult.Result.Status == OperationStatus.UserError)
+            {
+                return new IpcResult(IpcResultStatus.InvalidInput, $"Failed to create build manifest file list for Drop: {dropConfig.Name}. Failure: {bxlResult.Result.Error}");
+            }
+
+            Contract.Assert(bxlResult.Result.Status == OperationStatus.Success);
+
+            IEnumerable<SBOMFile> manifestFileList = bxlResult.Result.FileList.Select(fileInfo => ToSbomFile(fileInfo));
 
             string sbomGenerationRootDirectory = null;
             var logger = GetDropSpecificLogger(dropConfig);

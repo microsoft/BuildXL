@@ -453,12 +453,20 @@ namespace BuildXL.Scheduler
             Contract.Requires(cmd != null);
             Contract.Requires(m_buildManifestGenerator != null, "Build Manifest data can only be generated on orchestrator");
 
+            GenerateBuildManifestFileListResult result;
+
             if (!m_buildManifestGenerator.TryGenerateBuildManifestFileList(cmd.DropName, out string error, out var buildManifestFileList))
             {
-                return new IpcResult(IpcResultStatus.ExecutionError, error);
+                result = GenerateBuildManifestFileListResult.CreateForFailure(GenerateBuildManifestFileListResult.OperationStatus.UserError, error);
+            }
+            else
+            {
+                result = GenerateBuildManifestFileListResult.CreateForSuccess(buildManifestFileList);
             }
 
-            return IpcResult.Success(cmd.RenderResult(buildManifestFileList));
+            // We always return a 'success' here because a call to the API Server was successful.
+            // Whether the file list was generated is a part of the result that we return.
+            return IpcResult.Success(cmd.RenderResult(result));
         }
 
         /// <summary>

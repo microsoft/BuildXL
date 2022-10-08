@@ -171,6 +171,8 @@ namespace BuildXL.Ipc.Common
                 success(lhs)  && success(rhs)  ? IpcResultStatus.Success :
                 success(lhs)  && !success(rhs) ? rhs :
                 !success(lhs) && success(rhs)  ? lhs :
+                // If both sides have the same error code, preserve it. Otherwise fold everything into a GenericError
+                lhs == rhs                     ? lhs :
                 IpcResultStatus.GenericError;
 
             bool success(IpcResultStatus s) => s == IpcResultStatus.Success;

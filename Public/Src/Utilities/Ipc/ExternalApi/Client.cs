@@ -70,7 +70,7 @@ namespace BuildXL.Ipc.ExternalApi
         /// <summary>
         /// Generates a list of file hashes for BuildManifest stored by <see cref="RegisterFilesForBuildManifest"/>.
         /// </summary>
-        public Task<Possible<List<BuildManifestFileInfo>>> GenerateBuildManifestFileList(string dropName)
+        public Task<Possible<GenerateBuildManifestFileListResult>> GenerateBuildManifestFileList(string dropName)
         {
             return ExecuteCommand(new GenerateBuildManifestFileListCommand(dropName));
         }

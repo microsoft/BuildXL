@@ -198,12 +198,13 @@ namespace Test.BuildXL.Ipc
             {
                 var cmd = (GenerateBuildManifestFileListCommand)Command.Deserialize(ipcOperation.Payload);
                 XAssert.AreEqual(dropName, cmd.DropName);
-                return IpcResult.Success(cmd.RenderResult(expectedData));
+                return IpcResult.Success(cmd.RenderResult(GenerateBuildManifestFileListResult.CreateForSuccess(expectedData)));
             });
 
             var maybeResult = await apiClient.GenerateBuildManifestFileList(dropName);
             XAssert.PossiblySucceeded(maybeResult);
-            XAssert.IsTrue(expectedData.SequenceEqual(maybeResult.Result));
+            XAssert.AreEqual(GenerateBuildManifestFileListResult.OperationStatus.Success, maybeResult.Result.Status);
+            XAssert.IsTrue(expectedData.SequenceEqual(maybeResult.Result.FileList));
         }
 
         [Fact]
@@ -229,23 +230,61 @@ namespace Test.BuildXL.Ipc
         }
 
         [Fact]
-        public void TestGenerateBuildManifestFileListCommandParsing()
+        public void TestGenerateBuildManifestFileListResultRenderRoundTrip()
+        {
+            var files = new List<BuildManifestFileInfo>();
+
+            // OperationStatus.Success, empty list
+            var expected = GenerateBuildManifestFileListResult.CreateForSuccess(files);
+            var success = GenerateBuildManifestFileListResult.TryParse(expected.Render(), out var actual);
+            XAssert.IsTrue(success);
+            XAssert.IsTrue(resultsAreEqual(expected, actual));
+
+            // OperationStatus.Success, non-empty list
+            files.Add(new BuildManifestFileInfo("path", new ContentHash(HashType.Vso0), new[] { new ContentHash(HashType.SHA1) }));
+            expected = GenerateBuildManifestFileListResult.CreateForSuccess(files);
+            success = GenerateBuildManifestFileListResult.TryParse(expected.Render(), out actual);
+            XAssert.IsTrue(success);
+            XAssert.IsTrue(resultsAreEqual(expected, actual));
+
+            expected = GenerateBuildManifestFileListResult.CreateForFailure(GenerateBuildManifestFileListResult.OperationStatus.InternalError, "error");
+            success = GenerateBuildManifestFileListResult.TryParse(expected.Render(), out actual);
+            XAssert.IsTrue(success);
+            XAssert.IsTrue(resultsAreEqual(expected, actual));
+
+            expected = GenerateBuildManifestFileListResult.CreateForFailure(GenerateBuildManifestFileListResult.OperationStatus.UserError, $"multi{Environment.NewLine}line{Environment.NewLine}error");
+            success = GenerateBuildManifestFileListResult.TryParse(expected.Render(), out actual);
+            XAssert.IsTrue(success);
+            XAssert.IsTrue(resultsAreEqual(expected, actual));
+
+            static bool resultsAreEqual(GenerateBuildManifestFileListResult l, GenerateBuildManifestFileListResult r)
+            {
+                return l.Status == r.Status
+                    && l.Error == r.Error
+                    && (l.FileList != null && r.FileList != null && l.FileList.SequenceEqual(r.FileList)
+                        || l.FileList == null && r.FileList == null);
+            }
+        }
+
+        [Fact]
+        public void TestGenerateBuildManifestFileListCommandParsingRejectsMalformedString()
         {
             GenerateBuildManifestFileListCommand cmd = new GenerateBuildManifestFileListCommand("dropName");
-            XAssert.IsTrue(cmd.TryParseResult("0", out List<BuildManifestFileInfo> temp1));
-            XAssert.AreEqual(0, temp1.Count);
+
             XAssert.IsFalse(cmd.TryParseResult("NaN", out _));
 
             using var stringBuilderPoolInstance = Pools.StringBuilderPool.GetInstance();
             var sb = stringBuilderPoolInstance.Instance;
-            sb.AppendLine($"1");
-            sb.AppendLine($"invalid|count");
+
+            sb.AppendLine($"255"); // a value that is a not a valid OperationStatus
+            sb.AppendLine($"0");
             XAssert.IsFalse(cmd.TryParseResult(sb.ToString(), out _));
 
             sb.Clear();
+            sb.AppendLine($"{(byte)GenerateBuildManifestFileListResult.OperationStatus.Success}");
             sb.AppendLine($"1");
-            sb.AppendLine($"/path/a|VSO0:000000000000000000000000000000000000000000000000000000000000000000|SHA1:000000000000000000000000000000000beef000|SHA256:000000000000000000000000000000000000000000cafe000000000000000000");
-            XAssert.IsTrue(cmd.TryParseResult(sb.ToString(), out _));
+            sb.AppendLine($"invalid|count");
+            XAssert.IsFalse(cmd.TryParseResult(sb.ToString(), out _));
         }
 
         private bool ThrowsException(Action action)
@@ -265,7 +304,7 @@ namespace Test.BuildXL.Ipc
         }
 
         [Theory]
-        [MemberData(nameof(CrossProduct), 
+        [MemberData(nameof(CrossProduct),
             new object[] { 0, 1, 10 },
             new object[] { true, false })]
         public async Task TestReportStatisticsAsync(int numStats, bool expectedResult)
@@ -432,7 +471,7 @@ namespace Test.BuildXL.Ipc
 
         [Theory]
         [MemberData(nameof(CrossProduct),
-            new object[] { IpcResultStatus.Success, IpcResultStatus.ConnectionError, IpcResultStatus.ExecutionError},
+            new object[] { IpcResultStatus.Success, IpcResultStatus.ConnectionError, IpcResultStatus.ExecutionError },
             new object[] { "", @"payload 123123 #$%^[]{}<>/\;:""'?,." + "\0\r\n\t" })]
         public async Task TestIpcResultSerializationAsync(IpcResultStatus status, string payload)
         {
@@ -464,6 +503,8 @@ namespace Test.BuildXL.Ipc
         [InlineData(IpcResultStatus.InvalidInput, IpcResultStatus.Success, IpcResultStatus.InvalidInput)]
         // error + error --> GenericError
         [InlineData(IpcResultStatus.TransmissionError, IpcResultStatus.ExecutionError, IpcResultStatus.GenericError)]
+        // two errors of the same kind --> error
+        [InlineData(IpcResultStatus.InvalidInput, IpcResultStatus.InvalidInput, IpcResultStatus.InvalidInput)]
         public void TestIpcResultMerge(IpcResultStatus lhsStatus, IpcResultStatus rhsStatus, IpcResultStatus mergeStatus)
         {
             var lhs = new IpcResult(lhsStatus, "lhs");

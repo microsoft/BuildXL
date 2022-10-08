@@ -15,7 +15,7 @@ namespace BuildXL.Ipc.ExternalApi.Commands
     /// <summary>
     /// Command corresponding to the <see cref="Client.GenerateBuildManifestFileList"/> API operation.
     /// </summary>
-    public sealed class GenerateBuildManifestFileListCommand : Command<List<BuildManifestFileInfo>>
+    public sealed class GenerateBuildManifestFileListCommand : Command<GenerateBuildManifestFileListResult>
     {
         /// <summary>
         /// DropName to identify which drop the Build Manifest is being generated for.
@@ -29,48 +29,17 @@ namespace BuildXL.Ipc.ExternalApi.Commands
         }
 
         /// <inheritdoc />
-        public override bool TryParseResult(string result, out List<BuildManifestFileInfo> commandResult)
+        public override bool TryParseResult(string result, out GenerateBuildManifestFileListResult commandResult)
         {
-            commandResult = new List<BuildManifestFileInfo>();
-
-            using (var reader = new StringReader(result)) 
-            {
-                var count = reader.ReadLine();
-                if (!int.TryParse(count, out var numberOfFiles))
-                {
-                    return false;
-                }
-
-                for (int i = 0; i < numberOfFiles; i++)
-                {
-                    string val = reader.ReadLine();
-                    if (!BuildManifestFileInfo.TryParse(val, out var buildManifestFileInfo))
-                    {
-                        return false;
-                    }
-
-                    commandResult.Add(buildManifestFileInfo);
-                }
-
-                return true;
-            }
+            return GenerateBuildManifestFileListResult.TryParse(result, out commandResult);
         }
 
         /// <inheritdoc />
-        public override string RenderResult(List<BuildManifestFileInfo> commandResult)
+        public override string RenderResult(GenerateBuildManifestFileListResult commandResult)
         {
             Contract.Requires(commandResult != null);
 
-            using var stringBuilderPoolInstance = Pools.StringBuilderPool.GetInstance();
-            var sb = stringBuilderPoolInstance.Instance;
-            sb.AppendLine($"{commandResult.Count}");
-
-            foreach (BuildManifestFileInfo fileInfo in commandResult)
-            {
-                sb.AppendLine(fileInfo.ToString());
-            }
-
-            return sb.ToString();
+            return commandResult.Render();
         }
 
         internal override void InternalSerialize(BinaryWriter writer)
@@ -87,7 +56,7 @@ namespace BuildXL.Ipc.ExternalApi.Commands
     /// <summary>
     /// Stores Hash values and RelativePath of individual files added to drop
     /// </summary>
-    public class BuildManifestFileInfo : IEquatable<BuildManifestFileInfo>
+    public sealed class BuildManifestFileInfo : IEquatable<BuildManifestFileInfo>
     {
         /// <nodoc/>
         public string RelativePath { get; }
@@ -126,7 +95,7 @@ namespace BuildXL.Ipc.ExternalApi.Commands
         /// <summary>
         /// String representation format: RelativePath | AzureArtifactsHash | BuildManifestHash
         /// </summary>
-        public override string ToString() 
+        public override string ToString()
         {
             return $"{RelativePath}{BuildManifestFileInfo.Separator}{AzureArtifactsHash}{SerializeHashes(BuildManifestHashes)}";
         }
@@ -195,6 +164,139 @@ namespace BuildXL.Ipc.ExternalApi.Commands
             return string.Equals(RelativePath, other?.RelativePath) &&
                 string.Equals(AzureArtifactsHash, other?.AzureArtifactsHash) &&
                 BuildManifestHashes.SequenceEqual(other?.BuildManifestHashes);
+        }
+    }
+
+    /// <summary>
+    /// Result of creating a build manifest file list for a drop
+    /// </summary>
+    public sealed class GenerateBuildManifestFileListResult
+    {
+        /// <summary>
+        /// List of files added to drop. Returns null if the operation failed.
+        /// </summary>
+        public List<BuildManifestFileInfo> FileList { get; }
+
+        /// <summary>
+        /// The result of the operation
+        /// </summary>
+        public OperationStatus Status { get; }
+
+        /// <summary>
+        /// If the operation failed, describes the error; otherwise null.
+        /// </summary>
+        public string Error { get; }
+
+        private GenerateBuildManifestFileListResult(OperationStatus status, List<BuildManifestFileInfo> fileList, string errorMessage)
+        {
+            FileList = fileList;
+            Status = status;
+            Error = errorMessage;
+        }
+
+        /// <nodoc />
+        public static GenerateBuildManifestFileListResult CreateForSuccess(List<BuildManifestFileInfo> fileList)
+        {
+            Contract.Requires(fileList != null);
+
+            return new GenerateBuildManifestFileListResult(OperationStatus.Success, fileList, null);
+        }
+
+        /// <nodoc />
+        public static GenerateBuildManifestFileListResult CreateForFailure(OperationStatus status, string errorMessage)
+        {
+            Contract.Requires(!string.IsNullOrEmpty(errorMessage));
+            Contract.Requires(status != OperationStatus.Success);
+
+            return new GenerateBuildManifestFileListResult(status, null, errorMessage);
+        }
+
+        /// <nodoc />
+        public string Render()
+        {
+            using var stringBuilderPoolInstance = Pools.StringBuilderPool.GetInstance();
+            var sb = stringBuilderPoolInstance.Instance;
+
+            sb.AppendLine($"{(byte)Status}");
+            if (Status == OperationStatus.Success)
+            {
+                sb.AppendLine($"{FileList.Count}");
+
+                foreach (BuildManifestFileInfo fileInfo in FileList)
+                {
+                    sb.AppendLine(fileInfo.ToString());
+                }
+            }
+            else
+            {
+                sb.Append(Error);
+            }
+
+            return sb.ToString();
+        }
+
+        /// <nodoc />
+        public static bool TryParse(string renderedResult, out GenerateBuildManifestFileListResult result)
+        {
+            using var reader = new StringReader(renderedResult);
+            var statusValue = reader.ReadLine();
+            if (!byte.TryParse(statusValue, out var status))
+            {
+                result = null;
+                return false;
+            }
+
+            var operationStatus = (OperationStatus)status;
+            if (!Enum.IsDefined(typeof(OperationStatus), operationStatus))
+            {
+                result = null;
+                return false;
+            }
+
+            if (operationStatus == OperationStatus.Success)
+            {
+                var fileList = new List<BuildManifestFileInfo>();
+                var count = reader.ReadLine();
+                if (!int.TryParse(count, out var numberOfFiles))
+                {
+                    result = null;
+                    return false;
+                }
+
+                for (int i = 0; i < numberOfFiles; i++)
+                {
+                    string val = reader.ReadLine();
+                    if (!BuildManifestFileInfo.TryParse(val, out var buildManifestFileInfo))
+                    {
+                        result = null;
+                        return false;
+                    }
+
+                    fileList.Add(buildManifestFileInfo);
+                }
+
+                result = CreateForSuccess(fileList);
+            }
+            else
+            {
+                var error = reader.ReadToEnd();
+                result = CreateForFailure(operationStatus, error);
+            }
+
+            return true;
+        }
+
+        /// <nodoc />
+        public enum OperationStatus : byte
+        {
+            /// <nodoc />
+            Success,
+
+            /// <nodoc />
+            InternalError,
+
+            /// <nodoc />
+            UserError
         }
     }
 }

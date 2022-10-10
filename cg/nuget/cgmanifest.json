@@ -195,7 +195,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "BuildXL.Tools.Ninjson",
-          "Version": "1.11.1"
+          "Version": "1.11.2"
         }
       }
     },

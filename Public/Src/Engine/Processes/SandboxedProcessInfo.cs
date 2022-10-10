@@ -17,6 +17,8 @@ using CanBeNullAttribute = JetBrains.Annotations.CanBeNullAttribute;
 using static BuildXL.Utilities.BuildParameters;
 using BuildXL.Processes.Remoting;
 
+#nullable enable
+
 namespace BuildXL.Processes
 {
     /// <summary>
@@ -62,13 +64,13 @@ namespace BuildXL.Processes
         /// </remarks>
         public static readonly TimeSpan DefaultNestedProcessTerminationTimeout = TimeSpan.FromSeconds(30);
 
-        private string m_arguments;
+        private string? m_arguments;
 
-        private string m_commandLine;
+        private string? m_commandLine;
 
-        private byte[] m_environmentBlock;
+        private byte[]? m_environmentBlock;
 
-        private string m_rootMappingBlock;
+        private string? m_rootMappingBlock;
 
         private int m_maxLengthInMemory = 16384;
 
@@ -80,22 +82,22 @@ namespace BuildXL.Processes
         /// <summary>
         /// A detours event listener.
         /// </summary>
-        public IDetoursEventListener DetoursEventListener { get; private set; }
+        public IDetoursEventListener? DetoursEventListener { get; private set; }
 
         /// <summary>
         /// A macOS kernel extension connection.
         /// </summary>
-        public ISandboxConnection SandboxConnection;
+        public ISandboxConnection? SandboxConnection;
 
         /// <summary>
         /// An optional shared opaque output logger to use to record file writes under shared opaque directories as soon as they happen.
         /// </summary>
-        public SidebandWriter SidebandWriter { get; }
+        public SidebandWriter? SidebandWriter { get; }
 
         /// <summary>
         /// An optional file system view to report outputs as soon as they are produced
         /// </summary>
-        public ISandboxFileSystemView FileSystemView { get; }
+        public ISandboxFileSystemView? FileSystemView { get; }
 
         /// <summary>
         /// Whether the process creating a <see cref="SandboxedProcess"/> gets added to a job object
@@ -113,7 +115,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// Indicates whether resource usage of the sandboxed process tree should be measured and logged for later inspection.
         /// </summary>
-        public SandboxedProcessResourceMonitoringConfig MonitoringConfig;
+        public SandboxedProcessResourceMonitoringConfig? MonitoringConfig { get; set; }
 
         /// <summary>
         /// Holds the path remapping information for a process that needs to run in a container
@@ -131,15 +133,15 @@ namespace BuildXL.Processes
         /// compile against this assembly and already depend on this constructor.
         /// </remarks>
         public SandboxedProcessInfo(
-             [CanBeNull] ISandboxedProcessFileStorage fileStorage,
+             ISandboxedProcessFileStorage? fileStorage,
              string fileName,
              bool disableConHostSharing,
              bool testRetries = false,
-             LoggingContext loggingContext = null,
-             IDetoursEventListener detoursEventListener = null,
-             ISandboxConnection sandboxConnection = null,
+             LoggingContext? loggingContext = null,
+             IDetoursEventListener? detoursEventListener = null,
+             ISandboxConnection? sandboxConnection = null,
              bool createJobObjectForCurrentProcess = true,
-             SandboxedProcessResourceMonitoringConfig monitoringConfig = null)
+             SandboxedProcessResourceMonitoringConfig? monitoringConfig = null)
              : this(
                    new PathTable(),
                    fileStorage,
@@ -159,25 +161,22 @@ namespace BuildXL.Processes
         /// </summary>
         public SandboxedProcessInfo(
             PathTable pathTable,
-            [CanBeNull] ISandboxedProcessFileStorage fileStorage,
+            ISandboxedProcessFileStorage? fileStorage,
             string fileName,
-            FileAccessManifest fileAccessManifest,
+            FileAccessManifest? fileAccessManifest,
             bool disableConHostSharing,
             ContainerConfiguration containerConfiguration,
             LoggingContext loggingContext,
             bool testRetries = false,
-            IDetoursEventListener detoursEventListener = null,
-            ISandboxConnection sandboxConnection = null,
-            SidebandWriter sidebandWriter = null,
+            IDetoursEventListener? detoursEventListener = null,
+            ISandboxConnection? sandboxConnection = null,
+            SidebandWriter? sidebandWriter = null,
             bool createJobObjectForCurrentProcess = true,
-            ISandboxFileSystemView fileSystemView = null,
-            SandboxedProcessResourceMonitoringConfig monitoringConfig = null)
+            ISandboxFileSystemView? fileSystemView = null,
+            SandboxedProcessResourceMonitoringConfig? monitoringConfig = null)
         {
-            Contract.RequiresNotNull(pathTable);
-            Contract.RequiresNotNull(fileName);
-
             PathTable = pathTable;
-            FileAccessManifest = fileAccessManifest;
+            FileAccessManifest = fileAccessManifest ?? new FileAccessManifest(pathTable);
             FileStorage = fileStorage;
             FileName = fileName;
             DisableConHostSharing = disableConHostSharing;
@@ -201,23 +200,23 @@ namespace BuildXL.Processes
         /// </summary>
         public SandboxedProcessInfo(
             PathTable pathTable,
-            [CanBeNull] ISandboxedProcessFileStorage fileStorage,
+            ISandboxedProcessFileStorage? fileStorage,
             string fileName,
             bool disableConHostSharing,
             LoggingContext loggingContext,
             bool testRetries = false,
-            IDetoursEventListener detoursEventListener = null,
-            ISandboxConnection sandboxConnection = null,
-            ContainerConfiguration containerConfiguration = null,
-            FileAccessManifest fileAccessManifest = null,
+            IDetoursEventListener? detoursEventListener = null,
+            ISandboxConnection? sandboxConnection = null,
+            ContainerConfiguration? containerConfiguration = null,
+            FileAccessManifest? fileAccessManifest = null,
             bool createJobObjectForCurrentProcess = true,
-            SandboxedProcessResourceMonitoringConfig monitoringConfig = null
+            SandboxedProcessResourceMonitoringConfig? monitoringConfig = null
             )
             : this(
                   pathTable,
                   fileStorage,
                   fileName,
-                  fileAccessManifest ?? new FileAccessManifest(pathTable),
+                  fileAccessManifest,
                   disableConHostSharing,
                   containerConfiguration ?? ContainerConfiguration.DisabledIsolation,
                   loggingContext,
@@ -227,8 +226,6 @@ namespace BuildXL.Processes
                   createJobObjectForCurrentProcess: createJobObjectForCurrentProcess,
                   monitoringConfig: monitoringConfig)
         {
-            Contract.RequiresNotNull(pathTable);
-            Contract.RequiresNotNull(fileName);
         }
 
         /// <summary>
@@ -250,7 +247,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// Optional file storage options for stdout and stderr output streams.
         /// </summary>
-        public ISandboxedProcessFileStorage FileStorage { get; }
+        public ISandboxedProcessFileStorage? FileStorage { get; }
 
         /// <summary>
         /// When stdout or stderr are redirected and this flag is true, disables sharing of the instance of
@@ -281,17 +278,17 @@ namespace BuildXL.Processes
         /// <summary>
         /// How to decode the standard input; if not set, encoding of current process is used
         /// </summary>
-        public Encoding StandardInputEncoding { get; set; }
+        public Encoding? StandardInputEncoding { get; set; }
 
         /// <summary>
         /// How to decode the standard output; if not set, encoding of current process is used
         /// </summary>
-        public Encoding StandardErrorEncoding { get; set; }
+        public Encoding? StandardErrorEncoding { get; set; }
 
         /// <summary>
         /// How to decode the standard output; if not set, encoding of current process is used
         /// </summary>
-        public Encoding StandardOutputEncoding { get; set; }
+        public Encoding? StandardOutputEncoding { get; set; }
 
         /// <summary>
         /// Number of pipe reading retries on cancellation.
@@ -310,7 +307,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// Encoded command line arguments
         /// </summary>
-        public string Arguments
+        public string? Arguments
         {
             get
             {
@@ -327,7 +324,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// Working directory (can be null)
         /// </summary>
-        public string WorkingDirectory { get; set; }
+        public string? WorkingDirectory { get; set; }
 
         /// <summary>
         /// Root jail information (can be null)
@@ -340,37 +337,37 @@ namespace BuildXL.Processes
         /// <summary>
         /// Environment variables (can be null)
         /// </summary>
-        public IBuildParameters EnvironmentVariables { get; set; }
+        public IBuildParameters? EnvironmentVariables { get; set; }
 
         /// <summary>
         /// Root drive remappings (can be null)
         /// </summary>
-        public IReadOnlyDictionary<string, string> RootMappings { get; set; }
+        public IReadOnlyDictionary<string, string>? RootMappings { get; set; }
 
         /// <summary>
         /// Optional standard input stream from which to read
         /// </summary>
-        public TextReader StandardInputReader { get; set; }
+        public TextReader? StandardInputReader { get; set; }
 
         /// <summary>
         /// Optional observer of each output line
         /// </summary>
-        public Action<string> StandardOutputObserver { get; set; }
+        public Action<string>? StandardOutputObserver { get; set; }
 
         /// <summary>
         /// Optional observer of each output line
         /// </summary>
-        public Action<string> StandardErrorObserver { get; set; }
+        public Action<string>? StandardErrorObserver { get; set; }
 
         /// <summary>
         /// Allowed surviving child processes.
         /// </summary>
-        public string[] AllowedSurvivingChildProcessNames { get; set; }
+        public string[]? AllowedSurvivingChildProcessNames { get; set; }
 
         /// <summary>
         /// Temp folder redirection.
         /// </summary>
-        public (string source, string target)[] RedirectedTempFolders { get; set; }
+        public (string source, string target)[]? RedirectedTempFolders { get; set; }
 
         /// <summary>
         /// Max. number of characters buffered in memory before output is streamed to disk
@@ -397,7 +394,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// File where Detours log failure message, e.g., communication failure, injection failure, etc.
         /// </summary>
-        public string DetoursFailureFile { get; set; }
+        public string? DetoursFailureFile { get; set; }
 
         /// <summary>
         /// Gets the command line, comprised of the executable file name and the arguments.
@@ -414,7 +411,7 @@ namespace BuildXL.Processes
         /// </summary>
         public string GetUnicodeRootMappingBlock()
         {
-            IReadOnlyDictionary<string, string> rootMappings = RootMappings;
+            IReadOnlyDictionary<string, string>? rootMappings = RootMappings;
             if (rootMappings == null)
             {
                 return string.Empty;
@@ -445,7 +442,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// Gets the current environment variables, if any, as a unicode environment block
         /// </summary>
-        public byte[] GetUnicodeEnvironmentBlock()
+        public byte[]? GetUnicodeEnvironmentBlock()
         {
             return m_environmentBlock ??= ProcessUtilities.SerializeEnvironmentBlock(EnvironmentVariables?.ToDictionary());
         }
@@ -472,12 +469,12 @@ namespace BuildXL.Processes
         /// Root directory where timeout dumps for the process should be stored. This directory may contain other outputs
         /// for the process.
         /// </summary>
-        public string TimeoutDumpDirectory { get; set; }
+        public string? TimeoutDumpDirectory { get; set; }
 
         /// <summary>
         /// Root directory where surviving child process dumps should be saved
         /// </summary>
-        public string SurvivingPipProcessChildrenDumpDirectory { get; set; }
+        public string? SurvivingPipProcessChildrenDumpDirectory { get; set; }
 
         /// <summary>
         /// The kind of sandboxing to use.
@@ -487,7 +484,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// Pip's Description. Used for logging.
         /// </summary>
-        public string PipDescription { get; set; }
+        public string? PipDescription { get; set; }
 
         /// <summary>
         /// Standard output and error options for the sandboxed process.
@@ -495,7 +492,7 @@ namespace BuildXL.Processes
         /// <remarks>
         /// This instance of <see cref="SandboxedProcessStandardFiles"/> is used as an alternative to <see cref="FileStorage"/>.
         /// </remarks>
-        public SandboxedProcessStandardFiles SandboxedProcessStandardFiles { get; set; }
+        public SandboxedProcessStandardFiles? SandboxedProcessStandardFiles { get; set; }
 
         /// <summary>
         /// Info about the source of standard input.
@@ -503,7 +500,7 @@ namespace BuildXL.Processes
         /// <remarks>
         /// This instance of <see cref="StandardInputInfo"/> is used as a serialized version of <see cref="StandardInputReader"/>.
         /// </remarks>
-        public StandardInputInfo StandardInputSourceInfo { get; set; }
+        public StandardInputInfo? StandardInputSourceInfo { get; set; }
 
         /// <summary>
         /// Observer descriptor.
@@ -511,7 +508,7 @@ namespace BuildXL.Processes
         /// <remarks>
         /// This instance of <see cref="SandboxObserverDescriptor"/> is used as a serialized version of <see cref="StandardOutputObserver"/> and <see cref="StandardErrorObserver"/>.
         /// </remarks>
-        public SandboxObserverDescriptor StandardObserverDescriptor { get; set; }
+        public SandboxObserverDescriptor? StandardObserverDescriptor { get; set; }
 
         /// <summary>
         /// Provenance description.
@@ -526,12 +523,18 @@ namespace BuildXL.Processes
         /// <summary>
         /// Extra data for executing a pip in an external VM.
         /// </summary>
-        public ExternalVMSandboxedProcessData ExternalVMSandboxedProcessData { get; set; }
+        public ExternalVMSandboxedProcessData? ExternalVMSandboxedProcessData { get; set; }
 
         /// <summary>
         /// Whether to create a sandbox trace file.
         /// </summary>
         public bool CreateSandboxTraceFile { get; init; }
+
+        /// <summary>
+        /// An optional existing Windows job object handle to use for this process.
+        /// The job object handle will not be closed automatically and must be closed by the caller.
+        /// </summary>
+        public IntPtr PreExistingJobObjectOrZero { get; init; }
 
         #region Serialization
 
@@ -552,7 +555,7 @@ namespace BuildXL.Processes
                 writer.Write(
                     EnvironmentVariables,
                     (w, v) => w.WriteReadOnlyList(
-                        v.ToDictionary().ToList(),
+                        v!.ToDictionary().ToList(),
                         (w2, kvp) =>
                         {
                             w2.Write(kvp.Key);
@@ -586,17 +589,17 @@ namespace BuildXL.Processes
                     SandboxedProcessStandardFiles.Serialize(writer);
                 }
 
-                writer.Write(StandardInputSourceInfo, (w, v) => v.Serialize(w));
-                writer.Write(StandardObserverDescriptor, (w, v) => v.Serialize(w));
+                writer.Write(StandardInputSourceInfo, (w, v) => v!.Serialize(w));
+                writer.Write(StandardObserverDescriptor, (w, v) => v!.Serialize(w));
                 writer.Write(NumRetriesPipeReadOnCancel);
                 writer.Write(
                     RedirectedTempFolders,
                     (w, v) => w.WriteReadOnlyList(v, (w2, v2) => { w2.Write(v2.source); w2.Write(v2.target); }));
 
-                writer.Write(SidebandWriter, (w, v) => v.Serialize(w));
+                writer.Write(SidebandWriter, (w, v) => v!.Serialize(w));
                 writer.Write(CreateJobObjectForCurrentProcess);
                 writer.WriteNullableString(DetoursFailureFile);
-                writer.Write(ExternalVMSandboxedProcessData, (w, v) => v.Serialize(w));
+                writer.Write(ExternalVMSandboxedProcessData, (w, v) => v!.Serialize(w));
                 writer.Write(CreateSandboxTraceFile);
 
                 // File access manifest should be serialized the last.
@@ -605,41 +608,41 @@ namespace BuildXL.Processes
         }
 
         /// <nodoc />
-        public static SandboxedProcessInfo Deserialize(Stream stream, LoggingContext loggingContext, IDetoursEventListener detoursEventListener)
+        public static SandboxedProcessInfo Deserialize(Stream stream, LoggingContext loggingContext, IDetoursEventListener? detoursEventListener)
         {
             using (var reader = new BuildXLReader(false, stream, true))
             {
-                string arguments = reader.ReadNullableString();
-                string commandLine = reader.ReadNullableString();
+                string? arguments = reader.ReadNullableString();
+                string? commandLine = reader.ReadNullableString();
                 bool disableConHostSharing = reader.ReadBoolean();
-                string fileName = reader.ReadNullableString();
-                Encoding standardInputEncoding = reader.ReadNullable(r => r.ReadEncoding());
-                Encoding standardOutputEncoding = reader.ReadNullable(r => r.ReadEncoding());
-                Encoding standardErrorEncoding = reader.ReadNullable(r => r.ReadEncoding());
-                string workingDirectory = reader.ReadNullableString();
+                string? fileName = reader.ReadNullableString();
+                Encoding? standardInputEncoding = reader.ReadNullable(r => r.ReadEncoding());
+                Encoding? standardOutputEncoding = reader.ReadNullable(r => r.ReadEncoding());
+                Encoding? standardErrorEncoding = reader.ReadNullable(r => r.ReadEncoding());
+                string? workingDirectory = reader.ReadNullableString();
                 RootJailInfo? rootJailInfo = reader.ReadNullableStruct(r => BuildXL.Processes.RootJailInfo.Deserialize(r));
-                IBuildParameters buildParameters = null;
+                IBuildParameters? buildParameters = null;
                 var envVars = reader.ReadNullable(r => r.ReadReadOnlyList(r2 => new KeyValuePair<string, string>(r2.ReadString(), r2.ReadString())));
                 if (envVars != null)
                 {
                     buildParameters = BuildParameters.GetFactory().PopulateFromDictionary(envVars.ToDictionary(kvp => kvp.Key, kvp => kvp.Value));
                 }
 
-                string[] allowedSurvivingChildNames = reader.ReadNullable(r => r.ReadReadOnlyList(r2 => r2.ReadString()))?.ToArray();
+                string[]? allowedSurvivingChildNames = reader.ReadNullable(r => r.ReadReadOnlyList(r2 => r2.ReadString()))?.ToArray();
                 int maxLengthInMemory = reader.ReadInt32();
                 TimeSpan? timeout = reader.ReadNullableStruct(r => r.ReadTimeSpan());
                 TimeSpan nestedProcessTerminationTimeout = reader.ReadTimeSpan();
                 long pipSemiStableHash = reader.ReadInt64();
-                string timeoutDumpDirectory = reader.ReadNullableString();
-                string survivingPipProcessChildrenDumpDirectory = reader.ReadNullableString();
+                string? timeoutDumpDirectory = reader.ReadNullableString();
+                string? survivingPipProcessChildrenDumpDirectory = reader.ReadNullableString();
                 SandboxKind sandboxKind = (SandboxKind)reader.ReadByte();
-                string pipDescription = reader.ReadNullableString();
+                string? pipDescription = reader.ReadNullableString();
                 SandboxedProcessStandardFiles sandboxedProcessStandardFiles = SandboxedProcessStandardFiles.Deserialize(reader);
-                StandardInputInfo standardInputSourceInfo = reader.ReadNullable(r => StandardInputInfo.Deserialize(r));
-                SandboxObserverDescriptor standardObserverDescriptor = reader.ReadNullable(r => SandboxObserverDescriptor.Deserialize(r));
+                StandardInputInfo? standardInputSourceInfo = reader.ReadNullable(r => StandardInputInfo.Deserialize(r));
+                SandboxObserverDescriptor? standardObserverDescriptor = reader.ReadNullable(r => SandboxObserverDescriptor.Deserialize(r));
                 int numRetriesPipeReadOnCancel = reader.ReadInt32();
 
-                (string source, string target)[] redirectedTempFolder = reader.ReadNullable(r => r.ReadReadOnlyList(r2 => (source: r2.ReadString(), target: r2.ReadString())))?.ToArray();
+                (string source, string target)[]? redirectedTempFolder = reader.ReadNullable(r => r.ReadReadOnlyList(r2 => (source: r2.ReadString(), target: r2.ReadString())))?.ToArray();
 
                 var sidebandWritter = reader.ReadNullable(r => SidebandWriter.Deserialize(r));
                 var createJobObjectForCurrentProcess = reader.ReadBoolean();

@@ -54,7 +54,7 @@ namespace BuildXL.Processes
 
         private readonly PooledObjectWrapper<MemoryStream> m_fileAccessManifestStreamWrapper;
         private MemoryStream FileAccessManifestStream => m_fileAccessManifestStreamWrapper.Instance;
-        private FileAccessManifest? m_fileAccessManifest;
+        private FileAccessManifest m_fileAccessManifest;
 
         private readonly TaskSourceSlim<SandboxedProcessResult> m_resultTaskCompletionSource =
             TaskSourceSlim.Create<SandboxedProcessResult>();
@@ -67,7 +67,7 @@ namespace BuildXL.Processes
         private SandboxedProcessOutputBuilder m_error;
         private SandboxedProcessOutputBuilder m_output;
         private readonly SandboxedProcessTraceBuilder? m_traceBuilder;
-        private SandboxedProcessReports? m_reports;
+        private SandboxedProcessReports m_reports;
         private IAsyncPipeReader? m_reportReader;
         private readonly SemaphoreSlim m_reportReaderSemaphore = TaskUtilities.CreateMutex();
         private Dictionary<uint, ReportedProcess>? m_survivingChildProcesses;
@@ -89,7 +89,6 @@ namespace BuildXL.Processes
         {
             Contract.Requires(!info.Timeout.HasValue || info.Timeout.Value <= Process.MaxTimeout);
             Contract.Requires(!info.CreateSandboxTraceFile
-                || info.FileAccessManifest == null
                 || (info.FileAccessManifest.ReportFileAccesses && info.FileAccessManifest.LogProcessData && info.FileAccessManifest.ReportProcessArgs),
                 "Trace file is enabled, but some of the required options in the file access manifest are not.");
 
@@ -139,8 +138,7 @@ namespace BuildXL.Processes
                 ? new SandboxedProcessTraceBuilder(info.FileStorage, info.PathTable)
                 : null;
 
-            m_reports = m_fileAccessManifest != null ?
-                new SandboxedProcessReports(
+            m_reports = new SandboxedProcessReports(
                     m_fileAccessManifest,
                     info.PathTable,
                     info.PipSemiStableHash,
@@ -149,7 +147,7 @@ namespace BuildXL.Processes
                     info.DetoursEventListener,
                     info.SidebandWriter,
                     info.FileSystemView,
-                    m_traceBuilder) : null;
+                    m_traceBuilder);
 
             m_detouredProcess =
                 new DetouredProcess(
@@ -171,7 +169,7 @@ namespace BuildXL.Processes
                     info.ContainerConfiguration,
                     // If there is any process configured to breakway from the sandbox, then we need to allow
                     // this to happen at the job object level
-                    setJobBreakawayOk: m_fileAccessManifest?.ProcessesCanBreakaway ?? false,
+                    setJobBreakawayOk: m_fileAccessManifest.ProcessesCanBreakaway,
                     info.CreateJobObjectForCurrentProcess,
                     info.DiagnosticsEnabled,
                     m_numRetriesPipeReadOnCancel,
@@ -187,11 +185,6 @@ namespace BuildXL.Processes
         /// <inheritdoc />
         public int GetLastMessageCount()
         {
-            if (m_reports == null)
-            {
-                return 0; // We didn't count the messages.
-            }
-
             return m_reports.GetLastMessageCount();
         }
 
@@ -392,12 +385,7 @@ namespace BuildXL.Processes
         /// <inheritdoc />
         public long GetDetoursMaxHeapSize()
         {
-            if (m_reports != null)
-            {
-                return m_reports.MaxDetoursHeapSize;
-            }
-
-            return 0L;
+            return m_reports.MaxDetoursHeapSize;
         }
 
         /// <summary>
@@ -425,8 +413,6 @@ namespace BuildXL.Processes
 
             m_output.Dispose();
             m_error.Dispose();
-
-            m_reports = null;
 
             m_fileAccessManifestStreamWrapper.Dispose();
         }
@@ -505,11 +491,7 @@ namespace BuildXL.Processes
 
                     bool debugFlagsMatch = true;
                     ArraySegment<byte> manifestBytes = new ArraySegment<byte>();
-                    if (m_fileAccessManifest != null)
-                    {
-                        manifestBytes = m_fileAccessManifest.GetPayloadBytes(m_loggingContext, setup, FileAccessManifestStream, m_timeoutMins, ref debugFlagsMatch);
-                    }
-
+                    manifestBytes = m_fileAccessManifest.GetPayloadBytes(m_loggingContext, setup, FileAccessManifestStream, m_timeoutMins, ref debugFlagsMatch);
                     if (!debugFlagsMatch)
                     {
                         throw new BuildXLException("Mismatching build type for BuildXL and DetoursServices.dll.");
@@ -544,14 +526,11 @@ namespace BuildXL.Processes
                     }
 
                     string memUsage = $"RamPercent: {ramPercent}, AvailableRamMb: {availableRamMb}, AvailablePageFileMb: {availablePageFileMb}, TotalPageFileMb: {totalPageFileMb}";
-                    Native.Tracing.Logger.Log.DetouredProcessAccessViolationException(m_loggingContext, (m_reports?.PipDescription ?? "") + " - " + memUsage);
+                    Native.Tracing.Logger.Log.DetouredProcessAccessViolationException(m_loggingContext, m_reports.PipDescription + " - " + memUsage);
                     throw;
                 }
                 finally
                 {
-                    // release memory
-                    m_fileAccessManifest = null;
-
                     // Note that in the success path, childHandle should already be closed (by Start).
                     if (childHandle != null && !childHandle.IsInvalid)
                     {
@@ -559,13 +538,13 @@ namespace BuildXL.Processes
                     }
                 }
 
-                StreamDataReceived? reportLineReceivedCallback = m_reports == null ? null : ReportLineReceived;
+                StreamDataReceived reportLineReceivedCallback = ReportLineReceived;
 
                 if (useManagedPipeReader)
                 {
                     m_reportReader = PipeReaderFactory.CreateManagedPipeReader(
                         pipeStream,
-                        message => reportLineReceivedCallback?.Invoke(message) ?? true,
+                        message => reportLineReceivedCallback(message),
                         reportEncoding,
                         m_bufferSize);
                 }
@@ -597,11 +576,11 @@ namespace BuildXL.Processes
             SandboxedProcessFactory.Counters.IncrementCounter(SandboxedProcessFactory.SandboxedProcessCounters.AccessReportCount);
             using (SandboxedProcessFactory.Counters.StartStopwatch(SandboxedProcessFactory.SandboxedProcessCounters.HandleAccessReportDuration))
             {
-                return m_reports!.ReportLineReceived(data);
+                return m_reports.ReportLineReceived(data);
             }
         }
 
-        private void DebugPipeConnection(string data) => m_reports?.ReportLineReceived($"{(int)ReportType.DebugMessage},{data}");
+        private void DebugPipeConnection(string data) => m_reports.ReportLineReceived($"{(int)ReportType.DebugMessage},{data}");
 
         private static async Task FeedStandardInputAsync(DetouredProcess detouredProcess, TextReader? reader, TaskSourceSlim<bool> stdInTcs)
         {
@@ -672,7 +651,7 @@ namespace BuildXL.Processes
             await WaitUntilReportEof(m_detouredProcess!.Killed);
 
             // Ensure no further modifications to the report
-            m_reports?.Freeze();
+            m_reports.Freeze();
 
             // We can get extended accounting information (peak memory, etc. rolled up for the entire process tree) if this process was wrapped in a job.
             JobObject.AccountingInformation? jobAccountingInformation = null;
@@ -713,7 +692,7 @@ namespace BuildXL.Processes
             // Construct result; note that the process is expected to have exited at this point, even if we decided to forcefully kill it
             // (this callback is always a result of the process handle being signaled).
             int exitCode = 0;
-            if (m_reports?.MessageProcessingFailure != null)
+            if (m_reports.MessageProcessingFailure != null)
             {
                 exitCode = ExitCodes.MessageProcessingFailure;
             }
@@ -737,17 +716,17 @@ namespace BuildXL.Processes
                     StandardOutput = m_output.Freeze(),
                     StandardError = m_error.Freeze(),
                     TraceFile = m_traceBuilder?.Freeze(),
-                    AllUnexpectedFileAccesses = m_reports?.FileUnexpectedAccesses,
-                    FileAccesses = m_reports?.FileAccesses,
-                    DetouringStatuses = m_reports?.ProcessDetoursStatuses,
-                    ExplicitlyReportedFileAccesses = m_reports?.ExplicitlyReportedFileAccesses,
-                    Processes = m_reports?.Processes,
+                    AllUnexpectedFileAccesses = m_reports.FileUnexpectedAccesses,
+                    FileAccesses = m_reports.FileAccesses,
+                    DetouringStatuses = m_reports.ProcessDetoursStatuses,
+                    ExplicitlyReportedFileAccesses = m_reports.ExplicitlyReportedFileAccesses,
+                    Processes = m_reports.Processes,
                     DumpFileDirectory = m_detouredProcess.DumpFileDirectory,
                     DumpCreationException = m_detouredProcess.DumpCreationException,
                     StandardInputException = standardInputException,
-                    MessageProcessingFailure = m_reports?.MessageProcessingFailure,
+                    MessageProcessingFailure = m_reports.MessageProcessingFailure,
                     ProcessStartTime = m_detouredProcess.StartTime,
-                    HasReadWriteToReadFileAccessRequest = m_reports?.HasReadWriteToReadFileAccessRequest ?? false,
+                    HasReadWriteToReadFileAccessRequest = m_reports.HasReadWriteToReadFileAccessRequest,
                     DiagnosticMessage = m_detouredProcess.Diagnostics
                 };
 

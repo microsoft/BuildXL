@@ -91,7 +91,11 @@ namespace BuildXL.Processes.Remoting
                 WorkingDirectory = m_processInfo!.WorkingDirectory,
             };
 
-            remoteData.EnvironmentVariables.AddRange(m_processInfo!.EnvironmentVariables.ToDictionary());
+            if (m_processInfo!.EnvironmentVariables != null)
+            {
+                remoteData.EnvironmentVariables.AddRange(m_processInfo!.EnvironmentVariables.ToDictionary());
+            }
+
             remoteData.FileDependencies.AddRange(ToStringPaths(m_fileDependencies));
             remoteData.DirectoryDependencies.AddRange(ToStringPaths(m_directoryDependencies));
             remoteData.OutputDirectories.AddRange(ToStringPaths(m_outputDirectories));

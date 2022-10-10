@@ -143,9 +143,9 @@ namespace BuildXL.Processes
             PipDescription = info.PipDescription;
             PipSemiStableHash = info.PipSemiStableHash;
             TimeoutDumpDirectory = info.TimeoutDumpDirectory;
-            ShouldReportFileAccesses = info.FileAccessManifest?.ReportFileAccesses == true;
+            ShouldReportFileAccesses = info.FileAccessManifest.ReportFileAccesses;
             DetoursListener = info.DetoursEventListener;
-            UniqueName = $"Pip{info.FileAccessManifest?.PipId:X}.{Interlocked.Increment(ref m_uniqueNameCounter)}";
+            UniqueName = $"Pip{info.FileAccessManifest.PipId:X}.{Interlocked.Increment(ref m_uniqueNameCounter)}";
 
             info.Timeout ??= s_defaultProcessTimeout;
 

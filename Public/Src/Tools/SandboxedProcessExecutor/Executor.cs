@@ -489,33 +489,35 @@ namespace BuildXL.SandboxedProcessExecutor
                 }
             }
 
-            foreach (var tmpEnvVar in BuildParameters.DisallowedTempVariables)
+            if (info.EnvironmentVariables != null)
             {
-                if (info.EnvironmentVariables.ContainsKey(tmpEnvVar))
+                foreach (var tmpEnvVar in BuildParameters.DisallowedTempVariables)
                 {
-                    string tempPath = info.EnvironmentVariables[tmpEnvVar];
-                    var result = PrepareTempDirectory(tempPath);
+                    if (info.EnvironmentVariables.ContainsKey(tmpEnvVar))
+                    {
+                        string tempPath = info.EnvironmentVariables[tmpEnvVar];
+                        var result = PrepareTempDirectory(tempPath);
+                        if (!result.Succeeded)
+                        {
+                            m_logger.LogError($"Failed to prepare temporary directory '{tempPath}': {result.Failure.DescribeIncludingInnerFailures()}");
+                            return false;
+                        }   
+                    }
+                }
+
+                string vmSharedTemp = info.EnvironmentVariables.TryGetValue(VmSpecialEnvironmentVariables.VmSharedTemp, null);
+                if (!string.IsNullOrEmpty(vmSharedTemp))
+                {
+                    // Ensure that the directory exists, but do not clean if it already exists because the directory is shared by multiple pips.
+                    var result = PrepareTempDirectory(vmSharedTemp, cleanDirectoryIfExists: false);
                     if (!result.Succeeded)
                     {
-                        m_logger.LogError($"Failed to prepare temporary directory '{tempPath}': {result.Failure.DescribeIncludingInnerFailures()}");
+                        m_logger.LogError($"Failed to prepare VM shared temporary directory '{vmSharedTemp}': {result.Failure.DescribeIncludingInnerFailures()}");
                         return false;
-                    }   
+                    }
                 }
             }
-
-            string vmSharedTemp = info.EnvironmentVariables.TryGetValue(VmSpecialEnvironmentVariables.VmSharedTemp, null);
-
-            if (!string.IsNullOrEmpty(vmSharedTemp))
-            {
-                // Ensure that the directory exists, but do not clean if it already exists because the directory is shared by multiple pips.
-                var result = PrepareTempDirectory(vmSharedTemp, cleanDirectoryIfExists: false);
-                if (!result.Succeeded)
-                {
-                    m_logger.LogError($"Failed to prepare VM shared temporary directory '{vmSharedTemp}': {result.Failure.DescribeIncludingInnerFailures()}");
-                    return false;
-                }
-            }
-
+            
             if (remoteData == null)
             {
                 return true;
@@ -610,7 +612,7 @@ namespace BuildXL.SandboxedProcessExecutor
 
                 result.LastMessageCount = process.GetLastMessageCount();
                 result.DetoursMaxHeapSize = process.GetDetoursMaxHeapSize();
-                result.MessageCountSemaphoreCreated = info.FileAccessManifest.MessageCountSemaphore != null;
+                result.MessageCountSemaphoreCreated = fam.MessageCountSemaphore != null;
 
                 return (ExitCode.Success, result);
             }

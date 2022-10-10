@@ -14,6 +14,8 @@ using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
 using static BuildXL.Tracing.Diagnostics;
 
+#nullable enable
+
 namespace BuildXL.Processes
 {
     /// <summary>
@@ -224,7 +226,7 @@ namespace BuildXL.Processes
         public static readonly CounterCollection<SandboxedProcessCounters> Counters = new ();
 
         /// <summary>
-        /// Start a sand-boxed process asynchronously. The result will only be available once the process terminates.
+        /// Start a sandboxed process asynchronously. The result will only be available once the process terminates.
         /// </summary>
         /// <exception cref="BuildXLException">
         /// Thrown if the process creation fails in a recoverable manner due do some obscure problem detected by the underlying
@@ -233,12 +235,13 @@ namespace BuildXL.Processes
         [SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope", Justification = "Object lives on via task result.")]
         public static Task<ISandboxedProcess> StartAsync(SandboxedProcessInfo info, bool forceSandboxing)
         {
-            Contract.Requires(info != null);
-            Contract.Requires(info.FileName != null);
-            Contract.Requires(info.LoggingContext != null);
-            Contract.Requires(
-                info.GetCommandLine().Length <= SandboxedProcessInfo.MaxCommandLineLength,
-                $"Command line's length ({info.GetCommandLine().Length}) exceeds the max length {SandboxedProcessInfo.MaxCommandLineLength}");
+            string cmdLine = info.GetCommandLine();
+            if (cmdLine.Length > SandboxedProcessInfo.MaxCommandLineLength)
+            {
+                Contract.Requires(
+                    cmdLine.Length <= SandboxedProcessInfo.MaxCommandLineLength,
+                    $"Command line's length ({cmdLine.Length}) exceeds the max length {SandboxedProcessInfo.MaxCommandLineLength}");
+            }
 
             if (info.TestRetries)
             {
@@ -284,12 +287,12 @@ namespace BuildXL.Processes
         /// This is a separate function and not inlined as an anonymous delegate, as VS seems to have trouble with those when
         /// measuring code coverage
         /// </remarks>
-        private static ISandboxedProcess ProcessStart(object state)
+        private static ISandboxedProcess ProcessStart(object? state)
         {
             Counters.IncrementCounter(SandboxedProcessCounters.SandboxedProcessCount);
-            var stateTuple = (Tuple<SandboxedProcessInfo, bool>)state;
+            var stateTuple = (Tuple<SandboxedProcessInfo, bool>)state!;
             SandboxedProcessInfo info = stateTuple.Item1;
-            ISandboxedProcess result = null;
+            ISandboxedProcess? result = null;
             try
             {
                 result = Create(info, forceSandboxing: stateTuple.Item2);

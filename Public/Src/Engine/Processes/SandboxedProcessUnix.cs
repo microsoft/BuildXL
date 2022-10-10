@@ -86,7 +86,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// Allowed surviving child process names.
         /// </summary>
-        private string[] AllowedSurvivingChildProcessNames { get; }
+        private string[]? AllowedSurvivingChildProcessNames { get; }
 
         private bool IgnoreReportedAccesses { get; }
 
@@ -151,7 +151,7 @@ namespace BuildXL.Processes
 
             PipId = info.FileAccessManifest.PipId;
 
-            SandboxConnection = info.SandboxConnection;
+            SandboxConnection = info.SandboxConnection!;
             ChildProcessTimeout = info.NestedProcessTerminationTimeout;
             AllowedSurvivingChildProcessNames = info.AllowedSurvivingChildProcessNames;
             ReportQueueProcessTimeoutForTests = info.ReportQueueProcessTimeoutForTests;
@@ -268,9 +268,14 @@ namespace BuildXL.Processes
                 // inside the jail, run "bxl-env" to change into user-specified directory as well as to set environment variables before running user-specified program
                 // NOTE: -C <dir> must be the first two arguments, see bxl-env.c
                 process.StartInfo.ArgumentList.Add(info.RootJailInfo.CopyToRootJailIfNeeded(EnvExecutable));
-                // change directory into what the user specified
-                process.StartInfo.ArgumentList.Add("-C");
-                process.StartInfo.ArgumentList.Add(info.WorkingDirectory);
+
+                if (info.WorkingDirectory != null)
+                {
+                    // change directory into what the user specified
+                    process.StartInfo.ArgumentList.Add("-C");
+                    process.StartInfo.ArgumentList.Add(info.WorkingDirectory);
+                }
+
                 // propagate environment variables (because root jail program won't do it)
                 process.StartInfo.ArgumentList.Add("-i");
                 foreach (var kvp in process.StartInfo.Environment.Select(kvp => (kvp.Key, kvp.Value)).Concat(AdditionalEnvVars(info)))
@@ -292,7 +297,7 @@ namespace BuildXL.Processes
             // When executed using external tool, the manifest tree has been sealed, and cannot be modified.
             // We take care of adding this path in the manifest in SandboxedProcessPipExecutor.cs;
             // see AddUnixSpecificSandcboxedProcessFileAccessPolicies
-            if (!info.FileAccessManifest.IsManifestTreeBlockSealed)
+            if (!info.FileAccessManifest!.IsManifestTreeBlockSealed)
             {
                 info.FileAccessManifest.AddPath(
                     AbsolutePath.Create(PathTable, process.StartInfo.FileName),
@@ -355,7 +360,7 @@ namespace BuildXL.Processes
                 // NOTE: just by not keeping any references to 'info' should make the FileAccessManifest object
                 //       unreachable and thus available for garbage collection.  We call Release() here explicitly
                 //       just to emphasize the importance of reclaiming this memory.
-                info.FileAccessManifest.Release();
+                info.FileAccessManifest!.Release();
             }
         }
 
@@ -517,7 +522,7 @@ namespace BuildXL.Processes
             m_pendingReports.Post(report);
         }
 
-        private static string? EnsureQuoted(string cmdLineArgs)
+        private static string? EnsureQuoted(string? cmdLineArgs)
         {
 #if NETCOREAPP
             if (cmdLineArgs == null)
@@ -584,7 +589,7 @@ namespace BuildXL.Processes
 
             lines.Add("set -e");
 
-            if (info.SandboxConnection.Kind == SandboxKind.MacOsHybrid || info.SandboxConnection.Kind == SandboxKind.MacOsDetours)
+            if (info.SandboxConnection!.Kind == SandboxKind.MacOsHybrid || info.SandboxConnection.Kind == SandboxKind.MacOsDetours)
             {
                 lines.Add($"export {DetoursEnvVar}={DetoursFile}");
             }
@@ -608,7 +613,7 @@ namespace BuildXL.Processes
 
         private IEnumerable<(string, string?)> AdditionalEnvVars(SandboxedProcessInfo info)
         {
-            return info.SandboxConnection
+            return info.SandboxConnection!
                 .AdditionalEnvVarsToSet(info, UniqueName)
                 .Concat(info.SandboxConnection.Kind == SandboxKind.MacOsHybrid || info.SandboxConnection.Kind == SandboxKind.MacOsDetours
                     ? new (string, string?)[] { (DetoursEnvVar, DetoursFile) }
@@ -905,7 +910,7 @@ namespace BuildXL.Processes
             // When executed using external tool, the manifest tree has been sealed, and cannot be modified.
             // We take care of adding this path in the manifest in SandboxedProcessPipExecutor.cs;
             // see AddUnixSpecificSandcboxedProcessFileAccessPolicies
-            if (!info.FileAccessManifest.IsManifestTreeBlockSealed)
+            if (!info.FileAccessManifest!.IsManifestTreeBlockSealed)
             {
                 info.FileAccessManifest.AddPath(
                     AbsolutePath.Create(PathTable, stdinFileName),

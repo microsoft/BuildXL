@@ -129,11 +129,20 @@ namespace BuildXL.Execution.Analyzer
                 sw.WriteLine(I($"Fingerprint kind: {data.Kind}"));
                 WriteWeakFingerprintData(pipInfo, sw);
 
+                if (data.StrongFingerprintComputations.Count == 0)
+                {
+                    sw.WriteLine("There were no strong fingerprint computations. This might happen, for example, if this was the first time the pip ran with this weak fingerprint.");
+                }
+
                 foreach (var strongComputation in data.StrongFingerprintComputations)
                 {
                     pipInfo.StrongFingerprintComputation = strongComputation;
                     WriteStrongFingerprintData(pipInfo, sw);
+                    sw.WriteLine();
                 }
+
+                // Add an empty line for more readable output.
+                sw.WriteLine();
             }
         }
 
@@ -169,10 +178,23 @@ namespace BuildXL.Execution.Analyzer
         private void WriteStrongFingerprintData(PipCachingInfo info, TextWriter writer)
         {
             writer.WriteLine("Strong Fingerprint Info");
-            
+
+            // PathSetHash, PathSet, and PriorStrongFingerprints are always available (even if strong fingerprint computation failed).
+            var pathSetHash = info.StrongFingerprintComputation.PathSetHash.HashType != BuildXL.Cache.ContentStore.Hashing.HashType.Unknown ?
+                info.StrongFingerprintComputation.PathSetHash :
+                ContentHashingUtilities.ZeroHash;
+
             if (!info.StrongFingerprintComputation.Succeeded)
             {
+                var dxCodesOfInterest = I($"DX{LogEventId.DisallowedFileAccessInTopOnlySourceSealedDirectory:D4}, DX{LogEventId.DisallowedFileAccessInSealedDirectory:D4}, DX{LogEventId.PathSetValidationTargetFailedAccessCheck:D4}");
                 writer.WriteLine("Strong fingerprint computation failed.");
+                writer.WriteLine($"  This occurs if graph/policy was changed such that pip is no longer allowed to access");
+                writer.WriteLine($"  a path contained in the prior observed inputs (e.g., dependent seal directory contents");
+                writer.WriteLine($"  no longer contain the designated path). Check the main log file for {dxCodesOfInterest}");
+                writer.WriteLine($"  events to get more insight into which path(s) caused the failure.");
+                writer.WriteLine($"  Note: some of these events require that a build run with diagnostics logging enabled.");
+                // Log the pathset hash as well to facilitate debugging (in case diagnostics is not on).
+                writer.WriteLine(I($"  Visited PathSet Hash: {pathSetHash}"));
                 return;
             }
 
@@ -190,9 +212,6 @@ namespace BuildXL.Execution.Analyzer
             }
 
             writer.WriteLine();
-            var pathSetHash = info.StrongFingerprintComputation.PathSetHash.HashType != BuildXL.Cache.ContentStore.Hashing.HashType.Unknown ?
-                info.StrongFingerprintComputation.PathSetHash :
-                ContentHashingUtilities.ZeroHash;
             writer.WriteLine(I($"PathSet Hash: {pathSetHash}"));
             writer.WriteLine();
             writer.WriteLine("Path Set:");

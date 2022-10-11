@@ -196,16 +196,7 @@ namespace BuildXL.Native.IO.Windows
 
             public FileIdDescriptor(FileId fileId)
             {
-                if (IsExtendedFileIdSupported())
-                {
-                    Type = FileIdDescriptorType.ExtendedFileId;
-                }
-                else
-                {
-                    Contract.Assume(fileId.High == 0, "File ID should not have high bytes when extended IDs are not supported on the underlying OS");
-                    Type = FileIdDescriptorType.FileId;
-                }
-
+                Type = FileIdDescriptorType.ExtendedFileId;
                 Size = s_size;
                 ExtendedFileId = fileId;
             }
@@ -1028,27 +1019,10 @@ namespace BuildXL.Native.IO.Windows
         }
 
         /// <nodoc />
-        public static readonly Version MinWindowsVersionThatSupportsLongPaths = new Version(major: 6, minor: 2);
-
-        /// <nodoc />
-        public static readonly Version MinWindowsVersionThatSupportsNestedJobs = new Version(major: 6, minor: 2);
-
-        /// <nodoc />
-        public static readonly Version MinWindowsVersionThatSupportsWow64Processes = new Version(major: 5, minor: 1);
-
-        /// <nodoc />
-        public static readonly int MaxDirectoryPathOld = 130;
-
-        /// <nodoc />
-        public static readonly int MaxDirectoryPathNew = 260;
+        public static readonly int MaxDirectoryPath = 260;
 
         /// <inheritdoc />
-        public int MaxDirectoryPathLength()
-        {
-            return StaticIsOSVersionGreaterOrEqual(MinWindowsVersionThatSupportsLongPaths)
-                ? MaxDirectoryPathNew
-                : MaxDirectoryPathOld;
-        }
+        public int MaxDirectoryPathLength() => MaxDirectoryPath;
 
         private readonly Lazy<bool> m_supportUnprivilegedCreateSymbolicLinkFlag = default;
 
@@ -1485,21 +1459,6 @@ namespace BuildXL.Native.IO.Windows
             Logger.Log.StorageCheckpointUsn(m_loggingContext, writtenUsn);
 
             return new Usn(writtenUsn);
-        }
-
-        /// <summary>
-        /// Indicates if the running OS is at least Windows 8.0 / Server 2012
-        /// (which is the first version to support nested jobs, hence <see cref="FileSystemWin.MinWindowsVersionThatSupportsNestedJobs"/>)
-        /// </summary>
-        private static readonly bool s_runningWindows8OrAbove = StaticIsOSVersionGreaterOrEqual(FileSystemWin.MinWindowsVersionThatSupportsNestedJobs);
-
-        /// <summary>
-        /// Indicates if the extended (128-bit) file ID type is supported on this running OS.
-        /// http://msdn.microsoft.com/en-us/library/windows/desktop/aa364227(v=vs.85).aspx
-        /// </summary>
-        private static bool IsExtendedFileIdSupported()
-        {
-            return s_runningWindows8OrAbove;
         }
 
         /// <inheritdoc />

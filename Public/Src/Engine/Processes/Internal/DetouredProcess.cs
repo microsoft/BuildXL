@@ -533,8 +533,8 @@ namespace BuildXL.Processes.Internal
                             hStdError = new SafeFileHandle(new IntPtr(-1), true);
                         }
 
-                        // We want a per-process job primarily. If nested job support is not available, then we make sure to not have a BuildXL-level job.
-                        if (JobObject.OSSupportsNestedJobs && m_createJobObjectForCurrentProcess)
+                        // Include the pip process in the job object for the build to ensure it is automatically closed.
+                        if (m_createJobObjectForCurrentProcess)
                         {
                             JobObject.SetTerminateOnCloseOnCurrentProcessJob();
                         }

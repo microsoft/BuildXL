@@ -30,7 +30,6 @@ namespace BuildXL.Engine.Tracing
         PipWriterStats = 76,
         PipTableDeserializationContext = 84,
         EnvironmentValueForTempDisallowed = 94,
-        CannotHonorLowPriority = 95,
         ErrorRelatedLocation = 110,
         BusyOrUnavailableOutputDirectoriesRetry = 214,
         FileAccessAllowlistCouldNotCreateIdentifier = 270,

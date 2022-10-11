@@ -45,11 +45,8 @@ namespace Tool.DistributedBuildRunner
             }
 
             // Ensure that any launched processes will close when this process closes.
-            if (JobObject.OSSupportsNestedJobs)
-            {
-                JobObject.SetTerminateOnCloseOnCurrentProcessJob();
-            }
-
+            JobObject.SetTerminateOnCloseOnCurrentProcessJob();
+  
             if (args.Length < 1 || args.Length > 2)
             {
                 Console.WriteLine(Resources.HelpText);

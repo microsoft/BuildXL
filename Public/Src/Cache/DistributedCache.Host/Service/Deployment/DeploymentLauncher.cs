@@ -163,7 +163,7 @@ namespace BuildXL.Cache.Host.Service
                 },
                 caller: "ClearDeploymentDirectory").IgnoreFailure();
 
-            if (Settings.CreateJobObject && JobObject.OSSupportsNestedJobs)
+            if (Settings.CreateJobObject)
             {
                 JobObject.SetTerminateOnCloseOnCurrentProcessJob();
             }

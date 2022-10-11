@@ -1285,15 +1285,6 @@ namespace BuildXL.Engine.Tracing
         public abstract void AssignProcessToJobObjectFailed(LoggingContext context, string nativeError);
 
         [GeneratedEvent(
-            (ushort)LogEventId.CannotHonorLowPriority,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Warning,
-            Keywords = (int)Keywords.UserMessage,
-            EventTask = (int)Tasks.Engine,
-            Message = "Unable to honor the /lowPriority option. This requires Win8/Server2012 or newer.")]
-        public abstract void CannotEnforceLowPriority(LoggingContext context);
-
-        [GeneratedEvent(
             (ushort)LogEventId.ConfigUsingExperimentalOptions,
             EventGenerators = EventGenerators.LocalAndTelemetry,
             EventLevel = Level.Warning,

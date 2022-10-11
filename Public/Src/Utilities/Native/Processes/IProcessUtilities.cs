@@ -105,9 +105,6 @@ namespace BuildXL.Native.Processes
         /// <summary><see cref="ProcessUtilities.TerminateJobObject"/></summary>
         bool TerminateJobObject(IntPtr hJob, int exitCode);
 
-        /// <summary><see cref="ProcessUtilities.OSSupportsNestedJobs"/></summary>
-        bool OSSupportsNestedJobs();
-
         /// <summary><see cref="ProcessUtilities.AttachContainerToJobObject"/></summary>
         void AttachContainerToJobObject(
             IntPtr hJob,

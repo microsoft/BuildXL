@@ -43,12 +43,6 @@ namespace BuildXL.Processes
         /// </summary>
         public const int InitialProcessIdListLength = 2048; // the number needed to make the bufferSizeForProcessIdList 8KB.
 
-        /// <summary>
-        /// Nested jobs are only supported on Win8/Server2012 or higher.
-        /// http://msdn.microsoft.com/en-us/library/windows/desktop/hh448388(v=vs.85).aspx
-        /// </summary>
-        public static readonly bool OSSupportsNestedJobs = Native.Processes.ProcessUtilities.OSSupportsNestedJobs();
-
         private static readonly object s_syncRoot = new object();
         private static readonly Lazy<CompletionPortDrainer> s_completionPortDrainer = Lazy.Create(() => new CompletionPortDrainer());
         private static bool s_terminateOnCloseOnCurrentProcessJob;
@@ -491,7 +485,10 @@ namespace BuildXL.Processes
         /// </summary>
         public static bool SetLimitInformationOnCurrentProcessJob(bool? terminateOnClose = null, ProcessPriorityClass? priorityClass = null)
         {
-            Contract.Requires(OSSupportsNestedJobs);
+            if (!OperatingSystemHelper.IsWindowsOS)
+            {
+                return true;
+            }
 
             bool ret = false;
             using (Process currentProcess = Process.GetCurrentProcess())
@@ -525,7 +522,6 @@ namespace BuildXL.Processes
         /// </remarks>
         public static void SetTerminateOnCloseOnCurrentProcessJob()
         {
-            Contract.Requires(OSSupportsNestedJobs);
             if (!s_terminateOnCloseOnCurrentProcessJob)
             {
                 lock (s_syncRoot)

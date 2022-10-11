@@ -97,13 +97,7 @@ namespace BuildXL.Native.Processes.Windows
         public bool IsWow64Process(SafeProcessHandle? process)
         {
             IntPtr handle = process == null ? GetCurrentProcess() : process.DangerousGetHandle();
-
-            if (IO.Windows.FileSystemWin.StaticIsOSVersionGreaterOrEqual(IO.Windows.FileSystemWin.MinWindowsVersionThatSupportsWow64Processes))
-            {
-                return ExternIsWow64Process(handle, out bool result) && result;
-            }
-
-            return false;
+            return ExternIsWow64Process(handle, out bool result) && result;
         }
 
         /// <inheritdoc />
@@ -266,10 +260,6 @@ namespace BuildXL.Native.Processes.Windows
         /// <inheritdoc />
         public bool TerminateJobObject(IntPtr hJob, int exitCode)
             => ExternTerminateJobObject(hJob, exitCode);
-
-        /// <inheritdoc />
-        public bool OSSupportsNestedJobs()
-            => IO.Windows.FileSystemWin.StaticIsOSVersionGreaterOrEqual(IO.Windows.FileSystemWin.MinWindowsVersionThatSupportsNestedJobs);
 
         internal static void Assert64Process()
         {

@@ -2566,16 +2566,9 @@ namespace BuildXL.Engine
 
             if (Configuration.Schedule.LowPriority)
             {
-                if (JobObject.OSSupportsNestedJobs)
+                if (!JobObject.SetLimitInformationOnCurrentProcessJob(priorityClass: ProcessPriorityClass.BelowNormal))
                 {
-                    if (!JobObject.SetLimitInformationOnCurrentProcessJob(priorityClass: ProcessPriorityClass.BelowNormal))
-                    {
-                        Logger.Log.AssignProcessToJobObjectFailed(loggingContext, NativeWin32Exception.GetFormattedMessageForNativeErrorCode(System.Runtime.InteropServices.Marshal.GetLastWin32Error()));
-                    }
-                }
-                else
-                {
-                    Logger.Log.CannotEnforceLowPriority(loggingContext);
+                    Logger.Log.AssignProcessToJobObjectFailed(loggingContext, NativeWin32Exception.GetFormattedMessageForNativeErrorCode(System.Runtime.InteropServices.Marshal.GetLastWin32Error()));
                 }
             }
 

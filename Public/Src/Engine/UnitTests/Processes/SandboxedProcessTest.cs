@@ -225,7 +225,7 @@ namespace Test.BuildXL.Processes
         [Fact]
         public async Task StartTimeout()
         {
-            if (!JobObject.OSSupportsNestedJobs)
+            if (!OperatingSystemHelper.IsWindowsOS)
             {
                 return;
             }
@@ -243,7 +243,7 @@ namespace Test.BuildXL.Processes
         [Fact]
         public async Task SuspensionExtendsTimeout()
         {
-            if (!JobObject.OSSupportsNestedJobs)
+            if (!OperatingSystemHelper.IsWindowsOS)
             {
                 return;
             }
@@ -270,7 +270,7 @@ namespace Test.BuildXL.Processes
         [Fact]
         public async Task SuspendResumeTimeout()
         {
-            if (!JobObject.OSSupportsNestedJobs)
+            if (!OperatingSystemHelper.IsWindowsOS)
             {
                 return;
             }
@@ -321,7 +321,7 @@ namespace Test.BuildXL.Processes
         [Fact(Skip = "Test is flakey TFS 495531")]
         public async Task JobCounters()
         {
-            if (!JobObject.OSSupportsNestedJobs)
+            if (!OperatingSystemHelper.IsWindowsOS)
             {
                 return;
             }
@@ -382,7 +382,7 @@ namespace Test.BuildXL.Processes
         [InlineData(true)]
         public async Task Survivors(bool includeAllowedSurvivingChildren)
         {
-            if (!JobObject.OSSupportsNestedJobs)
+            if (!OperatingSystemHelper.IsWindowsOS)
             {
                 return;
             }
@@ -473,7 +473,7 @@ namespace Test.BuildXL.Processes
         [MemberData(nameof(CmdExeLocationsData))]
         public async Task SurvivorsHaveCommandLines(string cmdExeLocation)
         {
-            if (!JobObject.OSSupportsNestedJobs)
+            if (!OperatingSystemHelper.IsWindowsOS)
             {
                 return;
             }
@@ -511,7 +511,7 @@ namespace Test.BuildXL.Processes
         [InlineData(false)]
         public async Task QuickSurvivors(bool waitToFinish)
         {
-            if (!JobObject.OSSupportsNestedJobs)
+            if (!OperatingSystemHelper.IsWindowsOS)
             {
                 return;
             }

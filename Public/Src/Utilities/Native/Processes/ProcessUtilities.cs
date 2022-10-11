@@ -273,12 +273,6 @@ namespace BuildXL.Native.Processes
         public static bool TerminateJobObject(IntPtr hJob, int exitCode)
             => s_nativeMethods.TerminateJobObject(hJob, exitCode);
 
-        /// <summary>
-        /// Returns whether the operating system supports nested jobs.
-        /// </summary>
-        public static bool OSSupportsNestedJobs()
-            => s_nativeMethods.OSSupportsNestedJobs();
-
         #region Helium containers
 
         /// <summary>

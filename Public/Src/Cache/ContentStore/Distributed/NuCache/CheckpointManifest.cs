@@ -150,9 +150,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return JsonUtilities.JsonDeserialize<CheckpointManifest>(serialized);
         }
 
+        // TODO(jubayard, 2022/10/11): this is a temporary workaround to prevent old worker code from failing to
+        // deserialize newly produced checkpoint manifests.
+        private const string JsonManifestHeader = "// {} \n";
+
         public string ToJson()
         {
-            return JsonUtilities.JsonSerialize(this, indent: true);
+            return JsonManifestHeader + JsonUtilities.JsonSerialize(this, indent: true);
         }
     }
 }

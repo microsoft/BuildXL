@@ -4612,7 +4612,7 @@ namespace BuildXL.Scheduler
 
                     var storeOutputsQueue = ActionBlockSlim.CreateWithAsyncAction<(int, FileArtifactWithAttributes, FileOutputData)>(
                         degreeOfParallelism: EngineEnvironmentSettings.StoringOutputsToCacheConcurrency,
-                        async ((int index, FileArtifactWithAttributes artifact, FileOutputData data) dataToStore) => 
+                        processItemAction: async ((int index, FileArtifactWithAttributes artifact, FileOutputData data) dataToStore) =>
                         {
                             using (operationContext.StartAsyncOperation(PipExecutorCounter.SerializeAndStorePipOutputDuration))
                             {
@@ -4629,7 +4629,6 @@ namespace BuildXL.Scheduler
                             }
                         },
                         singleProducedConstrained: true,
-                        singleConsumerConstrained: false,
                         cancellationToken: environment.Context.CancellationToken);
 
                     int outputIndex = 0;

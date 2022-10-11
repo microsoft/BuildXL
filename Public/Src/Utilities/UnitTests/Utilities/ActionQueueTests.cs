@@ -20,7 +20,23 @@ namespace Test.BuildXL.Utilities
             var tcs = new TaskCompletionSource<object>();
 
             var t = queue.RunAsync(() => tcs.Task);
-            await Assert.ThrowsAsync<ActionBlockIsFullException>(() => queue.RunAsync(() => { }));
+
+            // Ensure previous task gets picked up by processing
+            await Task.Delay(TimeSpan.FromSeconds(1));
+
+            // This task will be left in the channel
+            _ = queue.RunAsync(() => { });
+
+            // This one should throw
+            try
+            {
+                _ = queue.RunAsync(() => { });
+                throw new NotImplementedException();
+            }
+            catch (ActionBlockIsFullException)
+            {
+                // This should be ignored. For some reason, Assert.Throws doesn't work.
+            }
 
             tcs.SetResult(null);
             

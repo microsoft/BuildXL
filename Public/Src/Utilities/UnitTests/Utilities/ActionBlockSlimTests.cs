@@ -21,6 +21,12 @@ namespace Test.BuildXL.Utilities
             var tcs = new TaskCompletionSource<object>();
             var actionBlock = ActionBlockSlim.CreateWithAsyncAction<int>(1, n => tcs.Task, capacityLimit: 1);
             actionBlock.Post(42);
+
+            await Task.Delay(TimeSpan.FromSeconds(1));
+            Assert.Equal(0, actionBlock.PendingWorkItems);
+            Assert.Equal(1, actionBlock.ProcessingWorkItems);
+
+            actionBlock.Post(43);
             Assert.Equal(1, actionBlock.PendingWorkItems);
 
             Assert.Throws<ActionBlockIsFullException>(() => actionBlock.Post(1));
@@ -71,7 +77,6 @@ namespace Test.BuildXL.Utilities
             actionBlock.Complete();
             await actionBlock.Completion;
 
-            Assert.True(actionBlock.IsComplete);
             Assert.False(actionBlock.TryPost(-43, throwOnFullOrComplete: false));
 
             Assert.Equal(2, seenInputs.Count);
@@ -122,6 +127,27 @@ namespace Test.BuildXL.Utilities
 
             actionBlock.Complete(cancelPending: true);
             await actionBlock.Completion;
+        }
+
+        [Fact]
+        public async Task ItemsAreProcessedOnceCompleted()
+        {
+            int trulyProcessed = 0;
+            var actionBlock = ActionBlockSlim.CreateWithAsyncAction<int>(2,
+                async n => 
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(5)); 
+                    Interlocked.Increment(ref trulyProcessed); 
+                });
+            actionBlock.Post(1);
+            actionBlock.Post(1);
+            actionBlock.Post(1);
+            actionBlock.Complete();
+            await actionBlock.Completion;
+            Assert.Equal(3, trulyProcessed);
+            Assert.Equal(3, actionBlock.ProcessedWorkItems);
+            Assert.Equal(0, actionBlock.PendingWorkItems);
+            Assert.Equal(0, actionBlock.ProcessingWorkItems);
         }
 
         [Fact]

@@ -47,7 +47,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         private readonly IRetryPolicy _extraEventHubClientRetryPolicy;
 
         private Processor? _currentEventProcessor;
-        private readonly ActionBlock<ProcessEventsInput>[]? _eventProcessingBlocks;
+        private readonly ActionBlockSlim<ProcessEventsInput>[]? _eventProcessingBlocks;
 
         private EventSequencePoint? _lastProcessedSequencePoint;
 
@@ -90,13 +90,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                             (_, index) =>
                             {
                                 var serializer = new ContentLocationEventDataSerializer(configuration.SelfCheckSerialization ? (configuration.SelfCheckSerializationShouldFail ? ValidationMode.Fail : ValidationMode.Trace) : ValidationMode.Off);
-                                return new ActionBlock<ProcessEventsInput>(
-                                    t => ProcessEventsCoreAsync(t, serializer),
-                                    new ExecutionDataflowBlockOptions()
-                                    {
-                                        MaxDegreeOfParallelism = 1,
-                                        BoundedCapacity = configuration.EventProcessingMaxQueueSize,
-                                    });
+                                return ActionBlockSlim.CreateWithAsyncAction<ProcessEventsInput>(
+                                    new ActionBlockSlimConfiguration(
+                                        DegreeOfParallelism: 1,
+                                        CapacityLimit: configuration.EventProcessingMaxQueueSize,
+                                        SingleProducerConstrained: true,
+                                        UseLongRunningTasks: true),
+                                    t => ProcessEventsCoreAsync(t, serializer));
                             })
                         .ToArray();
             }
@@ -266,22 +266,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                     var eventProcessingBlock = _eventProcessingBlocks![actionBlockIndex];
                     var input = new ProcessEventsInput(st, messageGroup, actionBlockIndex, this);
 
-                    var sendAsyncTask = eventProcessingBlock.SendAsync(input);
-                    if (sendAsyncTask.Status == TaskStatus.WaitingForActivation)
-                    {
-                        // The action block is busy. It means that its most likely full.
-                        Tracer.Debug(context, $"Action block {actionBlockIndex} is busy. Block's queue size={eventProcessingBlock.InputCount}.");
-
-                    }
-                    bool success = await sendAsyncTask;
-
-                    if (!success)
-                    {
-                        // NOTE: This case should not actually occur.
-                        // Complete the operation in case we couldn't send to the action block to prevent pending event queue from getting backlogged.
-                        input.Complete();
-                        return new BoolResult("Failed to add message to an action block.");
-                    }
+                    await eventProcessingBlock.PostAsync(input);
                 }
 
                 return BoolResult.Success;
@@ -384,11 +369,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                         return Result.Success(input);
                     },
                     counters[ProcessEvents],
-                    extraStartMessage: $"QueueIdx={input.ActionBlockIndex}, QueueSize={input.EventProcessingBlock?.InputCount}",
-                    extraEndMessage: _ => $"QueueIdx={input.ActionBlockIndex}, QueueSize={input.EventProcessingBlock?.InputCount}, LocalDelay={DateTime.UtcNow - input.LocalEnqueueTime}",
+                    extraStartMessage: $"QueueIdx={input.ActionBlockIndex}, QueueSize={input.EventProcessingBlock?.PendingWorkItems}",
+                    extraEndMessage: _ => $"QueueIdx={input.ActionBlockIndex}, QueueSize={input.EventProcessingBlock?.PendingWorkItems}, LocalDelay={DateTime.UtcNow - input.LocalEnqueueTime}",
                     isCritical: true);
 
-                Tracer.TrackMetric(context, $"QueueSize_{input.ActionBlockIndex}", input.EventProcessingBlock?.InputCount ?? 0);
+                Tracer.TrackMetric(context, $"QueueSize_{input.ActionBlockIndex}", input.EventProcessingBlock?.PendingWorkItems ?? 0);
+
                 // The error is logged
                 result.IgnoreFailure();
             }
@@ -576,7 +562,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
             public int EventQueueDelayIndex => ActionBlockIndex == -1 ? 0 : ActionBlockIndex;
 
             /// <nodoc />
-            public ActionBlock<ProcessEventsInput>? EventProcessingBlock =>
+            public ActionBlockSlim<ProcessEventsInput>? EventProcessingBlock =>
                 ActionBlockIndex != -1 ? _store._eventProcessingBlocks![ActionBlockIndex] : null;
 
             /// <nodoc />

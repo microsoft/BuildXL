@@ -16,7 +16,7 @@ namespace Test.Lage {
 
     // Install Lage for tests
     const lageTest = Context.getNewOutputDirectory(a`lage-test`);
-    const lage = Node.runNpmPackageInstall(lageTest, [], {name: "lage", version: "1.7.2"}, false);
+    const lage = Node.runNpmPackageInstall(lageTest, [], {name: "lage", version: "1.9.2"}, false);
 
     @@public
     export const dll = isRunningOnSupportedSystem && BuildXLSdk.test({

@@ -24,8 +24,6 @@ namespace BuildXL.Cache.ContentStore.Service
             IAbsFileSystem fileSystem,
             int? bufferSizeForGrpcCopies = null,
             int? proactivePushCountLimit = null,
-            TimeSpan? logIncrementalStatsInterval = null,
-            TimeSpan? logMachineStatsInterval = null,
             bool traceGrpcOperations = false,
             int? copyRequestHandlingCountLimit = null,
             bool doNotShutdownSessionsInUse = false,
@@ -40,8 +38,6 @@ namespace BuildXL.Cache.ContentStore.Service
             ProactivePushCountLimit = proactivePushCountLimit;
             CopyRequestHandlingCountLimit = copyRequestHandlingCountLimit;
             FileSystem = fileSystem;
-            LogIncrementalStatsInterval = logIncrementalStatsInterval ?? DefaultLogIncrementalStatsInterval;
-            LogMachineStatsInterval = logMachineStatsInterval ?? DefaultLogMachineStatsInterval;
             TraceGrpcOperations = traceGrpcOperations;
             DoNotShutdownSessionsInUse = doNotShutdownSessionsInUse;
             AsyncSessionShutdownTimeout = asyncSessionShutdownTimeout ?? DefaultWaitForShutdownTimeout;
@@ -60,11 +56,8 @@ namespace BuildXL.Cache.ContentStore.Service
             BufferSizeForGrpcCopies = serviceConfiguration.BufferSizeForGrpcCopies;
             ProactivePushCountLimit = serviceConfiguration.ProactivePushCountLimit;
             CopyRequestHandlingCountLimit = serviceConfiguration.CopyRequestHandlingCountLimit;
-            LogMachineStatsInterval = serviceConfiguration.LogMachineStatsInterval ?? DefaultLogMachineStatsInterval;
-            LogIncrementalStatsInterval = serviceConfiguration.LogIncrementalStatsInterval ?? DefaultLogIncrementalStatsInterval;
             TraceGrpcOperations = serviceConfiguration.TraceGrpcOperation;
             DoNotShutdownSessionsInUse = serviceConfiguration.DoNotShutdownSessionsInUse;
-            IncrementalStatsCounterNames = serviceConfiguration.IncrementalStatsCounterNames ?? new string[0];
             AsyncSessionShutdownTimeout = serviceConfiguration.AsyncSessionShutdownTimeout ?? DefaultWaitForShutdownTimeout;
         }
 
@@ -80,11 +73,8 @@ namespace BuildXL.Cache.ContentStore.Service
             BufferSizeForGrpcCopies = serviceConfiguration.BufferSizeForGrpcCopies;
             ProactivePushCountLimit = serviceConfiguration.ProactivePushCountLimit;
             CopyRequestHandlingCountLimit = serviceConfiguration.CopyRequestHandlingCountLimit;
-            LogMachineStatsInterval = serviceConfiguration.LogMachineStatsInterval ?? DefaultLogMachineStatsInterval;
-            LogIncrementalStatsInterval = serviceConfiguration.LogIncrementalStatsInterval ?? DefaultLogIncrementalStatsInterval;
             TraceGrpcOperations = serviceConfiguration.TraceGrpcOperation;
             DoNotShutdownSessionsInUse = serviceConfiguration.DoNotShutdownSessionsInUse;
-            IncrementalStatsCounterNames = serviceConfiguration.IncrementalStatsCounterNames ?? new string[0];
             AsyncSessionShutdownTimeout = serviceConfiguration.AsyncSessionShutdownTimeout ?? DefaultWaitForShutdownTimeout;
             return this;
         }
@@ -99,35 +89,11 @@ namespace BuildXL.Cache.ContentStore.Service
         /// </summary>
         public IReadOnlyDictionary<string, AbsolutePath> NamedCacheRoots { get; private set; }
 
-        /// <nodoc />
-        public static TimeSpan DefaultLogIncrementalStatsInterval { get; } = TimeSpan.FromHours(2);
-
-        /// <summary>
-        /// Gets or sets the time period between logging incremental stats
-        /// </summary>
-        public TimeSpan LogIncrementalStatsInterval { get; set; } = DefaultLogIncrementalStatsInterval;
-
         /// <summary>
         /// Indicates whether to disable the internal gprc server. Presumably, to allow external GPRC server creation
         /// (i.e. via ASP.Net Core)
         /// </summary>
         public bool DisableGrpcServer { get; set; }
-
-        /// <summary>
-        /// A list of counters that will be printed as part of incremental statistics.
-        /// </summary>
-        /// <remarks>
-        /// The name should just be the counter name itself, like 'RemoteCopyFile' and not 'DistributedContentCopier.DistributedContentCopierCounters.RemoteCopyFile'.
-        /// </remarks>
-        public string[] IncrementalStatsCounterNames { get; set; } = new string[0];
-
-        /// <nodoc />
-        public static TimeSpan DefaultLogMachineStatsInterval { get; } = TimeSpan.FromMinutes(1);
-
-        /// <summary>
-        /// Gets or sets the time period between logging machine-specific performance statistics.
-        /// </summary>
-        public TimeSpan LogMachineStatsInterval { get; set; } = DefaultLogMachineStatsInterval;
 
         /// <summary>
         /// Gets or sets the duration of inactivity after which a session will be timed out.

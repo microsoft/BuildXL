@@ -192,7 +192,8 @@ namespace BuildXL.Cache.ContentStore.Tracing
         {
             context.PerformOperation(
                 Tracer,
-                traceOperationStarted: false,
+                // This method is really spammy (~300m messages per day) and doesn't offer much valuable information.
+                traceErrorsOnly: true,
                 operation: () =>
                 {
                     return ConcurrencyHelper.RunOnceIfNeeded(

@@ -12,7 +12,6 @@ using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Extensions;
-using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
@@ -27,7 +26,6 @@ using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.ContentStore.Utils;
 using Grpc.Core;
 using BuildXL.Cache.ContentStore.Grpc;
-using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Cache.Host.Service;
 using GrpcEnvironment = BuildXL.Cache.ContentStore.Service.Grpc.GrpcEnvironment;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
@@ -74,21 +72,10 @@ namespace BuildXL.Cache.ContentStore.Service
 
         private readonly ConcurrentDictionary<int, ISessionHandle<TSession, TSessionData>> _sessionHandles;
         private IntervalTimer? _sessionExpirationCheckTimer;
-        private IntervalTimer? _logIncrementalStatsTimer;
-        private IntervalTimer? _logMachineStatsTimer;
-
-        private Dictionary<string, long>? _previousStatistics;
-
-        private readonly MachinePerformanceCollector _performanceCollector = new MachinePerformanceCollector();
 
         private readonly Dictionary<string, AbsolutePath> _tempFolderForStreamsByCacheName = new Dictionary<string, AbsolutePath>();
         private readonly ConcurrentDictionary<int, DisposableDirectory> _tempDirectoryForStreamsBySessionId = new ConcurrentDictionary<int, DisposableDirectory>();
-        private readonly Dictionary<string, bool> _incrementalStatisticsKeyStatus = new Dictionary<string, bool>();
 
-        /// <summary>
-        /// Used by <see cref="LogIncrementalStatsAsync"/> to avoid re-entrancy.
-        /// </summary>
-        private int _loggingIncrementalStats = 0;
         private int _lastSessionId;
 
         /// <nodoc />
@@ -306,14 +293,6 @@ namespace BuildXL.Cache.ContentStore.Service
                         MinTimeSpan(Config.UnusedSessionHeartbeatTimeout, TimeSpan.FromMinutes(CheckForExpiredSessionsPeriodMinutes)),
                         logAction: message => Tracer.Debug(context, $"{CheckForExpiredSessionsName}: {message}"));
 
-                    _logIncrementalStatsTimer = new IntervalTimer(
-                        () => LogIncrementalStatsAsync(context, logAtShutdown: false),
-                        Config.LogIncrementalStatsInterval);
-
-                    _logMachineStatsTimer = new IntervalTimer(
-                        () => LogMachinePerformanceStatistics(context),
-                        Config.LogMachineStatsInterval);
-
                     return BoolResult.Success;
                 }
                 catch (Exception e)
@@ -385,102 +364,6 @@ namespace BuildXL.Cache.ContentStore.Service
             _grpcServer.Start();
         }
 
-        private Task LogIncrementalStatsAsync(OperationContext context, bool logAtShutdown)
-        {
-            return ConcurrencyHelper.RunOnceIfNeeded(
-                ref _loggingIncrementalStats,
-                async () =>
-                {
-                    TraceLeakedFilePath(context);
-
-                    var statistics = new Dictionary<string, long>();
-                    var previousStatistics = _previousStatistics;
-
-                    var stats = await GetStatsAsync(context);
-                    if (stats.Succeeded)
-                    {
-                        var counters = stats.Value.ToDictionaryIntegral();
-                        FillTrackingStreamStatistics(counters);
-                        foreach (var counter in counters)
-                        {
-                            var key = counter.Key;
-
-                            if (!logAtShutdown && !PrintStatisticsForKey(key))
-                            {
-                                continue;
-                            }
-
-                            var value = counter.Value;
-                            var incrementalValue = value;
-                            statistics[key] = value;
-
-                            if (previousStatistics != null && previousStatistics.TryGetValue(key, out var oldValue))
-                            {
-                                incrementalValue -= oldValue;
-                            }
-
-                            context.TracingContext.TraceMessage(
-                                Severity.Info,
-                                $"{key}=[{incrementalValue}]",
-                                component: Name,
-                                operation: "IncrementalStatistics");
-                            context.TracingContext.TraceMessage(Severity.Info, $"{key}=[{value}]", component: Name, operation: "PeriodicStatistics");
-                        }
-                    }
-
-                    _previousStatistics = statistics;
-                },
-                funcIsRunningResultProvider: () => Task.CompletedTask);
-        }
-
-        private bool PrintStatisticsForKey(string key)
-        {
-            if (_incrementalStatisticsKeyStatus.TryGetValue(key, out bool shouldPrint))
-            {
-                return shouldPrint;
-            }
-
-            shouldPrint = Config.IncrementalStatsCounterNames.Any(name => key.EndsWith(name));
-            _incrementalStatisticsKeyStatus[key] = shouldPrint;
-            return shouldPrint;
-        }
-
-        private void TraceLeakedFilePath(OperationContext context)
-        {
-            // Tracing the last leaked file name to understand what files are not closed properly.
-            var leakedPath = TrackingFileStream.LastLeakedFilePath;
-            if (!string.IsNullOrEmpty(leakedPath))
-            {
-                Tracer.Warning(context, $"{nameof(TrackingFileStream)}.{nameof(TrackingFileStream.LastLeakedFilePath)}: {leakedPath}");
-            }
-        }
-
-        private void LogMachinePerformanceStatistics(OperationContext context)
-        {
-            var machineStatistics = _performanceCollector.GetMachinePerformanceStatistics();
-
-            // Tracing a few things as metrics.
-            Tracer.TrackMetric(context, $"MachinePerf_{nameof(machineStatistics.ProcessThreadCount)}", machineStatistics.ProcessThreadCount);
-            Tracer.TrackMetric(context, $"MachinePerf_{nameof(machineStatistics.ThreadPoolWorkerThreads)}", machineStatistics.ThreadPoolWorkerThreads);
-
-            Tracer.Info(context, "MachinePerformanceStatistics: " + machineStatistics.ToTracingString());
-
-            if (GlobalInfoStorage.GetGlobalInfo(GlobalInfoKey.LocalLocationStoreRole) == "Master")
-            {
-                machineStatistics.CollectMetrics((name, value) =>
-                {
-                    context.TrackMetric(name, value, "CacheMasterPerfStats");
-                });
-            }
-        }
-
-        private static void FillTrackingStreamStatistics(IDictionary<string, long> statistics)
-        {
-            // This method fills up counters for tracking memory leaks with file streams.
-            statistics[$"{nameof(TrackingFileStream)}.{nameof(TrackingFileStream.Constructed)}"] = Interlocked.Read(ref TrackingFileStream.Constructed);
-            statistics[$"{nameof(TrackingFileStream)}.{nameof(TrackingFileStream.ProperlyClosed)}"] = Interlocked.Read(ref TrackingFileStream.ProperlyClosed);
-            statistics[$"{nameof(TrackingFileStream)}.{nameof(TrackingFileStream.Leaked)}"] = TrackingFileStream.Leaked;
-        }
 
         private async Task CheckForExpiredSessionsAsync(Context context)
         {
@@ -642,15 +525,6 @@ namespace BuildXL.Cache.ContentStore.Service
                 success &= await endpoint.ShutdownAsync(context);
             }
 
-            _logIncrementalStatsTimer?.Dispose();
-            _logMachineStatsTimer?.Dispose();
-
-            // Don't trace statistics if configured and only if startup was successful.
-            if (Tracer.EnableTraceStatisticsAtShutdown && StartupCompleted)
-            {
-                await LogIncrementalStatsAsync(context, logAtShutdown: false);
-            }
-
             // Stop the session expiration timer.
             _sessionExpirationCheckTimer?.Dispose();
 
@@ -721,8 +595,6 @@ namespace BuildXL.Cache.ContentStore.Service
             }
 
             _sessionExpirationCheckTimer?.Dispose();
-            _logIncrementalStatsTimer?.Dispose();
-            _logMachineStatsTimer?.Dispose();
 
             _serviceReadinessChecker.Dispose();
 

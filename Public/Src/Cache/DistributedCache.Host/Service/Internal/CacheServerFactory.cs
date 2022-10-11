@@ -403,9 +403,6 @@ namespace BuildXL.Cache.Host.Service.Internal
                 grpcPortFileName: localCasSettings.ServiceSettings.GrpcPortFileName,
                 bufferSizeForGrpcCopies: localCasSettings.ServiceSettings.BufferSizeForGrpcCopies,
                 proactivePushCountLimit: localCasSettings.ServiceSettings.MaxProactivePushRequestHandlers,
-                logIncrementalStatsInterval: distributedSettings?.LogIncrementalStatsInterval,
-                logMachineStatsInterval: distributedSettings?.LogMachineStatsInterval,
-                logIncrementalStatsCounterNames: distributedSettings?.IncrementalStatisticsCounterNames,
                 asyncSessionShutdownTimeout: distributedSettings?.AsyncSessionShutdownTimeout);
 
             distributedSettings?.TraceServiceGrpcOperations.ApplyIfNotNull(v => result.TraceGrpcOperation = v);

@@ -138,9 +138,9 @@ namespace BuildXL.Cache.Host.Service
                     await cancellationAwaiter.CompletionTask;
                     await ReportShuttingDownServiceAsync(operationContext, host);
                 }
-                catch (Exception e)
+                catch (Exception exception)
                 {
-                    ReportServiceStartupFailed(context, e, timer.Elapsed);
+                    ReportServiceStartupFailed(context, exception, timer.Elapsed);
                     throw;
                 }
                 finally
@@ -272,7 +272,7 @@ namespace BuildXL.Cache.Host.Service
 
         private static void InitializeActivityTrackerIfNeeded(Context context, DistributedContentSettings settings)
         {
-            CacheActivityTracker.Start(context, SystemClock.Instance, settings.TrackingActivityWindow, settings.TrackingSnapshotPeriod, settings.TrackingReportPeriod);
+            CacheActivityTracker.Start(context, SystemClock.Instance, settings.CacheActivityTracker);
         }
 
         private class DistributedCacheServiceHostBasedLifetimeManager : ILifetimeManager

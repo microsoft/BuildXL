@@ -823,20 +823,6 @@ namespace BuildXL.Cache.Host.Configuration
 
         #endregion
 
-        /// <summary>
-        /// Gets or sets the time period between logging incremental stats
-        /// </summary>
-        [DataMember]
-        public TimeSpan? LogIncrementalStatsInterval { get; set; }
-
-        [DataMember]
-        public string[] IncrementalStatisticsCounterNames { get; set; }
-
-        /// <summary>
-        /// Gets or sets the time period between logging machine-specific performance statistics.
-        /// </summary>
-        [DataMember]
-        public TimeSpan? LogMachineStatsInterval { get; set; }
 
         [DataMember]
         public bool? TraceServiceGrpcOperations { get; set; }
@@ -943,13 +929,7 @@ namespace BuildXL.Cache.Host.Configuration
         public bool TouchContentHashLists { get; set; }
 
         [DataMember]
-        public TimeSpan TrackingActivityWindow { get; set; } = TimeSpan.FromMinutes(1);
-
-        [DataMember]
-        public TimeSpan TrackingSnapshotPeriod { get; set; } = TimeSpan.FromSeconds(10);
-
-        [DataMember]
-        public TimeSpan TrackingReportPeriod { get; set; } = TimeSpan.FromSeconds(30);
+        public CacheActivityTrackerConfiguration CacheActivityTracker { get; set; } = new CacheActivityTrackerConfiguration();
 
         /// <summary>
         /// Indicates whether distributed content store operates in special mode where content is only consumed from other machines but

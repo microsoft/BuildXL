@@ -59,9 +59,6 @@ namespace BuildXL.Cache.ContentStore.Service
             string? grpcPortFileName = null,
             int? bufferSizeForGrpcCopies = null,
             int? proactivePushCountLimit = null,
-            TimeSpan? logIncrementalStatsInterval = null,
-            TimeSpan? logMachineStatsInterval = null,
-            string[]? logIncrementalStatsCounterNames = null,
             TimeSpan? asyncSessionShutdownTimeout = null
             )
         {
@@ -74,10 +71,7 @@ namespace BuildXL.Cache.ContentStore.Service
             GrpcPortFileName = grpcPortFileName;
             BufferSizeForGrpcCopies = bufferSizeForGrpcCopies;
             ProactivePushCountLimit = proactivePushCountLimit;
-            LogMachineStatsInterval = logMachineStatsInterval;
-            LogIncrementalStatsInterval = logIncrementalStatsInterval;
             _namedCacheRoots = new Dictionary<string, AbsolutePath>();
-            IncrementalStatsCounterNames = logIncrementalStatsCounterNames?? new string[0];
             AsyncSessionShutdownTimeout = asyncSessionShutdownTimeout;
             Initialize();
         }
@@ -179,20 +173,11 @@ namespace BuildXL.Cache.ContentStore.Service
             }
         }
 
-        /// <inheritdoc cref="LocalServerConfiguration.LogMachineStatsInterval"/>
-        public TimeSpan? LogMachineStatsInterval { get; set; }
-
-        /// <inheritdoc cref="LocalServerConfiguration.LogIncrementalStatsInterval"/>
-        public TimeSpan? LogIncrementalStatsInterval { get; set; }
-
         /// <inheritdoc cref="LocalServerConfiguration.TraceGrpcOperations"/>
         public bool TraceGrpcOperation { get; set; }
 
         /// <inheritdoc cref="LocalServerConfiguration.DoNotShutdownSessionsInUse"/>
         public bool DoNotShutdownSessionsInUse { get; set; }
-
-        /// <inheritdoc cref="LocalServerConfiguration.IncrementalStatsCounterNames"/>
-        public string[] IncrementalStatsCounterNames { get; set; }
 
         /// <inheritdoc cref="LocalServerConfiguration.AsyncSessionShutdownTimeout"/>
         public TimeSpan? AsyncSessionShutdownTimeout { get; set; }

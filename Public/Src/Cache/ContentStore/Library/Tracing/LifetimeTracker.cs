@@ -231,9 +231,9 @@ namespace BuildXL.Cache.ContentStore.Tracing
         /// <summary>
         /// Trace that service initialization has failed.
         /// </summary>
-        public static void ServiceStartupFailed(Context context, Exception e, TimeSpan startupDuration)
+        public static void ServiceStartupFailed(Context context, Exception exception, TimeSpan startupDuration)
         {
-            Trace(context, $"CaSaaS initialization failed by {startupDuration.TotalMilliseconds}ms with error: {e}");
+            Trace(context, $"CaSaaS initialization failed by {startupDuration.TotalMilliseconds}ms with error: {exception}");
         }
 
         /// <nodoc />

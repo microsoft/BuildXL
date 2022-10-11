@@ -185,7 +185,7 @@ namespace ContentStoreTest.Sessions
             var grpcPortFileName = Guid.NewGuid().ToString();
 
             var serviceConfiguration = new ServiceConfiguration(
-                new Dictionary<string, AbsolutePath> {{CacheName, rootPath}},
+                new Dictionary<string, AbsolutePath> { { CacheName, rootPath } },
                 rootPath,
                 GracefulShutdownSeconds,
                 PortExtensions.GetNextAvailablePort(),

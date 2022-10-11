@@ -15,31 +15,32 @@ namespace BuildXL.Cache.ContentStore.Utils
     /// <summary>
     /// Performance statistics in a strongly typed form.
     /// </summary>
-    internal record PerformanceStatistics
+    internal readonly record struct PerformanceStatistics(
+        int CpuQueueLength,
+        int CpuUsagePercentage,
+        int CpuWMIUsagePercentage,
+        int ContextSwitchesPerSec,
+        int ProcessCpuPercentage,
+
+        int? TotalRamMb,
+        int? AvailableRamMb,
+        int? EffectiveAvailableRamMb,
+        int CommitTotalMb,
+        int ProcessWorkingSetMb,
+        long GCTotalMemoryMb,
+        long? GCTotalAvailableMemoryMb,
+
+        int ProcessThreadCount,
+        int ThreadPoolWorkerThreads,
+        int ThreadPoolCompletionPortThreads,
+
+        PerformanceCollector.Aggregator.DiskStatistics? DriveD,
+        PerformanceCollector.Aggregator.DiskStatistics? DriveK,
+
+        long MachineKbitsPerSecReceived,
+        long MachineKbitsPerSecSent
+        )
     {
-        public int CommitTotalMb { get; init; } = -1;
-
-        public long MachineKbitsPerSecReceived { get; init; } = -1;
-
-        public long MachineKbitsPerSecSent { get; init; } = -1;
-
-        public int ProcessCpuPercentage { get; init; } = -1;
-
-        public int CpuUsagePercentage { get; init; } = -1;
-
-        public int ProcessWorkingSetMb { get; init; } = -1;
-
-        public long GCTotalMemoryMb { get; init; } = -1;
-
-        public int ProcessThreadCount { get; init; } = -1;
-
-        public int ThreadPoolWorkerThreads { get; init; } = -1;
-
-        public int ThreadPoolCompletionPortThreads { get; init; } = -1;
-
-        public PerformanceCollector.Aggregator.DiskStatistics? DriveD { get; init; }
-
-        public PerformanceCollector.Aggregator.DiskStatistics? DriveK { get; init; }
 
         /// <summary>
         /// Gets a string representation suitable for tracing.
@@ -48,26 +49,34 @@ namespace BuildXL.Cache.ContentStore.Utils
         public string ToTracingString()
         {
             List<string> parts = new List<string>();
-            CollectMetrics((metricName, value) => parts.Add($"{metricName}: {value}"));
-            return string.Join(", ", parts);
+            CollectMetrics((metricName, value) => parts.Add($"{metricName}=[{value}]"));
+            return string.Join(" ", parts);
         }
 
         public delegate void AddMetric(string metricName, long value);
 
         public void CollectMetrics(AddMetric addMetric)
         {
-            addMetric("CommitTotalMb", CommitTotalMb);
-            addMetric("CpuUsagePercentage", CpuUsagePercentage);
-            addMetric("MachineKbitsPerSecReceived", MachineKbitsPerSecReceived);
-            addMetric("MachineKbitsPerSecSent", MachineKbitsPerSecSent);
-            addMetric("ProcessCpuPercentage", ProcessCpuPercentage);
-            addMetric("ProcessWorkingSetMB", ProcessWorkingSetMb);
-            addMetric("GCTotalMemoryMb", (long)Math.Ceiling(GC.GetTotalMemory(forceFullCollection: false) / 1e6));
-            addMetric("ProcessThreadCount", ProcessThreadCount);
+            addMetric(nameof(CpuQueueLength), CpuQueueLength);
+            addMetric(nameof(CpuUsagePercentage), CpuUsagePercentage);
+            addMetric(nameof(CpuWMIUsagePercentage), CpuWMIUsagePercentage);
+            addMetric(nameof(ContextSwitchesPerSec), ContextSwitchesPerSec);
+            addMetric(nameof(ProcessCpuPercentage), ProcessCpuPercentage);
 
-            ThreadPool.GetAvailableThreads(out var workerThreads, out var completionPortThreads);
-            addMetric("ThreadPoolWorkerThreads", workerThreads);
-            addMetric("ThreadPoolCompletionPortThreads", completionPortThreads);
+            addMetric(nameof(TotalRamMb), TotalRamMb ?? -1);
+            addMetric(nameof(AvailableRamMb), AvailableRamMb ?? -1);
+            addMetric(nameof(EffectiveAvailableRamMb), EffectiveAvailableRamMb ?? -1);
+            addMetric(nameof(CommitTotalMb), CommitTotalMb);
+            addMetric(nameof(ProcessWorkingSetMb), ProcessWorkingSetMb);
+            addMetric(nameof(GCTotalMemoryMb), GCTotalMemoryMb);
+            addMetric(nameof(GCTotalAvailableMemoryMb), GCTotalAvailableMemoryMb ?? -1);
+
+            addMetric(nameof(ProcessThreadCount), ProcessThreadCount);
+            addMetric(nameof(ThreadPoolWorkerThreads), ThreadPoolWorkerThreads);
+            addMetric(nameof(ThreadPoolCompletionPortThreads), ThreadPoolCompletionPortThreads);
+
+            addMetric(nameof(MachineKbitsPerSecReceived), MachineKbitsPerSecReceived);
+            addMetric(nameof(MachineKbitsPerSecSent), MachineKbitsPerSecSent);
 
             // We're interested only in two drives: D and K, and K drive is optional.
             addDriveStats(DriveD);
@@ -85,14 +94,20 @@ namespace BuildXL.Cache.ContentStore.Utils
         }
     }
 
-    internal class MachinePerformanceCollector
+    internal class MachinePerformanceCollector : IDisposable
     {
-        private readonly PerformanceCollector _collector = new PerformanceCollector(collectionFrequency: TimeSpan.FromSeconds(15), logWmiCounters: false);
+        private readonly PerformanceCollector _collector;
         private readonly PerformanceCollector.Aggregator _perfStatsAggregator;
 
-        public MachinePerformanceCollector()
+        public MachinePerformanceCollector(TimeSpan collectionFrequency, bool logWmiCounters)
         {
+            _collector = new PerformanceCollector(collectionFrequency, logWmiCounters);
             _perfStatsAggregator = _collector.CreateAggregator();
+        }
+
+        public void Dispose()
+        {
+            _collector.Dispose();
         }
 
         /// <summary>
@@ -100,38 +115,47 @@ namespace BuildXL.Cache.ContentStore.Utils
         /// </summary>
         public PerformanceStatistics GetMachinePerformanceStatistics()
         {
-            var perfInfo = _perfStatsAggregator.ComputeMachinePerfInfo(ensureSample: true);
-            var commitUsedMb = perfInfo.CommitUsedMb ?? -1;
-            var cpuUsagePercentage = perfInfo.CpuUsagePercentage;
-            var machineKbitsPerSecReceived = (long)perfInfo.MachineKbitsPerSecReceived;
-            var machineKbitsPerSecSent = (long)perfInfo.MachineKbitsPerSecSent;
-            var processCpuPercentage = perfInfo.ProcessCpuPercentage;
-            var processWorkingSetMb = perfInfo.ProcessWorkingSetMB;
-            var gcTotalMemoryMB = (long)Math.Ceiling(GC.GetTotalMemory(forceFullCollection: false) / 1e6);
-            var processThreadCount = (int)_perfStatsAggregator.ProcessThreadCount.Latest;
-
+            var info = _perfStatsAggregator.ComputeMachinePerfInfo(ensureSample: true);
             ThreadPool.GetAvailableThreads(out var workerThreads, out var completionPortThreads);
-            var threadPoolWorkerThreads = workerThreads;
-            var threadPoolCompletionPortThreads = completionPortThreads;
 
-            // We're interested only in two drives: D and K, and K drive is optional.
-            var driveD = _perfStatsAggregator.DiskStats.FirstOrDefault(s => s.Drive == "D");
-            var driveK = _perfStatsAggregator.DiskStats.FirstOrDefault(s => s.Drive == "K");
+            long? gcTotalAvailableMemoryMb = null;
+#if NET6_0
+            var gcInfo = GC.GetGCMemoryInfo();
+            gcTotalAvailableMemoryMb = (long)Math.Ceiling(gcInfo.TotalAvailableMemoryBytes / 1e6);
+#endif
 
             return new PerformanceStatistics()
             {
-                CommitTotalMb = commitUsedMb,
-                CpuUsagePercentage = cpuUsagePercentage,
-                MachineKbitsPerSecReceived = machineKbitsPerSecReceived,
-                MachineKbitsPerSecSent = machineKbitsPerSecSent,
-                ProcessCpuPercentage = processCpuPercentage,
-                ProcessWorkingSetMb = processWorkingSetMb,
-                GCTotalMemoryMb = gcTotalMemoryMB,
-                ProcessThreadCount = processThreadCount,
-                ThreadPoolWorkerThreads = threadPoolWorkerThreads,
-                ThreadPoolCompletionPortThreads = threadPoolCompletionPortThreads,
-                DriveD = driveD,
-                DriveK = driveK,
+                // CPU
+                CpuQueueLength = info.CpuQueueLength,
+                CpuUsagePercentage = info.CpuUsagePercentage,
+                CpuWMIUsagePercentage = info.CpuWMIUsagePercentage,
+                ContextSwitchesPerSec = info.ContextSwitchesPerSec,
+                ProcessCpuPercentage = info.ProcessCpuPercentage,
+
+                // Memory usage
+                TotalRamMb = info.TotalRamMb,
+                AvailableRamMb = info.AvailableRamMb,
+                EffectiveAvailableRamMb = info.EffectiveAvailableRamMb,
+                CommitTotalMb = info.CommitUsedMb ?? -1,
+                ProcessWorkingSetMb = info.ProcessWorkingSetMB,
+                GCTotalMemoryMb = (long)Math.Ceiling(GC.GetTotalMemory(forceFullCollection: false) / 1e6),
+                GCTotalAvailableMemoryMb = gcTotalAvailableMemoryMb ?? -1,
+
+
+                // Threads
+                ProcessThreadCount = (int)_perfStatsAggregator.ProcessThreadCount.Latest,
+                ThreadPoolWorkerThreads = workerThreads,
+                ThreadPoolCompletionPortThreads = completionPortThreads,
+
+                // IO devices
+                // We're interested only in two drives: D and K, and K drive is optional.
+                DriveD = _perfStatsAggregator.DiskStats.FirstOrDefault(s => s.Drive == "D"),
+                DriveK = _perfStatsAggregator.DiskStats.FirstOrDefault(s => s.Drive == "K"),
+
+                // Networking
+                MachineKbitsPerSecReceived = (long)info.MachineKbitsPerSecReceived,
+                MachineKbitsPerSecSent = (long)info.MachineKbitsPerSecSent,
             };
         }
     }

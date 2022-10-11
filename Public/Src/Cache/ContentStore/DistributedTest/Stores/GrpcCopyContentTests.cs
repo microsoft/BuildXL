@@ -395,7 +395,8 @@ namespace ContentStoreTest.Distributed.Stores
                                         rootPath,
                                         ServiceConfiguration.DefaultGracefulShutdownSeconds,
                                         grpcPort,
-                                        grpcPortFileName) {CopyRequestHandlingCountLimit = _copyToLimit, ProactivePushCountLimit = _proactivePushCountLimit};
+                                        grpcPortFileName)
+                { CopyRequestHandlingCountLimit = _copyToLimit, ProactivePushCountLimit = _proactivePushCountLimit};
 
                 var storeConfig = ContentStoreConfiguration.CreateWithMaxSizeQuotaMB(1);
                 Func<AbsolutePath, IContentStore> contentStoreFactory = (path) =>

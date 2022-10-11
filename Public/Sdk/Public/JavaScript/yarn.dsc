@@ -156,6 +156,7 @@ namespace Yarn {
                     globalNpmrc
                 ],
                 passThroughEnvironmentVariables: defaultPassthroughVariables,
+                disableSandboxing: arguments.disableSandboxing,
             },
             // Yarn install fails with exit code 1, which usually means some flaky network error that can be retried
             retryExitCodes: [1],

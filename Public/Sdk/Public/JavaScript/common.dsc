@@ -115,6 +115,13 @@ export interface InstallArgumentsCommon {
     additionalDependencies?: (File | StaticDirectory)[],
     environment?: Transformer.EnvironmentVariable[],
     processRetries?: number,
+    /** 
+     * It is not uncommon that package install is a very long running pip that is not worth caching 
+     * (since paying the overhead of the sandbox does not pay off with respect to the frecuency on cache hits).
+     * In those cases, disabling the sandbox is the recommended alternative. This will be a cache miss on the installation 
+     * step and will force it to run (unsandboxed).
+     * */
+    disableSandboxing?: boolean,
 }
 
 

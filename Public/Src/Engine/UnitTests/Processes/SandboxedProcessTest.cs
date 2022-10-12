@@ -1464,6 +1464,31 @@ namespace Test.BuildXL.Processes
             }
         }
 
+        [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [MemberData(nameof(CmdExeLocationsData))]
+        public async Task VerifyExternallyProvidedJobObjectNotDisposed(string cmdExeLocation)
+        {
+            var echoMessage = "Success";
+            using var tempFiles = new TempFileStorage(canGetFileNames: false);
+            var pt = new PathTable();
+            using var jobObject = new JobObject(null);
+            var info =
+                new SandboxedProcessInfo(pt, tempFiles, cmdExeLocation, disableConHostSharing: false, loggingContext: LoggingContext)
+                {
+                    PipSemiStableHash = 0,
+                    PipDescription = DiscoverCurrentlyExecutingXunitTestMethodFQN(),
+                    Arguments = "/d /c echo " + echoMessage,
+                    WorkingDirectory = string.Empty,
+                    DiagnosticsEnabled = true,
+                    ExternallyProvidedJobObject = jobObject,
+                };
+
+            var result = await RunProcess(info);
+            await CheckEchoProcessResult(result, echoMessage);
+
+            // jobObject will throw if it is double-disposed.
+        }
+
         [FactIfSupported(requiresUnixBasedOperatingSystem: true)]
         public async Task SandboxedProcessJobAccountingInformationAsync()
         {

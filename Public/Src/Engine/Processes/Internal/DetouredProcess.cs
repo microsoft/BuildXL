@@ -57,6 +57,7 @@ namespace BuildXL.Processes.Internal
         private bool m_disposed;
         private IAsyncPipeReader m_errorReader;
         private JobObject m_job;
+        private readonly bool m_jobObjectCreatedExternally;
         private bool m_killed;
         private bool m_timedout;
         private bool m_hasDetoursFailures;
@@ -130,14 +131,13 @@ namespace BuildXL.Processes.Internal
         }
 
         /// <summary>
-        /// Retrieves the job object associated with this process, if any.
+        /// Retrieves the Windows job object associated with this process, if any.
         /// </summary>
         /// <remarks>
         /// This method can only be invoked after the process has started.
         /// </remarks>
         /// <returns>
-        /// Result is null after this instance has been disposed, or if the OS doesn't supported monitoring nested
-        /// processes in jobs.
+        /// Result is null after this instance has been disposed or on non-Windows OSes.
         /// </returns>
         public JobObject GetJobObject()
         {
@@ -356,7 +356,8 @@ namespace BuildXL.Processes.Internal
             bool createJobObjectForCurrentProcess,
             bool diagnosticsEnabled,
             int numRetriesPipeReadOnCancel,
-            Action<string> debugPipeReporter)
+            Action<string> debugPipeReporter,
+            JobObject externallyProvidedJobObject)
         {
             Contract.Requires(bufferSize >= 128);
             Contract.Requires(!string.IsNullOrEmpty(commandLine));
@@ -390,6 +391,8 @@ namespace BuildXL.Processes.Internal
             m_timeoutDumpDirectory = timeoutDumpDirectory;
             m_numRetriesPipeReadOnCancel = numRetriesPipeReadOnCancel;
             m_debugPipeReporter = debugPipeReporter;
+            m_job = externallyProvidedJobObject;
+            m_jobObjectCreatedExternally = (externallyProvidedJobObject != null);
 
             if (diagnosticsEnabled)
             {
@@ -550,27 +553,30 @@ namespace BuildXL.Processes.Internal
                             m_debugPipeReporter,
                             m_loggingContext);
 
-                        // If path remapping is enabled then we wrap the job object in a container, so the filter drivers get
-                        // configured (and they get cleaned up when the container is disposed)
-                        if (m_containerConfiguration.IsIsolationEnabled)
+                        if (!m_jobObjectCreatedExternally)
                         {
-                            m_job = new Container(
-                                name: null,
-                                containerConfiguration: m_containerConfiguration,
-                                loggingContext: m_loggingContext);
-                        }
-                        else
-                        {
-                            m_job = new JobObject(null);
-                        }
+                            if (m_containerConfiguration.IsIsolationEnabled)
+                            {
+                                // If path remapping is enabled then we wrap the job object in a container, so the filter drivers get
+                                // configured (and they get cleaned up when the container is disposed)
+                                m_job = new Container(
+                                    name: null,
+                                    containerConfiguration: m_containerConfiguration,
+                                    loggingContext: m_loggingContext);
+                            }
+                            else
+                            {
+                                m_job = new JobObject(null);
+                            }
 
-                        // We want the effects of SEM_NOGPFAULTERRORBOX on all children (but can't set that with CreateProcess).
-                        // That's not set otherwise (even if set in this process) due to CREATE_DEFAULT_ERROR_MODE above.
-                        m_job.SetLimitInformation(terminateOnClose: true, failCriticalErrors: false, allowProcessesToBreakAway: m_setJobBreakawayOk);
+                            // We want the effects of SEM_NOGPFAULTERRORBOX on all children (but can't set that with CreateProcess).
+                            // That's not set otherwise (even if set in this process) due to CREATE_DEFAULT_ERROR_MODE above.
+                            m_job.SetLimitInformation(terminateOnClose: true, failCriticalErrors: false, allowProcessesToBreakAway: m_setJobBreakawayOk);
+                        }
 
                         m_processInjector.Listen();
 
-                        if (m_containerConfiguration.IsIsolationEnabled)
+                        if (!m_jobObjectCreatedExternally && m_containerConfiguration.IsIsolationEnabled)
                         {
                             // After calling SetLimitInformation, start up the container if present
                             // This will throw if the container is not set up properly
@@ -1069,9 +1075,9 @@ namespace BuildXL.Processes.Internal
                         m_processHandle = null;
                     }
 
-                    if (m_job != null)
+                    if (!m_jobObjectCreatedExternally && m_job != null)
                     {
-                        m_job.Dispose();
+                        m_job.Dispose();  // Terminates any remaining processes in the job object
                         m_job = null;
                     }
                 }

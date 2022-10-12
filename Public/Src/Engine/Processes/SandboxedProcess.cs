@@ -173,7 +173,8 @@ namespace BuildXL.Processes
                     info.CreateJobObjectForCurrentProcess,
                     info.DiagnosticsEnabled,
                     m_numRetriesPipeReadOnCancel,
-                    DebugPipeConnection);
+                    DebugPipeConnection,
+                    info.ExternallyProvidedJobObject);
         }
 
         /// <inheritdoc />
@@ -610,7 +611,7 @@ namespace BuildXL.Processes
             }
         }
 
-        private async Task WaitUntilReportEof(bool cancel)
+        private async Task WaitUntilReportEofAsync(bool cancel)
         {
             using (await m_reportReaderSemaphore.AcquireAsync())
             {
@@ -648,7 +649,7 @@ namespace BuildXL.Processes
         private async Task OnProcessExitedAsync()
         {
             // Wait until all incoming report messages from the detoured process have been handled.
-            await WaitUntilReportEof(m_detouredProcess!.Killed);
+            await WaitUntilReportEofAsync(m_detouredProcess!.Killed);
 
             // Ensure no further modifications to the report
             m_reports.Freeze();

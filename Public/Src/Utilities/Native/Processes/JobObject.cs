@@ -27,12 +27,13 @@ using SafeProcessHandle = BuildXL.Interop.Windows.SafeProcessHandle;
 namespace BuildXL.Processes
 {
     /// <summary>
-    /// Wraps a native Job object
+    /// Wraps a native Windows job object.
     /// </summary>
     /// <remarks>
     /// This implementation provides async waits for job completion (i.e., when a job transitions from non-empty to empty).
     /// Job completion is defined here as a permanently latching event; a job is allowed to complete exactly once (and so adding
-    /// processes to the job is disallowed after that first completion). Therefore, the following usages are safe
+    /// processes to the job is disallowed after that first completion). Therefore, the following usages are safe:
+    ///
     /// - Adding a single initial process to the job and allowing that process to spawn children (they atomically inherit membership)
     /// - Adding multiple suspended processes to the job and then resuming them (none can exit prematurely).
     /// </remarks>
@@ -148,7 +149,7 @@ namespace BuildXL.Processes
         /// </summary>
         /// <param name="name">Optional name to use for the kernel object. Null means an anonymous object.</param>
         [SuppressMessage("Microsoft.Naming", "CA2204:Literals should be spelled correctly", MessageId = "ExtendedLimitInformation")]
-        internal JobObject(string? name)
+        public JobObject(string? name)
             : base(true)
         {
             IntPtr jobHandle = Native.Processes.ProcessUtilities.CreateJobObject(IntPtr.Zero, name);
@@ -181,18 +182,16 @@ namespace BuildXL.Processes
         }
 
         /// <summary>
-        /// Configures termination and priority class.
+        /// Configures termination, priority class, and other information.
         /// </summary>
-        /// <remarks>
-        /// Sets whether to terminate all processes in the job when the last handle to the job closes,
-        /// and priority class.
-        /// </remarks>
         /// <param name="terminateOnClose">If set, the job and all children will be terminated when the last handle to the job closes.</param>
         /// <param name="priorityClass">Forces a priority class onto all child processes in the job.</param>
         /// <param name="failCriticalErrors">If set, applies the effects of <c>SEM_NOGPFAULTERRORBOX</c> to all child processes in the job.</param>
-        /// <param name="allowProcessesToBreakAway">Whether to apply <c>JOB_OBJECT_LIMIT_BREAKAWAY_OK</c> to the job object, so processes can escape from the job
-        /// by setting <c>CREATE_BREAKAWAY_FROM_JOB</c> on process creation</param>
-        internal void SetLimitInformation(bool? terminateOnClose = null, ProcessPriorityClass? priorityClass = null, bool failCriticalErrors = false, bool allowProcessesToBreakAway = false)
+        /// <param name="allowProcessesToBreakAway">
+        /// Whether to apply <c>JOB_OBJECT_LIMIT_BREAKAWAY_OK</c> to the job object, so processes can escape from the job
+        /// by setting <c>CREATE_BREAKAWAY_FROM_JOB</c> on process creation
+        /// </param>
+        public void SetLimitInformation(bool? terminateOnClose = null, ProcessPriorityClass? priorityClass = null, bool failCriticalErrors = false, bool allowProcessesToBreakAway = false)
         {
             // There is a race in here; but that shouldn't matter in the way we use JobObjects in BuildXL.
             var limitInfo = default(JOBOBJECT_EXTENDED_LIMIT_INFORMATION);
@@ -254,7 +253,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// Terminates all processes in this job object.
         /// </summary>
-        internal bool Terminate(int exitCode)
+        public bool Terminate(int exitCode)
         {
             return Native.Processes.ProcessUtilities.TerminateJobObject(handle, exitCode);
         }
@@ -263,7 +262,7 @@ namespace BuildXL.Processes
         /// Checks whether there are any active processes for this job
         /// </summary>
         /// <remarks>If in doubt, it returns <code>true</code>.</remarks>
-        internal bool HasAnyProcesses(LoggingContext loggingContext) => !TryGetProcessIds(loggingContext, out uint[]? processIds) || processIds!.Length > 0;
+        public bool HasAnyProcesses(LoggingContext loggingContext) => !TryGetProcessIds(loggingContext, out uint[]? processIds) || processIds!.Length > 0;
 
         internal bool TryGetProcessIds(LoggingContext loggingContext, out uint[]? processIds)
         {

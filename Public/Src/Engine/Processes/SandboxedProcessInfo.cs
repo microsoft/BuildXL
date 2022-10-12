@@ -531,10 +531,16 @@ namespace BuildXL.Processes
         public bool CreateSandboxTraceFile { get; init; }
 
         /// <summary>
-        /// An optional existing Windows job object handle to use for this process.
-        /// The job object handle will not be closed automatically and must be closed by the caller.
+        /// An optional externally-created and managed instance of <see cref="JobObject"/> or a derived class.
+        /// The provided job object is neither closed nor terminated.
+        ///
+        /// The default (null) creates a Windows job object on behalf of the running process and closes
+        /// the job object on completion of the main executable, with termination for any remaining
+        /// processes in the job object.
+        ///
+        /// In-proc use only, not serializable to BuildXL Server Mode.
         /// </summary>
-        public IntPtr PreExistingJobObjectOrZero { get; init; }
+        public JobObject? ExternallyProvidedJobObject { get; init; }
 
         #region Serialization
 

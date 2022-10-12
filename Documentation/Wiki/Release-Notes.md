@@ -1,6 +1,13 @@
 This page is a curated list of the release notes for releases after 0.20170619.4.0 and a manual copy of notable changes from each build before that. See the repo's commit history full details for what is included in each build.
 
 =======
+# 0.1.0-20221007.3 (Release [229981](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=229981&_a=release-pipeline-progress) Released 10/12/2022)
+- Reuse weak identity for source files.
+- Remove MaterializeInput step for IPC pips.
+- Add yarn fast to Yarn SDK.
+- Add support for Linux sandbox logging for JS resolvers.
+- Various bug fixes.
+
 # 0.1.0-20221003.19.1 (Release [228699](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=228699) Released 10/06/2022)
 - Update Google.Protobuf to 3.19.5
 - Remove directory deletion lock

@@ -778,14 +778,17 @@ namespace BuildXL.Engine
                 pathsToScrub.AddRange(configuration.Engine.ScrubDirectories.Select(p => p.ToString(scheduler.Context.PathTable)));
             }
 
-            // We don't scrub composite shared directories since scrubbing the non-composite ones is enough to clean up all outputs
-            var sharedOpaqueDirectories = scheduler.PipGraph.AllSealDirectories.Where(directoryArtifact =>
-                directoryArtifact.IsSharedOpaque &&
-                !scheduler.PipGraph.PipTable.IsSealDirectoryComposite(scheduler.PipGraph.GetSealedDirectoryNode(directoryArtifact).ToPipId())
-            );
+            var sharedOpaqueDirectoriesToScrub = new List<DirectoryArtifact>();
+            if (!configuration.Engine.AssumeCleanOutputs ?? true)
+            {
+                // We don't scrub composite shared directories since scrubbing the non-composite ones is enough to clean up all outputs
+                sharedOpaqueDirectoriesToScrub.AddRange(scheduler.PipGraph.AllSealDirectories.Where(directoryArtifact =>
+                    directoryArtifact.IsSharedOpaque &&
+                    !scheduler.PipGraph.PipTable.IsSealDirectoryComposite(scheduler.PipGraph.GetSealedDirectoryNode(directoryArtifact).ToPipId())));
+            }
 
             List<string> outputDirectories = null;
-            if (pathsToScrub.Count > 0 || sharedOpaqueDirectories.Count() > 0)
+            if (pathsToScrub.Count > 0 || sharedOpaqueDirectoriesToScrub.Count > 0)
             {
                 // All directories that can contain outputs should not be deleted. One reason for this is
                 // some pips may probe such directories, and such a probe is recorded by incremental scheduling state.
@@ -872,7 +875,7 @@ namespace BuildXL.Engine
             // TODO: we can consider conflating these two scrubbing passes (first one is optional) into one call to DirectoryScrubber to
             // avoid enumerating the disk twice. But this involves some refactoring of the scrubber, where each path to scrub needs its own
             // isPathInBuild, mountPathExpander being on/off, etc. Revisit if two passes become a perf problem.
-            if (!sidebandState.ShouldPostponeDeletion && sharedOpaqueDirectories.Count() > 0)
+            if (!sidebandState.ShouldPostponeDeletion && sharedOpaqueDirectoriesToScrub.Count > 0)
             {
                 // Add the set of exclusion to the collection of non-scrubbable paths: it is safe to not scrub under those since there are no
                 // shared opaque outputs produced under exclusions by construction
@@ -887,7 +890,7 @@ namespace BuildXL.Engine
                     isPathInBuild: path =>
                         !SharedOpaqueOutputHelper.IsSharedOpaqueOutput(path) ||
                         ShouldRemoveEmptyDirectories(configuration, path),
-                    pathsToScrub: sharedOpaqueDirectories.Select(directory => directory.Path.ToString(scheduler.Context.PathTable)),
+                    pathsToScrub: sharedOpaqueDirectoriesToScrub.Select(directory => directory.Path.ToString(scheduler.Context.PathTable)),
                     blockedPaths: nonScrubbablePaths,
                     nonDeletableRootDirectories: outputDirectories,
                     // Mounts don't need to be scrubbable for this operation to take place.

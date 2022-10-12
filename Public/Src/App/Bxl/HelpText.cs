@@ -1308,6 +1308,11 @@ namespace BuildXL
                 Strings.HelpText_DisplayHelp_BuildManifestVerifyFileContentOnHashComputation,
                 HelpLevel.Verbose);
 
+            hw.WriteOption(
+                "/unsafe_AssumeCleanOutputs[+|-]",
+                Strings.HelpText_DisplayHelp_AssumeCleanOutputs,
+                HelpLevel.Verbose);
+
             #endregion
 
             if (helpLevel < HelpLevel.Verbose)

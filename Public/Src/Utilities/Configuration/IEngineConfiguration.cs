@@ -95,6 +95,11 @@ namespace BuildXL.Utilities.Configuration
         bool Scrub { get; }
 
         /// <summary>
+        /// Assume that the output directories are clean, so there is no need to scrub shared opaque directories.
+        /// </summary>
+        bool? AssumeCleanOutputs { get; }
+
+        /// <summary>
         /// Before executing, scrubs (deletes) files and directories not marked as inputs or outputs of the current build in the specified directories.
         /// </summary>
         [CanBeNull]

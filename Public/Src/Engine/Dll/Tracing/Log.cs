@@ -1249,6 +1249,15 @@ namespace BuildXL.Engine.Tracing
         public abstract void ConfigUnsafeDisableCycleDetection(LoggingContext context);
 
         [GeneratedEvent(
+            (ushort)LogEventId.ConfigAssumeCleanOutputs,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.Engine,
+            Message = "/unsafe_AssumeCleanOutputs enabled: BuildXL assumes there are no stale outputs from previous builds and BuildXL skips flagging shared opaque outputs.")]
+        public abstract void ConfigAssumeCleanOutputs(LoggingContext context);
+
+        [GeneratedEvent(
             (ushort)LogEventId.ConfigUnsafeExistingDirectoryProbesAsEnumerations,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,

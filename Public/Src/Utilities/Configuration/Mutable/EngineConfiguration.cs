@@ -58,6 +58,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             Phase = template.Phase;
             CleanOnly = template.CleanOnly;
             Scrub = template.Scrub;
+            AssumeCleanOutputs = template.AssumeCleanOutputs;
             ExitOnNewGraph = template.ExitOnNewGraph;
             MaxRelativeOutputDirectoryLength = template.MaxRelativeOutputDirectoryLength;
             CleanTempDirectories = template.CleanTempDirectories;
@@ -110,6 +111,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public bool Scrub { get; set; }
+
+        /// <inheritdoc />
+        public bool? AssumeCleanOutputs { get; set; }
 
         /// <inheritdoc />
         public bool ExitOnNewGraph { get; set; }

@@ -117,6 +117,7 @@ namespace BuildXL.Engine.Tracing
         ConfigUnsafeIgnorePreserveOutputsPrivatization = 944,
         ConfigIncompatibleOptionIgnorePreserveOutputsPrivatization = 945,
         PipTimedOutRemotely = 946,
+        ConfigAssumeCleanOutputs = 947,
 
         StartInitializingCache = 1502,
         EndInitializingCache = 1503,

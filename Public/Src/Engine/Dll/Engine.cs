@@ -1298,6 +1298,12 @@ namespace BuildXL.Engine
                     mutableConfig.Schedule.MaxWorkersPerModule = mutableConfig.Distribution.BuildWorkers.Count + 1;
                     mutableConfig.Schedule.ModuleAffinityLoadFactor = 1;
                 }
+
+                if (!mutableConfig.Engine.AssumeCleanOutputs.HasValue)
+                {
+                    // We assume clean outputs in CloudBuild builds.
+                    mutableConfig.Engine.AssumeCleanOutputs = true;
+                }
             }
             else
             {
@@ -1346,6 +1352,12 @@ namespace BuildXL.Engine
             {
                 // VFS CAS root should be untracked for purposes of sandboxing.
                 mutableConfig.Sandbox.GlobalUnsafeUntrackedScopes.Add(mutableConfig.Cache.VfsCasRoot);
+            }
+
+            // Disable flagging shared opaque outputs when BuildXL assumes that outputs are clean.
+            if (mutableConfig.Engine.AssumeCleanOutputs == true)
+            {
+                mutableConfig.Sandbox.UnsafeSandboxConfigurationMutable.SkipFlaggingSharedOpaqueOutputs = true;
             }
 
             return success;
@@ -2508,6 +2520,7 @@ namespace BuildXL.Engine
             {
                 { "unsafe_AllowCopySymlink", loggingContext => { } /* Special case: unsafe option we do not want logged */ },
                 { "unsafe_AllowMissingOutput", Logger.Log.ConfigUnsafeAllowMissingOutput },
+                { "unsafe_AssumeCleanOutputs", Logger.Log.ConfigAssumeCleanOutputs },
                 { "unsafe_DisableCycleDetection", Logger.Log.ConfigUnsafeDisableCycleDetection },
                 { "unsafe_DisableDetours", Logger.Log.ConfigDisableDetours },
                 { "unsafe_DisableGraphPostValidation", loggingContext => { } /* Special case: unsafe option we do not want logged */ },

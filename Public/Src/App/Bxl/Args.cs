@@ -1148,6 +1148,10 @@ namespace BuildXL
                             sign => engineConfiguration.AllowDuplicateTemporaryDirectory = sign,
                             isUnsafe: true),
                         OptionHandlerFactory.CreateBoolOption(
+                            "unsafe_AssumeCleanOutputs",
+                            sign => engineConfiguration.AssumeCleanOutputs = sign,
+                            isUnsafe: true),
+                        OptionHandlerFactory.CreateBoolOption(
                             "unsafe_DisableCycleDetection",
                             sign => frontEndConfiguration.DisableCycleDetection = sign,
                             isUnsafe: true),

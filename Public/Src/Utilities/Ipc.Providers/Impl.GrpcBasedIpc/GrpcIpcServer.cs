@@ -46,7 +46,7 @@ namespace BuildXL.Ipc.GrpcBasedIpc
         public override async Task<Grpc.IpcResult> Message(Grpc.IpcOperation request, ServerCallContext context)
         {
             var ipcOperation = request.FromGrpc();
-
+            
             ipcOperation.Timestamp.Daemon_AfterReceivedTime = DateTime.UtcNow;
             var operationId = Interlocked.Increment(ref m_lastOperationId);
 
@@ -137,7 +137,13 @@ namespace BuildXL.Ipc.GrpcBasedIpc
             m_executor = executor;
             var serviceDefinition = IpcServer.BindService(this);
 
-            m_server = new Server()
+            var channelOptions = new ChannelOption[]
+            {
+                new ChannelOption(ChannelOptions.MaxSendMessageLength, -1), // -1 == unbounded 
+                new ChannelOption(ChannelOptions.MaxReceiveMessageLength, -1) 
+            };
+
+            m_server = new Server(channelOptions)
             {
                 Services = { serviceDefinition },
                 Ports = { new ServerPort(IPAddress.Loopback.ToString(), m_port, ServerCredentials.Insecure) },

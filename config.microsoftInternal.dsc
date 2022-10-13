@@ -78,7 +78,7 @@ export const pkgs = isMicrosoftInternal ? [
     { id: "Microsoft.Bcl.HashCode", version: "1.1.1" },
 
     // Process remoting
-    { id: "AnyBuild.SDK", version: "0.1.14" },
+    { id: "AnyBuild.SDK", version: "0.1.16" },
 
     // Part of VSSDK used by IDE/VsIntegration
     { id: "Microsoft.Internal.VisualStudio.Interop", version: "17.2.32405.191" },

@@ -375,7 +375,6 @@ namespace BuildXL
                         (int)EngineLogEventId.ChosenABTesting,
                         (int)EngineLogEventId.SynchronouslyWaitedForCache,
                         (int)Scheduler.Tracing.LogEventId.PipFingerprintData,
-                        (int)Scheduler.Tracing.LogEventId.ModuleWorkerMapping,
 
                         (int)EngineLogEventId.DistributionWorkerChangedState,
                         (int)EngineLogEventId.DistributionConnectedToWorker,

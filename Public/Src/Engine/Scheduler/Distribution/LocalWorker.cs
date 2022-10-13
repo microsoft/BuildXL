@@ -12,6 +12,7 @@ using BuildXL.Scheduler.Tracing;
 using BuildXL.Scheduler.WorkDispatcher;
 using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Tasks;
 
@@ -80,6 +81,8 @@ namespace BuildXL.Scheduler.Distribution
         /// </summary>
         public bool MemoryResourceAvailable => MemoryResource == MemoryResource.Available;
 
+        private readonly ConcurrentBigSet<PipId> m_pipsSourceHashed;
+
         /// <summary>
         /// Constructor
         /// </summary>
@@ -92,6 +95,7 @@ namespace BuildXL.Scheduler.Distribution
             TotalMaterializeInputSlots = scheduleConfig.MaxMaterialize;
             m_detoursListener = detoursListener;
             m_pipQueue = pipQueue;
+            m_pipsSourceHashed = new ConcurrentBigSet<PipId>();
             Start();
         }
 
@@ -152,16 +156,25 @@ namespace BuildXL.Scheduler.Distribution
 
                 ContentFingerprint? fingerprint = processRunnable.CacheResult?.Fingerprint;
 
-                ExecutionResult executionResult = await PipExecutor.ExecuteProcessAsync(
-                    operationContext,
-                    environment,
-                    environment.State.GetScope(process),
-                    process,
-                    fingerprint,
-                    processIdListener: UpdateCurrentlyRunningPipsCount,
-                    expectedMemoryCounters: processRunnable.ExpectedMemoryCounters.Value,
-                    detoursEventListener: m_detoursListener,
-                    runLocation: processRunnable.RunLocation);
+                ExecutionResult executionResult;
+                if (await TryHashSourceDependenciesAsync(processRunnable))
+                {
+                    executionResult = await PipExecutor.ExecuteProcessAsync(
+                        operationContext,
+                        environment,
+                        environment.State.GetScope(process),
+                        process,
+                        fingerprint,
+                        processIdListener: UpdateCurrentlyRunningPipsCount,
+                        expectedMemoryCounters: processRunnable.ExpectedMemoryCounters.Value,
+                        detoursEventListener: m_detoursListener,
+                        runLocation: processRunnable.RunLocation);
+                }
+                else
+                {
+                    executionResult = ExecutionResult.GetFailureNotRunResult(operationContext);
+                }
+
                 processRunnable.SetExecutionResult(executionResult);
 
                 Unit ignore;
@@ -217,13 +230,16 @@ namespace BuildXL.Scheduler.Distribution
                 {
                     executionResult = ExecutionResult.GetFailureNotRunResult(operationContext);
                 }
-                else
+                else if (await TryHashSourceDependenciesAsync(runnablePip))
                 {
                     executionResult = await PipExecutor.ExecuteIpcAsync(operationContext, environment, ipcPip);
                 }
+                else
+                {
+                    executionResult = ExecutionResult.GetFailureNotRunResult(operationContext);
+                }
 
                 runnablePip.SetExecutionResult(executionResult);
-
                 return RunnablePip.CreatePipResultFromExecutionResult(runnablePip.StartTime, executionResult);
             }
         }
@@ -237,10 +253,41 @@ namespace BuildXL.Scheduler.Distribution
         {
             using (OnPipExecutionStarted(runnablePip))
             {
-                var cacheResult = await PipExecutor.TryCheckProcessRunnableFromCacheAsync(runnablePip, state, cacheableProcess, avoidRemoteLookups);
+                RunnableFromCacheResult cacheResult = null;
+                if (await TryHashSourceDependenciesAsync(runnablePip))
+                {
+                    cacheResult = await PipExecutor.TryCheckProcessRunnableFromCacheAsync(runnablePip, state, cacheableProcess, avoidRemoteLookups);
+                }
 
                 return ValueTuple.Create(cacheResult, cacheResult == null ? PipResultStatus.Failed : PipResultStatus.Succeeded);
             }
+        }
+
+        private async Task<bool> TryHashSourceDependenciesAsync(RunnablePip runnable)
+        {
+            var environment = runnable.Environment;
+            var operationContext = runnable.OperationContext;
+
+            if (!environment.Configuration.EnableDistributedSourceHashing()
+                || m_pipsSourceHashed.Contains(runnable.PipId))
+            {
+                return true;
+            }
+
+            using (operationContext.StartOperation(PipExecutorCounter.HashSourceFileDependenciesDuration))
+            {
+                var maybeHashed = await environment.State.FileContentManager.TryHashSourceDependenciesAsync(runnable.Pip, operationContext);
+                if (!maybeHashed.Succeeded)
+                {
+                    Logger.Log.PipFailedDueToSourceDependenciesCannotBeHashed(
+                        operationContext,
+                        runnable.Description);
+                    return false;
+                }
+            }
+
+            m_pipsSourceHashed.Add(runnable.PipId);
+            return true;
         }
     }
 }

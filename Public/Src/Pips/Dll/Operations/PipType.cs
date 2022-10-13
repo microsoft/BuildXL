@@ -91,5 +91,13 @@ namespace BuildXL.Pips.Operations
         {
             return pipType == PipType.Value || pipType == PipType.SpecFile || pipType == PipType.Module;
         }
+
+        /// <summary>
+        /// Returns true if this pip is distributed across workers.
+        /// </summary>
+        public static bool IsDistributable(this PipType pipType)
+        {
+            return pipType == PipType.Process || pipType == PipType.Ipc;
+        }
     }
 }

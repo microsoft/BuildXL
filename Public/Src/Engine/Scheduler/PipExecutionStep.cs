@@ -284,6 +284,8 @@ WARNING: SYNC WITH PipExecutionUtils.AsString
                         || toStep == PipExecutionStep.CheckIncrementalSkip
                         || toStep == PipExecutionStep.ExecuteNonProcessPip
                         || toStep == PipExecutionStep.ChooseWorkerCpu
+                        || toStep == PipExecutionStep.ChooseWorkerCacheLookup
+                        || toStep == PipExecutionStep.DelayedCacheLookup
                         || toStep == PipExecutionStep.HandleResult;
 
                 case PipExecutionStep.CheckIncrementalSkip:

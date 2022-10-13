@@ -933,6 +933,8 @@ namespace BuildXL.Engine.Distribution
             var step = runnable.Step;
             var environment = runnable.Environment;
 
+            bool enableDistributedSourceHashing = environment.Configuration.EnableDistributedSourceHashing();
+
             // In the case of fire-and-forget MaterializeOutputs the pip can transition to HandleResult or Done
             // before it is actually sent to the worker, so we can observe these steps here
             bool materializingOutputs = step == PipExecutionStep.MaterializeOutputs
@@ -967,7 +969,7 @@ namespace BuildXL.Engine.Distribution
                         pip: runnable.Pip,
                         files: files,
                         dynamicFileMap: dynamicFiles,
-
+                        excludeSourceFiles: enableDistributedSourceHashing,
                         // Only send content which is not already on the worker.
                         // TryAddAvailableHash can return null if the artifact is dynamic file in which case
                         // the file cannot be added to the set due to missing index (note that we're using ContentTrackingSet as the underlying set).

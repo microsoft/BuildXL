@@ -46,7 +46,15 @@ namespace BuildXL.Scheduler
         private long m_numRunningOrQueued;
 
         /// <inheritdoc/>
-        public long NumRunningOrQueued => Volatile.Read(ref m_numRunningOrQueued);
+        public long NumRunningOrQueuedOrRemote => Volatile.Read(ref m_numRunningOrQueued) + NumRemoteRunning;
+
+        /// <summary>
+        /// How many pips are currently executed on remote workers.
+        /// </summary>
+        private int m_numRemoteRunning;
+
+        /// <inheritdoc/>
+        public int NumRemoteRunning => Volatile.Read(ref m_numRemoteRunning);
 
         /// <summary>
         /// Whether the queue can accept new external work items.
@@ -99,7 +107,7 @@ namespace BuildXL.Scheduler
         /// If there are no items running or pending in the queues, we need to check whether this pipqueue can accept new external work.
         /// If this is a worker, we cannot finish dispatcher because orchestrator can still send new work items to the worker.
         /// </returns>
-        public bool IsFinished => IsCancelled || (Volatile.Read(ref m_numRunningOrQueued) == 0 && m_isFinalized);
+        public bool IsFinished => IsCancelled || (NumRunningOrQueuedOrRemote == 0 && m_isFinalized);
 
         /// <inheritdoc/>
         public bool IsDisposed { get; private set; }
@@ -395,6 +403,25 @@ namespace BuildXL.Scheduler
             m_hasAnyRunning = new TaskCompletionSource<bool>();
             IsCancelled = true;
             TriggerDispatcher();
+        }
+
+        /// <inheritdoc />
+        public async Task RemoteAsync(RunnablePip runnablePip)
+        {
+            if (runnablePip.IsRemotelyExecuting)
+            {
+                // If it is already remotely executing, there is no need to fork it on another thread.
+                await runnablePip.RunAsync();
+            }
+            else
+            {
+                runnablePip.IsRemotelyExecuting = true;
+                Interlocked.Increment(ref m_numRemoteRunning);
+                await Task.Yield();
+                await runnablePip.RunAsync();
+                Interlocked.Decrement(ref m_numRemoteRunning);
+                TriggerDispatcher();
+            }
         }
 
         /// <summary>

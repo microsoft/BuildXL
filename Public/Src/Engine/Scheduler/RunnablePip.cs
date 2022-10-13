@@ -217,7 +217,12 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Whether waiting on resources (worker).
         /// </summary>
-        public bool IsWaitingForWorker { get; set; }
+        public bool IsWaitingForWorker { get; internal set; }
+
+        /// <summary>
+        /// Whether executing on a remote worker without acquiring a slot on the orchestrator
+        /// </summary>
+        public bool IsRemotelyExecuting { get; internal set; }
 
         /// <summary>
         /// Thread id of the step

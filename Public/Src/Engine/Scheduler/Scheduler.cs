@@ -397,12 +397,12 @@ namespace BuildXL.Scheduler
             // or it is only busy with materializeOutput step.
             // As we mark the pips as completed if materializeOutputsInBackground/fireForgetMaterializeOutput is enabled, they have "Done" state.
 
-            long numRunningOrQueued = PipQueue.NumRunningOrQueued;
-            long numRunningOrQueuedExceptMaterialize = numRunningOrQueued - PipQueue.GetNumRunningPipsByKind(DispatcherKind.Materialize) - PipQueue.GetNumQueuedByKind(DispatcherKind.Materialize);
+            long numRunningOrQueuedOrRemote = PipQueue.NumRunningOrQueuedOrRemote;
+            long numRunningOrQueuedExceptMaterialize = numRunningOrQueuedOrRemote - PipQueue.GetNumRunningPipsByKind(DispatcherKind.Materialize) - PipQueue.GetNumQueuedByKind(DispatcherKind.Materialize);
 
             if (numRunningOrQueuedExceptMaterialize == 0)
             {
-                RetrievePipStateCounts(out long totalPips, out long readyPips, out long waitingPips, out long runningPips, out long donePips, out long failedPips, out long skippedPips, out long ignoredPips);
+                RetrievePipStateCounts(out _, out long readyPips, out long waitingPips, out long runningPips, out _, out _, out _, out _);
 
                 if (readyPips + waitingPips + runningPips == 0)
                 {
@@ -661,7 +661,7 @@ namespace BuildXL.Scheduler
         /// <param name="failedPips">Number of failed pips</param>
         /// <param name="skippedPipsDueToFailedDependencies">Number of skipped pips due to failed dependencies</param>
         /// <param name="ignoredPips">Number of ignored pips</param>
-        public void RetrievePipStateCounts(
+        private void RetrievePipStateCounts(
             out long totalPips,
             out long readyPips,
             out long waitingPips,
@@ -1634,6 +1634,12 @@ namespace BuildXL.Scheduler
 
             Contract.Assert(!HasFailed || m_executePhaseLoggingContext.ErrorWasLogged, "Scheduler encountered errors during execution, but none were logged.");
 
+            if (!IsDistributedWorker)
+            {
+                RetrievePipStateCounts(out _, out _, out _, out long runningPips, out _, out _, out _, out _);
+                Contract.Assert(runningPips == 0, "There are still pips at running state at the end of the build.");
+            }
+
             // We want TimeToFirstPipExecuted to always have a value. Mark the end of the execute phase as when the first
             // pip was executed in case all pips were cache hits
             MarkPipStartExecuting();
@@ -2289,6 +2295,8 @@ namespace BuildXL.Scheduler
                         }
                     }
                 },
+                { "Running Pips", data => PipQueue.NumRunningOrQueuedOrRemote },
+                { "Running Pips Remotely", data => PipQueue.NumRemoteRunning },
                 { "Running PipExecutor Processes", data => data.RunningPipExecutorProcesses },
                 { "Running Processes", data => data.RunningProcesses },
                 { "Running Process Remotely", data => data.RunningRemotelyPipExecutorProcesses },
@@ -3884,6 +3892,14 @@ namespace BuildXL.Scheduler
             var previousQueue = runnablePip.DispatcherKind;
             var nextQueue = DecideDispatcherKind(runnablePip);
 
+            if (!PipQueue.IsDraining && nextQueue == DispatcherKind.None)
+            {
+                // If the queue has not been started draining, we should add the runnable pip to the queue.
+                // SchedulePip is called as a part of 'schedule' phase.
+                // That's why, we should not inline executions when the queue is not draining.
+                nextQueue = DispatcherKind.Light;
+            }
+
             bool inline = false;
 
             // If the pip should be cancelled, make sure we inline the next step. The pip queue may be also flagged as cancelled and won't dequeue the pip otherwise.
@@ -3907,16 +3923,14 @@ namespace BuildXL.Scheduler
                 {
                     inline = !EngineEnvironmentSettings.DoNotInlineWhenNewPipRunInSameQueue;
                 }
+                else if (runnablePip.Step == PipExecutionStep.CacheLookup)
+                {
+                    inline = false;
+                }
                 else
                 {
                     inline = true;
                 }
-            }
-
-            if (runnablePip.Worker?.IsRemote == true)
-            {
-                inline = true;
-                runnablePip.ReleaseDispatcher();
             }
 
             if (inline)
@@ -4036,6 +4050,21 @@ namespace BuildXL.Scheduler
                 runnablePip.MaterializeOutputsTasks = taskArrayInstance;
             }
 
+            if (runnablePip.Worker?.IsRemote == true)
+            {
+                bool isAlreadyRemotelyExecuting = runnablePip.IsRemotelyExecuting;
+                Task remoteTask = PipQueue.RemoteAsync(runnablePip);
+                if (isAlreadyRemotelyExecuting)
+                {
+                    await remoteTask;
+                }
+
+                Analysis.IgnoreResult(remoteTask);
+                return;
+            }
+
+            runnablePip.IsRemotelyExecuting = false;
+
             // (a) Execute as inlined here, OR
             // (b) Enqueue the execution of the rest of the steps until another enqueue.
             await ExecuteAsyncOrEnqueue(runnablePip);
@@ -4127,28 +4156,18 @@ namespace BuildXL.Scheduler
                         case PipType.Module:
                         case PipType.Value:
                             // These are fast to execute. They are inlined when they are scheduled during draining.
-                            // However, if the queue has not been started draining, we should add them to the queue.
-                            // SchedulePip is called as a part of 'schedule' phase.
-                            // That's why, we should not inline executions of fast pips when the queue is not draining.
-                            return PipQueue.IsDraining ? DispatcherKind.None : DispatcherKind.CPU;
+                            return DispatcherKind.None;
 
                         case PipType.SealDirectory:
                             return DispatcherKind.SealDirs;
 
                         case PipType.WriteFile:
                         case PipType.CopyFile:
+                            return IODispatcher;
+
                         case PipType.Ipc:
-                            return IODispatcher;
-
                         case PipType.Process:
-                            var state = (ProcessMutablePipState)m_pipTable.GetMutable(runnablePip.PipId);
-                            if (state.IsStartOrShutdown)
-                            {
-                                // service start and shutdown pips are noop, so they will be inlined if the queue is draining.
-                                return PipQueue.IsDraining ? DispatcherKind.None : DispatcherKind.CPU;
-                            }
-
-                            return IODispatcher;
+                            return m_configuration.EnableDistributedSourceHashing() ? DispatcherKind.None : IODispatcher;
 
                         default:
                             throw Contract.AssertFailure(I($"Invalid pip type: '{runnablePip.PipType}'"));
@@ -4251,6 +4270,7 @@ namespace BuildXL.Scheduler
             Contract.Requires(runnablePip.Step != PipExecutionStep.Done && runnablePip.Step != PipExecutionStep.None);
 
             ProcessRunnablePip processRunnable = runnablePip as ProcessRunnablePip;
+            Process process = runnablePip.Pip as Process;
             var pipId = runnablePip.PipId;
             var pipType = runnablePip.PipType;
             var loggingContext = runnablePip.LoggingContext;
@@ -4284,17 +4304,11 @@ namespace BuildXL.Scheduler
                         return PipExecutionStep.ExecuteNonProcessPip;
                     }
 
-                    using (operationContext.StartOperation(PipExecutorCounter.HashSourceFileDependenciesDuration))
+                    if (process?.IsStartOrShutdownKind == true)
                     {
-                        // Hash source file dependencies
-                        var maybeHashed = await fileContentManager.TryHashSourceDependenciesAsync(runnablePip.Pip, operationContext);
-                        if (!maybeHashed.Succeeded)
-                        {
-                            Logger.Log.PipFailedDueToSourceDependenciesCannotBeHashed(
-                                loggingContext,
-                                runnablePip.Description);
-                            return runnablePip.SetPipResult(PipResultStatus.Failed);
-                        }
+                        // Service start and shutdown pips are noop in the scheduler.
+                        // They will be run on demand by the service manager which is not tracked directly by the scheduler.
+                        return runnablePip.SetPipResult(PipResult.CreateWithPointPerformanceInfo(PipResultStatus.Succeeded));
                     }
 
                     // For module affinity, we need to set the preferred worker id.
@@ -4307,25 +4321,38 @@ namespace BuildXL.Scheduler
                         runnablePip.PreferredWorkerId = (int)tuple.Workers[0].WorkerId;
                     }
 
-                    switch (pipType)
+
+                    bool hashSourceFiles = !m_configuration.EnableDistributedSourceHashing() || !pipType.IsDistributable();
+
+                    if (hashSourceFiles)
                     {
-                        case PipType.Process:
-                            if (processRunnable.Process.IsStartOrShutdownKind)
+                        using (operationContext.StartOperation(PipExecutorCounter.HashSourceFileDependenciesDuration))
+                        {
+                            // Hash source file dependencies
+                            var maybeHashed = await fileContentManager.TryHashSourceDependenciesAsync(runnablePip.Pip, operationContext);
+                            if (!maybeHashed.Succeeded)
                             {
-                                // Service start and shutdown pips are noop in the scheduler.
-                                // They will be run on demand by the service manager which is not tracked directly by the scheduler.
-                                return runnablePip.SetPipResult(PipResult.CreateWithPointPerformanceInfo(PipResultStatus.Succeeded));
+                                Logger.Log.PipFailedDueToSourceDependenciesCannotBeHashed(
+                                    loggingContext,
+                                    runnablePip.Description);
+                                return runnablePip.SetPipResult(PipResultStatus.Failed);
                             }
-
-                            break;
-                        case PipType.Ipc:
-
-                            // IPC pips go to ChooseWorker before checking the incremental state
-                            return PipExecutionStep.ChooseWorkerCpu;
+                        }
                     }
 
-                    return PipExecutionStep.CheckIncrementalSkip; // CopyFile, WriteFile, Process, SealDirectory pips
+                    if (pipType == PipType.Ipc)
+                    {
+                        // IPC pips go to ChooseWorker before checking the incremental state
+                        return PipExecutionStep.ChooseWorkerCpu;
+                    }
 
+                    if (pipType == PipType.Process)
+                    {
+                        return m_configuration.EnableDistributedSourceHashing() ? PipExecutionStep.ChooseWorkerCacheLookup : PipExecutionStep.CheckIncrementalSkip; 
+                    }
+
+                    // CopyFile, WriteFile, Process, SealDirectory pips
+                    return m_configuration.EnableDistributedSourceHashing() ? PipExecutionStep.ExecuteNonProcessPip : PipExecutionStep.CheckIncrementalSkip;
                 }
 
                 case PipExecutionStep.Cancel:
@@ -4458,12 +4485,10 @@ namespace BuildXL.Scheduler
 
                     if (pipType == PipType.Process)
                     {
-                        return m_configuration.Schedule.DelayedCacheLookupEnabled() ? PipExecutionStep.DelayedCacheLookup : PipExecutionStep.ChooseWorkerCacheLookup;
+                        return processRunnable.PreCacheLookupStep;
                     }
-                    else
-                    {
-                        return PipExecutionStep.ExecuteNonProcessPip;
-                    }
+
+                    return PipExecutionStep.ExecuteNonProcessPip;
                 }
 
                 case PipExecutionStep.DelayedCacheLookup:
@@ -4548,7 +4573,6 @@ namespace BuildXL.Scheduler
                     Contract.Assert(processRunnable != null);
                     Contract.Assert(worker != null);
 
-                    var process = processRunnable.Process;
                     var pipScope = State.GetScope(process);
                     var cacheableProcess = pipScope.GetCacheableProcess(process, environment);
                     var pipRunTimeInfo = GetPipRuntimeInfo(pipId);
@@ -4652,7 +4676,6 @@ namespace BuildXL.Scheduler
                 {
                     Contract.Assert(processRunnable != null);
 
-                    Process process = (Process)processRunnable.Pip;
                     var pipScope = State.GetScope(process);
                     var executionResult = await PipExecutor.RunFromCacheWithWarningsAsync(operationContext, environment, pipScope, process, processRunnable.CacheResult, processRunnable.Description);
 
@@ -5260,7 +5283,7 @@ namespace BuildXL.Scheduler
             return PipExecutionStep.RunFromCache;
         }
 
-        private PipState? TryStartPip(RunnablePip runnablePip)
+        private PipState TryStartPip(RunnablePip runnablePip)
         {
             if (Interlocked.CompareExchange(ref m_firstPip, 1, 0) == 0)
             {

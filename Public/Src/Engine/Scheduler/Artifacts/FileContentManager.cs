@@ -876,7 +876,8 @@ namespace BuildXL.Scheduler.Artifacts
             HashSet<FileArtifact> files,
             MultiValueDictionary<FileArtifact, DirectoryArtifact> dynamicInputs = null,
             Func<FileOrDirectoryArtifact, bool> filter = null,
-            Func<PipId, bool> serviceFilter = null)
+            Func<PipId, bool> serviceFilter = null,
+            bool excludeSourceFiles = false)
         {
             CollectPipFilesToMaterialize(
                 isMaterializingInputs: true,
@@ -885,7 +886,8 @@ namespace BuildXL.Scheduler.Artifacts
                 files: files,
                 dynamicFileMap: dynamicInputs,
                 shouldInclude: filter,
-                shouldIncludeServiceFiles: serviceFilter);
+                shouldIncludeServiceFiles: serviceFilter,
+                excludeSourceFiles: excludeSourceFiles);
         }
 
         /// <summary>
@@ -917,7 +919,8 @@ namespace BuildXL.Scheduler.Artifacts
             HashSet<FileArtifact> files = null,
             MultiValueDictionary<FileArtifact, DirectoryArtifact> dynamicFileMap = null,
             Func<FileOrDirectoryArtifact, bool> shouldInclude = null,
-            Func<PipId, bool> shouldIncludeServiceFiles = null)
+            Func<PipId, bool> shouldIncludeServiceFiles = null,
+            bool excludeSourceFiles = false)
         {
             // Always include if no filter specified
             shouldInclude ??= (a => true);
@@ -928,7 +931,7 @@ namespace BuildXL.Scheduler.Artifacts
                 if (isMaterializingInputs)
                 {
                     // Get inputs
-                    PopulateDependencies(pip, state.PipArtifacts, includeLazyInputs: true);
+                    PopulateDependencies(pip, state.PipArtifacts, includeLazyInputs: true, excludeSourceFiles: excludeSourceFiles);
                 }
                 else
                 {
@@ -986,7 +989,7 @@ namespace BuildXL.Scheduler.Artifacts
                         }
 
                         var servicePip = pipTable.HydratePip(servicePipId, PipQueryContext.CollectPipInputsToMaterializeForIPC);
-                        CollectPipInputsToMaterialize(pipTable, servicePip, files, dynamicFileMap, filter: shouldInclude);
+                        CollectPipInputsToMaterialize(pipTable, servicePip, files, dynamicFileMap, filter: shouldInclude, excludeSourceFiles: excludeSourceFiles);
                     }
                 }
             }
@@ -1243,8 +1246,10 @@ namespace BuildXL.Scheduler.Artifacts
             return state;
         }
 
-        private void PopulateDependencies(Pip pip, HashSet<FileOrDirectoryArtifact> dependencies, bool includeLazyInputs = false, bool onlySourceFiles = false, bool registerDirectories = false)
+        private void PopulateDependencies(Pip pip, HashSet<FileOrDirectoryArtifact> dependencies, bool includeLazyInputs = false, bool onlySourceFiles = false, bool registerDirectories = false, bool excludeSourceFiles = false)
         {
+            Contract.Requires(!onlySourceFiles || !excludeSourceFiles);
+
             if (pip.PipType == PipType.SealDirectory)
             {
                 // Seal directory contents are handled by consumer of directory
@@ -1259,8 +1264,17 @@ namespace BuildXL.Scheduler.Artifacts
                     RegisterDirectoryContents(input.DirectoryArtifact);
                 }
 
-                if (!onlySourceFiles || (input.IsFile && input.FileArtifact.IsSourceFile))
+                if (input.IsFile && input.FileArtifact.IsSourceFile)
                 {
+                    if (!excludeSourceFiles)
+                    {
+                        // Add source files only if excludeSourceFiles is false
+                        dependencies.Add(input);
+                    }
+                }
+                else if (!onlySourceFiles)
+                {
+                    // Add output files or directories only if onlySourceFiles is false.
                     dependencies.Add(input);
                 }
 

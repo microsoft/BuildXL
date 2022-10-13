@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 using BuildXL.Pips;
 using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
@@ -242,19 +243,31 @@ namespace Test.BuildXL.Scheduler
         }
 
         /// <inheritdoc/>
-        public long NumRunningOrQueued
+        public Task RemoteAsync(RunnablePip runnablePip)
+        {
+            return m_innerQueue.RemoteAsync(runnablePip);
+        }
+
+        /// <inheritdoc/>
+        public long NumRunningOrQueuedOrRemote
         {
             get
             {
                 long total = 0;
                 foreach (DispatcherKind kind in Enum.GetValues(typeof(DispatcherKind)))
                 {
-                    total += GetNumRunningPipsByKind(kind) + GetNumQueuedByKind(kind);
+                    if (kind != DispatcherKind.None)
+                    {
+                        total += GetNumRunningPipsByKind(kind) + GetNumQueuedByKind(kind);
+                    }
                 }
 
                 return total;
             }
         }
+
+        /// <inheritdoc/>
+        public int NumRemoteRunning => 0;
 
         /// <inheritdoc/>
         public int GetNumAcquiredSlotsByKind(DispatcherKind queueKind) => m_innerQueue.GetNumAcquiredSlotsByKind(queueKind);

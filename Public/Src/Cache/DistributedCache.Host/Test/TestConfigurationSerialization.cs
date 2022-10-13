@@ -6,6 +6,7 @@ using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.Redis;
 using BuildXL.Cache.ContentStore.Interfaces.Secrets;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
+using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using BuildXL.Cache.Host.Service;
 using FluentAssertions;
 using Xunit;
@@ -29,7 +30,7 @@ namespace BuildXL.Cache.Host.Configuration.Test
         [Fact]
         public void TestAbsolutePathSerialization()
         {
-            var testPath = new AbsolutePath("M:/TESTPATH");
+            var testPath = new AbsolutePath(OperatingSystemHelper.IsWindowsOS ? "M:/TESTPATH" : "/M/TESTPATH");
             var testConfig = new RocksDbContentLocationDatabaseConfiguration(testPath);
             string configString = ConfigurationPrinter.ConfigToString(testConfig);
 

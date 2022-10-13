@@ -15,11 +15,13 @@ using BuildXL.Cache.Host.Service;
 using BuildXL.Cache.Host.Service.OutOfProc;
 using ContentStoreTest.Test;
 using FluentAssertions;
+using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
 
 namespace BuildXL.Cache.Host.Configuration.Test
 {
+    [TestClassIfSupported(requiresWindowsBasedOperatingSystem: true)] // Named maps are not supported on non-Windows platforms
     public class CacheServiceWrapperTests : TestBase
     {
         public CacheServiceWrapperTests(ITestOutputHelper output = null)

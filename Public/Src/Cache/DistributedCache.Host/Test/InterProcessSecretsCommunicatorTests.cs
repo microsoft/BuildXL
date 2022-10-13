@@ -11,11 +11,13 @@ using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.Host.Service;
 using BuildXL.Cache.Host.Service.Internal;
 using ContentStoreTest.Test;
+using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
 
 namespace BuildXL.Cache.Host.Test
 {
+    [TestClassIfSupported(requiresWindowsBasedOperatingSystem: true)] // Named maps are not supported on non-Windows platforms
     public class InterProcessSecretsCommunicatorTests : TestBase
     {
         public InterProcessSecretsCommunicatorTests(ITestOutputHelper output = null)

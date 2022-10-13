@@ -4,6 +4,7 @@
 using System;
 using System.Diagnostics;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.Host.Service;
 using ContentStoreTest.Test;
@@ -24,7 +25,7 @@ namespace BuildXL.Cache.Host.Configuration.Test
         public void EventIsRaisedWhenTheProcessExits()
         {
             // Arrange
-            var processInfo = new ProcessStartInfo("cmd.exe") { UseShellExecute = false };
+            var processInfo = new ProcessStartInfo(OperatingSystemHelper.IsWindowsOS ? "cmd.exe" : "/bin/sh") { UseShellExecute = false };
             var process = new LauncherProcess(processInfo);
 
             bool exitWasCalled = false;

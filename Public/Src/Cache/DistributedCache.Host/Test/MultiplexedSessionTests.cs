@@ -10,6 +10,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using BuildXL.Cache.ContentStore.InterfacesTest.FileSystem;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using BuildXL.Cache.ContentStore.InterfacesTest.Time;
@@ -17,6 +18,7 @@ using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.Host.Service.Internal;
 using ContentStoreTest.Test;
 using FluentAssertions;
+using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -29,7 +31,7 @@ namespace BuildXL.Cache.Host.Test
         {
         }
 
-        [Fact]
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)] // root1 and root2 are the same on Unix systems resulting in a key error when trying to insert into dictionary
         public async Task HardlinkTestAsync()
         {
             var clock = new MemoryClock();
@@ -40,7 +42,7 @@ namespace BuildXL.Cache.Host.Test
             var root1 = TestRootDirectoryPath / "Store1";
             var store1 = new FileSystemContentStore(FileSystem, clock, root1, configurationModel);
 
-            var fakeDrive = new AbsolutePath(@"X:\");
+            var fakeDrive = new AbsolutePath(OperatingSystemHelper.IsWindowsOS ? @"X:\" : "/X/");
             var root2 = fakeDrive / "Store2";
             var redirectedFileSystem = new RedirectionFileSystem(FileSystem, fakeDrive, TestRootDirectoryPath);
             var store2 = new FileSystemContentStore(redirectedFileSystem, clock, fakeDrive, configurationModel);

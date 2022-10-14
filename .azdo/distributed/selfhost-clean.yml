@@ -27,7 +27,7 @@ pool:
 jobs:
 - job: Distributed_Clean
   strategy:
-    parallel: 2
+    parallel: 3
   displayName: Clean distributed build
   steps:
   - checkout: self

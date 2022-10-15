@@ -91,7 +91,8 @@ namespace BuildXL.Scheduler.Distribution
         {
             TotalProcessSlots = scheduleConfig.EffectiveMaxProcesses;
             TotalCacheLookupSlots = scheduleConfig.MaxCacheLookup;
-            TotalLightSlots = scheduleConfig.MaxLightProcesses;
+            TotalLightProcessSlots = scheduleConfig.MaxLight;
+            TotalIpcSlots = scheduleConfig.MaxLight;
             TotalMaterializeInputSlots = scheduleConfig.MaxMaterialize;
             m_detoursListener = detoursListener;
             m_pipQueue = pipQueue;
@@ -111,15 +112,6 @@ namespace BuildXL.Scheduler.Distribution
 
             TotalProcessSlots = newTotalSlots;
             m_pipQueue.SetMaxParallelDegreeByKind(DispatcherKind.CPU, newTotalSlots);
-        }
-
-        /// <summary>
-        /// Adjusts the total cache lookup slots
-        /// </summary>
-        public void AdjustTotalCacheLookupSlots(int newTotalSlots)
-        {
-            TotalCacheLookupSlots = newTotalSlots;
-            m_pipQueue.SetMaxParallelDegreeByKind(DispatcherKind.CacheLookup, newTotalSlots);
         }
 
         /// <inheritdoc />

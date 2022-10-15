@@ -2406,6 +2406,7 @@ namespace BuildXL
                 var scheduling = ComputeTimePercentage(
                     (long)schedulerInfo.PipExecutionStepCounters.GetElapsedTime(PipExecutionStep.ChooseWorkerCpu).TotalMilliseconds +
                     (long)schedulerInfo.PipExecutionStepCounters.GetElapsedTime(PipExecutionStep.ChooseWorkerCacheLookup).TotalMilliseconds +
+                    (long)schedulerInfo.PipExecutionStepCounters.GetElapsedTime(PipExecutionStep.ChooseWorkerIpc).TotalMilliseconds +
                     (long)schedulerInfo.PipExecutionStepCounters.GetElapsedTime(PipExecutionStep.DelayedCacheLookup).TotalMilliseconds,
                     allStepsMinusPipExecution);
                 var handleResult = ComputeTimePercentage(

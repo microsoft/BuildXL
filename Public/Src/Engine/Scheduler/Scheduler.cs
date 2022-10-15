@@ -255,11 +255,11 @@ namespace BuildXL.Scheduler
 
         /// <summary>
         /// Encapsulates data and logic for choosing a worker for cpu queue in a distributed build
-        /// NOTE: this will be null before <see cref="Start(LoggingContext)"/> is called
         /// </summary>
-        private ChooseWorkerCpu m_chooseWorkerCpu;
+        private readonly ChooseWorkerCpu m_chooseWorkerCpu;
 
-        private ChooseWorkerCacheLookup m_chooseWorkerCacheLookup;
+        private readonly ChooseWorkerCacheLookup m_chooseWorkerCacheLookup;
+        private readonly ChooseWorkerIpc m_chooseWorkerIpc;
 
         /// <summary>
         /// Local worker
@@ -429,19 +429,14 @@ namespace BuildXL.Scheduler
         private void AdjustLocalWorkerSlots()
         {
             int availableRemoteWorkersCount = AvailableRemoteWorkersCount;
-
             int targetProcessSlots = m_scheduleConfiguration.EffectiveMaxProcesses;
-            int targetCacheLookupSlots = m_scheduleConfiguration.MaxCacheLookup;
-
             int newProcessSlots;
-            int newCacheLookupSlots;
 
             if (availableRemoteWorkersCount == 0)
             {
                 // If there are no available remote workers, treat the build as a single-machine build.
                 // It means that OrchestratorCpuMultiplier and OrchestratorCacheLookupMultiplier will have no effect.
                 newProcessSlots = targetProcessSlots;
-                newCacheLookupSlots = targetCacheLookupSlots;
             }
             else
             {
@@ -456,11 +451,9 @@ namespace BuildXL.Scheduler
                 // If the user does not pass orchestratorCpuMultiplier or CacheLookupMultiplier, then the local worker slots are configured
                 // based on the calculation above.
                 newProcessSlots = (int)(targetProcessSlots * (m_scheduleConfiguration.OrchestratorCpuMultiplier ?? defaultMultiplier));
-                newCacheLookupSlots = (int)(targetCacheLookupSlots * (m_scheduleConfiguration.OrchestratorCacheLookupMultiplier ?? defaultMultiplier));
             }
 
             LocalWorker.AdjustTotalProcessSlots(newProcessSlots);
-            LocalWorker.AdjustTotalCacheLookupSlots(newCacheLookupSlots);
 
             int totalProcessSlots = Workers.Where(w => w.IsAvailable).Sum(w => w.TotalProcessSlots);
             PipQueue.SetTotalProcessSlots(totalProcessSlots);
@@ -1127,7 +1120,7 @@ namespace BuildXL.Scheduler
         /// <remarks>
         /// This is populated only with /maxWorkersPerModule is passed with a value greater than 0.
         /// </remarks>
-        private readonly Dictionary<ModuleId, (int NumPips, List<Worker> Workers)> m_moduleWorkerMapping = new Dictionary<ModuleId, (int, List<Worker>)>();
+        private readonly Dictionary<ModuleId, (int NumPips, bool[] Workers)> m_moduleWorkerMapping = new Dictionary<ModuleId, (int, bool[])>();
 
         /// <summary>
         /// The PackedExecution exporter, used for emitting analysis-optimized log data.
@@ -1444,6 +1437,17 @@ namespace BuildXL.Scheduler
             m_alienFileEnumerationCache = new ConcurrentBigMap<AbsolutePath, IReadOnlyList<DirectoryMemberEntry>>();
 
             m_diagnosticsEnabled = ETWLogger.Log.IsEnabled(EventLevel.Verbose, Keywords.Diagnostics);
+
+            m_chooseWorkerCpu = new ChooseWorkerCpu(
+                loggingContext,
+                m_configuration.Schedule,
+                m_workers,
+                PipQueue,
+                PipGraph,
+                m_fileContentManager,
+                m_moduleWorkerMapping);
+            m_chooseWorkerCacheLookup = new ChooseWorkerCacheLookup(m_workers);
+            m_chooseWorkerIpc = new ChooseWorkerIpc(m_workers, m_moduleWorkerMapping);
         }
 
         /// <summary>
@@ -1567,22 +1571,6 @@ namespace BuildXL.Scheduler
                     m_configuration.Schedule.PluginLocations.Select(path => path.ToString(Context.PathTable)));
                 m_pluginManager.Start();
             }
-
-            m_chooseWorkerCpu = new ChooseWorkerCpu(
-                loggingContext,
-                m_configuration.Schedule,
-                m_workers,
-                PipQueue,
-                PipGraph,
-                m_fileContentManager,
-                Context.PathTable,
-                m_moduleWorkerMapping);
-
-            m_chooseWorkerCacheLookup = new ChooseWorkerCacheLookup(
-                loggingContext,
-                m_configuration.Schedule,
-                m_workers,
-                PipQueue);
 
             ExecutionLog?.BxlInvocation(new BxlInvocationEventData(m_configuration));
 
@@ -1714,8 +1702,17 @@ namespace BuildXL.Scheduler
                     StringBuilder strBuilder = new StringBuilder();
                     foreach (var kvp in m_moduleWorkerMapping.OrderByDescending(a => a.Value.NumPips))
                     {
-                        string workerList = string.Join(",", kvp.Value.Workers.Select(a => a.WorkerId.ToString()));
-                        strBuilder.AppendLine($"{kvp.Key.Value.ToString(Context.StringTable)}: {kvp.Value.NumPips} pips executed on [{workerList}]");
+                        strBuilder.Append($"{kvp.Key.Value.ToString(Context.StringTable)}: {kvp.Value.NumPips} pips executed on [");
+                        for (int i = 0; i < m_workers.Count; i++)
+                        {
+                            if (kvp.Value.Workers[i])
+                            {
+                                strBuilder.Append(i);
+                                strBuilder.Append(",");
+                            }
+                        }
+
+                        strBuilder.AppendLine("]");
                     }
 
                     Logger.Log.ModuleWorkerMapping(m_loggingContext, strBuilder.ToString());
@@ -2169,7 +2166,7 @@ namespace BuildXL.Scheduler
                 statistics.Add(Statistics.PluginProcessedRequestCounts, (long)m_pluginManager.PluginProcessedRequestCounts);
             }
 
-            m_chooseWorkerCpu?.LogStats(statistics);
+            m_chooseWorkerCpu.LogStats(statistics);
             ExecutionSampler.GetLimitingResourcePercentages().AddToStats(statistics);
 
             BuildXL.Tracing.Logger.Log.BulkStatistic(loggingContext, statistics);
@@ -2254,11 +2251,6 @@ namespace BuildXL.Scheduler
                 { "DispatchMs", data => (long)(OptionalPipQueueImpl?.DispatcherLoopTime.TotalMilliseconds ?? 0) },
                 { "ChooseQueueFastNextCount", data => OptionalPipQueueImpl?.ChooseQueueFastNextCount ?? 0 },
                 { "ChooseQueueRunTimeMs", data => OptionalPipQueueImpl?.ChooseQueueRunTime.TotalMilliseconds ?? 0 },
-                { "ChooseLastBlocked", data => m_chooseWorkerCpu.LastBlockedPip?.Pip.SemiStableHash.ToString("X16") ?? "N/A" },
-                { "ChooseBlockedCount", data => m_chooseWorkerCpu.ChooseBlockedCount },
-                { "ChooseSuccessCount", data => m_chooseWorkerCpu.ChooseSuccessCount },
-                { "ChooseIterations", data => m_chooseWorkerCpu.ChooseIterations },
-                { "ChooseSeconds", data => m_chooseWorkerCpu.ChooseSeconds },
                 { "LastSchedulerConcurrencyLimiter", data => m_chooseWorkerCpu.LastConcurrencyLimiter?.Name ?? "N/A" },
                 { "LimitingResource", data => data.LimitingResource},
                 { "MemoryResourceAvailability", data => LocalWorker.MemoryResource.ToString().Replace(',', '-')},
@@ -2355,8 +2347,10 @@ namespace BuildXL.Scheduler
                         rows.Add(I($"W{worker.WorkerId} Total Process Slots"), _ => worker.TotalProcessSlots, includeInSnapshot: false);
                         rows.Add(I($"W{worker.WorkerId} Used Process Slots"), _ => worker.AcquiredProcessSlots, includeInSnapshot: false);
                         rows.Add(I($"W{worker.WorkerId} Used PostProcess Slots"), _ => worker.AcquiredPostProcessSlots, includeInSnapshot: false);
-                        rows.Add(I($"W{worker.WorkerId} Total Light Slots"), _ => worker.TotalLightSlots, includeInSnapshot: false);
-                        rows.Add(I($"W{worker.WorkerId} Used Light Slots"), _ => worker.AcquiredLightSlots, includeInSnapshot: false);
+                        rows.Add(I($"W{worker.WorkerId} Total LightProcess Slots"), _ => worker.TotalLightProcessSlots, includeInSnapshot: false);
+                        rows.Add(I($"W{worker.WorkerId} Used LightProcess Slots"), _ => worker.AcquiredLightProcessSlots, includeInSnapshot: false);
+                        rows.Add(I($"W{worker.WorkerId} Total Ipc Slots"), _ => worker.TotalIpcSlots, includeInSnapshot: false);
+                        rows.Add(I($"W{worker.WorkerId} Used Ipc Slots"), _ => worker.AcquiredIpcSlots, includeInSnapshot: false);
                         rows.Add(I($"W{worker.WorkerId} Waiting BuildRequests Count"), _ => worker.WaitingBuildRequestsCount, includeInSnapshot: false);
                         rows.Add(I($"W{worker.WorkerId} BatchSize Count"), _ => worker.CurrentBatchSize, includeInSnapshot: false);
                         rows.Add(I($"W{worker.WorkerId} Total Ram Mb"), _ => worker.TotalRamMb ?? 0, includeInSnapshot: false);
@@ -2780,7 +2774,7 @@ namespace BuildXL.Scheduler
 
             // Try releasing the remote worker which has the lowest acquired slots for process execution.
             // It is intentional that we do not include cachelookup slots here as cachelookup step is a lot faster than execute step.
-            var workerToReleaseCandidate = Workers.Where(workerisReleasable).OrderBy(a => a.AcquiredProcessSlots).FirstOrDefault();
+            var workerToReleaseCandidate = Workers.Where(workerIsReleasable).OrderBy(a => a.AcquiredProcessSlots).FirstOrDefault();
             if (workerToReleaseCandidate == null)
             {
                 return;
@@ -2800,13 +2794,13 @@ namespace BuildXL.Scheduler
                         totalProcessSlots,
                         workerToReleaseCandidate.AcquiredCacheLookupSlots,
                         workerToReleaseCandidate.AcquiredProcessSlots,
-                        workerToReleaseCandidate.AcquiredLightSlots);
+                        workerToReleaseCandidate.AcquiredIpcSlots);
 
                 var task = workerToReleaseCandidate.EarlyReleaseAsync();
                 Analysis.IgnoreResult(task);
             }
 
-            bool workerisReleasable(Worker w)
+            bool workerIsReleasable(Worker w)
             {
                 // Candidates for early release are remote workers that
                 //   a. Are available, or
@@ -3940,7 +3934,7 @@ namespace BuildXL.Scheduler
             else
             {
                 runnablePip.SetDispatcherKind(nextQueue);
-                m_chooseWorkerCpu?.UnpauseChooseWorkerQueueIfEnqueuingNewPip(runnablePip, nextQueue);
+                m_chooseWorkerCpu.UnpauseChooseWorkerQueueIfEnqueuingNewPip(runnablePip, nextQueue);
 
                 using (PipExecutionCounters.StartStopwatch(PipExecutorCounter.PipQueueEnqueueDuration))
                 {
@@ -4152,25 +4146,18 @@ namespace BuildXL.Scheduler
                 case PipExecutionStep.Start:
                     switch (runnablePip.PipType)
                     {
-                        case PipType.SpecFile:
-                        case PipType.Module:
-                        case PipType.Value:
-                            // These are fast to execute. They are inlined when they are scheduled during draining.
-                            return DispatcherKind.None;
-
                         case PipType.SealDirectory:
-                            return DispatcherKind.SealDirs;
-
                         case PipType.WriteFile:
                         case PipType.CopyFile:
-                            return IODispatcher;
+                            return m_configuration.EnableDistributedSourceHashing() ? DispatcherKind.Light : IODispatcher;
 
                         case PipType.Ipc:
                         case PipType.Process:
                             return m_configuration.EnableDistributedSourceHashing() ? DispatcherKind.None : IODispatcher;
 
                         default:
-                            throw Contract.AssertFailure(I($"Invalid pip type: '{runnablePip.PipType}'"));
+                            // For metabuilds, this is noop.
+                            return DispatcherKind.None;
                     }
 
                 case PipExecutionStep.DelayedCacheLookup:
@@ -4178,7 +4165,7 @@ namespace BuildXL.Scheduler
 
                 case PipExecutionStep.ChooseWorkerCacheLookup:
                     // First attempt should be inlined; if it does not acquire a worker, then it should be enqueued to ChooseWorkerCacheLookup queue.
-                    return AnyRemoteWorkers && runnablePip.IsWaitingForWorker ? DispatcherKind.ChooseWorkerCacheLookup : DispatcherKind.None;
+                    return runnablePip.IsWaitingForWorker ? DispatcherKind.ChooseWorkerCacheLookup : DispatcherKind.None;
 
                 case PipExecutionStep.CacheLookup:
                 case PipExecutionStep.PostProcess:
@@ -4187,24 +4174,34 @@ namespace BuildXL.Scheduler
                     return CacheLookupDispatcher;
 
                 case PipExecutionStep.ChooseWorkerCpu:
-                    return runnablePip.IsLight ? DispatcherKind.ChooseWorkerLight : DispatcherKind.ChooseWorkerCpu;
-
-                case PipExecutionStep.MaterializeInputs:
-                    if (runnablePip.PipType == PipType.Ipc)
+                    if (!runnablePip.IsWaitingForWorker)
                     {
-                        // Send IPC pips to light queue to materialize since they don't often materialize much
-                        // and in the worst case they would only contend with other IPC pips
-                        return DispatcherKind.Light;
+                        // First attempt should be inlined.
+                        return DispatcherKind.None;
                     }
 
-                    return DispatcherKind.Materialize;
+                    return runnablePip.IsLight ? DispatcherKind.ChooseWorkerLight : DispatcherKind.ChooseWorkerCpu;
 
+                case PipExecutionStep.ChooseWorkerIpc:
+                    return runnablePip.IsWaitingForWorker ? DispatcherKind.ChooseWorkerIpc : DispatcherKind.None;
+
+                case PipExecutionStep.MaterializeInputs:
                 case PipExecutionStep.MaterializeOutputs:
                     return DispatcherKind.Materialize;
 
                 case PipExecutionStep.ExecuteProcess:
                 case PipExecutionStep.ExecuteNonProcessPip:
-                    return GetExecutionDispatcherKind(runnablePip);
+                {
+                    switch (runnablePip.PipType)
+                    {
+                        case PipType.Process:
+                            return runnablePip.IsLight ? DispatcherKind.Light : DispatcherKind.CPU;
+                        case PipType.Ipc:
+                            return DispatcherKind.IpcPips;
+                        default:
+                            return DispatcherKind.None;
+                    }
+                }
 
                 // INEXPENSIVE STEPS
                 case PipExecutionStep.CheckIncrementalSkip:
@@ -4225,38 +4222,6 @@ namespace BuildXL.Scheduler
         private DispatcherKind IODispatcher => EngineEnvironmentSettings.MergeIOCacheLookupDispatcher.Value ? CacheLookupDispatcher : DispatcherKind.IO;
 
         private DispatcherKind CacheLookupDispatcher => EngineEnvironmentSettings.MergeCacheLookupMaterializeDispatcher.Value ? DispatcherKind.Materialize : DispatcherKind.CacheLookup;
-
-        private DispatcherKind GetExecutionDispatcherKind(RunnablePip pip)
-        {
-            switch (pip.PipType)
-            {
-                case PipType.WriteFile:
-                case PipType.CopyFile:
-                    return IODispatcher;
-
-                case PipType.Process:
-                    return IsLightProcess(pip) ? DispatcherKind.Light : DispatcherKind.CPU;
-
-                case PipType.Ipc:
-                    return DispatcherKind.Light;
-
-                case PipType.SealDirectory:
-                    return DispatcherKind.SealDirs;
-
-                case PipType.Value:
-                case PipType.SpecFile:
-                case PipType.Module:
-                    return DispatcherKind.None;
-
-                default:
-                    throw Contract.AssertFailure(I($"Invalid pip type: '{pip.PipType}'"));
-            }
-        }
-
-        private bool IsLightProcess(RunnablePip pip)
-        {
-            return pip.PipType == PipType.Process && ((m_pipTable.GetProcessOptions(pip.PipId) & Process.Options.IsLight) != 0);
-        }
 
         /// <summary>
         /// Execute the given pip in the current step and return the next step
@@ -4315,10 +4280,15 @@ namespace BuildXL.Scheduler
                     // This is intentionally put here after we hydrate the pip for the first time when accessing
                     // runnablePip.Pip above for hashing dependencies.
                     if (runnablePip.Pip.Provenance.ModuleId.IsValid &&
-                        m_moduleWorkerMapping.TryGetValue(runnablePip.Pip.Provenance.ModuleId, out var tuple) &&
-                        tuple.Workers.Count > 0)
+                        m_moduleWorkerMapping.TryGetValue(runnablePip.Pip.Provenance.ModuleId, out var tuple))
                     {
-                        runnablePip.PreferredWorkerId = (int)tuple.Workers[0].WorkerId;
+                        for (int i = 0; i < m_workers.Count; i++)
+                        {
+                            if (tuple.Workers[i])
+                            {
+                                runnablePip.PreferredWorkerId = i;
+                            }
+                        }
                     }
 
 
@@ -4342,8 +4312,8 @@ namespace BuildXL.Scheduler
 
                     if (pipType == PipType.Ipc)
                     {
-                        // IPC pips go to ChooseWorker before checking the incremental state
-                        return PipExecutionStep.ChooseWorkerCpu;
+                        // IPC pips go to ChooseWorkerIpc without checking the incremental state
+                        return PipExecutionStep.ChooseWorkerIpc;
                     }
 
                     if (pipType == PipType.Process)
@@ -4501,7 +4471,9 @@ namespace BuildXL.Scheduler
                     Contract.Assert(pipType == PipType.Process);
                     Contract.Assert(worker == null);
 
-                    worker = await m_chooseWorkerCacheLookup.ChooseWorkerAsync(runnablePip);
+                    worker = m_chooseWorkerCacheLookup.ChooseWorker(processRunnable);
+                    runnablePip.SetWorker(worker);
+
                     if (worker == null)
                     {
                         // If none of the workers is available, enqueue again.
@@ -4509,17 +4481,34 @@ namespace BuildXL.Scheduler
                         return PipExecutionStep.ChooseWorkerCacheLookup;
                     }
 
+                    return PipExecutionStep.CacheLookup;
+                }
+
+                case PipExecutionStep.ChooseWorkerIpc:
+                {
+                    Contract.Assert(pipType == PipType.Ipc);
+                    Contract.Assert(worker == null);
+
+                    worker = m_chooseWorkerIpc.ChooseWorker(runnablePip);
                     runnablePip.SetWorker(worker);
 
-                    return PipExecutionStep.CacheLookup;
+                    if (worker == null)
+                    {
+                        // If none of the workers is available, enqueue again.
+                        return PipExecutionStep.ChooseWorkerIpc;
+                    }
+
+                    return PipExecutionStep.ExecuteNonProcessPip;
                 }
 
                 case PipExecutionStep.ChooseWorkerCpu:
                 {
-                    Contract.Assert(pipType == PipType.Process || pipType == PipType.Ipc);
-                    Contract.Assert(worker == null);
+                    Contract.Assert(pipType == PipType.Process, $"{pipType} cannot be executed");
+                    Contract.Assert(worker == null, "worker is not null");
 
-                    worker = await ChooseWorkerCpuAsync(runnablePip);
+                    worker = ChooseWorkerCpu(processRunnable);
+                    runnablePip.SetWorker(worker);
+
                     if (worker == null)
                     {
                         // If none of the workers is available, enqueue again.
@@ -4527,18 +4516,7 @@ namespace BuildXL.Scheduler
                         return PipExecutionStep.ChooseWorkerCpu;
                     }
 
-                    runnablePip.SetWorker(worker);
-
-                    if (pipType == PipType.Process)
-                    {
-                        // Materialize inputs if lazy materialization is enabled or this is a distributed build
-                        return InputsLazilyMaterialized ? PipExecutionStep.MaterializeInputs : PipExecutionStep.ExecuteProcess;
-                    }
-
-                    Contract.Assert(pipType == PipType.Ipc);
-
-                    // We materialize inputs of IPC pips as a part of IPC execution.
-                    return PipExecutionStep.ExecuteNonProcessPip;
+                    return InputsLazilyMaterialized ? PipExecutionStep.MaterializeInputs : PipExecutionStep.ExecuteProcess;
                 }
 
                 case PipExecutionStep.MaterializeInputs:
@@ -4922,8 +4900,6 @@ namespace BuildXL.Scheduler
 
                     if (!IsDistributedWorker)
                     {
-                        m_chooseWorkerCpu.ReportProcessExecutionOutputs(processRunnable, executionResult);
-
                         // If the cache converged outputs, we need to check for double writes again, since the configured policy may care about
                         // the content of the (final) outputs
                         if (executionResult.Converged)
@@ -5403,22 +5379,19 @@ namespace BuildXL.Scheduler
         }
 
         /// <summary>
-        /// Chooses a worker to execute the process or IPC pips
+        /// Chooses a worker to execute the process pips
         /// </summary>
-        /// <remarks>
-        /// Do not need to be thread-safe. The concurrency degree of the queue is 1.
-        /// </remarks>
-        private async Task<Worker> ChooseWorkerCpuAsync(RunnablePip runnablePip)
+        private Worker ChooseWorkerCpu(ProcessRunnablePip runnablePip)
         {
-            Contract.Requires(runnablePip.PipType == PipType.Process || runnablePip.PipType == PipType.Ipc);
+            Contract.Requires(runnablePip.PipType == PipType.Process);
 
             using (PipExecutionCounters.StartStopwatch(PipExecutorCounter.ChooseWorkerCpuDuration))
             {
                 // Only if there is no historic perf data associated with the process,
                 // lookup the historic perf data table.
-                if (runnablePip is ProcessRunnablePip runnableProcess && runnableProcess.HistoricPerfData == null)
+                if (runnablePip.HistoricPerfData == null)
                 {
-                    var perfData = HistoricPerfDataTable[runnableProcess];
+                    var perfData = HistoricPerfDataTable[runnablePip];
                     if (perfData != ProcessPipHistoricPerfData.Empty)
                     {
                         var memoryCounters = perfData.MemoryCounters;
@@ -5439,11 +5412,11 @@ namespace BuildXL.Scheduler
                     // Update even if it's a miss (so the data will be Empty rather than null):
                     // We don't want to keep checking the HistoricPerfDataTable if we can't acquire the worker
                     // in the subsequent logic and we have to retry later.
-                    runnableProcess.HistoricPerfData = perfData;
+                    runnablePip.HistoricPerfData = perfData;
                 }
 
                 // Find the estimated setup time for the pip on each builder.
-                return await m_chooseWorkerCpu.ChooseWorkerAsync(runnablePip);
+                return m_chooseWorkerCpu.ChooseWorker(runnablePip);
             }
         }
 
@@ -5679,7 +5652,6 @@ namespace BuildXL.Scheduler
                 IList<long> totalSendRequestDurations = new long[(int)PipExecutionStep.Done + 1];
                 IList<long> totalCacheLookupStepDurations = new long[OperationKind.TrackedCacheLookupCounterCount];
                 long totalCacheMissAnalysisDuration = 0, totalSuspendedDuration = 0, totalRetryCount = 0;
-                long totalInputMaterializationExtraCostMbDueToUnavailability = 0;
 
                 var summaryTable = new StringBuilder();
                 var detailedLog = new StringBuilder();
@@ -5766,7 +5738,6 @@ namespace BuildXL.Scheduler
 
                     totalCacheMissAnalysisDuration += (long)performance.CacheMissAnalysisDuration.TotalMilliseconds;
                     totalSuspendedDuration += performance.SuspendedDurationMs;
-                    totalInputMaterializationExtraCostMbDueToUnavailability += (performance.InputMaterializationCostMbForChosenWorker - performance.InputMaterializationCostMbForBestWorker);
 
                     index++;
                 }
@@ -5830,7 +5801,7 @@ namespace BuildXL.Scheduler
                 long totalSendRequestTime = totalSendRequestDurations.Sum();
                 long totalQueueRequestTime = totalQueueRequestDurations.Sum();
 
-                long totalChooseWorker = totalStepDurations[(int)PipExecutionStep.ChooseWorkerCpu] + totalStepDurations[(int)PipExecutionStep.ChooseWorkerCacheLookup];
+                long totalChooseWorker = totalStepDurations[(int)PipExecutionStep.ChooseWorkerCpu] + totalStepDurations[(int)PipExecutionStep.ChooseWorkerCacheLookup] + totalStepDurations[(int)PipExecutionStep.ChooseWorkerIpc];
 
                 builder.AppendLine(I($"{addMin(pipDurationCriticalPathMs),20} | {addMin(exeDurationCriticalPathMs),20} | {addMin(totalOrchestratorQueueTime),20} | {string.Empty,12} | {string.Empty,14} | {string.Empty,14} | *Total"));
                 builder.AppendLine(summaryTable.ToString());
@@ -5943,7 +5914,6 @@ namespace BuildXL.Scheduler
                 statistics.Add("CriticalPath.CacheMissAnalysisDurationMs", totalCacheMissAnalysisDuration);
                 statistics.Add("CriticalPath.TotalSuspendedDurationMs", totalSuspendedDuration);
                 statistics.Add("CriticalPath.TotalRetryCount", totalRetryCount);
-                statistics.Add("CriticalPath.TotalInputMaterializationExtraCostMbDueToUnavailability", totalInputMaterializationExtraCostMbDueToUnavailability);
 
                 builder.AppendLine();
                 builder.AppendLine(I($"{"Total Critical Path Length (including queue waiting time and choosing worker(s)) ms",-106}: {totalOrchestratorQueueTime + totalChooseWorker + totalCriticalPathRunningTime,10}"));
@@ -6334,10 +6304,10 @@ namespace BuildXL.Scheduler
                 if (m_pipTable.GetPipType(pipId) == PipType.Process || m_pipTable.GetPipType(pipId) == PipType.Ipc)
                 {
                     var pipState = (ProcessMutablePipState)m_pipTable.GetMutable(pipId);
-                    (int NumPips, List<Worker> Workers) tuple;
+                    (int NumPips, bool[] Workers) tuple;
                     if (!m_moduleWorkerMapping.TryGetValue(pipState.ModuleId, out tuple))
                     {
-                        tuple = (0, new List<Worker>());
+                        tuple = (0, new bool[m_configuration.Distribution.BuildWorkers.Count + 1]);
                     }
 
                     m_moduleWorkerMapping[pipState.ModuleId] = (tuple.NumPips + 1, tuple.Workers);
@@ -6347,8 +6317,8 @@ namespace BuildXL.Scheduler
             int i = 0;
             foreach (var kvp in m_moduleWorkerMapping.OrderByDescending(a => a.Value.NumPips))
             {
-                var worker = m_workers[(i % m_workers.Count)];
-                kvp.Value.Workers.Add(worker);
+                int workerIndex = i % m_workers.Count;
+                kvp.Value.Workers[workerIndex] = true;
                 i++;
             }
         }

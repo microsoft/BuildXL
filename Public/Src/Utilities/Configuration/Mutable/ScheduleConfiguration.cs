@@ -37,17 +37,15 @@ namespace BuildXL.Utilities.Configuration.Mutable
             // https://github.com/microsoft/BuildXL/blob/master/Documentation/Specs/SchedulerPerfExperiments.md
             MaxProcesses = (int)Math.Ceiling(0.9 * Environment.ProcessorCount);
 
-            // Based on the A/B testing results, the concurrency limit for IO dispatcher did not help after 10. 
-            // https://github.com/microsoft/BuildXL/blob/master/Documentation/Specs/SchedulerPerfExperiments.md
-            MaxIO = Math.Min(10, Math.Max(1, Environment.ProcessorCount / 4));
+            MaxIO = Environment.ProcessorCount;
 
-            MaxLightProcesses = 1000;
+            MaxLight = 1000;
+            MaxIpc = 1000;
 
             // We decide the concurrency levels based on A/B testing results.
             // https://github.com/microsoft/BuildXL/blob/master/Documentation/Specs/SchedulerPerfExperiments.md
             MaxCacheLookup = Environment.ProcessorCount; 
             MaxMaterialize = Environment.ProcessorCount;
-            MaxSealDirs = Environment.ProcessorCount;
 
             MaxChooseWorkerCpu = 5;
             MaxChooseWorkerCacheLookup = 1;
@@ -116,7 +114,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
             Contract.Assume(template != null);
 
             MaxProcesses = template.MaxProcesses;
-            MaxLightProcesses = template.MaxLightProcesses;
+            MaxLight = template.MaxLight;
+            MaxIpc = template.MaxIpc;
             MaxIO = template.MaxIO;
             MaxChooseWorkerCpu = template.MaxChooseWorkerCpu;
             MaxChooseWorkerLight = template.MaxChooseWorkerLight;
@@ -168,7 +167,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
             TelemetryTagPrefix = template.TelemetryTagPrefix;
 
             OrchestratorCpuMultiplier = template.OrchestratorCpuMultiplier;
-            OrchestratorCacheLookupMultiplier = template.OrchestratorCacheLookupMultiplier;
             SkipHashSourceFile = template.SkipHashSourceFile;
 
             UnsafeDisableSharedOpaqueEmptyDirectoryScrubbing = template.UnsafeDisableSharedOpaqueEmptyDirectoryScrubbing;
@@ -178,7 +176,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
             UpdateFileContentTableByScanningChangeJournal = template.UpdateFileContentTableByScanningChangeJournal;
             CacheOnly = template.CacheOnly;
             EnableSetupCostWhenChoosingWorker = template.EnableSetupCostWhenChoosingWorker;
-            MaxSealDirs = template.MaxSealDirs;
             EnableHistoricCommitMemoryProjection = template.EnableHistoricCommitMemoryProjection;
             MaximumCommitUtilizationPercentage = template.MaximumCommitUtilizationPercentage;
             CriticalCommitUtilizationPercentage = template.CriticalCommitUtilizationPercentage;
@@ -299,7 +296,10 @@ namespace BuildXL.Utilities.Configuration.Mutable
         IReadOnlyList<AbsolutePath> IScheduleConfiguration.OutputMaterializationExclusionRoots => OutputMaterializationExclusionRoots;
 
         /// <inheritdoc />
-        public int MaxLightProcesses { get; set; }
+        public int MaxLight { get; set; }
+
+        /// <inheritdoc />
+        public int MaxIpc { get; set; }
 
         /// <inheritdoc />
         public bool TreatDirectoryAsAbsentFileOnHashingInputContent { get; set; }
@@ -383,9 +383,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
         public double? OrchestratorCpuMultiplier { get; set; }
 
         /// <inheritdoc />
-        public double? OrchestratorCacheLookupMultiplier { get; set; }
-
-        /// <inheritdoc />
         public bool SkipHashSourceFile { get; set; }
 
         /// <inheritdoc />
@@ -414,9 +411,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public bool EnableSetupCostWhenChoosingWorker { get; set;  }
-
-        /// <inheritdoc />
-        public int MaxSealDirs { get; set; }
 
         /// <inheritdoc />
         public bool EnableHistoricCommitMemoryProjection { get; set; }

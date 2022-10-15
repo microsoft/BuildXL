@@ -90,7 +90,12 @@ namespace BuildXL.Utilities.Configuration
         /// are placed in a special queue which has a much bigger capacity than the CpuQueue (which is meant for
         /// CPU intensive processes).
         /// </summary>
-        int MaxLightProcesses { get; }
+        int MaxLight { get; }
+
+        /// <summary>
+        /// Specifies the maximum number of ipc pips that can concurrently run.
+        /// </summary>
+        int MaxIpc { get; }
 
         /// <summary>
         /// Specifies the maximum number of I/O operations that BuildXL will launch at one time. The default value is 1/4 of the number of processors in the current machine, but at least 1.
@@ -291,11 +296,6 @@ namespace BuildXL.Utilities.Configuration
         double? OrchestratorCpuMultiplier { get; }
 
         /// <summary>
-        /// Specifies the cachelookup queue limit in terms of a multiplier of the normal limit when at least one remote worker gets connected.
-        /// </summary>
-        double? OrchestratorCacheLookupMultiplier { get; }
-
-        /// <summary>
         /// Skip hash source file pips during graph creation.
         /// </summary>
         bool SkipHashSourceFile { get; }
@@ -364,11 +364,6 @@ namespace BuildXL.Utilities.Configuration
         /// Enable estimating the setup cost when choosing worker.
         /// </summary>
         bool EnableSetupCostWhenChoosingWorker { get; }
-
-        /// <summary>
-        /// Specifies the maximum number of sealdirectory pips that BuildXL will process at one time. The default value is the number of processors in the current machine.
-        /// </summary>
-        int MaxSealDirs { get; }
 
         /// <summary>
         /// Enable memory projection based on historic commit memory usage.

@@ -69,7 +69,7 @@ namespace BuildXL.Scheduler.WorkDispatcher
 
                     Interlocked.Add(ref m_runTimeTicks, (TimestampUtilities.Timestamp - startTime).Ticks);
 
-                    if (NumAcquiredSlots < MaxRunning)
+                    if (NumAcquiredSlots < MaxParallelDegree)
                     {
                         Interlocked.Increment(ref m_fastChooseNextCount);
 

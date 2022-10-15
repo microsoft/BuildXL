@@ -210,7 +210,7 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Worker id for the preferred worker when module affinity is enabled
         /// </summary>
-        public int PreferredWorkerId { get; internal set; }
+        public int? PreferredWorkerId { get; internal set; }
 
         internal RunnablePipPerformanceInfo Performance { get; }
 
@@ -386,13 +386,17 @@ namespace BuildXL.Scheduler
 
         private PipExecutionStep DecideNextStepForRetry()
         {
-            switch (Step)
+            if (PipType == PipType.Ipc)
             {
-                case PipExecutionStep.CacheLookup:
-                    return PipExecutionStep.ChooseWorkerCacheLookup;
-                default:
-                    return PipExecutionStep.ChooseWorkerCpu;
+                return PipExecutionStep.ChooseWorkerIpc;
             }
+
+            if (Step == PipExecutionStep.CacheLookup)
+            {
+                return PipExecutionStep.ChooseWorkerCacheLookup;
+            }
+
+            return PipExecutionStep.ChooseWorkerCpu;
         }
 
         /// <summary>
@@ -453,6 +457,16 @@ namespace BuildXL.Scheduler
         /// </summary>
         public void SetWorker(Worker worker)
         {
+            if (worker != null)
+            {
+                IsWaitingForWorker = false;
+            }
+            else if (Step.IsChooseWorker())
+            {
+                // If we did not choose a worker, the pip is waiting for a worker.
+                IsWaitingForWorker = true;
+            }
+
             Worker = worker;
         }
 
@@ -499,7 +513,7 @@ namespace BuildXL.Scheduler
             Performance.Executed(step, duration);
 
             // There are too many of these events and they bloat the xlg (100GB+ is possible)
-            if (step != PipExecutionStep.ChooseWorkerCpu && step != PipExecutionStep.ChooseWorkerCacheLookup)
+            if (step.IsChooseWorker())
             {
                 Environment.State.ExecutionLog?.PipExecutionStepPerformanceReported(new PipExecutionStepPerformanceEventData
                 {

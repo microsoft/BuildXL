@@ -130,8 +130,13 @@ namespace BuildXL.Engine.Distribution
         /// <inheritdoc/>
         public override int CurrentBatchSize => m_currentBatchSize;
 
-        private volatile int m_currentBatchSize;   
-        
+        private volatile int m_currentBatchSize;
+
+        /// <summary>
+        /// Whether the worker is available to acquire work items
+        /// </summary>
+        public override bool IsAvailable => Status == WorkerNodeStatus.Running && !IsEarlyReleaseInitiated;
+
         /// <summary>
         /// Constructor
         /// </summary>
@@ -614,13 +619,11 @@ namespace BuildXL.Engine.Distribution
             
             // Unblock scheduler
             await Task.Yield();
-            using (EarlyReleaseLock.AcquireWriteLock())
+
+            if (!TryInitiateStop(isEarlyRelease: true))
             {
-                if (!TryInitiateStop(isEarlyRelease: true))
-                {
-                    // Already stopped, no need to continue.
-                    return;
-                }
+                // Already stopped, no need to continue.
+                return;
             }
             
             var drainStopwatch = new StopwatchVar();
@@ -637,9 +640,13 @@ namespace BuildXL.Engine.Distribution
                 }
             }
 
-            m_orchestratorService.Environment.Counters.AddToCounter(PipExecutorCounter.RemoteWorker_EarlyReleaseDrainDurationMs, (long)drainStopwatch.TotalElapsed.TotalMilliseconds);
+            // "There cannot be pending completion tasks when we drain the pending tasks successfully"
+            while (!m_pipCompletionTasks.IsEmpty && isDrainedWithSuccess)
+            {
+                await Task.Delay(1000);
+            }
 
-            Contract.Assert(m_pipCompletionTasks.IsEmpty || !isDrainedWithSuccess, "There cannot be pending completion tasks when we drain the pending tasks successfully");
+            m_orchestratorService.Environment.Counters.AddToCounter(PipExecutorCounter.RemoteWorker_EarlyReleaseDrainDurationMs, (long)drainStopwatch.TotalElapsed.TotalMilliseconds);
 
             var disconnectStopwatch = new StopwatchVar();
             using (disconnectStopwatch.Start())
@@ -1299,7 +1306,8 @@ namespace BuildXL.Engine.Distribution
             TotalProcessSlots = attachCompletionInfo.MaxProcesses;
             TotalCacheLookupSlots = attachCompletionInfo.MaxCacheLookup;
             TotalMaterializeInputSlots = attachCompletionInfo.MaxMaterialize;
-            TotalLightSlots = attachCompletionInfo.MaxLightProcesses;
+            TotalLightProcessSlots = attachCompletionInfo.MaxLightProcesses;
+            TotalIpcSlots = attachCompletionInfo.MaxLightProcesses;
             TotalRamMb = attachCompletionInfo.AvailableRamMb;
             TotalCommitMb = attachCompletionInfo.AvailableCommitMb;
 

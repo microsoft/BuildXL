@@ -3128,7 +3128,9 @@ namespace BuildXL.Engine
                             !EngineState.IsUsable(engineState),
                             "Previous engine state must be unusable if a new engine schedule is constructed from scratch.");
 
-                        var envVarsImpactingBuild = frontEndEngineAbstraction.ComputeEnvironmentVariablesImpactingBuild();
+                        var envVarsImpactingBuild = frontEndEngineAbstraction
+                            .ComputeEnvironmentVariablesImpactingBuild()
+                            .ToDictionary(kvp => kvp.Key, kvp => kvp.Value.Value);
                         var mountsImpactingBuild = frontEndEngineAbstraction.ComputeEffectiveMounts();
                         var availableEnvVars = frontEndEngineAbstraction.GetAllEnvironmentVariables();
 

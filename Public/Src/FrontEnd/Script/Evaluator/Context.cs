@@ -193,6 +193,11 @@ namespace BuildXL.FrontEnd.Script.Evaluator
         }
 
         /// <summary>
+        /// Get top stack location.
+        /// </summary>
+        public LocationData? TopStackLocation => !IsDisposed && CallStackSize > 0 ? TopStack.GetLocationData() : null;
+
+        /// <summary>
         /// Pushes a stack entry and returns a token that is needed for popping.
         /// </summary>
         private object Push(StackEntry stackEntry)

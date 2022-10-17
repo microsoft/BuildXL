@@ -114,7 +114,7 @@ namespace BuildXL.FrontEnd.Script.Testing.Helper
         }
 
         /// <inheritdoc />
-        public override bool TryGetBuildParameter(string name, string frontEnd, out string value)
+        public override bool TryGetBuildParameter(string name, string frontEnd, out string value, LocationData? locationData = null)
         {
             return m_buildParameters.TryGetValue(name, out value);
         }

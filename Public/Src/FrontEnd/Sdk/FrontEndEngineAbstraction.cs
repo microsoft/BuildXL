@@ -115,7 +115,7 @@ namespace BuildXL.FrontEnd.Sdk
         /// <summary>
         /// Gets the global build parameter.
         /// </summary>
-        public abstract bool TryGetBuildParameter(string name, string frontEnd, out string value);
+        public abstract bool TryGetBuildParameter(string name, string frontEnd, out string value, LocationData? locationData = null);
 
         /// <summary>
         /// Returns the list of mount names available in the current package
@@ -173,14 +173,14 @@ namespace BuildXL.FrontEnd.Sdk
         /// <remarks>
         /// This is only called for DScript front end but it is a temporary fix. We will get rid of it soon.
         /// </remarks>
-        public void RecordConfigEvaluation(IReadOnlyList<string> envVariables, ConcurrentDictionary<string, IReadOnlyList<(string, FileAttributes)>> dirs, string frontend)
+        public void RecordConfigEvaluation(IReadOnlyList<(string name, LocationData? location)> envVariables, ConcurrentDictionary<string, IReadOnlyList<(string, FileAttributes)>> dirs, string frontend)
         {
             Contract.Requires(frontend.Equals("DScript"));
 
-            foreach (var name in envVariables)
+            foreach (var nameAndLocation in envVariables)
             {
                 string value;
-                TryGetBuildParameter(name, frontend, out value);
+                TryGetBuildParameter(nameAndLocation.name, frontend, out value, nameAndLocation.location);
             }
 
             Parallel.ForEach(dirs, d => TrackDirectory(d.Key, d.Value));

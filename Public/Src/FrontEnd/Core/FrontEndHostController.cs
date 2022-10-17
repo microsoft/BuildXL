@@ -249,7 +249,7 @@ namespace BuildXL.FrontEnd.Core
             EnvVariablesUsedInConfig.Clear();
             foreach (var parameter in configuration.Startup.Properties)
             {
-                EnvVariablesUsedInConfig.Add(parameter.Key, (false, parameter.Value));
+                EnvVariablesUsedInConfig.Add(parameter.Key, (valueUsed: false, value: parameter.Value, location: null));
             }
 
             if (!ProcessPhase(
@@ -352,7 +352,7 @@ namespace BuildXL.FrontEnd.Core
             // When evaluating the config file, we did not have engine initialized that's why we could not record the env variables and track enumerated directories. We do it now.
             var envVariablesUsedInConfig = EnvVariablesUsedInConfig
                 .Where(kvp => kvp.Value.valueUsed) // include only those vars that were actually used
-                .Select(kvp => kvp.Key) // select variable name
+                .Select(kvp => (kvp.Key, kvp.Value.location)) // select variable name
                 .ToList();
             engineAbstraction.RecordConfigEvaluation(envVariablesUsedInConfig, EnumeratedDirectoriesInConfig, MyFrontEndName);
 

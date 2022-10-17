@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Globalization;
+using System.Linq;
 using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.Types;
 using BuildXL.FrontEnd.Script.Util;
@@ -229,7 +230,7 @@ namespace BuildXL.FrontEnd.Script.Ambients
             var path = Args.AsPath(args, 0);
             var pathAsString = path.ToString(context.PathTable);
 
-            if (StringVariableExpander.TryExpandVariablesInString(pathAsString, context.FrontEndHost.Engine, out string expandedPath))
+            if (StringVariableExpander.TryExpandVariablesInString(context, pathAsString, context.FrontEndHost.Engine, out string expandedPath))
             {
                 // The resulting expanded path may not be a valid one. Apply the same validations as when creating an absolute path from a literal
                 return AmbientPath.CreateFromAbsolutePathString(context, expandedPath);
@@ -243,7 +244,7 @@ namespace BuildXL.FrontEnd.Script.Ambients
         {
             var unexpandedString = Args.AsString(args, 0);
 
-            if (StringVariableExpander.TryExpandVariablesInString(unexpandedString, context.FrontEndHost.Engine, out string expandedString))
+            if (StringVariableExpander.TryExpandVariablesInString(context, unexpandedString, context.FrontEndHost.Engine, out string expandedString))
             {
                 return EvaluationResult.Create(expandedString);
             }
@@ -269,13 +270,13 @@ namespace BuildXL.FrontEnd.Script.Ambients
             {
                 var tuple = context.FrontEndHost.EnvVariablesUsedInConfig.AddOrUpdate(
                     name,
-                    n => (true, Environment.GetEnvironmentVariable(name)),
-                    (n, t) => (true, t.value));
+                    n => (valueUsed: true, value: Environment.GetEnvironmentVariable(name), location: context.TopStackLocation),
+                    (n, t) => (valueUsed: true, value: t.value, location: t.location == null || !t.location.Value.IsValid ? context.TopStackLocation : t.location));
                 value = tuple.value;
             }
             else
             {
-                context.FrontEndHost.Engine.TryGetBuildParameter(name, "DScript", out value);
+                context.FrontEndHost.Engine.TryGetBuildParameter(name, "DScript", out value, context.TopStackLocation);
             }
 
             return value;

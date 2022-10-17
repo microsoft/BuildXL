@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System.Text;
+using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.Utilities;
 
@@ -24,7 +25,7 @@ namespace BuildXL.FrontEnd.Script.Util
         /// for incrementality to safely work.
         /// </remarks>
         /// <returns>Whether there is at least one environment variable in the string that was expanded</returns>
-        public static bool TryExpandVariablesInString(string stringToExpand, FrontEndEngineAbstraction engine, out string expandedString)
+        public static bool TryExpandVariablesInString(Context context, string stringToExpand, FrontEndEngineAbstraction engine, out string expandedString)
         {
             // if the path does not contain an env variable, just return the original path to avoid extra allocations
 #if NETCOREAPP
@@ -71,7 +72,7 @@ namespace BuildXL.FrontEnd.Script.Util
                         // Get the name and query the engine for the result. If the variable is not defined, just append the name unexpanded
                         // Observe that even when the variable is not defined, by querying the engine we will record this as an anti-dependency
                         var name = variableName.ToString();
-                        if (!string.IsNullOrEmpty(name) && engine.TryGetBuildParameter(name, "DScript", out string value) && !string.IsNullOrEmpty(value))
+                        if (!string.IsNullOrEmpty(name) && engine.TryGetBuildParameter(name, "DScript", out string value, context.TopStackLocation) && !string.IsNullOrEmpty(value))
                         {
                             result.Append(value);
                             atLeastOneExpansion = true;
@@ -124,7 +125,7 @@ namespace BuildXL.FrontEnd.Script.Util
                 {
                     // Otherwise, the end of the string defines the end of the name. Expand it as needed
                     var name = variableName.ToString();
-                    if (!string.IsNullOrEmpty(name) && engine.TryGetBuildParameter(name, "DScript", out string value) && !string.IsNullOrEmpty(value))
+                    if (!string.IsNullOrEmpty(name) && engine.TryGetBuildParameter(name, "DScript", out string value, context.TopStackLocation) && !string.IsNullOrEmpty(value))
                     {
                         result.Append(value);
                         atLeastOneExpansion = true;

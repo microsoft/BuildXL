@@ -49,7 +49,7 @@ namespace BuildXL.FrontEnd.Sdk
         /// whether that variable was actually used when evaluating the configuration file. This is used by graph caching
         /// to ensure that we reload the graph when one of those environment variables changes between builds.
         /// </remarks>
-        public ConcurrentDictionary<string, (bool valueUsed, string value)> EnvVariablesUsedInConfig = new ConcurrentDictionary<string, (bool valueUsed, string value)>();
+        public ConcurrentDictionary<string, (bool valueUsed, string value, LocationData? location)> EnvVariablesUsedInConfig = new ();
 
         /// <summary>
         /// Stores the enumerated directories in the config file

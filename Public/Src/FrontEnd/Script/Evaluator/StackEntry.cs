@@ -79,6 +79,11 @@ namespace BuildXL.FrontEnd.Script.Evaluator
             return this;
         }
 
+        /// <summary>
+        /// Get location data.
+        /// </summary>
+        internal LocationData GetLocationData() => new (Path, InvocationLocation.Line, InvocationLocation.Position);
+
         internal DisplayStackTraceEntry CreateDisplayStackTraceEntry(ImmutableContextBase context, LineInfo lastCallSite)
         {
             if (m_ambientCall != null)

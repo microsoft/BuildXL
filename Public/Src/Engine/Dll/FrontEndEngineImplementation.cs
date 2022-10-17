@@ -9,6 +9,7 @@ using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Engine.Cache.Artifacts;
@@ -146,7 +147,7 @@ namespace BuildXL.Engine
 
             foreach (var kvp in PopulateFromEnvironmentAndApplyOverrides(loggingContext, startupConfiguration.Properties).ToDictionary())
             {
-                m_allBuildParameters.TryAdd(kvp.Key, new TrackedValue(kvp.Value, false));
+                m_allBuildParameters.TryAdd(kvp.Key, TrackedValue.CreateUnused(kvp.Value));
             }
             
             m_localDiskContentStore = new LocalDiskContentStore(
@@ -411,7 +412,7 @@ namespace BuildXL.Engine
         }
 
         /// <inheritdoc />
-        public override bool TryGetBuildParameter(string name, string frontEnd, out string value)
+        public override bool TryGetBuildParameter(string name, string frontEnd, out string value, LocationData? locationData = null)
         {
             bool success;
 
@@ -425,8 +426,8 @@ namespace BuildXL.Engine
             if (!restrictBuildParameters)
             {
                 // Uses of environment variable can be get-value or has-variable, and both uses must be tracked.
-                var trackedValue = m_allBuildParameters.GetOrAdd(name, key => new TrackedValue(null, true));
-                trackedValue.NotifyUsed();
+                var trackedValue = m_allBuildParameters.GetOrAdd(name, key => TrackedValue.CreateUsed(null, locationData ?? LocationData.Invalid));
+                trackedValue.NotifyUsed(locationData);
                 value = trackedValue.Value;
                 success = trackedValue.Value != null;
             }
@@ -436,7 +437,7 @@ namespace BuildXL.Engine
                     m_visibleBuildParameters != null,
                     "RestrictBuildParameters must have been called after parsing the configuration was final.");
 
-                success = TryGetAndUse(m_visibleBuildParameters, name, out value);
+                success = TryGetAndUse(m_visibleBuildParameters, name, out value, locationData);
             }
 
             m_snapshotCollector?.RecordEnvironmentVariable(name, value);
@@ -505,7 +506,7 @@ namespace BuildXL.Engine
                     var value = !m_allBuildParameters.TryGetValue(buildParameterName, out trackedValue) ? null : trackedValue.Value;
 
                     // Mark variable as used if it was used in the configuration
-                    dictionary.Add(buildParameterName, new TrackedValue(value, used: false));
+                    dictionary.Add(buildParameterName, TrackedValue.CreateUnused(value));
                 }
             }
 
@@ -689,14 +690,14 @@ namespace BuildXL.Engine
                 .Override(overrideVariables);
         }
 
-        private bool TryGetAndUse(IReadOnlyDictionary<string, TrackedValue> parameters, string name, out string value)
+        private bool TryGetAndUse(IReadOnlyDictionary<string, TrackedValue> parameters, string name, out string value, LocationData? locationData = null)
         {
             Contract.Assert(!m_finishedBuildParameterTracking, "Environment variables cannot be used after FinishTracking is called.");
 
             TrackedValue trackedValue;
             if (parameters.TryGetValue(name, out trackedValue))
             {
-                trackedValue.NotifyUsed();
+                trackedValue.NotifyUsed(locationData);
                 value = trackedValue.Value;
                 return true;
             }
@@ -708,25 +709,20 @@ namespace BuildXL.Engine
         /// <summary>
         /// Computes the environment variables which are allowed based on configuration settings but are unused.
         /// </summary>
-        internal IReadOnlyDictionary<string, string> ComputeUnusedAllowedEnvironmentVariables()
+        internal IReadOnlyDictionary<string, TrackedValue> ComputeUnusedAllowedEnvironmentVariables()
         {
             Contract.Assume(m_visibleBuildParameters != null, "Environment variables must first be restricted");
             Contract.Assume(m_finishedBuildParameterTracking, "Tracking must be finished to access used state of environment variables.");
 
-            Dictionary<string, string> unused = new Dictionary<string, string>(OperatingSystemHelper.EnvVarComparer);
+            var unused = new Dictionary<string, TrackedValue>(OperatingSystemHelper.EnvVarComparer);
 
-            Func<string, bool> isUsedByConfig =
-                name =>
-                {
-                    TrackedValue value;
-                    return m_allBuildParameters.TryGetValue(name, out value) && value.Used;
-                };
+            bool isUsedByConfig(string name) => m_allBuildParameters.TryGetValue(name, out var value) && value.Used;
 
             foreach (var kvp in m_visibleBuildParameters)
             {
                 if (!kvp.Value.Used && !isUsedByConfig(kvp.Key))
                 {
-                    unused.Add(kvp.Key, kvp.Value.Value);
+                    unused.Add(kvp.Key, kvp.Value);
                 }
             }
 
@@ -743,7 +739,7 @@ namespace BuildXL.Engine
         /// 2. The set of variables that were consumed while parsing configs, including null for environment variables
         ///     that were unset but checked
         /// </remarks>
-        internal IReadOnlyDictionary<string, string> ComputeEnvironmentVariablesImpactingBuild(bool excludeUnused = true)
+        internal IReadOnlyDictionary<string, TrackedValue> ComputeEnvironmentVariablesImpactingBuild(bool excludeUnused = true)
         {
             Contract.Assume(m_visibleBuildParameters != null, "Build parameters must first be restricted");
 
@@ -752,7 +748,7 @@ namespace BuildXL.Engine
                 Contract.Assume(m_finishedBuildParameterTracking, "Tracking must be finished to access used state of environment variables.");
             }
 
-            Dictionary<string, string> impactingBuild = new Dictionary<string, string>(OperatingSystemHelper.EnvVarComparer);
+            var impactingBuild = new Dictionary<string, TrackedValue>(OperatingSystemHelper.EnvVarComparer);
 
             // Add the ones used by modules and specs
             foreach (var kvp in m_visibleBuildParameters)
@@ -762,7 +758,7 @@ namespace BuildXL.Engine
                     continue;
                 }
 
-                impactingBuild[kvp.Key] = kvp.Value.Value;
+                impactingBuild[kvp.Key] = kvp.Value;
             }
 
             // Add the ones used by configuration.
@@ -773,7 +769,7 @@ namespace BuildXL.Engine
                     continue;
                 }
 
-                impactingBuild[kvp.Key] = kvp.Value.Value;
+                impactingBuild[kvp.Key] = kvp.Value;
             }
 
             return impactingBuild;
@@ -817,30 +813,51 @@ namespace BuildXL.Engine
             /// <summary>
             /// Tracks whether the environment variable is used.
             /// </summary>
-            public bool Used => m_used;
+            public bool Used => Volatile.Read(ref m_used) == 1;
+
+            /// <summary>
+            /// Gets the first used location.
+            /// </summary>
+            public LocationData FirstLocation => m_firstUsedLocation;
 
             /// <summary>
             /// The environment variable value
             /// </summary>
             public readonly string Value;
 
-            private volatile bool m_used;
+            private int m_used;
+            private LocationData m_firstUsedLocation;
 
             /// <summary>
             /// Class constructor
             /// </summary>
-            public TrackedValue(string value, bool used)
+            private TrackedValue(string value, bool used, LocationData firstUsedLocation)
             {
                 Value = value;
-                m_used = used;
+                m_used = used ? 1 : 0;
+                m_firstUsedLocation = firstUsedLocation;
             }
+
+            /// <summary>
+            /// Creates unused value.
+            /// </summary>
+            public static TrackedValue CreateUnused(string value) => new (value, false, LocationData.Invalid);
+
+            /// <summary>
+            /// Creates used value.
+            /// </summary>
+            public static TrackedValue CreateUsed(string value, LocationData locationData) => new (value, true, locationData);
 
             /// <summary>
             /// Indicates that the value is used
             /// </summary>
-            public void NotifyUsed()
+            public void NotifyUsed(LocationData? location)
             {
-                m_used = true;
+                int originalUsed = Interlocked.CompareExchange(ref m_used, 1, 0);
+                if (originalUsed == 0 && location.HasValue && location.Value.IsValid)
+                {
+                    m_firstUsedLocation = location.Value;
+                }
             }
         }
         #endregion

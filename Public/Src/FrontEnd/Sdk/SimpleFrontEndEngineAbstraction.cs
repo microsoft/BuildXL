@@ -139,7 +139,7 @@ namespace BuildXL.FrontEnd.Sdk
         }
 
         /// <inheritdoc />
-        public override bool TryGetBuildParameter(string name, string frontEnd, out string value)
+        public override bool TryGetBuildParameter(string name, string frontEnd, out string value, LocationData? locationData = null)
         {
             if (frontEnd == "DScript")
             {
@@ -156,7 +156,7 @@ namespace BuildXL.FrontEnd.Sdk
                 }
 
                 m_environmentVariables.TryGetValue(name, out value);
-                value = value ?? string.Empty;
+                value ??= string.Empty;
                 return true;
             }
 

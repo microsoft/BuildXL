@@ -8,6 +8,7 @@ using System.Diagnostics.Tracing;
 using BuildXL.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.Utilities.Instrumentation.Common;
 using static BuildXL.Utilities.FormattableStringEx;
 
@@ -3323,15 +3324,15 @@ If you can't update and need this feature after July 2018 please reach out to th
         /// <summary>
         /// Creates an effective environment variables from the given environment variables collection
         /// </summary>
-        internal static EffectiveEnvironmentVariables Create(FrontEndEngineImplementation frontEndEngineAbstraction)
+        internal static EffectiveEnvironmentVariables Create(FrontEndEngineImplementation frontEndEngineImplementation)
         {
             EffectiveEnvironmentVariables effectiveEnvVars = default;
-            GetVariablesText(frontEndEngineAbstraction.ComputeEnvironmentVariablesImpactingBuild(), out effectiveEnvVars.UsedVariables, out effectiveEnvVars.UsedCount);
-            GetVariablesText(frontEndEngineAbstraction.ComputeUnusedAllowedEnvironmentVariables(), out effectiveEnvVars.UnusedVariables, out effectiveEnvVars.UnusedCount);
+            GetVariablesText(frontEndEngineImplementation.PathTable, frontEndEngineImplementation.ComputeEnvironmentVariablesImpactingBuild(), out effectiveEnvVars.UsedVariables, out effectiveEnvVars.UsedCount);
+            GetVariablesText(frontEndEngineImplementation.PathTable, frontEndEngineImplementation.ComputeUnusedAllowedEnvironmentVariables(), out effectiveEnvVars.UnusedVariables, out effectiveEnvVars.UnusedCount);
             return effectiveEnvVars;
         }
 
-        private static void GetVariablesText(IReadOnlyDictionary<string, string> environmentVariables, out string text, out int count)
+        private static void GetVariablesText(PathTable pathTable, IReadOnlyDictionary<string, FrontEndEngineImplementation.TrackedValue> environmentVariables, out string text, out int count)
         {
             count = 0;
             using (var pooledStringBuilder = Pools.StringBuilderPool.GetInstance())
@@ -3344,7 +3345,12 @@ If you can't update and need this feature after July 2018 please reach out to th
                         stringBuilder.AppendLine();
                     }
 
-                    stringBuilder.AppendFormat("{0}={1}", environmentVariable.Key, environmentVariable.Value);
+                    stringBuilder.AppendFormat("{0}={1}", environmentVariable.Key, environmentVariable.Value.Value);
+                    if (environmentVariable.Value.FirstLocation.IsValid)
+                    {
+                        stringBuilder.AppendFormat(" [{0}]", environmentVariable.Value.FirstLocation.ToString(pathTable));
+                    }
+
                     count++;
                 }
 

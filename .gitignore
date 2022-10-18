@@ -17,6 +17,8 @@
 /examples/CMakeHelloWorld/Out/
 /examples/MsBuildHelloWorld/Out/
 /examples/MsBuildHelloWorld/Debug/
+/examples/NinjaHelloWorld/Out
+/examples/NinjaHelloWorld/src/Out
 bin/
 obj/
 contentcache/

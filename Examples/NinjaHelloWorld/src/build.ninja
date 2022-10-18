@@ -1,0 +1,13 @@
+rule copy_file
+  command = cmd /C "copy $in $out"
+
+rule copy_append
+  command = cmd /C copy $in $out && echo world! >> $out
+
+build ..\Out\hello_copy.txt: copy_file hello.txt
+
+build ..\Out\hello_world.txt: copy_append ..\Out\hello_copy.txt
+
+build helloworld: phony ..\Out\hello_world.txt
+
+default helloworld

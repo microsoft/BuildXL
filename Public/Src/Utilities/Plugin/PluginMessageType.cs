@@ -12,7 +12,7 @@ namespace BuildXL.Plugin
         ParseLogMessage,
 
         ///<nodoc />
-        HandleExitCode,
+        ProcessResult,
 
         ///<nodoc />
         SupportedOperation,
@@ -36,8 +36,8 @@ namespace BuildXL.Plugin
                 case SupportedOperation.LogParse:
                     return PluginMessageType.ParseLogMessage;
 
-                case SupportedOperation.HandleExitCode:
-                    return PluginMessageType.HandleExitCode;
+                case SupportedOperation.ProcessResult:
+                    return PluginMessageType.ProcessResult;
 
                 default:
                     return PluginMessageType.Unknown;

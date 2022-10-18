@@ -204,39 +204,34 @@ namespace BuildXL.Plugin
             return response;
         }
 
-        private PluginMessage GetHandleExitCodePluginMessage(string content, string filePath, bool isError)
-        {
-            var pluginMessage = new PluginMessage();
-            var logType = isError ? LogType.Error : LogType.StandardOutput;
-            pluginMessage.ExitCodeParseMessage = new ExitCodeParseMessage
-            {
-                LogType = logType,
-            };
-
-            if (content != null)
-            {
-                pluginMessage.ExitCodeParseMessage.Content = content;
-            }
-
-            if (filePath != null)
-            {
-                pluginMessage.ExitCodeParseMessage.FilePath = filePath;
-            }
-
-            return pluginMessage;
-        }
-
         /// <nodoc />
-        public virtual async Task<PluginResponseResult<ExitCodeParseResult>> HandleExitCodeAsync(string content, string filePath, bool isError)
+        public virtual async Task<PluginResponseResult<ProcessResultMessageResponse>> ProcessResultAsync(string executable, 
+                                                                                                         string arguments,
+                                                                                                         ProcessStream input,
+                                                                                                         ProcessStream ouptut,
+                                                                                                         ProcessStream error,
+                                                                                                         int exitCode)
         {
             var requestId = GetRequestId();
             var options = GetCallOptions(requestId);
-            var request = GetHandleExitCodePluginMessage(content, filePath, isError);
+            var request = new PluginMessage
+            {
+                ProcessResultMessage = new ProcessResultMessage
+                {
+                    Executable = executable,
+                    Arguments = arguments,
+                    ExitCode = exitCode,
+                    StandardIn = input,
+                    StandardOut = ouptut,
+                    StandardErr = error,
+                },
+            };
+            
             var response = await HandleRpcExceptionWithCallAsync(
                 async () =>
                 {
-                    var response = await PluginServiceClient.HandleExitCodeAsync(request, options);
-                    return response.ExitCodeParseMessageResponse.ExitCodeParseResult;
+                    var response = await PluginServiceClient.ProcessResultAsync(request, options);
+                    return response.ProcessResultMessageResponse;
                 }, requestId);
             return response;
         }

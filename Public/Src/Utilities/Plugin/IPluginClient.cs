@@ -24,6 +24,11 @@ namespace BuildXL.Plugin
         Task<PluginResponseResult<LogParseResult>> ParseLogAsync(string message, bool isErrorStdOutput);
 
         /// <nodoc />
-        Task<PluginResponseResult<ExitCodeParseResult>> HandleExitCodeAsync(string content, string filePath, bool isErrorStdOutput);
+        Task<PluginResponseResult<ProcessResultMessageResponse>> ProcessResultAsync(string executable,
+                                                                                    string arguments,
+                                                                                    ProcessStream input,
+                                                                                    ProcessStream output,
+                                                                                    ProcessStream error,
+                                                                                    int exitCode);
     }
 }

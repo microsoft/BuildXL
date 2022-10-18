@@ -15,7 +15,7 @@ namespace BuildXL.Plugin
         public override IList<SupportedOperationResponse.Types.SupportedOperation> SupportedOperations { get; } =  new[] 
         { 
             SupportedOperationResponse.Types.SupportedOperation.LogParse,
-            SupportedOperationResponse.Types.SupportedOperation.HandleExitCode,
+            SupportedOperationResponse.Types.SupportedOperation.ProcessResult,
         };
 
         /// <nodoc />
@@ -38,20 +38,15 @@ namespace BuildXL.Plugin
         }
 
         /// <inheritdoc />
-        protected override Task<PluginMessageResponse> HandleExitCode(ExitCodeParseMessage exitCodeParseMessage)
+        protected override Task<PluginMessageResponse> ProcessResult(ProcessResultMessage processResultMessage)
         {
-            ExitCodeParseResult parseResult = new ExitCodeParseResult();
-            if (messagesToRetry.Contains(exitCodeParseMessage.Content))
-            {
-                parseResult.ExitCode = 1111;
-            }
-
+            int retryExitCode = 1111;
             return Task.FromResult<PluginMessageResponse>(new PluginMessageResponse
             {
                 Status = true,
-                ExitCodeParseMessageResponse = new ExitCodeParseMessageResponse
+                ProcessResultMessageResponse = new ProcessResultMessageResponse
                 {
-                    ExitCodeParseResult = parseResult,
+                    ExitCode = messagesToRetry.Contains(processResultMessage.StandardOut.Content) ? retryExitCode : processResultMessage.ExitCode,
                 },
             });
         }

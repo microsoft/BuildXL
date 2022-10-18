@@ -9,7 +9,7 @@ message SupportedOperationResponse
 {
     enum SupportedOperation{
         LogParse = 0;
-        HandleExitCode = 1;
+        ProcessResult = 1;
     }
     repeated SupportedOperation operation = 1;
 }
@@ -38,21 +38,27 @@ message LogParseResult
     string parsedMessage = 1;
 }
 
-message ExitCodeParseMessage
+message ProcessResultMessage
 {
-    LogType logType = 1;
+    string executable = 1;
+    string arguments = 2;
+    ProcessStream standardIn = 3;
+    ProcessStream standardOut = 4;
+    ProcessStream standardErr = 5;
+    int32 exitCode = 6;
+}
+
+message ProcessStream
+{
     oneof data {
-        string content = 2;
-        string filePath = 3;
+        string content = 1;
+        string filePath = 2;
     }
 }
 
-message ExitCodeParseMessageResponse
+message ProcessResultMessageResponse
 {
-    ExitCodeParseResult exitCodeParseResult = 2;
-}
-
-message ExitCodeParseResult
-{
-    optional int32 exitCode = 1;
+    string standardOutToAppend = 1;
+    string standardErrToAppend = 2;
+    optional int32 exitCode = 3;
 }

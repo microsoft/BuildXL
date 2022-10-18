@@ -47,19 +47,16 @@ export namespace DropDaemon {
             importFrom("Microsoft.Azure.Storage.Common").pkg,
             importFrom("Microsoft.Extensions.Logging.Abstractions.v6.0.0").pkg,
 
-            // We need to reference this even though the codepath which uses the path is never activated 
+            // We need to reference this even though the codepath which uses the path is never activated
             // because of the way that runtime assemblies are loaded into memory.
-            importFrom("Microsoft.VisualStudio.Services.BlobStore.Client.Cache").pkg, 
+            importFrom("Microsoft.VisualStudio.Services.BlobStore.Client.Cache").pkg,
             ...BuildXLSdk.systemThreadingTasksDataflowPackageReference,
 
             // SBOM related
-            importFrom("Microsoft.SBOMCore").withQualifier({ targetFramework: "netstandard2.0" }).pkg,
-            importFrom("Microsoft.Sbom.Contracts").withQualifier({ targetFramework: "netstandard2.1" }).pkg,
-            ...addIf(
-                BuildXLSdk.isFullFramework,
-                NetFx.Netstandard.dll
-            ),
-            importFrom("Microsoft.SBOM.Adapters").withQualifier({ targetFramework: "netstandard2.0" }).pkg,
+            importFrom("Microsoft.Parsers.ManifestGenerator").pkg,
+            importFrom("Microsoft.SBOMCore").pkg,
+            importFrom("Microsoft.Sbom.Contracts").pkg,
+            importFrom("Microsoft.Sbom.Adapters").pkg,
             importFrom("System.Text.Json.v5.0.0").pkg,
             importFrom("Newtonsoft.Json").pkg,
             importFrom("System.Text.Encodings.Web.v5.0.1").pkg,
@@ -77,7 +74,7 @@ export namespace DropDaemon {
             Transformer.sealSourceDirectory({
                 root: temporarySdkDropNextToEngineFolder,
                 include: "allDirectories",
-            }), 
+            }),
         ],
         untrackedDirectoryScopes: [
             Context.getUserHomeDirectory(),
@@ -89,8 +86,8 @@ export namespace DropDaemon {
     };
 
     @@public
-    export const tool = !BuildXLSdk.isDropToolingEnabled 
-        ? undefined 
+    export const tool = !BuildXLSdk.isDropToolingEnabled
+        ? undefined
         : temporaryDropDaemonTool;
         //: BuildXLSdk.deployManagedTool({
         //    tool: exe,
@@ -132,7 +129,7 @@ export namespace DropDaemon {
         return evaluationOnly? evaluationOnlyDeployment : deployment;
     }
 
-    @@public 
+    @@public
     export function dropDaemonBindingRedirects() {
         return [
             ...BuildXLSdk.cacheBindingRedirects(),

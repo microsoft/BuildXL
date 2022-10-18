@@ -126,8 +126,6 @@ namespace NugetPackages {
 
             // BuildXL.SBOMUtilities
             ...addIf(BuildXLSdk.Flags.isMicrosoftInternal, 
-                importFrom("BuildXL.Utilities").withQualifier(net472PackageQualifer).SBOMUtilities.dll,
-                importFrom("BuildXL.Utilities").withQualifier(netstandard20PackageQualifer).SBOMUtilities.dll,
                 importFrom("BuildXL.Utilities").withQualifier(net6PackageQualifer).SBOMUtilities.dll
             ),
 

@@ -17,7 +17,7 @@ namespace Contents {
 @@public
 export const pkg: Managed.ManagedNugetPackage =
     Managed.Factory.createNugetPackage(
-        "Microsoft.SBOMApi",
+        "Microsoft.Parsers.ManifestGenerator",
         "0.0.0",
         Contents.all,
         [],

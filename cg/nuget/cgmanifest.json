@@ -1383,7 +1383,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.ComponentDetection.Contracts",
-          "Version": "1.2.3"
+          "Version": "2.0.2"
         }
       }
     },
@@ -1663,15 +1663,6 @@
         "NuGet": {
           "Name": "Microsoft.Internal.VisualStudio.Interop",
           "Version": "17.2.32405.191"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.ManifestInterface",
-          "Version": "2.1.35"
         }
       }
     },
@@ -2058,16 +2049,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Parsers.ManifestGenerator",
-          "Version": "2.1.35"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.Parsers.SPDX22SBOMParser",
-          "Version": "2.1.35"
+          "Version": "2.3.3"
         }
       }
     },
@@ -2102,8 +2084,8 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "Microsoft.SBOM.Adapters",
-          "Version": "2.1.35"
+          "Name": "Microsoft.SBOMCore",
+          "Version": "2.3.3"
         }
       }
     },
@@ -2111,8 +2093,8 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "Microsoft.SBOMCore",
-          "Version": "2.1.35"
+          "Name": "Microsoft.Sbom.Adapters",
+          "Version": "0.2.6"
         }
       }
     },
@@ -2121,7 +2103,25 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Sbom.Contracts",
-          "Version": "2.1.35"
+          "Version": "0.2.6"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Sbom.Extensions",
+          "Version": "0.2.6"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Sbom.Parsers.Spdx22SbomParser",
+          "Version": "0.2.6"
         }
       }
     },

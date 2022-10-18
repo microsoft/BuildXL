@@ -4,6 +4,8 @@
 import * as Managed from "Sdk.Managed";
 
 namespace Core {
+    export declare const qualifier: BuildXLSdk.NetCoreAppQualifier;
+
     @@public
     export const dll = BuildXLSdk.test({
         assemblyName: "Test.BuildXL.Utilities",
@@ -16,13 +18,6 @@ namespace Core {
             },
         },
         references: [
-            // This is needed for 'FluentAssersions' running on a full framework.
-            ...addIf(BuildXLSdk.isFullFramework,
-                NetFx.System.Xml.dll,
-                NetFx.System.Xml.Linq.dll,
-                NetFx.System.Runtime.Serialization.dll,
-                NetFx.Netstandard.dll
-            ),
             importFrom("BuildXL.Cache.ContentStore").Hashing.dll,
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Native.dll,
@@ -35,10 +30,6 @@ namespace Core {
             ...BuildXLSdk.systemMemoryDeployment,
             ...addIf(BuildXLSdk.Flags.isMicrosoftInternal, importFrom("BuildXL.Utilities").SBOMUtilities.dll),
             ...addIf(BuildXLSdk.Flags.isMicrosoftInternal, importFrom("Microsoft.Sbom.Contracts").pkg),
-            ...addIf(
-                BuildXLSdk.isFullFramework,
-                BuildXLSdk.withQualifier({targetFramework: qualifier.targetFramework}).NetFx.Netstandard.dll
-            ),
             ...BuildXLSdk.fluentAssertionsWorkaround
         ],
         runtimeContent: [

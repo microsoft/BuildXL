@@ -17,7 +17,7 @@ namespace Contents {
 @@public
 export const pkg: Managed.ManagedNugetPackage =
     Managed.Factory.createNugetPackage(
-        "Microsoft.SBOM.Adapters",
+        "Microsoft.Sbom.Adapters",
         "0.0.0",
         Contents.all,
         [],

@@ -2,6 +2,8 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 namespace SBOMUtilities {
+    export declare const qualifier: BuildXLSdk.NetCoreAppQualifier;
+
     @@public
     export const dll = !BuildXLSdk.Flags.isMicrosoftInternal ? undefined : BuildXLSdk.library({
         assemblyName: "BuildXL.Utilities.SBOMUtilities",

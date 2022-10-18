@@ -12,10 +12,11 @@ config({
             
             // cacheEntries specify "-D Key=Value" arguments to add to the CMake invocation.
             // Note that these entries are persisted in the CMake cache (located in Out\Example\CMakeCache.txt after the build)
+            // Using forward slashes for paths is recommended, as these are supported by CMake and don't need escaping (\ should be otherwise escaped as \\\\)
             // They can be unset (BuildXL will pass "-U Var" to CMake) specifying undefined as the value in this dictionary.
             // cacheEntries: { 
-            //     CMAKE_MAKE_PROGRAM: "C:\\Path\\To\\ninja.exe",
-            //     CMAKE_CXX_COMPILER: "C:\\Path\To\\CXX\\compiler.exe",
+            //     CMAKE_MAKE_PROGRAM: "C:/Path/To/ninja.exe",
+            //     CMAKE_CXX_COMPILER: "C:/Path/To/CXX/compiler.exe",
             //     VAR_TO_UNSET: undefined,
             // }
         }

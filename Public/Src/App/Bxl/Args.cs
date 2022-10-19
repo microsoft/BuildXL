@@ -699,6 +699,10 @@ namespace BuildXL
                             "masterCpuMultiplier",
                             opt =>
                             schedulingConfiguration.OrchestratorCpuMultiplier = CommandLineUtilities.ParseDoubleOption(opt, 0, 1)),
+                       OptionHandlerFactory.CreateOption(
+                            "masterCacheLookupMultiplier",
+                            opt =>
+                            schedulingConfiguration.OrchestratorCacheLookupMultiplier = CommandLineUtilities.ParseDoubleOption(opt, 0, 1)),
                         OptionHandlerFactory.CreateOption(
                             "maxCacheLookup",
                             opt => schedulingConfiguration.MaxCacheLookup = CommandLineUtilities.ParseInt32Option(opt, 1, int.MaxValue)),
@@ -730,11 +734,8 @@ namespace BuildXL
                             schedulingConfiguration.MaxIO =
                             (int)Math.Max(1, Environment.ProcessorCount * CommandLineUtilities.ParseDoubleOption(opt, 0, int.MaxValue))),
                         OptionHandlerFactory.CreateOption(
-                            "maxIpc",
-                            opt => schedulingConfiguration.MaxIpc = CommandLineUtilities.ParseInt32Option(opt, 1, int.MaxValue)),
-                        OptionHandlerFactory.CreateOption(
                             "maxLightProc",
-                            opt => schedulingConfiguration.MaxLight = CommandLineUtilities.ParseInt32Option(opt, 1, int.MaxValue)),
+                            opt => schedulingConfiguration.MaxLightProcesses = CommandLineUtilities.ParseInt32Option(opt, 1, int.MaxValue)),
                         OptionHandlerFactory.CreateOption(
                             "maxNumPipTelemetryBatches",
                             opt => loggingConfiguration.MaxNumPipTelemetryBatches = CommandLineUtilities.ParseInt32Option(opt, 0, 100)),
@@ -764,6 +765,9 @@ namespace BuildXL
                         OptionHandlerFactory.CreateOption(
                             "maxRetriesDueToRetryableFailures",
                             opt => schedulingConfiguration.MaxRetriesDueToRetryableFailures = CommandLineUtilities.ParseInt32Option(opt, 0, Int32.MaxValue)),
+                        OptionHandlerFactory.CreateOption(
+                            "maxSealDirs",
+                            opt => schedulingConfiguration.MaxSealDirs = CommandLineUtilities.ParseInt32Option(opt, 1, int.MaxValue)),
                         OptionHandlerFactory.CreateOption(
                             "maxTypeCheckingConcurrency",
                             opt => frontEndConfiguration.MaxTypeCheckingConcurrency = CommandLineUtilities.ParseInt32Option(opt, 1, int.MaxValue)),
@@ -827,6 +831,10 @@ namespace BuildXL
                             "orchestratorCpuMultiplier",
                             opt =>
                             schedulingConfiguration.OrchestratorCpuMultiplier = CommandLineUtilities.ParseDoubleOption(opt, 0, 1)),
+                       OptionHandlerFactory.CreateOption(
+                            "orchestratorCacheLookupMultiplier",
+                            opt =>
+                            schedulingConfiguration.OrchestratorCacheLookupMultiplier = CommandLineUtilities.ParseDoubleOption(opt, 0, 1)),
                         OptionHandlerFactory.CreateOption(
                             "outputFileExtensionsForSequentialScanHandleOnHashing",
                             opt => schedulingConfiguration.OutputFileExtensionsForSequentialScanHandleOnHashing.AddRange(CommandLineUtilities.ParseRepeatingPathAtomOption(opt, pathTable.StringTable, ";"))),

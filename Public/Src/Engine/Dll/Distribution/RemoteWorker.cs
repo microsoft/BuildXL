@@ -130,13 +130,8 @@ namespace BuildXL.Engine.Distribution
         /// <inheritdoc/>
         public override int CurrentBatchSize => m_currentBatchSize;
 
-        private volatile int m_currentBatchSize;
-
-        /// <summary>
-        /// Whether the worker is available to acquire work items
-        /// </summary>
-        public override bool IsAvailable => Status == WorkerNodeStatus.Running && !IsEarlyReleaseInitiated;
-
+        private volatile int m_currentBatchSize;   
+        
         /// <summary>
         /// Constructor
         /// </summary>
@@ -619,11 +614,13 @@ namespace BuildXL.Engine.Distribution
             
             // Unblock scheduler
             await Task.Yield();
-
-            if (!TryInitiateStop(isEarlyRelease: true))
+            using (EarlyReleaseLock.AcquireWriteLock())
             {
-                // Already stopped, no need to continue.
-                return;
+                if (!TryInitiateStop(isEarlyRelease: true))
+                {
+                    // Already stopped, no need to continue.
+                    return;
+                }
             }
             
             var drainStopwatch = new StopwatchVar();
@@ -640,13 +637,9 @@ namespace BuildXL.Engine.Distribution
                 }
             }
 
-            // "There cannot be pending completion tasks when we drain the pending tasks successfully"
-            while (!m_pipCompletionTasks.IsEmpty && isDrainedWithSuccess)
-            {
-                await Task.Delay(1000);
-            }
-
             m_orchestratorService.Environment.Counters.AddToCounter(PipExecutorCounter.RemoteWorker_EarlyReleaseDrainDurationMs, (long)drainStopwatch.TotalElapsed.TotalMilliseconds);
+
+            Contract.Assert(m_pipCompletionTasks.IsEmpty || !isDrainedWithSuccess, "There cannot be pending completion tasks when we drain the pending tasks successfully");
 
             var disconnectStopwatch = new StopwatchVar();
             using (disconnectStopwatch.Start())
@@ -940,8 +933,6 @@ namespace BuildXL.Engine.Distribution
             var step = runnable.Step;
             var environment = runnable.Environment;
 
-            bool enableDistributedSourceHashing = environment.Configuration.EnableDistributedSourceHashing();
-
             // In the case of fire-and-forget MaterializeOutputs the pip can transition to HandleResult or Done
             // before it is actually sent to the worker, so we can observe these steps here
             bool materializingOutputs = step == PipExecutionStep.MaterializeOutputs
@@ -976,7 +967,7 @@ namespace BuildXL.Engine.Distribution
                         pip: runnable.Pip,
                         files: files,
                         dynamicFileMap: dynamicFiles,
-                        excludeSourceFiles: enableDistributedSourceHashing,
+
                         // Only send content which is not already on the worker.
                         // TryAddAvailableHash can return null if the artifact is dynamic file in which case
                         // the file cannot be added to the set due to missing index (note that we're using ContentTrackingSet as the underlying set).
@@ -1306,8 +1297,7 @@ namespace BuildXL.Engine.Distribution
             TotalProcessSlots = attachCompletionInfo.MaxProcesses;
             TotalCacheLookupSlots = attachCompletionInfo.MaxCacheLookup;
             TotalMaterializeInputSlots = attachCompletionInfo.MaxMaterialize;
-            TotalLightProcessSlots = attachCompletionInfo.MaxLightProcesses;
-            TotalIpcSlots = attachCompletionInfo.MaxLightProcesses;
+            TotalLightSlots = attachCompletionInfo.MaxLightProcesses;
             TotalRamMb = attachCompletionInfo.AvailableRamMb;
             TotalCommitMb = attachCompletionInfo.AvailableCommitMb;
 

@@ -3,7 +3,6 @@
 
 using System;
 using System.Diagnostics.CodeAnalysis;
-using System.Threading.Tasks;
 using BuildXL.Scheduler.WorkDispatcher;
 using BuildXL.Utilities;
 using NotNullAttribute=JetBrains.Annotations.NotNullAttribute;
@@ -45,14 +44,9 @@ namespace BuildXL.Scheduler
         int NumSemaphoreQueued { get; }
 
         /// <summary>
-        /// How many pips there are in the dispatcher as pending or actively running or remotely running.
+        /// How many work items there are in the dispatcher as pending or actively running.
         /// </summary>
-        long NumRunningOrQueuedOrRemote { get; }
-
-        /// <summary>
-        /// How many pips are currently executed on remote workers in distributed builds. 
-        /// </summary>
-        int NumRemoteRunning { get; }
+        long NumRunningOrQueued { get; }
 
         /// <summary>
         /// Gets the number of running pips in the given queue
@@ -93,11 +87,6 @@ namespace BuildXL.Scheduler
         /// Enqueues the given <see cref="RunnablePip"/>
         /// </summary>
         void Enqueue([NotNull]RunnablePip runnablePip);
-
-        /// <summary>
-        /// Executes the given <see cref="RunnablePip"/> remotely without acquiring a slot of orchestrator.
-        /// </summary>
-        Task RemoteAsync([NotNull] RunnablePip runnablePip);
 
         /// <summary>
         /// Finalizes the dispatcher so that external work will not be scheduled

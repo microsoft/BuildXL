@@ -774,11 +774,11 @@ namespace BuildXL.Scheduler.Tracing
         [GeneratedEvent(
             (ushort)LogEventId.InitiateWorkerRelease,
             EventGenerators = EventGenerators.LocalOnly,
-            Message = "{workerName} will be released because {numProcessPipsWaiting} (numProcessPipsWaiting) < {totalSlots} (totalSlots). Worker's Acquired Slots: {cachelookup} (cachelookup), {execute} (execute), {ipc} (ipc).",
+            Message = "{workerName} will be released because {numProcessPipsWaiting} (numProcessPipsWaiting) < {totalSlots} (totalSlots). Worker's Acquired Slots: {cachelookup} (cachelookup), {execute} (execute), {light} (light).",
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Distribution,
             Keywords = (int)Keywords.UserMessage)]
-        public abstract void InitiateWorkerRelease(LoggingContext context, string workerName, long numProcessPipsWaiting, int totalSlots, int cachelookup, int execute, int ipc);
+        public abstract void InitiateWorkerRelease(LoggingContext context, string workerName, long numProcessPipsWaiting, int totalSlots, int cachelookup, int execute, int light);
 
         [GeneratedEvent(
             (ushort)LogEventId.WorkerReleasedEarly,
@@ -2380,8 +2380,8 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.PipExecutor,
-            Message = "Initialized PipQueue with concurrencies: IO:{0}, ChooseWorkerCpu:{1}, ChooseWorkerCacheLookup:{2}, ChooseWorkerLight:{3}, CacheLookup:{4}, CPU:{5}, Materialize:{6}, Light:{7}, MaxIpcPips: {8}, OrchestratorCpuMultiplier: {9}")]
-        public abstract void PipQueueConcurrency(LoggingContext context, int io, int chooseWorkerCpu, int chooseWorkerCacheLookup, int chooseWorkerLight, int cacheLookup, int cpu, int materialize, int light, int ipc, string orchestratorCpuMultiplier);
+            Message = "Initialized PipQueue with concurrencies: IO:{0}, ChooseWorkerCacheLookup:{1}, CacheLookup:{2}, ChooseWorkerCpu:{3}, CPU:{4}, Materialize:{5}, Light:{6}, OrchestratorCacheLookupMultiplier: {7}, OrchestratorCpuMultiplier: {8}, ChooseWorkerLight: {9}")]
+        public abstract void PipQueueConcurrency(LoggingContext context, int io, int chooseWorkerCacheLookup, int cacheLookup, int chooseWorkerCpu, int cpu, int materialize, int light, string orchestratorCacheLookupMultiplier, string orchestratorCpuMultiplier, int chooseWorkerLight);
 
         [GeneratedEvent(
             (int)LogEventId.UnableToCreateExecutionLogFile,

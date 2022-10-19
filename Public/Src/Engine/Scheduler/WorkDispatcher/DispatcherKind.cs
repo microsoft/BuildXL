@@ -32,12 +32,10 @@ namespace BuildXL.Scheduler.WorkDispatcher
         /// <summary>
         /// Light queue for lightweight operations
         /// </summary>
+        /// <remarks>
+        /// The queue where service client pips run.
+        /// </remarks>
         Light,
-
-        /// <summary>
-        /// Ipc queue for Ipc pips
-        /// </summary>
-        IpcPips,
 
         /// <summary>
         /// Cache lookup queue
@@ -53,19 +51,19 @@ namespace BuildXL.Scheduler.WorkDispatcher
         ChooseWorkerCpu,
 
         /// <summary>
-        /// Choose worker queue for CacheLookup queue
+        /// Choose worker queue for cachelookup queue
         /// </summary>
         ChooseWorkerCacheLookup,
 
         /// <summary>
-        /// Choose worker queue for IPC pips
-        /// </summary>
-        ChooseWorkerIpc,
-
-        /// <summary>
-        /// Choose worker queue to find a worker to execute light process pips
+        /// Choose worker queue to find a worker to execute light process pips and IPC pips
         /// </summary>
         ChooseWorkerLight,
+
+        /// <summary>
+        /// The queue where sealdirectory pips are processed.
+        /// </summary>
+        SealDirs,
 
         /// <summary>
         /// Delayed cache lookup queue

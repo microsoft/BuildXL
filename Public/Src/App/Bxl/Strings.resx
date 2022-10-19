@@ -973,6 +973,9 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   <data name="HelpText_DisplayHelp_LaunchDebugger" xml:space="preserve">
     <value>Launches the debugger during boot (in the server process if applicable).</value>
   </data>
+  <data name="HelpText_DisplayHelp_OrchestratorCacheLookupMultiplier" xml:space="preserve">
+    <value>Specifies the cachelookup queue limit in terms of a multiplier of the normal limit when at least one remote worker gets connected. Defaults to 0.</value>
+  </data>
   <data name="HelpText_DisplayHelp_IgnoreDynamicWritesOnAbsentProbes" xml:space="preserve">
     <value>When enabled, {ShortProductName} will not flag as violations absent path probes that coexist with writes under output directories for those same paths.</value>
   </data>

@@ -158,7 +158,7 @@ namespace BuildXL.Engine.Distribution
                     MaxProcesses = Config.Schedule.MaxProcesses,
                     MaxMaterialize = Config.Schedule.MaxMaterialize,
                     MaxCacheLookup = Config.Schedule.MaxCacheLookup,
-                    MaxLightProcesses = Config.Schedule.MaxLight,
+                    MaxLightProcesses = Config.Schedule.MaxLightProcesses,
                     AvailableRamMb = m_scheduler.LocalWorker.TotalRamMb ?? 0,
                     AvailableCommitMb = m_scheduler.LocalWorker.TotalCommitMb ?? 0,
                     WorkerCacheValidationContentHash = ByteString.CopyFrom(cacheValidationContentHash.ToHashByteArray()),

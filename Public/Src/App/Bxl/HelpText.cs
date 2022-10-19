@@ -914,6 +914,11 @@ namespace BuildXL
                 HelpLevel.Verbose);
 
             hw.WriteOption(
+                "/orchestratorCacheLookupMultiplier:<double>",
+                Strings.HelpText_DisplayHelp_OrchestratorCacheLookupMultiplier,
+                HelpLevel.Verbose);
+
+            hw.WriteOption(
                 "/validateDistribution:[+|-]",
                 Strings.HelpText_DisplayHelp_ValidateDistribution,
                 HelpLevel.Verbose);

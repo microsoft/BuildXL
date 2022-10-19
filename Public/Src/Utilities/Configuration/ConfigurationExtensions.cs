@@ -15,21 +15,11 @@ namespace BuildXL.Utilities.Configuration
     public static class ConfigurationExtensions
     {
         /// <summary>
-        /// Whether this build is running in CloudBuild.
+        /// Whether this build is running in CloudBuild
         /// </summary>
         public static bool InCloudBuild(this IConfiguration configuration)
         {
             return configuration.InCloudBuild ?? false;
-        }
-
-        /// <summary>
-        /// Whether to enable distributed source file hashing.
-        /// </summary>
-        public static bool EnableDistributedSourceHashing(this IConfiguration configuration)
-        {
-            return configuration.InCloudBuild()
-                && !configuration.Distribution.VerifySourceFilesOnWorkers
-                && configuration.Schedule.ForceSkipDependencies == ForceSkipDependenciesMode.Disabled;
         }
 
         /// <summary>

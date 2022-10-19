@@ -106,7 +106,7 @@ namespace Test.BuildXL.Scheduler
 
             m_configuration.Schedule.MaxProcesses = maxProcesses;
             m_configuration.Schedule.MaxIO = 1;
-            m_configuration.Schedule.MaxLight = 1;
+            m_configuration.Schedule.MaxLightProcesses = 1;
             m_configuration.Schedule.EnableLazyOutputMaterialization = enableLazyOutputMaterialization;
             m_configuration.Sandbox.FileAccessIgnoreCodeCoverage = true;
             m_configuration.Cache.DeterminismProbe = enableDeterminismProbe;

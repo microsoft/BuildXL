@@ -193,12 +193,6 @@ WARNING: SYNC WITH PipExecutionUtils.AsString
         DelayedCacheLookup,
 
         /// <summary>
-        /// Choosing a worker for IPC pips
-        /// </summary>
-        [CounterType(CounterType.Stopwatch)]
-        ChooseWorkerIpc,
-
-        /// <summary>
         /// Done executing pip
         /// </summary>
         /// <remarks>
@@ -225,7 +219,6 @@ WARNING: SYNC WITH PipExecutionUtils.AsString
                 case PipExecutionStep.DelayedCacheLookup:
                 case PipExecutionStep.ChooseWorkerCpu:
                 case PipExecutionStep.ChooseWorkerCacheLookup:
-                case PipExecutionStep.ChooseWorkerIpc:
                     return false;
                 case PipExecutionStep.MaterializeOutputs:
                     // If we materialize outputs in background, then do not include the duration in running time.
@@ -271,22 +264,6 @@ WARNING: SYNC WITH PipExecutionUtils.AsString
         }
 
         /// <summary>
-        /// Indicates if the pip execution step is chooseworker related.
-        /// </summary>
-        public static bool IsChooseWorker(this PipExecutionStep step)
-        {
-            switch (step)
-            {
-                case PipExecutionStep.ChooseWorkerIpc:
-                case PipExecutionStep.ChooseWorkerCpu:
-                case PipExecutionStep.ChooseWorkerCacheLookup:
-                    return true;
-                default:
-                    return false;
-            }
-        }
-
-        /// <summary>
         /// Check whether it is valid to transition from one step to another pip execution step.
         /// </summary>
         public static bool CanTransitionTo(this PipExecutionStep fromStep, PipExecutionStep toStep)
@@ -307,9 +284,6 @@ WARNING: SYNC WITH PipExecutionUtils.AsString
                         || toStep == PipExecutionStep.CheckIncrementalSkip
                         || toStep == PipExecutionStep.ExecuteNonProcessPip
                         || toStep == PipExecutionStep.ChooseWorkerCpu
-                        || toStep == PipExecutionStep.ChooseWorkerCacheLookup
-                        || toStep == PipExecutionStep.DelayedCacheLookup
-                        || toStep == PipExecutionStep.ChooseWorkerIpc
                         || toStep == PipExecutionStep.HandleResult;
 
                 case PipExecutionStep.CheckIncrementalSkip:
@@ -332,12 +306,9 @@ WARNING: SYNC WITH PipExecutionUtils.AsString
                          || toStep == PipExecutionStep.HandleResult
                          || toStep == PipExecutionStep.Skip;
 
-                case PipExecutionStep.ChooseWorkerIpc:
-                    return toStep == PipExecutionStep.ExecuteNonProcessPip
-                        || toStep == PipExecutionStep.ChooseWorkerIpc;
-
                 case PipExecutionStep.ChooseWorkerCpu:
                     return toStep == PipExecutionStep.MaterializeInputs
+                        || toStep == PipExecutionStep.ExecuteNonProcessPip
                         || toStep == PipExecutionStep.ExecuteProcess
                         || toStep == PipExecutionStep.ChooseWorkerCpu;
 
@@ -351,8 +322,7 @@ WARNING: SYNC WITH PipExecutionUtils.AsString
                 case PipExecutionStep.PostProcess:
                     return toStep == PipExecutionStep.MaterializeOutputs /* lazy materialization off */
                         || toStep == PipExecutionStep.HandleResult       /* lazy materialization on */
-                        || toStep == PipExecutionStep.ChooseWorkerCpu    /* retry */
-                        || toStep == PipExecutionStep.ChooseWorkerIpc;   /* retry */
+                        || toStep == PipExecutionStep.ChooseWorkerCpu;   /* retry */
 
                 // May need to materialize outputs due to cache convergence
                 case PipExecutionStep.RunFromCache:
@@ -399,8 +369,6 @@ WARNING: SYNC WITH PipExecutionUtils.AsString
                     return nameof(PipExecutionStep.CheckIncrementalSkip);
                 case PipExecutionStep.ChooseWorkerCacheLookup:
                     return nameof(PipExecutionStep.ChooseWorkerCacheLookup);
-                case PipExecutionStep.ChooseWorkerIpc:
-                    return nameof(PipExecutionStep.ChooseWorkerIpc);
                 case PipExecutionStep.ChooseWorkerCpu:
                     return nameof(PipExecutionStep.ChooseWorkerCpu);
                 case PipExecutionStep.Done:

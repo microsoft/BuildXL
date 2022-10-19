@@ -3,53 +3,65 @@
 
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.Threading;
+using System.Threading.Tasks;
 using BuildXL.Pips.Operations;
+using BuildXL.Scheduler.WorkDispatcher;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Instrumentation.Common;
 
 namespace BuildXL.Scheduler.Distribution
 {
     /// <summary>
     /// Handles choose worker computation for <see cref="Scheduler"/>
     /// </summary>
-    internal class ChooseWorkerCacheLookup
+    internal class ChooseWorkerCacheLookup : ChooseWorkerContext
     {
-        private readonly ReadOnlyArray<double> m_workerBalancedLoadFactors;
-        private readonly IReadOnlyList<Worker> m_workers;
-        private readonly LocalWorker m_localWorker;
-        private bool AnyRemoteWorkers => m_workers.Count > 1;
+        private long m_cacheLookupWorkerRoundRobinCounter;
 
-        public ChooseWorkerCacheLookup(IReadOnlyList<Worker> workers)
+        private readonly ReadOnlyArray<double> m_workerBalancedLoadFactors;
+
+        public ChooseWorkerCacheLookup(
+            LoggingContext loggingContext,
+            IScheduleConfiguration scheduleConfig,
+            IReadOnlyList<Worker> workers,
+            IPipQueue pipQueue) : base(loggingContext, workers, pipQueue, DispatcherKind.ChooseWorkerCacheLookup, scheduleConfig.MaxChooseWorkerCacheLookup, scheduleConfig.ModuleAffinityEnabled())
         {
-            m_workerBalancedLoadFactors = ReadOnlyArray<double>.FromWithoutCopy(1, 2, 4, 8, 16, 32, 64, 128, 256, 512);
-            m_workers = workers;
-            m_localWorker = (LocalWorker)workers[0];
+            m_workerBalancedLoadFactors = ReadOnlyArray<double>.FromWithoutCopy(0.5, 1, 2, 3);
         }
 
         /// <summary>
         /// Choose a worker
         /// </summary>
-        public Worker ChooseWorker(ProcessRunnablePip processRunnable)
+        protected override Task<Worker> ChooseWorkerCore(RunnablePip runnablePip)
         {
+            Contract.Requires(runnablePip.PipType == PipType.Process);
+
+            var processRunnable = (ProcessRunnablePip)runnablePip;
             if (AnyRemoteWorkers)
             {
+                var startWorkerOffset = Interlocked.Increment(ref m_cacheLookupWorkerRoundRobinCounter);
                 foreach (var loadFactor in m_workerBalancedLoadFactors)
                 {
-                    foreach (var worker in m_workers)
+                    for (int i = 0; i < Workers.Count; i++)
                     {
+                        var workerId = (i + startWorkerOffset) % Workers.Count;
+                        var worker = Workers[(int)workerId];
                         if (worker.TryAcquireCacheLookup(processRunnable, force: false, loadFactor: loadFactor))
                         {
-                            return worker;
+                            return Task.FromResult(worker);
                         }
                     }
                 }
 
-                return null;
+                return Task.FromResult((Worker)null);
             }
 
-            var acquired = m_localWorker.TryAcquireCacheLookup(processRunnable, force: true);
+            var acquired = LocalWorker.TryAcquireCacheLookup(processRunnable, force: true);
             Contract.Assert(acquired, "The local worker must be acquired for cache lookup when force=true");
 
-            return m_localWorker;
+            return Task.FromResult((Worker)LocalWorker);
         }
     }
 }

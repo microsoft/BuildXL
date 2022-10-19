@@ -11,7 +11,6 @@ using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
 using BuildXL.Utilities;
-using System.Diagnostics;
 
 namespace IntegrationTest.BuildXL.Scheduler
 {
@@ -61,7 +60,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler().AssertSuccess();
         }
 
-        [Fact(Skip = "TODO(1999710): Need to update the test infrastructure based on the chooseworker logic changes ")]
+        [Fact]
         public void UseProcessWeightToRunAlone()
         {
             CreateAndScheduleProcessWithWeight(Configuration.Schedule.MaxProcesses);

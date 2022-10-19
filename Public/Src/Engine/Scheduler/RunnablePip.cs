@@ -210,19 +210,14 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Worker id for the preferred worker when module affinity is enabled
         /// </summary>
-        public int? PreferredWorkerId { get; internal set; }
+        public int PreferredWorkerId { get; internal set; }
 
         internal RunnablePipPerformanceInfo Performance { get; }
 
         /// <summary>
         /// Whether waiting on resources (worker).
         /// </summary>
-        public bool IsWaitingForWorker { get; internal set; }
-
-        /// <summary>
-        /// Whether executing on a remote worker without acquiring a slot on the orchestrator
-        /// </summary>
-        public bool IsRemotelyExecuting { get; internal set; }
+        public bool IsWaitingForWorker { get; set; }
 
         /// <summary>
         /// Thread id of the step
@@ -386,17 +381,13 @@ namespace BuildXL.Scheduler
 
         private PipExecutionStep DecideNextStepForRetry()
         {
-            if (PipType == PipType.Ipc)
+            switch (Step)
             {
-                return PipExecutionStep.ChooseWorkerIpc;
+                case PipExecutionStep.CacheLookup:
+                    return PipExecutionStep.ChooseWorkerCacheLookup;
+                default:
+                    return PipExecutionStep.ChooseWorkerCpu;
             }
-
-            if (Step == PipExecutionStep.CacheLookup)
-            {
-                return PipExecutionStep.ChooseWorkerCacheLookup;
-            }
-
-            return PipExecutionStep.ChooseWorkerCpu;
         }
 
         /// <summary>
@@ -457,16 +448,6 @@ namespace BuildXL.Scheduler
         /// </summary>
         public void SetWorker(Worker worker)
         {
-            if (worker != null)
-            {
-                IsWaitingForWorker = false;
-            }
-            else if (Step.IsChooseWorker())
-            {
-                // If we did not choose a worker, the pip is waiting for a worker.
-                IsWaitingForWorker = true;
-            }
-
             Worker = worker;
         }
 
@@ -513,7 +494,7 @@ namespace BuildXL.Scheduler
             Performance.Executed(step, duration);
 
             // There are too many of these events and they bloat the xlg (100GB+ is possible)
-            if (step.IsChooseWorker())
+            if (step != PipExecutionStep.ChooseWorkerCpu && step != PipExecutionStep.ChooseWorkerCacheLookup)
             {
                 Environment.State.ExecutionLog?.PipExecutionStepPerformanceReported(new PipExecutionStepPerformanceEventData
                 {

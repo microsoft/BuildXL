@@ -10,7 +10,6 @@ using BuildXL.Processes;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
-using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 
 namespace BuildXL.Scheduler
@@ -75,11 +74,6 @@ namespace BuildXL.Scheduler
         /// Run location of the process.
         /// </summary>
         public ProcessRunLocation RunLocation { get; set; } = ProcessRunLocation.Default;
-
-        /// <summary>
-        /// Return the step to be executed prior to the cache lookup
-        /// </summary>
-        public PipExecutionStep PreCacheLookupStep =>  Environment.Configuration.Schedule.DelayedCacheLookupEnabled() ? PipExecutionStep.DelayedCacheLookup : PipExecutionStep.ChooseWorkerCacheLookup;
 
         private readonly int m_weightBasedOnHistoricCpuUsage;
 

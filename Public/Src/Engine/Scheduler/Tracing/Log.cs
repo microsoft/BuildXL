@@ -1440,9 +1440,13 @@ namespace BuildXL.Scheduler.Tracing
             (ushort)LogEventId.TerminatingDueToInternalError,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            Keywords = (int)(Keywords.UserMessage),
+            // The error that causes this to be logged could be either an internal or infrastructure error.
+            // We want that original error to take priority so we cannot statically pick whenther this subsequent
+            // error should be categorized internal or infrastructure. For simplicity, just make this a UserError
+            // which is already lower in priority than the other two buckets.
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
             EventTask = (ushort)Tasks.Scheduler,
-            Message = "The execution schedule is being terminated due to a previously encountered unrecoverable internal error.")]
+            Message = "The execution schedule is being terminated due to a previously encountered unrecoverable infrastructure or internal error.")]
         internal abstract void TerminatingDueToInternalError(LoggingContext loggingContext);
 
         [GeneratedEvent(

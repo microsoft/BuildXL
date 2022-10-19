@@ -123,7 +123,7 @@ namespace Test.BuildXL.Processes
                 ExpectDeniedAccess(AbsentFile(xDir, "abc"), exists: false));
         }
 
-        [Fact]
+        [Fact(Skip = "Disabled while auditing issues are resolved for Linux")]
         public async Task TestDynamicallyLoadedLibrariesReportedOnLinux()
         {
             if (!OperatingSystemHelper.IsLinuxOS)
@@ -132,7 +132,7 @@ namespace Test.BuildXL.Processes
             }
 
             var proc = ToProcess(Operation.Echo("hi"));
-            var info = ToProcessInfo(proc, nameof(TestDynamicallyLoadedLibrariesReportedOnLinux));
+            var info = ToProcessInfo(proc, nameof(TestDynamicallyLoadedLibrariesReportedOnLinux), enableLinuxSandboxAuditing: true);
             info.FileAccessManifest.ReportFileAccesses = true;
             info.FileAccessManifest.FailUnexpectedFileAccesses = false;
             using ISandboxedProcess process = await StartProcessAsync(info);

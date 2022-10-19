@@ -39,8 +39,25 @@ namespace Test.BuildXL.Processes
             IDetoursEventListener detoursListener = null,
             bool disableConHostSharing = false,
             Dictionary<string, string> overrideEnvVars = null,
-            ISandboxConnection sandboxConnection = null)
+            ISandboxConnection sandboxConnection = null,
+            bool enableLinuxSandboxAuditing = false)
         {
+            // Disables using the audit library on Linux for sandbox tests
+            if (OperatingSystemHelper.IsLinuxOS && !enableLinuxSandboxAuditing)
+            {
+                if (overrideEnvVars == null)
+                {
+                    overrideEnvVars = new();
+                }
+
+                if (!overrideEnvVars.ContainsKey("LD_AUDIT"))
+                {
+                    // If this test is not specifically overriding the LD_AUDIT variable,
+                    // then set it to empty to override the ones from the system to explicitly disable auditing
+                    overrideEnvVars.Add("LD_AUDIT", string.Empty);
+                }
+            }
+
             var envVars = Override(
                 BuildParameters.GetFactory().PopulateFromEnvironment().ToDictionary(),
                 overrideEnvVars);

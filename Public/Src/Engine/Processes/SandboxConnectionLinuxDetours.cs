@@ -16,11 +16,9 @@ using System.Threading.Tasks.Dataflow;
 using BuildXL.Interop;
 using BuildXL.Interop.Unix;
 using BuildXL.Native.IO;
-using BuildXL.Processes.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.Utilities.Tasks;
 using Microsoft.Win32.SafeHandles;
 using static BuildXL.Interop.Unix.Sandbox;
 
@@ -510,7 +508,8 @@ namespace BuildXL.Processes
                 yield return ("LD_PRELOAD", detoursLibPath + ":" + info.EnvironmentVariables.TryGetValue("LD_PRELOAD", string.Empty));
             }
 
-            if (info.RootJailInfo?.DisableAuditing != true)
+            // Auditing is disabled by default for tests
+            if (IsInTestMode == false && info.RootJailInfo?.DisableAuditing != true)
             {
                 yield return ("LD_AUDIT", info.RootJailInfo.CopyToRootJailIfNeeded(AuditLibFile) + ":" + info.EnvironmentVariables.TryGetValue("LD_AUDIT", string.Empty));
             }

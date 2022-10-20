@@ -87,7 +87,7 @@ $remoteBranches = git branch -r;
 $remoteBranches | 
     %{$_.Trim()} | 
     %{$_.TrimStart("origin/")} | 
-    ?{-not($_ -match "master" )} | 
+    ?{-not($_ -match "main" )} | 
     ?{$_ -match "dev/$username/bxl_buddy/$branchPrefix-"} |
     ?{
         $oldBranchName = $_.Split("/")[3];

@@ -6,8 +6,8 @@ setlocal
 :: parse the current head into a branch format (abbreviated reference) and store it in a local branch name variable.
 for /F "usebackq" %%b in (`git rev-parse --abbrev-ref HEAD`) do SET localBranchName=%%b
 
-if /I "%localBranchName%"=="master" (
-   @ECHO Cannot push or create pull requests for master. Please create a feature branch for using this script.
+if /I "%localBranchName%"=="main" (
+   @ECHO Cannot push or create pull requests for main. Please create a feature branch for using this script.
    EXIT /B 1
 )
 
@@ -24,7 +24,7 @@ IF /I NOT "%localGitStatus%"=="" (
 )
 
 CALL git push --set-upstream origin %localBranchName%
-start https://mseng.visualstudio.com/Domino/_git/Domino/pullrequestcreate?sourceRef=%localBranchName%^&targetRef=master
+start https://mseng.visualstudio.com/Domino/_git/Domino/pullrequestcreate?sourceRef=%localBranchName%^&targetRef=main
 endlocal
 EXIT /B 0
 

@@ -80,7 +80,7 @@ Backup-File $knownHostsFile
 Move-Item $knownHostsSecureFilePath $knownHostsFile
 
 # ----------Push to GH----------
-& "c:\program files\git\bin\git" "push" "git@github.com:microsoft/BuildXL.git" "HEAD:master" "--force" "--verbose" | Write-Output
+& "c:\program files\git\bin\git" "push" "git@github.com:microsoft/BuildXL.git" "HEAD:main" "--force" "--verbose" | Write-Output
 $gitExitCode = $LASTEXITCODE
 
 # Write test file (this should be automatically deleted after every run, if it exists on the next run then this machine was not properly cleaned up)

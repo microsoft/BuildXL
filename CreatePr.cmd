@@ -125,7 +125,7 @@ REM ************************************************************
 			echo >&2 Failed to force-push to branch %PR_BRANCH_NAME%
 			goto :Error
 		)
-		start %CREATEPULLREQUESTURL%/pullrequestcreate?targetRef=master^&sourceRef=%PR_BRANCH_NAME%
+		start %CREATEPULLREQUESTURL%/pullrequestcreate?targetRef=main^&sourceRef=%PR_BRANCH_NAME%
 
 	goto :Success
 

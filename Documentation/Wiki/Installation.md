@@ -1,7 +1,7 @@
 # Installing BuildXL
 
 ## Build Engine
-Prebuilt binaries for BuildXL are only distributed internally within Microsoft. Externally you'll need to build the project locally from the master branch of its repo. See the [Developer Guide](DeveloperGuide.md) for instructions.
+Prebuilt binaries for BuildXL are only distributed internally within Microsoft. Externally you'll need to build the project locally from the main branch of its repo. See the [Developer Guide](DeveloperGuide.md) for instructions.
 
 ## DScript [Visual Studio Code](https://code.visualstudio.com) Plug-in
 

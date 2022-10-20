@@ -51,11 +51,11 @@ jobs:
 
   - bash: |
       set -euo pipefail
-      readonly isNotMaster="${{ ne(variables['Build.SourceBranchName'], 'master') }}"
+      readonly isNotMain="${{ ne(variables['Build.SourceBranchName'], 'main') }}"
       mkdir -p Out
       tee Out/CacheConfig.json << EOF
       {
-      "RemoteIsReadOnly": ${isNotMaster,,},
+      "RemoteIsReadOnly": ${isNotMain,,},
       "SkipDeterminismRecovery":  true,
       "RemoteConstructionTimeoutMilliseconds":  10000,
       "Assembly":  "BuildXL.Cache.VerticalAggregator",

@@ -34,17 +34,17 @@ namespace BuildXL.Utilities.Configuration.Mutable
             // However, at that time, cachelookup, materialization, and other non-execute steps were all taking a slot from that. 
             // As each major step runs in its own queue with a separate concurrency limit, we decided to revise using 1.25 multiplier.
             // After doing A/B testing on thousands of builds, using 0.9 instead of 1.25 multiplier decreases the load on the machine and improves the perf:
-            // https://github.com/microsoft/BuildXL/blob/master/Documentation/Specs/SchedulerPerfExperiments.md
+            // https://github.com/microsoft/BuildXL/blob/main/Documentation/Specs/SchedulerPerfExperiments.md
             MaxProcesses = (int)Math.Ceiling(0.9 * Environment.ProcessorCount);
 
             // Based on the A/B testing results, the concurrency limit for IO dispatcher did not help after 10. 
-            // https://github.com/microsoft/BuildXL/blob/master/Documentation/Specs/SchedulerPerfExperiments.md
+            // https://github.com/microsoft/BuildXL/blob/main/Documentation/Specs/SchedulerPerfExperiments.md
             MaxIO = Math.Min(10, Math.Max(1, Environment.ProcessorCount / 4));
 
             MaxLightProcesses = 1000;
 
             // We decide the concurrency levels based on A/B testing results.
-            // https://github.com/microsoft/BuildXL/blob/master/Documentation/Specs/SchedulerPerfExperiments.md
+            // https://github.com/microsoft/BuildXL/blob/main/Documentation/Specs/SchedulerPerfExperiments.md
             MaxCacheLookup = Environment.ProcessorCount; 
             MaxMaterialize = Environment.ProcessorCount;
             MaxSealDirs = Environment.ProcessorCount;

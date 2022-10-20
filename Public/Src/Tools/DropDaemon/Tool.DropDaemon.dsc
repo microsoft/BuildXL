@@ -53,16 +53,7 @@ export namespace DropDaemon {
             ...BuildXLSdk.systemThreadingTasksDataflowPackageReference,
 
             // SBOM related
-            importFrom("Microsoft.Parsers.ManifestGenerator").pkg,
-            importFrom("Microsoft.SBOMCore").pkg,
-            importFrom("Microsoft.Sbom.Contracts").pkg,
-            importFrom("Microsoft.Sbom.Extensions").pkg,
-            importFrom("Microsoft.Sbom.Parsers.Spdx22SbomParser").pkg,
-            importFrom("Microsoft.ComponentDetection.Contracts").pkg,
-            importFrom("Microsoft.Sbom.Adapters").pkg,
-            importFrom("System.Text.Json.v5.0.0").pkg,
-            importFrom("Newtonsoft.Json").pkg,
-            importFrom("System.Text.Encodings.Web.v5.0.1").pkg,
+            ...dropDaemonSbomPackages()
         ],
         internalsVisibleTo: [
             "Test.Tool.DropDaemon",
@@ -168,4 +159,25 @@ export namespace DropDaemon {
             importFrom("Microsoft.Extensions.Logging.Abstractions").pkg,
         ];
     }
+
+    @@public
+    export function dropDaemonSbomPackages() {
+        // Any package needed for SBOM generation should
+        // be specified here, as the test module uses this function
+        // to import them for testing the SBOM generation library.
+        return [
+            importFrom("Microsoft.Parsers.ManifestGenerator").pkg,
+            importFrom("Microsoft.SBOMCore").pkg,
+            importFrom("Microsoft.Sbom.Contracts").pkg,
+            importFrom("Microsoft.Sbom.Extensions").pkg,
+            importFrom("Microsoft.Sbom.Parsers.Spdx22SbomParser").pkg,
+            importFrom("Microsoft.ComponentDetection.Contracts").pkg,
+            importFrom("Microsoft.Sbom.Adapters").pkg,
+            importFrom("System.Text.Json.v5.0.0").pkg,
+            importFrom("Newtonsoft.Json").pkg,
+            importFrom("System.Text.Encodings.Web.v5.0.1").pkg,
+        ];
+    }
+
+
 }

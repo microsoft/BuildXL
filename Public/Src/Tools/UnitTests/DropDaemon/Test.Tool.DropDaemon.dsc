@@ -35,6 +35,9 @@ namespace Test.Tool.DropDaemon {
             importFrom("Microsoft.VisualStudio.Services.Client").pkg,
             importFrom("Microsoft.VisualStudio.Services.InteractiveClient").pkg,
             importFrom("Microsoft.Azure.Storage.Common").pkg,
+
+            // SBOM related
+            ...importFrom("BuildXL.Tools.DropDaemon").dropDaemonSbomPackages(),
         ],
 
         runtimeContentToSkip: importFrom("BuildXL.Tools.DropDaemon").dropDaemonRuntimeContentToSkip(),

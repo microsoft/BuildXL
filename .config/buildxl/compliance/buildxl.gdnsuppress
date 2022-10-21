@@ -245,6 +245,244 @@
       "createdDate": "2022-05-12 20:19:18Z",
       "expirationDate": null,
       "type": null
+    },
+    "bc876a656cb6053d739e1dcf857b8cdadf0ce08e272b9e176a426b9ea42e335b": {
+      "signature": "bc876a656cb6053d739e1dcf857b8cdadf0ce08e272b9e176a426b9ea42e335b",
+      "alternativeSignatures": [],
+      "target": "Documentation/Wiki/Qualifiers.md",
+      "memberOf": [
+        "default"
+      ],
+      "tool": "policheck",
+      "ruleId": "203635",
+      "justification": null,
+      "createdDate": "2022-10-18 18:17:29Z",
+      "expirationDate": null,
+      "type": null
+    },
+    "72657037002c9ed79a612781e2521bd3972d2d2b4ad462aa3db60c21311abdcd": {
+      "signature": "72657037002c9ed79a612781e2521bd3972d2d2b4ad462aa3db60c21311abdcd",
+      "alternativeSignatures": [],
+      "target": "Documentation/Wiki/Advanced-Features/Sealed-Directories.md",
+      "memberOf": [
+        "default"
+      ],
+      "tool": "policheck",
+      "ruleId": "79577",
+      "justification": null,
+      "createdDate": "2022-10-18 18:17:29Z",
+      "expirationDate": null,
+      "type": null
+    },
+    "7db00e85ec2a4570cb161db2ac4d16773b8548522c929fa9da361ccde7ed517b": {
+      "signature": "7db00e85ec2a4570cb161db2ac4d16773b8548522c929fa9da361ccde7ed517b",
+      "alternativeSignatures": [],
+      "target": "Documentation/Wiki/DScript/Qualifiers.md",
+      "memberOf": [
+        "default"
+      ],
+      "tool": "policheck",
+      "ruleId": "203635",
+      "justification": null,
+      "createdDate": "2022-10-18 18:17:29Z",
+      "expirationDate": null,
+      "type": null
+    },
+    "daf47dd185b6b62c7f9091c5ecf6d94d1aa25371cf2a0ccaf01b31db7b3dbf66": {
+      "signature": "daf47dd185b6b62c7f9091c5ecf6d94d1aa25371cf2a0ccaf01b31db7b3dbf66",
+      "alternativeSignatures": [],
+      "target": "Public/Src/Engine/Scheduler/ProcessResourceManager.cs",
+      "memberOf": [
+        "default"
+      ],
+      "tool": "policheck",
+      "ruleId": "80371",
+      "justification": null,
+      "createdDate": "2022-10-18 18:17:29Z",
+      "expirationDate": null,
+      "type": null
+    },
+    "4a7220a6a8a9067b50b135d8e72ed174c005c4e45a27bdfad254aa9184e847fc": {
+      "signature": "4a7220a6a8a9067b50b135d8e72ed174c005c4e45a27bdfad254aa9184e847fc",
+      "alternativeSignatures": [],
+      "target": "Public/Src/Engine/Scheduler/ProcessResourceManager.cs",
+      "memberOf": [
+        "default"
+      ],
+      "tool": "policheck",
+      "ruleId": "80371",
+      "justification": null,
+      "createdDate": "2022-10-18 18:17:29Z",
+      "expirationDate": null,
+      "type": null
+    },
+    "f82968a0921d229348a90c698e881cba413ceafa76c17ae2cdf79f1fdb50cf12": {
+      "signature": "f82968a0921d229348a90c698e881cba413ceafa76c17ae2cdf79f1fdb50cf12",
+      "alternativeSignatures": [],
+      "target": "Public/Src/Engine/Scheduler/Scheduler.cs",
+      "memberOf": [
+        "default"
+      ],
+      "tool": "policheck",
+      "ruleId": "80034",
+      "justification": null,
+      "createdDate": "2022-10-18 18:17:29Z",
+      "expirationDate": null,
+      "type": null
+    },
+    "a8dd55a2f375489adcea7a6ebe7df4636955c1b67f881affb92f5b6571101fb2": {
+      "signature": "a8dd55a2f375489adcea7a6ebe7df4636955c1b67f881affb92f5b6571101fb2",
+      "alternativeSignatures": [],
+      "target": "Public/Src/Cache/VerticalStore/VerticalAggregator/VerticalCacheAggregatorSession.cs",
+      "memberOf": [
+        "default"
+      ],
+      "tool": "policheck",
+      "ruleId": "79577",
+      "justification": null,
+      "createdDate": "2022-10-18 18:17:28Z",
+      "expirationDate": null,
+      "type": null
+    },
+    "c9bdbc7075d018c001eee32221003339a06b0a3cc29ad58cd6f5bb73bf53a9ae": {
+      "signature": "c9bdbc7075d018c001eee32221003339a06b0a3cc29ad58cd6f5bb73bf53a9ae",
+      "alternativeSignatures": [],
+      "target": "Public/Src/FrontEnd/UnitTests/Script.Ambients/AmbientXmlTests.cs",
+      "memberOf": [
+        "default"
+      ],
+      "tool": "policheck",
+      "ruleId": "79670",
+      "justification": null,
+      "createdDate": "2022-10-18 18:17:29Z",
+      "expirationDate": null,
+      "type": null
+    },
+    "d3778de586541f5dfb5ac2144eebdbddca7e29905afe6f18296c6c9fbdc78ad6": {
+      "signature": "d3778de586541f5dfb5ac2144eebdbddca7e29905afe6f18296c6c9fbdc78ad6",
+      "alternativeSignatures": [],
+      "target": "Public/Src/Cache/VerticalStore/UnitTests/VerticalAggregator/VerticalAggregatorBaseTests.cs",
+      "memberOf": [
+        "default"
+      ],
+      "tool": "policheck",
+      "ruleId": "202278",
+      "justification": null,
+      "createdDate": "2022-10-18 18:17:29Z",
+      "expirationDate": null,
+      "type": null
+    },
+    "7196047733bd909eb2c40378469d12b8b5b5b4526e871eeef99d2d28720e4fef": {
+      "signature": "7196047733bd909eb2c40378469d12b8b5b5b4526e871eeef99d2d28720e4fef",
+      "alternativeSignatures": [],
+      "target": "Public/Src/FrontEnd/TypeScript.Net/TypeScript.Net/TypeScriptImpl/emitter.ts",
+      "memberOf": [
+        "default"
+      ],
+      "tool": "policheck",
+      "ruleId": "212450",
+      "justification": null,
+      "createdDate": "2022-10-18 18:17:23Z",
+      "expirationDate": null,
+      "type": null
+    },
+    "2c7bb17e0c83a587dca76ee3e39fdfbf9545d067a7f910a87eaca008dcdf4e56": {
+      "signature": "2c7bb17e0c83a587dca76ee3e39fdfbf9545d067a7f910a87eaca008dcdf4e56",
+      "alternativeSignatures": [],
+      "target": "Public/Src/FrontEnd/TypeScript.Net/TypeScript.Net.UnitTests/Libs/lib.d.ts",
+      "memberOf": [
+        "default"
+      ],
+      "tool": "policheck",
+      "ruleId": "80242",
+      "justification": null,
+      "createdDate": "2022-10-18 18:17:23Z",
+      "expirationDate": null,
+      "type": null
+    },
+    "f45fea7b111ae9d01fbe7cf65af76529c9c091a7d0c202116a48d12e068df070": {
+      "signature": "f45fea7b111ae9d01fbe7cf65af76529c9c091a7d0c202116a48d12e068df070",
+      "alternativeSignatures": [],
+      "target": "Public/Src/FrontEnd/TypeScript.Net/TypeScript.Net.UnitTests/Libs/lib.dom.d.ts",
+      "memberOf": [
+        "default"
+      ],
+      "tool": "policheck",
+      "ruleId": "80242",
+      "justification": null,
+      "createdDate": "2022-10-18 18:17:23Z",
+      "expirationDate": null,
+      "type": null
+    },
+    "4548b9f3b17651c8d0b0851c05fcce03d4c4d61aedd1d23877d49985a06a868e": {
+      "signature": "4548b9f3b17651c8d0b0851c05fcce03d4c4d61aedd1d23877d49985a06a868e",
+      "alternativeSignatures": [],
+      "target": "Public/Src/FrontEnd/TypeScript.Net/TypeScript.Net.UnitTests/Libs/lib.es6.d.ts",
+      "memberOf": [
+        "default"
+      ],
+      "tool": "policheck",
+      "ruleId": "80242",
+      "justification": null,
+      "createdDate": "2022-10-18 18:17:23Z",
+      "expirationDate": null,
+      "type": null
+    },
+    "fb2b9734bf5887a44c2d99448936647bb7ab7debe773163ca4e3495357892a2c": {
+      "signature": "fb2b9734bf5887a44c2d99448936647bb7ab7debe773163ca4e3495357892a2c",
+      "alternativeSignatures": [],
+      "target": "Public/Src/FrontEnd/TypeScript.Net/TypeScript.Net.UnitTests/Libs/lib.es7.d.ts",
+      "memberOf": [
+        "default"
+      ],
+      "tool": "policheck",
+      "ruleId": "80242",
+      "justification": null,
+      "createdDate": "2022-10-18 18:17:23Z",
+      "expirationDate": null,
+      "type": null
+    },
+    "302efe5b89ff16e3656131da612afa0bd52d1bf2d91d3ba86f8b14340a0709aa": {
+      "signature": "302efe5b89ff16e3656131da612afa0bd52d1bf2d91d3ba86f8b14340a0709aa",
+      "alternativeSignatures": [],
+      "target": "Public/Src/FrontEnd/TypeScript.Net/TypeScript.Net.UnitTests/TypeChecking/SymbolInformationTests.cs",
+      "memberOf": [
+        "default"
+      ],
+      "tool": "policheck",
+      "ruleId": "79577",
+      "justification": null,
+      "createdDate": "2022-10-18 18:17:23Z",
+      "expirationDate": null,
+      "type": null
+    },
+    "ca5f8d52870ddabb3879c60f42538e012406a47858c7c21c7f0ef0fe261ae3e1": {
+      "signature": "ca5f8d52870ddabb3879c60f42538e012406a47858c7c21c7f0ef0fe261ae3e1",
+      "alternativeSignatures": [],
+      "target": "Public/Src/FrontEnd/UnitTests/Script.Ast/Interpretation/Transformers/CommandLineArgumentsConverterTests.cs",
+      "memberOf": [
+        "default"
+      ],
+      "tool": "policheck",
+      "ruleId": "79577",
+      "justification": null,
+      "createdDate": "2022-10-18 18:17:18Z",
+      "expirationDate": null,
+      "type": null
+    },
+    "32911923fdbb6c7235ce7e4bea0f538da171cbea0f6962434a342f6383e42782": {
+      "signature": "32911923fdbb6c7235ce7e4bea0f538da171cbea0f6962434a342f6383e42782",
+      "alternativeSignatures": [],
+      "target": "Public/Src/FrontEnd/UnitTests/Script.Ast/Interpretation/Transformers/CommandLineArgumentsConverterTests.cs",
+      "memberOf": [
+        "default"
+      ],
+      "tool": "policheck",
+      "ruleId": "79577",
+      "justification": null,
+      "createdDate": "2022-10-18 18:17:18Z",
+      "expirationDate": null,
+      "type": null
     }
   }
 }

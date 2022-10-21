@@ -83,7 +83,7 @@ export function runComplianceBuildOnEntireRepository(guardianToolRoot : StaticDi
     const guardianResults = [
         ...(toolsToRun.contains("credscan") ? addCredScanCalls(guardianBuildRoot, guardianToolRoot, packageDirectory, guardianDrop, files) : []),
         ...(toolsToRun.contains("eslint") ? addGuardianEsLintCalls(guardianBuildRoot, guardianToolRoot, packageDirectory, guardianDrop, nodeToolRoot, nodeToolExe, files) : [] ),
-        ...(toolsToRun.contains("psscriptanalyzer") ? [addPsscriptAnalyzerCalls(guardianBuildRoot, guardianToolRoot, packageDirectory, guardianDrop, files)] : []),
+        ...(toolsToRun.contains("psscriptanalyzer") ? addPsscriptAnalyzerCalls(guardianBuildRoot, guardianToolRoot, packageDirectory, guardianDrop, files) : []),
         ...(toolsToRun.contains("flawfinder") ? [addFlawFinderCalls(guardianBuildRoot, guardianToolRoot, packageDirectory, guardianDrop, files)] : []),
         ...(toolsToRun.contains("policheck") ? addPoliCheckCalls(guardianBuildRoot, guardianToolRoot, packageDirectory, guardianDrop, files) : []),
     ];

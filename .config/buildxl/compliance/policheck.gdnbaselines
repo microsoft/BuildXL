@@ -161,6 +161,216 @@
         "createdDate": "2022-05-12 20:19:23Z",
         "expirationDate": null,
         "type": null
+    },
+    "45ee2eeaa493bd67f4739ac4c7b6b92b4cbd1a9f5964aa07f10a81e5a6a832f6": {
+      "signature": "45ee2eeaa493bd67f4739ac4c7b6b92b4cbd1a9f5964aa07f10a81e5a6a832f6",
+      "alternativeSignatures": [],
+      "target": "Documentation/Wiki/Release-Notes.md",
+      "memberOf": [
+        "default"
+      ],
+      "tool": "policheck",
+      "ruleId": "80411",
+      "justification": "Replace whitelist with more specific terms such as approved list or safe recipients list.",
+      "createdDate": "2022-10-18 18:17:29Z",
+      "expirationDate": null,
+      "type": null
+    },
+     "8c550a241869de9d4e0e963da2faaae3484fa0d8a625fd2c2a55e15963e82439": {
+      "signature": "8c550a241869de9d4e0e963da2faaae3484fa0d8a625fd2c2a55e15963e82439",
+      "alternativeSignatures": [],
+      "target": "Public/Src/Cache/Kusto/NLog.example.config",
+      "memberOf": [
+        "default"
+      ],
+      "tool": "policheck",
+      "ruleId": "80411",
+      "justification": "Replace whitelist with more specific terms such as approved list or safe recipients list.",
+      "createdDate": "2022-10-18 18:17:29Z",
+      "expirationDate": null,
+      "type": null
+    },
+    "117531744f6d30ba27073e84f89e96621d6898fdd1e51c3746325e960ca988c3": {
+      "signature": "117531744f6d30ba27073e84f89e96621d6898fdd1e51c3746325e960ca988c3",
+      "alternativeSignatures": [],
+      "target": "Public/Src/Cache/Kusto/NLog.example.config",
+      "memberOf": [
+        "default"
+      ],
+      "tool": "policheck",
+      "ruleId": "79459",
+      "justification": "Replace blacklist with more specific terms such as block list.",
+      "createdDate": "2022-10-18 18:17:29Z",
+      "expirationDate": null,
+      "type": null
+    },
+    "40a7b0e497f590b428e725e7e52bd83bec2a3549d9bd29576b0149cf3b85e2cc": {
+      "signature": "40a7b0e497f590b428e725e7e52bd83bec2a3549d9bd29576b0149cf3b85e2cc",
+      "alternativeSignatures": [],
+      "target": "Public/Src/Tools/Execution.Analyzer/AnalysisMode.cs",
+      "memberOf": [
+        "default"
+      ],
+      "tool": "policheck",
+      "ruleId": "80411",
+      "justification": "Replace whitelist with more specific terms such as approved list or safe recipients list.",
+      "createdDate": "2022-10-18 18:17:29Z",
+      "expirationDate": null,
+      "type": null
+    },
+    "81204a6233cca0f154a0e95c2131648670ed57e95e8448d302ec8c781ee40d82": {
+      "signature": "81204a6233cca0f154a0e95c2131648670ed57e95e8448d302ec8c781ee40d82",
+      "alternativeSignatures": [],
+      "target": "Public/Src/Tools/Execution.Analyzer/Args.cs",
+      "memberOf": [
+        "default"
+      ],
+      "tool": "policheck",
+      "ruleId": "80411",
+      "justification": "Replace whitelist with more specific terms such as approved list or safe recipients list.",
+      "createdDate": "2022-10-18 18:17:29Z",
+      "expirationDate": null,
+      "type": null
+    },
+    "bece029a9e71160b516527289bbaeb6eedfeba8e38a8394ea09d6824e55828a5": {
+      "signature": "bece029a9e71160b516527289bbaeb6eedfeba8e38a8394ea09d6824e55828a5",
+      "alternativeSignatures": [],
+      "target": "Public/Src/Utilities/Configuration/IModuleConfiguration.cs",
+      "memberOf": [
+        "default"
+      ],
+      "tool": "policheck",
+      "ruleId": "80411",
+      "justification": "Replace whitelist with more specific terms such as approved list or safe recipients list.",
+      "createdDate": "2022-10-18 18:17:28Z",
+      "expirationDate": null,
+      "type": null
+    },
+    "bc8a78f71937e178d0e53cbee326340756508564299a93d355beb6b30d014306": {
+      "signature": "bc8a78f71937e178d0e53cbee326340756508564299a93d355beb6b30d014306",
+      "alternativeSignatures": [],
+      "target": "Public/Src/Utilities/Configuration/IModuleConfiguration.cs",
+      "memberOf": [
+        "default"
+      ],
+      "tool": "policheck",
+      "ruleId": "80411",
+      "justification": "Replace whitelist with more specific terms such as approved list or safe recipients list.",
+      "createdDate": "2022-10-18 18:17:28Z",
+      "expirationDate": null,
+      "type": null
+    },
+    "06518c7d823009b86466b6324c8bc7676abea3cb7415d42ca9d717caa44b0efa": {
+      "signature": "06518c7d823009b86466b6324c8bc7676abea3cb7415d42ca9d717caa44b0efa",
+      "alternativeSignatures": [],
+      "target": "Public/Src/Engine/UnitTests/Scheduler.IntegrationTest/AllowlistTests.cs",
+      "memberOf": [
+        "default"
+      ],
+      "tool": "policheck",
+      "ruleId": "80411",
+      "justification": "Replace whitelist with more specific terms such as approved list or safe recipients list.",
+      "createdDate": "2022-10-18 18:17:29Z",
+      "expirationDate": null,
+      "type": null
+    },
+    "ba901d40aa5c395ec86ef3c4a196924484635feef87a78579ddd4576f2863631": {
+      "signature": "ba901d40aa5c395ec86ef3c4a196924484635feef87a78579ddd4576f2863631",
+      "alternativeSignatures": [],
+      "target": "Public/Src/Engine/UnitTests/Scheduler.IntegrationTest/AllowlistTests.cs",
+      "memberOf": [
+        "default"
+      ],
+      "tool": "policheck",
+      "ruleId": "80411",
+      "justification": "Replace whitelist with more specific terms such as approved list or safe recipients list.",
+      "createdDate": "2022-10-18 18:17:29Z",
+      "expirationDate": null,
+      "type": null
+    },
+    "99ecb4a8a5b1767fbf1c72f62ccaa0d230b783d1ae17f80607ebcad2a3811368": {
+      "signature": "99ecb4a8a5b1767fbf1c72f62ccaa0d230b783d1ae17f80607ebcad2a3811368",
+      "alternativeSignatures": [],
+      "target": "Public/Src/Tools/Execution.Analyzer/Analyzers.Partner/AllowlistAnalyzer.cs",
+      "memberOf": [
+        "default"
+      ],
+      "tool": "policheck",
+      "ruleId": "80411",
+      "justification": "Replace whitelist with more specific terms such as approved list or safe recipients list.",
+      "createdDate": "2022-10-18 18:17:29Z",
+      "expirationDate": null,
+      "type": null
+    },
+    "a370683dc431794fa990050420f266228a5aa712009992e88934a2e00b9e54b6": {
+      "signature": "a370683dc431794fa990050420f266228a5aa712009992e88934a2e00b9e54b6",
+      "alternativeSignatures": [],
+      "target": "Public/Src/Utilities/Configuration/Mutable/ModuleConfiguration.cs",
+      "memberOf": [
+        "default"
+      ],
+      "tool": "policheck",
+      "ruleId": "80411",
+      "justification": "Replace whitelist with more specific terms such as approved list or safe recipients list.",
+      "createdDate": "2022-10-18 18:17:29Z",
+      "expirationDate": null,
+      "type": null
+    },
+    "ffdd75b8c941b9f7d0d31077aed34358e47ab4b0ba150e87e0e588f2a3ecea97": {
+      "signature": "ffdd75b8c941b9f7d0d31077aed34358e47ab4b0ba150e87e0e588f2a3ecea97",
+      "alternativeSignatures": [],
+      "target": "Public/Src/Utilities/Configuration/Mutable/ModuleConfiguration.cs",
+      "memberOf": [
+        "default"
+      ],
+      "tool": "policheck",
+      "ruleId": "80411",
+      "justification": "Replace whitelist with more specific terms such as approved list or safe recipients list.",
+      "createdDate": "2022-10-18 18:17:29Z",
+      "expirationDate": null,
+      "type": null
+    },
+    "74e051f0d0305a540ae9655c46acd8513cc35aee1c3903a4f09a4e2e2b042377": {
+      "signature": "74e051f0d0305a540ae9655c46acd8513cc35aee1c3903a4f09a4e2e2b042377",
+      "alternativeSignatures": [],
+      "target": "Public/Src/Utilities/Configuration/Mutable/ModuleConfiguration.cs",
+      "memberOf": [
+        "default"
+      ],
+      "tool": "policheck",
+      "ruleId": "80411",
+      "justification": "Replace whitelist with more specific terms such as approved list or safe recipients list.",
+      "createdDate": "2022-10-18 18:17:29Z",
+      "expirationDate": null,
+      "type": null
+    },
+    "bc60dd3ba252363c346a5ca2d93579577bb225c075f5e397caa55613d5f221a1": {
+      "signature": "bc60dd3ba252363c346a5ca2d93579577bb225c075f5e397caa55613d5f221a1",
+      "alternativeSignatures": [],
+      "target": "Public/Src/Utilities/Configuration/Mutable/ModuleConfiguration.cs",
+      "memberOf": [
+        "default"
+      ],
+      "tool": "policheck",
+      "ruleId": "80411",
+      "justification": "Replace whitelist with more specific terms such as approved list or safe recipients list.",
+      "createdDate": "2022-10-18 18:17:29Z",
+      "expirationDate": null,
+      "type": null
+    },
+    "aadf045f65412ee9b4a6adf86b64fb65867553a00855c83b1134d07201bdedc7": {
+      "signature": "aadf045f65412ee9b4a6adf86b64fb65867553a00855c83b1134d07201bdedc7",
+      "alternativeSignatures": [],
+      "target": "Public/Src/FrontEnd/Script/Ambients/Transformers/AmbientTransformer.Process.cs",
+      "memberOf": [
+        "default"
+      ],
+      "tool": "policheck",
+      "ruleId": "80411",
+      "justification": "Replace whitelist with more specific terms such as approved list or safe recipients list.",
+      "createdDate": "2022-10-18 18:17:29Z",
+      "expirationDate": null,
+      "type": null
     }
   }
 }

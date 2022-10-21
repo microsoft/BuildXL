@@ -317,7 +317,7 @@ namespace BuildXL.Utilities.ParallelAlgorithms
         /// <summary>
         /// Marks the action block as completed.
         /// </summary>
-        public void Complete(bool cancelPending = false, bool propagateExceptionsFromCallback = false)
+        public void Complete(bool cancelPending = false, bool propagateExceptionsFromCallback = true)
         {
             lock (m_syncRoot)
             {
@@ -333,7 +333,11 @@ namespace BuildXL.Utilities.ParallelAlgorithms
                     Task.WhenAll(m_tasks.ToArray()).ContinueWith(
                         t =>
                         {
-                            if (propagateExceptionsFromCallback && t.Exception is not null)
+                            // Not handling the cancellation state because its not possible.
+
+                            // It is very important to check t.Exception property first to avoid
+                            // task unobserved errors when propagateExceptionsFromCallback is false.
+                            if (t.Exception is not null && propagateExceptionsFromCallback)
                             {
                                 // If the AggregateException has a single one, then passing it to the target tcs
                                 // to avoid adding layer of AggregateExceptions.
@@ -344,7 +348,7 @@ namespace BuildXL.Utilities.ParallelAlgorithms
                             {
                                 m_tcs.TrySetResult(Unit.Void);
                             }
-                        }).Forget();
+                        });
                 }
             }
         }

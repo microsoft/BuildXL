@@ -7,14 +7,62 @@ using System.Threading.Tasks;
 
 using Xunit;
 using BuildXL.Utilities.ParallelAlgorithms;
-using BuildXL.Utilities.Tasks;
 using Test.BuildXL.TestUtilities.Xunit;
 using System.Collections.Concurrent;
+using BuildXL.ToolSupport;
 
 namespace Test.BuildXL.Utilities
 {
     public class ActionBlockSlimTests
     {
+        [Fact]
+        public Task NoUnobservedExceptionWhenCallbackFails()
+        {
+            return UnobservedTaskExceptionHelper.RunAsync(
+                async () =>
+                {
+                    var actionBlock = ActionBlockSlim.CreateWithAsyncAction<int>(
+                        1,
+                        async n =>
+                        {
+                            await Task.Yield();
+                            throw new InvalidOperationException("1");
+                        },
+                        capacityLimit: 1);
+                    actionBlock.Post(42);
+
+                    actionBlock.Complete();
+                    await Assert.ThrowsAsync<InvalidOperationException>(() => actionBlock.Completion);
+                });
+        }
+
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public async Task ExceptionMustBePropagatedBack(bool propagateExceptions)
+        {
+            var actionBlock = ActionBlockSlim.CreateWithAsyncAction<int>(
+                1,
+                async n =>
+                {
+                    await Task.Yield();
+                    throw new InvalidOperationException("1");
+                },
+                capacityLimit: 1);
+            actionBlock.Post(42);
+
+            actionBlock.Complete(propagateExceptionsFromCallback: propagateExceptions);
+
+            if (propagateExceptions)
+            {
+                await Assert.ThrowsAsync<InvalidOperationException>(() => actionBlock.Completion);
+            }
+            else
+            {
+                await actionBlock.Completion;
+            }
+        }
+
         [FactIfSupported(requiresWindowsOrLinuxOperatingSystem: true)]
         public async Task ExceptionIsThrownWhenTheBlockIsFull()
         {
@@ -57,10 +105,10 @@ namespace Test.BuildXL.Utilities
             }, capacityLimit: 1);
 
             actionBlock.Post(42);
-            Assert.Equal(1, actionBlock.PendingWorkItems);
+            Assert.Equal(0, actionBlock.ProcessedWorkItems);
 
             Assert.False(actionBlock.TryPost(-23, throwOnFullOrComplete: false));
-            Assert.Equal(1, actionBlock.PendingWorkItems);
+            Assert.Equal(0, actionBlock.ProcessedWorkItems);
 
             tcs.SetResult(null);
             var waitSucceeded = await ParallelAlgorithms.WaitUntilAsync(
@@ -74,7 +122,8 @@ namespace Test.BuildXL.Utilities
             // This should not fail!
             actionBlock.Post(23);
 
-            actionBlock.Complete();
+            // We don't care about an exception
+            actionBlock.Complete(propagateExceptionsFromCallback: false);
             await actionBlock.Completion;
 
             Assert.False(actionBlock.TryPost(-43, throwOnFullOrComplete: false));

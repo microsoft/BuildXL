@@ -366,6 +366,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                     && distributedSettings.EnableDistributedCache // Only distributed cache supports registering associated content
             };
 
+            ApplyIfNotNull(distributedSettings.ProactiveCopyInRingMachineLocationsExpiryCache, v => distributedContentStoreSettings.ProactiveCopyInRingMachineLocationsExpiryCache = v);
             ApplyIfNotNull(distributedSettings.RegisterContentEagerlyOnPut, v => distributedContentStoreSettings.RegisterEagerlyOnPut = v);
             ApplyIfNotNull(distributedSettings.GrpcCopyCompressionSizeThreshold, v => distributedContentStoreSettings.GrpcCopyCompressionSizeThreshold = v);
             ApplyEnumIfNotNull<CopyCompression>(distributedSettings.GrpcCopyCompressionAlgorithm, v => distributedContentStoreSettings.GrpcCopyCompressionAlgorithm = v);

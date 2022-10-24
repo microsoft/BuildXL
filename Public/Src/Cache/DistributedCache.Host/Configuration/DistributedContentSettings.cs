@@ -123,6 +123,9 @@ namespace BuildXL.Cache.Host.Configuration
         [Validation.Range(0, double.MaxValue)]
         public double ProactiveCopyGetBulkIntervalSeconds { get; set; } = 10;
 
+        [DataMember]
+        public TimeSpanSetting? ProactiveCopyInRingMachineLocationsExpiryCache { get; set; }
+
         /// <summary>
         /// The size of nagle batch for proactive copy get bulk
         /// </summary>

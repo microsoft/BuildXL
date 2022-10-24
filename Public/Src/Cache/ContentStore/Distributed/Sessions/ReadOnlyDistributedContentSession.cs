@@ -17,10 +17,10 @@ using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Distributed;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
-using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
+using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using BuildXL.Cache.ContentStore.Service.Grpc;
@@ -65,7 +65,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
         private string? _buildId = null;
         private ContentHash? _buildIdHash = null;
-        private MachineLocation[] _buildRingMachines = CollectionUtilities.EmptyArray<MachineLocation>();
+        private readonly ExpiringValue<MachineLocation[]> _buildRingMachinesCache;
+
+        private MachineLocation[] BuildRingMachines => _buildRingMachinesCache.GetValueOrDefault() ?? Array.Empty<MachineLocation>();
+
         private readonly ConcurrentBigSet<ContentHash> _pendingProactivePuts = new ConcurrentBigSet<ContentHash>();
         private ResultNagleQueue<ContentHash, ContentHashWithSizeAndLocations>? _proactiveCopyGetBulkNagleQueue;
 
@@ -140,6 +143,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             PutAndPlaceFileGate = new SemaphoreSlim(Settings.MaximumConcurrentPutAndPlaceFileOperations);
 
             _coldStorage = coldStorage;
+
+            _buildRingMachinesCache = new ExpiringValue<MachineLocation[]>(
+                Settings.ProactiveCopyInRingMachineLocationsExpiryCache,
+                SystemClock.Instance,
+                originalValue: Array.Empty<MachineLocation>());
         }
 
         /// <inheritdoc />
@@ -1248,8 +1256,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             IReadOnlyList<ContentHash> hashes)
         {
             var originalLength = hashes.Count;
-            if (_buildIdHash.HasValue)
+            if (_buildIdHash.HasValue && !_buildRingMachinesCache.IsUpToDate())
             {
+                Tracer.Debug(context, $"{Tracer.Name}.{nameof(GetLocationsForProactiveCopyAsync)}: getting in-ring machines for BuildId='{_buildId}'.");
                 // Add build id hash to hashes so build ring machines can be updated
                 hashes = hashes.AppendItem(_buildIdHash.Value).ToList();
             }
@@ -1273,10 +1282,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                     }
                 });
 
-            if (_buildIdHash.HasValue)
+            if (hashes.Count != originalLength)
             {
                 // Update build ring machines with retrieved locations
-                _buildRingMachines = result.Last().Locations?.AppendItem(LocalCacheRootMachineLocation).ToArray() ?? CollectionUtilities.EmptyArray<MachineLocation>();
+                var buildRingMachines = result.Last().Locations?.AppendItem(LocalCacheRootMachineLocation).ToArray() ?? CollectionUtilities.EmptyArray<MachineLocation>();
+                _buildRingMachinesCache.Update(buildRingMachines);
+                Tracer.Debug(context, $"{Tracer.Name}.{nameof(GetLocationsForProactiveCopyAsync)}: InRingMachines=[{string.Join(", ", buildRingMachines.Select(m => m.Path))}] BuildId='{_buildId}'");
                 return result.Take(originalLength).ToList();
             }
             else
@@ -1391,7 +1402,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             var source = ProactiveCopyLocationSource.Random;
 
             // Make sure that the machine is not in the build ring and does not already have the content.
-            var machinesToSkip = replicatedLocations.Concat(_buildRingMachines).ToArray();
+            var machinesToSkip = replicatedLocations.Concat(BuildRingMachines).ToArray();
 
             // Try to select one of the designated machines for this hash.
             if (Settings.ProactiveCopyUsePreferredLocations)
@@ -1437,7 +1448,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         /// </summary>
         public MachineLocation[] GetInRingActiveMachines()
         {
-            return _buildRingMachines
+            return BuildRingMachines
                 .Where(m => !m.Equals(LocalCacheRootMachineLocation))
                 .Where(m => ContentLocationStore.IsMachineActive(m))
                 .ToArray();
@@ -1486,7 +1497,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
             // Having an explicit case to check if the in-ring machine list is empty to separate the case
             // when the machine list is not empty but all the candidates are unavailable.
-            if (_buildRingMachines.Length == 0)
+            if (BuildRingMachines.Length == 0)
             {
                 return ProactivePushResult.FromStatus(ProactivePushStatus.InRingMachineListIsEmpty, attempt);
             }

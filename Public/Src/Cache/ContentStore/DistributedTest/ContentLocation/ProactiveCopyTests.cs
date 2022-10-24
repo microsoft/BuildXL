@@ -323,7 +323,7 @@ namespace ContentStoreTest.Distributed.Sessions
                         var putResult = await workerSession.PutRandomAsync(context, HashType.Vso0, false, ContentByteCount, Token).ShouldBeSuccess();
                         var masterResult = await ls[workerIndex].GetBulkAsync(context, new[] { putResult.ContentHash }, Token, UrgencyHint.Nominal, GetBulkOrigin.Global).ShouldBeSuccess();
                         var ringMachinesCount = workerSession.GetInRingActiveMachines().Count();
-                        masterResult.ContentHashesInfo[0].Locations.Count.Should().Be(machineCount- ringMachinesCount);
+                        masterResult.ContentHashesInfo[0].Locations.Count.Should().Be(machineCount - ringMachinesCount);
                     }
                 },
                 implicitPin: ImplicitPin.None,

@@ -170,6 +170,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         public TimeSpan ProactiveCopyGetBulkInterval { get; set; } = TimeSpan.FromSeconds(10);
 
         /// <summary>
+        /// Expiry for in-ring machines cache.
+        /// </summary>
+        public TimeSpan ProactiveCopyInRingMachineLocationsExpiryCache { get; set; } = TimeSpan.Zero;
+
+        /// <summary>
         /// The size of nagle batch for proactive copy get bulk
         /// </summary>
         public int ProactiveCopyGetBulkBatchSize { get; set; } = 20;

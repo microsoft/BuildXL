@@ -70,27 +70,21 @@ jobs:
       $statsContent = Get-Content -Path (Join-Path $bxlWithRemotingLogDir "BuildXL.stats") | Out-String
       $stats = ConvertFrom-StringData -StringData $statsContent
       $runRemoteCount = $stats.Get_Item("PipExecution.TotalRunRemoteProcesses")
-      $runDistributedCount = $stats.Get_Item("PipExecution.ProcessesExecutedRemotely")
       $runLocalFallbackCount = $stats.Get_Item("PipExecution.TotalRemoteFallbackRetries")
-      
-      Write-Host "Run remote (AnyBuild): $runRemoteCount"
-      Write-Host "Run on remote workers: $runDistributedCount"
-      Write-Host "Run local due to fallback: $runLocalFallbackCount"
-      
-      $exitcode = 0
 
-      if ($runRemoteCount -eq 0)
-      {
-          Write-Error "##[error]No process pip ran remotely. Please check AnyBuild.log."
-          $exitcode = 1
-      }
-      
+      Write-Host "Run remote (AnyBuild): $runRemoteCount"
       if ($runLocalFallbackCount -ne 0)
       {
-          Write-Warning "##[warning]$runLocalFallbackCount remoted process pip(s) ran locally"
+          Write-Warning "##[warning]Run local due to fallback: $runLocalFallbackCount"
       }
-      
-      exit $exitcode
+
+      if (($runRemoteCount -eq 0) -or ($runLocalFallbackCount -eq $runRemoteCount))
+      {
+          Write-Error "##[error]No process pip ran remotely. Please check AnyBuild.log."
+          exit 1
+      }
+
+      exit 0
     displayName: 'Validate process remoting'
 
   - task: PublishPipelineArtifact@1

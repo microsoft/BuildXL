@@ -252,7 +252,10 @@ namespace BuildXL.Cache.ContentStore.Tracing
                     {
                         machineStatistics.CollectMetrics((name, value) =>
                         {
-                            _context.TrackMetric(name, value, "CacheMasterPerfStats");
+                            if (value != null)
+                            {
+                                _context.TrackMetric(name, value.Value, "CacheMasterPerfStats");
+                            }
                         });
                     }
                 }

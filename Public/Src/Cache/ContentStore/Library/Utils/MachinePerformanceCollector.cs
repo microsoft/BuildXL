@@ -25,7 +25,7 @@ namespace BuildXL.Cache.ContentStore.Utils
         int? TotalRamMb,
         int? AvailableRamMb,
         int? EffectiveAvailableRamMb,
-        int CommitTotalMb,
+        int? CommitTotalMb,
         int ProcessWorkingSetMb,
         long GCTotalMemoryMb,
         long? GCTotalAvailableMemoryMb,
@@ -49,11 +49,17 @@ namespace BuildXL.Cache.ContentStore.Utils
         public string ToTracingString()
         {
             List<string> parts = new List<string>();
-            CollectMetrics((metricName, value) => parts.Add($"{metricName}=[{value}]"));
+            CollectMetrics((metricName, value) =>
+            {
+                if (value != null)
+                {
+                    parts.Add($"{metricName}=[{value}]");
+                }
+            });
             return string.Join(" ", parts);
         }
 
-        public delegate void AddMetric(string metricName, long value);
+        public delegate void AddMetric(string metricName, long? value);
 
         public void CollectMetrics(AddMetric addMetric)
         {
@@ -63,13 +69,13 @@ namespace BuildXL.Cache.ContentStore.Utils
             addMetric(nameof(ContextSwitchesPerSec), ContextSwitchesPerSec);
             addMetric(nameof(ProcessCpuPercentage), ProcessCpuPercentage);
 
-            addMetric(nameof(TotalRamMb), TotalRamMb ?? -1);
-            addMetric(nameof(AvailableRamMb), AvailableRamMb ?? -1);
-            addMetric(nameof(EffectiveAvailableRamMb), EffectiveAvailableRamMb ?? -1);
+            addMetric(nameof(TotalRamMb), TotalRamMb);
+            addMetric(nameof(AvailableRamMb), AvailableRamMb);
+            addMetric(nameof(EffectiveAvailableRamMb), EffectiveAvailableRamMb);
             addMetric(nameof(CommitTotalMb), CommitTotalMb);
             addMetric(nameof(ProcessWorkingSetMb), ProcessWorkingSetMb);
             addMetric(nameof(GCTotalMemoryMb), GCTotalMemoryMb);
-            addMetric(nameof(GCTotalAvailableMemoryMb), GCTotalAvailableMemoryMb ?? -1);
+            addMetric(nameof(GCTotalAvailableMemoryMb), GCTotalAvailableMemoryMb);
 
             addMetric(nameof(ProcessThreadCount), ProcessThreadCount);
             addMetric(nameof(ThreadPoolWorkerThreads), ThreadPoolWorkerThreads);
@@ -137,10 +143,10 @@ namespace BuildXL.Cache.ContentStore.Utils
                 TotalRamMb = info.TotalRamMb,
                 AvailableRamMb = info.AvailableRamMb,
                 EffectiveAvailableRamMb = info.EffectiveAvailableRamMb,
-                CommitTotalMb = info.CommitUsedMb ?? -1,
+                CommitTotalMb = info.CommitUsedMb,
                 ProcessWorkingSetMb = info.ProcessWorkingSetMB,
                 GCTotalMemoryMb = (long)Math.Ceiling(GC.GetTotalMemory(forceFullCollection: false) / 1e6),
-                GCTotalAvailableMemoryMb = gcTotalAvailableMemoryMb ?? -1,
+                GCTotalAvailableMemoryMb = gcTotalAvailableMemoryMb,
 
 
                 // Threads

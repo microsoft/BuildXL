@@ -68,7 +68,7 @@ namespace BuildXL.Plugin
         /// <param name="request"></param>
         /// <param name="options"></param>
         /// <returns>plugin response with payload as ExitCodeParseMessageResponse <see cref="PluginMessageResponse" /></returns>
-        public AsyncUnaryCall<PluginMessageResponse> ProcessResultAsync(PluginMessage request, CallOptions options)
+        public AsyncUnaryCall<PluginMessageResponse> HandleExitCodeAsync(PluginMessage request, CallOptions options)
         {
             return SendAsync(request, options);
         }

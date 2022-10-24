@@ -17,7 +17,7 @@ message PluginMessage
     {
         Noop noop = 1;
         LogParseMessage logParseMessage = 3;
-        ProcessResultMessage processResultMessage = 4;
+        ExitCodeParseMessage exitCodeParseMessage = 4;
     }
 }
 
@@ -28,6 +28,6 @@ message PluginMessageResponse
     {
         SupportedOperationResponse supportedOperationResponse = 2;
         LogParseMessageResponse logParseMessageResponse = 3;
-        ProcessResultMessageResponse processResultMessageResponse = 4;
+        ExitCodeParseMessageResponse exitCodeParseMessageResponse = 4;
     }
 }

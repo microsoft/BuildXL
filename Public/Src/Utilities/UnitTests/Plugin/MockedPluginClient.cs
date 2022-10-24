@@ -12,19 +12,19 @@ namespace Test.BuildXL.Plugin
         public Func<Task<PluginResponseResult<bool>>> MockedStartFunc;
         public Func<Task<PluginResponseResult<bool>>> MockedStopFunc;
         public Func<Task<PluginResponseResult<LogParseResult>>> MockedLogParseFunc;
-        public Func<Task<PluginResponseResult<ProcessResultMessageResponse>>> MockedProcessResultFunc;
+        public Func<Task<PluginResponseResult<ExitCodeParseResult>>> MockedHandleExitCodeFunc;
 
         public MockedPluginClient(Func<Task<PluginResponseResult<bool>>> startFunc,
                                   Func<Task<PluginResponseResult<bool>>> stopFunc,
                                   Func<Task<PluginResponseResult<List<PluginMessageType>>>> supportedMessageTyepFunc,
                                   Func<Task<PluginResponseResult<LogParseResult>>> logparseFunc,
-                                  Func<Task<PluginResponseResult<ProcessResultMessageResponse>>> processResultFunc)
+                                  Func<Task<PluginResponseResult<ExitCodeParseResult>>> exitcodeFunc)
         {
             MockedSupportedMessageTypeFunc = supportedMessageTyepFunc;
             MockedStartFunc = startFunc;
             MockedStopFunc = stopFunc;
             MockedLogParseFunc = logparseFunc;
-            MockedProcessResultFunc = processResultFunc;
+            MockedHandleExitCodeFunc = exitcodeFunc;
         }
 
         public void Dispose() 
@@ -41,14 +41,9 @@ namespace Test.BuildXL.Plugin
             return MockedLogParseFunc.Invoke();
         }
 
-        public Task<PluginResponseResult<ProcessResultMessageResponse>> ProcessResultAsync(string executable,
-                                                                                           string arguments,
-                                                                                           ProcessStream input,
-                                                                                           ProcessStream output,
-                                                                                           ProcessStream error,
-                                                                                           int exitCode)
+        public Task<PluginResponseResult<ExitCodeParseResult>> HandleExitCodeAsync(string content, string filePath, bool isError)
         {
-            return MockedProcessResultFunc.Invoke();
+            return MockedHandleExitCodeFunc.Invoke();
         }
 
         public Task<PluginResponseResult<bool>> StartAsync()

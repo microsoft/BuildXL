@@ -239,7 +239,18 @@ namespace BuildXL.Scheduler.Distribution
             {
                 var cacheResult = await PipExecutor.TryCheckProcessRunnableFromCacheAsync(runnablePip, state, cacheableProcess, avoidRemoteLookups);
 
-                return ValueTuple.Create(cacheResult, cacheResult == null ? PipResultStatus.Failed : PipResultStatus.Succeeded);
+                PipResultStatus result;
+                if (cacheResult == null)
+                {
+                    // If the scheduler is terminating we mark the pip as cancelled
+                    result = runnablePip.Environment.IsTerminating ? PipResultStatus.Canceled : PipResultStatus.Failed;
+                }
+                else
+                {
+                    result = PipResultStatus.Succeeded;
+                }
+
+                return ValueTuple.Create(cacheResult, result);
             }
         }
     }

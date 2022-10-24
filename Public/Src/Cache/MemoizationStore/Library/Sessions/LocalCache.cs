@@ -51,14 +51,16 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
             LocalCacheConfiguration localCacheConfiguration,
             ConfigurationModel configurationModel = null,
             IClock clock = null,
-            bool checkLocalFiles = true)
+            bool checkLocalFiles = true,
+            bool assumeCallerCreatesDirectoryForPutOrPlace = false)
         {
-            clock = clock ?? SystemClock.Instance;
+            clock ??= SystemClock.Instance;
 
             var fileSystem = new PassThroughFileSystem(logger);
-            var contentStoreSettings = new ContentStoreSettings()
+            var contentStoreSettings = new ContentStoreSettings
             {
                 CheckFiles = checkLocalFiles,
+                AssumeCallerCreatesDirectoryForPutOrPlace = assumeCallerCreatesDirectoryForPutOrPlace,
             };
 
             Func<IContentStore> contentStoreFactory = () =>
@@ -92,12 +94,17 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
             ConfigurationModel configurationModelForStream = null,
             ConfigurationModel configurationModelForPath = null,
             IClock clock = null,
-            bool checkLocalFiles = true)
+            bool checkLocalFiles = true,
+            bool assumeCallerCreatesDirectoryForPutOrPlace = false)
         {
             var fileSystem = new PassThroughFileSystem(logger);
-            clock = clock ?? SystemClock.Instance;
+            clock ??= SystemClock.Instance;
 
-            var contentStoreSettings = new ContentStoreSettings() { CheckFiles = checkLocalFiles};
+            var contentStoreSettings = new ContentStoreSettings
+            {
+                CheckFiles = checkLocalFiles,
+                AssumeCallerCreatesDirectoryForPutOrPlace = assumeCallerCreatesDirectoryForPutOrPlace,
+            };
 
             Func<IContentStore> contentStoreFactory = () => new StreamPathContentStore(
                                 () => new FileSystemContentStore(fileSystem, clock, rootPathForStream, configurationModelForStream, settings: contentStoreSettings),

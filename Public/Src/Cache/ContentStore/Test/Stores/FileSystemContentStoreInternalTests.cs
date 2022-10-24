@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Exceptions;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
+using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Hashing;
@@ -18,6 +19,7 @@ using BuildXL.Cache.ContentStore.InterfacesTest.Utils;
 using BuildXL.Cache.ContentStore.Utils;
 using ContentStoreTest.Test;
 using FluentAssertions;
+using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
 using static BuildXL.Cache.ContentStore.Stores.FileSystemContentStoreInternalChecker;
@@ -64,6 +66,40 @@ namespace ContentStoreTest.Stores
                 // Even though the stream was closed, we should be able to get an empty stream again
                 await store.OpenStreamAsync(context, emptyHash, pinRequest: null).ShouldBeSuccess();
             }
+        }
+
+        // TODO: Flaky, sometimes breaks in memoryFS with an NRE
+        // [Fact]  
+        public async Task TurningOffDirectoryCreationDoesNotCreateDirForPlace()
+        {
+            using var testDirectory = new DisposableDirectory(FileSystem);
+            var context = new Context(Logger);
+
+            var config = ContentStoreConfiguration.CreateWithMaxSizeQuotaMB(1);
+            var settings = new ContentStoreSettings
+            {
+                AssumeCallerCreatesDirectoryForPutOrPlace = true,
+            };
+            var store = new TestFileSystemContentStoreInternal(FileSystem, Clock, testDirectory.Path, Config, settings: settings);
+
+            var emptyHash = VsoHashInfo.Instance.EmptyHash;
+
+            // Expect success - place via hardlink in the already-created temp dir.
+            await store.PutFileAsync(
+                context,
+                testDirectory.CreateRandomFileName(),
+                FileRealizationMode.HardLink,
+                emptyHash)
+                .ShouldBeSuccess();
+
+            // Expect failure - parent dir does not exist, should fail with inability to create link.
+            var nonexistentSubDirFile = testDirectory.Path / "nonexistent" / "nofile";
+            var putResult = await store.PutFileAsync(
+                context,
+                nonexistentSubDirFile,
+                FileRealizationMode.HardLink,
+                emptyHash)
+                .ShouldBeError();
         }
 
         [Fact]

@@ -163,7 +163,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         private Timer? _selfCheckTimer;
 
         private readonly IColdStorage? _coldStorage;
-
+        
         /// <nodoc />
         public FileSystemContentStoreInternal(
             IAbsFileSystem fileSystem,
@@ -199,7 +199,6 @@ namespace BuildXL.Cache.ContentStore.Stores
             FileSystem.CreateDirectory(RootPath);
             ContentDirectory = new MemoryContentDirectory(FileSystem, RootPath, this);
 
-            _pinContextCount = 0;
             _maxPinSize = -1;
 
             _settings = settings ?? ContentStoreSettings.DefaultSettings;
@@ -701,7 +700,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         {
             // Fast path:
             // If hardlinking existing content which has already been pinned in this context
-            // just quickly attempt to hardlink from and existing replica
+            // just quickly attempt to hardlink from the existing replica
             if (shouldAttemptHardLink
                 && ContentDirectory.TryGetFileInfo(contentHash, out var fileInfo)
                 && IsPinned(contentHash, pinRequest)
@@ -1003,6 +1002,14 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <returns>True if the callback is successful.</returns>
         private delegate Task<bool> OnContentNotInCache(AbsolutePath primaryPath);
 
+        private void CreateDirectoryIfNeeded(AbsolutePath dirPath)
+        {
+            if (!_settings.AssumeCallerCreatesDirectoryForPutOrPlace)
+            {
+                FileSystem.CreateDirectory(dirPath);
+            }
+        }
+
         private async Task<(bool Success, bool ContentAlreadyExistsInCache)> PutContentInternalAsync(
             Context context,
             ContentHash contentHash,
@@ -1026,7 +1033,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 if (fileInfo == null || await RemoveEntryIfNotOnDiskAsync(context, contentHash))
                 {
                     var txn = await ReserveAsync(contentSize);
-                    FileSystem.CreateDirectory(primaryPath.GetParent());
+                    CreateDirectoryIfNeeded(primaryPath.GetParent());
 
                     if (!await onContentNotInCache(primaryPath))
                     {
@@ -2185,7 +2192,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                     {
                         try
                         {
-                            FileSystem.CreateDirectory(destinationPath.GetParent());
+                            CreateDirectoryIfNeeded(destinationPath.GetParent());
                             var fileMode = replacementMode == FileReplacementMode.ReplaceExisting ? FileMode.Create : FileMode.CreateNew;
 
                             using (Stream targetFileStream = FileSystem.OpenForWrite(destinationPath, contentStream.Value.Length, fileMode, FileShare.Delete))
@@ -2236,7 +2243,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             ContentFileInfo info,
             bool fastPath = false)
         {
-            FileSystem.CreateDirectory(destinationPath.GetParent());
+            CreateDirectoryIfNeeded(destinationPath.GetParent());
 
             int defaultStartIndex = info.ReplicaCount - 1;
 

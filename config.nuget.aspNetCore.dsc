@@ -6,13 +6,13 @@ const aspVersion = "2.2.0";
 // Versions used by framework reference packages for reference assemblies
 // and runtime assemblies respectively
 const aspRefVersion = "3.1.10";
-const aspRuntimeVersion = "3.1.24";
+const aspRuntimeVersion = "3.1.29";
 
 const asp5RefVersion = "5.0.0";
 const asp5RuntimeVersion = "5.0.17";
 
-const asp6RefVersion = "6.0.9";
-const asp6RuntimeVersion = "6.0.9";
+const asp6RefVersion = "6.0.10";
+const asp6RuntimeVersion = "6.0.10";
 
 export const pkgs = [
     // aspnet web api

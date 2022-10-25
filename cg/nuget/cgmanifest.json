@@ -609,7 +609,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.AspNetCore.App.Ref",
-          "Version": "6.0.9"
+          "Version": "6.0.10"
         }
       }
     },
@@ -618,7 +618,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.AspNetCore.App.Runtime.linux-x64",
-          "Version": "3.1.24"
+          "Version": "3.1.29"
         }
       }
     },
@@ -636,7 +636,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.AspNetCore.App.Runtime.linux-x64",
-          "Version": "6.0.9"
+          "Version": "6.0.10"
         }
       }
     },
@@ -645,7 +645,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.AspNetCore.App.Runtime.osx-x64",
-          "Version": "3.1.24"
+          "Version": "3.1.29"
         }
       }
     },
@@ -663,7 +663,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.AspNetCore.App.Runtime.osx-x64",
-          "Version": "6.0.9"
+          "Version": "6.0.10"
         }
       }
     },
@@ -672,7 +672,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.AspNetCore.App.Runtime.win-x64",
-          "Version": "3.1.24"
+          "Version": "3.1.29"
         }
       }
     },
@@ -690,7 +690,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.AspNetCore.App.Runtime.win-x64",
-          "Version": "6.0.9"
+          "Version": "6.0.10"
         }
       }
     },
@@ -2751,7 +2751,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "NuGet.CommandLine",
-          "Version": "6.2.1"
+          "Version": "6.2.2"
         }
       }
     },
@@ -2760,7 +2760,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "NuGet.Common",
-          "Version": "5.11.0"
+          "Version": "5.11.3"
         }
       }
     },
@@ -2769,7 +2769,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "NuGet.Configuration",
-          "Version": "5.11.0"
+          "Version": "5.11.3"
         }
       }
     },
@@ -2778,7 +2778,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "NuGet.Frameworks",
-          "Version": "5.11.0"
+          "Version": "5.11.3"
         }
       }
     },
@@ -2787,7 +2787,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "NuGet.Packaging",
-          "Version": "5.11.0"
+          "Version": "5.11.3"
         }
       }
     },
@@ -2796,7 +2796,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "NuGet.Protocol",
-          "Version": "5.11.0"
+          "Version": "5.11.3"
         }
       }
     },
@@ -2805,7 +2805,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "NuGet.Versioning",
-          "Version": "5.11.0"
+          "Version": "5.11.3"
         }
       }
     },

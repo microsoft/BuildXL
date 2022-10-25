@@ -93,7 +93,7 @@ namespace Test.BuildXL.Utilities
             actionBlock.Post(1);
         }
 
-        [FactIfSupported(requiresWindowsOrLinuxOperatingSystem: true)]
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public async Task ExceptionIsNotThrownWhenTheBlockIsFullOrComplete()
         {
             ConcurrentQueue<int> seenInputs = new();

@@ -950,17 +950,9 @@ namespace BuildXL.Processes.Internal
 
                     Exception dumpCreationException;
 
-                    try
-                    {
-                        Directory.CreateDirectory(DumpFileDirectory);
-                    }
-                    catch (Exception ex)
-                    {
-                        DumpCreationException = ex;
-                    }
-
-                    if (DumpCreationException == null &&
-                        !ProcessDumper.TryDumpProcessAndChildren(
+                    if (!string.IsNullOrEmpty(DumpFileDirectory)
+                        && DumpCreationException == null 
+                        && !ProcessDumper.TryDumpProcessAndChildren(
                             parentProcessId: m_processId,
                             dumpDirectory: DumpFileDirectory,
                             primaryDumpCreationException: out dumpCreationException))

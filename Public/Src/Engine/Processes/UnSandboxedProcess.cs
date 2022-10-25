@@ -170,9 +170,16 @@ namespace BuildXL.Processes
                 m_error.HookOutputStream ? line => FeedStdErr(m_error, line) : null,
                 info.Provenance,
                 msg => LogProcessState(msg),
-                () => {
+                () => 
+                {
+                    if (string.IsNullOrEmpty(TimeoutDumpDirectory))
+                    {
+                        LogProcessState($"Not dumping process '{ProcessId}' and children because no dump directory is specified");
+                        return;
+                    }
+
                     LogProcessState($"Dumping process '{ProcessId}' and children into '{TimeoutDumpDirectory}'");
-                    
+
                     if (!ProcessDumper.TryDumpProcessAndChildren(ProcessId, TimeoutDumpDirectory, out m_dumpCreationException, debugLogger: (message) => LogDebug(message)))
                     {
                         LogProcessState($"Unable to generate core dump: {m_dumpCreationException.GetLogEventMessage()}");

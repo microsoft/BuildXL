@@ -870,7 +870,7 @@ namespace BuildXL.Processes
                         Timeout = m_timeout,
                         PipSemiStableHash = m_pip.SemiStableHash,
                         PipDescription = m_pipDescription,
-                        TimeoutDumpDirectory = ComputePipTimeoutDumpDirectory(m_sandboxConfig, m_pip, m_pathTable),
+                        TimeoutDumpDirectory = PreparePipTimeoutDumpDirectory(m_sandboxConfig, m_pip, m_pathTable),
                         SurvivingPipProcessChildrenDumpDirectory = m_sandboxConfig.SurvivingPipProcessChildrenDumpDirectory.ToString(m_pathTable),
                         SandboxKind = m_pip.DisableSandboxing ? SandboxKind.None : m_sandboxConfig.UnsafeSandboxConfiguration.SandboxKind,
                         AllowedSurvivingChildProcessNames = m_pip.AllowedSurvivingChildProcessNames.Select(n => n.ToString(m_pathTable.StringTable)).ToArray(),
@@ -4802,10 +4802,16 @@ namespace BuildXL.Processes
             return timeout > Process.MaxTimeout ? Process.MaxTimeout : timeout;
         }
 
-        private static string ComputePipTimeoutDumpDirectory(ISandboxConfiguration sandboxConfig, Process pip, PathTable pathTable)
+        private string PreparePipTimeoutDumpDirectory(ISandboxConfiguration sandboxConfig, Process pip, PathTable pathTable)
         {
             AbsolutePath rootDirectory = sandboxConfig.TimeoutDumpDirectory.IsValid ? sandboxConfig.TimeoutDumpDirectory : pip.UniqueOutputDirectory;
-            return rootDirectory.IsValid ? rootDirectory.Combine(pathTable, pip.FormattedSemiStableHash).ToString(pathTable) : null;
+            string directory = rootDirectory.IsValid ? rootDirectory.Combine(pathTable, pip.FormattedSemiStableHash).ToString(pathTable) : null;
+            if (directory != null)
+            {
+                PreparePathForDirectory(directory, createIfNonExistent: false);
+            }
+
+            return directory;
         }
 
         private void FormatOutputAndPaths(string standardOut, string standardError,

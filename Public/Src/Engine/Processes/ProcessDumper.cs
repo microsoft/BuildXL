@@ -165,11 +165,12 @@ namespace BuildXL.Processes
 
             DateTime treeDumpInitiateTime = DateTime.Now;
 
+            // Ensure directory exists.
             try
             {
-                FileUtilities.DeleteDirectoryContents(dumpDirectory);
+                Directory.CreateDirectory(dumpDirectory);
             }
-            catch (BuildXLException ex)
+            catch (Exception ex)
             {
                 primaryDumpCreationException = ex;
                 return false;

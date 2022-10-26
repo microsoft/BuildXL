@@ -49,6 +49,16 @@ jobs:
 
   - template: step-install-mono.yml
 
+  # The Bxl selfhost uses some shared opaque directories to build JS components. These outputs are interleaved with sources. When a build is cancelled on ADO
+  # some of these outputs may not be flagged as shared opaque outputs as the bxl process is suddenly aborted. In stateful agents, these can cause stale output
+  # files that may interact with subsequent builds. Make sure the source directory is clean before bxl starts (but spare the Out folder, so we can still reuse 
+  # the local cache).
+  - bash: |
+      set -euo pipefail
+      echo "== Making sure source directory is clean =="
+      git clean -xdf -e Out
+    displayName: Cleaning up source directory
+
   - bash: |
       set -euo pipefail
       readonly isNotMain="${{ ne(variables['Build.SourceBranchName'], 'main') }}"

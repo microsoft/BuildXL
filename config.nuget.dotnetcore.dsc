@@ -2,7 +2,6 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 const coreVersion = "3.1.0";
-const core50Version = "5.0.0";
 const core60Version = "6.0.6";
 
 const pkgVersion = "4.3.0";
@@ -25,56 +24,6 @@ export const pkgs = [
     { id: "Microsoft.NETCore.DotNetHostPolicy", version: coreVersion },
 
     { id: "Microsoft.NETCore.DotNetAppHost", version: coreVersion },
-
-    // .NET Core win-x64 runtime deps
-    { id: "Microsoft.NETCore.App.Host.win-x64", version: coreVersion, osSkip: [ "macOS", "unix" ] },
-    { id: "Microsoft.NETCore.App.Runtime.win-x64", version: coreVersion, osSkip: [ "macOS", "unix" ] },
-    { id: "runtime.win-x64.Microsoft.NETCore.DotNetHostResolver", version: coreVersion, osSkip: [ "macOS", "unix" ] },
-    { id: "runtime.win-x64.Microsoft.NETCore.DotNetHostPolicy", version: coreVersion, osSkip: [ "macOS", "unix" ] },
-
-    // .NET Core osx-x64 runtime deps
-    { id: "Microsoft.NETCore.App.Host.osx-x64", version: coreVersion },
-    { id: "Microsoft.NETCore.App.Runtime.osx-x64", version: coreVersion },
-    { id: "runtime.osx-x64.Microsoft.NETCore.DotNetHostResolver", version: coreVersion },
-    { id: "runtime.osx-x64.Microsoft.NETCore.DotNetHostPolicy", version: coreVersion },
-
-    // .NET Core linux-x64 runtime deps
-    { id: "Microsoft.NETCore.App.Runtime.linux-x64", version: coreVersion },
-    { id: "Microsoft.NETCore.App.Host.linux-x64", version: coreVersion },
-    { id: "runtime.linux-x64.Microsoft.NETCore.DotNetHostResolver", version: coreVersion },
-    { id: "runtime.linux-x64.Microsoft.NETCore.DotNetHostPolicy", version: coreVersion },
-
-    // .NET 5
-
-    // .NET Core 5.0 Dependencies
-    { id: "Microsoft.NETCore.App.Ref", version: core50Version, alias: "Microsoft.NETCore.App.Ref50" },
-
-    { id: "Microsoft.NETCore.Platforms", version: core50Version, alias: "Microsoft.NETCore.Platforms.5.0" },
-    
-    // .NET Core Self-Contained Deployment
-    { id: "Microsoft.NETCore.DotNetHostResolver", version: core50Version, alias: "Microsoft.NETCore.DotNetHostResolver.5.0" },
-
-    { id: "Microsoft.NETCore.DotNetHostPolicy", version: core50Version, alias: "Microsoft.NETCore.DotNetHostPolicy.5.0" },
-
-    { id: "Microsoft.NETCore.DotNetAppHost", version: core50Version, alias: "Microsoft.NETCore.DotNetAppHost.5.0" },
-
-    // .NET Core win-x64 runtime deps
-    { id: "Microsoft.NETCore.App.Host.win-x64", version: core50Version, osSkip: [ "macOS", "unix" ], alias: "Microsoft.NETCore.App.Host.win-x64.5.0" },
-    { id: "Microsoft.NETCore.App.Runtime.win-x64", version: core50Version, osSkip: [ "macOS", "unix" ], alias: "Microsoft.NETCore.App.Runtime.win-x64.5.0" },
-    { id: "runtime.win-x64.Microsoft.NETCore.DotNetHostResolver", version: core50Version, osSkip: [ "macOS", "unix" ], alias: "runtime.win-x64.Microsoft.NETCore.DotNetHostResolver.5.0" },
-    { id: "runtime.win-x64.Microsoft.NETCore.DotNetHostPolicy", version: core50Version, osSkip: [ "macOS", "unix" ], alias: "runtime.win-x64.Microsoft.NETCore.DotNetHostPolicy.5.0" },
-
-    // .NET Core osx-x64 runtime deps
-    { id: "Microsoft.NETCore.App.Host.osx-x64", version: core50Version, alias: "Microsoft.NETCore.App.Host.osx-x64.5.0" },
-    { id: "Microsoft.NETCore.App.Runtime.osx-x64", version: core50Version, alias: "Microsoft.NETCore.App.Runtime.osx-x64.5.0"},
-    { id: "runtime.osx-x64.Microsoft.NETCore.DotNetHostResolver", version: core50Version, alias: "runtime.osx-x64.Microsoft.NETCore.DotNetHostResolver.5.0" },
-    { id: "runtime.osx-x64.Microsoft.NETCore.DotNetHostPolicy", version: core50Version, alias: "runtime.osx-x64.Microsoft.NETCore.DotNetHostPolicy.5.0" },
-
-    // .NET Core linux-x64 runtime deps
-    { id: "Microsoft.NETCore.App.Runtime.linux-x64", version: core50Version, alias: "Microsoft.NETCore.App.Runtime.linux-x64.5.0" },
-    { id: "Microsoft.NETCore.App.Host.linux-x64", version: core50Version, alias: "Microsoft.NETCore.App.Host.linux-x64.5.0" },
-    { id: "runtime.linux-x64.Microsoft.NETCore.DotNetHostResolver", version: core50Version, alias: "runtime.linux-x64.Microsoft.NETCore.DotNetHostResolver.5.0" },
-    { id: "runtime.linux-x64.Microsoft.NETCore.DotNetHostPolicy", version: core50Version, alias: "runtime.linux-x64.Microsoft.NETCore.DotNetHostPolicy.5.0" },
 
     // .NET 6
 

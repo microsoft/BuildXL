@@ -17,9 +17,10 @@ namespace Test.Rush {
     const rushlib = Node.runNpmPackageInstall(rushLibTest, [], {name: "@microsoft/rush-lib", version: "5.47.0"});
 
     // TODO: to enable this, we should use an older version of NodeJs for Linux
-    const isRunningOnSupportedSystem = Context.getCurrentHost().cpuArchitecture === "x64";
+    const isRunningOnSupportedSystem = Context.getCurrentHost().cpuArchitecture === "x64" && Context.getCurrentHost().os === "win";
 
     // TODO: enable Rush tests for non-internal builds when we address the perf issue that make them timeout
+    // TODO: enable Rush tests for Linux. It seems that on ADO the machine installed node version is leaking into the tests and causing issues.
     @@public
     export const dll = isRunningOnSupportedSystem && BuildXLSdk.Flags.isMicrosoftInternal && BuildXLSdk.test({
         // QTest is not supporting opaque directories as part of the deployment

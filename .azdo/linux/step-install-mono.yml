@@ -4,6 +4,6 @@ steps:
 
     # install mono
     sudo apt-get update
-    sudo apt-get install -y mono-complete mono-devel 
+    sudo apt-get install -y mono-complete mono-devel
     mono --version
   displayName: Install Mono

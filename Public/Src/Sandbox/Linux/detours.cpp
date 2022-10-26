@@ -19,6 +19,7 @@
 #include <sys/param.h>
 #include <sys/mount.h>
 #include <sys/stat.h>
+#include <sys/sysmacros.h>
 #include <sys/fcntl.h>
 #include <sys/xattr.h>
 
@@ -612,7 +613,77 @@ INTERPOSE(ssize_t, sendfile64, int out_fd, int in_fd, off_t *offset, size_t coun
 
 INTERPOSE(ssize_t, copy_file_range, int fd_in, loff_t *off_in, int fd_out, loff_t *off_out, size_t len, unsigned int flags)({
     auto check = bxl->report_access_fd(__func__, ES_EVENT_TYPE_NOTIFY_WRITE, fd_out);
-    return bxl->check_and_fwd_copy_file_range(check, (ssize_t)ERROR_RETURN_VALUE, fd_in, off_in, fd_out, off_out, len, flags);
+    if (bxl->should_deny(check)) {
+        errno = EPERM;
+        return (ssize_t)ERROR_RETURN_VALUE;
+    }
+
+    // TODO: Remove the following workaround when the kernel bug is fixed.
+    //
+    // Due to (possibly) kernel bug, copy_file_range does no longer work when the file descriptors are not mounted on the same
+    // filesystems, despite what is said in the manual https://man7.org/linux/man-pages/man2/copy_file_range.2.html.
+    // This bug breaks AnyBuild virtual filesystem (VFS) because the source file will be in the read-only (lower) layer of overlayfs, and this
+    // layer is mounted on AnyBuild FUSE, and the target file will be in the writable (upper) layer of overlayfs.
+    //
+    // In the commented code below, we try to check if the file descriptors are mounted on the same filesystem, and if so, we simply call
+    // copy_file_range. On the user space, the descriptors are mounted on the same filesystem. However, when copy_file_range is called,
+    // and the call goes into the kernel space, those descriptors are identified from different filesystems, and so the call will fail with EXDEV.
+    //
+    // ------------------------------------------------------------------------------------------
+    // struct stat st_in;
+    // if (fstat(fd_in, &st_in) == -1)
+    //     return (ssize_t)ERROR_RETURN_VALUE;
+    // struct stat st_out;
+    // if (fstat(fd_out, &st_out) == -1)
+    //     return (ssize_t)ERROR_RETURN_VALUE;
+    // errno = 0;
+    // if ((uintmax_t)major(st_in.st_dev) == (uintmax_t)major(st_out.st_dev)
+    //     && (uintmax_t)minor(st_in.st_dev) == (uintmax_t)minor(st_out.st_dev))
+    //     return bxl->fwd_copy_file_range(fd_in, off_in, fd_out, off_out, len, flags).restore();
+    // ------------------------------------------------------------------------------------------
+
+    // The code below implements copy_file_range using splice(2). The idea is the content is first
+    // copied to the pipe and then transferred to the target.
+
+    // Check for flags.
+    if (flags != 0) {
+        errno = EINVAL;
+        return (ssize_t)ERROR_RETURN_VALUE;
+    }
+
+    // Check for overlapped range.
+    if (fd_in == fd_out) {
+        off64_t start_off_in = off_in == NULL ? lseek(fd_in, 0, SEEK_CUR) : *off_in;
+        off64_t end_off_in = start_off_in + len;
+        off64_t start_off_out = off_out == NULL ? lseek(fd_out, 0, SEEK_CUR) : *off_out;
+        off64_t end_off_out = start_off_out + len;
+        if ((start_off_in <= end_off_out && end_off_in >= start_off_out)
+            || (start_off_out <= end_off_in && end_off_out >= start_off_in)) {
+                errno = EINVAL;
+                return (ssize_t)ERROR_RETURN_VALUE;
+            }
+    }
+
+    errno = 0;
+
+    // Creates a pipe.
+    int pipefd[2];
+    ssize_t result = pipe(pipefd);
+    if (result < 0)
+        return result;
+
+    // Copy from input to pipe.
+    result = splice(fd_in, off_in, pipefd[1], NULL, len, 0);
+    if (result < 0)
+        goto exit;
+
+    // Copy from pipe to output.
+    result = splice(pipefd[0], NULL, fd_out, off_out, result, 0);
+
+exit:
+    close(pipefd[0]);
+    close(pipefd[1]);
+    return result;
 })
 
 INTERPOSE(int, name_to_handle_at, int dirfd, const char *pathname, struct file_handle *handle, int *mount_id, int flags)({

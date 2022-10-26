@@ -4614,7 +4614,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "runtime.linux-x64.BuildXL",
-          "Version": "0.1.0-20220726.16"
+          "Version": "0.1.0-20221024.27.1"
         }
       }
     },

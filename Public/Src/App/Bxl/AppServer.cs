@@ -62,7 +62,7 @@ namespace BuildXL
         private const byte CancelMessage = 0xCD;
         private const byte TerminateMessage = 0xCE;
 
-        private readonly TimeSpan m_maximumIdleTime;
+        private TimeSpan m_maximumIdleTime;
         private readonly Stopwatch m_idleTime = new Stopwatch();
         private PerformanceSnapshot m_startSnapshot;
         private int m_timesUsed;
@@ -281,6 +281,11 @@ namespace BuildXL
 
                         exit = result.ExitKind;
                         m_engineState = result.EngineState;
+
+                        if (result.DoNotReuseServer)
+                        {
+                            m_maximumIdleTime = TimeSpan.Zero;
+                        }
                     }
 
                     // Normally each table will get unique static debugging state. But for a long lived server process

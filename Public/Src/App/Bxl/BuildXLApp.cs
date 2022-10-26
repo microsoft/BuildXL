@@ -103,24 +103,26 @@ namespace BuildXL
         public readonly EngineState EngineState;
         public readonly string ErrorBucket;
         public readonly string BucketMessage;
+        public readonly bool DoNotReuseServer;
 
-        private AppResult(ExitKind exitKind, ExitKind cloudBuildExitKind, EngineState engineState, string errorBucket, string bucketMessage)
+        private AppResult(ExitKind exitKind, ExitKind cloudBuildExitKind, EngineState engineState, string errorBucket, string bucketMessage, bool doNotSaveServerState)
         {
             ExitKind = exitKind;
             CloudBuildExitKind = cloudBuildExitKind;
             EngineState = engineState;
             ErrorBucket = errorBucket;
             BucketMessage = bucketMessage;
+            DoNotReuseServer = doNotSaveServerState;
         }
 
-        public static AppResult Create(ExitKind exitKind, EngineState engineState, string errorBucket, string bucketMessage = "")
+        public static AppResult Create(ExitKind exitKind, EngineState engineState, string errorBucket, string bucketMessage = "", bool doNotSaveServerState = false)
         {
-            return new AppResult(exitKind, exitKind, engineState, errorBucket, bucketMessage);
+            return new AppResult(exitKind, exitKind, engineState, errorBucket, bucketMessage, doNotSaveServerState);
         }
 
-        public static AppResult Create(ExitKind exitKind, ExitKind cloudBuildExitKind, EngineState engineState, string errorBucket, string bucketMessage = "")
+        public static AppResult Create(ExitKind exitKind, ExitKind cloudBuildExitKind, EngineState engineState, string errorBucket, string bucketMessage = "", bool doNotReuseServer = false)
         {
-            return new AppResult(exitKind, cloudBuildExitKind, engineState, errorBucket, bucketMessage);
+            return new AppResult(exitKind, cloudBuildExitKind, engineState, errorBucket, bucketMessage, doNotReuseServer);
         }
     }
 
@@ -733,7 +735,12 @@ namespace BuildXL
 
                             var classification = ClassifyFailureFromLoggedEvents(pm.LoggingContext, appLoggers.TrackingEventListener);
                             var cbClassification = GetExitKindForCloudBuild(appLoggers.TrackingEventListener);
-                            return AppResult.Create(classification.ExitKind, cbClassification, newEngineState, classification.ErrorBucket, bucketMessage: classification.BucketMessage);
+
+                            return AppResult.Create(classification.ExitKind, cbClassification, newEngineState, classification.ErrorBucket, 
+                                bucketMessage: classification.BucketMessage,
+                                // Some L3 cache initialization failures relating to auth are sticky and will not succeed if retried from
+                                // within the same process. Make sure not to reuse the server process when the cache fails to init for safety.
+                                doNotReuseServer: appLoggers.TrackingEventListener.CountsPerEventId((int)BuildXL.Engine.Tracing.LogEventId.StorageCacheStartupError) > 0);
                         }
 
                         WriteToConsole(Strings.App_Main_BuildSucceeded);

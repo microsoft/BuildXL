@@ -2,11 +2,11 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading;
-using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Pips;
 using BuildXL.Pips.Filter;
@@ -20,39 +20,48 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.Utilities.Tasks;
-using BuildXL.Utilities.Tracing;
+using BuildXL.Utilities.Threading;
 
 namespace BuildXL.Scheduler.Distribution
 {
     /// <summary>
     /// Handles choose worker computation for <see cref="Scheduler"/>
     /// </summary>
-    internal class ChooseWorkerCpu : ChooseWorkerContext
+    internal class ChooseWorkerCpu
     {
         /// <summary>
         /// Use this constant to guess the missing file size.
         /// </summary>
         private const long TypicalFileLength = 4096;
 
-        private const double MaxLoadFactor = 2;
+        /// <summary>
+        /// Tracks a sequence number in order to verify if workers resources have changed since
+        /// the time it was checked. This is used by ChooseWorker to decide if the worker queue can
+        /// be paused
+        /// </summary>
+        private int m_workerEnableSequenceNumber = 0;
 
+        private double MaxLoadFactor => m_moduleAffinityEnabled ? m_scheduleConfig.ModuleAffinityLoadFactor.Value : 2;
         private readonly ReadOnlyArray<double> m_workerBalancedLoadFactors;
-
         private readonly FileContentManager m_fileContentManager;
-
         private readonly PipTable m_pipTable;
-
         private readonly ObjectPool<PipSetupCosts> m_pipSetupCostPool;
-
-        private readonly SemaphoreSlim m_chooseWorkerMutex = TaskUtilities.CreateMutex();
-
         private RunnablePip m_lastIterationBlockedPip;
+        private readonly ConcurrentDictionary<WorkerResource, BoxRef<ulong>> m_limitingResourceCounts = new ConcurrentDictionary<WorkerResource, BoxRef<ulong>>();
+        private readonly IScheduleConfiguration m_scheduleConfig;
+        private readonly Dictionary<ModuleId, (int NumPips, bool[] Workers)> m_moduleWorkerMapping;
+        private readonly LoggingContext m_loggingContext;
+        private readonly IPipQueue m_pipQueue;
+        private readonly IReadOnlyList<Worker> m_workers;
+        private readonly LocalWorker m_localWorker;
+        private readonly int m_maxParallelDegree;
+        private readonly ReadWriteLock m_chooseWorkerTogglePauseLock = ReadWriteLock.Create();
+        private readonly bool m_moduleAffinityEnabled;
 
         /// <summary>
-        /// The last pip blocked on resources
+        /// Whether there is any available remote worker.
         /// </summary>
-        public RunnablePip LastBlockedPip { get; private set; }
+        private bool IsOrchestrator => m_workers.Count > 1;
 
         /// <summary>
         /// The last resource limiting acquisition of a worker. 
@@ -63,40 +72,8 @@ namespace BuildXL.Scheduler.Distribution
         public WorkerResource? LastConcurrencyLimiter { get; set; }
 
         /// <summary>
-        /// The number of choose worker iterations
+        /// Constructor
         /// </summary>
-        public ulong ChooseIterations { get; private set; }
-
-        /// <summary>
-        /// The total time spent choosing a worker
-        /// </summary>
-        public int ChooseSeconds => (int)m_chooseTime.TotalSeconds;
-
-        private TimeSpan m_chooseTime = TimeSpan.Zero;
-
-        /// <summary>
-        /// TEMPORARY HACK: Tracks outputs of executed processes which are the sole considered files for IPC pip affinity. This is intended to
-        /// address a bug where IPC pips can disproportionately get assigned to a worker simply because it has materialized
-        /// cached inputs
-        /// </summary>
-        private readonly ContentTrackingSet m_executedProcessOutputs;
-
-        protected readonly Dictionary<WorkerResource, BoxRef<ulong>> m_limitingResourceCounts = new Dictionary<WorkerResource, BoxRef<ulong>>();
-
-        private int m_totalAcquiredProcessSlots;
-
-        private int m_totalProcessSlots;
-
-        private readonly IScheduleConfiguration m_scheduleConfig;
-
-        private readonly Dictionary<ModuleId, (int NumPips, List<Worker> Workers)> m_moduleWorkerMapping;
-        private readonly PathTable m_pathTable;
-
-        /// <summary>
-        /// Number of modules exceeding max workers due to availability
-        /// </summary>
-        private int m_numModulesExceedingMaxWorkers;
-
         public ChooseWorkerCpu(
             LoggingContext loggingContext,
             IScheduleConfiguration config,
@@ -104,249 +81,213 @@ namespace BuildXL.Scheduler.Distribution
             IPipQueue pipQueue,
             PipGraph pipGraph,
             FileContentManager fileContentManager,
-            PathTable pathTable,
-            Dictionary<ModuleId, (int, List<Worker>)> moduleWorkerMapping) : base(loggingContext, workers, pipQueue, DispatcherKind.ChooseWorkerCpu, config.MaxChooseWorkerCpu, config.ModuleAffinityEnabled())
+            Dictionary<ModuleId, (int, bool[])> moduleWorkerMapping)
         {
             m_pipTable = pipGraph.PipTable;
-            m_executedProcessOutputs = new ContentTrackingSet(pipGraph);
             m_fileContentManager = fileContentManager;
             m_pipSetupCostPool = new ObjectPool<PipSetupCosts>(
-                () => new PipSetupCosts(this), 
-                costs => costs, 
-                size: config.ModuleAffinityEnabled() ? config.MaxChooseWorkerCpu : config.MaxChooseWorkerCpu * workers.Count);
-            m_scheduleConfig = config;
+                () => new PipSetupCosts(this),
+                costs => costs);
 
-            m_pathTable = pathTable;
+            m_scheduleConfig = config;
+            m_workers = workers;
+            m_pipQueue = pipQueue;
+            m_localWorker = (LocalWorker)workers[0];
+            m_loggingContext = loggingContext;
+            m_maxParallelDegree = config.MaxChooseWorkerCpu;
+            m_moduleAffinityEnabled = config.ModuleAffinityEnabled();
+
+            foreach (var worker in m_workers)
+            {
+                worker.ResourcesChanged += OnWorkerResourcesChanged;
+            }
 
             if (config.ModuleAffinityEnabled())
             {
                 m_moduleWorkerMapping = moduleWorkerMapping;
-                m_workerBalancedLoadFactors = ReadOnlyArray<double>.FromWithoutCopy(config.ModuleAffinityLoadFactor.Value);
+            }
+
+            // Workers are given progressively heavier loads when acquiring resources
+            // in order to load balance between workers by
+            m_workerBalancedLoadFactors = ReadOnlyArray<double>.FromWithoutCopy(0.25, 0.5, 1, 1.5, MaxLoadFactor);
+        }
+
+        public Worker ChooseWorker(ProcessRunnablePip runnablePip)
+        {
+            Worker chosenWorker = null;
+            WorkerResource? limitingResource = null;
+            var moduleId = runnablePip.Pip.Provenance.ModuleId;
+
+            if (!IsOrchestrator)
+            {
+                // This is shortcut for the single-machine builds and distributed workers.
+                chosenWorker = m_localWorker.TryAcquireProcess(runnablePip, out limitingResource, loadFactor: 1) ? m_localWorker : null;
+            }
+            else if (m_moduleAffinityEnabled && m_moduleWorkerMapping.TryGetValue(moduleId, out var assignedWorkers))
+            {
+                chosenWorker = ChooseWorkerWithModuleAffinity(runnablePip, assignedWorkers.Workers, out limitingResource);
             }
             else
             {
-                // Workers are given progressively heavier loads when acquiring resources
-                // in order to load balance between workers by
-                m_workerBalancedLoadFactors = ReadOnlyArray<double>.FromWithoutCopy(0.25, 0.5, 1, 1.5, MaxLoadFactor);
-            }
-        }
-
-        /// <summary>
-        /// Reports the outputs of process execution after post process to distinguish between produced outputs and
-        /// outputs from cache when assigning affinity for IPC pips
-        /// </summary>
-        public void ReportProcessExecutionOutputs(ProcessRunnablePip runnableProcess, ExecutionResult executionResult)
-        {
-            Contract.Assert(runnableProcess.Step == PipExecutionStep.PostProcess);
-
-            if (executionResult.Converged || runnableProcess.Process.IsStartOrShutdownKind)
-            {
-                // Converged results are cached so they are not considered for as execution outputs
-                // Service start/shutdown pip outputs are not considered for IPC pip affinity
-                return;
-            }
-
-            foreach (var directoryOutput in executionResult.DirectoryOutputs)
-            {
-                m_executedProcessOutputs.Add(directoryOutput.directoryArtifact);
-            }
-
-            foreach (var output in executionResult.OutputContent)
-            {
-                m_executedProcessOutputs.Add(output.fileArtifact);
-            }
-        }
-
-        /// <summary>
-        /// Choose a worker based on setup cost
-        /// </summary>
-        protected override async Task<Worker> ChooseWorkerCore(RunnablePip runnablePip)
-        {
-            using (var pooledPipSetupCost = m_pipSetupCostPool.GetInstance())
-            {
-                var pipSetupCost = pooledPipSetupCost.Instance;
-                if (m_scheduleConfig.EnableSetupCostWhenChoosingWorker)
+                using (var pooledPipSetupCost = m_pipSetupCostPool.GetInstance())
                 {
-                    pipSetupCost.EstimateAndSortSetupCostPerWorker(runnablePip);
-                }
-                else
-                {
-                    pipSetupCost.InitializeWorkerSetupCost(runnablePip);
-                }
-
-                using (await m_chooseWorkerMutex.AcquireAsync())
-                {
-                    var startTime = TimestampUtilities.Timestamp;
-                    ChooseIterations++;
-
-                    WorkerResource? limitingResource;
-                    var chosenWorker = ChooseWorker(runnablePip, pipSetupCost.WorkerSetupCosts, out limitingResource);
-                    if (chosenWorker == null)
-                    {
-                        m_lastIterationBlockedPip = runnablePip;
-                        LastBlockedPip = runnablePip;
-                        var limitingResourceCount = m_limitingResourceCounts.GetOrAdd(limitingResource.Value, k => new BoxRef<ulong>());
-                        limitingResourceCount.Value++;
-                    }
-                    else
-                    {
-                        m_lastIterationBlockedPip = null;
-                    }
-                    
-                    // If a worker is successfully chosen, then the limiting resouce would be null.
-                    LastConcurrencyLimiter = limitingResource;
-
-                    m_chooseTime += TimestampUtilities.Timestamp - startTime;
-                    return chosenWorker;
+                    var pipSetupCost = pooledPipSetupCost.Instance;
+                    pipSetupCost.EstimateAndSortSetupCostPerWorker(runnablePip, m_scheduleConfig.EnableSetupCostWhenChoosingWorker);
+                    chosenWorker = ChooseWorkerWithSetupCost(runnablePip, pipSetupCost.WorkerSetupCosts, out limitingResource);
                 }
             }
+
+            // If a worker is successfully chosen, then the limiting resource would be null.
+            LastConcurrencyLimiter = limitingResource;
+
+            if (chosenWorker == null)
+            {
+                var limitingResourceCount = m_limitingResourceCounts.GetOrAdd(limitingResource.Value, k => new BoxRef<ulong>());
+                limitingResourceCount.Value++;
+
+                runnablePip.IsWaitingForWorker = true;
+                m_lastIterationBlockedPip = runnablePip;
+                TogglePauseChooseWorkerQueue(pause: true, blockedPip: runnablePip);
+            }
+            else
+            {
+                runnablePip.IsWaitingForWorker = false;
+                m_lastIterationBlockedPip = null;
+                TogglePauseChooseWorkerQueue(pause: false);
+            }
+
+            return chosenWorker;
         }
 
         /// <summary>
         /// Choose a worker based on setup cost
         /// </summary>
-        private Worker ChooseWorker(RunnablePip runnablePip, WorkerSetupCost[] workerSetupCosts, out WorkerResource? limitingResource)
+        private Worker ChooseWorkerWithSetupCost(ProcessRunnablePip runnablePip, WorkerSetupCost[] workerSetupCosts, out WorkerResource? limitingResource)
         {
-            if (MustRunOnOrchestrator(runnablePip))
-            {
-                // This is shortcut for the single-machine builds and distributed workers.
-                return LocalWorker.TryAcquire(runnablePip, out limitingResource, loadFactor: MaxLoadFactor) ? LocalWorker : null;
-            }
-
-            // For integration tests we require some pips to run remotely
-            var mustRunRemotely = 
-                (runnablePip.Pip is Process processPip && processPip.Priority == Process.IntegrationTestPriority) &&
-                runnablePip.Pip.Tags.Any(a => runnablePip.Environment.Context.StringTable.Equals(TagFilter.RunPipRemotely, a));
-
-            ResetStatus();
-
-            bool loadBalanceWorkers = false;
-            if (runnablePip.PipType == PipType.Process && !runnablePip.IsLight)
-            {
-                var pendingWorkerSelectionSlotCount = PipQueue.GetNumQueuedByKind(DispatcherKind.ChooseWorkerCpu) + PipQueue.GetNumAcquiredSlotsByKind(DispatcherKind.ChooseWorkerCpu);
-
-                if (pendingWorkerSelectionSlotCount + m_totalAcquiredProcessSlots < (m_totalProcessSlots / 2))
-                {
-                    // When there is a limited amount of work (less than half the total capacity of
-                    // the all the workers). We load balance so that each worker gets
-                    // its share of the work and the work can complete faster
-                    loadBalanceWorkers = true;
-                }
-            }
-
-            long setupCostForBestWorker = workerSetupCosts[0].SetupBytes;
-
             limitingResource = null;
-
-            var moduleId = runnablePip.Pip.Provenance.ModuleId;
-            (int NumPips, List<Worker> Workers) assignedWorkers = (0, null);
-            m_moduleWorkerMapping?.TryGetValue(moduleId, out assignedWorkers);
 
             foreach (var loadFactor in m_workerBalancedLoadFactors)
             {
-                if (!loadBalanceWorkers && loadFactor < 1)
+                foreach (var workerSetupCost in workerSetupCosts)
                 {
-                    // Not load balancing so allow worker to be filled to capacity at least
-                    continue;
-                }
-
-                if (assignedWorkers.Workers?.Count > 0)
-                {
-                    // If there are no workers assigned to the module, proceed with normal chooseworker logic.
-                    return ChooseWorkerForModuleAffinity(runnablePip, workerSetupCosts, loadFactor, out limitingResource);
-                }
-
-                for (int i = 0; i < workerSetupCosts.Length; i++)
-                {
-                    var worker = workerSetupCosts[i].Worker;
-                    
-                    if (mustRunRemotely && worker.IsLocal)
+                    var worker = workerSetupCost.Worker;
+                    if (worker.TryAcquireProcess(runnablePip, out limitingResource, loadFactor: loadFactor))
                     {
-                        continue;
-                    }
-
-                    if (worker.TryAcquire(runnablePip, out limitingResource, loadFactor: loadFactor))
-                    {
-                        runnablePip.Performance.SetInputMaterializationCost(ByteSizeFormatter.ToMegabytes((ulong)setupCostForBestWorker), ByteSizeFormatter.ToMegabytes((ulong)workerSetupCosts[i].SetupBytes));
                         return worker;
                     }
                 }
             }
 
+            if (limitingResource == null)
+            {
+                limitingResource = WorkerResource.AvailableProcessSlots;
+            }
+
             return null;
         }
 
-        private Worker ChooseWorkerForModuleAffinity(RunnablePip runnablePip, WorkerSetupCost[] workerSetupCosts, double loadFactor, out WorkerResource? limitingResource)
+        private Worker ChooseWorkerWithModuleAffinity(ProcessRunnablePip runnablePip, bool[] assignedWorkers, out WorkerResource? limitingResource)
         {
-            limitingResource = null;
+            limitingResource = WorkerResource.ModuleAffinity;
 
-            var moduleId = runnablePip.Pip.Provenance.ModuleId;
-            var assignedWorkers = m_moduleWorkerMapping[moduleId].Workers;
-
-            int numAssignedWorkers = assignedWorkers.Count;
-            foreach (var worker in assignedWorkers.OrderBy(a => a.AcquiredProcessSlots))
+            int availableWorkerCount = 0;
+            for (int i = 0; i < assignedWorkers.Length; i++)
             {
-                if (worker.TryAcquire(runnablePip, out limitingResource, loadFactor: loadFactor, moduleAffinityEnabled: true))
+                if (assignedWorkers[i])
                 {
-                    return worker;
+                    if (m_workers[i].IsAvailable)
+                    {
+                        availableWorkerCount++;
+                    }
+
+                    if (m_workers[i].TryAcquireProcess(runnablePip, out limitingResource, loadFactor: MaxLoadFactor, moduleAffinityEnabled: true))
+                    {
+                        return m_workers[i];
+                    }
                 }
             }
-
-            bool isAnyAvailable = assignedWorkers.Any(a => a.IsAvailable);
-
-            var limitingResourceForAssigned = limitingResource;
-
-            var potentialWorkers = workerSetupCosts
-                .Select(a => a.Worker)
-                .Except(assignedWorkers)
-                .Where(a => a.IsAvailable)
-                .Where(a => a.AcquiredProcessSlots < a.TotalProcessSlots)
-                .Where(a => a.AcquiredMaterializeInputSlots < a.TotalMaterializeInputSlots)
-                .OrderBy(a => a.AcquiredProcessSlots);
 
             // If there are no assigned workers in "Available status", we should choose one regardless not to block scheduler.
-            if (numAssignedWorkers < m_scheduleConfig.MaxWorkersPerModule || !isAnyAvailable)
+            if (availableWorkerCount < m_scheduleConfig.MaxWorkersPerModule)
             {
-                foreach (var worker in potentialWorkers)
+                for (int i = 0; i < assignedWorkers.Length; i++)
                 {
-                    if (worker.TryAcquire(runnablePip, out limitingResource, loadFactor: loadFactor, moduleAffinityEnabled: true))
+                    if (!assignedWorkers[i])
                     {
-                        assignedWorkers.Add(worker);
-                        Logger.Log.AddedNewWorkerToModuleAffinity(LoggingContext, $"Added a new worker due to {(isAnyAvailable ? "Rebalance" : "Availability")} - {limitingResourceForAssigned}: {runnablePip.Description} - {moduleId.Value.ToString(m_pathTable.StringTable)} - WorkerId: {worker.WorkerId}, MaterializeInputSlots: {worker.AcquiredMaterializeInputSlots}, AcquiredProcessSlots: {worker.AcquiredProcessSlots}");
-
-                        if (assignedWorkers.Count > m_scheduleConfig.MaxWorkersPerModule)
+                        if (m_workers[i].TryAcquireProcess(runnablePip, out limitingResource, loadFactor: MaxLoadFactor, moduleAffinityEnabled: true))
                         {
-                            // If none of the assigned workers are available due to worker connection issues or earlyWorkerRelease, 
-                            // we need to add a new worker even though it exceeds the max worker count per module. 
-                            // This is to prevent Scheduler from being blocked.
-                            m_numModulesExceedingMaxWorkers++;
+                            assignedWorkers[i] = true;
+                            return m_workers[i];
                         }
-                        
-                        return worker;
                     }
                 }
-            }
-            else if (potentialWorkers.Any())
-            {
-                limitingResource = WorkerResource.ModuleAffinity;
             }
 
             return null;
         }
 
-        protected void ResetStatus()
+        public void TogglePauseChooseWorkerQueue(bool pause, RunnablePip blockedPip = null)
         {
-            m_totalAcquiredProcessSlots = 0;
-            m_totalProcessSlots = 0;
+            Contract.Requires(pause == (blockedPip != null), "Must specify blocked pip if and only if pausing the choose worker queue");
 
-            for (int i = 0; i < Workers.Count; i++)
+            // Attempt to pause the choose worker queue since resources are not available
+            // Do not pause choose worker queue when module affinity is enabled.
+            if (EngineEnvironmentSettings.DoNotPauseChooseWorkerThreads || m_moduleAffinityEnabled)
             {
-                if (Workers[i].IsAvailable)
+                return;
+            }
+
+            if (pause)
+            {
+                if (blockedPip.IsLight)
                 {
-                    m_totalAcquiredProcessSlots += Workers[i].AcquiredProcessSlots;
-                    m_totalProcessSlots += Workers[i].TotalProcessSlots;
+                    // Light pips do not block the chooseworker queue.
+                    return;
+                }
+
+                using (m_chooseWorkerTogglePauseLock.AcquireWriteLock())
+                {
+                    // Compare with the captured sequence number before the pip re-entered the queue
+                    // to avoid race conditions where pip cannot acquire worker resources become available then queue is paused
+                    // potentially indefinitely (not likely but theoretically possilbe)
+                    if (Volatile.Read(ref m_workerEnableSequenceNumber) == blockedPip.ChooseWorkerSequenceNumber)
+                    {
+                        SetQueueMaxParallelDegree(0);
+                    }
                 }
             }
+            else
+            {
+                using (m_chooseWorkerTogglePauseLock.AcquireReadLock())
+                {
+                    // Update the sequence number. This essentially is called for every increase in resources
+                    // and successful acquisition of workers to track changes in resource state that invalidate
+                    // decision to pause choose worker queue.
+                    Interlocked.Increment(ref m_workerEnableSequenceNumber);
+
+                    // Unpause the queue
+                    SetQueueMaxParallelDegree(m_maxParallelDegree);
+                }
+            }
+        }
+
+        private void OnWorkerResourcesChanged(Worker worker, WorkerResource resourceKind, bool increased)
+        {
+            if (increased)
+            {
+                TogglePauseChooseWorkerQueue(pause: false);
+            }
+        }
+
+        private void SetQueueMaxParallelDegree(int maxConcurrency)
+        {
+            m_pipQueue.SetMaxParallelDegreeByKind(DispatcherKind.ChooseWorkerCpu, maxConcurrency);
+        }
+
+        public void LogStats(Dictionary<string, long> statistics)
+        {
+            var limitingResourceStats = m_limitingResourceCounts.ToDictionary(kvp => kvp.Key.ToString(), kvp => (long)kvp.Value.Value);
+            Logger.Log.LimitingResourceStatistics(m_loggingContext, limitingResourceStats);
         }
 
         internal void UnpauseChooseWorkerQueueIfEnqueuingNewPip(RunnablePip runnablePip, DispatcherKind nextQueue)
@@ -363,16 +304,8 @@ namespace BuildXL.Scheduler.Distribution
                 // waiting for resources for this pip to avoid race conditions where pip cannot acquire worker
                 // resources become available then queue is paused potentially indefinitely (not likely but theoretically
                 // possilbe)
-                runnablePip.ChooseWorkerSequenceNumber = Volatile.Read(ref WorkerEnableSequenceNumber);
+                runnablePip.ChooseWorkerSequenceNumber = Volatile.Read(ref m_workerEnableSequenceNumber);
             }
-        }
-
-        public void LogStats(Dictionary<string, long> statistics)
-        {
-            var limitingResourceStats = m_limitingResourceCounts.ToDictionary(kvp => kvp.Key.ToString(), kvp => (long)kvp.Value.Value);
-            Logger.Log.LimitingResourceStatistics(LoggingContext, limitingResourceStats);
-
-            statistics.Add($"NumModulesExceedingMaxWorkers", m_numModulesExceedingMaxWorkers);
         }
 
         private class PipSetupCosts
@@ -384,67 +317,58 @@ namespace BuildXL.Scheduler.Distribution
             public PipSetupCosts(ChooseWorkerCpu context)
             {
                 m_context = context;
-                WorkerSetupCosts = new WorkerSetupCost[context.Workers.Count];
+                WorkerSetupCosts = new WorkerSetupCost[context.m_workers.Count];
             }
 
             /// <summary>
             /// The result contains estimated amount of work for each worker
             /// </summary>
-            public void EstimateAndSortSetupCostPerWorker(RunnablePip runnablePip)
+            public void EstimateAndSortSetupCostPerWorker(RunnablePip runnablePip, bool enableInputCost)
             {
-                if (m_context.MustRunOnOrchestrator(runnablePip))
-                {
-                    // Only estimate setup costs for pips which can execute remotely
-                    return;
-                }
-
                 var pip = runnablePip.Pip;
 
                 InitializeWorkerSetupCost(runnablePip);
 
-                // The block below collects process input file artifacts and hashes
-                // Currently there is no logic to keep from sending the same hashes twice
-                // Consider a model where hashes for files are requested by worker
-                using (var pooledFileSet = Pools.GetFileArtifactSet())
+                if (enableInputCost)
                 {
-                    var pipInputs = pooledFileSet.Instance;
-                    m_context.m_fileContentManager.CollectPipInputsToMaterialize(
-                        m_context.m_pipTable,
-                        pip,
-                        pipInputs,
-
-                        // Service pip cost is not considered as this is shared among many clients and is a one-time cost per worker
-                        serviceFilter: servicePipId => false);
-
-                    m_visitedHashes.Clear();
-
-                    foreach (var fileInput in pipInputs)
+                    // The block below collects process input file artifacts and hashes
+                    // Currently there is no logic to keep from sending the same hashes twice
+                    // Consider a model where hashes for files are requested by worker
+                    using (var pooledFileSet = Pools.GetFileArtifactSet())
                     {
-                        if (!fileInput.IsOutputFile)
-                        {
-                            continue;
-                        }
+                        var pipInputs = pooledFileSet.Instance;
+                        m_context.m_fileContentManager.CollectPipInputsToMaterialize(
+                            m_context.m_pipTable,
+                            pip,
+                            pipInputs,
 
-                        if (pip.PipType == PipType.Ipc && !m_context.m_executedProcessOutputs.Contains(fileInput))
-                        {
-                            // Only executed process outputs are considered for IPC pip affinity
-                            continue;
-                        }
+                            // Service pip cost is not considered as this is shared among many clients and is a one-time cost per worker
+                            serviceFilter: servicePipId => false);
 
-                        FileContentInfo fileContentInfo = m_context.m_fileContentManager.GetInputContent(fileInput).FileContentInfo;
-                        if (!m_visitedHashes.Add(fileContentInfo.Hash))
-                        {
-                            continue;
-                        }
+                        m_visitedHashes.Clear();
 
-                        // How many bytes we have to copy.
-                        long fileSize = fileContentInfo.HasKnownLength ? fileContentInfo.Length : TypicalFileLength;
-
-                        for (int idx = 0; idx < m_context.Workers.Count; ++idx)
+                        foreach (var fileInput in pipInputs)
                         {
-                            if (!WorkerSetupCosts[idx].Worker.HasContent(fileInput))
+                            if (!fileInput.IsOutputFile)
                             {
-                                WorkerSetupCosts[idx].SetupBytes += fileSize;
+                                continue;
+                            }
+
+                            FileContentInfo fileContentInfo = m_context.m_fileContentManager.GetInputContent(fileInput).FileContentInfo;
+                            if (!m_visitedHashes.Add(fileContentInfo.Hash))
+                            {
+                                continue;
+                            }
+
+                            // How many bytes we have to copy.
+                            long fileSize = fileContentInfo.HasKnownLength ? fileContentInfo.Length : TypicalFileLength;
+
+                            for (int idx = 0; idx < m_context.m_workers.Count; ++idx)
+                            {
+                                if (!WorkerSetupCosts[idx].Worker.HasContent(fileInput))
+                                {
+                                    WorkerSetupCosts[idx].SetupBytes += fileSize;
+                                }
                             }
                         }
                     }
@@ -455,20 +379,13 @@ namespace BuildXL.Scheduler.Distribution
 
             public void InitializeWorkerSetupCost(RunnablePip runnable)
             {
-                for (int i = 0; i < m_context.Workers.Count; i++)
+                for (int i = 0; i < m_context.m_workers.Count; i++)
                 {
-                    var worker = m_context.Workers[i];
-                    int acquiredSlots = worker.AcquiredProcessSlots;
-                    if (runnable.IsLight)
-                    {
-                        // For light process and IPC pips, use Light slots to order the workers.
-                        acquiredSlots = worker.AcquiredLightSlots;
-                    }
-
+                    var worker = m_context.m_workers[i];
                     WorkerSetupCosts[i] = new WorkerSetupCost()
                     {
                         Worker = worker,
-                        AcquiredSlots = acquiredSlots
+                        AcquiredSlots = worker.AcquiredProcessSlots
                     };
                 }
             }
@@ -492,9 +409,6 @@ namespace BuildXL.Scheduler.Distribution
             /// <summary>
             /// Number of acquired slots
             /// </summary>
-            /// <remarks>
-            /// For IPC pips, this means acquired IPC slots, and for process pips, it means acquired process slots.
-            /// </remarks>
             public int AcquiredSlots { get; set; }
 
             /// <inheritdoc />

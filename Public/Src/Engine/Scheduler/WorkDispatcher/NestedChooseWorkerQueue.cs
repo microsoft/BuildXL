@@ -63,7 +63,7 @@ namespace BuildXL.Scheduler.WorkDispatcher
         {
             Contract.Requires(!IsDisposed);
 
-            m_chooseWorkerQueues[runnablePip.PreferredWorkerId].Enqueue(runnablePip);
+            m_chooseWorkerQueues[runnablePip.PreferredWorkerId ?? 0].Enqueue(runnablePip);
         }
 
         /// <nodoc/>

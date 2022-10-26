@@ -27,8 +27,6 @@ namespace BuildXL.Scheduler
         private readonly Dictionary<DispatcherKind, DispatcherQueue> m_queuesByKind;
 
         private readonly ChooseWorkerQueue m_chooseWorkerCpuQueue;
-        private readonly ChooseWorkerQueue m_chooseWorkerCacheLookupQueue;
-        private readonly ChooseWorkerQueue m_chooseWorkerLightQueue;
 
         /// <summary>
         /// Task completion source that completes whenever there are applicable changes which require another dispatching iteration.
@@ -46,7 +44,15 @@ namespace BuildXL.Scheduler
         private long m_numRunningOrQueued;
 
         /// <inheritdoc/>
-        public long NumRunningOrQueued => Volatile.Read(ref m_numRunningOrQueued);
+        public long NumRunningOrQueuedOrRemote => Volatile.Read(ref m_numRunningOrQueued) + NumRemoteRunning;
+
+        /// <summary>
+        /// How many pips are currently executed on remote workers.
+        /// </summary>
+        private int m_numRemoteRunning;
+
+        /// <inheritdoc/>
+        public int NumRemoteRunning => Volatile.Read(ref m_numRemoteRunning);
 
         /// <summary>
         /// Whether the queue can accept new external work items.
@@ -99,7 +105,7 @@ namespace BuildXL.Scheduler
         /// If there are no items running or pending in the queues, we need to check whether this pipqueue can accept new external work.
         /// If this is a worker, we cannot finish dispatcher because orchestrator can still send new work items to the worker.
         /// </returns>
-        public bool IsFinished => IsCancelled || (Volatile.Read(ref m_numRunningOrQueued) == 0 && m_isFinalized);
+        public bool IsFinished => IsCancelled || (NumRunningOrQueuedOrRemote == 0 && m_isFinalized);
 
         /// <inheritdoc/>
         public bool IsDisposed { get; private set; }
@@ -165,8 +171,6 @@ namespace BuildXL.Scheduler
             // If adaptive IO is enabled, then start with the half of the maxIO.
             var ioLimit = m_scheduleConfig.AdaptiveIO ? (m_scheduleConfig.MaxIO + 1) / 2 : m_scheduleConfig.MaxIO;
 
-            m_chooseWorkerLightQueue = new ChooseWorkerQueue(this, m_scheduleConfig.MaxChooseWorkerLight);
-            m_chooseWorkerCacheLookupQueue = new ChooseWorkerQueue(this, m_scheduleConfig.MaxChooseWorkerCacheLookup);
             m_chooseWorkerCpuQueue = m_scheduleConfig.ModuleAffinityEnabled() ?
                 new NestedChooseWorkerQueue(this, m_scheduleConfig.MaxChooseWorkerCpu, config.Distribution.BuildWorkers.Count + 1) :
                 new ChooseWorkerQueue(this, m_scheduleConfig.MaxChooseWorkerCpu);
@@ -174,15 +178,16 @@ namespace BuildXL.Scheduler
             m_queuesByKind = new Dictionary<DispatcherKind, DispatcherQueue>()
                              {
                                  {DispatcherKind.IO, new DispatcherQueue(this, ioLimit)},
-                                 {DispatcherKind.DelayedCacheLookup, new DispatcherQueue(this, maxParallelDegree: 1)},
-                                 {DispatcherKind.ChooseWorkerCacheLookup, m_chooseWorkerCacheLookupQueue},
-                                 {DispatcherKind.ChooseWorkerLight, m_chooseWorkerLightQueue },
-                                 {DispatcherKind.CacheLookup, new DispatcherQueue(this, m_scheduleConfig.MaxCacheLookup)},
+                                 {DispatcherKind.DelayedCacheLookup, new DispatcherQueue(this, 1)},
+                                 {DispatcherKind.ChooseWorkerCacheLookup, new DispatcherQueue(this, m_scheduleConfig.MaxChooseWorkerCacheLookup)},
+                                 {DispatcherKind.ChooseWorkerLight, new DispatcherQueue(this, m_scheduleConfig.MaxChooseWorkerLight)},
+                                 {DispatcherKind.ChooseWorkerIpc, new DispatcherQueue(this, 1)},
                                  {DispatcherKind.ChooseWorkerCpu, m_chooseWorkerCpuQueue},
+                                 {DispatcherKind.CacheLookup, new DispatcherQueue(this, m_scheduleConfig.MaxCacheLookup)},
                                  {DispatcherKind.CPU, new DispatcherQueue(this, m_scheduleConfig.EffectiveMaxProcesses, useWeight: true)},
                                  {DispatcherKind.Materialize, new DispatcherQueue(this, m_scheduleConfig.MaxMaterialize)},
-                                 {DispatcherKind.Light, new DispatcherQueue(this, m_scheduleConfig.MaxLightProcesses)},
-                                 {DispatcherKind.SealDirs, new DispatcherQueue(this, m_scheduleConfig.MaxSealDirs)},
+                                 {DispatcherKind.Light, new DispatcherQueue(this, m_scheduleConfig.MaxLight)},
+                                 {DispatcherKind.IpcPips, new DispatcherQueue(this, m_scheduleConfig.MaxIpc)}
                              };
 
             m_hasAnyChange = new ManualResetEventSlim(initialState: true /* signaled */);
@@ -190,15 +195,15 @@ namespace BuildXL.Scheduler
             Tracing.Logger.Log.PipQueueConcurrency(
                 loggingContext,
                 ioLimit,
-                m_scheduleConfig.MaxChooseWorkerCacheLookup,
-                m_scheduleConfig.MaxCacheLookup,
                 m_scheduleConfig.MaxChooseWorkerCpu,
+                m_scheduleConfig.MaxChooseWorkerCacheLookup,
+                m_scheduleConfig.MaxChooseWorkerLight,
+                m_scheduleConfig.MaxCacheLookup,
                 m_scheduleConfig.EffectiveMaxProcesses,
                 m_scheduleConfig.MaxMaterialize,
-                m_scheduleConfig.MaxLightProcesses,
-                m_scheduleConfig.OrchestratorCacheLookupMultiplier.ToString(),
-                m_scheduleConfig.OrchestratorCpuMultiplier.ToString(),
-                m_scheduleConfig.MaxChooseWorkerLight);
+                m_scheduleConfig.MaxLight,
+                m_scheduleConfig.MaxIpc,
+                m_scheduleConfig.OrchestratorCpuMultiplier.ToString());
         }
 
         /// <inheritdoc/>
@@ -395,6 +400,25 @@ namespace BuildXL.Scheduler
             m_hasAnyRunning = new TaskCompletionSource<bool>();
             IsCancelled = true;
             TriggerDispatcher();
+        }
+
+        /// <inheritdoc />
+        public async Task RemoteAsync(RunnablePip runnablePip)
+        {
+            if (runnablePip.IsRemotelyExecuting)
+            {
+                // If it is already remotely executing, there is no need to fork it on another thread.
+                await runnablePip.RunAsync();
+            }
+            else
+            {
+                runnablePip.IsRemotelyExecuting = true;
+                Interlocked.Increment(ref m_numRemoteRunning);
+                await Task.Yield();
+                await runnablePip.RunAsync();
+                Interlocked.Decrement(ref m_numRemoteRunning);
+                TriggerDispatcher();
+            }
         }
 
         /// <summary>

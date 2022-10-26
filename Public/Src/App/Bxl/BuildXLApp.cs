@@ -377,7 +377,6 @@ namespace BuildXL
                         (int)EngineLogEventId.ChosenABTesting,
                         (int)EngineLogEventId.SynchronouslyWaitedForCache,
                         (int)Scheduler.Tracing.LogEventId.PipFingerprintData,
-                        (int)Scheduler.Tracing.LogEventId.ModuleWorkerMapping,
 
                         (int)EngineLogEventId.DistributionWorkerChangedState,
                         (int)EngineLogEventId.DistributionConnectedToWorker,
@@ -2414,6 +2413,7 @@ namespace BuildXL
                 var scheduling = ComputeTimePercentage(
                     (long)schedulerInfo.PipExecutionStepCounters.GetElapsedTime(PipExecutionStep.ChooseWorkerCpu).TotalMilliseconds +
                     (long)schedulerInfo.PipExecutionStepCounters.GetElapsedTime(PipExecutionStep.ChooseWorkerCacheLookup).TotalMilliseconds +
+                    (long)schedulerInfo.PipExecutionStepCounters.GetElapsedTime(PipExecutionStep.ChooseWorkerIpc).TotalMilliseconds +
                     (long)schedulerInfo.PipExecutionStepCounters.GetElapsedTime(PipExecutionStep.DelayedCacheLookup).TotalMilliseconds,
                     allStepsMinusPipExecution);
                 var handleResult = ComputeTimePercentage(

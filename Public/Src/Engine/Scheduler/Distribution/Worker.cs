@@ -62,6 +62,7 @@ namespace BuildXL.Scheduler.Distribution
         private int m_acquiredLightProcessSlots;
         private int m_acquiredMaterializeInputSlots;
         private int m_acquiredPostProcessSlots;
+        private int m_acquiredProcessPips;
 
         private ContentTrackingSet m_availableContent;
         private ContentTrackingSet m_availableHashes;
@@ -550,7 +551,7 @@ namespace BuildXL.Scheduler.Distribution
         }
 
         /// <summary>
-        /// Try acquire given resources on the worker. This must be called from a thread-safe context to prevent race conditions.
+        /// Try acquire given resources on the worker.
         /// </summary>
         internal bool TryAcquireProcess(ProcessRunnablePip processRunnablePip, out WorkerResource? limitingResource, double loadFactor = 1, bool moduleAffinityEnabled = false)
         {
@@ -569,58 +570,37 @@ namespace BuildXL.Scheduler.Distribution
                 return false;
             }
 
-            // If a process has a weight higher than the total number of process slots, still allow it to run as long as there are no other
-            // processes running (the number of acquired slots is 0)
-            // Light processes do not acquire process slots as they are not CPU-bound.
-            if (!processRunnablePip.IsLight)
+            if (!moduleAffinityEnabled &&
+                AcquiredMaterializeInputSlots >= TotalMaterializeInputSlots)
             {
-                if (moduleAffinityEnabled)
-                {
-                    if (AcquiredProcessSlots != 0 &&
-                        AcquiredProcessSlots + processRunnablePip.Weight > (TotalProcessSlots * loadFactor) &&
-                        AcquiredMaterializeInputSlots > TotalMaterializeInputSlots)
-                    {
-                        limitingResource = WorkerResource.ModuleAffinity;
-                        return false;
-                    }
-                }
-                else
-                {
-                    if (AcquiredProcessSlots != 0
-                        && AcquiredProcessSlots + processRunnablePip.Weight > (TotalProcessSlots * loadFactor))
-                    {
-                        limitingResource = (!IsLocal || ((LocalWorker)this).MemoryResourceAvailable) ? WorkerResource.AvailableProcessSlots : WorkerResource.MemoryResourceAvailable;
-                        return false;
-                    }
-                }
-            }
-
-            if (AcquiredMaterializeInputSlots >= TotalMaterializeInputSlots)
-            {
+                // If the module affinity is disabled, we should not choose a worker where there is no available materializeinput slot.
                 limitingResource = WorkerResource.AvailableMaterializeInputSlots;
                 return false;
             }
+
+            // We acquire the slots in advance and then perform the checks to avoid the race condition.
+            int acquiredSlots = UpdateProcessSlots(processRunnablePip);
+            int totalSlots = processRunnablePip.IsLight ? TotalLightProcessSlots : TotalProcessSlots;
+
+            // If a process has a weight higher than the total number of process slots, still allow it to run as long as there are no other
+            // processes running (the number of acquired process pips is 1)
+            if (m_acquiredProcessPips > 1 && 
+                acquiredSlots > totalSlots * loadFactor)
+            {
+                limitingResource = (!IsLocal || ((LocalWorker)this).MemoryResourceAvailable) ? WorkerResource.AvailableProcessSlots : WorkerResource.MemoryResourceAvailable;
+                UpdateProcessSlots(processRunnablePip, release: true);
+                return false;
+            }
+
 
             StringId limitingResourceName = StringId.Invalid;
             var expectedMemoryCounters = GetExpectedMemoryCounters(processRunnablePip);
 
             if (processRunnablePip.TryAcquireResources(m_workerSemaphores, GetAdditionalResourceInfo(processRunnablePip, expectedMemoryCounters), out limitingResourceName))
             {
-                if (processRunnablePip.IsLight)
-                {
-                    Interlocked.Increment(ref m_acquiredLightProcessSlots);
-                }
-                else
-                {
-                    Interlocked.Add(ref m_acquiredProcessSlots, processRunnablePip.Weight);
-                }
-
                 OnWorkerResourcesChanged(WorkerResource.AvailableProcessSlots, increased: false);
-
-                Interlocked.Increment(ref m_acquiredPostProcessSlots);
                 processRunnablePip.AcquiredResourceWorker = this;
                 processRunnablePip.ExpectedMemoryCounters = expectedMemoryCounters;
-                limitingResource = null;
 
                 if (processRunnablePip.Environment.InputsLazilyMaterialized)
                 {
@@ -632,8 +612,13 @@ namespace BuildXL.Scheduler.Distribution
                     Interlocked.Add(ref m_acquiredMaterializeInputSlots, 1);
                 }
 
+                Interlocked.Increment(ref m_acquiredPostProcessSlots);
+
+                limitingResource = null;
                 return true;
             }
+
+            UpdateProcessSlots(processRunnablePip, release: true);
 
             if (limitingResourceName == m_ramSemaphoreNameId)
             {
@@ -649,6 +634,18 @@ namespace BuildXL.Scheduler.Distribution
             }
 
             return false;
+        }
+
+        private int UpdateProcessSlots(ProcessRunnablePip processRunnable, bool release = false)
+        {
+            Interlocked.Add(ref m_acquiredProcessPips, release ? -1 : 1);
+
+            if (processRunnable.IsLight)
+            {
+                return Interlocked.Add(ref m_acquiredLightProcessSlots, (release ? -1 : 1) * processRunnable.Weight);
+            }
+
+            return Interlocked.Add(ref m_acquiredProcessSlots, (release ? -1 : 1) * processRunnable.Weight);
         }
 
         private ProcessSemaphoreInfo[] GetAdditionalResourceInfo(ProcessRunnablePip runnableProcess, ProcessMemoryCounters expectedMemoryCounters)
@@ -758,7 +755,11 @@ namespace BuildXL.Scheduler.Distribution
                     }
                     case PipExecutionStep.MaterializeInputs:
                     {
-                        Interlocked.Decrement(ref m_acquiredMaterializeInputSlots);
+                        if (processRunnablePip.Environment.InputsLazilyMaterialized)
+                        {
+                            Interlocked.Decrement(ref m_acquiredMaterializeInputSlots);
+                        }
+
                         OnWorkerResourcesChanged(WorkerResource.AvailableMaterializeInputSlots, increased: true);
                         if (isCancelledOrFailed)
                         {
@@ -805,14 +806,7 @@ namespace BuildXL.Scheduler.Distribution
             {
                 Contract.Assert(processRunnablePip.Resources.HasValue);
 
-                if (processRunnablePip.Process.IsLight)
-                {
-                    Interlocked.Decrement(ref m_acquiredLightProcessSlots);
-                }
-                else
-                {
-                    Interlocked.Add(ref m_acquiredProcessSlots, -processRunnablePip.Weight);
-                }
+                UpdateProcessSlots(processRunnablePip, release: true);
 
                 var resources = processRunnablePip.Resources.Value;
                 m_workerSemaphores.ReleaseResources(resources);

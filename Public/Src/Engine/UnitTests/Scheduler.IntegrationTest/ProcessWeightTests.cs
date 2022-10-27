@@ -61,7 +61,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler().AssertSuccess();
         }
 
-        [Fact(Skip = "TODO(1999710): Need to update the test infrastructure based on the chooseworker logic changes ")]
+        [Fact]
         public void UseProcessWeightToRunAlone()
         {
             CreateAndScheduleProcessWithWeight(Configuration.Schedule.MaxProcesses);

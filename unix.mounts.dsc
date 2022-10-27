@@ -35,6 +35,14 @@ export const mounts = Context.getCurrentHost().os !== "win" ? [
         isScrubbable: false,
     },
     {
+        name: a`usrlib64`,
+        path: p`/usr/lib64`,
+        trackSourceFileChanges: true,
+        isWritable: false,
+        isReadable: true,
+        isScrubbable: false,
+    },
+    {
         name: a`usrinclude`,
         path: p`/usr/include`,
         trackSourceFileChanges: true,

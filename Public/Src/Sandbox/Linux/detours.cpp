@@ -96,6 +96,7 @@ INTERPOSE(int, execvpe, const char *file, char *const argv[], char *const envp[]
     return bxl->fwd_execvpe(file, argv, bxl->ensureEnvs(envp)).restore();
 })
 
+#if (__GLIBC__ == 2 && __GLIBC_MINOR__ < 33)
 INTERPOSE(int, __fxstat, int __ver, int fd, struct stat *__stat_buf)({
     result_t<int> result = bxl->fwd___fxstat(__ver, fd, __stat_buf);
     bxl->report_access_fd(__func__, ES_EVENT_TYPE_NOTIFY_STAT, fd);
@@ -143,6 +144,43 @@ INTERPOSE(int, __lxstat64, int __ver, const char *pathname, struct stat64 *buf)(
     bxl->report_access(__func__, ES_EVENT_TYPE_NOTIFY_STAT, pathname, O_NOFOLLOW);
     return result.restore();
 })
+#else
+INTERPOSE(int, stat, const char *pathname, struct stat *statbuf)({
+    result_t<int> result = bxl->fwd_stat(pathname, statbuf);
+    bxl->report_access(__func__, ES_EVENT_TYPE_NOTIFY_STAT, pathname, O_NOFOLLOW);
+    return result.restore();
+})
+
+INTERPOSE(int, stat64, const char *pathname, struct stat64 *statbuf)({
+    result_t<int> result = bxl->fwd_stat64(pathname, statbuf);
+    bxl->report_access(__func__, ES_EVENT_TYPE_NOTIFY_STAT, pathname, O_NOFOLLOW);
+    return result.restore();
+})
+
+INTERPOSE(int, lstat, const char *pathname, struct stat *statbuf)({
+    result_t<int> result = bxl->fwd_lstat(pathname, statbuf);
+    bxl->report_access(__func__, ES_EVENT_TYPE_NOTIFY_STAT, pathname, O_NOFOLLOW);
+    return result.restore();
+})
+
+INTERPOSE(int, lstat64, const char *pathname, struct stat64 *statbuf)({
+    result_t<int> result = bxl->fwd_lstat64(pathname, statbuf);
+    bxl->report_access(__func__, ES_EVENT_TYPE_NOTIFY_STAT, pathname, O_NOFOLLOW);
+    return result.restore();
+})
+
+INTERPOSE(int, fstat, int fd, struct stat *statbuf)({
+    result_t<int> result = bxl->fwd_fstat(fd, statbuf);
+    bxl->report_access_fd(__func__, ES_EVENT_TYPE_NOTIFY_STAT, fd);
+    return result.restore();
+})
+
+INTERPOSE(int, fstat64, int fd, struct stat64 *statbuf)({
+    result_t<int> result = bxl->fwd_fstat64(fd, statbuf);
+    bxl->report_access_fd(__func__, ES_EVENT_TYPE_NOTIFY_STAT, fd);
+    return result.restore();
+})
+#endif
 
 static es_event_type_t get_event_from_open_mode(const char *mode) {
     const char *pMode = mode;

@@ -336,7 +336,11 @@ public:
     {
         int old = errno;
         struct stat buf;
+#if (__GLIBC__ == 2 && __GLIBC_MINOR__ < 33)
         mode_t result = real___lxstat(1, path, &buf) == 0
+#else
+        mode_t result = real_lstat(path, &buf) == 0
+#endif
             ? buf.st_mode
             : 0;
         errno = old;
@@ -381,6 +385,7 @@ public:
     GEN_FN_DEF(int, execve, const char *, char *const[], char *const[]);
     GEN_FN_DEF(int, execvp, const char *, char *const[]);
     GEN_FN_DEF(int, execvpe, const char *, char *const[], char *const[]);
+#if (__GLIBC__ == 2 && __GLIBC_MINOR__ < 33)
     GEN_FN_DEF(int, __lxstat, int, const char *, struct stat *);
     GEN_FN_DEF(int, __lxstat64, int, const char*, struct stat64*);
     GEN_FN_DEF(int, __xstat, int, const char *, struct stat *);
@@ -389,6 +394,14 @@ public:
     GEN_FN_DEF(int, __fxstatat, int, int, const char*, struct stat*, int);;
     GEN_FN_DEF(int, __fxstat64, int, int, struct stat64*);
     GEN_FN_DEF(int, __fxstatat64, int, int, const char*, struct stat64*, int);
+#else
+    GEN_FN_DEF(int, stat, const char *, struct stat *);
+    GEN_FN_DEF(int, stat64, const char *, struct stat64 *);
+    GEN_FN_DEF(int, lstat, const char *, struct stat *);
+    GEN_FN_DEF(int, lstat64, const char *, struct stat64 *);
+    GEN_FN_DEF(int, fstat, int, struct stat *);
+    GEN_FN_DEF(int, fstat64, int, struct stat64 *);
+#endif
     GEN_FN_DEF(FILE*, fdopen, int, const char *);
     GEN_FN_DEF(FILE*, fopen, const char *, const char *);
     GEN_FN_DEF(FILE*, fopen64, const char *, const char *);

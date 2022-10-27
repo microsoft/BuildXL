@@ -3104,7 +3104,12 @@ HANDLE WINAPI Detoured_CreateFileW(
     {
         DWORD readSharingIfNeeded = policyResult.ShouldForceReadSharing(accessCheck) ? FILE_SHARE_READ : 0UL;
         desiredAccess = !forceReadOnlyForRequestedRWAccess ? desiredAccess : (desiredAccess & FILE_GENERIC_READ);
-        sharedAccess = sharedAccess | readSharingIfNeeded | FILE_SHARE_DELETE;
+        sharedAccess = sharedAccess | readSharingIfNeeded;
+
+        if (!PreserveFileSharingBehaviour())
+        {
+            sharedAccess |= FILE_SHARE_DELETE;
+        }
     }
 
     error = ERROR_SUCCESS;
@@ -6785,7 +6790,12 @@ NTSTATUS NTAPI Detoured_NtCreateFile(
     {
         DWORD readSharingIfNeeded = policyResult.ShouldForceReadSharing(accessCheck) ? FILE_SHARE_READ : 0UL;
         desiredAccess = !forceReadOnlyForRequestedRWAccess ? desiredAccess : (desiredAccess & FILE_GENERIC_READ);
-        sharedAccess = sharedAccess | readSharingIfNeeded | FILE_SHARE_DELETE;
+        sharedAccess = sharedAccess | readSharingIfNeeded;
+
+        if (!PreserveFileSharingBehaviour())
+        {
+            sharedAccess |= FILE_SHARE_DELETE;
+        }
     }
 
     error = ERROR_SUCCESS;

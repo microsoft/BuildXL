@@ -1129,6 +1129,43 @@ int CallCreateFileWithNewLineCharacters()
     return 0;
 }
 
+// Tests the PreserveFileSharingBehaviour flag
+int CallDeleteFileWithoutClosingHandle()
+{
+    wstring fileName(L"testFile.txt");
+    wstring fullStreamPath;
+    if (!TryGetNtEscapedFullPath(fileName.c_str(), fullStreamPath))
+    {
+        wprintf(L"Unable to get full path for file '%s'.", fileName.c_str());
+        return (int)GetLastError();
+    }
+
+    HANDLE hFile = CreateFileW(
+        fullStreamPath.c_str(),
+        GENERIC_READ | GENERIC_WRITE,
+        FILE_SHARE_READ | FILE_SHARE_WRITE,
+        0,
+        CREATE_NEW,
+        FILE_ATTRIBUTE_NORMAL,
+        NULL);
+
+    if (hFile == INVALID_HANDLE_VALUE)
+    {
+        return (int)GetLastError();
+    }
+
+    // Delete the file while its handle is still open
+    int result = DeleteFile(fullStreamPath.c_str()); // returns 0 on failure
+
+    if (result == 0)
+    {
+        // When the PreserveFileSharingBehaviour flag is set, this behaviour is expected
+        return (int)GetLastError();
+    }
+
+    return 0;
+}
+
 // ----------------------------------------------------------------------------
 // STATIC FUNCTION DEFINITIONS
 // ----------------------------------------------------------------------------
@@ -1174,6 +1211,7 @@ static void GenericTests(const string& verb)
     IF_COMMAND(CallMoveFileExWWithTrailingBackSlashNtObject);
     IF_COMMAND(CallMoveFileExWWithTrailingBackSlashNtEscape);
     IF_COMMAND(CallCreateFileWithNewLineCharacters);
+    IF_COMMAND(CallDeleteFileWithoutClosingHandle);
 
 #undef IF_COMMAND1
 #undef IF_COMMAND2

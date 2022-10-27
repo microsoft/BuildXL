@@ -90,7 +90,8 @@ namespace Test.BuildXL.Processes.Detours
             bool enforceAccessPoliciesOnDirectoryCreation = false,
             bool probeDirectorySymlinkAsDirectory = false,
             bool ignoreFullReparsePointResolving = true,
-            List<AbsolutePath> directoriesToEnableFullReparsePointParsing = null)
+            List<AbsolutePath> directoriesToEnableFullReparsePointParsing = null,
+            bool preserveFileSharingBehaviour = false)
         {
             errorString = null;
 
@@ -137,7 +138,8 @@ namespace Test.BuildXL.Processes.Detours
                 },
                 EnforceAccessPoliciesOnDirectoryCreation = enforceAccessPoliciesOnDirectoryCreation,
                 FailUnexpectedFileAccesses = unexpectedFileAccessesAreErrors,
-                DirectoriesToEnableFullReparsePointParsing = directoriesToEnableFullReparsePointParsing
+                DirectoriesToEnableFullReparsePointParsing = directoriesToEnableFullReparsePointParsing,
+                PreserveFileSharingBehaviour = preserveFileSharingBehaviour
             };
 
             var loggingContext = CreateLoggingContextForTest();
@@ -627,6 +629,58 @@ namespace Test.BuildXL.Processes.Detours
                         (createdInputPaths["SetFileInformationFileLinkTest2.txt"], RequestedAccess.Read, FileAccessStatus.Allowed),
                         (createdInputPaths["SetFileInformationFileLinkTest1.txt"], RequestedAccess.Write, FileAccessStatus.Allowed),
                     });
+            }
+        }
+
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public async Task CallDeleteFileWithoutClosingHandle(bool preserveFileSharingBehaviour)
+        {
+            var context = BuildXLContext.CreateInstanceForTesting();
+            var pathTable = context.PathTable;
+
+            using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory))
+            {
+                AbsolutePath createdFile = tempFiles.GetFileName(pathTable, "testFile.txt");
+
+                var process = CreateDetourProcess(
+                    context,
+                    pathTable,
+                    tempFiles,
+                    argumentStr: "CallDeleteFileWithoutClosingHandle",
+                    inputFiles: ReadOnlyArray<FileArtifact>.Empty,
+                    inputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
+                    outputFiles: ReadOnlyArray<FileArtifactWithAttributes>.FromWithoutCopy(
+                        FileArtifactWithAttributes.FromFileArtifact(FileArtifact.CreateSourceFile(createdFile), FileExistence.Optional)),
+                    outputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
+                    untrackedScopes: ReadOnlyArray<AbsolutePath>.Empty);
+
+                SandboxedProcessPipExecutionResult result = await RunProcessAsync(
+                    pathTable: pathTable,
+                    ignoreSetFileInformationByHandle: false,
+                    ignoreZwRenameFileInformation: false,
+                    monitorNtCreate: true,
+                    ignoreReparsePoints: false,
+                    disableDetours: false,
+                    context: context,
+                    pip: process,
+                    errorString: out _,
+                    preserveFileSharingBehaviour: preserveFileSharingBehaviour);
+
+                if (preserveFileSharingBehaviour)
+                {
+                    // The pip is expected to fail with ERROR_SHARING_VIOLATION (32)
+                    XAssert.IsTrue(result.ExitCode == 32, $"Exit code: {result.ExitCode}");
+
+                    SetExpectedFailures(1, 0);
+                }
+                else
+                {
+                    VerifyNormalSuccess(context, result);
+
+                    XAssert.IsTrue(result.ExitCode == 0, $"Exit code: {result.ExitCode}");
+                }
             }
         }
 

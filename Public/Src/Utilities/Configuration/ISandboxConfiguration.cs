@@ -285,5 +285,17 @@ namespace BuildXL.Utilities.Configuration
         /// This is an experimental feature, enabling this option may result in more DFAs on a build.
         /// </remarks>
         public bool ExplicitlyReportDirectoryProbes { get; }
+
+        /// <summary>
+        /// Disables setting the FILE_SHARE_DELETE flag in Detours when opening file handles for tracked files.
+        /// </summary>
+        /// <remarks>
+        /// Note that we need to add FILE_SHARE_DELETE to dwShareMode to leverage NTFS hardlinks to avoid copying cache
+        /// content, i.e., we need to be able to delete one of many links to a file. Unfortunately, share-mode is aggregated only per file
+        /// rather than per-link, so in order to keep unused links delete-able, we should ensure in-use links are delete-able as well.
+        /// However, adding FILE_SHARE_DELETE may be unexpected, for example, some unit tests may test for sharing violation. Thus,
+        /// we only add FILE_SHARE_DELETE if the file is tracked.
+        /// </remarks>
+        public bool PreserveFileSharingBehaviour { get;  }
     }
 }

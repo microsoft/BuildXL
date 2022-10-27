@@ -54,6 +54,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             VmConcurrencyLimit = 0;
             DirectoriesToEnableFullReparsePointParsing = new List<AbsolutePath>();
             ExplicitlyReportDirectoryProbes = false;
+            PreserveFileSharingBehaviour = false;
         }
 
         /// <nodoc />
@@ -105,6 +106,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             VmConcurrencyLimit = template.VmConcurrencyLimit;
             DirectoriesToEnableFullReparsePointParsing = pathRemapper.Remap(template.DirectoriesToEnableFullReparsePointParsing);
             ExplicitlyReportDirectoryProbes = template.ExplicitlyReportDirectoryProbes;
+            PreserveFileSharingBehaviour = template.PreserveFileSharingBehaviour;
         }
 
         /// <inheritdoc />
@@ -275,5 +277,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public bool ExplicitlyReportDirectoryProbes { get; set; }
+
+        /// <inheritdoc />
+        public bool PreserveFileSharingBehaviour { get; set; }
     }
 }

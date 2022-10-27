@@ -94,6 +94,7 @@ namespace BuildXL.Processes
             IgnoreCreateProcessReport = false;
             ProbeDirectorySymlinkAsDirectory = false;
             ExplicitlyReportDirectoryProbes = false;
+            PreserveFileSharingBehaviour = false;
         }
 
         private bool GetFlag(FileAccessManifestFlag flag) => (m_fileAccessManifestFlag & flag) != 0;
@@ -461,6 +462,15 @@ namespace BuildXL.Processes
         {
             get => GetExtraFlag(FileAccessManifestExtraFlag.ExplicitlyReportDirectoryProbes);
             set => SetExtraFlag(FileAccessManifestExtraFlag.ExplicitlyReportDirectoryProbes, value);
+        }
+
+        /// <summary>
+        /// When enabled, FILE_SHARE_DELETE will not be set automatically for CreateFile/NtCreateFile calls in Detours
+        /// </summary>
+        public bool PreserveFileSharingBehaviour
+        {
+            get => GetExtraFlag(FileAccessManifestExtraFlag.PreserveFileSharingBehaviour);
+            set => SetExtraFlag(FileAccessManifestExtraFlag.PreserveFileSharingBehaviour, value);
         }
 
         /// <summary>
@@ -1213,7 +1223,8 @@ namespace BuildXL.Processes
         internal enum FileAccessManifestExtraFlag
         {
             NoneExtra = 0,
-            ExplicitlyReportDirectoryProbes = 0x1
+            ExplicitlyReportDirectoryProbes = 0x1,
+            PreserveFileSharingBehaviour = 0x2,
         }
 
         private readonly struct FileAccessScope

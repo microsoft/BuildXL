@@ -327,6 +327,7 @@ namespace BuildXL.Processes
                     ProbeDirectorySymlinkAsDirectory = m_sandboxConfig.UnsafeSandboxConfiguration.ProbeDirectorySymlinkAsDirectory,
                     SubstituteProcessExecutionInfo = shimInfo,
                     ExplicitlyReportDirectoryProbes = m_sandboxConfig.ExplicitlyReportDirectoryProbes,
+                    PreserveFileSharingBehaviour = m_sandboxConfig.PreserveFileSharingBehaviour,
                 };
 
             if (!MonitorFileAccesses)

@@ -28,6 +28,7 @@ using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Tracing;
 using static BuildXL.Tracing.Diagnostics;
 using static BuildXL.Utilities.FormattableStringEx;
 using Logger = BuildXL.Scheduler.Tracing.Logger;
@@ -345,9 +346,9 @@ namespace BuildXL.Scheduler.Artifacts
         /// <summary>
         /// Records the hash of an input of the pip. All static inputs must be reported, even those that were already up-to-date.
         /// </summary>
-        public void ReportInputContent(FileArtifact artifact, in FileMaterializationInfo info)
+        public void ReportInputContent(FileArtifact artifact, in FileMaterializationInfo info, bool contentMismatchErrorsAreWarnings = false)
         {
-            ReportContent(artifact, info, PipOutputOrigin.NotMaterialized);
+            ReportContent(artifact, info, PipOutputOrigin.NotMaterialized, contentMismatchErrorsAreWarnings);
         }
 
         /// <summary>
@@ -395,6 +396,26 @@ namespace BuildXL.Scheduler.Artifacts
                 }
 
                 return maybeInputsHashed;
+            }
+        }
+
+        /// <summary>
+        /// Returns the hashes for the source file inputs
+        /// </summary>
+        public IReadOnlyList<(FileArtifact, FileContentInfo)> GetSourceInputHashes(Pip pip)
+        {
+            using (PipArtifactsState state = GetPipArtifactsState())
+            {
+                // Get inputs
+                PopulateDependencies(pip, state.PipArtifacts, includeLazyInputs: true, onlySourceFiles: true);
+
+                List<(FileArtifact, FileContentInfo)> sourceHashes = new List<(FileArtifact, FileContentInfo)>(state.PipArtifacts.Count);
+                foreach (var artifact in state.PipArtifacts)
+                {
+                    sourceHashes.Add((artifact.FileArtifact, GetInputContent(artifact.FileArtifact).FileContentInfo));
+                }
+
+                return sourceHashes;
             }
         }
 
@@ -3580,7 +3601,7 @@ namespace BuildXL.Scheduler.Artifacts
             FileArtifact fileArtifact,
             in FileMaterializationInfo fileMaterializationInfo,
             PipOutputOrigin origin,
-            bool doubleWriteErrorsAreWarnings = false)
+            bool contentMismatchErrorsAreWarnings = false)
         {
             SetFileArtifactContentHashResult result = SetFileArtifactContentHash(
                 fileArtifact,
@@ -3603,7 +3624,7 @@ namespace BuildXL.Scheduler.Artifacts
             Contract.Equals(SetFileArtifactContentHashResult.HasConflictingExistingEntry, result);
 
             var existingInfo = m_fileArtifactContentHashes[fileArtifact];
-            if (!Configuration.Sandbox.UnsafeSandboxConfiguration.UnexpectedFileAccessesAreErrors || doubleWriteErrorsAreWarnings)
+            if (!Configuration.Sandbox.UnsafeSandboxConfiguration.UnexpectedFileAccessesAreErrors || contentMismatchErrorsAreWarnings)
             {
                 // If we reached this case and UnexpectedFileAccessesAreErrors is false or
                 // pip level option doubleWriteErrorsAreWarnings is set to true, that means

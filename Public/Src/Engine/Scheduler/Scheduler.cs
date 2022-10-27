@@ -1356,6 +1356,7 @@ namespace BuildXL.Scheduler
                     DirectedGraph,
                     m_fingerprintStoreCounters,
                     m_runnablePipPerformance,
+                    m_fileContentManager,
                     m_testHooks?.FingerprintStoreTestHooks);
 
             // create the directory where shared opaque outputs journals will be stored
@@ -4232,7 +4233,7 @@ namespace BuildXL.Scheduler
         private async Task<PipExecutionStep> ExecutePipStep(RunnablePip runnablePip)
         {
             Contract.Requires(runnablePip != null);
-            Contract.Requires(runnablePip.Step != PipExecutionStep.Done && runnablePip.Step != PipExecutionStep.None);
+            Contract.Requires(runnablePip.Step != PipExecutionStep.Done && runnablePip.Step != PipExecutionStep.None, $"Cannot execute {runnablePip.Step} for {runnablePip.PipType}");
 
             ProcessRunnablePip processRunnable = runnablePip as ProcessRunnablePip;
             Process process = runnablePip.Pip as Process;
@@ -7703,8 +7704,9 @@ namespace BuildXL.Scheduler
             EngineCache cache,
             IReadonlyDirectedGraph graph,
             CounterCollection<FingerprintStoreCounters> fingerprintStoreCounters,
-            IDictionary<PipId, RunnablePipPerformanceInfo> runnablePipPerformance = null,
-            FingerprintStoreTestHooks testHooks = null)
+            IDictionary<PipId, RunnablePipPerformanceInfo> runnablePipPerformance,
+            FileContentManager fileContentManager,
+            FingerprintStoreTestHooks testHooks)
         {
             if (configuration.FingerprintStoreEnabled())
             {
@@ -7718,6 +7720,7 @@ namespace BuildXL.Scheduler
                     graph,
                     fingerprintStoreCounters,
                     runnablePipPerformance,
+                    fileContentManager,
                     testHooks);
             }
 

@@ -441,6 +441,20 @@ namespace BuildXL.Utilities
         }
 
         /// <summary>
+        /// Reads the nullable ReadOnlyArray
+        /// </summary>
+        public IReadOnlyList<T> ReadNullableReadOnlyList<T>(Func<BuildXLReader, T> reader)
+        {
+            var hasValue = ReadBoolean();
+            if (!hasValue)
+            {
+                return null;
+            }
+
+            return ReadReadOnlyList(reader);
+        }
+
+        /// <summary>
         /// Reads a ReadOnlyArray
         /// </summary>
         public IReadOnlyList<T> ReadReadOnlyList<T>(Func<BuildXLReader, T> reader)

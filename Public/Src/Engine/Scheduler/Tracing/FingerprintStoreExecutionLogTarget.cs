@@ -15,7 +15,9 @@ using BuildXL.Pips;
 using BuildXL.Pips.DirectedGraph;
 using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
+using BuildXL.Scheduler.Artifacts;
 using BuildXL.Scheduler.Fingerprints;
+using BuildXL.Storage;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
@@ -148,6 +150,8 @@ namespace BuildXL.Scheduler.Tracing
         /// </remarks>
         private readonly ConcurrentDictionary<PipId, string> m_weakFingerprintSerializationTransientCache;
 
+        private readonly FileContentManager m_fileContentManager;
+
         /// <summary>
         /// Mappings from augmented weak fingerprints to original weak fingerprints.
         /// </summary>
@@ -177,8 +181,9 @@ namespace BuildXL.Scheduler.Tracing
             EngineCache cache,
             IReadonlyDirectedGraph graph,
             CounterCollection<FingerprintStoreCounters> counters,
-            IDictionary<PipId, RunnablePipPerformanceInfo> runnablePipPerformance = null,
-            FingerprintStoreTestHooks testHooks = null)
+            IDictionary<PipId, RunnablePipPerformanceInfo> runnablePipPerformance,
+            FileContentManager fileContentManager,
+            FingerprintStoreTestHooks testHooks)
         {
             var fingerprintStorePathString = configuration.Layout.FingerprintStoreDirectory.ToString(context.PathTable);
             var cacheLookupFingerprintStorePathString = configuration.Logging.CacheLookupFingerprintStoreLogDirectory.ToString(context.PathTable);
@@ -231,6 +236,7 @@ namespace BuildXL.Scheduler.Tracing
                     graph,
                     counters,
                     runnablePipPerformance,
+                    fileContentManager,
                     testHooks: testHooks);
             }
             else
@@ -264,6 +270,7 @@ namespace BuildXL.Scheduler.Tracing
             IReadonlyDirectedGraph graph,
             CounterCollection<FingerprintStoreCounters> counters,
             IDictionary<PipId, RunnablePipPerformanceInfo> runnablePipPerformance,
+            FileContentManager fileContentManager,
             FingerprintStoreTestHooks testHooks = null)
         {
             m_context = context;
@@ -296,6 +303,7 @@ namespace BuildXL.Scheduler.Tracing
                 m_runtimeCacheMissAnalyzerTask.GetAwaiter().GetResult();
             }
 
+            m_fileContentManager = fileContentManager;
             m_weakFingerprintSerializationTransientCache = new ConcurrentDictionary<PipId, string>();
             m_augmentedWeakFingerprintsToOriginalWeakFingeprints = new ConcurrentDictionary<(PipId, WeakContentFingerprint), WeakContentFingerprint>();
         }
@@ -518,6 +526,29 @@ namespace BuildXL.Scheduler.Tracing
         /// </summary>
         private void ProcessFingerprintComputedForCacheLookup(ProcessFingerprintComputationEventData data)
         {
+            if (data.SourceInputHashes != null)
+            {
+                using (Counters.StartStopwatch(FingerprintStoreCounters.ReportingSourceInputsDuration))
+                {
+                    foreach ((FileArtifact file, FileContentInfo info) in data.SourceInputHashes)
+                    {
+                        PathAtom fileName;
+                        if (m_fileContentManager.TryGetInputContent(file, out var existingInfo))
+                        {
+                            // If we already have an entry, reuse the fileName as it is expensive to calculate.
+                            // We still try to add the existing entries to report the conflicting hashes as warnings.
+                            fileName = existingInfo.FileName;
+                        }
+                        else
+                        {
+                            fileName = file.Path.GetName(m_context.PathTable);
+                        }
+
+                        m_fileContentManager.ReportInputContent(file, new FileMaterializationInfo(info, fileName), contentMismatchErrorsAreWarnings: true);
+                    }
+                }
+            }
+
             var maybeStrongFingerprintData = SelectStrongFingerprintComputationData(data);
 
             if (maybeStrongFingerprintData == null)

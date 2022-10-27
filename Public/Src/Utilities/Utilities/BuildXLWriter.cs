@@ -332,6 +332,22 @@ namespace BuildXL.Utilities
         }
 
         /// <summary>
+        /// Writes a nullable ReadOnlyList
+        /// </summary>
+        public void WriteNullableReadOnlyList<T>(IReadOnlyList<T> value, Action<BuildXLWriter, T> write)
+        {
+            if (value == null)
+            {
+                Write(false);
+            }
+            else
+            {
+                Write(true);
+                WriteReadOnlyList(value, write);
+            }
+        }
+
+        /// <summary>
         /// Writes a ReadOnlyList
         /// </summary>
         public void WriteReadOnlyList<T>(IReadOnlyList<T> value, Action<BuildXLWriter, T> write)

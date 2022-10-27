@@ -2193,6 +2193,8 @@ namespace BuildXL.Scheduler
             CacheableProcess cacheableProcess,
             bool avoidRemoteLookups = false)
         {
+            var environment = processRunnable.Environment;
+
             BoxRef<PipCacheMissEventData> pipCacheMiss = new PipCacheMissEventData
             {
                 PipId = processRunnable.PipId,
@@ -2210,6 +2212,15 @@ namespace BuildXL.Scheduler
             var operationContext = processRunnable.OperationContext;
 
             RunnableFromCacheResult runnableFromCacheResult = null;
+
+            if (environment.Configuration.EnableDistributedSourceHashing() &&
+                environment.Configuration.Logging.CacheMissAnalysisOption.Mode != CacheMissMode.Disabled &&
+                environment.Configuration.Distribution.BuildRole == DistributedBuildRoles.Worker)
+            {
+                // If runtime cache miss analyzer is enabled and source file hashing is distributed, workers will report source file hashes back to the orchestrator
+                // because the orchestrator might not have the hashes for all source files.
+                processFingerprintComputationResult.Value.SourceInputHashes = processRunnable.Environment.State.FileContentManager.GetSourceInputHashes(processRunnable.Process);
+            }
 
             using (var strongFingerprintComputationListWrapper = SchedulerPools.StrongFingerprintDataListPool.GetInstance())
             using (operationContext.StartOperation(PipExecutorCounter.CheckProcessRunnableFromCacheDuration))

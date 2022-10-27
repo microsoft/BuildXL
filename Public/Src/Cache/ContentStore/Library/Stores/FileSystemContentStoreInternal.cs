@@ -1004,7 +1004,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
         private void CreateDirectoryIfNeeded(AbsolutePath dirPath)
         {
-            if (!_settings.AssumeCallerCreatesDirectoryForPutOrPlace)
+            if (!_settings.AssumeCallerCreatesDirectoryForPlace)
             {
                 FileSystem.CreateDirectory(dirPath);
             }
@@ -1033,7 +1033,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 if (fileInfo == null || await RemoveEntryIfNotOnDiskAsync(context, contentHash))
                 {
                     var txn = await ReserveAsync(contentSize);
-                    CreateDirectoryIfNeeded(primaryPath.GetParent());
+                    FileSystem.CreateDirectory(primaryPath.GetParent());
 
                     if (!await onContentNotInCache(primaryPath))
                     {

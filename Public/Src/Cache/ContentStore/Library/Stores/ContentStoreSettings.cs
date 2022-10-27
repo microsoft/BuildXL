@@ -63,10 +63,10 @@ namespace BuildXL.Cache.ContentStore.Stores
         public SelfCheckSettings? SelfCheckSettings { get; set; }
 
         /// <summary>
-        /// When true, local CAS put or place operations assume that the target directory already exists,
+        /// When true, local CAS place operations assume that the target directory already exists,
         /// avoiding attempting to create a directory on each operation.
         /// </summary>
-        public bool AssumeCallerCreatesDirectoryForPutOrPlace { get; set; } = false;
+        public bool AssumeCallerCreatesDirectoryForPlace { get; set; } = false;
     }
 
     /// <nodoc />

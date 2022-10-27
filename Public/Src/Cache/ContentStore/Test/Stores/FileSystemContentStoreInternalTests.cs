@@ -78,7 +78,7 @@ namespace ContentStoreTest.Stores
             var config = ContentStoreConfiguration.CreateWithMaxSizeQuotaMB(1);
             var settings = new ContentStoreSettings
             {
-                AssumeCallerCreatesDirectoryForPutOrPlace = true,
+                AssumeCallerCreatesDirectoryForPlace = true,
             };
             var store = new TestFileSystemContentStoreInternal(FileSystem, Clock, testDirectory.Path, Config, settings: settings);
 

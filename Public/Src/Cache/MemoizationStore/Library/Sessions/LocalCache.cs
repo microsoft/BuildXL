@@ -52,7 +52,7 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
             ConfigurationModel configurationModel = null,
             IClock clock = null,
             bool checkLocalFiles = true,
-            bool assumeCallerCreatesDirectoryForPutOrPlace = false)
+            bool assumeCallerCreatesDirectoryForPlace = false)
         {
             clock ??= SystemClock.Instance;
 
@@ -60,7 +60,7 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
             var contentStoreSettings = new ContentStoreSettings
             {
                 CheckFiles = checkLocalFiles,
-                AssumeCallerCreatesDirectoryForPutOrPlace = assumeCallerCreatesDirectoryForPutOrPlace,
+                AssumeCallerCreatesDirectoryForPlace = assumeCallerCreatesDirectoryForPlace,
             };
 
             Func<IContentStore> contentStoreFactory = () =>
@@ -95,7 +95,7 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
             ConfigurationModel configurationModelForPath = null,
             IClock clock = null,
             bool checkLocalFiles = true,
-            bool assumeCallerCreatesDirectoryForPutOrPlace = false)
+            bool assumeCallerCreatesDirectoryForPlace = false)
         {
             var fileSystem = new PassThroughFileSystem(logger);
             clock ??= SystemClock.Instance;
@@ -103,7 +103,7 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
             var contentStoreSettings = new ContentStoreSettings
             {
                 CheckFiles = checkLocalFiles,
-                AssumeCallerCreatesDirectoryForPutOrPlace = assumeCallerCreatesDirectoryForPutOrPlace,
+                AssumeCallerCreatesDirectoryForPlace = assumeCallerCreatesDirectoryForPlace,
             };
 
             Func<IContentStore> contentStoreFactory = () => new StreamPathContentStore(

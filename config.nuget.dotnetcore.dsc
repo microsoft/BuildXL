@@ -2,7 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 const coreVersion = "3.1.0";
-const core60Version = "6.0.6";
+const core60Version = "6.0.2";
 
 const pkgVersion = "4.3.0";
 const pkgVersionNext = "4.7.0";

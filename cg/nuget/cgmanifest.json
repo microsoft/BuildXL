@@ -1617,7 +1617,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.NETCore.App.Host.linux-x64",
-          "Version": "6.0.6"
+          "Version": "6.0.2"
         }
       }
     },
@@ -1626,7 +1626,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.NETCore.App.Host.osx-x64",
-          "Version": "6.0.6"
+          "Version": "6.0.2"
         }
       }
     },
@@ -1635,7 +1635,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.NETCore.App.Host.win-x64",
-          "Version": "6.0.6"
+          "Version": "6.0.2"
         }
       }
     },
@@ -1653,7 +1653,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.NETCore.App.Ref",
-          "Version": "6.0.6"
+          "Version": "6.0.2"
         }
       }
     },
@@ -1662,7 +1662,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.NETCore.App.Runtime.linux-x64",
-          "Version": "6.0.6"
+          "Version": "6.0.2"
         }
       }
     },
@@ -1671,7 +1671,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.NETCore.App.Runtime.osx-x64",
-          "Version": "6.0.6"
+          "Version": "6.0.2"
         }
       }
     },
@@ -1680,7 +1680,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.NETCore.App.Runtime.win-x64",
-          "Version": "6.0.6"
+          "Version": "6.0.2"
         }
       }
     },
@@ -1707,7 +1707,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.NETCore.DotNetAppHost",
-          "Version": "6.0.6"
+          "Version": "6.0.2"
         }
       }
     },
@@ -1725,7 +1725,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.NETCore.DotNetHostPolicy",
-          "Version": "6.0.6"
+          "Version": "6.0.2"
         }
       }
     },
@@ -1743,7 +1743,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.NETCore.DotNetHostResolver",
-          "Version": "6.0.6"
+          "Version": "6.0.2"
         }
       }
     },
@@ -1761,7 +1761,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.NETCore.Platforms",
-          "Version": "6.0.6"
+          "Version": "6.0.2"
         }
       }
     },
@@ -4398,7 +4398,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "runtime.linux-x64.Microsoft.NETCore.DotNetHostPolicy",
-          "Version": "6.0.6"
+          "Version": "6.0.2"
         }
       }
     },
@@ -4407,7 +4407,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "runtime.linux-x64.Microsoft.NETCore.DotNetHostResolver",
-          "Version": "6.0.6"
+          "Version": "6.0.2"
         }
       }
     },
@@ -4506,7 +4506,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "runtime.osx-x64.Microsoft.NETCore.DotNetHostPolicy",
-          "Version": "6.0.6"
+          "Version": "6.0.2"
         }
       }
     },
@@ -4515,7 +4515,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "runtime.osx-x64.Microsoft.NETCore.DotNetHostResolver",
-          "Version": "6.0.6"
+          "Version": "6.0.2"
         }
       }
     },
@@ -4578,7 +4578,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "runtime.win-x64.Microsoft.NETCore.DotNetHostPolicy",
-          "Version": "6.0.6"
+          "Version": "6.0.2"
         }
       }
     },
@@ -4587,7 +4587,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "runtime.win-x64.Microsoft.NETCore.DotNetHostResolver",
-          "Version": "6.0.6"
+          "Version": "6.0.2"
         }
       }
     },

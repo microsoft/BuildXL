@@ -377,7 +377,6 @@ namespace Tool.SymbolDaemon
         {
             Contract.Assert(files.Length == hashes.Length, "Array lengths must match.");
             Contract.Assert(!string.IsNullOrEmpty(outputFile), "Output file path must be provided.");
-            Contract.Assert(!hashes.Any(hash => hash.HashType != HashType.Vso0), "Unsupported hash type");
 
             var indexer = new SymbolIndexer(SymbolAppTraceSource.SingleInstance);
             var symbolsMetadata = new Dictionary<ContentHash, HashSet<DebugEntryData>>(files.Length);
@@ -442,7 +441,6 @@ namespace Tool.SymbolDaemon
                 for (int i = 0; i < hashCount; i++)
                 {
                     ContentHash.TryParse(reader.ReadLine(), out var hash);
-                    Contract.Assert(hash.HashType == HashType.Vso0);
                     var blobIdentifier = new BlobIdentifier(hash.ToHashByteArray());
                     int debugEntryCount = int.Parse(reader.ReadLine());
 
@@ -603,12 +601,18 @@ namespace Tool.SymbolDaemon
                             I($"Hash '{hash}' (file: '{files[i]}') was not found in the metadata file '{symbolMetadataFile}'."));
                     }
 
+                    // Ensure HashType is VsoHash which is required for BlobIdentifiers
+                    Possible<FileContentInfo> parsedResult = await ParseFileContentAsync(daemon, hashes[i], fileIds[i], files[i]);
+                    var fileContentInfo = parsedResult.Result;
+                    var blobIdentifier = new BlobIdentifier(fileContentInfo.Hash.ToHashByteArray());
+                    debugEntries = new HashSet<DebugEntryData>(debugEntries.Select(e => { e.BlobIdentifier = blobIdentifier; return e; }));
+
                     symbolFiles.Add(new SymbolFile(
                         daemon.ApiClient,
                         files[i],
                         fileIds[i],
-                        hash,
-                        fci.Length,
+                        fileContentInfo.Hash,
+                        fileContentInfo.Length,
                         debugEntries));
                 }
                 catch (Exception e)

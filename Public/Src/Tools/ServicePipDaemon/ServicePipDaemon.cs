@@ -12,10 +12,12 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Ipc;
 using BuildXL.Ipc.Common;
 using BuildXL.Ipc.ExternalApi;
 using BuildXL.Ipc.Interfaces;
+using BuildXL.Storage;
 using BuildXL.Utilities;
 using BuildXL.Utilities.CLI;
 using BuildXL.Utilities.Tracing;
@@ -46,6 +48,8 @@ namespace Tool.ServicePipDaemon
         protected static readonly Dictionary<string, Command> Commands = new Dictionary<string, Command>();
 
         private static readonly List<Option> s_daemonConfigOptions = new List<Option>();
+
+        private const HashType DefaultHashTypeForRecomputingContentHash = HashType.Vso0;
 
         /// <summary>Daemon configuration.</summary>
         protected internal DaemonConfig Config { get; }
@@ -676,6 +680,48 @@ namespace Tool.ServicePipDaemon
             }
 
             logger.Log(level, sb);
+        }
+
+        /// <summary>
+        /// Recomputes the hash of the FileContentInfo using the <see cref="DefaultHashTypeForRecomputingContentHash"/>  hash if the original hash is not compatible with drop
+        /// </summary>
+        protected static async Task<Possible<FileContentInfo>> ParseFileContentAsync(ServicePipDaemon daemon, string serialized, string fileId, string filePath)
+        {
+            var contentInfo = FileContentInfo.Parse(serialized);
+            var file = BuildXL.Ipc.ExternalApi.FileId.Parse(fileId);
+            Possible<RecomputeContentHashEntry> hash;
+            if (!IsDropCompatibleHashing(contentInfo.Hash.HashType))
+            {
+                hash = await daemon.ApiClient.RecomputeContentHashFiles(file, DefaultHashTypeForRecomputingContentHash.ToString(), new RecomputeContentHashEntry(filePath, contentInfo.Hash));
+                if (!hash.Succeeded)
+                {
+                    return new Failure<string>(hash.Failure?.Describe() ?? "Response to send recompute content hash indicates a failure");
+                }
+
+                return new FileContentInfo(hash.Result.Hash, contentInfo.Length);
+            }
+            else
+            {
+                return contentInfo;
+            }
+        }
+
+        private static bool IsDropCompatibleHashing(HashType hashType)
+        {
+            switch (hashType)
+            {
+                case HashType.Vso0:
+                case HashType.Dedup64K:
+                case HashType.Dedup1024K:
+                case HashType.DedupNode:
+                case HashType.DedupSingleChunk:
+                case HashType.MD5:
+                case HashType.SHA1:
+                case HashType.SHA256:
+                    return true;
+                default:
+                    return false;
+            }
         }
     }
 }

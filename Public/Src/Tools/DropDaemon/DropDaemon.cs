@@ -61,8 +61,6 @@ namespace Tool.DropDaemon
 
         private const string DropClientLogDirectoryName = "DropClient";
 
-        private const HashType DefaultHashTypeForRecomputingContentHash = HashType.Vso0;
-
         /// <nodoc/>
         public const string DropDLogPrefix = "(DropD) ";
 
@@ -1533,28 +1531,6 @@ namespace Tool.DropDaemon
             return await AddDropItemsAsync(daemon, dropFileItemsKeyedByIsAbsent[false].Concat(groupedDirectoriesContent[false]));
         }
 
-        private static async Task<Possible<FileContentInfo>> ParseFileContentAsync(DropDaemon daemon, string serialized, string fileId, string filePath)
-        {
-            var contentInfo = FileContentInfo.Parse(serialized);
-            var file = BuildXL.Ipc.ExternalApi.FileId.Parse(fileId);
-            Possible<RecomputeContentHashEntry> hash;
-            if (!IsDropCompatibleHashing(contentInfo.Hash.HashType))
-            {
-                hash = await daemon.ApiClient.RecomputeContentHashFiles(file, DefaultHashTypeForRecomputingContentHash.ToString(), new RecomputeContentHashEntry(filePath, contentInfo.Hash));
-                if (!hash.Succeeded)
-                {
-                    return new Failure<string>(hash.Failure?.Describe() ?? "Response to send recompute content hash indicates a failure");
-                }
-
-                return new FileContentInfo(hash.Result.Hash, contentInfo.Length);
-            }
-            else
-            {
-                return contentInfo;
-            }
-
-        }
-
         private static Possible<RelativePathReplacementArguments[]> InitializeRelativePathReplacementArguments(string[] serializedValues)
         {
             const char DelimChar = '#';
@@ -1880,24 +1856,6 @@ namespace Tool.DropDaemon
             }
 
             public static RelativePathReplacementArguments Invalid => new RelativePathReplacementArguments(null, null);
-        }
-
-        private static bool IsDropCompatibleHashing(HashType hashType)
-        {
-            switch (hashType)
-            {
-                case HashType.Vso0:
-                case HashType.Dedup64K:
-                case HashType.Dedup1024K:
-                case HashType.DedupNode:
-                case HashType.DedupSingleChunk:
-                case HashType.MD5:
-                case HashType.SHA1:
-                case HashType.SHA256:
-                    return true;
-                default:
-                    return false;
-            }
         }
     }
 }

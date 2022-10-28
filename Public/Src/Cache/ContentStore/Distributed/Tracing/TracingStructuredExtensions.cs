@@ -163,11 +163,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Tracing
             var eventsPerSecond = ((double)counters[DispatchEvents].Value * 1000) / durationMs;
             var hashesPerSecond = ((double)(hashesTouched + hashesRemoved + hashesTouched) * 1000) / durationMs;
 
-            sb.Append($"QueueIdx={queueIndex}")
+            sb.Append($"QueueIdx={queueIndex}, ")
                 .Append($"TotalMessagesSize={counters[ReceivedMessagesTotalSize].Value}, ")
                 .Append($"DeserializationDuration={counters[Deserialization].TotalMilliseconds}ms, ")
-                .Append($"EventsPerSec={eventsPerSecond:F2}")
-                .Append($"HashesPerSec={hashesPerSecond:F2}")
+                .Append($"EventsPerSec={eventsPerSecond:F2}, ")
+                .Append($"HashesPerSec={hashesPerSecond:F2}, ")
                 .Append($"#Events={counters[DispatchEvents].Value}, ")
                 .Append($"DispatchDuration={counters[DispatchEvents].TotalMilliseconds}ms, ")
                 .Append($"FilteredEvents={counters[FilteredEvents].Value}, ")

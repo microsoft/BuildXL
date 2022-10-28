@@ -39,6 +39,7 @@ export const dll = BuildXLSdk.library({
             })
         ]),
         ...BuildXLSdk.tplPackages,
+        BuildXLSdk.asyncInterfacesPackage,
         importFrom("Newtonsoft.Json").pkg,
         BuildXLSdk.isDotNetCoreApp
             ? importFrom("Grpc.Core.Api").withQualifier({ targetFramework: "netstandard2.1" }).pkg

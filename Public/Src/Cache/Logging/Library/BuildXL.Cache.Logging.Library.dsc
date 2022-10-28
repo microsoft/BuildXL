@@ -10,7 +10,9 @@ namespace Library {
     export const dll = BuildXLSdk.library({
         assemblyName: "BuildXL.Cache.Logging",
         sources: globR(d`.`,"*.cs"),
+        nullable: true,
         references: [
+            BuildXLSdk.asyncInterfacesPackage,
             importFrom("WindowsAzure.Storage").pkg,
             importFrom("NLog").pkg,
             importFrom("BuildXL.Cache.ContentStore").Hashing.dll,

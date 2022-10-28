@@ -12,7 +12,7 @@ namespace BuildXL.Cache.Logging
     public abstract class FailingLogger : ILogger
     {
         /// <inheritdoc />
-        public void Dispose()
+        public virtual void Dispose()
         {
             // Throw is the only exception and should not throw.
         }

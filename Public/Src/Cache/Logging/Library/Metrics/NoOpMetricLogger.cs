@@ -18,6 +18,10 @@ namespace BuildXL.Cache.Logging
         /// <inheritdoc />
         public override void Log(long metricValue, params string?[] dimensionValues) { }
 
+        /// <inheritdoc />
         public override void Log(long metricValue, string dimension1, string dimension2) { }
+
+        /// <inheritdoc />
+        public override void Log(in OperationFinishedMetric metric) { }
     }
 }

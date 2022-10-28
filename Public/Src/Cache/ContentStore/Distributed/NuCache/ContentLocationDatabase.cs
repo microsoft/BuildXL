@@ -27,6 +27,7 @@ using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Engine.Cache.KeyValueStores;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Utilities.Serialization;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;

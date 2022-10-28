@@ -32,6 +32,12 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public string? MdmAccountName { get; set; }
 
+        /// <summary>
+        /// If true, then the metrics saved asynchronously using a queue.
+        /// </summary>
+        [DataMember]
+        public bool SaveMetricsAsynchronously { get; set; }
+
         public LoggingSettings()
         {
         }

@@ -2,13 +2,14 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using NLog;
 using ILogger = BuildXL.Cache.ContentStore.Interfaces.Logging.ILogger;
+
+#nullable enable
 
 namespace BuildXL.Cache.Logging.External
 {
@@ -303,19 +304,19 @@ namespace BuildXL.Cache.Logging.External
             }
         }
 
-        private void CurrentDomain_ProcessExit(object sender, EventArgs e)
+        private void CurrentDomain_ProcessExit(object? sender, EventArgs e)
         {
             Dispose();
         }
 
-        private void CurrentDomain_DomainUnload(object sender, EventArgs e)
+        private void CurrentDomain_DomainUnload(object? sender, EventArgs e)
         {
             Dispose();
         }
 
-        private void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs args)
+        private void CurrentDomain_UnhandledException(object? sender, UnhandledExceptionEventArgs args)
         {
-            var exception = args.ExceptionObject as Exception;
+            var exception = (Exception)args.ExceptionObject;
 
             string exitString = args.IsTerminating
                                     ? "Process will exit"
@@ -334,7 +335,7 @@ namespace BuildXL.Cache.Logging.External
             }
         }
 
-        private void TaskScheduler_UnobservedTaskException(object sender, UnobservedTaskExceptionEventArgs args)
+        private void TaskScheduler_UnobservedTaskException(object? sender, UnobservedTaskExceptionEventArgs args)
         {
             var exception = args.Exception;
             var exceptionObserver = new TaskExceptionObserver();
@@ -367,7 +368,7 @@ namespace BuildXL.Cache.Logging.External
             }
         }
 
-        private void HandleConfigurationReload(object sender, NLog.Config.LoggingConfigurationReloadedEventArgs e)
+        private void HandleConfigurationReload(object? sender, NLog.Config.LoggingConfigurationReloadedEventArgs e)
         {
             if (e.Succeeded)
             {
@@ -381,7 +382,7 @@ namespace BuildXL.Cache.Logging.External
             CurrentSeverity = ComputeCurrentSeverity();
         }
 
-        private void HandleConfigurationChange(object sender, NLog.Config.LoggingConfigurationChangedEventArgs e)
+        private void HandleConfigurationChange(object? sender, NLog.Config.LoggingConfigurationChangedEventArgs e)
         {
             _host.Info("NLog configuration has changed");
 

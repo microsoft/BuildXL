@@ -1,6 +1,7 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Collections.Generic;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 
@@ -9,9 +10,21 @@ using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 namespace BuildXL.Cache.Logging
 {
     /// <summary>
+    /// Represents a metric emitted when an operation is finished.
+    /// </summary>
+    public record struct OperationFinishedMetric(
+        long DurationMs,
+        string OperationName,
+        string OperationKind,
+        string SuccessOrFailure,
+        string Status,
+        string Component,
+        string ExceptionType);
+
+    /// <summary>
     /// A base type for logging metrics.
     /// </summary>
-    public abstract class MetricLogger
+    public abstract class MetricLogger : IDisposable
     {
         /// <summary>
         /// Logs metric value with the given dimensions.
@@ -21,9 +34,19 @@ namespace BuildXL.Cache.Logging
         public abstract void Log(long metricValue, params string?[] dimensionValues);
 
         /// <summary>
+        /// Logs a metric of a finished operation.
+        /// </summary>
+        public abstract void Log(in OperationFinishedMetric metric);
+
+        /// <summary>
         /// Logs metric value with the given dimensions.
         /// </summary>
         public abstract void Log(long metricValue, string dimension1, string dimension2);
+
+        /// <summary>
+        /// Dispose remaining logging resources or flush the logs.
+        /// </summary>
+        public virtual void Dispose() { }
 
         /// <summary>
         /// Geneva / MDM is not tolerant of null or empty dimension values. Replace them with actual strings to prevent errors.
@@ -68,10 +91,11 @@ namespace BuildXL.Cache.Logging
             string logicalNameSpace,
             string metricName,
             bool addDefaultDimensions,
-            IEnumerable<Dimension> dimensions)
+            IEnumerable<Dimension> dimensions,
+            bool saveMetricsAsynchronously)
         {
 #if MICROSOFT_INTERNAL
-            return WindowsMetricLogger.Create(context, monitoringAccount, logicalNameSpace, metricName, addDefaultDimensions, dimensions);
+            return WindowsMetricLogger.Create(context, monitoringAccount, logicalNameSpace, metricName, addDefaultDimensions, dimensions, saveMetricsAsynchronously);
 #else
             return NoOpMetricLogger.Instance;
 #endif

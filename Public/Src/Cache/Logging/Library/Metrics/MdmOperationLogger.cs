@@ -7,7 +7,6 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
-using BuildXL.Cache.ContentStore.Tracing.Internal;
 
 #nullable enable
 
@@ -51,7 +50,11 @@ namespace BuildXL.Cache.Logging
         /// <remarks>
         /// The mdm metrics are off if <paramref name="monitoringAccount"/> is null or empty.
         /// </remarks>
-        public static MdmOperationLogger Create(Context context, string? monitoringAccount, List<DefaultDimension> defaultDimensions)
+        public static MdmOperationLogger Create(
+            Context context,
+            string? monitoringAccount,
+            List<DefaultDimension> defaultDimensions,
+            bool saveMetricsAsynchronously)
         {
             // Setting the default dimensions once instead of passing them all the time explicitly.
             MetricLogger.InitializeMdmDefaultDimensions(context, defaultDimensions);
@@ -63,7 +66,8 @@ namespace BuildXL.Cache.Logging
                 logicalNameSpace: ServiceName,
                 metricName: "OperationDurationMs",
                 addDefaultDimensions: true,
-                dimensions: OperationDurationDimensions);
+                dimensions: OperationDurationDimensions,
+                saveMetricsAsynchronously);
 
             var metricLogger = MetricLogger.CreateLogger(
                 context,
@@ -71,22 +75,30 @@ namespace BuildXL.Cache.Logging
                 logicalNameSpace: ServiceName,
                 metricName: "Metric",
                 addDefaultDimensions: true,
-                dimensions: MetricDimensions);
+                dimensions: MetricDimensions,
+                saveMetricsAsynchronously);
 
             return new MdmOperationLogger(context, monitoringAccount, operationFinishedMetricLogger, metricLogger);
+        }
+
+        /// <inheritdoc />
+        public override void Dispose()
+        {
+            _metricLogger.Dispose();
         }
 
         /// <inheritdoc />
         public void OperationFinished(in OperationResult result)
         {
             _operationFinishedMetricLogger.Log(
+                new OperationFinishedMetric(
                 (long)result.Duration.TotalMilliseconds,
                 result.OperationName,
                 result.OperationKind.ToStringNoAlloc(),
                 result.Status == OperationStatus.Success ? "Succeeded" : "Failed",
                 result.Status.ToStringNoAlloc(),
                 result.TracerName,
-                result.Exception?.GetType().ToString() ?? "NA");
+                    result.Exception?.GetType().ToString() ?? "NA"));
         }
 
         /// <inheritdoc />
@@ -113,7 +125,8 @@ namespace BuildXL.Cache.Logging
                         logicalNameSpace: ServiceName,
                         metricName: statisticName,
                         addDefaultDimensions: true,
-                        dimensions: Array.Empty<Dimension>());
+                        dimensions: Array.Empty<Dimension>(),
+                        saveMetricsAsynchronously: false); // we should not have too many stats metrics, so its fine to save them synchronously all the time.
 
                     _statisticLoggers[statisticName] = metricLogger;
                 }

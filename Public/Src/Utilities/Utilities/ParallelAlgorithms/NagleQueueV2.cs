@@ -7,13 +7,11 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
-using BuildXL.Utilities.ParallelAlgorithms;
 
 #nullable enable
 
-namespace BuildXL.Cache.ContentStore.Distributed.NuCache
+namespace BuildXL.Utilities.ParallelAlgorithms
 {
     /// <nodoc />
     public static class NagleQueueFactory
@@ -132,6 +130,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
         }
 
+        /// <nodoc />
         protected virtual void EnqueueCore(T item)
         {
             List<T>? itemsToProcess = null;

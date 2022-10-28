@@ -508,8 +508,13 @@ namespace BuildXL.Processes
                 yield return ("LD_PRELOAD", detoursLibPath + ":" + info.EnvironmentVariables.TryGetValue("LD_PRELOAD", string.Empty));
             }
 
-            // Auditing is disabled by default for tests
-            if (IsInTestMode == false && info.RootJailInfo?.DisableAuditing != true)
+            // Auditing is disabled by default. LD_AUDIT is able to observe the dependencies on system-level libraries that LD_PRELOAD misses. These libraries
+            // may include libgcc, libc, libpthread and libDetours itself. System libraries are typically not part of the fingerprint since their behavior is unlikely
+            // to change (a similar effect can be achieved by enabling 'dependsOnCurrentHosOSDirectories' on DScript). In particular, that libDetours itself is detected could
+            // be problematic since any change in the sandbox version will imply a cache miss.
+            // In addition to that, LD_AUDIT is known to be expensive from a perf standpoint (perf analysis on some JS customers showed a 2X degradation in sandboxing overhead
+            // on e2e builds when LD_AUDIT is on).
+            if (info.RootJailInfo?.DisableAuditing == false)
             {
                 yield return ("LD_AUDIT", info.RootJailInfo.CopyToRootJailIfNeeded(AuditLibFile) + ":" + info.EnvironmentVariables.TryGetValue("LD_AUDIT", string.Empty));
             }

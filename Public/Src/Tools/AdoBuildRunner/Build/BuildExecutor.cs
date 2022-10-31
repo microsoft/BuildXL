@@ -111,6 +111,7 @@ namespace BuildXL.AdoBuildRunner.Build
 
             return ExecuteBuild(
                 buildArguments[0],
+                "/p:BuildXLWorkerAttachTimeoutMin=10 " +  // By default, set the timeout to 10min in the workers to avoid unnecessary waiting upon connection failures
                 ExtractAndEscapeCommandLineArguments(buildArguments) +
                 $" /distributedBuildRole:worker /distributedBuildServicePort:{Constants.MachineGrpcPort} /relatedActivityId:{buildContext.SessionId} ",
                 buildContext.SourcesDirectory

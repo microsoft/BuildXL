@@ -124,6 +124,14 @@ namespace BuildXL.AdoBuildRunner.Build
                         returnCode = Constants.OrchestratorFailedWorkerReturnCode;
                     }
                 }
+                else
+                {
+                    // If the orchestrator succeeds, then we don't want to make the pipeline fail
+                    // just because of this worker's failure. Log the failure but make the task succeed
+                    m_logger.Error($"The build finished with errors in this worker (exit code: {returnCode}).");
+                    m_logger.Warning("Marking this task as successful so the build pipeline won't fail");
+                    returnCode = 0;
+                }
             }
 
             return returnCode;

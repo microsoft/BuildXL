@@ -693,7 +693,7 @@ namespace BuildXL.Processes
             // Construct result; note that the process is expected to have exited at this point, even if we decided to forcefully kill it
             // (this callback is always a result of the process handle being signaled).
             int exitCode = 0;
-            if (m_reports.MessageProcessingFailure != null)
+            if (m_reports.MessageProcessingFailure != null && !m_fileAccessManifest.DisableDetours)
             {
                 exitCode = ExitCodes.MessageProcessingFailure;
             }

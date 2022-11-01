@@ -340,9 +340,6 @@ namespace BuildXL.Cache.Host.Configuration
         public int MaxRetryCount { get; set; } = 32;
 
         [DataMember]
-        public bool UseUnsafeByteStringConstruction { get; set; } = false;
-
-        [DataMember]
         public ColdStorageSettings ColdStorageSettings { get; set; }
 
         #region DistributedContentCopier

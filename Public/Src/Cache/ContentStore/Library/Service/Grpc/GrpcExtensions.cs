@@ -9,9 +9,7 @@ using BuildXL.Cache.ContentStore.Hashing;
 using ContentStore.Grpc;
 using Google.Protobuf;
 using Grpc.Core;
-using System.Diagnostics.ContractsLight;
 using BuildXL.Utilities;
-using System.Diagnostics;
 using BuildXL.Utilities.Tracing;
 using BuildXL.Cache.ContentStore.Distributed;
 
@@ -24,12 +22,6 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
     /// </summary>
     public static class GrpcExtensions
     {
-        /// <summary>
-        /// Whether to use unsafe bytestring optimizations or not. These can potentially break memory safety of CASaaS,
-        /// but they also allow us to perform operations faster.
-        /// </summary>
-        public static bool UnsafeByteStringOptimizations { get; set; } = false;
-
         /// <summary>
         /// Converts a bytestring to a contenthash
         /// </summary>
@@ -164,7 +156,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             // and in that case we can avoid extra copy done by ByteString.CopyFrom call.
             //
             // But we can use an unsafe version only when the chunk size is the same as the buffer size.
-            if (UnsafeByteStringOptimizations && chunkSize == buffer.Length)
+            if (chunkSize == buffer.Length)
             {
                 return (ByteStringExtensions.UnsafeCreateFromBytes(buffer), bufferReused: true);
             }
@@ -182,15 +174,8 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 #if NETCOREAPP3_0 || NETCOREAPP3_1 || NETSTANDARD2_1
             await stream.WriteAsync(byteString.Memory, cancellationToken);
 #else
-            if (UnsafeByteStringOptimizations)
-            {
-                var buffer = ByteStringExtensions.UnsafeExtractBytes(byteString);
-                await stream.WriteAsync(buffer, 0, buffer.Length, cancellationToken);
-            }
-            else
-            {
-                byteString.WriteTo(stream);
-            }
+            var buffer = ByteStringExtensions.UnsafeExtractBytes(byteString);
+            await stream.WriteAsync(buffer, 0, buffer.Length, cancellationToken);
 #endif
         }
 #pragma warning restore AsyncFixer01 // Unnecessary async/await usage

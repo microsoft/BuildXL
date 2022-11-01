@@ -231,8 +231,6 @@ namespace ContentStoreTest.Distributed.Sessions
                 MachineActiveToClosedIntervalMinutes = 5,
                 MachineActiveToExpiredIntervalMinutes = 10,
 
-                UseUnsafeByteStringConstruction = true,
-
                 SafeToLazilyUpdateMachineCountThreshold = SafeToLazilyUpdateMachineCountThreshold,
 
                 RestoreCheckpointIntervalMinutes = 1,

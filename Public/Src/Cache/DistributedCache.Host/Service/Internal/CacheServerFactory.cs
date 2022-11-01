@@ -351,12 +351,6 @@ namespace BuildXL.Cache.Host.Service.Internal
             localCasServiceSettings.GrpcEnvironmentOptions.ApplyIfNotNull(value => localContentServerConfiguration.GrpcEnvironmentOptions = value);
             localCasServiceSettings.DoNotShutdownSessionsInUse.ApplyIfNotNull(value => localContentServerConfiguration.DoNotShutdownSessionsInUse = value);
 
-            (distributedSettings?.UseUnsafeByteStringConstruction).ApplyIfNotNull(
-                value =>
-            {
-                GrpcExtensions.UnsafeByteStringOptimizations = value;
-            });
-
             (distributedSettings?.ShutdownEvictionBeforeHibernation).ApplyIfNotNull(value => localContentServerConfiguration.ShutdownEvictionBeforeHibernation = value);
 
             return localContentServerConfiguration;

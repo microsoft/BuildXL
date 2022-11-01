@@ -54,9 +54,6 @@ namespace ContentStoreTest.Distributed.Stores
                     MaximumResourceCount = 1024,
                 },
                 GrpcCopyClientConfiguration = new GrpcCopyClientConfiguration()
-                {
-                    PropagateCallingMachineName = true,
-                }
             });
         }
 
@@ -74,8 +71,6 @@ namespace ContentStoreTest.Distributed.Stores
                 },
                 GrpcCopyClientConfiguration = new GrpcCopyClientConfiguration()
                 {
-                    PropagateCallingMachineName = true,
-                    
                     ConnectOnStartup = true,
                 },
                 ResourcePoolVersion = GrpcCopyClientCacheConfiguration.PoolVersion.V2,

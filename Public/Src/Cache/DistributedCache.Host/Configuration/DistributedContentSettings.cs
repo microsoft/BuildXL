@@ -421,9 +421,6 @@ namespace BuildXL.Cache.Host.Configuration
         [Validation.Range(0, double.MaxValue)]
         public double? GrpcCopyClientOperationDeadlineSeconds { get; set; }
 
-        [DataMember]
-        public bool? GrpcCopyClientPropagateCallingMachineName { get; set; }
-
         /// <remarks>
         /// It is OK to embed serializable types with no DataContract inside
         /// </remarks>

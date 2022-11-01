@@ -416,11 +416,8 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
         private Metadata? GetHeaders(Metadata? headers)
         {
-            if (_configuration.PropagateCallingMachineName)
-            {
-                headers ??= new Metadata();
-                headers.Add(GrpcConstants.MachineMetadataFieldName, Environment.MachineName);
-            }
+            headers ??= new Metadata();
+            headers.Add(GrpcConstants.MachineMetadataFieldName, Environment.MachineName);
 
             return headers;
         }

@@ -1,0 +1,20 @@
+{
+    "name": "@microsoft/buildxl-linux-internal",
+    "version": "0.1.0-yyyymmdd.seq.patch",
+    "description": "Microsoft internal BuildXL build engine (Linux).",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/Microsoft/BuildXL"
+    },
+    "license": "MIT",
+    "bin": {
+        "bxl": "build/linux-x64/bxl"
+    },
+    "scripts": {
+        "build": "tsc",
+        "start": "tsc --watch"
+    },
+    "publishConfig": {
+        "registry": "https://pkgs.dev.azure.com/mseng/Domino/_packaging/BuildXL/npm/registry/"
+    }
+}

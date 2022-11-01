@@ -13,8 +13,6 @@ namespace Npm {
         npmTool: Transformer.ToolDefinition,
         targetFolder: Directory,
         package?: {name: string, version: string},
-        npmCacheFolder?: Directory,
-        preserveCacheFolder?: boolean,
         noBinLinks?: boolean,
         userNpmrcLocation?: NpmrcLocation,
         globalNpmrcLocation?: NpmrcLocation,
@@ -64,14 +62,8 @@ namespace Npm {
     @@public
     export function runNpmInstallWithAdditionalOutputs(args: NpmInstallArguments, additionalOutputs: Directory[] ) : TransformerExecuteResult {
 
+        const npmCachePath = getNpmCachePath(args);
         const preserveCacheFolder = args.preserveCacheFolder || false;
-
-        // If not specified explicitly, look for the nuget cache folder, otherwise use an arbitrary output folder
-        const npmCachePath = args.npmCacheFolder || 
-                             (preserveCacheFolder && Environment.hasVariable("NugetMachineInstallRoot") 
-                             ? d`${Environment.getDirectoryValue("NugetMachineInstallRoot")}/.npm-cache`
-                             : Context.getNewOutputDirectory("npm-install-cache"));
-
         const package = args.package !== undefined ? `${args.package.name}@${args.package.version}` : undefined;
 
         let npmrc = resolveNpmrc(args.userNpmrcLocation, args.targetFolder, a`.npmrc`);
@@ -127,7 +119,10 @@ namespace Npm {
 
     function getEnvironment(userProfile: Directory, nodeExeDirectory: Directory, environment: Transformer.EnvironmentVariable[]) : Transformer.EnvironmentVariable[] {
         return environment || [
-            {name: "PATH", separator: ";", value: [nodeExeDirectory]},
+            // On Linux, npm needs access to bash, which is under $SHELL (when defined, otherwise we fallback to /usr/bin/bash)
+            {name: "PATH", separator: Context.isWindowsOS() ? ";" : ":", value: 
+                [nodeExeDirectory, 
+                ...addIfLazy(!Context.isWindowsOS(), () => [Environment.hasVariable("SHELL") ? d`${Environment.getFileValue("SHELL").parent}` : d`/usr/bin/`])]},
             {name: "USERPROFILE", value: userProfile},
             {name: "NO_UPDATE_NOTIFIER", value: "1"}, // Prevent npm from checking for the latest version online and write to the user folder with the check information
         ];
@@ -141,6 +136,7 @@ namespace Npm {
         npmTool: Transformer.ToolDefinition,
         packageJson: File,
         version: string,
+        additionalArguments?: Argument[],
     }
 
     /**
@@ -148,10 +144,15 @@ namespace Npm {
      */
     @@public
     export function version(args: NpmVersionArguments) : File {
-        
+        // If not specified explicitly, look for the nuget cache folder, otherwise use an arbitrary output folder
+        const npmCachePath = getNpmCachePath(args);
+
+        const preserveCacheFolder = args.preserveCacheFolder || false;
         const arguments: Argument[] = [
+            ...(args.additionalArguments || []),
             Cmd.argument("version"),
             Cmd.argument(args.version),
+            Cmd.option("--cache ", Artifact.none(npmCachePath)), // Forces the npm cache to use this output folder for this object so that it doesn't write to user folder
         ];
 
         // Redirect the user profile to an output directory to avoid npm from polluting the
@@ -166,6 +167,7 @@ namespace Npm {
             workingDirectory: d`${args.packageJson.parent}`,
             outputs: [
                 args.packageJson,
+                ...addIf(!preserveCacheFolder, <Transformer.DirectoryOutput>{directory: npmCachePath, kind: "shared"})
             ],
             environmentVariables: environment,
             dependencies: [...args.additionalDependencies || [], args.packageJson],
@@ -217,5 +219,15 @@ namespace Npm {
 
         const result = Transformer.execute(Object.merge(defaults, versionArgs));
         return result.getOutputDirectory(args.targetDirectory);
+    }
+
+    function getNpmCachePath(args: InstallArgumentsCommon) {
+        // If not specified explicitly, look for the nuget cache folder, otherwise use an arbitrary output folder
+        const preserveCacheFolder = args.preserveCacheFolder || false;
+
+        return args.npmCacheFolder || 
+                             (preserveCacheFolder && Environment.hasVariable("NugetMachineInstallRoot") 
+                             ? d`${Environment.getDirectoryValue("NugetMachineInstallRoot")}/.npm-cache`
+                             : Context.getNewOutputDirectory("npm-install-cache"));
     }
 }

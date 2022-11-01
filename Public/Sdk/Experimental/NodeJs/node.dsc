@@ -10,8 +10,7 @@ namespace Node {
     @@public
     export const tool : Transformer.ToolDefinition = getNodeTool();
     
-    @@public
-    export const npmCli : File = getNpmCli();
+    const npmCli : File = getNpmCli();
 
     const nodeExecutablesDir : Directory = d`${getNodeTool().exe.parent}`;
 
@@ -255,6 +254,26 @@ namespace Node {
             userNpmrcLocation: "local",
             globalNpmrcLocation: "local"
             });
+    }
+
+    /**
+     * Runs npm version using the bxl internal node package
+     */
+    @@public
+    export function runNpmVersion(
+        packageJson: File,
+        version: string,
+        additionalDependencies: (File | StaticDirectory)[]) : File {
+        
+        const args :Npm.NpmVersionArguments = {
+            nodeTool: tool,
+            npmTool: tool,
+            additionalArguments: [Cmd.argument(Artifact.input(npmCli))],
+            packageJson: packageJson,
+            version: version,
+            additionalDependencies: additionalDependencies};
+
+        return Npm.version(args);
     }
 
     @@public 

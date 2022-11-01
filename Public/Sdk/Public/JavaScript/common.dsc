@@ -122,6 +122,8 @@ export interface InstallArgumentsCommon {
      * step and will force it to run (unsandboxed).
      * */
     disableSandboxing?: boolean,
+    npmCacheFolder?: Directory,
+    preserveCacheFolder?: boolean,
 }
 
 

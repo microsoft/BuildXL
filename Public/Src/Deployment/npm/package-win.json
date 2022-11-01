@@ -1,15 +1,14 @@
 {
     "name": "@microsoft/buildxl-internal",
     "version": "0.1.0-yyyymmdd.seq.patch",
-    "description": "Microsoft internal BuildXL build engine.",
+    "description": "Microsoft internal BuildXL build engine (Windows).",
     "repository": {
         "type": "git",
         "url": "https://github.com/Microsoft/BuildXL"
     },
     "license": "MIT",
     "bin": {
-        "bxl": "build/win-x64/bxl.exe",
-        "bxl-linux": "build/linux-x64/bxl"
+        "bxl": "build/win-x64/bxl.exe"
     },
     "scripts": {
         "build": "tsc",

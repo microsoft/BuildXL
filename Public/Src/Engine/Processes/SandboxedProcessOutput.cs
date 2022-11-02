@@ -172,6 +172,11 @@ namespace BuildXL.Processes
         public SandboxedProcessFile File => m_file;
 
         /// <summary>
+        /// The file storage
+        /// </summary>
+        public ISandboxedProcessFileStorage FileStorage => m_fileStorage;
+
+        /// <summary>
         /// The length of the output in characters
         /// </summary>
         public long Length

@@ -200,10 +200,15 @@ namespace BuildXL.Plugin
         }
 
         /// <nodoc />
-        public async Task<Possible<ExitCodeParseResult>> ExitCodeParseAsync(string content, string filePath, bool isErrorOutput)
+        public async Task<Possible<ProcessResultMessageResponse>> ProcessResultAsync(string executable, 
+                                                                                     string arguments,
+                                                                                     ProcessStream input,
+                                                                                     ProcessStream output,
+                                                                                     ProcessStream error,
+                                                                                     int exitCode)
         {
             IPlugin plugin = null;
-            var messageType = PluginMessageType.HandleExitCode;
+            var messageType = PluginMessageType.ProcessResult;
             if (!m_pluginHandlers.TryGet(messageType, out plugin))
             {
                 return new Failure<string>($"no plugin is available to handle {messageType}");
@@ -211,8 +216,8 @@ namespace BuildXL.Plugin
 
             return await CallWithEnsurePluginLoadedWrapperAsync(
                 messageType, plugin,
-                () => { return plugin.HandleExitCodeAsync(content, filePath, isErrorOutput); },
-                new ExitCodeParseResult());
+                () => { return plugin.ProcessResultAsync(executable, arguments, input, output, error, exitCode); },
+                new ProcessResultMessageResponse());
         }
 
         private PluginCreationArgument GetPluginArgument(string pluginPath, bool runInSeparateProcess)

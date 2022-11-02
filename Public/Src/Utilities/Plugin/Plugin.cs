@@ -158,9 +158,14 @@ namespace BuildXL.Plugin
         }
 
         /// <nodoc />
-        public Task<PluginResponseResult<ExitCodeParseResult>> HandleExitCodeAsync(string content, string filePath, bool isErrorOutput)
+        public Task<PluginResponseResult<ProcessResultMessageResponse>> ProcessResultAsync(string executable,
+                                                                                           string arguments,
+                                                                                           ProcessStream input,
+                                                                                           ProcessStream output,
+                                                                                           ProcessStream error,
+                                                                                           int exitCode)
         {
-            return PluginClient.HandleExitCodeAsync(content, filePath, isErrorOutput);
+            return PluginClient.ProcessResultAsync(executable, arguments, input, output, error, exitCode);
         }
     }
 }

@@ -106,8 +106,8 @@ namespace BuildXL.Plugin
             {
                 case PluginMessage.PayloadOneofCase.LogParseMessage:
                     return HandleLogParse(request.LogParseMessage);
-                case PluginMessage.PayloadOneofCase.ExitCodeParseMessage:
-                    return HandleExitCode(request.ExitCodeParseMessage);
+                case PluginMessage.PayloadOneofCase.ProcessResultMessage:
+                    return ProcessResult(request.ProcessResultMessage);
                 default:
                     return HandleUnknown();
             }
@@ -137,7 +137,7 @@ namespace BuildXL.Plugin
         }
 
         /// <summary>
-        /// Log Parse plugin server should implemented this methods
+        /// Log Parse plugin server should implemented this method
         /// </summary>
         /// <param name="logParseMessage"></param>
         /// <returns>PluginMessageResponse should have LogParsedResult</returns>
@@ -147,11 +147,11 @@ namespace BuildXL.Plugin
         }
 
         /// <summary>
-        /// Log Parse plugin server should implemented this methods
+        /// Log Parse plugin server should implemented this method
         /// </summary>
-        /// <param name="exitCodeParseMessage"></param>
-        /// <returns>PluginMessageResponse should have ExitCodeParseResult</returns>
-        protected virtual Task<PluginMessageResponse> HandleExitCode(ExitCodeParseMessage exitCodeParseMessage)
+        /// <param name="processResultMessage"></param>
+        /// <returns>PluginMessageResponse should have ProcessResultMessageResponse</returns>
+        protected virtual Task<PluginMessageResponse> ProcessResult(ProcessResultMessage processResultMessage)
         {
             throw new NotImplementedException();
         }

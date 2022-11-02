@@ -7,9 +7,8 @@ using System.Threading.Tasks;
 
 using Xunit;
 using BuildXL.Utilities.ParallelAlgorithms;
-using Test.BuildXL.TestUtilities.Xunit;
 using System.Collections.Concurrent;
-using BuildXL.ToolSupport;
+using BuildXL.Utilities.Tasks;
 
 namespace Test.BuildXL.Utilities
 {
@@ -63,14 +62,16 @@ namespace Test.BuildXL.Utilities
             }
         }
 
-        [FactIfSupported(requiresWindowsOrLinuxOperatingSystem: true)]
+        [Fact]
         public async Task ExceptionIsThrownWhenTheBlockIsFull()
         {
             var tcs = new TaskCompletionSource<object>();
             var actionBlock = ActionBlockSlim.CreateWithAsyncAction<int>(1, n => tcs.Task, capacityLimit: 1);
             actionBlock.Post(42);
 
-            await Task.Delay(TimeSpan.FromSeconds(1));
+            // 'awaiting' when the item is picked up.
+            await WaitUntilAsync(() => actionBlock.PendingWorkItems == 0);
+
             Assert.Equal(0, actionBlock.PendingWorkItems);
             Assert.Equal(1, actionBlock.ProcessingWorkItems);
 
@@ -81,11 +82,7 @@ namespace Test.BuildXL.Utilities
             Assert.Equal(1, actionBlock.PendingWorkItems);
 
             tcs.SetResult(null);
-            bool waitSucceeded = await ParallelAlgorithms.WaitUntilAsync(
-                () => actionBlock.PendingWorkItems == 0, 
-                TimeSpan.FromMilliseconds(1),
-                timeout: TimeSpan.FromSeconds(5));
-            Assert.True(waitSucceeded);
+            await WaitUntilAsync(() => actionBlock.PendingWorkItems == 0);
             
             Assert.Equal(0, actionBlock.PendingWorkItems);
 
@@ -93,7 +90,7 @@ namespace Test.BuildXL.Utilities
             actionBlock.Post(1);
         }
 
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [Fact]
         public async Task ExceptionIsNotThrownWhenTheBlockIsFullOrComplete()
         {
             ConcurrentQueue<int> seenInputs = new();
@@ -106,16 +103,18 @@ namespace Test.BuildXL.Utilities
 
             actionBlock.Post(42);
             Assert.Equal(0, actionBlock.ProcessedWorkItems);
+            
+            // awaiting until the item is obtained from the queue for processing
+            await WaitUntilAsync(() => actionBlock.PendingWorkItems == 0);
+            
+            // This one will occupy the only slot of the queue.
+            actionBlock.Post(42);
 
             Assert.False(actionBlock.TryPost(-23, throwOnFullOrComplete: false));
             Assert.Equal(0, actionBlock.ProcessedWorkItems);
 
             tcs.SetResult(null);
-            var waitSucceeded = await ParallelAlgorithms.WaitUntilAsync(
-                () => actionBlock.PendingWorkItems == 0, 
-                TimeSpan.FromMilliseconds(1),
-                timeout: TimeSpan.FromSeconds(5));
-            Assert.True(waitSucceeded);
+            await WaitUntilAsync(() => actionBlock.PendingWorkItems == 0);
 
             Assert.Equal(0, actionBlock.PendingWorkItems);
 
@@ -128,21 +127,19 @@ namespace Test.BuildXL.Utilities
 
             Assert.False(actionBlock.TryPost(-43, throwOnFullOrComplete: false));
 
-            Assert.Equal(2, seenInputs.Count);
+            Assert.Equal(3, seenInputs.Count);
 
             // Negative inputs denote cases where the item should not be added
             Assert.DoesNotContain(seenInputs, i => i < 0);
         }
         
-        [FactIfSupported(requiresWindowsOrLinuxOperatingSystem: true)]
+        [Fact]
         public async Task CompletionAsync_Succeeded_When_CancellationToken_Is_Canceled()
         {
-
             await Task.Yield();
             var cts = new CancellationTokenSource();
 
             var tcs = new TaskCompletionSource<object>();
-
             var actionBlock = ActionBlockSlim.CreateWithAsyncAction<int>(
                 1,
                 input =>
@@ -152,19 +149,33 @@ namespace Test.BuildXL.Utilities
                 capacityLimit: 1,
                 cancellationToken: cts.Token);
 
-            cts.Cancel();
-            tcs.SetResult(null);
+            actionBlock.Post(42);
 
+            // Waiting for the block to pull the first item.
+            await WaitUntilAsync(() => actionBlock.PendingWorkItems == 0);
+
+            // Adding an item that should not be processed because of the cancellation.
+            actionBlock.Post(42);
+
+            cts.Cancel();
+            
+            tcs.SetResult(null);
             actionBlock.Complete();
+
+            // Now the block should be done
             await actionBlock.Completion;
+
+            // Even though we added two items, only the first one should be processed.
+            Assert.Equal(1, actionBlock.ProcessedWorkItems);
         }
         
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
-        public async Task CompletionAsync_Succeeded_When_CancelPending_Is_True()
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public async Task CompletionAsync_Succeeded_When_CancelPending(bool cancelPending)
         {
             await Task.Yield();
             var tcs = new TaskCompletionSource<object>();
-
             var actionBlock = ActionBlockSlim.CreateWithAsyncAction<int>(
                 1,
                 input =>
@@ -174,7 +185,51 @@ namespace Test.BuildXL.Utilities
                 capacityLimit: 1,
                 cancellationToken: CancellationToken.None);
 
+            actionBlock.Post(42);
+            
+            // Waiting for the block to pull the first item.
+            await WaitUntilAsync(() => actionBlock.PendingWorkItems == 0);
+            
+            // Adding an item that should not be processed because of the cancellation.
+            actionBlock.Post(42);
+
+            actionBlock.Complete(cancelPending);
+
+            // The ActionBlock is completed, now we need to unblock the processor.
+            tcs.SetResult(null);
+
+            // Now the block should be done
+            await actionBlock.Completion;
+
+            // The number of processed items depends on whether we were cancelling pending items or not.
+            int expectedProcessedItemsCount = cancelPending ? 1 : 2;
+            Assert.Equal(expectedProcessedItemsCount, actionBlock.ProcessedWorkItems);
+        }
+        
+        [Fact]
+        public async Task CancelPendingTriggersCancellationTokenInCallback()
+        {
+            await Task.Yield();
+            var actionBlock = ActionBlockSlim.CreateWithAsyncAction<int>(
+                1,
+                async (input, token) =>
+                {
+                    await token.ToAwaitable().CompletionTask;
+                },
+                capacityLimit: 1,
+                cancellationToken: CancellationToken.None);
+
+            actionBlock.Post(42);
+            
+            // Waiting for the block to pull the first item.
+            await WaitUntilAsync(() => actionBlock.PendingWorkItems == 0);
+            
+            // Adding an item that should not be processed because of the cancellation.
+            actionBlock.Post(42);
+
             actionBlock.Complete(cancelPending: true);
+
+            // Now the block should be done
             await actionBlock.Completion;
         }
 
@@ -365,6 +420,12 @@ namespace Test.BuildXL.Utilities
 
             // The new thread should run and increment the count
             Assert.Equal(3, count);
+        }
+
+        private static async Task WaitUntilAsync(Func<bool> predicate)
+        {
+            bool waitSucceeded = await ParallelAlgorithms.WaitUntilAsync(predicate, TimeSpan.FromMilliseconds(1), timeout: TimeSpan.FromSeconds(5));
+            Assert.True(waitSucceeded);
         }
     }
 }

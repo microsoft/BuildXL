@@ -81,11 +81,49 @@ namespace BuildXL.Utilities.ParallelAlgorithms
                 processItemAction,
                 cancellationToken);
         }
+        
+        /// <nodoc />
+        public static ActionBlockSlim<T> CreateWithAsyncAction<T>(
+            int degreeOfParallelism,
+            Func<T, CancellationToken, Task> processItemAction,
+            int? capacityLimit = null,
+            bool singleProducedConstrained = false,
+            CancellationToken cancellationToken = default)
+        {
+            return CreateWithAsyncAction(
+                new ActionBlockSlimConfiguration(
+                    DegreeOfParallelism: degreeOfParallelism,
+                    CapacityLimit: capacityLimit,
+                    SingleProducerConstrained: singleProducedConstrained
+                ),
+                processItemAction,
+                cancellationToken);
+        }
 
         /// <nodoc />
         public static ActionBlockSlim<T> CreateWithAsyncAction<T>(
             ActionBlockSlimConfiguration configuration,
             Func<T, Task> processItemAction,
+            CancellationToken cancellationToken = default)
+        {
+            if (configuration.DegreeOfParallelism == -1)
+            {
+                configuration = configuration with
+                {
+                    DegreeOfParallelism = Environment.ProcessorCount,
+                };
+            }
+
+            return new ActionBlockSlim<T>(
+                configuration,
+                (t, token) => processItemAction(t),
+                cancellationToken);
+        }
+        
+        /// <nodoc />
+        public static ActionBlockSlim<T> CreateWithAsyncAction<T>(
+            ActionBlockSlimConfiguration configuration,
+            Func<T, CancellationToken, Task> processItemAction,
             CancellationToken cancellationToken = default)
         {
             if (configuration.DegreeOfParallelism == -1)
@@ -118,7 +156,7 @@ namespace BuildXL.Utilities.ParallelAlgorithms
     public sealed class ActionBlockSlim<T>
     {
         private readonly ActionBlockSlimConfiguration m_configuration;
-        private readonly Func<T, Task> m_processItemAction;
+        private readonly Func<T, CancellationToken, Task> m_processItemAction;
         private readonly CancellationToken m_externalCancellation;
 
         private readonly object m_syncRoot = new object();
@@ -177,7 +215,7 @@ namespace BuildXL.Utilities.ParallelAlgorithms
         /// <nodoc />
         internal ActionBlockSlim(
             ActionBlockSlimConfiguration configuration, 
-            Func<T, Task> processItemAction,
+            Func<T, CancellationToken, Task> processItemAction,
             CancellationToken cancellationToken = default)
         {
             m_configuration = configuration;
@@ -252,7 +290,7 @@ namespace BuildXL.Utilities.ParallelAlgorithms
                             Interlocked.Increment(ref m_processingWorkItems);
                             try
                             {
-                                await m_processItemAction(item);
+                                await m_processItemAction(item, cts.Token);
                             }
                             finally
                             {

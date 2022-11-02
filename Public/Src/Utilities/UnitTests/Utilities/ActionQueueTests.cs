@@ -19,33 +19,38 @@ namespace Test.BuildXL.Utilities
             var queue = new ActionQueue(degreeOfParallelism: 2, capacityLimit: 1);
             var tcs = new TaskCompletionSource<object>();
 
-            var t = queue.RunAsync(() => tcs.Task);
+            // Here is the idea of the test:
+            // We add 3 work items (dop + 1) to make sure the queue is full.
+            // and then we'll try to add another item and that item should fail.
 
-            // Ensure previous task gets picked up by processing
-            await Task.Delay(TimeSpan.FromSeconds(1));
+            var t1 = queue.RunAsync(() => tcs.Task);
+            
+            // making sure the item was grabbed by the processor before addding the next one.
+            await WaitUntilAsync(() => queue.PendingWorkItems == 0);
 
-            // This task will be left in the channel
-            _ = queue.RunAsync(() => { });
+            var t2 = queue.RunAsync(() => tcs.Task);
+            
+            // making sure the item was grabbed by the processor before addding the next one.
+            await WaitUntilAsync(() => queue.PendingWorkItems == 0);
 
-            // This one should throw
-            try
+            // this call will add another work item and the number of pending items will be 1.
+            var t3 = queue.RunAsync(() => tcs.Task);
+
+            await WaitUntilAsync(() => queue.PendingWorkItems == 1);
+
+            // The queue is full for sure, the next call to run another item must fail.
+            Assert.Throws<ActionBlockIsFullException>(() =>
             {
                 _ = queue.RunAsync(() => { });
-                throw new NotImplementedException();
-            }
-            catch (ActionBlockIsFullException)
-            {
-                // This should be ignored. For some reason, Assert.Throws doesn't work.
-            }
+            });
 
             tcs.SetResult(null);
             
-            await t;
+            await Task.WhenAll(t1, t2, t3);
 
             // Even though the task 't' is done, it still possible that the internal counter in ActionBlock was not yet decremented.
             // "waiting" until all the items are fully processed before calling 'RunAsync' to avoid 'ActionBlockIsFullException'.
-            bool waitCompleted = await ParallelAlgorithms.WaitUntilAsync(() => queue.PendingWorkItems == 0, TimeSpan.FromMilliseconds(1), timeout: TimeSpan.FromSeconds(5));
-            Assert.True(waitCompleted);
+            await WaitUntilAsync(() => queue.PendingWorkItems == 0);
 
             // should be fine now.
             await queue.RunAsync(() => { });
@@ -79,6 +84,12 @@ namespace Test.BuildXL.Utilities
                 Assert.Equal(5, callbackCount);
                 Assert.Contains("Failing item ", e.ToString());
             }
+        }
+
+        private static async Task WaitUntilAsync(Func<bool> predicate)
+        {
+            bool waitSucceeded = await ParallelAlgorithms.WaitUntilAsync(predicate, TimeSpan.FromMilliseconds(1), timeout: TimeSpan.FromSeconds(5));
+            Assert.True(waitSucceeded);
         }
     }
 }

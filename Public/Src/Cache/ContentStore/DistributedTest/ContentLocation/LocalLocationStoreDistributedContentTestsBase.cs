@@ -13,7 +13,6 @@ using BuildXL.Cache.ContentStore.Distributed;
 using BuildXL.Cache.ContentStore.Distributed.MetadataService;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
-using BuildXL.Cache.ContentStore.Distributed.Redis;
 using BuildXL.Cache.ContentStore.Distributed.Stores;
 using BuildXL.Cache.ContentStore.Distributed.Test.MetadataService;
 using BuildXL.Cache.ContentStore.Hashing;
@@ -86,7 +85,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
         protected readonly LocalRedisFixture _redis;
         protected Action<TestDistributedContentSettings> _overrideDistributed = null;
-        protected readonly ConcurrentDictionary<int, RedisContentLocationStoreConfiguration> _configurations
+        protected readonly ConcurrentDictionary<int, LocalLocationStoreConfiguration> _configurations
             = new();
 
         private const int InfiniteHeartbeatMinutes = 10_000;
@@ -97,7 +96,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
         protected readonly ConcurrentDictionary<(string, int), AzuriteStorageProcess> _localStorages = new();
 
-        protected Func<AbsolutePath, int, RedisContentLocationStoreConfiguration> CreateContentLocationStoreConfiguration { get; set; }
+        protected Func<AbsolutePath, int, LocalLocationStoreConfiguration> CreateContentLocationStoreConfiguration { get; set; }
         protected AzuriteStorageProcess StorageProcess { get; private set; }
         protected AzuriteStorageProcess ContentMetadataStorageProcess { get; private set; }
 
@@ -124,7 +123,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
         public string MaxSize { get; set; } = "50 MB";
 
-        protected Action<RedisContentLocationStoreConfiguration> _overrideRedis = null;
+        protected Action<LocalLocationStoreConfiguration> _overrideLocationStore = null;
         protected Action<DistributedContentStoreSettings> _overrideDistributedContentStooreSettings = null;
 
         protected MemoryContentLocationEventStoreConfiguration MemoryEventStoreConfiguration { get; } = new MemoryContentLocationEventStoreConfiguration();
@@ -151,13 +150,13 @@ namespace ContentStoreTest.Distributed.Sessions
             return localDatabase;
         }
 
-        public void ConfigureWithOneMaster(Action<TestDistributedContentSettings> overrideDistributed = null, Action<RedisContentLocationStoreConfiguration> overrideRedis = null)
+        public void ConfigureWithOneMaster(Action<TestDistributedContentSettings> overrideDistributed = null, Action<LocalLocationStoreConfiguration> overrideRedis = null)
         {
             _overrideDistributed = s =>
                                    {
                                        overrideDistributed?.Invoke(s);
                                    };
-            _overrideRedis = overrideRedis;
+            _overrideLocationStore = overrideRedis;
         }
 
         internal TestServerProvider CreateStoreForDistributedContentTests(
@@ -539,7 +538,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
             public override IClock Clock => _tests.TestClock;
 
-            public override void Override(RedisContentLocationStoreConfiguration configuration)
+            public override void Override(LocalLocationStoreConfiguration configuration)
             {
                 configuration.InlinePostInitialization = true;
 
@@ -558,7 +557,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     blobConfig.EnableGarbageCollect = false;
                 }
 
-                _tests._overrideRedis?.Invoke(configuration);
+                _tests._overrideLocationStore?.Invoke(configuration);
 
                 _tests._configurations[_storeIndex] = configuration;
 

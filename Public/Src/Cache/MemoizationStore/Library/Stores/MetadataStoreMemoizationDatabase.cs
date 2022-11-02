@@ -146,7 +146,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
 
         private SerializedMetadataEntry Serialize(ContentHashListWithDeterminism contentHashListWithDeterminism)
         {
-            // We use a metadata entry instead of CHL to maintain back compat when talking to redis.
+            // We use a metadata entry instead of CHL to maintain back compat when talking to a global store.
             // We can use default last access time since its not actually consumed
             var metadataEntry = new MetadataEntry(contentHashListWithDeterminism, DateTime.UtcNow);
             var data = _serializationPool.Serialize(metadataEntry, (value, writer) => value.Serialize(writer));

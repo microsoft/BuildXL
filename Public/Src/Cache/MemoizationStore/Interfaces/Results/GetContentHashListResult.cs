@@ -19,7 +19,7 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Results
         Unknown,
         
         /// <summary>
-        /// A content hash list was obtained from a shared source (i.e. redis).
+        /// A content hash list was obtained from a global store.
         /// </summary>
         Shared,
 

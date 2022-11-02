@@ -14,7 +14,7 @@ using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 {
     /// <summary>
-    /// Interface that represents a central store (currently backed by Redis).
+    /// Interface that represents a central global store.
     /// </summary>
     public interface IGlobalCacheStore : IContentMetadataStore, IStartupShutdownSlim
     {

@@ -3,10 +3,8 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Tracing;
@@ -15,7 +13,7 @@ using BuildXL.Utilities.Collections;
 
 #nullable enable
 
-namespace BuildXL.Cache.ContentStore.Distributed.Redis
+namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
     /// <summary>
     /// Adapts <see cref="LocalLocationStore"/> to interface needed for content locations (<see cref="DistributedCentralStorage.ILocationStore"/>) by

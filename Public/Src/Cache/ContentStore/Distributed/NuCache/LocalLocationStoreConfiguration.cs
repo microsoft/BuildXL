@@ -9,7 +9,6 @@ using System.Threading;
 using BuildXL.Cache.ContentStore.Distributed.MetadataService;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
-using BuildXL.Cache.ContentStore.Distributed.Redis;
 using BuildXL.Cache.ContentStore.Interfaces.Distributed;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Secrets;
@@ -42,12 +41,33 @@ namespace BuildXL.Cache.ContentStore.Distributed
     public record LocalLocationStoreConfiguration
     {
         /// <summary>
+        /// The keyspace under which all keys in global store are stored
+        /// </summary>
+        public string? Keyspace { get; set; }
+
+        /// <summary>
+        /// The time before a machine is marked as closed from its last heartbeat as open.
+        /// </summary>
+        public TimeSpan MachineActiveToClosedInterval { get; set; } = TimeSpan.FromMinutes(10);
+
+        /// <summary>
+        /// The time before machines are marked as expired and locations are eligible for garbage collection from the local database
+        /// </summary>
+        public TimeSpan MachineActiveToExpiredInterval { get; set; } = TimeSpan.FromHours(1);
+
+        /// <nodoc />
+        public MetadataStoreMemoizationDatabaseConfiguration MetadataStoreMemoization { get; set; } = new MetadataStoreMemoizationDatabaseConfiguration();
+
+        /// <nodoc />
+        internal IClientAccessor<MachineLocation, IGlobalCacheService>? GlobalCacheClientAccessorForTests { get; set; }
+
+        /// <summary>
         /// Indicates whether LLS operates in read-only mode where no writes are performed
         ///
         /// In this mode, the machine does not register itself as a part of the distributed network and thus is not
         /// discoverable as a content replica for any content on the machine. This is useful for scenarios where distributed network
         /// partially composed of machines which are short-lived and thus should not participate in the distributed network for the
-        /// sake of avoid churn. The machines can still pull content from other machines by querying LLS DB/Redis and getting replicas
+        /// sake of avoid churn. The machines can still pull content from other machines by querying LLS DB/Global and getting replicas
         /// on machines which are long-lived (and this flag is false).
         /// </summary>
         public bool DistributedContentConsumerOnly { get; set; }
@@ -74,8 +94,8 @@ namespace BuildXL.Cache.ContentStore.Distributed
         public TimeSpan MachineStateRecomputeInterval { get; set; } = TimeSpan.FromMinutes(1);
 
         /// <summary>
-        /// The TTL on entries in RedisGlobalStore
-        /// NOTE: This is NOT the same as ContentHashBumpTime (the TTL for entries in RedisContentLocationStore)
+        /// The TTL on entries in a global store
+        /// NOTE: This is NOT the same as ContentHashBumpTime (the TTL for entries in global store)
         /// </summary>
         public TimeSpan LocationEntryExpiry { get; set; } = DefaultLocationEntryExpiry;
 
@@ -322,14 +342,6 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// </remarks>
         /// </summary>
         public TimeSpan EvictionMinAge { get; set; } = TimeSpan.Zero;
-
-        /// <summary>
-        /// Time Delay given to raided redis databases to complete its result after the first redis instance has completed.
-        /// <remarks>
-        /// Default value will be set to null, and both redis instances need to be completed before moving forward.
-        /// </remarks>
-        /// </summary>
-        public TimeSpan? RetryWindow { get; set; }
 
         /// <summary>
         /// Gets prefix used for checkpoints key which uniquely identifies a checkpoint lineage (i.e. changing this value indicates

@@ -187,7 +187,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         if (!isSealed && hasWriteBehindLog)
                         {
                             // The log isn't sealed in the writeBehind storage. Writer likely crashed and didn't get to seal,
-                            // so we need to recover log entries for confirmed transactions from Redis
+                            // so we need to recover log entries for confirmed transactions from global store.
                             bool moveNext = true;
                             while (moveNext)
                             {

@@ -1,15 +1,15 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using BuildXL.Cache.ContentStore.Distributed;
 using BuildXL.Cache.ContentStore.Distributed.MetadataService;
-using BuildXL.Cache.ContentStore.Distributed.Redis;
 using BuildXL.Cache.ContentStore.Distributed.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 
 namespace BuildXL.Cache.Host.Service
 {
     /// <summary>
-    /// Allows overriding behavior/settings when constructing a <see cref="DistributedContentStore{T}"/> via <see cref="DistributedContentStoreFactory"/>
+    /// Allows overriding behavior/settings when constructing a DistributedContentStore via DistributedContentStoreFactory.
     /// </summary>
     public class DistributedCacheServiceHostOverrides
     {
@@ -27,7 +27,7 @@ namespace BuildXL.Cache.Host.Service
             return storage;
         }
 
-        public virtual void Override(RedisContentLocationStoreConfiguration configuration) { }
+        public virtual void Override(LocalLocationStoreConfiguration configuration) { }
 
         public virtual void Override(DistributedContentStoreSettings settings) { }
     }

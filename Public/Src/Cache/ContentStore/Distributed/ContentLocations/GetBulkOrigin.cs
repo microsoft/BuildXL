@@ -14,7 +14,7 @@ namespace BuildXL.Cache.ContentStore.Distributed
         Local,
 
         /// <summary>
-        /// The locations should be obtained from a global remote store (redis).
+        /// The locations should be obtained from a global remote global store.
         /// </summary>
         Global,
 

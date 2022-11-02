@@ -160,46 +160,7 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
             contentSize: 42,
             lastAccessTimeUtc: UnixTime.UtcNow,
             UnixTime.UtcNow);
-
-        [Fact]
-        public void TestRoundtripRedisValue()
-        {
-            Random r = new Random();
-            for (int machineIdIndex = 0; machineIdIndex < 2048; machineIdIndex++)
-            {
-                long randomSize = (long)Math.Pow(2, 63 * r.NextDouble());
-                byte[] entryBytes = ContentLocationEntry.ConvertSizeAndMachineIdToRedisValue(randomSize, new MachineId(machineIdIndex));
-
-                var deserializedEntry = ContentLocationEntry.FromRedisValue(entryBytes, DateTime.UtcNow, missingSizeHandling: true);
-                deserializedEntry.ContentSize.Should().Be(randomSize);
-                deserializedEntry.Locations[machineIdIndex].Should().BeTrue();
-            }
-        }
-
-        [Fact]
-        public void TestSerializationRoundtripRedisValue()
-        {
-            // The test shows 3-x perf improvement (in release mode) for span-based implementation
-            // as well as 2-x memory traffic reduction.
-            Random r = new Random();
-            for (int machineIdIndex = 0; machineIdIndex < 2048; machineIdIndex++)
-            {
-                long randomSize = (long)Math.Pow(2, 63 * r.NextDouble());
-                byte[] entryBytes = ContentLocationEntry.ConvertSizeAndMachineIdToRedisValue(randomSize, new MachineId(machineIdIndex));
-
-                ContentLocationEntry fromRedisValue = ContentLocationEntry.FromRedisValue(entryBytes, DateTime.UtcNow, missingSizeHandling: true);
-                ContentLocationEntry copy = Copy(fromRedisValue);
-
-                // The type might change during serialization/deserialization
-                copy.Locations.EnumerateMachineIds().Should().BeEquivalentTo(fromRedisValue.Locations.EnumerateMachineIds());
-
-                copy.ContentSize.Should().Be(fromRedisValue.ContentSize);
-                copy.CreationTimeUtc.Should().Be(fromRedisValue.CreationTimeUtc);
-                copy.IsMissing.Should().Be(fromRedisValue.IsMissing);
-                copy.LastAccessTimeUtc.Should().Be(fromRedisValue.LastAccessTimeUtc);
-            }
-        }
-
+        
         [Fact(Skip = "For profiling purposes only")]
         public void PerformanceTestComparison()
         {

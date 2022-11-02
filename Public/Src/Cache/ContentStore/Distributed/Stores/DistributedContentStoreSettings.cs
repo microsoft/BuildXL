@@ -204,11 +204,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         public bool SetPostInitializationCompletionAfterStartup { get; set; } = true;
 
         /// <summary>
-        /// Indicates whether repair handling logic is enabled which removes a machine from Redis when a repair operation is triggered.
-        /// </summary>
-        public bool EnableRepairHandling { get; set; } = true;
-
-        /// <summary>
         /// Every time interval we trace a report on copy progression.
         /// </summary>
         public TimeSpan PeriodicCopyTracingInterval { get; set; } = TimeSpan.FromMinutes(5);

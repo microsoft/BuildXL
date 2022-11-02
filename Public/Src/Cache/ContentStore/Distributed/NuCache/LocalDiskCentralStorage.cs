@@ -5,14 +5,13 @@ using System;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 
-namespace BuildXL.Cache.ContentStore.Distributed.Redis
+namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
     /// <summary>
     /// <see cref="CentralStorage"/> implementation that uses file system for storing the checkpoints and other data.

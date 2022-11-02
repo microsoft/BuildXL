@@ -281,7 +281,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             GetBulkLocationsResult? localGetBulkResult = null;
 
             // First try to fetch file based on locally stored locations for the hash
-            // Then fallback to fetching file based on global locations  (i.e. Redis) minus the locally stored locations which were already checked
+            // Then fallback to fetching file based on global locations minus the locally stored locations which were already checked
             foreach (var getBulkTask in ContentLocationStore.MultiLevelGetLocations(operationContext, new[] { contentHash }, operationContext.Token, urgencyHint, subtractLocalResults: true))
             {
                 var getBulkResult = await getBulkTask;
@@ -677,7 +677,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             CopyReason reason)
         {
             // First try to place file by fetching files based on locally stored locations for the hash
-            // Then fallback to fetching file based on global locations (i.e. Redis) minus the locally stored locations which were already checked
+            // Then fallback to fetching file based on global locations minus the locally stored locations which were already checked
 
             var localGetBulkResult = new BuildXL.Utilities.AsyncOut<GetBulkLocationsResult>();
 

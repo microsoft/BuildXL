@@ -4,13 +4,9 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Distributed.Redis;
 using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.Cache.ContentStore.Interfaces.Distributed;
-using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
@@ -40,11 +36,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         public MachineId LocalMachineId { get; internal set; }
 
-        private readonly RedisContentLocationStoreConfiguration _configuration;
+        private readonly LocalLocationStoreConfiguration _configuration;
 
         /// <nodoc />
         public TransitioningContentLocationStore(
-            RedisContentLocationStoreConfiguration configuration,
+            LocalLocationStoreConfiguration configuration,
             LocalLocationStore localLocationStore,
             MachineLocation localMachineLocation,
             ILocalContentStore localContentStore)

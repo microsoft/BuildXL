@@ -7,7 +7,6 @@ using System.Diagnostics.ContractsLight;
 using System.Linq;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
-using BuildXL.Cache.ContentStore.Distributed.Redis;
 using BuildXL.Cache.ContentStore.Extensions;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Distributed;
@@ -246,7 +245,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Tracing
         public static void TraceStartupConfiguration(
             this Tracer tracer,
             Context context,
-            RedisContentLocationStoreConfiguration configuration)
+            LocalLocationStoreConfiguration configuration)
         {
             string blobStoreConfigurationAsText = configuration.CentralStore is BlobCentralStoreConfiguration blobStoreConfiguration
                 ? $"BlobCentralStore=True, #Shards={blobStoreConfiguration.Credentials.Count}, "

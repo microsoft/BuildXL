@@ -3,7 +3,7 @@
 
 using BuildXL.Utilities.Tracing;
 
-namespace BuildXL.Cache.ContentStore.Distributed.Redis
+namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
     /// <summary>
     /// Counters used by <see cref="IContentLocationStore"/> implementations.

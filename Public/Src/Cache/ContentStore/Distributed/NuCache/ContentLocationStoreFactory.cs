@@ -2,7 +2,6 @@
 // Licensed under the MIT License.
 
 using System.Diagnostics.ContractsLight;
-using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.Services;
 using BuildXL.Cache.ContentStore.Distributed.Stores;
 using BuildXL.Cache.ContentStore.Distributed.Tracing;
@@ -12,7 +11,7 @@ using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Tracing;
 
 #nullable enable
-namespace BuildXL.Cache.ContentStore.Distributed.Redis
+namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
     /// <summary>
     /// Creates <see cref="IContentLocationStore"/> instance backed by Local Location Store.
@@ -32,10 +31,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         protected DistributedContentCopier Copier => Arguments.Copier;
 
         /// <nodoc />
-        protected string KeySpace => Configuration.Keyspace;
+        protected string KeySpace => Configuration.Keyspace!;
 
         /// <nodoc />
-        protected readonly RedisContentLocationStoreConfiguration Configuration;
+        protected readonly LocalLocationStoreConfiguration Configuration;
 
         protected internal ContentLocationStoreFactoryArguments Arguments { get; }
 
@@ -44,7 +43,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
 
         public ContentLocationStoreFactory(
             IClock clock,
-            RedisContentLocationStoreConfiguration configuration,
+            LocalLocationStoreConfiguration configuration,
             DistributedContentCopier copier)
             : this(
                 new ContentLocationStoreFactoryArguments()
@@ -61,7 +60,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// </summary>
         public ContentLocationStoreFactory(
             ContentLocationStoreFactoryArguments arguments,
-            RedisContentLocationStoreConfiguration configuration)
+            LocalLocationStoreConfiguration configuration)
         {
             Contract.Requires(configuration != null);
             Contract.Requires(!string.IsNullOrWhiteSpace(configuration.Keyspace));

@@ -5,13 +5,11 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
-using BuildXL.Cache.ContentStore.Distributed.Redis;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
@@ -19,10 +17,8 @@ using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Utilities.Tasks;
-using ProtoBuf.Grpc;
 
 namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 {
@@ -52,6 +48,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         /// </summary>
         public int? MaxOperationQueueLength { get; init; }
 
+        /// <summary>
         /// Maximum age of the newest checkpoint that we're willing to tolerate. If the latest checkpoint is older than
         /// the age, we'll wipe out all of the data in the system and start from a clean slate.
         /// </summary>
@@ -616,8 +613,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                     }
 
                     // TODO: Timeout. Long create checkpoint could lose master while checkpointing.
-                    // TODO: Checkpoints started later should take precedence. Might require a compare
-                    // exchange in Redis.
+                    // TODO: Checkpoints started later should take precedence. Might require a compare exchange in global store.
                     await CreateCheckpointAsync(context).FireAndForgetErrorsAsync(context);
                 }
             }

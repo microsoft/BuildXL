@@ -2,8 +2,6 @@
 // Licensed under the MIT License.
 
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
-using BuildXL.Cache.ContentStore.Distributed.Redis;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
@@ -11,7 +9,7 @@ using BuildXL.Cache.ContentStore.Tracing.Internal;
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
     /// <summary>
-    /// Interface that represents a central store (currently backed by Redis).
+    /// Interface that represents a central store.
     /// </summary>
     public interface ICheckpointRegistry: IStartupShutdownSlim
     {

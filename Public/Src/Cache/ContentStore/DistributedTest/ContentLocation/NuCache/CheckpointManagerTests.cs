@@ -5,7 +5,6 @@ using System;
 using System.IO;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
-using BuildXL.Cache.ContentStore.Distributed.Redis;
 using BuildXL.Utilities;
 using FluentAssertions;
 using System.Text.Json;

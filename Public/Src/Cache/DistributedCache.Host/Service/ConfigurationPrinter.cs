@@ -15,7 +15,7 @@ namespace BuildXL.Cache.Host.Service
 {
     /// <summary>
     /// Printing different types of configuration into a json indented format
-    /// Mask property values that contain sensitive information, like credentials for connecting to redis.
+    /// Mask property values that contain sensitive information, like credentials for connecting to storage.
     /// </summary>
     public static class ConfigurationPrinter
     {

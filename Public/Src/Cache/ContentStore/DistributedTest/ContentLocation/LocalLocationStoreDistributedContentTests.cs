@@ -10,7 +10,6 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
-using BuildXL.Cache.ContentStore.Distributed.Redis;
 using BuildXL.Cache.ContentStore.Extensions;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;
@@ -61,7 +60,7 @@ namespace ContentStoreTest.Distributed.Sessions
             _fileSystem = new Lazy<IAbsFileSystem>(() => new RedirectionFileSystem(innerFileSystem, _redirectedSourcePath, _redirectedTargetPath));
         }
 
-        protected bool ConfigureWithRealEventHubAndStorage(Action<TestDistributedContentSettings> overrideDistributed = null, Action<RedisContentLocationStoreConfiguration> overrideRedis = null)
+        protected bool ConfigureWithRealEventHubAndStorage(Action<TestDistributedContentSettings> overrideDistributed = null, Action<LocalLocationStoreConfiguration> overrideRedis = null)
         {
             UseRealStorage = true;
             UseRealEventHub = true;

@@ -4,7 +4,6 @@
 using System.Diagnostics.ContractsLight;
 using BuildXL.Cache.ContentStore.Distributed.MetadataService;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
-using BuildXL.Cache.ContentStore.Distributed.Redis;
 using BuildXL.Cache.ContentStore.Distributed.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.Host.Configuration;
@@ -49,7 +48,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
         public DistributedContentSettings? DistributedContentSettings => Dependencies.DistributedContentSettings.InstanceOrDefault();
 
         /// <nodoc />
-        public RedisContentLocationStoreConfiguration Configuration { get; }
+        public LocalLocationStoreConfiguration Configuration { get; }
 
         /// <nodoc />
         public ContentLocationStoreFactoryArguments Arguments { get; }
@@ -61,7 +60,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
         protected DistributedContentCopier Copier => Arguments.Copier;
 
         /// <nodoc />
-        protected string KeySpace => Configuration.Keyspace;
+        protected string KeySpace => Configuration.Keyspace!;
 
         /// <nodoc />
         public OptionalServiceDefinition<ClientGlobalCacheStore> ClientGlobalCacheStore { get; }
@@ -96,12 +95,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
 
         public ContentLocationStoreServices(
             ContentLocationStoreFactoryArguments arguments,
-            RedisContentLocationStoreConfiguration configuration)
+            LocalLocationStoreConfiguration configuration)
         {
             Configuration = configuration;
             Arguments = arguments;
-
-            var context = arguments.Copier.Context;
 
             MasterElectionMechanism = Create(() => CreateMasterElectionMechanism());
 

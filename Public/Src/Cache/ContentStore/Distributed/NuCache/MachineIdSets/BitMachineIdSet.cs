@@ -162,17 +162,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             for (int i = Offset; i < Data.Length; i++)
             {
-                byte redisChar = Data[i];
+                byte @char = Data[i];
 
                 int position = 0;
-                while (redisChar != 0)
+                while (@char != 0)
                 {
-                    if ((redisChar & MaxCharBitMask) != 0)
+                    if ((@char & MaxCharBitMask) != 0)
                     {
                         yield return new MachineId(((i - Offset) * 8) + position);
                     }
 
-                    redisChar <<= 1;
+                    @char <<= 1;
                     position++;
                 }
             }

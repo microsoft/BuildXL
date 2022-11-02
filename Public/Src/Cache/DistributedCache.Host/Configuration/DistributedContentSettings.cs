@@ -305,14 +305,6 @@ namespace BuildXL.Cache.Host.Configuration
         public double PeriodicCopyTracingIntervalMinutes { get; set; } = 5.0;
 
         /// <summary>
-        /// After the first raided redis instance completes, the second instance is given a window of time to complete before the retries are cancelled.
-        /// Default to always wait for both instances to complete.
-        /// </summary>
-        [DataMember]
-        [Validation.Range(1, int.MaxValue)]
-        public int? RetryWindowSeconds { get; set; }
-
-        /// <summary>
         /// If this variable is set we perform periodic logging to a file, indicating CaSaaS is still running and accepting operations.
         /// We then print the duration CaSaaS was just down, in the log message stating service has started.
         /// Default with the variable being null, no periodic logging will occur, and CaSaaS start log message does not include duration of last down time.

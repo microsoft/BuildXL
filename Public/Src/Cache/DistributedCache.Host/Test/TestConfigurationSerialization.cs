@@ -3,7 +3,6 @@
 
 using BuildXL.Cache.ContentStore.Distributed;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
-using BuildXL.Cache.ContentStore.Distributed.Redis;
 using BuildXL.Cache.ContentStore.Interfaces.Secrets;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
@@ -18,7 +17,7 @@ namespace BuildXL.Cache.Host.Configuration.Test
         [Fact]
         public void MaskConfigurationProperties()
         {
-            var testConfig = new RedisContentLocationStoreConfiguration();
+            var testConfig = new LocalLocationStoreConfiguration();
             var blobConnectionString = "blobConnectionString";
 
             testConfig.CentralStore = new BlobCentralStoreConfiguration(new AzureBlobStorageCredentials(blobConnectionString), "testContainer", "testKey");

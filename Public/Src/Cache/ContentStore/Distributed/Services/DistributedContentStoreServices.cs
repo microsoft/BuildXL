@@ -3,27 +3,18 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
-using System.Diagnostics.ContractsLight;
 using System.Linq;
-using System.ServiceModel;
-using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.MetadataService;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
-using BuildXL.Cache.ContentStore.Distributed.Redis;
 using BuildXL.Cache.ContentStore.Distributed.Stores;
-using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Secrets;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
-using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.Host.Configuration;
 using BuildXL.Cache.Host.Service;
 using BuildXL.Utilities.Tracing;
-using ProtoBuf.Grpc;
-using RocksDbSharp;
 using static BuildXL.Utilities.ConfigurationHelper;
 
 namespace BuildXL.Cache.ContentStore.Distributed.Services
@@ -32,7 +23,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
     public record DistributedContentStoreServicesArguments(
         DistributedContentSettings DistributedContentSettings,
         GrpcConnectionPool ConnectionPool,
-        RedisContentLocationStoreConfiguration RedisContentLocationStoreConfiguration,
+        LocalLocationStoreConfiguration ContentLocationStoreConfiguration,
         DistributedCacheServiceHostOverrides Overrides,
         IDistributedServicesSecrets Secrets,
         AbsolutePath PrimaryCacheRoot,
@@ -64,7 +55,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
         private DistributedContentSettings DistributedContentSettings => Arguments.DistributedContentSettings;
 
         /// <nodoc />
-        private RedisContentLocationStoreConfiguration RedisContentLocationStoreConfiguration => Arguments.RedisContentLocationStoreConfiguration;
+        private LocalLocationStoreConfiguration ContentLocationStoreConfiguration => Arguments.ContentLocationStoreConfiguration;
 
         /// <nodoc />
         public IServiceDefinition<GlobalCacheServiceConfiguration> GlobalCacheServiceConfiguration { get; }
@@ -143,7 +134,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
                             GlobalCacheCheckpointManager = GlobalCacheCheckpointManager.AsOptional()
                         },
                     },
-                    Arguments.RedisContentLocationStoreConfiguration);
+                    Arguments.ContentLocationStoreConfiguration);
             });
 
             CacheServiceCheckpointRegistry = Create(() => CreateCacheServiceBlobCheckpointRegistry());
@@ -157,8 +148,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
                 MaxOperationConcurrency = DistributedContentSettings.MetadataStoreMaxOperationConcurrency,
                 MaxOperationQueueLength = DistributedContentSettings.MetadataStoreMaxOperationQueueLength,
                 CheckpointMaxAge = DistributedContentSettings.ContentMetadataCheckpointMaxAge?.Value,
-                MaxEventParallelism = RedisContentLocationStoreConfiguration.EventStore.MaxEventProcessingConcurrency,
-                MasterLeaseStaleThreshold = DateTimeUtilities.Multiply(RedisContentLocationStoreConfiguration.Checkpoint.MasterLeaseExpiryTime, 0.5),
+                MaxEventParallelism = ContentLocationStoreConfiguration.EventStore.MaxEventProcessingConcurrency,
+                MasterLeaseStaleThreshold = DateTimeUtilities.Multiply(ContentLocationStoreConfiguration.Checkpoint.MasterLeaseExpiryTime, 0.5),
                 PersistentEventStorage = new BlobEventStorageConfiguration()
                 {
                     Credentials = Arguments.Secrets.GetStorageCredentials(new[] { DistributedContentSettings.ContentMetadataBlobSecretName }).First(),
@@ -166,7 +157,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
                     ContainerName = DistributedContentSettings.ContentMetadataLogBlobContainerName,
                     StorageInteractionTimeout = DistributedContentSettings.ContentMetadataLogStorageInteractionTimeout
                 },
-                CentralStorage = RedisContentLocationStoreConfiguration.CentralStore with
+                CentralStorage = ContentLocationStoreConfiguration.CentralStore with
                 {
                     ContainerName = DistributedContentSettings.ContentMetadataCentralStorageContainerName
                 },
@@ -177,11 +168,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
                     LogBlockRefreshInterval = DistributedContentSettings.ContentMetadataPersistInterval,
                     MaxWriteAheadInterval = DistributedContentSettings.ContentMetadataMaxWriteAheadInterval
                 },
-                Checkpoint = RedisContentLocationStoreConfiguration.Checkpoint with
+                Checkpoint = ContentLocationStoreConfiguration.Checkpoint with
                 {
                     WorkingDirectory = Arguments.PrimaryCacheRoot / "cmschkpt",
-                    RestoreCheckpointInterval = DistributedContentSettings.GlobalCacheRestoreCheckpointInterval ?? RedisContentLocationStoreConfiguration.Checkpoint.RestoreCheckpointInterval,
-                    CreateCheckpointInterval = DistributedContentSettings.GlobalCacheCreateCheckpointInterval ?? RedisContentLocationStoreConfiguration.Checkpoint.CreateCheckpointInterval
+                    RestoreCheckpointInterval = DistributedContentSettings.GlobalCacheRestoreCheckpointInterval ?? ContentLocationStoreConfiguration.Checkpoint.RestoreCheckpointInterval,
+                    CreateCheckpointInterval = DistributedContentSettings.GlobalCacheCreateCheckpointInterval ?? ContentLocationStoreConfiguration.Checkpoint.CreateCheckpointInterval
                 },
             };
         }
@@ -200,7 +191,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
 
             var storageRegistry = new AzureBlobStorageCheckpointRegistry(
                 storageRegistryConfiguration,
-                RedisContentLocationStoreConfiguration.PrimaryMachineLocation,
+                ContentLocationStoreConfiguration.PrimaryMachineLocation,
                 clock);
             storageRegistry.WorkaroundTracer = new Tracer("ContentMetadataAzureBlobStorageCheckpointRegistry");
 
@@ -250,9 +241,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
 
             var blobCheckpointRegistry = CacheServiceCheckpointRegistry.Instance as AzureBlobStorageCheckpointRegistry;
 
-            if (RedisContentLocationStoreConfiguration.DistributedCentralStore != null)
+            if (ContentLocationStoreConfiguration.DistributedCentralStore != null)
             {
-                var metadataConfig = RedisContentLocationStoreConfiguration.DistributedCentralStore with
+                var metadataConfig = ContentLocationStoreConfiguration.DistributedCentralStore with
                 {
                     CacheRoot = configuration.Checkpoint.WorkingDirectory
                 };

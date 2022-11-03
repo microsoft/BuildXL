@@ -70,6 +70,7 @@ namespace BuildXL.Cache.Host.Service.Internal
         public DistributedContentStoreFactory(DistributedCacheServiceArguments arguments)
         {
             _logger = arguments.Logger;
+            
             _arguments = arguments;
             _distributedSettings = arguments.Configuration.DistributedContentSettings;
 
@@ -107,12 +108,14 @@ namespace BuildXL.Cache.Host.Service.Internal
             );
 
             var primaryCacheRoot = OrderedResolvedCacheSettings[0].ResolvedCacheRootPath;
-
-            var connectionPool = new GrpcConnectionPool(new ConnectionPoolConfiguration()
-            {
-                DefaultPort = (int)_arguments.Configuration.LocalCasSettings.ServiceSettings.GrpcPort,
-                ConnectTimeout = _distributedSettings.ContentMetadataClientConnectionTimeout,
-            });
+            
+            var connectionPool = new GrpcConnectionPool(
+                new ConnectionPoolConfiguration()
+                {
+                    DefaultPort = (int)_arguments.Configuration.LocalCasSettings.ServiceSettings.GrpcPort,
+                    ConnectTimeout = _distributedSettings.ContentMetadataClientConnectionTimeout,
+                },
+                tracingContext: arguments.TracingContext.CreateNested(componentName: nameof(GrpcConnectionPool)));
 
             var serviceArguments = new DistributedContentStoreServicesArguments
             (

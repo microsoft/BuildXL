@@ -939,7 +939,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     {
                         var grpcCopyClientCacheConfiguration = new GrpcCopyClientCacheConfiguration()
                         {
-                            ResourcePoolVersion = GrpcCopyClientCacheConfiguration.PoolVersion.V2,
+                            ResourcePoolEnabled = true,
                             ResourcePoolConfiguration = new ResourcePoolConfiguration()
                             {
                                 MaximumAge = TimeSpan.FromMinutes(1),

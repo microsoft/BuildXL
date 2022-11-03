@@ -83,18 +83,13 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
             _grpcCopyClientBufferPool = new ByteArrayPool(configuration.GrpcCopyClientConfiguration.ClientBufferSizeBytes);
 
-            switch (_configuration.ResourcePoolVersion)
+            if (_configuration.ResourcePoolEnabled)
             {
-                case GrpcCopyClientCacheConfiguration.PoolVersion.Disabled:
-                    break;
-                case GrpcCopyClientCacheConfiguration.PoolVersion.V1:
-                case GrpcCopyClientCacheConfiguration.PoolVersion.V2:
-                    _resourcePool = new ResourcePool<GrpcCopyClientKey, GrpcCopyClient>(
-                        context,
-                        _configuration.ResourcePoolConfiguration,
-                        (key) => new GrpcCopyClient(context, key, _configuration.GrpcCopyClientConfiguration, sharedBufferPool: _grpcCopyClientBufferPool),
-                        clock);
-                    break;
+                _resourcePool = new ResourcePool<GrpcCopyClientKey, GrpcCopyClient>(
+                    context,
+                    _configuration.ResourcePoolConfiguration,
+                    (key) => new GrpcCopyClient(context, key, _configuration.GrpcCopyClientConfiguration, sharedBufferPool: _grpcCopyClientBufferPool),
+                    clock);
             }
         }
 
@@ -104,35 +99,37 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         public async Task<TResult> UseWithInvalidationAsync<TResult>(OperationContext context, string host, int grpcPort, Func<OperationContext, IResourceWrapperAdapter<GrpcCopyClient>, Task<TResult>> operation)
         {
             var key = new GrpcCopyClientKey(host, grpcPort);
-            switch (_configuration.ResourcePoolVersion)
+            if (_configuration.ResourcePoolEnabled)
             {
-                case GrpcCopyClientCacheConfiguration.PoolVersion.Disabled:
-                {
-                    var client = new GrpcCopyClient(context, key, _configuration.GrpcCopyClientConfiguration, sharedBufferPool: _grpcCopyClientBufferPool);
+                Contract.AssertNotNull(_resourcePool);
 
-                    await client.StartupAsync(context).ThrowIfFailure();
-                    var result = await operation(context, new DefaultResourceWrapperAdapter<GrpcCopyClient>(client));
-                    await client.ShutdownAsync(context).ThrowIfFailure();
-                    return result;
-                }
-                case GrpcCopyClientCacheConfiguration.PoolVersion.V1:
-                case GrpcCopyClientCacheConfiguration.PoolVersion.V2:
-                {
-                    Contract.AssertNotNull(_resourcePool);
-
-                    return await _resourcePool.UseAsync(context, key, async resourceWrapper =>
+                return await _resourcePool.UseAsync(
+                    context,
+                    key,
+                    async resourceWrapper =>
                     {
                         // This ensures that the operation we want to perform conforms to the cancellation. When the
                         // resource needs to be removed, the token will be cancelled. Once the operation completes, we
                         // will be able to proceed with shutdown.
-                        using var cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(context.Token, resourceWrapper.ShutdownToken);
+                        using var cancellationTokenSource =
+                            CancellationTokenSource.CreateLinkedTokenSource(context.Token, resourceWrapper.ShutdownToken);
                         var nestedContext = new OperationContext(context, cancellationTokenSource.Token);
                         return await operation(nestedContext, new ResourceWrapperAdapter<GrpcCopyClient>(resourceWrapper));
                     });
-                }
             }
+            else
+            {
+                var client = new GrpcCopyClient(
+                    context,
+                    key,
+                    _configuration.GrpcCopyClientConfiguration,
+                    sharedBufferPool: _grpcCopyClientBufferPool);
 
-            throw new NotImplementedException($"Unhandled resource pool version `{_configuration.ResourcePoolVersion}`");
+                await client.StartupAsync(context).ThrowIfFailure();
+                var result = await operation(context, new DefaultResourceWrapperAdapter<GrpcCopyClient>(client));
+                await client.ShutdownAsync(context).ThrowIfFailure();
+                return result;
+            }
         }
 
         /// <summary>

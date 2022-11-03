@@ -2,10 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Runtime.CompilerServices;
-using System.Text;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
@@ -15,7 +12,8 @@ using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
 using Grpc.Core;
 using ProtoBuf.Grpc.Client;
-using ProtoBuf.Grpc.Configuration;
+
+#nullable enable
 
 namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 {
@@ -26,9 +24,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 
         private readonly ConditionalWeakTable<ConnectionHandle, TService> _clientTable = new ConditionalWeakTable<ConnectionHandle, TService>();
         private readonly IClientAccessor<MachineLocation, ConnectionHandle> _connectionAccessor;
-        private readonly LocalClient<TService> _localClient;
+        private readonly LocalClient<TService>? _localClient;
 
-        public GrpcClientAccessor(IClientAccessor<MachineLocation, ConnectionHandle> connectionAccessor, LocalClient<TService> localClient = null)
+        public GrpcClientAccessor(IClientAccessor<MachineLocation, ConnectionHandle> connectionAccessor, LocalClient<TService>? localClient = null)
         {
             _connectionAccessor = connectionAccessor;
             _localClient = localClient;
@@ -59,28 +57,23 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
     {
         protected override Tracer Tracer { get; } = new Tracer(nameof(GrpcConnectionPool));
 
-        private readonly ConnectionPoolConfiguration _configuration;
-        private readonly IClock _clock;
-        private ResourcePool<MachineLocation, ConnectionHandle> _pool;
+        private readonly ResourcePool<MachineLocation, ConnectionHandle> _pool;
 
-        public GrpcConnectionPool(ConnectionPoolConfiguration configuration, IClock clock = null)
+        /// <nodoc />
+        public GrpcConnectionPool(ConnectionPoolConfiguration configuration, Context tracingContext, IClock? clock = null)
         {
-            _configuration = configuration;
-            _clock = clock;
+            _pool = new ResourcePool<MachineLocation, ConnectionHandle>(
+                tracingContext, configuration, k => new ConnectionHandle(k, configuration), clock);
         }
 
-        protected override Task<BoolResult> StartupComponentAsync(OperationContext context)
-        {
-            _pool = new ResourcePool<MachineLocation, ConnectionHandle>(context, _configuration, k => new ConnectionHandle(k, _configuration), _clock);
-            return BoolResult.SuccessTask;
-        }
-
+        /// <inheritdoc />
         protected override Task<BoolResult> ShutdownComponentAsync(OperationContext context)
         {
             _pool.Dispose();
             return BoolResult.SuccessTask;
         }
 
+        /// <nodoc />
         public Task<TResult> UseAsync<TResult>(OperationContext context, MachineLocation key, Func<ConnectionHandle, Task<TResult>> operation)
         {
             return _pool.UseAsync(context, key, wrapper => operation(wrapper.Value));

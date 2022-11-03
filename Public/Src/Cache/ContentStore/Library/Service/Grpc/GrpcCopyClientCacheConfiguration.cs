@@ -13,28 +13,9 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
     public class GrpcCopyClientCacheConfiguration
     {
         /// <summary>
-        /// Resource pool versions
+        /// Whether the grpc connection pooling is enabled.
         /// </summary>
-        public enum PoolVersion
-        {
-            /// <summary>
-            /// Do not cache instances
-            /// </summary>
-            Disabled,
-            /// <summary>
-            /// Use <see cref="ResourcePool{TKey, TObject}"/>
-            /// </summary>
-            V1,
-            /// <summary>
-            /// Use <see cref="ResourcePool{TKey, TObject}"/>
-            /// </summary>
-            V2
-        }
-
-        /// <summary>
-        /// Which resource pool version to use
-        /// </summary>
-        public PoolVersion ResourcePoolVersion { get; set; } = PoolVersion.V1;
+        public bool ResourcePoolEnabled { get; set; } = true;
 
         /// <summary>
         /// Configuration for the resource pool
@@ -59,7 +40,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                                                        GrpcCopyClientConfiguration = grpcCopyClientConfiguration,
                                                    };
 
-            ApplyIfNotNull(dcs.GrpcCopyClientCacheResourcePoolVersion, v => grpcCopyClientCacheConfiguration.ResourcePoolVersion = (PoolVersion)v);
+            ApplyIfNotNull(dcs.GrpcCopyClientResourcePoolEnabled, v => grpcCopyClientCacheConfiguration.ResourcePoolEnabled = v);
 
             return grpcCopyClientCacheConfiguration;
         }

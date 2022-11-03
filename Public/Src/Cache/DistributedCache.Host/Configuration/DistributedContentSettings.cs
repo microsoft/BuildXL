@@ -1,7 +1,6 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -362,8 +361,7 @@ namespace BuildXL.Cache.Host.Configuration
         #region Grpc Copy Client Cache
 
         [DataMember]
-        [Validation.Range(0, 2)]
-        public int? GrpcCopyClientCacheResourcePoolVersion { get; set; }
+        public bool? GrpcCopyClientResourcePoolEnabled { get; set; }
 
         /// <summary>
         /// Upper bound on number of cached GRPC clients.

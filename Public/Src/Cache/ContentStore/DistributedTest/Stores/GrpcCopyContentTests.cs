@@ -73,7 +73,7 @@ namespace ContentStoreTest.Distributed.Stores
                 {
                     ConnectOnStartup = true,
                 },
-                ResourcePoolVersion = GrpcCopyClientCacheConfiguration.PoolVersion.V2,
+                ResourcePoolEnabled = true,
             });
 
             await CopyExistingFile();

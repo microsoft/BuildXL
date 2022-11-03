@@ -68,7 +68,7 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
         protected virtual bool UseOnlyContentStats => false;
 
         /// <inheritdoc />
-        public Guid Id { get => Configuration.Id; }
+        public Guid Id => Configuration.Id;
 
         /// <nodoc />
         internal OneLevelCacheBaseConfiguration Configuration { get; }
@@ -194,7 +194,7 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
             return Tracing.CreateReadOnlySessionCall.Run(CacheTracer, context, name, () =>
             {
                 var createContentResult = ContentStore.CreateReadOnlySession(context, name, implicitPin);
-                if (!createContentResult)
+                if (!createContentResult.Succeeded)
                 {
                     return new CreateSessionResult<IReadOnlyCacheSession>(createContentResult, "Content session creation failed");
                 }
@@ -202,7 +202,7 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
                 var contentReadOnlySession = createContentResult.Session;
 
                 var createMemoizationResult = MemoizationStore.CreateReadOnlySession(context, name);
-                if (!createMemoizationResult)
+                if (!createMemoizationResult.Succeeded)
                 {
                     return new CreateSessionResult<IReadOnlyCacheSession>(createMemoizationResult, "Memoization session creation failed");
                 }

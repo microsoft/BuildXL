@@ -118,13 +118,13 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// </remarks>
         protected virtual ISessionHandler<IContentSession, LocalContentServerSessionData> ContentSessionHandler { get; }
 
-        /// <inheritdoc />
+        /// <nodoc />
         public IPushFileHandler? PushFileHandler { get; }
 
         /// <nodoc />
         public ICopyRequestHandler? CopyRequestHandler { get; }
 
-        /// <inheritdoc />
+        /// <nodoc/>
         public IDistributedStreamStore StreamStore => this;
 
         /// <summary>
@@ -1102,8 +1102,15 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
             var tracingContext = new Context(header.TraceId, Logger);
             using var shutdownTracker = TrackShutdown(tracingContext, token);
-
             var context = new RequestContext(startTime: DateTime.UtcNow, shutdownTracker.Context);
+
+            if (shutdownTracker.Context.Token.IsCancellationRequested)
+            {
+                string message = $"Could not finish the operation '{operation}' because the shutdown was initiated.";
+                Logger.Info(message);
+                return failFunc(context, message);
+            }
+            
             int sessionId = header.SessionId;
 
             ISessionReference<IContentSession>? sessionOwner = null;

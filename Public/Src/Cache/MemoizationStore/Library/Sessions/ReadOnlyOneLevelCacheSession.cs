@@ -2,7 +2,6 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
@@ -20,6 +19,8 @@ using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using BuildXL.Cache.MemoizationStore.Interfaces.Results;
 using BuildXL.Cache.MemoizationStore.Sessions;
 
+#nullable enable
+
 namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
 {
     /// <summary>
@@ -32,26 +33,52 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         /// </summary>
         protected readonly ImplicitPin ImplicitPin;
 
+        private IReadOnlyContentSession? _contentReadOnlySession;
+
+        private IReadOnlyMemoizationSession? _memoizationReadOnlySession;
+
         /// <summary>
         ///     The content session backing the session.
         /// </summary>
-        protected IReadOnlyContentSession ContentReadOnlySession;
+        protected IReadOnlyContentSession ContentReadOnlySession
+        {
+            get
+            {
+                if (_disposed)
+                {
+                    throw new InvalidOperationException("Can't obtain an inner session because the instance was already being disposed.");
+                }
+
+                return _contentReadOnlySession!;
+            }
+        }
 
         /// <summary>
         ///     The memoization store backing the session.
         /// </summary>
-        protected IReadOnlyMemoizationSession MemoizationReadOnlySession;
+        protected IReadOnlyMemoizationSession MemoizationReadOnlySession
+        {
+            get
+            {
+                if (_disposed)
+                {
+                    throw new InvalidOperationException("Can't obtain an inner session because the instance was already being disposed.");
+                }
+
+                return _memoizationReadOnlySession!;
+            }
+        }
 
         private bool _disposed;
 
         /// <nodoc />
-        protected OneLevelCacheBase Parent;
+        protected OneLevelCacheBase? Parent;
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="ReadOnlyOneLevelCacheSession" /> class.
         /// </summary>
         public ReadOnlyOneLevelCacheSession(
-            OneLevelCacheBase parent,
+            OneLevelCacheBase? parent,
             string name,
             ImplicitPin implicitPin,
             IReadOnlyMemoizationSession memoizationSession,
@@ -64,8 +91,8 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
             Parent = parent;
             Name = name;
             ImplicitPin = implicitPin;
-            MemoizationReadOnlySession = memoizationSession;
-            ContentReadOnlySession = contentSession;
+            _memoizationReadOnlySession = memoizationSession;
+            _contentReadOnlySession = contentSession;
         }
 
         /// <inheritdoc />
@@ -172,14 +199,13 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         {
             if (disposing)
             {
-                MemoizationReadOnlySession?.Dispose();
-                MemoizationReadOnlySession = null;
+                _memoizationReadOnlySession?.Dispose();
+                _memoizationReadOnlySession = null;
 
-                ContentReadOnlySession?.Dispose();
-                ContentReadOnlySession = null;
+                _contentReadOnlySession?.Dispose();
+                _contentReadOnlySession = null;
             }
         }
-
 
         /// <inheritdoc />
         public System.Collections.Generic.IAsyncEnumerable<GetSelectorResult> GetSelectors(Context context, Fingerprint weakFingerprint, CancellationToken cts, UrgencyHint urgencyHint = UrgencyHint.Nominal)

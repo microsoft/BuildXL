@@ -163,6 +163,13 @@ namespace BuildXL.Cache.MemoizationStore.Sessions.Grpc
             DateTime startTime = DateTime.UtcNow;
             
             using var shutdownTracker = TrackShutdown(new OperationContext(new Context(request.Header.TraceId, Logger), token), token);
+            if (shutdownTracker.Context.Token.IsCancellationRequested)
+            {
+                string message = $"Could not finish the operation '{operation}' because the shutdown was initiated.";
+                Logger.Info(message);
+                return failure(message);
+            }
+
             var tracingContext = shutdownTracker.Context;
             
             var sessionId = request.Header.SessionId;

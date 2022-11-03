@@ -752,10 +752,10 @@ namespace Test.BuildXL.Executables.TestProcess
         /// Creates a enumerate directory operation
         /// The path is a FileOrDirectoryArtifact, because we can enumerate directories through directory symlinks - which are FileArtifacts.
         /// </summary>
-        public static Operation EnumerateDir(FileOrDirectoryArtifact path, bool doNotInfer = false, string enumeratePattern = null)
+        public static Operation EnumerateDir(FileOrDirectoryArtifact path, bool doNotInfer = false, string enumeratePattern = null, bool readFiles = false)
         {
             string pattern = string.IsNullOrEmpty(enumeratePattern) ? "*" : enumeratePattern;
-            return new Operation(Type.EnumerateDir, path, doNotInfer: doNotInfer, additionalArgs: $"pattern={pattern}|useDotNetEnumerationOnWindows=false");
+            return new Operation(Type.EnumerateDir, path, doNotInfer: doNotInfer, additionalArgs: $"pattern={pattern}|useDotNetEnumerationOnWindows=false|readFiles={readFiles}");
         }
 
         /// <summary>
@@ -765,11 +765,12 @@ namespace Test.BuildXL.Executables.TestProcess
         /// <param name="useDotNetEnumerationOnWindows">Whether or not to use Diretory.EnumerateFileSystemEntries on Windows</param>
         /// <param name="doNotInfer"></param>
         /// <param name="enumeratePattern"></param>
+        /// <param name="readFiles"></param>
         /// <returns></returns>
-        public static Operation EnumerateDir(FileOrDirectoryArtifact path, bool useDotNetEnumerationOnWindows, bool doNotInfer = false, string enumeratePattern = null)
+        public static Operation EnumerateDir(FileOrDirectoryArtifact path, bool useDotNetEnumerationOnWindows, bool doNotInfer = false, string enumeratePattern = null, bool readFiles = false)
         {
             string pattern = string.IsNullOrEmpty(enumeratePattern) ? "*" : enumeratePattern;
-            return new Operation(Type.EnumerateDir, path, doNotInfer: doNotInfer, additionalArgs: $"pattern={pattern}|useDotNetEnumerationOnWindows={useDotNetEnumerationOnWindows}");
+            return new Operation(Type.EnumerateDir, path, doNotInfer: doNotInfer, additionalArgs: $"pattern={pattern}|useDotNetEnumerationOnWindows={useDotNetEnumerationOnWindows}|readFiles={readFiles}");
         }
 
         /// <summary>
@@ -1336,6 +1337,7 @@ namespace Test.BuildXL.Executables.TestProcess
                 string[] additionalArgs = AdditionalArgs.Split('|');
                 string enumeratePattern = additionalArgs[0].Split('=')[1];
                 bool useDotNetEnumerationOnWindows = bool.Parse(additionalArgs[1].Split('=')[1]);
+                bool readFiles = bool.Parse(additionalArgs[2].Split('=')[1]);
 
                 // For Windows, we call EnumerateWinFileSystemEntriesForTest whose underlying implementation
                 // calls FindFirstFile/FindNextFile. This is a workaround for testing enumeration with pattern.
@@ -1347,10 +1349,18 @@ namespace Test.BuildXL.Executables.TestProcess
                 //
                 // The Linux Detours does not detect/report the search pattern simply because the search pattern is not passed to opendir.
                 // So it always treats directory enumerations as if they had the * pattern.
-                IEnumerable<string> e = OperatingSystemHelper.IsUnixOS || useDotNetEnumerationOnWindows
+                IEnumerable<string> result = OperatingSystemHelper.IsUnixOS || useDotNetEnumerationOnWindows
                     ? Directory.EnumerateFileSystemEntries(PathAsString, enumeratePattern)
                     : FileSystemWin.EnumerateWinFileSystemEntriesForTest(PathAsString, enumeratePattern, SearchOption.TopDirectoryOnly);
-                Analysis.IgnoreResult(e.ToArray());
+
+                var paths = result.ToArray();
+                if (readFiles)
+                {
+                    foreach (var path in paths)
+                    {
+                        Analysis.IgnoreResult(File.ReadAllText(path));
+                    }
+                }
             }
             catch (NativeWin32Exception e) when (e.NativeErrorCode == NativeIOConstants.ErrorFileNotFound || e.NativeErrorCode == NativeIOConstants.ErrorPathNotFound)
             {

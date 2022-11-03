@@ -1269,6 +1269,83 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         [Fact]
+        public void AssumeCleanOutputsCompatibilityWithCacheConvergence()
+        {
+            // This unit test is to ensure that we clean up the shared opaque directory for the pips that are executed but cache-converged when /assumeCleanOutputs is enabled.
+            // If we do not clean up the shared opaque, the non-deterministic behavior by the producer can cause DFAs for the consumer pips.  
+            // We can potentially have different files in each run. If we do not clean up the shared opaque, the consumer pip can see all those files from different runs.
+
+            Configuration.Schedule.RequiredOutputMaterialization = RequiredOutputMaterialization.Minimal;
+
+            // Make cache look-ups always result in cache misses. This allows us to store outputs in the cache but get cache misses for the same pip next time.
+            // This enables us to recreate cache convergence
+            Configuration.Cache.ArtificialCacheMissOptions = new ArtificialCacheMissConfig()
+            {
+                Rate = ushort.MaxValue,
+                Seed = 0,
+                IsInverted = false
+            };
+
+            Configuration.Engine.AssumeCleanOutputs = true;
+            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.SkipFlaggingSharedOpaqueOutputs = true;
+
+            // We will control the pip non-determinism with this untracked file
+            string untracked = Path.Combine(ObjectRoot, "untracked.txt");
+
+            // Pip has opaqueDir as a shared opaque output
+            // Let's make the pip produce one of two outputs "non-deterministically":
+            //  Scenario A: writes opaqueDir\write-if-A.out
+            //  Scenario B: writes opaqueDir\write-if-B.out
+            AbsolutePath opaqueDirPath = AbsolutePath.Create(Context.PathTable, Path.Combine(ObjectRoot, "opaquedir"));
+
+            var fileA = CreateOutputFileArtifact(opaqueDirPath, prefix: "write-if-A");
+            var fileB = CreateOutputFileArtifact(opaqueDirPath, prefix: "write-if-B");
+            FileArtifact pipAOutputPath = CreateOutputFileArtifact();
+
+            var builderA = CreatePipBuilder(new Operation[]
+            {
+                Operation.WriteFile(pipAOutputPath),
+                Operation.WriteFileIfInputEqual(fileA, untracked, "A", "deterministic-content"), // Scenario A
+                Operation.WriteFileIfInputEqual(fileB, untracked, "B", "deterministic-content"), // Scenario B
+            }, description: "pipA");
+
+            builderA.AddOutputDirectory(opaqueDirPath, SealDirectoryKind.SharedOpaque);
+            builderA.AddUntrackedFile(AbsolutePath.Create(Context.PathTable, untracked));
+            builderA.RewritePolicy |= RewritePolicy.UnsafeFirstDoubleWriteWins;
+            builderA.Options |= Process.Options.AllowUndeclaredSourceReads;
+            var pipA = SchedulePipBuilder(builderA);
+
+            var pipAOutput = pipA.ProcessOutputs.GetOutputFile(pipAOutputPath);
+            var opaqueDirArtifact = pipA.ProcessOutputs.GetOutputDirectories().Single().Root;
+            var builderB = CreatePipBuilder(new Operation[] {
+                Operation.EnumerateDir(DirectoryArtifact.CreateWithZeroPartialSealId(opaqueDirPath), doNotInfer: true, readFiles: true),
+                Operation.ReadFile(pipAOutput),
+
+                 Operation.WriteFile(CreateOutputFileArtifact(ObjectRoot))
+            }, description: "pipB");
+
+            builderB.AddInputDirectory(opaqueDirArtifact);
+            builderB.Options |= Process.Options.AllowUndeclaredSourceReads;
+            var pipB = SchedulePipBuilder(builderB);
+
+            File.WriteAllText(untracked, "A");
+            RunScheduler().AssertSuccess();
+
+            FileUtilities.DeleteDirectoryContents(opaqueDirPath.ToString(Context.PathTable), deleteRootDirectory: true);
+            ResetPipGraphBuilder();
+
+            pipA = SchedulePipBuilder(builderA);
+            pipB = SchedulePipBuilder(builderB);
+
+
+            File.WriteAllText(untracked, "B");
+            var result = RunScheduler().AssertSuccess();
+            result.AssertPipExecutorStatCounted(PipExecutorCounter.ProcessPipTwoPhaseCacheEntriesConverged, 2);
+            // fileB is written, but it gets cleaned up after pipA is converged.
+            XAssert.IsFalse(File.Exists(ArtifactToString(fileB)));
+        }
+
+        [Fact]
         public void CacheConvergenceCanTriggerAdditionalOutputContentAwareViolations()
         {
             // Make cache look-ups always result in cache misses. This allows us to store outputs in the cache but get cache misses for the same pip next time.

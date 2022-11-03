@@ -1623,7 +1623,7 @@ namespace BuildXL.Scheduler
 
             Contract.Assert(!HasFailed || m_executePhaseLoggingContext.ErrorWasLogged, "Scheduler encountered errors during execution, but none were logged.");
 
-            if (!IsDistributedWorker)
+            if (!IsDistributedWorker && !HasFailed)
             {
                 RetrievePipStateCounts(out _, out _, out _, out long runningPips, out _, out _, out _, out _);
                 Contract.Assert(runningPips == 0, "There are still pips at running state at the end of the build.");
@@ -4975,15 +4975,19 @@ namespace BuildXL.Scheduler
             // since we don't want to delete it next time)
             foreach (var fileArtifact in process.Process.FileOutputs.Where(fa => !fa.IsUndeclaredFileRewrite))
             {
-                if (MakeSharedOpaqueOutputIfNeeded(fileArtifact.Path))
+                MakeSharedOpaqueOutputIfNeeded(fileArtifact.Path);
+
+                if (IsPathUnderSharedOpaqueDirectory(fileArtifact.Path))
                 {
+                    // We do not want to mark the shared opaque outputs when SkipFlaggingSharedOpaqueOutputs is set to true; however, we want to return the list of those ouputs
+                    // so that we can scrub them in case of cache convergence or cancellation (retry).
                     outputPaths.Add(fileArtifact.Path.ToString(Context.PathTable));
                 }
             }
 
             // The shared dynamic accesses can be null when the pip failed on preparation, in which case it didn't run at all, so there is
             // nothing to flag
-            if (process.ExecutionResult?.SharedDynamicDirectoryWriteAccesses != null && !environment.Configuration.Sandbox.UnsafeSandboxConfiguration.SkipFlaggingSharedOpaqueOutputs())
+            if (process.ExecutionResult?.SharedDynamicDirectoryWriteAccesses != null)
             {
                 // Directory outputs are reported only when the pip is successful. So we need to rely on the raw shared dynamic write accesses,
                 // since flagging also happens on failed pips
@@ -4994,7 +4998,14 @@ namespace BuildXL.Scheduler
                     foreach (FileArtifactWithAttributes writeInPath in writesPerSharedOpaque.Where(fa => !fa.IsUndeclaredFileRewrite))
                     {
                         var path = writeInPath.Path.ToString(environment.Context.PathTable);
-                        SharedOpaqueOutputHelper.EnforceFileIsSharedOpaqueOutput(path);
+
+                        if (!environment.Configuration.Sandbox.UnsafeSandboxConfiguration.SkipFlaggingSharedOpaqueOutputs())
+                        {
+                            SharedOpaqueOutputHelper.EnforceFileIsSharedOpaqueOutput(path);
+                        }
+
+                        // We do not want to mark the shared opaque outputs when SkipFlaggingSharedOpaqueOutputs is set to true; however, we want to return the list of those ouputs
+                        // so that we can scrub them in case of cache convergence or cancellation (retry).
                         outputPaths.Add(path);
                     }
                 }

@@ -1298,6 +1298,12 @@ namespace BuildXL.Engine
                     mutableConfig.Schedule.MaxWorkersPerModule = mutableConfig.Distribution.BuildWorkers.Count + 1;
                     mutableConfig.Schedule.ModuleAffinityLoadFactor = 1;
                 }
+
+                if (!mutableConfig.Engine.AssumeCleanOutputs.HasValue)
+                {
+                    // We assume clean outputs in CloudBuild builds.
+                    mutableConfig.Engine.AssumeCleanOutputs = true;
+                }
             }
             else
             {

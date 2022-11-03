@@ -218,6 +218,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
                 MetadataSizeRotationThreshold = DistributedContentSettings.GlobalCacheMetadataSizeRotationThreshold,
             };
 
+            ApplyIfNotNull(DistributedContentSettings.ContentMetadataDatabaseRocksDbTracingLevel, v => dbConfig.RocksDbTracingLevel = (RocksDbSharp.LogLevel)v);
             ApplyIfNotNull(DistributedContentSettings.LocationEntryExpiryMinutes, v => dbConfig.ContentRotationInterval = TimeSpan.FromMinutes(v));
             dbConfig.MetadataRotationInterval = DistributedContentSettings.ContentMetadataServerMetadataRotationInterval;
 

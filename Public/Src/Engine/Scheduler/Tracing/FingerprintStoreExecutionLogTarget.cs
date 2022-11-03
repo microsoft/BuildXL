@@ -526,29 +526,6 @@ namespace BuildXL.Scheduler.Tracing
         /// </summary>
         private void ProcessFingerprintComputedForCacheLookup(ProcessFingerprintComputationEventData data)
         {
-            if (data.SourceInputHashes != null)
-            {
-                using (Counters.StartStopwatch(FingerprintStoreCounters.ReportingSourceInputsDuration))
-                {
-                    foreach ((FileArtifact file, FileContentInfo info) in data.SourceInputHashes)
-                    {
-                        PathAtom fileName;
-                        if (m_fileContentManager.TryGetInputContent(file, out var existingInfo))
-                        {
-                            // If we already have an entry, reuse the fileName as it is expensive to calculate.
-                            // We still try to add the existing entries to report the conflicting hashes as warnings.
-                            fileName = existingInfo.FileName;
-                        }
-                        else
-                        {
-                            fileName = file.Path.GetName(m_context.PathTable);
-                        }
-
-                        m_fileContentManager.ReportInputContent(file, new FileMaterializationInfo(info, fileName), contentMismatchErrorsAreWarnings: true);
-                    }
-                }
-            }
-
             var maybeStrongFingerprintData = SelectStrongFingerprintComputationData(data);
 
             if (maybeStrongFingerprintData == null)
@@ -736,6 +713,29 @@ namespace BuildXL.Scheduler.Tracing
             using (Counters.StartStopwatch(FingerprintStoreCounters.FingerprintStoreLoggingTime))
             {
                 Counters.IncrementCounter(FingerprintStoreCounters.NumFingerprintComputationEvents);
+
+                if (data.SourceInputHashes != null)
+                {
+                    using (Counters.StartStopwatch(FingerprintStoreCounters.ReportingSourceInputsDuration))
+                    {
+                        foreach ((FileArtifact file, FileContentInfo info) in data.SourceInputHashes)
+                        {
+                            PathAtom fileName;
+                            if (m_fileContentManager.TryGetInputContent(file, out var existingInfo))
+                            {
+                                // If we already have an entry, reuse the fileName as it is expensive to calculate.
+                                // We still try to add the existing entries to report the conflicting hashes as warnings.
+                                fileName = existingInfo.FileName;
+                            }
+                            else
+                            {
+                                fileName = file.Path.GetName(m_context.PathTable);
+                            }
+
+                            m_fileContentManager.ReportInputContent(file, new FileMaterializationInfo(info, fileName), contentMismatchErrorsAreWarnings: true);
+                        }
+                    }
+                }
 
                 if (data.Kind == FingerprintComputationKind.CacheCheck)
                 {

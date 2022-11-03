@@ -11,22 +11,32 @@ using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.Host.Configuration;
+using BuildXL.Utilities;
 using BuildXL.Utilities.Tracing;
 
 #nullable enable
 
 namespace BuildXL.Cache.ContentStore.Tracing
 {
+    /// <summary>
+    /// An attribute that defines whether <see cref="CaSaaSActivityTrackingCounters"/> counter is used by master machines only.
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Field, AllowMultiple = false)]
+    public class MasterOnlyCounterAttribute : Attribute { }
+
     /// <nodoc />
     public enum CaSaaSActivityTrackingCounters
     {
         /// <nodoc />
+        [MasterOnlyCounter]
         ReceivedEventHubMessages,
 
         /// <nodoc />
+        [MasterOnlyCounter]
         ProcessedEventHubMessages,
 
         /// <nodoc />
+        [MasterOnlyCounter]
         ProcessedHashes,
 
         /// <summary>
@@ -52,16 +62,13 @@ namespace BuildXL.Cache.ContentStore.Tracing
         /// <summary>
         /// Tracks the number of requests processed by the metadata service.
         /// </summary>
+        [MasterOnlyCounter]
         ProcessedMetadataRequests,
     }
 
     /// <summary>
     /// Tracks the key performance-related counters of this service.
     /// </summary>
-    /// <remarks>
-    /// This type wraps <see cref="CounterCollection{TEnum}"/> and creates the snapshots from time to time to compute event rates.
-    /// Then, when <see cref="TraceCurrentSnapshot"/> is called, the activity snapshot (based on the current counters) is logged.
-    /// </remarks>
     public static class CacheActivityTracker
     {
         private static readonly Tracer Tracer = new Tracer(nameof(CacheActivityTracker));
@@ -83,9 +90,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
         /// </summary>
         /// <param name="context">Tracing context.</param>
         /// <param name="clock">The clock.</param>
-        /// <param name="trackingActivityWindow">A time span used for computing averages.</param>
-        /// <param name="snapshotPeriod">A period when the snapshot will be collected. If null 'snapshotPeriod' will be one tenth of 'trackingActivityWindow'.</param>
-        /// <param name="reportPeriod">A period hen the snapshot will be traced. If null, 'snapshotPeriod' will be used.</param>
+        /// <param name="configuration">A configuration instance used for adjusting the behavior of the activity tracker.</param>
         /// <remarks>
         /// The method must be called only once, otherwise a contract violation will occur.
         /// It is ok to call other static methods like <see cref="AddValue"/> if the method was not call at all.
@@ -132,7 +137,6 @@ namespace BuildXL.Cache.ContentStore.Tracing
         private class CacheActivityTrackerInstance : IDisposable
         {
             private readonly Context _context;
-            private readonly CacheActivityTrackerConfiguration _configuration;
             private readonly ActivityTracker<CaSaaSActivityTrackingCounters> _activityTracker;
             private readonly Timer _snapshotTimer;
             private readonly Timer _traceTimer;
@@ -145,11 +149,9 @@ namespace BuildXL.Cache.ContentStore.Tracing
                 IClock clock,
                 CacheActivityTrackerConfiguration configuration)
             {
-                _configuration = configuration;
-
                 _context = context.CreateNested(nameof(CacheActivityTracker));
 
-                _activityTracker = new ActivityTracker<CaSaaSActivityTrackingCounters>(clock, _configuration.CounterActivityWindow);
+                _activityTracker = new ActivityTracker<CaSaaSActivityTrackingCounters>(clock, configuration.CounterActivityWindow);
 
                 _snapshotTimer = new Timer(
                     _ => CollectSnapshot(),
@@ -163,7 +165,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
                     dueTime: configuration.CounterReportingPeriod,
                     period: configuration.CounterReportingPeriod);
 
-                _performanceCollector = new MachinePerformanceCollector(_configuration.PerformanceCollectionFrequency, _configuration.PerformanceLogWmiCounters);
+                _performanceCollector = new MachinePerformanceCollector(configuration.PerformanceCollectionFrequency, configuration.PerformanceLogWmiCounters);
 
                 _performanceStatisticsTimer = new Timer(
                     _ => LogMachinePerformanceStatistics(),
@@ -175,37 +177,15 @@ namespace BuildXL.Cache.ContentStore.Tracing
             /// <inheritdoc />
             public void Dispose()
             {
-                var exceptions = new List<Exception>(capacity: 3);
                 try
                 {
                     _snapshotTimer.Dispose();
-                }
-                catch (Exception exception)
-                {
-                    exceptions.Add(exception);
-                }
-
-                try
-                {
                     _traceTimer.Dispose();
-                }
-                catch (Exception exception)
-                {
-                    exceptions.Add(exception);
-                }
-
-                try
-                {
                     _performanceStatisticsTimer.Dispose();
                 }
-                catch (Exception exception)
+                catch (Exception e)
                 {
-                    exceptions.Add(exception);
-                }
-
-                if (exceptions.Count > 0)
-                {
-                    throw new AggregateException($"Failed to dispose {nameof(CacheActivityTracker)}", exceptions);
+                    Tracer.Error(_context, e, $"Failed to dispose {nameof(CacheActivityTracker)}");
                 }
             }
 
@@ -231,7 +211,14 @@ namespace BuildXL.Cache.ContentStore.Tracing
                 try
                 {
                     var rates = _activityTracker.GetRates();
-                    var activitySnapshot = string.Join(", ", rates.Select(kvp => $"{kvp.Key}=[total: {kvp.Value.total}, RPS: {kvp.Value.ratePerSecond:F2}]"));
+
+                    if (!IsMasterMachine())
+                    {
+                        // Removing non-master rates
+                        rates.FilterOutMasterOnlyCounters();
+                    }
+
+                    var activitySnapshot = string.Join(", ", rates.Select(kvp => $"{kvp.Key}=[{kvp.Value.ToDisplayString()}]"));
                     Tracer.Info(_context, $"Activity snapshot: {activitySnapshot}");
                 }
                 catch (Exception exception)
@@ -245,23 +232,60 @@ namespace BuildXL.Cache.ContentStore.Tracing
                 try
                 {
                     var machineStatistics = _performanceCollector.GetMachinePerformanceStatistics();
-                    Tracer.Info(_context, machineStatistics.ToTracingString());
+                    Tracer.Info(_context, $"MachinePerformanceStatistics: {machineStatistics.ToTracingString()}");
 
                     // Send all performance statistics for the master machine into MDM for quick dashboard interactions
-                    if (GlobalInfoStorage.GetGlobalInfo(GlobalInfoKey.LocalLocationStoreRole) == "Master")
+                    if (IsMasterMachine())
                     {
                         machineStatistics.CollectMetrics((name, value) =>
                         {
-                            if (value != null)
-                            {
-                                _context.TrackMetric(name, value.Value, "CacheMasterPerfStats");
-                            }
+                            _context.TrackMetric(name, value, "CacheMasterPerfStats");
                         });
                     }
                 }
                 catch (Exception exception)
                 {
                     Tracer.Error(_context, exception, "Failure logging performance statistics");
+                }
+            }
+
+            private static bool IsMasterMachine() => GlobalInfoStorage.GetGlobalInfo(GlobalInfoKey.LocalLocationStoreRole) == "Master";
+        }
+    }
+
+    /// <nodoc />
+    public static class CaSaaSActivityTrackingCountersExtensions
+    {
+        private static readonly HashSet<CaSaaSActivityTrackingCounters> _masterOnlyCounter = new ();
+
+        static CaSaaSActivityTrackingCountersExtensions()
+        {
+            var enumType = typeof(CaSaaSActivityTrackingCounters);
+            
+            foreach (var @enum in EnumTraits<CaSaaSActivityTrackingCounters>.EnumerateValues())
+            {
+                if (enumType.GetField(@enum.ToString())?.IsDefined(typeof(MasterOnlyCounterAttribute), inherit: false) == true)
+                {
+                    _masterOnlyCounter.Add(@enum);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Returns true if the given <paramref name="counter"/> is applicable to the master machines only.
+        /// </summary>
+        public static bool IsMasterOnlyCounter(this CaSaaSActivityTrackingCounters counter) => _masterOnlyCounter.Contains(counter);
+
+        /// <summary>
+        /// Filters out counters specific for master machines only.
+        /// </summary>
+        public static void FilterOutMasterOnlyCounters(this Dictionary<CaSaaSActivityTrackingCounters, ActivityRate> activity)
+        {
+            foreach (var @enum in EnumTraits<CaSaaSActivityTrackingCounters>.EnumerateValues())
+            {
+                if (@enum.IsMasterOnlyCounter())
+                {
+                    activity.Remove(@enum);
                 }
             }
         }

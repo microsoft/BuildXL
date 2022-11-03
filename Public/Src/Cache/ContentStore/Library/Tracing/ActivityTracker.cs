@@ -7,9 +7,26 @@ using System.Linq;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Tracing;
+
 #nullable enable
+
 namespace BuildXL.Cache.ContentStore.Tracing
 {
+    /// <summary>
+    /// An activity rate with a total number of events and a rate per second.
+    /// </summary>
+    public record struct ActivityRate(long Total, double RatePerSecond)
+    {
+        /// <nodoc />
+        public string ToDisplayString()
+        {
+            return $"Total: {Total}, RPS: {RatePerSecond:F2}";
+        }
+
+        /// <inheritdoc />
+        public override string ToString() => ToDisplayString();
+    }
+
     /// <summary>
     /// Tracks activities (like rate per second) based on <see cref="CounterCollection{TEnum}"/> instance.
     /// </summary>
@@ -36,9 +53,9 @@ namespace BuildXL.Cache.ContentStore.Tracing
         /// <summary>
         /// Gets the rates.
         /// </summary>
-        public Dictionary<TEnum, (long total, double ratePerSecond)> GetRates()
+        public Dictionary<TEnum, ActivityRate> GetRates()
         {
-            var result = new Dictionary<TEnum, (long total, double ratePerSecond)>();
+            var result = new Dictionary<TEnum, ActivityRate>();
 
             lock (_activityLock)
             {
@@ -59,7 +76,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
                         ratePerSecond = ((double)diff) / duration.TotalSeconds;
                     }
 
-                    result[v] = (total, ratePerSecond);
+                    result[v] = new (total, ratePerSecond);
                 }
             }
 

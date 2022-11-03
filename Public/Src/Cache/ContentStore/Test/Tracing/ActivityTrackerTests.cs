@@ -2,7 +2,6 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
-using System.Collections.Generic;
 using BuildXL.Cache.ContentStore.InterfacesTest.Time;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Utilities.Tracing;
@@ -28,9 +27,9 @@ namespace BuildXL.Cache.ContentStore.Test.Tracing
             var collection = new CounterCollection<MyCounters>();
 
             // Initial rates are (total: 0, ratePerSecond: 0)
-            Dictionary<MyCounters, (long total, double ratePerSecond)> rates = activityTracker.GetRates();
-            rates[MyCounters.Value1].Should().Be((0, 0));
-            rates[MyCounters.Value2].Should().Be((0, 0));
+            var rates = activityTracker.GetRates();
+            rates[MyCounters.Value1].Should().Be(new ActivityRate(0, 0));
+            rates[MyCounters.Value2].Should().Be(new ActivityRate(0, 0));
 
             clock.AddSeconds(1);
             collection.AddToCounter(MyCounters.Value1, 1);
@@ -40,8 +39,8 @@ namespace BuildXL.Cache.ContentStore.Test.Tracing
             rates = activityTracker.GetRates();
 
             // Totals should be changed, but the rates are still 0. We don't have enough data.
-            rates[MyCounters.Value1].Should().Be((1, 0));
-            rates[MyCounters.Value2].Should().Be((2, 0));
+            rates[MyCounters.Value1].Should().Be(new ActivityRate(1, 0));
+            rates[MyCounters.Value2].Should().Be(new ActivityRate(2, 0));
 
             clock.AddSeconds(1);
             collection.AddToCounter(MyCounters.Value1, 1);
@@ -49,8 +48,8 @@ namespace BuildXL.Cache.ContentStore.Test.Tracing
             activityTracker.ProcessSnapshot(collection);
 
             rates = activityTracker.GetRates();
-            rates[MyCounters.Value1].Should().Be((2, 1));
-            rates[MyCounters.Value2].Should().Be((4, 2));
+            rates[MyCounters.Value1].Should().Be(new ActivityRate(2, 1));
+            rates[MyCounters.Value2].Should().Be(new ActivityRate(4, 2));
 
             // Moving the time to the end of the window
             clock.AddSeconds(9);
@@ -59,14 +58,14 @@ namespace BuildXL.Cache.ContentStore.Test.Tracing
             activityTracker.ProcessSnapshot(collection);
 
             rates = activityTracker.GetRates();
-            rates[MyCounters.Value1].Should().Be((4, 0.3));
-            rates[MyCounters.Value2].Should().Be((8, 0.6));
+            rates[MyCounters.Value1].Should().Be(new ActivityRate(4, 0.3));
+            rates[MyCounters.Value2].Should().Be(new ActivityRate(8, 0.6));
 
             // Move even further, should have only one record in the window.
             clock.AddSeconds(3);
             rates = activityTracker.GetRates();
-            rates[MyCounters.Value1].Should().Be((4, 0));
-            rates[MyCounters.Value2].Should().Be((8, 0));
+            rates[MyCounters.Value1].Should().Be(new ActivityRate(4, 0));
+            rates[MyCounters.Value2].Should().Be(new ActivityRate(8, 0));
 
             clock.AddSeconds(2); // 5 seconds since the last snapshot
             collection.AddToCounter(MyCounters.Value1, 5);
@@ -74,8 +73,8 @@ namespace BuildXL.Cache.ContentStore.Test.Tracing
             activityTracker.ProcessSnapshot(collection);
 
             rates = activityTracker.GetRates();
-            rates[MyCounters.Value1].Should().Be((9, 1));
-            rates[MyCounters.Value2].Should().Be((18, 2));
+            rates[MyCounters.Value1].Should().Be(new ActivityRate(9, 1));
+            rates[MyCounters.Value2].Should().Be(new ActivityRate(18, 2));
         }
     }
 }

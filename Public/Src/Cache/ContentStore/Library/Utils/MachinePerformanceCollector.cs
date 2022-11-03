@@ -2,9 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading;
 using BuildXL.Utilities;
 
@@ -45,21 +43,22 @@ namespace BuildXL.Cache.ContentStore.Utils
         /// <summary>
         /// Gets a string representation suitable for tracing.
         /// </summary>
-        /// <returns></returns>
         public string ToTracingString()
         {
-            List<string> parts = new List<string>();
-            CollectMetrics((metricName, value) =>
+            using var pooledHandle = Pools.StringBuilderPool.GetInstance();
+            var sb = pooledHandle.Instance;
+            CollectMetrics((metricName, value) => appendMetric(metricName, value));
+
+            return sb.ToString();
+
+            void appendMetric(string metricName, long value)
             {
-                if (value != null)
-                {
-                    parts.Add($"{metricName}=[{value}]");
-                }
-            });
-            return string.Join(" ", parts);
+                var prefix = sb.Length == 0 ? string.Empty : " ";
+                sb.Append($"{prefix}{metricName}=[{value}]");
+            }
         }
 
-        public delegate void AddMetric(string metricName, long? value);
+        public delegate void AddMetric(string metricName, long value);
 
         public void CollectMetrics(AddMetric addMetric)
         {
@@ -69,13 +68,13 @@ namespace BuildXL.Cache.ContentStore.Utils
             addMetric(nameof(ContextSwitchesPerSec), ContextSwitchesPerSec);
             addMetric(nameof(ProcessCpuPercentage), ProcessCpuPercentage);
 
-            addMetric(nameof(TotalRamMb), TotalRamMb);
-            addMetric(nameof(AvailableRamMb), AvailableRamMb);
-            addMetric(nameof(EffectiveAvailableRamMb), EffectiveAvailableRamMb);
-            addMetric(nameof(CommitTotalMb), CommitTotalMb);
+            invokeAddMetric(nameof(TotalRamMb), TotalRamMb);
+            invokeAddMetric(nameof(AvailableRamMb), AvailableRamMb);
+            invokeAddMetric(nameof(EffectiveAvailableRamMb), EffectiveAvailableRamMb);
+            invokeAddMetric(nameof(CommitTotalMb), CommitTotalMb);
             addMetric(nameof(ProcessWorkingSetMb), ProcessWorkingSetMb);
             addMetric(nameof(GCTotalMemoryMb), GCTotalMemoryMb);
-            addMetric(nameof(GCTotalAvailableMemoryMb), GCTotalAvailableMemoryMb);
+            invokeAddMetric(nameof(GCTotalAvailableMemoryMb), GCTotalAvailableMemoryMb);
 
             addMetric(nameof(ProcessThreadCount), ProcessThreadCount);
             addMetric(nameof(ThreadPoolWorkerThreads), ThreadPoolWorkerThreads);
@@ -87,6 +86,14 @@ namespace BuildXL.Cache.ContentStore.Utils
             // We're interested only in two drives: D and K, and K drive is optional.
             addDriveStats(DriveD);
             addDriveStats(DriveK);
+
+            void invokeAddMetric(string name, long? value)
+            {
+                if (value != null)
+                {
+                    addMetric(name, value.Value);
+                }
+            }
 
             void addDriveStats(PerformanceCollector.Aggregator.DiskStatistics? stats)
             {
@@ -148,7 +155,6 @@ namespace BuildXL.Cache.ContentStore.Utils
                 GCTotalMemoryMb = (long)Math.Ceiling(GC.GetTotalMemory(forceFullCollection: false) / 1e6),
                 GCTotalAvailableMemoryMb = gcTotalAvailableMemoryMb,
 
-
                 // Threads
                 ProcessThreadCount = (int)_perfStatsAggregator.ProcessThreadCount.Latest,
                 ThreadPoolWorkerThreads = workerThreads,
@@ -165,19 +171,4 @@ namespace BuildXL.Cache.ContentStore.Utils
             };
         }
     }
-
-    /// <summary>
-    /// A set of extension methods to keep the implementation of <see cref="MachinePerformanceCollector"/> simpler.
-    /// </summary>
-    internal static class StringBuilderExtensions
-    {
-        /// <nodoc />
-        public static StringBuilder AddMetric(this StringBuilder sb, string metricName, long value, bool first = false)
-        {
-
-            sb.Append($"{(!first ? ", " : "")}{metricName}: {value}");
-            return sb;
-        }
-    }
-
 }

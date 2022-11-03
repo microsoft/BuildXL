@@ -18,6 +18,7 @@ using Xunit.Abstractions;
 
 namespace ContentStoreTest.Stores
 {
+    [Trait("Category", "Integration")]
     public sealed class FileSystemContentStoreInternalPassThroughFsStressTests : ContentStoreInternalTests<TestFileSystemContentStoreInternal>
     {
         private static readonly MemoryClock Clock = new MemoryClock();

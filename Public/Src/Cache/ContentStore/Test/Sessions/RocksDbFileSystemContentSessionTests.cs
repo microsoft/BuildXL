@@ -37,6 +37,7 @@ using BuildXL.Cache.ContentStore.Exceptions;
 namespace BuildXL.Cache.ContentStore.Test.Sessions
 {
     [Trait("Category", "WindowsOSOnly")]
+    [Trait("Category", "Performance")]
     public class RocksDbFileSystemContentSessionTests: ContentSessionTests
     {
         private const long CacheDefaultSize = 100;

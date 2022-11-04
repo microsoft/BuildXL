@@ -12,6 +12,7 @@ using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tasks;
 using ContentStoreTest.Test;
 using FluentAssertions;
+using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -311,7 +312,7 @@ namespace ContentStoreTest.Utils
             Assert.Equal(2, batchSize);
         }
 
-        [Fact]
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public void TestExceptionHandling()
         {
             int callbackCount = 0;

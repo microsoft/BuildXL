@@ -189,7 +189,7 @@ namespace Flags {
     export const isValidatingOsxRuntime = isMicrosoftInternal && Environment.getFlag(envVarNamePrefix + "validateOsxRuntime");
 
     /**
-     * Whether we want to validate the Linux runtime package (runtime.linux-x64.BuildXL) or use the in-build Linux runtime.
+     * Whether we want to validate the Linux runtime package (runtime.ubuntu-linux-x64.buildxl) or use the in-build Linux runtime.
      * Default is to always validate the runtime package, since that's what gets deployed as part of the official BuildXL bits.
      */
     @@public

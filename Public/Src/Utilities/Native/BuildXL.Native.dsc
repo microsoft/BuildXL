@@ -52,7 +52,7 @@ namespace Native {
     export const nativeLinux = [
         ...addIfLazy(BuildXLSdk.isTargetRuntimeLinux, () => BuildXLSdk.isHostOsLinux && !BuildXLSdk.Flags.isValidatingLinuxRuntime
             ? [ LinuxSandbox.libBxlUtils, LinuxSandbox.bxlEnv, LinuxSandbox.libBxlAudit, LinuxSandbox.libDetours ]
-            : importFrom("runtime.linux-x64.BuildXL").Contents.all.ensureContents({subFolder: r`runtimes/linux-x64/native/${qualifier.configuration}`}).getContent())
+            : importFrom("runtime.ubuntu-linux-x64.buildxl").Contents.all.ensureContents({subFolder: r`runtimes/linux-x64/native/${qualifier.configuration}`}).getContent())
     ];
 
     @@public

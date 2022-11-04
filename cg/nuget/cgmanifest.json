@@ -4388,15 +4388,6 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "runtime.linux-x64.BuildXL",
-          "Version": "0.1.0-20221024.27.1"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
           "Name": "runtime.linux-x64.Microsoft.NETCore.DotNetHostPolicy",
           "Version": "6.0.2"
         }
@@ -4543,6 +4534,15 @@
         "NuGet": {
           "Name": "runtime.rhel.7-x64.runtime.native.System.Security.Cryptography.OpenSsl",
           "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.ubuntu-linux-x64.buildxl",
+          "Version": "0.1.0-20221020.0.2"
         }
       }
     },

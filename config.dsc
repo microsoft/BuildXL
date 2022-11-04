@@ -418,8 +418,8 @@ config({
 
                 // Runtime dependencies for Linux
                 {
-                    id: "runtime.linux-x64.BuildXL",
-                    version: "0.1.0-20221024.27.1",
+                    id: "runtime.ubuntu-linux-x64.buildxl",
+                    version: "0.1.0-20221020.0.2",
                     osSkip: importFile(f`config.microsoftInternal.dsc`).isMicrosoftInternal
                         ? []
                         : [ "win", "macOS", "unix" ]

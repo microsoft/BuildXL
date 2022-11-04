@@ -221,7 +221,7 @@ namespace Npm {
         return result.getOutputDirectory(args.targetDirectory);
     }
 
-    function getNpmCachePath(args: InstallArgumentsCommon) {
+    function getNpmCachePath(args: InstallArgumentsCommon) : Directory {
         // If not specified explicitly, look for the nuget cache folder, otherwise use an arbitrary output folder
         const preserveCacheFolder = args.preserveCacheFolder || false;
 

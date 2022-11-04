@@ -36,6 +36,8 @@ namespace MsBuildGraphBuilder {
             // don't add msbuild dlls because assembly resolvers will resolve msbuild from other MSBuild installations
             ...MSBuild.msbuildReferences,
             importFrom("System.Collections.Immutable").pkg,
+            importFrom("System.Collections.Immutable.ForVBCS").pkg,
+            importFrom("System.Memory").withQualifier({targetFramework: "netstandard2.0"}).pkg,
             importFrom("System.Memory").pkg,
         ],
         internalsVisibleTo: [

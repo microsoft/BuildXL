@@ -1472,7 +1472,11 @@ namespace BuildXL.Scheduler
                         StrongFingerprintComputations = CollectionUtilities.EmptyArray<ProcessStrongFingerprintComputationData>(),
                     };
 
-                PopulateFingerprintDataWithSourceHashes(fingerprintComputation, pip, environment);
+                if (!pip.IsStartOrShutdownKind)
+                {
+                    // We do not hash source inputs for Service start and shutdown pips. They are noop in the scheduler, meaning we do not perform cache lookup or materializeinput for them.
+                    PopulateFingerprintDataWithSourceHashes(fingerprintComputation, pip, environment);
+                }
 
                 bool outputHashSuccess = false;
 

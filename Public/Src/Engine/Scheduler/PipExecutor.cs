@@ -2274,8 +2274,8 @@ namespace BuildXL.Scheduler
         private static void PopulateFingerprintDataWithSourceHashes(BoxRef<ProcessFingerprintComputationEventData> processFingerprintComputationResult, Process pip, IPipExecutionEnvironment environment)
         {
             if (environment.Configuration.EnableDistributedSourceHashing() &&
-                environment.Configuration.Logging.CacheMissAnalysisOption.Mode != CacheMissMode.Disabled &&
-                environment.Configuration.Distribution.BuildRole == DistributedBuildRoles.Worker)
+                environment.Configuration.Distribution.BuildRole == DistributedBuildRoles.Worker &&
+                (environment.Configuration.Logging.StoreFingerprints == true || environment.Configuration.Logging.CacheMissAnalysisOption.Mode != CacheMissMode.Disabled))
             {
                 // If runtime cache miss analyzer is enabled and source file hashing is distributed, workers will report source file hashes back to the orchestrator
                 // because the orchestrator might not have the hashes for all source files.

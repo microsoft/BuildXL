@@ -216,6 +216,8 @@ namespace BuildXL.Cache.Host.Service.Internal
             ApplyIfNotNull(_distributedSettings.EvictionMinAgeMinutes, v => result.EvictionMinAge = TimeSpan.FromMinutes(v));
 
             ApplyIfNotNull(_distributedSettings.ShouldFilterInactiveMachinesInLocalLocationStore, v => result.ShouldFilterInactiveMachinesInLocalLocationStore = v);
+            ApplyIfNotNull(_distributedSettings.FilterInactiveMachinesForGlobalLocations, v => result.FilterInactiveMachinesForGlobalLocations = v);
+            ApplyIfNotNull(_distributedSettings.TraceInactiveMachinesForGlobalLocations, v => result.TraceInactiveMachinesForGlobalLocations = v);
 
             ApplyIfNotNull(_distributedSettings.LocationStoreSettings, v => result.Settings = v);
 

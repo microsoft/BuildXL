@@ -584,6 +584,12 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public bool? ShouldFilterInactiveMachinesInLocalLocationStore { get; set; }
 
+        [DataMember]
+        public bool? FilterInactiveMachinesForGlobalLocations { get; set; }
+
+        [DataMember]
+        public bool? TraceInactiveMachinesForGlobalLocations { get; set; }
+
         #region Content Location Database
 
         [DataMember]

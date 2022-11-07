@@ -1019,14 +1019,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             var results = new List<ContentHashWithSizeAndLocations>(entries.Count);
             bool hasUnknownLocations = false;
+            // TODO (WI - 2003955): we should have only one place where the filtering is happening - here, and not on the database level.
 
             // Inactive machines can be filtered on this level (and not on the database level) for tracing purposes.
             // But the filtering only applies to local locations, because we explicitly want to try out
-            // the global locations.
+            // the global locations (unless FilterInactiveMachinesForGlobalLocations flag is set).
             // When the machines switches from inactive state we forcing the locations to be registered in the global store.
             // It means that filtering out the global store will not allow us to see those locations until the
             // machine state will be propagated to all the clients.
-            bool shouldFilter = Configuration.ShouldFilterInactiveMachinesInLocalLocationStore && origin == GetBulkOrigin.Local;
+            bool shouldFilter = Configuration.ShouldFilterInactiveMachinesInLocalLocationStore && (origin == GetBulkOrigin.Local ||
+                                                                                                   Configuration.FilterInactiveMachinesForGlobalLocations ||
+                                                                                                   Configuration.TraceInactiveMachinesForGlobalLocations);
             var inactiveMachineSet = shouldFilter ? ClusterState.InactiveMachines : null;
             var inactiveMachineList = shouldFilter ? ClusterState.InactiveMachineList : null;
 
@@ -1053,7 +1056,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     }
                 }
 
-                if (Configuration.ShouldFilterInactiveMachinesInLocalLocationStore)
+                if (Configuration.ShouldFilterInactiveMachinesInLocalLocationStore && (origin == GetBulkOrigin.Local || Configuration.FilterInactiveMachinesForGlobalLocations))
                 {
                     entry = entry.SetMachineExistence(MachineIdCollection.Create(inactiveMachineList!), exists: false);
                 }

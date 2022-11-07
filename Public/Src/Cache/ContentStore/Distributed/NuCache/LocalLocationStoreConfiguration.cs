@@ -364,6 +364,20 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// </summary>
         public bool ShouldFilterInactiveMachinesInLocalLocationStore { get; set; } = false;
 
+        /// <summary>
+        /// Whether to filter out inactive machines in <see cref="LocalLocationStore"/> obtained from the global store.
+        /// </summary>
+        public bool FilterInactiveMachinesForGlobalLocations { get; set; }
+
+        /// <summary>
+        /// Whether to trace inactive machine count that could be filtered out because they're inactive.
+        /// </summary>
+        /// <remarks>
+        /// We observed the cases when the global information is incorrect and contains locations for inactive machines, but filtering out them
+        /// unconditionally might be problematic because we could lose the data due to the lag in inactive -> active machine status updates.
+        /// </remarks>
+        public bool TraceInactiveMachinesForGlobalLocations { get; set; }
+
         public LocalLocationStoreSettings Settings { get; set; } = new();
     }
 

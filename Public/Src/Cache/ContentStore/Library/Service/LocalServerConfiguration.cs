@@ -167,11 +167,6 @@ namespace BuildXL.Cache.ContentStore.Service
         public IAbsFileSystem? FileSystem { get; set; }
 
         /// <summary>
-        /// When set to true, we will shut down the quota keeper before hibernating sessions to prevent a race condition of evicting pinned content
-        /// </summary>
-        public bool ShutdownEvictionBeforeHibernation { get; set; }
-
-        /// <summary>
         /// Whether to trace the operation's start and stop messages on the grpc level.
         /// </summary>
         public bool TraceGrpcOperations { get; set; }

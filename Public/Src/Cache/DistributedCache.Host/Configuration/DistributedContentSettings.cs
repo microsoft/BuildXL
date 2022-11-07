@@ -436,12 +436,6 @@ namespace BuildXL.Cache.Host.Configuration
 
         #region Distributed Eviction
 
-        /// <summary>
-        /// When set to true, we will shut down the quota keeper before hibernating sessions to prevent a race condition of evicting pinned content
-        /// </summary>
-        [DataMember]
-        public bool ShutdownEvictionBeforeHibernation { get; set; } = false;
-
         [DataMember]
         [Validation.Range(1, int.MaxValue)]
         public int? ReplicaCreditInMinutes { get; set; } = 180;

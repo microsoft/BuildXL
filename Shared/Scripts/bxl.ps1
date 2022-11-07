@@ -391,7 +391,6 @@ function New-Deployment {
         description = $Description;
         dir = $dir;
         domino = Join-Path $dir $BuildXLExeName;
-        dominoRunner = Join-Path $dir $BuildXLRunnerExeName;
         adoBuildRunner = Join-Path $dir $AdoBuildRunnerExeName;
         nugetDownloader = Join-Path $dir $NugetDownloaderName
         buildDir = Join-Path $Root $buildRelativeDir;
@@ -504,16 +503,14 @@ function Remap-PathToNormalizedDrive {
 }
 
 
-function Get-NormalizedPathArguments {
-    param([string]$executable, [string[]]$processArgs);
-    [string]$remappedExecutable = @(Remap-PathToNormalizedDrive $executable);
+function Get-SubstArguments {
+    param([string[]]$processArgs);
     $enlistmentrootTrimmed = $enlistmentRoot.TrimEnd('\')
-    [string[]]$remappedArgs = "$NormalizationDriveLetter=$enlistmentrootTrimmed";
-    $remappedArgs += "$remappedExecutable";
+    [string[]]$remappedArgs = @("/runInSubst");
+    $remappedArgs += "/substTarget:$NormalizationDrive /substSource:$enlistmentrootTrimmed"
     $remappedArgs += @(Remap-PathToNormalizedDrive $processArgs);
-    $remappedArgs += "/substTarget:$NormalizationDrive\ /substSource:$enlistmentrootTrimmed\"
     $remappedArgs += " /logProcessDetouringStatus+ /logProcessData+ /logProcesses+";
-    return $remappedArgs;
+    return $remappedArgs.Replace("""", "\""")
 }
 
 function Run-Process {
@@ -794,13 +791,12 @@ if ($isMicrosoftInternal -and (-not $isRunningOnADO)) {
     Log "Authentication was successful."
 }
 
+$executable = $useDeployment.domino;
 if ($NoSubst) {
-    $executable = $useDeployment.domino;
     $arguments = $DominoArguments
 } else {
     # Wrap the invocation with RunInSubst
-    $executable = $useDeployment.dominoRunner
-    $arguments = Get-NormalizedPathArguments $useDeployment.domino $DominoArguments
+    $arguments = Get-SubstArguments $DominoArguments
 }
 
 if ($UseAdoBuildRunner) {

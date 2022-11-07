@@ -311,41 +311,5 @@ namespace ContentStoreTest.Utils
 
             Assert.Equal(2, batchSize);
         }
-
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
-        public void TestExceptionHandling()
-        {
-            int callbackCount = 0;
-            var queue = CreateNagleQueue<int>(
-                async data =>
-                {
-                    callbackCount++;
-                    await Task.Yield();
-                    var e = new InvalidOperationException(string.Join(", ", data.Select(n => n.ToString())));
-                    throw e;
-                },
-                maxDegreeOfParallelism: 1,
-                interval: TimeSpan.FromMilliseconds(10),
-                batchSize: 2,
-                start: false);
-            queue.Start();
-            queue.Enqueue(1);
-            queue.Enqueue(2);
-            queue.Enqueue(3);
-
-            // And if callback fails, the queue itself moves to a faulted state.
-            // This will manifest itself in an error during Dispose invocation.
-            // This is actually quite problematic, because Dispose method can be called
-            // from the finally block (explicitly, or implicitly via using block)
-            // and in this case the original exception that caused the finally block invocation
-            // will be masked by the exception from Dispose method.
-            // Work item: 1741215
-
-            // Dispose method propagates the error thrown in the callback.
-            Assert.Throws<InvalidOperationException>(() => queue.Dispose());
-
-            // Once callback fails, it won't be called any more
-            callbackCount.Should().Be(1);
-        }
     }
 }

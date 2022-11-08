@@ -8,7 +8,8 @@
     },
     "license": "MIT",
     "bin": {
-        "bxl": "build/linux-x64/bxl"
+        "bxl": "build/linux-x64/bxl",
+        "bxl-adobuildrunner": "build/linux-x64/AdoBuildRunner"
     },
     "scripts": {
         "build": "tsc",

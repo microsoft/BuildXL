@@ -117,11 +117,11 @@ namespace BuildXL.FrontEnd.MsBuild
         protected override async Task<Possible<ProjectGraphResult>> TryComputeBuildGraphAsync()
         {
             // Get the locations where the MsBuild assemblies should be searched
-            if (!TryRetrieveMsBuildSearchLocations(out IEnumerable<AbsolutePath> msBuildSearchLocations))
-            {
-                // Errors should have been logged
-                return new MsBuildGraphConstructionFailure(m_resolverSettings, m_context.PathTable);
-            }
+            // We no longer search for the MsBuild location using %PATH% because the MsBuild graph builder will use Microsoft build locator to find MsBuild location
+            // if none is specified explicitly.
+            IEnumerable<AbsolutePath> msBuildSearchLocations = m_resolverSettings.MsBuildSearchLocations != null && m_resolverSettings.MsBuildSearchLocations.Count > 0
+                ? m_resolverSettings.MsBuildSearchLocations.Select(d => d.Path)
+                : Enumerable.Empty<AbsolutePath>();
 
             if (!TryRetrieveParsingEntryPoint(out IEnumerable<AbsolutePath> parsingEntryPoints))
             {
@@ -272,25 +272,6 @@ namespace BuildXL.FrontEnd.MsBuild
             {
                 Tracing.Logger.Log.CannotDeleteResponseFile(m_context.LoggingContext, m_resolverSettings.Location(m_context.PathTable), responseFile.ToString(m_context.PathTable), ex.Message);
             }
-        }
-
-        /// <summary>
-        /// Retrieves a list of search locations for the required MsBuild assemblies
-        /// </summary>
-        /// <remarks>
-        /// First inspects the resolver configuration to check if these are defined explicitly. Otherwise, uses PATH environment variable.
-        /// </remarks>
-        private bool TryRetrieveMsBuildSearchLocations(out IEnumerable<AbsolutePath> searchLocations)
-        {
-            return FrontEndUtilities.TryRetrieveExecutableSearchLocations(
-                Name,
-                m_context,
-                m_host.Engine,
-                m_resolverSettings.MsBuildSearchLocations?.SelectList(directoryLocation => directoryLocation.Path),
-                out searchLocations,
-                () => Tracing.Logger.Log.NoSearchLocationsSpecified(m_context.LoggingContext, m_resolverSettings.Location(m_context.PathTable), "msBuildSearchLocations"),
-                paths => Tracing.Logger.Log.CannotParseBuildParameterPath(m_context.LoggingContext, m_resolverSettings.Location(m_context.PathTable), paths)
-            );
         }
 
         /// <summary>

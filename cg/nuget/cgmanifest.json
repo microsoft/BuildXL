@@ -1085,6 +1085,15 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "Microsoft.Build.Locator",
+          "Version": "1.5.5"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "Microsoft.Build.Prediction",
           "Version": "0.3.0"
         }

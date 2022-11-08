@@ -219,7 +219,7 @@ namespace Test.ProjectGraphBuilder
 
         private ProjectGraphWithPredictionsResult<string> BuildGraphAndDeserialize(MSBuildGraphBuilderArguments arguments)
         {
-            MsBuildGraphBuilder.BuildGraphAndSerialize(arguments);
+            MsBuildGraphBuilder.BuildGraphAndSerialize(AssemblyLoader, arguments);
 
             // The serialized graph should exist
             Assert.True(File.Exists(arguments.OutputPath));

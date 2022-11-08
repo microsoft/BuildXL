@@ -9,7 +9,6 @@ using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Threading.Tasks;
 using BuildXL.FrontEnd.MsBuild.Serialization;
 using BuildXL.Utilities.Collections;
@@ -24,6 +23,7 @@ using Newtonsoft.Json;
 using ProjectGraphWithPredictionsResult = BuildXL.FrontEnd.MsBuild.Serialization.ProjectGraphWithPredictionsResult<string>;
 using ProjectGraphWithPredictions = BuildXL.FrontEnd.MsBuild.Serialization.ProjectGraphWithPredictions<string>;
 using ProjectWithPredictions = BuildXL.FrontEnd.MsBuild.Serialization.ProjectWithPredictions<string>;
+using ProjectGraphBuilder;
 
 namespace MsBuildGraphBuilderTool
 {
@@ -45,17 +45,18 @@ namespace MsBuildGraphBuilderTool
         /// <remarks>
         /// Legit errors while trying to load the MsBuild assemblies or constructing the graph are represented in the serialized result
         /// </remarks>
-        public static void BuildGraphAndSerialize(
-            MSBuildGraphBuilderArguments arguments)
+        public static void BuildGraphAndSerialize(MSBuildGraphBuilderArguments arguments)
         {
             Contract.Requires(arguments != null);
+            BuildGraphAndSerialize(new BuildLocatorBasedMsBuildAssemblyLoader(), arguments);
+        }
 
+        internal static void BuildGraphAndSerialize(IMsBuildAssemblyLoader assemblyLoader, MSBuildGraphBuilderArguments arguments)
+        {
             // Using the standard assembly loader and reporter
             // The output file is used as a unique name to identify the pipe
-            using (var reporter = new GraphBuilderReporter(Path.GetFileName(arguments.OutputPath)))
-            {
-                DoBuildGraphAndSerialize(new MsBuildAssemblyLoader(arguments.MsBuildRuntimeIsDotNetCore), reporter, arguments);
-            }
+            using var reporter = new GraphBuilderReporter(Path.GetFileName(arguments.OutputPath));
+            DoBuildGraphAndSerialize(assemblyLoader, reporter, arguments);
         }
 
         /// <summary>
@@ -109,8 +110,8 @@ namespace MsBuildGraphBuilderTool
 
             return BuildGraphInternal(
                 reporter,
-                locatedAssemblyPaths,
-                locatedMsBuildPath,
+                locatedAssemblyPaths ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase),
+                locatedMsBuildPath ?? string.Empty,
                 arguments,
                 projectPredictorsForTesting);
         }
@@ -127,6 +128,25 @@ namespace MsBuildGraphBuilderTool
         {
             try
             {
+                if (string.IsNullOrEmpty(locatedMsBuildPath))
+                {
+                    // When using BuildLocatorBasedMsBuildAssemblyLoader, the located MsBuild path will still be empty because we cannot
+                    // reference to MsBuild type while the assemblies were being loaded. One approved method to get the needed MsBuild path is
+                    // to get the path to assembly containing ProjectGraph, and use that path to infer the MsBuild path.
+                    var projectGraphType = typeof(ProjectGraph);
+                    string msBuildFile = graphBuildArguments.MsBuildRuntimeIsDotNetCore ? "MSBuild.dll" : "MSBuild.exe";
+                    locatedMsBuildPath = Path.Combine(Path.GetDirectoryName(projectGraphType.Assembly.Location), msBuildFile);
+                    if (!File.Exists(locatedMsBuildPath))
+                    {
+                        return ProjectGraphWithPredictionsResult.CreateFailure(
+                            GraphConstructionError.CreateFailureWithoutLocation($"{locatedMsBuildPath} cannot be found"),
+                            new Dictionary<string, string>(),
+                            locatedMsBuildPath);
+                    }
+
+                    reporter.ReportMessage($"MSBuild is located at '{locatedMsBuildPath}'");
+                }
+
                 reporter.ReportMessage("Parsing MSBuild specs and constructing the build graph...");
 
                 var projectInstanceToProjectCache = new ConcurrentDictionary<ProjectInstance, Project>();
@@ -149,20 +169,6 @@ namespace MsBuildGraphBuilderTool
                     // The project collection doesn't need any specific global properties, since entry points already contain all the ones that are needed, and the project graph will merge them
                     new ProjectCollection(),
                     (projectPath, globalProps, projectCollection) => ProjectInstanceFactory(projectPath, globalProps, projectCollection, projectInstanceToProjectCache));
-
-                // This is a defensive check to make sure the assembly loader actually honored the search locations provided by the user. The path of the assembly where ProjectGraph
-                // comes from has to be one of the provided search locations.
-                // If that's not the case, this is really an internal error. For example, the MSBuild dlls we use to compile against (that shouldn't be deployed) somehow sneaked into
-                // the deployment. This happened in the past, and it prevents the loader to redirect appropriately.
-                Assembly assembly = Assembly.GetAssembly(projectGraph.GetType());
-                string assemblylocation = assembly.Location;
-                if (!assemblyPathsToLoad.Values.Contains(assemblylocation, StringComparer.InvariantCultureIgnoreCase))
-                {
-                    return ProjectGraphWithPredictionsResult.CreateFailure(
-                        GraphConstructionError.CreateFailureWithoutLocation($"Internal error: the assembly '{assembly.GetName().Name}' was loaded from '{assemblylocation}'. This path doesn't match any of the provided search locations. Please contact the BuildXL team."),
-                        assemblyPathsToLoad,
-                        locatedMsBuildPath);
-                }
 
                 reporter.ReportMessage("Done parsing MSBuild specs.");
 

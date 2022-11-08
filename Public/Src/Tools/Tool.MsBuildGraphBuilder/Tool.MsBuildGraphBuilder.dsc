@@ -26,6 +26,7 @@ namespace MsBuildGraphBuilder {
             ...addIf(BuildXLSdk.isFullFramework, importFrom("System.Collections.Immutable.ForVBCS").pkg),
             ...addIf(BuildXLSdk.isFullFramework, importFrom("System.Threading.Tasks.Dataflow").pkg),
             importFrom("Microsoft.Build.Prediction").pkg,
+            importFrom("Microsoft.Build.Locator").pkg,
             NetFx.System.Threading.Tasks.dll,
             ...MSBuild.msbuildReferences,
         ],

@@ -321,6 +321,7 @@ config({
                 { id: "Microsoft.Build.Utilities.Core", version: "17.0.0", dependentPackageIdsToSkip: ["System.Threading.Tasks.Dataflow", "System.Memory", "System.Text.Json", "System.Collections.Immutable"]},
                 { id: "Microsoft.Build.Framework", version: "17.0.0", dependentPackageIdsToSkip: ["System.Threading.Tasks.Dataflow", "System.Memory", "System.Text.Json"]},
                 { id: "Microsoft.NET.StringTools", version: "1.0.0", dependentPackageIdsToSkip: ["System.Memory", "System.Text.Json"]},
+                { id: "Microsoft.Build.Locator", version: "1.5.5" },
 
                 { id: "System.Resources.Extensions", version: "4.6.0-preview9.19411.4",
                     dependentPackageIdsToSkip: ["System.Memory"]},

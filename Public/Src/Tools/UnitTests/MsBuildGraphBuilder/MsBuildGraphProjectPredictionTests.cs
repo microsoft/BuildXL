@@ -42,6 +42,7 @@ namespace Test.ProjectGraphBuilder
 ");
 
             MsBuildGraphBuilder.BuildGraphAndSerialize(
+                AssemblyLoader,
                 GetStandardBuilderArguments(
                     new[] { entryPoint },
                     outputFile,
@@ -51,7 +52,6 @@ namespace Test.ProjectGraphBuilder
                     allowProjectsWithoutTargetProtocol: false));
 
             var result = SimpleDeserializer.Instance.DeserializeGraph(outputFile);
-
             Assert.True(result.Succeeded);
 
             // There is a single project in this graph, which should have non-empty predictions

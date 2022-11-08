@@ -801,7 +801,7 @@ if ($NoSubst) {
 
 if ($UseAdoBuildRunner) {
     # Wrap the invocation with the AdoBuildRunner
-    $arguments = $arguments.Replace("""", "\""")
+    $arguments = $arguments.Replace("\""", "\\\""")
     $executable = $useDeployment.adoBuildRunner
 }
 

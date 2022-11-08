@@ -198,9 +198,9 @@ function build {
     if [[ -n "$arg_useAdoBuildRunner" ]]; then
         local adoBuildRunnerExe="$arg_BuildXLBin/AdoBuildRunner"
         chmod u=rx "$adoBuildRunnerExe" || true
-        print_info "${tputBold}Running AdoBuildRunner:${tputReset} '$adoBuildRunnerExe' '$bxlExe' ${g_bxlCmdArgs[@]}"
+        print_info "${tputBold}Running AdoBuildRunner:${tputReset} '$adoBuildRunnerExe' ${g_bxlCmdArgs[@]}"
 
-        "$adoBuildRunnerExe" "$bxlExe" "${g_bxlCmdArgs[@]}"
+        "$adoBuildRunnerExe" "${g_bxlCmdArgs[@]}"
     else
         print_info "${tputBold}Running bxl:${tputReset} '$bxlExe' ${g_bxlCmdArgs[@]}"
 

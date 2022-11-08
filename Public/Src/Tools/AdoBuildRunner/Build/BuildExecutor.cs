@@ -4,7 +4,10 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
+using System.Reflection;
+using System.Runtime.InteropServices;
 using BuildXL.AdoBuildRunner.Vsts;
 
 namespace BuildXL.AdoBuildRunner.Build
@@ -14,16 +17,23 @@ namespace BuildXL.AdoBuildRunner.Build
     /// </summary>
     public class BuildExecutor : BuildExecutorBase, IBuildExecutor
     {
-        /// <nodoc />
-        public BuildExecutor(ILogger logger) : base(logger) { }
+        private readonly string m_bxlExeLocation;
 
-        private int ExecuteBuild(string executableName, string arguments, string buildSourcesDirectory)
+        /// <nodoc />
+        public BuildExecutor(ILogger logger) : base(logger) 
+        {
+            // Resolve the bxl executable location
+            var exeName = RuntimeInformation.IsOSPlatform(OSPlatform.Linux) ? "bxl" : "bxl.exe";
+            m_bxlExeLocation = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), exeName);
+        }
+
+        private int ExecuteBuild(string arguments, string buildSourcesDirectory)
         {
             var process = new Process()
             {
                 StartInfo =
                 {
-                    FileName = executableName,
+                    FileName = m_bxlExeLocation,
                     Arguments = arguments,
                     RedirectStandardOutput = true,
                     RedirectStandardError = true
@@ -63,11 +73,7 @@ namespace BuildXL.AdoBuildRunner.Build
             // Extend this eventually, with the context needed for the builds
         }
 
-        private static string ExtractAndEscapeCommandLineArguments(string[] exec)
-        {
-            var args = exec.Skip(1);
-            return string.Join(" ", args);
-        }
+        private static string ExtractAndEscapeCommandLineArguments(string[] args) => string.Join(" ", args);
 
         /// <inherit />
         public void PrepareBuildEnvironment(BuildContext buildContext)
@@ -84,7 +90,7 @@ namespace BuildXL.AdoBuildRunner.Build
         public int ExecuteSingleMachineBuild(BuildContext buildContext, string[] buildArguments)
         {
             Logger.Info($@"Launching single machine build!");
-            return ExecuteBuild(buildArguments[0], ExtractAndEscapeCommandLineArguments(buildArguments), buildContext.SourcesDirectory);
+            return ExecuteBuild(ExtractAndEscapeCommandLineArguments(buildArguments), buildContext.SourcesDirectory);
         }
 
         /// <inherit />
@@ -96,7 +102,6 @@ namespace BuildXL.AdoBuildRunner.Build
             var workerFlags = string.Join(" ", workers);
 
             return ExecuteBuild(
-                buildArguments[0],
                 ExtractAndEscapeCommandLineArguments(buildArguments) +
                 $" /distributedBuildRole:master /distributedBuildServicePort:{Constants.MachineGrpcPort} /relatedActivityId:{buildContext.SessionId} " +
                 workerFlags,
@@ -110,7 +115,6 @@ namespace BuildXL.AdoBuildRunner.Build
             Logger.Info($@"Launching distributed build as worker!");
 
             return ExecuteBuild(
-                buildArguments[0],
                 "/p:BuildXLWorkerAttachTimeoutMin=10 " +  // By default, set the timeout to 10min in the workers to avoid unnecessary waiting upon connection failures
                 ExtractAndEscapeCommandLineArguments(buildArguments) +
                 $" /distributedBuildRole:worker /distributedBuildServicePort:{Constants.MachineGrpcPort} /relatedActivityId:{buildContext.SessionId} ",

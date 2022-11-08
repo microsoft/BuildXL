@@ -41,8 +41,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Synchronization
                     Database = new RocksDbContentLocationDatabaseConfiguration(rootPath)
                     {
                         CleanOnInitialize = false,
-                        OnFailureDeleteExistingStoreAndRetry = true,
-                        LogsKeepLongTerm = true,
+                        OnFailureDeleteExistingStoreAndRetry = true
                     },
                 },
                 LocalCacheConfiguration.CreateServerDisabled(),

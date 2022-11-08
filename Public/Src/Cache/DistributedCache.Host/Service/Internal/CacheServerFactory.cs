@@ -171,7 +171,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                 {
                     var distributedCache = new OneLevelCache(
                         contentStoreFunc: () => contentStoreFactory(path),
-                        memoizationStoreFunc: () => CreateServerSideLocalMemoizationStore(path, factory),
+                        memoizationStoreFunc: () => CreateServerSideLocalMemoizationStore(path),
                         Guid.NewGuid(),
                         passContentToMemoization: true);
 
@@ -276,7 +276,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                     {
                         return new OneLevelCache(
                             contentStoreFunc: () => topLevelAndPrimaryStore.topLevelStore,
-                            memoizationStoreFunc: () => CreateServerSideLocalMemoizationStore(path, factory),
+                            memoizationStoreFunc: () => CreateServerSideLocalMemoizationStore(path),
                             Guid.NewGuid(),
                             passContentToMemoization: true);
                     }
@@ -311,7 +311,7 @@ namespace BuildXL.Cache.Host.Service.Internal
             }
         }
 
-        private IMemoizationStore CreateServerSideLocalMemoizationStore(AbsolutePath path, DistributedContentStoreFactory factory)
+        private IMemoizationStore CreateServerSideLocalMemoizationStore(AbsolutePath path)
         {
             var distributedSettings = _arguments.Configuration.DistributedContentSettings;
 
@@ -319,9 +319,7 @@ namespace BuildXL.Cache.Host.Service.Internal
             {
                 Database = RocksDbContentLocationDatabaseConfiguration.FromDistributedContentSettings(
                     distributedSettings,
-                    databasePath: path / "RocksDbMemoizationStore",
-                    logsBackupPath: null,
-                    logsKeepLongTerm: true),
+                    databasePath: path / "RocksDbMemoizationStore"),
             };
 
             config.Database.CleanOnInitialize = false;

@@ -28,8 +28,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
                 Database = new RocksDbContentLocationDatabaseConfiguration(rootPath)
                 {
                     CleanOnInitialize = false,
-                    OnFailureDeleteExistingStoreAndRetry = true,
-                    LogsKeepLongTerm = true,
+                    OnFailureDeleteExistingStoreAndRetry = true
                 },
             };
             return LocalCache.CreateUnknownContentStoreInProcMemoizationStoreCache(Logger, rootPath, memoConfig, LocalCacheConfiguration.CreateServerDisabled(), clock: Clock);

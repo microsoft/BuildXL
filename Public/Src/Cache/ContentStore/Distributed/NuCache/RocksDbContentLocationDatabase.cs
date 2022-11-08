@@ -51,8 +51,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private string? _storeLocation;
         private readonly string _activeSlotFilePath;
 
-        private readonly RocksDbLogsManager? _logManager;
-
         private enum StoreSlot
         {
             Slot1,
@@ -96,11 +94,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             _configuration = configuration;
             _activeSlotFilePath = (_configuration.StoreLocation / ActiveStoreSlotFileName).ToString();
 
-            if (_configuration.LogsBackupPath != null)
-            {
-                _logManager = new RocksDbLogsManager(clock, new PassThroughFileSystem(), _configuration.LogsBackupPath, _configuration.LogsRetention);
-            }
-
             // this is a hacky way to convince the compiler that the field is initialized.
             // Technically, the field is nullable, but keeping it as nullable causes more issues than giving us benefits.
             _keyValueStore = null!;
@@ -135,11 +128,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private BoolResult InitialLoad(OperationContext context, StoreSlot activeSlot)
         {
             var clean = _configuration.CleanOnInitialize;
-
-            // We backup the logs right before loading the first DB we load
-            var storeLocation = GetStoreLocation(activeSlot);
-            BackupLogs(context, storeLocation, name: $"InitialLoad{activeSlot}");
-
             var result = Load(context, activeSlot, clean);
 
             bool reload = false;
@@ -230,9 +218,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 var settings = new RocksDbStoreConfiguration(storeLocation)
                 {
                     AdditionalColumns = new[] { nameof(Columns.ClusterState), nameof(Columns.Metadata) },
-                    RotateLogsMaxFileSizeBytes = _configuration.LogsKeepLongTerm ? 0ul : ((ulong)"1MB".ToSize()),
-                    RotateLogsNumFiles = _configuration.LogsKeepLongTerm ? 60ul : 1,
-                    RotateLogsMaxAge = TimeSpan.FromHours(_configuration.LogsKeepLongTerm ? 12 : 1),
+                    RotateLogsMaxFileSizeBytes = (ulong)"1MB".ToSize(),
+                    RotateLogsNumFiles = 10,
+                    RotateLogsMaxAge = TimeSpan.FromHours(3),
                     EnableStatistics = true,
                     FastOpen = true,
                     // We take the user's word here. This may be completely wrong, but we don't have enough
@@ -458,15 +446,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
         }
 
-        private void BackupLogs(OperationContext context, string instancePath, string name)
-        {
-            if (_logManager != null)
-            {
-                _logManager.BackupAsync(context, new AbsolutePath(instancePath), name).Result.IgnoreFailure();
-                Task.Run(() => _logManager.GarbageCollect(context)).FireAndForget(context, severityOnException: Severity.Error);
-            }
-        }
-
         private StoreSlot GetNextSlot(StoreSlot slot)
         {
             return slot == StoreSlot.Slot1 ? StoreSlot.Slot2 : StoreSlot.Slot1;
@@ -567,11 +546,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 {
                     SaveActiveSlot(context.TracingContext);
                 }
-
-                // At this point in time, we have unloaded the old database and loaded the new one. This means we're
-                // free to backup the old one's logs.
-                var oldStoreLocation = GetStoreLocation(activeSlot);
-                BackupLogs(context, oldStoreLocation, name: $"Restore{activeSlot}");
 
                 return possiblyLoaded;
             }

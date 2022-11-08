@@ -353,8 +353,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                     CleanOnInitialize = false,
                     GarbageCollectionInterval = TimeSpan.FromSeconds(config.RocksDbMemoizationStoreGarbageCollectionIntervalInSeconds),
                     MetadataGarbageCollectionMaximumSizeMb = config.MaxCacheSizeInMB,
-                    OnFailureDeleteExistingStoreAndRetry = true,
-                    LogsKeepLongTerm = false,
+                    OnFailureDeleteExistingStoreAndRetry = true
                 },
             };
         }

@@ -57,8 +57,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
                 Database = new RocksDbContentLocationDatabaseConfiguration(rootPathForPath)
                 {
                     CleanOnInitialize = false,
-                    OnFailureDeleteExistingStoreAndRetry = true,
-                    LogsKeepLongTerm = true,
+                    OnFailureDeleteExistingStoreAndRetry = true
                 },
             };
             return LocalCache.CreateStreamPathContentStoreInProcMemoizationStoreCache(Logger, rootPathForStream, rootPathForPath, memoConfig, clock: Clock);

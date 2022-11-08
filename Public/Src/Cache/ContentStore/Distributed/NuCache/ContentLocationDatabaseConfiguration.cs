@@ -167,19 +167,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public string? Epoch { get; set; } = null;
 
         /// <summary>
-        /// Whether to enable long-term log keeping. Should only be true for servers, where we can keep a lot of logs.
-        /// </summary>
-        public bool LogsKeepLongTerm { get; set; }
-
-        /// <summary>
-        /// Log retention path for the ContentLocationDatabase. When the database is loaded, logs from the old
-        /// instance are backed up into a separate folder.
-        ///
-        /// If null, then the back up is not performed.
-        /// </summary>
-        public AbsolutePath? LogsBackupPath { get; set; }
-
-        /// <summary>
         /// When logs backup is enabled, the maximum time logs are kept since their creation date.
         /// </summary>
         public TimeSpan LogsRetention { get; set; } = TimeSpan.FromDays(7);
@@ -226,16 +213,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <nodoc />
         public static RocksDbContentLocationDatabaseConfiguration FromDistributedContentSettings(
             DistributedContentSettings settings,
-            AbsolutePath databasePath,
-            AbsolutePath? logsBackupPath,
-            bool logsKeepLongTerm)
+            AbsolutePath databasePath)
         {
             var configuration = new RocksDbContentLocationDatabaseConfiguration(databasePath)
             {
-                LogsKeepLongTerm = logsKeepLongTerm,
                 UseContextualEntryOperationLogging = settings.UseContextualEntryDatabaseOperationLogging,
                 TraceTouches = settings.TraceTouches,
-                LogsBackupPath = logsBackupPath,
             };
 
             configuration.RocksDbPerformanceSettings = settings.RocksDbPerformanceSettings;
@@ -252,11 +235,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             ApplyIfNotNull(settings.ContentLocationDatabaseOpenReadOnly, v => configuration.OpenReadOnly = (v && !settings.IsMasterEligible));
             ApplyIfNotNull(settings.UseMergeOperatorForContentLocations, v => configuration.UseMergeOperatorForContentLocations = v);
 
-            if (settings.ContentLocationDatabaseLogsBackupEnabled)
-            {
-                configuration.LogsBackupPath = logsBackupPath;
-            }
-            
             ApplyIfNotNull(settings.ContentLocationDatabaseLogsBackupRetentionMinutes, v => configuration.LogsRetention = TimeSpan.FromMinutes(v));
 
             ApplyIfNotNull(settings.ContentLocationDatabaseEnumerateSortedKeysFromStorageBufferSize, v => configuration.EnumerateSortedKeysFromStorageBufferSize = v);

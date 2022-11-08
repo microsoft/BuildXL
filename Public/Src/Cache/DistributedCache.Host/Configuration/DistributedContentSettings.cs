@@ -591,9 +591,6 @@ namespace BuildXL.Cache.Host.Configuration
         public int? ContentLocationDatabaseGcIntervalMinutes { get; set; }
 
         [DataMember]
-        public bool ContentLocationDatabaseLogsBackupEnabled { get; set; }
-
-        [DataMember]
         public bool? ContentLocationDatabaseOpenReadOnly { get; set; }
 
         [DataMember]

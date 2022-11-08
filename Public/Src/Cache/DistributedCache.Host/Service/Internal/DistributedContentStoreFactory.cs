@@ -223,10 +223,7 @@ namespace BuildXL.Cache.Host.Service.Internal
 
             var dbConfig = RocksDbContentLocationDatabaseConfiguration.FromDistributedContentSettings(
                 _distributedSettings,
-                primaryCacheRoot / "LocationDb",
-                primaryCacheRoot / "LocationDbLogs",
-                logsKeepLongTerm: true
-                );
+                primaryCacheRoot / "LocationDb");
             result.Database = dbConfig;
             ApplySecretSettingsForLls(result, primaryCacheRoot, dbConfig);
 

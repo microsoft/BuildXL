@@ -2,7 +2,10 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 const coreVersion = "3.1.0";
-const core60Version = "6.0.2";
+const core60Version = "6.0.11";
+// Microsoft.NETCore.Platforms has become out of sync with the rest of the packages that use core60Version
+// Updaters of this file might want to try to restore the sync: for now we are using the latest version we can
+const core60VersionPrev = "6.0.7"; 
 
 const pkgVersion = "4.3.0";
 const pkgVersionNext = "4.7.0";
@@ -30,7 +33,7 @@ export const pkgs = [
     // .NET Core 6.0 Dependencies
     { id: "Microsoft.NETCore.App.Ref", version: core60Version, alias: "Microsoft.NETCore.App.Ref60" },
 
-    { id: "Microsoft.NETCore.Platforms", version: core60Version, alias: "Microsoft.NETCore.Platforms.6.0" },
+    { id: "Microsoft.NETCore.Platforms", version: core60VersionPrev, alias: "Microsoft.NETCore.Platforms.6.0" },
     
     // .NET Core Self-Contained Deployment
     { id: "Microsoft.NETCore.DotNetHostResolver", version: core60Version, alias: "Microsoft.NETCore.DotNetHostResolver.6.0" },

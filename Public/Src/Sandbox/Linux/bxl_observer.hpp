@@ -35,16 +35,6 @@
 #include "utils.h"
 
 /*
- * We want to compile against glibc 2.17 so that we are compatible with a broad range of Linux distributions. (e.g., starting from CentOS7)
- *
- * Compiling against that version of glibc does not prevent us from interposing the system calls that are present only in newer versions
- * (e.g., copy_file_range), as long as we provide appropriate INTERPOSE definitions for those system calls in detours.cpp.
- */
-#if __GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ > 17)
-    #warning This library must support glibc 2.17.  Please compile against at most glibc 2.17 before publishing a new version of this library.
-#endif
-
-/*
  * This header is compiled into two different libraries: libDetours.so and libAudit.so.
  *
  * When compiling libDetours.so, the ENABLE_INTERPOSING macro is defined, otherwise it is not.

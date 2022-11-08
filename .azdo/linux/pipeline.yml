@@ -8,7 +8,7 @@ resources:
     ref: refs/tags/release
 
 variables:
-  PackageArtifactName: runtime.linux-x64.BuildXL.${{ parameters.LinuxRuntimePackageVersion }}
+  PackageArtifactName: runtime.ubuntu-linux-x64.buildxl.${{ parameters.LinuxRuntimePackageVersion }}
   PackageDir: $(Build.SourcesDirectory)/Public/Src/Sandbox/Linux/bin/$(PackageArtifactName)
 
 parameters:
@@ -29,19 +29,10 @@ extends:
   template: v1/1ES.Unofficial.PipelineTemplate.yml@1esPipelines
   parameters:
 
-    # quay.io/pypa/manylinux2014_x86_64 chosen because the Linux runtime binaries must be built for 'manylinux2014' (more precisely, against glibc 2.17)
     pool:
-      name: 1ES-Shared-Hosted-Pool_Linux-Mariner-2
+      name: BuildXL-DevOpsAgents-Linux-PME
       os: linux
-    containers:
-      default_linux_container:
-        image: quay.io/pypa/manylinux2014_x86_64
-      linux_container:
-        image: 1espipelinesdevpme.azurecr.io/linux/ubuntu-1804:latest
-        registry: 1espipelinesdevpme.azurecr.io
-        tenantId: PME
-        identityType: 1ESPipelineIdentity
-        
+    
     stages:
     - stage: Build
       jobs:

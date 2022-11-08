@@ -4,7 +4,7 @@ set -euo pipefail
 
 readonly __dir=$(cd `dirname ${BASH_SOURCE[0]}` && pwd)
 readonly version="$1"
-readonly pkgName="runtime.linux-x64.BuildXL.${version}"
+readonly pkgName="runtime.ubuntu-linux-x64.buildxl.${version}"
 readonly binDir="${__dir}/bin"
 
 if [[ ! -d "${binDir}/debug" ]] || [[ ! -d "${binDir}/release" ]]; then
@@ -21,13 +21,13 @@ touch "${pkgName}/ref/netstandard/_._"
 mkdir -p "${pkgName}/runtimes/linux-x64/native"
 cp -r debug release "${pkgName}/runtimes/linux-x64/native"
 
-cat > "${pkgName}/runtime.linux-x64.BuildXL.nuspec" <<EOF
+cat > "${pkgName}/runtime.ubuntu-linux-x64.buildxl.nuspec" <<EOF
 <?xml version="1.0" encoding="utf-8"?>
 <package xmlns="http://schemas.microsoft.com/packaging/2013/01/nuspec.xsd">
   <metadata minClientVersion="2.12">
-    <id>runtime.linux-x64.BuildXL</id>
+    <id>runtime.ubuntu-linux-x64.buildxl</id>
     <version>${version}</version>
-    <title>runtime.linux-x64.BuildXL</title>
+    <title>runtime.ubuntu-linux-x64.buildxl</title>
     <authors>Microsoft</authors>
     <owners>microsoft,buildxl,bxl</owners>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>

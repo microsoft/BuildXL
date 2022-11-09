@@ -25,6 +25,7 @@ using BuildXL.Cache.ContentStore.Sessions;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using Microsoft.VisualStudio.Services.BlobStore.Common;
@@ -181,7 +182,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
         /// <inheritdoc />
         protected async override Task<BoolResult> ShutdownCoreAsync(OperationContext context)
         {
-            BoolResult result = BoolResult.Success;
+        BoolResult result = BoolResult.Success;
             try
             {
                 await _backgroundPinQueue!.DisposeAsync();
@@ -196,11 +197,11 @@ namespace BuildXL.Cache.ContentStore.Vsts
             return result;
         }
 
-        private Task PerformBackgroundBulkPinAsync(OperationContext context, BackgroundPinRequest[] batch)
+        private Task PerformBackgroundBulkPinAsync(OperationContext context, List<BackgroundPinRequest> batch)
         {
             return context.PerformNonResultOperationAsync(Tracer, async () =>
             {
-                var contentHashes = new ContentHash[batch.Length];
+                var contentHashes = new ContentHash[batch.Count];
                 var endDateTime = DateTime.MinValue;
 
                 var i = 0;
@@ -233,7 +234,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
                 return Unit.Void;
             },
             traceOperationStarted: false,
-            extraEndMessage: _ => $"Count=[{batch.Length}]");
+            extraEndMessage: _ => $"Count=[{batch.Count}]");
         }
 
         /// <inheritdoc />

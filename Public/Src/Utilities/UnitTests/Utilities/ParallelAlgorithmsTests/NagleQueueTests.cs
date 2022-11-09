@@ -7,25 +7,25 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.InterfacesTest;
-using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Utilities.Tasks;
-using ContentStoreTest.Test;
 using FluentAssertions;
-using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
 
-namespace ContentStoreTest.Utils
+namespace Test.BuildXL.Utilities.ParallelAlgorithmsTests
 {
-    public class NagleQueueTests : TestWithOutput
+    public class NagleQueueTests
     {
+        private readonly ITestOutputHelper _output;
+        
+        /// <nodoc />
         public NagleQueueTests(ITestOutputHelper output)
-            : base(output)
         {
+            _output = output;
         }
 
-        protected virtual INagleQueue<T> CreateNagleQueue<T>(Func<T[], Task> processBatch, int maxDegreeOfParallelism, TimeSpan interval, int batchSize, bool start = true)
+        protected virtual INagleQueue<T> CreateNagleQueue<T>(Func<List<T>, Task> processBatch, int maxDegreeOfParallelism, TimeSpan interval, int batchSize, bool start = true)
         {
             return start
                 ? NagleQueue<T>.Create(processBatch, maxDegreeOfParallelism, interval, batchSize)
@@ -70,8 +70,7 @@ namespace ContentStoreTest.Utils
 
             async Task testCore(int attempt)
             {
-                var log = TestGlobal.Logger;
-                TestGlobal.Logger.Debug($"Running {attempt} attempt.");
+                _output.WriteLine($"Running {attempt} attempt.");
                 Task task = null;
 
                 using (var queue = CreateNagleQueue<int>(
@@ -113,7 +112,7 @@ namespace ContentStoreTest.Utils
             var queue = CreateNagleQueue<int>(
                 processBatch: data =>
                               {
-                                  Output.WriteLine("Called. Data.Length=" + data.Length);
+                                  _output.WriteLine("Called. Data.Length=" + data.Count);
                                   processBatchIsCalled++;
                                   return Task.FromResult(42);
                               },
@@ -151,8 +150,7 @@ namespace ContentStoreTest.Utils
         [Fact]
         public async Task DisposeAsyncWaitsForCompletion()
         {
-            var logger = TestGlobal.Logger;
-            logger.Debug("Starting...");
+            _output.WriteLine("Starting...");
             var tcs = TaskSourceSlim.Create<object>();
             var queue = CreateNagleQueue<int>(
                 processBatch: async data =>
@@ -169,14 +167,13 @@ namespace ContentStoreTest.Utils
             await queue.DisposeAsync();
             tcs.Task.IsCompleted.Should().BeTrue();
 
-            logger.Debug($"Disposed. Elapsed: {sw.ElapsedMilliseconds}");
+            _output.WriteLine($"Disposed. Elapsed: {sw.ElapsedMilliseconds}");
         }
 
         [Fact]
         public async Task DisposeAsyncShouldFailIfCallbackFails()
         {
-            var logger = TestGlobal.Logger;
-            logger.Debug("Starting...");
+            _output.WriteLine("Starting...");
             var queue = CreateNagleQueue<int>(
                 processBatch: async data =>
                 {
@@ -190,7 +187,7 @@ namespace ContentStoreTest.Utils
             queue.Enqueue(42);
 
             await Assert.ThrowsAsync<InvalidOperationException>(async () => await queue.DisposeAsync());
-            logger.Debug($"Disposed. Elapsed: {sw.ElapsedMilliseconds}");
+            _output.WriteLine($"Disposed. Elapsed: {sw.ElapsedMilliseconds}");
         }
 
         [Fact]
@@ -223,7 +220,7 @@ namespace ContentStoreTest.Utils
             using (var queue = CreateNagleQueue<int>(
                 processBatch: data =>
                               {
-                                  dataLength = data.Length;
+                                  dataLength = data.Count;
                                   processBatchWasCalled = true;
                                   processBatchEvent.Set();
                                   return Task.FromResult(42);
@@ -252,7 +249,7 @@ namespace ContentStoreTest.Utils
                                       threads.Add(Thread.CurrentThread.ManagedThreadId);
                                   }
 
-                                  Output.WriteLine("Data: " + string.Join(", ", data.Select(x => x.ToString())));
+                                  _output.WriteLine("Data: " + string.Join(", ", data.Select(x => x.ToString())));
                                   await Task.Delay(1);
                               },
                 maxDegreeOfParallelism: 2,
@@ -298,7 +295,7 @@ namespace ContentStoreTest.Utils
             using (var queue = CreateNagleQueue<int>(
                 processBatch: data =>
                               {
-                                  batchSize = data.Length;
+                                  batchSize = data.Count;
                                   return Task.FromResult(42);
                               },
                 maxDegreeOfParallelism: 1,
@@ -310,6 +307,47 @@ namespace ContentStoreTest.Utils
             }
 
             Assert.Equal(2, batchSize);
+        }
+
+        [Fact]
+        public void TestExceptionHandling()
+        {
+            // This test hangs for the old implementation because due to subtle race condition
+            // the action block used by the nagle queue might ended up in failed state when
+            // the batch block still has unprocessed items.
+            // We're going to retire the old impelmentation so its not worth fixing the race condition in the code that was always been there
+            // and that is going to be deleted in the neer future.
+            int callbackCount = 0;
+            var queue = CreateNagleQueue<int>(
+                async data =>
+                {
+                    callbackCount++;
+                    await Task.Yield();
+                    var e = new InvalidOperationException(string.Join(", ", data.Select(n => n.ToString())));
+                    throw e;
+                },
+                maxDegreeOfParallelism: 1,
+                interval: TimeSpan.FromMilliseconds(10),
+                batchSize: 2,
+                start: false);
+            queue.Start();
+            queue.Enqueue(1);
+            queue.Enqueue(2);
+            queue.Enqueue(3);
+
+            // And if callback fails, the queue itself moves to a faulted state.
+            // This will manifest itself in an error during Dispose invocation.
+            // This is actually quite problematic, because Dispose method can be called
+            // from the finally block (explicitly, or implicitly via using block)
+            // and in this case the original exception that caused the finally block invocation
+            // will be masked by the exception from Dispose method.
+            // Work item: 1741215
+
+            // Dispose method propagates the error thrown in the callback.
+            Assert.Throws<InvalidOperationException>(() => queue.Dispose());
+
+            // Once callback fails, it won't be called any more
+            callbackCount.Should().Be(1);
         }
     }
 }

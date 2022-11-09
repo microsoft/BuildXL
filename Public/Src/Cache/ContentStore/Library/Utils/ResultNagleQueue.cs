@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Utilities.Tasks;
 
 namespace BuildXL.Cache.ContentStore.Utils
@@ -38,7 +39,7 @@ namespace BuildXL.Cache.ContentStore.Utils
                     try
                     {
                         var bulkTask = execute(items.SelectList(b => b.item));
-                        for (int i = 0; i < items.Length; i++)
+                        for (int i = 0; i < items.Count; i++)
                         {
                             var item = items[i];
                             item.completion.LinkToTask(bulkTask, i, (bulkResult, index) => bulkResult[index]);

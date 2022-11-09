@@ -165,7 +165,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <inheritdoc />
         protected override Task<BoolResult> StartupCoreAsync(OperationContext context)
         {
-            NagleOperationTracer = !_configuration.TraceOperations ? null : NagleQueueFactory.Create<(Context context, IToStringConvertible entry, EntryOperation op, OperationReason reason)>(
+            NagleOperationTracer = !_configuration.TraceOperations ? null : NagleQueue.Create<(Context context, IToStringConvertible entry, EntryOperation op, OperationReason reason)>(
                 ops =>
                 {
                     if (_configuration.UseContextualEntryOperationLogging)

@@ -591,7 +591,7 @@ namespace Test.BuildXL.FingerprintStore
             // 1 batch per process
             RuntimeCacheMissAnalyzer.s_numberOfBatchesLogged = 0;
             Configuration.Logging.AriaIndividualMessageSizeLimitBytes = result1Len + result2Len + result3Len + result4Len + result5Len + result6Len + result7Len + 1;
-            RuntimeCacheMissAnalyzer.ProcessResults(results.ToArray(), Configuration, LoggingContext);
+            RuntimeCacheMissAnalyzer.ProcessResults(results.ToList(), Configuration, LoggingContext);
             XAssert.AreEqual(m_cacheMissAnalysisBatchList.Count, 1, "Should have 1 batch logging.");
             XAssert.Contains(m_cacheMissAnalysisBatchList[0], string1, string2, string3, string4, string5, string6, string7);
             m_cacheMissAnalysisBatchList.Clear();
@@ -599,7 +599,7 @@ namespace Test.BuildXL.FingerprintStore
             // 2 batch per process 
             RuntimeCacheMissAnalyzer.s_numberOfBatchesLogged = 0;
             Configuration.Logging.AriaIndividualMessageSizeLimitBytes = result1Len + result2Len + result3Len + result4Len + 1;
-            RuntimeCacheMissAnalyzer.ProcessResults(results.ToArray(), Configuration, LoggingContext);
+            RuntimeCacheMissAnalyzer.ProcessResults(results.ToList(), Configuration, LoggingContext);
             XAssert.AreEqual(m_cacheMissAnalysisBatchList.Count, 2, "Should have 2 batch logging.");
             XAssert.Contains(m_cacheMissAnalysisBatchList[0], string1, string2, string3, string4);
             XAssert.Contains(m_cacheMissAnalysisBatchList[1], string5, string6, string7);
@@ -608,7 +608,7 @@ namespace Test.BuildXL.FingerprintStore
             // batch - single - batch in a process
             RuntimeCacheMissAnalyzer.s_numberOfBatchesLogged = 0;
             Configuration.Logging.AriaIndividualMessageSizeLimitBytes = result1Len + result2Len + result3Len + 20;
-            RuntimeCacheMissAnalyzer.ProcessResults(results.ToArray(), Configuration, LoggingContext);
+            RuntimeCacheMissAnalyzer.ProcessResults(results.ToList(), Configuration, LoggingContext);
             XAssert.AreEqual(m_cacheMissAnalysisBatchList.Count, 3, "Should have 3 batch logging.");
             XAssert.Contains(m_cacheMissAnalysisBatchList[0], string1, string2, string3);
             XAssert.Contains(m_cacheMissAnalysisBatchList[1], string4);
@@ -619,7 +619,7 @@ namespace Test.BuildXL.FingerprintStore
             // batch - single - single - single - batch in a process
             RuntimeCacheMissAnalyzer.s_numberOfBatchesLogged = 0;
             Configuration.Logging.AriaIndividualMessageSizeLimitBytes = result1Len + result2Len + 1;
-            RuntimeCacheMissAnalyzer.ProcessResults(results.ToArray(), Configuration, LoggingContext);
+            RuntimeCacheMissAnalyzer.ProcessResults(results.ToList(), Configuration, LoggingContext);
             XAssert.AreEqual(m_cacheMissAnalysisBatchList.Count, 5, "Should have 5 batch logging.");
             XAssert.Contains(m_cacheMissAnalysisBatchList[0], string1, string2);
             XAssert.Contains(m_cacheMissAnalysisBatchList[1], string3);
@@ -633,7 +633,7 @@ namespace Test.BuildXL.FingerprintStore
             // all single in a process
             RuntimeCacheMissAnalyzer.s_numberOfBatchesLogged = 0;
             Configuration.Logging.AriaIndividualMessageSizeLimitBytes = result1Len + 1;
-            RuntimeCacheMissAnalyzer.ProcessResults(results.ToArray(), Configuration, LoggingContext);
+            RuntimeCacheMissAnalyzer.ProcessResults(results.ToList(), Configuration, LoggingContext);
             XAssert.AreEqual(m_cacheMissAnalysisBatchList.Count, 7, "Should have 7 batch logging.");
             XAssert.Contains(m_cacheMissAnalysisBatchList[0], string1);
             XAssert.Contains(m_cacheMissAnalysisBatchList[1], string2.Substring(string2.Length - Configuration.Logging.AriaIndividualMessageSizeLimitBytes / 2 + 20));
@@ -657,7 +657,7 @@ namespace Test.BuildXL.FingerprintStore
             // all single in a process, test a result's len == maxLogLen
             RuntimeCacheMissAnalyzer.s_numberOfBatchesLogged = 0;
             Configuration.Logging.AriaIndividualMessageSizeLimitBytes = result3Len;
-            RuntimeCacheMissAnalyzer.ProcessResults(results.ToArray(), Configuration, LoggingContext);
+            RuntimeCacheMissAnalyzer.ProcessResults(results.ToList(), Configuration, LoggingContext);
             XAssert.AreEqual(m_cacheMissAnalysisBatchList.Count, 7, "Should have 7 batch logging.");
             XAssert.Contains(m_cacheMissAnalysisBatchList[0], string1);
             XAssert.Contains(m_cacheMissAnalysisBatchList[1], string2); 
@@ -736,7 +736,7 @@ namespace Test.BuildXL.FingerprintStore
             results.Add(result);
             RuntimeCacheMissAnalyzer.s_numberOfBatchesLogged = 0;
             Configuration.Logging.AriaIndividualMessageSizeLimitBytes = 600;
-            RuntimeCacheMissAnalyzer.ProcessResults(results.ToArray(), Configuration, LoggingContext);
+            RuntimeCacheMissAnalyzer.ProcessResults(results.ToList(), Configuration, LoggingContext);
             XAssert.AreEqual(m_cacheMissAnalysisBatchList.Count, 1, "Should have 1 batch logging.");
             XAssert.Contains(m_cacheMissAnalysisBatchList[0], pipHash);
             XAssert.Contains(m_cacheMissAnalysisBatchList[0], "[...]");

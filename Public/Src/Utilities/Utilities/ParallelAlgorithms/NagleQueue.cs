@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft Corporation.
+// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
 using System;
@@ -13,59 +13,79 @@ using BuildXL.Utilities.Collections;
 
 namespace BuildXL.Utilities.ParallelAlgorithms
 {
-    /// <nodoc />
-    public static class NagleQueueFactory
+    /// <summary>
+    /// Interface for batch processing items based on time or a number of items.
+    /// </summary>
+    public interface INagleQueue<T> : IAsyncDisposable, IDisposable
     {
         /// <summary>
-        /// Gets or sets a global flag that controls which version of <see cref="INagleQueue{T}"/> to use.
+        /// Suspends processing data until the resulting object is disposed.
         /// </summary>
-        public static bool UseV2ByDefault = false;
+        IDisposable Suspend();
 
-        /// <nodoc />
-        public static INagleQueue<T> Create<T>(Func<IReadOnlyList<T>, Task> processBatch, int maxDegreeOfParallelism, TimeSpan interval, int batchSize)
-        {
-            return UseV2ByDefault
-                ? NagleQueue<T>.Create(items => processBatch(items), maxDegreeOfParallelism, interval, batchSize)
-                : NagleQueueV2<T>.Create(items => processBatch(items), maxDegreeOfParallelism, interval, batchSize);
-        }
+        /// <summary>
+        /// Starts the processing.
+        /// </summary>
+        void Start();
 
-        /// <nodoc />
-        public static INagleQueue<T> CreateUnstarted<T>(Func<IReadOnlyList<T>, Task> processBatch, int maxDegreeOfParallelism, TimeSpan interval, int batchSize)
+        /// <summary>
+        /// Adds an <paramref name="item"/> for asynchronous processing.
+        /// </summary>
+        void Enqueue(T item);
+
+        /// <summary>
+        /// Adds <paramref name="items"/> for asynchronous processing.
+        /// </summary>
+        void EnqueueAll(IEnumerable<T> items);
+    }
+
+    /// <summary>
+    /// Factory for creating <see cref="NagleQueue{T}"/>.
+    /// </summary>
+    public static class NagleQueue
+    {
+        /// <summary>
+        /// Creates a fully functioning nagle queue.
+        /// </summary>
+        public static NagleQueue<T> Create<T>(Func<List<T>, Task> processBatch, int maxDegreeOfParallelism, TimeSpan interval, int batchSize)
         {
-            return UseV2ByDefault
-                ? NagleQueue<T>.CreateUnstarted(items => processBatch(items), maxDegreeOfParallelism, interval, batchSize)
-                : NagleQueueV2<T>.CreateUnstarted(items => processBatch(items), maxDegreeOfParallelism, interval, batchSize);
+            return NagleQueue<T>.Create(processBatch, maxDegreeOfParallelism, interval, batchSize);
         }
     }
 
     /// <summary>
-    /// A new version of nagle queue that is not based on TPL dataflow.
+    /// Nagling queue for processing data in batches based on the size or a time interval.
     /// </summary>
-    public class NagleQueueV2<T> : INagleQueue<T>
+    public class NagleQueue<T> : INagleQueue<T>
     {
-        private bool _disposed;
-        private readonly TimeSpan _timerInterval;
+        private bool m_disposed;
+        private readonly TimeSpan m_timerInterval;
 
-        private readonly int _batchSize;
-        private readonly ObjectPool<List<T>> _itemListPool;
+        private readonly int m_batchSize;
+        private readonly ObjectPool<List<T>> m_itemListPool;
 
-        private readonly ActionBlockSlim<List<T>> _actionBlock;
+        private readonly ActionBlockSlim<List<T>> m_actionBlock;
 
-        private List<T> _items;
-        private readonly object _itemsLock = new object();
-        private readonly Timer _intervalTimer;
+        private List<T> m_items;
+        private readonly object m_itemsLock = new object();
+        private readonly Timer m_intervalTimer;
 
-        private bool _eventsSuspended;
-        private ConcurrentQueue<T>? _suspendedEvents;
+        private bool m_eventsSuspended;
+        private ConcurrentQueue<T>? m_suspendedEvents;
+
+        /// <summary>
+        /// Gets the batch size of the nagle queue.
+        /// </summary>
+        public int BatchSize => m_batchSize;
 
         /// <nodoc />
-        private NagleQueueV2(Func<List<T>, Task> processBatch, int maxDegreeOfParallelism, TimeSpan interval, int batchSize)
+        protected NagleQueue(Func<List<T>, Task> processBatch, int maxDegreeOfParallelism, TimeSpan interval, int batchSize)
         {
-            _timerInterval = interval;
-            _batchSize = batchSize;
-            _itemListPool = new ObjectPool<List<T>>(() => new List<T>(capacity: batchSize), list => list.Clear());
+            m_timerInterval = interval;
+            m_batchSize = batchSize;
+            m_itemListPool = new ObjectPool<List<T>>(() => new List<T>(capacity: batchSize), list => list.Clear());
 
-            _actionBlock = ActionBlockSlim.CreateWithAsyncAction<List<T>>(
+            m_actionBlock = ActionBlockSlim.CreateWithAsyncAction<List<T>>(
                 degreeOfParallelism: maxDegreeOfParallelism,
                 async items =>
                 {
@@ -75,32 +95,32 @@ namespace BuildXL.Utilities.ParallelAlgorithms
                     }
                     finally
                     {
-                        _itemListPool.PutInstance(items);
+                        m_itemListPool.PutInstance(items);
                     }
                 });
 
             // The timer is essentially off until the Start method is called.
-            _intervalTimer = new Timer(SendIncompleteBatch, null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
-            _items = _itemListPool.GetInstance().Instance;
+            m_intervalTimer = new Timer(SendIncompleteBatch, null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+            m_items = m_itemListPool.GetInstance().Instance;
         }
 
         /// <summary>
         /// Creates a unstarted nagle queue which is not started until <see cref="Start()"/> is called.
         /// </summary>
-        public static NagleQueueV2<T> CreateUnstarted(Func<List<T>, Task> processBatch, int maxDegreeOfParallelism, TimeSpan interval, int batchSize)
+        public static NagleQueue<T> CreateUnstarted(Func<List<T>, Task> processBatch, int maxDegreeOfParallelism, TimeSpan interval, int batchSize)
         {
             if (maxDegreeOfParallelism == 1 && batchSize == 1)
             {
-                return new SynchronousNagleQueueV2<T>(processBatch, maxDegreeOfParallelism, interval, batchSize);
+                return new SynchronousNagleQueue<T>(processBatch, maxDegreeOfParallelism, interval, batchSize);
             }
 
-            return new NagleQueueV2<T>(processBatch, maxDegreeOfParallelism, interval, batchSize);
+            return new NagleQueue<T>(processBatch, maxDegreeOfParallelism, interval, batchSize);
         }
 
         /// <summary>
         /// Creates a fully functioning nagle queue.
         /// </summary>
-        public static NagleQueueV2<T> Create(Func<List<T>, Task> processBatch, int maxDegreeOfParallelism, TimeSpan interval, int batchSize)
+        public static NagleQueue<T> Create(Func<List<T>, Task> processBatch, int maxDegreeOfParallelism, TimeSpan interval, int batchSize)
         {
             var queue = CreateUnstarted(processBatch, maxDegreeOfParallelism, interval, batchSize);
             queue.Start();
@@ -120,9 +140,9 @@ namespace BuildXL.Utilities.ParallelAlgorithms
         {
             ThrowIfDisposed();
 
-            if (_eventsSuspended)
+            if (m_eventsSuspended)
             {
-                _suspendedEvents!.Enqueue(item);
+                m_suspendedEvents!.Enqueue(item);
             }
             else
             {
@@ -134,14 +154,14 @@ namespace BuildXL.Utilities.ParallelAlgorithms
         protected virtual void EnqueueCore(T item)
         {
             List<T>? itemsToProcess = null;
-            lock (_itemsLock)
+            lock (m_itemsLock)
             {
-                _items.Add(item);
+                m_items.Add(item);
 
-                if (_items.Count >= _batchSize)
+                if (m_items.Count >= m_batchSize)
                 {
-                    itemsToProcess = _items;
-                    _items = _itemListPool.GetInstance().Instance;
+                    itemsToProcess = m_items;
+                    m_items = m_itemListPool.GetInstance().Instance;
                 }
             }
 
@@ -149,7 +169,7 @@ namespace BuildXL.Utilities.ParallelAlgorithms
             {
                 // Its possible that the block is completed because the Dispose method was already called.
                 // Ignoring this case here because we know that the block can't be full (its configured to be unbounded).
-                _actionBlock.Post(itemsToProcess, throwOnFullOrComplete: false);
+                m_actionBlock.Post(itemsToProcess, throwOnFullOrComplete: false);
             }
         }
 
@@ -160,16 +180,16 @@ namespace BuildXL.Utilities.ParallelAlgorithms
 
             ThrowIfDisposed();
 
-            lock (_itemsLock)
+            lock (m_itemsLock)
             {
                 foreach (var item in items)
                 {
-                    _items.Add(item);
+                    m_items.Add(item);
 
-                    if (_items.Count >= _batchSize)
+                    if (m_items.Count >= m_batchSize)
                     {
-                        _actionBlock.Post(_items);
-                        _items = _itemListPool.GetInstance().Instance;
+                        m_actionBlock.Post(m_items);
+                        m_items = m_itemListPool.GetInstance().Instance;
                     }
                 }
             }
@@ -180,26 +200,26 @@ namespace BuildXL.Utilities.ParallelAlgorithms
         /// </summary>
         public IDisposable Suspend()
         {
-            // Intentionally not checking _disposed flag here because
+            // Intentionally not checking m_disposed flag here because
             // it is possible to call this method when the disposal is already started.
             // In this case we still return ResumeBlockDisposable that will do nothing at the end.
 
-            _suspendedEvents ??= new ConcurrentQueue<T>();
-            _eventsSuspended = true;
-            return new DisposeAction<NagleQueueV2<T>>(this, @this => @this.Resume());
+            m_suspendedEvents ??= new ConcurrentQueue<T>();
+            m_eventsSuspended = true;
+            return new DisposeAction<NagleQueue<T>>(this, @this => @this.Resume());
         }
 
         private void Resume()
         {
-            _eventsSuspended = false;
-            var suspendedEvents = _suspendedEvents;
+            m_eventsSuspended = false;
+            var suspendedEvents = m_suspendedEvents;
             if (suspendedEvents == null)
             {
                 return;
             }
 
             // We should not be processing suspended events if Dispose method was already called.
-            while (!_eventsSuspended && !_disposed)
+            while (!m_eventsSuspended && !m_disposed)
             {
                 if (suspendedEvents.TryDequeue(out var item))
                 {
@@ -225,26 +245,26 @@ namespace BuildXL.Utilities.ParallelAlgorithms
         private void TriggerBatch()
         {
             List<T>? itemsToProcess;
-            lock (_itemsLock)
+            lock (m_itemsLock)
             {
-                itemsToProcess = _items;
-                _items = _itemListPool.GetInstance().Instance;
+                itemsToProcess = m_items;
+                m_items = m_itemListPool.GetInstance().Instance;
             }
 
             if (itemsToProcess.Count != 0)
             {
-                _actionBlock.Post(itemsToProcess);
+                m_actionBlock.Post(itemsToProcess);
             }
         }
 
         private void ResetTimer()
         {
-            // The callback method can be called even when the _intervalTimer.Dispose method is called.
+            // The callback method can be called even when the m_intervalTimer.Dispose method is called.
             // We do our best and not change the timer if the whole instance is disposed, but
             // the race is still possible so to avoid potential crashes we still have to swallow ObjectDisposedException here.
-            if (!_disposed)
+            if (!m_disposed)
             {
-                try { _intervalTimer.Change(_timerInterval, Timeout.InfiniteTimeSpan); }
+                try { m_intervalTimer.Change(m_timerInterval, Timeout.InfiniteTimeSpan); }
                 catch (ObjectDisposedException) { }
             }
         }
@@ -252,20 +272,20 @@ namespace BuildXL.Utilities.ParallelAlgorithms
         /// <inheritdoc />
         public async ValueTask DisposeAsync()
         {
-            if (_disposed)
+            if (m_disposed)
             {
                 return;
             }
 
-            _disposed = true;
+            m_disposed = true;
 
             // Stopping the timer to avoid triggering it when the items are being processed.
-            _intervalTimer.Dispose();
+            m_intervalTimer.Dispose();
 
             TriggerBatch();
-            _actionBlock.Complete(propagateExceptionsFromCallback: true);
+            m_actionBlock.Complete(propagateExceptionsFromCallback: true);
 
-            await _actionBlock.Completion;
+            await m_actionBlock.Completion;
         }
 
         /// <inheritdoc />
@@ -277,25 +297,25 @@ namespace BuildXL.Utilities.ParallelAlgorithms
         /// <nodoc />
         private void ThrowIfDisposed()
         {
-            if (_disposed)
+            if (m_disposed)
             {
                 throw new ObjectDisposedException(nameof(NagleQueue<T>));
             }
         }
 
-        internal class SynchronousNagleQueueV2<T2> : NagleQueueV2<T2>
+        internal class SynchronousNagleQueue<T2> : NagleQueue<T2>
         {
-            private readonly Func<List<T2>, Task> _processBatch;
+            private readonly Func<List<T2>, Task> m_processBatch;
 
-            internal SynchronousNagleQueueV2(Func<List<T2>, Task> processBatch, int maxDegreeOfParallelism, TimeSpan interval, int batchSize)
+            internal SynchronousNagleQueue(Func<List<T2>, Task> processBatch, int maxDegreeOfParallelism, TimeSpan interval, int batchSize)
                 : base(processBatch, maxDegreeOfParallelism, interval, batchSize)
             {
-                _processBatch = processBatch;
+                m_processBatch = processBatch;
             }
 
             protected override void EnqueueCore(T2 item)
             {
-                _processBatch(new List<T2>() { item }).GetAwaiter().GetResult();
+                m_processBatch(new List<T2>() { item }).GetAwaiter().GetResult();
             }
         }
     }

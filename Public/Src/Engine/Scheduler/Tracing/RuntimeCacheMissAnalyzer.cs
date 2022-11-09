@@ -18,6 +18,7 @@ using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
@@ -217,7 +218,7 @@ namespace BuildXL.Scheduler.Tracing
         ///     }
         ///}
         /// </summary>
-        internal Task<Unit> BatchLogging(JProperty[] results)
+        internal Task<Unit> BatchLogging(List<JProperty> results)
         {
             // Use JsonTextWritter for 2 reasons:
             // 1. easily control when to start a new log event and when to end it.
@@ -225,12 +226,12 @@ namespace BuildXL.Scheduler.Tracing
             using (Counters.StartStopwatch(FingerprintStoreCounters.CacheMissBatchLoggingTime))                
             {
                 ProcessResults(results, m_configuration, m_loggingContext);
-                Counters.AddToCounter(FingerprintStoreCounters.CacheMissBatchingDequeueCount, results.Length);
+                Counters.AddToCounter(FingerprintStoreCounters.CacheMissBatchingDequeueCount, results.Count);
                 return Unit.VoidTask;
             }
         }
 
-        internal static void ProcessResults(JProperty[] results, IConfiguration configuration, LoggingContext loggingContext)
+        internal static void ProcessResults(List<JProperty> results, IConfiguration configuration, LoggingContext loggingContext)
         {
             int maxLogSize = configuration.Logging.AriaIndividualMessageSizeLimitBytes;
             using (var sbPool = Pools.GetStringBuilder())
@@ -241,7 +242,7 @@ namespace BuildXL.Scheduler.Tracing
                 var logStarted = false;
                 var hasProperty = false;
                 var lenSum = 0;
-                for (int i = 0; i < results.Length; i++)
+                for (int i = 0; i < results.Count; i++)
                 {
                     startLoggingIfNot();
 

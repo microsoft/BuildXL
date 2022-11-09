@@ -68,7 +68,7 @@ namespace BuildXL.Cache.Logging
             SaveMetricsAsynchronously = saveMetricsAsynchronously;
             if (saveMetricsAsynchronously)
             {
-                _metricsSavingQueue = NagleQueueFactory.Create<SaveMetricInput>(
+                _metricsSavingQueue = NagleQueue.Create<SaveMetricInput>(
                     metrics =>
                     {
                         foreach (var (metric, dimensions, returnToPool) in metrics.AsStructEnumerable())

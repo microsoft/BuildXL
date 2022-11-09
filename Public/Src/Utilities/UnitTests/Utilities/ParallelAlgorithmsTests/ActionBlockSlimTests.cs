@@ -2,15 +2,14 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Tasks;
-
-using Xunit;
 using BuildXL.Utilities.ParallelAlgorithms;
-using System.Collections.Concurrent;
 using BuildXL.Utilities.Tasks;
+using Xunit;
 
-namespace Test.BuildXL.Utilities
+namespace Test.BuildXL.Utilities.ParallelAlgorithmsTests
 {
     public class ActionBlockSlimTests
     {
@@ -424,7 +423,7 @@ namespace Test.BuildXL.Utilities
 
         private static async Task WaitUntilAsync(Func<bool> predicate)
         {
-            bool waitSucceeded = await ParallelAlgorithms.WaitUntilAsync(predicate, TimeSpan.FromMilliseconds(1), timeout: TimeSpan.FromSeconds(5));
+            bool waitSucceeded = await global::BuildXL.Utilities.ParallelAlgorithms.ParallelAlgorithms.WaitUntilAsync(predicate, TimeSpan.FromMilliseconds(1), timeout: TimeSpan.FromSeconds(5));
             Assert.True(waitSucceeded);
         }
     }

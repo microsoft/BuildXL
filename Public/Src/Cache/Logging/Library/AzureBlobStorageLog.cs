@@ -17,7 +17,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Secrets;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Utils;
-using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Utilities.Tracing;
 using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Blob;
@@ -222,7 +222,7 @@ namespace BuildXL.Cache.Logging
             _writeQueue.EnqueueAll(logs);
         }
 
-        private Task WriteBatchAsync(string[] logEventInfos)
+        private Task WriteBatchAsync(List<string> logEventInfos)
         {
             return _context.PerformOperationAsync(Tracer, async () =>
                 {
@@ -241,12 +241,12 @@ namespace BuildXL.Cache.Logging
                 counter: Counters[AzureBlobStorageLogCounters.ProcessBatchCalls],
                 traceErrorsOnly: true,
                 silentOperationDurationThreshold: TimeSpan.MaxValue,
-                extraEndMessage: _ => $"NumLines=[{logEventInfos.Length}]");
+                extraEndMessage: _ => $"NumLines=[{logEventInfos.Count}]");
         }
 
-        private Task UploadBatchAsync(LogFile[] logFilePaths)
+        private Task UploadBatchAsync(List<LogFile> logFilePaths)
         {
-            Contract.Requires(logFilePaths.Length == 1);
+            Contract.Requires(logFilePaths.Count == 1);
 
             return _context.PerformOperationAsync(Tracer, () => UploadToBlobStorageAsync(_context, logFilePaths[0]),
                 counter: Counters[AzureBlobStorageLogCounters.ProcessBatchCalls],
@@ -258,7 +258,7 @@ namespace BuildXL.Cache.Logging
                 extraEndMessage: _ => $"LogFile=[{logFilePaths[0].Path}]");
         }
 
-        private Task<Result<LogFile>> WriteLogsToFileAsync(OperationContext context, AbsolutePath logFilePath, string[] logs)
+        private Task<Result<LogFile>> WriteLogsToFileAsync(OperationContext context, AbsolutePath logFilePath, List<string> logs)
         {
             return context.PerformOperationAsync(Tracer, async () =>
                 {
@@ -303,7 +303,7 @@ namespace BuildXL.Cache.Logging
                         compressedSizeBytes = fileStream.Position;
                     }
 
-                    Tracer.TrackMetric(context, $"LogLinesWritten", logs.Length);
+                    Tracer.TrackMetric(context, $"LogLinesWritten", logs.Count);
                     Tracer.TrackMetric(context, $"CompressedBytesWritten", compressedSizeBytes);
                     Tracer.TrackMetric(context, $"UncompressedBytesWritten", uncompressedSizeBytes);
 
@@ -322,13 +322,13 @@ namespace BuildXL.Cache.Logging
                     {
                         var value = result.Value;
                         return
-                            $"LogFilePath=[{value.Path}] NumLogLines=[{logs.Length}] " +
+                            $"LogFilePath=[{value.Path}] NumLogLines=[{logs.Count}] " +
                             $"CompressedSizeBytes=[{value.CompressedSizeBytes?.ToSizeExpression() ?? "Unknown"}] " +
                             $"UncompressedSizeBytes=[{value.UncompressedSizeBytes?.ToSizeExpression() ?? "Unknown"}]";
                     }
                     else
                     {
-                        return $"LogFilePath=[{logFilePath}] NumLogLines=[{logs.Length}]";
+                        return $"LogFilePath=[{logFilePath}] NumLogLines=[{logs.Count}]";
                     }
                 },
                 counter: Counters[AzureBlobStorageLogCounters.WriteLogsToFileCalls]);

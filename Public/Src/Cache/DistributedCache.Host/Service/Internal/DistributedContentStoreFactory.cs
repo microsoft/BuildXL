@@ -472,7 +472,6 @@ namespace BuildXL.Cache.Host.Service.Internal
             ApplyIfNotNull(settings.ReserveSpaceTimeoutInMinutes, v => result.ReserveTimeout = TimeSpan.FromMinutes(v));
 
             ApplyIfNotNull(settings.UseHierarchicalTraceIds, v => Context.UseHierarchicalIds = v);
-            ApplyIfNotNull(settings.UseNagleQueueV2ByDefault, v => NagleQueueFactory.UseV2ByDefault = v);
 
             return result;
         }

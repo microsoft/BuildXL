@@ -17,6 +17,7 @@ using BuildXL.Ipc.Interfaces;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Authentication;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using Microsoft.VisualStudio.Services.ArtifactServices.App.Shared.Cache;
@@ -334,15 +335,15 @@ namespace Tool.DropDaemon
         /// <remarks>
         ///     This method is called concurrently.
         /// </remarks>
-        private async Task ProcessAddFilesAsync(AddFileItem[] batch)
+        private async Task ProcessAddFilesAsync(List<AddFileItem> batch)
         {
-            if (batch.Length == 0)
+            if (batch.Count == 0)
             {
                 return;
             }
 
             m_counters.IncrementCounter(DropClientCounter.NumberOfBatches);
-            if (batch.Length == m_config.BatchSize)
+            if (batch.Count == m_config.BatchSize)
             {
                 m_counters.IncrementCounter(DropClientCounter.NumberOfCompleteBatches);
             }
@@ -355,7 +356,7 @@ namespace Tool.DropDaemon
             try
             {
                 var dedupedBatch = SkipFilesWithTheSameDropPathAndContent(batch);
-                var numSkipped = batch.Length - dedupedBatch.Length;
+                var numSkipped = batch.Count - dedupedBatch.Length;
                 m_logger.Info("Processing a batch of {0} drop files after skipping {1} files.", dedupedBatch.Length, numSkipped);
 
                 Task<HashSet<string>> registerFilesForBuildManifestTask = null;
@@ -418,7 +419,7 @@ namespace Tool.DropDaemon
             }
             catch (Exception e)
             {
-                m_logger.Verbose($"Failed ProcessAddFilesAsync (batch size:{batch.Length}, blobsForAssociate size:{blobsForAssociate.Length}){Environment.NewLine}"
+                m_logger.Verbose($"Failed ProcessAddFilesAsync (batch size:{batch.Count}, blobsForAssociate size:{blobsForAssociate.Length}){Environment.NewLine}"
                     + string.Join(
                         Environment.NewLine,
                         batch.Select(item => $"'{item.FullFilePath}', '{item.RelativeDropFilePath}', BlobId:'{item.BlobIdentifier?.ToString() ?? ""}', Task.IsCompleted:{item.DropResultTaskSource.Task.IsCompleted}")));
@@ -436,9 +437,9 @@ namespace Tool.DropDaemon
             }
         }
 
-        private AddFileItem[] SkipFilesWithTheSameDropPathAndContent(AddFileItem[] batch)
+        private AddFileItem[] SkipFilesWithTheSameDropPathAndContent(List<AddFileItem> batch)
         {
-            var dedupedItems = new Dictionary<string, AddFileItem>(capacity: batch.Length, comparer: StringComparer.OrdinalIgnoreCase);
+            var dedupedItems = new Dictionary<string, AddFileItem>(capacity: batch.Count, comparer: StringComparer.OrdinalIgnoreCase);
             var numSkipped = 0;
             var numFailed = 0;
             foreach (var item in batch)
@@ -466,9 +467,9 @@ namespace Tool.DropDaemon
                 }
             }
 
-            if (batch.Length != numSkipped + numFailed + dedupedItems.Count)
+            if (batch.Count != numSkipped + numFailed + dedupedItems.Count)
             {
-                Contract.Assert(false, $"batch_count ({batch.Length}) != num_skipped ({numSkipped}) + num_failed({numFailed}) + num_returned ({dedupedItems.Count})");
+                Contract.Assert(false, $"batch_count ({batch.Count}) != num_skipped ({numSkipped}) + num_failed({numFailed}) + num_returned ({dedupedItems.Count})");
             }
 
             return dedupedItems.Values.ToArray();

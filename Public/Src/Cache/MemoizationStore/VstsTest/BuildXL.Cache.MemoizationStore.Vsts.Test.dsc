@@ -37,7 +37,7 @@ namespace VstsTest {
             ...BuildXLSdk.fluentAssertionsWorkaround,
             
             importFrom("BuildXL.Utilities").Authentication.dll,
-            importFrom("BuildXL.Utilities").Collections.dll,
+            importFrom("BuildXL.Utilities").dll,
         ],
         runtimeContent: [
             ...addIf(BuildXLSdk.isFullFramework,

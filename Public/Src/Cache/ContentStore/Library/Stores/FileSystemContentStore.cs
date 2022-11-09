@@ -18,7 +18,7 @@ using BuildXL.Cache.ContentStore.Synchronization;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
-using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.ParallelAlgorithms;
 
 namespace BuildXL.Cache.ContentStore.Stores
 {

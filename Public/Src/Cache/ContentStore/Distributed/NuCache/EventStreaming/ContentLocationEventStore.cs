@@ -360,7 +360,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         /// <inheritdoc />
         protected override Task<BoolResult> StartupCoreAsync(OperationContext context)
         {
-            EventNagleQueue = NagleQueueFactory.Create<(OperationContext context, ContentLocationEventData data)>(
+            EventNagleQueue = NagleQueue.Create<(OperationContext context, ContentLocationEventData data)>(
                 // If nagle queue is triggered by time and has just one entry, we can use the context from that entry.
                 // Otherwise we'll create a nested context.
 

@@ -9,7 +9,7 @@ using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Utilities.Tasks;
 using Xunit;
 
-namespace Test.BuildXL.Utilities
+namespace Test.BuildXL.Utilities.ParallelAlgorithmsTests
 {
     public class ActionQueueTests
     {

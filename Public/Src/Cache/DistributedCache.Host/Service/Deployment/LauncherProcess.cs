@@ -6,7 +6,7 @@ using System.Diagnostics;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
-using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.ParallelAlgorithms;
 
 namespace BuildXL.Cache.Host.Service
 {

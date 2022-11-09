@@ -221,13 +221,13 @@ namespace Tool.SymbolDaemon
             return await batchedFile.ResultTaskSource.Task;
         }
 
-        private async Task ProcessBatchedFilesAsync(BatchedSymbolFile[] batch)
+        private async Task ProcessBatchedFilesAsync(List<BatchedSymbolFile> batch)
         {
             var batchNumber = Interlocked.Increment(ref m_batchCount);
 
             try
             {
-                m_logger.Info($"Started processing batch #{batchNumber} ({batch.Length} files).");
+                m_logger.Info($"Started processing batch #{batchNumber} ({batch.Count} files).");
 
                 await EnsureRequestIdAndDomainIdAreInitalizedAsync();
 
@@ -257,7 +257,7 @@ namespace Tool.SymbolDaemon
             }
             catch (Exception e)
             {
-                m_logger.Verbose($"Failed ProcessBatchedFilesAsync (batch #{batchNumber}, size:{batch.Length}){Environment.NewLine}"
+                m_logger.Verbose($"Failed ProcessBatchedFilesAsync (batch #{batchNumber}, size:{batch.Count}){Environment.NewLine}"
                    + string.Join(
                        Environment.NewLine,
                        batch.Select(item => $"'{item.File.FullFilePath}', Hash:'{item.File.Hash}', DebugEntries.Count: {item.File.DebugEntries.Count}, Task.IsCompleted:{item.ResultTaskSource.Task.IsCompleted}")));
@@ -306,7 +306,7 @@ namespace Tool.SymbolDaemon
             return result;
         }
 
-        private Dictionary<BlobIdentifier, BatchedSymbolFile> SetResultForAssociatedFiles(BatchedSymbolFile[] batch, List<DebugEntry> entriesWithMissingBlobs)
+        private Dictionary<BlobIdentifier, BatchedSymbolFile> SetResultForAssociatedFiles(List<BatchedSymbolFile> batch, List<DebugEntry> entriesWithMissingBlobs)
         {
             // A single file might contain multiple DebugEntries, however, all them will share the same BlobIdentifier.
             // Because of that, we only need to check the BlobIdentifier of the first entry for each file.

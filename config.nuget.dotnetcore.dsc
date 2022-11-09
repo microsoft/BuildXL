@@ -98,7 +98,7 @@ export const pkgs = [
     { id: "System.ComponentModel.TypeConverter", version: pkgVersion },
     { id: "System.Console", version: pkgVersion },
     { id: "System.Data.Common", version: pkgVersion },
-    { id: "System.Data.SqlClient", version: pkgVersion },
+    { id: "System.Data.SqlClient", version: "4.8.5" },
     { id: "System.Diagnostics.Contracts", version: pkgVersion },
     { id: "System.Diagnostics.Debug", version: pkgVersion },
     { id: "System.Diagnostics.FileVersionInfo", version: pkgVersion },

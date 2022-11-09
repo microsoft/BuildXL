@@ -4,6 +4,7 @@
 import { NetFx } from "Sdk.BuildXL";
 import * as Managed from "Sdk.Managed";
 import * as BuildXLSdk from "Sdk.BuildXL";
+import * as Deployment from "Sdk.Deployment";
 
 namespace AdoBuildRunner {
 
@@ -26,4 +27,11 @@ namespace AdoBuildRunner {
             importFrom("Microsoft.TeamFoundation.DistributedTask.Common.Contracts").pkg,
         ],
     });
+
+    @@public
+    export const deployment: Deployment.Definition = {
+        contents: [
+            exe
+        ]
+    };
 }

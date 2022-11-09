@@ -24,7 +24,8 @@ function createDeployment(isServerDeployment: boolean, isMinimal: boolean) : Dep
             // Use the operating system specific BuildXL binary for deployments
             Main.exe,
             f`DefaultCacheConfig.json`,
-
+            
+            importFrom("BuildXL.Tools").AdoBuildRunner.deployment,
             importFrom("BuildXL.Cache.VerticalStore").Deployment.deployment,
             importFrom("BuildXL.Cache.ContentStore").deploymentForBuildXL,
 

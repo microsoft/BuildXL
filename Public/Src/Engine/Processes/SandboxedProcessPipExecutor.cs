@@ -1947,7 +1947,7 @@ namespace BuildXL.Processes
                     (m_sandboxConfig.OutputReportingMode == OutputReportingMode.FullOutputOnWarningOrError && errorOrWarnings) ||
                     (m_sandboxConfig.OutputReportingMode == OutputReportingMode.FullOutputOnError && !mainProcessSuccess))
                 {
-                    if (!await TryLogOutputAsync(result))
+                    if (!await TryLogOutputWithTimeoutAsync(result, loggingContext))
                     {
                         loggingSuccess = false;
                     }
@@ -5166,8 +5166,9 @@ namespace BuildXL.Processes
             return output.Length > MaxConsoleLength;
         }
 
-        private async Task<bool> TryLogOutputAsync(SandboxedProcessResult result)
+        private async Task<bool> TryLogOutputWithTimeoutAsync(SandboxedProcessResult result, LoggingContext loggingContext)
         {
+            TimeSpan timeoutPerChunk = TimeSpan.FromMinutes(2);
             using (TextReader errorReader = CreateReader(result.StandardError))
             {
                 using (TextReader outReader = CreateReader(result.StandardOutput))
@@ -5177,51 +5178,61 @@ namespace BuildXL.Processes
                         return false;
                     }
 
-                    while (errorReader.Peek() != -1 || outReader.Peek() != -1)
+                    try
                     {
-                        string stdError = await ReadNextChunkAsync(errorReader, result.StandardError);
-                        string stdOut = await ReadNextChunkAsync(outReader, result.StandardOutput);
-
-                        if (stdError == null || stdOut == null)
+                        while (errorReader.Peek() != -1 || outReader.Peek() != -1)
                         {
-                            return false;
+                            string stdError = await ReadNextChunkAsync(errorReader, result.StandardError).WithTimeoutAsync(timeoutPerChunk);
+                            string stdOut = await ReadNextChunkAsync(outReader, result.StandardOutput).WithTimeoutAsync(timeoutPerChunk);
+
+                            if (stdError == null || stdOut == null)
+                            {
+                                return false;
+                            }
+
+                            // Sometimes stdOut/StdErr contains NUL characters (ASCII code 0). While this does not
+                            // create a problem for text editors (they will either display the NUL char or show it
+                            // as whitespace), NUL char messes up with ETW logging BuildXL uses. When a string is
+                            // passed into ETW, it is treated as null-terminated string => everything after the
+                            // the first NUL char is dropped. This causes Bug 1310020.
+                            //
+                            // Remove all NUL chars before logging the output.
+                            if (stdOut.Contains("\0"))
+                            {
+                                stdOut = stdOut.Replace("\0", string.Empty);
+                            }
+
+                            if (stdError.Contains("\0"))
+                            {
+                                stdError = stdError.Replace("\0", string.Empty);
+                            }
+
+                            bool stdOutEmpty = string.IsNullOrWhiteSpace(stdOut);
+                            bool stdErrorEmpty = string.IsNullOrWhiteSpace(stdError);
+
+                            // Send the message to plugin if there is log parsing plugin available
+                            stdError = await (m_pluginEP?.ProcessStdOutAndErrorAsync(stdError, true) ?? Task.FromResult(stdError));
+                            stdOut = await (m_pluginEP?.ProcessStdOutAndErrorAsync(stdOut, true) ?? Task.FromResult(stdOut));
+
+                            string outputToLog = (stdOutEmpty ? string.Empty : stdOut) +
+                                (!stdOutEmpty && !stdErrorEmpty ? Environment.NewLine : string.Empty) +
+                                (stdErrorEmpty ? string.Empty : stdError);
+
+                            await Task.Run(
+                                () => Tracing.Logger.Log.PipProcessOutput(
+                                    m_loggingContext,
+                                    m_pip.SemiStableHash,
+                                    m_pipDescription,
+                                    m_pip.Provenance.Token.Path.ToString(m_pathTable),
+                                    m_workingDirectory,
+                                    AddTrailingNewLineIfNeeded(outputToLog)))
+                            .WithTimeoutAsync(timeoutPerChunk);
                         }
-
-                        // Sometimes stdOut/StdErr contains NUL characters (ASCII code 0). While this does not
-                        // create a problem for text editors (they will either display the NUL char or show it
-                        // as whitespace), NUL char messes up with ETW logging BuildXL uses. When a string is
-                        // passed into ETW, it is treated as null-terminated string => everything after the
-                        // the first NUL char is dropped. This causes Bug 1310020.
-                        //
-                        // Remove all NUL chars before logging the output.
-                        if (stdOut.Contains("\0"))
-                        {
-                            stdOut = stdOut.Replace("\0", string.Empty);
-                        }
-
-                        if (stdError.Contains("\0"))
-                        {
-                            stdError = stdError.Replace("\0", string.Empty);
-                        }
-
-                        bool stdOutEmpty = string.IsNullOrWhiteSpace(stdOut);
-                        bool stdErrorEmpty = string.IsNullOrWhiteSpace(stdError);
-
-                        // Send the message to plugin if there is log parsing plugin available
-                        stdError = await (m_pluginEP?.ProcessStdOutAndErrorAsync(stdError, true) ?? Task.FromResult(stdError));
-                        stdOut = await (m_pluginEP?.ProcessStdOutAndErrorAsync(stdOut, true) ?? Task.FromResult(stdOut));
-
-                        string outputToLog = (stdOutEmpty ? string.Empty : stdOut) +
-                            (!stdOutEmpty && !stdErrorEmpty ? Environment.NewLine : string.Empty) +
-                            (stdErrorEmpty ? string.Empty : stdError);
-
-                        Tracing.Logger.Log.PipProcessOutput(
-                            m_loggingContext,
-                            m_pip.SemiStableHash,
-                            m_pipDescription,
-                            m_pip.Provenance.Token.Path.ToString(m_pathTable),
-                            m_workingDirectory,
-                            AddTrailingNewLineIfNeeded(outputToLog));
+                    }
+                    catch (TimeoutException)
+                    {
+                        // Return true even if a timeout occurs with a warning logged to avoid failing the build
+                        Tracing.Logger.Log.SandboxedProcessResultLogOutputTimeout(loggingContext, m_pip.FormattedSemiStableHash, timeoutPerChunk.Minutes);
                     }
 
                     return true;

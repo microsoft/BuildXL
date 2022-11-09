@@ -1254,5 +1254,15 @@ namespace BuildXL.Processes.Tracing
             EventTask = (int)Tasks.PipExecutor,
             Message = "[{pipDescription}] The output file '{assertedOutput}' existence was asserted under output directory root '{outputDirectoryRoot}' but the file was not produced by the pip.")]
         public abstract void ExistenceAssertionUnderOutputDirectoryFailed(LoggingContext context, string pipDescription, string assertedOutput, string outputDirectoryRoot);
+
+        [GeneratedEvent(
+            (int)LogEventId.SandboxedProcessResultLogOutputTimeout,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = "[{pipSemiStableHash}] Logging process StandardOutput/StandardError timed out after exceeding '{timeoutInMinutes}' minutes. This may be caused by the default terminal being Windows Terminal, workaround this by switching the default terminal to 'Windows Console Host' in Windows settings or Windows Terminal settings. Output streams may be incomplete due to this error.")]
+        public abstract void SandboxedProcessResultLogOutputTimeout(LoggingContext context, string pipSemiStableHash, int timeoutInMinutes);
+
     }
 }

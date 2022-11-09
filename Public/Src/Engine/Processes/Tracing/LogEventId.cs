@@ -172,6 +172,8 @@ namespace BuildXL.Processes.Tracing
         ExceptionOnFindingAnyBuildClient = 12512,
         AnyBuildRepoConfigOverrides = 12513,
 
+        SandboxedProcessResultLogOutputTimeout = 12514,
+
         //// Special tool errors
         PipProcessToolErrorDueToHandleToFileBeingUsed = 14300,
     }

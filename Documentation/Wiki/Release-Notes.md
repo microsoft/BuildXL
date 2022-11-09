@@ -1,6 +1,31 @@
 This page is a curated list of the release notes for releases after 0.20170619.4.0 and a manual copy of notable changes from each build before that. See the repo's commit history full details for what is included in each build.
 
 =======
+# 0.1.0-20221104.7 (Release [241075](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=2410751&_a=release-pipeline-progress) Released 11/09/2022)
+- Allow cache lookup pips to be reschedule on other machines when machine processing task is lost
+- Various dependency security patches
+- Reliability improvements for per-pip process dumps
+- Don’t reuse server process when VSTS L3 cache client fails to authenticate
+- Improve Linux developer documentation
+- Various perf optimizations for highly cached distributed builds
+- Ability to control injected FILE_SHARE_DELETE in detours based sandbox
+- Disable LD_AUDIT events in linux sandbox to improve performance
+- Symbol upload compatible with non-VS0 hash types
+- Split npm package into Windows & Linux
+- BuildXL uses Ubuntu built file access observation sandbox
+- Do not set timestamps or scrub shared opaque directories in CloudBuild
+
+# 0.1.0-20221020.0.1 (Release [236579](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=236579&_a=release-pipeline-progress) Released 10/26/2022)
+- Improved documentation and examples for the Ninja resolver
+- Fix CMake resolver invocation command line
+- Add extra provenance when logging environment variables impacting the build
+- Choose worker logic redesign
+
+# 0.1.0-20221013.0 (Release [232249](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=232249&_a=release-pipeline-progress) Released 10/19/2022)
+- Allow gRPC IPC server to receive arbitrarily large messages
+- Introduce /assumeCleanOutputDirs to avoid scrubber for shared opaque dirs
+- Expose running unsandboxed in yarn SDK
+
 # 0.1.0-20221007.3 (Release [229981](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=229981&_a=release-pipeline-progress) Released 10/12/2022)
 - Reuse weak identity for source files.
 - Remove MaterializeInput step for IPC pips.

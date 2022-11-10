@@ -92,7 +92,7 @@ namespace BuildXL.Scheduler.WorkDispatcher
         /// </summary>
         public static bool IsChooseWorker(this DispatcherKind kind)
         {
-            return kind == DispatcherKind.ChooseWorkerLight || kind == DispatcherKind.ChooseWorkerCacheLookup || kind == DispatcherKind.ChooseWorkerCpu;
+            return kind == DispatcherKind.ChooseWorkerLight || kind == DispatcherKind.ChooseWorkerCacheLookup || kind == DispatcherKind.ChooseWorkerCpu || kind == DispatcherKind.ChooseWorkerIpc;
         }
     
     }

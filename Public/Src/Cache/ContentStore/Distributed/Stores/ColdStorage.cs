@@ -6,7 +6,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Threading.Tasks.Dataflow;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
@@ -22,10 +21,9 @@ using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.Host.Configuration;
-using BuildXL.Cache.ContentStore.UtilitiesCore;
-using BuildXL.Utilities.Collections;
 using static BuildXL.Utilities.ConfigurationHelper;
 using System.IO;
+using BuildXL.Utilities.ParallelAlgorithms;
 
 #nullable enable
 
@@ -336,20 +334,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
 
         public async Task<IEnumerable<Task<Indexed<PlaceFileResult>>>> FetchThenPutBulkAsync(OperationContext context, IReadOnlyList<ContentHashWithPath> args, IContentSession contentSession)
         {
-            var putFilesBlock =
-                new TransformBlock<Indexed<ContentHashWithPath>, Indexed<PlaceFileResult>>(
-                    async indexed =>
-                    {
-                        return new Indexed<PlaceFileResult>(await CreateTempAndPutAsync(context, indexed.Item.Hash, contentSession), indexed.Index);
-                    },
-                    new ExecutionDataflowBlockOptions { MaxDegreeOfParallelism = _maxParallelPlaces });
-
-            putFilesBlock.PostAll(args.AsIndexed());
-
-            var copyFilesLocally =
-                    await Task.WhenAll(
-                        Enumerable.Range(0, args.Count).Select(i => putFilesBlock.ReceiveAsync(context.Token)));
-            putFilesBlock.Complete();
+            var putFilesActionQueue = new ActionQueue(degreeOfParallelism: _maxParallelPlaces);
+            var copyFilesLocally = await putFilesActionQueue.SelectAsync(
+                items: args,
+                body: async (item, index) => (await CreateTempAndPutAsync(context, item.Hash, contentSession)).WithIndex(index));
 
             return copyFilesLocally.AsTasks();
         }

@@ -9,8 +9,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
     /// <summary>
     /// Container class for storing an item along with an index
     /// </summary>
-    /// <typeparam name="T">Type of inner item</typeparam>
-    public class Indexed<T>
+    public readonly record struct Indexed<T>
     {
         /// <summary>
         /// Gets the index of the item
@@ -33,6 +32,14 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
             Item = item;
             Index = index;
         }
+
+        /// <summary>
+        /// Deconstructs an instance for pattern matching.
+        /// </summary>
+        public void Deconstruct(
+            out T item,
+            out int index
+        ) => (item, index) = (Item, Index);
 
         /// <inheritdoc />
         public override string ToString()

@@ -12,7 +12,6 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Threading.Tasks.Dataflow;
 using BuildXL.Cache.ContentStore.Exceptions;
 using BuildXL.Cache.ContentStore.Extensions;
 using BuildXL.Cache.ContentStore.FileSystem;
@@ -34,13 +33,13 @@ using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
-using static BuildXL.Utilities.Collections.TargetBlockExtensions;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 using FileInfo = BuildXL.Cache.ContentStore.Interfaces.FileSystem.FileInfo;
 using OperatingSystemHelper = BuildXL.Utilities.OperatingSystemHelper;
 using RelativePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.RelativePath;
 using static BuildXL.Cache.ContentStore.Interfaces.Results.PlaceFileResult.ResultCode;
 using System.Security.AccessControl;
+using BuildXL.Utilities.ParallelAlgorithms;
 
 namespace BuildXL.Cache.ContentStore.Stores
 {
@@ -1977,16 +1976,11 @@ namespace BuildXL.Cache.ContentStore.Stores
             FileRealizationMode realizationMode,
             PinRequest? pinRequest = null)
         {
-            var placeFileInternalBlock = new TransformBlock<Indexed<ContentHashWithPath>, Indexed<PlaceFileResult>>(
-                async p =>
-                    (await PlaceFileAsync(context, p.Item.Hash, p.Item.Path, accessMode, replacementMode, realizationMode, pinRequest)).WithIndex(p.Index),
-                new ExecutionDataflowBlockOptions { MaxDegreeOfParallelism = Configuration?.ParallelPlaceFilesLimit ?? 8, });
-
-            // TODO: Better way ? (bug 1365340)
-            placeFileInternalBlock.PostAll(placeFileArgs.AsIndexed());
-            var results = await Task.WhenAll(Enumerable.Range(0, placeFileArgs.Count).Select(i => placeFileInternalBlock.ReceiveAsync()));
-            placeFileInternalBlock.Complete();
-
+            var degreeOfParallelism = Configuration?.ParallelPlaceFilesLimit ?? 8;
+            var actionQueue = new ActionQueue(degreeOfParallelism);
+            var results = await actionQueue.SelectAsync(
+                placeFileArgs,
+                async (item, index) => (await PlaceFileAsync(context, item.Hash, item.Path, accessMode, replacementMode, realizationMode, pinRequest)).WithIndex(index));
             return results.AsTasks();
         }
 

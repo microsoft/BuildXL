@@ -9,7 +9,6 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Threading.Tasks.Dataflow;
 using BuildXL.Cache.ContentStore.Distributed.Stores;
 using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.Extensions;
@@ -31,6 +30,7 @@ using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using ContentStore.Grpc;
@@ -427,7 +427,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 // Fire off the default pin action, but do not await the result.
                 //
                 // Creating a new OperationContext instance without existing 'CancellationToken',
-                // because the operation we trigerred that stored in 'pinTask' can outlive the lifetime of the current instance.
+                // because the operation we triggered that stored in 'pinTask' can outlive the lifetime of the current instance.
                 // And we don't want the PerformNonResultOperationAsync to fail because the current instance is shut down (or disposed).
                 new OperationContext(operationContext.TracingContext).PerformNonResultOperationAsync(
                     Tracer,
@@ -437,7 +437,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                         var resultString = string.Join(",", results.Select(async task =>
                         {
                             // Since all bulk operations are constructed with Task.FromResult, it is safe to just access the result;
-                            Indexed<PinResult>? result = await task;
+                            Indexed<PinResult> result = await task;
                             return result != null ? $"{contentHashes[result.Index].ToShortString()}:{result.Item}" : string.Empty;
                         }));
 
@@ -746,65 +746,56 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                         .AsIndexedTasks();
                 }
 
-                // TransformBlock is supposed to return items in FIFO order, so we don't need to index the input
-                var copyFilesLocallyBlock =
-                    new TransformBlock<Indexed<ContentHashWithSizeAndLocations>, Indexed<PlaceFileResult>>(
-                        async indexed =>
+                async Task<Indexed<PlaceFileResult>> copyAndPut(ContentHashWithSizeAndLocations contentHashWithSizeAndLocations, int index)
+                {
+                    PlaceFileResult result;
+                    try
+                    {
+                        if (!CanCopyContentHash(context, contentHashWithSizeAndLocations, isGlobal: origin == GetBulkOrigin.Global, out var useInRingMachineLocations, out var errorMessage))
                         {
-                            PlaceFileResult result;
-                            try
+                            result = PlaceFileResult.CreateContentNotFound(errorMessage);
+                        }
+                        else
+                        {
+                            var copyResult = await TryCopyAndPutAsync(
+                                context,
+                                contentHashWithSizeAndLocations,
+                                urgencyHint,
+                                reason,
+                                // We just traced all the hashes as a result of GetBulk call, no need to trace each individual hash.
+                                trace: false,
+                                // Using in-ring locations as well if the feature is on.
+                                useInRingMachineLocations: useInRingMachineLocations,
+                                outputPath: hashesWithPaths[index].Path);
+
+                            if (!copyResult)
                             {
-                                var contentHashWithSizeAndLocations = indexed.Item;
-
-                                if (!CanCopyContentHash(context, contentHashWithSizeAndLocations, isGlobal: origin == GetBulkOrigin.Global, out var useInRingMachineLocations, out var errorMessage))
-                                {
-                                    result = PlaceFileResult.CreateContentNotFound(errorMessage);
-                                }
-                                else
-                                {
-                                    var copyResult = await TryCopyAndPutAsync(
-                                        context,
-                                        contentHashWithSizeAndLocations,
-                                        urgencyHint,
-                                        reason,
-                                        // We just traced all the hashes as a result of GetBulk call, no need to trace each individual hash.
-                                        trace: false,
-                                        // Using in-ring locations as well if the feature is on.
-                                        useInRingMachineLocations: useInRingMachineLocations,
-                                        outputPath: hashesWithPaths[indexed.Index].Path);
-
-                                    if (!copyResult)
-                                    {
-                                        // For ColdStorage we should treat all errors as cache misses
-                                        result = origin != GetBulkOrigin.ColdStorage ? new PlaceFileResult(copyResult) : new PlaceFileResult(copyResult, PlaceFileResult.ResultCode.NotPlacedContentNotFound);
-                                    }
-                                    else
-                                    {
-                                        var source = origin == GetBulkOrigin.ColdStorage
-                                            ? PlaceFileResult.Source.ColdStorage
-                                            : PlaceFileResult.Source.DatacenterCache;
-                                        result = PlaceFileResult.CreateSuccess(PlaceFileResult.ResultCode.PlacedWithMove, copyResult.ContentSize, source);
-                                    }
-                                }
+                                // For ColdStorage we should treat all errors as cache misses
+                                result = origin != GetBulkOrigin.ColdStorage ? new PlaceFileResult(copyResult) : new PlaceFileResult(copyResult, PlaceFileResult.ResultCode.NotPlacedContentNotFound);
                             }
-                            catch (Exception e)
+                            else
                             {
-                                // The transform block should not fail with an exception otherwise the block's state will be changed to failed state and the exception
-                                // won't be propagated to the caller.
-                                result = new PlaceFileResult(e);
+                                var source = origin == GetBulkOrigin.ColdStorage
+                                    ? PlaceFileResult.Source.ColdStorage
+                                    : PlaceFileResult.Source.DatacenterCache;
+                                result = PlaceFileResult.CreateSuccess(PlaceFileResult.ResultCode.PlacedWithMove, copyResult.ContentSize, source);
                             }
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        // The transform block should not fail with an exception otherwise the block's state will be changed to failed state and the exception
+                        // won't be propagated to the caller.
+                        result = new PlaceFileResult(e);
+                    }
 
-                            return result.WithIndex(indexed.Index);
+                    return result.WithIndex(index);
+                }
 
-                        },
-                        new ExecutionDataflowBlockOptions { MaxDegreeOfParallelism = Settings.ParallelCopyFilesLimit });
-
-                // TODO: Better way ? (bug 1365340)
-                copyFilesLocallyBlock.PostAll(getBulkResult.ContentHashesInfo.AsIndexed());
-                var copyFilesLocally =
-                    await Task.WhenAll(
-                        Enumerable.Range(0, getBulkResult.ContentHashesInfo.Count).Select(_ => copyFilesLocallyBlock.ReceiveAsync(context.Token)));
-                copyFilesLocallyBlock.Complete();
+                var copyFilesLocallyActionQueue = new ActionQueue(Settings.ParallelCopyFilesLimit);
+                var copyFilesLocally = await copyFilesLocallyActionQueue.SelectAsync(
+                    items: getBulkResult.ContentHashesInfo,
+                    body: (item, index) => copyAndPut(item, index));
 
                 var updateResults = await UpdateContentTrackerWithNewReplicaAsync(
                     context,
@@ -1003,9 +994,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             CancellationToken cancel = operationContext.Token;
             // Create an action block to process all the requested remote pins while limiting the number of simultaneously executed.
             var pinnings = new List<RemotePinning>(hashes.Count);
-            var pinningOptions = new ExecutionDataflowBlockOptions() { CancellationToken = cancel, MaxDegreeOfParallelism = Settings.PinConfiguration?.MaxIOOperations ?? 1 };
-            var pinningAction = new ActionBlock<RemotePinning>(
-                async pinning => await PinRemoteAsync(operationContext, pinning, isLocal: origin == GetBulkOrigin.Local, updateContentTracker: false, succeedWithOneLocation: succeedWithOneLocation), pinningOptions);
+            var pinningAction = ActionBlockSlim.CreateWithAsyncAction<RemotePinning>(
+                degreeOfParallelism: Settings.PinConfiguration?.MaxIOOperations ?? 1,
+                async pinning => await PinRemoteAsync(
+                    operationContext,
+                    pinning,
+                    isLocal: origin == GetBulkOrigin.Local,
+                    updateContentTracker: false,
+                    succeedWithOneLocation: succeedWithOneLocation),
+                cancellationToken: cancel);
 
             // Make a bulk call to content location store to get location records for all hashes on the page.
             // NOTE: We use GetBulkStackedAsync so that when Global results are retrieved we also include Local results to ensure we get a full view of available content
@@ -1018,8 +1015,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 {
                     RemotePinning pinning = new RemotePinning(record);
                     pinnings.Add(pinning);
-                    bool accepted = await pinningAction.SendAsync(pinning, cancel);
-                    Contract.Assert(accepted);
+                    await pinningAction.PostAsync(pinning, cancel);
                 }
             }
             else

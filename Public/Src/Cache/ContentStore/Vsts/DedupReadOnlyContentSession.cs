@@ -13,7 +13,6 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Threading.Tasks.Dataflow;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
@@ -24,6 +23,7 @@ using BuildXL.Cache.ContentStore.Sessions;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Utilities.Tracing;
 using Microsoft.VisualStudio.Services.BlobStore.Common;
 using Microsoft.VisualStudio.Services.BlobStore.WebApi;
@@ -620,13 +620,10 @@ namespace BuildXL.Cache.ContentStore.Vsts
             }
 
             // TODO: Support batched TryKeepUntilReferenceNodeAsync in Artifact. (bug 1428612)
-            var tryReferenceBlock = new TransformBlock<DedupIdentifier, PinResult>(
-                async dedupId => await TryPinNodeAsync(context, dedupId, keepUntil),
-                new ExecutionDataflowBlockOptions { MaxDegreeOfParallelism = DefaultMaxParallelism });
-
-            tryReferenceBlock.PostAll(dedupIdentifiers);
-            var pinResults = await Task.WhenAll(Enumerable.Range(0, dedupIdentifiers.ToList().Count).Select(i => tryReferenceBlock.ReceiveAsync()));
-            tryReferenceBlock.Complete();
+            var tryReferenceActionQueue = new ActionQueue(DefaultMaxParallelism);
+            var pinResults = await tryReferenceActionQueue.SelectAsync(
+                dedupIdentifiers,
+                (dedupId, _) => TryPinNodeAsync(context, dedupId, keepUntil));
 
             foreach (var result in pinResults)
             {
@@ -650,13 +647,10 @@ namespace BuildXL.Cache.ContentStore.Vsts
             }
 
             // TODO: Support batched TryKeepUntilReferenceChunkAsync in Artifact. (bug 1428612)
-            var tryReferenceBlock = new TransformBlock<DedupIdentifier, PinResult>(
-                async dedupId => await TryPinChunkAsync(context, dedupId, keepUntil),
-                new ExecutionDataflowBlockOptions { MaxDegreeOfParallelism = DefaultMaxParallelism });
-
-            tryReferenceBlock.PostAll(dedupIdentifiers);
-            var pinResults = await Task.WhenAll(Enumerable.Range(0, dedupIdentifiers.ToList().Count).Select(i => tryReferenceBlock.ReceiveAsync()));
-            tryReferenceBlock.Complete();
+            var tryReferenceActionQueue = new ActionQueue(DefaultMaxParallelism);
+            var pinResults = await tryReferenceActionQueue.SelectAsync(
+                dedupIdentifiers,
+                (dedupId, _) => TryPinChunkAsync(context, dedupId, keepUntil));
 
             foreach (var result in pinResults)
             {

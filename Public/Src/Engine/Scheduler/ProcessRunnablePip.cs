@@ -76,11 +76,6 @@ namespace BuildXL.Scheduler
         /// </summary>
         public ProcessRunLocation RunLocation { get; set; } = ProcessRunLocation.Default;
 
-        /// <summary>
-        /// Return the step to be executed prior to the cache lookup
-        /// </summary>
-        public PipExecutionStep PreCacheLookupStep =>  Environment.Configuration.Schedule.DelayedCacheLookupEnabled() ? PipExecutionStep.DelayedCacheLookup : PipExecutionStep.ChooseWorkerCacheLookup;
-
         private readonly int m_weightBasedOnHistoricCpuUsage;
 
         internal ProcessRunnablePip(

@@ -4224,6 +4224,8 @@ namespace BuildXL.Scheduler
 
         private DispatcherKind CacheLookupDispatcher => EngineEnvironmentSettings.MergeCacheLookupMaterializeDispatcher.Value ? DispatcherKind.Materialize : DispatcherKind.CacheLookup;
 
+        private PipExecutionStep PreCacheLookupStep => m_configuration.Schedule.DelayedCacheLookupEnabled() ? PipExecutionStep.DelayedCacheLookup : PipExecutionStep.ChooseWorkerCacheLookup;
+
         /// <summary>
         /// Execute the given pip in the current step and return the next step
         /// </summary>
@@ -4292,7 +4294,6 @@ namespace BuildXL.Scheduler
                         }
                     }
 
-
                     bool hashSourceFiles = !m_configuration.EnableDistributedSourceHashing() || !pipType.IsDistributable();
 
                     if (hashSourceFiles)
@@ -4319,7 +4320,7 @@ namespace BuildXL.Scheduler
 
                     if (pipType == PipType.Process)
                     {
-                        return m_configuration.EnableDistributedSourceHashing() ? PipExecutionStep.ChooseWorkerCacheLookup : PipExecutionStep.CheckIncrementalSkip; 
+                        return m_configuration.EnableDistributedSourceHashing() ? PreCacheLookupStep : PipExecutionStep.CheckIncrementalSkip; 
                     }
 
                     // CopyFile, WriteFile, Process, SealDirectory pips
@@ -4456,7 +4457,7 @@ namespace BuildXL.Scheduler
 
                     if (pipType == PipType.Process)
                     {
-                        return processRunnable.PreCacheLookupStep;
+                        return PreCacheLookupStep;
                     }
 
                     return PipExecutionStep.ExecuteNonProcessPip;

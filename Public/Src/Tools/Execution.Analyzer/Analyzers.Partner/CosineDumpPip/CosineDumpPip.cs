@@ -352,7 +352,7 @@ namespace BuildXL.Execution.Analyzer
             {
                 STDInFile = pip.StandardInput.File.IsValid ? pip.StandardInput.File.Path.ToString(PathTable): null,
                 STDOut = pip.StandardOutput.IsValid ? pip.StandardOutput.Path.ToString(PathTable): null,
-                STDError = pip.StandardError.IsValid ? pip.StandardError.Path.ToString() : null,
+                STDError = pip.StandardError.IsValid ? pip.StandardError.Path.ToString(PathTable) : null,
                 STDDirectory = pip.StandardDirectory.IsValid ? pip.StandardDirectory.ToString(PathTable) : null,
                 WarningRegex = pip.WarningRegex.IsValid ? pip.WarningRegex.Pattern.ToString(StringTable) : null,
                 ErrorRegex = pip.ErrorRegex.IsValid ? pip.ErrorRegex.Pattern.ToString(StringTable) : null,

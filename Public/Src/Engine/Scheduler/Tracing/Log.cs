@@ -3667,8 +3667,8 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Error,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.PipInputAssertions,
-            Message = "[{pipDescription}] Source dependency for file at path: {filePath} could not be hashed while processing pip.")]
-        public abstract void PipSourceDependencyCannotBeHashed(LoggingContext context, string filePath, string pipDescription);
+            Message = "[{pipDescription}] Source dependency for file at path: {filePath} could not be hashed while processing pip. Is it a source file? {isSourceFile}")]
+        public abstract void PipSourceDependencyCannotBeHashed(LoggingContext context, string filePath, string pipDescription, bool isSourceFile);
 
         [GeneratedEvent(
             (ushort)LogEventId.ProcessPipExecutionInfo,

@@ -1610,7 +1610,7 @@ namespace BuildXL.Scheduler.Artifacts
 
             if (!artifactContentInfo.HasValue)
             {
-                Logger.Log.PipSourceDependencyCannotBeHashed(operationContext.LoggingContext, fileArtifact.Path.ToString(), consumerDescription);
+                Logger.Log.PipSourceDependencyCannotBeHashed(operationContext.LoggingContext, fileArtifact.Path.ToString(Context.PathTable), consumerDescription, fileArtifact.IsSourceFile);
             }
             return artifactContentInfo;
         }

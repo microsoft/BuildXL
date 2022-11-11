@@ -11,7 +11,10 @@ namespace Hashing {
     @@public
     export const dll = BuildXLSdk.library({
         assemblyName: "BuildXL.Cache.ContentStore.Hashing",
-        sources: globR(d`.`, "*.cs"),
+        sources: [
+            ...globR(d`.`, "*.cs"),
+            f`../../../Utilities/Utilities/ParallelAlgorithms/ActionBlockSlim.cs`
+        ],
         references: [
             UtilitiesCore.dll,
             
@@ -21,7 +24,7 @@ namespace Hashing {
                 NetFx.System.Xml.dll,
             ]),
             ...BuildXLSdk.systemMemoryDeployment,
-            ...BuildXLSdk.systemThreadingTasksDataflowPackageReference,
+            ...BuildXLSdk.systemThreadingChannelsPackages,
             importFrom("System.Threading.Tasks.Extensions").pkg,
             ...BuildXLSdk.bclAsyncPackages,
         ],
@@ -37,5 +40,8 @@ namespace Hashing {
         sourceGenerators: [importFrom("StructRecordGenerator").pkg],
         nullable: true,
         allowUnsafeBlocks: true,
+        // We reference 'ActionBlockSlim' here as sources to avoid runtime dependency to BuildXL.Utilities.
+        // But we don't want to have two dlls with the same public type, so we make it internal in for this case.
+        defineConstants: ["DO_NOT_EXPOSE_ACTIONBLOCKSLIM"]
     });
 }

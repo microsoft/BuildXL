@@ -7,14 +7,20 @@ using System.Diagnostics.ContractsLight;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
-using BuildXL.Utilities.Tasks;
+
+#nullable enable
 
 namespace BuildXL.Utilities.ParallelAlgorithms
 {
     /// <summary>
     /// An exception is thrown when the <see cref="ActionBlockSlim{T}"/> is full and can't accept new items.
     /// </summary>
-    public sealed class ActionBlockIsFullException : InvalidOperationException
+#if DO_NOT_EXPOSE_ACTIONBLOCKSLIM // These types are used in two projects and only in one of them (BuildXL.Utilities) they should be public
+internal
+#else
+public
+#endif // DO_NOT_EXPOSE_ACTIONBLOCKSLIM
+    sealed class ActionBlockIsFullException : InvalidOperationException
     {
         /// <nodoc />
         public int ConcurrencyLimit { get; }
@@ -34,7 +40,12 @@ namespace BuildXL.Utilities.ParallelAlgorithms
     /// <summary>
     /// A non-static factory for creating <see cref="ActionBlockSlim{T}"/> instances.
     /// </summary>
-    public static class ActionBlockSlim
+#if DO_NOT_EXPOSE_ACTIONBLOCKSLIM // These types are used in two projects and only in one of them (BuildXL.Utilities) they should be public
+internal
+#else
+public
+#endif // DO_NOT_EXPOSE_ACTIONBLOCKSLIM
+    static class ActionBlockSlim
     {
         /// <summary>
         /// Creates an instance of the action block.
@@ -64,6 +75,46 @@ namespace BuildXL.Utilities.ParallelAlgorithms
                 cancellationToken);
         }
 
+        /// <summary>
+        /// Creates an instance of the action block.
+        /// </summary>
+        /// <remarks>
+        /// Please use this factory method only for CPU intensive (non-asynchronous) callbacks.
+        /// If you need to control the concurrency for asynchronous operations, please use CreateWithAsyncAction helper.
+        /// </remarks>
+        public static ActionBlockSlim<T> Create<T>(
+            ActionBlockSlimConfiguration configuration,
+            Action<T> processItemAction,
+            CancellationToken cancellationToken = default)
+        {
+            return CreateWithAsyncAction<T>(
+                configuration,
+                t =>
+                {
+                    processItemAction(t);
+                    return Task.CompletedTask;
+                },
+                cancellationToken);
+        }
+
+        /// <nodoc />
+        public static ActionBlockSlim<T> Create<T>(
+            int degreeOfParallelism,
+            Func<T, Task> processItemAction,
+            int? capacityLimit = null,
+            bool singleProducedConstrained = false,
+            CancellationToken cancellationToken = default)
+        {
+            return CreateWithAsyncAction(
+                new ActionBlockSlimConfiguration(
+                    DegreeOfParallelism: degreeOfParallelism,
+                    CapacityLimit: capacityLimit,
+                    SingleProducerConstrained: singleProducedConstrained
+                ),
+                processItemAction,
+                cancellationToken);
+        }
+        
         /// <nodoc />
         public static ActionBlockSlim<T> CreateWithAsyncAction<T>(
             int degreeOfParallelism,
@@ -144,7 +195,12 @@ namespace BuildXL.Utilities.ParallelAlgorithms
     /// <summary>
     /// Configuration object for <see cref="ActionBlockSlim{T}"/>
     /// </summary>
-    public record ActionBlockSlimConfiguration(
+#if DO_NOT_EXPOSE_ACTIONBLOCKSLIM // These types are used in two projects and only in one of them (BuildXL.Utilities) they should be public
+internal
+#else
+public
+#endif // DO_NOT_EXPOSE_ACTIONBLOCKSLIM    
+    record ActionBlockSlimConfiguration(
         int DegreeOfParallelism,
         int? CapacityLimit = null,
         bool SingleProducerConstrained = false,
@@ -153,7 +209,12 @@ namespace BuildXL.Utilities.ParallelAlgorithms
     /// <summary>
     /// A base class for different action-block-like implementations.
     /// </summary>
-    public sealed class ActionBlockSlim<T>
+#if DO_NOT_EXPOSE_ACTIONBLOCKSLIM // These types are used in two projects and only in one of them (BuildXL.Utilities) they should be public
+internal
+#else
+public
+#endif // DO_NOT_EXPOSE_ACTIONBLOCKSLIM
+    sealed class ActionBlockSlim<T>
     {
         private readonly ActionBlockSlimConfiguration m_configuration;
         private readonly Func<T, CancellationToken, Task> m_processItemAction;
@@ -163,7 +224,7 @@ namespace BuildXL.Utilities.ParallelAlgorithms
         private readonly CancellationTokenSource m_internalCancellation = new CancellationTokenSource();
         private readonly List<Task> m_tasks = new List<Task>();
         private readonly Channel<T> m_channel;
-        private readonly TaskSourceSlim<Unit> m_tcs = TaskSourceSlim.Create<Unit>();
+        private readonly TaskCompletionSource<object?> m_tcs = new TaskCompletionSource<object?>(TaskCreationOptions.RunContinuationsAsynchronously);
 
         private long m_addedWorkItems = 0;
 
@@ -283,22 +344,27 @@ namespace BuildXL.Utilities.ParallelAlgorithms
                     //
                     // using 'WaitToReadOrCanceledAsync' instead of 'channel.Reader.WaitToReadAsync' to simply break
                     // the execution when the token is triggered instead of throwing 'OperationCanceledException'
-                    while (await m_channel.WaitToReadOrCanceledAsync(cts.Token).ConfigureAwait(false))
+                    try
                     {
-                        while (!cts.Token.IsCancellationRequested && m_channel.Reader.TryRead(out var item))
+                        while (await m_channel.Reader.WaitToReadAsync(cts.Token).ConfigureAwait(false))
                         {
-                            Interlocked.Increment(ref m_processingWorkItems);
-                            try
+                            while (!cts.Token.IsCancellationRequested && m_channel.Reader.TryRead(out var item))
                             {
-                                await m_processItemAction(item, cts.Token);
-                            }
-                            finally
-                            {
-                                Interlocked.Decrement(ref m_processingWorkItems);
-                                Interlocked.Increment(ref m_processedWorkItems);
+                                Interlocked.Increment(ref m_processingWorkItems);
+                                try
+                                {
+                                    await m_processItemAction(item, cts.Token);
+                                }
+                                finally
+                                {
+                                    Interlocked.Decrement(ref m_processingWorkItems);
+                                    Interlocked.Increment(ref m_processedWorkItems);
+                                }
                             }
                         }
                     }
+                    catch(OperationCanceledException) // Ignoring OperationCanceledException that might happen here in 'WaitToReadAsync' method
+                    { }
                 },
                 taskCreationOptions);
 
@@ -310,10 +376,16 @@ namespace BuildXL.Utilities.ParallelAlgorithms
         /// item has been added to the processing queue, which can take some time if the processing of items is slower
         /// than the rate at which elements are added to the queue.
         /// </summary>
-        public async ValueTask PostAsync(T item, CancellationToken cancellationToken = default)
+        public async ValueTask<bool> PostAsync(T item, CancellationToken cancellationToken = default)
         {
+            if (m_internalCancellation.IsCancellationRequested)
+            {
+                return false;
+            }
+
             await m_channel.Writer.WriteAsync(item, cancellationToken);
             Interlocked.Increment(ref m_addedWorkItems);
+            return true;
         }
 
         /// <summary>
@@ -323,6 +395,22 @@ namespace BuildXL.Utilities.ParallelAlgorithms
         public void Post(T item, bool throwOnFullOrComplete = true)
         {
             TryPost(item, throwOnFullOrComplete);
+        }
+
+        /// <summary>
+        /// Post all the given items and returns the completion task.
+        /// </summary>
+        public Task PostAllAndComplete(IEnumerable<T> items)
+        {
+            // Mimic the existing behavior
+            foreach (var item in items)
+            {
+                bool added = TryPost(item);
+                Contract.Assert(added);
+            }
+
+            Complete();
+            return Completion;
         }
 
         /// <summary>
@@ -339,7 +427,7 @@ namespace BuildXL.Utilities.ParallelAlgorithms
                 // Please be aware: currentCount in the following exception is read after the actual failure to write,
                 // so it is quite likely that you will get a currentCount that is less than the configured capacity.
                 throw new ActionBlockIsFullException(
-                    $"Couldn't add new item. Pending=[{currentCount}] Capacity=[{m_configuration.CapacityLimit.Value}] Completed=[{m_channel.Reader.Completion.IsCompleted}]",
+                    $"Couldn't add new item. Pending=[{currentCount}] Capacity=[{m_configuration.CapacityLimit}] Completed=[{m_channel.Reader.Completion.IsCompleted}]",
                     concurrencyLimit: m_configuration.DegreeOfParallelism,
                     currentCount: currentCount);
             }
@@ -380,11 +468,11 @@ namespace BuildXL.Utilities.ParallelAlgorithms
                                 // If the AggregateException has a single one, then passing it to the target tcs
                                 // to avoid adding layer of AggregateExceptions.
                                 var exception = t.Exception.InnerExceptions.Count == 1 ? t.Exception.InnerException : t.Exception;
-                                m_tcs.TrySetException(exception);
+                                m_tcs.TrySetException(exception!);
                             }
                             else
                             {
-                                m_tcs.TrySetResult(Unit.Void);
+                                m_tcs.TrySetResult(null);
                             }
                         });
                 }

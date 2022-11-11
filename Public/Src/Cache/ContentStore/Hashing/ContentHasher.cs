@@ -9,9 +9,9 @@ using System.IO;
 using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Threading.Tasks.Dataflow;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using System.Runtime.CompilerServices;
+using BuildXL.Utilities.ParallelAlgorithms;
 
 #pragma warning disable CS3001 // CLS
 #pragma warning disable CS3002
@@ -305,7 +305,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         private sealed class HashingStreamImpl : HashingStream
         {
             private static readonly byte[] EmptyByteArray = new byte[0];
-            private static readonly Task<bool> TrueTask = Task.FromResult(true);
+            private static readonly ValueTask<bool> TrueTask = new ValueTask<bool>(true);
 
             private static readonly Stopwatch Timer = Stopwatch.StartNew();
             private readonly Stream _baseStream;
@@ -323,7 +323,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
 
             [MemberNotNullWhen(true, nameof(_hashingBufferBlock))]
             private bool UseParallelHashing { get; }
-            private readonly ActionBlock<Pool<Buffer>.PoolHandle>? _hashingBufferBlock;
+            private readonly ActionBlockSlim<Pool<Buffer>.PoolHandle>? _hashingBufferBlock;
 
             public HashingStreamImpl(
                 Stream stream,
@@ -343,9 +343,9 @@ namespace BuildXL.Cache.ContentStore.Hashing
 
                 if (UseParallelHashing)
                 {
-                    _hashingBufferBlock = new ActionBlock<Pool<Buffer>.PoolHandle>(
-                        HashSegmentAsync,
-                        new ExecutionDataflowBlockOptions() { MaxDegreeOfParallelism = 1 });
+                    _hashingBufferBlock = ActionBlockSlim.Create<Pool<Buffer>.PoolHandle>(
+                        degreeOfParallelism: 1,
+                        HashSegmentAsync);
                 }
 
                 _hashAlgorithm = new GuardedHashAlgorithm(this, streamLength, hasher);
@@ -502,7 +502,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
                 throw new NotImplementedException();
             }
             
-            private Task<bool> PushHashBufferAsync(byte[] buffer, int offset, int count)
+            private ValueTask<bool> PushHashBufferAsync(byte[] buffer, int offset, int count)
             {
                 // In some cases, count can be 0, and in this case we can do nothing and just return a completed task.
                 if (count == 0)
@@ -517,7 +517,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
                     var handle = Buffer.GetBuffer();
                     handle.Value.CopyFrom(buffer, offset, count);
 
-                    return _hashingBufferBlock.SendAsync(handle);
+                    return _hashingBufferBlock.PostAsync(handle);
                 }
                 else
                 {

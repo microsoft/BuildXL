@@ -102,8 +102,8 @@ namespace BuildXL.FrontEnd.MsBuild
                 return false;
             }
 
-            // Global property keys for MSBuild are case insensitive, but unfortunately we don't have maps with explicit comparers in dscript. 
-            // So we need to validate there are not two property keys that only differ in case
+            // Global property keys for MSBuild are case insensitive, but unfortunately we don't have maps with explicit comparers in DScript. 
+            // So we need to validate that there are no two property keys that differ only in casing.
             if (msBuildResolverSettings.GlobalProperties != null)
             {
                 var globalKeys = msBuildResolverSettings.GlobalProperties.Keys;
@@ -118,8 +118,11 @@ namespace BuildXL.FrontEnd.MsBuild
                 // So there are some keys that only differ in case. Each case insensitive key that is not in the original set of keys is problematic
                 var problematicKeys = globalKeys.Except(caseInsensitiveKeys);
 
-                Tracing.Logger.Log.InvalidResolverSettings(m_context.LoggingContext, Location.FromFile(pathToFile), 
+                Tracing.Logger.Log.InvalidResolverSettings(
+                    m_context.LoggingContext,
+                    Location.FromFile(pathToFile), 
                     $"Global property key(s) '{string.Join(", ", problematicKeys)}' specified multiple times with casing differences only. MSBuild global property keys are case insensitive.");
+
                 return false;
             }
 
@@ -289,8 +292,8 @@ namespace BuildXL.FrontEnd.MsBuild
                 result.MsBuildLocation, 
                 result.DotNetExeLocation, 
                 m_frontEndName, 
-                m_msBuildWorkspaceResolver.UserDefinedEnvironment, 
-                m_msBuildWorkspaceResolver.UserDefinedPassthroughVariables,
+                m_msBuildWorkspaceResolver.TrackedEnvironmentVariables, 
+                m_msBuildWorkspaceResolver.UserDefinedPassthroughEnvironmentVariables,
                 filteredBuildFiles);
 
             var graphConstructor = new ProjectGraphToPipGraphConstructor<ProjectWithPredictions>(pipConstructor, m_host.Configuration.FrontEnd.MaxFrontEndConcurrency());

@@ -23,9 +23,9 @@ namespace BuildXL.FrontEnd.Script
         private readonly IDecorator<EvaluationResult> m_evaluationDecorator;
         private SourceFileProcessingQueue<bool> m_sourceFileProcessingQueue;
 
-        private ConcurrentDictionary<IResolverSettings, IWorkspaceModuleResolver> m_workspaceResolverCache = new ConcurrentDictionary<IResolverSettings, IWorkspaceModuleResolver>();
+        private readonly ConcurrentDictionary<IResolverSettings, IWorkspaceModuleResolver> m_workspaceResolverCache = new();
 
-        private Logger m_customLogger;
+        private readonly Logger m_customLogger;
 
         /// <nodoc/>
         public DScriptFrontEnd(
@@ -71,8 +71,14 @@ namespace BuildXL.FrontEnd.Script
             Contract.Assert(m_sourceFileProcessingQueue != null, "Initialize method should called to initialize m_sourceFileProcessingQueue.");
 
             // A DScriptSourceResolver can take care of a source and a default source resolver settings
-            return new DScriptSourceResolver(FrontEndHost, Context, Configuration,
-                FrontEndStatistics, m_sourceFileProcessingQueue, Logger, m_evaluationDecorator);
+            return new DScriptSourceResolver(
+                FrontEndHost,
+                Context,
+                Configuration,
+                FrontEndStatistics,
+                m_sourceFileProcessingQueue,
+                Logger,
+                m_evaluationDecorator);
         }
 
         /// <inheritdoc/>
@@ -82,22 +88,10 @@ namespace BuildXL.FrontEnd.Script
                 resolverSettings,
                 (settings) =>
                 {
-                    IWorkspaceModuleResolver resolver;
-                    if (string.Equals(resolverSettings.Kind, KnownResolverKind.DefaultSourceResolverKind, System.StringComparison.Ordinal))
-                    {
-                        resolver = new WorkspaceDefaultSourceModuleResolver(Context.StringTable, FrontEndStatistics, logger: m_customLogger);
-                    }
-                    else
-                    {
-                        resolver = new WorkspaceSourceModuleResolver(Context.StringTable, FrontEndStatistics, logger: m_customLogger);
-                    }
-
-                    if (resolver.TryInitialize(FrontEndHost, Context, Configuration, settings))
-                    {
-                        return resolver;
-                    }
-
-                    return null;
+                    IWorkspaceModuleResolver resolver = string.Equals(resolverSettings.Kind, KnownResolverKind.DefaultSourceResolverKind, System.StringComparison.Ordinal)
+                        ? new WorkspaceDefaultSourceModuleResolver(Context.StringTable, FrontEndStatistics, logger: m_customLogger)
+                        : new WorkspaceSourceModuleResolver(Context.StringTable, FrontEndStatistics, logger: m_customLogger);
+                    return resolver.TryInitialize(FrontEndHost, Context, Configuration, settings) ? resolver : null;
                 });
 
             return workspaceResolver != null;

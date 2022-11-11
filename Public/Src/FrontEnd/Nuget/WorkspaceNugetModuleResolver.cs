@@ -9,12 +9,9 @@ using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
 using System.Xml.Linq;
-using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.FrontEnd.Nuget.Tracing;
 using BuildXL.FrontEnd.Script;
 using BuildXL.FrontEnd.Script.Constants;
@@ -24,15 +21,11 @@ using BuildXL.FrontEnd.Sdk.Workspaces;
 using BuildXL.FrontEnd.Workspaces;
 using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Interop;
-using BuildXL.Interop.Unix;
 using BuildXL.Native.IO;
-using BuildXL.Processes;
-using BuildXL.Processes.Containers;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
-using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using TypeScript.Net.DScript;
@@ -99,7 +92,6 @@ namespace BuildXL.FrontEnd.Nuget
         {
             m_statistics = statistics.NugetStatistics;
             m_embeddedSpecsResolver = new WorkspaceSourceModuleResolver(stringTable, statistics, logger: null);
-
             m_useMonoBasedNuGet = OperatingSystemHelper.IsUnixOS;
         }
 
@@ -235,7 +227,7 @@ namespace BuildXL.FrontEnd.Nuget
                 });
         }
 
-        private MultiValueDictionary<string, Package> AddPackage(MultiValueDictionary<string, Package> dict, string nugetPackageName, Package package)
+        private static MultiValueDictionary<string, Package> AddPackage(MultiValueDictionary<string, Package> dict, string nugetPackageName, Package package)
         {
             dict.Add(nugetPackageName, package);
             return dict;
@@ -298,16 +290,9 @@ namespace BuildXL.FrontEnd.Nuget
         public string DescribeExtent()
         {
             var maybeModules = GetAllKnownModuleDescriptorsAsync().GetAwaiter().GetResult();
-
-            if (!maybeModules.Succeeded)
-            {
-                return string.Format(CultureInfo.InvariantCulture, "Module extent could not be computed. {0}",
-                    maybeModules.Failure.Describe());
-            }
-
-            return string.Join(
-                ", ",
-                maybeModules.Result.Select(module => module.Name));
+            return !maybeModules.Succeeded
+                ? I($"Module extent could not be computed. {maybeModules.Failure.Describe()}")
+                : string.Join(", ", maybeModules.Result.Select(module => module.Name));
         }
 
         /// <inheritdoc/>
@@ -331,6 +316,7 @@ namespace BuildXL.FrontEnd.Nuget
                 Logger.Log.NugetFailedDownloadPackagesAndGenerateSpecs(m_context.LoggingContext, possibleRegistry.Failure.DescribeIncludingInnerFailures());
                 return false;
             }
+
             m_packageRegistry = possibleRegistry.Result;
             m_host = host;
             m_configuration = configuration;
@@ -357,40 +343,27 @@ namespace BuildXL.FrontEnd.Nuget
                 m_nugetGenerationResult
                     .GetOrCreate(
                         (@this: this, possiblePackages),
-                        tpl => Task.FromResult(tpl.@this.GetNugetGenerationResultFromDownloadedPackages(tpl.possiblePackages, null))
-                    )
+                        tpl => Task.FromResult(tpl.@this.GetNugetGenerationResultFromDownloadedPackages(tpl.possiblePackages, null)))
                     .GetAwaiter()
-                    .GetResult()
-                );
+                    .GetResult());
         }
 
         /// <nodoc />
-        public Task ReinitializeResolver()
-        {
-            return Task.FromResult<object>(null);
-        }
+        public Task ReinitializeResolver() => Task.FromResult<object>(null);
 
         /// <inheritdoc />
-        public ISourceFile[] GetAllModuleConfigurationFiles()
-        {
-            return CollectionUtilities.EmptyArray<ISourceFile>();
-        }
+        public ISourceFile[] GetAllModuleConfigurationFiles() => CollectionUtilities.EmptyArray<ISourceFile>();
 
-        private static IReadOnlyDictionary<string, string> ComputeRepositories(IReadOnlyDictionary<string, string> repositories)
-        {
-            var repositoriesSpecifiedExplicitly = repositories?.Any() == true;
-            return repositoriesSpecifiedExplicitly
+        private static IReadOnlyDictionary<string, string> ComputeRepositories(IReadOnlyDictionary<string, string> repositories) =>
+            repositories?.Any() == true
                 ? repositories
                 : new Dictionary<string, string>
-                {
-                    ["nuget"] = "https://api.nuget.org/v3/index.json",
-                };
-        }
+                    {
+                        ["nuget"] = "https://api.nuget.org/v3/index.json",
+                    };
 
-        private Task<Possible<NugetGenerationResult>> DownloadPackagesAndGenerateSpecsIfNeededInternal()
-        {
-            return m_nugetGenerationResult.GetOrCreate(this, @this => Task.FromResult(@this.DownloadPackagesAndGenerateSpecs()));
-        }
+        private Task<Possible<NugetGenerationResult>> DownloadPackagesAndGenerateSpecsIfNeededInternal() =>
+            m_nugetGenerationResult.GetOrCreate(this, @this => Task.FromResult(@this.DownloadPackagesAndGenerateSpecs()));
 
         private Possible<AbsolutePath> TryResolveCredentialProvider()
         {
@@ -730,8 +703,7 @@ namespace BuildXL.FrontEnd.Nuget
         /// Topo sorts the collection of downloaded packages to compute the right qualifier space based on dependencies and creates DScript specs.
         /// TODO: this is done in a single-threaded fashion. Consider making this multi-threaded and cacheable
         /// </remarks>
-        internal Dictionary<string, Possible<AbsolutePath>> GenerateSpecsForDownloadedPackages(
-            IDictionary<string, NugetAnalyzedPackage> analyzedPackages)
+        internal Dictionary<string, Possible<AbsolutePath>> GenerateSpecsForDownloadedPackages(IDictionary<string, NugetAnalyzedPackage> analyzedPackages)
         {
             using (var sw = m_statistics.SpecGeneration.Start())
             {
@@ -1005,8 +977,14 @@ namespace BuildXL.FrontEnd.Nuget
                 return maybeNuspecXdoc.Failure;
             }
 
-            var result = NugetAnalyzedPackage.TryAnalyzeNugetPackage(m_context, m_nugetFrameworkMonikers, maybeNuspecXdoc.Result,
-                packageOnDisk, m_packageRegistry.AllPackagesById, doNotEnforceDependencyVersions, credentialProviderPath);
+            var result = NugetAnalyzedPackage.TryAnalyzeNugetPackage(
+                m_context,
+                m_nugetFrameworkMonikers,
+                maybeNuspecXdoc.Result,
+                packageOnDisk,
+                m_packageRegistry.AllPackagesById,
+                doNotEnforceDependencyVersions,
+                credentialProviderPath);
 
             if (result == null)
             {

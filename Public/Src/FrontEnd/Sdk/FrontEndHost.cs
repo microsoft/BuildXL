@@ -49,7 +49,7 @@ namespace BuildXL.FrontEnd.Sdk
         /// whether that variable was actually used when evaluating the configuration file. This is used by graph caching
         /// to ensure that we reload the graph when one of those environment variables changes between builds.
         /// </remarks>
-        public ConcurrentDictionary<string, (bool valueUsed, string value, LocationData? location)> EnvVariablesUsedInConfig = new ();
+        public ConcurrentDictionary<string, (bool valueUsed, string value, LocationData? location)> EnvVariablesUsedInConfig = new();
 
         /// <summary>
         /// Stores the enumerated directories in the config file
@@ -58,9 +58,7 @@ namespace BuildXL.FrontEnd.Sdk
         /// This is temporary fix to get around the lack of engine during parsing the config file.
         /// At the end of evaluation, these directories will be tracked in the Engine.w
         /// </remarks>
-        public ConcurrentDictionary<string, IReadOnlyList<(string, FileAttributes)>>
-            EnumeratedDirectoriesInConfig =
-                new ConcurrentDictionary<string, IReadOnlyList<(string, FileAttributes)>>();
+        public ConcurrentDictionary<string, IReadOnlyList<(string, FileAttributes)>> EnumeratedDirectoriesInConfig = new();
 
         /// <summary>
         /// Configuration for the frontend
@@ -142,10 +140,7 @@ namespace BuildXL.FrontEnd.Sdk
         /// </summary>
         public IWorkspace Workspace
         {
-            get
-            {
-                return m_workspace;
-            }
+            get => m_workspace;
 
             protected set
             {
@@ -160,19 +155,14 @@ namespace BuildXL.FrontEnd.Sdk
         /// <summary>
         /// Returns whether the spec belongs to a module with implicit reference semantics
         /// </summary>
-        public bool SpecBelongsToImplicitSemanticsModule(AbsolutePath specPath)
-        {
-            return m_specsWithImplicitNameVisibility?.Contains(specPath) == true;
-        }
+        public bool SpecBelongsToImplicitSemanticsModule(AbsolutePath specPath) => m_specsWithImplicitNameVisibility?.Contains(specPath) == true;
 
         /// <summary>
         /// Determines whether coercion happening on a given specPath should use defaults
         /// </summary>
-        public bool ShouldUseDefaultsOnCoercion(AbsolutePath specPath)
-        {
+        public bool ShouldUseDefaultsOnCoercion(AbsolutePath specPath) =>
             // Can't use Workspace here, because it can be collected.
-            return m_specsWithImplicitNameVisibility == null || !m_specsWithImplicitNameVisibility.Contains(specPath);
-        }
+            m_specsWithImplicitNameVisibility == null || !m_specsWithImplicitNameVisibility.Contains(specPath);
 
         /// <summary>
         /// The cycle detector used throughout evaluation
@@ -183,10 +173,8 @@ namespace BuildXL.FrontEnd.Sdk
         /// Public facades and serialized ASTs can be used when: 1) the general flag for this optimization is on and 2) the engine partial state has been successfuly reloaded, so we
         /// are sure tables are stable across builds
         /// </summary>
-        public bool CanUseSpecPublicFacadeAndAst()
-        {
+        public bool CanUseSpecPublicFacadeAndAst() =>
             // The Engine is null during configuration parsing
-            return FrontEndConfiguration.UseSpecPublicFacadeAndAstWhenAvailable() && Engine?.IsEngineStatePartiallyReloaded() == true;
-        }
+            FrontEndConfiguration.UseSpecPublicFacadeAndAstWhenAvailable() && Engine?.IsEngineStatePartiallyReloaded() == true;
     }
 }

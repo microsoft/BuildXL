@@ -50,10 +50,7 @@ namespace BuildXL.FrontEnd.Script
             StringTable stringTable,
             IFrontEndStatistics statistics,
             Logger logger = null)
-            : base(stringTable, statistics, logger)
-        {
-            Name = nameof(WorkspaceDefaultSourceModuleResolver);
-        }
+            : base(stringTable, statistics, logger) => Name = nameof(WorkspaceDefaultSourceModuleResolver);
 
         /// <inheritdoc/>
         public override bool TryInitialize(FrontEndHost host, FrontEndContext context, IConfiguration configuration, IResolverSettings resolverSettings)
@@ -160,12 +157,12 @@ namespace BuildXL.FrontEnd.Script
                 return false;
             }
 
-            m_configAsPackage = CreateConfigAsPackage(
+            ConfigAsPackage = CreateConfigAsPackage(
                 Configuration,
                 m_defaultDScriptResolverSettings.ConfigFile,
                 orphanProjectPaths);
 
-            UpdatePackageMap(m_configAsPackage);
+            UpdatePackageMap(ConfigAsPackage);
 
             return true;
         }
@@ -197,17 +194,13 @@ namespace BuildXL.FrontEnd.Script
         public override string DescribeExtent()
         {
             var maybeModules = GetAllKnownModuleDescriptorsAsync().GetAwaiter().GetResult();
-
-            if (!maybeModules.Succeeded)
-            {
-                return I($"Module extent could not be computed. {maybeModules.Failure.Describe()}");
-            }
-
-            // We report all modules but the 'fake' config as package
-            return string.Join(
-                ", ",
-                maybeModules.Result.Select(module => module.Name)
-                    .Where(moduleName => !moduleName.Equals(Names.ConfigAsPackageName)));
+            return !maybeModules.Succeeded
+                ? I($"Module extent could not be computed. {maybeModules.Failure.Describe()}")
+                : string.Join( // We report all modules but the 'fake' config as package
+                    ", ",
+                    maybeModules.Result
+                        .Select(module => module.Name)
+                        .Where(moduleName => !moduleName.Equals(Names.ConfigAsPackageName)));
         }
     }
 }

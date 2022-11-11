@@ -41,19 +41,10 @@ namespace BuildXL.FrontEnd.Download
         /// <nodoc />
         public IReadOnlyDictionary<string, DownloadData> Downloads { get; private set; }
 
-        private readonly HashSet<ModuleDescriptor> m_descriptors;
-        private readonly MultiValueDictionary<string, ModuleDescriptor> m_descriptorsByName;
-        private readonly Dictionary<AbsolutePath, ModuleDescriptor> m_descriptorsBySpecPath;
-        private readonly Dictionary<ModuleDescriptor, ModuleDefinition> m_definitions;
-
-        /// <nodoc/>
-        public DownloadWorkspaceResolver()
-        {
-            m_descriptors = new HashSet<ModuleDescriptor>();
-            m_descriptorsByName = new MultiValueDictionary<string, ModuleDescriptor>(StringComparer.Ordinal);
-            m_descriptorsBySpecPath = new Dictionary<AbsolutePath, ModuleDescriptor>();
-            m_definitions = new Dictionary<ModuleDescriptor, ModuleDefinition>();
-        }
+        private readonly HashSet<ModuleDescriptor> m_descriptors = new();
+        private readonly MultiValueDictionary<string, ModuleDescriptor> m_descriptorsByName = new(StringComparer.Ordinal);
+        private readonly Dictionary<AbsolutePath, ModuleDescriptor> m_descriptorsBySpecPath = new();
+        private readonly Dictionary<ModuleDescriptor, ModuleDefinition> m_definitions = new();
 
         /// <inheritdoc />
         public bool TryInitialize([NotNull] FrontEndHost host, [NotNull] FrontEndContext context, [NotNull] IConfiguration configuration, [NotNull] IResolverSettings resolverSettings)
@@ -159,10 +150,7 @@ namespace BuildXL.FrontEnd.Download
         /// <summary>
         /// Returns the module descriptor for the download data.
         /// </summary>
-        internal ModuleDescriptor GetModuleDescriptor(DownloadData downloadData)
-        {
-            return m_descriptorsBySpecPath[downloadData.ModuleSpecFile];
-        }
+        internal ModuleDescriptor GetModuleDescriptor(DownloadData downloadData) => m_descriptorsBySpecPath[downloadData.ModuleSpecFile];
 
         /// <inheritdoc />
         public string DescribeExtent()
@@ -181,30 +169,23 @@ namespace BuildXL.FrontEnd.Download
         }
 
         /// <inheritdoc />
-        public ISourceFile[] GetAllModuleConfigurationFiles()
-        {
+        public ISourceFile[] GetAllModuleConfigurationFiles() =>
             // No need to do anything, this is for when input files are changed which should not happen for the Download resolver since the only data comes from config.
-            return CollectionUtilities.EmptyArray<ISourceFile>();
-        }
+            CollectionUtilities.EmptyArray<ISourceFile>();
 
         /// <inheritdoc />
-        public Task ReinitializeResolver()
-        {
+        public Task ReinitializeResolver() =>
             // No need to do anything, this is for when input files are changed which should not happen for the Download resolver since the only data comes from config.
-            return Task.FromResult<object>(null);
-        }
+            Task.FromResult<object>(null);
 
         /// <inheritdoc />
         public ValueTask<Possible<ModuleDefinition>> TryGetModuleDefinitionAsync(ModuleDescriptor moduleDescriptor)
         {
             Contract.Assume(m_definitions != null, "Init must have been called");
 
-            if (m_definitions.TryGetValue(moduleDescriptor, out var result))
-            {
-                return ValueTaskFactory.FromResult(Possible.Create(result));
-            }
-
-            return ValueTaskFactory.FromResult((Possible<ModuleDefinition>)new ModuleNotOwnedByThisResolver(moduleDescriptor));
+            return m_definitions.TryGetValue(moduleDescriptor, out var result)
+                ? ValueTaskFactory.FromResult(Possible.Create(result))
+                : ValueTaskFactory.FromResult((Possible<ModuleDefinition>)new ModuleNotOwnedByThisResolver(moduleDescriptor));
         }
 
         /// <inheritdoc />
@@ -212,15 +193,9 @@ namespace BuildXL.FrontEnd.Download
         {
             Contract.Assume(m_descriptorsByName != null, "Init must have been called");
 
-            IReadOnlyCollection<ModuleDescriptor> result;
-            if (m_descriptorsByName.TryGetValue(moduleReference.Name, out var descriptors))
-            {
-                result = descriptors;
-            }
-            else
-            {
-                result = CollectionUtilities.EmptyArray<ModuleDescriptor>();
-            }
+            IReadOnlyCollection<ModuleDescriptor> result = m_descriptorsByName.TryGetValue(moduleReference.Name, out var descriptors)
+                ? descriptors
+                : CollectionUtilities.EmptyArray<ModuleDescriptor>();
 
             return ValueTaskFactory.FromResult(Possible.Create(result));
         }
@@ -350,7 +325,7 @@ namespace BuildXL.FrontEnd.Download
 
         internal void UpdateDataForDownloadData(DownloadData downloadData, int resolverSettingsIndex, FrontEndContext context = null)
         {
-            context = context ?? m_context;
+            context ??= m_context;
             Contract.Assert(context != null);
 
             var name = downloadData.Settings.ModuleName;

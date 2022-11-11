@@ -2,7 +2,6 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
@@ -36,11 +35,6 @@ namespace BuildXL.FrontEnd.Ninja
         // For now this means we will build all of these
         private string[] m_targets; 
  
-        // AsyncLazy graph
-        private readonly Lazy<Task<Possible<NinjaGraphWithModuleDefinition>>> m_graph;
-        private readonly ConcurrentDictionary<AbsolutePath, SourceFile> m_createdSourceFiles =
-            new ConcurrentDictionary<AbsolutePath, SourceFile>();
-
         /// <summary>
         /// The path for the JSON graph associated with this resolver.
         /// This file exists only after the graph is successfully built.
@@ -59,7 +53,6 @@ namespace BuildXL.FrontEnd.Ninja
         public NinjaWorkspaceResolver()
         {
             Name = "Ninja";
-            m_graph = new Lazy<Task<Possible<NinjaGraphWithModuleDefinition>>>(TryComputeBuildGraphAsync);
             SerializedGraphPath = new Lazy<AbsolutePath>(GetToolOutputPath);
         }
 
@@ -82,44 +75,44 @@ namespace BuildXL.FrontEnd.Ninja
             }
 
             var relativePathToGraphConstructionTool = RelativePath.Create(context.StringTable, NinjaGraphBuilderRelativePath);
-            m_pathToTool = configuration.Layout.BuildEngineDirectory.Combine(m_context.PathTable, relativePathToGraphConstructionTool);
+            m_pathToTool = configuration.Layout.BuildEngineDirectory.Combine(Context.PathTable, relativePathToGraphConstructionTool);
 
 
-            if (!m_resolverSettings.Root.IsValid)
+            if (!ResolverSettings.Root.IsValid)
             {
-                if (!m_resolverSettings.SpecFile.IsValid)
+                if (!ResolverSettings.SpecFile.IsValid)
                 {
-                    Tracing.Logger.Log.InvalidResolverSettings(m_context.LoggingContext, m_resolverSettings.Location(m_context.PathTable), "Either a project root or a spec file location (or both) must be specified.");
+                    Tracing.Logger.Log.InvalidResolverSettings(Context.LoggingContext, ResolverSettings.Location(Context.PathTable), "Either a project root or a spec file location (or both) must be specified.");
                     return false;
                 }
 
-                ProjectRoot = m_resolverSettings.SpecFile.GetParent(m_context.PathTable);
-                SpecFile = m_resolverSettings.SpecFile;
+                ProjectRoot = ResolverSettings.SpecFile.GetParent(Context.PathTable);
+                SpecFile = ResolverSettings.SpecFile;
             }
             else
             {
-                ProjectRoot = m_resolverSettings.Root;
-                SpecFile = m_resolverSettings.SpecFile;
-                if (!m_resolverSettings.SpecFile.IsValid)
+                ProjectRoot = ResolverSettings.Root;
+                SpecFile = ResolverSettings.SpecFile;
+                if (!ResolverSettings.SpecFile.IsValid)
                 {
-                    SpecFile = ProjectRoot.Combine(m_context.PathTable, "build.ninja");
+                    SpecFile = ProjectRoot.Combine(Context.PathTable, "build.ninja");
                 }
             }
 
             string path;
-            if (!Directory.Exists(path = ProjectRoot.ToString(m_context.PathTable)))
+            if (!Directory.Exists(path = ProjectRoot.ToString(Context.PathTable)))
             {
-                Tracing.Logger.Log.ProjectRootDirectoryDoesNotExist(m_context.LoggingContext, m_resolverSettings.Location(m_context.PathTable), path);
+                Tracing.Logger.Log.ProjectRootDirectoryDoesNotExist(Context.LoggingContext, ResolverSettings.Location(Context.PathTable), path);
                 return false;
             }
 
-            if (!File.Exists(path = SpecFile.ToString(m_context.PathTable)))
+            if (!File.Exists(path = SpecFile.ToString(Context.PathTable)))
             {
-                Tracing.Logger.Log.NinjaSpecFileDoesNotExist(m_context.LoggingContext, m_resolverSettings.Location(m_context.PathTable), path);
+                Tracing.Logger.Log.NinjaSpecFileDoesNotExist(Context.LoggingContext, ResolverSettings.Location(Context.PathTable), path);
                 return false;
             }
     
-            m_targets = m_resolverSettings.Targets != null ? m_resolverSettings.Targets.AsArray() : CollectionUtilities.EmptyArray<string>();
+            m_targets = ResolverSettings.Targets != null ? ResolverSettings.Targets.AsArray() : CollectionUtilities.EmptyArray<string>();
             return true;
         }
 
@@ -129,13 +122,13 @@ namespace BuildXL.FrontEnd.Ninja
             Possible<NinjaGraphResult> maybeGraph = await ComputeBuildGraphAsync();
             
             var result = maybeGraph.Result;
-            var specFileConfig = SpecFile.ChangeExtension(m_context.PathTable, PathAtom.Create(m_context.StringTable, ".ninja.dsc")); // It needs to be a .dsc for the parsing to work
+            var specFileConfig = SpecFile.ChangeExtension(Context.PathTable, PathAtom.Create(Context.StringTable, ".ninja.dsc")); // It needs to be a .dsc for the parsing to work
 
-            var moduleDescriptor = ModuleDescriptor.CreateWithUniqueId(m_context.StringTable, m_resolverSettings.ModuleName, this);
+            var moduleDescriptor = ModuleDescriptor.CreateWithUniqueId(Context.StringTable, ResolverSettings.ModuleName, this);
             var moduleDefinition = ModuleDefinition.CreateModuleDefinitionWithImplicitReferences(
                 moduleDescriptor,
                 ProjectRoot,
-                m_resolverSettings.File,
+                ResolverSettings.File,
                 new List<AbsolutePath>() { specFileConfig } ,
                 allowedModuleDependencies: null, // no module policies
                 cyclicalFriendModules: null, // no allowlist of cycles
@@ -153,36 +146,36 @@ namespace BuildXL.FrontEnd.Ninja
             string standardError = result.StandardError.CreateReader().ReadToEndAsync().GetAwaiter().GetResult();
             if (result.ExitCode != 0)
             {
-                if (!m_context.CancellationToken.IsCancellationRequested)
+                if (!Context.CancellationToken.IsCancellationRequested)
                 {
 
                     Tracing.Logger.Log.GraphConstructionInternalError(
-                        m_context.LoggingContext,
-                        m_resolverSettings.Location(m_context.PathTable),
+                        Context.LoggingContext,
+                        ResolverSettings.Location(Context.PathTable),
                         standardError);
                 }
 
-                return new NinjaGraphConstructionFailure(m_resolverSettings.ModuleName, ProjectRoot.ToString(m_context.PathTable));
+                return new NinjaGraphConstructionFailure(ResolverSettings.ModuleName, ProjectRoot.ToString(Context.PathTable));
             }
 
             // If the tool exited gracefully, but standard error is not empty, that is interpreted as a warning
             if (!string.IsNullOrEmpty(standardError))
             {
                 Tracing.Logger.Log.GraphConstructionFinishedSuccessfullyButWithWarnings(
-                    m_context.LoggingContext,
-                    m_resolverSettings.Location(m_context.PathTable),
+                    Context.LoggingContext,
+                    ResolverSettings.Location(Context.PathTable),
                     standardError);
             }
             
-            TrackFilesAndEnvironment(result.AllUnexpectedFileAccesses, outputFile.GetParent(m_context.PathTable));
+            TrackFilesAndEnvironment(result.AllUnexpectedFileAccesses, outputFile.GetParent(Context.PathTable));
             var serializer = JsonSerializer.Create(GraphSerializationSettings.Settings);
             
             // Add custom deserializer for converting string arrays to AbsolutePath ReadOnlySets
-            serializer.Converters.Add(new RootAwareAbsolutePathConverter(m_context.PathTable, SpecFile.GetParent(m_context.PathTable)));
+            serializer.Converters.Add(new RootAwareAbsolutePathConverter(Context.PathTable, SpecFile.GetParent(Context.PathTable)));
             serializer.Converters.Add(new ToReadOnlySetJsonConverter<AbsolutePath>());
             
-            var outputFileString = outputFile.ToString(m_context.PathTable);
-            Tracing.Logger.Log.LeftGraphToolOutputAt(m_context.LoggingContext, m_resolverSettings.Location(m_context.PathTable), outputFileString);
+            var outputFileString = outputFile.ToString(Context.PathTable);
+            Tracing.Logger.Log.LeftGraphToolOutputAt(Context.LoggingContext, ResolverSettings.Location(Context.PathTable), outputFileString);
 
             NinjaGraphResult projectGraphWithPredictionResult;
 
@@ -197,10 +190,10 @@ namespace BuildXL.FrontEnd.Ninja
             catch (Exception ex)
             {
                 Tracing.Logger.Log.GraphConstructionDeserializationError(
-                    m_context.LoggingContext,
-                    m_resolverSettings.Location(m_context.PathTable),
+                    Context.LoggingContext,
+                    ResolverSettings.Location(Context.PathTable),
                     ex.ToString());
-                return new NinjaGraphConstructionFailure(m_resolverSettings.ModuleName, ProjectRoot.ToString(m_context.PathTable));
+                return new NinjaGraphConstructionFailure(ResolverSettings.ModuleName, ProjectRoot.ToString(Context.PathTable));
             }
 
             return projectGraphWithPredictionResult;
@@ -208,10 +201,10 @@ namespace BuildXL.FrontEnd.Ninja
 
         private Task<SandboxedProcessResult> RunNinjaGraphBuilderAsync(AbsolutePath outputFile)
         {
-            AbsolutePath outputDirectory = outputFile.GetParent(m_context.PathTable);
-            FileUtilities.CreateDirectory(outputDirectory.ToString(m_context.PathTable)); // Ensure it exists
+            AbsolutePath outputDirectory = outputFile.GetParent(Context.PathTable);
+            FileUtilities.CreateDirectory(outputDirectory.ToString(Context.PathTable)); // Ensure it exists
 
-            AbsolutePath argumentsFile = outputDirectory.Combine(m_context.PathTable, Guid.NewGuid().ToString());
+            AbsolutePath argumentsFile = outputDirectory.Combine(Context.PathTable, Guid.NewGuid().ToString());
             SerializeToolArguments(outputFile, argumentsFile);
 
             // After running the tool we'd like to remove some files 
@@ -219,30 +212,30 @@ namespace BuildXL.FrontEnd.Ninja
             {
                 try
                 {
-                    var shouldKeepArgs = m_resolverSettings.KeepProjectGraphFile ?? false;
+                    var shouldKeepArgs = ResolverSettings.KeepProjectGraphFile ?? false;
                     if (!shouldKeepArgs)
                     {
-                        FileUtilities.DeleteFile(argumentsFile.ToString(m_context.PathTable));
+                        FileUtilities.DeleteFile(argumentsFile.ToString(Context.PathTable));
                     }
                 }
                 catch (BuildXLException e)
                 {
                     Tracing.Logger.Log.CouldNotDeleteToolArgumentsFile(
-                        m_context.LoggingContext,
-                        m_resolverSettings.Location(m_context.PathTable),
-                        argumentsFile.ToString(m_context.PathTable),
+                        Context.LoggingContext,
+                        ResolverSettings.Location(Context.PathTable),
+                        argumentsFile.ToString(Context.PathTable),
                         e.Message);
                 }
             }
 
 
             return FrontEndUtilities.RunSandboxedToolAsync(
-                m_context,
-                m_pathToTool.ToString(m_context.PathTable),
-                buildStorageDirectory: outputDirectory.ToString(m_context.PathTable),
-                fileAccessManifest: GenerateFileAccessManifest(m_pathToTool.GetParent(m_context.PathTable), outputFile),
-                arguments: I($@"""{argumentsFile.ToString(m_context.PathTable)}"""),
-                workingDirectory: SpecFile.GetParent(m_context.PathTable).ToString(m_context.PathTable),
+                Context,
+                m_pathToTool.ToString(Context.PathTable),
+                buildStorageDirectory: outputDirectory.ToString(Context.PathTable),
+                fileAccessManifest: GenerateFileAccessManifest(m_pathToTool.GetParent(Context.PathTable), outputFile),
+                arguments: I($@"""{argumentsFile.ToString(Context.PathTable)}"""),
+                workingDirectory: SpecFile.GetParent(Context.PathTable).ToString(Context.PathTable),
                 description: "Ninja graph builder",
                 RetrieveBuildParameters(),
                 onResult: cleanUpOnResult);
@@ -252,15 +245,15 @@ namespace BuildXL.FrontEnd.Ninja
         {
             var arguments = new NinjaGraphToolArguments()
                             {
-                                BuildFileName = SpecFile.ToString(m_context.PathTable),
-                                ProjectRoot = SpecFile.GetParent(m_context.PathTable).ToString(m_context.PathTable),
-                                OutputFile = outputFile.ToString(m_context.PathTable),
+                                BuildFileName = SpecFile.ToString(Context.PathTable),
+                                ProjectRoot = SpecFile.GetParent(Context.PathTable).ToString(Context.PathTable),
+                                OutputFile = outputFile.ToString(Context.PathTable),
                                 Targets = m_targets
                             };
 
 
             var serializer = JsonSerializer.Create(GraphSerializationSettings.Settings);
-            using (var sw = new StreamWriter(argumentsFile.ToString(m_context.PathTable)))
+            using (var sw = new StreamWriter(argumentsFile.ToString(Context.PathTable)))
             using (var writer = new JsonTextWriter(sw))
             {
                 serializer.Serialize(writer, arguments);
@@ -272,10 +265,10 @@ namespace BuildXL.FrontEnd.Ninja
         /// </summary>
         private AbsolutePath GetToolOutputPath()
         {
-            AbsolutePath outputDirectory = m_host.GetFolderForFrontEnd(Name);
+            AbsolutePath outputDirectory = Host.GetFolderForFrontEnd(Name);
             var now = DateTime.UtcNow.ToString("yyyy-MM-dd-THH-mm-ss.SSS-Z");
             var uniqueName = $"ninja_graph_{now}.json";
-            return outputDirectory.Combine(m_context.PathTable, uniqueName);
+            return outputDirectory.Combine(Context.PathTable, uniqueName);
         }
 
         private FileAccessManifest GenerateFileAccessManifest(AbsolutePath toolDirectory, AbsolutePath outputFile)
@@ -283,7 +276,7 @@ namespace BuildXL.FrontEnd.Ninja
             // We make no attempt at understanding what the graph generation process is going to do
             // We just configure the manifest to not fail on unexpected accesses, so they can be collected
             // later if needed
-            var fileAccessManifest = new FileAccessManifest(m_context.PathTable)
+            var fileAccessManifest = new FileAccessManifest(Context.PathTable)
             {
                 FailUnexpectedFileAccesses = false,
                 ReportFileAccesses = true,
@@ -293,17 +286,17 @@ namespace BuildXL.FrontEnd.Ninja
             };
 
             fileAccessManifest.AddScope(
-                AbsolutePath.Create(m_context.PathTable, SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.Windows)),
+                AbsolutePath.Create(Context.PathTable, SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.Windows)),
                 FileAccessPolicy.MaskAll,
                 FileAccessPolicy.AllowAllButSymlinkCreation);
 
             fileAccessManifest.AddScope(
-                AbsolutePath.Create(m_context.PathTable, SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.InternetCache)),
+                AbsolutePath.Create(Context.PathTable, SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.InternetCache)),
                 FileAccessPolicy.MaskAll,
                 FileAccessPolicy.AllowAllButSymlinkCreation);
 
             fileAccessManifest.AddScope(
-                AbsolutePath.Create(m_context.PathTable, SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.History)),
+                AbsolutePath.Create(Context.PathTable, SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.History)),
                 FileAccessPolicy.MaskAll,
                 FileAccessPolicy.AllowAll);
 
@@ -312,28 +305,20 @@ namespace BuildXL.FrontEnd.Ninja
         }
 
         /// <inheritdoc />
-        protected override SourceFile DoCreateSourceFile(AbsolutePath path)
-        {
+        protected override SourceFile DoCreateSourceFile(AbsolutePath path) =>
             // This is the interop point to advertise values to other DScript specs
             // For now we just return an empty SourceFile
-            return SourceFile.Create(path.ToString(m_context.PathTable));
-        }
+            SourceFile.Create(path.ToString(Context.PathTable));
 
         private sealed class NinjaGraphBuildStorage : ISandboxedProcessFileStorage
         {
             private readonly string m_directory;
 
             /// <nodoc />
-            public NinjaGraphBuildStorage(string directory)
-            {
-                m_directory = directory;
-            }
+            public NinjaGraphBuildStorage(string directory) => m_directory = directory;
 
             /// <inheritdoc />
-            public string GetFileName(SandboxedProcessFile file)
-            {
-                return Path.Combine(m_directory, file.DefaultFileName());
-            }
+            public string GetFileName(SandboxedProcessFile file) => Path.Combine(m_directory, file.DefaultFileName());
         }
     }
 }

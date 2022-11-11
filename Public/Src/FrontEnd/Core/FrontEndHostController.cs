@@ -51,7 +51,7 @@ namespace BuildXL.FrontEnd.Core
     public sealed partial class FrontEndHostController : FrontEndHost, IFrontEndController
     {
         private Workspace m_buildIsCancelledWorkspace;
-        private readonly ConcurrentDictionary<string, int> m_frontEndPaths = new ConcurrentDictionary<string, int>(OperatingSystemHelper.PathComparer);
+        private readonly ConcurrentDictionary<string, int> m_frontEndPaths = new (OperatingSystemHelper.PathComparer);
         private IInternalDefaultDScriptResolverSettings m_defaultDScriptResolverSettings;
         private readonly CycleDetectorStatistics m_cycleDetectorStatistics;
 
@@ -70,8 +70,8 @@ namespace BuildXL.FrontEnd.Core
         /// </summary>
         public new Workspace Workspace
         {
-            get { return (Workspace)base.Workspace; }
-            private set { base.Workspace = value; }
+            get => (Workspace)base.Workspace;
+            private set => base.Workspace = value;
         }
 
         /// <summary>

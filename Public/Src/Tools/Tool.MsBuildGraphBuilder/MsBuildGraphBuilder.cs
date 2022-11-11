@@ -246,7 +246,7 @@ namespace MsBuildGraphBuilderTool
                         if (!value.Equals(duplicateValue, StringComparison.Ordinal))
                         {
                             string displayKey = key.ToUpperInvariant();
-                            failure = $"The qualifier {qualifier.ToString()} is requested, but that is incompatible with the global property '{displayKey}={value}' since the specified values for '{displayKey}' do not agree.";
+                            failure = $"The qualifier {qualifier} is requested, but that is incompatible with the global property '{displayKey}={value}' since the specified values for '{displayKey}' do not agree.";
                             return false;
                         }
                     }
@@ -255,21 +255,20 @@ namespace MsBuildGraphBuilderTool
                         mergedProperties.Add(key, value);
                     }
                 }
+
                 entryPoints.AddRange(projectsToParse.Select(entryPoint => new ProjectGraphEntryPoint(entryPoint, mergedProperties)));
             }
 
             return true;
         }
 
-        private static ProjectGraphWithPredictionsResult<string> CreateFailureFromInvalidProjectFile(IReadOnlyDictionary<string, string> assemblyPathsToLoad, string locatedMsBuildPath, InvalidProjectFileException e)
-        {
-            return ProjectGraphWithPredictionsResult.CreateFailure(
-                                GraphConstructionError.CreateFailureWithLocation(
-                                    new Location { File = e.ProjectFile, Line = e.LineNumber, Position = e.ColumnNumber },
-                                    e.Message),
-                                assemblyPathsToLoad,
-                                locatedMsBuildPath);
-        }
+        private static ProjectGraphWithPredictionsResult<string> CreateFailureFromInvalidProjectFile(IReadOnlyDictionary<string, string> assemblyPathsToLoad, string locatedMsBuildPath, InvalidProjectFileException e) =>
+            ProjectGraphWithPredictionsResult.CreateFailure(
+                GraphConstructionError.CreateFailureWithLocation(
+                    new Location { File = e.ProjectFile, Line = e.LineNumber, Position = e.ColumnNumber },
+                    e.Message),
+                assemblyPathsToLoad,
+                locatedMsBuildPath);
 
         private static ProjectInstance ProjectInstanceFactory(
             string projectPath,
@@ -338,7 +337,7 @@ namespace MsBuildGraphBuilderTool
             }
             catch(Exception ex)
             {
-                failure = $"Cannot create standard predictors. An unexpected error occurred. Please contact BuildPrediction project owners with this stack trace: {ex.ToString()}";
+                failure = $"Cannot create standard predictors. An unexpected error occurred. Please contact BuildPrediction project owners with this stack trace: {ex}";
                 projectGraphWithPredictions = new ProjectGraphWithPredictions(new ProjectWithPredictions<string>[] { });
                 return false;
             }
@@ -375,7 +374,7 @@ namespace MsBuildGraphBuilderTool
                 {
                     predictionFailures.Enqueue((
                         "Unknown predictor",
-                        $"Cannot run static predictor on project '{project.FullPath ?? "Unknown project"}'. An unexpected error occurred. Please contact BuildPrediction project owners with this stack trace: {ex.ToString()}"));
+                        $"Cannot run static predictor on project '{project.FullPath ?? "Unknown project"}'. An unexpected error occurred. Please contact BuildPrediction project owners with this stack trace: {ex}"));
                 }
 
                  if (!TryGetPredictedTargetsAndPropertiesToExecute(
@@ -514,7 +513,6 @@ namespace MsBuildGraphBuilderTool
             // and projects without a protocol are not allowed.
 
             failure = $"Project '{projectInstance.FullPath}' is not specifying its project reference protocol. For more details see https://github.com/Microsoft/msbuild/blob/master/documentation/specs/static-graph.md";
-            computedTargets = null;
             globalPropertiesForNode = GlobalProperties.Empty;
 
             return false;

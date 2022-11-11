@@ -52,7 +52,7 @@ namespace BuildXL.FrontEnd.Ninja
             m_ninjaWorkspaceResolver = workspaceResolver as NinjaWorkspaceResolver;
             
             // TODO: Failure cases, logging
-            return Task.FromResult<bool>(true);
+            return Task.FromResult(true);
         }
 
 
@@ -62,25 +62,16 @@ namespace BuildXL.FrontEnd.Ninja
         }
 
         /// <inheritdoc/>
-        public Task<bool?> TryConvertModuleToEvaluationAsync(IModuleRegistry moduleRegistry, ParsedModule module, IWorkspace workspace)
-        {
+        public Task<bool?> TryConvertModuleToEvaluationAsync(IModuleRegistry moduleRegistry, ParsedModule module, IWorkspace workspace) =>
             // No conversion needed.
-            return Task.FromResult<bool?>(true);
-        }
+            Task.FromResult<bool?>(true);
 
         /// <inheritdoc/>
-        public async Task<bool?> TryEvaluateModuleAsync(IEvaluationScheduler scheduler, ModuleDefinition iModule, QualifierId qualifierId)
-        {
-            if (!iModule.Equals(ModuleDef))
-            {
-                return null;
-            }
-
+        public async Task<bool?> TryEvaluateModuleAsync(IEvaluationScheduler scheduler, ModuleDefinition iModule, QualifierId qualifierId) =>
             // Note: we are effectively evaluating iModule
             // Using await to suppress compiler warnings
             // TODO: Async?
-            return await Task.FromResult(TryEvaluate(ModuleDef, qualifierId)); 
-        }
+            !iModule.Equals(ModuleDef) ? null : await Task.FromResult(TryEvaluate(ModuleDef, qualifierId)); 
 
         private bool? TryEvaluate(ModuleDefinition module, QualifierId qualifierId)    // TODO: Async?
         {
@@ -100,8 +91,8 @@ namespace BuildXL.FrontEnd.Ninja
                 m_frontEndName,
                 new()
                 {
-                    UserDefinedEnvironment = m_ninjaWorkspaceResolver.UserDefinedEnvironment,
-                    UserDefinedPassthroughVariables = m_ninjaWorkspaceResolver.UserDefinedPassthroughVariables,
+                    UserDefinedEnvironment = m_ninjaWorkspaceResolver.TrackedEnvironmentVariables,
+                    UserDefinedPassthroughVariables = m_ninjaWorkspaceResolver.UserDefinedPassthroughEnvironmentVariables,
                     UntrackingSettings = m_ninjaResolverSettings,
                     AdditionalOutputDirectories = m_ninjaResolverSettings.AdditionalOutputDirectories
                 });

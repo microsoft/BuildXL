@@ -129,11 +129,11 @@ namespace BuildXL.FrontEnd.Script
 
                 var legacyConfigFile = AbsolutePath.Create(Context.PathTable, legacyConfigFilename.Replace('\\', '/'));
                 var configFile = AbsolutePath.Create(Context.PathTable, configFilename.Replace('\\', '/'));
-                if (m_fileSystem.Exists(legacyConfigFile))
+                if (FileSystem.Exists(legacyConfigFile))
                 {
                     return legacyConfigFile;
                 }
-                if (m_fileSystem.Exists(configFile))
+                if (FileSystem.Exists(configFile))
                 {
                     return configFile;
                 }

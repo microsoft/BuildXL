@@ -24,7 +24,6 @@ using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.Utilities.Tasks;
-using JetBrains.Annotations;
 using Newtonsoft.Json;
 using TypeScript.Net.DScript;
 using TypeScript.Net.Types;
@@ -54,8 +53,7 @@ namespace BuildXL.FrontEnd.CMake
         private const string DefaultBuildTarget = "all";
 
         // AsyncLazy graph
-        private readonly ConcurrentDictionary<AbsolutePath, SourceFile> m_createdSourceFiles =
-            new ConcurrentDictionary<AbsolutePath, SourceFile>();
+        private readonly ConcurrentDictionary<AbsolutePath, SourceFile> m_createdSourceFiles = new();
 
         /// <summary>
         /// Keep in sync with the BuildXL deployment spec that places the tool (\Public\Src\Deployment\buildXL.dsc)
@@ -102,7 +100,7 @@ namespace BuildXL.FrontEnd.CMake
 
             // We need the binder to recurse
             sourceFile.ExternalModuleIndicator = sourceFile;
-            sourceFile.SetLineMap(new int[0] { });
+            sourceFile.SetLineMap(Array.Empty<int>());
 
             m_createdSourceFiles.Add(path, sourceFile);
             return sourceFile;
@@ -112,13 +110,9 @@ namespace BuildXL.FrontEnd.CMake
         public string DescribeExtent()
         {
             Possible<HashSet<ModuleDescriptor>> maybeModules = GetAllKnownModuleDescriptorsAsync().GetAwaiter().GetResult();
-
-            if (!maybeModules.Succeeded)
-            {
-                return I($"Module extent could not be computed. {maybeModules.Failure.Describe()}");
-            }
-
-            return string.Join(", ", maybeModules.Result.Select(module => module.Name));
+            return !maybeModules.Succeeded
+                ? I($"Module extent could not be computed. {maybeModules.Failure.Describe()}")
+                : string.Join(", ", maybeModules.Result.Select(module => module.Name));
         }
 
         /// <inheritdoc/>
@@ -157,11 +151,11 @@ namespace BuildXL.FrontEnd.CMake
                 return true;
             }
 
-            return (m_ninjaWorkspaceResolverInitialized = EmbeddedNinjaWorkspaceResolver.TryInitialize(
-                m_host,
-                m_context,
-                m_configuration,
-                m_embeddedResolverSettings.Value));
+            return m_ninjaWorkspaceResolverInitialized = EmbeddedNinjaWorkspaceResolver.TryInitialize(
+                    m_host,
+                    m_context,
+                    m_configuration,
+                    m_embeddedResolverSettings.Value);
         }
 
         private async Task<Possible<Unit>> GenerateBuildDirectoryAsync()
@@ -260,11 +254,10 @@ namespace BuildXL.FrontEnd.CMake
                 NullValueHandling = NullValueHandling.Include,
             });
 
-            using (var sw = new StreamWriter(argumentsFile.ToString(m_context.PathTable)))
-            using (var writer = new JsonTextWriter(sw))
-            {
-                serializer.Serialize(writer, arguments);
-            }
+            using var sw = new StreamWriter(argumentsFile.ToString(m_context.PathTable));
+            using var writer = new JsonTextWriter(sw);
+            
+            serializer.Serialize(writer, arguments);
         }
 
 
@@ -322,33 +315,24 @@ namespace BuildXL.FrontEnd.CMake
         }
 
         /// <inheritdoc/>
-        public ValueTask<Possible<ModuleDefinition>> TryGetModuleDefinitionAsync(ModuleDescriptor moduleDescriptor)
-        {
-            return EmbeddedNinjaWorkspaceResolver.TryGetModuleDefinitionAsync(moduleDescriptor);
-        }
+        public ValueTask<Possible<ModuleDefinition>> TryGetModuleDefinitionAsync(ModuleDescriptor moduleDescriptor) =>
+            EmbeddedNinjaWorkspaceResolver.TryGetModuleDefinitionAsync(moduleDescriptor);
 
 
         /// <inheritdoc/>
         [SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
-        public ValueTask<Possible<IReadOnlyCollection<ModuleDescriptor>>> TryGetModuleDescriptorsAsync(ModuleReferenceWithProvenance moduleReference)
-        {
-            return EmbeddedNinjaWorkspaceResolver.TryGetModuleDescriptorsAsync(moduleReference);
-        }
+        public ValueTask<Possible<IReadOnlyCollection<ModuleDescriptor>>> TryGetModuleDescriptorsAsync(ModuleReferenceWithProvenance moduleReference) =>
+            EmbeddedNinjaWorkspaceResolver.TryGetModuleDescriptorsAsync(moduleReference);
 
         /// <inheritdoc/>
-        public ValueTask<Possible<ModuleDescriptor>> TryGetOwningModuleDescriptorAsync(AbsolutePath specPath)
-        {
-            return EmbeddedNinjaWorkspaceResolver.TryGetOwningModuleDescriptorAsync(specPath);
-        }
+        public ValueTask<Possible<ModuleDescriptor>> TryGetOwningModuleDescriptorAsync(AbsolutePath specPath) =>
+            EmbeddedNinjaWorkspaceResolver.TryGetOwningModuleDescriptorAsync(specPath);
 
         /// <inheritdoc/>
         public Task ReinitializeResolver() => Task.FromResult<object>(null);
 
         /// <inheritdoc />
-        public ISourceFile[] GetAllModuleConfigurationFiles()
-        {
-            return CollectionUtilities.EmptyArray<ISourceFile>();
-        }
+        public ISourceFile[] GetAllModuleConfigurationFiles() => CollectionUtilities.EmptyArray<ISourceFile>();
 
         /// <inheritdoc />
         public bool TryInitialize([NotNull] FrontEndHost host, [NotNull] FrontEndContext context, [NotNull] IConfiguration configuration, [NotNull] IResolverSettings resolverSettings)

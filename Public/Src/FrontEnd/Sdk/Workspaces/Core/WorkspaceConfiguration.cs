@@ -62,7 +62,7 @@ namespace BuildXL.FrontEnd.Workspaces.Core
                 CollectionUtilities.EmptyArray<IResolverSettings>(),
                 constructFingerprintDuringParsing: false,
                 maxDegreeOfParallelismForParsing: DataflowBlockOptions.Unbounded,
-                parsingOptions: TypeScript.Net.DScript.ParsingOptions.DefaultParsingOptions,
+                parsingOptions: ParsingOptions.DefaultParsingOptions,
                 maxDegreeOfParallelismForTypeChecking: 1,
                 cancelOnFirstFailure: true,
                 includePreludeWithName: null);

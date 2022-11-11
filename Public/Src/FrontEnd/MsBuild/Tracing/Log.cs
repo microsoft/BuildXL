@@ -43,7 +43,7 @@ namespace BuildXL.FrontEnd.MsBuild.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "An error occurred while parsing MsBuild spec files: {message}",
-            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError | Keywords.Diagnostics))]
         public abstract void ProjectGraphConstructionError(LoggingContext context, Location location, string message);
 
         [GeneratedEvent(

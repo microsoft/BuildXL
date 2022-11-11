@@ -59,17 +59,17 @@ namespace BuildXL.FrontEnd.Script
         /// <summary>
         /// State of the resolver initialization
         /// </summary>
-        protected State m_resolverState;
+        protected State ResolverState;
 
         /// <summary>
         /// Mappings from package id's to package locations and descriptors.
         /// </summary>
-        protected ConcurrentDictionary<PackageId, Package> m_packages = new ConcurrentDictionary<PackageId, Package>(PackageIdEqualityComparer.NameOnly);
+        protected ConcurrentDictionary<PackageId, Package> Packages = new(PackageIdEqualityComparer.NameOnly);
 
         /// <summary>
         /// DScript V2 pipeline: a map of owning modules.
         /// </summary>
-        protected Dictionary<ModuleId, Package> m_owningModules;
+        protected Dictionary<ModuleId, Package> OwningModules;
 
         private readonly SourceFileProcessingQueue<bool> m_parseQueue;
 
@@ -78,7 +78,7 @@ namespace BuildXL.FrontEnd.Script
         private WorkspaceSourceModuleResolver m_workspaceSourceModuleResolver;
 
         // Cummulative evaluation results across evaluation calls. Only populated when a decorator is present, to pass it over when evaluation is finished.
-        private readonly ConcurrentQueue<EvaluationResult> m_evaluationResults = new ConcurrentQueue<EvaluationResult>();
+        private readonly ConcurrentQueue<EvaluationResult> m_evaluationResults = new();
 
         /// <nodoc/>
         public DScriptSourceResolver(
@@ -102,12 +102,12 @@ namespace BuildXL.FrontEnd.Script
         {
             Contract.Requires(resolverSettings != null);
 
-            Contract.Assert(m_resolverState == State.Created);
+            Contract.Assert(ResolverState == State.Created);
             var sourceResolverSettings = resolverSettings as IDScriptResolverSettings;
             Contract.Assert(sourceResolverSettings != null, "Wrong type for resolver");
 
             Name = resolverSettings.Name;
-            m_resolverState = State.ResolverInitializing;
+            ResolverState = State.ResolverInitializing;
 
             m_workspaceSourceModuleResolver = workspaceResolver as WorkspaceSourceModuleResolver;
             Contract.Assert(m_workspaceSourceModuleResolver != null, "Workspace module resolver is expected to be of source type");
@@ -120,11 +120,11 @@ namespace BuildXL.FrontEnd.Script
                 return false;
             }
 
-            m_packages = moduleResolutionResult.Packages;
+            Packages = moduleResolutionResult.Packages;
 
-            m_owningModules = moduleResolutionResult.Packages.ToDictionary(p => p.Value.ModuleId, p => p.Value);
+            OwningModules = moduleResolutionResult.Packages.ToDictionary(p => p.Value.ModuleId, p => p.Value);
 
-            m_resolverState = State.ResolverInitialized;
+            ResolverState = State.ResolverInitialized;
 
             return true;
         }
@@ -133,10 +133,10 @@ namespace BuildXL.FrontEnd.Script
         public async Task<bool?> TryConvertModuleToEvaluationAsync(IModuleRegistry moduleRegistry, ParsedModule module, IWorkspace workspace)
         {
             Contract.Requires(module != null);
-            Contract.Assert(m_resolverState == State.ResolverInitialized);
-            Contract.Assert(m_owningModules != null, "Owning modules should not be null if the instance is initialized.");
+            Contract.Assert(ResolverState == State.ResolverInitialized);
+            Contract.Assert(OwningModules != null, "Owning modules should not be null if the instance is initialized.");
 
-            if (!m_owningModules.TryGetValue(module.Descriptor.Id, out Package package))
+            if (!OwningModules.TryGetValue(module.Descriptor.Id, out Package package))
             {
                 // Current resolver doesn't own a given module.
                 return null;
@@ -156,11 +156,11 @@ namespace BuildXL.FrontEnd.Script
             Contract.Requires(module != null);
             Contract.Requires(qualifierId.IsValid);
 
-            Contract.Assert(m_resolverState == State.ResolverInitialized);
-            Contract.Assert(m_owningModules != null, "Owning modules should not be null if the instance is initialized.");
+            Contract.Assert(ResolverState == State.ResolverInitialized);
+            Contract.Assert(OwningModules != null, "Owning modules should not be null if the instance is initialized.");
 
             var moduleDefinition = (ModuleDefinition)module;
-            if (!m_owningModules.TryGetValue(moduleDefinition.Descriptor.Id, out Package package))
+            if (!OwningModules.TryGetValue(moduleDefinition.Descriptor.Id, out Package package))
             {
                 // Current resolver doesn't own the given module.
                 return null;
@@ -175,19 +175,19 @@ namespace BuildXL.FrontEnd.Script
         /// </summary>
         internal void InitResolverForTesting(string name, IEnumerable<Package> packages)
         {
-            Contract.Assert(m_resolverState == State.Created);
+            Contract.Assert(ResolverState == State.Created);
             Name = name;
-            m_resolverState = State.ResolverInitializing;
+            ResolverState = State.ResolverInitializing;
 
-            m_packages = new ConcurrentDictionary<PackageId, Package>();
-            m_owningModules = new Dictionary<ModuleId, Package>();
+            Packages = new ConcurrentDictionary<PackageId, Package>();
+            OwningModules = new Dictionary<ModuleId, Package>();
             foreach (var package in packages)
             {
-                m_packages.Add(package.Id, package);
-                m_owningModules.Add(package.ModuleId, package);
+                Packages.Add(package.Id, package);
+                OwningModules.Add(package.ModuleId, package);
             }
 
-            m_resolverState = State.ResolverInitialized;
+            ResolverState = State.ResolverInitialized;
         }
 
         private async Task<bool> DoTryEvaluateModuleAsync(IEvaluationScheduler scheduler, ModuleDefinition module, QualifierId qualifierId)

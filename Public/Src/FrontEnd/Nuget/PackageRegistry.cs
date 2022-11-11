@@ -34,7 +34,7 @@ namespace BuildXL.FrontEnd.Nuget
 
             m_context = context;
             m_packages = packages;
-            m_validationResult = new Lazy<Possible<Unit>>(() => DoValidate());
+            m_validationResult = new Lazy<Possible<Unit>>(DoValidate);
         }
 
         public static Possible<PackageRegistry> Create(FrontEndContext context, IReadOnlyList<INugetPackage> packages)

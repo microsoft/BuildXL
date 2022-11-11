@@ -33,23 +33,22 @@ namespace BuildXL.FrontEnd.Utilities.GenericProjectGraphResolver
         public string Name { get; protected set; }
 
         /// <nodoc/>
-        protected FrontEndContext m_context;
+        protected FrontEndContext Context;
         /// <nodoc/>
-        protected FrontEndHost m_host;
+        protected FrontEndHost Host;
         /// <nodoc/>
-        protected IConfiguration m_configuration;
+        protected IConfiguration Configuration;
         /// <nodoc/>
-        protected TResolverSettings m_resolverSettings;
+        protected TResolverSettings ResolverSettings;
 
         // path-to-source-file to source file. Parsing requests may happen concurrently.
-        private readonly ConcurrentDictionary<AbsolutePath, SourceFile> m_createdSourceFiles =
-            new ConcurrentDictionary<AbsolutePath, SourceFile>();
+        private readonly ConcurrentDictionary<AbsolutePath, SourceFile> m_createdSourceFiles = new();
 
         private Possible<TProjectGraphResult>? m_projectGraph;
 
-        private ICollection<string> m_passthroughVariables;
+        private ICollection<string> m_passthroughEnvironmentVariables;
 
-        private IDictionary<string, string> m_userDefinedEnvironment;
+        private IDictionary<string, string> m_trackedEnvironmentVariables;
 
         private bool m_processEnvironmentUsed;
 
@@ -88,26 +87,29 @@ namespace BuildXL.FrontEnd.Utilities.GenericProjectGraphResolver
         }
 
         /// <summary>
-        /// Environment variables defined by the user that are exposed to the graph construction process and pip execution
+        /// Environment variables that are tracked by BuildXL and are exposed to the graph construction process and pip execution.
         /// </summary>
-        public IEnumerable<KeyValuePair<string, string>> UserDefinedEnvironment
+        /// <remarks>
+        /// These environment variables can be defined by the user explicitly through the resolver configuration or can be populated from this process' environment variables.
+        /// </remarks>
+        public IEnumerable<KeyValuePair<string, string>> TrackedEnvironmentVariables
         {
             get
             {
                 Contract.Assert(m_projectGraph.HasValue, "The computation of the build graph should have been triggered to be able to retrieve this value");
-                return m_userDefinedEnvironment;
+                return m_trackedEnvironmentVariables;
             }
         }
 
         /// <summary>
         /// Passthrough environment variables defined by the user that are exposed to the graph construction process and pip execution
         /// </summary>
-        public IEnumerable<string> UserDefinedPassthroughVariables
+        public IEnumerable<string> UserDefinedPassthroughEnvironmentVariables
         {
             get
             {
                 Contract.Assert(m_projectGraph.HasValue, "The computation of the build graph should have been triggered to be able to retrieve this value");
-                return m_passthroughVariables;
+                return m_passthroughEnvironmentVariables;
             }
         }
 
@@ -124,13 +126,9 @@ namespace BuildXL.FrontEnd.Utilities.GenericProjectGraphResolver
         public string DescribeExtent()
         {
             Possible<HashSet<ModuleDescriptor>> maybeModules = GetAllKnownModuleDescriptorsAsync().GetAwaiter().GetResult();
-
-            if (!maybeModules.Succeeded)
-            {
-                return I($"Module extent could not be computed. {maybeModules.Failure.Describe()}");
-            }
-
-            return string.Join(", ", maybeModules.Result.Select(module => module.Name));
+            return !maybeModules.Succeeded
+                ? I($"Module extent could not be computed. {maybeModules.Failure.Describe()}")
+                : string.Join(", ", maybeModules.Result.Select(module => module.Name));
         }
 
         /// <inheritdoc/>
@@ -140,13 +138,13 @@ namespace BuildXL.FrontEnd.Utilities.GenericProjectGraphResolver
             IConfiguration configuration,
             IResolverSettings resolverSettings)
         {
-            m_host = host;
-            m_context = context;
-            m_configuration = configuration;
+            Host = host;
+            Context = context;
+            Configuration = configuration;
 
-            m_resolverSettings = resolverSettings as TResolverSettings;
-            Contract.Assert(m_resolverSettings != null);
-            m_resolverSettings.ComputeEnvironment(context.PathTable, out m_userDefinedEnvironment, out m_passthroughVariables, out m_processEnvironmentUsed);
+            ResolverSettings = resolverSettings as TResolverSettings;
+            Contract.Assert(ResolverSettings != null);
+            ResolverSettings.ComputeEnvironment(context.PathTable, out m_trackedEnvironmentVariables, out m_passthroughEnvironmentVariables, out m_processEnvironmentUsed);
 
             return true;
         }
@@ -200,7 +198,7 @@ namespace BuildXL.FrontEnd.Utilities.GenericProjectGraphResolver
                 {
                     if (!parsedResult.ModuleDefinition.Specs.Contains(specPath))
                     {
-                        return new SpecNotOwnedByResolverFailure(specPath.ToString(m_context.PathTable));
+                        return new SpecNotOwnedByResolverFailure(specPath.ToString(Context.PathTable));
                     }
 
                     return parsedResult.ModuleDefinition.Descriptor;
@@ -213,10 +211,7 @@ namespace BuildXL.FrontEnd.Utilities.GenericProjectGraphResolver
         public Task ReinitializeResolver() => Task.FromResult<object>(null);
 
         /// <inheritdoc />
-        public ISourceFile[] GetAllModuleConfigurationFiles()
-        {
-            return CollectionUtilities.EmptyArray<ISourceFile>();
-        }
+        public ISourceFile[] GetAllModuleConfigurationFiles() => CollectionUtilities.EmptyArray<ISourceFile>();
 
         private SourceFile GetOrCreateSourceFile(AbsolutePath path)
         {
@@ -241,10 +236,7 @@ namespace BuildXL.FrontEnd.Utilities.GenericProjectGraphResolver
 
         private async Task<Possible<TProjectGraphResult>> TryComputeBuildGraphIfNeededAsync()
         {
-            if (m_projectGraph == null)
-            {
-                m_projectGraph = await TryComputeBuildGraphAsync();
-            }
+            m_projectGraph ??= await TryComputeBuildGraphAsync();
 
             return m_projectGraph.Value;
         }
@@ -261,8 +253,8 @@ namespace BuildXL.FrontEnd.Utilities.GenericProjectGraphResolver
         protected BuildParameters.IBuildParameters RetrieveBuildParameters()
         {
             // The full environment is built with all user-defined env variables plus the passthrough variables with their current values
-            var fullEnvironment = m_userDefinedEnvironment.Union(
-                m_passthroughVariables.Select(variable =>
+            var fullEnvironment = m_trackedEnvironmentVariables.Union(
+                m_passthroughEnvironmentVariables.Select(variable =>
                     // Here we explicitly skip the front end engine for retrieving the passthrough values: we need these values for graph construction
                     // purposes but they shouldn't be tracked
                     new KeyValuePair<string, string>(variable, Environment.GetEnvironmentVariable(variable))));
@@ -292,13 +284,13 @@ namespace BuildXL.FrontEnd.Utilities.GenericProjectGraphResolver
             // graph caching sound. We need to modify this when MsBuild static graph API starts providing used env vars.
             if (m_processEnvironmentUsed)
             {
-                foreach (string key in m_userDefinedEnvironment.Keys)
+                foreach (string key in m_trackedEnvironmentVariables.Keys)
                 {
-                    m_host.Engine.TryGetBuildParameter(key, Name, out _);
+                    Host.Engine.TryGetBuildParameter(key, Name, out _);
                 }
             }
 
-            FrontEndUtilities.TrackToolFileAccesses(m_host.Engine, m_context, Name, fileAccesses, frontEndFolder);
+            FrontEndUtilities.TrackToolFileAccesses(Host.Engine, Context, Name, fileAccesses, frontEndFolder);
         }
 
         /// <summary>
@@ -315,25 +307,25 @@ namespace BuildXL.FrontEnd.Utilities.GenericProjectGraphResolver
             // Observe that the env variable UserProfile is already redirected in this case, and the engine abstraction exposes it.
             // However, tools like MSBuild very often manages to find the user profile by some other means
             AbsolutePathJsonConverter absolutePathConverter;
-            if (m_configuration.Layout.RedirectedUserProfileJunctionRoot.IsValid)
+            if (Configuration.Layout.RedirectedUserProfileJunctionRoot.IsValid)
             {
                 // Let's get the redirected and original user profile folder
                 string redirectedUserProfile = SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.UserProfile);
                 string originalUserProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
 
                 absolutePathConverter = new AbsolutePathJsonConverter(
-                    m_context.PathTable,
+                    Context.PathTable,
                     new[] {
-                        (AbsolutePath.Create(m_context.PathTable, originalUserProfile), AbsolutePath.Create(m_context.PathTable, redirectedUserProfile))
+                        (AbsolutePath.Create(Context.PathTable, originalUserProfile), AbsolutePath.Create(Context.PathTable, redirectedUserProfile))
                     });
             }
             else
             {
-                absolutePathConverter = new AbsolutePathJsonConverter(m_context.PathTable);
+                absolutePathConverter = new AbsolutePathJsonConverter(Context.PathTable);
             }
 
             serializer.Converters.Add(absolutePathConverter);
-            serializer.Converters.Add(new RelativePathJsonConverter(m_context.StringTable));
+            serializer.Converters.Add(new RelativePathJsonConverter(Context.StringTable));
 
             // Let's not add invalid absolute paths to any collection
             serializer.Converters.Add(ValidAbsolutePathEnumerationJsonConverter.Instance);

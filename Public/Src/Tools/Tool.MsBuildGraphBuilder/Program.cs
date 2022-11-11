@@ -25,7 +25,7 @@ namespace MsBuildGraphBuilderTool
         /// <param name="args">
         /// args[0]: path to the file where the arguments are serialized
         /// </param>
-        static int Main(string[] args)
+        public static int Main(string[] args)
         {
             try
             {
@@ -68,9 +68,6 @@ namespace MsBuildGraphBuilderTool
             return arguments;
         }
 
-        private static string Usage()
-        {
-            return $"{Process.GetCurrentProcess().MainModule.ModuleName} <path to argument file>]";
-        }
+        private static string Usage() => $"{Process.GetCurrentProcess().MainModule.ModuleName} <path to argument file>]";
     }
 }

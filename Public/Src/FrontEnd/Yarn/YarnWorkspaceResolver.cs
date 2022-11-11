@@ -22,7 +22,7 @@ namespace BuildXL.FrontEnd.Yarn
         /// <summary>
         /// CODESYNC: the BuildXL deployment spec that places the tool
         /// </summary>
-        protected override RelativePath RelativePathToGraphConstructionTool => RelativePath.Create(m_context.StringTable, @"tools\YarnGraphBuilder\main.js");
+        protected override RelativePath RelativePathToGraphConstructionTool => RelativePath.Create(Context.StringTable, @"tools\YarnGraphBuilder\main.js");
 
         /// <summary>
         /// Yarn graph needs Bxl to interpret how script commands are related to each other
@@ -54,9 +54,9 @@ namespace BuildXL.FrontEnd.Yarn
                 else
                 {
                     var pathCollection = ((IReadOnlyList<DirectoryArtifact>) value).Select(dir => dir.Path);
-                    if (!FrontEndUtilities.TryFindToolInPath(m_context, m_host, pathCollection, toolNameToFind, out finalYarnLocation))
+                    if (!FrontEndUtilities.TryFindToolInPath(Context, Host, pathCollection, toolNameToFind, out finalYarnLocation))
                     {
-                        failure = $"'yarn' cannot be found under any of the provided paths '{string.Join(Path.PathSeparator.ToString(), pathCollection.Select(path => path.ToString(m_context.PathTable)))}'.";
+                        failure = $"'yarn' cannot be found under any of the provided paths '{string.Join(Path.PathSeparator.ToString(), pathCollection.Select(path => path.ToString(Context.PathTable)))}'.";
                         return false;
                     }
 
@@ -68,7 +68,7 @@ namespace BuildXL.FrontEnd.Yarn
             // If the location was not provided, let's try to see if Yarn is under %PATH%
             paths = buildParameters["PATH"];
 
-            if (!FrontEndUtilities.TryFindToolInPath(m_context, m_host, paths, toolNameToFind, out finalYarnLocation))
+            if (!FrontEndUtilities.TryFindToolInPath(Context, Host, paths, toolNameToFind, out finalYarnLocation))
             {
                 failure = "A location for 'yarn' is not explicitly specified. However, 'yarn' doesn't seem to be part of PATH. You can either specify the location explicitly using 'yarnLocation' field in " +
                     $"the Yarn resolver configuration, or make sure 'yarn' is part of your PATH. Current PATH is '{paths}'.";
@@ -78,7 +78,7 @@ namespace BuildXL.FrontEnd.Yarn
             failure = string.Empty;
 
             // Just verbose log this
-            Tracing.Logger.Log.UsingYarnAt(m_context.LoggingContext, resolverSettings.Location(m_context.PathTable), finalYarnLocation.ToString(m_context.PathTable));
+            Tracing.Logger.Log.UsingYarnAt(Context.LoggingContext, resolverSettings.Location(Context.PathTable), finalYarnLocation.ToString(Context.PathTable));
 
             return true;
         }
@@ -90,9 +90,9 @@ namespace BuildXL.FrontEnd.Yarn
         {
             // Node.exe sometimes misinterprets backslashes (e.g. "C:\" is interpreted such that \ is escaping quotes)
             // Use forward slashes for all node.exe arguments to avoid this.
-            string pathToRepoRoot = m_resolverSettings.Root.ToString(m_context.PathTable, PathFormat.Script);
+            string pathToRepoRoot = ResolverSettings.Root.ToString(Context.PathTable, PathFormat.Script);
 
-            var args = $@"""{nodeExeLocation}"" ""{bxlGraphConstructionToolPath.ToString(m_context.PathTable, PathFormat.Script)}"" ""{pathToRepoRoot}"" ""{outputFile.ToString(m_context.PathTable, PathFormat.Script)}"" ""{toolLocation.ToString(m_context.PathTable, PathFormat.Script)}""";
+            var args = $@"""{nodeExeLocation}"" ""{bxlGraphConstructionToolPath.ToString(Context.PathTable, PathFormat.Script)}"" ""{pathToRepoRoot}"" ""{outputFile.ToString(Context.PathTable, PathFormat.Script)}"" ""{toolLocation.ToString(Context.PathTable, PathFormat.Script)}""";
 
             return JavaScriptUtilities.GetCmdArguments(args);
         }

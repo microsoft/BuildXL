@@ -135,9 +135,6 @@ namespace BuildXL.FrontEnd.MsBuild.Serialization
         /// <summary>
         /// Only projects with non-empty targets can be scheduled
         /// </summary>
-        public bool CanBeScheduled()
-        {
-            return PredictedTargetsToExecute.Targets.Count != 0;
-        }
+        public bool CanBeScheduled() => PredictedTargetsToExecute.Targets.Count != 0;
     }
 }

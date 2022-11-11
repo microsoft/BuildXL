@@ -5,7 +5,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
-using System.Globalization;
 using System.Linq;
 using System.Xml.Linq;
 using BuildXL.FrontEnd.Nuget.Tracing;
@@ -16,6 +15,7 @@ using BuildXL.Utilities.Configuration;
 using JetBrains.Annotations;
 using NuGet.Versioning;
 using Moniker = BuildXL.Utilities.PathAtom;
+using static BuildXL.Utilities.FormattableStringEx;
 
 namespace BuildXL.FrontEnd.Nuget
 {
@@ -419,7 +419,7 @@ namespace BuildXL.FrontEnd.Nuget
                         }
 
                         // If the package has a pinned tfm and the groups tfm does not match, skip the groups dependency resolution
-                        if (!string.IsNullOrEmpty(this.Tfm) && NugetFrameworkMonikers.TargetFrameworkNameToMoniker.TryGetValue(this.Tfm, out Moniker pinnedTfm) && !PathAtom.Equals(pinnedTfm, targetFramework))
+                        if (!string.IsNullOrEmpty(Tfm) && NugetFrameworkMonikers.TargetFrameworkNameToMoniker.TryGetValue(Tfm, out Moniker pinnedTfm) && !PathAtom.Equals(pinnedTfm, targetFramework))
                         {
                             continue;
                         }
@@ -522,9 +522,7 @@ namespace BuildXL.FrontEnd.Nuget
                     return true;
                 }
 
-                errorMessage = string.Format(
-                    CultureInfo.InvariantCulture,
-                    "The requested dependency with id '{0}' and version '{1}' is not explicitly listed in the configuration file.", id, version);
+                errorMessage = I($"The requested dependency with id '{id}' and version '{version}' is not explicitly listed in the configuration file.");
                 return false;
             }
 
@@ -550,9 +548,7 @@ namespace BuildXL.FrontEnd.Nuget
             if (!NuGetVersion.TryParse(candidatePackage.Version, out var packageOnConfigVersion))
             {
                 nugetPackage = null;
-                errorMessage = string.Format(
-                    CultureInfo.InvariantCulture,
-                    "Version '{1}' on package '{0}' is malformed.", candidatePackage.Id, packagesOnConfig[id].Version);
+                errorMessage = I($"Version '{packagesOnConfig[id].Version}' on package '{candidatePackage.Id}' is malformed.");
                 return false;
             }
 
@@ -591,15 +587,12 @@ namespace BuildXL.FrontEnd.Nuget
                 }
 
                 nugetPackage = null;
-                errorMessage = string.Format(
-                    CultureInfo.InvariantCulture,
-                    "Package '{0}' is specified with version '{1}', but that is not contained in the interval '{2}'.",
-                    id, candidatePackage.Version, version);
+                errorMessage = I($"Package '{id}' is specified with version '{candidatePackage.Version}', but that is not contained in the interval '{version}'.");
                 return false;
             }
 
             nugetPackage = null;
-            errorMessage = string.Format(CultureInfo.InvariantCulture, "Could not parse version '{0}'.", version);
+            errorMessage = I($"Could not parse version '{version}'.");
             return false;
         }
     }

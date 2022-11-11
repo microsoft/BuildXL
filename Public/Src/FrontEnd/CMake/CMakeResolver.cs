@@ -66,22 +66,13 @@ namespace BuildXL.FrontEnd.CMake
         }
 
         /// <inheritdoc/>
-        public Task<bool?> TryConvertModuleToEvaluationAsync(IModuleRegistry moduleRegistry, ParsedModule module, IWorkspace workspace)
-        {
+        public Task<bool?> TryConvertModuleToEvaluationAsync(IModuleRegistry moduleRegistry, ParsedModule module, IWorkspace workspace) =>
             // No conversion needed.
-            return Task.FromResult<bool?>(true);
-        }
+            Task.FromResult<bool?>(true);
 
         /// <inheritdoc/>
-        public async Task<bool?> TryEvaluateModuleAsync(IEvaluationScheduler scheduler, ModuleDefinition iModule, QualifierId qualifierId)
-        {
-            if (!iModule.Equals(ModuleDef))
-            {
-                return null;
-            }
-
-            return await Task.FromResult(TryEvaluate(ModuleDef, qualifierId));
-        }
+        public async Task<bool?> TryEvaluateModuleAsync(IEvaluationScheduler scheduler, ModuleDefinition iModule, QualifierId qualifierId) =>
+            !iModule.Equals(ModuleDef) ? null : await Task.FromResult(TryEvaluate(ModuleDef, qualifierId));
 
         private bool? TryEvaluate(ModuleDefinition module, QualifierId qualifierId)    // TODO: Async?
         {
@@ -94,8 +85,8 @@ namespace BuildXL.FrontEnd.CMake
                 m_frontEndName,
                 new NinjaPipConstructionSettings()
                 {
-                    UserDefinedEnvironment = m_cMakeWorkspaceResolver.EmbeddedNinjaWorkspaceResolver.UserDefinedEnvironment,
-                    UserDefinedPassthroughVariables = m_cMakeWorkspaceResolver.EmbeddedNinjaWorkspaceResolver.UserDefinedPassthroughVariables,
+                    UserDefinedEnvironment = m_cMakeWorkspaceResolver.EmbeddedNinjaWorkspaceResolver.TrackedEnvironmentVariables,
+                    UserDefinedPassthroughVariables = m_cMakeWorkspaceResolver.EmbeddedNinjaWorkspaceResolver.UserDefinedPassthroughEnvironmentVariables,
                     UntrackingSettings = m_cMakeResolverSettings.UntrackingSettings,
                 });
 

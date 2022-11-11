@@ -23,7 +23,7 @@ namespace BuildXL.FrontEnd.Nuget
         private readonly IDecorator<EvaluationResult> m_evaluationDecorator;
         private SourceFileProcessingQueue<bool> m_sourceFileProcessingQueue;
 
-        private ConcurrentDictionary<IResolverSettings, WorkspaceNugetModuleResolver> m_workspaceResolverCache = new ConcurrentDictionary<IResolverSettings, WorkspaceNugetModuleResolver>();
+        private readonly ConcurrentDictionary<IResolverSettings, WorkspaceNugetModuleResolver> m_workspaceResolverCache = new();
 
         /// <nodoc/>
         public NugetFrontEnd(
@@ -85,12 +85,7 @@ namespace BuildXL.FrontEnd.Nuget
                 (settings) =>
                 {
                     var resolver = new WorkspaceNugetModuleResolver(Context.StringTable, FrontEndStatistics);
-                    if (resolver.TryInitialize(FrontEndHost, Context, Configuration, settings))
-                    {
-                        return resolver;
-                    }
-
-                    return null;
+                    return resolver.TryInitialize(FrontEndHost, Context, Configuration, settings) ? resolver : null;
                 });
 
             return workspaceResolver != null;

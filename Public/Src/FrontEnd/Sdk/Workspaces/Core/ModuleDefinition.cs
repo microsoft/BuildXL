@@ -185,7 +185,8 @@ namespace BuildXL.FrontEnd.Workspaces.Core
                 version: "0.0",
                 resolverKind: KnownResolverKind.DScriptResolverKind,
                 resolverName: "DScriptConfiguration");
-            return ModuleDefinition.CreateModuleDefinitionWithExplicitReferencesWithEmptyQualifierSpace(
+
+            return CreateModuleDefinitionWithExplicitReferencesWithEmptyQualifierSpace(
                 descriptor: mdsc,
                 main: configPath,
                 moduleConfigFile: AbsolutePath.Invalid,
@@ -272,9 +273,6 @@ namespace BuildXL.FrontEnd.Workspaces.Core
         }
 
         /// <inheritdoc />
-        public override int GetHashCode()
-        {
-            return Descriptor.GetHashCode();
-        }
+        public override int GetHashCode() => Descriptor.GetHashCode();
     }
 }

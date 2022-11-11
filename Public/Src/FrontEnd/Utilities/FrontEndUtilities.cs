@@ -333,16 +333,10 @@ namespace BuildXL.FrontEnd.Utilities
             private readonly string m_directory;
 
             /// <nodoc />
-            public ToolBuildStorage(string directory)
-            {
-                m_directory = directory;
-            }
+            public ToolBuildStorage(string directory) => m_directory = directory;
 
             /// <inheritdoc />
-            public string GetFileName(SandboxedProcessFile file)
-            {
-                return Path.Combine(m_directory, file.DefaultFileName());
-            }
+            public string GetFileName(SandboxedProcessFile file) => Path.Combine(m_directory, file.DefaultFileName());
         }
 
         /// <summary>

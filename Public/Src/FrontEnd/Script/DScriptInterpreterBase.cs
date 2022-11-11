@@ -50,18 +50,18 @@ namespace BuildXL.FrontEnd.Script
         /// <nodoc />
         protected QualifierValueCache QualifierValueCache { get; } = new QualifierValueCache();
 
-        ///<nodoc/>
-        protected IFileSystem m_fileSystem => Context.FileSystem;
+        /// <nodoc/>
+        protected IFileSystem FileSystem => Context.FileSystem;
 
-        ///<nodoc/>
-        protected IConfiguration m_configuration;
+        /// <nodoc/>
+        private IConfiguration m_configuration;
        
         /// <summary>
         /// Gets the configuration used for evaluating configs:
         ///   - doesn't track method invocations
         ///   - uses the same cycle detector startup delay as specified in <see cref="IFrontEndConfiguration.CycleDetectorStartupDelay"/>
         /// </summary>
-        protected EvaluatorConfiguration EvaluatorConfigurationForConfig => new EvaluatorConfiguration(
+        protected EvaluatorConfiguration EvaluatorConfigurationForConfig => new(
             trackMethodInvocations: false,
             cycleDetectorStartupDelay: TimeSpan.FromSeconds(m_configuration.FrontEnd.CycleDetectorStartupDelay()));
 
@@ -456,7 +456,7 @@ namespace BuildXL.FrontEnd.Script
 
             if (failureException.InnerException is IOException)
             {
-                if (m_fileSystem.Exists(AbsolutePath.Create(Context.PathTable, specPathString)))
+                if (FileSystem.Exists(AbsolutePath.Create(Context.PathTable, specPathString)))
                 {
                     Logger.ReportFailReadFileContent(
                         Context.LoggingContext,

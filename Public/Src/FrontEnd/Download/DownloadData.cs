@@ -53,7 +53,9 @@ namespace BuildXL.FrontEnd.Download
             
             DownloadedFilePath = ModuleRoot.Combine(context.PathTable, "f").Combine(context.PathTable, fileName);
 
-            ContentsFolder = settings.ArchiveType == DownloadArchiveType.File ? DirectoryArtifact.Invalid : DirectoryArtifact.CreateWithZeroPartialSealId(ModuleRoot.Combine(context.PathTable, "c"));
+            ContentsFolder = settings.ArchiveType == DownloadArchiveType.File 
+                ? DirectoryArtifact.Invalid 
+                : DirectoryArtifact.CreateWithZeroPartialSealId(ModuleRoot.Combine(context.PathTable, "c"));
 
             ModuleConfigFile = ModuleRoot.Combine(context.PathTable, "module.config.dsc");
             ModuleSpecFile = ModuleRoot.Combine(context.PathTable, "project.dsc");

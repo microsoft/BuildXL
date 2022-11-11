@@ -4,9 +4,7 @@
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using BuildXL.FrontEnd.Sdk;
-using BuildXL.FrontEnd.Workspaces;
 using BuildXL.FrontEnd.Workspaces.Core;
-using BuildXL.Utilities.Configuration;
 
 namespace BuildXL.FrontEnd.Ninja
 {

@@ -61,9 +61,9 @@ namespace BuildXL.Utilities.Configuration
         /// <remarks>
         /// When <see cref="IProjectGraphResolverSettings.Environment"/> is null, the current environment is defined as the tracked environment, with no passthroughs
         /// </remarks>
-        public static void ComputeEnvironment(this IProjectGraphResolverSettings rushResolverSettings, PathTable pathTable, out IDictionary<string, string> trackedEnv, out ICollection<string> passthroughEnv, out bool processEnvironmentUsed)
+        public static void ComputeEnvironment(this IProjectGraphResolverSettings resolverSettings, PathTable pathTable, out IDictionary<string, string> trackedEnv, out ICollection<string> passthroughEnv, out bool processEnvironmentUsed)
         {
-            if (rushResolverSettings.Environment == null)
+            if (resolverSettings.Environment == null)
             {
                 var allEnvironmentVariables = Environment.GetEnvironmentVariables();
                 processEnvironmentUsed = true;
@@ -82,10 +82,10 @@ namespace BuildXL.Utilities.Configuration
             var trackedList = new Dictionary<string, string>(OperatingSystemHelper.EnvVarComparer);
             var passthroughList = new List<string>();
 
-            foreach (var kvp in rushResolverSettings.Environment)
+            foreach (var kvp in resolverSettings.Environment)
             {
                 var valueOrPassthrough = kvp.Value?.GetValue();
-                if (valueOrPassthrough == null || !(valueOrPassthrough is UnitValue))
+                if (valueOrPassthrough == null || valueOrPassthrough is not UnitValue)
                 {
                     trackedList.Add(kvp.Key, ProcessEnvironmentData(kvp.Value, pathTable));
                 }
@@ -107,7 +107,7 @@ namespace BuildXL.Utilities.Configuration
             }
 
             object data = environmentData.GetValue();
-            Contract.Assert(!(data is UnitValue));
+            Contract.Assert(data is not UnitValue);
 
             StringBuilder s = new StringBuilder();
             DoProcessEnvironmentData(data, pathTable, s);

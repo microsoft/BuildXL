@@ -25,7 +25,7 @@ namespace BuildXL.FrontEnd.Sdk
         /// <nodoc />
         protected IConfiguration Configuration { get; private set; }
 
-        private ConcurrentDictionary<IResolverSettings, TWorkspaceResolver> m_workspaceResolverCache = new ConcurrentDictionary<IResolverSettings, TWorkspaceResolver>();
+        private readonly ConcurrentDictionary<IResolverSettings, TWorkspaceResolver> m_workspaceResolverCache = new();
 
         /// <inheritdoc />
         public void InitializeFrontEnd([NotNull] FrontEndHost host, [NotNull] FrontEndContext context, [NotNull] IConfiguration configuration)

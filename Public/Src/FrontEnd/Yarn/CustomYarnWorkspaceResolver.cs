@@ -37,27 +37,27 @@ namespace BuildXL.FrontEnd.Yarn
         /// </summary>
         protected override Task<Possible<(JavaScriptGraph<YarnConfiguration>, GenericJavaScriptGraph<DeserializedJavaScriptProject, YarnConfiguration>)>> ComputeBuildGraphAsync(BuildParameters.IBuildParameters buildParameters)
         {
-            if (m_resolverSettings.CustomProjectGraph == null)
+            if (ResolverSettings.CustomProjectGraph == null)
             {
                 Tracing.Logger.Log.ErrorReadingCustomProjectGraph(
-                    m_context.LoggingContext, 
-                    m_resolverSettings.Location(m_context.PathTable), 
+                    Context.LoggingContext, 
+                    ResolverSettings.Location(Context.PathTable), 
                     "The custom project graph is undefined.");
-                var failure = new Possible<(JavaScriptGraph<YarnConfiguration>, GenericJavaScriptGraph<DeserializedJavaScriptProject, YarnConfiguration>)>(new JavaScriptGraphConstructionFailure(m_resolverSettings, m_context.PathTable));
+                var failure = new Possible<(JavaScriptGraph<YarnConfiguration>, GenericJavaScriptGraph<DeserializedJavaScriptProject, YarnConfiguration>)>(new JavaScriptGraphConstructionFailure(ResolverSettings, Context.PathTable));
 
                 return Task.FromResult(failure);
             }
 
             // The graph may come from a file or from a DScript literal following the Yarn schema
             Possible<GenericJavaScriptGraph<DeserializedJavaScriptProject, YarnConfiguration>> maybeGraph;
-            if (m_resolverSettings.CustomProjectGraph.GetValue() is AbsolutePath graphFile)
+            if (ResolverSettings.CustomProjectGraph.GetValue() is AbsolutePath graphFile)
             {
                 Contract.Assert(graphFile.IsValid);
                 maybeGraph = ReadGraphFromFile(graphFile);
             }
             else
             {
-                var graphLiteral = m_resolverSettings.CustomProjectGraph.GetValue() as IReadOnlyDictionary<string, IJavaScriptCustomProjectGraphNode>;
+                var graphLiteral = ResolverSettings.CustomProjectGraph.GetValue() as IReadOnlyDictionary<string, IJavaScriptCustomProjectGraphNode>;
                 maybeGraph = BuildGraphFromLiteral(graphLiteral);
             }
 
@@ -68,7 +68,7 @@ namespace BuildXL.FrontEnd.Yarn
 
             // There is actually no graph file to 'keep' in this case, but in order to honor
             // this option, let's serialize to a file the graph we just constructed
-            if (m_resolverSettings.KeepProjectGraphFile == true && maybeResult.Succeeded)
+            if (ResolverSettings.KeepProjectGraphFile == true && maybeResult.Succeeded)
             {
                 SerializeComputedGraph(maybeResult.Result.Result);
             }
@@ -78,22 +78,22 @@ namespace BuildXL.FrontEnd.Yarn
 
         private void SerializeComputedGraph(GenericJavaScriptGraph<DeserializedJavaScriptProject, YarnConfiguration> graph)
         {
-            AbsolutePath outputDirectory = m_host.GetFolderForFrontEnd(Name);
-            AbsolutePath outputFile = outputDirectory.Combine(m_context.PathTable, Guid.NewGuid().ToString());
+            AbsolutePath outputDirectory = Host.GetFolderForFrontEnd(Name);
+            AbsolutePath outputFile = outputDirectory.Combine(Context.PathTable, Guid.NewGuid().ToString());
 
             // Make sure the directories are there
-            FileUtilities.CreateDirectory(outputDirectory.ToString(m_context.PathTable));
+            FileUtilities.CreateDirectory(outputDirectory.ToString(Context.PathTable));
 
             try
             {
-                File.WriteAllText(outputFile.ToString(m_context.PathTable), JObject.FromObject(graph, ConstructProjectGraphSerializer(JsonSerializerSettings)).ToString());
+                File.WriteAllText(outputFile.ToString(Context.PathTable), JObject.FromObject(graph, ConstructProjectGraphSerializer(JsonSerializerSettings)).ToString());
                 // Graph-related files are requested to be left on disk. Let's print a message with their location.
-                JavaScript.Tracing.Logger.Log.GraphBuilderFilesAreNotRemoved(m_context.LoggingContext, outputFile.ToString(m_context.PathTable));
+                JavaScript.Tracing.Logger.Log.GraphBuilderFilesAreNotRemoved(Context.LoggingContext, outputFile.ToString(Context.PathTable));
             }
             catch (Exception ex)
             {
                 // Serializing the graph is done on a best-effort basis. If there is any issues with it, just log it and move on.
-                Tracing.Logger.Log.CannotSerializeGraphFile(m_context.LoggingContext, m_resolverSettings.Location(m_context.PathTable), outputFile.ToString(m_context.PathTable), ex.ToString());
+                Tracing.Logger.Log.CannotSerializeGraphFile(Context.LoggingContext, ResolverSettings.Location(Context.PathTable), outputFile.ToString(Context.PathTable), ex.ToString());
             }
         }
 
@@ -104,7 +104,7 @@ namespace BuildXL.FrontEnd.Yarn
             {
                 if (!ValidateProject(kvp.Key, kvp.Value?.WorkspaceDependencies, kvp.Value?.Location))
                 {
-                    return new JavaScriptGraphConstructionFailure(m_resolverSettings, m_context.PathTable);
+                    return new JavaScriptGraphConstructionFailure(ResolverSettings, Context.PathTable);
                 }
 
                 var maybeProject = CreateJavaScriptProject(kvp.Key, kvp.Value.WorkspaceDependencies, kvp.Value.Location);
@@ -125,14 +125,14 @@ namespace BuildXL.FrontEnd.Yarn
             {
                 JsonSerializer serializer = ConstructProjectGraphSerializer(JsonSerializerSettings);
 
-                if (!m_host.Engine.TryGetFrontEndFile(graphFile, Name, out var stream))
+                if (!Host.Engine.TryGetFrontEndFile(graphFile, Name, out var stream))
                 {
                     Tracing.Logger.Log.ErrorReadingCustomProjectGraph(
-                        m_context.LoggingContext,
-                        m_resolverSettings.Location(m_context.PathTable),
-                        $"Could not read file '{graphFile.ToString(m_context.PathTable)}'.");
+                        Context.LoggingContext,
+                        ResolverSettings.Location(Context.PathTable),
+                        $"Could not read file '{graphFile.ToString(Context.PathTable)}'.");
 
-                    return new JavaScriptGraphConstructionFailure(m_resolverSettings, m_context.PathTable);
+                    return new JavaScriptGraphConstructionFailure(ResolverSettings, Context.PathTable);
                 }
 
                 using (var s = stream)
@@ -151,7 +151,7 @@ namespace BuildXL.FrontEnd.Yarn
 
                         if (!ValidateProject(kvp.Key, dependencies, relativeProjectFolder))
                         {
-                            return new JavaScriptGraphConstructionFailure(m_resolverSettings, m_context.PathTable);
+                            return new JavaScriptGraphConstructionFailure(ResolverSettings, Context.PathTable);
                         }
 
                         var maybeProject = CreateJavaScriptProject(kvp.Key, dependencies, relativeProjectFolder);
@@ -169,11 +169,11 @@ namespace BuildXL.FrontEnd.Yarn
             catch (Exception e) when (e is IOException || e is JsonReaderException || e is BuildXLException)
             {
                 Tracing.Logger.Log.ErrorReadingCustomProjectGraph(
-                    m_context.LoggingContext,
-                    m_resolverSettings.Location(m_context.PathTable),
+                    Context.LoggingContext,
+                    ResolverSettings.Location(Context.PathTable),
                     e.Message);
 
-                return new JavaScriptGraphConstructionFailure(m_resolverSettings, m_context.PathTable);
+                return new JavaScriptGraphConstructionFailure(ResolverSettings, Context.PathTable);
             }
         }
 
@@ -182,7 +182,7 @@ namespace BuildXL.FrontEnd.Yarn
             var maybeCustomScripts = new Possible<IReadOnlyDictionary<string, string>>((IReadOnlyDictionary<string, string>)null);
             
             // If there is a callback defined, give it a chance to retrieve custom scripts
-            if (m_resolverSettings.CustomScripts != null)
+            if (ResolverSettings.CustomScripts != null)
             {
                 maybeCustomScripts = ResolveCustomScripts(name, projectFolder);
                 if (!maybeCustomScripts.Succeeded)
@@ -195,8 +195,8 @@ namespace BuildXL.FrontEnd.Yarn
             // Let's try to find a package.json under the project folder
             if (maybeCustomScripts.Result == null)
             {
-                var packageJsonPath = m_resolverSettings.Root.Combine(m_context.PathTable, projectFolder).Combine(m_context.PathTable, "package.json");
-                maybeCustomScripts = GetScriptsFromPackageJson(packageJsonPath, m_resolverSettings.Location(m_context.PathTable));
+                var packageJsonPath = ResolverSettings.Root.Combine(Context.PathTable, projectFolder).Combine(Context.PathTable, "package.json");
+                maybeCustomScripts = GetScriptsFromPackageJson(packageJsonPath, ResolverSettings.Location(Context.PathTable));
 
                 if (!maybeCustomScripts.Succeeded)
                 {
@@ -206,10 +206,10 @@ namespace BuildXL.FrontEnd.Yarn
 
             return new DeserializedJavaScriptProject(
                 name: name,
-                projectFolder: m_resolverSettings.Root.Combine(m_context.PathTable, projectFolder),
+                projectFolder: ResolverSettings.Root.Combine(Context.PathTable, projectFolder),
                 dependencies: dependencies,
                 availableScriptCommands: maybeCustomScripts.Result,
-                tempFolder: m_resolverSettings.Root,
+                tempFolder: ResolverSettings.Root,
                 outputDirectories: CollectionUtilities.EmptyArray<PathWithTargets>(),
                 sourceFiles: CollectionUtilities.EmptyArray<PathWithTargets>()
             );
@@ -220,8 +220,8 @@ namespace BuildXL.FrontEnd.Yarn
             if (string.IsNullOrEmpty(projectName))
             {
                 Tracing.Logger.Log.ErrorReadingCustomProjectGraph(
-                        m_context.LoggingContext,
-                        m_resolverSettings.Location(m_context.PathTable),
+                        Context.LoggingContext,
+                        ResolverSettings.Location(Context.PathTable),
                         $"Project name is not defined.");
 
                 return false;
@@ -230,8 +230,8 @@ namespace BuildXL.FrontEnd.Yarn
             if (dependencies == null)
             {
                 Tracing.Logger.Log.ErrorReadingCustomProjectGraph(
-                    m_context.LoggingContext,
-                    m_resolverSettings.Location(m_context.PathTable),
+                    Context.LoggingContext,
+                    ResolverSettings.Location(Context.PathTable),
                     $"Project '{projectName}' dependencies are not defined.");
 
                 return false;
@@ -240,8 +240,8 @@ namespace BuildXL.FrontEnd.Yarn
             if (projectFolder == null || !projectFolder.Value.IsValid)
             {
                 Tracing.Logger.Log.ErrorReadingCustomProjectGraph(
-                    m_context.LoggingContext,
-                    m_resolverSettings.Location(m_context.PathTable),
+                    Context.LoggingContext,
+                    ResolverSettings.Location(Context.PathTable),
                     $"Project '{projectName}' location is not valid.");
 
                 return false;

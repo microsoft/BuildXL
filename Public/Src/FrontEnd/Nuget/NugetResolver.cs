@@ -3,7 +3,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
@@ -46,13 +45,13 @@ namespace BuildXL.FrontEnd.Script
         {
             Contract.Requires(resolverSettings != null);
 
-            Contract.Assert(m_resolverState == State.Created);
+            Contract.Assert(ResolverState == State.Created);
             Contract.Assert(
                 resolverSettings is INugetResolverSettings,
                 I($"Wrong type for resolver settings, expected {nameof(INugetResolverSettings)} but got {nameof(resolverSettings.GetType)}"));
 
             Name = resolverSettings.Name;
-            m_resolverState = State.ResolverInitializing;
+            ResolverState = State.ResolverInitializing;
 
             m_nugetWorkspaceResolver = workspaceResolver as WorkspaceNugetModuleResolver;
             Contract.Assert(m_nugetWorkspaceResolver != null, "Workspace module resolver is expected to be of source type");
@@ -67,12 +66,12 @@ namespace BuildXL.FrontEnd.Script
                 return false;
             }
 
-            m_owningModules = new Dictionary<ModuleId, Package>();
+            OwningModules = new Dictionary<ModuleId, Package>();
 
             foreach (var package in maybePackages.Result.Values.SelectMany(v => v))
             {
-                m_packages[package.Id] = package;
-                m_owningModules[package.ModuleId] = package;
+                Packages[package.Id] = package;
+                OwningModules[package.ModuleId] = package;
             }
 
             if (Configuration.FrontEnd.GenerateCgManifestForNugets.IsValid ||
@@ -101,7 +100,7 @@ namespace BuildXL.FrontEnd.Script
                 }
             }
 
-            m_resolverState = State.ResolverInitialized;
+            ResolverState = State.ResolverInitialized;
 
             return true;
         }
@@ -117,19 +116,26 @@ namespace BuildXL.FrontEnd.Script
                     CGManifestResolverName);
                 if (!NugetCgManifestGenerator.CompareForEquality(generatedCgManifest, existingCgManifest))
                 {
-                    Logger.ReportComponentGovernanceValidationError(Context.LoggingContext, @"Existing Component Governance Manifest file is outdated, please generate a new one using the argument /generateCgManifestForNugets:" + Configuration.FrontEnd.ValidateCgManifestForNugets.ToString(Context.PathTable));
+                    string cgManifestPath = Configuration.FrontEnd.ValidateCgManifestForNugets.ToString(Context.PathTable);
+                    Logger.ReportComponentGovernanceValidationError(
+                        Context.LoggingContext,
+                        $"Existing Component Governance Manifest file is outdated, please generate a new one using the argument /generateCgManifestForNugets:{cgManifestPath}");
                     return false;
                 }
             }
             // CgManifest FileNotFound, log error and fail build
             catch (DirectoryNotFoundException e)
             {
-                Logger.ReportComponentGovernanceValidationError(Context.LoggingContext, "Cannot read Component Governance Manifest file from disk\n" + e.ToString());
+                Logger.ReportComponentGovernanceValidationError(
+                    Context.LoggingContext,
+                    $"Cannot read Component Governance Manifest file from disk{Environment.NewLine}{e}");
                 return false;
             }
             catch (FileNotFoundException e)
             {
-                Logger.ReportComponentGovernanceValidationError(Context.LoggingContext, "Cannot read Component Governance Manifest file from disk\n" + e.ToString());
+                Logger.ReportComponentGovernanceValidationError(
+                    Context.LoggingContext,
+                    $"Cannot read Component Governance Manifest file from disk{Environment.NewLine}{e}");
                 return false;
             }
 
@@ -160,7 +166,9 @@ namespace BuildXL.FrontEnd.Script
                     }
                 }
 
-                Logger.ReportComponentGovernanceGenerationError(Context.LoggingContext, $"Could not write Component Governance Manifest file to disk.{Environment.NewLine}{handleUsageInfo}{e}");
+                Logger.ReportComponentGovernanceGenerationError(
+                    Context.LoggingContext,
+                    $"Could not write Component Governance Manifest file to disk.{Environment.NewLine}{handleUsageInfo}{e}");
                 return false;
             }
 

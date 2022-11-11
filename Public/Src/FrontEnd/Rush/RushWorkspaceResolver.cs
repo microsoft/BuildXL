@@ -20,7 +20,7 @@ namespace BuildXL.FrontEnd.Rush
         /// <summary>
         /// CODESYNC: the BuildXL deployment spec that places the tool
         /// </summary>
-        protected override RelativePath RelativePathToGraphConstructionTool => RelativePath.Create(m_context.StringTable, @"tools\RushGraphBuilder\main.js");
+        protected override RelativePath RelativePathToGraphConstructionTool => RelativePath.Create(Context.StringTable, @"tools\RushGraphBuilder\main.js");
 
         /// <summary>
         /// Rush graph needs Bxl to interpret how script commands are related to each other
@@ -54,9 +54,9 @@ namespace BuildXL.FrontEnd.Rush
             {
                 var nonEscapedPath = path.Trim('"');
                 // Sometimes PATH is not well-formed, so make sure we can actually recognize an absolute path there
-                if (AbsolutePath.TryCreate(m_context.PathTable, nonEscapedPath, out var absolutePath))
+                if (AbsolutePath.TryCreate(Context.PathTable, nonEscapedPath, out var absolutePath))
                 {
-                    if (m_host.Engine.FileExists(absolutePath.Combine(m_context.PathTable, "rush")))
+                    if (Host.Engine.FileExists(absolutePath.Combine(Context.PathTable, "rush")))
                     {
                         foundPath = absolutePath;
                         break;
@@ -76,11 +76,11 @@ namespace BuildXL.FrontEnd.Rush
             // Observe that even if that's not the case the final validation will occur under the rush graph builder tool, when
             // the module is tried to be loaded
             failure = string.Empty;
-            finalRushLibBaseLocation = foundPath.Combine(m_context.PathTable, 
-                RelativePath.Create(m_context.StringTable, "node_modules/@microsoft/rush/node_modules"));
+            finalRushLibBaseLocation = foundPath.Combine(Context.PathTable, 
+                RelativePath.Create(Context.StringTable, "node_modules/@microsoft/rush/node_modules"));
 
             // Just verbose log this
-            Tracing.Logger.Log.UsingRushLibBaseAt(m_context.LoggingContext, resolverSettings.Location(m_context.PathTable), finalRushLibBaseLocation.ToString(m_context.PathTable));
+            Tracing.Logger.Log.UsingRushLibBaseAt(Context.LoggingContext, resolverSettings.Location(Context.PathTable), finalRushLibBaseLocation.ToString(Context.PathTable));
 
             return true;
         }
@@ -92,9 +92,9 @@ namespace BuildXL.FrontEnd.Rush
         {
             // Node.exe sometimes misinterprets backslashes (e.g. "C:\" is interpreted such that \ is escaping quotes)
             // Use forward slashes for all node.exe arguments to avoid this.
-            string pathToRushJson = m_resolverSettings.Root.Combine(m_context.PathTable, "rush.json").ToString(m_context.PathTable, PathFormat.Script);
+            string pathToRushJson = ResolverSettings.Root.Combine(Context.PathTable, "rush.json").ToString(Context.PathTable, PathFormat.Script);
 
-            var args = $@"""{nodeExeLocation}"" ""{bxlGraphConstructionToolPath.ToString(m_context.PathTable, PathFormat.Script)}"" ""{pathToRushJson}"" ""{outputFile.ToString(m_context.PathTable, PathFormat.Script)}"" ""{toolLocation.ToString(m_context.PathTable, PathFormat.Script)}""";
+            var args = $@"""{nodeExeLocation}"" ""{bxlGraphConstructionToolPath.ToString(Context.PathTable, PathFormat.Script)}"" ""{pathToRushJson}"" ""{outputFile.ToString(Context.PathTable, PathFormat.Script)}"" ""{toolLocation.ToString(Context.PathTable, PathFormat.Script)}""";
             return JavaScriptUtilities.GetCmdArguments(args);
         }
     }

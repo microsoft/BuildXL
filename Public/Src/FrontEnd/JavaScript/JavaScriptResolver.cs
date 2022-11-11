@@ -333,7 +333,6 @@ namespace BuildXL.FrontEnd.JavaScript
             }
         }
 
-
         private async Task RunAstConverstionForFileAsync(Package package, AbsolutePath file)
         {
             var conversionResult = await FrontEndUtilities.RunAstConversionAsync(m_host, Context, m_logger, new FrontEndStatistics(), package, file);
@@ -517,8 +516,8 @@ namespace BuildXL.FrontEnd.JavaScript
                 ModuleDefinition,
                 m_resolverSettings,
                 result.JavaScriptGraph.Configuration,
-                m_javaScriptWorkspaceResolver.UserDefinedEnvironment,
-                m_javaScriptWorkspaceResolver.UserDefinedPassthroughVariables,
+                m_javaScriptWorkspaceResolver.TrackedEnvironmentVariables,
+                m_javaScriptWorkspaceResolver.UserDefinedPassthroughEnvironmentVariables,
                 customCommands,
                 filteredBuildFiles);
 

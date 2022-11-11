@@ -75,11 +75,11 @@ namespace BuildXL.FrontEnd.JavaScript
             BuildParameters.IBuildParameters buildParameters)
         {
             // We create a unique output file on the obj folder associated with the current front end, and using a GUID as the file name
-            AbsolutePath outputDirectory = m_host.GetFolderForFrontEnd(Name);
-            AbsolutePath outputFile = outputDirectory.Combine(m_context.PathTable, Guid.NewGuid().ToString());
+            AbsolutePath outputDirectory = Host.GetFolderForFrontEnd(Name);
+            AbsolutePath outputFile = outputDirectory.Combine(Context.PathTable, Guid.NewGuid().ToString());
 
             // Make sure the directories are there
-            FileUtilities.CreateDirectory(outputDirectory.ToString(m_context.PathTable));
+            FileUtilities.CreateDirectory(outputDirectory.ToString(Context.PathTable));
 
             Possible<(JavaScriptGraph<TGraphConfiguration> graph, GenericJavaScriptGraph<DeserializedJavaScriptProject, TGraphConfiguration> flattenedGraph)> maybeResult = await ComputeBuildGraphAsync(outputFile, buildParameters);
 
@@ -89,14 +89,14 @@ namespace BuildXL.FrontEnd.JavaScript
                 return maybeResult.Failure;
             }
 
-            if (m_resolverSettings.KeepProjectGraphFile != true)
+            if (ResolverSettings.KeepProjectGraphFile != true)
             {
                 DeleteGraphBuilderRelatedFiles(outputFile);
             }
             else
             {
                 // Graph-related files are requested to be left on disk. Let's print a message with their location.
-                Tracing.Logger.Log.GraphBuilderFilesAreNotRemoved(m_context.LoggingContext, outputFile.ToString(m_context.PathTable));
+                Tracing.Logger.Log.GraphBuilderFilesAreNotRemoved(Context.LoggingContext, outputFile.ToString(Context.PathTable));
             }
 
             return maybeResult;
@@ -108,23 +108,23 @@ namespace BuildXL.FrontEnd.JavaScript
         {
             // Determine the base location to use for finding the graph construction tool
             if (!TryFindGraphBuilderToolLocation(
-                m_resolverSettings, 
+                ResolverSettings, 
                 buildParameters, 
                 out AbsolutePath foundLocation, 
                 out string failure))
             {
                 Tracing.Logger.Log.CannotFindGraphBuilderTool(
-                    m_context.LoggingContext,
-                    m_resolverSettings.Location(m_context.PathTable),
+                    Context.LoggingContext,
+                    ResolverSettings.Location(Context.PathTable),
                     failure);
 
-                return new JavaScriptGraphConstructionFailure(m_resolverSettings, m_context.PathTable);
+                return new JavaScriptGraphConstructionFailure(ResolverSettings, Context.PathTable);
             }
 
             string nodeExeLocation;
-            if (m_resolverSettings.NodeExeLocation != null)
+            if (ResolverSettings.NodeExeLocation != null)
             {
-                var specifiedNodeExe = m_resolverSettings.NodeExeLocation.GetValue();
+                var specifiedNodeExe = ResolverSettings.NodeExeLocation.GetValue();
                 AbsolutePath nodeExeLocationPath;
 
                 if (specifiedNodeExe is FileArtifact fileArtifact)
@@ -134,29 +134,29 @@ namespace BuildXL.FrontEnd.JavaScript
                 else 
                 {
                     var pathCollection = ((IReadOnlyList<DirectoryArtifact>)specifiedNodeExe).Select(dir => dir.Path);
-                    if (!FrontEndUtilities.TryFindToolInPath(m_context, m_host, pathCollection, new[] { "node", "node.exe" }, out nodeExeLocationPath))
+                    if (!FrontEndUtilities.TryFindToolInPath(Context, Host, pathCollection, new[] { "node", "node.exe" }, out nodeExeLocationPath))
                     {
-                        failure = $"'node' cannot be found under any of the provided paths '{string.Join(";", pathCollection.Select(path => path.ToString(m_context.PathTable)))}'.";
+                        failure = $"'node' cannot be found under any of the provided paths '{string.Join(";", pathCollection.Select(path => path.ToString(Context.PathTable)))}'.";
                         Tracing.Logger.Log.CannotFindGraphBuilderTool(
-                            m_context.LoggingContext,
-                            m_resolverSettings.Location(m_context.PathTable),
+                            Context.LoggingContext,
+                            ResolverSettings.Location(Context.PathTable),
                             failure);
 
-                        return new JavaScriptGraphConstructionFailure(m_resolverSettings, m_context.PathTable);
+                        return new JavaScriptGraphConstructionFailure(ResolverSettings, Context.PathTable);
                     }
                 }
 
-                nodeExeLocation = nodeExeLocationPath.ToString(m_context.PathTable);
+                nodeExeLocation = nodeExeLocationPath.ToString(Context.PathTable);
 
                 // Most graph construction tools (yarn, rush, etc.) rely on node.exe being on the PATH. Make sure
                 // that's the case by appending the PATH exposed to the graph construction process with the location of the
                 // specified node.exe. By prepending PATH with it, we also make sure yarn/rush will be using the same version
                 // of node the user specified.
                 string pathWithNode = buildParameters.ContainsKey("PATH") ? buildParameters["PATH"] : string.Empty;
-                var nodeDirectory = nodeExeLocationPath.GetParent(m_context.PathTable);
+                var nodeDirectory = nodeExeLocationPath.GetParent(Context.PathTable);
                 if (nodeDirectory.IsValid)
                 {
-                    pathWithNode = nodeDirectory.ToString(m_context.PathTable) + Path.PathSeparator + pathWithNode;
+                    pathWithNode = nodeDirectory.ToString(Context.PathTable) + Path.PathSeparator + pathWithNode;
                 }
                 
                 buildParameters = buildParameters.Override(new[] { new KeyValuePair<string, string>("PATH", pathWithNode) });
@@ -174,11 +174,11 @@ namespace BuildXL.FrontEnd.JavaScript
             if (result.ExitCode != 0)
             {
                 Tracing.Logger.Log.ProjectGraphConstructionError(
-                    m_context.LoggingContext,
-                    m_resolverSettings.Location(m_context.PathTable),
+                    Context.LoggingContext,
+                    ResolverSettings.Location(Context.PathTable),
                     standardError);
 
-                return new JavaScriptGraphConstructionFailure(m_resolverSettings, m_context.PathTable);
+                return new JavaScriptGraphConstructionFailure(ResolverSettings, Context.PathTable);
             }
 
             // If the tool exited gracefully, but standard error is not empty, that
@@ -186,28 +186,28 @@ namespace BuildXL.FrontEnd.JavaScript
             if (!string.IsNullOrEmpty(standardError))
             {
                 Tracing.Logger.Log.GraphConstructionFinishedSuccessfullyButWithWarnings(
-                    m_context.LoggingContext,
-                    m_resolverSettings.Location(m_context.PathTable),
+                    Context.LoggingContext,
+                    ResolverSettings.Location(Context.PathTable),
                     standardError);
             }
 
-            TrackFilesAndEnvironment(result.AllUnexpectedFileAccesses, outputFile.GetParent(m_context.PathTable));
+            TrackFilesAndEnvironment(result.AllUnexpectedFileAccesses, outputFile.GetParent(Context.PathTable));
 
             JsonSerializer serializer = ConstructProjectGraphSerializer(JsonSerializerSettings);
             
-            using (var sr = new StreamReader(outputFile.ToString(m_context.PathTable)))
+            using (var sr = new StreamReader(outputFile.ToString(Context.PathTable)))
             using (var reader = new JsonTextReader(sr))
             {
                 var flattenedJavaScriptGraph = serializer.Deserialize<GenericJavaScriptGraph<DeserializedJavaScriptProject, TGraphConfiguration>>(reader);
 
                 // If a custom script command callback is specified, give it a chance to alter the script commands of 
                 // each package
-                if (m_resolverSettings.CustomScripts != null)
+                if (ResolverSettings.CustomScripts != null)
                 {
                     var projectsWithCustomScripts = new List<DeserializedJavaScriptProject>(flattenedJavaScriptGraph.Projects.Count);
                     foreach (var project in flattenedJavaScriptGraph.Projects)
                     {
-                        m_resolverSettings.Root.TryGetRelative(m_context.PathTable, project.ProjectFolder, out var relativeFolder);
+                        ResolverSettings.Root.TryGetRelative(Context.PathTable, project.ProjectFolder, out var relativeFolder);
                         
                         var maybeCustomScripts = ResolveCustomScripts(project.Name, relativeFolder);
                         if (!maybeCustomScripts.Succeeded)
@@ -236,22 +236,22 @@ namespace BuildXL.FrontEnd.JavaScript
            BuildParameters.IBuildParameters buildParameters,
            AbsolutePath toolLocation)
         {
-            AbsolutePath toolPath = m_configuration.Layout.BuildEngineDirectory.Combine(m_context.PathTable, RelativePathToGraphConstructionTool);
-            string outputDirectory = outputFile.GetParent(m_context.PathTable).ToString(m_context.PathTable);
+            AbsolutePath toolPath = Configuration.Layout.BuildEngineDirectory.Combine(Context.PathTable, RelativePathToGraphConstructionTool);
+            string outputDirectory = outputFile.GetParent(Context.PathTable).ToString(Context.PathTable);
 
-            var cmdExeArtifact = FileArtifact.CreateSourceFile(JavaScriptUtilities.GetCommandLineToolPath(m_context.PathTable));
+            var cmdExeArtifact = FileArtifact.CreateSourceFile(JavaScriptUtilities.GetCommandLineToolPath(Context.PathTable));
             
             var toolArguments = GetGraphConstructionToolArguments(outputFile, toolLocation, toolPath, nodeExeLocation);
 
-            Tracing.Logger.Log.ConstructingGraphScript(m_context.LoggingContext, toolArguments);
+            Tracing.Logger.Log.ConstructingGraphScript(Context.LoggingContext, toolArguments);
 
             return FrontEndUtilities.RunSandboxedToolAsync(
-               m_context,
-               cmdExeArtifact.Path.ToString(m_context.PathTable),
+               Context,
+               cmdExeArtifact.Path.ToString(Context.PathTable),
                buildStorageDirectory: outputDirectory,
-               fileAccessManifest: FrontEndUtilities.GenerateToolFileAccessManifest(m_context, outputFile.GetParent(m_context.PathTable)),
+               fileAccessManifest: FrontEndUtilities.GenerateToolFileAccessManifest(Context, outputFile.GetParent(Context.PathTable)),
                arguments: toolArguments,
-               workingDirectory: m_resolverSettings.Root.ToString(m_context.PathTable),
+               workingDirectory: ResolverSettings.Root.ToString(Context.PathTable),
                description: $"{Name} graph builder",
                buildParameters);
         }
@@ -263,11 +263,11 @@ namespace BuildXL.FrontEnd.JavaScript
             // a blocking problem
             try
             {
-                FileUtilities.DeleteFile(outputFile.ToString(m_context.PathTable));
+                FileUtilities.DeleteFile(outputFile.ToString(Context.PathTable));
             }
             catch (BuildXLException ex)
             {
-                Tracing.Logger.Log.CannotDeleteSerializedGraphFile(m_context.LoggingContext, m_resolverSettings.Location(m_context.PathTable), outputFile.ToString(m_context.PathTable), ex.Message);
+                Tracing.Logger.Log.CannotDeleteSerializedGraphFile(Context.LoggingContext, ResolverSettings.Location(Context.PathTable), outputFile.ToString(Context.PathTable), ex.Message);
             }
         }
     }

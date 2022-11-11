@@ -50,7 +50,7 @@ namespace BuildXL.FrontEnd.Nuget
             StringTable stringTable, 
             Func<Possible<string>> discoverCredentialProvider, 
             CancellationToken cancellationToken, 
-            Utilities.Instrumentation.Common.LoggingContext loggingContext)
+            LoggingContext loggingContext)
         {
             Contract.RequiresNotNull(repositories);
             Contract.RequiresNotNull(discoverCredentialProvider);
@@ -252,7 +252,7 @@ namespace BuildXL.FrontEnd.Nuget
                         }
                         else
                         {
-                            // This is not the first time we request a chunk, and that means the content we retrieved son far is not enough to read the zip central directory.
+                            // This is not the first time we request a chunk, and that means the content we have retrieved so far is not enough to read the zip central directory.
                             // So we already know where the chunk starts (and ends)
                             httpClient.DefaultRequestHeaders.Add("Range", $"bytes={chunkStart}-{chunkStart + (chunkCount * IncrementChunkSizeInBytes) - 1}");
                         }

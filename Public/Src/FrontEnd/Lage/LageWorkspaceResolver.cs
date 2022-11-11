@@ -19,7 +19,7 @@ namespace BuildXL.FrontEnd.Lage
         /// <summary>
         /// CODESYNC: the BuildXL deployment spec that places the tool
         /// </summary>
-        protected override RelativePath RelativePathToGraphConstructionTool => RelativePath.Create(m_context.StringTable, @"tools\LageGraphBuilder\main.js");
+        protected override RelativePath RelativePathToGraphConstructionTool => RelativePath.Create(Context.StringTable, @"tools\LageGraphBuilder\main.js");
 
         /// <summary>
         /// Lage provides its own execution semantics
@@ -45,7 +45,7 @@ namespace BuildXL.FrontEnd.Lage
             // If the location was not provided, let's try to see if NPM is under %PATH%
             string paths = buildParameters["PATH"];
 
-            if (!FrontEndUtilities.TryFindToolInPath(m_context, m_host, paths, new[] { "npm", "npm.cmd" }, out npmLocation))
+            if (!FrontEndUtilities.TryFindToolInPath(Context, Host, paths, new[] { "npm", "npm.cmd" }, out npmLocation))
             {
                 failure = "A location for 'npm' is not explicitly specified. However, 'npm' doesn't seem to be part of PATH. You can either specify the location explicitly using 'npmLocation' field in " +
                     $"the Lage resolver configuration, or make sure 'npm' is part of your PATH. Current PATH is '{paths}'.";
@@ -55,7 +55,7 @@ namespace BuildXL.FrontEnd.Lage
             failure = string.Empty;
 
             // Just verbose log this
-            Tracing.Logger.Log.UsingNpmAt(m_context.LoggingContext, resolverSettings.Location(m_context.PathTable), npmLocation.ToString(m_context.PathTable));
+            Tracing.Logger.Log.UsingNpmAt(Context.LoggingContext, resolverSettings.Location(Context.PathTable), npmLocation.ToString(Context.PathTable));
 
             return true;
         }
@@ -67,12 +67,12 @@ namespace BuildXL.FrontEnd.Lage
         {
             // Node.exe sometimes misinterprets backslashes (e.g. "C:\" is interpreted such that \ is escaping quotes)
             // Use forward slashes for all node.exe arguments to avoid this.
-            string pathToRepoRoot = m_resolverSettings.Root.ToString(m_context.PathTable, PathFormat.Script);
+            string pathToRepoRoot = ResolverSettings.Root.ToString(Context.PathTable, PathFormat.Script);
 
-            IEnumerable<string> commands = m_computedCommands.Keys;
+            IEnumerable<string> commands = ComputedCommands.Keys;
             
             // Pass the 6th argument (lage location) as "undefined" string. This argument is used by Office implementation.
-            var args = $@"""{nodeExeLocation}"" ""{bxlGraphConstructionToolPath.ToString(m_context.PathTable, PathFormat.Script)}"" ""{pathToRepoRoot}"" ""{outputFile.ToString(m_context.PathTable, PathFormat.Script)}"" ""{toolLocation.ToString(m_context.PathTable, PathFormat.Script)}"" ""{string.Join(" ", commands)}"" ""undefined""";
+            var args = $@"""{nodeExeLocation}"" ""{bxlGraphConstructionToolPath.ToString(Context.PathTable, PathFormat.Script)}"" ""{pathToRepoRoot}"" ""{outputFile.ToString(Context.PathTable, PathFormat.Script)}"" ""{toolLocation.ToString(Context.PathTable, PathFormat.Script)}"" ""{string.Join(" ", commands)}"" ""undefined""";
             
             return JavaScriptUtilities.GetCmdArguments(args);
         }

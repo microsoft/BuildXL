@@ -9,7 +9,6 @@ using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.FrontEnd.Script.Constants;
 using BuildXL.FrontEnd.Script.Evaluator;
-using BuildXL.FrontEnd.Script.Failures;
 using BuildXL.FrontEnd.Script.Tracing;
 using BuildXL.FrontEnd.Script.Util;
 using BuildXL.FrontEnd.Script.Values;
@@ -65,12 +64,12 @@ namespace BuildXL.FrontEnd.Script
         /// <summary>
         /// Configuration as a package, which is only created for the default source resolver. Null otherwise. Populated by DoResolveModuleAsync.
         /// </summary>
-        protected Package m_configAsPackage;
+        protected Package ConfigAsPackage;
 
         /// <summary>
         /// Mappings from package id's to package locations and descriptors. Populated by DoResolveModuleAsync.
         /// </summary>
-        private readonly ConcurrentDictionary<PackageId, Package> m_packages = new ConcurrentDictionary<PackageId, Package>(PackageIdEqualityComparer.NameOnly);
+        private readonly ConcurrentDictionary<PackageId, Package> m_packages = new(PackageIdEqualityComparer.NameOnly);
 
         /// <summary>
         /// Mappings from the absolute path to a spec to an owning package.
@@ -83,7 +82,7 @@ namespace BuildXL.FrontEnd.Script
         /// <remarks>
         /// Module definition computation involves file system probing. Using a cache significantly improves performance when one package is referenced multiple times.
         /// </remarks>
-        private readonly ConcurrentDictionary<PackageId, ModuleDefinition> m_modules = new ConcurrentDictionary<PackageId, ModuleDefinition>(PackageIdEqualityComparer.NameOnly);
+        private readonly ConcurrentDictionary<PackageId, ModuleDefinition> m_modules = new(PackageIdEqualityComparer.NameOnly);
 
         /// <summary>
         /// Mappings package directories to lists of packages. Populated by DoResolveModuleAsync.
@@ -92,7 +91,7 @@ namespace BuildXL.FrontEnd.Script
         /// We allow multiple packages in a single directory, and hence the list of packages. Moreover, by construction, the packages in the same list
         /// must reside in the same directory.
         /// </remarks>
-        private readonly ConcurrentDictionary<AbsolutePath, List<Package>> m_packageDirectories = new ConcurrentDictionary<AbsolutePath, List<Package>>();
+        private readonly ConcurrentDictionary<AbsolutePath, List<Package>> m_packageDirectories = new();
 
         /// <summary>
         /// Helper for parsing and converting module config files.
@@ -184,12 +183,9 @@ namespace BuildXL.FrontEnd.Script
             var packageName = StringId(moduleDescriptor.Name);
             var packageId = PackageId.Create(packageName);
 
-            if (!m_packages.TryGetValue(packageId, out Package package))
-            {
-                return new ModuleNotOwnedByThisResolver(moduleDescriptor);
-            }
-
-            return GetOrConvertModuleDefinitionForPackage(packageId, package);
+            return !m_packages.TryGetValue(packageId, out Package package)
+                ? new ModuleNotOwnedByThisResolver(moduleDescriptor)
+                : GetOrConvertModuleDefinitionForPackage(packageId, package);
         }
 
         private Possible<ModuleDefinition> GetOrConvertModuleDefinitionForPackage(PackageId packageId, Package package)
@@ -204,7 +200,7 @@ namespace BuildXL.FrontEnd.Script
                 var packageName = package.Descriptor.Name;
                 if (package.Descriptor.NameResolutionSemantics() == NameResolutionSemantics.ExplicitProjectReferences &&
                     !packageName.Equals(FrontEndHost.PreludeModuleName) &&
-                    !packageName.Equals(Script.Constants.Names.ConfigAsPackageName))
+                    !packageName.Equals(Names.ConfigAsPackageName))
                 {
                     Logger.WarnForDeprecatedV1Modules(
                         Context.LoggingContext,
@@ -278,13 +274,9 @@ namespace BuildXL.FrontEnd.Script
         public virtual string DescribeExtent()
         {
             var maybeModules = GetAllKnownModuleDescriptorsAsync().GetAwaiter().GetResult();
-
-            if (!maybeModules.Succeeded)
-            {
-                return I($"Module extent could not be computed. {maybeModules.Failure.Describe()}");
-            }
-
-            return string.Join(", ", maybeModules.Result.Select(module => module.DisplayName));
+            return !maybeModules.Succeeded
+                ? I($"Module extent could not be computed. {maybeModules.Failure.Describe()}")
+                : string.Join(", ", maybeModules.Result.Select(module => module.DisplayName));
         }
 
         /// <inheritdoc />
@@ -317,10 +309,8 @@ namespace BuildXL.FrontEnd.Script
         /// is for now shared between workspace resolvers and IResolvers. TODO: This methods should be removed when IResolver package-interpretation
         /// logic is removed.
         /// </summary>
-        internal Task<ModuleResolutionResult> ResolveModuleAsyncIfNeeded()
-        {
-            return m_resolveModuleAsyncIfNeededTask.GetOrCreate(this, @this => @this.DoResolveModuleAsyncIfNeededAsync());
-        }
+        internal Task<ModuleResolutionResult> ResolveModuleAsyncIfNeeded() =>
+            m_resolveModuleAsyncIfNeededTask.GetOrCreate(this, @this => @this.DoResolveModuleAsyncIfNeededAsync());
 
         /// <inheritdoc />
         private async Task<ModuleResolutionResult> DoResolveModuleAsyncIfNeededAsync()
@@ -330,11 +320,8 @@ namespace BuildXL.FrontEnd.Script
                 var result = await DoResolveModuleAsync();
 
                 // Compute the set of all known modules and name -> module here, so we only do this once
-                m_allModuleDescriptors =
-                    new HashSet<ModuleDescriptor>(m_packages.Values.Select(ConvertPackageToModuleDescriptor));
-
-                m_moduleDescriptorByName =
-                    m_allModuleDescriptors.ToMultiValueDictionary(descriptor => descriptor.Name, descriptor => descriptor);
+                m_allModuleDescriptors = new HashSet<ModuleDescriptor>(m_packages.Values.Select(ConvertPackageToModuleDescriptor));
+                m_moduleDescriptorByName = m_allModuleDescriptors.ToMultiValueDictionary(descriptor => descriptor.Name, descriptor => descriptor);
 
                 m_moduleResolutionState = !result || !ValidateFoundPackages()
                     ? ModuleResolutionState.Failed
@@ -346,7 +333,7 @@ namespace BuildXL.FrontEnd.Script
             }
 
             return m_moduleResolutionState == ModuleResolutionState.Succeeded
-                ? ModuleResolutionResult.CreateModuleResolutionResult(m_packageDirectories, m_packages, m_configAsPackage)
+                ? ModuleResolutionResult.CreateModuleResolutionResult(m_packageDirectories, m_packages, ConfigAsPackage)
                 : ModuleResolutionResult.CreateFailure();
         }
 
@@ -460,7 +447,7 @@ namespace BuildXL.FrontEnd.Script
             // assuming that this module owns it.
             // But it is possible that the spec is owned by the module in the upper folder.
             // In this case the resolution will fail.
-            if (m_packageDirectories.Count > 0)
+            if (!m_packageDirectories.IsEmpty)
             {
                 var searchPath = path;
                 searchPath = searchPath.GetParent(PathTable);
@@ -474,7 +461,7 @@ namespace BuildXL.FrontEnd.Script
                     }
 
                     // Following check is only applicable for default source resolver.
-                    if (m_configAsPackage?.Path == searchPath)
+                    if (ConfigAsPackage?.Path == searchPath)
                     {
                         // Check that the config package owns the search folder.
                         // This prevents from file system probing in case of a miss.
@@ -482,7 +469,7 @@ namespace BuildXL.FrontEnd.Script
                         {
                             // Don't go to the parent directory if a config file is found.
                             // But the path being question may point to an orphaned project, and thus, check if config owns it.
-                            return FindOwningPackage(configFilePath, m_configAsPackage);
+                            return FindOwningPackage(configFilePath, ConfigAsPackage);
                         }
                     }
 
@@ -493,10 +480,8 @@ namespace BuildXL.FrontEnd.Script
             return null;
         }
 
-        private Package FindOwningPackageByPath(AbsolutePath path, List<Package> packages)
-        {
-            return packages.Count == 1 ? FindOwningPackage(path, packages[0]) : FindOwningPackage(path, packages);
-        }
+        private Package FindOwningPackageByPath(AbsolutePath path, List<Package> packages) =>
+            packages.Count == 1 ? FindOwningPackage(path, packages[0]) : FindOwningPackage(path, packages);
 
         /// <nodoc/>
         protected static Package FindOwningPackage(AbsolutePath path, Package package)
@@ -521,7 +506,7 @@ namespace BuildXL.FrontEnd.Script
 
             foreach (var package in packages)
             {
-                if (package == m_configAsPackage)
+                if (package == ConfigAsPackage)
                 {
                     // Config package is handled differently by TryFindPackage.
                     continue;
@@ -541,10 +526,8 @@ namespace BuildXL.FrontEnd.Script
         // In the meantime, when the workspace flag in on,
         // the module Id is retrieved from the modules the workspace computed and assigned to the package.
         // Still, that moduleId is latter overridden at evaluation time. Clean this up.
-        private ModuleDescriptor ConvertPackageToModuleDescriptor(Package package)
-        {
-            return new ModuleDescriptor(package.ModuleId, package.Descriptor.Name, package.Descriptor.DisplayName, package.Descriptor.Version, Kind, Name);
-        }
+        private ModuleDescriptor ConvertPackageToModuleDescriptor(Package package) =>
+            new(package.ModuleId, package.Descriptor.Name, package.Descriptor.DisplayName, package.Descriptor.Version, Kind, Name);
 
         private Possible<ModuleDefinition> ConvertPackageToModuleDefinition(Package package)
         {
@@ -554,7 +537,7 @@ namespace BuildXL.FrontEnd.Script
             if (package.Descriptor.Projects == null)
             {
                 projects = ProjectCollector.CollectAllProjects(
-                    m_fileSystem,
+                    FileSystem,
                     package.Path.GetParent(PathTable));
             }
             else
@@ -565,14 +548,14 @@ namespace BuildXL.FrontEnd.Script
                 // packages field was specified but empty and main file is provided
                 // Observe that for the config-as-package, the main file is not a real project but config.dsc. We don't add it in that case.
                 if (package.Descriptor.NameResolutionSemantics() == NameResolutionSemantics.ExplicitProjectReferences &&
-                    package.Descriptor.Name != Script.Constants.Names.ConfigAsPackageName)
+                    package.Descriptor.Name != Names.ConfigAsPackageName)
                 {
                     projects.Add(package.Path);
                 }
             }
 
             // This is for v1 only, so we'll just have a hardcoded filename since it must be that name.
-            var moduleConfigFile = packageRoot.Combine(PathTable, Script.Constants.Names.PackageConfigDsc);
+            var moduleConfigFile = packageRoot.Combine(PathTable, Names.PackageConfigDsc);
 
             // Allowed dependencies and cyclic friends are, for now, strings representing module name references.
             var allowedDependencies = package.Descriptor.AllowedDependencies?.Select(
@@ -680,10 +663,8 @@ namespace BuildXL.FrontEnd.Script
 
         private static Task<bool> CheckPathsInParallel(
             IReadOnlyList<DiscriminatingUnion<AbsolutePath, IInlineModuleDefinition>> paths, 
-            Func<DiscriminatingUnion<AbsolutePath, IInlineModuleDefinition>, bool> checkFunc)
-        {
-            return Task.Run(() => paths.AsParallel().Select(checkFunc).All(b => b));
-        }
+            Func<DiscriminatingUnion<AbsolutePath, IInlineModuleDefinition>, bool> checkFunc) =>
+            Task.Run(() => paths.AsParallel().Select(checkFunc).All(b => b));
 
         /// <summary>
         /// Collects all packages under the root directory, as well as orphan projects, i.e., projects that do not belong to any of the collected packages.
@@ -778,8 +759,8 @@ namespace BuildXL.FrontEnd.Script
                         {
                             foreach (var nextDir in Engine.EnumerateDirectories(currentDir, "*"))
                             {
-                                var nextConfig = nextDir.Combine(PathTable, Script.Constants.Names.ConfigBc);
-                                var nextLegacyConfig = nextDir.Combine(PathTable, Script.Constants.Names.ConfigDsc);
+                                var nextConfig = nextDir.Combine(PathTable, Names.ConfigBc);
+                                var nextLegacyConfig = nextDir.Combine(PathTable, Names.ConfigDsc);
 
                                 if (skipConfigFile || !Engine.FileExists(nextConfig) || !Engine.FileExists(nextLegacyConfig))
                                 {
@@ -999,7 +980,7 @@ namespace BuildXL.FrontEnd.Script
                             // V2 / implicit name resolution doesn't require a main file for anything other than
                             // defining the root of the package. To avoid conflicts with multiple packages/modules declared
                             // in a single file, use undefined file names of the form "package.config.dscX" where X is the index of the package.
-                            packageMainFile = path.GetParent(PathTable).Combine(PathTable, Script.Constants.Names.PackageConfigDsc + i);
+                            packageMainFile = path.GetParent(PathTable).Combine(PathTable, Names.PackageConfigDsc + i);
                         }
 
                         if (FrontEndConfiguration.AllowMissingSpecs())
@@ -1036,14 +1017,14 @@ namespace BuildXL.FrontEnd.Script
                 return false;
             }
 
-            if (string.Equals(packageConfiguration.Name, Script.Constants.Names.ConfigAsPackageName, StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(packageConfiguration.Name, Names.ConfigAsPackageName, StringComparison.OrdinalIgnoreCase))
             {
                 Logger.ReportInvalidPackageNameDueToUsingConfigPackage(
                     Context.LoggingContext,
                     new Location() { File = packageConfigPath.ToString(PathTable) },
                     Name,
                     packageConfigPath.ToString(PathTable),
-                    Script.Constants.Names.ConfigAsPackageName);
+                    Names.ConfigAsPackageName);
                 return false;
             }
 
@@ -1143,31 +1124,24 @@ namespace BuildXL.FrontEnd.Script
             return true;
         }
 
-        private static List<string> ComputeDuplicates(IEnumerable<string> moduleList)
-        {
-            return moduleList
+        private static List<string> ComputeDuplicates(IEnumerable<string> moduleList) =>
+            moduleList
                 .GroupBy(module => module)
                 .Where(group => group.Count() > 1)
                 .Select(group => group.Key)
                 .ToList();
-        }
 
-        private PackageId CreatePackageId(IPackageDescriptor packageConfiguration)
-        {
+        private PackageId CreatePackageId(IPackageDescriptor packageConfiguration) =>
             // TODO: Add publisher, and parse version properly.
-            return string.IsNullOrWhiteSpace(packageConfiguration.Version)
+            string.IsNullOrWhiteSpace(packageConfiguration.Version)
                 ? PackageId.Create(StringId(packageConfiguration.Name))
                 : PackageId.Create(
                     StringId(packageConfiguration.Name),
                     PackageVersion.Create(
                         StringId(packageConfiguration.Version),
                         StringId(packageConfiguration.Version)));
-        }
 
-        private StringId StringId(string value)
-        {
-            return BuildXL.Utilities.StringId.Create(StringTable, value);
-        }
+        private StringId StringId(string value) => Utilities.StringId.Create(StringTable, value);
 
         /// <summary>
         /// Computes the main file of a package. This is either explicitly defined on the package, or is `package.dsc` in the package's root directory.
@@ -1181,9 +1155,9 @@ namespace BuildXL.FrontEnd.Script
             Contract.Requires(packageConfiguration.NameResolutionSemantics() == NameResolutionSemantics.ExplicitProjectReferences);
 
             // Get package main file; package.dsc if not specified.
-            return packageConfiguration.Main.IsValid ?
-                packageConfiguration.Main :
-                packageConfigPath.GetParent(PathTable).Combine(PathTable, m_packageDsc);
+            return packageConfiguration.Main.IsValid
+                ? packageConfiguration.Main
+                : packageConfigPath.GetParent(PathTable).Combine(PathTable, m_packageDsc);
         }
 
         private AbsolutePath GetPackageConfigPath(AbsolutePath path)
@@ -1215,7 +1189,7 @@ namespace BuildXL.FrontEnd.Script
 
         private bool IsWellKnownModuleConfigurationFileExists(AbsolutePath basePath, out AbsolutePath outputConfig)
         {
-            foreach (var wellKnownConfigFileName in Script.Constants.Names.WellKnownModuleConfigFileNames)
+            foreach (var wellKnownConfigFileName in Names.WellKnownModuleConfigFileNames)
             {
                 outputConfig = basePath.Combine(PathTable, wellKnownConfigFileName);
                 if (base.Engine.FileExists(outputConfig))
@@ -1228,10 +1202,7 @@ namespace BuildXL.FrontEnd.Script
             return false;
         }
 
-        private bool IsWellKnownConfigFile(AbsolutePath fileName)
-        {
-            return IsWellKnownConfigFile(fileName.GetName(PathTable));
-        }
+        private bool IsWellKnownConfigFile(AbsolutePath fileName) => IsWellKnownConfigFile(fileName.GetName(PathTable));
 
         private bool IsRootConfigurationFileExists(AbsolutePath searchPath, out AbsolutePath outputConfig)
         {
@@ -1303,7 +1274,7 @@ namespace BuildXL.FrontEnd.Script
 
             foreach (var package in packages)
             {
-                if (package == m_configAsPackage)
+                if (package == ConfigAsPackage)
                 {
                     continue;
                 }
@@ -1411,12 +1382,10 @@ namespace BuildXL.FrontEnd.Script
         /// <remarks>
         /// The comparison is case insensitive.
         /// </remarks>
-        private bool IsModuleConfigFile(PathAtom candidate)
-        {
-            return candidate.CaseInsensitiveEquals(StringTable, m_packageConfigDsc) ||
-                   candidate.CaseInsensitiveEquals(StringTable, m_moduleConfigBm) ||
-                   candidate.CaseInsensitiveEquals(StringTable, m_moduleConfigDsc);
-        }
+        private bool IsModuleConfigFile(PathAtom candidate) =>
+            candidate.CaseInsensitiveEquals(StringTable, m_packageConfigDsc)
+            || candidate.CaseInsensitiveEquals(StringTable, m_moduleConfigBm)
+            || candidate.CaseInsensitiveEquals(StringTable, m_moduleConfigDsc);
 
         /// <summary>
         /// Returns true if a given candidate is a package config file name (including legacy name) or a root config file name.
@@ -1424,12 +1393,10 @@ namespace BuildXL.FrontEnd.Script
         /// <remarks>
         /// The comparison is case insensitive.
         /// </remarks>
-        private bool IsWellKnownConfigFile(PathAtom candidate)
-        {
-            return IsModuleConfigFile(candidate) ||
-                   candidate.CaseInsensitiveEquals(StringTable, m_configDsc) ||
-                   candidate.CaseInsensitiveEquals(StringTable, m_configBc);
-        }
+        private bool IsWellKnownConfigFile(PathAtom candidate) =>
+            IsModuleConfigFile(candidate)
+            || candidate.CaseInsensitiveEquals(StringTable, m_configDsc)
+            || candidate.CaseInsensitiveEquals(StringTable, m_configBc);
 
         /// <summary>
         /// Returns true if a given candidate is a legacy package file name.
@@ -1437,10 +1404,7 @@ namespace BuildXL.FrontEnd.Script
         /// <remarks>
         /// The comparison is case insensitive.
         /// </remarks>
-        private bool IsLegacyPackageFile(PathAtom candidate)
-        {
-            return candidate.CaseInsensitiveEquals(StringTable, m_packageDsc);
-        }
+        private bool IsLegacyPackageFile(PathAtom candidate) => candidate.CaseInsensitiveEquals(StringTable, m_packageDsc);
 
         /// <summary>
         /// Filters out package paths from a module that don't exist on disk and returns an updated list of paths.

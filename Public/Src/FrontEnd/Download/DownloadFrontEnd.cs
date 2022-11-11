@@ -39,8 +39,7 @@ namespace BuildXL.FrontEnd.Download
         }
 
         /// <inheritdoc />
-        public override IReadOnlyCollection<string> SupportedResolvers { get; } = new[]
-                    { KnownResolverKind.DownloadResolverKind };
+        public override IReadOnlyCollection<string> SupportedResolvers { get; } = new[] { KnownResolverKind.DownloadResolverKind };
 
         /// <inheritdoc />
         public override IResolver CreateResolver([NotNull] string kind)

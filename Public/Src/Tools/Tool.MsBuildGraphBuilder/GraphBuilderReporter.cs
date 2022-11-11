@@ -43,7 +43,7 @@ namespace MsBuildGraphBuilderTool
         {
             m_pipeName = pipeName;
             m_messageQueue = new ActionBlock<string>(
-                message => SendMessageThroughPipe(message),
+                SendMessageThroughPipe,
                 new ExecutionDataflowBlockOptions
                 {
                     // no cap for the queue, these are user-facing messages, so we don't expect that many

@@ -5,9 +5,7 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using BuildXL.FrontEnd.Sdk;
-using BuildXL.FrontEnd.Workspaces;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Configuration;
 
 namespace BuildXL.FrontEnd.MsBuild
 {
@@ -23,7 +21,7 @@ namespace BuildXL.FrontEnd.MsBuild
         /// <remarks>
         /// Order matters, since that may result in different resolved assemblies
         /// </remarks>
-        private readonly List<AbsolutePath> m_loadedMsBuildAssemblyLocations = new List<AbsolutePath>();
+        private readonly List<AbsolutePath> m_loadedMsBuildAssemblyLocations = new();
 
         /// <nodoc />
         public override string Name => MsBuildWorkspaceResolver.MsBuildResolverName;

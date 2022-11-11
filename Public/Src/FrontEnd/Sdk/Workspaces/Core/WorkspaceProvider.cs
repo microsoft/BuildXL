@@ -115,7 +115,7 @@ namespace BuildXL.FrontEnd.Workspaces.Core
         /// <summary>
         /// Creates a new WorkspaceProvider using a <see cref="ModuleReferenceResolver"/> to identify DScript module references
         /// </summary>
-        public WorkspaceProvider(
+        private WorkspaceProvider(
             IWorkspaceStatistics workspaceStatistics,
             List<IWorkspaceModuleResolver> resolvers,
             WorkspaceConfiguration configuration,
@@ -126,7 +126,7 @@ namespace BuildXL.FrontEnd.Workspaces.Core
         }
 
         /// <nodoc/>
-        public WorkspaceProvider(
+        private WorkspaceProvider(
             IWorkspaceStatistics workspaceStatistics,
             List<IWorkspaceModuleResolver> resolvers,
             IModuleReferenceResolver moduleReferenceResolver,
@@ -161,9 +161,9 @@ namespace BuildXL.FrontEnd.Workspaces.Core
             out IEnumerable<Failure> failures)
         {
             // mainConfigurationWorkspace can be null for some tests
-            var mainFile = mainConfigurationWorkspace != null ? 
-                mainConfigurationWorkspace.ConfigurationModule.Definition.MainFile : 
-                AbsolutePath.Invalid;
+            var mainFile = mainConfigurationWorkspace != null
+                ? mainConfigurationWorkspace.ConfigurationModule.Definition.MainFile
+                : AbsolutePath.Invalid;
 
             if (!TryCreateResolvers(
                 frontEndFactory,
@@ -182,7 +182,7 @@ namespace BuildXL.FrontEnd.Workspaces.Core
             provider.m_mainConfigurationWorkspace = mainConfigurationWorkspace;
 
             workspaceProvider = useDecorator
-                ? (IWorkspaceProvider)new WorkspaceProviderStatisticsDecorator(workspaceStatistics, provider)
+                ? new WorkspaceProviderStatisticsDecorator(workspaceStatistics, provider)
                 : provider;
             return true;
         }

@@ -35,6 +35,8 @@ namespace BuildXL.Processes
     {
         private readonly SandboxedProcessReports m_reports;
 
+        private readonly SandboxedProcessTraceBuilder? m_traceBuilder;
+
         private readonly ActionBlock<AccessReport> m_pendingReports;
 
         private readonly CancellableTimedAction? m_perfCollector;
@@ -167,6 +169,11 @@ namespace BuildXL.Processes
                     intervalMs: (int)info.MonitoringConfig.RefreshInterval.TotalMilliseconds);
             }
 
+            // We cannot create a trace file if we are ignoring file accesses.
+            m_traceBuilder = info.CreateSandboxTraceFile && !ignoreReportedAccesses
+               ? new SandboxedProcessTraceBuilder(info.FileStorage, info.PathTable)
+               : null;
+
             m_reports = new SandboxedProcessReports(
                 info.FileAccessManifest,
                 info.PathTable,
@@ -175,7 +182,8 @@ namespace BuildXL.Processes
                 info.LoggingContext,
                 info.DetoursEventListener,
                 info.SidebandWriter,
-                info.FileSystemView);
+                info.FileSystemView,
+                m_traceBuilder);
 
             var useSingleProducer = !(SandboxConnection.Kind == SandboxKind.MacOsHybrid || SandboxConnection.Kind == SandboxKind.MacOsDetours);
 
@@ -397,7 +405,7 @@ namespace BuildXL.Processes
         }
 
         /// <summary>
-        /// Waits for all child processes to finish within a timeout limit and then termiantes all still running children after that point.
+        /// Waits for all child processes to finish within a timeout limit and then terminates all still running children after that point.
         /// After all the children have been taken care of, the method waits for pending report processing to finish, then returns the
         /// collected reports.
         /// </summary>
@@ -423,6 +431,9 @@ namespace BuildXL.Processes
 
             return IgnoreReportedAccesses ? null : m_reports;
         }
+
+        /// <inheritdoc />
+        internal override SandboxedProcessTraceBuilder? GetTraceFileBuilderAsync() => m_traceBuilder;
 
         /// <inheritdoc />
         public override void Dispose()

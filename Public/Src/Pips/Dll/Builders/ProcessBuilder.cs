@@ -697,15 +697,6 @@ namespace BuildXL.Pips.Builders
                 return false;
             }
 
-            // TODO (olkonone): Bug 1989281: Enable trace file for Linux and MacOS
-            if (m_traceFile.IsValid && !OperatingSystemHelper.IsWindowsOS)
-            {
-                processOutputs = null;
-                process = null;
-
-                return false;
-            }
-
             process = new Process(
                 executable: Executable,
                 workingDirectory: WorkingDirectory.IsValid ? WorkingDirectory : defaultDirectory,

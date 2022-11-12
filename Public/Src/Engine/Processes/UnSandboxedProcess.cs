@@ -303,6 +303,8 @@ namespace BuildXL.Processes
 
             var fileAccesses = ShouldReportFileAccesses ? (reports?.FileAccesses ?? EmptyFileAccessesSet) : null;
 
+            var traceBuilder = GetTraceFileBuilderAsync();
+
             return new SandboxedProcessResult
             {
                 ExitCode                            = m_processExecutor.TimedOut ? ExitCodes.Timeout : (Process?.ExitCode ?? ExitCodes.Timeout),
@@ -312,7 +314,7 @@ namespace BuildXL.Processes
                 JobAccountingInformation            = GetJobAccountingInfo(),
                 StandardOutput                      = m_output.Freeze(),
                 StandardError                       = m_error.Freeze(),
-                TraceFile                           = null,
+                TraceFile                           = traceBuilder?.Freeze(),
                 HasReadWriteToReadFileAccessRequest = reports?.HasReadWriteToReadFileAccessRequest ?? false,
                 AllUnexpectedFileAccesses           = reports?.FileUnexpectedAccesses ?? EmptyFileAccessesSet,
                 FileAccesses                        = fileAccesses,
@@ -445,6 +447,14 @@ namespace BuildXL.Processes
         /// Returns any collected sandboxed process reports or null.
         /// </summary>
         internal virtual Task<SandboxedProcessReports?>? GetReportsAsync() => Task.FromResult<SandboxedProcessReports?>(null);
+
+        /// <summary>
+        /// Returns a trace file builder if one was created.
+        /// </summary>
+        /// <remarks>
+        /// If there is a builder, it should only be used when SandboxedProcessReports (<see cref="GetReportsAsync"/>) are frozen.
+        /// </remarks>
+        internal virtual SandboxedProcessTraceBuilder? GetTraceFileBuilderAsync() => null;
 
         internal static void FeedOutputBuilder(SandboxedProcessOutputBuilder output, string line)
         {

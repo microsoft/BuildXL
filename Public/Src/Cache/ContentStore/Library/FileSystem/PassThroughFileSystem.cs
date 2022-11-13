@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Globalization;
@@ -35,6 +36,8 @@ namespace BuildXL.Cache.ContentStore.FileSystem
         private const long DefaultSequentialScanOnOpenThreshold = 100 * 1024 * 1024;
 
         public static PassThroughFileSystem Default { get; } = new PassThroughFileSystem();
+
+        private static readonly ConcurrentDictionary<string, bool> _createdDirectories = new ConcurrentDictionary<string, bool>();
 
         /// <summary>
         ///     File size, over which FileOptions.SequentialScan is used to open files.
@@ -101,8 +104,13 @@ namespace BuildXL.Cache.ContentStore.FileSystem
         /// <inheritdoc />
         public void CreateDirectory(AbsolutePath path)
         {
-            path.ThrowIfPathTooLong();
-            Directory.CreateDirectory(path.Path);
+            _createdDirectories.GetOrAdd(path.Path, p =>
+            {
+                path.ThrowIfPathTooLong();
+                Directory.CreateDirectory(p);
+
+                return true;
+            });
         }
 
         /// <summary>

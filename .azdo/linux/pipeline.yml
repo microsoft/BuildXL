@@ -28,11 +28,14 @@ parameters:
 extends:
   template: v1/1ES.Unofficial.PipelineTemplate.yml@1esPipelines
   parameters:
-
     pool:
       name: BuildXL-DevOpsAgents-Linux-PME
       os: linux
-    
+    sdl:
+      sourceAnalysisPool:
+        name: 1ES-Shared-Hosted-Pool_Windows-Server-2022
+        os: windows
+
     stages:
     - stage: Build
       jobs:

@@ -507,8 +507,8 @@ function Get-SubstArguments {
     param([string[]]$processArgs);
     $enlistmentrootTrimmed = $enlistmentRoot.TrimEnd('\')
     [string[]]$remappedArgs = @("/runInSubst");
-    $remappedArgs += "/substTarget:$NormalizationDrive /substSource:$enlistmentrootTrimmed"
     $remappedArgs += @(Remap-PathToNormalizedDrive $processArgs);
+    $remappedArgs += "/substTarget:$NormalizationDrive /substSource:$enlistmentrootTrimmed"
     $remappedArgs += " /logProcessDetouringStatus+ /logProcessData+ /logProcesses+";
     return $remappedArgs.Replace("""", "\""")
 }

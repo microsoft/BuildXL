@@ -151,8 +151,14 @@ namespace BuildXL
             // CODESYNC: keep in sync with bxl deployment, we are assuming RunInSubst.exe is deployed alongside bxl.exe
             string runInSubstPath = Path.Combine(Directory.GetParent(clientPath).FullName, "RunInSubst.exe");
 
+            // Subst the executable path, as this will be used by BuildXL later without going through path translations
+            var translator = new DirectoryTranslator();
+            translator.AddTranslation(substSource, substTarget);
+            translator.Seal();
+            string clientPathSubst = translator.Translate(clientPath);
+
             // Launch bxl again via RunInSubst as a child process, with same arguments, but disable /runInSubst and specify subst target and source
-            string arguments = $"B=\"{substSource}\" \"{clientPath}\" {string.Join(" ", rawArgs)} /runInSubst- /substTarget:{substTarget} /substSource:\"{substSource}\"";
+            string arguments = $"B=\"{substSource}\" \"{clientPathSubst}\" {string.Join(" ", rawArgs)} /runInSubst- /substTarget:{substTarget} /substSource:\"{substSource}\"";
 
             var startInfo = new ProcessStartInfo
             {

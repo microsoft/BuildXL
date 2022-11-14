@@ -3,6 +3,11 @@
 # should be specified via the queue-time variable $(BuildXLPackageVersion) 
 trigger: none   # This pipeline is explicitly scheduled
 
+parameters:
+  - name: DropName
+    type: string
+    default: buildxl.dogfood.$(BuildXLPackageVersion)
+
 variables:
   - group: "BuildXL Common variables"
   - group: "BuildXL Secrets"
@@ -14,8 +19,6 @@ variables:
     value: $(BuildXL.RepoDirectory)\Out\Logs
   - name: PatArgs
     value: -OneEsPat $(PAT-TseBuild-AzureDevOps-1esSharedAssets-Package-Read) -CbPat $(PAT-TseBuild-AzureDevOps-CloudBuild-Packaging-Read) -MsEngGitPat $(PAT-TseBuild-AzureDevOps-MsEng-ReadCode) -VstsPat $(PAT-TseBuild-AzureDevOps-mseng-buildcache)
-  - name: DogfoodDropName
-    value: buildxl.dogfood.$(BuildXLPackageVersion)
   - name: BxlScriptArgs
     value: -UseAdoBuildRunner -SharedCacheMode ConsumeAndPublish -Use Dev -DevRoot $(Domino.DogfoodPackagePath)\release\win-x64
   - name: BuildXLArgs
@@ -41,10 +44,10 @@ jobs:
   - template: ../common/set-msvc-version.yml
 
   - task: ms-vscs-artifact.build-tasks.artifactDropDownloadTask-1.artifactDropDownloadTask@1
-    displayName: 'Download $(DogfoodDropName) from drop'
+    displayName: 'Download ${{ parameters.DropName }} from drop'
     inputs:
       dropServiceURI: 'https://mseng.artifacts.visualstudio.com/DefaultCollection'
-      buildNumber: '$(DogfoodDropName)'
+      buildNumber: '${{ parameters.DropName }}'
       destinationPath: '$(Domino.DogfoodPackagePath)'
       rootPaths: 'release/win-x64'
 

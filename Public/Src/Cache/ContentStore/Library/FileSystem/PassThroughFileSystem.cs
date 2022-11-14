@@ -37,7 +37,7 @@ namespace BuildXL.Cache.ContentStore.FileSystem
 
         public static PassThroughFileSystem Default { get; } = new PassThroughFileSystem();
 
-        private static readonly ConcurrentDictionary<string, bool> _createdDirectories = new ConcurrentDictionary<string, bool>();
+        private static readonly ConcurrentDictionary<string, Lazy<bool>> _createdDirectories = new ConcurrentDictionary<string, Lazy<bool>>();
 
         /// <summary>
         ///     File size, over which FileOptions.SequentialScan is used to open files.
@@ -104,13 +104,15 @@ namespace BuildXL.Cache.ContentStore.FileSystem
         /// <inheritdoc />
         public void CreateDirectory(AbsolutePath path)
         {
-            _createdDirectories.GetOrAdd(path.Path, p =>
-            {
-                path.ThrowIfPathTooLong();
-                Directory.CreateDirectory(p);
+            _ = _createdDirectories.GetOrAdd(path.Path, p =>
+                new Lazy<bool>(() =>
+                {
+                    path.ThrowIfPathTooLong();
+                    Directory.CreateDirectory(p);
 
-                return true;
-            });
+                    return true;
+                })
+            ).Value;
         }
 
         /// <summary>

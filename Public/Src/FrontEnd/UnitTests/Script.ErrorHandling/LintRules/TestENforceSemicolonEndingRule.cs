@@ -42,7 +42,7 @@ namespace Test.DScript.Ast.ErrorHandling
         public static IEnumerable<object[]> WrapFunctionThatReturnsSingleInstance(string methodName)
         {
             var function = typeof(TestEnforceSemicolonEndingRule).GetMethod(methodName, BindingFlags.Static | BindingFlags.NonPublic);
-            Contract.Assert(function != null, I($"Can't find method with name '{methodName}'"));
+            Contract.Assert(function != null, $"Can't find method with name '{methodName}'");
 
             var resultObject = function.Invoke(null, new object[0]);
             IEnumerable<string> result = (IEnumerable<string>) resultObject;

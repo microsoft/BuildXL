@@ -963,7 +963,7 @@ namespace BuildXL.Utilities
 
                     if (s_nextDebugTag < DebugTagValueMask)
                     {
-                        Contract.Assert(s_tableInstancesForDebug[DebugTag] == null, I($"Should have had an empty entry in debug instance table for tag {DebugTag}."));
+                        Contract.Assert(s_tableInstancesForDebug[DebugTag] == null, $"Should have had an empty entry in debug instance table for tag {DebugTag}.");
                         s_tableInstancesForDebug[DebugTag] = new WeakReference<HierarchicalNameTable>(this);
                         ++s_nextDebugTag;
                     }
@@ -1837,7 +1837,7 @@ namespace BuildXL.Utilities
                 return null;
             }
 
-            Contract.Assert(debugTag < DebugTagValueMask && debugTag <= s_tableInstancesForDebug.Length, I($"Invalid debugTag: {debugTag}."));
+            Contract.Assert(debugTag < DebugTagValueMask && debugTag <= s_tableInstancesForDebug.Length, $"Invalid debugTag: {debugTag}.");
 
             WeakReference<HierarchicalNameTable> instance = Volatile.Read(ref s_tableInstancesForDebug[debugTag]);
             return instance.TryGetTarget(out HierarchicalNameTable owningTable) ? owningTable : null;

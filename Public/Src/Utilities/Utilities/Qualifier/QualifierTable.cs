@@ -277,7 +277,7 @@ namespace BuildXL.Utilities.Qualifier
 #if DEBUG
             Contract.Requires(IsValidQualifierId(qualifierId));
             Contract.Requires(qualifierSpaceId.IsValid);
-            Contract.Requires(IsValidQualifierSpaceId(qualifierSpaceId), "Id " + qualifierSpaceId.Id + " is not valid.");
+            Contract.Requires(IsValidQualifierSpaceId(qualifierSpaceId), $"Id {qualifierSpaceId.Id} is not valid.");
 #endif
 
             Qualifier qualifier = GetQualifier(qualifierId);

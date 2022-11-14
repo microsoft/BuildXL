@@ -350,7 +350,7 @@ namespace BuildXL.Scheduler
             Contract.Requires(remoteWorkers != null);
 
             Contract.Assert(m_workers.Count == 1, "Local worker must exist");
-            Contract.Assert(IsDistributedOrchestrator, I($"{nameof(EnableDistribution)} can be called only for the orchestrator node"));
+            Contract.Assert(IsDistributedOrchestrator, $"{nameof(EnableDistribution)} can be called only for the orchestrator node");
 
             // Ensure that the resource mappings match between workers
             foreach (var worker in remoteWorkers)
@@ -3253,7 +3253,7 @@ namespace BuildXL.Scheduler
                         result.Status == PipResultStatus.DeployedFromCache ||
                         result.Status == PipResultStatus.UpToDate ||
                         result.Status == PipResultStatus.Succeeded ||
-                        result.Status == PipResultStatus.NotMaterialized, I($"{result.Status} should not be here at this point"));
+                        result.Status == PipResultStatus.NotMaterialized, $"{result.Status} should not be here at this point");
 
                     pipRuntimeInfo.Transition(
                         m_pipStateCounters,
@@ -3290,7 +3290,7 @@ namespace BuildXL.Scheduler
                         RequestTermination(cancelQueue: false);
                     }
 
-                    Contract.Assert(m_executePhaseLoggingContext.ErrorWasLogged, I($"Should have logged error for pip: {pipDescription}"));
+                    Contract.Assert(m_executePhaseLoggingContext.ErrorWasLogged, $"Should have logged error for pip: {pipDescription}");
                 }
 
                 if (!succeeded && !m_executePhaseLoggingContext.ErrorWasLogged)
@@ -4265,7 +4265,7 @@ namespace BuildXL.Scheduler
                         return PipExecutionStep.Skip;
                     }
 
-                    Contract.Assert(state == PipState.Running, I($"Cannot start pip in state: {state}"));
+                    Contract.Assert(state == PipState.Running, $"Cannot start pip in state: {state}");
 
                     if (pipType.IsMetaPip())
                     {
@@ -4593,7 +4593,7 @@ namespace BuildXL.Scheduler
                     if (!IsDistributedWorker && !cacheResult.CanRunFromCache)
                     {
                         // It's a cache miss, update the counters.
-                        Contract.Assert(cacheResult.CacheMissType != PipCacheMissType.Invalid, $"Must have valid cache miss reason");
+                        Contract.Assert(cacheResult.CacheMissType != PipCacheMissType.Invalid, "Must have valid cache miss reason");
                         environment.Counters.IncrementCounter((PipExecutorCounter)cacheResult.CacheMissType);
 
                         if (pipRunTimeInfo.IsFrontierMissCandidate)

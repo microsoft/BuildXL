@@ -1353,14 +1353,14 @@ namespace BuildXL.Scheduler
             if (executionResult.Status == SandboxedProcessPipExecutionStatus.ExecutionFailed ||
                 executionResult.Status == SandboxedProcessPipExecutionStatus.FileAccessMonitoringFailed)
             {
-                Contract.Assert(operationContext.LoggingContext.ErrorWasLogged, I($"Error should have been logged for '{executionResult.Status}'"));
+                Contract.Assert(operationContext.LoggingContext.ErrorWasLogged, $"Error should have been logged for '{executionResult.Status}'");
             }
 
             if (executionResult.RetryInfo?.RetryReason == RetryReason.OutputWithNoFileAccessFailed ||
                 executionResult.RetryInfo?.RetryReason == RetryReason.MismatchedMessageCount ||
                 executionResult.RetryInfo?.RetryReason == RetryReason.AzureWatsonExitCode)
             {
-                Contract.Assert(operationContext.LoggingContext.ErrorWasLogged, I($"Error should have been logged for failures after multiple retries on {executionResult.RetryInfo?.RetryMode.ToString()} due to '{executionResult.RetryInfo?.RetryReason.ToString()}'"));
+                Contract.Assert(operationContext.LoggingContext.ErrorWasLogged, $"Error should have been logged for failures after multiple retries on {executionResult.RetryInfo?.RetryMode.ToString()} due to '{executionResult.RetryInfo?.RetryReason.ToString()}'");
             }
 
             Contract.Assert(executionResult.UnexpectedFileAccesses != null, "Success / ExecutionFailed provides all execution-time fields");
@@ -2250,7 +2250,7 @@ namespace BuildXL.Scheduler
                     }
                     else
                     {
-                        Contract.Assert(pipCacheMiss.Value.CacheMissType != PipCacheMissType.Invalid, $"Must have valid cache miss reason");
+                        Contract.Assert(pipCacheMiss.Value.CacheMissType != PipCacheMissType.Invalid, "Must have valid cache miss reason");
 
 
                         Logger.Log.ScheduleProcessPipCacheMiss(

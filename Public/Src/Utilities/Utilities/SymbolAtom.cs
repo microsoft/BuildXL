@@ -162,11 +162,7 @@ namespace BuildXL.Utilities
 
             bool identifierAtomCreated = TryCreate(table, atom, out SymbolAtom result);
 
-            if (!identifierAtomCreated)
-            {
-                // Moving this check inside the if block to avoid 'atom' boxing allocation.
-                Contract.Assert(false, I($"Failed to create SymbolAtom from '{atom}'."));
-            }
+            Contract.Assert(identifierAtomCreated, $"Failed to create SymbolAtom from '{atom}'.");
 
             return result;
         }

@@ -179,10 +179,7 @@ namespace BuildXL.Utilities
 
             bool pathAtomCreated = TryCreate(table, atom, out PathAtom result);
 
-            if (!pathAtomCreated)
-            {
-                Contract.Assert(false, "Unable to create path atom '" + atom.ToString() + "'");
-            }
+            Contract.Assert(pathAtomCreated, $"Unable to create path atom '{atom.ToString()}'");
 
             return result;
         }

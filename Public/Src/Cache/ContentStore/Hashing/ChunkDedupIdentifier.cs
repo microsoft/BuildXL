@@ -52,7 +52,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
 
         private void Validate()
         {
-            Contract.Check(AlgorithmId == ChunkAlgorithmId)?.Assert($"The given algorithm does not represent a {nameof(ChunkDedupIdentifier)}. Actual: {AlgorithmId} Expected: {ChunkAlgorithmId}");
+            Contract.Assert(AlgorithmId == ChunkAlgorithmId, $"The given algorithm does not represent a {nameof(ChunkDedupIdentifier)}. Actual: {AlgorithmId} Expected: {ChunkAlgorithmId}");
         }
     }
 }

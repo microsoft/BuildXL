@@ -418,10 +418,7 @@ namespace BuildXL.Engine
 
             // Build parameters are restricted depending on how the frontend is configured
             var result = m_frontendsEnvironmentRestriction.TryGetValue(frontEnd, out bool restrictBuildParameters);
-            if (!result)
-            {
-                Contract.Assert(false, $"Frontend {frontEnd} should be registered. Registered front ends are: {string.Join(", ", m_frontendsEnvironmentRestriction.Keys)}");
-            }
+            Contract.Assert(result, $"Frontend {frontEnd} should be registered. Registered front ends are: {string.Join(", ", m_frontendsEnvironmentRestriction.Keys)}");
 
             if (!restrictBuildParameters)
             {

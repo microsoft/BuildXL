@@ -2093,10 +2093,7 @@ namespace TypeScript.Net.Binding
             var i = m_implicitLabels[m_implicitLabels.Count - 1];
             m_implicitLabels.RemoveAt(m_implicitLabels.Count - 1);
 
-            if (implicitLabelIndex != i)
-            {
-                Contract.Assert(false, I($"i: {i}, index: {implicitLabelIndex}"));
-            }
+            Contract.Assert(implicitLabelIndex == i, $"i: {i}, index: {implicitLabelIndex}");
 
             // labelStack.pop()
             Reachability labelReachability = m_labelStack[implicitLabelIndex];

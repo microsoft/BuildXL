@@ -173,10 +173,7 @@ namespace BuildXL.Scheduler
         /// </summary>
         public static RunnableFromCacheResult CreateForMiss(WeakContentFingerprint weakFingerprint, PipCacheMissType cacheMissType)
         {
-            if (cacheMissType == PipCacheMissType.Hit)
-            {
-                Contract.Assert(false, $"Unexpected cache miss type: '{cacheMissType}'");
-            }
+            Contract.Assert(cacheMissType != PipCacheMissType.Hit, $"Unexpected cache miss type: '{cacheMissType}'");
 
             return new RunnableFromCacheResult(
                 weakFingerprint,

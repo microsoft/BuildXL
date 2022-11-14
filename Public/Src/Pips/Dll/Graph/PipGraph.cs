@@ -809,10 +809,8 @@ namespace BuildXL.Pips.Graph
         public override NodeId GetSealedDirectoryNode(DirectoryArtifact directoryArtifact)
         {
             bool success = m_sealedDirectoryNodes.TryGetValue(directoryArtifact, out var nodeId);
-            if (!success)
-            {
-                Contract.Assert(false, $"Directory artifact (path: '{directoryArtifact.Path.ToString(Context.PathTable)}', PartialSealId: '{directoryArtifact.PartialSealId}', IsSharedOpaque: '{directoryArtifact.IsSharedOpaque}') should be present.");
-            }
+            Contract.Assert(success, $"Directory artifact (path: '{directoryArtifact.Path.ToString(Context.PathTable)}', PartialSealId: '{directoryArtifact.PartialSealId}', IsSharedOpaque: '{directoryArtifact.IsSharedOpaque}') should be present.");
+            
             return nodeId;
         }
 

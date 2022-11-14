@@ -82,10 +82,7 @@ namespace BuildXL.Scheduler
 
         internal void Verify(PipId pipId)
         {
-            if (pipId != m_operation.Root.PipId)
-            {
-                Contract.Assert(false, "PipId does not match root pip id");
-            }
+            Contract.Assert(pipId == m_operation.Root.PipId, "PipId does not match root pip id");
         }
 
         /// <summary>

@@ -480,10 +480,7 @@ namespace Tool.SymbolDaemon
             const int DebugEntryFieldCount = 3;
 
             var blocks = serializedEntry.Split(s_debugEntryDataFieldSeparator);
-            if (blocks.Length != DebugEntryFieldCount)
-            {
-                Contract.Assert(false, I($"Expected to find {DebugEntryFieldCount} fields in the serialized string, but found {blocks.Length}."));
-            }
+            Contract.Assert(blocks.Length == DebugEntryFieldCount, $"Expected to find {DebugEntryFieldCount} fields in the serialized string, but found {blocks.Length}.");
 
             var result = new DebugEntryData()
             {

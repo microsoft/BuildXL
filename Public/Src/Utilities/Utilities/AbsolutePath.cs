@@ -514,10 +514,7 @@ namespace BuildXL.Utilities
             Contract.Requires(descendantPath.IsValid);
 
             bool succeeded = table.TryExpandNameRelativeToAnother(Value, descendantPath.Value, out string str);
-            if (!succeeded)
-            {
-                Contract.Assert(false, I($"Given descendantPath '{descendantPath.ToString(table)}' value is not a descendant path of {ToString(table)}"));
-            }
+            Contract.Assert(succeeded, $"Given descendantPath '{descendantPath.ToString(table)}' value is not a descendant path of {ToString(table)}");
             return str;
         }
 

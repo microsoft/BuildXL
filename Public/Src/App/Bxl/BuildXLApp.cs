@@ -2272,7 +2272,7 @@ namespace BuildXL
 
                 Contract.Assert(
                     (trackingEventListener == null || trackingEventListener.HasFailures) && loggingContext.ErrorWasLogged,
-                    I($"The build has failed but the logging infrastructure has not encountered an error: TrackingEventListener has errors: {trackingEventListener == null || trackingEventListener.HasFailures} | LoggingContext has errors: [{string.Join(", ", loggingContext.ErrorsLoggedById.ToArray())}]"));
+                    $"The build has failed but the logging infrastructure has not encountered an error: TrackingEventListener has errors: {trackingEventListener == null || trackingEventListener.HasFailures} | LoggingContext has errors: [{string.Join(", ", loggingContext.ErrorsLoggedById.ToArray())}]");
             }
 
             // Graph caching complicates some things. we'll have to reload state which invalidates the pathtable and everything that holds

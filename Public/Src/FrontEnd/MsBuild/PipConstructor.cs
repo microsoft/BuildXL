@@ -309,10 +309,7 @@ namespace BuildXL.FrontEnd.MsBuild
                 else
                 {
                     var success = processOutputs.TryGetOutputFile(outputResultCacheFile, out FileArtifact cacheFileArtifact);
-                    if (!success)
-                    {
-                        Contract.Assert(false, I($"The output cache file {outputResultCacheFile.ToString(PathTable)} should be part of the project {project.FullPath.ToString(PathTable)} outputs."));
-                    }
+                    Contract.Assert(success, $"The output cache file {outputResultCacheFile.ToString(PathTable)} should be part of the project {project.FullPath.ToString(PathTable)} outputs.");
 
                     projectOutputs = MSBuildProjectOutputs.CreateIsolated(outputDirectories, cacheFileArtifact);
                 }

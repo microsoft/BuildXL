@@ -314,7 +314,7 @@ namespace BuildXL.Engine
             {
                 Contract.Assert(
                     loggingContext.ErrorWasLogged,
-                    I($"Unable to construct schedule, but no error was logged. Exception caught: {e}"));
+                    $"Unable to construct schedule, but no error was logged. Exception caught: {e}");
                 return null;
             }
 
@@ -1722,7 +1722,7 @@ namespace BuildXL.Engine
                 {
                     Contract.Assert(
                         loggingContext.ErrorWasLogged,
-                        I($"Unable to construct schedule during loading, but no error was logged.  Exception caught: {e}"));
+                        $"Unable to construct schedule during loading, but no error was logged.  Exception caught: {e}");
                     scheduleCache.Dispose();
                     return null;
                 }

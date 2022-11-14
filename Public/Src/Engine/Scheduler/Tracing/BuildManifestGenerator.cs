@@ -75,10 +75,7 @@ namespace BuildXL.Scheduler.Tracing
                 var dropName = records[0].DropName;
                 for (int i = 1; i < records.Count; i++)
                 {
-                    if (dropName != records[i].DropName)
-                    {
-                        Contract.Assert(false, $"All records must be from the same drop. Mismatched drop names: '{dropName}', '{records[i].DropName}'");
-                    }
+                    Contract.Assert(dropName == records[i].DropName, $"All records must be from the same drop. Mismatched drop names: '{dropName}', '{records[i].DropName}'");
                 }
 
                 if (m_dropManifestFinalizations.ContainsKey(dropName))

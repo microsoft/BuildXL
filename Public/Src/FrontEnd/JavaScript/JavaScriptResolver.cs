@@ -86,13 +86,10 @@ namespace BuildXL.FrontEnd.JavaScript
             m_resolverSettings = resolverSettings as TResolverSettings;
             Contract.Assert(
                 m_resolverSettings != null,
-                I($"Wrong type for resolver settings, expected {nameof(TResolverSettings)} but got {nameof(resolverSettings.GetType)}"));
+                $"Wrong type for resolver settings, expected {nameof(TResolverSettings)} but got {nameof(resolverSettings.GetType)}");
 
             m_javaScriptWorkspaceResolver = workspaceResolver as JavaScriptWorkspaceResolver<TGraphConfiguration, TResolverSettings>;
-            if (m_javaScriptWorkspaceResolver == null)
-            {
-                Contract.Assert(false, I($"Wrong type for resolver, expected {nameof(JavaScriptWorkspaceResolver<TGraphConfiguration, TResolverSettings>)} but got {nameof(workspaceResolver.GetType)}"));
-            }
+            Contract.Assert(m_javaScriptWorkspaceResolver != null, $"Wrong type for resolver, expected {nameof(JavaScriptWorkspaceResolver<TGraphConfiguration, TResolverSettings>)} but got {nameof(workspaceResolver.GetType)}");
 
             if (!ValidateResolverSettings(m_resolverSettings))
             {

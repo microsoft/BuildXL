@@ -1229,7 +1229,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
             // Only for ambient functions body can be null.
             Contract.Assert(
                 source.Body != null || (modifier & Declaration.DeclarationFlags.Ambient) != 0,
-                I($"Function '{source.Name.Text}' has an empty body but it is not an ambient function"));
+                $"Function '{source.Name.Text}' has an empty body but it is not an ambient function");
 
             var location = Location(source);
 
@@ -2693,10 +2693,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
         private ImportAliasExpression CreateImportAliasExpression(Expression pathSpecifier, in UniversalLocation location)
         {
             var absolutePathSpecifier = pathSpecifier as PathLiteral;
-            if (absolutePathSpecifier == null)
-            {
-                Contract.Assert(false, I($"pathSpecifier should be of PathLiteral type but was '{pathSpecifier.GetType()}'."));
-            }
+            Contract.Assert(absolutePathSpecifier != null, $"pathSpecifier should be of PathLiteral type but was '{pathSpecifier.GetType()}'.");
 
             if (!m_workspace.ContainsSpec(absolutePathSpecifier.Value))
             {

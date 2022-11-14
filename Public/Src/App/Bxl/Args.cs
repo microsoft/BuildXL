@@ -1453,7 +1453,7 @@ namespace BuildXL
                 {
                     Contract.Assert(
                         string.Compare(m_handlers[i - 1].OptionName, m_handlers[i].OptionName, StringComparison.OrdinalIgnoreCase) <= 0,
-                        "Option m_handlers must be sorted. Entry " + i + " = " + m_handlers[i].OptionName);
+                        $"Option m_handlers must be sorted. Entry {i} = {m_handlers[i].OptionName}");
                 }
 #endif
 

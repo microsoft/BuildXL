@@ -113,10 +113,7 @@ namespace BuildXL.FrontEnd.Core.Incrementality
             var ast = TryGetSerializedAstWithHashAsync(rootPath, hash);
 
             // If the first one is available, the second one must also be
-            if (!ast.IsValid)
-            {
-                Contract.Assert(false, I($"The spec '{rootPath}' has public facade representation, but serialized AST is not available."));
-            }
+            Contract.Assert(ast.IsValid, $"The spec '{rootPath}' has public facade representation, but serialized AST is not available.");
 
             return new PublicFacadeSpecWithAst(path, publicContent, ast);
         }

@@ -1885,7 +1885,7 @@ namespace BuildXL.Scheduler.Fingerprints
                             DirectoryEnumerationMode.FullGraph;
                         break;
                     default:
-                        Contract.Assert(false, "Unknown FileSystemMode");
+                        Contract.Assert(false, $"Unknown FileSystemMode {m_env.Configuration.Sandbox.FileSystemMode}");
                         throw new BuildXLException(string.Empty);
                 }
             }

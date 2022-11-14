@@ -48,7 +48,7 @@ namespace BuildXL.FrontEnd.Script
             Contract.Assert(ResolverState == State.Created);
             Contract.Assert(
                 resolverSettings is INugetResolverSettings,
-                I($"Wrong type for resolver settings, expected {nameof(INugetResolverSettings)} but got {nameof(resolverSettings.GetType)}"));
+                $"Wrong type for resolver settings, expected {nameof(INugetResolverSettings)} but got {nameof(resolverSettings.GetType)}");
 
             Name = resolverSettings.Name;
             ResolverState = State.ResolverInitializing;

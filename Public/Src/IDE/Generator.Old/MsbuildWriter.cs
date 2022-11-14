@@ -634,11 +634,7 @@ namespace BuildXL.Ide.Generator.Old
         {
             var callingAssembly = typeof(MsbuildWriter).GetTypeInfo().Assembly;
             var stream = callingAssembly.GetManifestResourceStream(resourceKey);
-            if (stream == null)
-            {
-                Contract.Assert(false, $"Expected embedded resource key '{resourceKey}' not found in assembly {callingAssembly.FullName}. Valid resource names are: {string.Join(",", callingAssembly.GetManifestResourceNames())}");
-                return null;
-            }
+            Contract.Assert(stream != null, $"Expected embedded resource key '{resourceKey}' not found in assembly {callingAssembly.FullName}. Valid resource names are: {string.Join(",", callingAssembly.GetManifestResourceNames())}");
 
             using (var sr = new StreamReader(stream))
             {

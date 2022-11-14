@@ -565,7 +565,7 @@ namespace BuildXL.Processes
 
         private async Task FeedStdInAsync(SandboxedProcessInfo info, string? processStdinFileName)
         {
-            Contract.Requires(info.RootJailInfo == null || !NeedsShellWrapping(), $"Cannot run root jail on this OS");
+            Contract.Requires(info.RootJailInfo == null || !NeedsShellWrapping(), "Cannot run root jail on this OS");
 
             // if no shell wrapping is needed, only feed processStdinFileName (if specified)
             if (!NeedsShellWrapping())

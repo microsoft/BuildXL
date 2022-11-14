@@ -671,10 +671,7 @@ namespace BuildXL.Engine.Distribution
 
         private async Task DisconnectAsync(string buildFailure = null, [CallerMemberName] string callerName = null)
         {
-            if (Status != WorkerNodeStatus.Stopping)
-            {
-                Contract.Assert(false, $"Disconnect cannot be called for {Status} status");
-            }
+            Contract.Assert(Status == WorkerNodeStatus.Stopping, $"Disconnect cannot be called for {Status} status");
 
             // Before we disconnect the worker, we mark it as 'stopping'; 
             // so it does not accept any requests. We can safely close the 

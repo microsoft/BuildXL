@@ -3699,7 +3699,7 @@ namespace BuildXL.Storage.ChangeTracking
             Contract.Requires(
                 (changeTrackingSet == null && status != LoadingTrackerStatus.Success)
                 || (changeTrackingSet != null && status == LoadingTrackerStatus.Success),
-                I($"{nameof(changeTrackingSet)} is null: {changeTrackingSet == null}, status: {status}"));
+                $"{nameof(changeTrackingSet)} is null: {changeTrackingSet == null}, status: {status}");
             Contract.Requires(status != LoadingTrackerStatus.Success || fileId.IsValid);
 
             FileId = fileId;

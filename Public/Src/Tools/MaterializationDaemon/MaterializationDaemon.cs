@@ -249,10 +249,7 @@ namespace Tool.MaterializationDaemon
             var numCommandsBase = countFields(typeof(ServicePipDaemon.ServicePipDaemon));
             var numCommandsMaterializationDaemon = countFields(typeof(MaterializationDaemon));
 
-            if (Commands.Count != numCommandsBase + numCommandsMaterializationDaemon)
-            {
-                Contract.Assert(false, $"The list of commands was not properly initialized (# of initialized commands = {Commands.Count}; # of ServicePipDaemon commands = {numCommandsBase}; # of MaterializationDaemon commands = {numCommandsMaterializationDaemon})");
-            }
+            Contract.Assert(Commands.Count == numCommandsBase + numCommandsMaterializationDaemon, $"The list of commands was not properly initialized (# of initialized commands = {Commands.Count}; # of ServicePipDaemon commands = {numCommandsBase}; # of MaterializationDaemon commands = {numCommandsMaterializationDaemon})");
 
             int countFields(Type type)
             {

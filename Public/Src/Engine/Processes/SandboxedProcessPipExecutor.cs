@@ -439,10 +439,7 @@ namespace BuildXL.Processes
                 if (m_containerConfiguration.IsIsolationEnabled && m_pip.ContainerIsolationLevel.IsolateOutputFiles())
                 {
                     var success = m_containerConfiguration.OriginalDirectories.TryGetValue(fileArtifact.Path.GetParent(m_pathTable), out var redirectedDirectories);
-                    if (!success)
-                    {
-                        Contract.Assert(false, $"File artifact '{fileArtifact.Path.ToString(m_pathTable)}' of type ${file} should be part of the pip outputs, and therefore it should be a redirected file");
-                    }
+                    Contract.Assert(success, $"File artifact '{fileArtifact.Path.ToString(m_pathTable)}' of type ${file} should be part of the pip outputs, and therefore it should be a redirected file");
 
                     // An output file has a single redirected directory
                     var redirectedDirectory = redirectedDirectories.Single();

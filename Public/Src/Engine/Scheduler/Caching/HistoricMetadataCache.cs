@@ -775,7 +775,7 @@ namespace BuildXL.Scheduler.Cache
             {
                 Contract.Assert(m_activeContentHashMappingColumnIndex >= 0, "Build manifest column is not initialized");
                 using var key = GetRemappingContentHashKey(contentHash, hashType);
-                Contract.Assert(key.Value != null, $"ByteArray was null for ContentHash");
+                Contract.Assert(key.Value != null, "ByteArray was null for ContentHash");
 
                 // First, check the active column. If the hash is not there, check the other column.
                 if (database.TryGetValue(key.Value, out var value, StoreColumnNames.ContentHashMappingColumn[m_activeContentHashMappingColumnIndex]))

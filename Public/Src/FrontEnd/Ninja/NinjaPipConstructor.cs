@@ -203,10 +203,7 @@ namespace BuildXL.FrontEnd.Ninja
                 bool outputsPresent = m_processOutputs.TryGetValue(dependency, out ProcessOutputs processOutputs);
 
                 string ListOutputs(NinjaNode n) => string.Join(" ", n.Outputs.Select(x => x.GetName(m_context.PathTable).ToString(m_context.StringTable)).ToList());
-                if (!outputsPresent)
-                {
-                    Contract.Assert(false, $"Pips must have been presented in dependency order: [build { ListOutputs(dependency) }] missing, dependency of [build { ListOutputs(node)} ]");
-                }
+                Contract.Assert(outputsPresent, $"Pips must have been presented in dependency order: [build { ListOutputs(dependency) }] missing, dependency of [build { ListOutputs(node)} ]");
 
                 foreach (FileArtifact output in processOutputs.GetOutputFiles())
                 {

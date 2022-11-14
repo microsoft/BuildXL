@@ -1104,10 +1104,7 @@ namespace BuildXL.Scheduler.Tracing
                     builder.Clear();
 
                     message = message ?? string.Empty;
-                    if (!condition)
-                    {
-                        Contract.Assert(false, I($"InstanceId: {operation.InstanceId} raised assertion. {message}"));
-                    }
+                    Contract.Assert(condition, $"InstanceId: {operation.InstanceId} raised assertion. {message}");
                 }
                 else
                 {

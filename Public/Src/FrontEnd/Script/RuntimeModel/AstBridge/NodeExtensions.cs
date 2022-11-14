@@ -181,10 +181,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
 
             var result = LiteralConverter.TryConvertNumber(text);
 
-            if (!result.IsValid)
-            {
-                Contract.Assert(false, I($"Conversion from literal expression to number should be successful. Text: {literalExpression.Text}"));
-            }
+            Contract.Assert(result.IsValid, $"Conversion from literal expression to number should be successful. Text: {literalExpression.Text}");
 
             return result.Value;
         }

@@ -450,11 +450,7 @@ namespace BuildXL.LogGen.Core
                                 {
                                     // AriaV2Disabled is the only generator that's allow to be specified with not actual
                                     // generator existing
-                                    if (gen != EventGenerators.AriaV2Disabled)
-                                    {
-                                        Contract.Assert(false, "Failed to find a generator for " + gen.ToString() +
-                                            ". This should have been caught in Parsing");
-                                    }
+                                    Contract.Assert(gen == EventGenerators.AriaV2Disabled, $"Failed to find a generator for {gen.ToString()}. This should have been caught in Parsing");
                                     continue;
                                 }
 

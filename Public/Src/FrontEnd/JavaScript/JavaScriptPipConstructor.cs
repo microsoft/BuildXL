@@ -302,10 +302,7 @@ namespace BuildXL.FrontEnd.JavaScript
                 }
 
                 bool outputsPresent = m_processOutputsPerProject.TryGetValue(projectReference, out var processOutputs);
-                if (!outputsPresent)
-                {
-                    Contract.Assert(false, $"Pips must have been presented in dependency order: {projectReference.ProjectFolder.ToString(PathTable)} missing, dependency of {project.ProjectFolder.ToString(PathTable)}");
-                }
+                Contract.Assert(outputsPresent, $"Pips must have been presented in dependency order: {projectReference.ProjectFolder.ToString(PathTable)} missing, dependency of {project.ProjectFolder.ToString(PathTable)}");
 
                 // Add all known output directories
                 foreach (StaticDirectory output in processOutputs.GetOutputDirectories())

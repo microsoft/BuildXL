@@ -71,10 +71,7 @@ namespace TypeScript.Net.Parsing
             // Or, maybe, switch to ReadOnlySpan<T>.
             var text = StringId.Create(m_pathTable.StringTable, m_scanner.TokenValue);
 
-            if (!text.IsValid)
-            {
-                Contract.Assert(false, I($"Can't create StringId from '{m_scanner.TokenValue}'."));
-            }
+            Contract.Assert(text.IsValid, $"Can't create StringId from '{m_scanner.TokenValue}'.");
 
             node.TextAsStringId = text;
 

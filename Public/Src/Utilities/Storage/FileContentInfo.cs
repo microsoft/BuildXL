@@ -248,7 +248,7 @@ namespace BuildXL.Storage
                 var valueStr = value.ToString();
                 Contract.AssertDebug(
                     !valueStr.Contains(RenderSeparator),
-                    I($"Rendered value of the '{name}' property ('{valueStr}') must not contain the designated separator string ('{RenderSeparator}')"));
+                    $"Rendered value of the '{name}' property ('{valueStr}') must not contain the designated separator string ('{RenderSeparator}')");
                 return valueStr;
             };
             string hashStr = propertyRenderer(nameof(Hash), Hash);

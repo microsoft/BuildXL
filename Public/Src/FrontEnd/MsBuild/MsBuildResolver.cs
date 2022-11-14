@@ -70,13 +70,10 @@ namespace BuildXL.FrontEnd.MsBuild
             m_msBuildResolverSettings = resolverSettings as IMsBuildResolverSettings;
             Contract.Assert(
                 m_msBuildResolverSettings != null,
-                I($"Wrong type for resolver settings, expected {nameof(IMsBuildResolverSettings)} but got {nameof(resolverSettings.GetType)}"));
+                $"Wrong type for resolver settings, expected {nameof(IMsBuildResolverSettings)} but got {nameof(resolverSettings.GetType)}");
 
             m_msBuildWorkspaceResolver = workspaceResolver as MsBuildWorkspaceResolver;
-            if (m_msBuildWorkspaceResolver == null)
-            {
-                Contract.Assert(false, I($"Wrong type for resolver, expected {nameof(MsBuildWorkspaceResolver)} but got {nameof(workspaceResolver.GetType)}"));
-            }
+            Contract.Assert(m_msBuildWorkspaceResolver != null, $"Wrong type for resolver, expected {nameof(MsBuildWorkspaceResolver)} but got {nameof(workspaceResolver.GetType)}");
 
             if (!ValidateResolverSettings(m_msBuildResolverSettings))
             {

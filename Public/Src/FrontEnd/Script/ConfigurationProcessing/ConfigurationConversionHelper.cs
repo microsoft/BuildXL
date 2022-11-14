@@ -468,13 +468,13 @@ namespace BuildXL.FrontEnd.Script
                 case ConfigurationKind.PrimaryConfig:
                     Contract.Assert(
                         configKeywordString == Script.Constants.Names.ConfigurationFunctionCall,
-                        I($"Configuration validation for '{Kind}' should have caught that a wrong configuration keyword was used ('{configKeywordString}' instead of '{Script.Constants.Names.ConfigurationFunctionCall}')"));
+                        $"Configuration validation for '{Kind}' should have caught that a wrong configuration keyword was used ('{configKeywordString}' instead of '{Script.Constants.Names.ConfigurationFunctionCall}')");
                     return SymbolAtom.Create(Context.StringTable, configKeywordString);
 
                 case ConfigurationKind.ModuleConfig:
                     Contract.Assert(
                         configKeywordString == Script.Constants.Names.ModuleConfigurationFunctionCall || configKeywordString == Script.Constants.Names.LegacyModuleConfigurationFunctionCall,
-                        I($"Configuration validation for '{Kind}' should have caught that a wrong configuration keyword was used ('{configKeywordString}' instead of either '{Script.Constants.Names.ModuleConfigurationFunctionCall}' or '{Script.Constants.Names.LegacyModuleConfigurationFunctionCall}')"));
+                        $"Configuration validation for '{Kind}' should have caught that a wrong configuration keyword was used ('{configKeywordString}' instead of either '{Script.Constants.Names.ModuleConfigurationFunctionCall}' or '{Script.Constants.Names.LegacyModuleConfigurationFunctionCall}')");
                     return SymbolAtom.Create(Context.StringTable, configKeywordString);
                 default:
                     throw Contract.AssertFailure(UnimplementedOperationForConfigKindErrorMessage);

@@ -2670,7 +2670,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "RuntimeContracts",
-          "Version": "0.3.0"
+          "Version": "0.4.0"
         }
       }
     },
@@ -2679,7 +2679,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "RuntimeContracts.Analyzer",
-          "Version": "0.3.2"
+          "Version": "0.4.3"
         }
       }
     },

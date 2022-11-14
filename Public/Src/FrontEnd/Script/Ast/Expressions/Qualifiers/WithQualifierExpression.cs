@@ -104,7 +104,7 @@ namespace BuildXL.FrontEnd.Script.Expressions
             var module = moduleCandidate.Value as ModuleLiteral;
             Contract.Assert(
                 module != null,
-                I($"The left hand-side of a withQualifier expression should evaluates to 'TypeOrNamespaceModuleLiteral' but got '{moduleCandidate.Value.GetType()}'"));
+                $"The left hand-side of a withQualifier expression should evaluates to 'TypeOrNamespaceModuleLiteral' but got '{moduleCandidate.Value.GetType()}'");
 
             Contract.Assert(module.CurrentFileModule != null, "module.CurrentFileModule != null");
             var currentQualifier = env.CurrentFileModule.Qualifier.Qualifier;
@@ -125,7 +125,7 @@ namespace BuildXL.FrontEnd.Script.Expressions
             var requestedQualifier = objectQualifier.Value as ObjectLiteral;
             Contract.Assert(
                 requestedQualifier != null,
-                I($"The right hand-side of a withQualifier expression should evaluates to 'ObjectLiteral' but got '{objectQualifier.Value.GetType()}'"));
+                $"The right hand-side of a withQualifier expression should evaluates to 'ObjectLiteral' but got '{objectQualifier.Value.GetType()}'");
 
             // TODO: This can be made more efficient by talking with the qualifier table directly
             // and maintaining a global map of qualifier id to object literal rather than have many copies of

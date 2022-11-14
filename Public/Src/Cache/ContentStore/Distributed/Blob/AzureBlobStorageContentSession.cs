@@ -247,16 +247,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blobs
             UrgencyHint urgencyHint,
             Counter retryCounter)
         {
-            var tasks = contentHashes.WithIndices().Select((tuple, _) =>
+            var tasks = contentHashes.Select((contentHash, index) =>
             {
-                var (contentHash, index) = tuple;
-
                 return PinCoreAsync(
                     context,
                     contentHash,
                     urgencyHint,
                     retryCounter).WithIndexAsync(index);
-            }, Unit.Void);
+            });
 
             await TaskUtilities.SafeWhenAll(tasks);
             return tasks;
@@ -410,10 +408,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blobs
             UrgencyHint urgencyHint,
             Counter retryCounter)
         {
-            var tasks = hashesWithPaths.WithIndices().Select((tuple, _) =>
+            var tasks = hashesWithPaths.Select((contentHashWithPath, index) =>
             {
-                var (contentHashWithPath, index) = tuple;
-
                 return PlaceFileCoreAsync(
                     context,
                     contentHashWithPath.Hash,
@@ -423,7 +419,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blobs
                     realizationMode,
                     urgencyHint,
                     retryCounter).WithIndexAsync(index);
-            }, Unit.Void);
+            });
 
             await TaskUtilities.SafeWhenAll(tasks);
             return tasks;

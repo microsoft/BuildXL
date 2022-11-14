@@ -57,7 +57,6 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Extensions
         /// <summary>
         /// Gets the item with the max key given the optional key comparer.
         /// </summary>
-        [return: MaybeNull]
         public static T? MaxByOrDefault<T, TKey>(this IEnumerable<T> items, Func<T, TKey> keySelector, IComparer<TKey>? keyComparer = null)
         {
             keyComparer ??= Comparer<TKey>.Default;
@@ -117,14 +116,6 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Extensions
         public static IEnumerable<Indexed<T>> AsIndexed<T>(this IEnumerable<T> items)
         {
             return items.Select((item, i) => new Indexed<T>(item, i));
-        }
-
-        /// <summary>
-        /// Converts an <see cref="IEnumerable{T}"/> to <see cref="Indexed{T}"/> items
-        /// </summary>
-        public static IEnumerable<(T value, int index)> WithIndices<T>(this IEnumerable<T> items)
-        {
-            return items.Select((item, i) => (item, i));
         }
 
         /// <summary>

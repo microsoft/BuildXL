@@ -321,12 +321,12 @@ namespace BuildXL.Scheduler.Distribution
         /// <summary>
         /// Gets the name of the worker
         /// </summary>
-        public string Name { get; }
+        public virtual string Name { get; }
 
         /// <summary>
         /// Gets the worker IP address
         /// </summary>
-        public string WorkerIpAddress { get; }
+        public string WorkerIpAddress { get; protected set; }
 
         /// <summary>
         /// Which counters are being logged for tracer
@@ -345,11 +345,9 @@ namespace BuildXL.Scheduler.Distribution
         /// <summary>
         /// Constructor
         /// </summary>
-        protected Worker(uint workerId, string name, PipExecutionContext context, string workerIpAddress)
+        protected Worker(uint workerId, PipExecutionContext context)
         {
             WorkerId = workerId;
-            Name = name;
-            WorkerIpAddress = workerIpAddress;
             m_workerSemaphores = new SemaphoreSet<StringId>();
 
             m_workerOperationKind = OperationKind.Create("Worker " + Name);

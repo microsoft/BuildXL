@@ -180,5 +180,10 @@ namespace Test.BuildXL.Distribution
         {
             m_fail = true;
         }
+
+        public Task<RpcCallResult<Unit>> SayHelloAsync(ServiceLocation serviceLocation, CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(SuccessResult);
+        }
     }
 }

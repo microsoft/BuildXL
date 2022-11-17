@@ -929,7 +929,7 @@ namespace BuildXL.Engine
             // Distribution overrides
             if (mutableConfig.Distribution.BuildRole.IsOrchestrator())
             {
-                if (!mutableConfig.Distribution.BuildWorkers.Any())
+                if (mutableConfig.Distribution.RemoteWorkerCount == 0)
                 {
                     // Disable the distribution if no remote worker is given.
                     mutableConfig.Distribution.BuildRole = DistributedBuildRoles.None;
@@ -937,7 +937,7 @@ namespace BuildXL.Engine
                 }
                 else
                 {
-                    var remoteWorkerCount = mutableConfig.Distribution.BuildWorkers.Count;
+                    var remoteWorkerCount = mutableConfig.Distribution.RemoteWorkerCount;
 
                     if (mutableConfig.Distribution.LowWorkersWarningThreshold == null)
                     {
@@ -1295,7 +1295,7 @@ namespace BuildXL.Engine
                 if (!mutableConfig.Schedule.MaxWorkersPerModule.HasValue)
                 {
                     // Module affinity is enabled by default in CloudBuild builds.
-                    mutableConfig.Schedule.MaxWorkersPerModule = mutableConfig.Distribution.BuildWorkers.Count + 1;
+                    mutableConfig.Schedule.MaxWorkersPerModule = mutableConfig.Distribution.RemoteWorkerCount + 1;
                     mutableConfig.Schedule.ModuleAffinityLoadFactor = 1;
                 }
 
@@ -1957,6 +1957,19 @@ namespace BuildXL.Engine
                             {
                                 if (Configuration.Distribution.BuildRole == DistributedBuildRoles.Worker)
                                 {
+                                    if (Configuration.Distribution.OrchestratorLocation != null)
+                                    {
+                                        // Dynamic worker. Let's say hello to let the orchestrator know where we are.
+                                        if (!m_workerService.SayHello(Configuration.Distribution.OrchestratorLocation))
+                                        {
+                                            // Worker timeout logs a warning but no error. It is not considered a failure wrt the worker
+                                            Contract.Assert(
+                                                engineLoggingContext.ErrorWasLogged,
+                                                "An error should have been logged during waiting for attaching to the orchestrator.");
+                                            return BuildXLEngineResult.Failed(engineState);
+                                        }
+                                    } 
+
                                     if (!m_workerService.WaitForOrchestratorAttach())
                                     {
                                         // Worker timeout logs a warning but no error. It is not considered a failure wrt the worker

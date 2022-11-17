@@ -355,6 +355,9 @@ namespace BuildXL.Engine.Tracing
         FailedComputingFingerprintGraphDirectoryInput = 7060,
         // was MismatchMountInGraphInputDescriptor = 7061,
 
+        DistributionHelloReceived = 7071,
+        DistributionHelloNoSlot = 7072,
+
         FallingBackOnGraphFileCopy = 7080,
         FailedLoadIncrementalSchedulingState = 7081,
         FailedToDuplicateOptionalGraphFile = 7082,

@@ -295,12 +295,6 @@ namespace BuildXL.AdoBuildRunner.Vsts
             {
                 List<TimelineRecord> records = await GetTimelineRecords();
 
-                var errors = records.Where(r => r.ErrorCount.HasValue && r.ErrorCount.Value != 0);
-                if (errors.Any())
-                {
-                    LogAndThrow("One of the other agents participating in this build failed during the pre-build coordination. The task on this agent will be aborted.");
-                }
-
                 var filteredMachines = records.Where(r =>
                     r.Variables.ContainsKey(Constants.MachineType) &&
                     r.Variables.ContainsKey(Constants.MachineHostName) &&

@@ -6,6 +6,7 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
+using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Distribution.Grpc;
@@ -31,6 +32,11 @@ namespace BuildXL.Engine.Distribution
     /// <remarks>This interface is marked internal to reduce visibility to the distribution layer only</remarks>
     internal interface IWorkerService
     {
+        /// <summary>
+        /// Inform the locaton of this worker to the orchestrator
+        /// </summary>
+        Task SayHelloAsync(IDistributionServiceLocation orchestratorLocation);
+        
         /// <summary>
         /// Performs attachment 
         /// </summary>
@@ -94,6 +100,7 @@ namespace BuildXL.Engine.Distribution
         private volatile bool m_isOrchestratorExited;
 
         private LoggingContext m_appLoggingContext;
+        private bool m_orchestratorInitialized;
         private readonly IWorkerNotificationManager m_notificationManager;
         private readonly IWorkerPipExecutionService m_pipExecutionService;
         private readonly IConfiguration m_config;
@@ -186,6 +193,20 @@ namespace BuildXL.Engine.Distribution
             return success;
         }
 
+        internal bool SayHello(IDistributionServiceLocation orchestratorLocation)
+        {
+            var timeout = GrpcSettings.WorkerAttachTimeout;
+            if(!((IWorkerService)this).SayHelloAsync(orchestratorLocation).Wait(timeout))
+            {
+                Logger.Log.DistributionWorkerTimeoutFailure(m_appLoggingContext, "trying to say hello to the orchestrator");
+                Exit(failure: $"Timed out saying hello to the orchestrator. Timeout: {timeout.TotalMinutes} min", isUnexpected: true);
+                return false;
+            }
+
+            return true;
+        }
+
+
         /// <summary>
         /// Waits for the orchestrator to attach synchronously
         /// </summary>
@@ -197,7 +218,7 @@ namespace BuildXL.Engine.Distribution
             var sw = Stopwatch.StartNew();
             if (!AttachCompletion.Wait(timeout))
             {
-                Logger.Log.DistributionWorkerTimeoutFailure(m_appLoggingContext);
+                Logger.Log.DistributionWorkerTimeoutFailure(m_appLoggingContext, "waiting for attach request from orchestrator");
                 Exit(failure: $"Timed out waiting for attach request from orchestrator. Timeout: {timeout.TotalMinutes} min", isUnexpected: true);
                 return false;
             }
@@ -277,6 +298,15 @@ namespace BuildXL.Engine.Distribution
             return true;
         }
 
+
+        Task IWorkerService.SayHelloAsync(IDistributionServiceLocation orchestratorLocation)
+        {
+            m_orchestratorInitialized = true;
+            m_orchestratorClient.Initialize(orchestratorLocation.IpAddress, orchestratorLocation.BuildServicePort, OnConnectionFailureAsync);
+
+            return m_orchestratorClient.SayHelloAsync(new ServiceLocation() { IpAddress = Dns.GetHostName(), Port = m_port });
+        }
+
         /// <inheritdoc />
         void IWorkerService.Attach(BuildStartData buildStartData, string orchestratorName)
         {
@@ -290,7 +320,10 @@ namespace BuildXL.Engine.Distribution
                 new LoggingContext.SessionInfo(buildStartData.SessionId, m_appLoggingContext.Session.Environment, m_appLoggingContext.Session.RelatedActivityId),
                 m_appLoggingContext);
 
-            m_orchestratorClient.Initialize(buildStartData.OrchestratorLocation.IpAddress, buildStartData.OrchestratorLocation.Port, OnConnectionFailureAsync);
+            if (!m_orchestratorInitialized) // The orchestrator client is already initialized if the worker know its location at the start of the build
+            {
+                m_orchestratorClient.Initialize(buildStartData.OrchestratorLocation.IpAddress, buildStartData.OrchestratorLocation.Port, OnConnectionFailureAsync);
+            }
 
             WorkerId = BuildStartData.WorkerId;
             m_attachCompletionSource.TrySetResult(true);
@@ -435,6 +468,5 @@ namespace BuildXL.Engine.Distribution
                 return false;
             }
         }
-
     }
 }

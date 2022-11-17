@@ -170,6 +170,12 @@ namespace Test.BuildXL.Distribution
                 ReceivedExitCall = true;
             }
 
+            public Task SayHelloAsync(IDistributionServiceLocation orchestratorLocation)
+            {
+                Delay();
+                return Task.CompletedTask;
+            }
+
             #endregion
         }
 
@@ -240,6 +246,11 @@ namespace Test.BuildXL.Distribution
                 return Task.CompletedTask;
             }
 
+            public void Hello(ServiceLocation workerLocation)
+            {
+                
+            }
+
             #endregion
         }
 
@@ -263,7 +274,10 @@ namespace Test.BuildXL.Distribution
 
             public void StartClient(int port)
             {
-                WorkerClient = new GrpcWorkerClient(LoggingContext, InvocationId, "localhost", port, OnConnectionFailureAsync);
+                WorkerClient = new GrpcWorkerClient(LoggingContext,
+                    InvocationId,
+                    OnConnectionFailureAsync);
+                WorkerClient.SetWorkerLocation(new ServiceLocation() { IpAddress = "localhost", Port = port });
             }
 
             public Task<RpcCallResult<Unit>> AttachAsync()

@@ -56,7 +56,7 @@ namespace BuildXL.Engine.Distribution
         private readonly LoggingContext m_appLoggingContext;
         private readonly OrchestratorService m_orchestratorService;
 
-        private readonly ServiceLocation m_serviceLocation;
+        private ServiceLocation m_serviceLocation;
         private BondContentHash m_cacheValidationContentHash;
         private int m_nextSequenceNumber;
         private PipGraph m_pipGraph;
@@ -130,7 +130,33 @@ namespace BuildXL.Engine.Distribution
         /// <inheritdoc/>
         public override int CurrentBatchSize => m_currentBatchSize;
 
+        public ServiceLocation Location
+        {
+            get => m_serviceLocation;
+
+            set
+            {
+                Contract.Assert(m_serviceLocation == null);
+                Contract.Assert(value != null);
+
+                WorkerIpAddress = value.IpAddress;
+                m_serviceLocation = value;
+                m_name = I($"#{WorkerId} ({m_serviceLocation.IpAddress}::{m_serviceLocation.Port})");
+
+                m_workerClient.SetWorkerLocation(m_serviceLocation);
+                m_serviceLocationTcs.TrySetResult(Unit.Void);
+            }
+        } 
+
         private volatile int m_currentBatchSize;
+
+        private readonly TaskCompletionSource<Unit> m_serviceLocationTcs = new();
+        private Task WaitForServiceLocationTask => m_serviceLocationTcs.Task;
+
+        private string m_name;
+        
+        /// <inheritdoc />
+        public override string Name => m_name;
 
         /// <summary>
         /// Whether the worker is available to acquire work items
@@ -146,7 +172,7 @@ namespace BuildXL.Engine.Distribution
             OrchestratorService orchestratorService,
             ServiceLocation serviceLocation,
             PipExecutionContext context)
-            : base(workerId, name: I($"#{workerId} ({serviceLocation.IpAddress}::{serviceLocation.Port})"), context: context, workerIpAddress: serviceLocation.IpAddress)
+            : base(workerId, context: context)
         {
             m_appLoggingContext = appLoggingContext;
             m_orchestratorService = orchestratorService;
@@ -154,13 +180,21 @@ namespace BuildXL.Engine.Distribution
             m_attachCompletion = TaskSourceSlim.Create<bool>();
             m_setupCompletion = TaskSourceSlim.Create<bool>();
             m_executionBlobCompletion = TaskSourceSlim.Create<bool>();
-            m_serviceLocation = serviceLocation;
             m_workerClient = new Grpc.GrpcWorkerClient(
                 m_appLoggingContext, 
-                orchestratorService.InvocationId, 
-                serviceLocation.IpAddress, 
-                serviceLocation.Port, 
+                orchestratorService.InvocationId,  
                 OnConnectionFailureAsync);
+
+            if (serviceLocation != null)
+            {
+                // It's importat to use the setter,
+                // as it will initialize the name and the worker client too 
+                Location = serviceLocation;
+            }
+            else
+            {
+                m_name = I($"#{workerId} (uninitialized dynamic worker)");
+            }
 
             // Depending on how long send requests take. It might make sense to use the same thread between all workers. 
             m_sendThread = new Thread(SendBuildRequests);
@@ -484,7 +518,9 @@ namespace BuildXL.Engine.Distribution
         }
 
         private async Task<bool> TryAttachAsync()
-        { 
+        {
+            await WaitForServiceLocationTask;
+
             var startData = new BuildStartData
             {
                 SessionId = m_appLoggingContext.Session.Id,
@@ -1436,8 +1472,7 @@ namespace BuildXL.Engine.Distribution
 
             Logger.Log.DistributionWorkerChangedState(
                 m_appLoggingContext,
-                m_serviceLocation.IpAddress,
-                m_serviceLocation.Port,
+                Name,
                 fromStatus.ToString(),
                 toStatus.ToString(),
                 callerName);

@@ -20,7 +20,14 @@ namespace BuildXL.Engine.Distribution.Grpc
         {
             m_orchestratorService = service;
         }
-        
+
+        /// <inheritdoc/>
+        public override Task<RpcResponse> Hello(ServiceLocation workerLocation, ServerCallContext context)
+        {
+            m_orchestratorService.Hello(workerLocation);
+            return Task.FromResult(new RpcResponse());
+        }
+
         /// <inheritdoc/>
         public override Task<RpcResponse> AttachCompleted(AttachCompletionInfo message, ServerCallContext context)
         {

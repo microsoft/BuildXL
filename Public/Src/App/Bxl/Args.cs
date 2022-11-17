@@ -380,9 +380,13 @@ namespace BuildXL
                             opt =>
                             distributionConfiguration.BuildServicePort = (ushort)CommandLineUtilities.ParseInt32Option(opt, 1, ushort.MaxValue)),
                         OptionHandlerFactory.CreateOption2(
+                            "distributedBuildOrchestratorLocation",
+                            "dbo",
+                            opt => distributionConfiguration.OrchestratorLocation = ParseServiceLocation(opt)),
+                        OptionHandlerFactory.CreateOption2(
                             "distributedBuildWorker",
                             "dbw",
-                            opt => ParseServiceLocation(opt, distributionConfiguration.BuildWorkers)),
+                            opt => distributionConfiguration.BuildWorkers.Add(ParseServiceLocation(opt))),
                         OptionHandlerFactory.CreateBoolOption(
                             "dumpFailedPips",
                             opt => loggingConfiguration.DumpFailedPips = opt),
@@ -392,6 +396,10 @@ namespace BuildXL
                         OptionHandlerFactory.CreateBoolOption(
                             "dumpFailedPipsWithDynamicData",
                             opt => loggingConfiguration.DumpFailedPipsWithDynamicData = opt),
+                        OptionHandlerFactory.CreateOption2(
+                            "dynamicBuildWorkerSlots",
+                            "dbws",
+                            opt => distributionConfiguration.DynamicBuildWorkerSlots = CommandLineUtilities.ParseInt32Option(opt, 0, int.MaxValue)),
                         OptionHandlerFactory.CreateBoolOption(
                             "earlyWorkerRelease",
                             sign => distributionConfiguration.EarlyWorkerRelease = sign),
@@ -2151,7 +2159,7 @@ namespace BuildXL
         /// <summary>
         /// Custom argument parsing for service location for now.
         /// </summary>
-        private static void ParseServiceLocation(CommandLineUtilities.Option opt, List<IDistributionServiceLocation> workers)
+        private static IDistributionServiceLocation ParseServiceLocation(CommandLineUtilities.Option opt)
         {
             if (!string.IsNullOrWhiteSpace(opt.Value))
             {
@@ -2166,14 +2174,11 @@ namespace BuildXL
                     throw CommandLineUtilities.Error(Strings.Args_DistributedBuildWorker_InvalidServiceLocation, opt.Value);
                 }
 
-                workers.Add(
-                    new BuildXL.Utilities.Configuration.Mutable.DistributionServiceLocation
+                return new BuildXL.Utilities.Configuration.Mutable.DistributionServiceLocation()
                     {
                         IpAddress = remoteLocationParts[0],
                         BuildServicePort = port,
-                    });
-
-                return;
+                    };
             }
 
             throw CommandLineUtilities.Error(Strings.Args_DistributedBuildWorker_InvalidServiceLocation, opt.Value);

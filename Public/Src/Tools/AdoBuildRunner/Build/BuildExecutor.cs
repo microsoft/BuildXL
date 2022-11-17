@@ -89,22 +89,21 @@ namespace BuildXL.AdoBuildRunner.Build
         /// <inherit />
         public int ExecuteSingleMachineBuild(BuildContext buildContext, string[] buildArguments)
         {
-            Logger.Info($@"Launching single machine build!");
+            Logger.Info($@"Launching single machine build");
             return ExecuteBuild(ExtractAndEscapeCommandLineArguments(buildArguments), buildContext.SourcesDirectory);
         }
 
         /// <inherit />
-        public int ExecuteDistributedBuildAsOrchestrator(BuildContext buildContext, string[] buildArguments, List<IDictionary<string, string>> machines)
+        public int ExecuteDistributedBuildAsOrchestrator(BuildContext buildContext, string[] buildArguments, int numDynamicWorkers)
         {
             Logger.Info($@"Launching distributed build as orchestrator");
 
-            var workers = machines.Select(d => $"/distributedBuildWorker:{d[Constants.MachineIpV4Address]}:{Constants.MachineGrpcPort}");
-            var workerFlags = string.Join(" ", workers);
-
             return ExecuteBuild(
                 ExtractAndEscapeCommandLineArguments(buildArguments) +
-                $" /distributedBuildRole:master /distributedBuildServicePort:{Constants.MachineGrpcPort} /relatedActivityId:{buildContext.SessionId} " +
-                workerFlags,
+                $" /distributedBuildRole:master" +
+                $" /distributedBuildServicePort:{Constants.MachineGrpcPort}" +
+                $" /relatedActivityId:{buildContext.SessionId} " +
+                $"/dynamicBuildWorkerSlots:{numDynamicWorkers}",
                 buildContext.SourcesDirectory
             );
         }
@@ -112,12 +111,15 @@ namespace BuildXL.AdoBuildRunner.Build
         /// <inherit />
         public int ExecuteDistributedBuildAsWorker(BuildContext buildContext, string[] buildArguments, IDictionary<string, string> orchestratorInfo)
         {
-            Logger.Info($@"Launching distributed build as worker!");
+            Logger.Info($@"Launching distributed build as worker");
 
             return ExecuteBuild(
                 "/p:BuildXLWorkerAttachTimeoutMin=10 " +  // By default, set the timeout to 10min in the workers to avoid unnecessary waiting upon connection failures
                 ExtractAndEscapeCommandLineArguments(buildArguments) +
-                $" /distributedBuildRole:worker /distributedBuildServicePort:{Constants.MachineGrpcPort} /relatedActivityId:{buildContext.SessionId} ",
+                $" /distributedBuildRole:worker" +
+                $" /distributedBuildServicePort:{Constants.MachineGrpcPort}" +
+                $" /distributedBuildOrchestratorLocation:{orchestratorInfo[Constants.MachineIpV4Address]}:{Constants.MachineGrpcPort}" +
+                $" /relatedActivityId:{buildContext.SessionId} ",
                 buildContext.SourcesDirectory
             );
         }

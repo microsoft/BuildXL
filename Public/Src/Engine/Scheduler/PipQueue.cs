@@ -172,7 +172,7 @@ namespace BuildXL.Scheduler
             var ioLimit = m_scheduleConfig.AdaptiveIO ? (m_scheduleConfig.MaxIO + 1) / 2 : m_scheduleConfig.MaxIO;
 
             m_chooseWorkerCpuQueue = m_scheduleConfig.ModuleAffinityEnabled() ?
-                new NestedChooseWorkerQueue(this, m_scheduleConfig.MaxChooseWorkerCpu, config.Distribution.BuildWorkers.Count + 1) :
+                new NestedChooseWorkerQueue(this, m_scheduleConfig.MaxChooseWorkerCpu, config.Distribution.RemoteWorkerCount + 1) :
                 new ChooseWorkerQueue(this, m_scheduleConfig.MaxChooseWorkerCpu);
 
             m_queuesByKind = new Dictionary<DispatcherKind, DispatcherQueue>()

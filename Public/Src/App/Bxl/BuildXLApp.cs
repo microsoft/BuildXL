@@ -2433,7 +2433,7 @@ namespace BuildXL
 
                 // The performance summary looks at counters that don't get aggregated and sent back to the orchestrator from
                 // all workers. So it only applies to single machine builds.
-                if (config.Distribution.BuildWorkers == null || config.Distribution.BuildWorkers.Count == 0)
+                if (config.Distribution.BuildWorkers == null || config.Distribution.RemoteWorkerCount == 0)
                 {
                     Logger.Log.DominoPerformanceSummary(
                         context,

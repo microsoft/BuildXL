@@ -904,6 +904,11 @@ namespace BuildXL
                 HelpLevel.Verbose);
 
             hw.WriteOption(
+                "/distributedBuildOrchestratorLocation:<IP address or host name>:<local TCP port>",
+                Strings.HelpText_DisplayHelp_DistributedBuildOrchestratorLocation,
+                HelpLevel.Verbose);
+
+            hw.WriteOption(
                 "/enableWorkerSourceFileMaterialization[+|-]",
                 Strings.HelpText_DisplayHelp_DistributedBuildWorkerSourceMaterialization,
                 HelpLevel.Verbose);

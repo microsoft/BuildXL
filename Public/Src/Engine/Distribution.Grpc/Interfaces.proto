@@ -4,6 +4,9 @@ package BuildXL.Distribution.Grpc;
 
 // Defines the service for talking to the builder orchestrator process
 service Orchestrator {
+    // A worker can advertise its own location dynamically during the build
+    rpc Hello(ServiceLocation) returns (RpcResponse) {}
+
     // Signals the completion of the Attach call
     rpc AttachCompleted(AttachCompletionInfo) returns (RpcResponse) {}
 

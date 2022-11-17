@@ -18,6 +18,8 @@ namespace BuildXL.Engine.Distribution
 
         Task<RpcCallResult<Unit>> ExitAsync(BuildEndData buildEndData, CancellationToken cancellationToken);
 
+        void SetWorkerLocation(ServiceLocation serviceLocation);
+
         Task CloseAsync();
     }
 }

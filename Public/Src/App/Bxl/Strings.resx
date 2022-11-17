@@ -495,10 +495,13 @@
   <data name="HelpText_DisplayHelp_DistributedBuildBanner" xml:space="preserve">
     <value>DISTRIBUTED BUILD</value>
   </data>
-  <data name="HelpText_DisplayHelp_DistributedBuildWorker" xml:space="preserve">
-    <value>Specifies the IP address or host name and TCP port of remote worker build services which this process can dispatch work to during a distributed build (can specify multiple).  (short form: /dbw)</value>
+	<data name="HelpText_DisplayHelp_DistributedBuildOrchestratorLocation" xml:space="preserve">
+    <value>Specifies the IP address or host name and TCP port of the orchestrator machine to which a worker will connect to join a build session.  This argument is redundant if the orchestratro is invoked with /distributedBuildWorker specified for this worker. (short form: /dbo)</value>
   </data>
-  <data name="HelpText_DisplayHelp_DistributedBuildServicePort" xml:space="preserve">
+	<data name="HelpText_DisplayHelp_DistributedBuildWorker" xml:space="preserve">
+    <value>Specifies the IP address or host name and TCP port of remote worker build services which this process can dispatch work to during a distributed build (can specify multiple). This argument is redundant if the corresponding worker is invoked with /distributedBuildOrchestratorLocation specified. (short form: /dbw)</value>
+  </data>
+	<data name="HelpText_DisplayHelp_DistributedBuildServicePort" xml:space="preserve">
     <value>Specifies the TCP port of a locally running distributed build service (orchestrator or worker) which peers can connect to during a distributed build. This argument is required for executing a distributed build.  (short form: /dbsp)</value>
   </data>
   <data name="Args_DistributedBuildRole_UnsupportedValue" xml:space="preserve">

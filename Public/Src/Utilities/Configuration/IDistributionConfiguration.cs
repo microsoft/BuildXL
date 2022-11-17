@@ -28,6 +28,25 @@ namespace BuildXL.Utilities.Configuration
         /// </summary>
         [NotNull]
         IReadOnlyList<IDistributionServiceLocation> BuildWorkers { get; }
+        
+        /// <summary>
+        /// Specifies the IP address or host name and TCP port of the orchestrator
+        /// (short form: /dbo)
+        /// </summary>
+        /// <remarks>Can be null (in non-dynamic workers)</remarks>
+        IDistributionServiceLocation OrchestratorLocation { get; }
+
+        /// <summary>
+        /// The number of workers that may potentially join the build dynamically 
+        /// (this should be the precise amount that we expect, but technically we only require that it is an upper bound).
+        /// </summary>
+        int DynamicBuildWorkerSlots { get;  }
+
+        /// <summary>
+        /// The total number of remote workers that we expect for this build, i.e. the sum of DynamicBuildWorkerSlots
+        /// and the number of BuildWorkers known at the start of the build
+        /// </summary>
+        int RemoteWorkerCount { get; }
 
         /// <summary>
         /// Performs validations to ensure the build can safely be distributed

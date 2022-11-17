@@ -22,11 +22,12 @@ namespace BuildXL.AdoBuildRunner
 
             try
             {
+                var api = new Api(logger);
                 IBuildExecutor executor;
                 if (args[0] == "ping")
                 {
                     logger.Info("Performing connectivity test");
-                    executor = new PingExecutor(logger);
+                    executor = new PingExecutor(logger, api);
                 }
                 else
                 {
@@ -34,7 +35,7 @@ namespace BuildXL.AdoBuildRunner
                     executor = new BuildExecutor(logger);
                 }
 
-                var buildManager = new BuildManager(new Api(logger), executor, args, logger);
+                var buildManager = new BuildManager(api, executor, args, logger);
                 return buildManager.BuildAsync().GetAwaiter().GetResult();
             }
             catch (CoordinationException e)

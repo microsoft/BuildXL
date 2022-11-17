@@ -77,15 +77,9 @@ namespace BuildXL.AdoBuildRunner.Build
             else if (m_vstsApi.JobPositionInPhase == 1)
             {
                 await m_vstsApi.SetMachineReadyToBuild(GetAgentHostName(), GetAgentIPAddress(false), GetAgentIPAddress(true), isOrchestrator: true);
-                await m_vstsApi.WaitForOtherWorkersToBeReady();
 
-                var machines = (await m_vstsApi.GetWorkerAddressInformationAsync()).ToList();
-                foreach (var entry in machines)
-                {
-                    m_logger.Info($@"Found worker: {entry[Constants.MachineHostName]}@{entry[Constants.MachineIpV4Address]}");
-                }
-
-                returnCode = m_executor.ExecuteDistributedBuildAsOrchestrator(buildContext, m_buildArguments, machines);
+                var numDynamicWorkers = m_vstsApi.TotalJobsInPhase - 1; // The number of worker that might show up for the build
+                returnCode = m_executor.ExecuteDistributedBuildAsOrchestrator(buildContext, m_buildArguments, numDynamicWorkers);
 
                 await m_vstsApi.SetBuildResult(success: returnCode == 0);
                 PublishRoleInEnvironment(isOrchestrator: true);

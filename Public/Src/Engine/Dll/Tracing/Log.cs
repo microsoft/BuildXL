@@ -486,11 +486,10 @@ namespace BuildXL.Engine.Tracing
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.Distribution,
-            Message = "Worker {ipAddress}:{port} changed status from {fromState} to {toState} by {caller}")]
+            Message = "Worker {name} changed status from {fromState} to {toState} by {caller}")]
         public abstract void DistributionWorkerChangedState(
             LoggingContext context,
-            string ipAddress,
-            int port,
+            string name,
             string fromState,
             string toState,
             string caller);
@@ -709,6 +708,25 @@ namespace BuildXL.Engine.Tracing
         public abstract void DistributionAttachReceived(LoggingContext context, string sessionId, string orchestratorName);
 
         [GeneratedEvent(
+            (ushort)LogEventId.DistributionHelloReceived,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)(Keywords.UserMessage | Keywords.Progress),
+            EventTask = (ushort)Tasks.Distribution,
+            Message = "Received Hello from a worker. Location: {ip}:{port}. Worker was assigned id #{workerId}")]
+        public abstract void DistributionHelloReceived(LoggingContext context, string ip, int port, uint workerId);
+   
+        [GeneratedEvent(
+            (ushort)LogEventId.DistributionHelloNoSlot,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)(Keywords.UserMessage),
+            EventTask = (ushort)Tasks.Distribution,
+            Message = "Received a Hello from {ip}:{port} but couln't find any RemoteWorker slots to assign the location." +
+            "This means that the /dynamicBuildWorkerSlots argument is not an upper bound to the number of workers that might say hello")]
+        public abstract void DistributionHelloNoSlot(LoggingContext context, string ip, int port);
+
+        [GeneratedEvent(
             (ushort)LogEventId.DistributionExitReceived,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
@@ -737,8 +755,8 @@ namespace BuildXL.Engine.Tracing
             EventLevel = Level.Error,
             Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
             EventTask = (ushort)Tasks.Distribution,
-            Message = "Timed out waiting for attach request from orchestrator")]
-        public abstract void DistributionWorkerTimeoutFailure(LoggingContext context);
+            Message = "Timed out {reason}")]
+        public abstract void DistributionWorkerTimeoutFailure(LoggingContext context, string reason);
 
         [GeneratedEvent(
         (ushort)LogEventId.DistributionConnectionTimeout,
@@ -2429,7 +2447,7 @@ If you can't update and need this feature after July 2018 please reach out to th
             EventTask = (int)Tasks.Engine,
             Message = "Front End Statistics")]
         public abstract void FrontEndStatsBanner(LoggingContext context);
-
+        
         [GeneratedEvent(
             (int)LogEventId.GCStats,
             EventGenerators = EventGenerators.LocalOnly,

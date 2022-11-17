@@ -22,8 +22,10 @@ namespace BuildXL.AdoBuildRunner.Build
         private const int ListeningPort = 45678;
         private TcpListener m_server = null;
 
+        private IApi m_vstsApi;
+
         /// <nodoc />
-        public PingExecutor(ILogger logger) : base(logger) { }
+        public PingExecutor(ILogger logger, IApi vstsApi) : base(logger) { m_vstsApi = vstsApi; }
 
         /// <inheritdoc />
         public void PrepareBuildEnvironment(BuildContext buildContext)
@@ -41,8 +43,12 @@ namespace BuildXL.AdoBuildRunner.Build
         }
 
         /// <inherit />
-        public int ExecuteDistributedBuildAsOrchestrator(BuildContext buildContext, string[] buildArguments, List<IDictionary<string, string>> machines)
+        public int ExecuteDistributedBuildAsOrchestrator(BuildContext buildContext, string[] buildArguments, int _)
         {
+            // The ping executor does need the informations of all the workers
+            m_vstsApi.WaitForOtherWorkersToBeReady().GetAwaiter().GetResult();
+            var machines = m_vstsApi.GetWorkerAddressInformationAsync().GetAwaiter().GetResult().ToList();
+
             Logger.Info($@"Launching ping test as orchestrator");
 
             var usingV6 = buildArguments.Any(opt => opt == "ipv6");

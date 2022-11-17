@@ -28,6 +28,15 @@ namespace BuildXL.Engine.Distribution.Grpc
             m_loggingContext = loggingContext;
         }
 
+        public Task<RpcCallResult<Unit>> SayHelloAsync(ServiceLocation myLocation, CancellationToken cancellationToken = default)
+        {
+            return m_connectionManager.CallAsync(
+               async (callOptions) => await m_client.HelloAsync(myLocation, options: callOptions),
+               "Hello",
+               cancellationToken: cancellationToken,
+               waitForConnection: true);
+        }
+
         public void Initialize(string ipAddress, 
             int port, 
             EventHandler<ConnectionFailureEventArgs> onConnectionFailureAsync)

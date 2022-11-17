@@ -33,6 +33,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
             ValidateDistribution = template.ValidateDistribution;
             ReplicateOutputsToWorkers = template.ReplicateOutputsToWorkers;
             BuildWorkers = new List<IDistributionServiceLocation>(template.BuildWorkers.Select(location => new DistributionServiceLocation(location)));
+            DynamicBuildWorkerSlots = template.DynamicBuildWorkerSlots;
+            OrchestratorLocation = template.OrchestratorLocation;
             MinimumWorkers = template.MinimumWorkers;
             LowWorkersWarningThreshold = template.LowWorkersWarningThreshold;
             EarlyWorkerRelease = template.EarlyWorkerRelease;
@@ -54,6 +56,16 @@ namespace BuildXL.Utilities.Configuration.Mutable
         /// <nodoc />
         [SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly")]
         public List<IDistributionServiceLocation> BuildWorkers { get; set; }
+        
+        /// <nodoc />
+        [SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly")]
+        public IDistributionServiceLocation OrchestratorLocation { get; set; }
+
+        /// <inheritdoc />
+        public int DynamicBuildWorkerSlots { get; set; }
+
+        /// <inheritdoc />
+        public int RemoteWorkerCount => BuildWorkers.Count + DynamicBuildWorkerSlots;
 
         /// <inhertidoc />
         public bool ValidateDistribution { get; set; }

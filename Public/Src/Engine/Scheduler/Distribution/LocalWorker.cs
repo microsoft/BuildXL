@@ -81,14 +81,17 @@ namespace BuildXL.Scheduler.Distribution
         /// </summary>
         public bool MemoryResourceAvailable => MemoryResource == MemoryResource.Available;
 
+        /// <inheritdoc />
+        public override string Name => "#0 (Local)";
         private readonly ConcurrentBigSet<PipId> m_pipsSourceHashed;
 
         /// <summary>
         /// Constructor
         /// </summary>
         public LocalWorker(IScheduleConfiguration scheduleConfig, IPipQueue pipQueue, IDetoursEventListener detoursListener, PipExecutionContext context)
-            : base(workerId: 0, name: "#0 (Local)", context: context, workerIpAddress: MachineName)
+            : base(workerId: 0, context: context)
         {
+            WorkerIpAddress = MachineName;
             TotalProcessSlots = scheduleConfig.EffectiveMaxProcesses;
             TotalCacheLookupSlots = scheduleConfig.MaxCacheLookup;
             TotalLightProcessSlots = scheduleConfig.MaxLight;

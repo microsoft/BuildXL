@@ -13,7 +13,8 @@ namespace BuildXL.Engine.Distribution
 {
     internal interface IOrchestratorClient
     {
-        void Initialize(string ipAddress, int port, EventHandler<ConnectionFailureEventArgs> onConnectionFailureAsync);        
+        Task<RpcCallResult<Unit>> SayHelloAsync(ServiceLocation serviceLocation, CancellationToken cancellationToken = default);
+        void Initialize(string ipAddress, int port, EventHandler<ConnectionFailureEventArgs> onConnectionFailureAsync);
         Task<RpcCallResult<Unit>> AttachCompletedAsync(AttachCompletionInfo attachCompletionInfo);
         Task<RpcCallResult<Unit>> NotifyAsync(WorkerNotificationArgs notificationArgs, IList<long> semiStableHashes, CancellationToken cancellationToken = default);
         Task CloseAsync();

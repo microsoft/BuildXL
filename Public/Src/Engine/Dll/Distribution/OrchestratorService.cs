@@ -31,6 +31,7 @@ namespace BuildXL.Engine.Distribution
     /// <remarks>This interface is marked internal to reduce visibility to the distribution layer only</remarks>
     internal interface IOrchestratorService
     {
+        void Hello(ServiceLocation workerLocation);
         void AttachCompleted(AttachCompletionInfo attachCompletionInfo);
         Task ReceivedWorkerNotificationAsync(WorkerNotificationArgs notification);
     }
@@ -77,15 +78,26 @@ namespace BuildXL.Engine.Distribution
 
             // Create all remote workers
             m_buildServicePort = config.BuildServicePort;
-            m_remoteWorkers = new RemoteWorker[config.BuildWorkers.Count];
+            m_remoteWorkers = new RemoteWorker[config.RemoteWorkerCount];
 
             m_loggingContext = loggingContext;
 
-            for (int i = 0; i < m_remoteWorkers.Length; i++)
+            for (int i = 0; i < config.RemoteWorkerCount; i++)     
             {
-                var configWorker = config.BuildWorkers[i];
+                ServiceLocation serviceLocation = null;
+                if (i < config.BuildWorkers.Count)
+                {
+                    var configWorker = config.BuildWorkers[i];
+                    serviceLocation = new ServiceLocation { IpAddress = configWorker.IpAddress, Port = configWorker.BuildServicePort };
+                }
+                else
+                {
+                    // This remote worker will have a location after a worker says hello
+                    // at some point in the future - we don't know its service location now,
+                    // so it will stay as null until we receive a Hello RPC.
+                }
+
                 var workerId = i + 1; // 0 represents the local worker.
-                var serviceLocation = new ServiceLocation { IpAddress = configWorker.IpAddress, Port = configWorker.BuildServicePort };
                 m_remoteWorkers[i] = new RemoteWorker(loggingContext, (uint)workerId, this, serviceLocation, context);
             }
 
@@ -309,5 +321,36 @@ namespace BuildXL.Engine.Distribution
 
         /// We don't have exit logic for orchestrator for now -- throw to avoid unexpected usage
         public override Task ExitAsync(Optional<string> failure, bool isUnexpected) => throw new NotImplementedException();
+
+        /// <summary>
+        /// A worker advertises its location during the build
+        /// </summary>
+        public void Hello(ServiceLocation workerLocation)
+        {
+            lock (m_remoteWorkers)
+            {
+                if (m_remoteWorkers.Any(rw => rw.Location == workerLocation))
+                {
+                    // We already know this worker (presumably, from the command line).
+                    // Just acknowledge the RPC.
+                    return;
+                }
+
+                // Choose a "dynamic" slot (with unknown location), if any, and set its service location
+                var availableWorkerSlot = m_remoteWorkers.FirstOrDefault(rw => rw.Location == null);
+                if (availableWorkerSlot is not null)
+                {
+                    availableWorkerSlot.Location = workerLocation;
+
+                    Logger.Log.DistributionHelloReceived(m_loggingContext, workerLocation.IpAddress, workerLocation.Port, availableWorkerSlot.WorkerId);
+                }
+                else
+                {
+                    // If we receive a worker location and don't have a slot, it means that /dynamicWorkerCount had a wrong value:
+                    // this is a configuration error.
+                    Logger.Log.DistributionHelloNoSlot(m_loggingContext, workerLocation.IpAddress, workerLocation.Port);
+                }
+            }
+        }
     }
 }

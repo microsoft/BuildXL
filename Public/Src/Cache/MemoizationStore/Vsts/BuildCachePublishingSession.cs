@@ -56,6 +56,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                 helper: null,
                 logger: m => Tracer.Info(context, m));
 
+            configuration.BuildCacheConfiguration.ForceUpdateOnAddContentHashList = true;
             var cache = BuildCacheCacheFactory.Create(
                 PassThroughFileSystem.Default,
                 context.TracingContext.Logger,

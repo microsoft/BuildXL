@@ -62,6 +62,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blobs
                 Credentials = credentials,
             });
 
+            // TODO: Implement force publishing for blob L3
             var database = new MetadataStoreMemoizationDatabase(blobMetadataStore);
             var memoizationStore = new DatabaseMemoizationStore(database);
 

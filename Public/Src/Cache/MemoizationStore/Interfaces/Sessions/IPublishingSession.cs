@@ -44,6 +44,11 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
     public interface ICachePublisher : IStartupShutdownSlim
     {
         /// <summary>
+        /// Gets the unique GUID for the given cache.
+        /// </summary>
+        Guid CacheGuid { get; }
+
+        /// <summary>
         /// Add a content hash list.
         /// </summary>
         Task<AddOrGetContentHashListResult> AddOrGetContentHashListAsync(
@@ -76,11 +81,21 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         Task<BoolResult> IncorporateStrongFingerprintsAsync(
             OperationContext context,
             IEnumerable<Task<StrongFingerprint>> strongFingerprints);
+
+        /// <nodoc />
+        Task<GetContentHashListResult> GetContentHashListAsync(
+            Context context,
+            StrongFingerprint strongFingerprint,
+            CancellationToken cts,
+            UrgencyHint urgencyHint = UrgencyHint.Nominal);
     }
 
     /// <nodoc />
     public class CacheSessionPublisherWrapper : StartupShutdownSlimBase, ICachePublisher
     {
+        /// <nodoc />
+        public Guid CacheGuid => _cache.Id;
+
         /// <nodoc />
         protected override Tracer Tracer { get; } = new Tracer(nameof(CacheSessionPublisherWrapper));
 
@@ -133,6 +148,12 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         public Task<BoolResult> IncorporateStrongFingerprintsAsync(OperationContext context, IEnumerable<Task<StrongFingerprint>> strongFingerprints)
         {
             return _session.IncorporateStrongFingerprintsAsync(context, strongFingerprints, context.Token);
+        }
+
+        /// <nodoc />
+        public Task<GetContentHashListResult> GetContentHashListAsync(Context context, StrongFingerprint strongFingerprint, CancellationToken cts, UrgencyHint urgencyHint = UrgencyHint.Nominal)
+        {
+            return _session.GetContentHashListAsync(context, strongFingerprint, cts, urgencyHint);
         }
     }
 
@@ -223,12 +244,27 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
                 (timeSpentWaiting, gateCount) =>
                 {
                     ContentHashList? hashListInRemote = null;
+                    bool publishSkipped = false;
                     return context.PerformOperationAsync(
                         Tracer,
                         async () =>
                         {
+                            var remoteResult = await _cachePublisher.GetContentHashListAsync(context, fingerprint, context.Token);
+                            var localContentHashList = contentHashList.ContentHashList;
+                            var remoteContentHashList = remoteResult.ContentHashListWithDeterminism.ContentHashList;
+                            var isRemoteBacked = remoteResult.Succeeded
+                                    && (remoteResult.ContentHashListWithDeterminism.Determinism.IsDeterministicTool
+                                        || remoteResult.ContentHashListWithDeterminism.Determinism.EffectiveGuid.Equals(_cachePublisher.CacheGuid));
+
+                            // Skip publishing when local CHL matches remote CHL & the remote is backed.
+                            if (localContentHashList.Equals(remoteContentHashList) && isRemoteBacked)
+                            {
+                                publishSkipped = true;
+                                return BoolResult.Success;
+                            }
+
                             // Make sure to push the blob in the selector if it exists.
-                            var hashesToPush = new List<ContentHash>(contentHashList.ContentHashList.Hashes);
+                            var hashesToPush = new List<ContentHash>(localContentHashList.Hashes);
                             if (!fingerprint.Selector.ContentHash.IsZero())
                             {
                                 hashesToPush.Add(fingerprint.Selector.ContentHash);
@@ -252,7 +288,8 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
                         },
                         traceOperationStarted: false,
                         extraEndMessage: result =>
-                            $"Added=[{result.Succeeded && hashListInRemote is null}], " +
+                            $"Skipped=[{publishSkipped}], " +
+                            $"Added=[{result.Succeeded && hashListInRemote is null && !publishSkipped}], " +
                             $"StrongFingerprint=[{fingerprint}], " +
                             $"ContentHashList=[{contentHashList.ToTraceString()}], " +
                             $"TimeSpentWaiting=[{timeSpentWaiting}], " +

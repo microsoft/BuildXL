@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 #if MICROSOFT_INTERNAL
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -96,6 +97,8 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
                 _forceUpdate = forceUpdate;
             }
 
+            public Guid CacheGuid => Guid.Empty;
+
             protected override Tracer Tracer { get; } = new Tracer(nameof(DummyPublisher));
 
             public Task<AddOrGetContentHashListResult> AddOrGetContentHashListAsync(
@@ -124,6 +127,16 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
                 }
 
                 return Task.FromResult(new AddOrGetContentHashListResult(_storedHashLists[strongFingerprint]));
+            }
+
+            public Task<GetContentHashListResult> GetContentHashListAsync(Context context, StrongFingerprint strongFingerprint, CancellationToken cts, UrgencyHint urgencyHint = UrgencyHint.Nominal)
+            {
+                if (_storedHashLists.ContainsKey(strongFingerprint))
+                {
+                    return Task.FromResult(new GetContentHashListResult(_storedHashLists[strongFingerprint]));
+                };
+
+                return Task.FromResult(new GetContentHashListResult(default(ContentHashListWithDeterminism)));
             }
 
             public Task<BoolResult> IncorporateStrongFingerprintsAsync(OperationContext context, IEnumerable<Task<StrongFingerprint>> strongFingerprints)

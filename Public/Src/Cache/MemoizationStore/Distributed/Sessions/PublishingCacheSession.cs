@@ -110,12 +110,47 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Sessions
             return result;
         }
 
+        /// <inheritdoc />
+        public async Task<GetContentHashListResult> GetContentHashListAsync(Context context, StrongFingerprint strongFingerprint, CancellationToken cts, UrgencyHint urgencyHint = UrgencyHint.Nominal)
+        {
+            var operationContext = TrackShutdown(new OperationContext(context, cts));
+            var cancellationForPublish = _publishAsynchronously
+                ? ShutdownStartedCancellationToken
+                : operationContext.Context.Token;
+
+            var localResult = await _local.GetContentHashListAsync(context, strongFingerprint, cts, urgencyHint);
+            if (localResult.Succeeded && localResult.ContentHashListWithDeterminism.ContentHashList is not null)
+            {
+                var publishTask = PublishContentHashListAsync(
+                    context,
+                    strongFingerprint,
+                    localResult.ContentHashListWithDeterminism,
+                    cancellationForPublish);
+
+                if (_publishAsynchronously)
+                {
+                    publishTask.FireAndForget(context, traceErrorResult: true, operation: nameof(PublishContentHashListAsync));
+                }
+                else
+                {
+                    var publishingResult = await publishTask;
+                    if (!publishingResult.Succeeded)
+                    {
+                        return new GetContentHashListResult(publishingResult);
+                    }
+                }
+            }
+
+            return localResult;
+        }
+
         private async Task<BoolResult> PublishContentHashListAsync(
             Context context,
             StrongFingerprint strongFingerprint,
             ContentHashListWithDeterminism contentHashList,
             CancellationToken token)
         {
+            await Task.Yield();
             Contract.Assert(!_hasBeenMarkedForShutdown, "Should not queue publish operations after the session has been marked for shutdown");
 
             var publishingOperation = new PublishingOperation
@@ -170,12 +205,6 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Sessions
         public IAsyncEnumerable<GetSelectorResult> GetSelectors(Context context, Fingerprint weakFingerprint, CancellationToken cts, UrgencyHint urgencyHint = UrgencyHint.Nominal)
         {
             return _local.GetSelectors(context, weakFingerprint, cts, urgencyHint);
-        }
-
-        /// <inheritdoc />
-        public Task<GetContentHashListResult> GetContentHashListAsync(Context context, StrongFingerprint strongFingerprint, CancellationToken cts, UrgencyHint urgencyHint = UrgencyHint.Nominal)
-        {
-            return _local.GetContentHashListAsync(context, strongFingerprint, cts, urgencyHint);
         }
 
         /// <inheritdoc />

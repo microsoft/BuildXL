@@ -4551,7 +4551,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "runtime.ubuntu-linux-x64.buildxl",
-          "Version": "0.1.0-20221020.0.2"
+          "Version": "0.1.0-20221117.10.1"
         }
       }
     },

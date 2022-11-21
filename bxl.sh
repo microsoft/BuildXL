@@ -87,6 +87,7 @@ function compileWithBxl() {
         /fancyConsoleMaxStatusPips:10
         /exp:LazySODeletion
         /nowarn:11319 # DX11319: nuget version mismatch
+        /logsToRetain:20
         "$@"
     )
 

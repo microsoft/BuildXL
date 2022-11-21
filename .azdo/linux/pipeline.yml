@@ -70,8 +70,6 @@ extends:
             sdl:
               credscan:
                 enabled: false
-              antimalwareScan:
-                enabled: false
               publishLogs:
                 enabled: false
           steps:

@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using BuildXL.Utilities.Collections;
 using RocksDbSharp;
 
 namespace BuildXL.Engine.Cache.KeyValueStores
@@ -159,14 +160,6 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         /// but still exist in the database.
         /// </remarks>
         public bool UseReadOptionsWithSetTotalOrderSeekInGarbageCollection { get; init; } = true;
-
-        /// <summary>
-        /// Log handler that will be called once rocksdb traces a message.
-        /// </summary>
-        public LogLineCallback? HandleLogMessage { get; set; }
-
-        /// <nodoc />
-        public LogLevel LogLevel { get; set; } = LogLevel.Info;
 
         /// <nodoc />
         public RocksDbPerformanceConfiguration PerformanceConfiguration { get; set; } = new RocksDbPerformanceConfiguration();

@@ -5,7 +5,6 @@ using System;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.InMemory;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.Host.Configuration;
-using RocksDbSharp;
 using static BuildXL.Utilities.ConfigurationHelper;
 
 #nullable enable
@@ -60,12 +59,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// Specifies whether the context operation guid is used when logging entry operations
         /// </summary>
         public bool TraceOperations { get; set; } = true;
-
-        /// <summary>
-        /// Ges or sets log level from RocksDb emitted to Kusto.
-        /// Null - the tracing is off.
-        /// </summary>
-        public LogLevel? RocksDbTracingLevel { get; set; }
 
         /// <summary>
         /// Specifies whether to trace touches or not.
@@ -223,7 +216,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             configuration.RocksDbPerformanceSettings = settings.RocksDbPerformanceSettings;
 
-            ApplyIfNotNull(settings.ContentLocationDatabaseRocksDbTracingLevel, v => configuration.RocksDbTracingLevel = (LogLevel)v);
             ApplyIfNotNull(settings.TraceStateChangeDatabaseOperations, v => configuration.TraceOperations = v);
             ApplyIfNotNull(settings.TraceNoStateChangeDatabaseOperations, v => configuration.TraceNoStateChangeOperations = v);
 
@@ -232,7 +224,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             ApplyIfNotNull(settings.ContentLocationDatabaseMetadataGarbageCollectionMaximumSizeMb, v => configuration.MetadataGarbageCollectionMaximumSizeMb = v);
             ApplyIfNotNull(settings.ContentLocationDatabaseMetadataGarbageCollectionLogEnabled, v => configuration.MetadataGarbageCollectionLogEnabled = v);
 
-            ApplyIfNotNull(settings.ContentLocationDatabaseOpenReadOnly, v => configuration.OpenReadOnly = (v && !settings.IsMasterEligible));
+            ApplyIfNotNull(settings.ContentLocationDatabaseOpenReadOnly, v => configuration.OpenReadOnly = v && !settings.IsMasterEligible);
             ApplyIfNotNull(settings.UseMergeOperatorForContentLocations, v => configuration.UseMergeOperatorForContentLocations = v);
 
             ApplyIfNotNull(settings.ContentLocationDatabaseLogsBackupRetentionMinutes, v => configuration.LogsRetention = TimeSpan.FromMinutes(v));

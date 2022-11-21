@@ -1062,6 +1062,12 @@ namespace BuildXL.Scheduler
         AfterDrainingWhenDoneDuration,
 
         /// <summary>
+        /// The time spent in WhenDone for stopping workers.
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        WhenDoneWorkerFinishDuration,
+
+        /// <summary>
         /// The time spent to create symlink including waiting for semaphore.
         /// </summary>
         [CounterType(CounterType.Stopwatch)]
@@ -1226,6 +1232,18 @@ namespace BuildXL.Scheduler
 
         /// <nodoc/>
         RemoteWorker_EarlyReleaseSavingDurationMs,
+
+        /// <nodoc/>
+        [CounterType(CounterType.Stopwatch)]
+        RemoteWorker_DeserializeFromBlobDuration,
+
+        /// <nodoc/>
+        [CounterType(CounterType.Stopwatch)]
+        RemoteWorker_ReadBuildManifestEventsDuration,
+
+        /// <nodoc/>
+        [CounterType(CounterType.Stopwatch)]
+        RemoteWorker_ReadExecutionLogAsyncDuration,
 
         /// <nodoc/>
         BuildRequestBatchesSentToWorkers,

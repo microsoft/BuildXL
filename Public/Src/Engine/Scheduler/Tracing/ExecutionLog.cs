@@ -406,7 +406,11 @@ namespace BuildXL.Scheduler.Tracing
             // Disable observed inputs which are logged by ProcessFingerprintComputationEvent (that data
             // would be redundant. It will be reported on deserialization from ProcessFingerprintComputationEvent as
             // well.)
-            return (eventId != ExecutionEventId.ObservedInputs) && base.CanHandleEvent(eventId, timestamp, eventPayloadSize);
+            return eventId switch
+            {
+                ExecutionEventId.ObservedInputs => false,
+                _ => base.CanHandleEvent(eventId, timestamp, eventPayloadSize)
+            };
         }
 
         protected override void OnUnhandledEvent(ExecutionEventId eventId)

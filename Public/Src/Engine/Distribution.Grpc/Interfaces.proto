@@ -10,8 +10,11 @@ service Orchestrator {
     // Signals the completion of the Attach call
     rpc AttachCompleted(AttachCompletionInfo) returns (RpcResponse) {}
 
-    // Signals the completion of the given pips
-    rpc Notify(WorkerNotificationArgs) returns (RpcResponse) {}
+    // Report the completion of the given pips
+    rpc ReportPipResults(PipResultsInfo) returns (RpcResponse) {}
+
+    // Report the execution log data
+    rpc ReportExecutionLog(ExecutionLogInfo) returns (RpcResponse) {}
 }
 
 // Defines the service for talking to builder worker processes
@@ -113,7 +116,7 @@ message EventMessage
 }
 
 // Information about completed pips and events logged on worker
-message WorkerNotificationArgs
+message PipResultsInfo
 {
     // Identifies the worker which executed the pips
     uint32 WorkerId = 1;
@@ -124,11 +127,28 @@ message WorkerNotificationArgs
     // The events forwarded to the orchestrator
     repeated EventMessage ForwardedEvents = 3;
 
+    // The build manifest execution log events forwarded to the orchestrator 
+    ExecutionLogData BuildManifestEvents = 4;
+}
+
+// Information about execution log data forwarded to the orchestrator
+message ExecutionLogInfo
+{
+    // Identifies the worker which generates the execution log
+    uint32 WorkerId = 1;
+
+    // The execution log events forwarded to the orchestrator 
+    ExecutionLogData Events = 2;
+}
+
+// Execution log data forwarded to the orchestrator
+message ExecutionLogData 
+{
     // Data logged to the execution log on the worker
-    bytes ExecutionLogData = 4;
+    bytes DataBlob = 1;
 
     // Sequence number of the execution log blob on the worker
-    int32 ExecutionLogBlobSequenceNumber = 5;
+    int32 SequenceNumber = 2;
 }
 
 // Defines initialization information needed by workers to participate in a build

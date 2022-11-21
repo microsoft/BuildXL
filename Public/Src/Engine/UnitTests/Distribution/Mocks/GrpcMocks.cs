@@ -166,11 +166,16 @@ namespace Test.BuildXL.Distribution
             return Task.CompletedTask;
         }
 
-        Task<RpcCallResult<Unit>> IOrchestratorClient.NotifyAsync(WorkerNotificationArgs notificationArgs, IList<long> semiStableHashes, CancellationToken cancellationToken)
+        Task<RpcCallResult<Unit>> IOrchestratorClient.ReportPipResultsAsync(PipResultsInfo message, IList<long> semiStableHashes, CancellationToken cancellationToken)
         {
             return Task.FromResult(m_fail ? Failure : SuccessResult);
         }
 
+        Task<RpcCallResult<Unit>> IOrchestratorClient.ReportExecutionLogAsync(ExecutionLogInfo message, CancellationToken cancellationToken)
+        {
+            return Task.FromResult(m_fail ? Failure : SuccessResult);
+        }
+        
         void IOrchestratorClient.Initialize(string ipAddress, int port, EventHandler<ConnectionFailureEventArgs> onConnectionTimeOutAsync)
         {
 

@@ -2,7 +2,11 @@
 // Licensed under the MIT License.
 
 using System;
+using System.IO;
+using System.Threading.Tasks;
+using BuildXL.Distribution.Grpc;
 using BuildXL.Utilities.Configuration;
+using Google.Protobuf;
 using Grpc.Core;
 
 namespace BuildXL.Engine.Distribution.Grpc
@@ -87,7 +91,20 @@ namespace BuildXL.Engine.Distribution.Grpc
         /// Minimum allowed time between a server receiving successive ping frames without sending any data/header frame.
         /// </remarks>
         public const string MinRecvPingIntervalWithoutDataMs = "grpc.http2.min_ping_interval_without_data_ms";
+    }
 
+    internal static class GrpcUtils
+    {
+        public readonly static Task<RpcResponse> EmptyResponse = Task.FromResult(new RpcResponse());
 
+        /// <summary>
+        /// Returns a <see cref="ByteString"/> that is backed by the underlying byte array of <see cref="MemoryStream"/>
+        /// This is an unsafe operation as the concurrent changes in the stream can cause problematic behaviors for the 
+        /// consumers of <see cref="ByteString"/>.
+        /// </summary>
+        public static ByteString ToByteString(this MemoryStream stream)
+        {
+            return UnsafeByteOperations.UnsafeWrap(new ArraySegment<byte>(stream.GetBuffer(), 0, (int)stream.Length));
+        }
     }
 }

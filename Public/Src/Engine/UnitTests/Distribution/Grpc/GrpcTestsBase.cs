@@ -241,7 +241,12 @@ namespace Test.BuildXL.Distribution
             {
             }
 
-            Task IOrchestratorService.ReceivedWorkerNotificationAsync(WorkerNotificationArgs notification)
+            Task IOrchestratorService.ReceivedPipResults(PipResultsInfo notification)
+            {
+                return Task.CompletedTask;
+            }
+
+            Task IOrchestratorService.ReceivedExecutionLog(ExecutionLogInfo executionLog)
             {
                 return Task.CompletedTask;
             }

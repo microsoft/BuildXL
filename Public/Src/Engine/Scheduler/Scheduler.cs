@@ -69,6 +69,7 @@ using Logger = BuildXL.Scheduler.Tracing.Logger;
 using Process = BuildXL.Pips.Operations.Process;
 using BuildXL.Processes.Sideband;
 using BuildXL.Processes.Remoting;
+using BuildXL.Cache.ContentStore.Extensions;
 
 namespace BuildXL.Scheduler
 {
@@ -1364,7 +1365,6 @@ namespace BuildXL.Scheduler
 
             OchestratorSpecificExecutionLogTarget orchestratorTarget = null;
             WeakFingerprintAugmentationExecutionLogTarget fingerprintAugmentationTarget = null;
-            BuildManifestStoreTarget buildManifestStoreTarget = null;
 
             var executionLogPath = configuration.Logging.ExecutionLog;
             if (configuration.Logging.LogPackedExecution && executionLogPath.IsValid)
@@ -1387,7 +1387,7 @@ namespace BuildXL.Scheduler
                 }
 
                 m_buildManifestGenerator = new BuildManifestGenerator(loggingContext, Context.StringTable);
-                buildManifestStoreTarget = new BuildManifestStoreTarget(m_buildManifestGenerator, m_pipTwoPhaseCache);
+                m_manifestExecutionLog = new BuildManifestStoreTarget(m_buildManifestGenerator, m_pipTwoPhaseCache);
 
                 // Only log failed pips on orchestrator to make it easier to retrieve logs for failing pips on workers
                 if (configuration.Logging.DumpFailedPips.GetValueOrDefault())
@@ -1401,8 +1401,8 @@ namespace BuildXL.Scheduler
                 m_fingerprintStoreTarget,
                 new ObservedInputAnomalyAnalyzer(loggingContext, graph),
                 orchestratorTarget,
+                m_manifestExecutionLog,
                 fingerprintAugmentationTarget,
-                buildManifestStoreTarget,
                 m_dumpPipLiteExecutionLogTarget,
                 m_packedExecutionExporter);
 
@@ -1557,7 +1557,7 @@ namespace BuildXL.Scheduler
                         Logger = CreateLoggerForApiServer(loggingContext),
                     },
                     m_pipTwoPhaseCache,
-                    ExecutionLog,
+                    m_manifestExecutionLog,
                     m_buildManifestGenerator,
                     m_serviceManager,
                     m_configuration.Engine.VerifyFileContentOnBuildManifestHashComputation);
@@ -1663,15 +1663,15 @@ namespace BuildXL.Scheduler
 
                 await StopIpcProvider();
 
-                foreach (var worker in m_workers)
+                using (PipExecutionCounters.StartStopwatch(PipExecutorCounter.WhenDoneWorkerFinishDuration))
                 {
-                    await worker.FinishAsync(HasFailed ? "Distributed build failed. See errors on orchestrator." : null);
-                }
+                    await m_workers.ParallelForEachAsync((worker) => worker.FinishAsync(HasFailed ? "Distributed build failed. See errors on orchestrator." : null));
 
-                // Wait for all workers to confirm that they have stopped.
-                while (m_workers.Any(w => w.Status != WorkerNodeStatus.Stopped))
-                {
-                    await Task.Delay(50);
+                    // Wait for all workers to confirm that they have stopped.
+                    while (m_workers.Any(w => w.Status != WorkerNodeStatus.Stopped))
+                    {
+                        await Task.Delay(50);
+                    }
                 }
 
                 if (m_fingerprintStoreTarget != null)
@@ -3972,6 +3972,14 @@ namespace BuildXL.Scheduler
                     runnablePip.StepDuration = duration;
                 }
 
+                bool isCancelledOrFailed = nextStep.IsChooseWorker() || nextStep == PipExecutionStep.HandleResult;
+                if (runnablePip.Worker?.IsLocal == true ||
+                    (runnablePip.AcquiredResourceWorker != null && isCancelledOrFailed))
+                {
+                    // Release the worker resources if we are done executing. For pips executed remotely, we release worker resources when we receive the results from workers.
+                    runnablePip.AcquiredResourceWorker?.ReleaseResources(runnablePip, isCancelledOrFailed);
+                }
+
                 // If the duration is larger than EngineEnvironmentSettings.MinStepDurationSecForTracer (30 seconds by default)
                 if (runnablePip.IncludeInTracer && (long)runnablePip.StepDuration.TotalSeconds > EngineEnvironmentSettings.MinStepDurationSecForTracer)
                 {
@@ -4013,9 +4021,6 @@ namespace BuildXL.Scheduler
 
             // Send an Executionlog event
             runnablePip.LogExecutionStepPerformance(runnablePip.Step, startTime, duration);
-
-            // Release the worker resources if we are done executing
-            runnablePip.AcquiredResourceWorker?.ReleaseResources(runnablePip, nextStep);
 
             // Pip may need to materialize inputs/outputs before the next step
             // depending on the configuration
@@ -6181,6 +6186,7 @@ namespace BuildXL.Scheduler
         private readonly FingerprintStoreExecutionLogTarget m_fingerprintStoreTarget;
         private readonly MultiExecutionLogTarget m_multiExecutionLogTarget;
         private readonly BuildManifestGenerator m_buildManifestGenerator;
+        private ExecutionLogTargetBase m_manifestExecutionLog;
         private readonly DumpPipLiteExecutionLogTarget m_dumpPipLiteExecutionLogTarget;
 
         /// <inheritdoc/>
@@ -8252,6 +8258,11 @@ namespace BuildXL.Scheduler
         internal void SetSidebandState(SidebandState sidebandState)
         {
             m_sidebandState = sidebandState;
+        }
+
+        internal void SetManifestExecutionLog(ExecutionLogTargetBase manifestExecutionLog)
+        {
+            m_manifestExecutionLog = manifestExecutionLog;
         }
     }
 }

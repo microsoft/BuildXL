@@ -368,10 +368,7 @@ namespace BuildXL.Scheduler
                 !Environment.IsTerminating)
             {
                 // Handle Retryable Cancellations
-                SetWorker(null);
-
                 Performance.Retried(ExecutionResult?.RetryInfo ?? RetryInfo.GetDefault(RetryReason.StoppedWorker));
-
                 return DecideNextStepForRetry();
             }
 

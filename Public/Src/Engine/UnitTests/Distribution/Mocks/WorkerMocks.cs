@@ -147,10 +147,6 @@ namespace Test.BuildXL.Distribution
         }
 
         string IWorkerPipExecutionService.GetPipDescription(PipId pipId) => pipId.ToString();
-
-        void IDisposable.Dispose()
-        {
-        }
     }
 
     internal class PipResultSerializerMock : IPipResultSerializer

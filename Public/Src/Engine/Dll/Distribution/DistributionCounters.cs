@@ -99,7 +99,7 @@ namespace BuildXL.Engine.Distribution
 
         /// <nodoc/>
         [CounterType(CounterType.Stopwatch)]
-        SendExecutionLogDuration,
+        ReportExecutionLogDuration,
 
         /// <nodoc/>
         FailedSendPipBuildRequestCallDurationMs,
@@ -109,6 +109,6 @@ namespace BuildXL.Engine.Distribution
 
         /// Time sending notifications to the orchestrator
         [CounterType(CounterType.Stopwatch)]
-        SendNotificationDuration,
+        ReportPipResultsDuration,
     }
 }

@@ -14,8 +14,7 @@ namespace BuildXL.Engine.Distribution.Grpc
     /// </summary>
     public sealed class GrpcOrchestrator : Orchestrator.OrchestratorBase
     {
-        private readonly IOrchestratorService m_orchestratorService;
-
+        private readonly IOrchestratorService m_orchestratorService; 
         internal GrpcOrchestrator(IOrchestratorService service)
         {
             m_orchestratorService = service;
@@ -32,23 +31,21 @@ namespace BuildXL.Engine.Distribution.Grpc
         public override Task<RpcResponse> AttachCompleted(AttachCompletionInfo message, ServerCallContext context)
         {
             m_orchestratorService.AttachCompleted(message);
-            return Task.FromResult(new RpcResponse());
+            return GrpcUtils.EmptyResponse;
         }
 
         /// <inheritdoc/>
-        public override async Task<RpcResponse> Notify(WorkerNotificationArgs message, ServerCallContext context)
+        public override Task<RpcResponse> ReportPipResults(PipResultsInfo message, ServerCallContext context)
         {
-            var notifyTask = m_orchestratorService.ReceivedWorkerNotificationAsync(message);
-            if (EngineEnvironmentSettings.InlineWorkerXLGHandling)
-            {
-                await notifyTask;
-            }
-            else
-            {
-                notifyTask.Forget();
-            }
+            m_orchestratorService.ReceivedPipResults(message).Forget();
+            return GrpcUtils.EmptyResponse;
+        }
 
-            return new RpcResponse();
+        /// <inheritdoc/>
+        public override Task<RpcResponse> ReportExecutionLog(ExecutionLogInfo message, ServerCallContext context)
+        {
+            m_orchestratorService.ReceivedExecutionLog(message).Forget();
+            return GrpcUtils.EmptyResponse;
         }
     }
 }

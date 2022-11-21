@@ -37,7 +37,7 @@ namespace BuildXL.Engine.Distribution
     /// <summary>
     /// Back end of the worker service, i.e. core methods that interact with the engine.
     /// </summary>
-    internal interface IWorkerPipExecutionService : IDisposable
+    internal interface IWorkerPipExecutionService
     {
         /// <summary>
         /// Id of the worker in the distributed build.
@@ -339,12 +339,6 @@ namespace BuildXL.Engine.Distribution
             {
                 var pip = m_pipTable.HydratePip(pipId, PipQueryContext.LoggingPipFailedOnWorker);
                 return pip.GetDescription(m_environment.Context);
-            }
-
-            /// <inheritdoc/>
-            public void Dispose()
-            {
-                m_workerService.LogStatistics(LoggingContext);
             }
 
             private void StartStep(RunnablePip runnablePip)

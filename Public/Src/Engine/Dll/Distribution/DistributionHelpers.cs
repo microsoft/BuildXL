@@ -114,7 +114,7 @@ namespace BuildXL.Engine.Distribution
             }
         }
 
-        internal static string GetNotifyDescription(WorkerNotificationArgs notificationArgs, IList<long> semiStableHashes)
+        internal static string GetPipResultsDescription(PipResultsInfo notificationArgs, IList<long> semiStableHashes)
         {
             using (var sbPool = Pools.GetStringBuilder())
             {
@@ -122,14 +122,14 @@ namespace BuildXL.Engine.Distribution
 
                 if (semiStableHashes?.Count > 0)
                 {
-                    sb.Append("NotifyPipResults: ");
+                    sb.Append("ReportPipResults: ");
                     AppendSemiStableHashes(sb, semiStableHashes);
                 }
 
-                var xlgDataCount = notificationArgs.ExecutionLogData.Count();
+                var xlgDataCount = notificationArgs.BuildManifestEvents.DataBlob.Count();
                 if (xlgDataCount > 0)
                 {
-                    sb.AppendFormat(" ExecutionLogData: Size={0}, SequenceNumber={1}", xlgDataCount, notificationArgs.ExecutionLogBlobSequenceNumber);
+                    sb.AppendFormat(" BuildManifestEvents: Size={0}, SequenceNumber={1}", xlgDataCount, notificationArgs.BuildManifestEvents.SequenceNumber);
                 }
 
                 if (notificationArgs.ForwardedEvents?.Count > 0)

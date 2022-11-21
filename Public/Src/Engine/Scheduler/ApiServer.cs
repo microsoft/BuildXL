@@ -40,7 +40,7 @@ namespace BuildXL.Scheduler
         private readonly PipTwoPhaseCache m_pipTwoPhaseCache;
         private readonly IServer m_server;
         private readonly PipExecutionContext m_context;
-        private readonly Tracing.IExecutionLogTarget m_executionLog;
+        private readonly Tracing.IExecutionLogTarget m_manifestExecutionLog;
         private readonly Tracing.BuildManifestGenerator m_buildManifestGenerator;
         private readonly ServiceManager m_serviceManger;
         private readonly ConcurrentBigMap<ContentHash, IReadOnlyList<ContentHash>> m_inMemoryBuildManifestStore;
@@ -76,7 +76,7 @@ namespace BuildXL.Scheduler
             PipExecutionContext context,
             IServerConfig config,
             PipTwoPhaseCache pipTwoPhaseCache,
-            Tracing.IExecutionLogTarget executionLog,
+            Tracing.IExecutionLogTarget manifestExecutionLog,
             Tracing.BuildManifestGenerator buildManifestGenerator,
             ServiceManager serviceManger,
             bool verifyFileContentOnBuildManifestHashComputation)
@@ -86,12 +86,12 @@ namespace BuildXL.Scheduler
             Contract.Requires(context != null);
             Contract.Requires(config != null);
             Contract.Requires(pipTwoPhaseCache != null);
-            Contract.Requires(executionLog != null);
+            Contract.Requires(manifestExecutionLog != null);
 
             m_fileContentManager = fileContentManager;
             m_server = ipcProvider.GetServer(ipcProvider.LoadAndRenderMoniker(ipcMonikerId), config);
             m_context = context;
-            m_executionLog = executionLog;
+            m_manifestExecutionLog = manifestExecutionLog;
             m_buildManifestGenerator = buildManifestGenerator;
             m_serviceManger = serviceManger;
             m_pipTwoPhaseCache = pipTwoPhaseCache;
@@ -495,7 +495,7 @@ namespace BuildXL.Scheduler
             }
             else
             {
-                m_executionLog.RecordFileForBuildManifest(new Tracing.RecordFileForBuildManifestEventData(result.ToList()));
+                m_manifestExecutionLog.RecordFileForBuildManifest(new Tracing.RecordFileForBuildManifestEventData(result.ToList()));
 
                 return IpcResult.Success(cmd.RenderResult(Array.Empty<BuildManifestEntry>()));
             }

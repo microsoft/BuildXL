@@ -11,7 +11,7 @@ using BuildXL.Utilities.Tracing;
 namespace BuildXL.Engine.Distribution
 {
     /// <summary>
-    /// Logging target on orchestrator for sending execution logs in distributed builds
+    /// Logging target for workers sending execution logs to the orchestrator
     /// </summary>
     public class NotifyOrchestratorExecutionLogTarget : ExecutionLogFileTarget
     {
@@ -20,15 +20,14 @@ namespace BuildXL.Engine.Distribution
         private readonly BinaryLogger m_logger;
         private readonly Scheduler.Scheduler m_scheduler;
 
-        internal NotifyOrchestratorExecutionLogTarget(WorkerNotificationManager notificationManager, EngineSchedule engineSchedule)
-            : this(new NotifyStream(notificationManager), engineSchedule.Context, engineSchedule.Scheduler.PipGraph.GraphId, engineSchedule.Scheduler.PipGraph.MaxAbsolutePathIndex)
+        internal NotifyOrchestratorExecutionLogTarget(Action<MemoryStream> notifyAction, EngineSchedule engineSchedule, bool flushIfNeeded)
+            : this(new NotifyStream(notifyAction), flushIfNeeded, engineSchedule.Context, engineSchedule.Scheduler.PipGraph.GraphId, engineSchedule.Scheduler.PipGraph.MaxAbsolutePathIndex)
         {
             m_scheduler = engineSchedule?.Scheduler;
-            m_scheduler?.AddExecutionLogTarget(this);
         }
 
-        private NotifyOrchestratorExecutionLogTarget(NotifyStream notifyStream, PipExecutionContext context, Guid logId, int lastStaticAbsolutePathIndex) 
-            : this(CreateBinaryLogger(notifyStream, context, logId, lastStaticAbsolutePathIndex))
+        private NotifyOrchestratorExecutionLogTarget(NotifyStream notifyStream, bool flushIfNeeded, PipExecutionContext context, Guid logId, int lastStaticAbsolutePathIndex) 
+            : this(CreateBinaryLogger(notifyStream, flushIfNeeded, context, logId, lastStaticAbsolutePathIndex))
         {
             m_notifyStream = notifyStream;
         }
@@ -39,14 +38,21 @@ namespace BuildXL.Engine.Distribution
             m_logger = logger;
         }
 
-        private static BinaryLogger CreateBinaryLogger(NotifyStream stream, PipExecutionContext context, Guid logId, int lastStaticAbsolutePathIndex)
+        private static BinaryLogger CreateBinaryLogger(NotifyStream stream, bool flushIfNeeded, PipExecutionContext context, Guid logId, int lastStaticAbsolutePathIndex)
         {
             return new BinaryLogger(
                 stream,
                 context,
                 logId,
                 lastStaticAbsolutePathIndex,
-                closeStreamOnDispose: true);
+                closeStreamOnDispose: true,
+                onEventWritten: () =>
+                {
+                    if (flushIfNeeded)
+                    {
+                        stream.FlushIfNeeded();
+                    }
+                });
         }
 
         internal Task FlushAsync()
@@ -86,9 +92,13 @@ namespace BuildXL.Engine.Distribution
 
         private class NotifyStream : Stream
         {
-            private MemoryStream m_eventDataBuffer = new MemoryStream();
+            /// <summary>
+            /// Threshold over which events are sent to master. 32MB limit
+            /// </summary>
+            private const int EventDataSizeThreshold = 1 << 25;
 
-            private readonly WorkerNotificationManager m_notificationManager;
+            private MemoryStream m_eventDataBuffer = new MemoryStream();
+            private readonly Action<MemoryStream> m_notifyAction;
 
             /// <summary>
             /// If deactivated, functions stop writing or flushing <see cref="m_eventDataBuffer"/>.
@@ -105,28 +115,31 @@ namespace BuildXL.Engine.Distribution
 
             public override long Position { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
 
-            public NotifyStream(WorkerNotificationManager notificationManager)
+            public NotifyStream(Action<MemoryStream> notifyAction)
             {
-                m_notificationManager = notificationManager;
+                m_notifyAction = notifyAction;
             }
 
+            public void FlushIfNeeded()
+            {
+                if (m_eventDataBuffer.Length >= EventDataSizeThreshold)
+                {
+                    Flush();
+                }
+            }
+            
             public override void Flush()
             {
-                if (m_eventDataBuffer == null)
+                if (m_eventDataBuffer == null || m_eventDataBuffer.Length == 0)
                 {
                     // A flush action can be run after the stream is closed
                     // because the action runs anyway on dispose (see FlushAction)
                     // Ignore it, we already flushed everything while closing.
                     return;
                 }
-                
-                if (m_eventDataBuffer.Length != 0)
-                {
-                    m_notificationManager.FlushExecutionLog(m_eventDataBuffer);
 
-                    // Reset the buffer 
-                    m_eventDataBuffer.SetLength(0);
-                }
+                m_notifyAction(m_eventDataBuffer);
+                m_eventDataBuffer.SetLength(0);
             }
 
             public override void Close()

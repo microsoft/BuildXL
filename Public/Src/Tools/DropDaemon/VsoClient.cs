@@ -131,7 +131,6 @@ namespace Tool.DropDaemon
         /// </summary>
         private async Task<HashSet<string>> RegisterFilesForBuildManifestAsync(BuildManifestEntry[] buildManifestEntries)
         {
-            await Task.Yield();
             Contract.Requires(m_config.GenerateBuildManifest, "RegisterFileForBuildManifest API called even though Build Manifest Generation is Disabled in DropConfig");
             var bxlResult = await m_bxlApiClient.RegisterFilesForBuildManifest(DropDaemon.FullyQualifiedDropName(m_config), buildManifestEntries);
             if (!bxlResult.Succeeded)

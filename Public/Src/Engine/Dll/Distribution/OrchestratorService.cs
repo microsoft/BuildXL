@@ -33,7 +33,8 @@ namespace BuildXL.Engine.Distribution
     {
         void Hello(ServiceLocation workerLocation);
         void AttachCompleted(AttachCompletionInfo attachCompletionInfo);
-        Task ReceivedWorkerNotificationAsync(WorkerNotificationArgs notification);
+        Task ReceivedPipResults(PipResultsInfo pipResults);
+        Task ReceivedExecutionLog(ExecutionLogInfo executionLog);
     }
 
     /// <summary>
@@ -156,21 +157,39 @@ namespace BuildXL.Engine.Distribution
         /// <summary>
         /// Handler for the 'work completion' notification from worker.
         /// </summary>
-        [SuppressMessage("AsyncUsage", "AsyncFixer03:FireForgetAsyncVoid", Justification = "This is eventhandler so fire&forget is understandable")]
-        async Task IOrchestratorService.ReceivedWorkerNotificationAsync(WorkerNotificationArgs notification)
+        Task IOrchestratorService.ReceivedExecutionLog(ExecutionLogInfo executionLog)
         {
-            var worker = GetWorkerById(notification.WorkerId);
+            var worker = GetWorkerById(executionLog.WorkerId);
+            return worker.ReadExecutionLogAsync(executionLog.Events);
+        }
 
-            if (notification.ExecutionLogData.Count() != 0)
+        /// <summary>
+        /// Handler for the 'work completion' notification from worker.
+        /// </summary>
+        [SuppressMessage("AsyncUsage", "AsyncFixer03:FireForgetAsyncVoid", Justification = "This is eventhandler so fire&forget is understandable")]
+        async Task IOrchestratorService.ReceivedPipResults(PipResultsInfo pipResults)
+        {
+            var worker = GetWorkerById(pipResults.WorkerId);
+
+            foreach (PipCompletionData completedPip in pipResults.CompletedPips)
             {
-                // The channel is unblocked and ACK is sent after we put the execution blob to the queue in 'LogExecutionBlobAsync' method.
-                await worker.LogExecutionBlobAsync(notification);
+                worker.ReleaseWorkerResources(completedPip);
             }
 
-            // Return immediately to unblock the channel so that worker can receive the ACK for the sent message
-            await Task.Yield();
+            if (pipResults.BuildManifestEvents.DataBlob.Count() != 0)
+            {
+                // The channel is unblocked and ACK is sent after we put the execution blob to the queue in 'LogExecutionBlobAsync' method.
+                await worker.ReadBuildManifestEventsAsync(pipResults.BuildManifestEvents);
+            }
+            else
+            {   
+                // Return immediately to unblock the channel so that worker can receive the ACK for the sent message
+                await Task.Yield();
+            }
 
-            foreach (var forwardedEvent in notification.ForwardedEvents)
+
+
+            foreach (var forwardedEvent in pipResults.ForwardedEvents)
             {
                 EventLevel eventLevel = (EventLevel)forwardedEvent.Level;
 
@@ -258,10 +277,7 @@ namespace BuildXL.Engine.Distribution
                 }
             }
 
-            foreach (PipCompletionData completedPip in notification.CompletedPips)
-            {
-                worker.NotifyPipCompletion(completedPip);
-            }
+            Parallel.ForEach(pipResults.CompletedPips, worker.NotifyPipCompletion);
         }
 
         private RemoteWorker GetWorkerById(uint id)

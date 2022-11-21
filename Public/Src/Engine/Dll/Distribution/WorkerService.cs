@@ -442,7 +442,6 @@ namespace BuildXL.Engine.Distribution
         public override void Dispose()
         {
             LogStatistics(m_appLoggingContext);
-            m_pipExecutionService.Dispose();
             m_workerServer.Dispose();
         }
 

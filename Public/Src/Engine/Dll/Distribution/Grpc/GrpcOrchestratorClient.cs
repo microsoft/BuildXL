@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Distribution.Grpc;
@@ -74,13 +75,23 @@ namespace BuildXL.Engine.Distribution.Grpc
             return attachmentCompletion;
         }
 
-        public Task<RpcCallResult<Unit>> NotifyAsync(WorkerNotificationArgs message, IList<long> semiStableHashes, CancellationToken cancellationToken = default)
+        public Task<RpcCallResult<Unit>> ReportPipResultsAsync(PipResultsInfo message, IList<long> semiStableHashes, CancellationToken cancellationToken = default)
         {
             Contract.Assert(m_initialized);
 
             return m_connectionManager.CallAsync(
-               async (callOptions) => await m_client.NotifyAsync(message, options: callOptions),
-               DistributionHelpers.GetNotifyDescription(message, semiStableHashes),
+               async (callOptions) => await m_client.ReportPipResultsAsync(message, options: callOptions),
+               DistributionHelpers.GetPipResultsDescription(message, semiStableHashes),
+               cancellationToken: cancellationToken);
+        }
+
+        public Task<RpcCallResult<Unit>> ReportExecutionLogAsync(ExecutionLogInfo message, CancellationToken cancellationToken = default)
+        {
+            Contract.Assert(m_initialized);
+
+            return m_connectionManager.CallAsync(
+               async (callOptions) => await m_client.ReportExecutionLogAsync(message, options: callOptions),
+               $" ReportExecutionLog: Size={message.Events.DataBlob.Count()}, SequenceNumber={message.Events.SequenceNumber}",
                cancellationToken: cancellationToken);
         }
     }

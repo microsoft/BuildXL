@@ -90,10 +90,6 @@ namespace BuildXL.Engine.Distribution
         private Task m_beforeSendingToRemoteTask;
 
         private readonly TaskSourceSlim<bool> m_attachCompletion;
-        
-        private readonly TaskSourceSlim<bool> m_executionBlobCompletion;
-        private readonly BlockingCollection<WorkerNotificationArgs> m_executionBlobQueue = new BlockingCollection<WorkerNotificationArgs>(new ConcurrentQueue<WorkerNotificationArgs>());
-
         private readonly CancellationTokenSource m_exitCancellation = new CancellationTokenSource();
 
         private readonly Thread m_sendThread;
@@ -102,22 +98,10 @@ namespace BuildXL.Engine.Distribution
         private readonly IWorkerClient m_workerClient;
         private DateTime m_initializationTime;
         private Task m_schedulerCompletion;
-
-        #region Distributed execution log state
-
-        private IExecutionLogTarget m_workerExecutionLogTarget;
-        private BinaryLogReader m_executionLogBinaryReader;
-        private MemoryStream m_executionLogBufferStream;
-        private ExecutionLogFileReader m_executionLogReader;
-        private readonly SemaphoreSlim m_logBlobMutex = TaskUtilities.CreateMutex();
         private readonly object m_hashListLock = new object();
 
-        private int m_lastBlobSeqNumber = -1;
-
-        #endregion Distributed execution log state
-
         private int m_status;
-        public override WorkerNodeStatus Status => (WorkerNodeStatus) Volatile.Read(ref m_status);
+        public override WorkerNodeStatus Status => (WorkerNodeStatus)Volatile.Read(ref m_status);
 
         private bool m_everAvailable;
 
@@ -163,6 +147,9 @@ namespace BuildXL.Engine.Distribution
         /// </summary>
         public override bool IsAvailable => Status == WorkerNodeStatus.Running && !IsEarlyReleaseInitiated;
 
+        private WorkerExecutionLogReader m_buildManifestReader;
+        private WorkerExecutionLogReader m_executionLogReader;
+
         /// <summary>
         /// Constructor
         /// </summary>
@@ -179,10 +166,9 @@ namespace BuildXL.Engine.Distribution
             m_buildRequests = new BlockingCollection<ValueTuple<PipCompletionTask, SinglePipBuildRequest>>();
             m_attachCompletion = TaskSourceSlim.Create<bool>();
             m_setupCompletion = TaskSourceSlim.Create<bool>();
-            m_executionBlobCompletion = TaskSourceSlim.Create<bool>();
             m_workerClient = new Grpc.GrpcWorkerClient(
-                m_appLoggingContext, 
-                orchestratorService.InvocationId,  
+                m_appLoggingContext,
+                orchestratorService.InvocationId,
                 OnConnectionFailureAsync);
 
             if (serviceLocation != null)
@@ -203,20 +189,21 @@ namespace BuildXL.Engine.Distribution
         public override void InitializeForDistribution(IScheduleConfiguration scheduleConfig, PipGraph pipGraph, IExecutionLogTarget executionLogTarget, TaskSourceSlim<bool> schedulerCompletion)
         {
             m_pipGraph = pipGraph;
-            m_workerExecutionLogTarget = executionLogTarget;
+            m_buildManifestReader = new WorkerExecutionLogReader(m_appLoggingContext, executionLogTarget, m_orchestratorService.Environment, Name);
+            m_executionLogReader = new WorkerExecutionLogReader(m_appLoggingContext, executionLogTarget, m_orchestratorService.Environment, Name);
 
             TimeSpan? minimumWaitForAttachment = EngineEnvironmentSettings.MinimumWaitForRemoteWorker;
             m_initializationTime = DateTime.UtcNow;
-            
+
             if (minimumWaitForAttachment.HasValue)
             {
                 // If there is a minimum waiting time to wait for attachment, we don't want to signal the scheduler is completed 
                 // until this waiting period is over.
-                m_schedulerCompletion = Task.WhenAll(Task.Delay(minimumWaitForAttachment.Value), schedulerCompletion.Task); 
+                m_schedulerCompletion = Task.WhenAll(Task.Delay(minimumWaitForAttachment.Value), schedulerCompletion.Task);
             }
             else
             {
-                m_schedulerCompletion = schedulerCompletion.Task; 
+                m_schedulerCompletion = schedulerCompletion.Task;
             }
 
 #pragma warning disable AsyncFixer05 // Downcasting from a nested task to an outer task. This task is only meant to be awaited so we don't need the result
@@ -296,7 +283,7 @@ namespace BuildXL.Engine.Distribution
                     {
                         m_orchestratorService.Environment.Counters.IncrementCounter(PipExecutorCounter.BuildRequestBatchesSentToWorkers);
                         m_orchestratorService.Environment.Counters.AddToCounter(PipExecutorCounter.HashesSentToWorkers, m_hashList.Count);
-                        
+
                         foreach (var task in m_pipCompletionTaskList)
                         {
                             task.SetRequestDuration(dateTimeBeforeSend, sendDuration);
@@ -323,118 +310,19 @@ namespace BuildXL.Engine.Distribution
             }
         }
 
-        public async Task LogExecutionBlobAsync(WorkerNotificationArgs notification)
+        public async Task ReadBuildManifestEventsAsync(ExecutionLogData data)
         {
-            Contract.Requires(notification.ExecutionLogData.Count() != 0);
-
-            if (m_executionBlobQueue.IsCompleted)
+            using (m_orchestratorService.Environment.Counters[PipExecutorCounter.RemoteWorker_ReadBuildManifestEventsDuration].Start())
             {
-                // If orchestrator already decided to shut-down the worker, there was a connection issue with the worker for a long time and orchestrator was forced to exit the worker. 
-                // However, we received execution log event from worker, it means that the worker was still able to connect to orchestrator via its Channel.
-                // In that case, we do not process that log event. 
-                return;
+                await m_buildManifestReader.ReadEventsAsync(data);
             }
+        }
 
-            m_executionBlobQueue.Add(notification);
-
-            // After we put the executionBlob in a queue, we can unblock the caller and give an ACK to the worker.
-            await Task.Yield();
-
-            // Execution log events cannot be logged by multiple threads concurrently since they must be ordered
-            SemaphoreReleaser logBlobAcquiredMtx;
-            using (m_orchestratorService.Environment.Counters[PipExecutorCounter.RemoteWorker_ProcessExecutionLogWaitDuration].Start())
+        public async Task ReadExecutionLogAsync(ExecutionLogData data)
+        {
+            using (m_orchestratorService.Environment.Counters[PipExecutorCounter.RemoteWorker_ReadExecutionLogAsyncDuration].Start())
             {
-                logBlobAcquiredMtx = await m_logBlobMutex.AcquireAsync();
-            }
-
-            using (logBlobAcquiredMtx)
-            using (m_orchestratorService.Environment.Counters[PipExecutorCounter.RemoteWorker_ProcessExecutionLogDuration].Start())
-            {
-                // We need to dequeue and process the blobs in order. 
-                // Here, we do not necessarily process the blob that is just added to the queue above.
-                // There might be another thread that adds the next blob to the queue after the current thread, 
-                // and that thread might acquire the lock earlier. 
-
-                WorkerNotificationArgs executionBlobNotification = null;
-                Contract.Assert(m_executionBlobQueue.TryTake(out executionBlobNotification), "The executionBlob queue cannot be empty");
-
-                int blobSequenceNumber = executionBlobNotification.ExecutionLogBlobSequenceNumber;
-                var executionLogBlob = executionBlobNotification.ExecutionLogData;
-
-                if (m_workerExecutionLogTarget == null)
-                {
-                    return;
-                }
-
-                try
-                {
-                    // Workers send execution log blobs one-at-a-time, waiting for a response from the orchestrator between each message.
-                    // A sequence number higher than the last logged blob sequence number indicates a worker sent a subsequent blob without waiting for a response.
-                    Contract.Assert(blobSequenceNumber <= m_lastBlobSeqNumber + 1, "Workers should not send a new execution log blob until receiving a response from the orchestrator for all previous blobs.");
-
-                    // Due to network latency and retries, it's possible to receive a message multiple times.
-                    // Ignore any low numbered blobs since they should have already been logged and ack'd at some point before
-                    // the worker could send a higher numbered blob.
-                    if (blobSequenceNumber != m_lastBlobSeqNumber + 1)
-                    {
-                        return;
-                    }
-
-                    if (m_executionLogBufferStream == null)
-                    {
-                        // Create the stream on demand, because we need to pass the BinaryLogReader stream with the header bytes in order
-                        // to correctly deserialize events
-                        m_executionLogBufferStream = new MemoryStream();
-                    }
-
-                    // Write the new execution log event content into buffer starting at beginning of buffer stream
-                    m_executionLogBufferStream.SetLength(0);
-
-#if NETCOREAPP
-                    m_executionLogBufferStream.Write(executionLogBlob.Memory.Span);
-#else
-                    var blobArray = executionLogBlob.ToByteArray();
-                    m_executionLogBufferStream.Write(blobArray, 0, blobArray.Length);
-#endif
-
-                    // Reset the buffer stream to beginning and reset reader to ensure it reads events starting from beginning
-                    m_executionLogBufferStream.Position = 0;
-
-                    if (m_executionLogBinaryReader == null)
-                    {
-                        m_executionLogBinaryReader = new BinaryLogReader(m_executionLogBufferStream, m_orchestratorService.Environment.Context);
-                        m_executionLogReader = new ExecutionLogFileReader(m_executionLogBinaryReader, m_workerExecutionLogTarget);
-                    }
-
-                    m_executionLogBinaryReader.Reset();
-
-                    // Read all events into worker execution log target
-                    if (!m_executionLogReader.ReadAllEvents())
-                    {
-                        Logger.Log.DistributionCallOrchestratorCodeException(m_appLoggingContext, nameof(LogExecutionBlobAsync), "Failed to read all worker events");
-                        // Disable further processing of execution log since an error was encountered during processing
-                        m_workerExecutionLogTarget = null;
-                    }
-                    else
-                    {
-                        m_lastBlobSeqNumber = blobSequenceNumber;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Logger.Log.DistributionCallOrchestratorCodeException(m_appLoggingContext, nameof(LogExecutionBlobAsync), ex.ToStringDemystified() + Environment.NewLine
-                                                                    + "Message sequence number: " + blobSequenceNumber
-                                                                    + " Last sequence number logged: " + m_lastBlobSeqNumber);
-                    // Disable further processing of execution log since an exception was encountered during processing
-                    m_workerExecutionLogTarget = null;
-                }
-
-                Logger.Log.RemoteWorkerProcessedExecutionBlob(m_appLoggingContext, $"Worker#{WorkerId} - {Name}", $"{blobSequenceNumber} - {executionLogBlob.Count()}");
-
-                if (m_executionBlobQueue.IsCompleted)
-                {
-                    m_executionBlobCompletion.TrySetResult(true);
-                }
+                await m_executionLogReader.ReadEventsAsync(data);
             }
         }
 
@@ -490,7 +378,8 @@ namespace BuildXL.Engine.Distribution
         public override void Dispose()
         {
             Contract.Requires(!m_sendThread.IsAlive);
-            m_executionLogBinaryReader?.Dispose();
+            m_buildManifestReader?.Dispose();
+            m_executionLogReader?.Dispose();
             m_workerClient?.Dispose();
             m_cancellationTokenRegistration.Dispose();
 
@@ -749,31 +638,8 @@ namespace BuildXL.Engine.Distribution
                     Scheduler.Tracing.Logger.Log.ProblematicWorkerExit(m_appLoggingContext, Name);
                 }
 
-                m_executionBlobQueue.CompleteAdding();
-
-                using (m_orchestratorService.Environment.Counters.StartStopwatch(PipExecutorCounter.RemoteWorker_AwaitExecutionBlobCompletionDuration))
-                {
-                    bool isQueueCompleted = false;
-                    using (await m_logBlobMutex.AcquireAsync())
-                    {
-                        // If there are no execution log events, there will be no calls to LogExecutionBlobAsync; as a result,
-                        // the completion task will never be set, i.e., await will never return. To avoid this, we are checking
-                        // the status of the queue before deciding to wait for the completion task.
-                        //
-                        // BlockingCollection is completed when it is empty and CompleteAdding is called. We call CompleteAdding just above;
-                        // another thread can take the last element from the queue(TryTake in LogExecutionBlobAsync), so the blocking collection
-                        // will become completed. However, we need to wait for that thread to process that event; otherwise, we will dispose
-                        // the execution log related objects if we continue stopping the worker and the exception will happen during processing
-                        // the event in that thread. We wait for that thread to process the event by acquiring the m_logBlobMutex.
-                        isQueueCompleted = m_executionBlobQueue.IsCompleted;
-                    }
-
-                    if (!isQueueCompleted)
-                    {
-                        // Wait for execution blobs to be processed.
-                        await m_executionBlobCompletion.Task;
-                    }
-                }
+                await m_buildManifestReader.FinalizeAsync();
+                await m_executionLogReader.FinalizeAsync();
             }
 
             ChangeStatus(WorkerNodeStatus.Stopping, WorkerNodeStatus.Stopped, callerName);
@@ -1403,9 +1269,13 @@ namespace BuildXL.Engine.Distribution
                 int dataSize = pipCompletionData.ResultBlob.Length;
                 m_orchestratorService.Counters.AddToCounter(pip.PipType == PipType.Process ? DistributionCounter.ProcessExecutionResultSize : DistributionCounter.IpcExecutionResultSize, dataSize);
 
-                ExecutionResult result = m_orchestratorService.ResultSerializer.DeserializeFromBlob(
-                    pipCompletionData.ResultBlob.Memory.Span,
-                    WorkerId);
+                ExecutionResult result = null;
+                using (m_orchestratorService.Environment.Counters.StartStopwatch(PipExecutorCounter.RemoteWorker_DeserializeFromBlobDuration))
+                {
+                    result = m_orchestratorService.ResultSerializer.DeserializeFromBlob(
+                        pipCompletionData.ResultBlob.Memory.Span,
+                        WorkerId);
+                }
 
                 pipCompletionTask.RunnablePip.ThreadId = pipCompletionData.ThreadId;
                 pipCompletionTask.RunnablePip.StepStartTime = new DateTime(pipCompletionData.StartTimeTicks);
@@ -1543,6 +1413,19 @@ namespace BuildXL.Engine.Distribution
             }
 
             return true;
+        }
+
+        /// <summary>
+        /// Release worker slots
+        /// </summary>
+        internal void ReleaseWorkerResources(PipCompletionData pipCompletionData)
+        {
+            var pipId = new PipId(pipCompletionData.PipIdValue);
+
+            if (m_pipCompletionTasks.TryGetValue(pipId, out var pipCompletionTask))
+            {
+                pipCompletionTask.RunnablePip.AcquiredResourceWorker?.ReleaseResources(pipCompletionTask.RunnablePip);
+            }
         }
 
         private sealed class PipCompletionTask

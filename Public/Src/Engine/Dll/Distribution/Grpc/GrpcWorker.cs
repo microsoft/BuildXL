@@ -29,14 +29,14 @@ namespace BuildXL.Engine.Distribution.Grpc
 
             m_workerService.Attach(message, sender);
 
-            return Task.FromResult(new RpcResponse());
+            return GrpcUtils.EmptyResponse;
         }
 
         /// <inheritdoc/>
         public override Task<RpcResponse> ExecutePips(PipBuildRequest message, ServerCallContext context)
         {
             m_workerService.ExecutePipsAsync(message).Forget();
-            return Task.FromResult(new RpcResponse());
+            return GrpcUtils.EmptyResponse;
         }
 
         /// <inheritdoc/>
@@ -44,7 +44,7 @@ namespace BuildXL.Engine.Distribution.Grpc
         {
             var failure = string.IsNullOrEmpty(message.Failure) ? Optional<string>.Empty : message.Failure;
             m_workerService.ExitRequested(failure);
-            return Task.FromResult(new RpcResponse());
+            return GrpcUtils.EmptyResponse;
         }
     }
 }

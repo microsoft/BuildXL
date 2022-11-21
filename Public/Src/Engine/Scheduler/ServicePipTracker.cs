@@ -126,7 +126,7 @@ namespace BuildXL.Scheduler
             {
                 if (tagsToTrack.ContainsKey(tag))
                 {
-                    Contract.Check(result == null)?.Assert($"Pip contains more than one trackable tag: {tag.ToString(stringTable)}, {result.Value.ToString(stringTable)}");
+                    Contract.Assert(result == null, $"Pip contains more than one trackable tag: {tag.ToString(stringTable)}, {result.Value.ToString(stringTable)}");
                     result = tag;
                 }
             }

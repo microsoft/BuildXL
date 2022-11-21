@@ -91,7 +91,7 @@ namespace BuildXL.Cache.ContentStore.Utils
             }
             else 
             {
-                Contract.Check(!StartupStarted)?.Assert($"Cannot start '{Tracer.Name}' because StartupAsync method was already called on this instance.");
+                Contract.Assert(!StartupStarted, $"Cannot start '{Tracer.Name}' because StartupAsync method was already called on this instance.");
             }
             StartupStarted = true;
 
@@ -123,7 +123,7 @@ namespace BuildXL.Cache.ContentStore.Utils
                 }
             }
 
-            Contract.Check(!ShutdownStarted)?.Assert($"Cannot shut down '{Tracer.Name}' because ShutdownAsync method was already called on the instance with Id={_instanceId}.");
+            Contract.Assert(!ShutdownStarted, $"Cannot shut down '{Tracer.Name}' because ShutdownAsync method was already called on the instance with Id={_instanceId}.");
             TriggerShutdownStarted();
 
             if (ShutdownCompleted)

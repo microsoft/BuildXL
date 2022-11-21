@@ -218,4 +218,4 @@ dotnet_diagnostic.CA2217.severity = none
 dotnet_diagnostic.RA004.severity = none
 
 # RA009: Do not fluent API for preconditions/assertions to avoid runtime overhead.
-dotnet_diagnostic.RA009.severity = none
+dotnet_diagnostic.RA009.severity = warning

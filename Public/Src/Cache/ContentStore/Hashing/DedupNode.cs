@@ -468,8 +468,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
             {
                 // Content is small enough to track as a chunk.
                 var node = new DedupNode(chunks.Single());
-                Contract.Check(node.Type == DedupNode.NodeType.ChunkLeaf)?.Assert(
-                    $"{nameof(Create)}: expected chunk leaf: {DedupNode.NodeType.ChunkLeaf} got {node.Type} instead.");
+                Contract.Assert(node.Type == DedupNode.NodeType.ChunkLeaf, $"{nameof(Create)}: expected chunk leaf: {DedupNode.NodeType.ChunkLeaf} got {node.Type} instead.");
 
                 return node;
             }

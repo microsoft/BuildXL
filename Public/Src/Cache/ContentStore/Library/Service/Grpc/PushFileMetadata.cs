@@ -44,7 +44,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 }
             }
 
-            Contract.Check(hashBytes != null)?.Assert($"Can not create PushRequest instance from metadata because 'hash-bin' key is missing. Known keys: {string.Join(", ", metadata.Select(k => k.Key))}");
+            Contract.Assert(hashBytes != null, $"Can not create PushRequest instance from metadata because 'hash-bin' key is missing. Known keys: {string.Join(", ", metadata.Select(k => k.Key))}");
             var hash = new ContentHash(hashType, hashBytes);
 
             return new PushRequest(hash, traceId ?? Guid.NewGuid().ToString());

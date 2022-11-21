@@ -646,7 +646,7 @@ namespace BuildXL.Cache.ContentStore.Service
                         GetTimeoutForCapabilities(sessionData.Capabilities));
 
                     bool added = _sessionHandles.TryAdd(id, handle);
-                    Contract.Check(added)?.Assert($"The session with id '{id}' is already created.");
+                    Contract.Assert(added, $"The session with id '{id}' is already created.");
                     Tracer.Debug(context, $"{nameof(CreateSessionAsync)} created session {handle.ToString(id)}.");
                     return Result.Success(session);
                 });

@@ -163,7 +163,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// </summary>
         public string ToString(int hashLength)
         {
-            Contract.Check(hashLength <= HashLength)?.Requires($"hashLength should be <= HashLength. hashLength={hashLength}, HashLength={HashLength}");
+            Contract.Requires(hashLength <= HashLength, $"hashLength should be <= HashLength. hashLength={hashLength}, HashLength={HashLength}");
             return $"{HashType.Serialize()}{ContentHash.SerializedDelimiter.ToString()}{Value.ToHex(1, hashLength)}";
         }
 

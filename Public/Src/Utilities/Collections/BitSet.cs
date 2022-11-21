@@ -97,7 +97,7 @@ namespace BuildXL.Utilities.Collections
         /// </summary>
         public void Add(int index)
         {
-            Contract.Check(index >= 0 && index < Length)?.Assert($"index={index} must be within [0, {Length}) range.");
+            Contract.Assert(index >= 0 && index < Length, $"index={index} must be within [0, {Length}) range.");
             ulong newEntry = GetEntry(index) | (1UL << (index % 64));
             SetEntry(index, newEntry);
         }
@@ -108,7 +108,7 @@ namespace BuildXL.Utilities.Collections
         /// </summary>
         public void AddAtomic(int index)
         {
-            Contract.Check(index >= 0 && index < Length)?.Assert($"index={index} must be within [0, {Length}) range.");
+            Contract.Assert(index >= 0 && index < Length, $"index={index} must be within [0, {Length}) range.");
             int entryIndex = index / 64;
             ulong targetEntry;
             ulong currentEntry;
@@ -126,7 +126,7 @@ namespace BuildXL.Utilities.Collections
         /// </summary>
         public void Remove(int index)
         {
-            Contract.Check(index >= 0 && index < Length)?.Assert($"index={index} must be within [0, {Length}) range.");
+            Contract.Assert(index >= 0 && index < Length, $"index={index} must be within [0, {Length}) range.");
             ulong newEntry = GetEntry(index) & ~(1UL << (index % 64));
             SetEntry(index, newEntry);
         }
@@ -136,7 +136,7 @@ namespace BuildXL.Utilities.Collections
         /// </summary>
         public bool Contains(int index)
         {
-            Contract.Check(index >= 0 && index < Length)?.Assert($"index={index} must be within [0, {Length}) range.");
+            Contract.Assert(index >= 0 && index < Length, $"index={index} must be within [0, {Length}) range.");
             return (GetEntry(index) & 1UL << (index % 64)) != 0;
         }
 

@@ -234,7 +234,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                     long newOffset = _writer.Buffer.Position;
                     long eventSize = newOffset - oldOffset;
 
-                    Contract.Check(eventSize <= MaxEventDataPayloadSize)?.Assert($"No mitigation for single {splitLargeInstancesIfNeeded[currentCount].Kind} event that is too large");
+                    Contract.Assert(eventSize <= MaxEventDataPayloadSize, $"No mitigation for single {splitLargeInstancesIfNeeded[currentCount].Kind} event that is too large");
                     bool isLast = currentCount == (splitLargeInstancesIfNeeded.Count - 1);
                     bool isOverflow = newOffset > MaxEventDataPayloadSize;
 

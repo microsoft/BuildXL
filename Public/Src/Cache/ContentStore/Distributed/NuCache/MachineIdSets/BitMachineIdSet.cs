@@ -241,7 +241,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             int dataIndex = offset + index / 8;
 
-            Contract.Check(dataIndex < data.Length)?.Assert($"data.Length={data.Length}, offset={offset}, index={index}, value={value}");
+            Contract.Assert(dataIndex < data.Length, $"data.Length={data.Length}, offset={offset}, index={index}, value={value}");
 
             var bitPosition = 7 - (index % 8);
             unchecked

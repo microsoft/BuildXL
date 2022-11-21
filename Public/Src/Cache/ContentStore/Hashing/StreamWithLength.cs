@@ -54,8 +54,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         {
             Contract.Requires(stream != null);
             Contract.Requires(length >= 0);
-            Contract.Check(!stream.CanSeek || stream.Length == length)
-                ?.Requires($"!stream.CanSeek || stream.Length == length fails. stream.CanSeek={stream.CanSeek}, stream.Length={stream.Length}, length={length}");
+            Contract.Requires(!stream.CanSeek || stream.Length == length, $"!stream.CanSeek || stream.Length == length fails. stream.CanSeek={stream.CanSeek}, stream.Length={stream.Length}, length={length}");
             Stream = stream;
             Length = length;
         }

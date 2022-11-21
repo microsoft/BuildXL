@@ -433,7 +433,7 @@ namespace BuildXL.Cache.Host.Service
             {
                 // Hash file before put to prevent copying file in common case where it is already in the cache
                 var hashResult = await Store.TryHashFileAsync(context, file.fullPath, HashType.MD5);
-                Contract.Check(hashResult != null)?.Assert($"Missing file '{file.fullPath}'");
+                Contract.Assert(hashResult != null, $"Missing file '{file.fullPath}'");
 
                 var result = await Store.PutFileAsync(context, file.fullPath, FileRealizationMode.Copy, hashResult.Value.Hash, PinRequest).ThrowIfFailure();
 
@@ -443,7 +443,7 @@ namespace BuildXL.Cache.Host.Service
 
                 var targetPath = DeploymentRoot / DeploymentUtilities.GetContentRelativePath(result.ContentHash);
 
-                Contract.Check(FileSystem.FileExists(targetPath))?.Assert($"Could not find content for hash {result.ContentHash} at '{targetPath}'");
+                Contract.Assert(FileSystem.FileExists(targetPath), $"Could not find content for hash {result.ContentHash} at '{targetPath}'");
 
                 return result;
             },

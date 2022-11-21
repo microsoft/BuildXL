@@ -90,9 +90,9 @@ namespace BuildXL.Cache.ContentStore.Hashing
                 int bytesPerPage = sha256Handle.Value.HashSize / 8;
                 var totalBytes = expectedPages * bytesPerPage;
 
-                Contract.CheckDebug(bytesPerPage == HashSize)?.Assert($"HashSize constant is not consistent with crypto provider value. HashSize=[{HashSize}], Provider=[{bytesPerPage}]");
-                Contract.CheckDebug(resultBuffer.Length == HashSize)?.Assert($"The resultBuffer has length {resultBuffer.Length} but it should have length {HashSize}");
-                Contract.CheckDebug(expectedPages <= PagesPerBlock)?.Assert($"Block will have {expectedPages}, which is greater than the maximum of {PagesPerBlock}");
+                Contract.AssertDebug(bytesPerPage == HashSize, $"HashSize constant is not consistent with crypto provider value. HashSize=[{HashSize}], Provider=[{bytesPerPage}]");
+                Contract.AssertDebug(resultBuffer.Length == HashSize, $"The resultBuffer has length {resultBuffer.Length} but it should have length {HashSize}");
+                Contract.AssertDebug(expectedPages <= PagesPerBlock, $"Block will have {expectedPages}, which is greater than the maximum of {PagesPerBlock}");
 
                 var buffer = ArrayPool.Rent(totalBytes);
                 var bufferSpan = buffer.AsSpan().Slice(0, totalBytes);
@@ -110,7 +110,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
                             throw new InvalidOperationException("Page buffer is not big enough to receive the hash value.");
                         }
 
-                        Contract.CheckDebug(bytesWritten == bytesPerPage)?.Assert($"Unexpected amount of bytes written.Expected =[{bytesPerPage}] Actual =[{bytesWritten}]");
+                        Contract.AssertDebug(bytesWritten == bytesPerPage, $"Unexpected amount of bytes written.Expected =[{bytesPerPage}] Actual =[{bytesWritten}]");
 
                         pageCounter++;
                         currentIndex += PageSize;

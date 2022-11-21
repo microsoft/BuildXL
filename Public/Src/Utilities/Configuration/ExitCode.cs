@@ -50,7 +50,7 @@ namespace BuildXL.Utilities.Configuration
                 case ExitKind.InternalError:
                     return -1;
                 default:
-                    Contract.Check(false)?.Assert("Unknown ExitKind" + exitKind.ToString());
+                    Contract.Assert(false, "Unknown ExitKind" + exitKind.ToString());
                     throw new ArgumentException("Unknown ExitKind" + exitKind.ToString());
             }
         }

@@ -45,7 +45,7 @@ namespace BuildXL.Cache.Host.Service.Internal
         {
             Contract.Requires(!string.IsNullOrEmpty(preferredCacheDrive), "preferredCacheDrive should not be null or empty.");
             Contract.Requires(drivesWithContentStore?.Count > 0, "drivesWithContentStore should not be null or empty.");
-            Contract.Check(drivesWithContentStore.ContainsKey(preferredCacheDrive))?.Requires($"drivesWithContentStore should contain '{preferredCacheDrive}'.");
+            Contract.Requires(drivesWithContentStore.ContainsKey(preferredCacheDrive), $"drivesWithContentStore should contain '{preferredCacheDrive}'.");
             DrivesWithContentStore = drivesWithContentStore;
             PreferredCacheDrive = preferredCacheDrive;
             PreferredContentStore = drivesWithContentStore[preferredCacheDrive];

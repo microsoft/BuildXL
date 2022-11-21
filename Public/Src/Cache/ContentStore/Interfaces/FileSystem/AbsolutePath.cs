@@ -169,7 +169,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         public AbsolutePath GetParent()
         {
             var parent = Parent;
-            Contract.Check(parent != null)?.Assert($"Parent of {this} must not be null");
+            Contract.Assert(parent != null, $"Parent of {this} must not be null");
             return parent;
         }
 

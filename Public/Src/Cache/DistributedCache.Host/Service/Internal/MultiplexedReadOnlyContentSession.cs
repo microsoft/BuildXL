@@ -390,7 +390,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                 }
             }
 
-            Contract.Check(result != null)?.Assert($"Could not find a content session which implements {typeof(TSession).Name} in {nameof(MultiplexedContentSession)}.");
+            Contract.Assert(result != null, $"Could not find a content session which implements {typeof(TSession).Name} in {nameof(MultiplexedContentSession)}.");
             return result;
         }
     }

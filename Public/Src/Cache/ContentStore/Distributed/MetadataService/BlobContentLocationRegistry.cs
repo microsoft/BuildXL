@@ -414,8 +414,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                     // 
                     TryGetDatabasePartitionRecord(partitionId).TryGetValue(out databaseRecord);
-                    Contract.Check(databaseRecord != null && databaseRecord?.SnapshotId == currentSnapshot.SnapshotId)
-                        ?.Assert($"Expected database snapshot id '{currentSnapshot.SnapshotId}' but found '{databaseRecord?.SnapshotId}'");
+                    Contract.Assert(databaseRecord != null && databaseRecord?.SnapshotId == currentSnapshot.SnapshotId, $"Expected database snapshot id '{currentSnapshot.SnapshotId}' but found '{databaseRecord?.SnapshotId}'");
 
                     return Result.Success(new UpdatePartitionResult(Updated: true, Record: databaseRecord, LastUpdateTime: lastUpdateTime));
                 })
@@ -1011,8 +1010,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 }
                 set
                 {
-                    Contract.Check(partitionId.PartitionCount == Records.Length)?
-                        .Assert($"{partitionId.PartitionCount} does not match {Records.Length}");
+                    Contract.Assert(partitionId.PartitionCount == Records.Length, $"{partitionId.PartitionCount} does not match {Records.Length}");
 
                     Records[partitionId.Index] = value;
                 }

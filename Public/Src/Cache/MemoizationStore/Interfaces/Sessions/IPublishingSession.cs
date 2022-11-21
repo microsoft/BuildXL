@@ -236,7 +236,7 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
             StrongFingerprint fingerprint,
             ContentHashListWithDeterminism contentHashList)
         {
-            Contract.Check(_cachePublisher != null)?.Assert("Startup should be run before attempting to publish.");
+            Contract.Assert(_cachePublisher != null, "Startup should be run before attempting to publish.");
 
             Tracer.Debug(context, $"Enqueueing publish request for StrongFingerprint=[{fingerprint}], CHL=[{contentHashList.ToTraceString()}]");
 
@@ -301,7 +301,7 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         /// <nodoc />
         private async Task<BoolResult> PushToRemoteAsync(OperationContext context, IReadOnlyList<ContentHash> hashes)
         {
-            Contract.Check(_cachePublisher != null)?.Assert("Startup should be run before attempting to publish.");
+            Contract.Assert(_cachePublisher != null, "Startup should be run before attempting to publish.");
 
             var localPinResult = await TaskUtilities.SafeWhenAll(await _contentSession.PinAsync(context, hashes, context.Token));
             var missingFromLocal = localPinResult.Where(r => !r.Item.Succeeded);

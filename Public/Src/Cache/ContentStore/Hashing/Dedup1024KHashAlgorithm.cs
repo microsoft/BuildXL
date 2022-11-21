@@ -28,7 +28,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         {
             HashSizeValue = 8 * DedupSingleChunkHashInfo.Length;
             int expectedAvgChunkSize = TargetHashType.GetAvgChunkSize();
-            Contract.Check(chunker.Configuration.AvgChunkSize == expectedAvgChunkSize)?.Assert($"Invalid average chunk size (in bytes) specified: {chunker.Configuration.AvgChunkSize} expected: {expectedAvgChunkSize}");
+            Contract.Assert(chunker.Configuration.AvgChunkSize == expectedAvgChunkSize, $"Invalid average chunk size (in bytes) specified: {chunker.Configuration.AvgChunkSize} expected: {expectedAvgChunkSize}");
         }
 
         /// <nodoc />

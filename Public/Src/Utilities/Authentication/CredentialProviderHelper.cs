@@ -229,7 +229,7 @@ namespace BuildXL.Utilities.Authentication
 
                 if (!string.IsNullOrWhiteSpace(CredentialHelperPath))
                 {
-                    Contract.Check(m_credentialHelperToEnvironmentVariableMapping.TryGetValue(providerVariable, out m_credentialHelperType))?.Assert($"The '{providerVariable}' environment variable is not mapped to a credential provider type.");
+                    Contract.Assert(m_credentialHelperToEnvironmentVariableMapping.TryGetValue(providerVariable, out m_credentialHelperType), $"The '{providerVariable}' environment variable is not mapped to a credential provider type.");
 
                     if (providerVariable != GenericCredentialProvidersPathEnvVariable)
                     {
@@ -255,7 +255,7 @@ namespace BuildXL.Utilities.Authentication
             // Verify that the credential helper path exists
             if (!string.IsNullOrWhiteSpace(CredentialHelperPath))
             {
-                Contract.Check(File.Exists(CredentialHelperPath))?.Assert($"Credential helper specified at '{CredentialHelperPath}', but does not point to a valid path.");
+                Contract.Assert(File.Exists(CredentialHelperPath), $"Credential helper specified at '{CredentialHelperPath}', but does not point to a valid path.");
             }
         }
 

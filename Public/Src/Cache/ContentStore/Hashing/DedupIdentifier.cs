@@ -224,7 +224,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         public HashAndAlgorithm(byte[] bytes)
         {
             Contract.Requires(bytes != null);
-            Contract.Check(bytes.Length > 32)?.Assert($"Byte representing the hash algorithm id is missing. Actual Hash Length: {bytes.Length}");
+            Contract.Assert(bytes.Length > 32, $"Byte representing the hash algorithm id is missing. Actual Hash Length: {bytes.Length}");
             Bytes = bytes;
         }
     }

@@ -48,8 +48,8 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <inheritdoc/>
         public void SetInputLength(long expectedSize)
         {
-            Contract.Check(!_chunkingStarted)?.Assert($"{nameof(SetInputLength)}: chunking cannot start before input length is set {nameof(_chunkingStarted)}: {_chunkingStarted}");
-            Contract.Check(expectedSize >= 0)?.Assert($"{nameof(SetInputLength)}: expected size cannot be negative {nameof(expectedSize)}: {expectedSize}");
+            Contract.Assert(!_chunkingStarted, $"{nameof(SetInputLength)}: chunking cannot start before input length is set {nameof(_chunkingStarted)}: {_chunkingStarted}");
+            Contract.Assert(expectedSize >= 0, $"{nameof(SetInputLength)}: expected size cannot be negative {nameof(expectedSize)}: {expectedSize}");
             _sizeHint = expectedSize;
         }
 
@@ -119,8 +119,8 @@ namespace BuildXL.Cache.ContentStore.Hashing
         {
             if (SingleChunkHotPath)
             {
-                Contract.Check(_chunks.Count == 0)?.Assert($"Chunk count: {_chunks.Count} sizehint: {_sizeHint} chunker min chunk size: {_chunker.Configuration.MinChunkSize}");
-                Contract.Check(_bytesChunked == _sizeHint)?.Assert($"_bytesChunked != _sizeHint. _bytesChunked={_bytesChunked} _sizeHint={_sizeHint}");
+                Contract.Assert(_chunks.Count == 0, $"Chunk count: {_chunks.Count} sizehint: {_sizeHint} chunker min chunk size: {_chunker.Configuration.MinChunkSize}");
+                Contract.Assert(_bytesChunked == _sizeHint, $"_bytesChunked != _sizeHint. _bytesChunked={_bytesChunked} _sizeHint={_sizeHint}");
                 Contract.Assert(_session == null, "Dedup session cannot be null.");
                 byte[] chunkHash = _chunkHasher.HashFinalInternal();
                 return new DedupNode(DedupNode.NodeType.ChunkLeaf, (ulong)_sizeHint, chunkHash, 0);
@@ -147,7 +147,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
 
         private void SaveChunks(ChunkInfo chunk)
         {
-            Contract.Check(chunk.Size != 0)?.Assert($"{nameof(SaveChunks)}: chunk size cannot be zero. Size: {chunk.Size}");
+            Contract.Assert(chunk.Size != 0, $"{nameof(SaveChunks)}: chunk size cannot be zero. Size: {chunk.Size}");
             _chunks.Add(chunk);
         }
 

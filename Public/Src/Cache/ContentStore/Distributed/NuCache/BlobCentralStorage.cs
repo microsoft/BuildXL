@@ -155,7 +155,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 }
             }
 
-            Contract.Check(attemptResult != null)?.Assert($"BlobCentralStorage should have at least one container but has '{_containers.Length}'.");
+            Contract.Assert(attemptResult != null, $"BlobCentralStorage should have at least one container but has '{_containers.Length}'.");
             return attemptResult!;
         }
 

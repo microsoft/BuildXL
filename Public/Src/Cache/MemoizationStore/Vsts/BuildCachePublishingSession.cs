@@ -69,7 +69,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             var sessionResult = cache.CreateSession(context, configuration.SessionName, ImplicitPin.None).ThrowIfFailure();
             var session = sessionResult.Session;
 
-            Contract.Check(session is BuildCacheSession)?.Assert($"Session should be an instance of {nameof(BuildCacheSession)}. Actual type: {session.GetType()}");
+            Contract.Assert(session is BuildCacheSession, $"Session should be an instance of {nameof(BuildCacheSession)}. Actual type: {session.GetType()}");
 
             return new CacheSessionPublisherWrapper(cache, session);
         }

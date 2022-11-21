@@ -256,7 +256,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         public string ToHex(int? stringLength = null)
         {
 
-            Contract.Check((stringLength ?? StringLength) <= StringLength)?.Requires($"stringLength is incorrect. stringLength = {stringLength}");
+            Contract.Requires((stringLength ?? StringLength) <= StringLength, $"stringLength is incorrect. stringLength = {stringLength}");
 
             // _bytes.ToHex takes 'length' argument that represents the number of bytes that needs to be converted to a final string.
             // But 'stringLength' represents the final size of the string, not the number of bytes converted.

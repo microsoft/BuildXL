@@ -91,8 +91,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public static ContentListing CreateFromByteLength(int byteLength)
         {
             var entryCount = Math.DivRem(byteLength, MachineContentEntry.ByteLength, out var remainder);
-            Contract.Check(remainder == 0)?
-                .Assert($"Byte length '{byteLength}' must be evenly divisible by entry byte length {MachineContentEntry.ByteLength}");
+            Contract.Assert(remainder == 0, $"Byte length '{byteLength}' must be evenly divisible by entry byte length {MachineContentEntry.ByteLength}");
             return new(SafeAllocHHandle.Allocate(byteLength),
                   0,
                   entryCount,

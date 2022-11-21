@@ -18,7 +18,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
             : base(hash)
         {
             Contract.Requires(hash.Bytes != null);
-            Contract.Check(((NodeAlgorithmId)hash.AlgorithmId).IsValidNode())?.Assert($"The given hash does not represent a {nameof(NodeDedupIdentifier)}: {hash.AlgorithmId}");
+            Contract.Assert(((NodeAlgorithmId)hash.AlgorithmId).IsValidNode(), $"The given hash does not represent a {nameof(NodeDedupIdentifier)}: {hash.AlgorithmId}");
             NodeAlgorithm = hash.AlgorithmId;
         }
 
@@ -27,7 +27,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
             : base(hashResult, (byte)algorithmId)
         {
             Contract.Requires(hashResult != null);
-            Contract.Check(algorithmId.IsValidNode())?.Assert($"The given hash does not represent a {nameof(NodeDedupIdentifier)}: {algorithmId}");
+            Contract.Assert(algorithmId.IsValidNode(), $"The given hash does not represent a {nameof(NodeDedupIdentifier)}: {algorithmId}");
             NodeAlgorithm = (byte)algorithmId;
         }
 
@@ -35,7 +35,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         public static NodeDedupIdentifier CalculateIdentifierFromSerializedNode(byte[] bytes, HashType hashType)
         {
             Contract.Requires(bytes != null);
-            Contract.Check(((NodeAlgorithmId)hashType.GetNodeAlgorithmId()).IsValidNode())?.Assert($"Cannot serialize from hash because hash type is invalid: {hashType}");
+            Contract.Assert(((NodeAlgorithmId)hashType.GetNodeAlgorithmId()).IsValidNode(), $"Cannot serialize from hash because hash type is invalid: {hashType}");
             return new NodeDedupIdentifier(Hasher.GetContentHash(bytes).ToHashByteArray(), hashType.GetNodeAlgorithmId());
         }
 
@@ -43,7 +43,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         public static NodeDedupIdentifier CalculateIdentifierFromSerializedNode(byte[] bytes, int offset, int count, HashType hashType)
         {
             Contract.Requires(bytes != null);
-            Contract.Check(((NodeAlgorithmId)hashType.GetNodeAlgorithmId()).IsValidNode())?.Assert($"Cannot serialize from hash because hash type is invalid: {hashType}");
+            Contract.Assert(((NodeAlgorithmId)hashType.GetNodeAlgorithmId()).IsValidNode(), $"Cannot serialize from hash because hash type is invalid: {hashType}");
             return new NodeDedupIdentifier(Hasher.GetContentHash(bytes, offset, count).ToHashByteArray(), hashType.GetNodeAlgorithmId());
         }
 
@@ -51,7 +51,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         public static NodeDedupIdentifier CalculateIdentifierFromSerializedNode(ArraySegment<byte> bytes, HashType hashType)
         {
             Contract.Requires(bytes.Array != null);
-            Contract.Check(((NodeAlgorithmId)hashType.GetNodeAlgorithmId()).IsValidNode())?.Assert($"Cannot serialize from hash because hash type is invalid: {hashType}");
+            Contract.Assert(((NodeAlgorithmId)hashType.GetNodeAlgorithmId()).IsValidNode(), $"Cannot serialize from hash because hash type is invalid: {hashType}");
             return new NodeDedupIdentifier(Hasher.GetContentHash(bytes.Array, bytes.Offset, bytes.Count).ToHashByteArray(), hashType.GetNodeAlgorithmId());
         }
 

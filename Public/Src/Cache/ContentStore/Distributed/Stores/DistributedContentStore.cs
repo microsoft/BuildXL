@@ -157,7 +157,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         [return: NotNull]
         private static T NotNull<T>([MaybeNull] T value, string memberName)
         {
-            Contract.Check(value != null)?.Assert($"{memberName} is null. Did you forget to call StartupAsync?");
+            Contract.Assert(value != null, $"{memberName} is null. Did you forget to call StartupAsync?");
             return value;
         }
 

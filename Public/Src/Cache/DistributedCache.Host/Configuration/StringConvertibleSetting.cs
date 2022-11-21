@@ -32,10 +32,8 @@ namespace BuildXL.Cache.Host.Configuration
 
         public StringConvertibleConverter(Type type)
         {
-            Contract.Check(type.IsValueType)?
-                .Requires($"{type} should be a value type");
-            Contract.Check(typeof(IStringConvertibleSetting).IsAssignableFrom(type))?
-                .Requires($"{type} should be derived from {nameof(IStringConvertibleSetting)}");
+            Contract.Requires(type.IsValueType, $"{type} should be a value type");
+            Contract.Requires(typeof(IStringConvertibleSetting).IsAssignableFrom(type), $"{type} should be derived from {nameof(IStringConvertibleSetting)}");
             _converter = (IStringConvertibleSetting)Activator.CreateInstance(type)!;
         }
 

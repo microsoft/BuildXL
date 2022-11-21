@@ -437,8 +437,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 }
             }
 
-            Contract.Check(reader.IsEnd)?.Assert(
-                $"Machine content info is expected to appear at end of span, but span has {reader.RemainingLength} bytes remaining.");
+            Contract.Assert(reader.IsEnd, $"Machine content info is expected to appear at end of span, but span has {reader.RemainingLength} bytes remaining.");
         }
 
         /// <summary>

@@ -86,7 +86,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
             int grpcPort,
             TimeSpan? heartbeatInterval = null)
         {
-            Contract.Check(grpcPort > 0)?.Requires($"Local server must have a positive GRPC port. Found {grpcPort}.");
+            Contract.Requires(grpcPort > 0, $"Local server must have a positive GRPC port. Found {grpcPort}.");
 
             GrpcPort = grpcPort;
 

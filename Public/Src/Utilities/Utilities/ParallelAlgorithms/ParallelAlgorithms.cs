@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
@@ -186,6 +187,26 @@ namespace BuildXL.Utilities.ParallelAlgorithms
                 {
                     return false;
                 }
+            }
+        }
+        
+        /// <summary>
+        /// Calls the <paramref name="predicate"/> every ms until it returns true and throws <see cref="TimeoutException"/> if the predicate
+        /// haven't returned true in a given <paramref name="timeout"/>.
+        /// </summary>
+        /// <remarks>
+        /// The default timeout is 5 seconds.
+        /// </remarks>
+        public static async Task WaitUntilOrFailAsync(
+            Func<bool> predicate,
+            TimeSpan pollInterval,
+            TimeSpan timeout,
+            [CallerArgumentExpression("predicate")]string predicateMessage = "")
+        {
+            bool waitSucceeded = await WaitUntilAsync(predicate, pollInterval, timeout);
+            if (!waitSucceeded)
+            {
+                throw new TimeoutException($"The predicate '{predicateMessage}' did not return true in '{timeout}'.");
             }
         }
 

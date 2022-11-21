@@ -9,6 +9,7 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Utilities.Tasks;
 using Test.BuildXL.TestUtilities.Xunit;
+using Test.BuildXL.Utilities.ParallelAlgorithmsTests;
 using Xunit;
 
 namespace Test.BuildXL.Utilities
@@ -320,10 +321,8 @@ namespace Test.BuildXL.Utilities
                                 }
 
                                 // Now we wait for all the other processors to get stuck and wait on the task completion source
-                                await ParallelAlgorithms.WaitUntilAsync(
-                                    () => pendingCallbacks == degreeOfParallelism - 1,
-                                    pollInterval: TimeSpan.FromMilliseconds(10),
-                                    timeout: TimeSpan.FromSeconds(1));
+                                await ParallelAlgorithmsHelper.WaitUntilOrFailAsync(
+                                    () => pendingCallbacks == degreeOfParallelism - 1);
 
                                 // Waking up all the processors regardless of the wait result.
                                 // The test will fail in the assert section.

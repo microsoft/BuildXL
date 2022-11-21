@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Utilities.Tasks;
 using Xunit;
+using static Test.BuildXL.Utilities.ParallelAlgorithmsTests.ParallelAlgorithmsHelper;
 
 namespace Test.BuildXL.Utilities.ParallelAlgorithmsTests
 {
@@ -26,17 +27,17 @@ namespace Test.BuildXL.Utilities.ParallelAlgorithmsTests
             var t1 = queue.RunAsync(() => tcs.Task);
             
             // making sure the item was grabbed by the processor before addding the next one.
-            await WaitUntilAsync(() => queue.PendingWorkItems == 0);
+            await WaitUntilOrFailAsync(() => queue.PendingWorkItems == 0);
 
             var t2 = queue.RunAsync(() => tcs.Task);
             
             // making sure the item was grabbed by the processor before addding the next one.
-            await WaitUntilAsync(() => queue.PendingWorkItems == 0);
+            await WaitUntilOrFailAsync(() => queue.PendingWorkItems == 0);
 
             // this call will add another work item and the number of pending items will be 1.
             var t3 = queue.RunAsync(() => tcs.Task);
 
-            await WaitUntilAsync(() => queue.PendingWorkItems == 1);
+            await WaitUntilOrFailAsync(() => queue.PendingWorkItems == 1);
 
             // The queue is full for sure, the next call to run another item must fail.
             Assert.Throws<ActionBlockIsFullException>(() =>
@@ -50,7 +51,7 @@ namespace Test.BuildXL.Utilities.ParallelAlgorithmsTests
 
             // Even though the task 't' is done, it still possible that the internal counter in ActionBlock was not yet decremented.
             // "waiting" until all the items are fully processed before calling 'RunAsync' to avoid 'ActionBlockIsFullException'.
-            await WaitUntilAsync(() => queue.PendingWorkItems == 0);
+            await WaitUntilOrFailAsync(() => queue.PendingWorkItems == 0);
 
             // should be fine now.
             await queue.RunAsync(() => { });
@@ -84,12 +85,6 @@ namespace Test.BuildXL.Utilities.ParallelAlgorithmsTests
                 Assert.Equal(5, callbackCount);
                 Assert.Contains("Failing item ", e.ToString());
             }
-        }
-
-        private static async Task WaitUntilAsync(Func<bool> predicate)
-        {
-            bool waitSucceeded = await ParallelAlgorithms.WaitUntilAsync(predicate, TimeSpan.FromMilliseconds(1), timeout: TimeSpan.FromSeconds(5));
-            Assert.True(waitSucceeded);
         }
     }
 }

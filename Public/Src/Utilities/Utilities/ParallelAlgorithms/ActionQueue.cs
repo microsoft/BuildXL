@@ -132,7 +132,7 @@ namespace BuildXL.Utilities.ParallelAlgorithms
                     // Still need to call TrySetException, because runAsync may fail synchronously.
                     taskSource.TrySetException(ex);
                 }
-            });
+            }, throwOnFullOrComplete: true);
 
             return taskSource.Task;
         }

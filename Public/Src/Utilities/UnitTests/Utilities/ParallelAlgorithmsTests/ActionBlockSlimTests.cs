@@ -3,18 +3,112 @@
 
 using System;
 using System.Collections.Concurrent;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Utilities.Tasks;
+using FluentAssertions;
+using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
+using Xunit.Abstractions;
+using static Test.BuildXL.Utilities.ParallelAlgorithmsTests.ParallelAlgorithmsHelper;
 
 namespace Test.BuildXL.Utilities.ParallelAlgorithmsTests
 {
     public class ActionBlockSlimTests
     {
+        private readonly ITestOutputHelper m_helper;
+
+        /// <nodoc />
+        public ActionBlockSlimTests(ITestOutputHelper helper)
+        {
+            m_helper = helper;
+        }
+
+        // Tests that cover cancellation
         [Fact]
-        public Task NoUnobservedExceptionWhenCallbackFails()
+        public async Task External_Cancellation_Cancels_Completion()
+        {
+            var cts = new CancellationTokenSource();
+            cts.Cancel();
+            var actionBlock = ActionBlockSlim.Create<int>(degreeOfParallelism: 1, _ => { }, cancellationToken: cts.Token);
+            
+            await Assert.ThrowsAsync<TaskCanceledException>(
+                () => actionBlock.Completion.WithTimeoutAsync(TimeSpan.FromSeconds(1)));
+            actionBlock.Completion.Status.Should().Be(TaskStatus.Canceled);
+        }
+        
+        [Fact]
+        public async Task External_Cancellation_Allows_Callbacks_To_Finish()
+        {
+            bool cancellationIsChecked = false;
+            var cts = new CancellationTokenSource();
+            var actionBlock = ActionBlockSlim.Create<int>(
+                degreeOfParallelism: 1,
+                async item =>
+                {
+                    await WaitUntilOrFailAsync(() => cancellationIsChecked);
+                },
+                cancellationToken: cts.Token);
+
+            actionBlock.Post(42);
+            
+            // Waiting for the item to be picked up.
+            await WaitUntilOrFailAsync(() => actionBlock.ProcessingWorkItems == 1);
+
+            cts.Cancel();
+
+            // The cancellation is not eager. It should happen only when all the callbacks are done!
+            actionBlock.Completion.IsCanceled.Should().BeFalse();
+            cancellationIsChecked = true;
+
+            await WaitUntilOrFailAsync(() => actionBlock.PendingWorkItems == 0);
+
+            // Completion property should change its state to 'Canceled'
+            await Assert.ThrowsAsync<TaskCanceledException>(
+                () => actionBlock.Completion.WithTimeoutAsync(TimeSpan.FromSeconds(1)));
+        }
+        
+        [Fact]
+        public async Task CancelPending_TriggersCancellationToken_InCallback()
+        {
+            await Task.Yield();
+            var actionBlock = ActionBlockSlim.CreateWithAsyncAction<int>(
+                1,
+                async (input, token) =>
+                {
+                    await token.ToAwaitable().CompletionTask;
+                },
+                capacityLimit: 1,
+                cancellationToken: CancellationToken.None);
+
+            actionBlock.Post(42);
+
+            // Waiting for the block to pull the first item.
+            await WaitUntilOrFailAsync(() => actionBlock.PendingWorkItems == 0);
+
+            // Adding an item that should not be processed because of the cancellation.
+            actionBlock.Post(42);
+
+            actionBlock.Complete(cancelPending: true);
+
+            // Now the block should be done but because we canceled pending items the Completion property should complete successfully.
+            await actionBlock.Completion;
+        }
+
+        [Fact]
+        public void Unbounded_SingleReader_Block_Should_Not_Crash_On_Getting_PendingItems()
+        {
+            // We used to have an issue that Channel.Count property was failing when degreeOfParallelism is 1 and the channel is unbounded.
+            // Checking that this option works.
+            var actionBlock = ActionBlockSlim.Create<int>(degreeOfParallelism: 1, _ => { }, singleProducedConstrained: false);
+            
+            actionBlock.PendingWorkItems.Should().Be(0);
+        }
+
+        [Fact]
+        public Task No_UnobservedExceptions_When_Callback_Fails()
         {
             return UnobservedTaskExceptionHelper.RunAsync(
                 async () =>
@@ -34,10 +128,56 @@ namespace Test.BuildXL.Utilities.ParallelAlgorithmsTests
                 });
         }
 
+        [Fact]
+        public async Task Completion_Fails_Fast_If_Configured()
+        {
+            await Task.Yield();
+            var actionBlock = ActionBlockSlim.CreateWithAsyncAction<int>(
+                4,
+                input =>
+                {
+                    throw new ArgumentException($"Invalid input: {input}");
+                }, failFast: true);
+
+            actionBlock.Post(42);
+
+            // if fail fast flag is passed, the 'Completion' task should fail as soon as the error occurs.
+            await Assert.ThrowsAsync<ArgumentException>(() => actionBlock.Completion);
+        }
+
+        [Fact]
+        public async Task Completion_Aggregates_Exceptions()
+        {
+            var tcs = new TaskCompletionSource<object>();
+            var actionBlock = ActionBlockSlim.CreateWithAsyncAction<int>(
+                4,
+                async input =>
+                {
+                    await tcs.Task;
+                    if (input % 2 == 0)
+                    {
+                        throw new ArgumentException("I don't like even numbers");
+                    }
+                });
+
+            for (var i = 0; i < 4; i++)
+            {
+                actionBlock.Post(i);
+            }
+
+            tcs.SetResult(0);
+
+            actionBlock.Complete();
+
+            var exception = await Assert.ThrowsAsync<AggregateException>(() => actionBlock.Completion);
+            XAssert.AreEqual(2, exception.InnerExceptions.Count);
+            XAssert.IsTrue(exception.InnerExceptions.All(e => e is ArgumentException));
+        }
+
         [Theory]
         [InlineData(true)]
         [InlineData(false)]
-        public async Task ExceptionMustBePropagatedBack(bool propagateExceptions)
+        public async Task Exception_Must_Be_Propagated_Back_If_Configured(bool propagateExceptions)
         {
             var actionBlock = ActionBlockSlim.CreateWithAsyncAction<int>(
                 1,
@@ -62,26 +202,25 @@ namespace Test.BuildXL.Utilities.ParallelAlgorithmsTests
         }
 
         [Fact]
-        public async Task ExceptionIsThrownWhenTheBlockIsFull()
+        public async Task Exception_Is_Thrown_When_The_Block_Is_Full_And_Configured()
         {
             var tcs = new TaskCompletionSource<object>();
             var actionBlock = ActionBlockSlim.CreateWithAsyncAction<int>(1, n => tcs.Task, capacityLimit: 1);
             actionBlock.Post(42);
 
             // 'awaiting' when the item is picked up.
-            await WaitUntilAsync(() => actionBlock.PendingWorkItems == 0);
+            await WaitUntilOrFailAsync(() => actionBlock.PendingWorkItems == 0);
 
-            Assert.Equal(0, actionBlock.PendingWorkItems);
             Assert.Equal(1, actionBlock.ProcessingWorkItems);
 
             actionBlock.Post(43);
             Assert.Equal(1, actionBlock.PendingWorkItems);
 
-            Assert.Throws<ActionBlockIsFullException>(() => actionBlock.Post(1));
+            Assert.Throws<ActionBlockIsFullException>(() => actionBlock.Post(1, throwOnFullOrComplete: true));
             Assert.Equal(1, actionBlock.PendingWorkItems);
 
             tcs.SetResult(null);
-            await WaitUntilAsync(() => actionBlock.PendingWorkItems == 0);
+            await WaitUntilOrFailAsync(() => actionBlock.PendingWorkItems == 0);
             
             Assert.Equal(0, actionBlock.PendingWorkItems);
 
@@ -90,7 +229,7 @@ namespace Test.BuildXL.Utilities.ParallelAlgorithmsTests
         }
 
         [Fact]
-        public async Task ExceptionIsNotThrownWhenTheBlockIsFullOrComplete()
+        public async Task Exception_Is_Not_Thrown_When_The_Block_Is_Full_Or_Complete()
         {
             ConcurrentQueue<int> seenInputs = new();
             var tcs = new TaskCompletionSource<object>();
@@ -101,10 +240,9 @@ namespace Test.BuildXL.Utilities.ParallelAlgorithmsTests
             }, capacityLimit: 1);
 
             actionBlock.Post(42);
-            Assert.Equal(0, actionBlock.ProcessedWorkItems);
             
             // awaiting until the item is obtained from the queue for processing
-            await WaitUntilAsync(() => actionBlock.PendingWorkItems == 0);
+            await WaitUntilOrFailAsync(() => actionBlock.PendingWorkItems == 0);
             
             // This one will occupy the only slot of the queue.
             actionBlock.Post(42);
@@ -113,7 +251,7 @@ namespace Test.BuildXL.Utilities.ParallelAlgorithmsTests
             Assert.Equal(0, actionBlock.ProcessedWorkItems);
 
             tcs.SetResult(null);
-            await WaitUntilAsync(() => actionBlock.PendingWorkItems == 0);
+            await WaitUntilOrFailAsync(() => actionBlock.PendingWorkItems == 0);
 
             Assert.Equal(0, actionBlock.PendingWorkItems);
 
@@ -130,42 +268,6 @@ namespace Test.BuildXL.Utilities.ParallelAlgorithmsTests
 
             // Negative inputs denote cases where the item should not be added
             Assert.DoesNotContain(seenInputs, i => i < 0);
-        }
-        
-        [Fact]
-        public async Task CompletionAsync_Succeeded_When_CancellationToken_Is_Canceled()
-        {
-            await Task.Yield();
-            var cts = new CancellationTokenSource();
-
-            var tcs = new TaskCompletionSource<object>();
-            var actionBlock = ActionBlockSlim.CreateWithAsyncAction<int>(
-                1,
-                input =>
-                {
-                    return tcs.Task;
-                },
-                capacityLimit: 1,
-                cancellationToken: cts.Token);
-
-            actionBlock.Post(42);
-
-            // Waiting for the block to pull the first item.
-            await WaitUntilAsync(() => actionBlock.PendingWorkItems == 0);
-
-            // Adding an item that should not be processed because of the cancellation.
-            actionBlock.Post(42);
-
-            cts.Cancel();
-            
-            tcs.SetResult(null);
-            actionBlock.Complete();
-
-            // Now the block should be done
-            await actionBlock.Completion;
-
-            // Even though we added two items, only the first one should be processed.
-            Assert.Equal(1, actionBlock.ProcessedWorkItems);
         }
         
         [Theory]
@@ -187,7 +289,7 @@ namespace Test.BuildXL.Utilities.ParallelAlgorithmsTests
             actionBlock.Post(42);
             
             // Waiting for the block to pull the first item.
-            await WaitUntilAsync(() => actionBlock.PendingWorkItems == 0);
+            await WaitUntilOrFailAsync(() => actionBlock.PendingWorkItems == 0);
             
             // Adding an item that should not be processed because of the cancellation.
             actionBlock.Post(42);
@@ -206,34 +308,7 @@ namespace Test.BuildXL.Utilities.ParallelAlgorithmsTests
         }
         
         [Fact]
-        public async Task CancelPendingTriggersCancellationTokenInCallback()
-        {
-            await Task.Yield();
-            var actionBlock = ActionBlockSlim.CreateWithAsyncAction<int>(
-                1,
-                async (input, token) =>
-                {
-                    await token.ToAwaitable().CompletionTask;
-                },
-                capacityLimit: 1,
-                cancellationToken: CancellationToken.None);
-
-            actionBlock.Post(42);
-            
-            // Waiting for the block to pull the first item.
-            await WaitUntilAsync(() => actionBlock.PendingWorkItems == 0);
-            
-            // Adding an item that should not be processed because of the cancellation.
-            actionBlock.Post(42);
-
-            actionBlock.Complete(cancelPending: true);
-
-            // Now the block should be done
-            await actionBlock.Completion;
-        }
-
-        [Fact]
-        public async Task ItemsAreProcessedOnceCompleted()
+        public async Task Items_Are_Processed_Once_Completed()
         {
             int trulyProcessed = 0;
             var actionBlock = ActionBlockSlim.CreateWithAsyncAction<int>(2,
@@ -254,7 +329,7 @@ namespace Test.BuildXL.Utilities.ParallelAlgorithmsTests
         }
 
         [Fact]
-        public async Task CompletionTaskIsDoneWhenCompletedIsCalled()
+        public async Task Completion_Task_Is_Done_When_Completed_Is_Called()
         {
             var actionBlock = ActionBlockSlim.Create<int>(42, n => { });
             var task = actionBlock.Completion;
@@ -268,7 +343,7 @@ namespace Test.BuildXL.Utilities.ParallelAlgorithmsTests
         }
 
         [Fact]
-        public async Task CompletionIsAwaitableBeforeCompletedIsCalled()
+        public async Task Completion_Is_Awaitable_Before_Completed_Is_Called()
         {
             var actionBlock = ActionBlockSlim.Create<int>(0, n => { });
             var task = actionBlock.Completion;
@@ -292,7 +367,7 @@ namespace Test.BuildXL.Utilities.ParallelAlgorithmsTests
         }
 
         [Fact]
-        public Task CompletionTaskIsNotDoneWhenCompletedWith0ConcurrencyIsCalled()
+        public Task Completion_Task_Is_Not_Done_When_Completed_With_0_Concurrency_Is_Called()
         {
             var actionBlock = ActionBlockSlim.Create<int>(0, n => { });
             var task = actionBlock.Completion;
@@ -303,7 +378,7 @@ namespace Test.BuildXL.Utilities.ParallelAlgorithmsTests
 
 
         [Fact]
-        public async Task AllTheElementsAreFinished()
+        public async Task All_The_Elements_Are_Finished()
         {
             int count = 0;
             var actionBlock = ActionBlockSlim.Create<int>(
@@ -321,7 +396,7 @@ namespace Test.BuildXL.Utilities.ParallelAlgorithmsTests
         }
 
         [Fact]
-        public async Task AllTheElementsAreProcessedBy1Thread()
+        public async Task All_The_Elements_Are_Processed_By_1_Thread()
         {
             const int maxCount = 420;
             int count = 0;
@@ -341,7 +416,7 @@ namespace Test.BuildXL.Utilities.ParallelAlgorithmsTests
         }
 
         [Fact]
-        public async Task AllTheElementsAreProcessedBy2Thread()
+        public async Task All_The_Elements_Are_Processed_By_2_Thread()
         {
             const int maxCount = 420;
             int count = 0;
@@ -361,7 +436,7 @@ namespace Test.BuildXL.Utilities.ParallelAlgorithmsTests
         }
 
         [Fact]
-        public async Task IncreaseConcurrency()
+        public async Task Increase_Concurrency()
         {
             int count = 0;
 
@@ -419,12 +494,6 @@ namespace Test.BuildXL.Utilities.ParallelAlgorithmsTests
 
             // The new thread should run and increment the count
             Assert.Equal(3, count);
-        }
-
-        private static async Task WaitUntilAsync(Func<bool> predicate)
-        {
-            bool waitSucceeded = await global::BuildXL.Utilities.ParallelAlgorithms.ParallelAlgorithms.WaitUntilAsync(predicate, TimeSpan.FromMilliseconds(1), timeout: TimeSpan.FromSeconds(5));
-            Assert.True(waitSucceeded);
         }
     }
 }

@@ -460,6 +460,8 @@ export function test(args: TestArguments) : TestResult {
 @@public
 export const notNullAttributesFile = f`NotNullAttributes.cs`;
 
+const callerArgumentExpressionAttributeFile = f`CallerArgumentExpressionAttribute.cs`;
+
 const isExternalInit = f`IsExternalInit.cs`;
 
 /**
@@ -837,10 +839,10 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
         }
     }
 
-    // Adding 'IsExternalInit.cs' file but only for the older .net versions.
-    if (qualifier.targetFramework !== "net6.0") {
+    // Adding 'IsExternalInit.cs' and 'CallerArgumentExpressionAttribute' file but only for the older .net versions.
+    if (!isDotNetCoreApp) {
         args = args.merge({
-            sources: [isExternalInit],
+            sources: [isExternalInit, callerArgumentExpressionAttributeFile],
         });
     }
     

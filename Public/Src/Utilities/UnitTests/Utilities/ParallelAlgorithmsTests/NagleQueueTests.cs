@@ -12,6 +12,7 @@ using BuildXL.Utilities.Tasks;
 using FluentAssertions;
 using Xunit;
 using Xunit.Abstractions;
+using static Test.BuildXL.Utilities.ParallelAlgorithmsTests.ParallelAlgorithmsHelper;
 
 namespace Test.BuildXL.Utilities.ParallelAlgorithmsTests
 {
@@ -33,7 +34,7 @@ namespace Test.BuildXL.Utilities.ParallelAlgorithmsTests
         }
 
         [Fact]
-        public void ResumeShouldTriggerBatchOnTime()
+        public async Task ResumeShouldTriggerBatchOnTime()
         {
             bool processBatchIsCalled = false;
             var queue = CreateNagleQueue<int>(
@@ -47,15 +48,11 @@ namespace Test.BuildXL.Utilities.ParallelAlgorithmsTests
                 batchSize: 10);
 
             var suspender = queue.Suspend();
-            Thread.Sleep(1000);
+            await Task.Delay(100);
             queue.Enqueue(42);
             suspender.Dispose(); // This should resume the queue and restart the timer
 
-            Thread.Sleep(1000); // Definitely longer than the configured interval provided to NagleQueue
-
-            // It means that the queue should call the callback and we can rely on that.
-
-            Assert.True(processBatchIsCalled);
+            await WaitUntilOrFailAsync(() => processBatchIsCalled);
         }
 
         [Fact]
@@ -106,7 +103,7 @@ namespace Test.BuildXL.Utilities.ParallelAlgorithmsTests
         }
 
         [Fact]
-        public void EnqueingItemsInfrequentlyShouldAlwaysTriggerCallbackOnTime()
+        public async Task EnqueingItemsInfrequentlyShouldAlwaysTriggerCallbackOnTime()
         {
             int processBatchIsCalled = 0;
             var queue = CreateNagleQueue<int>(
@@ -122,13 +119,11 @@ namespace Test.BuildXL.Utilities.ParallelAlgorithmsTests
 
             queue.Enqueue(42);
             
-            Thread.Sleep(100);
-            Assert.Equal(1, processBatchIsCalled);
+            await WaitUntilOrFailAsync(() => processBatchIsCalled == 1);
 
             queue.Enqueue(42);
 
-            Thread.Sleep(100); 
-            Assert.Equal(2, processBatchIsCalled);
+            await WaitUntilOrFailAsync(() => processBatchIsCalled == 2);
         }
 
         [Fact]
@@ -145,7 +140,6 @@ namespace Test.BuildXL.Utilities.ParallelAlgorithmsTests
             queue.Dispose();
             Assert.Throws<ObjectDisposedException>(() => queue.Enqueue(42));
         }
-
 
         [Fact]
         public async Task DisposeAsyncWaitsForCompletion()

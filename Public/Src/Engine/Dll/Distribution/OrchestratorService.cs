@@ -171,11 +171,6 @@ namespace BuildXL.Engine.Distribution
         {
             var worker = GetWorkerById(pipResults.WorkerId);
 
-            foreach (PipCompletionData completedPip in pipResults.CompletedPips)
-            {
-                worker.ReleaseWorkerResources(completedPip);
-            }
-
             if (pipResults.BuildManifestEvents.DataBlob.Count() != 0)
             {
                 // The channel is unblocked and ACK is sent after we put the execution blob to the queue in 'LogExecutionBlobAsync' method.
@@ -186,8 +181,6 @@ namespace BuildXL.Engine.Distribution
                 // Return immediately to unblock the channel so that worker can receive the ACK for the sent message
                 await Task.Yield();
             }
-
-
 
             foreach (var forwardedEvent in pipResults.ForwardedEvents)
             {

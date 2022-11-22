@@ -1415,19 +1415,6 @@ namespace BuildXL.Engine.Distribution
             return true;
         }
 
-        /// <summary>
-        /// Release worker slots
-        /// </summary>
-        internal void ReleaseWorkerResources(PipCompletionData pipCompletionData)
-        {
-            var pipId = new PipId(pipCompletionData.PipIdValue);
-
-            if (m_pipCompletionTasks.TryGetValue(pipId, out var pipCompletionTask))
-            {
-                pipCompletionTask.RunnablePip.AcquiredResourceWorker?.ReleaseResources(pipCompletionTask.RunnablePip);
-            }
-        }
-
         private sealed class PipCompletionTask
         {
             public readonly RunnablePip RunnablePip;

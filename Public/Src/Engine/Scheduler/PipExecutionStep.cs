@@ -286,6 +286,26 @@ WARNING: SYNC WITH PipExecutionUtils.AsString
             }
         }
 
+
+        /// <summary>
+        /// Indicates if the pip execution step can run on the workers
+        /// </summary>
+        public static bool CanWorkerExecute(this PipExecutionStep step)
+        {
+            switch (step)
+            {
+                case PipExecutionStep.CacheLookup:
+                case PipExecutionStep.ExecuteNonProcessPip:
+                case PipExecutionStep.MaterializeInputs:
+                case PipExecutionStep.ExecuteProcess:
+                case PipExecutionStep.PostProcess:
+                case PipExecutionStep.MaterializeOutputs:
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
         /// <summary>
         /// Check whether it is valid to transition from one step to another pip execution step.
         /// </summary>

@@ -3972,13 +3972,10 @@ namespace BuildXL.Scheduler
                     runnablePip.StepDuration = duration;
                 }
 
-                bool isCancelledOrFailed = nextStep.IsChooseWorker() || nextStep == PipExecutionStep.HandleResult;
-                if (runnablePip.Worker?.IsLocal == true ||
-                    (runnablePip.AcquiredResourceWorker != null && isCancelledOrFailed))
-                {
-                    // Release the worker resources if we are done executing. For pips executed remotely, we release worker resources when we receive the results from workers.
-                    runnablePip.AcquiredResourceWorker?.ReleaseResources(runnablePip, isCancelledOrFailed);
-                }
+                Contract.Assert(!IsDistributedWorker || runnablePip.AcquiredResourceWorker == null);
+                // Release the worker resources if we are done executing
+                runnablePip.AcquiredResourceWorker?.ReleaseResources(runnablePip, nextStep);
+
 
                 // If the duration is larger than EngineEnvironmentSettings.MinStepDurationSecForTracer (30 seconds by default)
                 if (runnablePip.IncludeInTracer && (long)runnablePip.StepDuration.TotalSeconds > EngineEnvironmentSettings.MinStepDurationSecForTracer)
@@ -4241,6 +4238,7 @@ namespace BuildXL.Scheduler
         {
             Contract.Requires(runnablePip != null);
             Contract.Requires(runnablePip.Step != PipExecutionStep.Done && runnablePip.Step != PipExecutionStep.None, $"Cannot execute {runnablePip.Step} for {runnablePip.PipType}");
+            Contract.Requires(!IsDistributedWorker || runnablePip.Step.CanWorkerExecute(), $"Workers cannot execute {runnablePip.Step}");
 
             ProcessRunnablePip processRunnable = runnablePip as ProcessRunnablePip;
             Process process = runnablePip.Pip as Process;

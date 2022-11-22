@@ -731,11 +731,12 @@ namespace BuildXL.Scheduler.Distribution
         /// <summary>
         /// Release pip's resources after worker is done with the task
         /// </summary>
-        public void ReleaseResources(RunnablePip runnablePip, bool isCancelledOrFailed = false)
+        public void ReleaseResources(RunnablePip runnablePip, PipExecutionStep nextStep)
         {
             Contract.Assert(runnablePip.AcquiredResourceWorker == this);
 
             var stepCompleted = runnablePip.Step;
+            bool isCancelledOrFailed = nextStep.IsChooseWorker() || nextStep == PipExecutionStep.HandleResult;
 
             var processRunnablePip = runnablePip as ProcessRunnablePip;
             if (processRunnablePip != null)

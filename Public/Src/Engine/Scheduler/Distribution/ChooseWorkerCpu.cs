@@ -120,7 +120,7 @@ namespace BuildXL.Scheduler.Distribution
 
             if (!IsOrchestrator)
             {
-                // This is shortcut for the single-machine builds and distributed workers.
+                // This is shortcut for the single-machine builds.
                 chosenWorker = m_localWorker.TryAcquireProcess(runnablePip, out limitingResource, loadFactor: 1) ? m_localWorker : null;
             }
             else if (m_moduleAffinityEnabled && m_moduleWorkerMapping.TryGetValue(moduleId, out var assignedWorkers))

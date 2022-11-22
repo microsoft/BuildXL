@@ -223,9 +223,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                         batchSize = eventDatas.Count;
                         foreach (var eventData in eventDatas)
                         {
-                            if (eventData.Kind == EventKind.AddLocation
-                                || eventData.Kind == EventKind.AddLocationWithoutTouching
-                                || eventData.Kind == EventKind.RemoveLocation)
+                            if (eventData.Kind is EventKind.AddLocation or EventKind.AddLocationWithoutTouching or EventKind.RemoveLocation)
                             {
                                 // Add or remove events only go through this code path if reconciling
                                 eventData.Reconciling = true;
@@ -277,9 +275,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         protected Task<BoolResult> SendEventsAsync(OperationContext context, ContentLocationEventData[] events)
         {
             Tracer.Info(context, $"{Tracer.Name}: Sending {events.Length} event(s) to event hub.");
-            using var operationContext = TrackShutdown(context, context.Token);
+
+            using var contextRegistration = context.Token.Register(() => { Tracer.Debug(context, "Given operation context is canceled."); });
+
+            // Using a special logic not to shutdown the operation immediately but rather give this operation
+            // some time to deliver the data.
+            using var operationContext = TrackShutdownWithDelayedCancellation(context, _configuration.FlushShutdownTimeout);
             context = operationContext.Context;
 
+            using var nestedRegistration = context.Token.Register(() => { Tracer.Debug(context, "Composed context is canceled."); });
             var counters = new CounterCollection<ContentLocationEventStoreCounters>();
 
             context = context.CreateNested(nameof(ContentLocationEventStore));
@@ -315,7 +319,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                     return BoolResult.Success;
                 },
                 counter: counters[SendEvents],
-                isCritical: true);
+                isCritical: true,
+                extraStartMessage: $"#Events={events.Length}",
+                extraEndMessage: _ => $"#Events={events.Length}");
 
             static void updateCountersWith(CounterCollection<ContentLocationEventStoreCounters> localCounters, ContentLocationEventData[] sentEvents)
             {
@@ -394,29 +400,29 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         /// <inheritdoc />
         protected override Task<BoolResult> ShutdownCoreAsync(OperationContext context)
         {
-            EventNagleQueue?.Dispose();
+            // The disposal might take some time because now we allow send operation to finish.
+            // Tracing the duration explicitly.
+            context.PerformOperation(
+                Tracer,
+                () => { EventNagleQueue?.Dispose(); return BoolResult.Success; },
+                caller: "NagleQueueShutdown").IgnoreFailure();
             _workingDisposableDirectory.Dispose();
 
             return BoolResult.SuccessTask;
         }
 
-        private EntryOperation GetOperation(ContentLocationEventData e)
+        private static EntryOperation GetOperation(ContentLocationEventData e)
         {
-            switch (e.Kind)
+            return e.Kind switch
             {
-                case EventKind.AddLocation:
-                    return EntryOperation.AddMachine;
-                case EventKind.RemoveLocation:
-                    return EntryOperation.RemoveMachine;
-                case EventKind.Touch:
-                    return EntryOperation.Touch;
-                case EventKind.UpdateMetadataEntry:
-                    return EntryOperation.UpdateMetadataEntry;
-                default:
-                    // NOTE: This is invalid because blob events should not have associated hashes
-                    // The derived add/remove events will have the hashes
-                    return EntryOperation.Invalid;
-            }
+                EventKind.AddLocation => EntryOperation.AddMachine,
+                EventKind.RemoveLocation => EntryOperation.RemoveMachine,
+                EventKind.Touch => EntryOperation.Touch,
+                EventKind.UpdateMetadataEntry => EntryOperation.UpdateMetadataEntry,
+                // NOTE: This is invalid because blob events should not have associated hashes
+                // The derived add/remove events will have the hashes
+                _ => EntryOperation.Invalid
+            };
         }
 
         /// <summary>
@@ -633,9 +639,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         /// <summary>
         /// Pauses events notification and returns a disposable object that will resume event notification when <see cref="IDisposable.Dispose"/> method is called.
         /// </summary>
-        public IDisposable PauseSendingEvents()
+        public IDisposable PauseSendingEvents(OperationContext context)
         {
-            return new SendEventsSuspender(this);
+            return new SendEventsSuspender(this, context);
         }
 
         /// <summary>
@@ -709,18 +715,24 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         private class SendEventsSuspender : IDisposable
         {
             private readonly ContentLocationEventStore _eventStore;
+            private readonly OperationContext _operationContext;
             private readonly IDisposable _nagleQueueSuspender;
 
             /// <nodoc />
-            public SendEventsSuspender(ContentLocationEventStore eventStore)
+            public SendEventsSuspender(ContentLocationEventStore eventStore, OperationContext operationContext)
             {
+                eventStore.Tracer.Debug(operationContext, "Pausing sending events to event hub.");
                 _eventStore = eventStore;
+                _operationContext = operationContext;
                 _nagleQueueSuspender = eventStore.EventNagleQueue!.Suspend();
             }
 
             /// <inheritdoc />
             public void Dispose()
             {
+                bool shutdownStarted = _eventStore.ShutdownStarted;
+                _eventStore.Tracer.Debug(_operationContext, $"Resuming sending events to event hub. ShutdownStarted={shutdownStarted}.");
+
                 if (!_eventStore.ShutdownStarted)
                 {
                     // Resume event processing only if the current instance is still working normally and is not in a shut down state.

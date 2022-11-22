@@ -664,6 +664,9 @@ namespace BuildXL.Cache.Host.Configuration
         public int? EventBatchSize { get; set; }
 
         [DataMember]
+        public TimeSpanSetting? EventHubFlushShutdownTimeout { get; set; }
+
+        [DataMember]
         [Validation.Range(1, int.MaxValue)]
         public int? EventProcessingMaxQueueSize { get; set; }
 

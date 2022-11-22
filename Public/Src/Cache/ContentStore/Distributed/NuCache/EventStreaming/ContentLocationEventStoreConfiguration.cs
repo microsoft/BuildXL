@@ -17,6 +17,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         public int EventBatchSize { get; set; } = 1000;
 
         /// <summary>
+        /// A time to flush the message before shutting the pipeline down.
+        /// </summary>
+        /// <remarks>
+        /// 2 seconds should be enough because 99-th percentile for sending the events through event hub is 1.5 seconds in prod.
+        /// </remarks>
+        public TimeSpan? FlushShutdownTimeout { get; set; }
+
+        /// <summary>
         /// The number of events which forces an event batch to be sent
         /// </summary>
         public TimeSpan EventNagleInterval { get; set; } = TimeSpan.FromMinutes(2);

@@ -1847,7 +1847,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 // in the wrong order. For instance, if a machine has content [A] and [A] is removed during reconciliation.
                 // It is possible that remove event could be sent before reconciliation event and the final state
                 // in the database would still have missing content [A].
-                using (EventStore.PauseSendingEvents())
+                using (EventStore.PauseSendingEvents(context))
                 {
                     var originalStartingPoint = startingPoint;
                     var allLocalStoreContentInfos = await localContentStore.GetContentInfoAsync(token);

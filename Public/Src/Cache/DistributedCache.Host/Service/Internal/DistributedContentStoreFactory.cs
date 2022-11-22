@@ -621,17 +621,11 @@ namespace BuildXL.Cache.Host.Service.Internal
             dbConfig.Epoch = eventStoreConfiguration.Epoch;
 
             configuration.EventStore = eventStoreConfiguration;
-            ApplyIfNotNull(
-                _distributedSettings.MaxEventProcessingConcurrency,
-                value => eventStoreConfiguration.MaxEventProcessingConcurrency = value);
+            ApplyIfNotNull(_distributedSettings.MaxEventProcessingConcurrency, value => eventStoreConfiguration.MaxEventProcessingConcurrency = value);
 
-            ApplyIfNotNull(
-                _distributedSettings.EventBatchSize,
-                value => eventStoreConfiguration.EventBatchSize = value);
-
-            ApplyIfNotNull(
-                _distributedSettings.EventProcessingMaxQueueSize,
-                value => eventStoreConfiguration.EventProcessingMaxQueueSize = value);
+            ApplyIfNotNull(_distributedSettings.EventBatchSize, value => eventStoreConfiguration.EventBatchSize = value);
+            ApplyIfNotNull(_distributedSettings.EventHubFlushShutdownTimeout, value => eventStoreConfiguration.FlushShutdownTimeout = value);
+            ApplyIfNotNull(_distributedSettings.EventProcessingMaxQueueSize, value => eventStoreConfiguration.EventProcessingMaxQueueSize = value);
 
             var azureBlobStorageCheckpointRegistryConfiguration = new AzureBlobStorageCheckpointRegistryConfiguration()
             {

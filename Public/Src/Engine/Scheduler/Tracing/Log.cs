@@ -3184,8 +3184,8 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.Storage,
-            Message = "Failed to create historic metadata cache: {message}. This does not fail the build, but may impact performance.")]
-        public abstract void HistoricMetadataCacheCreateFailed(LoggingContext context, string message);
+            Message = "Failed to create historic metadata cache: {message}. This does not fail the build, but may impact performance. Will reset state and retry:{willResetAndRetry}")]
+        public abstract void HistoricMetadataCacheCreateFailed(LoggingContext context, string message, bool willResetAndRetry);
 
         [GeneratedEvent(
             (int)LogEventId.HistoricMetadataCacheOperationFailed,

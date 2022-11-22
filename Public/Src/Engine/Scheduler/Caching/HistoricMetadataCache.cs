@@ -1165,7 +1165,11 @@ namespace BuildXL.Scheduler.Cache
                 additionalColumns: StoreColumnNames.ContentHashMappingColumn,
                 additionalKeyTrackedColumns: keyTrackedColumns,
                 failureHandler: (f) => HandleStoreFailure(f.Failure),
-                onFailureDeleteExistingStoreAndRetry: true);
+                onFailureDeleteExistingStoreAndRetry: true,
+                onStoreReset: failure =>
+                {
+                    Logger.Log.HistoricMetadataCacheCreateFailed(LoggingContext, failure.DescribeIncludingInnerFailures(), willResetAndRetry: true);
+                });
 
             if (possibleAccessor.Succeeded)
             {
@@ -1174,7 +1178,7 @@ namespace BuildXL.Scheduler.Cache
             }
 
             // If we fail when creating a new store, there will be no historic metadata cache, so log a warning
-            Logger.Log.HistoricMetadataCacheCreateFailed(LoggingContext, possibleAccessor.Failure.DescribeIncludingInnerFailures());
+            Logger.Log.HistoricMetadataCacheCreateFailed(LoggingContext, possibleAccessor.Failure.DescribeIncludingInnerFailures(), willResetAndRetry: false);
             return null;
         }
 

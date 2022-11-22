@@ -9,6 +9,7 @@ using System.Globalization;
 using System.IO;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Threading;
 using BuildXL.Utilities;
 using Strings = bxl.Strings;
 
@@ -93,12 +94,35 @@ namespace BuildXL
                 // Submit the report and close the handle
                 IntPtr sendResult = IntPtr.Zero;
                 Marshal.ThrowExceptionForHR(NativeMethods.WerReportSubmit(report, NativeMethods.WER_CONSENT.WerConsentNotAsked, 0, ref sendResult));
-                Marshal.ThrowExceptionForHR(NativeMethods.WerReportCloseHandle(report));
+                closeReportHandle(report);
             }
             catch (Exception werException)
             {
                 // Fall back on the standard FailFast in case there was an error in the custom WER reporting
                 Environment.FailFast(Strings.App_AppDomain_UnhandledException, new AggregateException("Failed to create custom Windows Error Reporting report", werException, ex));
+            }
+
+            static void closeReportHandle(IntPtr reportHandle)
+            {
+                // Its possible to get an unauthorized access exception when closing the reports handle.
+                // To avoid the app crash just because of that we'll try to close it more then once with a small delay between attempts.
+
+                int currentAttempt = 0;
+
+                while (currentAttempt < 2)
+                {
+                    currentAttempt++;
+
+                    try
+                    {
+                        Marshal.ThrowExceptionForHR(NativeMethods.WerReportCloseHandle(reportHandle));
+                    }
+                    catch (UnauthorizedAccessException)
+                    {
+                        // Giving some time to close it properly.
+                        Thread.Sleep(100);
+                    }
+                }
             }
         }
 

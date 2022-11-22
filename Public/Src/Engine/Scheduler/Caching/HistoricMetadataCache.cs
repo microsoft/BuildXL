@@ -168,6 +168,8 @@ namespace BuildXL.Scheduler.Cache
         {
             get
             {
+                Contract.Assert(m_loadTask.IsValueCreated && m_loadTask.Value.IsCompleted, "Attempted to access the store before the loading has finished.");
+
                 // If the store accessor failed during setup or has become disabled, return null
                 if (m_storeAccessor.Value == null || m_storeAccessor.Value.Disabled)
                 {
@@ -669,6 +671,8 @@ namespace BuildXL.Scheduler.Cache
             bool isExecution,
             bool preservePathCasing)
         {
+            EnsureLoadedAsync().GetAwaiter().GetResult();
+
             if (metadata != null && metadataHash.HasValue)
             {
                 if (TryAdd(metadataHash.Value, metadata))
@@ -803,6 +807,8 @@ namespace BuildXL.Scheduler.Cache
         /// </summary>
         private bool TryAdd(ContentHash hash, in ObservedPathSet pathSet, bool preservePathCasing)
         {
+            EnsureLoadedAsync().GetAwaiter().GetResult();
+
             using (Counters.StartStopwatch(PipCachingCounter.HistoricTryAddPathSetDuration))
             {
                 bool added = false;

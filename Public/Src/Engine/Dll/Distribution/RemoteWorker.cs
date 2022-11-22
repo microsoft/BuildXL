@@ -495,8 +495,7 @@ namespace BuildXL.Engine.Distribution
             {
                 Logger.Log.DistributionWorkerFinish(
                     m_appLoggingContext,
-                    m_serviceLocation.IpAddress,
-                    m_serviceLocation.Port,
+                    Name,
                     callerName);
 
                 await DisconnectAsync(buildFailure, callerName);
@@ -578,8 +577,7 @@ namespace BuildXL.Engine.Distribution
             {
                 Logger.Log.DistributionWorkerFinish(
                     m_appLoggingContext,
-                    m_serviceLocation.IpAddress,
-                    m_serviceLocation.Port,
+                    Name,
                     "EarlyReleaseAsync");
 
                 await DisconnectAsync();

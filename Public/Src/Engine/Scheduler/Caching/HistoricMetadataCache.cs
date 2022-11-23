@@ -161,6 +161,7 @@ namespace BuildXL.Scheduler.Cache
         private bool m_loadStarted = false;
 
         private readonly Lazy<Task> m_loadTask;
+        private readonly TaskSourceSlim<Unit> m_prepareCompletion;
         private Task m_garbageCollectTask = Task.FromResult(0);
         private readonly CancellationTokenSource m_garbageCollectCancellation = new CancellationTokenSource();
 
@@ -168,8 +169,6 @@ namespace BuildXL.Scheduler.Cache
         {
             get
             {
-                Contract.Assert(m_loadTask.IsValueCreated && m_loadTask.Value.IsCompleted, "Attempted to access the store before the loading has finished.");
-
                 // If the store accessor failed during setup or has become disabled, return null
                 if (m_storeAccessor.Value == null || m_storeAccessor.Value.Disabled)
                 {
@@ -214,11 +213,11 @@ namespace BuildXL.Scheduler.Cache
             Age = 0;
             m_activeContentHashMappingColumnIndex = -1;
 
-            TaskSourceSlim<Unit> prepareCompletion = TaskSourceSlim.Create<Unit>();
-            m_loadTask = new Lazy<Task>(() => ExecuteLoadTask(prepareAsync, prepareCompletion));
+            m_prepareCompletion = TaskSourceSlim.Create<Unit>();
+            m_loadTask = new Lazy<Task>(() => ExecuteLoadTask(prepareAsync));
         }
 
-        private async Task ExecuteLoadTask(Func<HistoricMetadataCache, Task> prepareAsync, TaskSourceSlim<Unit> prepareCompletion)
+        private async Task ExecuteLoadTask(Func<HistoricMetadataCache, Task> prepareAsync)
         {
             // Unblock the caller
             await Task.Yield();
@@ -228,7 +227,7 @@ namespace BuildXL.Scheduler.Cache
                 var task = prepareAsync?.Invoke(this) ?? Unit.VoidTask;
                 await task;
 
-                prepareCompletion.TrySetResult(Unit.Void);
+                m_prepareCompletion.TrySetResult(Unit.Void);
 
                 StoreAccessor?.Use(database =>
                 {
@@ -245,7 +244,7 @@ namespace BuildXL.Scheduler.Cache
             catch (Exception ex)
             {
                 Logger.Log.HistoricMetadataCacheLoadFailed(LoggingContext, ex.ToString());
-                prepareCompletion.TrySetResult(Unit.Void);
+                m_prepareCompletion.TrySetResult(Unit.Void);
                 Valid = false;
             }
         }
@@ -1159,6 +1158,7 @@ namespace BuildXL.Scheduler.Cache
         private KeyValueStoreAccessor OpenStore()
         {
             Contract.Assert(StoreColumnNames.ContentHashMappingColumn.Length == 2);
+            Contract.Assert(m_prepareCompletion.Task.IsCompleted, "Attempted to open the store before the loading has finished.");
 
             var keyTrackedColumns = new string[]
             {

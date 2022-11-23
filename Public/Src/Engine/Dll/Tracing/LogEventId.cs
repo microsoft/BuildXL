@@ -408,6 +408,8 @@ namespace BuildXL.Engine.Tracing
 
         CacheInitializationTakingTooLong = 7132,
 
+        ObjDumpNotInstalled = 7133,
+
         // max 7200
     }
 }

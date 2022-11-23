@@ -1264,5 +1264,13 @@ namespace BuildXL.Processes.Tracing
             Message = "[{pipSemiStableHash}] Logging process StandardOutput/StandardError timed out after exceeding '{timeoutInMinutes}' minutes. This may be caused by the default terminal being Windows Terminal, workaround this by switching the default terminal to 'Windows Console Host' in Windows settings or Windows Terminal settings. Output streams may be incomplete due to this error.")]
         public abstract void SandboxedProcessResultLogOutputTimeout(LoggingContext context, string pipSemiStableHash, int timeoutInMinutes);
 
+        [GeneratedEvent(
+            (int)LogEventId.LinuxSandboxReportedStaticallyLinkedBinary,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = "[{pipDescription}] The following processes '{exePath}' are statically linked and their file accesses may not be reported by the sandbox.")]
+        public abstract void LinuxSandboxReportedStaticallyLinkedBinary(LoggingContext context, string pipDescription, string exePath);
     }
 }

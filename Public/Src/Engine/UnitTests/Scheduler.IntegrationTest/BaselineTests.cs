@@ -2140,6 +2140,46 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler().AssertCacheHit(pip.PipId);
         }
 
+        [TheoryIfSupported(requiresLinuxBasedOperatingSystem: true)]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void LinuxSandboxDetectsStaticallyLinkedBinary(bool rootProcessStaticallyLinked)
+        {
+            XAssert.IsTrue(UnixObjectFileDumpUtils.IsObjDumpInstalled.Value, "Binutils is not installed on this machine. Please install it with 'apt-get install binutils'");
+
+            var staticProcessName = "TestProcessStaticallyLinked";
+            var dynamicProcessName = "TestProcessDynamicallyLinked";
+            var staticProcessPath = Path.Combine(TestBinRoot, "LinuxTestProcesses", staticProcessName);
+            var dynamicProcessPath = Path.Combine(TestBinRoot, "LinuxTestProcesses", dynamicProcessName);
+
+            var workingDirectory = DirectoryArtifact.CreateWithZeroPartialSealId(CreateUniqueDirectory());
+            var staticProcess = CreateFileArtifactWithName(staticProcessName, workingDirectory.Path.ToString(Context.PathTable));
+            var dynamicProcess = CreateFileArtifactWithName(dynamicProcessName, workingDirectory.Path.ToString(Context.PathTable));
+
+            // Copy test executables to new working directory
+            File.Copy(staticProcessPath, Path.Combine(workingDirectory.Path.ToString(Context.PathTable), staticProcessName));
+            File.Copy(dynamicProcessPath, Path.Combine(workingDirectory.Path.ToString(Context.PathTable), dynamicProcessName));
+
+            var builder = CreatePipBuilder(new Operation[]
+            {
+                Operation.SpawnExe(Context.PathTable, rootProcessStaticallyLinked ? staticProcess : dynamicProcess, arguments: rootProcessStaticallyLinked ? "0" : "1"),
+                Operation.WriteFile(CreateOutputFileArtifact()),
+            });
+
+            builder.WorkingDirectory = workingDirectory;
+            builder.AddInputFile(staticProcess.Path);
+            builder.AddInputFile(dynamicProcess.Path);
+            if (!rootProcessStaticallyLinked)
+            {
+                // This file is written by the actual test process to test whether it gets detected by the sandbox
+                builder.AddOutputFile(AbsolutePath.Create(Context.PathTable, Path.Combine(workingDirectory.Path.ToString(Context.PathTable), "testFile.txt")));
+            }
+            
+            SchedulePipBuilder(builder);
+            RunScheduler().AssertSuccess();            
+            AssertWarningEventLogged(ProcessesLogEventId.LinuxSandboxReportedStaticallyLinkedBinary, count: 1);
+        }
+
         private Operation ProbeOp(string root, string relativePath = "")
         {
             return Operation.Probe(CreateFileArtifactWithName(root: root, name: relativePath), doNotInfer: true);

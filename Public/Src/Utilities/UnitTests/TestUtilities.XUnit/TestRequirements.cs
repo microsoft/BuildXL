@@ -77,5 +77,10 @@ namespace Test.BuildXL.TestUtilities.Xunit
         /// Requires running on either Windows or Linux operating system (excludes macOS)
         /// </summary>
         WindowsOrLinuxOs = 1 << 11,
+
+        /// <summary>
+        /// Requires running on a Linux OS
+        /// </summary>
+        LinuxOs = 1 << 12,
     }
 }

@@ -56,6 +56,7 @@ namespace Test.BuildXL.TestUtilities.Xunit
             bool requiresMacOperatingSystem = false,
             bool requiresWindowsOrMacOperatingSystem = false,
             bool requiresWindowsOrLinuxOperatingSystem = false,
+            bool requiresLinuxBasedOperatingSystem = false,
             TestRequirements additionalRequirements = TestRequirements.None)
         {
             var requirements = additionalRequirements;
@@ -69,6 +70,7 @@ namespace Test.BuildXL.TestUtilities.Xunit
             AddRequirement(ref requirements, requiresMacOperatingSystem, TestRequirements.MacOs);
             AddRequirement(ref requirements, requiresWindowsOrMacOperatingSystem, TestRequirements.WindowsOrMacOs);
             AddRequirement(ref requirements, requiresWindowsOrLinuxOperatingSystem, TestRequirements.WindowsOrLinuxOs);
+            AddRequirement(ref requirements, requiresLinuxBasedOperatingSystem, TestRequirements.LinuxOs);
 
             Requirements = requirements;
 
@@ -220,6 +222,17 @@ namespace Test.BuildXL.TestUtilities.Xunit
                     if (OperatingSystemHelper.IsMacOS)
                     {
                         return "Test must be run on Windows or Linux OS";
+                    }
+
+                    return null;
+                });
+
+            CheckRequirement(TestRequirements.LinuxOs,
+                () =>
+                {
+                    if (!OperatingSystemHelper.IsLinuxOS)
+                    {
+                        return "Test must be run on Linux OS";
                     }
 
                     return null;

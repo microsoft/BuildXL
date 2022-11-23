@@ -10,7 +10,6 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
-using BuildXL.Interop;
 using BuildXL.Interop.Unix;
 using BuildXL.Native.IO;
 using BuildXL.Native.Processes;

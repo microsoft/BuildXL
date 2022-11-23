@@ -2950,6 +2950,16 @@ If you can't update and need this feature after July 2018 please reach out to th
             EventTask = (int)Tasks.Engine,
             Message = "Cache initialization took longer than {elapsedTime} minutes. BuildXL process dump was created at '{dumpFile}'.")]
         public abstract void CacheInitializationTakingTooLong(LoggingContext context, string elapsedTime, string dumpFile);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.ObjDumpNotInstalled,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.Engine,
+            Message = "The objdump utility is not installed on this machine. BuildXL uses this to detect processes that may not work properly with its sandbox. Please install it by running 'apt-get install binutils'.")]
+        public abstract void ObjDumpNotInstalled(LoggingContext context);
+
     }
 
     /// <summary>

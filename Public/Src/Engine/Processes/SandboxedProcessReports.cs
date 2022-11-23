@@ -116,6 +116,8 @@ namespace BuildXL.Processes
 
         private readonly SandboxedProcessTraceBuilder m_traceBuilder;
 
+        private readonly UnixObjectFileDumpUtils m_objFileDumpUtils;
+
         public SandboxedProcessReports(
             FileAccessManifest manifest,
             PathTable pathTable,
@@ -143,6 +145,8 @@ namespace BuildXL.Processes
             m_loggingContext = loggingContext;
             m_fileSystemView = fileSystemView;
             m_traceBuilder = traceBuilder;
+            m_objFileDumpUtils = UnixObjectFileDumpUtils.CreateObjDump(); // Only initialized for Linux
+            
         }
 
         /// <summary>
@@ -151,6 +155,13 @@ namespace BuildXL.Processes
         internal void Freeze()
         {
             Volatile.Write(ref m_isFrozen, true);
+
+            // Dump any detected statically linked processes for this pip
+            var staticallyLinkedProcessPaths = m_objFileDumpUtils?.GetDetectedStaticallyLinkedProcesses();
+            if (staticallyLinkedProcessPaths != null && staticallyLinkedProcessPaths.Any())
+            {
+                Tracing.Logger.Log.LinuxSandboxReportedStaticallyLinkedBinary(m_loggingContext, PipDescription, string.Join(",", staticallyLinkedProcessPaths));
+            }
         }
 
         /// <summary>
@@ -763,6 +774,14 @@ namespace BuildXL.Processes
                 m_activeProcesses[processId] = process;
                 Processes.Add(process);
                 m_traceBuilder?.ReportProcess(process);
+
+                // The Linux Sandbox will not detect accesses for statically linked binaries, so check whether the spawned process is statically linked and generate a warning
+                // On process create we should also get a report here to check the root process
+                // Only logs once per unique process path
+                if (OperatingSystemHelper.IsLinuxOS)
+                {
+                    m_objFileDumpUtils.IsBinaryStaticallyLinked(path);
+                }
             }
             else
             {

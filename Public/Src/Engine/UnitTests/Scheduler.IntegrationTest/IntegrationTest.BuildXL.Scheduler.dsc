@@ -3,6 +3,7 @@
 
 import * as Managed from "Sdk.Managed";
 import * as Deployment from "Sdk.Deployment";
+import * as LinuxSandboxTestProcess from "BuildXL.Sandbox.Linux.UnitTests";
 
 namespace Scheduler.IntegrationTest {
     export declare const qualifier : BuildXLSdk.DefaultQualifier;
@@ -44,6 +45,15 @@ namespace Scheduler.IntegrationTest {
         ],
         runtimeContent: [
             importFrom("BuildXL.Utilities.UnitTests").TestProcess.deploymentDefinition,
+            ...addIfLazy(qualifier.targetRuntime === "linux-x64", () => [
+                {
+                    subfolder: "LinuxTestProcesses",
+                    contents: [
+                        LinuxSandboxTestProcess.StaticLinkingTestProcess.exe(true),
+                        LinuxSandboxTestProcess.StaticLinkingTestProcess.exe(false),
+                    ]
+                }
+            ]),
         ],
     });
 }

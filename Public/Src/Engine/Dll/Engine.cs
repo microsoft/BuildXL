@@ -2638,6 +2638,11 @@ namespace BuildXL.Engine
                 }
             }
 
+            if (OperatingSystemHelper.IsLinuxOS && !UnixObjectFileDumpUtils.IsObjDumpInstalled.Value)
+            {
+                Logger.Log.ObjDumpNotInstalled(loggingContext);
+            }
+
             return true;
         }
 

@@ -335,8 +335,14 @@ namespace BuildXL.Cache.ContentStore.Stores
             {
                 var path = fileInfo.FullPath;
 
+                if (!_contentStoreInternal.TryGetFileInfo(expectedHash, out var contentFileInfo))
+                {
+                    // The file is gone from the file system content store already due to eviction
+                    return (isValid: true, error: string.Empty);
+                }
+
                 // The cache entry is invalid if the size in content directory doesn't mach an actual size
-                if (_contentStoreInternal.TryGetFileInfo(expectedHash, out var contentFileInfo) && contentFileInfo.FileSize != fileInfo.Length)
+                if (contentFileInfo.FileSize != fileInfo.Length)
                 {
                     return (isValid: false, error: $"File size mismatch. Expected size is {contentFileInfo.FileSize} and size on disk is {fileInfo.Length}.");
                 }
@@ -356,6 +362,10 @@ namespace BuildXL.Cache.ContentStore.Stores
                     {
                         _contentStoreInternal.ApplyPermissions(context, fileInfo.FullPath, FileAccessMode.ReadOnly);
                     }
+                }
+                catch (FileNotFoundException)
+                {
+                    // We checked that the file exists, but due to a race condition it might be evicted at this point.
                 }
                 catch (Exception e)
                 {

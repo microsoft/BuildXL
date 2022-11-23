@@ -28,14 +28,14 @@ namespace System.Diagnostics
         // Exceptions:
         //   T:System.ArgumentNullException:
         //     The parameter e is null.
-        public EnhancedStackTrace(Exception e)
+        public EnhancedStackTrace(Exception e, Func<StackFrame, bool>? stackFrameFilter = null)
         {
             if (e == null)
             {
                 throw new ArgumentNullException(nameof(e));
             }
 
-            _frames = GetFrames(e);
+            _frames = GetFrames(e, stackFrameFilter);
         }
 
         public EnhancedStackTrace(StackTrace stackTrace)

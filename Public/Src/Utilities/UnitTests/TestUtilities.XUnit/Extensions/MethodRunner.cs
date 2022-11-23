@@ -9,6 +9,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Utilities.Tasks;
+using Xunit;
 using Xunit.Abstractions;
 using Xunit.Sdk;
 
@@ -20,6 +21,8 @@ namespace Test.BuildXL.TestUtilities.XUnit.Extensions
     internal sealed class BuildXLTestMethodRunner : XunitTestMethodRunner
     {
         private readonly Logger m_logger;
+        private readonly IMessageSink m_diagnosticMessageSink;
+        private readonly object[] m_constructorArguments;
 
         /// <nodoc />
         public BuildXLTestMethodRunner(
@@ -37,6 +40,38 @@ namespace Test.BuildXL.TestUtilities.XUnit.Extensions
                 cancellationTokenSource, constructorArguments)
         {
             m_logger = logger;
+            m_diagnosticMessageSink = diagnosticMessageSink;
+            m_constructorArguments = constructorArguments;
+        }
+
+        private static Task<T> RunInMtaThreadIfNeededAsync<T>(Func<Task<T>> func, bool runInMtaThread)
+        {
+            if (runInMtaThread && global::BuildXL.Utilities.OperatingSystemHelper.IsWindowsOS)
+            {
+                var tcs = new TaskCompletionSource<T>();
+                var thread = new Thread(
+                    () =>
+                    {
+                        Assert.Equal(Thread.CurrentThread.GetApartmentState(), ApartmentState.MTA);
+
+                        try
+                        {
+                            var result = func().GetAwaiter().GetResult();
+                            tcs.SetResult(result);
+                        }
+                        catch (Exception e)
+                        {
+                            tcs.SetException(e);
+                        }
+                    });
+#pragma warning disable CA1416 // Suppressing the warning, because we're using 'OperatingSystemHelper' that is not known to the analyzer
+                thread.SetApartmentState(ApartmentState.MTA);
+#pragma warning restore CA1416
+                thread.Start();
+                return tcs.Task;
+            }
+
+            return func();
         }
 
         /// <inheritdoc />
@@ -56,7 +91,6 @@ namespace Test.BuildXL.TestUtilities.XUnit.Extensions
             // Capture them so they can be restored
             var consoleOut = Console.Out;
             var consoleError = Console.Error;
-
             m_logger.LogVerbose($"Starting '{testCase.DisplayName}'... (FailFastOnContractViolation={failFastOnContractViolation}) ");
 
             string resultString = "FAIL";
@@ -77,8 +111,36 @@ namespace Test.BuildXL.TestUtilities.XUnit.Extensions
                     // Unset any synchronization restrictions set by the caller (looking at you, xunit)
                     SynchronizationContext.SetSynchronizationContext(null);
 
-                    var result = await base.RunTestCaseAsync(testCase).WithTimeoutAsync(TimeSpan.FromMinutes(5));
-                    
+                    // You can disable the entire new set of runners if something acts weirdly.
+                    bool useDemystifier = true;
+
+                    RunSummary result;
+
+                    if (useDemystifier)
+                    {
+                        var runner = DemystificationTestCaseRunner.Create(
+                            demystify: true,
+                            m_logger,
+                            testCase,
+                            testCase.DisplayName,
+                            testCase.SkipReason,
+                            m_constructorArguments,
+                            m_diagnosticMessageSink,
+                            MessageBus,
+                            Aggregator,
+                            CancellationTokenSource);
+
+                        bool runInMtaThread = testCase.GetType().Name == "MtaTestCase";
+
+                        result = await RunInMtaThreadIfNeededAsync(
+                            func: () => runner.RunAsync().WithTimeoutAsync(TimeSpan.FromMinutes(5)),
+                            runInMtaThread);
+                    }
+                    else
+                    {
+                        result = await base.RunTestCaseAsync(testCase).WithTimeoutAsync(TimeSpan.FromMinutes(5));
+                    }
+
                     if (result.Failed == 0)
                     {
                         resultString = "PASS";

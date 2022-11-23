@@ -16,7 +16,11 @@ namespace System.Diagnostics
         private static readonly FieldInfo stackTraceString = typeof(Exception).GetField("_stackTraceString", BindingFlags.Instance | BindingFlags.NonPublic)!;
 
         /// <nodoc />
-        private static T Demystify<T>(this T exception, Dictionary<Exception, string> originalStacks, bool rethrowException = false) where T : Exception
+        private static T Demystify<T>(
+            this T exception,
+            Dictionary<Exception, string> originalStacks,
+            bool rethrowException = false,
+            Func<StackFrame, bool>? stackFrameFilter = null) where T : Exception
         {
             try
             {
@@ -25,7 +29,7 @@ namespace System.Diagnostics
                     originalStacks[exception] = (string)stackTraceString.GetValue(exception)!;
                 }
 
-                var stackTrace = new EnhancedStackTrace(exception);
+                var stackTrace = new EnhancedStackTrace(exception, stackFrameFilter);
 
                 if (stackTrace.FrameCount > 0)
                 {
@@ -53,6 +57,14 @@ namespace System.Diagnostics
 #pragma warning restore ERP022
 
             return exception;
+        }
+
+        /// <nodoc />
+        public static Exception Demystify(this Exception exception, bool rethrowException = false, Func<StackFrame, bool>? stackFrameFilter = null)
+        {
+            Analysis.IgnoreResult(exception.ToString(), "Need to trigger string computation first to materialized the stack trace");
+            var originalStacks = new Dictionary<Exception, string>();
+            exception.Demystify(originalStacks, rethrowException, stackFrameFilter); return exception;
         }
         
         /// <nodoc />

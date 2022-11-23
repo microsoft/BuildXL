@@ -44,7 +44,7 @@ namespace System.Diagnostics
             AsyncIteratorStateMachineAttributeType = mba.GetType("System.Runtime.CompilerServices.AsyncIteratorStateMachineAttribute", false);
         }
 
-        private static List<EnhancedStackFrame> GetFrames(Exception exception)
+        private static List<EnhancedStackFrame> GetFrames(Exception? exception, Func<StackFrame, bool>? stackFrameFilter = null)
         {
             if (exception == null)
             {
@@ -54,10 +54,10 @@ namespace System.Diagnostics
             var needFileInfo = true;
             var stackTrace = new StackTrace(exception, needFileInfo);
 
-            return GetFrames(stackTrace);
+            return GetFrames(stackTrace, stackFrameFilter);
         }
 
-        public static List<EnhancedStackFrame> GetFrames(StackTrace stackTrace)
+        public static List<EnhancedStackFrame> GetFrames(StackTrace stackTrace, Func<StackFrame, bool>? stackFrameFilter = null)
         {
             var frames = new List<EnhancedStackFrame>();
             var stackFrames = stackTrace.GetFrames();
@@ -102,6 +102,11 @@ namespace System.Diagnostics
                     if (method is null)
                     {
                         // Method can't be null
+                        continue;
+                    }
+
+                    if (stackFrameFilter != null && stackFrameFilter(frame))
+                    {
                         continue;
                     }
 

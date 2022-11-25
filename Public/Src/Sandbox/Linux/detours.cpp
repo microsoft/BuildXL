@@ -42,6 +42,14 @@ static void report_child_process(const char *syscall, BxlObserver *bxl, pid_t ch
     bxl->report_access(syscall, event);
 }
 
+static int ret_fd(int fd, BxlObserver *bxl) 
+{
+    // when returning a new file descriptor we remove it from our cache, 
+    // because presumably the path has changed
+    bxl->reset_fd_table_entry(fd);
+    return fd;
+}
+
 INTERPOSE(pid_t, fork, void)({
     result_t<pid_t> childPid = bxl->fwd_fork();
 
@@ -195,28 +203,37 @@ static es_event_type_t get_event_from_open_mode(const char *mode) {
 
 INTERPOSE(FILE*, fdopen, int fd, const char *mode)({
     auto check = bxl->report_access_fd(__func__, get_event_from_open_mode(mode), fd);
-    return bxl->check_and_fwd_fdopen(check, (FILE*)NULL, fd, mode);
+    FILE *f = bxl->check_and_fwd_fdopen(check, (FILE*)NULL, fd, mode);
+    if (f) { bxl->reset_fd_table_entry(fileno(f)); }
+    return f;
 })
 
 INTERPOSE(FILE*, fopen, const char *pathname, const char *mode)({
-
     auto check = bxl->report_access(__func__, get_event_from_open_mode(mode), pathname);
-    return bxl->check_and_fwd_fopen(check, (FILE*)NULL, pathname, mode);
+    FILE *f = bxl->check_and_fwd_fopen(check, (FILE*)NULL, pathname, mode);
+    if (f) { bxl->reset_fd_table_entry(fileno(f)); }
+    return f;
 })
 
 INTERPOSE(FILE*, fopen64, const char *pathname, const char *mode)({
     auto check = bxl->report_access(__func__, get_event_from_open_mode(mode), pathname);
-    return bxl->check_and_fwd_fopen64(check, (FILE*)NULL, pathname, mode);
+    FILE *f = bxl->check_and_fwd_fopen64(check, (FILE*)NULL, pathname, mode);
+    if (f) { bxl->reset_fd_table_entry(fileno(f)); }
+    return f;
 })
 
 INTERPOSE(FILE*, freopen, const char *pathname, const char *mode, FILE *stream)({
     auto check = bxl->report_access(__func__, get_event_from_open_mode(mode), pathname);
-    return bxl->check_and_fwd_freopen(check, (FILE*)NULL, pathname, mode, stream);
+    FILE *f = bxl->check_and_fwd_freopen(check, (FILE*)NULL, pathname, mode, stream);
+    if (f) { bxl->reset_fd_table_entry(fileno(f)); }
+    return f;
 })
 
 INTERPOSE(FILE*, freopen64, const char *pathname, const char *mode, FILE *stream)({
     auto check = bxl->report_access(__func__, get_event_from_open_mode(mode), pathname);
-    return bxl->check_and_fwd_freopen64(check, (FILE*)NULL, pathname, mode, stream);
+    FILE *f = bxl->check_and_fwd_freopen64(check, (FILE*)NULL, pathname, mode, stream);
+    if (f) { bxl->reset_fd_table_entry(fileno(f)); }
+    return f;
 })
 
 INTERPOSE(size_t, fread, void *ptr, size_t size, size_t nmemb, FILE *stream)({
@@ -288,7 +305,7 @@ INTERPOSE(int, open, const char *path, int oflag, ...)({
 
     std::string pathStr = bxl->normalize_path(path);
     AccessCheckResult check = ReportFileOpen(bxl, pathStr, oflag);
-    return bxl->check_and_fwd_open(check, ERROR_RETURN_VALUE, path, oflag, mode);
+    return ret_fd(bxl->check_and_fwd_open(check, ERROR_RETURN_VALUE, path, oflag, mode), bxl);
 })
 
 INTERPOSE(int, open64, const char *path, int oflag, ...)({
@@ -299,7 +316,7 @@ INTERPOSE(int, open64, const char *path, int oflag, ...)({
 
     std::string pathStr = bxl->normalize_path(path);
     AccessCheckResult check = ReportFileOpen(bxl, pathStr, oflag);
-    return bxl->check_and_fwd_open64(check, ERROR_RETURN_VALUE, path, oflag, mode);
+    return ret_fd(bxl->check_and_fwd_open64(check, ERROR_RETURN_VALUE, path, oflag, mode), bxl);
 })
 
 INTERPOSE(int, openat, int dirfd, const char *pathname, int flags, ...)({
@@ -310,7 +327,7 @@ INTERPOSE(int, openat, int dirfd, const char *pathname, int flags, ...)({
 
     std::string pathStr = bxl->normalize_path_at(dirfd, pathname);
     AccessCheckResult check = ReportFileOpen(bxl, pathStr, flags);
-    return bxl->check_and_fwd_openat(check, ERROR_RETURN_VALUE, dirfd, pathname, flags, mode);
+    return ret_fd(bxl->check_and_fwd_openat(check, ERROR_RETURN_VALUE, dirfd, pathname, flags, mode), bxl);
 })
 
 INTERPOSE(int, openat64, int dirfd, const char *pathname, int flags, ...)({
@@ -321,7 +338,7 @@ INTERPOSE(int, openat64, int dirfd, const char *pathname, int flags, ...)({
 
     std::string pathStr = bxl->normalize_path_at(dirfd, pathname);
     AccessCheckResult check = ReportFileOpen(bxl, pathStr, flags);
-    return bxl->check_and_fwd_openat(check, ERROR_RETURN_VALUE, dirfd, pathname, flags, mode);
+    return ret_fd(bxl->check_and_fwd_openat(check, ERROR_RETURN_VALUE, dirfd, pathname, flags, mode), bxl);
 })
 
 INTERPOSE(int, creat, const char *pathname, mode_t mode)({
@@ -486,12 +503,16 @@ INTERPOSE(ssize_t, readlinkat, int fd, const char *path, char *buf, size_t bufsi
 
 INTERPOSE(DIR*, opendir, const char *name)({
     auto check = bxl->report_access(__func__, ES_EVENT_TYPE_NOTIFY_READDIR, name);
-    return bxl->check_and_fwd_opendir(check, (DIR*)NULL, name);
+    DIR *d = bxl->check_and_fwd_opendir(check, (DIR*)NULL, name);
+    if (d) { bxl->reset_fd_table_entry(dirfd(d)); }
+    return d;
 })
 
 INTERPOSE(DIR*, fdopendir, int fd)({
     auto check = bxl->report_access_fd(__func__, ES_EVENT_TYPE_NOTIFY_READDIR, fd);
-    return bxl->check_and_fwd_fdopendir(check, (DIR*)NULL, fd);
+    DIR *d = bxl->check_and_fwd_fdopendir(check, (DIR*)NULL, fd);
+    if (d) { bxl->reset_fd_table_entry(fd); }
+    return d;
 })
 
 INTERPOSE(int, utime, const char *filename, const struct utimbuf *times)({
@@ -728,7 +749,7 @@ INTERPOSE(int, name_to_handle_at, int dirfd, const char *pathname, struct file_h
     int oflags = (flags & AT_SYMLINK_FOLLOW) ? 0 : O_NOFOLLOW;
     string pathStr = bxl->normalize_path_at(dirfd, pathname, oflags);
     auto check = ReportFileOpen(bxl, pathStr, oflags);
-    return bxl->check_and_fwd_name_to_handle_at(check, ERROR_RETURN_VALUE, dirfd, pathname, handle, mount_id, flags);
+    return ret_fd(bxl->check_and_fwd_name_to_handle_at(check, ERROR_RETURN_VALUE, dirfd, pathname, handle, mount_id, flags), bxl);
 })
 
 INTERPOSE(int, close, int fd) ({ 

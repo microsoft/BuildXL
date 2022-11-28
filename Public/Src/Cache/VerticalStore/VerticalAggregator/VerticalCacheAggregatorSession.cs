@@ -8,6 +8,7 @@ using System.IO;
 using System.Threading.Tasks;
 using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.Synchronization;
 using BuildXL.Cache.ImplementationSupport;
 using BuildXL.Cache.Interfaces;
 using BuildXL.Native.IO;
@@ -38,6 +39,7 @@ namespace BuildXL.Cache.VerticalAggregator
         private readonly ICacheSession m_remoteSession;
         private readonly ICacheReadOnlySession m_remoteROSession;
         private readonly SessionCounters m_sessionCounters;
+        private readonly LockSet<CasHash> m_remoteDownloads;
 
         internal VerticalCacheAggregatorSession(
             VerticalCacheAggregator cache,
@@ -67,6 +69,7 @@ namespace BuildXL.Cache.VerticalAggregator
             m_sessionCounters = new SessionCounters();
             m_remoteContentIsReadOnly = remoteContentIsReadOnly;
             m_skipDeterminismRecovery = skipDeterminismRecovery;
+            m_remoteDownloads = new LockSet<CasHash>();
         }
 
         /// <inheritdoc/>
@@ -769,13 +772,23 @@ namespace BuildXL.Cache.VerticalAggregator
         public async Task<Possible<StreamWithLength, Failure>> GetStreamAsync(CasHash hash, OperationHints hints, Guid activityId)
         {
             using (var counters = m_sessionCounters.GetStreamCounter())
+            using (var eventing = new GetStreamActivity(VerticalCacheAggregator.EventSource, activityId, this))
             {
-                using (var eventing = new GetStreamActivity(VerticalCacheAggregator.EventSource, activityId, this))
+                eventing.Start(hash, hints);
+                try
                 {
-                    eventing.Start(hash, hints);
-                    try
+                    var localStream = await m_localSession.GetStreamAsync(hash, hints, eventing.Id);
+                    if (localStream.Succeeded)
                     {
-                        var localStream = await m_localSession.GetStreamAsync(hash, hints, eventing.Id);
+                        counters.HitLocal();
+                        return eventing.Returns<StreamWithLength>(localStream);
+                    }
+
+                    Possible<CasHash, Failure> hashLocal;
+                    using (LockSet<CasHash>.LockHandle contentHashHandle = await m_remoteDownloads.AcquireAsync(hash))
+                    {
+                        // Check again under the lock
+                        localStream = await m_localSession.GetStreamAsync(hash, hints, eventing.Id);
                         if (localStream.Succeeded)
                         {
                             counters.HitLocal();
@@ -783,42 +796,42 @@ namespace BuildXL.Cache.VerticalAggregator
                         }
 
                         // NOTE: Avoid checking for existence in local session since GetStream already failed.
-                        var hashLocal = await CopyCASFileIfNeededAsync(hash, m_remoteROSession, m_localSession, hints, true, eventing, counters.CopyStats, false);
+                        hashLocal = await CopyCASFileIfNeededAsync(hash, m_remoteROSession, m_localSession, hints, true, eventing, counters.CopyStats, false);
+                    }
 
-                        if (!hashLocal.Succeeded)
+                    if (!hashLocal.Succeeded)
+                    {
+                        if (hashLocal.Failure is NoCasEntryFailure)
                         {
-                            if (hashLocal.Failure is NoCasEntryFailure)
-                            {
-                                counters.Miss();
-                            }
-                            else
-                            {
-                                counters.Fail();
-                            }
-
-                            eventing.StopFailure(hashLocal.Failure);
-                            return localStream;
-                        }
-
-                        var ret = await m_localSession.GetStreamAsync(hash, hints, eventing.Id);
-                        if (ret.Succeeded)
-                        {
-                            counters.HitRemote();
+                            counters.Miss();
                         }
                         else
                         {
-                            // We just added the file. It better be there.
                             counters.Fail();
                         }
 
-                        return eventing.Returns(ret);
+                        eventing.StopFailure(hashLocal.Failure);
+                        return localStream;
                     }
-                    catch (Exception e)
+
+                    var ret = await m_localSession.GetStreamAsync(hash, hints, eventing.Id);
+                    if (ret.Succeeded)
                     {
-                        eventing.StopException(e);
-                        counters.Fail();
-                        throw;
+                        counters.HitRemote();
                     }
+                    else
+                    {
+                        // We just added the file. It better be there.
+                        counters.Fail();
+                    }
+
+                    return eventing.Returns(ret);
+                }
+                catch (Exception e)
+                {
+                    eventing.StopException(e);
+                    counters.Fail();
+                    throw;
                 }
             }
         }
@@ -1130,7 +1143,7 @@ namespace BuildXL.Cache.VerticalAggregator
                                     remoteCheckCount++;
                                 }
                             }
-                            
+
                             if (remoteCheckCount > 0)
                             {
                                 CasHash[] hashes = new CasHash[remoteCheckCount];
@@ -1255,31 +1268,42 @@ namespace BuildXL.Cache.VerticalAggregator
             CancellationToken cancellationToken)
         {
             using (var counters = m_sessionCounters.ProduceFileCounter())
+            using (var eventing = new ProduceFileActivity(VerticalCacheAggregator.EventSource, activityId, this))
             {
-                using (var eventing = new ProduceFileActivity(VerticalCacheAggregator.EventSource, activityId, this))
+                try
                 {
-                    try
+                    eventing.Start(hash, filename, fileState, hints);
+
+                    // TODO: Remove this once the remote properly handles the directory's nonexistence
+                    // NOTE: There are unit tests that validate this behavior but the VSTS cache does not
+                    //       seem to run these tests.  Unclear why it does not run the normal ICache test suite
+                    FileUtilities.CreateDirectory(Path.GetDirectoryName(filename));
+
+                    // This is for the potential inconssistent hash recovery operation
+                    bool secondTry = false;
+                    while (true)
                     {
-                        eventing.Start(hash, filename, fileState, hints);
-
-                        // TODO: Remove this once the remote properly handles the directory's nonexistence
-                        // NOTE: There are unit tests that validate this behavior but the VSTS cache does not
-                        //       seem to run these tests.  Unclear why it does not run the normal ICache test suite
-                        FileUtilities.CreateDirectory(Path.GetDirectoryName(filename));
-
-                        // This is for the potential inconssistent hash recovery operation
-                        bool secondTry = false;
-                        while (true)
+                        var localResult = await m_localSession.ProduceFileAsync(hash, filename, fileState, hints, eventing.Id, cancellationToken);
+                        if (localResult.Succeeded)
                         {
-                            var localResult = await m_localSession.ProduceFileAsync(hash, filename, fileState, hints, eventing.Id, cancellationToken);
+                            counters.HitLocal();
+                            return eventing.Returns(localResult);
+                        }
+
+                        // Download to the final location.
+                        Possible<string, Failure> remoteProduceFileResult;
+                        Possible<CasHash, Failure> localAddResult;
+                        using (LockSet<CasHash>.LockHandle contentHashHandle = await m_remoteDownloads.AcquireAsync(hash))
+                        {
+                            // Double-check local now that we have the lock
+                            localResult = await m_localSession.ProduceFileAsync(hash, filename, fileState, hints, eventing.Id, cancellationToken);
                             if (localResult.Succeeded)
                             {
                                 counters.HitLocal();
                                 return eventing.Returns(localResult);
                             }
 
-                            // Download to the final location.
-                            var remoteProduceFileResult = await m_remoteROSession.ProduceFileAsync(hash, filename, fileState, hints, activityId, cancellationToken);
+                            remoteProduceFileResult = await m_remoteROSession.ProduceFileAsync(hash, filename, fileState, hints, activityId, cancellationToken);
 
                             if (!remoteProduceFileResult.Succeeded)
                             {
@@ -1300,122 +1324,123 @@ namespace BuildXL.Cache.VerticalAggregator
                             // If we ever decide that we can always trust Remote.ProduceFile (not likely),
                             // then passing the hash here might be a nice optimization, allowing the local AddToCas to short-cut
                             // if it already has content with the passed hash.
-                            var localAddResult = await m_localSession.AddToCasAsync(filename, fileState, null, hints, eventing.Id);
-                            if (!localAddResult.Succeeded)
-                            {
-                                counters.CopyStats.FileTransitFailed();
-                                counters.Fail();
-                                var failure = new CASTransferFailure(
-                                    m_cacheId,
-                                    m_remoteROSession.CacheId,
-                                    m_localSession.CacheId,
-                                    hash,
-                                    FailureConstants.FailureCASDownload,
-                                    localAddResult.Failure);
-                                return eventing.StopFailure(failure);
-                            }
-
-                            counters.CopyStats.FileTransited(new FileInfo(filename).Length);
-
-                            if (localAddResult.Result.Equals(hash))
-                            {
-                                counters.HitRemote();
-                                return eventing.Returns(remoteProduceFileResult);
-                            }
-
-                            // Put a critical event into the eventing system as this id really
-                            // important to have something take notice that we had this happened.
-                            eventing.Write(CacheActivity.CriticalDataOptions, new
-                            {
-                                InconsistentCacheHash = hash,
-                                FromCache = m_remoteROSession.CacheId,
-                                WrittenAs = localAddResult.Result,
-                                ToCache = m_localSession.CacheId,
-                            });
-
-                            // The file we produces is wrong so we will try to delete
-                            // it.  We don't care if it does not actually delete since
-                            // we will be telling about the failure in the cache but
-                            // we don't want to leave the wrong file in its target
-                            // location if we don't have to.
-                            try
-                            {
-                                File.Delete(filename);
-                            }
-                            catch (Exception e)
-                            {
-                                // Nothing to do but log a bit
-                                eventing.Write(CacheActivity.VerboseOptions, new { FailedToDeleteCorruptFile = filename, Reason = e.ToString() });
-                            }
-
-                            if (secondTry)
-                            {
-                                counters.Fail();
-                                var ret = new InconsistentCacheStateFailure(
-                                    "CashHash ({0}) returned by target cache {1} for file {2} did not match CashHash ({3}) sent from source cache {4} - second try!",
-                                    localAddResult.Result,
-                                    m_localSession.CacheId,
-                                    filename,
-                                    hash,
-                                    m_remoteROSession.CacheId);
-                                return eventing.StopFailure(ret);
-                            }
-
-                            var validateResult = await m_remoteROSession.ValidateContentAsync(hash, hints, eventing.Id);
-
-                            if (!validateResult.Succeeded)
-                            {
-                                eventing.Write(CacheActivity.VerboseOptions, new { RemediationFailed = hash, Reason = validateResult.Failure.Describe() });
-
-                                counters.Fail();
-                                return eventing.StopFailure(new InconsistentCacheStateFailure(
-                                    "CashHash ({0}) returned by target cache {1} for file {2} did not match CashHash ({3}) sent from source cache {4} - cache ValidateContent failed with error: {5}",
-                                    localAddResult.Result,
-                                    m_localSession.CacheId,
-                                    filename,
-                                    hash,
-                                    m_remoteROSession.CacheId,
-                                    validateResult.Failure.Describe()));
-                            }
-
-                            if (validateResult.Result == ValidateContentStatus.Ok)
-                            {
-                                // The cache says things should be fine now, so lets try again (once)
-                                secondTry = true;
-                            }
-
-                            if (validateResult.Result == ValidateContentStatus.Remediated)
-                            {
-                                // The cache says it remediated the issue.  This means we
-                                // should try one more time but we also potentially need to
-                                // do a fresh pin operation (as the prior pinned item was
-                                // remediated)
-                                secondTry = true;
-                            }
-
-                            // If we are not going to try again, lets return the error
-                            if (!secondTry)
-                            {
-                                counters.Fail();
-                                return eventing.StopFailure(new InconsistentCacheStateFailure(
-                                    "CashHash ({0}) returned by target cache {1} for file {2} did not match CashHash ({3}) sent from source cache {4} - cache ValidateContent returned {5}",
-                                    localAddResult.Result,
-                                    m_localSession.CacheId,
-                                    filename,
-                                    hash,
-                                    m_remoteROSession.CacheId,
-                                    validateResult.Result.ToString()));
-                            }
-
-                            // ETW about the retry
-                            eventing.Write(CacheActivity.VerboseOptions, new { Retry = hash, Reason = validateResult.Result, FromCache = m_remoteROSession.CacheId });
+                            localAddResult = await m_localSession.AddToCasAsync(filename, fileState, null, hints, eventing.Id);
                         }
+
+                        if (!localAddResult.Succeeded)
+                        {
+                            counters.CopyStats.FileTransitFailed();
+                            counters.Fail();
+                            var failure = new CASTransferFailure(
+                                m_cacheId,
+                                m_remoteROSession.CacheId,
+                                m_localSession.CacheId,
+                                hash,
+                                FailureConstants.FailureCASDownload,
+                                localAddResult.Failure);
+                            return eventing.StopFailure(failure);
+                        }
+
+                        counters.CopyStats.FileTransited(new FileInfo(filename).Length);
+
+                        if (localAddResult.Result.Equals(hash))
+                        {
+                            counters.HitRemote();
+                            return eventing.Returns(remoteProduceFileResult);
+                        }
+
+                        // Put a critical event into the eventing system as this id really
+                        // important to have something take notice that we had this happened.
+                        eventing.Write(CacheActivity.CriticalDataOptions, new
+                        {
+                            InconsistentCacheHash = hash,
+                            FromCache = m_remoteROSession.CacheId,
+                            WrittenAs = localAddResult.Result,
+                            ToCache = m_localSession.CacheId,
+                        });
+
+                        // The file we produces is wrong so we will try to delete
+                        // it.  We don't care if it does not actually delete since
+                        // we will be telling about the failure in the cache but
+                        // we don't want to leave the wrong file in its target
+                        // location if we don't have to.
+                        try
+                        {
+                            File.Delete(filename);
+                        }
+                        catch (Exception e)
+                        {
+                            // Nothing to do but log a bit
+                            eventing.Write(CacheActivity.VerboseOptions, new { FailedToDeleteCorruptFile = filename, Reason = e.ToString() });
+                        }
+
+                        if (secondTry)
+                        {
+                            counters.Fail();
+                            var ret = new InconsistentCacheStateFailure(
+                                "CashHash ({0}) returned by target cache {1} for file {2} did not match CashHash ({3}) sent from source cache {4} - second try!",
+                                localAddResult.Result,
+                                m_localSession.CacheId,
+                                filename,
+                                hash,
+                                m_remoteROSession.CacheId);
+                            return eventing.StopFailure(ret);
+                        }
+
+                        var validateResult = await m_remoteROSession.ValidateContentAsync(hash, hints, eventing.Id);
+
+                        if (!validateResult.Succeeded)
+                        {
+                            eventing.Write(CacheActivity.VerboseOptions, new { RemediationFailed = hash, Reason = validateResult.Failure.Describe() });
+
+                            counters.Fail();
+                            return eventing.StopFailure(new InconsistentCacheStateFailure(
+                                "CashHash ({0}) returned by target cache {1} for file {2} did not match CashHash ({3}) sent from source cache {4} - cache ValidateContent failed with error: {5}",
+                                localAddResult.Result,
+                                m_localSession.CacheId,
+                                filename,
+                                hash,
+                                m_remoteROSession.CacheId,
+                                validateResult.Failure.Describe()));
+                        }
+
+                        if (validateResult.Result == ValidateContentStatus.Ok)
+                        {
+                            // The cache says things should be fine now, so lets try again (once)
+                            secondTry = true;
+                        }
+
+                        if (validateResult.Result == ValidateContentStatus.Remediated)
+                        {
+                            // The cache says it remediated the issue.  This means we
+                            // should try one more time but we also potentially need to
+                            // do a fresh pin operation (as the prior pinned item was
+                            // remediated)
+                            secondTry = true;
+                        }
+
+                        // If we are not going to try again, lets return the error
+                        if (!secondTry)
+                        {
+                            counters.Fail();
+                            return eventing.StopFailure(new InconsistentCacheStateFailure(
+                                "CashHash ({0}) returned by target cache {1} for file {2} did not match CashHash ({3}) sent from source cache {4} - cache ValidateContent returned {5}",
+                                localAddResult.Result,
+                                m_localSession.CacheId,
+                                filename,
+                                hash,
+                                m_remoteROSession.CacheId,
+                                validateResult.Result.ToString()));
+                        }
+
+                        // ETW about the retry
+                        eventing.Write(CacheActivity.VerboseOptions, new { Retry = hash, Reason = validateResult.Result, FromCache = m_remoteROSession.CacheId });
                     }
-                    catch (Exception e)
-                    {
-                        counters.Fail();
-                        return eventing.StopFailure(new ProduceFileFailure(CacheId, hash, filename, e));
-                    }
+                }
+                catch (Exception e)
+                {
+                    counters.Fail();
+                    return eventing.StopFailure(new ProduceFileFailure(CacheId, hash, filename, e));
                 }
             }
         }

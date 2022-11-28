@@ -3,6 +3,7 @@
 
 using System;
 using System.Diagnostics.ContractsLight;
+using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
 
 namespace BuildXL.Processes
@@ -48,6 +49,18 @@ namespace BuildXL.Processes
             Contract.Requires(data != null);
 
             return new StandardInputInfo(null, data);
+        }
+
+        /// <summary>
+        /// Creates a standard input info where the source comes from raw data.
+        /// </summary>
+        public static StandardInputInfo CreateForProcess(Process process, PathTable pathTable)
+        {
+            return process.StandardInput.IsData
+                ? StandardInputInfo.CreateForData(process.StandardInput.Data.ToString(pathTable))
+                : (process.StandardInput.IsFile
+                    ? StandardInputInfo.CreateForFile(process.StandardInput.File.Path.ToString(pathTable))
+                    : null);
         }
 
         /// <summary>

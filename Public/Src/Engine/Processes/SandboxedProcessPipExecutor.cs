@@ -348,7 +348,7 @@ namespace BuildXL.Processes
             m_processIdListener = processIdListener;
             m_pipEnvironment = pipEnvironment;
             m_pipDataRenderer = pipDataRenderer ?? new PipFragmentRenderer(m_pathTable);
-            m_pluginEP = pluginManager != null ? new PluginEndpoints(pluginManager) : null;
+            m_pluginEP = pluginManager != null ? new PluginEndpoints(pluginManager, m_pip, m_pathTable) : null;
 
             if (pip.WarningRegex.IsValid)
             {
@@ -1098,13 +1098,7 @@ namespace BuildXL.Processes
             System.Diagnostics.Stopwatch sandboxPrepTime,
             CancellationToken cancellationToken = default)
         {
-            StandardInputInfo standardInputSource = m_pip.StandardInput.IsData
-                ? StandardInputInfo.CreateForData(m_pip.StandardInput.Data.ToString(m_context.PathTable))
-                : (m_pip.StandardInput.IsFile
-                    ? StandardInputInfo.CreateForFile(m_pip.StandardInput.File.Path.ToString(m_context.PathTable))
-                    : null);
-
-            info.StandardInputSourceInfo = standardInputSource;
+            info.StandardInputSourceInfo = StandardInputInfo.CreateForProcess(m_pip, m_context.PathTable);
 
             if (m_pip.WarningRegex.IsValid)
             {

@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using BuildXL.Pips.Operations;
 using BuildXL.Plugin;
 using BuildXL.Plugin.Grpc;
 using BuildXL.Utilities;
@@ -19,6 +20,10 @@ namespace BuildXL.Processes
     {
         private readonly PluginManager m_pluginManager;
 
+        private readonly Process m_pip;
+
+        private readonly PathTable m_pathTable;
+
         /// <summary>
         /// Additional information about the process such as executable or arguments
         /// </summary>
@@ -27,9 +32,11 @@ namespace BuildXL.Processes
         /// <summary>
         /// Creates a wrapper to pass relevant information to PluginManager
         /// </summary>
-        public PluginEndpoints(PluginManager pluginManager)
+        public PluginEndpoints(PluginManager pluginManager, Process pip, PathTable pathTable)
         {
             m_pluginManager = pluginManager;
+            m_pip = pip;
+            m_pathTable = pathTable;
         }
 
         /// <summary>
@@ -56,18 +63,24 @@ namespace BuildXL.Processes
                 return result;
             }
 
+            StandardInputInfo standardInput = ProcessInfo.StandardInputSourceInfo;
+            if (standardInput == null)
+            {
+                standardInput = StandardInputInfo.CreateForProcess(m_pip, m_pathTable);
+            }
+
             ProcessStream inputContent = null;
-            if (ProcessInfo.StandardInputSourceInfo != null)
+            if (standardInput != null)
             {
                 inputContent = new ProcessStream();
 
-                if (ProcessInfo.StandardInputSourceInfo.Data != null)
+                if (standardInput.Data != null)
                 {
-                    inputContent.Content = ProcessInfo.StandardInputSourceInfo.Data;
+                    inputContent.Content = standardInput.Data;
                 }
-                else if (ProcessInfo.StandardInputSourceInfo.File != null)
+                else if (standardInput.File != null)
                 {
-                    inputContent.FilePath = ProcessInfo.StandardInputSourceInfo.File;
+                    inputContent.FilePath = standardInput.File;
                 }
             }
             

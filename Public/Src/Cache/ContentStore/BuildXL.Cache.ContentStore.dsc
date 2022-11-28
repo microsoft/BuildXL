@@ -148,13 +148,20 @@ export function getProtobufNetPackages(includeNetStandard: boolean) : (Managed.M
 @@public
 export function getAzureBlobStorageSdkPackages(includeNetStandard: boolean) : (Managed.ManagedNugetPackage | Managed.Assembly)[] {
     return [
+        ...getAzureBlobStorageSdkPackagesWithoutNetStandard(),
+        ...getSerializationPackages(includeNetStandard),
+        ...BuildXLSdk.getSystemMemoryPackages(includeNetStandard),
+    ];
+}
+
+@@public
+export function getAzureBlobStorageSdkPackagesWithoutNetStandard() : (Managed.ManagedNugetPackage)[] {
+    return [
         importFrom("WindowsAzure.Storage").pkg,
         importFrom("Azure.Storage.Blobs").pkg,
         importFrom("Azure.Storage.Common").pkg,
         importFrom("Azure.Core").pkg,
         importFrom("Azure.Storage.Blobs.Batch").pkg,
-        ...getSerializationPackages(includeNetStandard),
-        ...BuildXLSdk.getSystemMemoryPackages(includeNetStandard),
     ];
 }
 

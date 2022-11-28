@@ -297,6 +297,7 @@ namespace NugetPackages {
             importFrom("NLog").withQualifier(net472PackageQualifer).pkg,
             importFrom("Polly").withQualifier(net472PackageQualifer).pkg,
             importFrom("Polly.Contrib.WaitAndRetry").withQualifier(net472PackageQualifer).pkg,
+            ...importFrom("BuildXL.Cache.ContentStore").withQualifier(net472PackageQualifer).getAzureBlobStorageSdkPackagesWithoutNetStandard(),
         ]
     });
 

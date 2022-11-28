@@ -7,6 +7,11 @@
 ) 2>/dev/null | grep ' (2)' | sort | uniq
 ```
 
+Notes:
+- This command can take several minutes.
+- grep to get [syscalls](https://superuser.com/questions/297702/what-do-the-parentheses-and-number-after-a-unix-command-or-c-function-mean) only 
+
+
 # Current Implementation Status
 
 ## Legend

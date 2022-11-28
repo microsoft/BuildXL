@@ -6,6 +6,8 @@ using System.Diagnostics.ContractsLight;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 
+#nullable enable
+
 namespace BuildXL.Cache.MemoizationStore.Interfaces.Results
 {
     /// <summary>
@@ -46,10 +48,9 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Results
         /// <summary>
         ///     Initializes a new instance of the <see cref="GetContentHashListResult"/> class.
         /// </summary>
-        public GetContentHashListResult(string errorMessage, string diagnostics = null)
+        public GetContentHashListResult(string errorMessage, string? diagnostics = null)
             : base(errorMessage, diagnostics)
         {
-            Contract.Requires(errorMessage != null);
             Contract.Requires(errorMessage.Length > 0);
         }
 
@@ -59,16 +60,14 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Results
         public GetContentHashListResult(Exception exception)
             : base(exception)
         {
-            Contract.Requires(exception != null);
         }
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="GetContentHashListResult"/> class.
         /// </summary>
-        public GetContentHashListResult(ResultBase other, string message = null)
+        public GetContentHashListResult(ResultBase other, string? message = null)
             : base(other, message)
         {
-            Contract.Requires(other != null);
         }
 
         /// <summary>
@@ -99,9 +98,9 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Results
         /// </summary>
         /// <param name="other">An object to compare with this object.</param>
         /// <returns>true if the current object is equal to the other parameter; otherwise, false.</returns>
-        public bool Equals(GetContentHashListResult other)
+        public bool Equals(GetContentHashListResult? other)
         {
-            if (!base.Equals(other) || other == null)
+            if (!base.Equals(other))
             {
                 return false;
             }
@@ -110,7 +109,7 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Results
         }
 
         /// <inheritdoc />
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj is GetContentHashListResult other && Equals(other);
         }
@@ -143,7 +142,7 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Results
         /// <inheritdoc />
         protected override string GetSuccessString()
         {
-            var contentHashes = ContentHashListWithDeterminism.ContentHashList.Hashes;
+            var contentHashes = ContentHashListWithDeterminism.ContentHashList!.Hashes;
             return $"{base.GetSuccessString()} Count={contentHashes.Count}" + (contentHashes.Count != 0 ? $" firstHash={contentHashes[0]}" : string.Empty);
         }
     }

@@ -7,6 +7,8 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Serialization;
 using StructUtilities = BuildXL.Cache.ContentStore.Interfaces.Utils.StructUtilities;
 
+#nullable enable
+
 namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
 {
     /// <summary>
@@ -17,7 +19,7 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         /// <summary>
         ///     Initializes a new instance of the <see cref="ContentHashListWithDeterminism"/> struct
         /// </summary>
-        public ContentHashListWithDeterminism(ContentHashList contentHashList, CacheDeterminism determinism)
+        public ContentHashListWithDeterminism(ContentHashList? contentHashList, CacheDeterminism determinism)
         {
             ContentHashList = contentHashList;
             Determinism = determinism;
@@ -26,7 +28,7 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         /// <summary>
         ///     Gets the content hash list member.
         /// </summary>
-        public ContentHashList ContentHashList { get; }
+        public ContentHashList? ContentHashList { get; }
 
         /// <summary>
         ///     Gets the cache determinism member.
@@ -38,14 +40,8 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         /// </summary>
         public void Serialize(BuildXLWriter writer)
         {
-            Contract.Requires(writer != null);
-
-            var writeContentHashList = ContentHashList != null;
-            writer.Write(writeContentHashList);
-            if (writeContentHashList)
-            {
-                ContentHashList.Serialize(writer);
-            }
+            writer.Write(ContentHashList != null);
+            ContentHashList?.Serialize(writer);
 
             var determinism = Determinism.Serialize();
             writer.Write(determinism.Length);
@@ -58,8 +54,6 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         /// </summary>
         public static ContentHashListWithDeterminism Deserialize(BuildXLReader reader)
         {
-            Contract.Requires(reader != null);
-
             var writeContentHashList = reader.ReadBoolean();
             var contentHashList = writeContentHashList ? ContentHashList.Deserialize(reader) : null;
 
@@ -106,7 +100,7 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         }
 
         /// <inheritdoc />
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return StructUtilities.Equals(this, obj);
         }
@@ -136,7 +130,7 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         }
 
         /// <nodoc />
-        public string ToTraceString()
+        public string? ToTraceString()
         {
             if (ContentHashList == null)
             {

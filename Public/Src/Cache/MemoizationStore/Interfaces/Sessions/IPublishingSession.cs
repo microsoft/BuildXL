@@ -237,6 +237,7 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
             ContentHashListWithDeterminism contentHashList)
         {
             Contract.Assert(_cachePublisher != null, "Startup should be run before attempting to publish.");
+            Contract.RequiresNotNull(contentHashList.ContentHashList, "Should be publishing a valid local content hash list.");
 
             Tracer.Debug(context, $"Enqueueing publish request for StrongFingerprint=[{fingerprint}], CHL=[{contentHashList.ToTraceString()}]");
 
@@ -257,7 +258,7 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
                                         || remoteResult.ContentHashListWithDeterminism.Determinism.EffectiveGuid.Equals(_cachePublisher.CacheGuid));
 
                             // Skip publishing when local CHL matches remote CHL & the remote is backed.
-                            if (localContentHashList.Equals(remoteContentHashList) && isRemoteBacked)
+                            if (isRemoteBacked && localContentHashList.Equals(remoteContentHashList))
                             {
                                 publishSkipped = true;
                                 return BoolResult.Success;

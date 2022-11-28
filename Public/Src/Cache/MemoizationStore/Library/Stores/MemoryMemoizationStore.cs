@@ -199,7 +199,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
                         }
 
                         // Accept the value if it matches the final value in the cache
-                        if (contentHashListWithDeterminism.ContentHashList.Equals(record.ContentHashListWithDeterminism.ContentHashList))
+                        if (contentHashListWithDeterminism.ContentHashList?.Equals(record.ContentHashListWithDeterminism.ContentHashList) == true)
                         {
                             return new AddOrGetContentHashListResult(
                                 new ContentHashListWithDeterminism(null, record.ContentHashListWithDeterminism.Determinism));

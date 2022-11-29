@@ -607,7 +607,9 @@ namespace BuildXL.Engine.Distribution
             }
 
             // If we still have a connection with the worker, we should send a message to worker to make it exit. 
-            if (!m_isConnectionLost)
+            // We might be releasing a worker that didn't say Hello and so m_serviceLocation can be null, don't try to call exit
+            // in that case.
+            if (m_serviceLocation != null && !m_isConnectionLost)
             {
                 // We wait until this task is completed to give the worker
                 // a chance to attach and then respond gracefully to the exit.

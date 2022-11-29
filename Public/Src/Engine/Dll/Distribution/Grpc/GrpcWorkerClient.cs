@@ -71,6 +71,8 @@ namespace BuildXL.Engine.Distribution.Grpc
 
         public Task<RpcCallResult<Unit>> ExecutePipsAsync(PipBuildRequest message, IList<long> semiStableHashes)
         {
+            Contract.Assert(m_connectionManager != null, "The worker location should be known if calling ExecutePips");
+
             return m_connectionManager.CallAsync(
                async (callOptions) => await m_client.ExecutePipsAsync(message, options: callOptions),
                GetExecuteDescription(semiStableHashes, message.Hashes.Count));
@@ -78,6 +80,8 @@ namespace BuildXL.Engine.Distribution.Grpc
 
         public Task<RpcCallResult<Unit>> ExitAsync(BuildEndData message, CancellationToken cancellationToken)
         {
+            Contract.Assert(m_connectionManager != null, "The worker location should be known if calling Exit");
+
             m_connectionManager.ReadyForExit();
 
             return m_connectionManager.CallAsync(

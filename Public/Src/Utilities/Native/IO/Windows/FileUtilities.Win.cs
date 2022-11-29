@@ -184,7 +184,7 @@ namespace BuildXL.Native.IO.Windows
                 HashSet<string> pathsEnumeratedForDeletion = stringSetPool.Instance;
 
                 EnumerateDirectoryResult result = enumerateDirectory(pathsEnumeratedForDeletion);
-                
+
                 if (result.Status == EnumerateDirectoryStatus.AccessDenied)
                 {
                     Logger.Log.FileUtilitiesDiagnostic(m_loggingContext, directoryPath, $"Access denied when enumerated the directory. Already enumerated {pathsEnumeratedForDeletion.Count} items. Trying again.");
@@ -464,7 +464,7 @@ namespace BuildXL.Native.IO.Windows
                         {
                             builder.AppendLine(FileUtilitiesMessages.PathMayBePendingDeletion);
                         }
-                        
+
                         if (shouldDelete != null)
                         {
                             builder.AppendLine($"Should be deleted: {shouldDelete(fullPath, attributes.HasFlag(FileAttributes.ReparsePoint))}");
@@ -1319,7 +1319,8 @@ namespace BuildXL.Native.IO.Windows
             Contract.Requires(!string.IsNullOrEmpty(source));
             Contract.Requires(!string.IsNullOrEmpty(destination));
 
-            return Task.Run(() => {
+            return Task.Run(() =>
+            {
                 try
                 {
                     m_fileSystem.MoveFile(source, destination, replaceExisting);
@@ -1482,7 +1483,7 @@ namespace BuildXL.Native.IO.Windows
             var rng = new Random(destinationPath.GetHashCode());
             for (int i = 0; i < MaxTemporaryFileCreationAttempts; i++)
             {
-                string temporaryPath = I($"{dirPath}\\~DT-{unchecked((ushort) rng.Next()):X4}");
+                string temporaryPath = I($"{dirPath}\\~DT-{unchecked((ushort)rng.Next()):X4}");
 
                 OpenFileResult openResult = m_fileSystem.TryCreateOrOpenFile(
                     temporaryPath,
@@ -1624,16 +1625,16 @@ namespace BuildXL.Native.IO.Windows
             private struct LUID
             {
                 public uint LowPart;
-                public int  HighPart;
+                public int HighPart;
             }
 
             [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto, Pack = 0)]
             private struct EXPLICIT_ACCESS
             {
-                public uint        grfAccessPermissions;
+                public uint grfAccessPermissions;
                 public ACCESS_MODE grfAccessMode;
-                public uint        grfInheritance;
-                public TRUSTEE     Trustee;
+                public uint grfInheritance;
+                public TRUSTEE Trustee;
             }
 
             /// <summary>
@@ -1958,7 +1959,7 @@ namespace BuildXL.Native.IO.Windows
                 }
                 finally
                 {
-                    if (sidCurrentUser != IntPtr.Zero) 
+                    if (sidCurrentUser != IntPtr.Zero)
                     {
                         Marshal.FreeHGlobal(sidCurrentUser);
                     }
@@ -2333,46 +2334,34 @@ namespace BuildXL.Native.IO.Windows
         /// <inheritdoc />
         public void DisableAuditRuleInheritance(string path)
         {
+            FileInfo fileInfo = new FileInfo(path);
+
+            FileSecurity security;
             try
             {
-                FileInfo fileInfo = new FileInfo(path);
-
-                FileSecurity security;
-                try
-                {
-                    security = fileInfo.GetAccessControl(AccessControlSections.Audit);
-                }
-                catch (Exception)
-#pragma warning disable ERP022 // Unobserved exception in a generic exception handler
-                {
-                    TryTakeOwnershipAndSetWriteable(path);
-                    security = fileInfo.GetAccessControl(AccessControlSections.Audit);
-                }
-#pragma warning restore ERP022 // Unobserved exception in a generic exception handler
-
-                if (!security.AreAuditRulesProtected)
-                {
-                    security.SetAuditRuleProtection(isProtected: true, preserveInheritance: false);
-
-                    try
-                    {
-                        fileInfo.SetAccessControl(security);
-                    }
-                    catch (Exception)
-#pragma warning disable ERP022 // Unobserved exception in a generic exception handler
-                    {
-                        TryTakeOwnershipAndSetWriteable(path);
-                        fileInfo.SetAccessControl(security);
-                    }
-#pragma warning restore ERP022 // Unobserved exception in a generic exception handler
-                }
+                security = fileInfo.GetAccessControl(AccessControlSections.Audit);
             }
-            catch
-#pragma warning disable ERP022 // Unobserved exception in a generic exception handler
+            catch (UnauthorizedAccessException)
             {
-                // Swallowing exception on purpose.
+                TryTakeOwnershipAndSetWriteable(path);
+                security = fileInfo.GetAccessControl(AccessControlSections.Audit);
             }
-#pragma warning restore ERP022 // Unobserved exception in a generic exception handler
+
+            if (security.AreAuditRulesProtected)
+            {
+                return;
+            }
+
+            security.SetAuditRuleProtection(isProtected: true, preserveInheritance: false);
+            try
+            {
+                fileInfo.SetAccessControl(security);
+            }
+            catch (UnauthorizedAccessException)
+            {
+                TryTakeOwnershipAndSetWriteable(path);
+                fileInfo.SetAccessControl(security);
+            }
         }
 
         /// <inheritdoc />

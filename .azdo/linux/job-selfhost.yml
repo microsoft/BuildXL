@@ -38,8 +38,8 @@ jobs:
 
   timeoutInMinutes: 90
 
-#  strategy:
-#    parallel: 2
+  strategy:
+    parallel: 2
 
   steps:
   - task: UseDotNet@2
@@ -124,7 +124,7 @@ jobs:
       rm -f Out/CacheConfig.json
       tee Out/CacheConfig.json << EOF
       {
-      "RemoteIsReadOnly": true,
+      "RemoteIsReadOnly": false,
       "SkipDeterminismRecovery": true,
       "WriteThroughCasData": true,
       "FailIfRemoteFails": true,

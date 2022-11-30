@@ -125,7 +125,7 @@ namespace BuildXL.Engine.Distribution
 
                 WorkerIpAddress = value.IpAddress;
                 m_serviceLocation = value;
-                m_name = I($"#{WorkerId} ({m_serviceLocation.IpAddress}::{m_serviceLocation.Port})");
+                Name = I($"#{WorkerId} ({m_serviceLocation.IpAddress}::{m_serviceLocation.Port})");
 
                 m_workerClient.SetWorkerLocation(m_serviceLocation);
                 m_serviceLocationTcs.TrySetResult(Unit.Void);
@@ -136,11 +136,6 @@ namespace BuildXL.Engine.Distribution
 
         private readonly TaskCompletionSource<Unit> m_serviceLocationTcs = new();
         private Task WaitForServiceLocationTask => m_serviceLocationTcs.Task;
-
-        private string m_name;
-        
-        /// <inheritdoc />
-        public override string Name => m_name;
 
         /// <summary>
         /// Whether the worker is available to acquire work items
@@ -179,7 +174,7 @@ namespace BuildXL.Engine.Distribution
             }
             else
             {
-                m_name = I($"#{workerId} (uninitialized dynamic worker)");
+                Name = I($"#{workerId} (uninitialized dynamic worker)");
             }
 
             // Depending on how long send requests take. It might make sense to use the same thread between all workers. 

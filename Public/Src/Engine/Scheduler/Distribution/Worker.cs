@@ -319,9 +319,18 @@ namespace BuildXL.Scheduler.Distribution
         public virtual int CurrentBatchSize => 0;
 
         /// <summary>
-        /// Gets the name of the worker
+        /// The name of the worker
         /// </summary>
-        public virtual string Name { get; }
+        public string Name {
+            get => m_name;
+
+            protected set
+            {
+                m_name = value;
+                m_workerOperationKind.Name = $"Worker {m_name}";
+            }
+        }
+        private string m_name;
 
         /// <summary>
         /// Gets the worker IP address
@@ -350,7 +359,7 @@ namespace BuildXL.Scheduler.Distribution
             WorkerId = workerId;
             m_workerSemaphores = new SemaphoreSet<StringId>();
 
-            m_workerOperationKind = OperationKind.Create("Worker " + Name);
+            m_workerOperationKind = OperationKind.Create(string.IsNullOrEmpty(Name) ? $"Worker {workerId}" : $"Worker {Name}");
             DrainCompletion = TaskSourceSlim.Create<bool>();
             PipExecutionContext = context;
             InitSemaphores(context);

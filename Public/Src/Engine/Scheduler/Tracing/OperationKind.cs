@@ -67,7 +67,17 @@ namespace BuildXL.Scheduler.Tracing
         /// <summary>
         /// Gets the name of the operation
         /// </summary>
-        public string Name => IsValid ? Inner.Names[Value] : "[Invalid]";
+        public string Name
+        {
+            get => IsValid ? Inner.Names[Value] : "[Invalid]";
+            set
+            {
+                if (IsValid)
+                {
+                    Inner.MutableNames[Value] = value;
+                }
+            }
+        }
 
         /// <summary>
         /// Tracked cachelookup counter count
@@ -249,7 +259,7 @@ namespace BuildXL.Scheduler.Tracing
 
             public static IReadOnlyList<OperationKind> PipTypeSpecificOperations => s_pipTypeSpecificOperations;
 
-            public static IReadOnlyList<string> Names => s_names;
+            public static IReadOnlyList<string> Names => MutableNames;
 
             private static readonly List<OperationKind> s_allOperations = new List<OperationKind>();
             private static readonly List<OperationKind> s_trackedCacheCounterKinds = new List<OperationKind>();
@@ -257,7 +267,7 @@ namespace BuildXL.Scheduler.Tracing
             private static readonly List<OperationKind> s_operationCounterKinds = new List<OperationKind>();
             private static readonly List<OperationKind> s_pipExecutionStepKinds = new List<OperationKind>();
             private static readonly List<OperationKind> s_pipTypeSpecificOperations = new List<OperationKind>();
-            private static readonly List<string> s_names = new List<string>();
+            internal static readonly List<string> MutableNames = new List<string>();
 
             private static readonly object s_addOperationLock = new object();
 
@@ -280,7 +290,7 @@ namespace BuildXL.Scheduler.Tracing
                         (short?)s_pipTypeSpecificOperations.Count : null;
                     var operation = new OperationKind((ushort)index, pipTypeCounterStartIndex, (short)trackedCacheCounterId);
                     s_allOperations.Add(operation);
-                    s_names.Add(name);
+                    MutableNames.Add(name);
 
                     if (hasPipTypeSpecialization)
                     {

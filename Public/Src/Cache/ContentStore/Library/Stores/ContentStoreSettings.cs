@@ -67,6 +67,8 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// avoiding attempting to create a directory on each operation.
         /// </summary>
         public bool AssumeCallerCreatesDirectoryForPlace { get; set; } = false;
+
+        public bool RemoveAuditRuleInheritance { get; set; } = false;
     }
 
     /// <nodoc />

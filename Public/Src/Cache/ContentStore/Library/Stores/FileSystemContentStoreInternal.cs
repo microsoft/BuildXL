@@ -1346,14 +1346,18 @@ namespace BuildXL.Cache.ContentStore.Stores
             {
                 FileSystem.DenyFileWrites(path, disableInheritance: true);
 
-                try
+
+                if (_settings.RemoveAuditRuleInheritance)
                 {
-                    FileSystem.DisableAuditRuleInheritance(path);
-                }
-                catch (Exception e)
-                {
-                    // Trace but don't throw, since it would otherwise break tests, and there is no guarantee that the cache is being run as an admin; and there shouldn't be.
-                    _tracer.Debug(context, e, "Exception found when trying to disable audit rule inheritance. This is likely due to not running as an administrator.");
+                    try
+                    {
+                        FileSystem.DisableAuditRuleInheritance(path);
+                    }
+                    catch (Exception e)
+                    {
+                        // Trace but don't throw, since it would otherwise break tests, and there is no guarantee that the cache is being run as an admin; and there shouldn't be.
+                        _tracer.Debug(context, e, "Exception found when trying to disable audit rule inheritance. This is likely due to not running as an administrator.");
+                    }
                 }
 
                 if (_applyDenyWriteAttributesOnContent)

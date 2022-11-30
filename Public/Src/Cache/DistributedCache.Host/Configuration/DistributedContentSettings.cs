@@ -764,6 +764,9 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public bool UseRedundantPutFileShortcut { get; set; } = false;
 
+        [DataMember]
+        public bool? RemoveAuditRuleInheritance { get; set; } = false;
+
         /// <summary>
         /// Gets or sets whether to override Unix file access modes.
         /// </summary>

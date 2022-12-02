@@ -57,6 +57,7 @@ jobs:
       set -euo pipefail
       echo "== Making sure source directory is clean =="
       git clean -xdf -e Out
+      rm -rf Out
     displayName: Cleaning up source directory
 
   - bash: |
@@ -113,6 +114,7 @@ jobs:
   - bash: |
       echo "== Deleting Out/frontend/Nuget/tmp, Out/bin, Out/Bootstrap folders to reduce the size of the NuGet cache dir"
       rm -rf Out/frontend/Nuget/tmp Out/Objects.noindex Out/bin Out/BootStrap
+      rm -rf Out/Bin
       echo "== Disk usage of folders in Out"
       du -sh Out/*
     continueOnError: true
@@ -159,7 +161,7 @@ jobs:
   - bash: |
       set -eu
       # the disks on Azure Pipeline VMs are too small to build everything, so let's instead run tests
-      ./bxl.sh --use-dev --use-adobuildrunner ${{ parameters.BxlCommonArgs }} /logsDirectory:"Out/Logs/${{ parameters.validationName }}" ${{ parameters.bxlExtraArgs }} "/f:tag='test' /p:BUILDXL_FINGERPRINT_SALT='KickLinuxDistributed_10_4_2022'"
+      ./bxl.sh --use-dev --use-adobuildrunner ${{ parameters.BxlCommonArgs }} /logsDirectory:"Out/Logs/${{ parameters.validationName }}" ${{ parameters.bxlExtraArgs }} "/f:tag='test' /p:BUILDXL_FINGERPRINT_SALT='KickLinuxDistributed_12_1_2022'"
     displayName: Test (${{ parameters.validationName }})
     workingDirectory: /home/subst
     env:

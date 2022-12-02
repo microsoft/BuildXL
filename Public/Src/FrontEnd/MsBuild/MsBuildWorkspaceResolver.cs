@@ -36,21 +36,18 @@ namespace BuildXL.FrontEnd.MsBuild
         /// <summary>
         /// Set of well known locations that are used to identify a candidate entry point to parse, if a specific one is not provided
         /// </summary>
-        private static readonly HashSet<string> s_wellKnownEntryPointExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase){"proj", "sln"};
+        private static readonly HashSet<string> s_wellKnownEntryPointExtensions = new(StringComparer.OrdinalIgnoreCase) { "proj", "sln" };
 
         /// <summary>
         /// Keep in sync with the BuildXL deployment spec that places the tool
         /// </summary>
         private RelativePath RelativePathToGraphConstructionTool =>
-            RelativePath.Create(Context.StringTable, ResolverSettings.ShouldRunDotNetCoreMSBuild() ?
-                @"tools\MsBuildGraphBuilder\dotnetcore\ProjectGraphBuilder.dll" :
-                @"tools\MsBuildGraphBuilder\net472\ProjectGraphBuilder.exe");
+            RelativePath.Create(Context.StringTable, ResolverSettings.ShouldRunDotNetCoreMSBuild()
+                ? @"tools\MsBuildGraphBuilder\dotnetcore\ProjectGraphBuilder.dll"
+                : @"tools\MsBuildGraphBuilder\net472\ProjectGraphBuilder.exe");
 
         /// <inheritdoc/>
-        public MsBuildWorkspaceResolver()
-        {
-            Name = MsBuildResolverName;
-        }
+        public MsBuildWorkspaceResolver() => Name = MsBuildResolverName;
 
         /// <inheritdoc/>
         public override string Kind => KnownResolverKind.MsBuildResolverKind;

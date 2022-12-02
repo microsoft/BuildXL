@@ -338,7 +338,7 @@ namespace MsBuildGraphBuilderTool
             catch(Exception ex)
             {
                 failure = $"Cannot create standard predictors. An unexpected error occurred. Please contact BuildPrediction project owners with this stack trace: {ex}";
-                projectGraphWithPredictions = new ProjectGraphWithPredictions(new ProjectWithPredictions<string>[] { });
+                projectGraphWithPredictions = new ProjectGraphWithPredictions(Array.Empty<ProjectWithPredictions<string>>());
                 return false;
             }
 

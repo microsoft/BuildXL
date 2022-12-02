@@ -22,10 +22,6 @@ namespace BuildXL.FrontEnd.Utilities
     /// </summary>
     public class PipConstructionUtilities
     {
-#pragma warning disable SYSLIB0021 // Type or member is obsolete. Temporarily suppressing the warning for .net 6. Work item: 1885580
-        private static readonly SHA256 s_hashManager = SHA256Managed.Create();
-#pragma warning restore SYSLIB0021 // Type or member is obsolete
-
         /// <summary>
         /// Returns a string that will be valid for constructing a symbol by replacing all invalid characters
         /// with a valid one
@@ -38,9 +34,9 @@ namespace BuildXL.FrontEnd.Utilities
         {
             // The case of an empty value for a property is preserved as is
             // Other cases (project full path or property key) should never be empty
-            if (String.IsNullOrEmpty(aString))
+            if (string.IsNullOrEmpty(aString))
             {
-                return String.Empty;
+                return string.Empty;
             }
 
             var builder = new StringBuilder(aString.Length);
@@ -172,8 +168,9 @@ namespace BuildXL.FrontEnd.Utilities
         /// <nodoc />
         public static string ComputeSha256(string content)
         {
+            using SHA256 sha256 = SHA256.Create();
             byte[] contentBytes = Encoding.UTF8.GetBytes(content);
-            byte[] hashBytes = s_hashManager.ComputeHash(contentBytes);
+            byte[] hashBytes = sha256.ComputeHash(contentBytes);
 
             return hashBytes.ToHex();
         }

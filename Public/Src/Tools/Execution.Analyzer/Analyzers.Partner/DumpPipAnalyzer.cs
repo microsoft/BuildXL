@@ -556,6 +556,7 @@ namespace BuildXL.Execution.Analyzer
                     m_html.CreateRow("PreserveOutputTrustLevel", pip.PreserveOutputsTrustLevel),
                     m_html.CreateRow("PreserveOutputsAllowlist", pip.PreserveOutputAllowlist.Select(allowed => allowed.ToString(PathTable))),
                     m_html.CreateRow("ProcessOptions", pip.ProcessOptions.ToString()),
+                    m_html.CreateRow("RewritePolicy", pip.RewritePolicy.ToString()),
                     m_html.CreateRow("RetryExitCodes", string.Join(",", pip.RetryExitCodes)),
                     (pip.ProcessRetries != null ? m_html.CreateRow("ProcessRetries", pip.ProcessRetries.Value) : null)),
 

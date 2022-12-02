@@ -296,7 +296,7 @@ interface MsBuildResolver extends ResolverBase, UntrackingSettings {
      * Policy to apply when a double write occurs. By default double writes are only allowed if the produced content is the same.
      */
     doubleWritePolicy?: DoubleWritePolicy;
-
+    
     /**
      * Whether projects are allowed to not specify their target protocol.
      * When true, default targets will be used as heuristics. Defaults to false.

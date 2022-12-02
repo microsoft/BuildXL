@@ -81,13 +81,15 @@ namespace BuildXL.Utilities.Configuration
             processEnvironmentUsed = false;
             var trackedList = new Dictionary<string, string>(OperatingSystemHelper.EnvVarComparer);
             var passthroughList = new List<string>();
+            var builder = new StringBuilder();
 
             foreach (var kvp in resolverSettings.Environment)
             {
+                builder.Clear();
                 var valueOrPassthrough = kvp.Value?.GetValue();
                 if (valueOrPassthrough == null || valueOrPassthrough is not UnitValue)
                 {
-                    trackedList.Add(kvp.Key, ProcessEnvironmentData(kvp.Value, pathTable));
+                    trackedList.Add(kvp.Key, ProcessEnvironmentData(kvp.Value, pathTable, builder));
                 }
                 else
                 {
@@ -99,7 +101,7 @@ namespace BuildXL.Utilities.Configuration
             passthroughEnv = passthroughList;
         }
 
-        private static string ProcessEnvironmentData([CanBeNull] EnvironmentData environmentData, PathTable pathTable)
+        private static string ProcessEnvironmentData([CanBeNull] EnvironmentData environmentData, PathTable pathTable, StringBuilder s)
         {
             if (environmentData == null)
             {
@@ -109,7 +111,6 @@ namespace BuildXL.Utilities.Configuration
             object data = environmentData.GetValue();
             Contract.Assert(data is not UnitValue);
 
-            StringBuilder s = new StringBuilder();
             DoProcessEnvironmentData(data, pathTable, s);
 
             return s.ToString();

@@ -75,12 +75,7 @@ namespace BuildXL.FrontEnd.MsBuild
             m_msBuildWorkspaceResolver = workspaceResolver as MsBuildWorkspaceResolver;
             Contract.Assert(m_msBuildWorkspaceResolver != null, $"Wrong type for resolver, expected {nameof(MsBuildWorkspaceResolver)} but got {nameof(workspaceResolver.GetType)}");
 
-            if (!ValidateResolverSettings(m_msBuildResolverSettings))
-            {
-                return Task.FromResult(false);
-            }
-
-            return Task.FromResult(true);
+            return !ValidateResolverSettings(m_msBuildResolverSettings) ? Task.FromResult(false) : Task.FromResult(true);
         }
 
         private bool ValidateResolverSettings(IMsBuildResolverSettings msBuildResolverSettings)
@@ -318,7 +313,7 @@ namespace BuildXL.FrontEnd.MsBuild
             return maybeScheduleResult.Succeeded;
         }
 
-        private bool ProjectMatchesQualifier(ProjectWithPredictions project, GlobalProperties qualifier)
+        private static bool ProjectMatchesQualifier(ProjectWithPredictions project, GlobalProperties qualifier)
         {
             return qualifier.All(kvp =>
                     // The project properties should contain all qualifier keys

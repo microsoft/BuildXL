@@ -221,8 +221,9 @@ namespace BuildXL.FrontEnd.Script
                     return null;
                 }
 
-                return configObjectLiteral == null ? ResolveConfigObjectLiteral(instantiatedModule, context) 
-                    : (ObjectLiteral)configObjectLiteral.Merge(context, EvaluationStackFrame.UnsafeFrom(new EvaluationResult[0]), new EvaluationResult(ResolveConfigObjectLiteral(instantiatedModule, context))).Value;
+                return configObjectLiteral == null 
+                    ? ResolveConfigObjectLiteral(instantiatedModule, context) 
+                    : (ObjectLiteral)configObjectLiteral.Merge(context, EvaluationStackFrame.UnsafeFrom(System.Array.Empty<EvaluationResult>()), new EvaluationResult(ResolveConfigObjectLiteral(instantiatedModule, context))).Value;
             }
         }
 
@@ -231,7 +232,7 @@ namespace BuildXL.FrontEnd.Script
         /// Since we actually support two config keywords (the legacy one is there for compat reasons), we need to check both cases
         /// Returns null if the result cannot be casted to an object literal.
         /// </summary>
-        private ObjectLiteral ResolveConfigObjectLiteral(ModuleLiteral instantiatedModule, Context context)
+        private static ObjectLiteral ResolveConfigObjectLiteral(ModuleLiteral instantiatedModule, Context context)
         {
             var bindings = instantiatedModule.GetAllBindings(context).ToList();
             Contract.Assert(bindings.Count == 1, "Expected AstConverter to produce exactly one binding in the resulting ModuleLiteral when converting a config file");
@@ -240,7 +241,7 @@ namespace BuildXL.FrontEnd.Script
             return instantiatedModule
                 .GetOrEvalFieldBinding(
                     context,
-                    SymbolAtom.Create(context.StringTable, Script.Constants.Names.ConfigurationFunctionCall),
+                    SymbolAtom.Create(context.StringTable, Constants.Names.ConfigurationFunctionCall),
                     binding.Value,
                     instantiatedModule.Location)
                 .Value as ObjectLiteral;

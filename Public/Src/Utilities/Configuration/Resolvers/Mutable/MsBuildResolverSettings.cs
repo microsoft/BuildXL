@@ -64,7 +64,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
         {
             // If RootTraversal is not set, we use the value of Root
             get => m_rootTraversal != AbsolutePath.Invalid ? m_rootTraversal : Root;
-            set { m_rootTraversal = value; }
+            set => m_rootTraversal = value;
         }
 
         /// <inheritdoc/>

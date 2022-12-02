@@ -528,7 +528,7 @@ namespace BuildXL.FrontEnd.MsBuild
             out string failureDetail)
         {
             outputResultCacheFile = AbsolutePath.Invalid;
-            if (!TrySetBuildToolExecutor(pipConstructionHelper, processBuilder, project))
+            if (!TrySetBuildToolExecutor(processBuilder, project))
             {
                 failureDetail = "Failed to construct tooldefinition";
                 return false;
@@ -551,8 +551,11 @@ namespace BuildXL.FrontEnd.MsBuild
             // to avoid a large number of path sets
             processBuilder.Options |= Process.Options.EnforceWeakFingerprintAugmentation;
 
-            // By default the double write policy is to allow same content double writes
-            processBuilder.RewritePolicy |= m_resolverSettings.DoubleWritePolicy ?? RewritePolicy.AllowSameContentDoubleWrites;
+            // By default the double write policy is to allow same content double writes and safe rewrites.
+            // Otherwise we honor the double write policy specified in the resolver configuration
+            processBuilder.RewritePolicy |= m_resolverSettings.DoubleWritePolicy.HasValue 
+                ? (m_resolverSettings.DoubleWritePolicy.Value | RewritePolicy.SafeSourceRewritesAreAllowed)
+                : RewritePolicy.DefaultSafe;
 
             SetUntrackedFilesAndDirectories(processBuilder.WorkingDirectory, processBuilder);
 
@@ -838,10 +841,7 @@ namespace BuildXL.FrontEnd.MsBuild
             return result;
         }
 
-        private bool TrySetBuildToolExecutor(
-            PipConstructionHelper pipConstructionHelper,
-            ProcessBuilder processBuilder,
-            ProjectWithPredictions project)
+        private bool TrySetBuildToolExecutor(ProcessBuilder processBuilder, ProjectWithPredictions project)
         {
             // If we should use the dotnet core version of msbuild, the executable for the pip is dotnet.exe instead of msbuild.exe, and
             // the first argument is msbuild.dll
@@ -951,20 +951,19 @@ namespace BuildXL.FrontEnd.MsBuild
         /// </summary>
         private string ComputeSha256(ProjectWithPredictions projectWithPredictions)
         {
-            using (var builderWrapper = Pools.GetStringBuilder())
-            {
-                // full path, global properties and targets to execute should uniquely identify the project within the build graph
-                StringBuilder builder = builderWrapper.Instance;
-                builder.Append(projectWithPredictions.FullPath.ToString(PathTable));
-                builder.Append("|");
-                builder.Append(projectWithPredictions.PredictedTargetsToExecute.IsDefaultTargetsAppended);
-                builder.Append(string.Join("|", projectWithPredictions.PredictedTargetsToExecute.Targets));
+            using var builderWrapper = Pools.GetStringBuilder();
 
-                builder.Append("|");
-                builder.Append(string.Join("|", projectWithPredictions.GlobalProperties.Select(kvp => kvp.Key + "|" + kvp.Value)));
+            // full path, global properties and targets to execute should uniquely identify the project within the build graph
+            StringBuilder builder = builderWrapper.Instance;
+            builder.Append(projectWithPredictions.FullPath.ToString(PathTable));
+            builder.Append('|');
+            builder.Append(projectWithPredictions.PredictedTargetsToExecute.IsDefaultTargetsAppended);
+            builder.Append(string.Join("|", projectWithPredictions.PredictedTargetsToExecute.Targets));
 
-                return PipConstructionUtilities.ComputeSha256(builder.ToString());
-            }
+            builder.Append('|');
+            builder.Append(string.Join("|", projectWithPredictions.GlobalProperties.Select(kvp => kvp.Key + "|" + kvp.Value)));
+
+            return PipConstructionUtilities.ComputeSha256(builder.ToString());
         }
 
         /// <inheritdoc/>

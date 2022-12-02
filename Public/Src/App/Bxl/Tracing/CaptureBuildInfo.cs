@@ -54,6 +54,16 @@ namespace BuildXL
         public const string AdoPreDefinedVariableForBuildId = "BUILD_BUILDID";
 
         /// <summary>
+        /// ADO predefined variable to obtain the name of the project that contains the ADO build.
+        /// </summary>
+        public const string AdoPreDefinedVariableForProject = "SYSTEM_TEAMPROJECT";
+
+        /// <summary>
+        /// ADO predefined variable to obtain the requester of the ADO build.
+        /// </summary>
+        public const string AdoPreDefinedVariableForRequester = "BUILD_REQUESTEDFOR";
+
+        /// <summary>
         /// This is the primary method in the class which is called by ComputeEnvironment(), to capture the build properties.
         /// </summary>
         /// <param name="configuration">This configuration object contains computed telemetry env properties and traceInfo flag fields.</param>
@@ -73,6 +83,12 @@ namespace BuildXL
 
             // The build id for the pipeline run that triggers this build (ADO only)
             CaptureNewPropertyFromEnvironment(traceInfoProperties, CaptureBuildProperties.AdoBuildIdKey, AdoPreDefinedVariableForBuildId);
+
+            // The project name for the pipeline run that triggers this build (ADO only)
+            CaptureNewPropertyFromEnvironment(traceInfoProperties, CaptureBuildProperties.AdoProjectKey, AdoPreDefinedVariableForProject);
+
+            // The requester name for this build (ADO only)
+            CaptureNewPropertyFromEnvironment(traceInfoProperties, CaptureBuildProperties.AdoProjectKey, AdoPreDefinedVariableForRequester);
 
             // See GetStageId and GetInfra
             CaptureNewProperty(traceInfoProperties, CaptureBuildProperties.StageIdKey, () => GetStageId(configuration));

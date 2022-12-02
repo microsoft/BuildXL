@@ -26,7 +26,7 @@ namespace npmPackages {
         : undefined;
 
         @@public
-        export const deployedLinux = BuildXLSdk.Flags.isMicrosoftInternal && Context.getCurrentHost().os === "win"
+        export const deployedLinux = BuildXLSdk.Flags.isMicrosoftInternal && Context.getCurrentHost().os === "unix"
             ? BuildXLSdk.DeploymentHelpers.deploy({
                 definition: DeploymentRuntime.withQualifier(
                     {   configuration: qualifier.configuration, 

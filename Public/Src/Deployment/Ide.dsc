@@ -10,27 +10,29 @@ namespace Ide {
     const deployment : Deployment.Definition = {
         contents: [
             ...addIfLazy(Context.getCurrentHost().os === "win", () => [
-            ...addIfLazy(BuildXLSdk.Flags.isMicrosoftInternal, () => [{
-                file: importFrom("BuildXL.Ide.VsIntegration").withQualifier({
-                    targetFramework: "net472",
-                    targetRuntime: "win-x64"}
-                    ).BuildXLVsPackage.vsix,
-                targetFileName: a`BuildXL.vs.vsix`,
-            }]),
-            {
-                file: importFrom("BuildXL.Ide").withQualifier({
-                    targetFramework: BuildXLSdk.TargetFrameworks.DefaultTargetFramework,
-                    targetRuntime: "win-x64"}
-                    ).LanguageService.Server.vsix,
-                targetFileName: a`BuildXL.vscode.win.vsix`,
-            }]),
-            {
-                file: importFrom("BuildXL.Ide").withQualifier({
-                    targetFramework: BuildXLSdk.TargetFrameworks.DefaultTargetFramework,
-                    targetRuntime: "osx-x64"}
-                    ).LanguageService.Server.vsix,
-                targetFileName: a`BuildXL.vscode.osx.vsix`,
-            }
+                ...addIfLazy(BuildXLSdk.Flags.isMicrosoftInternal, () => [{
+                    file: importFrom("BuildXL.Ide.VsIntegration").withQualifier({
+                        targetFramework: "net472",
+                        targetRuntime: "win-x64"}
+                        ).BuildXLVsPackage.vsix,
+                    targetFileName: a`BuildXL.vs.vsix`,
+                    }
+                ]),
+                {
+                    file: importFrom("BuildXL.Ide").withQualifier({
+                        targetFramework: BuildXLSdk.TargetFrameworks.DefaultTargetFramework,
+                        targetRuntime: "win-x64"}
+                        ).LanguageService.Server.vsix,
+                    targetFileName: a`BuildXL.vscode.win.vsix`,
+                },
+                {
+                    file: importFrom("BuildXL.Ide").withQualifier({
+                        targetFramework: BuildXLSdk.TargetFrameworks.DefaultTargetFramework,
+                        targetRuntime: "osx-x64"}
+                        ).LanguageService.Server.vsix,
+                    targetFileName: a`BuildXL.vscode.osx.vsix`,
+                }
+            ]),
         ],
     };
 

@@ -72,7 +72,8 @@ namespace UnitTests
             dependsOnCurrentHostOSDirectories: true,
             prepareTempDirectory: true,
             untrackedDirectoryScopes: [ d`/lib` ],
-            untrackedFiles: []
+            untrackedFiles: [],
+            runtimeDependencies: [f`/usr/lib64/ld-linux-x86-64.so.2`]
         };
     }
 }

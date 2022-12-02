@@ -7,23 +7,10 @@ resources:
     name: 1ESPipelineTemplates/1ESPipelineTemplates
     ref: refs/tags/release
 
-variables:
-  PackageArtifactName: runtime.ubuntu-linux-x64.buildxl.${{ parameters.LinuxRuntimePackageVersion }}
-  PackageDir: $(Build.SourcesDirectory)/Public/Src/Sandbox/Linux/bin/$(PackageArtifactName)
-
 parameters:
 - name: BuildSelfhost
   type: boolean
   default: true
-- name: BuildLinuxRuntime
-  type: boolean
-  default: true
-- name: PublishLinuxRuntimeNuget
-  type: boolean
-  default: false
-- name: LinuxRuntimePackageVersion
-  type: string
-  default: 0.1.0-$(Build.BuildNumber).$(System.JobAttempt)
 
 extends:
   template: v1/1ES.Unofficial.PipelineTemplate.yml@1esPipelines
@@ -50,55 +37,3 @@ extends:
           parameters:
             ValidationName: InternalRelease
             BxlExtraArgs: --internal /q:ReleaseLinux
-
-      # Build Linux native runtime libraries with make
-      - ${{ if parameters.BuildLinuxRuntime }}:
-        - job: BuildLinuxRuntime
-          displayName: Build Linux Runtime
-          templateContext:
-            inputs:
-            - input: checkout
-              repository: self
-              fetchDepth: 1
-            outputs:
-            - output: pipelineArtifact
-              targetPath: $(PackageDir)
-              artifactName: $(PackageArtifactName)
-              condition: always()
-              continueOnError: true
-              displayName: Publish Pipeline Artifact
-            sdl:
-              credscan:
-                enabled: false
-              publishLogs:
-                enabled: false
-          steps:
-          - bash: make cleanall && make all -j
-            workingDirectory: Public/Src/Sandbox/Linux
-            failOnStderr: true
-            displayName: Build Native
-
-          - bash: bash mknuget.sh ${{ parameters.LinuxRuntimePackageVersion }}
-            workingDirectory: Public/Src/Sandbox/Linux
-            displayName: Pack Nuget
-
-        # Publish the built runtime in a separate job
-        # TODO: this could be merged with the previous job if the container image had all the required tools preinstalled
-        - ${{ if parameters.PublishLinuxRuntimeNuget }}:
-          - job: PublishNativeRuntimeNuget
-            displayName: Publish Linux Runtime NuGet
-            dependsOn: [ BuildLinuxRuntime ]
-            container: linux_container
-            steps:
-            - checkout: none
-            - task: DownloadPipelineArtifact@2
-              inputs:
-                artifact: $(PackageArtifactName)
-                path:  $(Build.ArtifactStagingDirectory)/$(PackageArtifactName)
-            - template: /.azdo/linux/step-nuget-config.yml@self
-            - bash: |
-                set -eu
-                zip -r ../$(PackageArtifactName).nupkg *
-                dotnet nuget push --skip-duplicate --api-key "AzureDevOps" --source "$(Feed-BuildXL.Selfhost)" ../$(PackageArtifactName).nupkg
-              displayName: Push NuGet
-              workingDirectory: $(Build.ArtifactStagingDirectory)/$(PackageArtifactName)

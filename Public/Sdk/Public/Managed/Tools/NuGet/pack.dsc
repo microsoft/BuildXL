@@ -161,12 +161,26 @@ export function pack(args: Arguments): PackResult {
         dependencies: nuspecData.dependencies,
         outputs: [
             nupkgPath
-        ]
+        ],
+        unsafe: {
+            untrackedScopes: [
+                ...addIfLazy(Context.getCurrentHost().os === "unix", () => [
+                    d`${Context.getMount("UserProfile").path}/.local/share/NuGet`,
+                    d`${Context.getMount("UserProfile").path}/.config/share/NuGet`,
+                    d`${Context.getMount("UserProfile").path}/.nuget/share/NuGet`,
+                ]),
+            ],
+            untrackedPaths: [
+                ...addIfLazy(Context.getCurrentHost().os === "unix", () => [
+                    d`${Context.getMount("UserProfile").path}`,
+                ]),
+            ]
+        }
     };
 
-    const executeResult =  Context.getCurrentHost().os === "win" ?
-        Transformer.execute(execArgs) :
-        Mono.execute(execArgs);
+    const executeResult =  Context.getCurrentHost().os === "win"
+        ? Transformer.execute(execArgs)
+        : Mono.execute(execArgs);
 
     return {
         nuPkg: executeResult.getOutputFile(nupkgPath)

@@ -19,10 +19,4 @@ namespace Tests {
         definition: deployment, 
         targetLocation: r`tests/${qualifier.configuration}`
     });
-
-    @@public
-    export const linuxTestsDeployed = (qualifier.targetRuntime === "linux-x64") && BuildXLSdk.DeploymentHelpers.deploy({
-        definition: Tests.Linux.deployment,
-        targetLocation: r`linux-x64-tests/${qualifier.configuration}`
-    });
 }

@@ -53,7 +53,8 @@ export function execute(args: Transformer.ExecuteArguments): Transformer.Execute
         dependencies: args.dependencies,
         outputs: args.outputs,
         consoleOutput: p`${out}/stdout.txt`,
-        consoleError: p`${out}/stderr.txt`
+        consoleError: p`${out}/stderr.txt`,
+        unsafe: args.unsafe
     };
 
     return Transformer.execute(execArgs);

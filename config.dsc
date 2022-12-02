@@ -417,15 +417,6 @@ config({
                 // ANTLR
                 { id: "Antlr4.Runtime.Standard", version: "4.7.2" },
 
-                // Runtime dependencies for Linux
-                {
-                    id: "runtime.ubuntu-linux-x64.buildxl",
-                    version: "0.1.0-20221125.4.1",
-                    osSkip: importFile(f`config.microsoftInternal.dsc`).isMicrosoftInternal
-                        ? []
-                        : [ "win", "macOS", "unix" ]
-                },
-
                 // For C++ testing
                 { id: "boost", version: "1.71.0.0" },
 
@@ -546,9 +537,9 @@ config({
                 // The following are needed for dotnet core MSBuild test deployments
                 {
                     moduleName: "DotNet-Runtime.win-x64.2.2.2",
-                    url: "https://download.visualstudio.microsoft.com/download/pr/b10d0a68-b720-48ae-bab8-4ac39bd1b5d3/f32b8b41dff5c1488c2b915a007fc4a6/dotnet-runtime-2.2.2-win-x64.zip",
-                    hash: "VSO0:6BBAE77F9BA0231C90ABD9EA720FF886E8613CE8EF29D8B657AF201E2982829600",
-                    archiveType: "zip",
+                    url: "https://download.visualstudio.microsoft.com/download/pr/97b97652-4f74-4866-b708-2e9b41064459/7c722daf1a80a89aa8c3dec9103c24fc/dotnet-runtime-2.2.2-linux-x64.tar.gz",
+                    hash: "VSO0:6E5172671364C65B06C9940468A62BAF70EE27392CB2CA8B2C8BFE058CCD088300",
+                    archiveType: "tgz",
                 },
                 // NodeJs
                 {

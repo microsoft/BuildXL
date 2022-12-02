@@ -153,24 +153,24 @@ namespace NugetPackages {
         ],
         deploymentOptions: reducedDeploymentOptions,
         additionalContent: [
-            {
+            ...addIfLazy(Context.getCurrentHost().os === "win", () => [{
                 subfolder: r`runtimes/win-x64/native/`,
                 contents: [
                     ...importFrom("BuildXL.Utilities").withQualifier(netstandard20PackageQualifer).Native.nativeWin,
                 ],
-            },
-            {
+            }]),
+            ...addIfLazy(Context.getCurrentHost().os === "macOS", () => [{
                 subfolder: r`runtimes/osx-x64/native/`,
                 contents: [
                     ...importFrom("BuildXL.Utilities").withQualifier(osxPackageQualifier).Native.nativeMac,
                 ],
-            },
-            {
+            }]),
+            ...addIfLazy(Context.getCurrentHost().os === "unix", () => [{
                 subfolder: r`runtimes/linux-x64/native/`,
                 contents: [
                     ...importFrom("BuildXL.Utilities").withQualifier(linuxPackageQualifier).Native.nativeLinux,
                 ],
-            },
+            }]),
         ]
     });
 
@@ -358,11 +358,16 @@ namespace NugetPackages {
                 utilities,
                 pips,
                 processes,
-                engineCache
+                engineCache,
+                sdks,
+                // macOS specific packages
+                toolsSandBoxExec,
+                osxX64,
+                toolsAdoBuildRunner,
             ]),
-            sdks,
-            ...addIf(!BuildXLSdk.Flags.genVSSolution, osxX64, linuxX64, toolsAdoBuildRunner),
-            toolsSandBoxExec
+            ...addIfLazy(!BuildXLSdk.Flags.genVSSolution && Context.getCurrentHost().os === "unix", () => [
+                linuxX64
+            ]),
         ]
     };
 

@@ -259,6 +259,8 @@ namespace BuildXL.Interop.Unix
 
             public AccessReportStatistics Statistics;
 
+            public uint IsDirectory;
+
             public string DecodeOperation() => Operation.GetName();
 
             /// <summary>

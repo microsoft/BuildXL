@@ -53,7 +53,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             GlobalUnsafePassthroughEnvironmentVariables = new List<string>();
             VmConcurrencyLimit = 0;
             DirectoriesToEnableFullReparsePointParsing = new List<AbsolutePath>();
-            ExplicitlyReportDirectoryProbes = false;
+            ExplicitlyReportDirectoryProbes = OperatingSystemHelper.IsLinuxOS;
             PreserveFileSharingBehaviour = false;
         }
 

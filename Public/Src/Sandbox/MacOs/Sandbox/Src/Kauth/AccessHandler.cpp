@@ -43,6 +43,7 @@ void AccessHandler::SetProcessPath(AccessReport *report)
 ReportResult AccessHandler::ReportFileOpAccess(FileOperation operation,
                                                PolicyResult policyResult,
                                                AccessCheckResult checkResult,
+                                               uint isDirectory,
                                                CacheRecord *cacheRecord)
 {
     AccessReport report =
@@ -56,7 +57,8 @@ ReportResult AccessHandler::ReportFileOpAccess(FileOperation operation,
         .error              = 0,
         .pipId              = GetPipId(),
         .path               = {0},
-        .stats              = { .creationTime = creationTimestamp_ }
+        .stats              = { .creationTime = creationTimestamp_ },
+        .isDirectory        = isDirectory
     };
 
     strlcpy(report.path, policyResult.Path(), sizeof(report.path));
@@ -96,7 +98,8 @@ bool AccessHandler::ReportProcessTreeCompleted()
             .numForks                = GetPip()->Counters()->numForks.count(),
             .numHardLinkRetries      = GetPip()->Counters()->numHardLinkRetries.count(),
         },
-        .stats     = { .creationTime = creationTimestamp_ }
+        .stats     = { .creationTime = creationTimestamp_ },
+        .isDirectory = 0
     };
 
     return sandbox_->SendAccessReport(report, GetPip(), /*cacheRecord*/ nullptr);
@@ -113,7 +116,8 @@ bool AccessHandler::ReportProcessExited(pid_t childPid)
         .status           = FileAccessStatus::FileAccessStatus_Allowed,
         .reportExplicitly = 0,
         .error            = 0,
-        .stats            = { .creationTime = creationTimestamp_ }
+        .stats            = { .creationTime = creationTimestamp_ },
+        .isDirectory      = 0
     };
 
     SetProcessPath(&report);
@@ -134,7 +138,8 @@ bool AccessHandler::ReportChildProcessSpawned(pid_t childPid)
         .error              = 0,
         .pipId              = GetPipId(),
         .path               = {0},
-        .stats              = { .creationTime = creationTimestamp_ }
+        .stats              = { .creationTime = creationTimestamp_ },
+        .isDirectory        = 0
     };
 
     SetProcessPath(&report);
@@ -308,7 +313,7 @@ AccessCheckResult AccessHandler::CheckAndReportInternal(FileOperation operation,
     if (!cacheHit)
     {
         GetPip()->Counters()->numCacheMisses++;
-        ReportFileOpAccess(operation, policy, result, cacheRecord);
+        ReportFileOpAccess(operation, policy, result, (uint)isDir, cacheRecord);
     }
     else
     {

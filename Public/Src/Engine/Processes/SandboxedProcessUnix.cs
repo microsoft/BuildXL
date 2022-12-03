@@ -979,7 +979,7 @@ namespace BuildXL.Processes
                 shareMode = ShareMode.FILE_SHARE_READ;
                 creationDisposition = CreationDisposition.OPEN_ALWAYS;
                 flagsAndAttributes = 0;
-                openedFileOrDirectoryAttributes = 0;
+                openedFileOrDirectoryAttributes = report.IsDirectory == 0 ? FlagsAndAttributes.FILE_ATTRIBUTE_NORMAL : FlagsAndAttributes.FILE_ATTRIBUTE_DIRECTORY;
                 path = report.DecodePath();
                 enumeratePattern = string.Empty;
                 processArgs = string.Empty;
@@ -1003,11 +1003,12 @@ namespace BuildXL.Processes
             var explicitLogging = report.ExplicitLogging != 0 ? 1 : 0;
             var error = report.Error;
             var path = report.DecodePath();
+            var isDirectory = report.IsDirectory;
             ulong processTime = (report.Statistics.EnqueueTime - report.Statistics.CreationTime) / 1000;
             ulong queueTime = (report.Statistics.DequeueTime - report.Statistics.EnqueueTime) / 1000;
 
             return
-                I($"{operation}:{pid}|{requestedAccess}|{status}|{explicitLogging}|{error}|{path}|e:{report.Statistics.EnqueueTime}|h:{processTime}us|q:{queueTime}us");
+                I($"{operation}:{pid}|{requestedAccess}|{status}|{explicitLogging}|{error}|{path}|{isDirectory}|e:{report.Statistics.EnqueueTime}|h:{processTime}us|q:{queueTime}us");
         }
     }
 }

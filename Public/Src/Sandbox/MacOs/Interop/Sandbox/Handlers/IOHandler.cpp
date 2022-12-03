@@ -100,16 +100,17 @@ AccessCheckResult IOHandler::HandleClose(const IOEvent &event)
 
 AccessCheckResult IOHandler::HandleLink(const IOEvent &event)
 {
+    bool isDir = S_ISDIR(event.GetMode());
     return AccessCheckResult::Combine(
-        CheckAndReport(kOpKAuthCreateHardlinkSource, event.GetEventPath(SRC_PATH), Checkers::CheckRead, event.GetPid()),
-        CheckAndReport(kOpKAuthCreateHardlinkDest, event.GetEventPath(DST_PATH), Checkers::CheckWrite, event.GetPid()));
+        CheckAndReport(kOpKAuthCreateHardlinkSource, event.GetEventPath(SRC_PATH), Checkers::CheckRead, event.GetPid(), isDir),
+        CheckAndReport(kOpKAuthCreateHardlinkDest, event.GetEventPath(DST_PATH), Checkers::CheckWrite, event.GetPid(), isDir));
 }
 
 AccessCheckResult IOHandler::HandleUnlink(const IOEvent &event)
 {
     bool isDir = S_ISDIR(event.GetMode());
     FileOperation operation = isDir ? kOpKAuthDeleteDir : kOpKAuthDeleteFile;
-    return CheckAndReport(operation, event.GetEventPath(SRC_PATH), Checkers::CheckWrite, event.GetPid());
+    return CheckAndReport(operation, event.GetEventPath(SRC_PATH), Checkers::CheckWrite, event.GetPid(), isDir);
 }
 
 AccessCheckResult IOHandler::HandleReadlink(const IOEvent &event)
@@ -119,9 +120,10 @@ AccessCheckResult IOHandler::HandleReadlink(const IOEvent &event)
 
 AccessCheckResult IOHandler::HandleRename(const IOEvent &event)
 {
+    bool isDir = S_ISDIR(event.GetMode());
     return AccessCheckResult::Combine(
-        CheckAndReport(kOpKAuthMoveSource, event.GetEventPath(SRC_PATH), Checkers::CheckRead, event.GetPid()),
-        CheckAndReport(kOpKAuthMoveDest, event.GetEventPath(DST_PATH), Checkers::CheckWrite, event.GetPid()));
+        CheckAndReport(kOpKAuthMoveSource, event.GetEventPath(SRC_PATH), Checkers::CheckRead, event.GetPid(), isDir),
+        CheckAndReport(kOpKAuthMoveDest, event.GetEventPath(DST_PATH), Checkers::CheckWrite, event.GetPid(), isDir));
 }
 
 AccessCheckResult IOHandler::HandleClone(const IOEvent &event)
@@ -134,8 +136,8 @@ AccessCheckResult IOHandler::HandleClone(const IOEvent &event)
 AccessCheckResult IOHandler::HandleExchange(const IOEvent &event)
 {
     return AccessCheckResult::Combine(
-        CheckAndReport(kOpKAuthCopySource, event.GetEventPath(SRC_PATH), Checkers::CheckReadWrite, event.GetPid()),
-        CheckAndReport(kOpKAuthCopyDest, event.GetEventPath(DST_PATH), Checkers::CheckReadWrite, event.GetPid()));
+        CheckAndReport(kOpKAuthCopySource, event.GetEventPath(SRC_PATH), Checkers::CheckReadWrite, event.GetPid(), /*isDir*/false),
+        CheckAndReport(kOpKAuthCopyDest, event.GetEventPath(DST_PATH), Checkers::CheckReadWrite, event.GetPid(), /*isDir*/false));
 }
 
 AccessCheckResult IOHandler::HandleCreate(const IOEvent &event)

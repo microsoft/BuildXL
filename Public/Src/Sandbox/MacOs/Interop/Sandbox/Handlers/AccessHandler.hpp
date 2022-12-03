@@ -33,7 +33,8 @@ private:
     ReportResult ReportFileOpAccess(FileOperation operation,
                                     PolicyResult policy,
                                     AccessCheckResult accessCheckResult,
-                                    pid_t processID);
+                                    pid_t processID,
+                                    uint isDirectory);
 
 protected:
 

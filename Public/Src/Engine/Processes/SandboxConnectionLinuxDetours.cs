@@ -299,12 +299,12 @@ namespace BuildXL.Processes
                 using (item.wrapper)
                 {
                     // Format:
-                    //   "%s|%d|%d|%d|%d|%d|%d|%s\n", __progname, getpid(), access, status, explicitLogging, err, opcode, reportPath
+                    //   "%s|%d|%d|%d|%d|%d|%d|%s|%d\n", __progname, getpid(), access, status, explicitLogging, err, opcode, reportPath, isDirectory
                     string message = Encoding.GetString(item.wrapper.Instance, index: 0, count: item.length).TrimEnd('\n');
 
                     // parse message and create AccessReport
                     string[] parts = message.Split(new[] { '|' });
-                    Contract.Assert(parts.Length == 8);
+                    Contract.Assert(parts.Length == 9);
                     RequestedAccess access = (RequestedAccess)AssertInt(parts[2]);
                     string path = parts[7];
 
@@ -322,8 +322,9 @@ namespace BuildXL.Processes
                         Status = AssertInt(parts[3]),
                         ExplicitLogging = AssertInt(parts[4]),
                         Error = AssertInt(parts[5]),
-                        Operation = (FileOperation) AssertInt(parts[6]),
+                        Operation = (FileOperation)AssertInt(parts[6]),
                         PathOrPipStats = Encoding.GetBytes(path),
+                        IsDirectory = AssertInt(parts[8]),
                     };
 
                     // update active processes

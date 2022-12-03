@@ -29,6 +29,7 @@
 #include <mutex>
 #include <unordered_set>
 #include <unordered_map>
+#include <vector>
 
 #include "Sandbox.hpp"
 #include "SandboxedPip.hpp"
@@ -300,6 +301,9 @@ public:
     void reset_fd_table_entry(int fd);
     std::string fd_to_path(int fd);
     std::string normalize_path_at(int dirfd, const char *pathname, int oflags = 0);
+
+    // Enumerates a specified directory
+    bool EnumerateDirectory(std::string rootDirectory, bool recursive, std::vector<std::string>& filesAndDirectories);
 
     inline bool LogDebugEnabled()
     {

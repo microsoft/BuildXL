@@ -765,7 +765,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         /// </summary>
         /// <remarks>See bug 1816341 for more context on what is being tested here.</remarks>
         [Feature(Features.DirectoryProbe)]
-        [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [Theory]
         [MemberData(nameof(TruthTable.GetTable), 1, MemberType = typeof(TruthTable))]
         public void ValidatePipUnderbuildWithDirectoryProbes(bool explicitlyReport)
         {

@@ -407,20 +407,52 @@ INTERPOSE(int, renameat, int olddirfd, const char *oldpath, int newdirfd, const 
     string oldStr = bxl->normalize_path_at(olddirfd, oldpath, O_NOFOLLOW);
     string newStr = bxl->normalize_path_at(newdirfd, newpath, O_NOFOLLOW);
 
-    mode_t mode = bxl->get_mode(oldStr.c_str());
-    IOEvent event(ES_EVENT_TYPE_NOTIFY_RENAME, ES_ACTION_TYPE_NOTIFY, oldStr, bxl->GetProgramPath(), mode, false, newStr);
-
-    // special case for 'rename' must check before forwarding the call and report after
-    // (so that bxl can properly rename all files inside the renamed directories)
-    auto check = bxl->report_access(__func__, event); // TODO: this step should only check permission without reporting anything if allowed
-
-    result_t<int> result = bxl->check_and_fwd_renameat(check, ERROR_RETURN_VALUE, olddirfd, oldpath, newdirfd, newpath);
-
-    // if allowed and 'old' is a directory --> report again so that bxl can translate accesses to renamed files
-    if (S_ISDIR(mode) && result.get() != -1)
+    mode_t mode = bxl->get_mode(oldStr.c_str());    
+    AccessCheckResult check = AccessCheckResult::Invalid();
+    std::vector<std::string> filesAndDirectories;
+    
+    if (S_ISDIR(mode))
     {
-        bxl->report_access(__func__, event);
+        bool enumerateResult = bxl->EnumerateDirectory(oldStr, /*recursive*/true, filesAndDirectories);
+        if (enumerateResult)
+        {
+            for (auto fileOrDirectory : filesAndDirectories)
+            {
+                // TODO: [pgunasekara] Instead of trying to report here, we should just be doing an access check.
+                // If the access check fails, then this entire call will fail anyways when we call check_and_fwd_renameat
+                // Right now this is a bit complicated because the access handling code is on the macos sandbox and will need to be decoupled first
+
+                // Access check for the source file
+                check = bxl->report_access(__func__, ES_EVENT_TYPE_NOTIFY_UNLINK, fileOrDirectory.c_str(), O_NOFOLLOW);
+
+                // Access check for the destination file
+                fileOrDirectory.replace(0, oldStr.length(), newStr);
+                check = AccessCheckResult::Combine(check, ReportFileOpen(bxl, fileOrDirectory, O_CREAT));
+                
+                // If access is denied to any of the files in the enumeration, we can break the loop right away here because check_and_fwd_renameat will also fail
+                if (bxl->should_deny(check))
+                {
+                    break;
+                }
+            }
+        }
+        else
+        {
+            // TODO: [pgunasekara] Remove this case when we're certain the enumeration logic above is solid
+            IOEvent event(ES_EVENT_TYPE_NOTIFY_RENAME, ES_ACTION_TYPE_NOTIFY, oldStr, bxl->GetProgramPath(), mode, false, newStr);
+            check = bxl->report_access(__func__, event);
+        }
     }
+    else
+    {
+        check = bxl->report_access(__func__, ES_EVENT_TYPE_NOTIFY_UNLINK, oldStr.c_str(), O_NOFOLLOW);
+        check = AccessCheckResult::Combine(check, ReportFileOpen(bxl, newStr, O_CREAT));
+    }
+
+    // TODO: [pgunasekara] Ideally we should be doing only a check above and not reporting before we know the result of the renameat call
+    // This is because the Linux sandbox does reporting and access checking at the same time and will require some extra work to perform separately
+    // In a future PR, all reporting back to the managed layer will be done after obtaining a result from this call.
+    result_t<int> result = bxl->check_and_fwd_renameat(check, ERROR_RETURN_VALUE, olddirfd, oldpath, newdirfd, newpath);
 
     return result.restore();
 })

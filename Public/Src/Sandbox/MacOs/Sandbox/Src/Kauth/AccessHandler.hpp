@@ -33,6 +33,7 @@ private:
     ReportResult ReportFileOpAccess(FileOperation operation,
                                     PolicyResult policy,
                                     AccessCheckResult accessCheckResult,
+                                    uint isDirectory,
                                     CacheRecord *cacheRecord = nullptr);
 
     inline void SetProcess(SandboxedProcess *process)

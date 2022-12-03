@@ -3,6 +3,7 @@
 
 #include "bxl_observer.hpp"
 #include "IOHandler.hpp"
+#include <stack>
 
 static void HandleAccessReport(AccessReport report, int _)
 {
@@ -219,8 +220,8 @@ bool BxlObserver::SendReport(AccessReport &report)
     char buffer[PIPE_BUF] = {0};
     int maxMessageLength = PIPE_BUF - PrefixLength;
     int numWritten = snprintf(
-        &buffer[PrefixLength], maxMessageLength, "%s|%d|%d|%d|%d|%d|%d|%s\n",
-        __progname, getpid(), report.requestedAccess, report.status, report.reportExplicitly, report.error, report.operation, report.path);
+        &buffer[PrefixLength], maxMessageLength, "%s|%d|%d|%d|%d|%d|%d|%s|%d\n",
+        __progname, getpid(), report.requestedAccess, report.status, report.reportExplicitly, report.error, report.operation, report.path, report.isDirectory);
     if (numWritten == maxMessageLength)
     {
         // TODO: once 'send' is capable of sending more than PIPE_BUF at once, allocate a bigger buffer and send that
@@ -249,7 +250,6 @@ AccessCheckResult BxlObserver::report_access(const char *syscallName, es_event_t
         return sNotChecked;
     }
 
-    // TODO: don't stat all the time
     mode_t mode = get_mode(reportPath.c_str());
 
     std::string execPath = eventType == ES_EVENT_TYPE_NOTIFY_EXEC
@@ -348,7 +348,8 @@ AccessCheckResult BxlObserver::report_firstAllowWriteCheck(const char *fullPath)
             .error            = 0,
             .pipId            = pip_->GetPipId(),
             .path             = {0},
-            .stats            = {0}
+            .stats            = {0},
+            .isDirectory      = (uint)S_ISDIR(mode)
         };
 
     strlcpy(report.path, fullPath, sizeof(report.path));
@@ -601,4 +602,56 @@ char** BxlObserver::ensureEnvs(char *const envp[])
 
         return newEnvp;
     }
+}
+
+bool BxlObserver::EnumerateDirectory(std::string rootDirectory, bool recursive, std::vector<std::string>& filesAndDirectories)
+{
+    std::stack<std::string> directoriesToEnumerate;
+    DIR *dir;
+    struct dirent *ent;
+
+    filesAndDirectories.clear();
+    directoriesToEnumerate.push(rootDirectory);
+    filesAndDirectories.push_back(rootDirectory);
+
+    while (!directoriesToEnumerate.empty())
+    {
+        auto currentDirectory = directoriesToEnumerate.top();
+        directoriesToEnumerate.pop();
+
+        dir = real_opendir(currentDirectory.c_str());
+
+        if (dir != NULL)
+        {
+            while ((ent = readdir(dir)) != NULL)
+            {
+                std::string fileOrDirectory(ent->d_name);
+                if (fileOrDirectory == "." || fileOrDirectory == "..")
+                {
+                    continue;
+                }
+
+                std::string fullPath = currentDirectory + "/" + fileOrDirectory;
+
+                // NOTE: d_type is supported on these filesystems as of 2022 which should cover all BuildXL cases: Btrfs, ext2, ext3, and ext4
+                if (ent->d_type == DT_DIR && recursive)
+                {
+                    // DT_DIR = Directory
+                    directoriesToEnumerate.push(fullPath);
+                }
+
+                filesAndDirectories.push_back(fullPath);
+            }
+
+            closedir(dir);
+        }
+        else
+        {
+            // Something went wrong with opendir
+            LOG_DEBUG("[BxlObserver::EnumerateDirectory] opendir failed on '%s' with errno %d\n", currentDirectory, errno);
+            return false;
+        }
+    }
+
+    return true;
 }

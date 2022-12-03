@@ -32,7 +32,8 @@ void AccessHandler::SetProcessPath(AccessReport *report)
 ReportResult AccessHandler::ReportFileOpAccess(FileOperation operation,
                                                PolicyResult policyResult,
                                                AccessCheckResult checkResult,
-                                               pid_t processID)
+                                               pid_t processID,
+                                               uint isDirectory)
 {
     AccessReport report =
     {
@@ -45,7 +46,8 @@ ReportResult AccessHandler::ReportFileOpAccess(FileOperation operation,
         .error              = 0,
         .pipId              = GetPipId(),
         .path               = {0},
-        .stats              = {0}
+        .stats              = {0},
+        .isDirectory        = isDirectory
     };
 
     assert(strlen(policyResult.Path()) > 0);
@@ -68,7 +70,8 @@ bool AccessHandler::ReportProcessTreeCompleted(pid_t processId)
         .error            = 0,
         .pipId            = GetPipId(),
         .path             = {0},
-        .stats            = {0}
+        .stats            = {0},
+        .isDirectory       = 0
     };
 
     SetProcessPath(&report);
@@ -90,7 +93,8 @@ bool AccessHandler::ReportProcessExited(pid_t childPid)
         .error            = 0,
         .pipId            = GetPipId(),
         .path             = {0},
-        .stats            = {0}
+        .stats            = {0},
+        .isDirectory       = 0
     };
 
     SetProcessPath(&report);
@@ -112,7 +116,8 @@ bool AccessHandler::ReportChildProcessSpawned(pid_t childPid)
         .error              = 0,
         .pipId              = GetPipId(),
         .path               = {0},
-        .stats              = {0}
+        .stats              = {0},
+        .isDirectory         = 0
     };
 
     SetProcessPath(&report);
@@ -173,7 +178,7 @@ AccessCheckResult AccessHandler::CheckAndReportInternal(FileOperation operation,
         return result;
     }
 
-    ReportFileOpAccess(operation, policy, result, pid);
+    ReportFileOpAccess(operation, policy, result, pid, (uint)isDir);
 
     return result;
 }

@@ -282,6 +282,7 @@ typedef struct {
     char path[MAXPATHLEN];
 #endif
     AccessReportStatistics stats;
+    uint isDirectory;
 } AccessReport;
 
 inline bool HasAnyFlags(const int source, const int bitMask)

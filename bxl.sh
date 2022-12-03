@@ -6,6 +6,8 @@ MY_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "$MY_DIR/Public/Src/Sandbox/MacOs/scripts/env.sh"
 
 declare arg_Positional=()
+# stores user-specified args that are not used by this script; added to the end of command line
+declare arg_UserProvidedBxlArguments=()
 declare arg_DeployDev=""
 declare arg_DeployDevRelease=""
 declare arg_UseDev=""
@@ -105,6 +107,7 @@ function printHelp() {
 
 function parseArgs() {
     arg_Positional=()
+    arg_UserProvidedBxlArguments=()
     while [[ $# -gt 0 ]]; do
         cmd="$1"
         case $cmd in
@@ -169,7 +172,9 @@ function parseArgs() {
             shift
             ;;
         *)
-            arg_Positional+=("$1")
+            # "Script" flags (and the settings associated with them) might conflict with BuildXL arguments set by a user.
+            # In such a case, user-provided bxl arguments will override any arguments set by this script.
+            arg_UserProvidedBxlArguments+=("$1")
             shift
             ;;
         esac
@@ -328,7 +333,7 @@ elif [[ -z "$BUILDXL_BIN" ]]; then
     getLkg
 fi
 
-compileWithBxl ${arg_Positional[@]}
+compileWithBxl ${arg_Positional[@]} ${arg_UserProvidedBxlArguments[@]}
 
 if [[ -n "$arg_DeployDev" ]]; then
     deployBxl "$MY_DIR/Out/Bin/debug/${DeploymentFolder}" "$MY_DIR/Out/Selfhost/Dev"

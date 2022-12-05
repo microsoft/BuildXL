@@ -204,7 +204,7 @@ export const pkgs = [
     { id: "System.Security.Principal.Windows", version: pkgVersionNext },
     
     { id: "System.Security.Principal.Windows", version: pkgVersion5, alias: "System.Security.Principal.Windows.v5.0.0" },
-    { id: "System.Text.Json", version: pkgVersionNext,
+    { id: "System.Text.Json", version: "4.7.2",
         dependentPackageIdsToSkip: ["System.Memory", "System.ValueTuple", "System.Runtime.CompilerServices.Unsafe", "System.Numerics.Vectors", "System.Threading.Tasks.Extensions", "Microsoft.Bcl.AsyncInterfaces"],
     },
     { id: "System.Text.Json", version: pkgVersion5,

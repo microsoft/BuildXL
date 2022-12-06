@@ -637,7 +637,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 
                         _store.Database.SetGlobalEntry(LogCursorKey, logId.Serialize());
 
-                        await _checkpointManager.CreateCheckpointAsync(context, new EventSequencePoint(logId.Value)).ThrowIfFailureAsync();
+                        await _checkpointManager.CreateCheckpointAsync(context, new EventSequencePoint(logId.Value), maxEventProcessingDelay: null).ThrowIfFailureAsync();
 
                         await _eventStream.AfterCheckpointAsync(context, logId).ThrowIfFailureAsync();
 

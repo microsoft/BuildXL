@@ -704,15 +704,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             // Need to obtain the sequence point first to avoid race between the sequence point and the database's state.
             EventSequencePoint currentSequencePoint = EventStore.GetLastProcessedSequencePoint();
+            TimeSpan? maxProcessingDelay = EventStore.GetMaxProcessingDelay();
             if (currentSequencePoint == null || currentSequencePoint.SequenceNumber == null)
             {
                 Tracer.Debug(context.TracingContext, "Could not create a checkpoint because the sequence point is missing. Apparently, no events were processed at this time.");
                 return BoolResult.Success;
             }
 
-            UpdateSerializableClusterStateValues(context);
+            UpdateSerializableClusterStateValues(context, maxProcessingDelay);
 
-            var result = await CheckpointManager.CreateCheckpointAsync(context, currentSequencePoint);
+            var result = await CheckpointManager.CreateCheckpointAsync(context, currentSequencePoint, maxProcessingDelay);
 
             if (result.Succeeded)
             {
@@ -723,7 +724,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return result;
         }
 
-        private void UpdateSerializableClusterStateValues(OperationContext context)
+        private void UpdateSerializableClusterStateValues(OperationContext context, TimeSpan? maxProcessingDelay)
         {
             var manager = ClusterState.BinManager;
             if (manager != null)
@@ -741,7 +742,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 }
             }
 
-            Database.SetGlobalEntry(EventProcessingDelayKey, EventStore.GetMaxProcessingDelay().ToString());
+            Database.SetGlobalEntry(EventProcessingDelayKey, maxProcessingDelay.ToString());
         }
 
         private async Task<BoolResult> RestoreCheckpointStateAsync(OperationContext context, CheckpointState checkpointState)

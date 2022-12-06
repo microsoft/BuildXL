@@ -120,11 +120,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Creates a checkpoint for a given sequence point.
         /// </summary>
-        public Task<BoolResult> CreateCheckpointAsync(OperationContext context, EventSequencePoint sequencePoint)
+        public Task<BoolResult> CreateCheckpointAsync(OperationContext context, EventSequencePoint sequencePoint, TimeSpan? maxEventProcessingDelay)
         {
             context = context.CreateNested(Tracer.Name);
 
             string checkpointId = "Unknown";
+            string eventProcessingDelayMessage = maxEventProcessingDelay == null ? string.Empty : $" MaxEventProcessingDelay=[{maxEventProcessingDelay}]";
             var dbStats = new DatabaseStats();
             return context.PerformOperationAsync(
                 Tracer,
@@ -168,8 +169,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         return BoolResult.Success;
                     }
                 },
-                extraStartMessage: $"SequencePoint=[{sequencePoint}]",
-                extraEndMessage: result => $"SequencePoint=[{sequencePoint}] Id=[{checkpointId}] {dbStats}");
+                extraStartMessage: $"SequencePoint=[{sequencePoint}]{eventProcessingDelayMessage}",
+                extraEndMessage: result => $"SequencePoint=[{sequencePoint}]{eventProcessingDelayMessage} Id=[{checkpointId}] {dbStats}");
         }
 
         private void TryFillDatabaseStats(DatabaseStats stats)

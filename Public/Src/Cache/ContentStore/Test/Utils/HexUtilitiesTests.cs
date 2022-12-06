@@ -3,8 +3,10 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using ContentStoreTest.Test;
+using FluentAssertions;
 using Xunit;
 
 namespace ContentStoreTest.Utils
@@ -14,6 +16,14 @@ namespace ContentStoreTest.Utils
         public HexUtilitiesTests()
             : base(TestGlobal.Logger)
         {
+        }
+
+        [Fact]
+        public void IsHexShouldNotFailWithOverflow()
+        {
+            var s = new string(Enumerable.Range((int)char.MinValue, (int)char.MaxValue).Select(s => (char)s).ToArray());
+            s += "1"; // to make the length even
+            HexUtilities.IsHexString(s).Should().BeFalse();
         }
 
         [Fact]

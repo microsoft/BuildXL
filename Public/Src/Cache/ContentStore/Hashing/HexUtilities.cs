@@ -7,31 +7,42 @@ using System.Collections.Generic;
 using BuildXL.Cache.ContentStore.UtilitiesCore.Internal;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace BuildXL.Cache.ContentStore.Interfaces.Utils
 {
     /// <summary>
     /// Utilities to go from byte to hex strings and back.
     /// </summary>
+    /// <remarks>
+    /// The implementation is adopted from HexDecoder.TryDecodeFromUtf16.
+    /// </remarks>
     public static class HexUtilities
     {
         private const string NullHex = "(null)";
         internal static readonly char[] NybbleToHex = new char[16] { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' };
 
-        // Indexed by Unicode character value after value of '0' (zero character).
-        // IndexOutOfRangeException gets thrown if characters out of covered range are used.
-        // Gets 0x100 for invalid characters in the range, for single-branch detection of
-        // invalid characters.
-        private static readonly ushort[] s_hexToNybble =
-        {
-            0, 1, 2, 3, 4, 5, 6, 7, 8, 9,  // Character codes 0-9.
-            0x100, 0x100, 0x100, 0x100, 0x100, 0x100, 0x100,  // Character codes ":;<=>?@"
-            10, 11, 12, 13, 14, 15,  // Character codes A-F
-            0x100, 0x100, 0x100, 0x100, 0x100, 0x100, 0x100, 0x100, 0x100, 0x100,  // G-P
-            0x100, 0x100, 0x100, 0x100, 0x100, 0x100, 0x100, 0x100, 0x100, 0x100,  // Q-Z
-            0x100, 0x100, 0x100, 0x100, 0x100, 0x100,  // Character codes "[\]^_`"
-            10, 11, 12, 13, 14, 15,  // Character codes a-f
-        };
+        /// <summary>Map from an ASCII char to its hex value, e.g. arr['b'] == 11. 0xFF means it's not a hex digit.</summary>
+        public static ReadOnlySpan<byte> CharToHexLookup => new byte[]
+                                                            {
+                                                                0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // 15
+                                                                0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // 31
+                                                                0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // 47
+                                                                0x0,  0x1,  0x2,  0x3,  0x4,  0x5,  0x6,  0x7,  0x8,  0x9,  0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // 63
+                                                                0xFF, 0xA,  0xB,  0xC,  0xD,  0xE,  0xF,  0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // 79
+                                                                0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // 95
+                                                                0xFF, 0xa,  0xb,  0xc,  0xd,  0xe,  0xf,  0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // 111
+                                                                0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // 127
+                                                                0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // 143
+                                                                0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // 159
+                                                                0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // 175
+                                                                0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // 191
+                                                                0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // 207
+                                                                0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // 223
+                                                                0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // 239
+                                                                0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF  // 255
+                                                            };
 
         /// <summary>
         /// Verifies whether the string is in hexadecimal format.
@@ -40,36 +51,71 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Utils
         {
             Contract.Requires(data != null);
 
-            return data.Length % 2 == 0 && data.All(c => (c >= '0' && c <= '9') ||
-                                                         (c >= 'a' && c <= 'f') ||
-                                                         (c >= 'A' && c <= 'F'));
+            return IsHexString(data.AsSpan());
         }
 
         /// <summary>
-        /// Tries to convert a hexadecimal string into an array of bytes, ensuring the hexadecimal string
-        /// has valid characters and is of even length.
+        /// Verifies whether the data is in hexadecimal format.
         /// </summary>
-        /// <remarks>
-        /// This is the ADO compatible hex to byte array utility.
-        /// Compared to <see cref="HexToBytes(string)"/>, this implementation does not perform conversion if
-        /// the hexadecimal string has odd length.
-        /// </remarks>
-        public static bool TryToByteArray(string hexString, [NotNullWhen(true)]out byte[]? bytes)
+        public static bool IsHexString(ReadOnlySpan<char> data)
         {
-            if (!IsHexString(hexString))
+            if (data.Length % 2 != 0)
             {
-                bytes = null;
                 return false;
             }
 
-            // surely there is a better way to get a byte[] from a hex string...
-            bytes = new byte[hexString.Length / 2];
-            for (int i = 0; i < bytes.Length; i++)
+            for (int i = 0; i < data.Length / 2; i += 2)
             {
-                bytes[i] = Convert.ToByte(hexString.Substring(i * 2, 2), 16);
+                var c1 = data[i];
+                var c2 = data[i + 1];
+
+                if (!IsHexChar(c1) || !IsHexChar(c2))
+                {
+                    return false;
+                }
             }
 
             return true;
+        }
+
+        /// <summary>
+        /// Returns true if <paramref name="c"/> is a hex character.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool IsHexChar(int c)
+        {
+            if (IntPtr.Size == 8)
+            {
+                // This code path, when used, has no branches and doesn't depend on cache hits,
+                // so it's faster and does not vary in speed depending on input data distribution.
+                // We only use this logic on 64-bit systems, as using 64 bit values would otherwise
+                // be much slower than just using the lookup table anyway (no hardware support).
+                // The magic constant 18428868213665201664 is a 64 bit value containing 1s at the
+                // indices corresponding to all the valid hex characters (ie. "0123456789ABCDEFabcdef")
+                // minus 48 (ie. '0'), and backwards (so from the most significant bit and downwards).
+                // The offset of 48 for each bit is necessary so that the entire range fits in 64 bits.
+                // First, we subtract '0' to the input digit (after casting to uint to account for any
+                // negative inputs). Note that even if this subtraction underflows, this happens before
+                // the result is zero-extended to ulong, meaning that `i` will always have upper 32 bits
+                // equal to 0. We then left shift the constant with this offset, and apply a bitmask that
+                // has the highest bit set (the sign bit) if and only if `c` is in the ['0', '0' + 64) range.
+                // Then we only need to check whether this final result is less than 0: this will only be
+                // the case if both `i` was in fact the index of a set bit in the magic constant, and also
+                // `c` was in the allowed range (this ensures that false positive bit shifts are ignored).
+
+                // It is imiportant to use unchecked context to avoid getting OverflowExcetions because bxl runs the code in checked context
+                // and the cast to long might cause an overflow in some cases.
+                unchecked
+                {
+                    ulong i = (uint)c - '0';
+                    ulong shift = 18428868213665201664UL << (int)i;
+                    ulong mask = i - 64;
+
+                    return (long)(shift & mask) < 0 ? true : false;
+                }
+            }
+
+            return FromChar(c) != 0xFF;
         }
 
         /// <summary>
@@ -77,53 +123,28 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Utils
         /// an array of bytes.
         /// </summary>
         /// <remarks>
-        /// We use a bit of custom code to avoid thrashing the heap with temp strings when
-        /// using Convert.ToByte(hex.Substring(n, 2)). This method only parses an even number of
-        /// hexadecimal digits; any odd-length hex string is parsed leaving the last character
-        /// un-parsed.
+        /// This method only parses an even number of hexadecimal digits; any odd-length hex string is parsed
+        /// leaving the last character un-parsed.
         /// </remarks>
         public static byte[] HexToBytes(string hex)
         {
-            if (hex == null)
+            if (string.IsNullOrWhiteSpace(hex))
             {
                 return CollectionUtilities.EmptyArray<byte>();
             }
 
             hex = hex.Trim();
 
-            int cur;
-            if (!hex.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
-            {
-                cur = 0;
-            }
-            else
+            int cur = 0;
+            if (hex.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
             {
                 cur = 2;
             }
 
             int len = hex.Length - cur;
-            var result = new byte[len / 2];
-            int index = 0;
-
-            const string ExceptionMessage = "Invalid hex string ";
-            try
+            if (!TryToByteArrayCore(hex.AsSpan(start: cur, length: len), out var result))
             {
-                for (; cur < (hex.Length - 1); cur += 2)
-                {
-                    int b = (s_hexToNybble[hex[cur] - '0'] << 4) | s_hexToNybble[hex[cur + 1] - '0'];
-                    if (b < 256)
-                    {
-                        result[index++] = (byte)b;
-                    }
-                    else
-                    {
-                        throw new ArgumentException(ExceptionMessage + hex, nameof(hex));
-                    }
-                }
-            }
-            catch (IndexOutOfRangeException)
-            {
-                throw new ArgumentException(ExceptionMessage + hex, nameof(hex));
+                throw new ArgumentException($"Invalid hex string {hex}");
             }
 
             return result;
@@ -144,28 +165,23 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Utils
         /// hexadecimal, this span can be shorter than the buffer.
         /// </returns>
         /// <remarks>
-        /// We use a bit of custom code to avoid thrashing the heap with temp strings when
-        /// using Convert.ToByte(hex.Substring(n, 2)). This method only parses an even number of
-        /// hexadecimal digits; any odd-length hex string is parsed leaving the last character
-        /// un-parsed.
+        /// This method only parses an even number of hexadecimal digits; any odd-length hex string is parsed
+        /// leaving the last character un-parsed.
         /// </remarks>
         public static ReadOnlySpan<byte> HexToBytes(string hex, byte[] buffer)
         {
-            int index = 0;
-
-            for (int cur = 0; cur < (hex.Length - 1); cur += 2)
+            if (TryDecodeFromUtf16(hex.AsSpan(), buffer.AsSpan(), out var charsProcessed))
             {
-                int b = (s_hexToNybble[hex[cur] - '0'] << 4) | s_hexToNybble[hex[cur + 1] - '0'];
-                buffer[index++] = (byte)b;
+                return buffer.AsSpan(start: 0, length: charsProcessed / 2);
             }
 
-            return buffer.AsSpan(0, index);
+            throw new ArgumentException($"Invalid hex string {hex}");
         }
 
         /// <summary>
         /// Converts the provided bytes into a hexadecimal string of the form '1234abcd'.
         /// </summary>
-        public static string ToHex(this IList<byte> bytes)
+        public static string ToHex(this IList<byte>? bytes)
         {
             if (bytes == null)
             {
@@ -186,5 +202,85 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Utils
         /// Converts the provided bytes into a hexadecimal string of the form '1234abcd'.
         /// </summary>
         public static string BytesToHex(IList<byte> bytes) => ToHex(bytes);
+
+        /// <summary>
+        /// Tries to convert a hexadecimal string into an array of bytes, ensuring the hexadecimal string
+        /// has valid characters and is of even length.
+        /// </summary>
+        /// <remarks>
+        /// This is the ADO compatible hex to byte array utility.
+        /// Compared to <see cref="HexToBytes(string)"/>, this implementation does not perform conversion if
+        /// the hexadecimal string has odd length.
+        /// </remarks>
+        public static bool TryToByteArray(string hexString, [NotNullWhen(true)]out byte[]? bytes)
+        {
+            Contract.Requires(hexString != null);
+            return TryToByteArray(hexString.AsSpan(), out bytes);
+        }
+
+        /// <inheritdoc cref="TryToByteArray(string,out byte[])"/>
+        public static bool TryToByteArray(ReadOnlySpan<char> chars, [NotNullWhen(true)]out byte[]? bytes)
+        {
+            if (!IsHexString(chars))
+            {
+                bytes = null;
+                return false;
+            }
+
+            return TryToByteArrayCore(chars, out bytes);
+        }
+
+        private static bool TryToByteArrayCore(ReadOnlySpan<char> chars, [NotNullWhen(true)]out byte[]? bytes)
+        {
+#if NET5_0_OR_GREATER
+            bytes = GC.AllocateUninitializedArray<byte>(chars.Length >> 1);
+#else
+            bytes = new byte[chars.Length >> 1];
+#endif
+            if (!TryDecodeFromUtf16(chars, bytes, out _))
+            {
+                bytes = null;
+                return false;
+            }
+
+            return true;
+        }
+
+        private static bool TryDecodeFromUtf16(ReadOnlySpan<char> chars, Span<byte> bytes, out int charsProcessed)
+        {
+            int i = 0;
+            int j = 0;
+            int byteLo = 0;
+            int byteHi = 0;
+            while (i < chars.Length - 1)
+            {
+                byteLo = FromChar(chars[i + 1]);
+                byteHi = FromChar(chars[i]);
+
+                // byteHi hasn't been shifted to the high half yet, so the only way the bitwise or produces this pattern
+                // is if either byteHi or byteLo was not a hex character.
+                if ((byteLo | byteHi) == 0xFF)
+                {
+                    break;
+                }
+
+                bytes[j++] = (byte)((byteHi << 4) | byteLo);
+                i += 2;
+            }
+
+            if (byteLo == 0xFF)
+            {
+                i++;
+            }
+
+            charsProcessed = i;
+            return (byteLo | byteHi) != 0xFF;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static int FromChar(int c)
+        {
+            return c >= CharToHexLookup.Length ? 0xFF : CharToHexLookup[c];
+        }
     }
 }

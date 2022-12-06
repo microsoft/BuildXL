@@ -275,7 +275,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 buildId: buildId);
         }
 
-        [Fact]
+        [Fact(Skip = "Flaky test. Work item - 1950089")]
         public Task ProactiveCopyOutsideRingDoesNotPickTheSameLocation()
         {
             // This test checks that if inside ring copy picked machine A, then

@@ -43,7 +43,12 @@ namespace Test.Ninja {
         ],
         runtimeContent: [
             importFrom("BuildXL.Tools").NinjaGraphBuilder.exe,
-            importFrom("BuildXL.Tools.Ninjson").pkg.contents 
+            ...addIfLazy(Context.getCurrentHost().os === "win", () => [
+                importFrom("BuildXL.Tools.Ninjson").pkg.contents
+            ]),
+            ...addIfLazy(Context.getCurrentHost().os === "unix", () => [
+                importFrom("BuildXL.Tools.Ninjson.linux-x64").pkg.contents
+            ])
         ]
     });
 }

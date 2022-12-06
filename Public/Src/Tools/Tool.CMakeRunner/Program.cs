@@ -8,6 +8,7 @@ using System.IO;
 using System.Text;
 using BuildXL.FrontEnd.CMake.Serialization;
 using BuildXL.ToolSupport;
+using BuildXL.Utilities;
 using Newtonsoft.Json;
 
 namespace NinjaGraphBuilderTool
@@ -106,7 +107,7 @@ namespace NinjaGraphBuilderTool
         {
             foreach (var directory in searchLocations)
             {
-                exePath = Path.Combine(directory, "cmake.exe");
+                exePath = Path.Combine(directory, OperatingSystemHelper.IsWindowsOS ? "cmake.exe" : "cmake");
                 if (File.Exists(exePath))
                 {
                     return true;

@@ -203,6 +203,15 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "BuildXL.Tools.Ninjson.linux-x64",
+          "Version": "1.11.2"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "BuildXL.Tracing.AriaTenantToken",
           "Version": "1.0.0"
         }

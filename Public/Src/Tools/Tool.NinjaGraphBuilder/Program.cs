@@ -9,7 +9,7 @@ using BuildXL.ToolSupport;
 using Newtonsoft.Json;
 using static BuildXL.Utilities.AssemblyHelper;
 using static System.Reflection.Assembly;
-
+using BuildXL.Utilities;
 
 namespace NinjaGraphBuilderTool
 {
@@ -34,7 +34,7 @@ namespace NinjaGraphBuilderTool
         // This assumes that Ninjson is deployed as ninjson.exe alongide this NinjaGraphBuilder.exe
         // This should be kept in sync with this tool's deployment scheme in Public/Src/Deployment/buildXL.dsc
         // (and in the Ninja test module)
-        private string NinjsonPath => Path.Combine(Path.GetDirectoryName(GetAssemblyLocation(GetExecutingAssembly())), "ninjson.exe");
+        private string NinjsonPath => Path.Combine(Path.GetDirectoryName(GetAssemblyLocation(GetExecutingAssembly())), OperatingSystemHelper.IsWindowsOS ? "ninjson.exe" : "ninjson");
 
         private Program()
             : base("NinjaGraphBuilder")

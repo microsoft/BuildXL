@@ -27,11 +27,10 @@ namespace Factory {
             Yarn.dll,
             JavaScript.dll,
             Lage.dll,
-
-            ...addIfLazy(qualifier.targetRuntime === "win-x64", () => [
-                CMake.dll,
-                MsBuild.dll,
-                Ninja.dll,
+            CMake.dll,
+            Ninja.dll,
+            ...addIfLazy(qualifier.targetRuntime === "win-x64", () => [            
+                MsBuild.dll,               
             ]),
         ],
         internalsVisibleTo: [

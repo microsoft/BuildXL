@@ -13,6 +13,9 @@ using BuildXL.Pips.Operations;
 using Test.BuildXL.EngineTestUtilities;
 using Xunit;
 using Xunit.Abstractions;
+using BuildXL.Engine;
+using BuildXL.Utilities;
+using Test.BuildXL.TestUtilities.Xunit;
 
 namespace Test.BuildXL.FrontEnd.Ninja
 {
@@ -38,7 +41,6 @@ namespace Test.BuildXL.FrontEnd.Ninja
             var engineResult = RunEngineWithConfig(config);
             Assert.True(engineResult.IsSuccess);
         }
-
 
         [Fact]
         public void EndToEndExecutionWithDependencies()
@@ -80,7 +82,8 @@ namespace Test.BuildXL.FrontEnd.Ninja
 
             // Defining a custom environment will hide the rest of it
             // The build will print %exposedVariable% but will only have %MY_VAR% set
-            var expectedContents = exposeVariable ? outContents : "%OTHER_VAR%";
+            // On linux, it will print empty string for unexposed variable
+            var expectedContents = exposeVariable ? outContents : OperatingSystemHelper.IsWindowsOS ? "%OTHER_VAR%" : "";
 
             var contents = File.ReadAllText(outFilePath);
 
@@ -257,7 +260,7 @@ namespace Test.BuildXL.FrontEnd.Ninja
             Assert.Equal(responseFileContent, contents);
         }
 
-        [Theory]
+        [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)]
         [InlineData(true)]
         [InlineData(false)]
         public void BuildWithAdditionalOutputDirectory(bool declareAdditionalOutput)

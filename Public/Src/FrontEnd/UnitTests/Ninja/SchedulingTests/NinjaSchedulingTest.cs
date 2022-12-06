@@ -25,7 +25,8 @@ namespace Test.BuildXL.FrontEnd.Ninja.SchedulingTests
         [Fact]
         public void CorrectScheduleGivenDependencyOrder()
         {
-            var nodeA = CreateNinjaNode(rule: "ruleA", command: $@"{CMD} /C ""echo hola > hola.txt""");
+            var nodeA = CreateNinjaNode(rule: "ruleA", 
+                command: OperatingSystemHelper.IsWindowsOS ? $@"{CMD} /C ""echo hola > hola.txt""" : $@"{BASH} -c ""echo hola > hola.txt""");
             var nodeB = CreateNinjaNode(rule: "ruleB", dependencies: new[] { nodeA });
             var nodeC = CreateNinjaNode(rule: "ruleC", dependencies: new[] { nodeA });
             var nodeD = CreateNinjaNode(rule: "ruleD", dependencies: new[] { nodeC, nodeB });
@@ -142,8 +143,8 @@ namespace Test.BuildXL.FrontEnd.Ninja.SchedulingTests
         [Fact]
         public void MspdvsrvEndpointTest()
         {
-            var nodeA = CreateNinjaNode("ruleA", command: $"{CMD} /C echo first", outputs: Paths("fileA.out"), inputs: Paths("input.txt"));
-            var nodeB = CreateNinjaNode("ruleB", command: $"{CMD} /C echo second", outputs: Paths("fileB.out"), inputs: Paths("inputB.txt"));
+            var nodeA = CreateNinjaNode("ruleA", command: OperatingSystemHelper.IsWindowsOS ? $"{CMD} /C echo first" : $"{BASH} -c echo first", outputs: Paths("fileA.out"), inputs: Paths("input.txt"));
+            var nodeB = CreateNinjaNode("ruleB", command: OperatingSystemHelper.IsWindowsOS ? $"{CMD} /C echo second" : $"{BASH} -c echo second", outputs: Paths("fileB.out"), inputs: Paths("inputB.txt"));
 
             var processes = Start()
                 .Add(nodeA)

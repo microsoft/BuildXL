@@ -352,6 +352,9 @@ config({
                 { id: "BuildXL.Tools.Ninjson", version: "1.11.2" },
                 { id: "BuildXL.Tools.AppHostPatcher", version: "1.0.0" },
 
+                // Ninja JSON Linux Text
+                { id: "BuildXL.Tools.Ninjson.linux-x64", version: "1.11.2", osSkip: [ "macOS" ] },
+
                 // Kusto SDK (for netstandard)
                 { id: "Microsoft.Azure.Kusto.Cloud.Platform.Azure.NETStandard", version: "6.1.8",
                     dependentPackageIdsToSkip: ["Microsoft.Extensions.PlatformAbstractions"] },

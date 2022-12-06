@@ -58,7 +58,7 @@ namespace BuildXL.FrontEnd.CMake
         /// <summary>
         /// Keep in sync with the BuildXL deployment spec that places the tool (\Public\Src\Deployment\buildXL.dsc)
         /// </summary>
-        private const string CMakeRunnerRelativePath = @"CMakeRunner.exe";
+        private readonly string m_cMakeRunnerRelativePath = OperatingSystemHelper.IsWindowsOS ? @"CMakeRunner.exe" : @"CMakeRunner";
         private AbsolutePath m_pathToTool;
 
         internal readonly NinjaWorkspaceResolver EmbeddedNinjaWorkspaceResolver;
@@ -344,7 +344,7 @@ namespace BuildXL.FrontEnd.CMake
 
             Contract.Assert(m_resolverSettings != null);
 
-            var relativePathToCMakeRunner = RelativePath.Create(context.StringTable, CMakeRunnerRelativePath);
+            var relativePathToCMakeRunner = RelativePath.Create(context.StringTable, m_cMakeRunnerRelativePath);
             m_pathToTool = configuration.Layout.BuildEngineDirectory.Combine(m_context.PathTable, relativePathToCMakeRunner);
 
             m_buildDirectory = m_configuration.Layout.OutputDirectory.Combine(m_context.PathTable, m_resolverSettings.BuildDirectory);

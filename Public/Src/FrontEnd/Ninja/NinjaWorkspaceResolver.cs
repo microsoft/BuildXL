@@ -47,7 +47,7 @@ namespace BuildXL.FrontEnd.Ninja
         /// <summary>
         /// Keep in sync with the BuildXL deployment spec that places the tool (\Public\Src\Deployment\buildXL.dsc)
         /// </summary>
-        private const string NinjaGraphBuilderRelativePath = @"NinjaGraphBuilder.exe";
+        private readonly string m_ninjaGraphBuilderRelativePath = OperatingSystemHelper.IsWindowsOS ? @"NinjaGraphBuilder.exe" : @"NinjaGraphBuilder";
 
         /// <inheritdoc/>
         public NinjaWorkspaceResolver()
@@ -74,7 +74,7 @@ namespace BuildXL.FrontEnd.Ninja
                 return false;
             }
 
-            var relativePathToGraphConstructionTool = RelativePath.Create(context.StringTable, NinjaGraphBuilderRelativePath);
+            var relativePathToGraphConstructionTool = RelativePath.Create(context.StringTable, m_ninjaGraphBuilderRelativePath);
             m_pathToTool = configuration.Layout.BuildEngineDirectory.Combine(Context.PathTable, relativePathToGraphConstructionTool);
 
 
@@ -136,7 +136,7 @@ namespace BuildXL.FrontEnd.Ninja
 
             return new NinjaGraphWithModuleDefinition(result.Graph, moduleDefinition);            
         }
-
+        
         private async Task<Possible<NinjaGraphResult>> ComputeBuildGraphAsync()
         {
             AbsolutePath outputFile = SerializedGraphPath.Value;
@@ -228,12 +228,12 @@ namespace BuildXL.FrontEnd.Ninja
                 }
             }
 
-
+            
             return FrontEndUtilities.RunSandboxedToolAsync(
                 Context,
                 m_pathToTool.ToString(Context.PathTable),
                 buildStorageDirectory: outputDirectory.ToString(Context.PathTable),
-                fileAccessManifest: GenerateFileAccessManifest(m_pathToTool.GetParent(Context.PathTable), outputFile),
+                fileAccessManifest: FrontEndUtilities.GenerateToolFileAccessManifest(Context, m_pathToTool.GetParent(Context.PathTable)),
                 arguments: I($@"""{argumentsFile.ToString(Context.PathTable)}"""),
                 workingDirectory: SpecFile.GetParent(Context.PathTable).ToString(Context.PathTable),
                 description: "Ninja graph builder",
@@ -269,39 +269,6 @@ namespace BuildXL.FrontEnd.Ninja
             var now = DateTime.UtcNow.ToString("yyyy-MM-dd-THH-mm-ss.SSS-Z");
             var uniqueName = $"ninja_graph_{now}.json";
             return outputDirectory.Combine(Context.PathTable, uniqueName);
-        }
-
-        private FileAccessManifest GenerateFileAccessManifest(AbsolutePath toolDirectory, AbsolutePath outputFile)
-        {
-            // We make no attempt at understanding what the graph generation process is going to do
-            // We just configure the manifest to not fail on unexpected accesses, so they can be collected
-            // later if needed
-            var fileAccessManifest = new FileAccessManifest(Context.PathTable)
-            {
-                FailUnexpectedFileAccesses = false,
-                ReportFileAccesses = true,
-                MonitorNtCreateFile = true,
-                MonitorZwCreateOpenQueryFile = true,
-                MonitorChildProcesses = true,
-            };
-
-            fileAccessManifest.AddScope(
-                AbsolutePath.Create(Context.PathTable, SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.Windows)),
-                FileAccessPolicy.MaskAll,
-                FileAccessPolicy.AllowAllButSymlinkCreation);
-
-            fileAccessManifest.AddScope(
-                AbsolutePath.Create(Context.PathTable, SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.InternetCache)),
-                FileAccessPolicy.MaskAll,
-                FileAccessPolicy.AllowAllButSymlinkCreation);
-
-            fileAccessManifest.AddScope(
-                AbsolutePath.Create(Context.PathTable, SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.History)),
-                FileAccessPolicy.MaskAll,
-                FileAccessPolicy.AllowAll);
-
-            fileAccessManifest.AddScope(toolDirectory, FileAccessPolicy.MaskAll, FileAccessPolicy.AllowReadAlways);            
-            return fileAccessManifest;
         }
 
         /// <inheritdoc />

@@ -322,13 +322,15 @@ namespace BuildXL.FrontEnd.Ninja
                 PipConstructionUtilities.UntrackUserConfigurableArtifacts(m_context.PathTable, projectRoot, m_moduleDefinition.Specs.Select(spec => spec.GetParent(m_context.PathTable)), processBuilder, m_settings.UntrackingSettings);
             }
 
-            var programFilesDirectoryArtifact = DirectoryArtifact.CreateWithZeroPartialSealId(AbsolutePath.Create(m_context.PathTable, Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles)));
-            var programFilesX86DirectoryArtifact = DirectoryArtifact.CreateWithZeroPartialSealId(AbsolutePath.Create(m_context.PathTable, Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86)));
-            processBuilder.AddUntrackedDirectoryScope(programFilesDirectoryArtifact);
-            processBuilder.AddUntrackedDirectoryScope(programFilesX86DirectoryArtifact);
-            processBuilder.AddUntrackedDirectoryScope(DirectoryArtifact.CreateWithZeroPartialSealId(AbsolutePath.Create(m_context.PathTable, @"C:\PROGRA~1\"))); // TODO: This but better
-            processBuilder.AddUntrackedDirectoryScope(DirectoryArtifact.CreateWithZeroPartialSealId(AbsolutePath.Create(m_context.PathTable, @"C:\PROGRA~2\"))); // TODO: This but better
-
+            if (OperatingSystemHelper.IsWindowsOS)
+            {
+                var programFilesDirectoryArtifact = DirectoryArtifact.CreateWithZeroPartialSealId(AbsolutePath.Create(m_context.PathTable, Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles)));
+                var programFilesX86DirectoryArtifact = DirectoryArtifact.CreateWithZeroPartialSealId(AbsolutePath.Create(m_context.PathTable, Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86)));
+                processBuilder.AddUntrackedDirectoryScope(programFilesDirectoryArtifact);
+                processBuilder.AddUntrackedDirectoryScope(programFilesX86DirectoryArtifact);
+                processBuilder.AddUntrackedDirectoryScope(DirectoryArtifact.CreateWithZeroPartialSealId(AbsolutePath.Create(m_context.PathTable, @"C:\PROGRA~1\"))); // TODO: This but better
+                processBuilder.AddUntrackedDirectoryScope(DirectoryArtifact.CreateWithZeroPartialSealId(AbsolutePath.Create(m_context.PathTable, @"C:\PROGRA~2\"))); // TODO: This but better
+            }
             // TODO: This is just here because the cloud build requires manually dropping the necessary executables and libraries, and should be removed
             // when that issue is resolved.
             string toolsDir = m_manuallyDroppedDependenciesPath.ToString(m_context.PathTable);

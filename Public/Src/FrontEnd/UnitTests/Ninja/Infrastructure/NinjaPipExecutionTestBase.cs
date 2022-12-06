@@ -15,13 +15,13 @@ using Test.BuildXL.TestUtilities.Xunit;
 using Xunit.Abstractions;
 using Test.BuildXL.Processes;
 using BuildXL.Utilities;
+using System;
 
 namespace Test.BuildXL.FrontEnd.Ninja
 {
     /// <summary>
     /// Provides facilities to run tests on the engine with Ninja specs
     /// </summary>
-    [TestClassIfSupported(requiresWindowsBasedOperatingSystem: true)]
     public abstract class NinjaPipExecutionTestBase : DsTestWithCacheBase
     {
         // Default Ninja build file and its location (which we imply to be the project root)
@@ -29,10 +29,9 @@ namespace Test.BuildXL.FrontEnd.Ninja
         protected const string DefaultProjectRoot = "ninjabuild";
         private string DefaultSpecFileLocation => $"{DefaultProjectRoot}/{DefaultSpecFileName}";
 
-        /// <summary>
-        /// <see cref="CmdHelper.CmdX64"/>
-        /// </summary>
-        protected string CMD => CmdHelper.CmdX64;
+        protected string SHELL => OperatingSystemHelper.IsWindowsOS ? $@"{CmdHelper.CmdX64} /C" : $@"{CmdHelper.Bash} -c";
+        protected string COPY => OperatingSystemHelper.IsWindowsOS ? "COPY" : "cp";
+        protected string DELETE => OperatingSystemHelper.IsWindowsOS ? "DEL /f" : "rm -f";
 
         /// <summary>
         /// Root to the source enlistment root
@@ -44,6 +43,11 @@ namespace Test.BuildXL.FrontEnd.Ninja
 
         protected override bool DisableDefaultSourceResolver => true;
 
+        private string GetOSBasedEnvString(string envName)
+        {
+            return OperatingSystemHelper.IsWindowsOS ? $@"%{envName}%" : $@"$${envName}";
+        }
+
         protected NinjaPipExecutionTestBase(ITestOutputHelper output) : base(output, true)
         {
             RegisterEventSource(global::BuildXL.Engine.ETWLogger.Log);
@@ -53,6 +57,7 @@ namespace Test.BuildXL.FrontEnd.Ninja
             RegisterEventSource(global::BuildXL.FrontEnd.Core.ETWLogger.Log);
             RegisterEventSource(global::BuildXL.FrontEnd.Script.ETWLogger.Log);
             RegisterEventSource(global::BuildXL.FrontEnd.Nuget.ETWLogger.Log);
+            RegisterEventSource(global::BuildXL.FrontEnd.Ninja.ETWLogger.Log);
             
             SourceRoot = Path.Combine(TestRoot, RelativeSourceRoot);
         }
@@ -126,7 +131,7 @@ namespace Test.BuildXL.FrontEnd.Ninja
         {
             var content =
 $@"rule r
-    command = {CMD} /C ""echo Hello World > $out""
+    command = {SHELL} ""echo Hello World > $out""
 build {outputFileName}: r
 build all: phony {outputFileName}
 ";
@@ -140,7 +145,7 @@ build all: phony {outputFileName}
         {
             var content =
 $@"rule r
-    command = {CMD} /C ""echo %{varName}% > $out""
+    command = {SHELL} ""echo {GetOSBasedEnvString(varName)} > $out""
 build {outputFileName}: r
 build all: phony {outputFileName}
 ";
@@ -150,14 +155,14 @@ build all: phony {outputFileName}
         protected NinjaSpec CreateWriteReadProject(string firstOutput, string secondOutput)
         {
             var content =
-                $@"rule ruleA
-    command = {CMD} /C ""echo r > $out""
+$@"rule ruleA
+    command = {SHELL} ""echo r > $out""
 
 rule ruleB
-    command = {CMD} /C ""COPY $in {secondOutput}""
+    command = {SHELL} ""{COPY} $in {secondOutput}""
 
 build {firstOutput}: ruleA
-build {secondOutput} : ruleB {firstOutput}
+build {secondOutput}: ruleB {firstOutput}
 
 build all: phony {secondOutput}
 ";
@@ -167,11 +172,11 @@ build all: phony {secondOutput}
         protected NinjaSpec CreateWriteReadDeleteProject(string firstOutput, string secondOutput)
         {
             var content =
-                $@"rule ruleA
-    command = {CMD} /C ""echo r > $out""
+$@"rule ruleA
+    command = {SHELL} ""echo r > $out""
 
 rule ruleB
-    command = {CMD} /C ""COPY $in {secondOutput} && DEL /f $in""
+    command = {SHELL} ""{COPY} $in {secondOutput} && {DELETE} $in""
 
 build {firstOutput}: ruleA
 build {secondOutput} : ruleB {firstOutput}
@@ -184,14 +189,14 @@ build all: phony {secondOutput}
         protected NinjaSpec CreateProjectWithOrderOnlyDependencies(string firstOutput, string secondOutput)
         {
             var content =
-                $@"rule ruleA
-    command = {CMD} /C ""echo hola > {firstOutput}""
+$@"rule ruleA
+    command = {SHELL} ""echo hola > {firstOutput}""
 
 rule ruleB
-    command = {CMD} /C ""COPY {firstOutput} $out""
+    command = {SHELL} ""{COPY} {firstOutput} $out""
 
 build {firstOutput}: ruleA
-build {secondOutput} : ruleB || {firstOutput}
+build {secondOutput}: ruleB || {firstOutput}
 
 build all: phony {secondOutput}
 ";
@@ -201,11 +206,11 @@ build all: phony {secondOutput}
         protected NinjaSpec CreateProjectWithExtraneousWrite(string outputUnderCone, string secondOutputUnderCone, string outputPathOutsideOfCone)
         {
             var content =
-                $@"rule ruleA
-    command = {CMD} /C ""echo foo > {outputPathOutsideOfCone} && echo bar > $out""
+$@"rule ruleA
+    command = {SHELL} ""echo foo > {outputPathOutsideOfCone} && echo bar > $out""
 
 rule ruleB
-    command = {CMD} /C ""COPY $in {secondOutputUnderCone}""
+    command = {SHELL} ""{COPY} $in {secondOutputUnderCone}""
 
 build {outputUnderCone}: ruleA
 build {secondOutputUnderCone} : ruleB {outputUnderCone}
@@ -218,8 +223,8 @@ build all: phony {secondOutputUnderCone}
         protected NinjaSpec CreateProjectThatCopiesResponseFile(string output, string responseFile, string responseFileContent)
         {
             var content =
-                $@"rule copy_respfile
-  command = {CMD} /C ""COPY {responseFile} {output}""
+$@"rule copy_respfile
+  command = {SHELL} ""{COPY} {responseFile} {output}""
   rspfile = {responseFile}
   rspfile_content = {responseFileContent}
 
@@ -232,13 +237,13 @@ build all: phony {output}
         protected NinjaSpec CreateDummyFilePhonyProject(string phonyOutputFile1, string phonyOutputFile2, string dummyFile, string effectiveFile)
         {
             // Rule is built to mimic a Ninja install as generated by CMake
-            var content = 
-                $@"rule CUSTOM_COMMAND
+            var content =
+$@"rule CUSTOM_COMMAND
   command = $COMMAND
   description = $DESC
 
 rule WRITE_TEST
-    command = {CMD} /C ""echo test > $out""
+    command = {SHELL} ""echo test > $out""
 
 build {phonyOutputFile1}: WRITE_TEST
 
@@ -247,7 +252,7 @@ build {phonyOutputFile2}: WRITE_TEST
 build all: phony {phonyOutputFile1} {phonyOutputFile2}
 
 build {dummyFile}: CUSTOM_COMMAND all
-  COMMAND = {CMD} /C ""echo works > {effectiveFile}""
+  COMMAND = {SHELL} ""echo works > {effectiveFile}""
   DESC = Install the project...
   pool = console
   restat = 1

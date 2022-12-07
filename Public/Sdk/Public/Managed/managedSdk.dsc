@@ -477,6 +477,11 @@ export interface Arguments {
      */
     addNotNullAttributeFile?: boolean;
 
+    /*
+    * If false then the file with 'CallerArgumentExpressionAttribute.cs' won't be added to the project.
+    */
+    addCallerArgumentExpressionAttribute?: boolean;
+
     /** Specify nullable context option enable|disable|safeonly|warnings|safeonlywarnings.*/
     nullabilityContext?: Csc.NullabilityContext;
 

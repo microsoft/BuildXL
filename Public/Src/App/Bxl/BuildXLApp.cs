@@ -704,7 +704,6 @@ namespace BuildXL
 
                         appLoggers.LogEventSummary(pm.LoggingContext);
 
-
                         // Log Ado Summary
                         var buildSummary = m_buildViewModel.BuildSummary;
                         if (buildSummary != null)

@@ -3,10 +3,11 @@
 
 using System;
 using System.Diagnostics.ContractsLight;
-using BuildXL.Pips;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Instrumentation.Common;
+
+#nullable enable
 
 namespace BuildXL.Scheduler
 {
@@ -29,17 +30,26 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// The current active operation for the context
         /// </summary>
-        private readonly OperationTracker.Operation m_operation;
+        private readonly OperationTracker.Operation? m_operation;
 
         /// <summary>
         /// Gets the duration of the operation
         /// </summary>
         public TimeSpan? Duration => m_operation?.Duration;
 
+        private OperationTracker.OperationThread? Thread
+        {
+            get
+            {
+                Contract.Assert(m_operation == null || m_operation.Thread != null);
+                return m_operation?.Thread;
+            }
+        }
+
         /// <summary>
         /// Creates a new operation context
         /// </summary>
-        internal OperationContext(LoggingContext loggingContext, OperationTracker.Operation operation)
+        internal OperationContext(LoggingContext loggingContext, OperationTracker.Operation? operation)
         {
             Contract.Requires(loggingContext != null);
 
@@ -53,18 +63,18 @@ namespace BuildXL.Scheduler
         /// <param name="kind">the operation kind</param>
         /// <param name="artifact">the associated file artifact if any</param>
         /// <param name="details">associated details about operation</param>
-        public OperationContext StartOperation(OperationKind kind, in FileOrDirectoryArtifact artifact = default(FileOrDirectoryArtifact), string details = null)
+        public OperationContext StartOperation(OperationKind kind, in FileOrDirectoryArtifact artifact = default(FileOrDirectoryArtifact), string? details = null)
         {
-            var operation = m_operation?.Thread.StartNestedOperation(kind, artifact, details);
+            var operation = Thread?.StartNestedOperation(kind, artifact, details);
             return new OperationContext(LoggingContext, operation);
         }
-
+        
         /// <summary>
         /// Reports timing for an externally tracked nested operation
         /// </summary>
         public void ReportExternalOperation(OperationKind kind, TimeSpan duration)
         {
-            m_operation.Thread.ActiveOperation?.ReportExternalOperation(kind, duration);
+            Thread?.ActiveOperation?.ReportExternalOperation(kind, duration);
         }
 
         /// <summary>
@@ -73,16 +83,11 @@ namespace BuildXL.Scheduler
         /// <param name="kind">the operation kind</param>
         /// <param name="artifact">the associated file artifact if any</param>
         /// <param name="details">associated details about operation</param>
-        public OperationContext StartAsyncOperation(OperationKind kind, in FileOrDirectoryArtifact artifact = default(FileOrDirectoryArtifact), string details = null)
+        public OperationContext StartAsyncOperation(OperationKind kind, in FileOrDirectoryArtifact artifact = default(FileOrDirectoryArtifact), string? details = null)
         {
-            var operation = m_operation?.Thread.StartThread(kind, artifact, details);
+            var operation = Thread?.StartThread(kind, artifact, details);
             Contract.Assert(operation == null || operation.IsThread, "Async operations must start new thread");
             return new OperationContext(LoggingContext, operation);
-        }
-
-        internal void Verify(PipId pipId)
-        {
-            Contract.Assert(pipId == m_operation.Root.PipId, "PipId does not match root pip id");
         }
 
         /// <summary>

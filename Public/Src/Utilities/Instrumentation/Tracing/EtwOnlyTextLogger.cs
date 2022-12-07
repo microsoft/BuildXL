@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Threading;
 using BuildXL.Utilities;
@@ -102,7 +103,7 @@ namespace BuildXL.Tracing
         /// <summary>
         /// Attempts to get global default logging context
         /// </summary>
-        public static bool TryGetDefaultGlobalLoggingContext(out LoggingContext? loggingContext)
+        public static bool TryGetDefaultGlobalLoggingContext([NotNullWhen(true)]out LoggingContext? loggingContext)
         {
             loggingContext = s_globalLoggingContext;
             return loggingContext != null;

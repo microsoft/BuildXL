@@ -832,13 +832,20 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
         }
     }
 
-    // Adding 'IsExternalInit.cs' and 'CallerArgumentExpressionAttribute' file but only for the older .net versions.
+    // Adding 'IsExternalInit.cs' but only for the older .net versions.
     if (!isDotNetCoreApp) {
         args = args.merge({
-            sources: [isExternalInit, callerArgumentExpressionAttributeFile],
+            sources: [isExternalInit],
         });
     }
-    
+
+    // Adding 'CallerArgumentExpressionAttribute' unless spcified not to.
+    if (!isDotNetCoreApp && args.addCallerArgumentExpressionAttribute !== false) {
+        args = args.merge({
+            sources: [callerArgumentExpressionAttributeFile],
+        });
+    }
+
     // Handle internalsVisibleTo
     if (args.internalsVisibleTo) {
         const internalsVisibleToFile = Transformer.writeAllLines({

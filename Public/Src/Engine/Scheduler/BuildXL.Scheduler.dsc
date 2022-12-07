@@ -9,6 +9,7 @@ namespace Scheduler {
         assemblyName: "BuildXL.Scheduler",
         generateLogs: true,
         sources: globR(d`.`, "*.cs"),
+        addCallerArgumentExpressionAttribute: false,
         references: [
             ...addIfLazy(BuildXLSdk.isFullFramework, () => [
                 NetFx.System.Runtime.Serialization.dll,

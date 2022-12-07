@@ -24,6 +24,8 @@ using BuildXL.Utilities.Tracing;
 using Newtonsoft.Json;
 using static BuildXL.Utilities.FormattableStringEx;
 
+#nullable enable
+
 namespace BuildXL.Scheduler.Tracing
 {
     /// <summary>
@@ -86,8 +88,8 @@ namespace BuildXL.Scheduler.Tracing
         private readonly HashSet<Operation> m_uniqueAssociatedOperationsSet = new HashSet<Operation>();
         private readonly List<CapturedOperationInfo> m_uniqueAssociatedOperationsBuffer = new List<CapturedOperationInfo>();
 
-        private readonly IOperationTrackerHost m_host;
-        private readonly EtwOnlyTextLogger m_etwOnlyTextLogger;
+        private readonly IOperationTrackerHost? m_host;
+        private readonly EtwOnlyTextLogger? m_etwOnlyTextLogger;
 
         /// <summary>
         /// The time keeper
@@ -107,7 +109,7 @@ namespace BuildXL.Scheduler.Tracing
         /// <summary>
         /// Class constructor
         /// </summary>
-        public OperationTracker(LoggingContext loggingContext, IOperationTrackerHost host = null)
+        public OperationTracker(LoggingContext loggingContext, IOperationTrackerHost? host = null)
         {
             m_host = host;
             m_stopwatch = Stopwatch.StartNew();
@@ -123,7 +125,7 @@ namespace BuildXL.Scheduler.Tracing
         /// Starts an operation associated with a given pip
         /// </summary>
         /// <returns>an operation context for the started root operation</returns>
-        public OperationContext StartOperation(OperationKind kind, PipId pipId, PipType pipType, LoggingContext loggingContext, Action<OperationKind, TimeSpan> onOperationCompleted = null)
+        public OperationContext StartOperation(OperationKind kind, PipId pipId, PipType pipType, LoggingContext loggingContext, Action<OperationKind, TimeSpan>? onOperationCompleted = null)
         {
             var root = GetOrCreateRootOperation();
             m_activePipOperations.Add(root);
@@ -145,8 +147,7 @@ namespace BuildXL.Scheduler.Tracing
         /// </summary>
         private RootOperation GetOrCreateRootOperation()
         {
-            RootOperation root;
-            if (!m_rootOperationPool.TryDequeue(out root))
+            if (!m_rootOperationPool.TryDequeue(out RootOperation? root))
             {
                 root = new RootOperation(this);
                 m_allRootOperations.Enqueue(root);
@@ -305,7 +306,7 @@ namespace BuildXL.Scheduler.Tracing
                         {
                             using (var reader = new StringReader(content))
                             {
-                                string line;
+                                string? line;
                                 while ((line = reader.ReadLine()) != null)
                                 {
                                     m_etwOnlyTextLogger.TextLogEtwOnly((int)LogEventId.StatsPerformanceLog,
@@ -342,7 +343,7 @@ namespace BuildXL.Scheduler.Tracing
             {
                 if (!rootOperation.IsComplete)
                 {
-                    rootOperation.Counter.OutstandingCounter.Add(rootOperation.Duration);
+                    rootOperation.Counter?.OutstandingCounter?.Add(rootOperation.Duration);
 
                     foreach (var operation in rootOperation.CreatedOperations)
                     {
@@ -351,18 +352,25 @@ namespace BuildXL.Scheduler.Tracing
                             var info = operation.Capture();
                             if (info.HasValue)
                             {
-                                var outstandingCounter = operation.Counter.OutstandingCounter;
-                                outstandingCounter.Add(info.Value.Duration);
+                                var outstandingCounter = operation.Counter?.OutstandingCounter;
+                                outstandingCounter?.Add(info.Value.Duration);
 
                                 if (info.Value.Artifact.IsValid || info.Value.PipId.IsValid)
                                 {
-                                    outstandingCounter.AssociatedOperations.Add(info.Value);
-                                    m_countersWithAssociatedOperations.Add(outstandingCounter);
+                                    outstandingCounter?.AssociatedOperations.Add(info.Value);
+
+                                    if (outstandingCounter != null)
+                                    {
+                                        m_countersWithAssociatedOperations.Add(outstandingCounter);
+                                    }
 
                                     if (info.Value.Duration > s_maxOpsThreshold)
                                     {
-                                        operation.Counter.AssociatedOperations.Add(info.Value);
-                                        m_countersWithAssociatedOperations.Add(operation.Counter);
+                                        operation.Counter?.AssociatedOperations.Add(info.Value);
+                                        if (operation.Counter != null)
+                                        {
+                                            m_countersWithAssociatedOperations.Add(operation.Counter);
+                                        }
                                     }
                                 }
                             }
@@ -453,7 +461,7 @@ namespace BuildXL.Scheduler.Tracing
             }
             else if (includeAssociatedOperations)
             {
-                StackCounter stackCounter = counter as StackCounter;
+                StackCounter? stackCounter = counter as StackCounter;
                 if (stackCounter != null && stackCounter.AssociatedOperations.Count != 0 && m_host != null)
                 {
                     stackCounter.SortAssociatedOperations();
@@ -510,7 +518,7 @@ namespace BuildXL.Scheduler.Tracing
             public PipId PipId;
             public FileOrDirectoryArtifact Artifact;
             public TimeSpan Duration;
-            public StackCounter Counter;
+            public StackCounter? Counter;
             public Operation Operation;
         }
 
@@ -537,7 +545,7 @@ namespace BuildXL.Scheduler.Tracing
             /// <summary>
             /// The current operation thread
             /// </summary>
-            public OperationThread Thread { get; private set; }
+            public OperationThread? Thread { get; private set; }
 
             /// <summary>
             /// The operation kind
@@ -547,7 +555,7 @@ namespace BuildXL.Scheduler.Tracing
             /// <summary>
             /// Details about the operation
             /// </summary>
-            public string Details;
+            public string? Details;
 
             /// <summary>
             /// The start time of the operation
@@ -574,12 +582,12 @@ namespace BuildXL.Scheduler.Tracing
             /// <summary>
             /// The parent operation which started the operation
             /// </summary>
-            public Operation Parent;
+            public Operation? Parent;
 
             /// <summary>
             /// The counter for the operation
             /// </summary>
-            public StackCounter Counter;
+            public StackCounter? Counter;
 
             /// <summary>
             /// Indicates whether the current operation is the root operation
@@ -603,7 +611,7 @@ namespace BuildXL.Scheduler.Tracing
             public int InstanceId { get; set; }
 
             /// <nodoc />
-            protected Operation(RootOperation root)
+            protected Operation(RootOperation? root)
             {
                 Root = root ?? (RootOperation)this;
             }
@@ -641,12 +649,14 @@ namespace BuildXL.Scheduler.Tracing
             /// <summary>
             /// Initializes the common operation
             /// </summary>
-            protected void InitializeCore(OperationKind kind, in FileOrDirectoryArtifact artifact = default(FileOrDirectoryArtifact), string details = null)
+            protected void InitializeCore(OperationKind kind, in FileOrDirectoryArtifact artifact = default(FileOrDirectoryArtifact), string? details = null)
             {
                 Contract.Requires(kind.IsValid);
                 Contract.Requires(Counter != null, "Must initialize counter");
 
                 Assert(this, ActiveSelfAndChildrenCount == 0, "Cannot initialize operation with children");
+                
+                Details = details;
 
                 Kind = kind;
                 Start = Root.Tracker.m_stopwatch.Elapsed;
@@ -663,7 +673,7 @@ namespace BuildXL.Scheduler.Tracing
             /// <summary>
             /// Initializes the operation's state for a parented operation
             /// </summary>
-            public void Initialize(Operation parent, OperationKind kind, in FileOrDirectoryArtifact artifact, string details)
+            public void Initialize(Operation parent, OperationKind kind, in FileOrDirectoryArtifact artifact, string? details)
             {
                 Contract.Requires(!IsRoot);
 
@@ -702,7 +712,7 @@ namespace BuildXL.Scheduler.Tracing
             {
                 Interlocked.Increment(ref m_version);
                 TraceDebugData(this);
-                // Assert done in the if condition because getting the child name and constructring this string is expensive.
+                // Assert done in the if condition because getting the child name and constructing this string is expensive.
                 if (ActiveSelfAndChildrenCount != 1)
                 {
                     Assert(this, false, I($"Must have no pending children Kind:{Kind.Name}, Child Kind:{Root.GetChildOperationName(this)} "));
@@ -710,14 +720,13 @@ namespace BuildXL.Scheduler.Tracing
 
                 Assert(this, !IsComplete, "Operations can only be completed once");
 
-                Counter.Add(Duration);
+                Counter?.Add(Duration);
 
-                Assert(this, Thread.ActiveOperation == this, "Must be the active operation");
-                if (!IsThread)
+                Assert(this, Thread?.ActiveOperation == this, "Must be the active operation");
+                if (!IsThread && Parent is { } parent)
                 {
-                    var parent = Parent;
                     Assert(this, !parent.IsComplete, "Parent cannot complete before child operations");
-                    Thread.ActiveOperation = parent;
+                    Thread!.ActiveOperation = parent; // 'Thread' can't be null because of an assertion before this if block.
                 }
 
                 Assert(this, ActiveSelfAndChildrenCount == 1, "Must have no pending children 2");
@@ -819,7 +828,7 @@ namespace BuildXL.Scheduler.Tracing
             public Operation ActiveOperation;
 
             /// <nodoc />
-            public OperationThread(RootOperation root)
+            public OperationThread(RootOperation? root)
                 : base(root)
             {
                 InitDebugData(OpType.Thread);
@@ -831,11 +840,14 @@ namespace BuildXL.Scheduler.Tracing
             /// <summary>
             /// Starts a new operation thread parented by the <see cref="ActiveOperation"/>
             /// </summary>
-            public Operation StartThread(OperationKind kind, in FileOrDirectoryArtifact artifact, string details)
+            public Operation StartThread(OperationKind kind, in FileOrDirectoryArtifact artifact, string? details)
             {
                 TraceDebugData(this);
                 kind = SpecializeKind(kind);
-                OperationThread thread = Root.CreateUnitializedOperation(newThread: true).Thread;
+                OperationThread? thread = Root.CreateUnitializedOperation(newThread: true).Thread;
+                
+                Contract.Assert(thread is not null);
+
                 thread.Initialize(ActiveOperation, kind, artifact, details);
                 thread.ActiveOperation = thread;
                 return thread;
@@ -844,7 +856,7 @@ namespace BuildXL.Scheduler.Tracing
             /// <summary>
             /// Starts a new nested operation parented by the <see cref="ActiveOperation"/>
             /// </summary>
-            public Operation StartNestedOperation(OperationKind kind, in FileOrDirectoryArtifact artifact, string details)
+            public Operation StartNestedOperation(OperationKind kind, in FileOrDirectoryArtifact artifact, string? details)
             {
                 TraceDebugData(this);
                 kind = SpecializeKind(kind);
@@ -897,7 +909,7 @@ namespace BuildXL.Scheduler.Tracing
             /// <summary>
             /// Callback for operation completions
             /// </summary>
-            public Action<OperationKind, TimeSpan> OnOperationCompleted { get; set; }
+            public Action<OperationKind, TimeSpan>? OnOperationCompleted { get; set; }
 
             // Operation thread pool
             private readonly Stack<OperationThread> m_operationThreadPool = new Stack<OperationThread>();
@@ -927,11 +939,14 @@ namespace BuildXL.Scheduler.Tracing
             /// <summary>
             /// Initializes the root operation's state
             /// </summary>
-            public void Initialize(PipId pipId, PipType pipType, OperationKind kind, Action<OperationKind, TimeSpan> onOperationCompleted)
+            public void Initialize(PipId pipId, PipType pipType, OperationKind kind, Action<OperationKind, TimeSpan>? onOperationCompleted)
             {
                 kind = SpecializeKind(kind);
                 PipId = pipId;
                 PipType = pipType;
+
+                Contract.Assert(Thread is not null);
+
                 Thread.ActiveOperation = this;
                 OnOperationCompleted = onOperationCompleted;
                 Counter = Tracker.m_counters.GetCounter(kind, parent: null);
@@ -992,6 +1007,8 @@ namespace BuildXL.Scheduler.Tracing
             {
                 TraceDebugData(this);
 
+                Contract.Assert(Thread is not null);
+
                 Assert(operation, Thread.ActiveOperation != operation, "Returned operations must not remain active");
 
                 OnOperationCompleted?.Invoke(operation.Kind, operation.Duration);
@@ -1008,6 +1025,8 @@ namespace BuildXL.Scheduler.Tracing
             public void ReturnThread(OperationThread thread)
             {
                 TraceDebugData(this);
+
+                Contract.Assert(Thread is not null);
 
                 Assert(thread, Thread.ActiveOperation != thread, "Returned operations must not remain active");
 
@@ -1038,7 +1057,7 @@ namespace BuildXL.Scheduler.Tracing
             public int RootInstanceId;
             public OperationKind Kind;
             public OperationKind ParentKind;
-            public string CallerName;
+            public string? CallerName;
             public PipId PipId;
             public bool IsComplete;
             public int ActiveSelfAndChildCount;
@@ -1067,7 +1086,7 @@ namespace BuildXL.Scheduler.Tracing
             }
         }
 
-        private static void Assert(Operation operation, bool condition, string message = null)
+        private static void Assert(Operation operation, bool condition, string? message = null, [CallerArgumentExpression("condition")]string? conditionText = null)
         {
             if (condition)
             {
@@ -1084,7 +1103,7 @@ namespace BuildXL.Scheduler.Tracing
                     var builder = new StringBuilder();
                     using (StreamWriter writer = new StreamWriter(@"E:\shared\trace.txt"))
                     {
-                        writer.WriteLine(I($"InstanceId: {operation.InstanceId} raised assertion. {message}"));
+                        writer.WriteLine(I($"InstanceId: {operation.InstanceId} raised assertion '{conditionText}'. {message}"));
 
                         var datas = s_debugDatas.Reverse().ToArray();
                         foreach (var item in datas)
@@ -1104,16 +1123,16 @@ namespace BuildXL.Scheduler.Tracing
                     builder.Clear();
 
                     message = message ?? string.Empty;
-                    Contract.Assert(condition, $"InstanceId: {operation.InstanceId} raised assertion. {message}");
+                    Contract.Assert(condition, $"InstanceId: {operation.InstanceId} raised assertion '{conditionText}'. {message}");
                 }
                 else
                 {
-                    Contract.Assert(condition, message);
+                    Contract.Assert(condition, $"InstanceId: {operation.InstanceId} raised assertion '{conditionText}'. {message}");
                 }
             }
         }
 
-        private static void TraceDebugData(Operation operation, [CallerMemberName] string callerName = null)
+        private static void TraceDebugData(Operation operation, [CallerMemberName] string callerName = null!)
         {
             if (!s_enableDebugTracing)
             {
@@ -1122,8 +1141,7 @@ namespace BuildXL.Scheduler.Tracing
 
             if (Interlocked.Increment(ref s_debugDataCount) > 20000)
             {
-                OperationDebugData ignored;
-                s_debugDatas.TryDequeue(out ignored);
+                s_debugDatas.TryDequeue(out _);
             }
 
             s_debugDatas.Enqueue(new OperationDebugData()
@@ -1165,7 +1183,7 @@ namespace BuildXL.Scheduler.Tracing
             /// <summary>
             /// The parent counter
             /// </summary>
-            public readonly Counter Parent;
+            public readonly Counter? Parent;
 
             /// <summary>
             /// The aggregate counter for all operations of the <see cref="Counter.Kind"/>
@@ -1175,7 +1193,7 @@ namespace BuildXL.Scheduler.Tracing
             /// <summary>
             /// The counter for all outstanding operations of the <see cref="Counter.Kind"/>
             /// </summary>
-            public readonly StackCounter OutstandingCounter;
+            public readonly StackCounter? OutstandingCounter;
 
             /// <summary>
             /// Gets associated operations for the counter
@@ -1185,7 +1203,7 @@ namespace BuildXL.Scheduler.Tracing
             /// <summary>
             /// Creates a new hierachical counter
             /// </summary>
-            public StackCounter(OperationKind kind, Counter parent, Counter aggregateCounter, StackCounter outstandingCounter = null)
+            public StackCounter(OperationKind kind, Counter? parent, Counter aggregateCounter, StackCounter? outstandingCounter = null)
                 : base(kind)
             {
                 Parent = parent;
@@ -1386,8 +1404,7 @@ namespace BuildXL.Scheduler.Tracing
             /// <summary>
             /// The map of parent counter and kind to nested counter
             /// </summary>
-            private readonly Dictionary<(StackCounter, OperationKind), StackCounter> m_counterMap =
-                new Dictionary<(StackCounter, OperationKind), StackCounter>();
+            private readonly Dictionary<(StackCounter?, OperationKind), StackCounter> m_counterMap = new();
 
             /// <summary>
             /// Creates the operation counter
@@ -1401,9 +1418,9 @@ namespace BuildXL.Scheduler.Tracing
             /// <summary>
             /// Gets the counter for the operation for the kind and parent counter
             /// </summary>
-            public StackCounter GetCounter(OperationKind kind, StackCounter parent)
+            public StackCounter GetCounter(OperationKind kind, StackCounter? parent)
             {
-                StackCounter counter;
+                StackCounter? counter;
                 var key = (parent, kind);
                 using (m_counterMapLock.AcquireReadLock())
                 {

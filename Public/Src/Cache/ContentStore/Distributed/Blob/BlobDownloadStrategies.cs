@@ -8,15 +8,16 @@ using System.IO.MemoryMappedFiles;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
-using System.Runtime.Serialization;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.Host.Configuration;
 using BuildXL.Utilities.Tracing;
 using Microsoft.WindowsAzure.Storage;
+using Microsoft.WindowsAzure.Storage.Blob;
 using OperationContext = BuildXL.Cache.ContentStore.Tracing.Internal.OperationContext;
 
 #nullable enable
@@ -25,8 +26,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blobs
 {
     internal abstract class BlobDownloadStrategyBase : IBlobDownloadStrategy
     {
-        protected static HttpClient HttpClient { get; } = new HttpClient();
-
         protected BlobDownloadStrategyConfiguration Configuration { get; }
         protected IAbsFileSystem FileSystem { get; }
 
@@ -217,6 +216,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blobs
 
     internal abstract class HttpClientDownloadStrategyBase : BlobDownloadStrategyBase
     {
+        protected static HttpClient HttpClient { get; } = new HttpClient();
+
+        private readonly IClock _clock;
+
         /// <summary>
         /// Based upon https://docs.microsoft.com/en-us/azure/architecture/best-practices/retry-service-specific#general-rest-and-retry-guidelines
         /// </summary>
@@ -230,8 +233,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blobs
             (int)HttpStatusCode.GatewayTimeout,
         };
 
-        protected HttpClientDownloadStrategyBase(BlobDownloadStrategyConfiguration configuration, IAbsFileSystem? fileSystem = null) : base(configuration, fileSystem)
+        protected HttpClientDownloadStrategyBase(BlobDownloadStrategyConfiguration configuration, IClock clock, IAbsFileSystem? fileSystem = null) : base(configuration, fileSystem)
         {
+            _clock = clock;
         }
 
         protected override bool IsExceptionTransient(Exception exception)
@@ -243,11 +247,34 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blobs
 
             return base.IsExceptionTransient(exception);
         }
+
+        protected string CreateDownloadUrl(RemoteDownloadRequest downloadRequest)
+        {
+            var downloadUrl = downloadRequest.Reference.Uri.AbsoluteUri;
+
+            // If we created the reference using a client that auths through SAS tokens, the download URL should already contain all necessary auth information.
+            if (downloadRequest.Reference.ServiceClient.Credentials.IsSAS)
+            {
+                downloadUrl += downloadRequest.Reference.ServiceClient.Credentials.SASToken;
+            }
+            else
+            {
+                var sasUrlQuery = downloadRequest.Reference.GetSharedAccessSignature(new SharedAccessBlobPolicy()
+                {
+                    Permissions = SharedAccessBlobPermissions.Read,
+                    SharedAccessExpiryTime = _clock.UtcNow + TimeSpan.FromDays(1),
+                });
+
+                downloadUrl += sasUrlQuery;
+            }
+
+            return downloadUrl;
+        }
     }
 
-    internal sealed class HttpClientDownloadToStreamStrategy : BlobDownloadStrategyBase
+    internal sealed class HttpClientDownloadToStreamStrategy : HttpClientDownloadStrategyBase
     {
-        public HttpClientDownloadToStreamStrategy(BlobDownloadStrategyConfiguration configuration, IAbsFileSystem? fileSystem = null) : base(configuration, fileSystem)
+        public HttpClientDownloadToStreamStrategy(BlobDownloadStrategyConfiguration configuration, IClock clock, IAbsFileSystem? fileSystem = null) : base(configuration, clock, fileSystem)
         {
         }
 
@@ -255,7 +282,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blobs
         {
             var stopwatch = StopwatchSlim.Start();
 
-            using var request = new HttpRequestMessage(HttpMethod.Get, downloadRequest.DownloadUrl);
+            using var request = new HttpRequestMessage(HttpMethod.Get, CreateDownloadUrl(downloadRequest));
             using var response = await HttpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, context.Token);
             var timeToFirstByteDuration = stopwatch.ElapsedAndReset();
 
@@ -303,9 +330,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blobs
         }
     }
 
-    internal sealed class HttpClientDownloadToMemoryMappedFileStrategy : BlobDownloadStrategyBase
+    internal sealed class HttpClientDownloadToMemoryMappedFileStrategy : HttpClientDownloadStrategyBase
     {
-        public HttpClientDownloadToMemoryMappedFileStrategy(BlobDownloadStrategyConfiguration configuration, IAbsFileSystem? fileSystem = null) : base(configuration, fileSystem)
+        public HttpClientDownloadToMemoryMappedFileStrategy(BlobDownloadStrategyConfiguration configuration, IClock clock, IAbsFileSystem? fileSystem = null) : base(configuration, clock, fileSystem)
         {
         }
 
@@ -313,7 +340,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blobs
         {
             var stopwatch = StopwatchSlim.Start();
 
-            using var request = new HttpRequestMessage(HttpMethod.Get, downloadRequest.DownloadUrl);
+            using var request = new HttpRequestMessage(HttpMethod.Get, CreateDownloadUrl(downloadRequest));
             using var response = await HttpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, context.Token);
             var timeToFirstByteDuration = stopwatch.ElapsedAndReset();
 

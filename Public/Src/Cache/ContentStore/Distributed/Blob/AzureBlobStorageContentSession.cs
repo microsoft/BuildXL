@@ -108,7 +108,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blobs
             : base(configuration.Name)
         {
             _configuration = configuration;
-            _downloadStrategy = BlobDownloadStrategyFactory.Create(configuration.BlobDownloadStrategyConfiguration);
+            _downloadStrategy = BlobDownloadStrategyFactory.Create(configuration.BlobDownloadStrategyConfiguration, _clock);
         }
 
         #region IContentSession Implementation
@@ -355,20 +355,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blobs
                 {
                     var reference = GetCloudBlockBlobReference(contentHash);
 
-                    var sasUrlQuery = reference.GetSharedAccessSignature(new SharedAccessBlobPolicy()
-                    {
-                        Permissions = SharedAccessBlobPermissions.Read,
-                        SharedAccessExpiryTime = _clock.UtcNow + TimeSpan.FromDays(1),
-                    });
-
-                    var downloadUrl = reference.Uri.AbsoluteUri + sasUrlQuery;
-
                     var downloadRequest = new RemoteDownloadRequest()
                     {
                         ContentHash = contentHash,
                         AbsolutePath = path,
                         Reference = reference,
-                        DownloadUrl = downloadUrl,
                     };
 
                     RemoteDownloadResult remoteDownloadResult;
@@ -574,7 +565,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blobs
                         // See: https://docs.microsoft.com/en-us/rest/api/storageservices/blob-service-error-codes
                         // See: https://docs.microsoft.com/en-us/rest/api/storageservices/Specifying-Conditional-Headers-for-Blob-Service-Operations#Subheading3
                         if (exception.RequestInformation.HttpStatusCode == (int)HttpStatusCode.PreconditionFailed
-                            || exception.RequestInformation.ErrorCode == "BlobAlreadyExists")
+                            || exception.RequestInformation.ErrorCode == "BlobAlreadyExists"
+                            || exception.Message == "The specified blob already exists.")
                         {
                             contentAlreadyExistsInCache = true;
                         }

@@ -31,8 +31,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blobs
         public AbsolutePath AbsolutePath { get; init; }
 
         public CloudBlockBlob Reference { get; init; }
-
-        public string DownloadUrl { get; init; }
     }
 
     public struct RemoteDownloadResult

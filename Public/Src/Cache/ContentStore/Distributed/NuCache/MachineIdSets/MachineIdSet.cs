@@ -16,7 +16,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     /// <remarks>
     /// The type and all of the derived types are immutable.
     /// </remarks>
-    public abstract class MachineIdSet : IReadOnlyCollection<MachineId>
+    public abstract class MachineIdSet : IReadOnlyCollection<MachineId>, IEquatable<MachineIdSet>
     {
         private static readonly ObjectPool<List<MachineId>> MachineIdListPool = new ObjectPool<List<MachineId>>(
             () => new List<MachineId>(),
@@ -40,16 +40,22 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public static LocationChangeMachineIdSet EmptyChangeSet => LocationChangeMachineIdSet.EmptyInstance;
 
         /// <summary>
+        /// Returns an empty machine set that supports tracking additions and removals of the machine locations used with merge operators.
+        /// </summary>
+        public static SortedLocationChangeMachineIdSet SortedEmptyChangeSet => SortedLocationChangeMachineIdSet.EmptyInstance;
+
+        /// <summary>
         /// Creates a list of machine ids that represents additions or removals of the content on them.
         /// </summary>
-        public static MachineIdSet CreateChangeSet(bool exists, params MachineId[] machineIds) // Rename it to avoid confusion.
+        public static LocationChangeMachineIdSet CreateChangeSet(bool sortLocations, bool exists, params MachineId[] machineIds) // Rename it to avoid confusion.
         {
+            var set = sortLocations ? SortedEmptyChangeSet : EmptyChangeSet;
             if (machineIds.Length == 0)
             {
-                return EmptyChangeSet;
+                return set;
             }
 
-            return EmptyChangeSet.SetExistence(MachineIdCollection.Create(machineIds), exists);
+            return (LocationChangeMachineIdSet)set.SetExistence(MachineIdCollection.Create(machineIds), exists);
         }
 
         /// <summary>
@@ -90,13 +96,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Merges two machine id sets together.
         /// </summary>
-        public MachineIdSet Merge(MachineIdSet other)
+        public LocationChangeMachineIdSet Merge(MachineIdSet other, bool sortLocations)
         {
             MachineIdSet currentInstance = this;
             if (this is not LocationChangeMachineIdSet)
             {
                 // If the current instance is not mergeable, re-creating a mergeable one to avoid losing removals.
-                currentInstance = CreateChangeSet(exists: true, EnumerateMachineIds().ToArray());
+                currentInstance = CreateChangeSet(sortLocations, exists: true, EnumerateMachineIds().ToArray());
             }
 
             if (other is LocationChangeMachineIdSet locationChanges)
@@ -119,11 +125,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 var additions = MachineIdCollection.Create(pooledAdditions.Instance);
                 var removals = MachineIdCollection.Create(pooledRemovals.Instance);
 
-                return currentInstance.SetExistence(additions, exists: true).SetExistence(removals, exists: false);
+                // Once we move to .net core only we can change the SetExistence signature to return more derived type to avoid cast at all.
+                return (LocationChangeMachineIdSet)currentInstance.SetExistence(additions, exists: true).SetExistence(removals, exists: false);
             }
 
             // The 'other' instance is not a mergeable one, it means that it has only a set of machines with the content.
-            return currentInstance.SetExistence(MachineIdCollection.Create(other.ToArray()), exists: true);
+            return (LocationChangeMachineIdSet)currentInstance.SetExistence(MachineIdCollection.Create(other.ToArray()), exists: true);
         }
 
         /// <nodoc />
@@ -181,7 +188,34 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <nodoc />
+        public void Serialize(ref SpanWriter writer)
+        {
+            MachineIdSet serializableInstance = this;
+            if (Format == SetFormat.Bits)
+            {
+                if (Count <= BitMachineIdSetThreshold)
+                {
+                    serializableInstance = new ArrayMachineIdSet(EnumerateMachineIds().Select(id => (ushort)id.Index));
+                }
+            }
+            else
+            {
+                if (Format == SetFormat.Array && Count > BitMachineIdSetThreshold)
+                {
+                    // Not changing the format for LocationChangeMachineIdSet.
+                    serializableInstance = BitMachineIdSet.Create(EnumerateMachineIds());
+                }
+            }
+
+            writer.Write((byte)serializableInstance.Format);
+            serializableInstance.SerializeCore(ref writer);
+        }
+
+        /// <nodoc />
         protected abstract void SerializeCore(BuildXLWriter writer);
+
+        /// <nodoc />
+        protected abstract void SerializeCore(ref SpanWriter writer);
 
         /// <summary>
         /// Returns true if deserialized instance would have a machine id with a given index.
@@ -196,6 +230,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 SetFormat.Bits => BitMachineIdSet.HasMachineIdCore(reader.Remaining, index),
                 SetFormat.Array => ArrayMachineIdSet.HasMachineIdCore(reader.Remaining, index),
                 SetFormat.LocationChange => LocationChangeMachineIdSet.HasMachineIdCore(reader.Remaining, index),
+                SetFormat.LocationChangeSorted => SortedLocationChangeMachineIdSet.HasMachineIdCoreSorted(reader.Remaining, index),
                 _ => throw new InvalidOperationException($"Unknown format '{format}'."),
             };
         }
@@ -210,6 +245,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 SetFormat.Bits => BitMachineIdSet.DeserializeCore(reader),
                 SetFormat.Array => ArrayMachineIdSet.DeserializeCore(reader),
                 SetFormat.LocationChange => LocationChangeMachineIdSet.DeserializeCore(reader),
+                SetFormat.LocationChangeSorted => SortedLocationChangeMachineIdSet.DeserializeCoreSorted(reader),
                 _ => throw new InvalidOperationException($"Unknown format '{format}'."),
             };
         }
@@ -224,6 +260,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 SetFormat.Bits => BitMachineIdSet.DeserializeCore(ref reader),
                 SetFormat.Array => ArrayMachineIdSet.DeserializeCore(ref reader),
                 SetFormat.LocationChange => LocationChangeMachineIdSet.DeserializeCore(ref reader),
+                SetFormat.LocationChangeSorted => SortedLocationChangeMachineIdSet.DeserializeCoreSorted(ref reader),
                 _ => throw new InvalidOperationException($"Unknown format '{format}'."),
             };
         }
@@ -246,7 +283,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             /// <summary>
             /// Based on an array of location changes that can represents both additions and removals of locations.
             /// </summary>
-            LocationChange
+            LocationChange,
+
+            /// <summary>
+            /// Similar to <see cref="LocationChange"/> but all the locations are stored in a sorted form that allows merging them without deserialization.
+            /// </summary>
+            LocationChangeSorted,
         }
 
         /// <inheritdoc />
@@ -262,6 +304,51 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public override string ToString()
         {
             return $"Count: {Count}";
+        }
+
+        /// <inheritdoc />
+        public bool Equals(MachineIdSet other)
+        {
+            if (other is null)
+            {
+                return false;
+            }
+
+            if (ReferenceEquals(this, other))
+            {
+                return true;
+            }
+
+            return EqualsCore(other);
+        }
+
+        /// <inheritdoc />
+        public override bool Equals(object obj)
+        {
+            if (obj is null)
+            {
+                return false;
+            }
+
+            if (ReferenceEquals(this, obj))
+            {
+                return true;
+            }
+
+            return Equals((MachineIdSet) obj);
+        }
+
+        /// <inheritdoc />
+        public override int GetHashCode()
+        {
+            // This is not efficient, but this should not be used as a key in a map anyways.
+            return ((int) Format, Count).GetHashCode();
+        }
+
+        /// <nodoc />
+        protected virtual bool EqualsCore(MachineIdSet other)
+        {
+            return EnumerateMachineIds().SequenceEqual(other.EnumerateMachineIds());
         }
     }
 }

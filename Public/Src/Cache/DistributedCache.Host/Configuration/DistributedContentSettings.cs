@@ -586,6 +586,9 @@ namespace BuildXL.Cache.Host.Configuration
         public bool? UseMergeOperatorForContentLocations { get; set; }
 
         [DataMember]
+        public bool? SortMergeableContentLocations { get; set; }
+
+        [DataMember]
         [Validation.Range(1, long.MaxValue)]
         public long? ContentLocationDatabaseEnumerateSortedKeysFromStorageBufferSize { get; set; }
 

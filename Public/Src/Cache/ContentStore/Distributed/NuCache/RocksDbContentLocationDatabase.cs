@@ -9,10 +9,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.Cache.ContentStore.Interfaces.Extensions;
-using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Synchronization;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
@@ -26,10 +23,10 @@ using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Engine.Cache.KeyValueStores;
 using BuildXL.Native.IO;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.ConfigurationHelpers;
 using BuildXL.Utilities.Serialization;
 using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Tracing;
 using RocksDbSharp;
 using static BuildXL.Cache.ContentStore.Distributed.Tracing.TracingStructuredExtensions;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
@@ -325,17 +322,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             // Using manual try/catch block instead of using 'PerformOperation' to avoid unnecessary overhead.
             // This method is called a lot, and it should be as efficient as possible.
             using var c = Counters[ContentLocationDatabaseCounters.MergeEntry].Start();
+
             try
             {
-                var leftReader = value1.AsReader();
-                var leftEntry = ContentLocationEntry.Deserialize(ref leftReader);
-                var rightReader = value2.AsReader();
-                var rightEntry = ContentLocationEntry.Deserialize(ref rightReader);
-
-                var mergedEntry = ContentLocationEntry.MergeEntries(leftEntry, rightEntry);
-
-                using var serializedEntry = SerializeContentLocationEntry(mergedEntry);
-                result.ValueBuffer.Set(serializedEntry.Buffer.Span);
+                // Trying a more optimized version first
+                if (!TryMergeSortedContentLocations(operationContext, value1, value2, result))
+                {
+                    // And falling back to the deserialization-based one only when the optimized version is not supported or failed.
+                    MergeContentLocations(value1, value2, result);
+                }
             }
             catch (Exception e)
             {
@@ -346,7 +341,100 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             return true;
         }
-        
+
+        private void MergeContentLocations(
+            ReadOnlySpan<byte> value1,
+            ReadOnlySpan<byte> value2,
+            MergeResult result)
+        {
+
+            var leftEntry = ContentLocationEntry.Deserialize(value1);
+            var rightEntry = ContentLocationEntry.Deserialize(value2);
+
+            var mergedEntry = ContentLocationEntry.MergeEntries(leftEntry, rightEntry, sortLocations: _configuration.SortMergeableContentLocations);
+
+            using var serializedEntry = SerializeContentLocationEntry(mergedEntry);
+            result.ValueBuffer.Set(serializedEntry.Buffer.Span);
+        }
+
+        private bool TryMergeSortedContentLocations(
+            OperationContext operationContext,
+            ReadOnlySpan<byte> value1,
+            ReadOnlySpan<byte> value2,
+            MergeResult result)
+        {
+            if (_configuration.SortMergeableContentLocations)
+            {
+                using CancellableCounterStopwatch c = Counters[ContentLocationDatabaseCounters.MergeEntrySorted].Start();
+                try
+                {
+                    // The merged value should not be more bigger than the two original entries.
+                    result.ValueBuffer.Resize(value1.Length + value2.Length);
+
+                    var reader1 = value1.AsReader();
+                    var reader2 = value2.AsReader();
+                    var mergeWriter = result.ValueBuffer.Value.AsWriter();
+                    if (!ContentLocationEntry.TryMergeSortedLocations(ref reader1, ref reader2, ref mergeWriter))
+                    {
+                        // We haven't merged, so discarding the counter.
+                        c.Discard();
+                        return false;
+                    }
+
+                    result.ValueBuffer.Resize(mergeWriter.Position);
+                    return true;
+                }
+                catch (Exception e)
+                {
+                    var errorResult = new ErrorResult(e);
+                    errorResult.MakeCritical();
+                    Tracer.OperationFinished(operationContext, errorResult, c.Elapsed, message: "Failed merging values without deserialization");
+
+                    // Need to clear the state that could have been left by this operation.
+                    result.ValueBuffer.Value.Clear();
+                    return false;
+                }
+            }
+
+            return false;
+        }
+
+        private struct CancellableCounterStopwatch : IDisposable
+        {
+            private readonly CounterCollection.Stopwatch _stopwatch;
+            private bool _discarded;
+
+            /// <nodoc />
+            public CancellableCounterStopwatch(CounterCollection.Stopwatch stopwatch)
+            {
+                _stopwatch = stopwatch;
+                _discarded = false;
+            }
+
+            /// <inheritdoc />
+            public void Dispose()
+            {
+                if (!_discarded)
+                {
+                    _stopwatch.Dispose();
+                }
+            }
+
+            /// <inheritdoc cref="CounterCollection.Stopwatch.Elapsed"/>
+            public TimeSpan Elapsed => _stopwatch.Elapsed;
+
+            /// <summary>
+            /// Discards the current timer
+            /// </summary>
+            public void Discard()
+            {
+                _discarded = true;
+            }
+
+            public static implicit operator CancellableCounterStopwatch(CounterCollection.Stopwatch stopwatch) =>
+                new CancellableCounterStopwatch(stopwatch);
+        }
+
         /// <inheritdoc />
         protected override bool SetMachineExistenceAndUpdateDatabase(
             OperationContext context,
@@ -388,7 +476,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 {
                     // Add
                     entry = ContentLocationEntry.Create(
-                        MachineIdSet.CreateChangeSet(exists: true, machine.Value),
+                        CreateChangeSet(exists: true, machine.Value),
                         size,
                         lastAccessTimeUtc: now,
                         creationTimeUtc: now);
@@ -402,7 +490,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     Contract.Assert(lastAccessTime != null);
                     entry = ContentLocationEntry.Create(
                         // All the mergeable entries should use machine id set that can track the state changes.
-                        MachineIdSet.EmptyChangeSet,
+                        GetEmptyChangeSet(),
                         size,
                         lastAccessTimeUtc: lastAccessTime.Value,
                         creationTimeUtc: lastAccessTime.Value);
@@ -413,7 +501,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 {
                     // Removal
                     entry = ContentLocationEntry.Create(
-                        MachineIdSet.CreateChangeSet(exists: false, machine.Value),
+                        CreateChangeSet(exists: false, machine.Value),
                         size,
                         lastAccessTimeUtc: now,
                         creationTimeUtc: now);
@@ -443,6 +531,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 context.TracingContext.TrackOperationFinishedMetrics(nameof(SetMachineExistenceAndUpdateDatabase), Tracer.Name, counter.Elapsed);
             }
         }
+
+        protected override LocationChangeMachineIdSet CreateChangeSet(bool exists, params MachineId[] machineIds)
+        {
+            return MachineIdSet.CreateChangeSet(sortLocations: _configuration.SortMergeableContentLocations, exists, machineIds);
+        }
+
+        private LocationChangeMachineIdSet GetEmptyChangeSet() =>
+            _configuration.SortMergeableContentLocations ? MachineIdSet.SortedEmptyChangeSet : MachineIdSet.EmptyChangeSet;
 
         private StoreSlot GetNextSlot(StoreSlot slot)
         {

@@ -200,6 +200,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         public bool UseMergeOperatorForContentLocations { get; set; } = false;
 
+        /// <summary>
+        /// If true, then the locations will be merged without deserialization on the workers and sorted on the master.
+        /// </summary>
+        public bool SortMergeableContentLocations { get; set; }
+
         /// <nodoc />
         public RocksDbPerformanceSettings? RocksDbPerformanceSettings { get; set; } = null;
 
@@ -226,6 +231,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             ApplyIfNotNull(settings.ContentLocationDatabaseOpenReadOnly, v => configuration.OpenReadOnly = v && !settings.IsMasterEligible);
             ApplyIfNotNull(settings.UseMergeOperatorForContentLocations, v => configuration.UseMergeOperatorForContentLocations = v);
+            ApplyIfNotNull(settings.SortMergeableContentLocations, v => configuration.SortMergeableContentLocations = v);
 
             ApplyIfNotNull(settings.ContentLocationDatabaseLogsBackupRetentionMinutes, v => configuration.LogsRetention = TimeSpan.FromMinutes(v));
 

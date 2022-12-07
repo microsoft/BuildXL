@@ -45,6 +45,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Extensions
             }
         }
 
+#if !NET6_0_OR_GREATER
         /// <summary>
         ///     Write all elements to a HashSet.
         /// </summary>
@@ -53,7 +54,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Extensions
             comparer ??= EqualityComparer<T>.Default;
             return new HashSet<T>(items, comparer);
         }
-
+#endif
         /// <summary>
         /// Gets the item with the max key given the optional key comparer.
         /// </summary>

@@ -180,6 +180,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
         }
 
+        /// <inheritdoc />
+        protected override void SerializeCore(ref SpanWriter writer)
+        {
+            // Use variable length encoding
+            writer.WriteCompact(Count);
+            foreach (var machineId in _machineIds)
+            {
+                // Use variable length encoding?
+                writer.WriteCompact((int)machineId);
+            }
+        }
+
         internal static MachineIdSet DeserializeCore(BuildXLReader reader)
         {
             // Use variable length encoding

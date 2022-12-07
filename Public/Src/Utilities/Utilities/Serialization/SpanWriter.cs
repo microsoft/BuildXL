@@ -81,13 +81,19 @@ namespace BuildXL.Utilities.Serialization
             Position += source.Length;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void EnsureLength(int minLength)
         {
             if (RemainingLength < minLength)
             {
-                throw new ArgumentException(
-                    $"The reader should have at least {minLength} length but has {RemainingLength}.");
+                ThrowArgumentException(minLength);
             }
+        }
+
+        private void ThrowArgumentException(int minLength)
+        {
+            throw new ArgumentException(
+                $"The reader should have at least {minLength} length but has {RemainingLength}.");
         }
 
         /// <nodoc />

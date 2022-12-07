@@ -19,6 +19,11 @@ namespace BuildXL.Cache.ContentStore.Utils
             return new UnixTime(reader.ReadInt64Compact());
         }
 
+        public static void Write(ref this SpanWriter writer, UnixTime value)
+        {
+            writer.WriteCompact(value.Value);
+        }
+
         public static UnixTime ReadUnixTime(ref this SpanReader reader)
         {
             return new UnixTime(reader.ReadInt64Compact());

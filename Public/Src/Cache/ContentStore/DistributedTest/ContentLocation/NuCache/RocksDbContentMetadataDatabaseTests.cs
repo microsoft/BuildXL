@@ -403,7 +403,7 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
                     SerializedData: mergedData.WrittenBytes.ToArray()
                 )
                 {
-                    MachineIdSet = MachineIdSet.Merge(other.MachineIdSet)
+                    MachineIdSet = MachineIdSet.Merge(other.MachineIdSet, sortLocations: false)
                 };
 
                 merge.Validate();

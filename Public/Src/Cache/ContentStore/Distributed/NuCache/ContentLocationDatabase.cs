@@ -383,6 +383,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 isCritical: true);
         }
 
+        protected virtual LocationChangeMachineIdSet CreateChangeSet(bool exists, params MachineId[] machineIds)
+        {
+            return MachineIdSet.CreateChangeSet(sortLocations: false, exists, machineIds);
+        }
+
         // Iterate over all content in DB, for each hash removing locations known to
         // be inactive, and removing hashes with no locations.
         private BoolResult GarbageCollectContentCore(OperationContext context)
@@ -455,7 +460,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                                 // The logic for storing inactive machine depends on whether merge operators are used or not.
                                 // In case of merge operators we need to store the removals state change for inactive machines.
                                 var inactiveMachines = _getInactiveMachines();
-                                var inactiveMachinesSet = MachineIdSet.CreateChangeSet(exists: false, inactiveMachines.ToArray());
+                                var inactiveMachinesSet = CreateChangeSet(exists: false, inactiveMachines.ToArray());
                                 var inactiveMachinesEntry = ContentLocationEntry.Create(inactiveMachinesSet, entry.ContentSize, entry.LastAccessTimeUtc, entry.CreationTimeUtc);
                                 Store(context, hash, inactiveMachinesEntry);
                             }

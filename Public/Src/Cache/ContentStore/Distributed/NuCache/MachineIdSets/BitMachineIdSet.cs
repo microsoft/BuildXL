@@ -129,6 +129,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             writer.Write(Data, Offset, count);
         }
 
+        /// <nodoc />
+        protected override void SerializeCore(ref SpanWriter writer)
+        {
+            var count = Data.Length - Offset;
+
+            // Use variable length encoding
+            writer.WriteCompact(count);
+            writer.Write(Data.AsSpan(Offset, count));
+        }
+
         internal static MachineIdSet DeserializeCore(BuildXLReader reader)
         {
             var count = reader.ReadInt32Compact();

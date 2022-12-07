@@ -17,7 +17,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     /// <remarks>
     /// This type is used with RocksDb merge operators.
     /// </remarks>
-    public sealed class LocationChangeMachineIdSet : MachineIdSet
+    public class LocationChangeMachineIdSet : MachineIdSet
     {
         // Consider keeping an array of LocationChange
         // The field is intentionally not made readonly to avoid defensive copies accessing
@@ -26,7 +26,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private ImmutableArray<LocationChange> _locationStates;
 
         /// <nodoc />
-        public static LocationChangeMachineIdSet EmptyInstance { get; } = new (ImmutableArray<LocationChange>.Empty);
+        public static LocationChangeMachineIdSet EmptyInstance { get; } = new(ImmutableArray<LocationChange>.Empty);
 
         /// <inheritdoc />
         protected override SetFormat Format => SetFormat.LocationChange;
@@ -51,7 +51,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 int result = 0;
                 foreach (var locationState in machineIds)
                 {
-                    var locationChange = locationState;
                     if (locationState.IsAdd)
                     {
                         result++;
@@ -122,8 +121,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             locationStates = locationStates.Add(locationChange);
 
-            return new LocationChangeMachineIdSet(locationStates);
+            return Create(locationStates);
         }
+
+        /// <summary>
+        /// A factory method for creating the right instance of location change machine id set.
+        /// </summary>
+        protected virtual LocationChangeMachineIdSet Create(in ImmutableArray<LocationChange> locationStates) => new LocationChangeMachineIdSet(locationStates);
 
         private MachineIdSet SetExistenceWithBuilder(in MachineIdCollection machines, bool exists)
         {
@@ -145,7 +149,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 builder.Add(LocationChange.Create(machineId, isRemove: !exists));
             }
 
-            return builder != null ? new LocationChangeMachineIdSet(builder.ToImmutable()) : this;
+            return builder != null ? Create(builder.ToImmutable()) : this;
         }
 
         /// <summary>
@@ -182,13 +186,37 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             return -1;
         }
-
+        
         /// <inheritdoc />
         protected override void SerializeCore(BuildXLWriter writer)
         {
             // Use variable length encoding
             writer.WriteCompact(_locationStates.Length);
-            foreach (var locationChange in _locationStates)
+            SerializeLocationChanges(_locationStates, writer);
+        }
+
+        /// <inheritdoc />
+        protected override void SerializeCore(ref SpanWriter writer)
+        {
+            // Use variable length encoding
+            writer.WriteCompact(_locationStates.Length);
+            SerializeLocationChanges(_locationStates, ref writer);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        protected static void SerializeLocationChanges(in ImmutableArray<LocationChange> locationStates, BuildXLWriter writer)
+        {
+            foreach (var locationChange in locationStates)
+            {
+                // Use variable length encoding?
+                writer.Write(unchecked((ushort)locationChange.Value));
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        protected static void SerializeLocationChanges(in ImmutableArray<LocationChange> locationStates, ref SpanWriter writer)
+        {
+            foreach (var locationChange in locationStates)
             {
                 // Use variable length encoding?
                 writer.Write(unchecked((ushort)locationChange.Value));
@@ -211,13 +239,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             // Using unsafe trick to create an instance of immutable array without copying a source array.
             // This is a semi-official trick "suggested" by the CLR architect here: https://github.com/dotnet/runtime/issues/25461
-            ImmutableArray<LocationChange> immutableMachineIds = Unsafe.As<LocationChange[], ImmutableArray<LocationChange>>(ref machineIds);
+            var immutableMachineIds = Unsafe.As<LocationChange[], ImmutableArray<LocationChange>>(ref machineIds);
             return new LocationChangeMachineIdSet(immutableMachineIds);
         }
 
         internal static MachineIdSet DeserializeCore(ref SpanReader reader)
         {
-            // Use variable length encoding
             var count = reader.ReadInt32Compact();
             var machineIds = new LocationChange[count];
 
@@ -226,12 +253,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 machineIds[i] = new LocationChange(reader.ReadUInt16());
             }
 
-            // For small number of elements, it is more efficient (in terms of memory)
-            // to use a simple array and just search the id using sequential scan.
-
-            // Using unsafe trick to create an instance of immutable array without copying a source array.
-            // This is a semi-official trick "suggested" by the CLR architect here: https://github.com/dotnet/runtime/issues/25461
-            ImmutableArray<LocationChange> immutableMachineIds = Unsafe.As<LocationChange[], ImmutableArray<LocationChange>>(ref machineIds);
+            var immutableMachineIds = Unsafe.As<LocationChange[], ImmutableArray<LocationChange>>(ref machineIds);
             return new LocationChangeMachineIdSet(immutableMachineIds);
         }
 
@@ -252,10 +274,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return false;
         }
 
+        /// <inheritdoc />
+        protected override bool EqualsCore(MachineIdSet other)
+        {
+            return LocationStates.SequenceEqual(((LocationChangeMachineIdSet)other).LocationStates, LocationChangeMachineIdComparer.Instance);
+        }
+
         /// <summary>
         /// A special comparer for <see cref="short"/> that compares instance of <see cref="LocationChange"/> and compares indices not direct values.
         /// </summary>
-        private class LocationChangeMachineIdComparer : IEqualityComparer<LocationChange>
+        public class LocationChangeMachineIdComparer : IEqualityComparer<LocationChange>, IComparer<LocationChange>
         {
             public static LocationChangeMachineIdComparer Instance { get; } = new LocationChangeMachineIdComparer();
 
@@ -269,6 +297,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             public int GetHashCode(LocationChange obj)
             {
                 return obj.GetHashCode();
+            }
+
+            /// <inheritdoc />
+            public int Compare(LocationChange x, LocationChange y)
+            {
+                return x.Index.CompareTo(y.Index);
             }
         }
     }

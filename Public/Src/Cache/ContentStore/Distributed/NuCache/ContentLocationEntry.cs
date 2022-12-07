@@ -3,10 +3,8 @@
 
 using System;
 using System.Diagnostics.ContractsLight;
-using System.Linq;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Serialization;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
@@ -14,7 +12,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     /// <summary>
     /// Location information for a piece of content.
     /// </summary>
-    public sealed class ContentLocationEntry
+    public sealed class ContentLocationEntry : IEquatable<ContentLocationEntry>
     {
         /// <nodoc />
         public const int BytesInFileSize = sizeof(long);
@@ -88,6 +86,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <summary>
+        /// Serializes an instance into a binary stream.
+        /// </summary>
+        public void Serialize(ref SpanWriter writer)
+        {
+            writer.WriteCompact(ContentSize);
+            Locations.Serialize(ref writer);
+            writer.Write(CreationTimeUtc);
+            long lastAccessTimeOffset = LastAccessTimeUtc.Value - CreationTimeUtc.Value;
+            writer.WriteCompact(lastAccessTimeOffset);
+        }
+
+        /// <summary>
         /// Builds an instance from a binary stream.
         /// </summary>
         public static ContentLocationEntry Deserialize(BuildXLReader reader)
@@ -99,10 +109,19 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             var lastAccessTime = new UnixTime(creationTimeUtc.Value + lastAccessTimeOffset);
             if (size == -1 && lastAccessTime == default)
             {
-                return ContentLocationEntry.Missing;
+                return Missing;
             }
 
             return Create(locations, size, lastAccessTime, creationTimeUtc);
+        }
+
+        /// <summary>
+        /// Builds an instance from a binary stream.
+        /// </summary>
+        public static ContentLocationEntry Deserialize(ReadOnlySpan<byte> input)
+        {
+            var reader = new SpanReader(input);
+            return Deserialize(ref reader);
         }
 
         /// <summary>
@@ -112,10 +131,62 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             var size = reader.ReadInt64Compact();
             var locations = MachineIdSet.Deserialize(ref reader);
-            var creationTimeUtc = reader.ReadUnixTime();
+            var (creationTime, lastAccessTime) = ReadCreationAndLastAccessTimes(ref reader);
+
+            if (size == -1 && lastAccessTime == default)
+            {
+                return Missing;
+            }
+
+            return Create(locations, size, lastAccessTime, creationTime);
+        }
+
+        private static (UnixTime creationTime, UnixTime lastAccessTime) ReadCreationAndLastAccessTimes(ref SpanReader reader)
+        {
+            var creationTime = reader.ReadUnixTime();
             var lastAccessTimeOffset = reader.ReadInt64Compact();
-            var lastAccessTime = new UnixTime(creationTimeUtc.Value + lastAccessTimeOffset);
-            return Create(locations, size, lastAccessTime, creationTimeUtc);
+            var lastAccessTimeUtc = new UnixTime(creationTime.Value + lastAccessTimeOffset);
+            return (creationTime, lastAccessTimeUtc);
+        }
+
+        /// <summary>
+        /// Process and merge two <see cref="ContentLocationEntry"/> into the <paramref name="mergeWriter"/>.
+        /// </summary>
+        public static bool TryMergeSortedLocations(ref SpanReader reader1, ref SpanReader reader2, ref SpanWriter mergeWriter)
+        {
+            var entry1Size = reader1.ReadInt64Compact();
+            var entry2Size = reader2.ReadInt64Compact();
+
+            // One of the entries is missing, falling back to regular merge.
+            if (entry1Size == -1 || entry2Size == -1)
+            {
+                return false;
+            }
+
+            Contract.Assert(entry1Size == entry2Size, $"Sorted content location entries must have equal size. entry1Size={entry1Size}, entry2Size={entry2Size}.");
+
+            if (!SortedLocationChangeMachineIdSet.CanMergeSortedLocations(ref reader1, ref reader2))
+            {
+                // Can't merge in-flight. Need to deserialize the entries and merge in memory.
+                return false;
+            }
+
+            // Writing the Size first
+            mergeWriter.WriteCompact(entry1Size);
+
+            // Writing a list of merged locations.
+            SortedLocationChangeMachineIdSet.MergeSortedMachineLocationChanges(ref reader1, ref reader2, ref mergeWriter);
+
+            // Writing creation and last access times.
+            var (entry1CreationTime, entry1LastAccessTime) = ReadCreationAndLastAccessTimes(ref reader1);
+            var (entry2CreationTime, entry2LastAccessTime) = ReadCreationAndLastAccessTimes(ref reader2);
+
+            var maxCreationTime = UnixTime.Min(entry1CreationTime, entry2CreationTime);
+            var maxLastAccessTimeOffset = UnixTime.Max(entry1LastAccessTime, entry2LastAccessTime).Value - maxCreationTime.Value;
+
+            mergeWriter.Write(maxCreationTime);
+            mergeWriter.WriteCompact(maxLastAccessTimeOffset);
+            return true;
         }
 
         /// <nodoc />
@@ -133,10 +204,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <nodoc />
-        public ContentLocationEntry Merge(ContentLocationEntry other) => ContentLocationEntry.MergeEntries(this, other);
+        public ContentLocationEntry Merge(ContentLocationEntry other, bool sortLocations) => MergeEntries(this, other, sortLocations);
 
         /// <nodoc />
-        public static ContentLocationEntry MergeEntries(ContentLocationEntry entry1, ContentLocationEntry entry2)
+        public static ContentLocationEntry MergeEntries(ContentLocationEntry entry1, ContentLocationEntry entry2, bool sortLocations)
         {
             if (entry1 == null || entry1.IsMissing)
             {
@@ -149,12 +220,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
 
             return new ContentLocationEntry(
-                entry1.Locations.Merge(entry2.Locations),
+                entry1.Locations.Merge(entry2.Locations, sortLocations),
                 entry1.ContentSize,
                 UnixTime.Max(entry1.LastAccessTimeUtc, entry2.LastAccessTimeUtc),
                 UnixTime.Min(entry1.CreationTimeUtc, entry2.CreationTimeUtc));
         }
-
+        
         /// <nodoc />
         public ContentLocationEntry Touch(UnixTime accessTime)
         {
@@ -165,6 +236,32 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public override string ToString()
         {
             return IsMissing ? "Missing location" : $"Size: {ContentSize}b*{Locations.Count}, Created: {CreationTimeUtc}, Accessed at: {LastAccessTimeUtc}";
+        }
+
+        /// <inheritdoc />
+        public bool Equals(ContentLocationEntry other)
+        {
+            if (other is null)
+            {
+                return false;
+            }
+
+            return _creationTimeUtc == other._creationTimeUtc
+                   && Locations.Equals(other.Locations)
+                   && ContentSize == other.ContentSize
+                   && LastAccessTimeUtc == other.LastAccessTimeUtc;
+        }
+
+        /// <inheritdoc />
+        public override bool Equals(object obj)
+        {
+            return ReferenceEquals(this, obj) || obj is ContentLocationEntry other && Equals(other);
+        }
+
+        /// <inheritdoc />
+        public override int GetHashCode()
+        {
+            return (_creationTimeUtc.GetHashCode(), Locations?.GetHashCode() ?? 0, ContentSize.GetHashCode(), LastAccessTimeUtc.GetHashCode()).GetHashCode();
         }
     }
 }

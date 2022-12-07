@@ -144,6 +144,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         MergeEntry,
 
         /// <summary>
+        /// Tracks the RocksDb merge operator used for sorted content location entries.
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        MergeEntrySorted,
+
+        /// <summary>
         /// Tracks the duration of changing the machine locations in the database
         /// </summary>
         [CounterType(CounterType.Stopwatch)]

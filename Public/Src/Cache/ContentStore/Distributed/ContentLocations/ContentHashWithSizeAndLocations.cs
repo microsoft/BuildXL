@@ -100,7 +100,8 @@ namespace BuildXL.Cache.ContentStore.Distributed
                 left.ContentHash,
                 Math.Max(left.Size, right.Size),
                 finalList,
-                ContentLocationEntry.MergeEntries(left.Entry, right.Entry),
+                // It doesn't matter if we sort locations or not here, because we're not going to store the results in RocksDb.
+                ContentLocationEntry.MergeEntries(left.Entry, right.Entry, sortLocations: false),
                 origin: left.Origin ?? right.Origin)
                    {
                         ExtraMergedLocations = finalList.Count - (left.Locations?.Count ?? 0)

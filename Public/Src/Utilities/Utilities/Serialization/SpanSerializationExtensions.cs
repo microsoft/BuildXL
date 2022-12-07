@@ -27,6 +27,9 @@ namespace BuildXL.Utilities.Serialization
 
         /// <nodoc />
         public static SpanReader AsReader(this Span<byte> reader) => new SpanReader(reader);
+        
+        /// <nodoc />
+        public static SpanWriter AsWriter(this Span<byte> reader) => new SpanWriter(reader);
 
         /// <nodoc />
         public static bool ReadBoolean(this ref SpanReader reader) => reader.ReadByte() != 0;
@@ -82,6 +85,12 @@ namespace BuildXL.Utilities.Serialization
 
         /// <nodoc />
         public static void WriteInt64Compact(this ref SpanWriter writer, long value)
+        {
+            writer.WriteUInt64Compact(unchecked((ulong)value));
+        }
+        
+        /// <nodoc />
+        public static void WriteCompact(this ref SpanWriter writer, long value)
         {
             writer.WriteUInt64Compact(unchecked((ulong)value));
         }
@@ -227,7 +236,7 @@ namespace BuildXL.Utilities.Serialization
         public static T Read<T>(this ref SpanReader reader)
             where T : unmanaged
         {
-            var itemSpan = reader.ReadBytes(Unsafe.SizeOf<T>());
+            var itemSpan = reader.ReadSpan(Unsafe.SizeOf<T>());
             var result = MemoryMarshal.Read<T>(itemSpan);
             return result;
         }
@@ -236,7 +245,8 @@ namespace BuildXL.Utilities.Serialization
         public static ReadOnlySpan<T> Read<T>(this ref SpanReader reader, int count)
             where T : unmanaged
         {
-            var itemSpan = reader.ReadBytes(Unsafe.SizeOf<T>() * count);
+            // Reading a span instead of reading bytes to avoid unnecessary allocations.
+            var itemSpan = reader.ReadSpan(Unsafe.SizeOf<T>() * count);
             var result = MemoryMarshal.Cast<byte, T>(itemSpan);
             return result;
         }

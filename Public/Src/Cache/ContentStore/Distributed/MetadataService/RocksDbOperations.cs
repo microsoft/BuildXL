@@ -177,6 +177,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         /// </summary>
         internal static void WriteMergeLocations(this ref SpanWriter mergeWriter, ReadOnlySpan<byte> value1, ReadOnlySpan<byte> value2, bool keepRemoves = true)
         {
+            SpanReader reader1 = value1;
+            SpanReader reader2 = value2;
+            // This version is used only by GCS that requires writing a footer.
+            WriteMergeLocations(ref mergeWriter, ref reader1, ref reader2, keepRemoves, writeFooter: true);
+        }
+
+        /// <summary>
+        /// Merges two content location entry values and writes the result to the span writer
+        /// </summary>
+        internal static void WriteMergeLocations(this ref SpanWriter mergeWriter, ref SpanReader reader1, ref SpanReader reader2, bool keepRemoves, bool writeFooter)
+        {
             // Capture (copy) writer before writing location count
             // in order to write location count after locations have been merged
             var locationCountWriter = mergeWriter;
@@ -189,9 +200,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             }
 
             mergeWriter.Write<ushort>(0); // Write placeholder for location count
-
-            SpanReader reader1 = value1;
-            SpanReader reader2 = value2;
 
             // locations1 contains earlier values
             // locations2 contains later values
@@ -243,7 +251,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             locationCountWriter.Write(locationCount);
 
             // Only write info footer if entry has locations
-            if (locationCount > 0)
+            if (locationCount > 0 && writeFooter)
             {
                 // Read footers from both, merge them, and write new footer
                 var mergedFooter = MachineContentInfo.Merge(MachineContentInfo.Read(ref reader1), MachineContentInfo.Read(ref reader2));

@@ -38,8 +38,10 @@ export function getRocksDbPackagesWithoutNetStandard(): Managed.ManagedNugetPack
             runtimeContent: {
                 contents: [ <Deployment.NestedDefinition>{
                     subfolder: r`native`,
-                    contents: [ Deployment.createFromFilteredStaticDirectory(nativePackage.contents, r`build/native`) ] }
-                ]
+                    contents: [ 
+                        ...getRocksDbNativeDeployablesForTargetRuntime()
+                    ] 
+                }]
             }
         }),
 
@@ -49,3 +51,24 @@ export function getRocksDbPackagesWithoutNetStandard(): Managed.ManagedNugetPack
 
 @@public
 export const pkgs = getRocksDbPackages(true);
+
+function getRocksDbNativeDeployablesForTargetRuntime() : File[] {
+    let nativeFilesToDeploy : File[] = [];
+    
+    switch (qualifier.targetRuntime) {
+        case "win-x64":
+            nativeFilesToDeploy = nativeFilesToDeploy.push(nativePackage.contents.getFile(r`build/native/amd64/rocksdb.dll`));
+            break;
+        case "osx-x64":
+            nativeFilesToDeploy = nativeFilesToDeploy.push(nativePackage.contents.getFile(r`build/native/amd64/librocksdb.dylib`));
+            break;
+        case "linux-x64":
+            nativeFilesToDeploy = nativeFilesToDeploy.push(nativePackage.contents.getFile(r`build/native/amd64/librocksdb.so`));
+            break;
+        default:
+            Contract.fail(`Unsupported target runtime '${qualifier.targetRuntime}' for RocksDbNative.`);
+            break;
+    }
+
+    return nativeFilesToDeploy;
+}

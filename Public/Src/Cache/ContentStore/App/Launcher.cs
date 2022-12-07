@@ -70,7 +70,7 @@ namespace BuildXL.Cache.ContentStore.App
                     };
                     var arguments = new LoggerFactoryArguments(tracingContext, host, settings.LoggingSettings, telemetryFieldsProvider);
 
-                    var replacementLogger = LoggerFactory.ReplaceLogger(arguments);
+                    var replacementLogger = await LoggerFactory.ReplaceLoggerAsync(arguments);
                     using (replacementLogger.DisposableToken)
                     {
                         var token = _cancellationToken;

@@ -7,13 +7,10 @@ namespace BuildXL.Cache.Logging
     public enum AzureBlobStorageLogCounters
     {
         /// <nodoc />
-        RecoverFromCrashCalls,
-
-        /// <nodoc />
-        ProcessBatchCalls,
-
-        /// <nodoc />
         WriteLogsToFileCalls,
+
+        /// <nodoc />
+        WriteLogBatchCalls,
 
         /// <nodoc />
         UploadToBlobStorageCalls,

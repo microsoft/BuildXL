@@ -52,7 +52,7 @@ namespace BuildXL.Launcher.Server
             services.AddSingleton<ILogger>(sp =>
             {
                 var lifetime = sp.GetRequiredService<IHostApplicationLifetime>();
-                var replacementLogger = LoggerFactory.ReplaceLogger(arguments);
+                var replacementLogger = LoggerFactory.ReplaceLoggerAsync(arguments).GetAwaiter().GetResult();
                 lifetime.ApplicationStopped.Register(() =>
                 {
                     replacementLogger.DisposableToken?.Dispose();

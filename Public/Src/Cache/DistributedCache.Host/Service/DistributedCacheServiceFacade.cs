@@ -104,7 +104,7 @@ namespace BuildXL.Cache.Host.Service
             // client's decision with our own.
             // The disposableToken helps ensure that we shutdown properly and all logs are sent to their final
             // destination.
-            var loggerReplacement = LoggerFactory.ReplaceLogger(AdjustLoggingConfigurationIfNeeded(arguments));
+            var loggerReplacement = await LoggerFactory.ReplaceLoggerAsync(AdjustLoggingConfigurationIfNeeded(arguments));
 
             using var disposableToken = loggerReplacement.DisposableToken;
 

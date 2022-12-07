@@ -6,6 +6,7 @@ using System.Diagnostics.ContractsLight;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
+using BuildXL.Cache.ContentStore.Interfaces.Results;
 using NLog;
 using ILogger = BuildXL.Cache.ContentStore.Interfaces.Logging.ILogger;
 
@@ -32,13 +33,16 @@ namespace BuildXL.Cache.Logging.External
         /// </summary>
         public bool ObserveUnobservedTaskExceptions { get; set; } = true;
 
+        private readonly AzureBlobStorageLog _log;
+
         /// <nodoc />
-        public NLogAdapter(ILogger logger, NLog.Config.LoggingConfiguration configuration)
+        public NLogAdapter(ILogger logger, NLog.Config.LoggingConfiguration configuration, AzureBlobStorageLog log)
         {
             Contract.RequiresNotNull(logger);
             Contract.RequiresNotNull(configuration);
 
             _host = logger;
+            _log = log;
 
             NLog.LogManager.Configuration = configuration;
             _nlog = NLog.LogManager.GetLogger("Cache");
@@ -285,6 +289,15 @@ namespace BuildXL.Cache.Logging.External
 #pragma warning disable ERP022 // Unobserved exception in generic exception handler
                 try
                 {
+                    _log.ShutdownAsync().GetAwaiter().GetResult().ThrowIfFailure();
+                }
+                catch (Exception exception)
+                {
+                    _host.Error(exception, $"Failed to shutdown {nameof(AzureBlobStorageLog)} instance");
+                }
+
+                try
+                {
                     _host.Info("Disposing NLog instance");
                 }
                 catch (Exception)
@@ -296,8 +309,16 @@ namespace BuildXL.Cache.Logging.External
                     Flush();
                     NLog.LogManager.Shutdown();
                 }
-                catch (Exception)
+                catch (Exception exception)
                 {
+                    try
+                    {
+                        _host.Error(exception, "Failed to dispose NLog instance");
+                    }
+                    catch (Exception)
+                    {
+                        // We just don't want to interrupt the Dispose sequence
+                    }
                 }
 #pragma warning restore ERP022 // Unobserved exception in generic exception handler
 #pragma warning restore CA1031 // Do not catch general exception types

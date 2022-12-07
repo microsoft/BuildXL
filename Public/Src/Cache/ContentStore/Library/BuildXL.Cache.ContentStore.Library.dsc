@@ -51,6 +51,7 @@ namespace Library {
             ...getSystemTextJson(/*includeNetStandard*/true),
             ...BuildXLSdk.systemMemoryDeployment,
             ...BuildXLSdk.systemThreadingChannelsPackages,
+            importFrom("System.Threading.Tasks.Extensions").pkg,
         ],
         runtimeContent: [
             importFrom("Sdk.Protocols.Grpc").Deployment.runtimeContent,

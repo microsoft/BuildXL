@@ -36,7 +36,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blobs
             Configuration = configuration;
             FileSystem = fileSystem ?? PassThroughFileSystem.Default;
 
-            var retryPolicyConfiguration = Configuration.RetryPolicyConfiguration ?? RetryPolicyConfiguration.Default;
+            var retryPolicyConfiguration = Configuration.RetryPolicyConfiguration ?? RetryPolicyConfiguration.Exponential();
             _retryPolicy = retryPolicyConfiguration.AsRetryPolicy(IsExceptionTransient);
         }
 

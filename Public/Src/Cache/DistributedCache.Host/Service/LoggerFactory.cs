@@ -11,7 +11,6 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
 using BuildXL.Cache.ContentStore.FileSystem;
-using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Secrets;
@@ -50,7 +49,7 @@ namespace BuildXL.Cache.Host.Service
         ///     host's logger, in which case we don't consider that we own it, because clean up may happen on whatever
         ///     code is actually using us, so we don't want to dispose in that case.
         /// </remarks>
-        public static (ILogger Logger, IDisposable? DisposableToken) ReplaceLogger(LoggerFactoryArguments arguments)
+        public static async Task<(ILogger Logger, IDisposable? DisposableToken)> ReplaceLoggerAsync(LoggerFactoryArguments arguments)
         {
             var logger = arguments.Logger;
 
@@ -69,9 +68,9 @@ namespace BuildXL.Cache.Host.Service
 
             try
             {
-                var nLogAdapter = CreateNLogAdapter(operationContext, arguments);
+                var nLogAdapter = await CreateNLogAdapterAsync(operationContext, arguments);
                 ILogger replacementLogger = nLogAdapter;
-                
+
                 if (arguments.Logger is IOperationLogger operationLogger)
                 {
                     // NOTE(jubayard): the MetricsAdapter doesn't own the loggers, and hence won't dispose them. This
@@ -120,72 +119,89 @@ namespace BuildXL.Cache.Host.Service
                 .ToList();
         }
 
-        private static IStructuredLogger CreateNLogAdapter(OperationContext operationContext, LoggerFactoryArguments arguments)
+        private static async Task<IStructuredLogger> CreateNLogAdapterAsync(OperationContext operationContext, LoggerFactoryArguments arguments)
         {
             Contract.RequiresNotNull(arguments.LoggingSettings);
 
-            // This is done for performance. See: https://github.com/NLog/NLog/wiki/performance#configure-nlog-to-not-scan-for-assemblies
-            NLog.Config.ConfigurationItemFactory.Default = new NLog.Config.ConfigurationItemFactory(typeof(NLog.ILogger).GetTypeInfo().Assembly);
+            // The NLogAdapter will take ownership of the log for the purposes of shutdown
+            var log = await CreateAzureBlobStorageLogAsync(operationContext, arguments);
 
-            // This is needed for dependency injection. See: https://github.com/NLog/NLog/wiki/Dependency-injection-with-NLog
-            // The issue is that we need to construct a log, which requires access to both our config and the host. It
-            // seems too much to put it into the AzureBlobStorageLogTarget itself, so we do it here.
-            var defaultConstructor = NLog.Config.ConfigurationItemFactory.Default.CreateInstance;
-            NLog.Config.ConfigurationItemFactory.Default.CreateInstance = type =>
+            try
             {
-                if (type == typeof(AzureBlobStorageLogTarget))
-                {
-                    var log = CreateAzureBlobStorageLogAsync(operationContext, arguments).GetAwaiter().GetResult();
-                    var target = new AzureBlobStorageLogTarget(log);
-                    return target;
-                }
-
-                return defaultConstructor(type);
-            };
-
-            NLog.Targets.Target.Register<AzureBlobStorageLogTarget>(nameof(AzureBlobStorageLogTarget));
-
-            // Using a custom renderer to make the exceptions stack traces clearer.
-            LayoutRenderer.Register<DemystifiedExceptionLayoutRenderer>("exception");
-
-            // This is done in order to allow our logging configuration to access key telemetry information.
-            var telemetryFieldsProvider = arguments.TelemetryFieldsProvider;
-
-            LayoutRenderer.Register("APEnvironment", _ => telemetryFieldsProvider.APEnvironment);
-            LayoutRenderer.Register("APCluster", _ => telemetryFieldsProvider.APCluster);
-            LayoutRenderer.Register("APMachineFunction", _ => telemetryFieldsProvider.APMachineFunction);
-            LayoutRenderer.Register("MachineName", _ => telemetryFieldsProvider.MachineName);
-            LayoutRenderer.Register("ServiceName", _ => telemetryFieldsProvider.ServiceName);
-            LayoutRenderer.Register("ServiceVersion", _ => telemetryFieldsProvider.ServiceVersion);
-            LayoutRenderer.Register("Stamp", _ => telemetryFieldsProvider.Stamp);
-            LayoutRenderer.Register("Ring", _ => telemetryFieldsProvider.Ring);
-            LayoutRenderer.Register("ConfigurationId", _ => telemetryFieldsProvider.ConfigurationId);
-            LayoutRenderer.Register("CacheVersion", _ => Utilities.Branding.Version);
-
-            LayoutRenderer.Register("Role", _ => GlobalInfoStorage.GetGlobalInfo(GlobalInfoKey.LocalLocationStoreRole));
-            LayoutRenderer.Register("BuildId", _ => GlobalInfoStorage.GetGlobalInfo(GlobalInfoKey.BuildId));
-
-            // Follows ISO8601 without timezone specification.
-            // See: https://kusto.azurewebsites.net/docs/query/scalar-data-types/datetime.html
-            // See: https://docs.microsoft.com/en-us/dotnet/standard/base-types/standard-date-and-time-format-strings?view=netframework-4.8#the-round-trip-o-o-format-specifier
-            var processStartTimeUtc = SystemClock.Instance.UtcNow.ToString("o", System.Globalization.CultureInfo.InvariantCulture);
-            NLog.LayoutRenderers.LayoutRenderer.Register("ProcessStartTimeUtc", _ => processStartTimeUtc);
-
-            var configurationContent = File.ReadAllText(arguments.LoggingSettings.NLogConfigurationPath!);
-
-            foreach (var replacement in arguments.LoggingSettings.NLogConfigurationReplacements)
+                return await createAdapterAsync(operationContext, arguments, log);
+            }
+            catch (Exception)
             {
-                configurationContent = configurationContent.Replace(replacement.Key, replacement.Value);
+                await log.ShutdownAsync().IgnoreFailure();
+                throw;
             }
 
-            var textReader = new StringReader(configurationContent);
-            var reader = XmlReader.Create(textReader);
+            static Task<IStructuredLogger> createAdapterAsync(OperationContext operationContext, LoggerFactoryArguments arguments, AzureBlobStorageLog log)
+            {
+                // This is done for performance. See: https://github.com/NLog/NLog/wiki/performance#configure-nlog-to-not-scan-for-assemblies
+                NLog.Config.ConfigurationItemFactory.Default = new NLog.Config.ConfigurationItemFactory(typeof(NLog.ILogger).GetTypeInfo().Assembly);
 
-            var configuration = new NLog.Config.XmlLoggingConfiguration(reader, arguments.LoggingSettings.NLogConfigurationPath);
+                // This is needed for dependency injection. See: https://github.com/NLog/NLog/wiki/Dependency-injection-with-NLog
+                // The issue is that we need to construct a log, which requires access to both our config and the host. It
+                // seems too much to put it into the AzureBlobStorageLogTarget itself, so we do it here.
+                var defaultConstructor = NLog.Config.ConfigurationItemFactory.Default.CreateInstance;
+                NLog.Config.ConfigurationItemFactory.Default.CreateInstance = type =>
+                {
+                    if (type == typeof(AzureBlobStorageLogTarget))
+                    {
+                        return new AzureBlobStorageLogTarget(log);
+                    }
 
-            return new NLogAdapter(operationContext.TracingContext.Logger, configuration);
+                    return defaultConstructor(type);
+                };
+
+                NLog.Targets.Target.Register<AzureBlobStorageLogTarget>(nameof(AzureBlobStorageLogTarget));
+
+                // Using a custom renderer to make the exceptions stack traces clearer.
+                LayoutRenderer.Register<DemystifiedExceptionLayoutRenderer>("exception");
+
+                // This is done in order to allow our logging configuration to access key telemetry information.
+                var telemetryFieldsProvider = arguments.TelemetryFieldsProvider;
+
+                LayoutRenderer.Register("APEnvironment", _ => telemetryFieldsProvider.APEnvironment);
+                LayoutRenderer.Register("APCluster", _ => telemetryFieldsProvider.APCluster);
+                LayoutRenderer.Register("APMachineFunction", _ => telemetryFieldsProvider.APMachineFunction);
+                LayoutRenderer.Register("MachineName", _ => telemetryFieldsProvider.MachineName);
+                LayoutRenderer.Register("ServiceName", _ => telemetryFieldsProvider.ServiceName);
+                LayoutRenderer.Register("ServiceVersion", _ => telemetryFieldsProvider.ServiceVersion);
+                LayoutRenderer.Register("Stamp", _ => telemetryFieldsProvider.Stamp);
+                LayoutRenderer.Register("Ring", _ => telemetryFieldsProvider.Ring);
+                LayoutRenderer.Register("ConfigurationId", _ => telemetryFieldsProvider.ConfigurationId);
+                LayoutRenderer.Register("CacheVersion", _ => Utilities.Branding.Version);
+
+                LayoutRenderer.Register("Role", _ => GlobalInfoStorage.GetGlobalInfo(GlobalInfoKey.LocalLocationStoreRole));
+                LayoutRenderer.Register("BuildId", _ => GlobalInfoStorage.GetGlobalInfo(GlobalInfoKey.BuildId));
+
+                // Follows ISO8601 without timezone specification.
+                // See: https://kusto.azurewebsites.net/docs/query/scalar-data-types/datetime.html
+                // See: https://docs.microsoft.com/en-us/dotnet/standard/base-types/standard-date-and-time-format-strings?view=netframework-4.8#the-round-trip-o-o-format-specifier
+                var processStartTimeUtc = SystemClock.Instance.UtcNow.ToString("o", System.Globalization.CultureInfo.InvariantCulture);
+                NLog.LayoutRenderers.LayoutRenderer.Register("ProcessStartTimeUtc", _ => processStartTimeUtc);
+
+#pragma warning disable AsyncFixer02 // Long-running or blocking operations inside an async method
+                // We don't use ReadAllTextAsync here because net472 doesn't allow us to do so
+                var configurationContent = File.ReadAllText(arguments.LoggingSettings!.NLogConfigurationPath!);
+#pragma warning restore AsyncFixer02 // Long-running or blocking operations inside an async method
+
+                foreach (var replacement in arguments.LoggingSettings.NLogConfigurationReplacements)
+                {
+                    configurationContent = configurationContent.Replace(replacement.Key, replacement.Value);
+                }
+
+                // The following are not disposed becaue NLog takes ownership of them
+                var textReader = new StringReader(configurationContent);
+                var reader = XmlReader.Create(textReader);
+                var configuration = new NLog.Config.XmlLoggingConfiguration(reader, arguments.LoggingSettings.NLogConfigurationPath);
+
+                return Task.FromResult((IStructuredLogger)new NLogAdapter(operationContext.TracingContext.Logger, configuration, log));
+            }
         }
-        
+
         private static async Task<AzureBlobStorageLog> CreateAzureBlobStorageLogAsync(OperationContext operationContext, LoggerFactoryArguments arguments)
         {
             var configuration = arguments.LoggingSettings?.Configuration;
@@ -201,10 +217,8 @@ namespace BuildXL.Cache.Host.Service
                 configuration.UseSasTokens,
                 operationContext.Token);
 
-            var azureBlobStorageLogConfiguration = ToInternalConfiguration(configuration);
-
             var azureBlobStorageLog = new AzureBlobStorageLog(
-                configuration: azureBlobStorageLogConfiguration,
+                configuration: ToInternalConfiguration(configuration),
                 context: operationContext,
                 clock: SystemClock.Instance,
                 fileSystem: new PassThroughFileSystem(),

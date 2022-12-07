@@ -18,8 +18,10 @@ namespace Library {
             importFrom("BuildXL.Cache.ContentStore").Hashing.dll,
             importFrom("BuildXL.Cache.ContentStore").Interfaces.dll,
             importFrom("BuildXL.Cache.ContentStore").Library.dll,
+            importFrom("BuildXL.Cache.DistributedCache.Host").Configuration.dll,
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Collections.dll,
+            importFrom("System.Threading.Tasks.Extensions").pkg,
             ...BuildXLSdk.systemThreadingTasksDataflowPackageReference,
 
             ...addIfLazy(BuildXLSdk.Flags.isMicrosoftInternal, () => [

@@ -42,9 +42,7 @@ namespace BuildXL.Cache.Host.Configuration
         /// The default spread used when calculating a random delta in the exponential delay between retries.
         /// </summary>
         public static readonly double DefaultWindowJitter = 0.4;
-
-        public static RetryPolicyConfiguration Default { get; } = Exponential();
-
+        
         public EnumSetting<StandardRetryPolicy> RetryPolicy { get; init; } = StandardRetryPolicy.ExponentialBackoff;
 
         public TimeSpanSetting MinimumRetryWindow { get; init; } = DefaultMinimumRetryWindow;
@@ -61,7 +59,8 @@ namespace BuildXL.Cache.Host.Configuration
             TimeSpan? minimumRetryWindow = null,
             TimeSpan? maximumRetryWindow = null,
             TimeSpan? delta = null,
-            double? spread = null)
+            double? spread = null,
+            int? maximumRetryCount = null)
         {
             return new RetryPolicyConfiguration()
             {
@@ -70,6 +69,7 @@ namespace BuildXL.Cache.Host.Configuration
                 MaximumRetryWindow = maximumRetryWindow ?? DefaultMaximumRetryWindow,
                 ExponentialBackoffDelta = delta ?? DefaultExponentialBackoffDelta,
                 WindowJitter = spread ?? DefaultWindowJitter,
+                MaximumRetryCount = maximumRetryCount,
             };
         }
     }

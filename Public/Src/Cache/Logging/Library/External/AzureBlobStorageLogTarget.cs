@@ -59,24 +59,5 @@ namespace BuildXL.Cache.Logging.External
             // compared to a _log.Write(Layout.Render(logEvent)); call.
             _log.Write(RenderLogEvent(Layout, logEvent));
         }
-
-        /// <inheritdoc />
-        protected override void CloseTarget()
-        {
-            InternalLogger.Warn("Closing {0} target", nameof(AzureBlobStorageLogTarget));
-            var result = _log.ShutdownAsync().GetAwaiter().GetResult();
-            if (!result.Succeeded)
-            {
-                InternalLogger.Error(
-                    result.Exception,
-                    "Failed to shutdown {0} target appropriately. Error: {1}",
-                    nameof(AzureBlobStorageLogTarget),
-                    result.Diagnostics ?? result.ErrorMessage ?? string.Empty);
-            }
-            else
-            {
-                InternalLogger.Info("Closed {0} target successfully", nameof(AzureBlobStorageLogTarget));
-            }
-        }
     }
 }

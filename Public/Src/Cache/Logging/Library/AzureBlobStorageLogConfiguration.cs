@@ -3,6 +3,7 @@
 
 using System;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
+using BuildXL.Cache.Host.Configuration;
 
 #nullable enable
 
@@ -43,6 +44,36 @@ namespace BuildXL.Cache.Logging
 
         /// <nodoc />
         public bool DrainUploadsOnShutdown { get; set; } = false;
+
+        /// <nodoc />
+        public RetryPolicyConfiguration FileWriteRetryPolicy { get; set; } = RetryPolicyConfiguration.Exponential(maximumRetryCount: 10);
+
+        /// <nodoc />
+        public TimeSpan FileWriteTimeout { get; set; } = TimeSpan.FromMinutes(10);
+
+        /// <nodoc />
+        public TimeSpan FileWriteTracePeriod { get; set; } = TimeSpan.FromMinutes(3);
+
+        /// <nodoc />
+        public TimeSpan FileWriteAttemptTimeout { get; set; } = TimeSpan.FromMinutes(2);
+
+        /// <nodoc />
+        public TimeSpan FileWriteAttemptTracePeriod { get; set; } = TimeSpan.FromSeconds(30);
+
+        /// <nodoc />
+        public RetryPolicyConfiguration BlobUploadRetryPolicy { get; set; } = RetryPolicyConfiguration.Exponential(maximumRetryCount: 10);
+
+        /// <nodoc />
+        public TimeSpan BlobUploadTimeout { get; set; } = TimeSpan.FromMinutes(30);
+
+        /// <nodoc />
+        public TimeSpan BlobUploadTracePeriod { get; set; } = TimeSpan.FromMinutes(10);
+
+        /// <nodoc />
+        public TimeSpan BlobUploadAttemptTimeout { get; set; } = TimeSpan.FromMinutes(5);
+
+        /// <nodoc />
+        public TimeSpan BlobUploadAttemptTracePeriod { get; set; } = TimeSpan.FromMinutes(1);
 
         /// <nodoc />
         public AzureBlobStorageLogConfiguration(AbsolutePath workspace)

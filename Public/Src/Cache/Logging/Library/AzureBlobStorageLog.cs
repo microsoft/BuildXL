@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.IO.Compression;
@@ -10,12 +11,14 @@ using System.Linq;
 using System.Net;
 using System.Text;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Secrets;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Tracing;
+using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Utilities.Tracing;
@@ -46,6 +49,11 @@ namespace BuildXL.Cache.Logging
         private readonly AzureBlobStorageLogConfiguration _configuration;
 
         private readonly OperationContext _context;
+        private readonly CancellableOperationContext _shutdownBoundContext;
+        private readonly OperationContext _nonCancellableContext;
+
+        private readonly IRetryPolicy _fileWriteRetryPolicy;
+        private readonly IRetryPolicy _blobUploadRetryPolicy;
 
         private readonly IClock _clock;
 
@@ -111,6 +119,9 @@ namespace BuildXL.Cache.Logging
             _configuration = configuration;
 
             _context = context;
+            _shutdownBoundContext = TrackShutdown(_context);
+            _nonCancellableContext = new OperationContext(_context.TracingContext, token: default);
+
             _clock = clock;
             _fileSystem = fileSystem;
             _telemetryFieldsProvider = telemetryFieldsProvider;
@@ -118,19 +129,58 @@ namespace BuildXL.Cache.Logging
             _additionalBlobMetadata = additionalBlobMetadata;
 
             _writeQueue = NagleQueue<string>.CreateUnstarted(
-                WriteBatchAsync,
+                WriteLogBatchAsync,
                 configuration.WriteMaxDegreeOfParallelism,
                 configuration.WriteMaxInterval,
                 configuration.WriteMaxBatchSize);
 
             _uploadQueue = NagleQueue<LogFile>.CreateUnstarted(
-                UploadBatchAsync,
+                UploadFileAsync,
                 configuration.UploadMaxDegreeOfParallelism,
                 configuration.UploadMaxInterval,
-                1);
+                batchSize: 1);
+
+            _fileWriteRetryPolicy = _configuration.FileWriteRetryPolicy.AsRetryPolicy(shouldRetry: exception =>
+            {
+                if (exception is DirectoryNotFoundException)
+                {
+                    return true;
+                }
+
+                if (exception is IOException ioException
+                    && ioException.Message.Contains("There is not enough space on disk"))
+                {
+                    return true;
+                }
+
+                return false;
+            });
+
+            _blobUploadRetryPolicy = _configuration.BlobUploadRetryPolicy.AsRetryPolicy(shouldRetry: exception =>
+            {
+                if (exception is StorageException storageException)
+                {
+                    if (storageException.RequestInformation.HttpStatusCode == 503)
+                    {
+                        // This happens when storage is overloaded.
+                        return true;
+                    }
+
+                    if (storageException.RequestInformation.HttpStatusCode == 403
+                        && storageException.Message.Contains("Make sure the value of Authorization header is formed correctly including the signature"))
+                    {
+                        // This happens when SAS tokens aren't refreshed in time. We will retry these operations under
+                        // the assumption that CSS will recover and we'll obtain a token.
+                        return true;
+                    }
+                }
+
+                return false;
+            });
 
             // TODO: this component doesn't have a quota, which could potentially be useful. If Azure Blob Storage
-            // becomes unavailable for an extended period of time, we might cause disk space issues.
+            // becomes unavailable for an extended period of time (or if we somehow fail to upload logs), we might
+            // cause disk space issues.
         }
 
         /// <nodoc />
@@ -145,25 +195,67 @@ namespace BuildXL.Cache.Logging
                 operationContext: null,
                 cancellationToken: context.Token);
 
-            // Any logs in the staging are basically lost: they were in memory only, and we crashed or failed as we
-            // were writing them. We just recreate the directory.
+            PrepareLoggingFolders(context);
+
+            _writeQueue.Start();
+
+            _uploadQueue.Start();
+
+            _ = EnqueuePreExistingLogFilesForUploadAsync(context).FireAndForgetErrorsAsync(context);
+
+            return BoolResult.Success;
+        }
+
+        private void PrepareLoggingFolders(OperationContext context)
+        {
+            // Any logs in the staging are basically lost: they were in memory only and being written down, and we
+            // crashed or failed as we were writing them. We will delete them and ensure the folders we use to write
+            // logs to exist.
             try
             {
-                _fileSystem.DeleteDirectory(_configuration.StagingFolderPath, DeleteOptions.Recurse);
+                foreach (var file in _fileSystem.EnumerateFiles(_configuration.StagingFolderPath, EnumerateOptions.Recurse))
+                {
+                    DeleteFileIgnoringParallelismIssues(file.FullPath);
+                }
             }
             catch (DirectoryNotFoundException)
             {
-
+                // This happens on first boot. Ignore to avoid polluting telemetry.
+            }
+            catch (Exception exception)
+            {
+                // This was just an attempt to clean up useless logs, so we don't want to fail startup because of this.
+                Tracer.Error(context, exception, $"Failed to delete pre-existing logs from staging folder `{_configuration.StagingFolderPath}`");
             }
 
             _fileSystem.CreateDirectory(_configuration.StagingFolderPath);
 
             _fileSystem.CreateDirectory(_configuration.UploadFolderPath);
+        }
 
-            _writeQueue.Start();
-            _uploadQueue.Start();
-
-            return RecoverFromCrash(context);
+        private void DeleteFileIgnoringParallelismIssues(AbsolutePath path)
+        {
+            try
+            {
+                _fileSystem.DeleteFile(path);
+            }
+            catch (Exception exception)
+#pragma warning disable ERP022 // Unobserved exception in a generic exception handler
+            // This pragma is required because one of the branches swallows the exception on purpose
+            {
+                if ((exception is IOException ioException && ioException.Message.Contains("The process cannot access the file"))
+                    || exception is FileNotFoundException)
+                {
+                    // This happens when multiple processes are running with the same log folder: a different
+                    // instance uploads the log file on boot and then proceeds to delete it.
+                    // In either way, we'll proceed to attempt to delete the file, which won't do anything.
+                }
+                else
+                {
+                    throw;
+                }
+            }
+#pragma warning restore ERP022 // Unobserved exception in a generic exception handler
         }
 
         /// <summary>
@@ -173,30 +265,40 @@ namespace BuildXL.Cache.Logging
         ///     Should only be used when the class is not actively in use, so as to avoid causing double-upload
         ///     attempts. That issue is only possible if we have concurrent uploads turned on.
         /// </remarks>
-        public BoolResult RecoverFromCrash(OperationContext context)
+        public Task<BoolResult> EnqueuePreExistingLogFilesForUploadAsync(OperationContext context)
         {
-            return context.PerformOperation(Tracer, () =>
+            return context.PerformOperationAsync(Tracer, async () =>
             {
-                var pendingUpload = _fileSystem.EnumerateFiles(
-                        _configuration.UploadFolderPath,
-                        EnumerateOptions.Recurse)
-                    .Select(fileInfo => new LogFile
-                    {
-                        Path = fileInfo.FullPath,
-                    })
-                    .ToList();
-                _uploadQueue.EnqueueAll(pendingUpload);
+                // Forcing this to be an async Task so we don't block startup
+                await Task.Yield();
+
+                try
+                {
+                    var pendingUpload = _fileSystem.EnumerateFiles(
+                            _configuration.UploadFolderPath,
+                            EnumerateOptions.Recurse)
+                        .Select(fileInfo => new LogFile
+                        {
+                            Path = fileInfo.FullPath,
+                        });
+
+                    _uploadQueue.EnqueueAll(pendingUpload);
+                }
+                catch (DirectoryNotFoundException)
+                {
+                    // Ignore when the upload folder doesn't exist (happens on boot)
+                }
+
                 return BoolResult.Success;
             },
-            traceErrorsOnly: true,
-            counter: Counters[AzureBlobStorageLogCounters.RecoverFromCrashCalls]);
+            traceErrorsOnly: true);
         }
 
         /// <nodoc />
         public Task<BoolResult> ShutdownAsync() => ShutdownAsync(_context);
 
         /// <inheritdoc />
-        protected override Task<BoolResult> ShutdownCoreAsync(OperationContext context)
+        protected override async Task<BoolResult> ShutdownCoreAsync(OperationContext context)
         {
             // This stops uploading more logs, wait for all in-memory logs to flush to disk, and then wait for ongoing
             // transfers to finish. Note that contrary to its name, the method is not actually asynchronous.
@@ -205,9 +307,35 @@ namespace BuildXL.Cache.Logging
                 _uploadQueue.Suspend();
             }
 
-            _writeQueue.Dispose();
-            _uploadQueue.Dispose();
-            return BoolResult.SuccessTask;
+            var result = BoolResult.Success;
+            try
+            {
+                await _writeQueue.DisposeAsync();
+            }
+            catch (Exception exception)
+            {
+                result &= new BoolResult(exception, $"Failed to dispose `{nameof(_writeQueue)}`");
+            }
+
+            try
+            {
+                await _uploadQueue.DisposeAsync();
+            }
+            catch (Exception exception)
+            {
+                result &= new BoolResult(exception, $"Failed to dispose `{nameof(_uploadQueue)}`");
+            }
+
+            try
+            {
+                _shutdownBoundContext.Dispose();
+            }
+            catch (Exception exception)
+            {
+                result &= new BoolResult(exception, $"Failed to dispose `{nameof(_shutdownBoundContext)}`");
+            }
+
+            return result;
         }
 
         /// <inheritdoc />
@@ -222,14 +350,15 @@ namespace BuildXL.Cache.Logging
             _writeQueue.EnqueueAll(logs);
         }
 
-        private Task WriteBatchAsync(List<string> logEventInfos)
+        private Task WriteLogBatchAsync(List<string> logs)
         {
-            return _context.PerformOperationAsync(Tracer, async () =>
+            // We use a context that can't be cancelled for writing logs to files. The reason for this is we really
+            // want all inflight logs to be written down and prepped for upload (otherwise they're lost!).
+            return _nonCancellableContext.PerformOperationWithTimeoutAsync(Tracer, async (context) =>
                 {
-                    // TODO: retry policy for writing to file?
                     var blobName = GenerateBlobName();
                     var stagingLogFilePath = _configuration.StagingFolderPath / blobName;
-                    var logFile = (await WriteLogsToFileAsync(_context, stagingLogFilePath, logEventInfos).ThrowIfFailure()).Value;
+                    var logFile = (await WriteLogsToFileWithRetryPolicyAsync(_context, stagingLogFilePath, logs).ThrowIfFailure()).Value;
 
                     var uploadLogFilePath = _configuration.UploadFolderPath / blobName;
                     _fileSystem.MoveFile(stagingLogFilePath, uploadLogFilePath, replaceExisting: true);
@@ -238,84 +367,44 @@ namespace BuildXL.Cache.Logging
 
                     return BoolResult.Success;
                 },
-                counter: Counters[AzureBlobStorageLogCounters.ProcessBatchCalls],
+                timeout: _configuration.FileWriteTimeout,
+                pendingOperationTracingInterval: _configuration.FileWriteTracePeriod,
                 traceErrorsOnly: true,
-                silentOperationDurationThreshold: TimeSpan.MaxValue,
-                extraEndMessage: _ => $"NumLines=[{logEventInfos.Count}]");
+                counter: Counters[AzureBlobStorageLogCounters.WriteLogBatchCalls]);
         }
 
-        private Task UploadBatchAsync(List<LogFile> logFilePaths)
+        private Task<Result<LogFile>> WriteLogsToFileWithRetryPolicyAsync(OperationContext context, AbsolutePath logFilePath, IReadOnlyList<string> logs)
         {
-            Contract.Requires(logFilePaths.Count == 1);
-
-            return _context.PerformOperationAsync(Tracer, () => UploadToBlobStorageAsync(_context, logFilePaths[0]),
-                counter: Counters[AzureBlobStorageLogCounters.ProcessBatchCalls],
-                traceOperationStarted: false,
-                traceErrorsOnly: false, // We're calling this method once a minute, so its ok to trace this operation.
-                // This isn't traced because we always have a single element in the batch, which gets traced inside
-                // the individual upload.
-                silentOperationDurationThreshold: TimeSpan.MaxValue,
-                extraEndMessage: _ => $"LogFile=[{logFilePaths[0].Path}]");
-        }
-
-        private Task<Result<LogFile>> WriteLogsToFileAsync(OperationContext context, AbsolutePath logFilePath, List<string> logs)
-        {
-            return context.PerformOperationAsync(Tracer, async () =>
+            return _fileWriteRetryPolicy.ExecuteAsync(async () =>
+            {
+                try
                 {
-                    long compressedSizeBytes = 0;
-                    long uncompressedSizeBytes = 0;
+                    // Its important to throw the original exception inside of the result here
+                    return await WriteLogsToFileAsync(context, logFilePath, logs).RethrowIfFailure();
+                }
+                catch (DirectoryNotFoundException)
+                {
+                    _fileSystem.CreateDirectory(logFilePath.Parent!);
+                    throw;
+                }
+            }, context.Token);
+        }
 
-                    using (Stream fileStream = _fileSystem.Open(
-                        logFilePath,
-                        FileAccess.Write,
-                        FileMode.CreateNew,
-                        FileShare.None,
-                        FileOptions.SequentialScan | FileOptions.Asynchronous))
-                    {
-                        // We need to make sure we close the compression stream before we take the fileStream's
-                        // position, because the compression stream won't write everything until it's been closed,
-                        // which leads to bad recorded values in compressedSizeBytes.
-                        using (var gzipStream = new GZipStream(fileStream, CompressionLevel.Optimal, leaveOpen: true))
-                        {
-                            using var recordingStream = new CountingStream(gzipStream);
-                            using var streamWriter = new StreamWriter(recordingStream, Encoding.UTF8, bufferSize: 32 * 1024, leaveOpen: true);
+        private Task<Result<LogFile>> WriteLogsToFileAsync(OperationContext context, AbsolutePath logFilePath, IReadOnlyList<string> logs)
+        {
+            return context.PerformOperationWithTimeoutAsync(Tracer, async (context) =>
+                {
+                    var logFile = await TryWriteLogFileAsync(context, logFilePath, logs);
 
-                            if (OnFileOpen != null)
-                            {
-                                await OnFileOpen(streamWriter);
-                            }
+                    Tracer.TrackMetric(context, $"LogLinesWritten", logFile.LogLinesWritten ?? 0);
+                    Tracer.TrackMetric(context, $"CompressedBytesWritten", logFile.CompressedSizeBytes ?? 0);
+                    Tracer.TrackMetric(context, $"UncompressedBytesWritten", logFile.UncompressedSizeBytes ?? 0);
 
-                            foreach (var log in logs)
-                            {
-                                await streamWriter.WriteLineAsync(log);
-                            }
-
-                            if (OnFileClose != null)
-                            {
-                                await OnFileClose(streamWriter);
-                            }
-
-                            // Needed to ensure the recording stream receives everything it needs to receive
-                            await streamWriter.FlushAsync();
-                            uncompressedSizeBytes = recordingStream.BytesWritten;
-                        }
-
-                        compressedSizeBytes = fileStream.Position;
-                    }
-
-                    Tracer.TrackMetric(context, $"LogLinesWritten", logs.Count);
-                    Tracer.TrackMetric(context, $"CompressedBytesWritten", compressedSizeBytes);
-                    Tracer.TrackMetric(context, $"UncompressedBytesWritten", uncompressedSizeBytes);
-
-                    return new Result<LogFile>(new LogFile()
-                    {
-                        Path = logFilePath,
-                        UncompressedSizeBytes = uncompressedSizeBytes,
-                        CompressedSizeBytes = compressedSizeBytes,
-                    });
+                    return new Result<LogFile>(logFile);
                 },
+                timeout: _configuration.FileWriteAttemptTimeout,
+                pendingOperationTracingInterval: _configuration.FileWriteAttemptTracePeriod,
                 traceErrorsOnly: true,
-                silentOperationDurationThreshold: TimeSpan.MaxValue,
                 extraEndMessage: result =>
                 {
                     if (result.Succeeded)
@@ -334,89 +423,226 @@ namespace BuildXL.Cache.Logging
                 counter: Counters[AzureBlobStorageLogCounters.WriteLogsToFileCalls]);
         }
 
-        private Task<BoolResult> UploadToBlobStorageAsync(OperationContext context, LogFile uploadTask)
+        private async Task<LogFile> TryWriteLogFileAsync(OperationContext context, AbsolutePath logFilePath, IReadOnlyList<string> logs)
         {
-            var logFilePath = uploadTask.Path;
-            Contract.Requires(_fileSystem.FileExists(logFilePath));
+            try
+            {
+                long compressedSizeBytes = 0;
+                long uncompressedSizeBytes = 0;
 
-            return context.PerformOperationAsync(Tracer, async () =>
+                using (Stream fileStream = _fileSystem.Open(
+                    logFilePath,
+                    FileAccess.Write,
+                    FileMode.CreateNew,
+                    FileShare.None,
+                    FileOptions.SequentialScan | FileOptions.Asynchronous))
                 {
-                    var blob = _container.GetBlockBlobReference(logFilePath.FileName);
+                    // We need to make sure we close the compression stream before we take the fileStream's
+                    // position, because the compression stream won't write everything until it's been closed,
+                    // which leads to bad recorded values in compressedSizeBytes.
+                    using (var gzipStream = new GZipStream(fileStream, CompressionLevel.Optimal, leaveOpen: true))
+                    {
+                        using var recordingStream = new CountingStream(gzipStream);
+                        using var streamWriter = new StreamWriter(recordingStream, Encoding.UTF8, bufferSize: 32 * 1024, leaveOpen: true);
 
-                    var uploadSucceeded = true;
-                    var repeatUpload = false;
+                        if (OnFileOpen != null)
+                        {
+                            await OnFileOpen(streamWriter);
+                        }
+
+                        foreach (var log in logs)
+                        {
+                            await streamWriter.WriteLineAsync(log);
+                        }
+
+                        if (OnFileClose != null)
+                        {
+                            await OnFileClose(streamWriter);
+                        }
+
+                        // Needed to ensure the recording stream receives everything it needs to receive
+                        await streamWriter.FlushAsync();
+                        uncompressedSizeBytes = recordingStream.BytesWritten;
+                    }
+
+                    compressedSizeBytes = fileStream.Position;
+                }
+
+                return new LogFile()
+                {
+                    Path = logFilePath,
+                    UncompressedSizeBytes = uncompressedSizeBytes,
+                    CompressedSizeBytes = compressedSizeBytes,
+                    // NumLines here isn't actually the number of lines, but the number of log infos.
+                    // TODO: make this be the number of lines again
+                    LogLinesWritten = logs.Count,
+                };
+            }
+            catch (Exception exception)
+            {
+                Tracer.Error(context, exception, $"Failed to write logs to `{logFilePath}`. Deleting the temporary file.");
+                DeleteFileIgnoringParallelismIssues(logFilePath);
+                throw;
+            }
+        }
+
+        [StackTraceHidden]
+        private Task UploadFileAsync(List<LogFile> logFilePaths)
+        {
+            Contract.Requires(logFilePaths.Count == 1);
+
+            // We use a context that's bound to the shutdown of this component. The reason for this is we don't want
+            // to delay shutdown. Note that this does not loose logs, because logs will be in the upload folder, and
+            // therefore uploaded by the next bootup.
+            return UploadFileToBlobStorageAsync(_shutdownBoundContext, logFilePaths[0]);
+        }
+
+        private Task<BoolResult> UploadFileToBlobStorageAsync(OperationContext context, LogFile logFile)
+        {
+            return context.PerformOperationWithTimeoutAsync(Tracer, async (context) =>
+                {
+                    var succeeded = false;
+                    var repeated = false;
+                    var delete = true;
                     try
                     {
-                        if (_additionalBlobMetadata != null)
-                        {
-                            foreach (KeyValuePair<string, string> pair in _additionalBlobMetadata)
-                            {
-                                blob.Metadata.Add(pair.Key, pair.Value);
-                            }
-                        }
+                        await UploadFileToBlobStorageWithRetryPolicyAsync(context, logFile);
 
-                        if (uploadTask.UncompressedSizeBytes != null)
-                        {
-                            blob.Metadata.Add("rawSizeBytes", uploadTask.UncompressedSizeBytes.ToString());
-                        }
-
-                        await blob.UploadFromFileAsync(
-                            logFilePath.ToString(),
-                            accessCondition: AccessCondition.GenerateIfNotExistsCondition(),
-                            options: new BlobRequestOptions()
-                            {
-                                RetryPolicy = new Microsoft.WindowsAzure.Storage.RetryPolicies.ExponentialRetry(),
-                            },
-                            operationContext: null);
+                        succeeded = true;
                     }
                     catch (StorageException exception) when (
                         exception.RequestInformation.HttpStatusCode == (int)HttpStatusCode.PreconditionFailed
                         // Used only in the development storage case
                         || exception.RequestInformation.ErrorCode == "BlobAlreadyExists")
                     {
-                        repeatUpload = true;
+                        repeated = true;
                     }
-                    catch (Exception)
+                    catch (Exception exception)
+#pragma warning disable ERP022 // Unobserved exception in a generic exception handler
+                    // This pragma is required because one of the branches swallows the exception on purpose
                     {
-                        uploadSucceeded = false;
-                        throw;
+                        if ((exception is IOException ioException && ioException.Message.Contains("The process cannot access the file"))
+                            || exception is FileNotFoundException)
+                        {
+                            // This happens when multiple processes are running with the same log folder: a different
+                            // instance uploads the log file on boot and then proceeds to delete it. We'll skip the
+                            // deletion under the assumption that a different process will take care of it
+                            delete = false;
+                        }
+                        else if (exception is UnauthorizedAccessException)
+                        {
+                            // We have observed some of these in production where we basically get access denied. In
+                            // this case, we'll let future CASaaS bootups deal with this by pretending nothing happened
+                            delete = false;
+                            return new BoolResult(exception, "Failed to upload file due to access denial. Skipping file upload.");
+                        }
+                        else if (exception is OperationCanceledException || exception is TimeoutException)
+                        {
+                            // This happens when the upload is cancelled or times out. In this case, we'll leave the
+                            // file alive to upload it in the future.
+                            delete = false;
+                        }
+                        else
+                        {
+                            throw;
+                        }
                     }
+#pragma warning restore ERP022 // Unobserved exception in a generic exception handler
                     finally
                     {
-                        if (uploadSucceeded)
+                        if (delete)
                         {
-                            _fileSystem.DeleteFile(logFilePath);
+                            // If this fails, it's not a big deal: a future process will try to upload the file on boot
+                            // and fail because it will already exist in storage.
+                            try
+                            {
+                                DeleteFileIgnoringParallelismIssues(logFile.Path);
+                            }
+                            catch (Exception exception)
+                            {
+                                Tracer.Error(context, exception, $"Failed to delete log file `{logFile.Path}` after upload");
+                            }
+                        }
 
-                            if (repeatUpload)
-                            {
-                                Tracer.Debug(context, $"Log file `{logFilePath}` already exists");
-                                Tracer.TrackMetric(context, $"UploadAlreadyExists", 1);
-                            }
-                            else if (uploadTask.CompressedSizeBytes != null)
-                            {
-                                Tracer.TrackMetric(context, $"UploadedBytes", uploadTask.CompressedSizeBytes.Value);
-                            }
+                        if (succeeded && logFile.CompressedSizeBytes != null)
+                        {
+                            Tracer.TrackMetric(context, $"UploadedBytes", logFile.CompressedSizeBytes.Value);
+                        }
+
+                        if (repeated)
+                        {
+                            Tracer.Warning(context, $"Log file `{logFile.Path}` already exists in storage");
+                            Tracer.TrackMetric(context, $"UploadAlreadyExists", 1);
                         }
                     }
 
                     return BoolResult.Success;
                 },
+                timeout: _configuration.BlobUploadTimeout,
+                pendingOperationTracingInterval: _configuration.BlobUploadTracePeriod,
                 traceErrorsOnly: true,
-                silentOperationDurationThreshold: TimeSpan.FromMinutes(1),
-                extraEndMessage: _ => $"LogFilePath=[{logFilePath}] UploadSizeBytes=[{uploadTask.CompressedSizeBytes?.ToSizeExpression() ?? "Unknown"}]",
+                extraEndMessage: _ => $"LogFilePath=[{logFile.Path}] UploadSizeBytes=[{logFile.CompressedSizeBytes?.ToSizeExpression() ?? "Unknown"}]",
                 counter: Counters[AzureBlobStorageLogCounters.UploadToBlobStorageCalls]);
+        }
+
+        private Task UploadFileToBlobStorageWithRetryPolicyAsync(OperationContext context, LogFile logFile)
+        {
+            return _blobUploadRetryPolicy.ExecuteAsync(async () =>
+            {
+                // Its important to throw the original exception inside of the result here
+                await AttemptUploadFileToBlobStorageAsync(context, logFile, logFile.Path).RethrowIfFailure();
+            }, context.Token);
+        }
+
+        private Task<BoolResult> AttemptUploadFileToBlobStorageAsync(OperationContext context, LogFile logFile, AbsolutePath logFilePath)
+        {
+            return context.PerformOperationWithTimeoutAsync(Tracer, async (context) =>
+            {
+                var blob = _container.GetBlockBlobReference(logFilePath.FileName);
+
+                if (_additionalBlobMetadata != null)
+                {
+                    foreach (KeyValuePair<string, string> pair in _additionalBlobMetadata)
+                    {
+                        blob.Metadata.Add(pair.Key, pair.Value);
+                    }
+                }
+
+                if (logFile.UncompressedSizeBytes != null)
+                {
+                    blob.Metadata.Add("rawSizeBytes", logFile.UncompressedSizeBytes.ToString());
+                }
+
+                await blob.UploadFromFileAsync(
+                    logFilePath.ToString(),
+                    accessCondition: AccessCondition.GenerateIfNotExistsCondition(),
+                    options: new BlobRequestOptions()
+                    {
+                        RetryPolicy = new Microsoft.WindowsAzure.Storage.RetryPolicies.ExponentialRetry(),
+                    },
+                    operationContext: null,
+                    cancellationToken: context.Token);
+
+                return BoolResult.Success;
+            },
+            timeout: _configuration.BlobUploadAttemptTimeout,
+            pendingOperationTracingInterval: _configuration.BlobUploadAttemptTracePeriod,
+            traceErrorsOnly: true);
         }
 
         private string GenerateBlobName()
         {
-            // NOTE(jubayard): the file extension needs to match the data format. If it doesn't, things will likely
-            // fail on the Kusto side.
-            // See: https://kusto.azurewebsites.net/docs/management/data-ingestion/index.html#supported-data-formats
             var stamp = _telemetryFieldsProvider.Stamp ?? "Stamp";
-            var machine = _telemetryFieldsProvider.MachineName ?? "Machine";
+            var machine = _telemetryFieldsProvider.MachineName ?? Environment.MachineName;
             var timestamp = _clock.UtcNow.ToReadableString();
             var guid = Guid.NewGuid();
-            return $"{stamp}_{machine}_{timestamp}_{guid}.csv.gz";
+
+            // Two important things here:
+            //  1. The file extension needs to match the data format. If it doesn't, things will likely fail in Kusto
+            //     See: https://docs.microsoft.com/en-us/azure/data-explorer/ingestion-supported-formats
+            //  2. The naming convention here is meant to help use Kusto External Tables for ingestion-less queries
+            //     See: https://docs.microsoft.com/en-us/azure/data-explorer/kusto/query/schema-entities/externaltables
+            return $"{timestamp}-{stamp}-{machine}-{guid}.csv.gz";
         }
 
         private struct LogFile
@@ -432,6 +658,9 @@ namespace BuildXL.Cache.Logging
 
             /// <nodoc />
             public long? CompressedSizeBytes { get; set; }
+
+            /// <nodoc />
+            public long? LogLinesWritten { get; set; }
         };
     }
 }

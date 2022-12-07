@@ -4,14 +4,12 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading.Tasks;
-using System.Threading.Tasks.Dataflow;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.ParallelAlgorithms;
 
 namespace BuildXL.Cache.ContentStore.Extensions
 {
@@ -20,11 +18,6 @@ namespace BuildXL.Cache.ContentStore.Extensions
     /// </summary>
     public static class EnumerableExtensions
     {
-        private static readonly ExecutionDataflowBlockOptions AllProcessors = new ExecutionDataflowBlockOptions
-        {
-            MaxDegreeOfParallelism = Environment.ProcessorCount
-        };
-
         /// <summary>
         ///     Attempt to remove an item from the ConcurrentDictionary.
         /// </summary>
@@ -112,7 +105,7 @@ namespace BuildXL.Cache.ContentStore.Extensions
         /// </summary>
         public static Task ParallelForEachAsync<T>(this IEnumerable<T> items, Func<T, Task> loopBody)
         {
-            var block = new ActionBlock<T>(loopBody, AllProcessors);
+            var block = ActionBlockSlim.Create<T>(Environment.ProcessorCount, loopBody);
             return block.PostAllAndComplete(items);
         }
 
@@ -121,7 +114,7 @@ namespace BuildXL.Cache.ContentStore.Extensions
         /// </summary>
         public static Task ParallelForEachAsync<T>(this IEnumerable<T> items, int maxDegreeOfParallelism, Func<T, Task> loopBody)
         {
-            var block = new ActionBlock<T>(loopBody, new ExecutionDataflowBlockOptions {MaxDegreeOfParallelism = maxDegreeOfParallelism});
+            var block = ActionBlockSlim.Create<T>(maxDegreeOfParallelism, loopBody);
             return block.PostAllAndComplete(items);
         }
 
@@ -130,7 +123,7 @@ namespace BuildXL.Cache.ContentStore.Extensions
         /// </summary>
         public static Task ParallelForEachAsync<T>(this IEnumerable<T> items, Action<T> loopBody)
         {
-            var block = new ActionBlock<T>(loopBody, AllProcessors);
+            var block = ActionBlockSlim.Create<T>(Environment.ProcessorCount, loopBody);
             return block.PostAllAndComplete(items);
         }
 
@@ -160,7 +153,9 @@ namespace BuildXL.Cache.ContentStore.Extensions
         public static Task ParallelAddToConcurrentDictionaryAsync<T, TKey, TValue>(
             this IEnumerable<T> items, ConcurrentDictionary<TKey, TValue> dictionary, Func<T, TKey> getKey, Func<T, TValue> getValue) where TKey : notnull
         {
-            var block = new ActionBlock<T>(item => { dictionary[getKey(item)] = getValue(item); }, AllProcessors);
+            var block = ActionBlockSlim.Create<T>(
+                degreeOfParallelism: Environment.ProcessorCount,
+            item => { dictionary[getKey(item)] = getValue(item); });
             return block.PostAllAndComplete(items);
         }
 

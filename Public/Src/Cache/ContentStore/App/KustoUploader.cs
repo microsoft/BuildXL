@@ -5,9 +5,9 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
-using System.Threading.Tasks.Dataflow;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Logging;
+using BuildXL.Utilities.ParallelAlgorithms;
 using Kusto.Data.Common;
 using Kusto.Ingest;
 
@@ -39,7 +39,7 @@ namespace BuildXL.Cache.ContentStore.App
         private readonly bool _checkForIngestionErrors;
         private readonly IKustoQueuedIngestClient _client;
         private readonly KustoQueuedIngestionProperties _ingestionProperties;
-        private readonly ActionBlock<FileDescription> _block;
+        private readonly ActionBlockSlim<FileDescription> _block;
 
         private bool _hasUploadErrors = false;
 
@@ -79,15 +79,9 @@ namespace BuildXL.Cache.ContentStore.App
                 ReportLevel  = IngestionReportLevel.FailuresOnly,
                 ReportMethod = IngestionReportMethod.Queue,
             };
-            _block = new ActionBlock<FileDescription>
-                (
-                    UploadSingleCsvFile,
-                    new ExecutionDataflowBlockOptions()
-                    {
-                        MaxDegreeOfParallelism = 1,
-                        BoundedCapacity = DataflowBlockOptions.Unbounded
-                    }
-                );
+            _block = ActionBlockSlim.Create<FileDescription>(
+                degreeOfParallelism: 1,
+                UploadSingleCsvFile);
         }
 
         /// <summary>

@@ -14,7 +14,6 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Threading.Tasks.Dataflow;
 using BuildXL.Interop;
 using BuildXL.Native.IO;
 using BuildXL.Native.Processes;
@@ -31,6 +30,7 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
+using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.VmCommandProxy;
 using static BuildXL.Processes.SandboxedProcessFactory;
@@ -3415,7 +3415,8 @@ namespace BuildXL.Processes
                             if (!m_sandboxConfig.UnsafeSandboxConfiguration.IgnorePreserveOutputsPrivatization)
                             {
                                 int failureCount = 0;
-                                var makeOutputPrivateWorker = new ActionBlock<string>(
+                                var makeOutputPrivateWorker = ActionBlockSlim.Create<string>(
+                                    degreeOfParallelism: Environment.ProcessorCount,
                                     async path =>
                                     {
                                         if (failureCount == 0 && !await m_makeOutputPrivate(path))
@@ -3428,10 +3429,6 @@ namespace BuildXL.Processes
                                                 directoryOutput.Path.ToString(m_pathTable),
                                                 path);
                                         }
-                                    },
-                                    new ExecutionDataflowBlockOptions
-                                    {
-                                        MaxDegreeOfParallelism = Environment.ProcessorCount
                                     });
 
                                 FileUtilities.EnumerateDirectoryEntries(

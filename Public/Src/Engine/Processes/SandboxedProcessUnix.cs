@@ -9,13 +9,14 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Threading.Tasks.Dataflow;
+using BuildXL.Interop;
 using BuildXL.Interop.Unix;
 using BuildXL.Native.IO;
 using BuildXL.Native.Processes;
 using BuildXL.Pips;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Utilities.Tasks;
 using JetBrains.Annotations;
 using static BuildXL.Interop.Unix.Sandbox;
@@ -34,9 +35,8 @@ namespace BuildXL.Processes
     {
         private readonly SandboxedProcessReports m_reports;
 
+        private readonly ActionBlockSlim<AccessReport> m_pendingReports;
         private readonly SandboxedProcessTraceBuilder? m_traceBuilder;
-
-        private readonly ActionBlock<AccessReport> m_pendingReports;
 
         private readonly CancellableTimedAction? m_perfCollector;
 
@@ -186,15 +186,11 @@ namespace BuildXL.Processes
 
             var useSingleProducer = !(SandboxConnection.Kind == SandboxKind.MacOsHybrid || SandboxConnection.Kind == SandboxKind.MacOsDetours);
 
-            var executionOptions = new ExecutionDataflowBlockOptions
-            {
-                EnsureOrdered = true,
-                SingleProducerConstrained = useSingleProducer,
-                BoundedCapacity = DataflowBlockOptions.Unbounded,
-                MaxDegreeOfParallelism = 1 // Must be one, otherwise SandboxedPipExecutor will fail asserting valid reports
-            };
+            var executionOptions = new ActionBlockSlimConfiguration(
+                DegreeOfParallelism: 1, // Must be one, otherwise SandboxedPipExecutor will fail asserting valid reports
+                SingleProducerConstrained: useSingleProducer);
 
-            m_pendingReports = new ActionBlock<AccessReport>(HandleAccessReport, executionOptions);
+            m_pendingReports = ActionBlockSlim.Create<AccessReport>(configuration: executionOptions, HandleAccessReport);
 
             // install 'ProcessReady' and 'ProcessStarted' handlers to inform the sandbox
             ProcessReady += () => SandboxConnection.NotifyPipReady(info.LoggingContext, info.FileAccessManifest, this, m_pendingReports.Completion);

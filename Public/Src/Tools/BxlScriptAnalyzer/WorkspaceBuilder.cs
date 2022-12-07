@@ -7,7 +7,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading.Tasks;
-using System.Threading.Tasks.Dataflow;
 using BuildXL.Engine;
 using BuildXL.Engine.Cache;
 using BuildXL.Engine.Cache.Artifacts;
@@ -25,6 +24,7 @@ using BuildXL.Scheduler;
 using BuildXL.Storage;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.Utilities.Instrumentation.Common;
 using TypeScript.Net.Diagnostics;
@@ -588,9 +588,9 @@ namespace BuildXL.FrontEnd.Script.Analyzer
                 disableLanguagePolicies: false);
 
             // Lint all files in parallel and wait for queue completion
-            var linterQueue = new ActionBlock<ISourceFile>(
-                (Action<ISourceFile>)LintFile,
-                new ExecutionDataflowBlockOptions { MaxDegreeOfParallelism = configuration.MaxFrontEndConcurrency() });
+            var linterQueue = ActionBlockSlim.Create<ISourceFile>(
+                degreeOfParallelism: configuration.MaxFrontEndConcurrency(),
+                (Action<ISourceFile>)LintFile);
 
             foreach (var sourceFile in changedSpecsToLint)
             {

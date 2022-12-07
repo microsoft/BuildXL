@@ -61,15 +61,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     var now = _clock.UtcNow;
 
                     MachineId[] assignedMachineIds = new MachineId[request.MachineLocations.Count];
-                    foreach (var entry in request.MachineLocations.AsIndexed())
+                    foreach (var (item, index) in request.MachineLocations.AsIndexed())
                     {
-                        if (currentState.TryResolveMachineId(entry.Item, out var machineId))
+                        if (currentState.TryResolveMachineId(item, out var machineId))
                         {
-                            assignedMachineIds[entry.Index] = machineId;
+                            assignedMachineIds[index] = machineId;
                         }
                         else
                         {
-                            (currentState, assignedMachineIds[entry.Index]) = currentState.RegisterMachine(entry.Item, now);
+                            (currentState, assignedMachineIds[index]) = currentState.RegisterMachine(item, now);
                         }
                     }
 

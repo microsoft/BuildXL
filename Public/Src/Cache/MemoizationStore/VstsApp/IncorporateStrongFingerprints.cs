@@ -8,7 +8,6 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Threading.Tasks.Dataflow;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
@@ -20,8 +19,9 @@ using BuildXL.Cache.ContentStore.Vsts;
 using BuildXL.Cache.MemoizationStore.Interfaces.Caches;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Cache.MemoizationStore.Vsts;
-using CLAP;
 using BuildXL.Utilities.Authentication;
+using BuildXL.Utilities.ParallelAlgorithms;
+using CLAP;
 
 namespace BuildXL.Cache.MemoizationStore.VstsApp
 {
@@ -89,8 +89,9 @@ namespace BuildXL.Cache.MemoizationStore.VstsApp
                         count = strongFingerprints.Count;
                         _logger.Always($"Incorporating {count} strong fingerprints {iterationCount} times");
 
-                        ActionBlock<List<StrongFingerprint>> incorporateBlock =
-                            new ActionBlock<List<StrongFingerprint>>(
+                        var incorporateBlock =
+                            ActionBlockSlim.Create<List<StrongFingerprint>>(
+                                degreeOfParallelism: iterationDegreeOfParallelism,
                                 async fingerprints =>
                                 {
                                     var iterationStopwatch = Stopwatch.StartNew();
@@ -132,12 +133,11 @@ namespace BuildXL.Cache.MemoizationStore.VstsApp
                                             }
                                         }
                                     }
-                                },
-                                new ExecutionDataflowBlockOptions {MaxDegreeOfParallelism = iterationDegreeOfParallelism});
+                                });
 
                         for (int i = 0; i < iterationCount; i++)
                         {
-                            await incorporateBlock.SendAsync(strongFingerprints);
+                            await incorporateBlock.PostAsync(strongFingerprints);
                         }
 
                         incorporateBlock.Complete();

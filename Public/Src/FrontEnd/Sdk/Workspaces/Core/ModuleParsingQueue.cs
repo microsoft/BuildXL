@@ -9,9 +9,9 @@ using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Threading.Tasks.Dataflow;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.ParallelAlgorithms;
 using JetBrains.Annotations;
 using TypeScript.Net.Binding;
 using TypeScript.Net.DScript;
@@ -49,12 +49,12 @@ namespace BuildXL.FrontEnd.Workspaces.Core
         private readonly ParsedModule m_configurationModule;
 
         // Specs to be parsed queue
-        private readonly ActionBlock<SpecWithOwningModule> m_parseQueue;
+        private readonly ActionBlockSlim<SpecWithOwningModule> m_parseQueue;
 
         // Spec to be bound queue
-        private readonly ActionBlock<ParsedSpecWithOwningModule> m_bindQueue;
+        private readonly ActionBlockSlim<ParsedSpecWithOwningModule> m_bindQueue;
 
-        // Options for the queue
+         // Options for the queue
         private readonly ModuleParsingQueueOptions m_queueOptions;
 
         // Failures found when parsing
@@ -145,14 +145,20 @@ namespace BuildXL.FrontEnd.Workspaces.Core
             m_queueOptions = new ModuleParsingQueueOptions()
             {
                 CancelOnFirstFailure = workspaceConfiguration.CancelOnFirstFailure,
-                MaxDegreeOfParallelism = DegreeOfParallelism,
-                CancellationToken = CancellationToken,
             };
 
-            m_parseQueue = new ActionBlock<SpecWithOwningModule>(ProcessQueuedItemForParsing, m_queueOptions);
+            // Using 'FailFastOnUnhandledException' flag to mimic TPL Dataflow behavior that we rely on.
+            // Because we want to stop processing all the data on the first error without calling 'Complete' method.
+            m_parseQueue = ActionBlockSlim.CreateWithAsyncAction<SpecWithOwningModule>(
+                new ActionBlockSlimConfiguration(DegreeOfParallelism, FailFastOnUnhandledException: true),
+                ProcessQueuedItemForParsing,
+                cancellationToken: CancellationToken);
 
             Action<ParsedSpecWithOwningModule> action = ProcessQueueItemForBinding;
-            m_bindQueue = new ActionBlock<ParsedSpecWithOwningModule>(action, m_queueOptions);
+            m_bindQueue = ActionBlockSlim.Create<ParsedSpecWithOwningModule>(
+                new ActionBlockSlimConfiguration(DegreeOfParallelism, FailFastOnUnhandledException: true),
+                action, 
+                cancellationToken: CancellationToken);
         }
 
         /// <summary>

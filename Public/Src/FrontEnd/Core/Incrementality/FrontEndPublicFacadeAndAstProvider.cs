@@ -9,7 +9,6 @@ using System.IO;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Threading.Tasks.Dataflow;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.FrontEnd.Core.Tracing;
 using BuildXL.FrontEnd.Sdk;
@@ -18,7 +17,9 @@ using BuildXL.Storage;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Instrumentation.Common;
+using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Utilities.Tasks;
+
 using static BuildXL.Utilities.FormattableStringEx;
 
 namespace BuildXL.FrontEnd.Core.Incrementality
@@ -41,7 +42,7 @@ namespace BuildXL.FrontEnd.Core.Incrementality
         private readonly LoggingContext m_loggingContext;
         private IReadOnlySet<AbsolutePath> m_dirtySpecs;
 
-        private readonly ActionBlock<FileContentWithHash> m_filesToSaveQueue;
+        private readonly ActionBlockSlim<FileContentWithHash> m_filesToSaveQueue;
 
         // Need to keep a map between the input to the action block and task completion source.
         private readonly ConcurrentDictionary<FileContentWithHash, TaskSourceSlim<object>> m_saveCompletionTasks = new ConcurrentDictionary<FileContentWithHash, TaskSourceSlim<object>>();
@@ -78,10 +79,8 @@ namespace BuildXL.FrontEnd.Core.Incrementality
             m_logger = logger;
             m_loggingContext = loggingContext;
 
-            var queueOptions = new ExecutionDataflowBlockOptions { MaxDegreeOfParallelism = 1, CancellationToken = cancellationToken };
-
             Action<FileContentWithHash> action = SaveFile;
-            m_filesToSaveQueue = new ActionBlock<FileContentWithHash>(action, queueOptions);
+            m_filesToSaveQueue = ActionBlockSlim.Create(degreeOfParallelism: 1, action, failFastOnUnhandledException: true, cancellationToken: cancellationToken);
         }
 
         /// <summary>

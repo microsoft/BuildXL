@@ -5,7 +5,6 @@ using System;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading.Tasks;
-using System.Threading.Tasks.Dataflow;
 using BuildXL.Cache.ContentStore.Extensions;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Synchronization;
@@ -13,6 +12,7 @@ using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.ParallelAlgorithms;
 using ContentStoreTest.Test;
 using FluentAssertions;
 using Xunit;
@@ -131,13 +131,15 @@ namespace ContentStoreTest.Synchronization
             using (var lock1 = new DirectoryLock(testDirectory.Path / "dir1", FileSystem, TimeSpan.FromSeconds(1), componentName))
             {
                 var failedToAcquire = false;
-                var actionBlock = new ActionBlock<ValueUnit>(async _ =>
-                {
-                    if (!(await lock1.AcquireAsync(context)).LockAcquired)
+                var actionBlock = ActionBlockSlim.Create<ValueUnit>(
+                    degreeOfParallelism: 1,
+                    async _ =>
                     {
-                        failedToAcquire = true;
-                    }
-                });
+                        if (!(await lock1.AcquireAsync(context)).LockAcquired)
+                        {
+                            failedToAcquire = true;
+                        }
+                    });
 
                 await actionBlock.PostAllAndComplete(Enumerable.Repeat(ValueUnit.Void, 5));
                 failedToAcquire.Should().BeFalse();

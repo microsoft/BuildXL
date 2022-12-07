@@ -27,7 +27,7 @@ namespace BuildXL.Utilities.Tasks
             this IReadOnlyList<T> source,
             int degreeOfParallelism,
             Func<T, Task<Possible<TResult>>> selector,
-            CancellationToken token)
+            CancellationToken token = default)
         {
             Contract.RequiresNotNull(source);
             Contract.Requires(degreeOfParallelism > 0);

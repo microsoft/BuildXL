@@ -117,16 +117,16 @@ export declare function f() : void"};
         }
 
         [Theory]
-        [InlineData("export const x = 42", "export declare const x : number;")]
-        [InlineData("export const x = true", "export declare const x : boolean;")]
-        [InlineData("export const x = undefined", "export declare const x : any;")]
+        [InlineData("export const x = 42;", "export declare const x : number;")]
+        [InlineData("export const x = true;", "export declare const x : boolean;")]
+        [InlineData("export const x = undefined;", "export declare const x : any;")]
         [InlineData("export const x = (a) => a;", "export declare const x : (a: any) => any;")]
         [InlineData("export const x = (a) => 42;", "export declare const x : (a: any) => number;")]
         [InlineData("export const x = (a: number) => a;", "export declare const x : (a: number) => number;")]
         [InlineData("export const x = (a: number) => 'hi';", "export declare const x : (a: number) => string;")]
         [InlineData("function f(): number {}; export const x = f();", "export declare const x : number;")]
         [InlineData("function f() {return 42;}; export const x = f();", "export declare const x : number;")]
-        [InlineData("export const x = {a: 1, b: '2'}", "export declare const x : {a: number; b: string;};")]
+        [InlineData("export const x = {a: 1, b: '2'};", "export declare const x : {a: number; b: string;};")]
         [InlineData("export function f(a: string, b: boolean): void {}", "export declare function f(a: string, b: boolean): void")]
         [InlineData("export function f(a: string = 'hi', b: boolean = true): void {}", "export declare function f(a: string, b: boolean): void")]
         [InlineData("export function f(a): void {}", "export declare function f(a: any): void")]
@@ -590,7 +590,7 @@ export{x as y};")]
 declare const x : number;
 @@30
 export {x};")]
-        [InlineData("const x: number = 42, y: boolean = true; export {y}", @"
+        [InlineData("const x: number = 42, y: boolean = true; export {y};", @"
 @@21
 declare const y : boolean;
 @@49
@@ -649,6 +649,13 @@ export const result = x;
         {
             var workspaceProvider = CreateWorkspaceProviderFromContent(false, moduleRepository);
             var workspace = workspaceProvider.CreateWorkspaceFromAllKnownModulesAsync().GetAwaiter().GetResult();
+
+            var parsingAndBindingErrors = workspace.GetAllParsingAndBindingErrors().ToList();
+            if (parsingAndBindingErrors.Count != 0)
+            {
+                var errors = string.Join("\r\n", parsingAndBindingErrors);
+                XAssert.Fail("Workspace is expected to be error free.  Errors found " + errors);
+            }
 
             var semanticWorkspaceProvider = new SemanticWorkspaceProvider(m_frontEndStatistics, workspace.WorkspaceConfiguration);
             var semanticWorkspace = semanticWorkspaceProvider.ComputeSemanticWorkspaceAsync(PathTable, workspace).GetAwaiter().GetResult();

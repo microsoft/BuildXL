@@ -7,11 +7,10 @@ using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Threading.Tasks.Dataflow;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Utils;
+using BuildXL.Utilities.ParallelAlgorithms;
 using CLAP;
-using static BuildXL.Utilities.Collections.TargetBlockExtensions;
 
 // ReSharper disable once UnusedMember.Global
 namespace BuildXL.Cache.ContentStore.App
@@ -49,7 +48,8 @@ namespace BuildXL.Cache.ContentStore.App
                 var cacheDeduplicatedFiles = default(FileStats);
                 var outputDeduplicatedFiles = default(FileStats);
 
-                var processFileInfoActionBlock = new ActionBlock<FileInfo>(
+                var processFileInfoActionBlock = ActionBlockSlim.Create<FileInfo>(
+                    degreeOfParallelism: Environment.ProcessorCount,
                     fileInfo =>
                     {
                         var hardLinkCount = 0;
@@ -83,12 +83,9 @@ namespace BuildXL.Cache.ContentStore.App
                                 }
                             }
                         }
-                    },
-                    new ExecutionDataflowBlockOptions { MaxDegreeOfParallelism = Environment.ProcessorCount }
-                    );
+                    });
 
-                var processFileInfoTask =
-                    processFileInfoActionBlock.PostAllAndComplete(EnumerateBlobPathsFromDisk(rootPath));
+                var processFileInfoTask = processFileInfoActionBlock.PostAllAndComplete(EnumerateBlobPathsFromDisk(rootPath));
 
                 var metadataFileInfos = _fileSystem.EnumerateFiles(rootPath, EnumerateOptions.None).ToList();
                 var metadataFiles = new FileStats(

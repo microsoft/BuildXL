@@ -8,9 +8,9 @@ using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Threading.Tasks.Dataflow;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.ParallelAlgorithms;
 
 namespace BuildXL.FrontEnd.Core
 {
@@ -31,7 +31,7 @@ namespace BuildXL.FrontEnd.Core
         private readonly bool m_enableEvaluationThrottling;
         private readonly CancellationTokenSource m_cancellationSource;
 
-        private readonly ActionBlock<QueueItem> m_queue;
+        private readonly ActionBlockSlim<QueueItem> m_queue;
 
         private readonly ConcurrentDictionary<string, Lazy<object>> m_valueCache = new ConcurrentDictionary<string, Lazy<object>>();
 
@@ -86,15 +86,11 @@ namespace BuildXL.FrontEnd.Core
 
             if (m_enableEvaluationThrottling)
             {
-                m_queue = new ActionBlock<QueueItem>(
+                m_queue = ActionBlockSlim.Create<QueueItem>(
+                    degreeOfParallelism: m_degreeOfParallelism,
                     item => item.Execute(),
-                    new ExecutionDataflowBlockOptions
-                    {
-                        BoundedCapacity = DataflowBlockOptions.Unbounded,
-                        MaxDegreeOfParallelism = m_degreeOfParallelism,
-                        CancellationToken = m_cancellationSource.Token
-                    }
-                );
+                    failFastOnUnhandledException: true,
+                    cancellationToken: m_cancellationSource.Token);
             }
         }
 

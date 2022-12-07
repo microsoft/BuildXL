@@ -8,7 +8,6 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Threading.Tasks.Dataflow;
 using BuildXL.Utilities;
 using BuildXL.FrontEnd.Script;
 using BuildXL.FrontEnd.Script.Constants;
@@ -134,7 +133,7 @@ namespace Test.DScript.Workspaces
             var workspaceConfiguration = new WorkspaceConfiguration(
                 resolverSettings,
                 constructFingerprintDuringParsing: false,
-                maxDegreeOfParallelismForParsing: DataflowBlockOptions.Unbounded,
+                maxDegreeOfParallelismForParsing: -1, // Unbounded
                 parsingOptions: ParsingOptions.DefaultParsingOptions.WithTrivia(preserveTrivia),
                 maxDegreeOfParallelismForTypeChecking: 1,
                 cancelOnFirstFailure: cancelOnFirstFailure,

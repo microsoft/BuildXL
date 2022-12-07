@@ -5,7 +5,7 @@ using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
-using System.Threading.Tasks.Dataflow;
+using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Utilities.Tasks;
 using TypeScript.Net.Types;
 
@@ -18,7 +18,7 @@ namespace BuildXL.FrontEnd.Sdk
     public sealed class SourceFileProcessingQueue<TParseResult>
     {
         // The queue for concurrent file processing
-        private readonly ActionBlock<QueueInput<TParseResult>> m_parseQueue;
+        private readonly ActionBlockSlim<QueueInput<TParseResult>> m_parseQueue;
 
         /// <summary>
         /// Creates a module parsing queue. The queue options are specified by the provided queueOptions.
@@ -27,12 +27,10 @@ namespace BuildXL.FrontEnd.Sdk
         {
             Contract.Requires(degreeOfParallelism >= 1);
 
-            m_parseQueue = new ActionBlock<QueueInput<TParseResult>>(
+            m_parseQueue = ActionBlockSlim.Create<QueueInput<TParseResult>>(
+                degreeOfParallelism,
                 ProcessWorkItem,
-                dataflowBlockOptions: new ExecutionDataflowBlockOptions()
-                {
-                    MaxDegreeOfParallelism = degreeOfParallelism,
-                });
+                failFastOnUnhandledException: true);
         }
 
         /// <summary>
@@ -45,8 +43,8 @@ namespace BuildXL.FrontEnd.Sdk
 
             var item = new QueueInput<TParseResult>(sourceFile, parseFunc);
 
-            bool postResult = m_parseQueue.Post(item);
-            Contract.Assert(postResult, "m_parseQueue.Post should return true.");
+            bool postResult = m_parseQueue.TryPost(item);
+            Contract.Assert(postResult, "m_parseQueue.TryPost should return true.");
 
             // the queue handler ('ProcesWorkItem' method) completes this task
             return item.TaskSource.Task;

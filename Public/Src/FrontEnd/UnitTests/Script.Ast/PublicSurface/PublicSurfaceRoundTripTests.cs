@@ -14,7 +14,7 @@ namespace Test.DScript.Ast.PublicSurface
     {
         [Theory]
         [InlineData("export const x = 42;")]
-        [InlineData("export function g() { return 42 };")]
+        [InlineData("export function g() { return 42; };")]
         [InlineData("export interface I { a : string }")]
         [InlineData("namespace A {}")]
         [InlineData("export type T = boolean;")]

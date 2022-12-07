@@ -4,7 +4,6 @@
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Threading;
-using System.Threading.Tasks.Dataflow;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using JetBrains.Annotations;
@@ -61,8 +60,8 @@ namespace BuildXL.FrontEnd.Workspaces.Core
             return new WorkspaceConfiguration(
                 CollectionUtilities.EmptyArray<IResolverSettings>(),
                 constructFingerprintDuringParsing: false,
-                maxDegreeOfParallelismForParsing: DataflowBlockOptions.Unbounded,
-                parsingOptions: ParsingOptions.DefaultParsingOptions,
+                maxDegreeOfParallelismForParsing: -1,
+                parsingOptions: TypeScript.Net.DScript.ParsingOptions.DefaultParsingOptions,
                 maxDegreeOfParallelismForTypeChecking: 1,
                 cancelOnFirstFailure: true,
                 includePreludeWithName: null);

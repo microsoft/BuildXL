@@ -12,7 +12,6 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Threading.Tasks.Dataflow;
 using BuildXL.Cache.ContentStore.Extensions;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
@@ -356,8 +355,9 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                         ).GetPages(_maxFingerprintsPerIncorporateRequest).ToList();
                     Tracer.Debug(context, $"Total fingerprint incorporation requests to be issued(=number of fingerprint chunks):[{chunks.Count}]");
 
-                    var incorporateBlock = new ActionBlock<IEnumerable<StrongFingerprintAndExpiration>>(
-                        async chunk =>
+                    var incorporateBlock = ActionBlockSlim.Create<IEnumerable<StrongFingerprintAndExpiration>>(
+                        degreeOfParallelism: _maxDegreeOfParallelismForIncorporateRequests,
+                        processItemAction: async chunk =>
                         {
                             var pinResult = await PinContentManuallyAsync(new OperationContext(context, CancellationToken.None), chunk);
                             if (!pinResult)
@@ -370,12 +370,11 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                                 CacheNamespace,
                                 new IncorporateStrongFingerprintsRequest(chunk.ToList().AsReadOnly())
                                 ).ConfigureAwait(false);
-                        },
-                        new ExecutionDataflowBlockOptions { MaxDegreeOfParallelism = _maxDegreeOfParallelismForIncorporateRequests });
+                        });
 
                     foreach (var chunk in chunks)
                     {
-                        await incorporateBlock.SendAsync(chunk);
+                        await incorporateBlock.PostAsync(chunk);
                     }
 
                     incorporateBlock.Complete();

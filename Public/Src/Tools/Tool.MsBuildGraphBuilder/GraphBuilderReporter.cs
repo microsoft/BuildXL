@@ -10,7 +10,7 @@ using System.IO;
 using System.IO.Pipes;
 using System.Text;
 using System.Threading.Tasks;
-using System.Threading.Tasks.Dataflow;
+using BuildXL.Utilities.ParallelAlgorithms;
 
 namespace MsBuildGraphBuilderTool
 {
@@ -23,7 +23,7 @@ namespace MsBuildGraphBuilderTool
     public class GraphBuilderReporter : IDisposable
     {
         private readonly string m_pipeName;
-        private readonly ActionBlock<string> m_messageQueue;
+        private readonly ActionBlockSlim<string> m_messageQueue;
         private readonly ConcurrentQueue<string> m_errors = new ConcurrentQueue<string>();
         private NamedPipeServerStream m_pipe;
         private StreamWriter m_streamWriter;
@@ -42,15 +42,11 @@ namespace MsBuildGraphBuilderTool
         public GraphBuilderReporter(string pipeName)
         {
             m_pipeName = pipeName;
-            m_messageQueue = new ActionBlock<string>(
-                SendMessageThroughPipe,
-                new ExecutionDataflowBlockOptions
-                {
-                    // no cap for the queue, these are user-facing messages, so we don't expect that many
-                    BoundedCapacity = DataflowBlockOptions.Unbounded,
-                    // we just want a single thread to take care of dispatching messages through the pipe
-                    MaxDegreeOfParallelism = 1,
-                });
+            m_messageQueue = ActionBlockSlim.Create<string>(
+                // no cap for the queue, these are user-facing messages, so we don't expect that many
+                // we just want a single thread to take care of dispatching messages through the pipe
+                degreeOfParallelism: 1,
+                message => SendMessageThroughPipe(message));
         }
 
         /// <summary>
@@ -75,7 +71,7 @@ namespace MsBuildGraphBuilderTool
                 return false;
             }
 
-            var result = m_messageQueue.Post(message);
+            var result = m_messageQueue.TryPost(message);
             Contract.Assert(result);
 
             return true;
@@ -153,7 +149,7 @@ namespace MsBuildGraphBuilderTool
             // If there are still some messages to process and we also got a client to connect successfully,
             // there is still a chance to deliver the pending messages successfully before disposing the queue
             // Otherwise, it is not worth trying
-            if (m_messageQueue.InputCount > 0 && m_pipe.IsConnected)
+            if (m_messageQueue.PendingWorkItems > 0 && m_pipe.IsConnected)
             {
                 // Let's wait for the queue completion, but also set a timeout, just in case the client is gone
                 // or some other connection problem happens. We don't want to wait forever and make the caller unresponsive.

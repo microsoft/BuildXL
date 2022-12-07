@@ -12,13 +12,13 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Threading.Tasks.Dataflow;
 using BuildXL.Interop;
 using BuildXL.Interop.Unix;
 using BuildXL.Native.IO;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
+using BuildXL.Utilities.ParallelAlgorithms;
 using Microsoft.Win32.SafeHandles;
 using static BuildXL.Interop.Unix.Sandbox;
 
@@ -91,7 +91,7 @@ namespace BuildXL.Processes
             private readonly CancellableTimedAction m_activeProcessesChecker;
             private readonly Lazy<SafeFileHandle> m_lazyWriteHandle;
             private readonly Thread m_workerThread;
-            private readonly ActionBlock<(PooledObjectWrapper<byte[]> wrapper, int length)> m_accessReportProcessingBlock;
+            private readonly ActionBlockSlim<(PooledObjectWrapper<byte[]> wrapper, int length)> m_accessReportProcessingBlock;
 
             private int m_stopRequestCounter;
             private int m_completeAccessReportProcessingCounter;
@@ -125,12 +125,11 @@ namespace BuildXL.Processes
                 });
 
                 // action block where parsing and processing of received ActionReport bytes is done
-                m_accessReportProcessingBlock = new ActionBlock<(PooledObjectWrapper<byte[]> wrapper, int length)>(ProcessBytes, new ExecutionDataflowBlockOptions
-                {
-                    BoundedCapacity = DataflowBlockOptions.Unbounded,
-                    MaxDegreeOfParallelism = 1,
-                    EnsureOrdered = true
-                });
+                m_accessReportProcessingBlock = ActionBlockSlim.Create<(PooledObjectWrapper<byte[]> wrapper, int length)>(
+                    degreeOfParallelism: 1,
+                    ProcessBytes,
+                    singleProducedConstrained: true // Only m_workerThread posts to the action block
+                    );
 
                 // start a background thread for reading from the FIFO
                 m_workerThread = new Thread(StartReceivingAccessReports);

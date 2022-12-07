@@ -7,12 +7,12 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading.Tasks;
-using System.Threading.Tasks.Dataflow;
 using BuildXL.FrontEnd.MsBuild;
 using BuildXL.FrontEnd.Sdk.ProjectGraph;
 using BuildXL.Pips.Builders;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.ParallelAlgorithms;
 
 namespace BuildXL.FrontEnd.Utilities.GenericProjectGraphResolver
 {
@@ -54,9 +54,10 @@ namespace BuildXL.FrontEnd.Utilities.GenericProjectGraphResolver
             Failure failure = null;
             var processOutputs = new ConcurrentDictionary<TProject, ProcessOutputs>();
 
-            ActionBlock<TProject> createActionBlockForTier()
+            ActionBlockSlim<TProject> createActionBlockForTier()
             {
-                return new ActionBlock<TProject>(
+                return ActionBlockSlim.Create<TProject>(
+                    degreeOfParallelism: m_maxConcurrency,
                     project =>
                     {
                         // If a previous tier had any errors (which is guaranteed to be completed before the next tier is scheduled), just return, since the current tier may depend on pips that in the end
@@ -111,15 +112,11 @@ namespace BuildXL.FrontEnd.Utilities.GenericProjectGraphResolver
                         {
                             m_pipConstructor.NotifyProjectNotScheduled(project);
                         }
-                    },
-                    new ExecutionDataflowBlockOptions
-                    {
-                        MaxDegreeOfParallelism = m_maxConcurrency
                     });
             }
 
             int currentTier = 0;
-            ActionBlock<TProject> perTierParallelPipCreator = createActionBlockForTier();
+            ActionBlockSlim<TProject> perTierParallelPipCreator = createActionBlockForTier();
             while (topoSortedQueue.Count != 0 && success)
             {
                 if (!success)

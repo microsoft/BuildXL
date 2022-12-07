@@ -36,8 +36,8 @@ namespace BuildXL.Cache.ContentStore.Stats
         {
             var totalMilliseconds = Duration.TotalMilliseconds;
             counterSet.Add(_count.Name, _count.Value);
-            counterSet.Add($"{_callName}AverageMs", _count.Value != 0 ? (long)(totalMilliseconds / _count.Value) : 0);
-            counterSet.Add($"{_callName}CallMs", (long)totalMilliseconds);
+            counterSet.Add($"{_callName}AverageMs", _count.Value != 0 ? (totalMilliseconds / _count.Value) : 0);
+            counterSet.Add($"{_callName}CallMs", totalMilliseconds);
         }
 
         /// <summary>

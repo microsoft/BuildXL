@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.ContractsLight;
 using System.Linq;
 
 namespace BuildXL.Cache.ContentStore.UtilitiesCore
@@ -32,7 +33,7 @@ namespace BuildXL.Cache.ContentStore.UtilitiesCore
                 throw new ArgumentException($"counter with name like [{name}] not found");
             }
 
-            return match.Value;
+            return match.ValueAsLong;
         }
 
         /// <summary>
@@ -43,14 +44,13 @@ namespace BuildXL.Cache.ContentStore.UtilitiesCore
         /// <summary>
         ///     Add a new counter.
         /// </summary>
-        public void Add(string name, long value, string metricName) => 
-            AddCounter(name, value, metricName);
+        public void Add(string name, double value) => AddCounter(Counter.FromDouble(name, value));
 
         /// <summary>
-        /// Adds a counter that will also function as a top-level metric
+        ///     Add a new counter.
         /// </summary>
-        public void AddMetric(string name, long value) =>
-            AddCounter(name, value, name);
+        public void Add(string name, long value, string metricName) => 
+            AddCounter(Counter.FromLong(name, value, metricName));
 
         /// <summary>
         ///     Merge another set into this one.
@@ -59,7 +59,7 @@ namespace BuildXL.Cache.ContentStore.UtilitiesCore
         {
             foreach (var counter in other._counters)
             {
-                AddCounter(counter.Name, counter.Value, counter.MetricName);
+                AddCounter(counter);
             }
 
             return this;
@@ -72,7 +72,7 @@ namespace BuildXL.Cache.ContentStore.UtilitiesCore
         {
             foreach (var counter in other._counters)
             {
-                AddCounter(keyPrefix + counter.Name, counter.Value, counter.MetricName);
+                AddCounter(counter.WithPrefix(keyPrefix));
             }
         }
 
@@ -81,7 +81,7 @@ namespace BuildXL.Cache.ContentStore.UtilitiesCore
         /// </summary>
         public IDictionary<string, long> ToDictionaryIntegral()
         {
-            return _counters.ToDictionary(counter => counter.Name, counter => counter.Value);
+            return _counters.ToDictionary(counter => counter.Name, counter => counter.ValueAsLong);
         }
 
         /// <summary>
@@ -95,34 +95,64 @@ namespace BuildXL.Cache.ContentStore.UtilitiesCore
             }
         }
 
-        private void AddCounter(string name, double value, string metricName)
+        private void AddCounter(Counter counter)
         {
             // metricName is not necessarily unique.
             // Different counters could have the same metric name and in this case
             // we'll have more then record for the same metric from different counters.
-            if (!_counters.Add(new Counter(name, (long)value, metricName)))
+            if (!_counters.Add(counter))
             {
-                throw new ArgumentException($"An item with the same key '{name}' has already been added.");
+                throw new ArgumentException($"An item with the same key '{counter.Name}' has already been added.");
             }
         }
 
         /// <nodoc />
         public class Counter : IEquatable<Counter>
         {
-            /// <nodoc />
-            public readonly string Name;
+            // The counter has either double or long.
+            private readonly double? _doubleValue;
+            private readonly long? _longValue;
 
             /// <nodoc />
-            public readonly long Value;
+            public string Name { get; }
 
             /// <nodoc />
-            public readonly string MetricName;
+            public string Value => _longValue != null ? _longValue.ToString() : _doubleValue!.Value.ToString("F3");
 
-            internal Counter(string name, long value, string metricName)
+            /// <nodoc />
+            public long ValueAsLong => _longValue ?? (long)_doubleValue!.Value;
+
+            /// <nodoc />
+            public string MetricName { get; }
+
+            private Counter(string name, long? longValue, double? doubleValue, string metricName)
             {
+                Contract.Requires(longValue is not null || doubleValue is not null);
                 Name = name;
-                Value = value;
+                _longValue = longValue;
+                _doubleValue = doubleValue;
+                
                 MetricName = metricName;
+            }
+
+            /// <summary>
+            /// Gets a copy of the counter with a given <paramref name="prefix"/>.
+            /// </summary>
+            public Counter WithPrefix(string prefix)
+            {
+                return new Counter(prefix + Name, _longValue, _doubleValue, MetricName);
+            }
+
+            /// <nodoc />
+            public static Counter FromDouble(string name, double value, string metricName = null)
+            {
+                return new Counter(name, longValue: null, doubleValue: value, metricName: metricName);
+            }
+
+            /// <nodoc />
+            public static Counter FromLong(string name, long value, string metricName = null)
+            {
+                return new Counter(name, longValue: value, doubleValue: null, metricName: metricName);
             }
 
             /// <nodoc />
@@ -136,6 +166,7 @@ namespace BuildXL.Cache.ContentStore.UtilitiesCore
 
             /// <inheritdoc />
             public override string ToString() => $"{nameof(Name)}: {Name}, {nameof(Value)}: {Value}";
+
         }
     }
 }

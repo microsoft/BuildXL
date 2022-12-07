@@ -890,7 +890,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                     var counters = new CounterSet();
                     counters.Merge(_tracer.GetCounters(), $"{Component}.");
                     counters.Merge(_counters.ToCounterSet(), $"{Component}.");
-                    counters.Add($"{Component}.LockWaitMs", (long)_lockSet.TotalLockWaitTime.TotalMilliseconds);
+                    counters.Add($"{Component}.LockWaitMs", _lockSet.TotalLockWaitTime.TotalMilliseconds);
 
                     if (StartupCompleted)
                     {

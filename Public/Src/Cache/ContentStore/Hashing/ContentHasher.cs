@@ -268,7 +268,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
             if (_calls > 0)
             {
                 counters.Add("ContentHasherCalls", Interlocked.Read(ref _calls));
-                counters.Add("ContentHasherMs", (long)new TimeSpan(Interlocked.Read(ref _ticks)).TotalMilliseconds);
+                counters.Add("ContentHasherMs", new TimeSpan(Interlocked.Read(ref _ticks)).TotalMilliseconds);
                 counters.Add("ContentHasherMaxConcurrency", _algorithmsPool.Size);
             }
 

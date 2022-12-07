@@ -18,12 +18,13 @@ namespace BuildXL.Cache.ContentStore.Tracing
             var counterSet = new CounterSet();
             foreach ((var counter, var counterName) in counters.GetCounters())
             {
-                counterSet.Add($"{counterName}.Count", (long)counter.Value, counter.Name);
+                counterSet.Add($"{counterName}.Count", counter.Value, counter.Name);
 
                 if (counter.IsStopwatch)
                 {
-                    counterSet.Add($"{counterName}.AverageMs", counter.Value != 0 ? counter.TotalMilliseconds / counter.Value : 0);
-                    counterSet.Add($"{counterName}.DurationMs", counter.TotalMilliseconds);
+                    double averageMs = counter.Value != 0 ? counter.Duration.TotalMilliseconds / (double)counter.Value : 0;
+                    counterSet.Add($"{counterName}.AverageMs", averageMs);
+                    counterSet.Add($"{counterName}.DurationMs", counter.Duration.TotalMilliseconds);
                 }
             }
 

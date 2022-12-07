@@ -198,7 +198,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
                 {
                     if (!string.IsNullOrWhiteSpace(counter.MetricName))
                     {
-                        context.TrackTopLevelStatistic(counter.MetricName, counter.Value);
+                        context.TrackTopLevelStatistic(counter.MetricName, counter.ValueAsLong);
                     }
                 }
             }

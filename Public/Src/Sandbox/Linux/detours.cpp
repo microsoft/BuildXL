@@ -53,9 +53,15 @@ static int ret_fd(int fd, BxlObserver *bxl)
 INTERPOSE(pid_t, fork, void)({
     result_t<pid_t> childPid = bxl->fwd_fork();
 
-    // report fork only when we are in the parent process
-    if (childPid.get() > 0)
+    if (childPid.get() == 0)
     {
+        // Clear the file descriptor table when we are in the child process
+        // File descriptors are unique to a process, so this cache needs to be invalidated on the child
+        bxl->reset_fd_table();
+    }
+    else
+    {
+        // report fork only when we are in the parent process
         report_child_process(__func__, bxl, childPid.get());
     }
 
@@ -71,8 +77,16 @@ INTERPOSE(int, clone, int (*fn)(void *), void *child_stack, int flags, void *arg
     va_end(args);
 
     result_t<int> result = bxl->fwd_clone(fn, child_stack, flags, arg, ptid, newtls, ctid);
-    if (result.get() > 0)
+    
+    if (result.get() == 0)
     {
+        // Clear the file descriptor table when we are in the child process
+        // File descriptors are unique to a process, so this cache needs to be invalidated on the child
+        bxl->reset_fd_table();
+    }
+    else
+    {
+        // report clone only when we are in the parent process
         report_child_process(__func__, bxl, result.get());
     }
 

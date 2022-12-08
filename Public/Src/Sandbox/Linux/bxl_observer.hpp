@@ -298,7 +298,10 @@ public:
     // and the write is allowed by policy
     AccessCheckResult report_firstAllowWriteCheck(const char *fullPath);
 
+    // Clears the specified entry on the file descriptor table
     void reset_fd_table_entry(int fd);
+    // Clears the entire file descriptor table
+    void reset_fd_table();
     std::string fd_to_path(int fd);
     std::string normalize_path_at(int dirfd, const char *pathname, int oflags = 0);
 
@@ -321,6 +324,12 @@ public:
                 va_start(args, fmt);
                 real_vfprintf(f, fmt, args);
                 va_end(args);
+
+                // A handle was opened for our own internal purposes. That
+                // could have reused a fd where we missed a close, 
+                // so reset that entry in the fd table
+                reset_fd_table_entry(fileno(f));
+
                 real_fclose(f);
             }
         }

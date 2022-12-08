@@ -203,7 +203,13 @@ bool BxlObserver::Send(const char *buf, size_t bufsiz)
         _fatal("Wrote only %ld bytes out of %ld", numWritten, bufsiz);
     }
 
+    // A handle was opened for our own internal purposes. That
+    // could have reused a fd where we missed a close, 
+    // so reset that entry in the fd table
+    reset_fd_table_entry(logFd);
+
     real_close(logFd);
+
     return true;
 }
 
@@ -373,6 +379,14 @@ void BxlObserver::reset_fd_table_entry(int fd)
     if (fd >= 0 && fd < MAX_FD)
     {
         fdTable_[fd] = empty_str_;
+    }
+}
+
+void BxlObserver::reset_fd_table()
+{
+    for (int i = 0; i < MAX_FD; i++)
+    {
+        fdTable_[i] = empty_str_;
     }
 }
 

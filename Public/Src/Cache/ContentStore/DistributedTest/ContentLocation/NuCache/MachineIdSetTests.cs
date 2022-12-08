@@ -50,19 +50,19 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
             set1 = set1.SetExistence(2.AsMachineId(), exists: true);
             set1 = set1.SetExistence(3.AsMachineId(), exists: true);
 
-            var span = SerializeToByteArray(set1).AsSpan();
+            var span = SerializeToSpan(set1);
             MachineIdSet.HasMachineId(span, 1).Should().BeTrue();
             MachineIdSet.HasMachineId(span, 2).Should().BeTrue();
             MachineIdSet.HasMachineId(span, 3).Should().BeTrue();
 
             set1 = set1.SetExistence(2.AsMachineId(), exists: false);
-            span = SerializeToByteArray(set1).AsSpan();
+            span = SerializeToSpan(set1);
 
             MachineIdSet.HasMachineId(span, 2).Should().BeFalse();
 
             set1 = set1.SetExistence(MachineIdCollection.Create(Enumerable.Range(1, 100).Select(n => n.AsMachineId()).ToArray()), exists: true);
             set1 = set1.SetExistence(MachineIdCollection.Create(Enumerable.Range(101, 100).Select(n => n.AsMachineId()).ToArray()), exists: false);
-            span = SerializeToByteArray(set1).AsSpan();
+            span = SerializeToSpan(set1);
 
             MachineIdSet.HasMachineId(span, 99).Should().BeTrue();
             MachineIdSet.HasMachineId(span, 105).Should().BeFalse();
@@ -175,42 +175,29 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
             Assert.Equal(originalMachineIdSet.EnumerateMachineIds().OrderBy(x => x.Index), deserializedMachineIdSet.EnumerateMachineIds().OrderBy(x => x.Index));
         }
 
-        private static MachineIdSet Copy(MachineIdSet source)
+        internal static MachineIdSet Copy(MachineIdSet source)
         {
-            using (var memoryStream = new MemoryStream())
+            var data = SerializeToSpan(source);
+            var reader = data.AsReader();
+            MachineIdSet readFromSpan = MachineIdSet.Deserialize(ref reader);
+            if (source is SortedLocationChangeMachineIdSet sorted)
             {
-                using (var writer = BuildXLWriter.Create(memoryStream, leaveOpen: true))
-                {
-                    source.Serialize(writer);
-                }
-
-                memoryStream.Position = 0;
-                MachineIdSet readFromBinaryReader;
-                using (var reader = BuildXLReader.Create(memoryStream))
-                {
-                    readFromBinaryReader = MachineIdSet.Deserialize(reader);
-                }
-
-                var data = memoryStream.ToArray().AsSpan().AsReader();
-                MachineIdSet readFromSpan = MachineIdSet.Deserialize(ref data);
-                Assert.Equal(readFromBinaryReader, readFromSpan);
-
-                return readFromSpan;
+                // Need to sort the source to guarantee equality in the next assert.
+                source = new SortedLocationChangeMachineIdSet(
+                    sorted.LocationStates.Sort(LocationChangeMachineIdSet.LocationChangeMachineIdComparer.Instance));
             }
+
+            Assert.Equal(source, readFromSpan);
+
+            return readFromSpan;
         }
 
-        private static byte[] SerializeToByteArray(MachineIdSet source)
+        private static ReadOnlySpan<byte> SerializeToSpan(MachineIdSet source)
         {
-            using (var memoryStream = new MemoryStream())
-            {
-                using (var writer = BuildXLWriter.Create(memoryStream, leaveOpen: true))
-                {
-                    source.Serialize(writer);
-                }
-
-                memoryStream.Position = 0;
-                return memoryStream.ToArray();
-            }
+            byte[] data = new byte[4 * 1024];
+            var dataWriter = data.AsSpan().AsWriter();
+            source.Serialize(ref dataWriter);
+            return data.AsSpan(0, dataWriter.Position);
         }
 
         [Fact]

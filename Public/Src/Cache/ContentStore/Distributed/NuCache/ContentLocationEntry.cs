@@ -4,7 +4,6 @@
 using System;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Cache.ContentStore.Utils;
-using BuildXL.Utilities;
 using BuildXL.Utilities.Serialization;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
@@ -72,18 +71,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// Returns a special "missing" entry.
         /// </summary>
         public static ContentLocationEntry Missing { get; } = new ContentLocationEntry(MachineIdSet.Empty, -1, default, default);
-        
-        /// <summary>
-        /// Serializes an instance into a binary stream.
-        /// </summary>
-        public void Serialize(BuildXLWriter writer)
-        {
-            writer.WriteCompact(ContentSize);
-            Locations.Serialize(writer);
-            writer.Write(CreationTimeUtc);
-            long lastAccessTimeOffset = LastAccessTimeUtc.Value - CreationTimeUtc.Value;
-            writer.WriteCompact(lastAccessTimeOffset);
-        }
 
         /// <summary>
         /// Serializes an instance into a binary stream.
@@ -96,25 +83,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             long lastAccessTimeOffset = LastAccessTimeUtc.Value - CreationTimeUtc.Value;
             writer.WriteCompact(lastAccessTimeOffset);
         }
-
-        /// <summary>
-        /// Builds an instance from a binary stream.
-        /// </summary>
-        public static ContentLocationEntry Deserialize(BuildXLReader reader)
-        {
-            var size = reader.ReadInt64Compact();
-            var locations = MachineIdSet.Deserialize(reader);
-            var creationTimeUtc = reader.ReadUnixTime();
-            var lastAccessTimeOffset = reader.ReadInt64Compact();
-            var lastAccessTime = new UnixTime(creationTimeUtc.Value + lastAccessTimeOffset);
-            if (size == -1 && lastAccessTime == default)
-            {
-                return Missing;
-            }
-
-            return Create(locations, size, lastAccessTime, creationTimeUtc);
-        }
-
+        
         /// <summary>
         /// Builds an instance from a binary stream.
         /// </summary>
@@ -123,7 +92,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             var reader = new SpanReader(input);
             return Deserialize(ref reader);
         }
-
+        
         /// <summary>
         /// Builds an instance from a binary stream.
         /// </summary>

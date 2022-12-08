@@ -6,7 +6,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Runtime.CompilerServices;
-using BuildXL.Utilities;
+using System.Runtime.InteropServices;
 using BuildXL.Utilities.Serialization;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
@@ -186,14 +186,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             return -1;
         }
-        
-        /// <inheritdoc />
-        protected override void SerializeCore(BuildXLWriter writer)
-        {
-            // Use variable length encoding
-            writer.WriteCompact(_locationStates.Length);
-            SerializeLocationChanges(_locationStates, writer);
-        }
 
         /// <inheritdoc />
         protected override void SerializeCore(ref SpanWriter writer)
@@ -202,45 +194,19 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             writer.WriteCompact(_locationStates.Length);
             SerializeLocationChanges(_locationStates, ref writer);
         }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        protected static void SerializeLocationChanges(in ImmutableArray<LocationChange> locationStates, BuildXLWriter writer)
-        {
-            foreach (var locationChange in locationStates)
-            {
-                // Use variable length encoding?
-                writer.Write(unchecked((ushort)locationChange.Value));
-            }
-        }
-
+        
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         protected static void SerializeLocationChanges(in ImmutableArray<LocationChange> locationStates, ref SpanWriter writer)
         {
+#if NET5_0_OR_GREATER
+            writer.WriteSpan(MemoryMarshal.AsBytes(locationStates.AsSpan()));
+#else
             foreach (var locationChange in locationStates)
             {
                 // Use variable length encoding?
                 writer.Write(unchecked((ushort)locationChange.Value));
             }
-        }
-
-        internal static MachineIdSet DeserializeCore(BuildXLReader reader)
-        {
-            // Use variable length encoding
-            var count = reader.ReadInt32Compact();
-            var machineIds = new LocationChange[count];
-
-            for (int i = 0; i < count; i++)
-            {
-                machineIds[i] = new LocationChange(reader.ReadUInt16());
-            }
-
-            // For small number of elements, it is more efficient (in terms of memory)
-            // to use a simple array and just search the id using sequential scan.
-
-            // Using unsafe trick to create an instance of immutable array without copying a source array.
-            // This is a semi-official trick "suggested" by the CLR architect here: https://github.com/dotnet/runtime/issues/25461
-            var immutableMachineIds = Unsafe.As<LocationChange[], ImmutableArray<LocationChange>>(ref machineIds);
-            return new LocationChangeMachineIdSet(immutableMachineIds);
+#endif
         }
 
         internal static MachineIdSet DeserializeCore(ref SpanReader reader)

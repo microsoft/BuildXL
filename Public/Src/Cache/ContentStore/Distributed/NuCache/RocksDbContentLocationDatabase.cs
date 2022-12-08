@@ -354,7 +354,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             var mergedEntry = ContentLocationEntry.MergeEntries(leftEntry, rightEntry, sortLocations: _configuration.SortMergeableContentLocations);
 
             using var serializedEntry = SerializeContentLocationEntry(mergedEntry);
-            result.ValueBuffer.Set(serializedEntry.Buffer.Span);
+            result.ValueBuffer.Set(serializedEntry.WrittenSpan);
         }
 
         private bool TryMergeSortedContentLocations(
@@ -879,12 +879,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             if (db._configuration.UseMergeOperatorForContentLocations)
             {
                 // hash.AsSpan is safe here.
-                store.Merge(hash.AsSpanUnsafe(), value);
+                store.Merge(hash.AsSpanUnsafe(), value.WrittenSpan);
             }
             else
             {
                 // hash.AsSpan is safe here.
-                store.Put(hash.AsSpanUnsafe(), value);
+                store.Put(hash.AsSpanUnsafe(), value.WrittenSpan);
             }
 
             return Unit.Void;

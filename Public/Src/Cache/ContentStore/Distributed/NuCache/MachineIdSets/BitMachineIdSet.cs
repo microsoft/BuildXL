@@ -118,17 +118,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             return new BitMachineIdSet(data, targetOffset);
         }
-
-        /// <nodoc />
-        protected override void SerializeCore(BuildXLWriter writer)
-        {
-            var count = Data.Length - Offset;
-
-            // Use variable length encoding
-            writer.WriteCompact(count);
-            writer.Write(Data, Offset, count);
-        }
-
+        
         /// <nodoc />
         protected override void SerializeCore(ref SpanWriter writer)
         {
@@ -138,16 +128,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             writer.WriteCompact(count);
             writer.Write(Data.AsSpan(Offset, count));
         }
-
-        internal static MachineIdSet DeserializeCore(BuildXLReader reader)
-        {
-            var count = reader.ReadInt32Compact();
-
-            var data = reader.ReadBytes(count);
-
-            return new BitMachineIdSet(data, 0);
-        }
-
+        
         internal static MachineIdSet DeserializeCore(ref SpanReader reader)
         {
             var count = reader.ReadInt32Compact();

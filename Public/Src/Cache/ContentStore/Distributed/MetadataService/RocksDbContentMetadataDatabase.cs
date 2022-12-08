@@ -1058,7 +1058,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             using var value = db.SerializeContentLocationEntry(entry);
 
             // AsSpan is safe, because 'hash' variable lives on the stack.
-            store.Put(hash.AsSpanUnsafe(), value, db.NameOf(Columns.Content));
+            store.Put(hash.AsSpanUnsafe(), value.WrittenSpan, db.NameOf(Columns.Content));
 
             return Unit.Void;
         }

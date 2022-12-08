@@ -30,7 +30,7 @@ namespace Test.BuildXL.Utilities.SpanBasedSerialization
                 source.Advance(length);
                 Assert.False(true, "The previous call should fail.");
             }
-            catch(ArgumentException)
+            catch(InsufficientLengthException)
             { }
 
             // The length should be the same

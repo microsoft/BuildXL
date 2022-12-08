@@ -1,15 +1,11 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System;
 using System.Diagnostics.ContractsLight;
-using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.InterfacesTest;
-using BuildXL.Utilities;
-using BuildXL.Utilities.Serialization;
 using FluentAssertions;
 using Xunit;
 using Xunit.Abstractions;
@@ -255,9 +251,6 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
             var originalMachineIdSet = MachineSet(1, 5, 7, 10, 1001, 2232);
             var deserializedMachineIdSet = Copy(originalMachineIdSet);
 
-            // Temporary remove.
-            // deserializedMachineIdSet.GetType().Should().Be(originalMachineIdSet.GetType());
-
             var left = originalMachineIdSet.LocationStates.ToArray();
             var right = ((LocationChangeMachineIdSet)deserializedMachineIdSet).LocationStates.ToArray();
             left.Should().BeEquivalentTo(right);
@@ -267,9 +260,9 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
         public void TestSerializationWithMixed()
         {
             var originalMachineIdSet = MachineSet(
-                LocationChange.CreateAdd(1.AsMachineId()),
+                LocationChange.CreateAdd(2.AsMachineId()),
                 LocationChange.CreateRemove(2.AsMachineId()),
-                LocationChange.CreateAdd(5.AsMachineId()),
+                LocationChange.CreateAdd(1.AsMachineId()),
                 LocationChange.CreateRemove(7.AsMachineId()),
                 LocationChange.CreateAdd(12.AsMachineId()),
                 LocationChange.CreateRemove(3.AsMachineId())
@@ -285,26 +278,7 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
 
         private static MachineIdSet Copy(MachineIdSet source)
         {
-            using (var memoryStream = new MemoryStream())
-            {
-                using (var writer = BuildXLWriter.Create(memoryStream, leaveOpen: true))
-                {
-                    source.Serialize(writer);
-                }
-
-                memoryStream.Position = 0;
-                MachineIdSet readFromBinaryReader;
-                using (var reader = BuildXLReader.Create(memoryStream))
-                {
-                    readFromBinaryReader = MachineIdSet.Deserialize(reader);
-                }
-
-                var data = memoryStream.ToArray().AsSpan().AsReader();
-                MachineIdSet readFromSpan = MachineIdSet.Deserialize(ref data);
-                Assert.Equal(readFromBinaryReader, readFromSpan);
-
-                return readFromSpan;
-            }
+            return MachineIdSetTests.Copy(source);
         }
 
         private LocationChangeMachineIdSet MachineSet(params int[] machineIdIndices)

@@ -37,17 +37,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <inheritdoc />
-        protected override void SerializeCore(BuildXLWriter writer)
-        {
-            // An important difference for the sorted case:
-            // the length is not an int written in the compact form, but plain 'ushort'!
-            // Its important because the merge without deserialization logic expects it to be short.
-            var locationStates = GetSortedLocations();
-            writer.Write((ushort)locationStates.Length);
-            SerializeLocationChanges(locationStates, writer);
-        }
-
-        /// <inheritdoc />
         protected override void SerializeCore(ref SpanWriter writer)
         {
             // An important difference for the sorted case:
@@ -64,25 +53,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             var locationStates = LocationStates;
             return locationStates.Length > 1 ? locationStates.Sort(LocationChangeMachineIdComparer.Instance) : locationStates;
         }
-
-        internal static MachineIdSet DeserializeCoreSorted(BuildXLReader reader)
-        {
-            // This version uses 'ushort' as the length
-            var count = reader.ReadUInt16();
-            var machineIds = new LocationChange[count];
-
-            for (int i = 0; i < count; i++)
-            {
-                machineIds[i] = new LocationChange(reader.ReadUInt16());
-            }
-
-            var immutableMachineIds = Unsafe.As<LocationChange[], ImmutableArray<LocationChange>>(ref machineIds);
-
-            AssertSorted(immutableMachineIds);
-
-            return new SortedLocationChangeMachineIdSet(immutableMachineIds);
-        }
-
+        
         internal static MachineIdSet DeserializeCoreSorted(ref SpanReader reader)
         {
             // This version uses 'ushort' as the length

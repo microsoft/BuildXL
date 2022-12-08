@@ -2,14 +2,10 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Diagnostics;
-using System.IO;
+using System.Buffers;
 using System.Linq;
-using System.Runtime.InteropServices;
-using System.Threading;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Utils;
-using BuildXL.Utilities;
 using BuildXL.Utilities.Serialization;
 using FluentAssertions;
 using Xunit;
@@ -32,7 +28,21 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
         [InlineData(1)]
         [InlineData(10)]
         [InlineData(100)]
-        [InlineData(500)]
+        [InlineData(5000)]
+        public void PooledSerializationDeserializationTest(int locationCount)
+        {
+            var entry = CreateEntry(CreateMachineIdSet(Enumerable.Range(1, locationCount).Select(l => l.AsMachineId())));
+            var copy = entry.CloneWithSpan(usePooledSerialization: true);
+
+            copy.Should().Be(entry, $"Cloning with span should give equivalent {nameof(ContentLocationEntry)}");
+        }
+
+        [Theory]
+        [InlineData(0)]
+        [InlineData(1)]
+        [InlineData(10)]
+        [InlineData(100)]
+        [InlineData(5000)]
         public void SerializationDeserializationTest(int locationCount)
         {
             SerializationDeserializationTestCore(locationCount);
@@ -52,9 +62,6 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
             var copy = entry.CloneWithSpan();
 
             copy.Should().Be(entry, $"Cloning with span should give equivalent {nameof(ContentLocationEntry)}");
-
-            copy = entry.CloneWithStream();
-            copy.Should().Be(entry, $"Cloning with stream should give equivalent {nameof(ContentLocationEntry)}");
         }
 
         [Fact]
@@ -198,160 +205,10 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
             merge.Locations.Contains(machineId2).Should().BeFalse();
         }
 
-        private static ContentLocationEntry CreateEntry(MachineIdSet machineIdSet, UnixTime? lastAccessTimeUtc = null, UnixTime? creationTimeUtc = null) => ContentLocationEntry.Create(
+        internal static ContentLocationEntry CreateEntry(MachineIdSet machineIdSet, UnixTime? lastAccessTimeUtc = null, UnixTime? creationTimeUtc = null) => ContentLocationEntry.Create(
             machineIdSet,
             contentSize: 42,
             lastAccessTimeUtc: lastAccessTimeUtc ?? (DateTime.UtcNow - TimeSpan.FromMinutes(5)).ToUnixTime(),
             creationTimeUtc: creationTimeUtc ?? UnixTime.UtcNow);
-
-        [Fact(Skip = "For profiling purposes only")]
-        public void PerformanceTestComparison()
-        {
-            System.Diagnostics.Debugger.Launch();
-            var arrayMachineIdSet = MachineIdSet.Empty.Add(Enumerable.Range(1, 8).Select(i => new MachineId(i)).ToArray());
-            var arrayMachineIdSetEntry = ContentLocationEntry.Create(
-                arrayMachineIdSet,
-                contentSize: long.MaxValue / 2,
-                new UnixTime(42),
-                new UnixTime(int.MaxValue));
-
-            var bitSetMachineIdSet = MachineIdSet.Empty.Add(Enumerable.Range(1, 128).Select(i => new MachineId(i)).ToArray());
-            var bitSetMachineIdSetEntry = ContentLocationEntry.Create(
-                bitSetMachineIdSet,
-                contentSize: long.MaxValue / 4,
-                new UnixTime(142),
-                new UnixTime(int.MaxValue/8));
-
-            using var arrayMachineIdMemoryStream = UnmanagedMemoryWrapper.FromContentLocationEntry(arrayMachineIdSetEntry);
-            using var bitSetMachineIdMemoryStream = UnmanagedMemoryWrapper.FromContentLocationEntry(bitSetMachineIdSetEntry);
-
-            // warm up
-            for (int i = 0; i < 1000; i++)
-            {
-                DeserializeWithBxlReader(arrayMachineIdMemoryStream);
-                DeserializeWithBxlReader(bitSetMachineIdMemoryStream);
-
-                DeserializeWithSpanReader(arrayMachineIdMemoryStream);
-                DeserializeWithSpanReader(bitSetMachineIdMemoryStream);
-            }
-
-            Thread.Sleep(2_000); // to see the start in the profiler.
-            int iterationCount = 3_000_000;
-
-            var sw = Stopwatch.StartNew();
-            for (int i = 0; i < iterationCount; i++)
-            {
-                DeserializeWithBxlReader(arrayMachineIdMemoryStream);
-            }
-            var arrayMachineIdDeserializationDurationFromBxlReader = sw.ElapsedMilliseconds;
-
-            sw.Restart();
-            for (int i = 0; i < iterationCount; i++)
-            {
-                DeserializeWithBxlReader(bitSetMachineIdMemoryStream);
-            }
-
-            var bitSetMachineIdDeserializationDurationFromBxlReader = sw.ElapsedMilliseconds;
-
-            Thread.Sleep(2_000); // to see the start in the profiler.
-            GC.Collect();
-            GC.WaitForPendingFinalizers();
-            GC.Collect();
-            sw.Restart();
-
-            for (int i = 0; i < iterationCount; i++)
-            {
-                DeserializeWithSpanReader(arrayMachineIdMemoryStream);
-            }
-            var arrayMachineIdDeserializationDurationFromSpanReader = sw.ElapsedMilliseconds;
-
-            sw.Restart();
-
-            for (int i = 0; i < iterationCount; i++)
-            {
-                DeserializeWithSpanReader(bitSetMachineIdMemoryStream);
-            }
-            var bitSetMachineIdDeserializationDurationFromSpanReader = sw.ElapsedMilliseconds;
-
-            _testOutputHelper.WriteLine($"Perf: ArrayMachineId with bxl - {arrayMachineIdDeserializationDurationFromBxlReader}ms, BitMachineId with bxl - {bitSetMachineIdDeserializationDurationFromBxlReader}ms, "
-            + $"ArrayMachineId with span - {arrayMachineIdDeserializationDurationFromSpanReader}ms, BitMachineId with span - {bitSetMachineIdDeserializationDurationFromSpanReader}ms");
-
-            System.Diagnostics.Debugger.Launch();
-        }
-
-        protected readonly SerializationPool SerializationPool = new SerializationPool();
-
-        private ContentLocationEntry DeserializeWithBxlReader(UnmanagedMemoryWrapper span)
-        {
-            unsafe
-            {
-                using var stream = new UnmanagedMemoryStream((byte*)span.ValuePtr.ToPointer(), span.Length);
-                return SerializationPool.Deserialize(stream, static reader => ContentLocationEntry.Deserialize(reader));
-            }
-        }
-
-        private ContentLocationEntry DeserializeWithSpanReader(UnmanagedMemoryWrapper span)
-        {
-            var reader = span.AsSpan().AsReader();
-            return ContentLocationEntry.Deserialize(ref reader);
-        }
-
-        private ContentLocationEntry DeserializeContentLocationEntry(UnmanagedMemoryWrapper span)
-        {
-            var reader = span.AsSpan().AsReader();
-            return ContentLocationEntry.Deserialize(ref reader);
-        }
-
-        public class UnmanagedMemoryWrapper : IDisposable
-        {
-            public IntPtr ValuePtr { get; }
-            public long Length { get; }
-
-            public ReadOnlySpan<byte> AsSpan()
-            {
-                unsafe
-                {
-                    return new ReadOnlySpan<byte>((byte*)ValuePtr.ToPointer(), (int)Length);
-                }
-            }
-
-            private UnmanagedMemoryWrapper(IntPtr ptr, long length)
-            {
-                ValuePtr = ptr;
-                Length = length;
-            }
-
-            public void Dispose()
-            {
-                Marshal.FreeHGlobal(ValuePtr);
-            }
-
-            public static UnmanagedMemoryWrapper FromContentLocationEntry(ContentLocationEntry entry)
-            {
-                using var memoryStream = new MemoryStream();
-                using var writer = BuildXLWriter.Create(memoryStream, leaveOpen: true);
-                entry.Serialize(writer);
-
-                memoryStream.Position = 0;
-
-                var bytes = memoryStream.ToArray();
-                IntPtr unmanagedPointer = Marshal.AllocHGlobal(bytes.Length);
-                Marshal.Copy(bytes, 0, unmanagedPointer, bytes.Length);
-
-                return new UnmanagedMemoryWrapper(unmanagedPointer, bytes.Length);
-            }
-        }
-
-        private static MemoryStream WriteTo(ContentLocationEntry entry)
-        {
-            var memoryStream = new MemoryStream();
-            using (var writer = BuildXLWriter.Create(memoryStream, leaveOpen: true))
-            {
-                entry.Serialize(writer);
-            }
-
-            memoryStream.Position = 0;
-            return memoryStream;
-        }
     }
 }

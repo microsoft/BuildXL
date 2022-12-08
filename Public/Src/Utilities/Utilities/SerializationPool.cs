@@ -2,12 +2,41 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Buffers;
 using System.IO;
+using BuildXL.Utilities.Serialization;
 
 namespace BuildXL.Utilities
 {
+    /// <summary>
+    /// A pooled handle for <see cref="ArrayBufferWriter{T}"/> used during serialization.
+    /// </summary>
+    public readonly struct PooledArrayBuffer : IDisposable
+    {
+        private readonly PooledObjectWrapper<ArrayBufferWriter<byte>> m_writer;
+        private readonly int m_writtenCount;
+
+        /// <nodoc />
+        internal PooledArrayBuffer(PooledObjectWrapper<ArrayBufferWriter<byte>> writer, int writtenCount)
+        {
+            m_writer = writer;
+            m_writtenCount = writtenCount;
+        }
+
+        /// <inheritdoc />
+        public void Dispose()
+        {
+            m_writer.Dispose();
+        }
+
+        /// <summary>
+        /// Gets the span of bytes written by the span writer.
+        /// </summary>
+        public ReadOnlySpan<byte> WrittenSpan => m_writer.Instance.GetSpan().Slice(0, length: m_writtenCount);
+    }
+
     /// <nodoc />
-    public struct PooledBuffer : IDisposable
+    public readonly struct PooledBuffer : IDisposable
     {
         /// <nodoc />
         public ReadOnlyMemory<byte> Buffer { get; }
@@ -54,8 +83,10 @@ namespace BuildXL.Utilities
     /// <nodoc />
     public class SerializationPool
     {
-        private readonly ObjectPool<StreamBinaryWriter> m_writerPool = new ObjectPool<StreamBinaryWriter>(static () => new StreamBinaryWriter(), static w => w.ResetPosition());
-        private readonly ObjectPool<StreamBinaryReader> m_readerPool = new ObjectPool<StreamBinaryReader>(static () => new StreamBinaryReader(), static r => { });
+        private readonly ObjectPool<StreamBinaryWriter> m_writerPool = new(static () => new StreamBinaryWriter(), static w => w.ResetPosition());
+        private readonly ObjectPool<StreamBinaryReader> m_readerPool = new(static () => new StreamBinaryReader(), static r => { });
+
+        private readonly ObjectPool<ArrayBufferWriter<byte>> m_arrayBufferWriters = new(() => new ArrayBufferWriter<byte>(), bw => (bw).Clear());
 
         /// <nodoc />
         public byte[] Serialize<TResult>(TResult instance, Action<TResult, BuildXLWriter> serializeFunc)
@@ -71,6 +102,23 @@ namespace BuildXL.Utilities
             return pooledBuffer.Buffer.ToArray();
         }
 
+        /// <summary>
+        /// A delegate used by <see cref="SerializePooled{T}(T,SerializeDelegate{T})"/>.
+        /// </summary>
+        public delegate void SerializeDelegate<in T>(T instance, ref SpanWriter writer);
+
+        /// <summary>
+        /// Serialize a given <paramref name="instance"/> with pooled <see cref="ArrayBufferWriter{T}"/>.
+        /// </summary>
+        public PooledArrayBuffer SerializePooled<T>(T instance, SerializeDelegate<T> serializeFunc)
+        {
+            var arrayBuffer = m_arrayBufferWriters.GetInstance();
+            var writer = new SpanWriter(arrayBuffer.Instance);
+            serializeFunc(instance, ref writer);
+
+            return new PooledArrayBuffer(arrayBuffer, writer.Position);
+
+        }
 
         /// <nodoc />
         public PooledBuffer SerializePooled<TResult>(TResult instance, Action<TResult, BuildXLWriter> serializeFunc)

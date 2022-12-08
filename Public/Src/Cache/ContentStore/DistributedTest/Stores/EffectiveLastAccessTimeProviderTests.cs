@@ -202,24 +202,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.Stores
             }
         }
 
-        private static MachineIdSet Copy(MachineIdSet source)
-        {
-            using (var memoryStream = new MemoryStream())
-            {
-                using (var writer = BuildXLWriter.Create(memoryStream, leaveOpen: true))
-                {
-                    source.Serialize(writer);
-                }
-
-                memoryStream.Position = 0;
-
-                using (var reader = BuildXLReader.Create(memoryStream))
-                {
-                    return MachineIdSet.Deserialize(reader);
-                }
-            }
-        }
-
         /// <inheritdoc />
         public EffectiveLastAccessTimeProviderTests(ITestOutputHelper output = null)
             : base(TestGlobal.Logger, output)

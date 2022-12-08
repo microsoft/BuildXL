@@ -2,16 +2,15 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
+using System.IO;
 using System.Linq;
-using System.Numerics;
 using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Distributed.MetadataService;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.InMemory;
-using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
@@ -24,9 +23,7 @@ using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.MemoizationStore.Interfaces.Results;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
-using BuildXL.Engine.Cache.KeyValueStores;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Utilities.Serialization;
 using BuildXL.Utilities.Tasks;
@@ -953,13 +950,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 return SetMachineExistenceAndUpdateDatabase(context, hash, machine: null, existsOnMachine: false, -1, lastAccessTime: accessTime, reconciling: false);
             }
         }
-
+        
         /// <summary>
         /// Serialize a given <paramref name="entry"/> into a byte stream.
         /// </summary>
-        protected PooledBuffer SerializeContentLocationEntry(ContentLocationEntry entry)
+        protected PooledArrayBuffer SerializeContentLocationEntry(ContentLocationEntry entry)
         {
-            return SerializationPool.SerializePooled(entry, static (instance, writer) => instance.Serialize(writer));
+            return SerializationPool.SerializePooled(entry, static (ContentLocationEntry instance, ref SpanWriter writer) => instance.Serialize(ref writer));
         }
 
         /// <summary>
@@ -978,12 +975,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             var spanReader = bytes.AsReader();
             return ContentLocationEntry.Deserialize(ref spanReader);
-        }
-
-        /// <inheritdoc cref="HasMachineId(System.ReadOnlySpan{byte},int)"/>
-        public static bool HasMachineId(ReadOnlyMemory<byte> bytes, int machineId)
-        {
-            return HasMachineId(bytes.Span, machineId);
         }
 
         /// <summary>
@@ -1037,7 +1028,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <nodoc />
-        protected byte GetMetadataLockIndex(StrongFingerprint strongFingerprint)
+        protected static byte GetMetadataLockIndex(StrongFingerprint strongFingerprint)
         {
             // Using the first byte of a weak fingerprint, and not the first byte of the key, because the first byte of the key is length.
             return strongFingerprint.WeakFingerprint[0];

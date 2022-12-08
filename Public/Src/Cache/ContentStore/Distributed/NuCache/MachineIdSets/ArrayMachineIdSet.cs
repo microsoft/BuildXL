@@ -6,7 +6,6 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Runtime.CompilerServices;
-using BuildXL.Utilities;
 using BuildXL.Utilities.Serialization;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
@@ -169,18 +168,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <inheritdoc />
-        protected override void SerializeCore(BuildXLWriter writer)
-        {
-            // Use variable length encoding
-            writer.WriteCompact(Count);
-            foreach (var machineId in _machineIds)
-            {
-                // Use variable length encoding?
-                writer.WriteCompact((int)machineId);
-            }
-        }
-
-        /// <inheritdoc />
         protected override void SerializeCore(ref SpanWriter writer)
         {
             // Use variable length encoding
@@ -191,27 +178,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 writer.WriteCompact((int)machineId);
             }
         }
-
-        internal static MachineIdSet DeserializeCore(BuildXLReader reader)
-        {
-            // Use variable length encoding
-            var count = reader.ReadInt32Compact();
-            var machineIds = new ushort[count];
-
-            for (int i = 0; i < count; i++)
-            {
-                machineIds[i] = (ushort)reader.ReadInt32Compact();
-            }
-
-            // For small number of elements, it is more efficient (in terms of memory)
-            // to use a simple array and just search the id using sequential scan.
-
-            // Using unsafe trick to create an instance of immutable array without copying a source array.
-            // This is a semi-official trick "suggested" by the CLR architect here: https://github.com/dotnet/runtime/issues/25461
-            ImmutableArray<ushort> immutableMachineIds = Unsafe.As<ushort[], ImmutableArray<ushort>>(ref machineIds);
-            return new ArrayMachineIdSet(immutableMachineIds);
-        }
-
+        
         internal static MachineIdSet DeserializeCore(ref SpanReader reader)
         {
             // Use variable length encoding

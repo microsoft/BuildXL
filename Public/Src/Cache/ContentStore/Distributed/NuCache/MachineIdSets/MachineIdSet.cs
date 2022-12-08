@@ -164,30 +164,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public abstract int GetMachineIdIndex(MachineId currentMachineId);
 
         /// <nodoc />
-        public void Serialize(BuildXLWriter writer)
-        {
-            MachineIdSet serializableInstance = this;
-            if (Format == SetFormat.Bits)
-            {
-                if (Count <= BitMachineIdSetThreshold)
-                {
-                    serializableInstance = new ArrayMachineIdSet(EnumerateMachineIds().Select(id => (ushort)id.Index));
-                }
-            }
-            else
-            {
-                if (Format == SetFormat.Array && Count > BitMachineIdSetThreshold)
-                {
-                    // Not changing the format for LocationChangeMachineIdSet.
-                    serializableInstance = BitMachineIdSet.Create(EnumerateMachineIds());
-                }
-            }
-
-            writer.Write((byte)serializableInstance.Format);
-            serializableInstance.SerializeCore(writer);
-        }
-
-        /// <nodoc />
         public void Serialize(ref SpanWriter writer)
         {
             MachineIdSet serializableInstance = this;
@@ -212,9 +188,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <nodoc />
-        protected abstract void SerializeCore(BuildXLWriter writer);
-
-        /// <nodoc />
         protected abstract void SerializeCore(ref SpanWriter writer);
 
         /// <summary>
@@ -234,22 +207,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 _ => throw new InvalidOperationException($"Unknown format '{format}'."),
             };
         }
-
-        /// <nodoc />
-        public static MachineIdSet Deserialize(BuildXLReader reader)
-        {
-            var format = (SetFormat)reader.ReadByte();
-
-            return format switch
-            {
-                SetFormat.Bits => BitMachineIdSet.DeserializeCore(reader),
-                SetFormat.Array => ArrayMachineIdSet.DeserializeCore(reader),
-                SetFormat.LocationChange => LocationChangeMachineIdSet.DeserializeCore(reader),
-                SetFormat.LocationChangeSorted => SortedLocationChangeMachineIdSet.DeserializeCoreSorted(reader),
-                _ => throw new InvalidOperationException($"Unknown format '{format}'."),
-            };
-        }
-
+        
         /// <nodoc />
         public static MachineIdSet Deserialize(ref SpanReader reader)
         {

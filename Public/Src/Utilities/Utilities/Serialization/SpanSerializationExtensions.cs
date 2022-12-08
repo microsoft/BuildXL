@@ -4,7 +4,6 @@
 using System;
 using System.Buffers.Binary;
 using System.Collections.Generic;
-using System.Diagnostics.ContractsLight;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
@@ -252,18 +251,32 @@ namespace BuildXL.Utilities.Serialization
         }
 
         /// <nodoc />
+        public static void Write(this ref SpanWriter writer, byte value) => writer.WriteByte(value); // Using a special overload instead of using a generic method for performance reasons
+        
+        /// <nodoc />
+        public static void Write(this ref SpanWriter writer, ushort value) => writer.WriteShort(value); // Using a special overload instead of using a generic method for performance reasons
+
+        /// <nodoc />
         public static void Write<T>(this ref SpanWriter writer, T value)
             where T : unmanaged
         {
-            var bytes = MemoryMarshal.AsBytes(stackalloc T[] { value });
+#if NET5_0_OR_GREATER
+            // This version only works in .NET Core, because CreateReadOnlySpan is not available for full framework.
+            var bytes = MemoryMarshal.CreateReadOnlySpan(
+                reference: ref Unsafe.As<T, byte>(ref Unsafe.AsRef(in value)),
+                length: Unsafe.SizeOf<T>());
+            writer.WriteSpan(bytes);
+#else
+            // For the full framework case (that is not used in production on a hot paths)
+            // using an array pool with 1 element to avoid stackalloc approach that
+            // causes issues because writer.WriteSpan can be re-created on the fly with a new instance from the array writer.
+            using var pooledHandle = ConversionArrayPool.Array<T>.ArrayPool.GetInstance(1);
+            var input = pooledHandle.Instance;
+            input[0] = value;
 
-            // We have to take a roundabout approach because compiler restricts
-            // calling methods on ref structs created outside the scope with
-            // stackalloc-ed values
-            var w = new SpanWriter(stackalloc byte[0]);
-            w = writer;
-            w.WriteSpan(bytes);
-            writer.Position = w.Position;
+            var bytes = MemoryMarshal.AsBytes(input.AsSpan());
+            writer.WriteSpan(bytes);
+#endif
         }
 
         /// <nodoc />
@@ -271,29 +284,13 @@ namespace BuildXL.Utilities.Serialization
             where T : unmanaged
         {
             var bytes = MemoryMarshal.AsBytes(span);
-
-            // We have to take a roundabout approach because compiler restricts
-            // calling methods on ref structs created outside the scope with
-            // stackalloc-ed values
-            var w = new SpanWriter(stackalloc byte[0]);
-            w = writer;
-            w.WriteSpan(bytes);
-            writer.Position = w.Position;
+            writer.WriteSpan(bytes);
         }
-
+        
         /// <nodoc />
-        public static void WriteArray<T>(this ref SpanWriter writer, Span<T> span)
-            where T : unmanaged
+        public static void Write(this ref SpanWriter writer, Span<byte> bytes)
         {
-            var bytes = MemoryMarshal.AsBytes(span);
-
-            // We have to take a roundabout approach because compiler restricts
-            // calling methods on ref structs created outside the scope with
-            // stackalloc-ed values
-            var w = new SpanWriter(stackalloc byte[0]);
-            w = writer;
-            w.WriteSpan(bytes);
-            writer.Position = w.Position;
+            writer.WriteSpan(bytes);
         }
 
         /// <summary>

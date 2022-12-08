@@ -9,7 +9,6 @@ using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
-using BuildXL.Cache.MemoizationStore.Interfaces.Results;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Utilities;
 
@@ -124,7 +123,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.InMemory
                     }
 
                     using var serialized = SerializeContentLocationEntry(kvp.Value);
-                    return valueFilter?.ShouldEnumerate == null || valueFilter.ShouldEnumerate?.Invoke(serialized) == true;
+                    return valueFilter?.ShouldEnumerate == null || valueFilter.ShouldEnumerate?.Invoke(serialized.WrittenSpan) == true;
                 })
                 .Select(kvp => (kvp.Key, returnKeysOnly ? null : kvp.Value));
         }

@@ -91,14 +91,8 @@ namespace BuildXL.Utilities.Serialization
             if (RemainingLength < minLength)
             {
                 // Extracting the throw method to make the current one inline friendly.
-                ThrowArgumentException(minLength);
+                InsufficientLengthException.Throw(minLength, RemainingLength);
             }
-        }
-
-        private void ThrowArgumentException(int minLength)
-        {
-            throw new ArgumentException(
-                $"The reader should have at least {minLength} length but has {RemainingLength}.");
         }
 
         /// <nodoc />

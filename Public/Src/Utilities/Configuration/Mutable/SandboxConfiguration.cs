@@ -55,6 +55,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
             DirectoriesToEnableFullReparsePointParsing = new List<AbsolutePath>();
             ExplicitlyReportDirectoryProbes = OperatingSystemHelper.IsLinuxOS;
             PreserveFileSharingBehaviour = false;
+            CredScanEnvironmentVariablesAllowList = new List<string>();
+            EnableCredScan = false;
         }
 
         /// <nodoc />
@@ -107,6 +109,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
             DirectoriesToEnableFullReparsePointParsing = pathRemapper.Remap(template.DirectoriesToEnableFullReparsePointParsing);
             ExplicitlyReportDirectoryProbes = template.ExplicitlyReportDirectoryProbes;
             PreserveFileSharingBehaviour = template.PreserveFileSharingBehaviour;
+            CredScanEnvironmentVariablesAllowList = new List<string>(template.CredScanEnvironmentVariablesAllowList);
+            EnableCredScan = template.EnableCredScan;
         }
 
         /// <inheritdoc />
@@ -280,5 +284,14 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public bool PreserveFileSharingBehaviour { get; set; }
+
+        /// <nodoc />
+        public List<string> CredScanEnvironmentVariablesAllowList { get; set; }
+
+        /// <inheritdoc />
+        IReadOnlyList<string> ISandboxConfiguration.CredScanEnvironmentVariablesAllowList => CredScanEnvironmentVariablesAllowList;
+
+        /// <nodoc />
+        public bool EnableCredScan { get; set; }
     }
 }

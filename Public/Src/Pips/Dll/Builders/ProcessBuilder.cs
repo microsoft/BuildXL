@@ -5,11 +5,18 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
+using System.Text;
+using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
+using BuildXL.Pips.Tracing;
+using BuildXL.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Instrumentation.Common;
+using BuildXL.Utilities.Tracing;
 using static BuildXL.Pips.Operations.Process;
+using Logger = BuildXL.Pips.Tracing.Logger;
 
 namespace BuildXL.Pips.Builders
 {
@@ -195,8 +202,13 @@ namespace BuildXL.Pips.Builders
 
         private int? m_processRetries;
 
+        // CredScan
+        private readonly CredentialScanner m_credentialScanner;
+        private readonly IReadOnlyList<string> m_credScanEnvironmentVariablesAllowList;
+        private readonly LoggingContext m_loggingContext;
+
         /// <nodoc />
-        private ProcessBuilder(PathTable pathTable, PooledObjectWrapper<PipDataBuilder> argumentsBuilder)
+        private ProcessBuilder(PathTable pathTable, PooledObjectWrapper<PipDataBuilder> argumentsBuilder, CredentialScanner credentialScanner, LoggingContext loggingContext, IReadOnlyList<string> credScanEnvironmentVariablesAllowList = null)
         {
             m_pathTable = pathTable;
             m_argumentsBuilder = argumentsBuilder;
@@ -226,25 +238,30 @@ namespace BuildXL.Pips.Builders
 
             // TODO: change this once Unsafe mode is removed / no longer a default mode
             AbsentPathProbeUnderOpaquesMode = AbsentPathProbeInUndeclaredOpaquesMode.Unsafe;
+
+            //CredScan
+            m_credentialScanner = credentialScanner;
+            m_credScanEnvironmentVariablesAllowList = credScanEnvironmentVariablesAllowList;
+            m_loggingContext = loggingContext;
         }
 
         /// <summary>
         /// Creates a new ProcessBuilder
         /// </summary>
-        public static ProcessBuilder Create(PathTable pathTable, PooledObjectWrapper<PipDataBuilder> argumentsBuilder)
+        public static ProcessBuilder Create(PathTable pathTable, PooledObjectWrapper<PipDataBuilder> argumentsBuilder, CredentialScanner credentialScanner, LoggingContext loggingContext, IReadOnlyList<string> credScanEnvironmentVariablesAllowList = null)
         {
             Contract.Requires(pathTable != null);
             Contract.Requires(argumentsBuilder.Instance != null);
-            return new ProcessBuilder(pathTable, argumentsBuilder);
+            return new ProcessBuilder(pathTable, argumentsBuilder, credentialScanner, loggingContext, credScanEnvironmentVariablesAllowList);
         }
 
         /// <summary>
         /// Helper to create a new ProcessBuilder for testing that doesn't need to pass the pooled PipDataBuilder for convenience
         /// </summary>
-        public static ProcessBuilder CreateForTesting(PathTable pathTable)
+        public static ProcessBuilder CreateForTesting(PathTable pathTable, CredentialScanner credentialScanner, LoggingContext loggingContext, IReadOnlyList<string> credScanEnvironmentVariablesAllowList = null)
         {
             var tempPool = new ObjectPool<PipDataBuilder>(() => new PipDataBuilder(pathTable.StringTable), _ => { });
-            return new ProcessBuilder(pathTable, tempPool.GetInstance());
+            return new ProcessBuilder(pathTable, tempPool.GetInstance(), credentialScanner, loggingContext, credScanEnvironmentVariablesAllowList);
         }
 
         /// <nodoc />
@@ -580,6 +597,34 @@ namespace BuildXL.Pips.Builders
             return m_responseFileSpecification.SplitArgumentsAndCreateResponseFileIfNeeded(this, defaultDirectory, m_pathTable);
         }
 
+        private void ScanEnvVarsForCredentials(string pipDescription, PipConstructionHelper pipConstructionHelper)
+        {
+            List<string> envVarsWithCredentialsToLogList = new List<string>();
+            // There are two possible implementations to handle the scenario when a credential is detected in the env var.
+            // 1.) The env var is set as a PassthroughEnvVariable, SetPassThroughEnvironmentVariable method is used for that.
+            // 2.) An error is thrown to break the build and the user is suggested to pass that env var using the /credScanEnvironmentVariablesAllowList flag to ensure that the variable is not scanned for credentials.
+            // The results of credscan are being logged. Based on the results obtained from telemetry one of the above two implementations is opted.
+            // Adding a stopwatch here to measure the performance of the credscan implementation.
+            using (m_credentialScanner.Counters.StartStopwatch(CredScanCounter.CredScanOfEnvironmentVariablesDuration))
+            {
+                foreach (var kvp in m_environmentVariables)
+                {
+                    string envVarKey = m_pathTable.StringTable.GetString(kvp.Key);
+                    if (kvp.Value.Item1.IsValid && !(m_credScanEnvironmentVariablesAllowList?.Contains(envVarKey)==true) 
+                        && m_credentialScanner.CredentialsDetected(envVarKey, kvp.Value.Item1.ToString(m_pathTable)))
+                    {
+                        envVarsWithCredentialsToLogList.Add(envVarKey);
+                    }
+                }
+
+                if (envVarsWithCredentialsToLogList != null && envVarsWithCredentialsToLogList.Any())
+                {
+                    var envVarsWithCredentialsToLog = string.Join(",", envVarsWithCredentialsToLogList);
+                    Logger.Log.CredScanDetection(m_loggingContext, pipDescription, envVarsWithCredentialsToLog);
+                }
+            }
+        }
+
         /// <summary>
         /// Wraps up all generated state, bundles it in the Process pip and the ProcessOutputs object to be
         /// handed down to those who need to get the files out and then releases all the temporary structures
@@ -756,6 +801,12 @@ namespace BuildXL.Pips.Builders
                 processRetries: m_processRetries,
                 retryAttemptEnvironmentVariable: m_retryAttemptEnvironmentVariable
                 );
+
+            if (m_credentialScanner.EnableCredScan)
+            {
+                // CredScan helper method.
+                ScanEnvVarsForCredentials(process.GetDescription(pipConstructionHelper.Context), pipConstructionHelper);
+            }
 
             return true;
         }

@@ -38,7 +38,7 @@ namespace BuildXL.Pips
         private readonly AbsolutePath m_tempRoot;
 
         /// <nodoc />
-        private PipExecutionContext Context { get; }
+        public PipExecutionContext Context { get; }
 
         /// <summary>
         /// The graph

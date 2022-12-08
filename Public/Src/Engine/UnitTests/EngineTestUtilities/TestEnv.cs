@@ -10,6 +10,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using BuildXL.Engine;
+using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Sdk.FileSystem;
 using BuildXL.Ipc.Common;
 using BuildXL.Pips;
@@ -90,6 +91,9 @@ namespace Test.BuildXL.TestUtilities
 
         /// <nodoc />
         public PipTable PipTable { get; private set; }
+
+        /// <nodoc />
+        public FrontEndContext FrontEndContext => FrontEndContext.CreateInstanceForTesting();
 
         /// <summary>
         /// Creates a new test environment which schedules pips with full scheduler validation, but which cannot execute pips.

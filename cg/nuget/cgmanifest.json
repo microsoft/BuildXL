@@ -257,6 +257,15 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "Crc32.NET",
+          "Version": "1.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "DeduplicationSigned",
           "Version": "1.0.14"
         }
@@ -510,7 +519,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.ApplicationInsights",
-          "Version": "2.11.0"
+          "Version": "2.21.0"
         }
       }
     },
@@ -628,6 +637,15 @@
         "NuGet": {
           "Name": "Microsoft.AspNetCore.App.Runtime.win-x64",
           "Version": "6.0.10"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Automata.SRM",
+          "Version": "2.0.0-alpha3"
         }
       }
     },
@@ -1922,6 +1940,51 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "Microsoft.Security.CredScan.KnowledgeBase",
+          "Version": "1.7.1.6"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Security.CredScan.KnowledgeBase.Client",
+          "Version": "1.7.1.6"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Security.CredScan.KnowledgeBase.Ruleset",
+          "Version": "1.7.1.6"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Security.CredScan.KnowledgeBase.SharedDomains",
+          "Version": "1.7.1.6"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Security.RegularExpressions",
+          "Version": "1.7.1.6"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "Microsoft.TeamFoundation.DistributedTask.Common.Contracts",
           "Version": "16.170.0"
         }
@@ -2660,6 +2723,15 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "RE2.Managed",
+          "Version": "1.5.0-alpha-0100-g6ee5829558"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "RocksDbNative",
           "Version": "7.7.3-20221205.1"
         }
@@ -2716,6 +2788,15 @@
         "NuGet": {
           "Name": "StreamJsonRpc",
           "Version": "2.8.28"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Strings.Interop",
+          "Version": "1.5.0-alpha-0100-g6ee5829558"
         }
       }
     },

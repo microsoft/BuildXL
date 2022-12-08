@@ -435,7 +435,7 @@ namespace Test.BuildXL.Scheduler
             var exe = FileArtifact.CreateSourceFile(AbsolutePath.Create(env.PathTable, CmdHelper.OsShellExe));
             var outputArtifact = env.ObjectRoot.Combine(env.PathTable, outputFileName);
 
-            var builder = global::BuildXL.Pips.Builders.ProcessBuilder.Create(env.PathTable, env.PipDataBuilderPool.GetInstance());
+            var builder = global::BuildXL.Pips.Builders.ProcessBuilder.Create(env.PathTable, env.PipDataBuilderPool.GetInstance(), env.FrontEndContext.CredentialScanner, env.FrontEndContext.LoggingContext);
             builder.Executable = exe;
             builder.AddInputFile(exe);
             foreach (var scope in CmdHelper.GetCmdDependencyScopes(env.PathTable))

@@ -283,7 +283,7 @@ config({
 
                 { id: "DotNet.Glob", version: "2.0.3" },
                 { id: "Minimatch", version: "1.1.0.0" },
-                { id: "Microsoft.ApplicationInsights", version: "2.11.0", dependentPackageIdsToIgnore: ["System.RunTime.InteropServices"] },
+                { id: "Microsoft.ApplicationInsights", version: "2.21.0", dependentPackageIdsToIgnore: ["System.RunTime.InteropServices"] },
                 { id: "Microsoft.ApplicationInsights.Agent.Intercept", version: "2.0.7" },
                 { id: "Microsoft.ApplicationInsights.DependencyCollector", version: "2.3.0" },
                 { id: "Microsoft.ApplicationInsights.PerfCounterCollector", version: "2.3.0" },

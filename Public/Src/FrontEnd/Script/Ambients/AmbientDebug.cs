@@ -91,7 +91,12 @@ namespace BuildXL.FrontEnd.Script.Ambients
             var cmdLineArgs = Args.AsArrayLiteral(args, 0);
             var pathTable = context.FrontEndContext.PathTable;
 
-            using (var processBuilder = ProcessBuilder.Create(pathTable, context.FrontEndContext.GetPipDataBuilder()))
+            using (var processBuilder = ProcessBuilder.Create(
+                pathTable,
+                context.FrontEndContext.GetPipDataBuilder(),
+                context.FrontEndContext.CredentialScanner,
+                context.FrontEndContext.LoggingContext,
+                context.FrontEndHost.Configuration.Sandbox.CredScanEnvironmentVariablesAllowList))
             {
                 TransformerExecuteArgumentsProcessor.ProcessArguments(context, processBuilder, cmdLineArgs);
 

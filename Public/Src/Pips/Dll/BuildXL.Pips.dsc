@@ -26,6 +26,13 @@ export const dll = BuildXLSdk.library({
         importFrom("BuildXL.Utilities").Storage.dll,
         importFrom("BuildXL.Utilities").Collections.dll,
         importFrom("BuildXL.Utilities").Configuration.dll,
+        ...addIf(BuildXLSdk.Flags.isMicrosoftInternal,
+        importFrom("Microsoft.Automata.SRM").withQualifier({ targetFramework: "netstandard2.1" }).pkg,
+        importFrom("Microsoft.ApplicationInsights").pkg,
+        importFrom("Microsoft.Security.RegularExpressions").pkg,
+        importFrom("Microsoft.Security.CredScan.KnowledgeBase").pkg,
+        importFrom("Microsoft.Security.CredScan.KnowledgeBase.Client").pkg,
+        importFrom("Microsoft.Security.CredScan.KnowledgeBase.Ruleset").pkg ),
     ],
     internalsVisibleTo: [
         "BuildXL.Scheduler",

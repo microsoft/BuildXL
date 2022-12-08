@@ -21,6 +21,7 @@ using Xunit.Abstractions;
 using Mount=BuildXL.Utilities.Configuration.Mutable.Mount;
 using BuildXL.Processes;
 using BuildXL.Utilities.Collections;
+using BuildXL.FrontEnd.Sdk;
 
 namespace Test.BuildXL.Engine
 {
@@ -680,8 +681,7 @@ namespace Test.BuildXL.Engine
         private static ProcessBuilder CreatePipBuilderWithTag(TestEnv env, string tag = null)
         {
             var exe = FileArtifact.CreateSourceFile(AbsolutePath.Create(env.Context.PathTable, @"\\dummyPath\DummyFile.exe"));
-
-            var processBuilder = ProcessBuilder.Create(env.PathTable, env.PipDataBuilderPool.GetInstance());
+            var processBuilder = ProcessBuilder.Create(env.PathTable, env.PipDataBuilderPool.GetInstance(), env.FrontEndContext.CredentialScanner, env.FrontEndContext.LoggingContext);
             processBuilder.Executable = exe;
             processBuilder.AddInputFile(exe);
             if (tag != null)

@@ -107,9 +107,9 @@ namespace BuildXL.Engine
         /// Creates a new <see cref="FrontEndContext"/> and copies <see cref="PathTable"/>,
         /// <see cref="SymbolTable"/>, and <see cref="CancellationToken"/> over to it.
         /// </summary>
-        public FrontEndContext ToFrontEndContext(LoggingContext loggingContext)
+        public FrontEndContext ToFrontEndContext(LoggingContext loggingContext, bool enableCredScan = false)
         {
-            return new FrontEndContext(this, loggingContext, FileSystem);
+            return new FrontEndContext(this, loggingContext, FileSystem, enableCredScan);
         }
 
         /// <inheritdoc/>

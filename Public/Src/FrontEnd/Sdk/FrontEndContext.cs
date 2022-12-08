@@ -5,10 +5,13 @@ using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Threading;
 using BuildXL.FrontEnd.Sdk.FileSystem;
+using BuildXL.Pips.Builders;
+using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Qualifier;
+using BuildXL.Utilities.Tracing;
 
 namespace BuildXL.FrontEnd.Sdk
 {
@@ -28,13 +31,16 @@ namespace BuildXL.FrontEnd.Sdk
         /// </summary>
         public readonly ObjectPool<PipDataBuilder> PipDataBuilderPool;
 
+        /// <nodoc />
+        public CredentialScanner CredentialScanner { get; }
+
         /// <summary>
         /// Helper to get a pipDataBuilder
         /// </summary>
         public PooledObjectWrapper<PipDataBuilder> GetPipDataBuilder() => this.PipDataBuilderPool.GetInstance();
 
         /// <nodoc />
-        private FrontEndContext(PathTable pathTable, SymbolTable symbolTable, QualifierTable qualifierTable, LoggingContext loggingContext, IFileSystem fileSystem, CancellationToken cancellationToken)
+        private FrontEndContext(PathTable pathTable, SymbolTable symbolTable, QualifierTable qualifierTable, LoggingContext loggingContext, IFileSystem fileSystem, CancellationToken cancellationToken, bool enableCredScan = false)
             : base(cancellationToken, pathTable.StringTable, pathTable, symbolTable, qualifierTable)
         {
             Contract.Requires(pathTable != null);
@@ -47,11 +53,12 @@ namespace BuildXL.FrontEnd.Sdk
 
             LoggingContext = loggingContext;
             FileSystem = fileSystem;
+            CredentialScanner = new CredentialScanner(enableCredScan);
             PipDataBuilderPool = new ObjectPool<PipDataBuilder>(() => new PipDataBuilder(StringTable), builder => builder.Clear());
         }
 
         /// <nodoc />
-        public FrontEndContext(PipExecutionContext context, LoggingContext loggingContext, IFileSystem fileSystem)
+        public FrontEndContext(PipExecutionContext context, LoggingContext loggingContext, IFileSystem fileSystem, bool enableCredScan = false)
             : base(context)
         {
             Contract.Requires(loggingContext != null);
@@ -59,12 +66,13 @@ namespace BuildXL.FrontEnd.Sdk
 
             LoggingContext = loggingContext;
             FileSystem = fileSystem;
+            CredentialScanner = new CredentialScanner(enableCredScan);
             PipDataBuilderPool = new ObjectPool<PipDataBuilder>(() => new PipDataBuilder(StringTable), builder => builder.Clear());
         }
 
         /// <nodoc />
         [SuppressMessage("Microsoft.Design", "CA1011:Consider Changing type of 'pathTable' from PathTable to HierarchicalNameTable", Justification = "Completely and utterly bogus suggestion")]
-        public static FrontEndContext CreateInstanceForTesting(PathTable pathTable = null, SymbolTable symbolTable = null, QualifierTable qualifierTable = null, IFileSystem fileSystem = null, CancellationToken? cancellationToken = null)
+        public static FrontEndContext CreateInstanceForTesting(PathTable pathTable = null, SymbolTable symbolTable = null, QualifierTable qualifierTable = null, IFileSystem fileSystem = null, CancellationToken? cancellationToken = null, bool enableCredScan = false)
         {
             pathTable = pathTable ?? new PathTable();
             return new FrontEndContext(
@@ -73,7 +81,8 @@ namespace BuildXL.FrontEnd.Sdk
                 qualifierTable ?? new QualifierTable(pathTable.StringTable),
                 new LoggingContext("UnitTest"),
                 fileSystem ?? new PassThroughFileSystem(pathTable), // TODO: Consider moving this entire function into test helpers and then use the test file system.
-                cancellationToken ?? CancellationToken.None);
+                cancellationToken ?? CancellationToken.None,
+                enableCredScan);
         }
 
 #if DEBUG

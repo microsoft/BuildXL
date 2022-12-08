@@ -5,6 +5,7 @@ using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.IO;
 using BuildXL.Engine;
+using BuildXL.FrontEnd.Sdk;
 using BuildXL.Ipc.Common;
 using BuildXL.Pips;
 using BuildXL.Pips.Builders;
@@ -47,6 +48,8 @@ namespace Test.BuildXL.Scheduler
         /// </summary>
         public BuildXLContext Context { get; }
 
+        private FrontEndContext m_frontEndContext;
+
         /// <summary>
         /// Creates an instance of <see cref="TestPipGraphFragment"/>.
         /// </summary>
@@ -72,6 +75,7 @@ namespace Test.BuildXL.Scheduler
                 }
             };
 
+            m_frontEndContext = FrontEndContext.CreateInstanceForTesting();
             m_useTopSort = useTopSort;
             PipGraph = m_useTopSort
                 ? new PipGraphFragmentBuilderTopSort(Context, configuration, m_expander)
@@ -137,7 +141,7 @@ namespace Test.BuildXL.Scheduler
         /// </summary>
         public ProcessBuilder GetProcessBuilder()
         {
-            var builder = ProcessBuilder.CreateForTesting(Context.PathTable);
+            var builder = ProcessBuilder.CreateForTesting(Context.PathTable, m_frontEndContext.CredentialScanner, m_frontEndContext.LoggingContext);
             builder.Executable = FileArtifact.CreateSourceFile(m_sourceRoot.Combine(Context.PathTable, "test.exe"));
             builder.AddInputFile(builder.Executable);
 
@@ -177,7 +181,7 @@ namespace Test.BuildXL.Scheduler
         /// Gets IPC process builder.
         /// </summary>
         /// <returns></returns>
-        public ProcessBuilder GetIpcProcessBuilder() => ProcessBuilder.CreateForTesting(Context.PathTable);
+        public ProcessBuilder GetIpcProcessBuilder() => ProcessBuilder.CreateForTesting(Context.PathTable, m_frontEndContext.CredentialScanner, m_loggingContext);
 
         /// <summary>
         /// Schedules an IPC pip.

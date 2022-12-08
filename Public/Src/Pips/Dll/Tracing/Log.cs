@@ -29,6 +29,14 @@ namespace BuildXL.Pips.Tracing
         public static Logger Log => m_log;
 
         [GeneratedEvent(
+            (ushort)LogEventId.CredentialsDetectedInEnvVar,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Keywords.UserMessage,
+            Message = "[{pipDescription}] Capturing secrets in the build graph is insecure. The following environment variables - {envVarName} either need to be removed or made passthrough. For false positives, specify the variable name in /credentialScanEnvironmentVariablesAllowList on the command line.")]
+        public abstract void CredScanDetection(LoggingContext context, string pipDescription, string envVarName);
+
+        [GeneratedEvent(
             (ushort)LogEventId.DeserializationStatsPipGraphFragment,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
@@ -73,7 +81,7 @@ namespace BuildXL.Pips.Tracing
             EventTask = (int)Tasks.Storage,
             Message = "{message}")]
         public abstract void PerformanceDataCacheTrace(LoggingContext context, string message);
-        
+
         [GeneratedEvent(
               (int)LogEventId.InvalidGraphSinceArtifactPathOverlapsTempPath,
               EventGenerators = EventGenerators.LocalOnly,

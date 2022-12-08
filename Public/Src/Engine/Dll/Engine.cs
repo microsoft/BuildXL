@@ -89,6 +89,11 @@ namespace BuildXL.Engine
         /// </summary>
         public EngineContext Context;
 
+        ///<summary>
+        /// Enable cred scan
+        ///</summary>
+        private readonly bool m_enableCredScan;
+
         /// <summary>
         /// BuildXLEngine configuration
         /// </summary>
@@ -267,7 +272,8 @@ namespace BuildXL.Engine
             TrackingEventListener trackingEventListener,
             bool rememberAllChangedTrackedInputs,
             [CanBeNull] string commitId,
-            [CanBeNull] string buildVersion)
+            [CanBeNull] string buildVersion,
+            bool enableCredScan)
         {
             Contract.Requires(context != null);
             Contract.Requires(configuration != null);
@@ -345,7 +351,7 @@ namespace BuildXL.Engine
             m_commitId = commitId;
             m_buildVersion = buildVersion;
             m_buildViewModel = buildViewModel;
-
+            m_enableCredScan = enableCredScan;
             var loggingConfig = Configuration.Logging;
             if (loggingConfig.OptimizeConsoleOutputForAzureDevOps || loggingConfig.OptimizeVsoAnnotationsForAzureDevOps)
             {
@@ -368,7 +374,6 @@ namespace BuildXL.Engine
                 // Tell the build viewmodel to collect a builder summary which we report to azure devops.
                 m_buildViewModel.BuildSummary = new BuildSummary(filePath);
             }
-
             // Designate a temp directory under ObjectDirectory for FileUtilities to move files to during deletion attempts
             m_moveDeleteTempDirectory = Path.Combine(configuration.Layout.ObjectDirectory.ToString(context.PathTable), MoveDeleteTempDirectoryName);
         }
@@ -387,7 +392,8 @@ namespace BuildXL.Engine
             TrackingEventListener trackingEventListener = null,
             bool rememberAllChangedTrackedInputs = false,
             string commitId = null,
-            string buildVersion = null)
+            string buildVersion = null,
+            bool enableCredScan = false)
         {
             Contract.Requires(context != null);
             Contract.Requires(buildViewModel != null);
@@ -403,7 +409,6 @@ namespace BuildXL.Engine
             {
                 return null;
             }
-
             // Use a copy of the provided configuration. The engine mutates the configuration and invalidates old copies
             // as a safety mechanism against using out of date references. An external consumer of the engine may want
             // to use the same config for multiple engine runs. So make a copy here to avoid invalidating the config
@@ -413,10 +418,8 @@ namespace BuildXL.Engine
             {
                 return null;
             }
-
             initialCommandLineConfiguration = mutableInitialConfig;
-
-            var frontEndContext = context.ToFrontEndContext(loggingContext);
+            var frontEndContext = context.ToFrontEndContext(loggingContext, enableCredScan: enableCredScan);
             frontEndController.InitializeHost(frontEndContext, initialCommandLineConfiguration);
 
             ConfigurationImpl configuration;
@@ -463,7 +466,8 @@ namespace BuildXL.Engine
                 trackingEventListener,
                 rememberAllChangedTrackedInputs,
                 commitId,
-                buildVersion);
+                buildVersion,
+                enableCredScan);
         }
 
         /// <summary>
@@ -2927,7 +2931,6 @@ namespace BuildXL.Engine
                     cacheInitializationTask,
                     journalState,
                     engineState);
-
                 if (TestHooks != null)
                 {
                     TestHooks.GraphReuseResult = reuseResult;

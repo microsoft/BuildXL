@@ -86,6 +86,17 @@ export const pkgs = isMicrosoftInternal ? [
 
     // RoslynAnalyzers internal analyzers
     { id: "Microsoft.Internal.Analyzers", version: "2.6.11"},
+
+    // CredScan
+    { id: "Strings.Interop", version: "1.5.0-alpha-0100-g6ee5829558" },
+    { id: "RE2.Managed", version: "1.5.0-alpha-0100-g6ee5829558" },
+    { id: "Microsoft.Automata.SRM", version: "2.0.0-alpha3", dependentPackageIdsToSkip: ["System.Collections.Immutable"] },
+    { id: "Crc32.NET", version: "1.2.0" },
+    { id: "Microsoft.Security.RegularExpressions", version: "1.7.1.6", dependentPackageIdsToSkip: ["System.Numerics.Vectors"] } ,
+    { id: "Microsoft.Security.CredScan.KnowledgeBase.SharedDomains", version: "1.7.1.6" },
+    { id: "Microsoft.Security.CredScan.KnowledgeBase", version: "1.7.1.6", dependentPackageIdsToSkip: ["System.Text.Json"] },
+    { id: "Microsoft.Security.CredScan.KnowledgeBase.Client", version: "1.7.1.6" },
+    { id: "Microsoft.Security.CredScan.KnowledgeBase.Ruleset", version: "1.7.1.6" },
 ] : [
 
     // Artifact packages and dependencies in OSS

@@ -515,7 +515,7 @@ namespace BuildXL.Engine
             //   - to fully initialize the front end, we have to go through all the steps that have already been
             //     executed on the old controller; those steps are (1) InitializeHost, and (2) ParseConfig
             FrontEndController = m_frontEndControllerFactory.Create(Context.PathTable, Context.SymbolTable);
-            FrontEndController.InitializeHost(Context.ToFrontEndContext(loggingContext), m_initialCommandLineConfiguration);
+            FrontEndController.InitializeHost(Context.ToFrontEndContext(loggingContext, enableCredScan: m_enableCredScan), m_initialCommandLineConfiguration);
 
             var configurationEngine = new BasicFrontEndEngineAbstraction(Context.PathTable, Context.FileSystem, m_initialCommandLineConfiguration);
             if (!configurationEngine.TryPopulateWithDefaultMountsTable(loggingContext, Context, m_initialCommandLineConfiguration, m_initialCommandLineConfiguration.Startup.Properties))

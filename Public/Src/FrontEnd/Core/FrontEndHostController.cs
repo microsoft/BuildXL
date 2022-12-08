@@ -773,6 +773,11 @@ namespace BuildXL.FrontEnd.Core
                     (long)m_frontEndStatistics.FrontEndSnapshotLoadingDuration.Value.TotalMilliseconds);
             }
 
+            if (FrontEndContext.CredentialScanner.EnableCredScan)
+            {
+                FrontEndContext.CredentialScanner.Counters.LogAsStatistics("CredScan", FrontEndContext.LoggingContext);
+            }
+
             BuildXL.Tracing.Logger.Log.BulkStatistic(FrontEndContext.LoggingContext, statistics);
         }
 

@@ -10,6 +10,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
 using BuildXL.Engine;
+using BuildXL.FrontEnd.Sdk;
 using BuildXL.Interop;
 using BuildXL.Interop.Unix;
 using BuildXL.Pips;
@@ -192,16 +193,31 @@ namespace Test.BuildXL.Scheduler
         }
 
         /// <nodoc />
-        public ProcessBuilder CreatePipBuilder(IEnumerable<Operation> processOperations, IEnumerable<string> tags = null, string description = null, IDictionary<string, string> environmentVariables = null, IEnumerable<int> succeedFastExitCodes = null, ProcessBuilder builder = null)
+        public ProcessBuilder CreatePipBuilder(
+            IEnumerable<Operation> processOperations,
+            IEnumerable<string> tags = null,
+            string description = null,
+            IDictionary<string, string> environmentVariables = null,
+            IEnumerable<int> succeedFastExitCodes = null,
+            ProcessBuilder builder = null)
         {
             var envVars = environmentVariables?.ToDictionary(kvp => kvp.Key, kvp => (kvp.Value, false));
             return CreatePipBuilderWithEnvironment(processOperations, tags, description, envVars, succeedFastExitCodes, builder);
         }
 
         /// <nodoc />
-        public ProcessBuilder CreatePipBuilderWithEnvironment(IEnumerable<Operation> processOperations, IEnumerable<string> tags = null, string description = null, IDictionary<string, (string, bool)> environmentVariables = null, IEnumerable<int> succeedFastExitCodes = null, ProcessBuilder builder = null)
+        public ProcessBuilder CreatePipBuilderWithEnvironment(
+            IEnumerable<Operation> processOperations,
+            IEnumerable<string> tags = null,
+            string description = null,
+            IDictionary<string, (string, bool)> environmentVariables = null,
+            IEnumerable<int> succeedFastExitCodes = null,
+            ProcessBuilder builder = null,
+            IReadOnlyList<string> credScanEnvironmentVariablesAllowList = null,
+            bool enableCredScan = false)
         {
-            builder ??= ProcessBuilder.CreateForTesting(Context.PathTable);
+            var frontEndContext = FrontEndContext.CreateInstanceForTesting(enableCredScan: enableCredScan);
+            builder ??= ProcessBuilder.CreateForTesting(Context.PathTable, frontEndContext.CredentialScanner, frontEndContext.LoggingContext, credScanEnvironmentVariablesAllowList);
             builder.Executable = TestProcessExecutable;
             if (succeedFastExitCodes != null)
             {

@@ -380,7 +380,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer
             var fileSystem = new PassThroughFileSystem(pathTable);
             var engineContext = EngineContext.CreateNew(CancellationToken.None, pathTable, fileSystem);
 
-            context = engineContext.ToFrontEndContext(loggingContext);
+            context = engineContext.ToFrontEndContext(loggingContext, configuation.Sandbox.EnableCredScan);
 
             // Parse filter string into EvaluationFilter
             var evaluationFilter = EvaluationFilter.Empty;

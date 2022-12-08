@@ -37,6 +37,13 @@ namespace Processes {
                 oldVersion: "0.0.0.0-4.1.4.0",
                 newVersion: "4.1.4.0", // Corresponds to: { id: "System.Numerics.Vectors", version: "4.5.0" },
             },
+            {
+                name: "System.Text.Json",
+                publicKeyToken: "cc7b13ffcd2ddd51",
+                culture: "neutral",
+                oldVersion: "0.0.0.0-6.0.0.0",
+                newVersion: "6.0.0.0",
+            },
         ],
         references: [
             EngineTestUtilities.dll,

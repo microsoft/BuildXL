@@ -12,7 +12,6 @@ using BuildXL.Pips.Operations;
 using BuildXL.Processes;
 using BuildXL.Scheduler;
 using BuildXL.Scheduler.Fingerprints;
-using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using Test.BuildXL.Executables.TestProcess;
@@ -21,6 +20,8 @@ using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
+using LogEventId = BuildXL.Scheduler.Tracing.LogEventId;
+using PipsTracingLogEventId = BuildXL.Pips.Tracing.LogEventId;
 using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;
 using SchedulerLogEventId = BuildXL.Scheduler.Tracing.LogEventId;
 
@@ -32,6 +33,7 @@ namespace IntegrationTest.BuildXL.Scheduler
     [Trait("Category", "BaselineTests")]
     public class BaselineTests : SchedulerIntegrationTestBase
     {
+
         public BaselineTests(ITestOutputHelper output) : base(output)
         {
         }
@@ -1541,6 +1543,62 @@ namespace IntegrationTest.BuildXL.Scheduler
             }
         }
 
+#if MICROSOFT_INTERNAL
+        /// <summary>
+        /// This test to ensure that CredentialScanner detects the credentials when passed in environment variables and logs a warning in this case.
+        /// Most of these test cases are an assumption of what the credentialscanner might or might not detect as a credential.
+        /// The test is disabled due to a couple of DFA's related to Office builds
+        /// </summary>
+        [InlineData(false, "Cr3d5c@n_D3m0_P@55w0rd", "password", true, false)]
+        [InlineData(true, "Cr3d5c@n_D3m0_P@55w0rdss", "password", true, false)]
+        [InlineData(false, "src/checking/for/credentials/123/testing", "path", false, false)]
+        [InlineData(true, null, "password", false, false)]
+        [InlineData(false, "123", "id", false, false)]
+        [Theory]
+        public void TestCredScan(bool isPassThrough, string envVarValue, string envVarKey, bool credentialDetected, bool enableCredScan)
+        {
+            var ops = new Operation[]
+            {
+              Operation.WriteFile(CreateOutputFileArtifact()),
+            };
+            var builder = CreatePipBuilderWithEnvironment(ops, environmentVariables: new Dictionary<string, (string, bool)>() { [envVarKey] = (envVarValue, isPassThrough) }, enableCredScan: enableCredScan);
+            var process = SchedulePipBuilder(builder).Process;
+
+            // This event is logged when a credential is detected in the env variables.
+            if (enableCredScan)
+            {
+                AssertWarningEventLogged(PipsTracingLogEventId.CredentialsDetectedInEnvVar, credentialDetected ? 1 : 0);
+            }
+        }
+#endif
+
+#if MICROSOFT_INTERNAL
+        /// <summary>
+        /// /credScanEnvironmentVariablesAllowList flag allows the user to pass envVars which needs to be skipped by the CredScan library.
+        /// This test used to test if that functionality is working or not.
+        /// The test is disabled due to a couple of DFA's related to Office builds
+        /// </summary>
+        [Fact]
+        public void TestCredScanWithAllowListEnvVars()
+        {
+            string envVarKey = "password";
+            string envVarValue = "Cr3d5c@n_D3m0_P@55w0rd";
+            Configuration.Sandbox.CredScanEnvironmentVariablesAllowList = new List<string>() { envVarKey };
+            bool enableCredScan = false;
+            var ops = new Operation[]
+            {
+              Operation.WriteFile(CreateOutputFileArtifact()),
+            };
+            var builder = CreatePipBuilderWithEnvironment(ops, environmentVariables: new Dictionary<string, (string, bool)>() { [envVarKey] = (envVarValue, false) }, credScanEnvironmentVariablesAllowList: Configuration.Sandbox.CredScanEnvironmentVariablesAllowList, enableCredScan: enableCredScan);
+            var process = SchedulePipBuilder(builder).Process;
+
+            // This event is logged when a credential is detected in the env variables. In this case, the count value has to be zero as no event should be logged when the env is present in allowListEnvVar list.
+            if (enableCredScan)
+            {
+                AssertWarningEventLogged(PipsTracingLogEventId.CredentialsDetectedInEnvVar, 0);
+            }
+        }
+#endif
 
         /// <summary>
         /// Validates behavior with a process being retried

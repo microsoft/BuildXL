@@ -2229,7 +2229,8 @@ namespace BuildXL
                 trackingEventListener,
                 rememberAllChangedTrackedInputs: true,
                 commitId: s_buildInfo?.IsDeveloperBuild == false ? s_buildInfo.CommitId : null,
-                buildVersion: s_buildInfo?.IsDeveloperBuild == false ? s_buildInfo.Build : null);
+                buildVersion: s_buildInfo?.IsDeveloperBuild == false ? s_buildInfo.Build : null,
+                enableCredScan: configuration.Sandbox.EnableCredScan);
 
             if (engine == null)
             {

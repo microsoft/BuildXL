@@ -317,6 +317,9 @@ namespace BuildXL
                             "cpuResourceAware",
                             sign => schedulingConfiguration.CpuResourceAware = sign),
                         OptionHandlerFactory.CreateOption(
+                            "credScanEnvironmentVariablesAllowList",
+                            opt => sandboxConfiguration.CredScanEnvironmentVariablesAllowList.AddRange(CommandLineUtilities.ParseRepeatingOption(opt, ";", v => v.Trim()))),
+                        OptionHandlerFactory.CreateOption(
                             "criticalCommitUtilizationPercentage",
                             opt => schedulingConfiguration.CriticalCommitUtilizationPercentage = CommandLineUtilities.ParseInt32Option(opt, 0, 100)),
                         OptionHandlerFactory.CreateOption(
@@ -416,6 +419,9 @@ namespace BuildXL
                         OptionHandlerFactory.CreateBoolOption(
                             "enableAsyncLogging",
                             sign => loggingConfiguration.EnableAsyncLogging = sign),
+                        OptionHandlerFactory.CreateBoolOption(
+                            "enableCredScan",
+                            sign => sandboxConfiguration.EnableCredScan = sign),
                         OptionHandlerFactory.CreateBoolOption(
                             "enableEmptyingWorkingSet",
                             sign => schedulingConfiguration.EnableEmptyingWorkingSet = sign),

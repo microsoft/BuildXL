@@ -1,6 +1,28 @@
 This page is a curated list of the release notes for releases after 0.20170619.4.0 and a manual copy of notable changes from each build before that. See the repo's commit history full details for what is included in each build.
 
 =======
+# 0.1.0-20221202.8 (Release [252305](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=252305) Released 12/07/2022)
+- Fixes to null reference exception on dynamic worker release.
+- Fix dynamic workers' names in statsperf file.
+- Fix null reference exception when computing sha256 during pip graph construction from MSBuild graph.
+- Update Linux sandbox deployment to no longer use runtime package.
+- Report whether a file access was a directory on the Linux sandbox.
+- Various miscellaneous bug fixes.
+
+# 0.1.0-20221125.2 (Release [249470](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=249470) Released 11/30/2022)
+- Report statically linked processes on the Linux sandbox
+- Enable generation of file access trace files on Linux
+- Separate BuildManifest events from ExecutionLog events when sending from workers
+- Improve error handling and cancellation for ActionBlockSlim
+- Allow workers to actively join the distributed build
+- Subst the BuildXL executable path when running under /runInSubst
+- Add ChooseWorkerIpc to the list of ChooseWorker dispatchers
+- Add timeout for output logging if Windows Terminal is the default terminal
+- Use MSBuild locator to locate/load MSBuild assemblies when using MSBuild frontend
+- Add bxl-adobuildrunner verb to npm deployment
+- Various other improvements for Linux sandbox
+- Various improvements and bug fixesArtifacts
+
 # 0.1.0-20221104.7 (Release [241075](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=2410751&_a=release-pipeline-progress) Released 11/09/2022)
 - Allow cache lookup pips to be reschedule on other machines when machine processing task is lost
 - Various dependency security patches

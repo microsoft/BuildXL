@@ -29,8 +29,9 @@ using Google.Protobuf;
 using Grpc.Core;
 using PinRequest = ContentStore.Grpc.PinRequest;
 using BuildXL.Cache.Host.Service;
-
+using BuildXL.Utilities;
 using static BuildXL.Utilities.ConfigurationHelper;
+using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 using CompressionLevel = System.IO.Compression.CompressionLevel;
 
 #nullable enable
@@ -739,7 +740,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
                             // Unknown error occurred.
                             // Sending reply back to the caller.
-                            string errorDetails = e is ResultPropagationException rpe ? rpe.Result.ToString() : e.ToString();
+                            string errorDetails = e is ResultPropagationException rpe ? rpe.Result.ToString() : e.ToStringDemystified();
                             await sendErrorResponseFunc(
                                 ResponseHeader.Failure(
                                     startTime,

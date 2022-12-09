@@ -417,6 +417,12 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public GrpcCoreClientOptions GrpcCopyClientGrpcCoreClientOptions { get; set; }
 
+        [DataMember]
+        public GrpcDotNetClientOptions GrpcCopyClientGrpcDotNetClientOptions { get; set; }
+
+        [DataMember]
+        public bool GrpcCopyClientUseGrpcDotNetClient { get; set; }
+
         #endregion
 
         #region Distributed Eviction
@@ -978,6 +984,12 @@ namespace BuildXL.Cache.Host.Configuration
 
         [DataMember]
         public TimeSpanSetting ContentMetadataClientConnectionTimeout { get; set; } = TimeSpan.FromSeconds(30);
+
+        [DataMember]
+        public bool ContentMetadataClientUseGrpcDotNet { get; set; }
+
+        [DataMember]
+        public GrpcDotNetClientOptions ContentMetadataClientGrpcDotNetClientOptions { get; set; }
 
         [DataMember]
         public TimeSpanSetting? ContentMetadataClientOperationTimeout { get; set; }

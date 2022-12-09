@@ -30,6 +30,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
         ///     Initializes a new instance of the <see cref="ServiceClientContentSession"/> class.
         /// </summary>
         public ServiceClientContentSession(
+            OperationContext context,
             string name,
             ImplicitPin implicitPin,
             ILogger logger,
@@ -37,7 +38,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
             ServiceClientContentSessionTracer sessionTracer,
             ServiceClientContentStoreConfiguration configuration,
             Func<IRpcClient>? rpcClientFactory = null)
-            : base(name, implicitPin, logger, fileSystem, sessionTracer, configuration, rpcClientFactory)
+            : base(context, name, implicitPin, logger, fileSystem, sessionTracer, configuration, rpcClientFactory)
         {
         }
 

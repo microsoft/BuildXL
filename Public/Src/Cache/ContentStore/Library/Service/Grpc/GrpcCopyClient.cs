@@ -2,7 +2,6 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.IO.Compression;
@@ -12,14 +11,12 @@ using BuildXL.Cache.ContentStore.Distributed;
 using BuildXL.Cache.ContentStore.Exceptions;
 using BuildXL.Cache.ContentStore.Grpc;
 using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
-using BuildXL.Utilities;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using ContentStore.Grpc;
@@ -48,7 +45,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
     public sealed class GrpcCopyClient : StartupShutdownSlimBase
     {
         private readonly IClock _clock;
-        private readonly Channel _channel;
+        private readonly ChannelBase _channel;
         private readonly ContentServer.ContentServerClient _client;
         private readonly GrpcCopyClientConfiguration _configuration;
 
@@ -65,24 +62,6 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         protected override string GetArgumentsMessage() => Key.ToString();
 
         /// <summary>
-        /// Create and return SSL credentials from user certificate, else null
-        /// </summary>
-        private ChannelCredentials? TryGetSecureChannelCredentials(Context context, out string? hostName)
-        {
-            var encryptionCertificateName = Environment.GetEnvironmentVariable("__CACHE_ENCRYPTION_CERT_SUBJECT__");
-            var keyCertPairResult = GrpcEncryptionUtils.TryGetSecureChannelCredentials(encryptionCertificateName, out hostName);
-
-            if (keyCertPairResult.Succeeded)
-            {
-                Tracer.Debug(context, $"Found Grpc Encryption Certificate. ");
-                return new SslCredentials(keyCertPairResult.Value.CertificateChain);
-            }
-
-            Tracer.Warning(context, $"Failed to get GRPC SSL Credentials: {keyCertPairResult}");
-            return null;
-        }
-
-        /// <summary>
         /// Initializes a new instance of the <see cref="GrpcCopyClient" /> class.
         /// </summary>
         internal GrpcCopyClient(Context context, GrpcCopyClientKey key, GrpcCopyClientConfiguration configuration, IClock? clock = null, ByteArrayPool? sharedBufferPool = null)
@@ -92,36 +71,30 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             _clock = clock ?? SystemClock.Instance;
 
             GrpcEnvironment.WaitUntilInitialized();
-            var channelCreds = ChannelCredentials.Insecure;
-            bool? encryptionEnabled = _configuration.GrpcCoreClientOptions?.EncryptionEnabled;
-
-            Tracer.Info(context, $"Grpc Encryption Enabled = {encryptionEnabled == true}, GRPC Port: {key.GrpcPort}");
-
-            List<ChannelOption> options = new List<ChannelOption>(GrpcEnvironment.GetClientOptions(_configuration.GrpcCoreClientOptions));
-
-            if (encryptionEnabled == true)
-            {
-                try
-                {
-                    channelCreds = TryGetSecureChannelCredentials(context, out var hostName) ?? ChannelCredentials.Insecure;
-                    if (channelCreds != ChannelCredentials.Insecure)
-                    {
-                        options.Add(new ChannelOption(ChannelOptions.SslTargetNameOverride, hostName));                        
-                    }
-                }
-                catch(Exception ex)
-                {
-                    Tracer.Error(context, ex, $"Creating Encrypted Grpc Channel Failed.");
-                }
-            }
-
-            Tracer.Debug(context, $"Client connecting to {key.Host}:{key.GrpcPort}. Channel Encrypted = {channelCreds != ChannelCredentials.Insecure}");
-            
-            _channel = new Channel(key.Host, key.GrpcPort, channelCreds, options: options);
+            _channel = GrpcChannelFactory.CreateChannel(new OperationContext(context), ToChannelCreationOptions(key, configuration));
             _client = new ContentServer.ContentServerClient(_channel);
-
+            
             _bandwidthChecker = new BandwidthChecker(_configuration.BandwidthCheckerConfiguration);
             _pool = sharedBufferPool ?? new ByteArrayPool(_configuration.ClientBufferSizeBytes);
+            
+        }
+
+        private static ChannelCreationOptions ToChannelCreationOptions(GrpcCopyClientKey key, GrpcCopyClientConfiguration configuration)
+        {
+            var clientOptions = configuration.GrpcCoreClientOptions;
+
+            ChannelEncryptionOptions? encryptionOptions = clientOptions?.EncryptionEnabled == true ? GrpcEncryptionUtils.GetChannelEncryptionOptions() : null;
+            
+            return new ChannelCreationOptions(
+                configuration.UseGrpcDotNetVersion,
+                key.Host,
+                key.GrpcPort,
+                GrpcCoreOptions: configuration.UseGrpcDotNetVersion ? null : GrpcEnvironment.GetClientOptions(configuration.GrpcCoreClientOptions),
+                GrpcDotNetOptions: configuration.UseGrpcDotNetVersion ? (configuration.GrpcDotNetClientOptions ?? GrpcDotNetClientOptions.Default) : null)
+            {
+                EncryptionEnabled = clientOptions?.EncryptionEnabled == true,
+                EncryptionOptions = encryptionOptions
+            };
         }
 
         /// <inheritdoc />
@@ -135,15 +108,9 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 return BoolResult.Success;
             }
 
-            DateTime? deadline = null;
-            if (_configuration.ConnectOnStartup)
-            {
-                deadline = _clock.UtcNow + _configuration.ConnectionTimeout;
-            }
-
             try
             {
-                await _channel.ConnectAsync(deadline);
+                await _channel.ConnectAsync(_clock, _configuration.ConnectionTimeout);
             }
             catch (TaskCanceledException)
             {

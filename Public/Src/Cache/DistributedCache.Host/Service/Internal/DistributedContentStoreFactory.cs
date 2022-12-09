@@ -30,7 +30,7 @@ using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Cache.ContentStore.Distributed.MetadataService;
 using BuildXL.Cache.ContentStore.Distributed.Services;
-
+using BuildXL.Cache.ContentStore.Grpc;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 using BandwidthConfiguration = BuildXL.Cache.ContentStore.Distributed.BandwidthConfiguration;
 using static BuildXL.Utilities.ConfigurationHelper;
@@ -108,14 +108,15 @@ namespace BuildXL.Cache.Host.Service.Internal
             );
 
             var primaryCacheRoot = OrderedResolvedCacheSettings[0].ResolvedCacheRootPath;
-            
-            var connectionPool = new GrpcConnectionPool(
-                new ConnectionPoolConfiguration()
-                {
-                    DefaultPort = (int)_arguments.Configuration.LocalCasSettings.ServiceSettings.GrpcPort,
-                    ConnectTimeout = _distributedSettings.ContentMetadataClientConnectionTimeout,
-                },
-                tracingContext: arguments.TracingContext.CreateNested(componentName: nameof(GrpcConnectionPool)));
+
+            var connectionPool = new GrpcConnectionPool(new ConnectionPoolConfiguration()
+            {
+                DefaultPort = (int)_arguments.Configuration.LocalCasSettings.ServiceSettings.GrpcPort,
+                ConnectTimeout = _distributedSettings.ContentMetadataClientConnectionTimeout,
+                UseGrpcDotNet = _distributedSettings.ContentMetadataClientUseGrpcDotNet,
+                GrpcDotNetOptions = _distributedSettings.ContentMetadataClientGrpcDotNetClientOptions ?? GrpcDotNetClientOptions.Default,
+            },
+            context: new OperationContext(arguments.TracingContext.CreateNested(componentName: nameof(GrpcConnectionPool))));
 
             var serviceArguments = new DistributedContentStoreServicesArguments
             (

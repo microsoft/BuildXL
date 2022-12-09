@@ -33,6 +33,11 @@ namespace BuildXL.Cache.ContentStore.Sessions
         public int EncryptedGrpcPort { get; set; } = Grpc.GrpcConstants.DefaultEncryptedGrpcPort;
 
         /// <summary>
+        /// If true then a secure channel is used.
+        /// </summary>
+        public bool EncryptionEnabled { get; set; }
+
+        /// <summary>
         /// The period of time between heartbeats.
         /// </summary>
         public TimeSpan HeartbeatInterval { get; set; } = TimeSpan.FromMinutes(1);
@@ -71,6 +76,16 @@ namespace BuildXL.Cache.ContentStore.Sessions
         /// WARNING: Do NOT modify unless you know what you are doing.
         /// </summary>
         public GrpcCoreClientOptions? GrpcCoreClientOptions { get; set; }
+
+        /// <summary>
+        /// If true, then Grpc.Net version is used.
+        /// </summary>
+        public bool UseGrpcDotNetClient { get; set; }
+
+        /// <summary>
+        /// Options used by Grpc.Net client.
+        /// </summary>
+        public GrpcDotNetClientOptions? GrpcDotNetClientOptions { get; set; }
 
         /// <nodoc />
         public ServiceClientRpcConfiguration()

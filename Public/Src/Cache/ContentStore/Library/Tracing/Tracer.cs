@@ -88,12 +88,12 @@ namespace BuildXL.Cache.ContentStore.Tracing
             Trace(Severity.Error, context, message, operation);
         }
 
-        public void Error(Context context, Exception exception, string message, [CallerMemberName] string? operation = null)
+        public void Error(Context context, Exception? exception, string message, [CallerMemberName] string? operation = null)
         {
             Trace(Severity.Error, context, message, operation, exception);
         }
 
-        public void Warning(Context context, Exception exception, string message, [CallerMemberName] string? operation = null)
+        public void Warning(Context context, Exception? exception, string message, [CallerMemberName] string? operation = null)
         {
             Trace(Severity.Warning, context, message, operation, exception: exception);
         }
@@ -108,12 +108,17 @@ namespace BuildXL.Cache.ContentStore.Tracing
             Trace(Severity.Info, context, message, operation);
         }
 
+        public void Info(Context context, Exception? exception, string message, [CallerMemberName] string? operation = null)
+        {
+            Trace(Severity.Info, context, message, operation, exception);
+        }
+
         public void Debug(Context context, string message, [CallerMemberName] string? operation = null)
         {
             Trace(Severity.Debug, context, message, operation);
         }
 
-        public void Debug(Context context, Exception exception, string message, [CallerMemberName] string? operation = null)
+        public void Debug(Context context, Exception? exception, string message, [CallerMemberName] string? operation = null)
         {
             Trace(Severity.Debug, context, message, operation, exception);
         }
@@ -121,6 +126,11 @@ namespace BuildXL.Cache.ContentStore.Tracing
         public void Diagnostic(Context context, string message, [CallerMemberName] string? operation = null)
         {
             Trace(Severity.Diagnostic, context, message, operation);
+        }
+
+        public void Diagnostic(Context context, Exception? exception, string message, [CallerMemberName] string? operation = null)
+        {
+            Trace(Severity.Diagnostic, context, message, operation, exception);
         }
 
         public void Trace(Severity severity, Context context, string message, string? operation = null, Exception? exception = null)

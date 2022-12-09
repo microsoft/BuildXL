@@ -2,11 +2,13 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Grpc;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
-using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
@@ -60,10 +62,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         private readonly ResourcePool<MachineLocation, ConnectionHandle> _pool;
 
         /// <nodoc />
-        public GrpcConnectionPool(ConnectionPoolConfiguration configuration, Context tracingContext, IClock? clock = null)
+        public GrpcConnectionPool(ConnectionPoolConfiguration configuration, OperationContext context, IClock? clock = null)
         {
             _pool = new ResourcePool<MachineLocation, ConnectionHandle>(
-                tracingContext, configuration, k => new ConnectionHandle(k, configuration), clock);
+                context, configuration, location => new ConnectionHandle(context, location, configuration), clock);
         }
 
         /// <inheritdoc />
@@ -89,13 +91,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         public string Host { get; }
         public int Port { get; }
 
-        internal Channel Channel { get; }
+        internal ChannelBase Channel { get; }
 
         private readonly ConnectionPoolConfiguration _configuration;
 
         protected override string GetArgumentsMessage() => $"{Host}:{Port}";
 
-        public ConnectionHandle(MachineLocation location, ConnectionPoolConfiguration configuration)
+        public ConnectionHandle(OperationContext context, MachineLocation location, ConnectionPoolConfiguration configuration)
         {
             Location = location;
             _configuration = configuration;
@@ -103,12 +105,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             var hostInfo = location.ExtractHostInfo();
             Host = hostInfo.host;
             Port = hostInfo.port ?? _configuration.DefaultPort;
-            Channel = new Channel(Host, Port, ChannelCredentials.Insecure);
+            Channel = GrpcChannelFactory.CreateChannel(context, GetChannelCreationOptions(Host, Port));
         }
+
+        private ChannelCreationOptions GetChannelCreationOptions(string host, int port) =>
+            new ChannelCreationOptions(_configuration.UseGrpcDotNet, host, port, GrpcCoreOptions: Enumerable.Empty<ChannelOption>(), _configuration.GrpcDotNetOptions);
 
         protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
         {
-            await Channel.ConnectAsync(DateTime.UtcNow + _configuration.ConnectTimeout);
+            await Channel.ConnectAsync(SystemClock.Instance, _configuration.ConnectTimeout);
             return BoolResult.Success;
         }
 
@@ -124,5 +129,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         public int DefaultPort { get; set; }
 
         public TimeSpan ConnectTimeout { get; set; } = ContentStore.Grpc.GrpcConstants.DefaultTimeout;
+
+        public bool UseGrpcDotNet { get; set; }
+
+        public GrpcDotNetClientOptions GrpcDotNetOptions { get; set; } = GrpcDotNetClientOptions.Default;
     }
 }

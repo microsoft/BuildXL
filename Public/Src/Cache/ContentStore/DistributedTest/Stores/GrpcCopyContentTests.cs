@@ -32,6 +32,15 @@ using Xunit.Abstractions;
 
 namespace ContentStoreTest.Distributed.Stores
 {
+#if NET6_0_OR_GREATER
+    public class GrpcDotNetContentTests : GrpcCopyContentTests
+    {
+        public GrpcDotNetContentTests(ITestOutputHelper output) : base(output, useGrpcDotNet: true)
+        {
+        }
+    }
+#endif
+
     public class GrpcCopyContentTests : TestBase
     {
         private const int FileSize = 1000;
@@ -43,7 +52,7 @@ namespace ContentStoreTest.Distributed.Stores
         private int? _copyToLimit = null;
         private int? _proactivePushCountLimit = null;
 
-        public GrpcCopyContentTests(ITestOutputHelper output)
+        public GrpcCopyContentTests(ITestOutputHelper output, bool useGrpcDotNet = false)
             : base(() => new PassThroughFileSystem(TestGlobal.Logger), TestGlobal.Logger, output)
         {
             _context = new Context(Logger);
@@ -54,6 +63,9 @@ namespace ContentStoreTest.Distributed.Stores
                     MaximumResourceCount = 1024,
                 },
                 GrpcCopyClientConfiguration = new GrpcCopyClientConfiguration()
+                {
+                    UseGrpcDotNetVersion = useGrpcDotNet,
+                }
             });
         }
 

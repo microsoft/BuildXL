@@ -133,7 +133,7 @@ namespace ContentStoreTest.Grpc
                         GrpcPort = (int)serviceConfig.GrpcPort,
                     };
 
-                    using (var rpcClient = new GrpcContentClient(new ServiceClientContentSessionTracer(scenario), FileSystem, configuration, scenario))
+                    using (var rpcClient = new GrpcContentClient(new OperationContext(context), new ServiceClientContentSessionTracer(scenario), FileSystem, configuration, scenario))
                     {
                         try
                         {

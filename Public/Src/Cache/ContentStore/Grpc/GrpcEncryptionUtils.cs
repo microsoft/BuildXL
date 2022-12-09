@@ -17,10 +17,32 @@ using Newtonsoft.Json;
 namespace BuildXL.Cache.ContentStore.Grpc
 {
     /// <summary>
+    /// Encryption options used when creating gRPC channels.
+    /// </summary>
+    public record ChannelEncryptionOptions(string CertificateSubjectName, string? CertificateChainsPath, string? IdentityTokenPath);
+
+    /// <summary>
     /// Utility methods needed to enable encryption and authentication for gRPC-using services in CloudBuild
     /// </summary>
     public static class GrpcEncryptionUtils
     {
+        /// <summary>
+        /// Gets channel encryption options used by gRPC.NET implementation.
+        /// </summary>
+        public static ChannelEncryptionOptions GetChannelEncryptionOptions()
+        {
+            const string CertSubjectEnvironmentVariable = "__CACHE_ENCRYPTION_CERT_SUBJECT__";
+            var encryptionCertificateName = Environment.GetEnvironmentVariable(CertSubjectEnvironmentVariable);
+            var certificateChainsPath = Environment.GetEnvironmentVariable("__CACHE_ENCRYPTION_CERT_CHAINS_PATH__");
+            var identityTokenPath = Environment.GetEnvironmentVariable("__CACHE_ENCRYPTION_IDENTITY_TOKEN_PATH__");
+
+            if (encryptionCertificateName is null)
+            {
+                throw Contract.AssertFailure($"EncryptionCertificateName is null. The environment variable '{CertSubjectEnvironmentVariable}' is not set.");
+            }
+
+            return new ChannelEncryptionOptions(encryptionCertificateName, certificateChainsPath, identityTokenPath);
+        }
         /// <summary>
         /// Look up the given certificate subject name in the Windows certificate store and return the actual certificate.
         /// </summary>
@@ -163,7 +185,7 @@ namespace BuildXL.Cache.ContentStore.Grpc
         /// <summary>
         /// Validate the BuildUser certificate 
         /// </summary>
-        public static bool TryValidateCertificate(string certificateChainsPath, X509Chain chain, out string errorMessage)
+        public static bool TryValidateCertificate(string certificateChainsPath, X509Chain? chain, out string errorMessage)
         {
             errorMessage = string.Empty;
 
@@ -182,6 +204,7 @@ namespace BuildXL.Cache.ContentStore.Grpc
                 {
                     try
                     {
+                        // TODO: Validate fails if chain is null. What should we do here? Work item: 1907180
                         if (issuerChain.Validate(chain, false, out errorMessage))
                         {
                             return true;

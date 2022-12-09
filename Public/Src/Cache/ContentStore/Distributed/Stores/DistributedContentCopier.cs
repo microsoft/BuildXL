@@ -28,10 +28,10 @@ using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using ContentStore.Grpc;
-using static BuildXL.Cache.ContentStore.Distributed.Stores.DistributedContentStoreSettings;
 using static BuildXL.Utilities.ConfigurationHelper;
 
 #nullable enable
+
 namespace BuildXL.Cache.ContentStore.Distributed.Stores
 {
     /// <summary>

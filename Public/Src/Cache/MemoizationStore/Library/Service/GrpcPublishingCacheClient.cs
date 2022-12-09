@@ -24,13 +24,14 @@ namespace BuildXL.Cache.MemoizationStore.Service
 
         /// <nodoc />
         public GrpcPublishingCacheClient(
+            OperationContext context,
             ServiceClientContentSessionTracer tracer,
             IAbsFileSystem fileSystem,
             ServiceClientRpcConfiguration configuration,
             string scenario,
             PublishingCacheConfiguration publishingConfig,
             string pat)
-            : base(tracer, fileSystem, configuration, scenario, Capabilities.All)
+            : base(context, tracer, fileSystem, configuration, scenario, Capabilities.All)
         {
             Contract.Requires(publishingConfig is not null);
             _serializedPublishingConfig = DynamicJson.Serialize(publishingConfig);

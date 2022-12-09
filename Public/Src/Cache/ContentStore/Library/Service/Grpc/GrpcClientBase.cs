@@ -6,6 +6,7 @@ using System.Diagnostics.ContractsLight;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Grpc;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
@@ -39,7 +40,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         private bool _serviceUnavailable;
 
         /// <nodoc />
-        protected readonly Channel Channel;
+        protected readonly ChannelBase Channel;
 
         /// <nodoc />
         protected readonly IAbsFileSystem FileSystem;
@@ -61,6 +62,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
         /// <nodoc />
         protected GrpcClientBase(
+            OperationContext context,
             IAbsFileSystem fileSystem,
             ServiceClientContentSessionTracer tracer,
             ServiceClientRpcConfiguration configuration,
@@ -74,7 +76,15 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             _clientCapabilities = clientCapabilities;
 
             GrpcEnvironment.WaitUntilInitialized();
-            Channel = new Channel(configuration.GrpcHost, configuration.GrpcPort, ChannelCredentials.Insecure, GrpcEnvironment.GetClientOptions(configuration.GrpcCoreClientOptions));
+
+            var port = configuration.EncryptionEnabled ? configuration.EncryptedGrpcPort : configuration.GrpcPort;
+            var channelCreationOptions = new ChannelCreationOptions(
+                UseGrpcDotNet: configuration.UseGrpcDotNetClient,
+                configuration.GrpcHost,
+                port,
+                GrpcEnvironment.GetClientOptions(configuration.GrpcCoreClientOptions),
+                configuration.GrpcDotNetClientOptions ?? GrpcDotNetClientOptions.Default);
+            Channel = GrpcChannelFactory.CreateChannel(context, channelCreationOptions);
         }
 
         /// <nodoc />

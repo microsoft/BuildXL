@@ -113,11 +113,24 @@ export function getGrpcPackagesWithoutNetStandard() : Managed.ManagedNugetPackag
 }
 
 @@public
-export function getGrpcAspNetCorePackages() : (Managed.ManagedNugetPackage | Managed.Assembly)[] {
+export function getGrpcDotNetPackages() : (Managed.ManagedNugetPackage | Managed.Assembly)[] {
     return [
         ...addIfLazy(BuildXLSdk.isDotNetCoreBuild, () => [
                   importFrom("Grpc.Net.Common").pkg,
                   importFrom("Grpc.Net.Client").pkg,
+                  // Grpc.Net.Common depends on Grpc.Core.Api, but this package should
+                  // already be included as pat of 'getGrpcPackages'.
+                  // Once the migration from Grpc.Core is done, this method should be updated
+                  // to include 'Grpc.Core.Api' package as well.
+        ])
+    ];
+}
+
+@@public
+export function getGrpcAspNetCorePackages() : (Managed.ManagedNugetPackage | Managed.Assembly)[] {
+    return [
+        ...getGrpcDotNetPackages(),
+        ...addIfLazy(BuildXLSdk.isDotNetCoreBuild, () => [
                   importFrom("Grpc.Net.Client.Web").pkg,
                   importFrom("Grpc.Net.ClientFactory").pkg,
                  

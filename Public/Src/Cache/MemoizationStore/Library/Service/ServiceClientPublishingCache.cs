@@ -8,6 +8,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Stores;
+using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.MemoizationStore.Interfaces.Caches;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 
@@ -61,6 +62,7 @@ namespace BuildXL.Cache.MemoizationStore.Service
                     Tracer.Info(context, $"Creating cache service client session with name=[{name}] and publishing enabled. {nameof(ICacheSession.AddOrGetContentHashListAsync)} calls to the session will trigger publishing in the service.");
 
                     return new CreateSessionResult<ICacheSession>(new ServiceClientPublishingCacheSession(
+                        new OperationContext(context),
                         name,
                         implicitPin,
                         Logger,

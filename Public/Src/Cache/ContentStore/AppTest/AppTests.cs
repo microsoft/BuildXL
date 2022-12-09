@@ -23,6 +23,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using System.Threading;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using System.IO;
+using BuildXL.Cache.ContentStore.Grpc;
 using BuildXL.Native.IO;
 using ContentStoreTest.Extensions;
 
@@ -71,8 +72,12 @@ namespace BuildXL.Cache.ContentStore.App.Test
             fileSystem.ReadAllText(destination).Should().Be("Foo");
         }
 
-        [Fact]
-        public async Task ServiceTestAsync()
+        [Theory]
+#if NET6_0_OR_GREATER // gRPC.NET is only available in .NET Core
+        [InlineData(true)]
+#endif
+        [InlineData(false)]
+        public async Task ServiceTestAsync(bool useGrpcNet)
         {
             using var fileSystem = new PassThroughFileSystem(Logger);
             using var dir = new DisposableDirectory(fileSystem);
@@ -100,7 +105,14 @@ namespace BuildXL.Cache.ContentStore.App.Test
 
                 var context = new Context(Logger);
 
-                var config = new ServiceClientContentStoreConfiguration("Default", new ServiceClientRpcConfiguration { GrpcPort = port }, scenario: "AppTests");
+                var serviceClientRpcConfiguration = new ServiceClientRpcConfiguration { GrpcPort = port, UseGrpcDotNetClient = useGrpcNet};
+                var config = new ServiceClientContentStoreConfiguration("Default", serviceClientRpcConfiguration, scenario: "AppTests");
+                config.GrpcEnvironmentOptions = new GrpcEnvironmentOptions()
+                                                {
+                                                    // Uncomment the next lines to enable full gRPC trace.
+                                                    // LoggingVerbosity = GrpcEnvironmentOptions.GrpcVerbosity.Info,
+                                                    // Trace = new List<string>{"all"}
+                                                };
                 using var store = new ServiceClientContentStore(Logger, fileSystem, config);
                 await store.StartupAsync(context).ShouldBeSuccess();
 

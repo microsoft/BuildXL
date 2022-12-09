@@ -148,7 +148,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             var rpcConfiguration = Configuration.RpcConfiguration;
             if (result.Succeeded)
             {
-                _grpcClient = new GrpcContentClient(SessionTracer, FileSystem, rpcConfiguration, Configuration.Scenario);
+                _grpcClient = new GrpcContentClient(context, SessionTracer, FileSystem, rpcConfiguration, Configuration.Scenario);
                 result = await Configuration.RetryPolicy.ExecuteAsync(() => _grpcClient.StartupAsync(context, waitMs: 0), CancellationToken.None);
 
                 if (!result)
@@ -201,6 +201,8 @@ namespace BuildXL.Cache.ContentStore.Stores
             return CreateReadOnlySessionCall.Run(ExecutionTracer, OperationContext(context), name, () =>
             {
                 var session = new ReadOnlyServiceClientContentSession(
+                    // Its fine to re-create an operation context without cancellation tokens because its only used for tracing purposes.
+                    new OperationContext(context),
                     name,
                     implicitPin,
                     Logger,
@@ -217,6 +219,8 @@ namespace BuildXL.Cache.ContentStore.Stores
             return CreateSessionCall.Run(ExecutionTracer, OperationContext(context), name, () =>
             {
                 var session = new ServiceClientContentSession(
+                    // Its fine to re-create an operation context without cancellation tokens because its only used for tracing purposes.
+                    new OperationContext(context),
                     name,
                     implicitPin,
                     Logger,

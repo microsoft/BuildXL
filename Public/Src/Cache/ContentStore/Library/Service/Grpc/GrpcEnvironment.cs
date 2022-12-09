@@ -155,7 +155,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             }
             catch (AggregateException exception)
             {
-                var innerException = exception?.InnerException;
+                var innerException = exception.InnerException;
                 Contract.AssertNotNull(innerException);
                 throw new GrpcInitializationException($"gRPC environment initialization failed while waiting", innerException);
             }

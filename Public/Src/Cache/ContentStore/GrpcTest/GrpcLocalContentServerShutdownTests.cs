@@ -161,7 +161,7 @@ namespace ContentStoreTest.Grpc
                     await server.StartupAsync(context).ShouldBeSuccess();
 
                     var port = new MemoryMappedFilePortReader(grpcPortFileName, Logger).ReadPort();
-                    rpcClient = new GrpcContentClient(tracer, FileSystem, new ServiceClientRpcConfiguration(grpcPort), scenario);
+                    rpcClient = new GrpcContentClient(context, tracer, FileSystem, new ServiceClientRpcConfiguration(grpcPort), scenario);
 
                     await rpcClient.CreateSessionAsync(
                         context, SessionName, CacheName, ImplicitPin.None).ShouldBeSuccess();
@@ -225,7 +225,7 @@ namespace ContentStoreTest.Grpc
                     await server.StartupAsync(context).ShouldBeSuccess();
 
                     var port = new MemoryMappedFilePortReader(grpcPortFileName, Logger).ReadPort();
-                    IRpcClient rpcClient = new GrpcContentClient(tracer, FileSystem, new ServiceClientRpcConfiguration(grpcPort), scenario);
+                    IRpcClient rpcClient = new GrpcContentClient(context, tracer, FileSystem, new ServiceClientRpcConfiguration(grpcPort), scenario);
 
                     await rpcClient.CreateSessionAsync(
                         context, SessionName, CacheName, ImplicitPin.None).ShouldBeSuccess();
@@ -289,7 +289,7 @@ namespace ContentStoreTest.Grpc
                     r.ShouldBeSuccess();
 
                     var port = new MemoryMappedFilePortReader(grpcPortFileName, Logger).ReadPort();
-                    rpcClient = new GrpcContentClient(tracer, FileSystem, new ServiceClientRpcConfiguration(grpcPort), scenario);
+                    rpcClient = new GrpcContentClient(context, tracer, FileSystem, new ServiceClientRpcConfiguration(grpcPort), scenario);
 
                     r = await server.ShutdownAsync(context);
                     r.ShouldBeSuccess();
@@ -329,7 +329,7 @@ namespace ContentStoreTest.Grpc
                     await server.StartupAsync(context).ShouldBeSuccess();
 
                     var port = new MemoryMappedFilePortReader(grpcPortFileName, Logger).ReadPort();
-                    using (IRpcClient rpcClient = new GrpcContentClient(tracer, FileSystem, new ServiceClientRpcConfiguration(grpcPort), scenario))
+                    using (IRpcClient rpcClient = new GrpcContentClient(context, tracer, FileSystem, new ServiceClientRpcConfiguration(grpcPort), scenario))
                     {
                         await rpcClient.CreateSessionAsync(
                             context, SessionName, CacheName, ImplicitPin.None).ShouldBeSuccess();
@@ -375,7 +375,7 @@ namespace ContentStoreTest.Grpc
                     await server.StartupAsync(context).ShouldBeSuccess();
 
                     var port = new MemoryMappedFilePortReader(grpcPortFileName, Logger).ReadPort();
-                    using (IRpcClient rpcClient = new GrpcContentClient(tracer, FileSystem, new ServiceClientRpcConfiguration(grpcPort), scenario))
+                    using (IRpcClient rpcClient = new GrpcContentClient(context, tracer, FileSystem, new ServiceClientRpcConfiguration(grpcPort), scenario))
                     {
                         await rpcClient.CreateSessionAsync(
                             context, SessionName, CacheName, ImplicitPin.None).ShouldBeSuccess();

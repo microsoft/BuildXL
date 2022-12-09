@@ -44,6 +44,7 @@ namespace BuildXL.Cache.ContentStore.App
                 var contentHash = new ContentHash(ht, HexUtilities.HexToBytes(hash));
 
                 GrpcContentClient client = new GrpcContentClient(
+                    new OperationContext(context),
                     new ServiceClientContentSessionTracer(nameof(Delete)),
                     _fileSystem,
                     new ServiceClientRpcConfiguration(grpcPort)

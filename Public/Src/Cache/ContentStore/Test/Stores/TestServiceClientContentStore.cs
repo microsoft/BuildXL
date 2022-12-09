@@ -15,6 +15,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
+using BuildXL.Cache.ContentStore.Tracing.Internal;
 using ContentStoreTest.Sessions;
 
 namespace ContentStoreTest.Stores
@@ -122,6 +123,7 @@ namespace ContentStoreTest.Stores
             return CreateReadOnlySessionCall.Run(ExecutionTracer, OperationContext(context), name, () =>
             {
                 var session = new TestServiceClientContentSession(
+                    new OperationContext(context),
                     name,
                     implicitPin,
                     Configuration.RetryPolicy,
@@ -143,6 +145,7 @@ namespace ContentStoreTest.Stores
             return CreateSessionCall.Run(ExecutionTracer, OperationContext(context), name, () =>
             {
                 var session = new TestServiceClientContentSession(
+                    new OperationContext(context),
                     name,
                     implicitPin,
                     Configuration.RetryPolicy,

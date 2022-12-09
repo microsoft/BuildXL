@@ -26,12 +26,13 @@ namespace BuildXL.Cache.MemoizationStore.Service
     {
         /// <nodoc />
         public GrpcCacheClient(
+            OperationContext context,
             ServiceClientContentSessionTracer tracer,
             IAbsFileSystem fileSystem,
             ServiceClientRpcConfiguration configuration,
             string scenario,
             Capabilities capabilities = Capabilities.AllNonPublishing)
-            : base(tracer, fileSystem, configuration, scenario, capabilities)
+            : base(context, tracer, fileSystem, configuration, scenario, capabilities)
         {
         }
 

@@ -13,6 +13,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using BuildXL.Cache.ContentStore.Stores;
+using BuildXL.Cache.ContentStore.Tracing.Internal;
 using ContentStoreTest.Stores;
 using FluentAssertions;
 using BuildXL.Cache.ContentStore.Utils;
@@ -24,6 +25,7 @@ namespace ContentStoreTest.Sessions
         private readonly AbsolutePath _rootPath;
 
         public TestServiceClientContentSession(
+            OperationContext context,
             string name,
             ImplicitPin implicitPin,
             IRetryPolicy retryPolicy,
@@ -35,7 +37,7 @@ namespace ContentStoreTest.Sessions
             ITestServiceClientContentStore store,
             ServiceClientContentSessionTracer sessionTracer,
             ServiceClientRpcConfiguration rpcConfiguration)
-            : base(name, implicitPin, logger, fileSystem, sessionTracer, new ServiceClientContentStoreConfiguration(cacheName, rpcConfiguration, scenario, retryPolicy))
+            : base(context, name, implicitPin, logger, fileSystem, sessionTracer, new ServiceClientContentStoreConfiguration(cacheName, rpcConfiguration, scenario, retryPolicy))
         {
             _rootPath = rootPath;
             Store = store;

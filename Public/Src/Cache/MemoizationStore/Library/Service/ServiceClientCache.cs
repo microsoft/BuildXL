@@ -13,6 +13,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Sessions;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Tracing;
+using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.MemoizationStore.Interfaces.Caches;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Cache.MemoizationStore.Interfaces.Stores;
@@ -50,7 +51,7 @@ namespace BuildXL.Cache.MemoizationStore.Service
                 Tracer,
                 () =>
                 {
-                    var session = new ServiceClientCacheSession(name, implicitPin, Logger, FileSystem, SessionTracer, Configuration);
+                    var session = new ServiceClientCacheSession(new OperationContext(context), name, implicitPin, Logger, FileSystem, SessionTracer, Configuration);
                     return new CreateSessionResult<IReadOnlyCacheSession>(session);
                 });
         }
@@ -63,7 +64,7 @@ namespace BuildXL.Cache.MemoizationStore.Service
                 Tracer,
                 () =>
                 {
-                    var session = new ServiceClientCacheSession(name, implicitPin, Logger, FileSystem, SessionTracer, Configuration);
+                    var session = new ServiceClientCacheSession(new OperationContext(context), name, implicitPin, Logger, FileSystem, SessionTracer, Configuration);
                     return new CreateSessionResult<ICacheSession>(session);
                 });
         }

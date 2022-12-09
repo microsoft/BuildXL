@@ -88,6 +88,9 @@ namespace DistributedTest {
             ...getAzureBlobStorageSdkPackages(true),
 
             ...getGrpcPackages(true),
+            
+            importFrom("Microsoft.Extensions.Logging.Abstractions.v6.0.0").pkg, // required by grpc.net packages
+
             ...getProtobufNetPackages(true),
             ...BuildXLSdk.getSystemMemoryPackages(true),
             importFrom("System.ServiceModel.Http").pkg,
@@ -116,6 +119,9 @@ namespace DistributedTest {
             "BuildXL.Cache.MemoizationStore.Distributed.Test",
         ],
         runtimeContent: [
+            // Need to add the dll explicitely to avoid runtime failures for net472
+             // required by grpc.net packages
+            ...(BuildXLSdk.isFullFramework ? [importFrom("Microsoft.Extensions.Logging.Abstractions.v6.0.0").pkg] : []),
             {
                 subfolder: r`azurite`,
                 contents: [

@@ -43,22 +43,24 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
         /// <nodoc />
         public GrpcContentClient(
+            OperationContext context,
             ServiceClientContentSessionTracer tracer,
             IAbsFileSystem fileSystem,
             ServiceClientRpcConfiguration configuration,
             string? scenario)
-            : this(tracer, fileSystem, configuration, scenario, Capabilities.ContentOnly)
+            : this(context, tracer, fileSystem, configuration, scenario, Capabilities.ContentOnly)
         {
         }
 
         /// <nodoc />
         protected GrpcContentClient(
+            OperationContext context,
             ServiceClientContentSessionTracer tracer,
             IAbsFileSystem fileSystem,
             ServiceClientRpcConfiguration configuration,
             string? scenario,
             Capabilities capabilities = Capabilities.ContentOnly)
-            : base(fileSystem, tracer, configuration, scenario, capabilities)
+            : base(context, fileSystem, tracer, configuration, scenario, capabilities)
         {
             Client = new ContentServer.ContentServerClient(Channel);
         }

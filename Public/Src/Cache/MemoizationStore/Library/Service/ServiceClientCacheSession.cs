@@ -41,6 +41,7 @@ namespace BuildXL.Cache.MemoizationStore.Service
 
         /// <nodoc />
         public ServiceClientCacheSession(
+            OperationContext context,
             string name,
             ImplicitPin implicitPin,
             ILogger logger,
@@ -48,7 +49,7 @@ namespace BuildXL.Cache.MemoizationStore.Service
             ServiceClientContentSessionTracer sessionTracer,
             ServiceClientContentStoreConfiguration configuration,
             Func<IRpcClient> rpcClientFactory = null)
-            : base(name, implicitPin, logger, fileSystem, sessionTracer, configuration, rpcClientFactory ?? (() => GetRpcClient(fileSystem, sessionTracer, configuration)))
+            : base(context, name, implicitPin, logger, fileSystem, sessionTracer, configuration, rpcClientFactory ?? (() => GetRpcClient(context, fileSystem, sessionTracer, configuration)))
         {
             // RpcClient is created by the base class constructor, but we know that this is the result of GetPrcClient call
             // that actually returns GrpcCacheClient instance.
@@ -56,11 +57,12 @@ namespace BuildXL.Cache.MemoizationStore.Service
         }
 
         private static IRpcClient GetRpcClient(
+            OperationContext context,
             IAbsFileSystem fileSystem,
             ServiceClientContentSessionTracer sessionTracer,
             ServiceClientContentStoreConfiguration configuration)
         {
-            return new GrpcCacheClient(sessionTracer, fileSystem, configuration.RpcConfiguration, configuration.Scenario);
+            return new GrpcCacheClient(context, sessionTracer, fileSystem, configuration.RpcConfiguration, configuration.Scenario);
         }
 
         private Task<TResult> PerformOperationAsync<TResult>(Context context, CancellationToken cts, Func<OperationContext, GrpcCacheClient, Task<TResult>> func, [CallerMemberName]string caller = null, Counter? counter = null, Counter? retryCounter = null, bool traceErrorsOnly = false, string additionalStopMessage = null, string additionalStartMessage = null) where TResult : ResultBase

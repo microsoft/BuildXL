@@ -74,6 +74,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
         ///     Initializes a new instance of the <see cref="ReadOnlyServiceClientContentSession"/> class.
         /// </summary>
         public ReadOnlyServiceClientContentSession(
+            OperationContext context,
             string name,
             ImplicitPin implicitPin,
             ILogger logger,
@@ -94,16 +95,16 @@ namespace BuildXL.Cache.ContentStore.Sessions
             Configuration = configuration;
             TempFileStreamFactory = new TempFileStreamFactory(FileSystem);
 
-            RpcClient = (rpcClientFactory ?? GetRpcClient)();
+            RpcClient = (rpcClientFactory ?? (() => GetRpcClient(context)))();
             RetryPolicy = configuration.RetryPolicy;
         }
 
         /// <nodoc />
-        protected virtual IRpcClient GetRpcClient()
+        protected virtual IRpcClient GetRpcClient(OperationContext context)
         {
             var rpcConfiguration = Configuration.RpcConfiguration;
             
-            return new GrpcContentClient(SessionTracer, FileSystem, rpcConfiguration, Configuration.Scenario);
+            return new GrpcContentClient(context, SessionTracer, FileSystem, rpcConfiguration, Configuration.Scenario);
         }
 
         /// <inheritdoc />

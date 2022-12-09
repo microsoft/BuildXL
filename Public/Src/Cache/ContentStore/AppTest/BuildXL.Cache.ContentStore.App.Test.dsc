@@ -24,7 +24,8 @@ namespace AppTest {
 
             InterfacesTest.dll,
             Test.dll,
-            
+            Grpc.dll,
+
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Native.dll,
             importFrom("BuildXL.Utilities").Interop.dll,

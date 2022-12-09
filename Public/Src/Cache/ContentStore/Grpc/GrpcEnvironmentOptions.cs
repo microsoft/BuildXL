@@ -19,16 +19,19 @@ namespace BuildXL.Cache.ContentStore.Grpc
         public enum GrpcVerbosity
         {
             /// <nodoc />
-            Disabled,
+            Disabled = 0,
 
             /// <nodoc />
-            Debug,
+            Debug = 1,
 
             /// <nodoc />
-            Info,
+            Info = 2,
 
             /// <nodoc />
-            Error
+            Warning = 4, // The value is important because the config contains just a nummerical value and we want to preserve backward compatibility with the old values, so 3 should be an error.
+
+            /// <nodoc />
+            Error = 3,
         }
 
         /// <summary>

@@ -177,6 +177,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
             (string host, int port) = ExtractHostInfo(targetMachine);
 
             using (var client = new GrpcContentClient(
+                context,
                 new ServiceClientContentSessionTracer(nameof(ServiceClientContentSessionTracer)),
                 new PassThroughFileSystem(),
                 new ServiceClientRpcConfiguration(port) { GrpcHost = host },

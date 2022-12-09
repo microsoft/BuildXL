@@ -56,6 +56,11 @@ namespace BuildXL.Utilities.Tracing
         public const string AdoRequesterKey = "adorequester";
 
         /// <summary>
+        /// Job Id of the run that launched this build.
+        /// </summary>
+        public const string AdoJobIdKey = "adojobid";
+
+        /// <summary>
         /// cloudBuildQueue property key name.
         /// In CB this build structure refers to the CB queue name.
         /// This information is already passed via traceInfo.

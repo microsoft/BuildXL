@@ -61,7 +61,12 @@ namespace BuildXL
         /// <summary>
         /// ADO predefined variable to obtain the requester of the ADO build.
         /// </summary>
-        public const string AdoPreDefinedVariableForRequester = "BUILD_REQUESTEDFOR";
+        public const string AdoPreDefinedVariableForRequester = "BUILD_REQUESTEDFORID";
+
+        /// <summary>
+        /// ADO pre-defined environment variable to obtain the job id.
+        /// </summary>
+        public const string AdoPreDefinedVariableForJobId = "SYSTEM_JOBID";
 
         /// <summary>
         /// This is the primary method in the class which is called by ComputeEnvironment(), to capture the build properties.
@@ -88,7 +93,10 @@ namespace BuildXL
             CaptureNewPropertyFromEnvironment(traceInfoProperties, CaptureBuildProperties.AdoProjectKey, AdoPreDefinedVariableForProject);
 
             // The requester name for this build (ADO only)
-            CaptureNewPropertyFromEnvironment(traceInfoProperties, CaptureBuildProperties.AdoProjectKey, AdoPreDefinedVariableForRequester);
+            CaptureNewPropertyFromEnvironment(traceInfoProperties, CaptureBuildProperties.AdoRequesterKey, AdoPreDefinedVariableForRequester);
+
+            // The job id for the pipeline run that triggers this build (ADO only)
+            CaptureNewPropertyFromEnvironment(traceInfoProperties, CaptureBuildProperties.AdoJobIdKey, AdoPreDefinedVariableForJobId);
 
             // See GetStageId and GetInfra
             CaptureNewProperty(traceInfoProperties, CaptureBuildProperties.StageIdKey, () => GetStageId(configuration));

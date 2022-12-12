@@ -155,7 +155,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// Attempts to dump all processes in a process tree. Any files existing in the dump directory will be deleted.
         /// </summary>
-        public static bool TryDumpProcessAndChildren(int parentProcessId, string dumpDirectory, out Exception primaryDumpCreationException, int maxTreeDepth = 10, Action<string> debugLogger = null)
+        public static bool TryDumpProcessAndChildren(int parentProcessId, string dumpDirectory, out Exception primaryDumpCreationException, int maxTreeDepth = 20, Action<string> debugLogger = null)
         {
             if (OperatingSystemHelper.IsMacOS)
             {

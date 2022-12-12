@@ -205,11 +205,13 @@ namespace BuildXL.Processes
 
                 Process p = maybeProcess.Result;
 
-                // In NetCore the process name cannot be accessed after the process exits. Noop if the process has exited
+                // Process details cannot be accessed after the process exits. Noop if the process has exited
                 string processName = null;
+                DateTime processStartTime;
                 try
                 {
                     processName = p.ProcessName;
+                    processStartTime = p.StartTime;
                 }
                 catch (InvalidOperationException ex)
                 {
@@ -218,9 +220,11 @@ namespace BuildXL.Processes
                         primaryDumpCreationException = primaryDumpCreationException ?? ex;
                         return false;
                     }
+
+                    continue;
                 }
 
-                if (processName == null || s_skipProcesses.Contains(processName, StringComparer.OrdinalIgnoreCase) || p.StartTime > treeDumpInitiateTime)
+                if (s_skipProcesses.Contains(processName, StringComparer.OrdinalIgnoreCase) || processStartTime > treeDumpInitiateTime)
                 {
                     // Ignore processes explicitly configured to be skipped or 
                     // that were created after the tree dump was initiated in case of the likely rare

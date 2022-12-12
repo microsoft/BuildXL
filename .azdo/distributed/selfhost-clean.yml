@@ -41,7 +41,6 @@ jobs:
       AzDevPAT: $(PAT-TseBuild-AzureDevOps-MsEng)
 
   - template: ../common/journaling.yml
-  - template: ../common/set-msvc-version.yml
 
   - task: ms-vscs-artifact.build-tasks.artifactDropDownloadTask-1.artifactDropDownloadTask@1
     displayName: 'Download ${{ parameters.DropName }} from drop'

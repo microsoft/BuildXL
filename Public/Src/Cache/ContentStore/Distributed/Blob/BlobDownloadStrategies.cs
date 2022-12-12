@@ -71,12 +71,27 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blobs
                 flags |= FileOptions.SequentialScan;
             }
 
-            var stream = FileSystem.OpenForWrite(
+            Stream stream;
+            try
+            {
+                stream = FileSystem.OpenForWrite(
                             path,
                             length,
                             FileMode.Create,
                             FileShare.ReadWrite,
                             flags).Stream;
+            }
+            catch (DirectoryNotFoundException)
+            {
+                FileSystem.CreateDirectory(path.Parent!);
+
+                stream = FileSystem.OpenForWrite(
+                            path,
+                            length,
+                            FileMode.Create,
+                            FileShare.ReadWrite,
+                            flags).Stream;
+            }
 
             return (stream as FileStream)!;
         }

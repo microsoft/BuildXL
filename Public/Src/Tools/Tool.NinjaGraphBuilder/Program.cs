@@ -10,6 +10,7 @@ using Newtonsoft.Json;
 using static BuildXL.Utilities.AssemblyHelper;
 using static System.Reflection.Assembly;
 using BuildXL.Utilities;
+using BuildXL.Native.IO;
 
 namespace NinjaGraphBuilderTool
 {
@@ -72,7 +73,8 @@ namespace NinjaGraphBuilderTool
                                   Arguments = $"-C {args.ProjectRoot} -f {buildFileName} -t json {targetsString}",
                                   RedirectStandardOutput = true,
                                   RedirectStandardError = true,   // Ninja outputs some stuff to standard error sometimes, let's suppress that
-                                  UseShellExecute = false
+                                  UseShellExecute = false,
+                                  WorkingDirectory = args.ProjectRoot
                               },
                           };
 
@@ -106,8 +108,15 @@ namespace NinjaGraphBuilderTool
                     Console.Error.WriteLine("Warning: the CUSTOM_NINJA_PATH variable is set but doesn't point to an existing file. Using the default path...");
                 }
             }
+            path = NinjsonPath;
 
-            return File.Exists(path = NinjsonPath); // If this is false something is wrong in BXL's deployment and we can't continue
+            if (!File.Exists(path))
+            {
+                return false;
+            }
+            var result = FileUtilities.TrySetExecutePermissionIfNeeded(path).ThrowIfFailure();
+
+            return result.Succeeded; // If this is false something is wrong in BXL's deployment and we can't continue
         }
 
         private static void GenerateErrorResult(Process process, NinjaGraphToolArguments args)

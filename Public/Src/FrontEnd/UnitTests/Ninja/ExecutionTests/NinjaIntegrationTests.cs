@@ -34,7 +34,7 @@ namespace Test.BuildXL.FrontEnd.Ninja
         {
         }
 
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)] // The test fails on Linux almost all the time. Work Item - https://dev.azure.com/mseng/1ES/_workitems/edit/2014674"
+        [Fact]
         public void EndToEndSinglePipExecution()
         {
             var config = BuildAndGetConfiguration(CreateHelloWorldProject(OutputFileName));
@@ -42,7 +42,7 @@ namespace Test.BuildXL.FrontEnd.Ninja
             Assert.True(engineResult.IsSuccess);
         }
 
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)] // The test fails on Linux almost all the time. Work Item - https://dev.azure.com/mseng/1ES/_workitems/edit/2014674"
+        [Fact]
         public void EndToEndExecutionWithDependencies()
         {
             var config = BuildAndGetConfiguration(CreateWriteReadProject("first.txt", "second.txt"));
@@ -64,7 +64,7 @@ namespace Test.BuildXL.FrontEnd.Ninja
             Assert.True(File.Exists(Path.Combine(SourceRoot, DefaultProjectRoot, "second.txt")));
         }
 
-        [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)] // The test fails on Linux almost all the time. Work Item - https://dev.azure.com/mseng/1ES/_workitems/edit/2014674"
+        [Theory]
         [InlineData(true)]
         [InlineData(false)]
         public void BuildWithEnvironmentVariables(bool exposeVariable)
@@ -91,7 +91,7 @@ namespace Test.BuildXL.FrontEnd.Ninja
             Assert.True(contents.Contains(expectedContents));
         }
 
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)] // The test fails on Linux almost all the time. Work Item - https://dev.azure.com/mseng/1ES/_workitems/edit/2014674"
+        [Fact]
         public void BuildExposesEnvironmentWhenNoVariablesSpecifiedInSpec()
         {
             var expectedOutContents = "chelivery";
@@ -112,7 +112,7 @@ namespace Test.BuildXL.FrontEnd.Ninja
             Assert.True(actualContents.Contains(expectedOutContents));
         }
 
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)] // The test fails on Linux almost all the time. Work Item - https://dev.azure.com/mseng/1ES/_workitems/edit/2014674"
+        [Fact]
         public void BuildWithExplicitEmptyEnvironment()
         {
             var expectedOutContents = "chelivery";
@@ -134,7 +134,7 @@ namespace Test.BuildXL.FrontEnd.Ninja
             Assert.False(actualContents.Contains(expectedOutContents));
         }
 
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)] // The test fails on Linux almost all the time. Work Item - https://dev.azure.com/mseng/1ES/_workitems/edit/2014674"
+        [Fact]
         public void BuildExposesPassthroughVariables()
         {
             var expectedOutContents = "chelo_passthrough";
@@ -174,7 +174,7 @@ namespace Test.BuildXL.FrontEnd.Ninja
             Assert.True(File.Exists(Path.Combine(SourceRoot, DefaultProjectRoot, "second.txt")));
         }
 
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)] // The test fails on Linux almost all the time. Work Item - https://dev.azure.com/mseng/1ES/_workitems/edit/2014674"
+        [Fact]
         public void OrderOnlyDependenciesHonored()
         {
             var config = BuildAndGetConfiguration(CreateProjectWithOrderOnlyDependencies("first.txt", "second.txt"));
@@ -200,7 +200,7 @@ namespace Test.BuildXL.FrontEnd.Ninja
         /// Leave either projectRoot or specFile unspecified in config.dsc,
         /// in any is absent it can be inferred from the other
         /// </summary>
-        [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)] // The test fails on Linux almost all the time. Work Item - https://dev.azure.com/mseng/1ES/_workitems/edit/2014674"
+        [Theory]
         [InlineData(true, false)]
         [InlineData(false, true)]
         public void CanOmmitSpecFileOrProjectRoot(bool includeProjectRoot, bool includeSpecFile)
@@ -210,7 +210,7 @@ namespace Test.BuildXL.FrontEnd.Ninja
             Assert.True(engineResult.IsSuccess);
         }
 
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)] // The test fails on Linux almost all the time. Work Item - https://dev.azure.com/mseng/1ES/_workitems/edit/2014674"
+        [Fact]
         public void PipGraphIsCachedCorrectly()
         {
             var testCache = new TestCache();
@@ -236,7 +236,7 @@ namespace Test.BuildXL.FrontEnd.Ninja
             AssertInformationalEventLogged(LogEventId.EndDeserializingEngineState);
         }
 
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)] // The test fails on Linux almost all the time. Work Item - https://dev.azure.com/mseng/1ES/_workitems/edit/2014674"
+        [Fact]
         public void EndToEndExecutionWithResponseFile()
         {
             var responseFileContent = "Hello, world!";
@@ -314,7 +314,7 @@ namespace Test.BuildXL.FrontEnd.Ninja
             return PipId.Invalid;
         }
 
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)] // The test fails on Linux almost all the time. Work Item - https://dev.azure.com/mseng/1ES/_workitems/edit/2014674"
+        [Fact]
         public void DummyTargetsAreOptionalFiles()
         {
             const string PhonyOutputFile1 = "a.txt";

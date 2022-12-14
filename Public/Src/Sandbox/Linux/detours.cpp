@@ -157,37 +157,37 @@ INTERPOSE(int, __xstat64, int __ver, const char *pathname, struct stat64 *buf)({
 
 INTERPOSE(int, __lxstat, int __ver, const char *pathname, struct stat *buf)({
     result_t<int> result = bxl->fwd___lxstat(__ver, pathname, buf);
-    bxl->report_access(__func__, ES_EVENT_TYPE_NOTIFY_STAT, pathname, O_NOFOLLOW);
+    bxl->report_access(__func__, ES_EVENT_TYPE_NOTIFY_STAT, pathname, /* mode */0, O_NOFOLLOW);
     return result.restore();
 })
 
 INTERPOSE(int, __lxstat64, int __ver, const char *pathname, struct stat64 *buf)({
     result_t<int> result(bxl->fwd___lxstat64(__ver, pathname, buf));
-    bxl->report_access(__func__, ES_EVENT_TYPE_NOTIFY_STAT, pathname, O_NOFOLLOW);
+    bxl->report_access(__func__, ES_EVENT_TYPE_NOTIFY_STAT, pathname, /* mode */0, O_NOFOLLOW);
     return result.restore();
 })
 #else
 INTERPOSE(int, stat, const char *pathname, struct stat *statbuf)({
     result_t<int> result = bxl->fwd_stat(pathname, statbuf);
-    bxl->report_access(__func__, ES_EVENT_TYPE_NOTIFY_STAT, pathname, O_NOFOLLOW);
+    bxl->report_access(__func__, ES_EVENT_TYPE_NOTIFY_STAT, pathname, /* mode */0, O_NOFOLLOW);
     return result.restore();
 })
 
 INTERPOSE(int, stat64, const char *pathname, struct stat64 *statbuf)({
     result_t<int> result = bxl->fwd_stat64(pathname, statbuf);
-    bxl->report_access(__func__, ES_EVENT_TYPE_NOTIFY_STAT, pathname, O_NOFOLLOW);
+    bxl->report_access(__func__, ES_EVENT_TYPE_NOTIFY_STAT, pathname, /* mode */0, O_NOFOLLOW);
     return result.restore();
 })
 
 INTERPOSE(int, lstat, const char *pathname, struct stat *statbuf)({
     result_t<int> result = bxl->fwd_lstat(pathname, statbuf);
-    bxl->report_access(__func__, ES_EVENT_TYPE_NOTIFY_STAT, pathname, O_NOFOLLOW);
+    bxl->report_access(__func__, ES_EVENT_TYPE_NOTIFY_STAT, pathname, /* mode */0, O_NOFOLLOW);
     return result.restore();
 })
 
 INTERPOSE(int, lstat64, const char *pathname, struct stat64 *statbuf)({
     result_t<int> result = bxl->fwd_lstat64(pathname, statbuf);
-    bxl->report_access(__func__, ES_EVENT_TYPE_NOTIFY_STAT, pathname, O_NOFOLLOW);
+    bxl->report_access(__func__, ES_EVENT_TYPE_NOTIFY_STAT, pathname, /* mode */0, O_NOFOLLOW);
     return result.restore();
 })
 
@@ -217,9 +217,7 @@ static es_event_type_t get_event_from_open_mode(const char *mode) {
 
 INTERPOSE(FILE*, fdopen, int fd, const char *mode)({
     auto check = bxl->report_access_fd(__func__, get_event_from_open_mode(mode), fd);
-    FILE *f = bxl->check_and_fwd_fdopen(check, (FILE*)NULL, fd, mode);
-    if (f) { bxl->reset_fd_table_entry(fileno(f)); }
-    return f;
+    return bxl->check_and_fwd_fdopen(check, (FILE*)NULL, fd, mode);
 })
 
 INTERPOSE(FILE*, fopen, const char *pathname, const char *mode)({
@@ -390,7 +388,7 @@ INTERPOSE(ssize_t, pwrite64, int fd, const void *buf, size_t count, off_t offset
 })
 
 INTERPOSE(int, remove, const char *pathname)({
-    auto check = bxl->report_access(__func__, ES_EVENT_TYPE_NOTIFY_UNLINK, pathname, O_NOFOLLOW);
+    auto check = bxl->report_access(__func__, ES_EVENT_TYPE_NOTIFY_UNLINK, pathname, /*mode*/0, O_NOFOLLOW);
     return bxl->check_and_fwd_remove(check, ERROR_RETURN_VALUE, pathname);
 })
 
@@ -437,7 +435,7 @@ INTERPOSE(int, renameat, int olddirfd, const char *oldpath, int newdirfd, const 
                 // Right now this is a bit complicated because the access handling code is on the macos sandbox and will need to be decoupled first
 
                 // Access check for the source file
-                check = bxl->report_access(__func__, ES_EVENT_TYPE_NOTIFY_UNLINK, fileOrDirectory.c_str(), O_NOFOLLOW);
+                check = bxl->report_access(__func__, ES_EVENT_TYPE_NOTIFY_UNLINK, fileOrDirectory.c_str(), /*mode*/ 0, O_NOFOLLOW);
 
                 // Access check for the destination file
                 fileOrDirectory.replace(0, oldStr.length(), newStr);
@@ -459,7 +457,7 @@ INTERPOSE(int, renameat, int olddirfd, const char *oldpath, int newdirfd, const 
     }
     else
     {
-        check = bxl->report_access(__func__, ES_EVENT_TYPE_NOTIFY_UNLINK, oldStr.c_str(), O_NOFOLLOW);
+        check = bxl->report_access(__func__, ES_EVENT_TYPE_NOTIFY_UNLINK, oldStr.c_str(), /*mode*/0, O_NOFOLLOW);
         check = AccessCheckResult::Combine(check, ReportFileOpen(bxl, newStr, O_CREAT));
     }
 
@@ -496,7 +494,7 @@ INTERPOSE(int, linkat, int fd1, const char *name1, int fd2, const char *name2, i
 INTERPOSE(int, unlink, const char *path)({
     if (path && *path == '\0')
         return bxl->fwd_unlink(path).restore();
-    auto check = bxl->report_access(__func__, ES_EVENT_TYPE_NOTIFY_UNLINK, path, O_NOFOLLOW);
+    auto check = bxl->report_access(__func__, ES_EVENT_TYPE_NOTIFY_UNLINK, path, /*mode*/ 0, O_NOFOLLOW);
     return bxl->check_and_fwd_unlink(check, ERROR_RETURN_VALUE, path);
 })
 
@@ -538,7 +536,7 @@ INTERPOSE_SOMETIMES(
     }, 
     const char *path, char *buf, size_t bufsize)(
 {
-    auto check = bxl->report_access(__func__, ES_EVENT_TYPE_NOTIFY_READLINK, path, O_NOFOLLOW);
+    auto check = bxl->report_access(__func__, ES_EVENT_TYPE_NOTIFY_READLINK, path, /*mode*/ 0, O_NOFOLLOW);
     return bxl->check_and_fwd_readlink(check, (ssize_t)ERROR_RETURN_VALUE, path, buf, bufsize);
 })
 
@@ -556,9 +554,7 @@ INTERPOSE(DIR*, opendir, const char *name)({
 
 INTERPOSE(DIR*, fdopendir, int fd)({
     auto check = bxl->report_access_fd(__func__, ES_EVENT_TYPE_NOTIFY_READDIR, fd);
-    DIR *d = bxl->check_and_fwd_fdopendir(check, (DIR*)NULL, fd);
-    if (d) { bxl->reset_fd_table_entry(fd); }
-    return d;
+    return bxl->check_and_fwd_fdopendir(check, (DIR*)NULL, fd);
 })
 
 INTERPOSE(int, utime, const char *filename, const struct utimbuf *times)({
@@ -693,7 +689,7 @@ INTERPOSE(int, fchown, int fd, uid_t owner, gid_t group)({
 })
 
 INTERPOSE(int, lchown, const char *pathname, uid_t owner, gid_t group)({
-    auto check = bxl->report_access(__func__, ES_EVENT_TYPE_AUTH_SETOWNER, pathname, O_NOFOLLOW);
+    auto check = bxl->report_access(__func__, ES_EVENT_TYPE_AUTH_SETOWNER, pathname, /*mode*/0, O_NOFOLLOW);
     return bxl->check_and_fwd_lchown(check, ERROR_RETURN_VALUE, pathname, owner, group);
 })
 

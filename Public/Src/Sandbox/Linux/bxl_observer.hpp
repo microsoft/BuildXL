@@ -288,8 +288,10 @@ public:
     }
 
     AccessCheckResult report_access(const char *syscallName, IOEvent &event, bool checkCache = true);
-    AccessCheckResult report_access(const char *syscallName, es_event_type_t eventType, const char *pathname, int oflags = 0);
-    AccessCheckResult report_access(const char *syscallName, es_event_type_t eventType, const std::string &reportPath, const std::string &secondPath);
+    // In this method (and immediately below) 'mode' is provided on a best effort basis. If 0 is passed for mode, it will be
+    // explicitly computed
+    AccessCheckResult report_access(const char *syscallName, es_event_type_t eventType, const char *pathname, mode_t mode = 0, int oflags = 0);
+    AccessCheckResult report_access(const char *syscallName, es_event_type_t eventType, const std::string &reportPath, const std::string &secondPath, mode_t mode = 0);
 
     AccessCheckResult report_access_fd(const char *syscallName, es_event_type_t eventType, int fd);
     AccessCheckResult report_access_at(const char *syscallName, es_event_type_t eventType, int dirfd, const char *pathname, int oflags = 0);
@@ -300,10 +302,20 @@ public:
 
     // Clears the specified entry on the file descriptor table
     void reset_fd_table_entry(int fd);
+    
     // Clears the entire file descriptor table
     void reset_fd_table();
+    
+    // Returns the path associated with the given file descriptor
+    // Note: This function assumes fd is a file descriptor pointing to a regular file (that is, a file, directory or symlink, not a pipe/socket/etc). The reason for this assumption is that file descriptors
+    // are cached and the corresponding invalidation is tied to opening handles against file names. We are currently not detouring pipe creation, so we run the risk of not invalidating the file descriptor
+    // table properly for the case of pipes when we miss a close.
     std::string fd_to_path(int fd);
+    
     std::string normalize_path_at(int dirfd, const char *pathname, int oflags = 0);
+
+    // Whether the given descriptor is a non-file (e.g., a pipe, or socket, etc.)
+    static bool is_non_file(const mode_t mode);
 
     // Enumerates a specified directory
     bool EnumerateDirectory(std::string rootDirectory, bool recursive, std::vector<std::string>& filesAndDirectories);
@@ -350,14 +362,24 @@ public:
         return result;
     }
 
+    mode_t get_mode(int fd)
+    {
+        int old = errno;
+        struct stat buf;
+#if (__GLIBC__ == 2 && __GLIBC_MINOR__ < 33)
+        mode_t result = real___fxstat(1, fd, &buf) == 0
+#else
+        mode_t result = real_fstat(fd, &buf) == 0
+#endif
+            ? buf.st_mode
+            : 0;
+        errno = old;
+        return result;
+    }
+
     std::string normalize_path(const char *pathname, int oflags = 0)
     {
         return normalize_path_at(AT_FDCWD, pathname, oflags);
-    }
-
-    std::string normalize_fd(int fd)
-    {
-        return normalize_path_at(fd, NULL);
     }
 
     bool IsFailingUnexpectedAccesses()

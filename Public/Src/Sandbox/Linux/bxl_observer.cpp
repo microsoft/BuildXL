@@ -249,14 +249,18 @@ void BxlObserver::report_exec(const char *syscallName, const char *procName, con
     }
 }
 
-AccessCheckResult BxlObserver::report_access(const char *syscallName, es_event_type_t eventType, const std::string &reportPath, const std::string &secondPath)
+AccessCheckResult BxlObserver::report_access(const char *syscallName, es_event_type_t eventType, const std::string &reportPath, const std::string &secondPath, mode_t mode)
 {
     if (IsCacheHit(eventType, reportPath, secondPath))
     {
         return sNotChecked;
     }
 
-    mode_t mode = get_mode(reportPath.c_str());
+    if (mode == 0)
+    {
+        // Mode hasn't been computed yet. Let's do it here.
+        mode = get_mode(reportPath.c_str());
+    }
 
     std::string execPath = eventType == ES_EVENT_TYPE_NOTIFY_EXEC
         ? reportPath
@@ -291,28 +295,43 @@ AccessCheckResult BxlObserver::report_access(const char *syscallName, IOEvent &e
     return result;
 }
 
-AccessCheckResult BxlObserver::report_access(const char *syscallName, es_event_type_t eventType, const char *pathname, int flags)
+AccessCheckResult BxlObserver::report_access(const char *syscallName, es_event_type_t eventType, const char *pathname, mode_t mode, int flags)
 {
-    return report_access(syscallName, eventType, normalize_path(pathname, flags), "");
+    return report_access(syscallName, eventType, normalize_path(pathname, flags), "", mode);
 }
 
 AccessCheckResult BxlObserver::report_access_fd(const char *syscallName, es_event_type_t eventType, int fd)
 {
+    mode_t mode = get_mode(fd);
+
+    // If this file descriptor is a non-file (e.g., a pipe, or socket, etc.) then we don't care about it
+    if (is_non_file(mode))
+    {
+        return sNotChecked;
+    }
+
     std::string fullpath = fd_to_path(fd);
-    return fullpath[0] == '/'
-        ? report_access(syscallName, eventType, fullpath, empty_str_)
-        : sNotChecked; // this file descriptor is a non-file (e.g., a pipe, or socket, etc.) so we don't care about it
+    
+    return report_access(syscallName, eventType, fullpath, empty_str_, mode);
+}
+
+bool BxlObserver::is_non_file(const mode_t mode)
+{
+    // Observe we don't care about block devices here. It is unlikely that we'll support them e2e, this is just an FYI.
+    return mode != 0 && !S_ISDIR(mode) && !S_ISREG(mode) && !S_ISLNK(mode);
 }
 
 AccessCheckResult BxlObserver::report_access_at(const char *syscallName, es_event_type_t eventType, int dirfd, const char *pathname, int flags)
 {
     if (pathname[0] == '/')
     {
-        return report_access(syscallName, eventType, pathname, flags);
+        return report_access(syscallName, eventType, pathname, /* mode */0, flags);
     }
 
     char fullpath[PATH_MAX] = {0};
     ssize_t len = 0;
+
+    mode_t mode = 0;
 
     if (dirfd == AT_FDCWD)
     {
@@ -324,6 +343,14 @@ AccessCheckResult BxlObserver::report_access_at(const char *syscallName, es_even
     }
     else
     {
+        mode = get_mode(dirfd);
+
+        // If this file descriptor is a non-file (e.g., a pipe, or socket, etc.) then we don't care about it
+        if (is_non_file(mode)) 
+        {
+            return sNotChecked;
+        }
+    
         std::string dirPath = fd_to_path(dirfd);
         len = dirPath.length();
         strcpy(fullpath, dirPath.c_str());
@@ -335,7 +362,7 @@ AccessCheckResult BxlObserver::report_access_at(const char *syscallName, es_even
     }
 
     snprintf(&fullpath[len], PATH_MAX - len, "/%s", pathname);
-    return report_access(syscallName, eventType, fullpath, flags);
+    return report_access(syscallName, eventType, fullpath, flags, mode);
 }
 
 AccessCheckResult BxlObserver::report_firstAllowWriteCheck(const char *fullPath)
@@ -415,6 +442,11 @@ std::string BxlObserver::fd_to_path(int fd)
 
 std::string BxlObserver::normalize_path_at(int dirfd, const char *pathname, int oflags)
 {
+    // Observe that dirfd is assumed to point to a directory file descriptor. Under that assumption, it is safe to call fd_to_path for it.
+    // TODO: If we wanted to be very defensive, we could also consider the case of some tool invoking any of the *at(... dirfd ...) family with a 
+    // descriptor that corresponds to a non-file. This would cause the call to fail, but it might poison the file descriptor table with a non-file
+    // descriptor for which we could end up not invalidating it properly.
+
     // no pathname given --> read path for dirfd
     if (pathname == NULL)
     {

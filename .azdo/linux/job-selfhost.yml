@@ -112,7 +112,7 @@ jobs:
       
   - bash: |
       echo "== Deleting Out/frontend/Nuget/tmp, Out/bin, Out/Bootstrap folders to reduce the size of the NuGet cache dir"
-      rm -rf Out/frontend/Nuget/tmp Out/Objects.noindex Out/bin Out/BootStrap
+      rm -rf Out/frontend/Nuget/tmp Out/Objects Out/bin Out/BootStrap
       rm -rf Out/Bin
       echo "== Disk usage of folders in Out"
       du -sh Out/*
@@ -173,7 +173,7 @@ jobs:
     displayName: Publish Test Results
     inputs:
       testResultsFormat: XUnit
-      testResultsFiles: 'Out/Objects.noindex/**/xunit-logs/**/xunit*.xml'
+      testResultsFiles: 'Out/Objects/**/xunit-logs/**/xunit*.xml'
     condition: always()
     continueOnError: true
 

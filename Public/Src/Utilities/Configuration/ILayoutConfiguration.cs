@@ -101,6 +101,9 @@ namespace BuildXL.Utilities.Configuration
         /// Indicates if the engine should emit a warning to let users know that Spotlight indexing on layout configuration
         /// directories could decrease build performance, on by default.
         /// </summary>
+        /// <remarks>
+        /// This configuration only takes effect on macOS builds
+        /// </remarks>
         bool EmitSpotlightIndexingWarning { get; }
         
         /// <summary>

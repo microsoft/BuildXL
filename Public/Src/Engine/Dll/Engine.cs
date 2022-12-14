@@ -613,7 +613,7 @@ namespace BuildXL.Engine
 
         private static AbsolutePath AppendNoIndexSuffixToLayoutDirectoryIfNeeded(PathTable pathTable, AbsolutePath directory, ILayoutConfiguration layout, bool inTestMode)
         {
-            if (OperatingSystemHelper.IsUnixOS && !inTestMode)
+            if (OperatingSystemHelper.IsMacOS && !inTestMode)
             {
                 if (PathAtom.TryCreate(pathTable.StringTable, Strings.Layout_DefaultNoIndexSuffix, out var suffix))
                 {
@@ -1817,7 +1817,7 @@ namespace BuildXL.Engine
             }
             else
             {
-                if (Configuration.Layout.EmitSpotlightIndexingWarning)
+                if (OperatingSystemHelper.IsMacOS && Configuration.Layout.EmitSpotlightIndexingWarning)
                 {
                     CheckArtifactFolersAndEmitNoIndexWarning(
                         Context.PathTable,

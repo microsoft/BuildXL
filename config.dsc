@@ -656,7 +656,7 @@ config({
         {
             // Special scrubbable mount with the content that can be cleaned up by running bxl.exe /scrub
             name: a`ScrubbableDeployment`,
-            path: Context.getCurrentHost().os === "win" ? p`Out/Objects/TempDeployment` : p`Out/Objects.noindex/TempDeployment`,
+            path: Context.getCurrentHost().os !== "macOS" ? p`Out/Objects/TempDeployment` : p`Out/Objects.noindex/TempDeployment`,
             trackSourceFileChanges: true,
             isWritable: true,
             isReadable: true,

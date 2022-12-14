@@ -677,7 +677,7 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
     <value>Specifies the maximum concurrency level for constructing the pip graph in the FrontEnd. The default value is 25% more than the total number of processors in the current machine. (short form: /mf)</value>
   </data>
   <data name="HelpText_DisplayHelp_EmitSpotlightIndexingWarning" xml:space="preserve">
-    <value>Controls if the engine should emit a warning that indicates that artifact folders are indexed by Spotlight. This flag is on by default.</value>
+    <value>(MacOS only) Controls if the engine should emit a warning that indicates that artifact folders are indexed by Spotlight. This flag is on by default.</value>
   </data>
   <data name="HelpText_DisplayHelp_DisableConHostSharing" xml:space="preserve">
     <value>Disables sharing of the Windows ConHost process between pips. Defaults to sharing enabled.</value>

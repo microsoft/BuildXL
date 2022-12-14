@@ -429,9 +429,8 @@ namespace Test.BuildXL.EngineTests
             }
         }
 
-        // While this tests succeeds with a debugger attached, it fails when ran through BuildXL on macOS, keep it windows-only for now
-        // TODO: Re-enable this for Linux, EmitSpotlightIndexingWarning is not logged. Work Item#1984802
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        // [FactIfSupported(requiresMacOperatingSystem:: true)]
+        [Fact(Skip = "While this tests succeeds with a debugger attached, it fails when ran through BuildXL on macOS")]
         public void TestSpotlightCheck()
         {
             PathTable pt = new PathTable();

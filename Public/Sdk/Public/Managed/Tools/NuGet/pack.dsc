@@ -20,6 +20,9 @@ export const tool : Transformer.ToolDefinition = {
     dependsOnWindowsDirectories: true,
     dependsOnAppDataDirectory: true,
     prepareTempDirectory: true,
+    runtimeDependencies: [
+        ...addIfLazy(Context.isWindowsOS(), () => [Nuget.Contents.all.getFile(r`tools/Nuget.pdb`)]),
+    ],
 };
 
 @@public

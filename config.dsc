@@ -289,7 +289,7 @@ config({
                 { id: "Microsoft.ApplicationInsights.PerfCounterCollector", version: "2.3.0" },
                 { id: "Microsoft.ApplicationInsights.WindowsServer", version: "2.3.0" },
                 { id: "Microsoft.ApplicationInsights.WindowsServer.TelemetryChannel", version: "2.3.0" },
-                { id: "System.Security.Cryptography.Xml", version: "4.5.0" },
+                { id: "System.Security.Cryptography.Xml", version: "4.7.1" },
                 { id: "System.Text.Encodings.Web", version: "4.7.2" },
                 { id: "System.Security.Permissions", version: "4.5.0" },
                 { id: "System.Security.Cryptography.Pkcs", version: "4.5.0" },

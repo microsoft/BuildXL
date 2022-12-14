@@ -4,9 +4,6 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using System.Diagnostics.ContractsLight;
-using System.Diagnostics.SymbolStore;
-using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -17,7 +14,6 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Synchronization;
@@ -32,9 +28,9 @@ using BuildXL.Engine.Cache.KeyValueStores;
 using BuildXL.Native.IO;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
-using BuildXL.Utilities.Serialization;
 using BuildXL.Utilities.Tasks;
 using RocksDbSharp;
+using static BuildXL.Cache.ContentStore.Distributed.MetadataService.RocksDbOperations;
 using static BuildXL.Engine.Cache.KeyValueStores.RocksDbStore;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 
@@ -42,8 +38,6 @@ using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePa
 
 namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 {
-    using static RocksDbOperations;
-
     public class RocksDbContentMetadataDatabaseConfiguration : RocksDbContentLocationDatabaseConfiguration
     {
         public RocksDbContentMetadataDatabaseConfiguration(AbsolutePath storeLocation)
@@ -60,7 +54,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
     }
 
     /// <summary>
-    /// RocksDb-based version of <see cref="ContentLocationDatabase"/>.
+    /// RocksDb-based version of <see cref="ContentLocationDatabase"/> used by the global location store.
     /// </summary>
     public class RocksDbContentMetadataDatabase : ContentLocationDatabase
     {
@@ -289,23 +283,27 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                 var dbAlreadyExists = Directory.Exists(storeLocation);
                 Directory.CreateDirectory(storeLocation);
 
-                Tracer.Info(context, $"Creating RocksDb store at '{storeLocation}'. Clean={clean}, Configured Epoch='{_configuration.Epoch}'");
+                var settings = new RocksDbStoreConfiguration(storeLocation)
+                               {
+                                   AdditionalColumns = ColumnNames.SelectMany(n => n),
+                                   RotateLogsMaxFileSizeBytes = 0L,
+                                   RotateLogsNumFiles = 60,
+                                   RotateLogsMaxAge = TimeSpan.FromHours(12),
+                                   EnableStatistics = true,
+                                   FastOpen = true,
+                                   LeveledCompactionDynamicLevelTargetSizes = true,
+                                   Compression = Compression.Zstd,
+                                   UseReadOptionsWithSetTotalOrderSeekInDbEnumeration = true,
+                                   UseReadOptionsWithSetTotalOrderSeekInGarbageCollection = true,
+                                   MergeOperators = GetMergeOperators()
+                               };
+
+                RocksDbUtilities.ConfigureRocksDbTracingIfNeeded(context, _configuration, settings, Tracer, componentName: nameof(RocksDbContentMetadataDatabase));
+
+                Tracer.Info(context, $"Creating RocksDb store at '{storeLocation}'. Clean={clean}, Configured Epoch='{_configuration.Epoch}', TracingLevel={_configuration.RocksDbTracingLevel}");
 
                 var possibleStore = KeyValueStoreAccessor.Open(
-                    new RocksDbStoreConfiguration(storeLocation)
-                    {
-                        AdditionalColumns = ColumnNames.SelectMany(n => n),
-                        RotateLogsMaxFileSizeBytes = 0L,
-                        RotateLogsNumFiles = 60,
-                        RotateLogsMaxAge = TimeSpan.FromHours(12),
-                        EnableStatistics = true,
-                        FastOpen = true,
-                        LeveledCompactionDynamicLevelTargetSizes = true,
-                        Compression = Compression.Zstd,
-                        UseReadOptionsWithSetTotalOrderSeekInDbEnumeration = true,
-                        UseReadOptionsWithSetTotalOrderSeekInGarbageCollection = true,
-                        MergeOperators = GetMergeOperators()
-                    },
+                    settings,
                     // When an exception is caught from within methods using the database, this handler is called to
                     // decide whether the exception should be rethrown in user code, and the database invalidated. Our
                     // policy is to only invalidate if it is an exception coming from RocksDb, but not from our code.

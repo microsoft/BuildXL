@@ -220,6 +220,21 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public bool? TraceStateChangeDatabaseOperations { get; set; }
 
+        /// <summary>
+        /// Defines a tracing level used by RocksDb logging adapter.
+        /// </summary>
+        /// <remarks>
+        /// See RocksDbSharp.LogLevel. The levels are:
+        /// 0 - Debug,
+        /// 1 - Info,
+        /// 2 - Warn,
+        /// 3 - Error,
+        /// 4 - Fatal,
+        /// 5 - Header
+        /// </remarks>
+        [DataMember]
+        public int? ContentLocationDatabaseRocksDbTracingLevel { get; set; } = 1;
+
         [DataMember]
         public bool TraceTouches { get; set; } = true;
 
@@ -960,6 +975,10 @@ namespace BuildXL.Cache.Host.Configuration
 
         [DataMember]
         public bool ContentMetadataUseMergeWrites { get; set; }
+
+        /// <inheritdoc cref="ContentLocationDatabaseRocksDbTracingLevel"/>
+        [DataMember]
+        public int? ContentMetadataDatabaseRocksDbTracingLevel { get; set; }
 
         [DataMember]
         public string ContentMetadataBlobSecretName { get; set; }

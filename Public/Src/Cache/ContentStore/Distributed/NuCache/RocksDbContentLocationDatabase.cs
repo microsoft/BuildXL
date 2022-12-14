@@ -9,6 +9,8 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Distributed.MetadataService;
+using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Synchronization;
@@ -210,7 +212,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 bool dbAlreadyExists = Directory.Exists(storeLocation);
                 Directory.CreateDirectory(storeLocation);
 
-                Tracer.Info(context, $"Creating RocksDb store at '{storeLocation}'. Clean={clean}, UseMergeOperators={_configuration.UseMergeOperatorForContentLocations}, Configured Epoch='{_configuration.Epoch}'");
+                Tracer.Info(context, $"Creating RocksDb store at '{storeLocation}'. Clean={clean}, UseMergeOperators={_configuration.UseMergeOperatorForContentLocations}, Configured Epoch='{_configuration.Epoch}', TracingLevel={_configuration.RocksDbTracingLevel}");
 
                 var settings = new RocksDbStoreConfiguration(storeLocation)
                 {
@@ -239,6 +241,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     UseReadOptionsWithSetTotalOrderSeekInDbEnumeration = _configuration.UseReadOptionsWithSetTotalOrderSeekInDbEnumeration,
                     UseReadOptionsWithSetTotalOrderSeekInGarbageCollection = _configuration.UseReadOptionsWithSetTotalOrderSeekInGarbageCollection,
                 };
+
+                RocksDbUtilities.ConfigureRocksDbTracingIfNeeded(context, _configuration, settings, Tracer, componentName: nameof(RocksDbContentLocationDatabase));
 
                 if (_configuration.UseMergeOperatorForContentLocations)
                 {

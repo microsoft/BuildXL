@@ -113,6 +113,8 @@ namespace BuildXL.Engine.Cache.KeyValueStores
 
         private readonly RocksDbStoreConfiguration? m_options;
 
+        private readonly RocksDbLoggingAdapter? m_loggingAdapter;
+
         /// <summary>
         /// Encapsulates <see cref="RocksDb"/> options that should be set.
         /// </summary>
@@ -153,6 +155,12 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                 //   return this;
                 // }
                 .IncreaseParallelism(performanceConfiguration.GetBackgroundCompactionActualThreadCount());
+
+            if (configuration.HandleLogMessage != null)
+            {
+                m_loggingAdapter = new RocksDbLoggingAdapter(configuration.HandleLogMessage);
+                m_defaults.DbOptions = m_defaults.DbOptions.SetInfoLog(m_loggingAdapter);
+            }
 
             if (performanceConfiguration.DbWriteBufferSize is { } dbWriteBufferSize)
             {
@@ -235,6 +243,11 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                     .SetBlockBasedTableFactory(blockBasedTableOptions)
                     .SetPrefixExtractor(SliceTransform.CreateNoOp())
                     .SetLevelCompactionDynamicLevelBytes(configuration.LeveledCompactionDynamicLevelTargetSizes);
+
+                if (configuration.HandleLogMessage != null)
+                {
+                    options = options.SetInfoLogLevel((int)configuration.LogLevel);
+                }
 
                 ColumnFamilyPerformanceConfiguration? perfConfiguration = null;
                 if (name != null)
@@ -952,7 +965,9 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                     }
                 }
 
+                // Disabling the log to avoid execution engine exceptions by calling deleted delegates
                 m_store.Dispose();
+                m_loggingAdapter?.Dispose();
             }
             else
             {

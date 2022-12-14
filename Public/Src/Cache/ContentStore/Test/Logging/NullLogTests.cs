@@ -23,7 +23,7 @@ namespace ContentStoreTest.Logging
         [Fact]
         public void UsingPatternSupported()
         {
-            using (new NullLog())
+            using (new NullLog(Severity.Diagnostic))
             {
             }
         }

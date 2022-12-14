@@ -12,6 +12,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.InterfacesTest;
+using BuildXL.Cache.ContentStore.Logging;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
@@ -520,6 +521,34 @@ namespace BuildXL.Cache.ContentStore.Test.Tracing
             var fullOutput = GetFullOutput();
             fullOutput.Should().Contain("ExtraFailure");
             fullOutput.Should().Contain("Error42");
+        }
+
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void EndMessageFactoryBehaviorForSuccessfulCase(bool theCallbackShouldBeCalled)
+        {
+            // In prod the tracing level is Debug, so the message factory is not called.
+
+            // The callback should be called for Diagnostics severity but not for the higher severities.
+            Severity severity = theCallbackShouldBeCalled ? Severity.Diagnostic : Severity.Debug;
+            var tracer = new Tracer("MyTracer");
+            var context = new OperationContext(new Context(new TestGlobal.TestLogger(new NullLog(severity))));
+            bool endMessageFactoryWasCalled = false;
+            var result = context.CreateOperation(
+                    tracer,
+                    () =>
+                    {
+                        return new Result<int>(42);
+                    })
+                .WithOptions(endMessageFactory: r =>
+                                                {
+                                                    endMessageFactoryWasCalled = true;
+                                                    return r.Succeeded ? "ExtraSuccess" : "ExtraFailure";
+                                                }, traceErrorsOnly: true)
+                .Run();
+
+            endMessageFactoryWasCalled.Should().Be(theCallbackShouldBeCalled);
         }
 
         [Fact]

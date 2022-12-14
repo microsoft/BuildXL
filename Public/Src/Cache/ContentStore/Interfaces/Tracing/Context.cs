@@ -287,6 +287,8 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
         /// </summary>
         public bool RequiresMessage(ResultBase result, bool traceErrorsOnly)
         {
+            // Diagnostic level message is not on in prod, so in practice the end message factory is not
+            // called when 'traceErrorsOnly' flag is true.
             return !traceErrorsOnly || !result.Succeeded || IsSeverityEnabled(Severity.Diagnostic);
         }
 

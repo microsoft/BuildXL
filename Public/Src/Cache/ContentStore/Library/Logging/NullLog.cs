@@ -14,10 +14,15 @@ namespace BuildXL.Cache.ContentStore.Logging
         /// <summary>
         ///     Shared default instance.
         /// </summary>
-        public static readonly ILog Instance = new NullLog();
+        public static readonly ILog Instance = new NullLog(Severity.Diagnostic);
+
+        public NullLog(Severity severity)
+        {
+            CurrentSeverity = severity;
+        }
 
         /// <inheritdoc />
-        public Severity CurrentSeverity => Severity.Diagnostic;
+        public Severity CurrentSeverity { get; }
 
         /// <inheritdoc />
         public void Flush()

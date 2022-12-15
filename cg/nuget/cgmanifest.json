@@ -2796,7 +2796,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Strings.Interop",
-          "Version": "1.5.0-alpha-0100-g6ee5829558"
+          "Version": "1.10.0"
         }
       }
     },

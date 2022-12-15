@@ -4,7 +4,7 @@ using System.Collections.Concurrent;
 using System.Linq;
 using BuildXL.Pips.Graph;
 using BuildXL.Utilities.Tracing;
-#if MICROSOFT_INTERNAL
+#if (MICROSOFT_INTERNAL && NETCOREAPP)
 using Microsoft.Security.CredScan.ClientLib;
 using Microsoft.Security.CredScan.KnowledgeBase.Client;
 #endif
@@ -32,7 +32,7 @@ namespace BuildXL.Pips.Builders
         /// </summary>
         public CounterCollection<CredScanCounter> Counters;
 
-#if MICROSOFT_INTERNAL
+#if (MICROSOFT_INTERNAL && NETCOREAPP)
         /// <summary>
         /// CredentialScannerFactory object
         /// </summary>
@@ -45,7 +45,7 @@ namespace BuildXL.Pips.Builders
         /// <param name="enableCredScan"></param>
         public CredentialScanner(bool enableCredScan)
         {
-#if MICROSOFT_INTERNAL
+#if (MICROSOFT_INTERNAL && NETCOREAPP)
             EnableCredScan = enableCredScan;
             if (enableCredScan)
             {
@@ -60,7 +60,7 @@ namespace BuildXL.Pips.Builders
         /// </summary>
         public bool CredentialsDetected(string envVarKey, string envVarValue)
         {
-#if MICROSOFT_INTERNAL
+#if (MICROSOFT_INTERNAL && NETCOREAPP)
             // Converting the env variable into the below pattern.
             // Ex: string input = "password: Cr3d5c@n_D3m0_P@55w0rd";
             // The above example is one of the suggested patterns to represent the input string which is to be passed to the CredScan method.

@@ -1543,7 +1543,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             }
         }
 
-#if MICROSOFT_INTERNAL
+#if (MICROSOFT_INTERNAL && NETCOREAPP)
         /// <summary>
         /// This test to ensure that CredentialScanner detects the credentials when passed in environment variables and logs a warning in this case.
         /// Most of these test cases are an assumption of what the credentialscanner might or might not detect as a credential.
@@ -1572,7 +1572,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 #endif
 
-#if MICROSOFT_INTERNAL
+#if (MICROSOFT_INTERNAL && NETCOREAPP)
         /// <summary>
         /// /credScanEnvironmentVariablesAllowList flag allows the user to pass envVars which needs to be skipped by the CredScan library.
         /// This test used to test if that functionality is working or not.

@@ -88,7 +88,7 @@ export const pkgs = isMicrosoftInternal ? [
     { id: "Microsoft.Internal.Analyzers", version: "2.6.11"},
 
     // CredScan
-    { id: "Strings.Interop", version: "1.5.0-alpha-0100-g6ee5829558" },
+    { id: "Strings.Interop", version: "1.10.0" },
     { id: "RE2.Managed", version: "1.10.0" },
     { id: "Microsoft.Automata.SRM", version: "2.0.0-alpha3", dependentPackageIdsToSkip: ["System.Collections.Immutable"] },
     { id: "Crc32.NET", version: "1.2.0" },

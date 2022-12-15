@@ -156,6 +156,11 @@ namespace BuildXL.AdoBuildRunner
         public const string MaximumWaitForWorkerSecondsVariableName = "MaximumWaitForWorkerSeconds";
 
         /// <summary>
+        /// The maximum time an agent waits for the other agents to get ready before failing
+        /// </summary>
+        public const string WaitForOrchestratorExitVariableName = "AdoBuildRunnerWaitForOrchestratorExit";
+
+        /// <summary>
         /// The time the agent waits before re-checking if the other agents are ready
         /// </summary>
         public const int PollRetryPeriodInSeconds = 20;

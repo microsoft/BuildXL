@@ -106,7 +106,7 @@ namespace BuildXL.AdoBuildRunner.Build
                 LogExitCode(returnCode);
                 PublishRoleInEnvironment(isOrchestrator: false);
 
-                if (returnCode == 0)
+                if (returnCode == 0 && Environment.GetEnvironmentVariable(Constants.WaitForOrchestratorExitVariableName) == "true")
                 {
                     // If the worker finished successfully but the build fails, we still want to fail this task
                     // so the task can be retried as a distributed build with the same number of workers by

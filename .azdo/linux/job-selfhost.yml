@@ -168,6 +168,7 @@ jobs:
       PATCloudBuild: $(PAT-TseBuild-AzureDevOps-CloudBuild-Packaging-Read)
       VSTSPERSONALACCESSTOKEN: $(PAT-TseBuild-AzureDevOps-mseng-buildcache)
       SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+      AdoBuildRunnerWaitForOrchestratorExit: true
 
   - task: PublishTestResults@2
     displayName: Publish Test Results

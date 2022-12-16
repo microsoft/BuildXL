@@ -378,6 +378,11 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// </remarks>
         public bool TraceInactiveMachinesForGlobalLocations { get; set; }
 
+        /// <summary>
+        /// Whether to eagerly delete locations from GCS when evictions happen.
+        /// </summary>
+        public bool OnEvictionDeleteLocationFromGCS { get; set; }
+
         public LocalLocationStoreSettings Settings { get; set; } = new();
     }
 

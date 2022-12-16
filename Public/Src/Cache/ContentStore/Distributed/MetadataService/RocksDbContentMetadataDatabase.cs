@@ -902,6 +902,40 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             }
         }
 
+        public bool LocationRemoved(OperationContext context, MachineId machine, IReadOnlyList<ShortHash> hashes)
+        {
+            if (_configuration.UseMergeOperators)
+            {
+                return _keyValueStore.Use(
+                    static (store, state) =>
+                    {
+                        store.ApplyBatch(
+                            state,
+                            state.db.NameOf(Columns.MergeContent),
+                            static (batch, state, columnHandle) =>
+                            {
+                                var columnWriter = new RocksDbColumnWriter(batch, columnHandle);
+
+                                foreach (var hash in state.hashes.AsStructEnumerable())
+                                {
+                                    columnWriter.MergeLocationEntry(hash, state.machine, default, isRemove: true);
+                                }
+                            });
+
+                        return true;
+                    },
+                    (hashes, machine, db: this)
+                ).ThrowOnError();
+            }
+
+            foreach (var hash in hashes.AsStructEnumerable())
+            {
+                base.LocationRemoved(context, hash, machine);
+            }
+
+            return true;
+        }
+
         private static Span<byte> TrimTrailingZeros(Span<byte> span)
         {
 #if NETCOREAPP

@@ -581,19 +581,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         /// <summary>
         /// Notify that the content specified by the <paramref name="hashes"/> was removed.
         /// </summary>
-        public BoolResult RemoveLocations(OperationContext context, MachineId machine, IReadOnlyList<ContentHash> hashes)
-        {
-            if (hashes.Count == 0)
-            {
-                return BoolResult.Success;
-            }
-
-            return RemoveLocations(context, machine, hashes.SelectList(h => new ShortHash(h)));
-        }
-
-        /// <summary>
-        /// Notify that the content specified by the <paramref name="hashes"/> was removed.
-        /// </summary>
         public BoolResult RemoveLocations(OperationContext context, MachineId machine, IReadOnlyList<ShortHash> hashes, bool reconciling = false)
         {
             if (hashes.Count == 0)

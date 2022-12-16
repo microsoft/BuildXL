@@ -157,7 +157,7 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
                         eventStore.RemoveLocations(
                             context,
                             sender,
-                            sent).ThrowIfFailure();
+                            sent.SelectList(c => c.ToShortHash())).ThrowIfFailure();
 
                         var received = harness.Events.Cast<RemoveContentLocationEventData>().SelectMany(e => e.ContentHashes).ToList();
 

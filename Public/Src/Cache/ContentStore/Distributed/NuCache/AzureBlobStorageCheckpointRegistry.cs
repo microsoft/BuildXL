@@ -211,7 +211,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 Tracer,
                 async context =>
                 {
-                    var blobs = ListBlobsRecentFirstAsync(context)
+                    // The enumeration includes the "latest" blob as the first blob, so we need to increase the
+                    // retention limit by 1.
+                    if (retentionLimit > 0)
+                    {
+                        retentionLimit++;
+                    }
+
+                    var blobs = ListBlobsRecentFirstAsync(context, includeWellknownLatestBlob: true)
                         .Skip(retentionLimit);
 
                     await foreach (var blob in blobs)

@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.MetadataService;
@@ -20,7 +21,6 @@ using BuildXL.Utilities.Tracing;
 using ContentStoreTest.Distributed.Redis;
 using ContentStoreTest.Test;
 using FluentAssertions;
-using Microsoft.VisualBasic;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -43,7 +43,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.MetadataService
             _redisFixture = redis;
         }
 
-        [Fact(Skip = "Flaky test. Work item - 1950089")]
+        [Fact]
         public Task UndefinedRoleDoesNotAnswerRequestsTest()
         {
             return RunTest(async (context, service, iteration) =>
@@ -60,9 +60,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.MetadataService
             });
         }
 
-        [Fact(Skip = "Flaky test. Work item - 1950089")]
+        [Fact]
         public Task SimpleRegisterAndGetTest()
         {
+
             return RunTest(async (context, service, iteration) =>
             {
                 // First heartbeat lets the service know its master, so it's willing to process requests
@@ -70,22 +71,88 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.MetadataService
 
                 var machineId = new MachineId(0);
                 var contentHash = ContentHash.Random();
-                var registerResponse = await service.RegisterContentLocationsAsync(new RegisterContentLocationsRequest() {
+
+                var registerResponse = await service.RegisterContentLocationsAsync(new RegisterContentLocationsRequest()
+                {
                     MachineId = machineId,
                     Hashes = new[] { new ShortHashWithSize(contentHash, 10) },
                 });
+                registerResponse.Succeeded.Should().BeTrue();
+
+                var locations = new ShortHash[] { contentHash };
 
                 var getResponse = await service.GetContentLocationsAsync(new GetContentLocationsRequest()
                 {
-                    Hashes = new ShortHash[] { contentHash },
+                    Hashes = locations,
                 });
                 getResponse.Succeeded.Should().BeTrue();
                 getResponse.Entries.Count.Should().Be(1);
                 getResponse.Entries[0].Locations.Contains(machineId).Should().BeTrue();
+
+                var deleteResponse = await service.DeleteContentLocationsAsync(new DeleteContentLocationsRequest()
+                {
+                    MachineId = machineId,
+                    Hashes = locations,
+                });
+                deleteResponse.Succeeded.Should().BeTrue();
+
+                getResponse = await service.GetContentLocationsAsync(new GetContentLocationsRequest()
+                {
+                    Hashes = locations,
+                });
+                getResponse.Succeeded.Should().BeTrue();
+                getResponse.Entries.Count.Should().Be(1);
+                getResponse.Entries[0].Locations.IsEmpty.Should().BeTrue();
             });
         }
 
-        [Fact(Skip = "Flaky test. Work item - 1950089")]
+        [Fact]
+        public Task RegisterDeleteOrderIsPreservedOnReplay()
+        {
+            var contentHash = ContentHash.Random();
+
+            return RunTest(async (context, service, iteration) =>
+            {
+                // First heartbeat lets the service know its master, so it's willing to process requests
+                await service.OnRoleUpdatedAsync(context, Role.Master);
+
+                if (iteration % 2 == 0)
+                {
+                    var machineId = new MachineId(0);
+                    for (var i = 0; i < 1000; i++)
+                    {
+                        var registerResponse = await service.RegisterContentLocationsAsync(new RegisterContentLocationsRequest()
+                        {
+                            MachineId = machineId,
+                            Hashes = new[] { new ShortHashWithSize(contentHash, 10) },
+                        });
+                        registerResponse.Succeeded.Should().BeTrue();
+
+                        var deleteResponse = await service.DeleteContentLocationsAsync(new DeleteContentLocationsRequest()
+                        {
+                            MachineId = machineId,
+                            Hashes = new ShortHash[] { contentHash },
+                        });
+                        deleteResponse.Succeeded.Should().BeTrue();
+                    }
+                }
+                else
+                {
+                    var getResponse = await service.GetContentLocationsAsync(new GetContentLocationsRequest()
+                        {
+                            Hashes = new ShortHash[] { contentHash },
+                        });
+                    getResponse.Succeeded.Should().BeTrue();
+                    getResponse.Entries.Count.Should().Be(1);
+                    getResponse.Entries[0].Locations.IsEmpty.Should().BeTrue();
+                }
+            }, iterations: 2, modifyConfig: cfg =>
+            {
+                cfg.MaxEventParallelism = 10;
+            });
+        }
+
+        [Fact]
         public Task CheckpointMaxAgeIsRespected()
         {
             var clock = new MemoryClock();
@@ -148,6 +215,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.MetadataService
             clock ??= SystemClock.Instance;
 
             using var azureStorage = AzuriteStorageProcess.CreateAndStartEmpty(_redisFixture, TestGlobal.Logger);
+            using var storage = AzuriteStorageProcess.CreateAndStartEmpty(_redisFixture, TestGlobal.Logger);
 
             var primaryMachineLocation = default(MachineLocation);
 
@@ -157,8 +225,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.MetadataService
                 EventStream = new ContentMetadataEventStreamConfiguration(),
             };
             modifyConfig?.Invoke(contentMetadataServiceConfiguration);
-
-            using var storage = AzuriteStorageProcess.CreateAndStartEmpty(_redisFixture, TestGlobal.Logger);
 
 
             var centralStorage = new Dictionary<string, byte[]>();
@@ -199,12 +265,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.MetadataService
                 var azureBlobStorageCheckpointRegistryConfiguration = new AzureBlobStorageCheckpointRegistryConfiguration()
                 {
                     Credentials = new AzureBlobStorageCredentials(azureStorage.ConnectionString),
-                    ContainerName = "gcsRegistry",
-                    FolderName = "checkpointRegistry",
+                    ContainerName = "gcsregistry",
+                    FolderName = "checkpointregistry",
                 };
                 var blobCheckpointRegistry = new AzureBlobStorageCheckpointRegistry(azureBlobStorageCheckpointRegistryConfiguration, default(MachineLocation), clock);
 
-                var blobCentralStorage = new BlobCentralStorage(new BlobCentralStoreConfiguration(new AzureBlobStorageCredentials(azureStorage.ConnectionString), "gcsCheckpoints", "key"));
+                var blobCentralStorage = new BlobCentralStorage(new BlobCentralStoreConfiguration(new AzureBlobStorageCredentials(azureStorage.ConnectionString), "gcscheckpoints", "key"));
 
                 var checkpointManager = new CheckpointManager(
                     rocksDbContentMetadataStore.Database,

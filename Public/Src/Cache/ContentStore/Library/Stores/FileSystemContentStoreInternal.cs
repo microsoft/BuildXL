@@ -250,7 +250,8 @@ namespace BuildXL.Cache.ContentStore.Stores
             if (_distributedStore != null)
             {
                 await _distributedStore.UnregisterAsync(context, new ContentHash[] { contentHash }, context.Token)
-                    .TraceIfFailure(context);
+                    // Failure should already be traced by the store
+                    .IgnoreFailure();
 
             }
         }

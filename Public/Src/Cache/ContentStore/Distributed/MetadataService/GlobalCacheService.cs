@@ -104,6 +104,23 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             });
         }
 
+        /// <inheritdoc />
+        public Task<DeleteContentLocationsResponse> DeleteContentLocationsAsync(DeleteContentLocationsRequest request, CallContext callContext = default)
+        {
+            return ExecuteAsync(request, callContext, context =>
+            {
+                return Store.DeleteLocationAsync(context, request.MachineId, request.Hashes).AsTask()
+                    .SelectAsync(_ => new DeleteContentLocationsResponse()
+                    {
+                        PersistRequest = true
+                    });
+            },
+            extraEndMessage: r => {
+                var csv = string.Join(",", request.Hashes);
+                return $"MachineId=[{request.MachineId}] Hashes=[{csv}]";
+            });
+        }
+
         public Task<CompareExchangeResponse> CompareExchangeAsync(CompareExchangeRequest request, CallContext callContext = default)
         {
             return ExecuteAsync(request, callContext, context =>

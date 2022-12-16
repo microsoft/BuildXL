@@ -40,6 +40,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         /// because this method can be called a lot at start time of the service.
         /// </remarks>
         ValueTask<BoolResult> RegisterLocationAsync(OperationContext context, MachineId machineId, IReadOnlyList<ShortHashWithSize> contentHashes, bool touch);
+
+        /// <summary>
+        /// Notifies a central store that content represented by <paramref name="contentHashes"/> is unavailable on a current machine.
+        /// </summary>
+        /// <remarks>
+        /// Using <see cref="ValueTask{BoolResult}"/> instead of normal tasks because <see cref="GlobalCacheService.DeleteContentLocationsAsync"/> can
+        /// do the registration synchronously, and using <code>ValueTask</code> allows achieving allocation free implementation that is very useful
+        /// because this method can be called a lot at start time of the service.
+        /// </remarks>
+        ValueTask<BoolResult> DeleteLocationAsync(OperationContext context, MachineId machineId, IReadOnlyList<ShortHash> contentHashes);
     }
 
     public interface IMetadataStore : IStartupShutdownSlim

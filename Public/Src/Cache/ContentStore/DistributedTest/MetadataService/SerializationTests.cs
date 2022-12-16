@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Text;
 using BuildXL.Cache.ContentStore.Distributed.MetadataService;
@@ -84,12 +85,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.MetadataService
             };
 
             var deserialized = Roundtrip(model, obj);
-
-            var b1 = ToByteArray(ms => MetadataServiceSerializer.TypeModel.Serialize(ms, obj));
-            var b2 = ToByteArray(ms => MetadataServiceSerializer.TypeModel.SerializeWithLengthPrefix(ms, obj, typeof(RegisterContentLocationsRequest), PrefixStyle.Base128, 51));
-            var b3 = ToByteArray(ms => MetadataServiceSerializer.TypeModel.SerializeWithLengthPrefix(ms, obj, typeof(RegisterContentLocationsRequest), PrefixStyle.Fixed32, 51));
-
+            Assert.Equal(obj.ContextId, deserialized.ContextId);
+            Assert.Equal(obj.MachineId, deserialized.MachineId);
+            Assert.True(obj.Hashes.SequenceEqual(deserialized.Hashes));
         }
+
+
 
         [Fact]
         public void GetContentLocationsRequestRoundtrip()

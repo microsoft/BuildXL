@@ -268,6 +268,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 EnablePublishingCache = EnablePublishingCache,
 
                 GrpcCopyClientConnectOnStartup = true,
+                OnEvictionDeleteLocationFromGCS = true,
             };
 
             if (ProactiveCopyLocationThreshold.HasValue)

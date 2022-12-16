@@ -590,6 +590,9 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public bool? TraceInactiveMachinesForGlobalLocations { get; set; }
 
+        [DataMember]
+        public bool? OnEvictionDeleteLocationFromGCS { get; set; }
+
         #region Content Location Database
 
         [DataMember]

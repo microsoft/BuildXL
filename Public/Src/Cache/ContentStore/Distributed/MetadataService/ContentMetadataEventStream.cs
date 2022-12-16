@@ -146,7 +146,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         long bytes = 0;
                         lastWriteBehindBlock = -1;
                         int foundBlocks = 0;
-                        bool hasWriteBehindLog = false;
                         bool isSealed = false;
 
                         // Read the log events from write behind store
@@ -159,7 +158,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                                 var writeBehindResult = await _writeBehindEventStorage.ReadAsync(context, logId).ThrowIfFailureAsync();
                                 if (writeBehindResult.HasValue)
                                 {
-                                    hasWriteBehindLog = true;
                                     using var writeBehindStream = writeBehindResult.Value;
                                     using var writeBehindReader = BuildXLReader.Create(writeBehindStream);
 
@@ -184,7 +182,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                             caller: "ReadWriteBehindEventsAsync",
                             extraEndMessage: _ => $"IsSealed=[{isSealed}], LogId=[{logId}], BlockId=[{blockId}], Bytes=[{bytes}] Events=[{operationReadEvents}]").IgnoreFailure();
 
-                        if (!isSealed && hasWriteBehindLog)
+                        if (!isSealed)
                         {
                             // The log isn't sealed in the writeBehind storage. Writer likely crashed and didn't get to seal,
                             // so we need to recover log entries for confirmed transactions from global store.

@@ -1063,7 +1063,7 @@ namespace ContentStoreTest.Distributed.Sessions
                         var threshold = (int)(orderedHashes.Count * 0.99);
                         descendingAges.Should().BeGreaterThan(threshold);
                     }
-                    
+
                     await Task.Yield();
                 });
         }
@@ -2167,7 +2167,11 @@ namespace ContentStoreTest.Distributed.Sessions
         [Fact]
         public Task EventStreamContentLocationStoreBasicTests()
         {
-            ConfigureWithOneMaster();
+            ConfigureWithOneMaster(
+                d =>
+                {
+                    d.OnEvictionDeleteLocationFromGCS = false;
+                });
 
             return RunTestAsync(
                 3,

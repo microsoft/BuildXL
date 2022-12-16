@@ -173,6 +173,27 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                 }));
         }
 
+        public ValueTask<BoolResult> DeleteLocationAsync(OperationContext context, MachineId machineId, IReadOnlyList<ShortHash> contentHashes)
+        {
+            return new ValueTask<BoolResult>(
+                ExecuteAsync(context, async (context, callOptions, service) =>
+                {
+                    var response = await service.DeleteContentLocationsAsync(new DeleteContentLocationsRequest()
+                    {
+                        ContextId = context.TracingContext.TraceId,
+                        Hashes = contentHashes,
+                        MachineId = machineId,
+                    }, callOptions);
+
+                    return response.ToBoolResult();
+                },
+                extraEndMessage: _ =>
+                {
+                    var csv = string.Join(",", contentHashes);
+                    return $"MachineId=[{machineId}] Hashes=(#{contentHashes.Count})[{csv}]";
+                }));
+        }
+
         public Task<Result<bool>> CompareExchangeAsync(
             OperationContext context,
             StrongFingerprint strongFingerprint,

@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Hashing;
@@ -12,6 +13,14 @@ using ProtoBuf;
 
 namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 {
+    /// <summary>
+    /// WARNING: do NOT re-use ints here, these are serialized into persistent storage, so re-using can lead to
+    /// unexpected semantics.
+    /// </summary>
+    /// <remarks>
+    /// WARNING: any method added here must also be handled in the <see cref="ResilientGlobalCacheService"/> when doing
+    /// event replay.
+    /// </remarks>
     public enum RpcMethodId
     {
         None,
@@ -22,6 +31,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         CompareExchange,
         GetLevelSelectors,
         GetContentHashList,
+        DeleteContentLocations,
     }
 
     public static class ServiceRequestExtensions
@@ -78,6 +88,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
     [ProtoInclude(15, typeof(CompareExchangeRequest))]
     [ProtoInclude(16, typeof(GetLevelSelectorsRequest))]
     // WARNING: 17 and 18 are reserved for past backwards-compatibility
+    [ProtoInclude(19, typeof(DeleteContentLocationsRequest))]
     public abstract record ServiceRequestBase
     {
         public virtual RpcMethodId MethodId => RpcMethodId.None;
@@ -108,6 +119,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
     [ProtoInclude(15, typeof(CompareExchangeResponse))]
     [ProtoInclude(16, typeof(GetLevelSelectorsResponse))]
     // WARNING: 17 and 18 are reserved for past backwards-compatibility
+    [ProtoInclude(19, typeof(DeleteContentLocationsResponse))]
     public record ServiceResponseBase
     {
         public virtual RpcMethodId MethodId => RpcMethodId.None;
@@ -163,6 +175,24 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
     public record RegisterContentLocationsResponse : ServiceResponseBase
     {
         public override RpcMethodId MethodId => RpcMethodId.RegisterContentLocations;
+    }
+
+    [ProtoContract]
+    public record DeleteContentLocationsRequest : ServiceRequestBase
+    {
+        public override RpcMethodId MethodId => RpcMethodId.DeleteContentLocations;
+
+        [ProtoMember(1)]
+        public IReadOnlyList<ShortHash> Hashes { get; init; } = new List<ShortHash>();
+
+        [ProtoMember(2)]
+        public MachineId MachineId { get; init; }
+    }
+
+    [ProtoContract]
+    public record DeleteContentLocationsResponse : ServiceResponseBase
+    {
+        public override RpcMethodId MethodId => RpcMethodId.DeleteContentLocations;
     }
 
     [ProtoContract]

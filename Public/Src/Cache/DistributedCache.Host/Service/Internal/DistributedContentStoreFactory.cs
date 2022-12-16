@@ -219,6 +219,7 @@ namespace BuildXL.Cache.Host.Service.Internal
             ApplyIfNotNull(_distributedSettings.ShouldFilterInactiveMachinesInLocalLocationStore, v => result.ShouldFilterInactiveMachinesInLocalLocationStore = v);
             ApplyIfNotNull(_distributedSettings.FilterInactiveMachinesForGlobalLocations, v => result.FilterInactiveMachinesForGlobalLocations = v);
             ApplyIfNotNull(_distributedSettings.TraceInactiveMachinesForGlobalLocations, v => result.TraceInactiveMachinesForGlobalLocations = v);
+            ApplyIfNotNull(_distributedSettings.OnEvictionDeleteLocationFromGCS, v => result.OnEvictionDeleteLocationFromGCS = v);
 
             ApplyIfNotNull(_distributedSettings.LocationStoreSettings, v => result.Settings = v);
 

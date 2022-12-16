@@ -1456,21 +1456,20 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <nodoc />
         public async Task<BoolResult> TrimBulkAsync(OperationContext context, MachineId machineId, IReadOnlyList<ContentHash> contentHashes)
         {
-            Contract.Requires(contentHashes != null);
-
             if (HasResult(await PrepareForWriteAsync(contentHashes), out var result))
             {
                 return result;
             }
 
-            foreach (var contentHashesPage in contentHashes.GetPages(100))
+            var shortHashes = contentHashes.SelectList(c => c.AsShortHash());
+            foreach (var shortHashesPage in shortHashes.GetPages(100))
             {
-                context.TracingContext.Debug($"LocalLocationStore.TrimBulk({contentHashesPage.GetShortHashesTraceString()})", component: nameof(LocalLocationStore));
+                context.TracingContext.Debug($"LocalLocationStore.TrimBulk({shortHashesPage.GetShortHashesTraceString()})", component: nameof(LocalLocationStore));
             }
 
-            return context.PerformOperation(
+            return await context.PerformOperationAsync(
                 Tracer,
-                () =>
+                async () =>
                 {
                     foreach (var hash in contentHashes)
                     {
@@ -1481,7 +1480,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     }
 
                     // Send remove event for hashes
-                    return EventStore.RemoveLocations(context, machineId, contentHashes);
+                    var result = EventStore.RemoveLocations(context, machineId, shortHashes);
+
+                    if (Configuration.OnEvictionDeleteLocationFromGCS)
+                    {
+                        result &= await GlobalCacheStore.DeleteLocationAsync(context, machineId, shortHashes);
+                    }
+                    
+                    return result;
                 },
                 Counters[ContentLocationStoreCounters.TrimBulkLocal]);
         }

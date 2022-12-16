@@ -13,8 +13,10 @@ using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
+using BuildXL.Cache.ContentStore.Synchronization;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
+using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Utilities;
 using BuildXL.Utilities.ParallelAlgorithms;
@@ -28,7 +30,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 
         public bool EnableBackgroundRestoreCheckpoint { get; init; }
 
-        public int MaxEventParallelism { get; init; }
+        public int MaxEventParallelism { get; set; }
 
         public TimeSpan MasterLeaseStaleThreshold { get; init; } = Timeout.InfiniteTimeSpan;
 
@@ -446,17 +448,31 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                         startReadLogId = logId.Next();
                     }
 
-                    var requestChannel = Channel.CreateBounded<ServiceRequestBase>(1000);
-                    var dispatchTasks = Enumerable.Range(0, _configuration.MaxEventParallelism).Select(_ => DispatchAsync(context, requestChannel.Reader)).ToArray();
+                    var dispatch = Enumerable.Range(0, _configuration.MaxEventParallelism).Select(_ =>
+                    {
+                        var requestChannel = Channel.CreateBounded<ServiceRequestBase>(1000);
+                        var dispatchTask = DispatchAsync(context, requestChannel.Reader);
+                        return (Channel: requestChannel, Task: dispatchTask);
+                    }).ToArray();
 
                     var startWriteLogId = await _eventStream.ReadEventsAsync(
                         context,
                         startReadLogId,
-                        request => requestChannel.Writer.WriteAsync(request, context.Token)).ThrowIfFailureAsync();
+                        request =>
+                        {
+                            // We want to process requests that were from the same machine in the same order to prevent
+                            // adds and removes from getting reordered and causing inaccuracies.
+                            var key = DispatchKey(request, _configuration.MaxEventParallelism);
+                            var channel = dispatch[key].Channel;
+                            return channel.Writer.WriteAsync(request, context.Token);
+                        }).ThrowIfFailureAsync();
 
-                    requestChannel.Writer.Complete();
+                    foreach (var entry in dispatch)
+                    {
+                        entry.Channel.Writer.Complete();
+                    }
 
-                    await Task.WhenAll(dispatchTasks);
+                    await Task.WhenAll(dispatch.Select(e => e.Task));
 
                     await _eventStream.CompleteOrChangeLogAsync(context, startWriteLogId);
 
@@ -527,6 +543,38 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             }
         }
 
+        private int DispatchKey(ServiceRequestBase request, int maximum)
+        {
+            int key;
+            switch (request.MethodId)
+            {
+                case RpcMethodId.RegisterContentLocations:
+                {
+                    var rq = (RegisterContentLocationsRequest)request;
+                    key = rq.MachineId.Index;
+                    break;
+                }
+                case RpcMethodId.DeleteContentLocations:
+                {
+                    var rq = (DeleteContentLocationsRequest)request;
+                    key = rq.MachineId.Index;
+                    break;
+                }
+                case RpcMethodId.CompareExchange:
+                {
+                    var rq = (CompareExchangeRequest)request;
+                    key = rq.StrongFingerprint.GetHashCode();
+                    break;
+                }
+                default:
+                    throw Contract.AssertFailure($"Unhandled method id: {request.MethodId}");
+            }
+
+            // This causes modulo bias, which will mean the lower numbered tasks will have a higher workload than
+            // higher numbered tasks. There's no expectation that this will be significant in practice.
+            return key % maximum;
+        }
+
         private async Task DispatchAsync(OperationContext context, ChannelReader<ServiceRequestBase> requestReader)
         {
             await Task.Yield();
@@ -539,30 +587,22 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                 {
                     case RpcMethodId.RegisterContentLocations:
                     {
+                        var rq = (RegisterContentLocationsRequest)request;
                         // This is a hot path, so instead of calling 'RegisterContentLocations' that does
                         // all the tracing we use a special way more optimized version
                         // that most likely will complete synchronously.
-                        await RegisterContentLocationsFastAsync((RegisterContentLocationsRequest)request);
+                        await RegisterContentLocationsFastAsync(rq);
+                        break;
+                    }
+                    case RpcMethodId.DeleteContentLocations:
+                    {
+                        var rq = (DeleteContentLocationsRequest)request;
+                        await DeleteContentLocationsAsync(rq);
                         break;
                     }
                     case RpcMethodId.CompareExchange:
                     {
                         await CompareExchangeAsync((CompareExchangeRequest)request);
-                        break;
-                    }
-                    case RpcMethodId.GetContentLocations:
-                    {
-                        await GetContentLocationsAsync((GetContentLocationsRequest)request);
-                        break;
-                    }
-                    case RpcMethodId.GetContentHashList:
-                    {
-                        await GetContentHashListAsync((GetContentHashListRequest)request);
-                        break;
-                    }
-                    case RpcMethodId.GetLevelSelectors:
-                    {
-                        await GetLevelSelectorsAsync((GetLevelSelectorsRequest)request);
                         break;
                     }
                     default:

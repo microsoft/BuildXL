@@ -71,6 +71,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             return BoolResult.SuccessValueTask;
         }
 
+        public ValueTask<BoolResult> DeleteLocationAsync(OperationContext context, MachineId machineId, IReadOnlyList<ShortHash> contentHashes)
+        {
+            Database.LocationRemoved(context, machineId, contentHashes);
+            return BoolResult.SuccessValueTask;
+        }
+
         public Task<Result<bool>> CompareExchangeAsync(
             OperationContext context,
             StrongFingerprint strongFingerprint,

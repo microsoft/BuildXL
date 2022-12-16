@@ -2607,7 +2607,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "NuGet.CommandLine",
-          "Version": "6.2.2"
+          "Version": "6.3.1"
         }
       }
     },

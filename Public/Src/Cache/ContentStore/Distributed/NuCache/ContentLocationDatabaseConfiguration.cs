@@ -2,7 +2,6 @@
 // Licensed under the MIT License.
 
 using System;
-using BuildXL.Cache.ContentStore.Distributed.NuCache.InMemory;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.Host.Configuration;
 using RocksDbSharp;
@@ -93,38 +92,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// True if RocksDb merge operators are used for the content.
         /// </summary>
         public bool UseMergeOperators { get; set; }
-    }
-
-    /// <summary>
-    /// Configuration type for <see cref="MemoryContentLocationDatabase"/>.
-    /// </summary>
-    public sealed class MemoryContentLocationDatabaseConfiguration : ContentLocationDatabaseConfiguration
-    {
-        // No members. This is a marker type 
-    }
-
-    /// <summary>
-    /// Supported heuristics for full range compaction
-    /// </summary>
-    public enum FullRangeCompactionStrategy
-    {
-        /// <summary>
-        /// Compacts the entire key range at once
-        /// </summary>
-        EntireRange = 0,
-        /// <summary>
-        /// Splits the key range on byte increments, performs compaction on each range at a specified time period
-        /// </summary>
-        ByteIncrements = 1,
-        /// <summary>
-        /// Splits the key range on word increments, performs compaction on each range at a specified time period
-        /// </summary>
-        /// <remarks>
-        /// The vast majority of content entries start with the hash type, which is a single byte, matching
-        /// the hash type. Hence doing byte increments means we compact the entire content database at once, which
-        /// beats the purpose of this feature.
-        /// </remarks>
-        WordIncrements = 2,
     }
 
     /// <summary>

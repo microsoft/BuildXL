@@ -6,11 +6,9 @@ using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
-using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Distributed.NuCache.InMemory;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
@@ -131,8 +129,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             switch (configuration)
             {
-                case MemoryContentLocationDatabaseConfiguration memoryConfiguration:
-                    return new MemoryContentLocationDatabase(clock, memoryConfiguration, getInactiveMachines);
                 case RocksDbContentLocationDatabaseConfiguration rocksDbConfiguration:
                     return new RocksDbContentLocationDatabase(clock, rocksDbConfiguration, getInactiveMachines);
                 default:

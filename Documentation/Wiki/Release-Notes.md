@@ -1,6 +1,15 @@
 This page is a curated list of the release notes for releases after 0.20170619.4.0 and a manual copy of notable changes from each build before that. See the repo's commit history full details for what is included in each build.
 
 =======
+# 0.1.0-20221209.1.11 (Release [256361](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=252305) Released 12/15/2022)
+-	Reenable Ninja tests
+-	Deploy OS-specific RocksDB binaries
+-	Move from ActionBlock to ActionBlockSlim across the codebase
+-	Scan environment variables using the CredScan library 
+-	Properly invalidate file descriptor table invalidations on Linux clone/forks
+-	Fix capturing ADO requester info
+-	Increase ProcessDumper default depth to 20
+
 # 0.1.0-20221202.8 (Release [252305](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=252305) Released 12/07/2022)
 - Fixes to null reference exception on dynamic worker release.
 - Fix dynamic workers' names in statsperf file.

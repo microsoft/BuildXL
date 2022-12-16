@@ -8,6 +8,8 @@ using System.Diagnostics.ContractsLight;
 using System.Runtime.CompilerServices;
 using System.Text;
 
+#nullable enable
+
 namespace BuildXL.Utilities
 {
     /// <summary>
@@ -168,9 +170,6 @@ namespace BuildXL.Utilities
         /// </summary>
         private static void AppendEscapedCreateProcessApplicationName(this StringBuilder appendTo, string exe)
         {
-            Contract.RequiresNotNull(appendTo);
-            Contract.RequiresNotNull(exe);
-
             string trimmedExe = exe.Trim();
 
             Contract.AssertNotNullOrEmpty(trimmedExe, "Application names for CreateProcess cannot be empty (after whitespace is removed).");
@@ -200,14 +199,10 @@ namespace BuildXL.Utilities
         /// <returns>An escaped path</returns>
         public static string EscapeAsCreateProcessApplicationName(string exe)
         {
-            Contract.RequiresNotNull(exe);
-
-            using (PooledObjectWrapper<StringBuilder> wrap = Pools.GetStringBuilder())
-            {
-                StringBuilder builder = wrap.Instance;
-                builder.AppendEscapedCreateProcessApplicationName(exe);
-                return builder.ToString();
-            }
+            using PooledObjectWrapper<StringBuilder> wrap = Pools.GetStringBuilder();
+            StringBuilder builder = wrap.Instance;
+            builder.AppendEscapedCreateProcessApplicationName(exe);
+            return builder.ToString();
         }
 
         /// <summary>
@@ -217,10 +212,8 @@ namespace BuildXL.Utilities
         /// <param name="builder">Optional builder.</param>
         /// <param name="word">Optional word.</param>
         /// <returns>Length of the escaped string</returns>
-        public static int AppendEscapedCommandLineWord(this StringBuilder builder, string word)
+        public static int AppendEscapedCommandLineWord(this StringBuilder? builder, string word)
         {
-            Contract.RequiresNotNull(word);
-
             int length = 0;
 
             // Empty words are a special case. They don't contain a delimiter by definition, but need quotes anyway.
@@ -234,7 +227,7 @@ namespace BuildXL.Utilities
 
             // Note that we do not check for backslashes here. A string such as C:\foo\ doesn't need any escaping
             // since backslashes only have meaning when succeeded by a ".
-            if (!(containsDelimiter || word.Contains("\"")))
+            if (!containsDelimiter && word.IndexOf('"') < 0)
             {
                 length += Append(builder, word);
                 return length;
@@ -300,8 +293,6 @@ namespace BuildXL.Utilities
         /// </summary>
         public static int AppendEscapedCommandLineWordAndAssertPostcondition(this StringBuilder builder, string word)
         {
-            Contract.RequiresNotNull(builder);
-
             var originalLength = builder.Length;
             var numCharsAdded = builder.AppendEscapedCommandLineWord(word);
             Contract.Assert(originalLength + numCharsAdded == builder.Length);
@@ -338,8 +329,6 @@ namespace BuildXL.Utilities
         /// </remarks>
         public static string EscapeAsCommandLineWord(string word)
         {
-            Contract.RequiresNotNull(word);
-
             using (PooledObjectWrapper<StringBuilder> wrap = Pools.GetStringBuilder())
             {
                 StringBuilder builder = wrap.Instance;
@@ -351,7 +340,7 @@ namespace BuildXL.Utilities
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static int Append(StringBuilder builder, string value)
+        private static int Append(StringBuilder? builder, string value)
         {
             builder?.Append(value);
 
@@ -359,7 +348,7 @@ namespace BuildXL.Utilities
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static int Append(StringBuilder builder, char value)
+        private static int Append(StringBuilder? builder, char value)
         {
             builder?.Append(value);
 
@@ -367,7 +356,7 @@ namespace BuildXL.Utilities
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static int Repeat(StringBuilder builder, string s, int count)
+        private static int Repeat(StringBuilder? builder, string s, int count)
         {
             if (builder != null)
             {

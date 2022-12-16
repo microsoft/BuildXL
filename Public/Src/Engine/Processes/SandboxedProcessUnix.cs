@@ -287,7 +287,7 @@ namespace BuildXL.Processes
                 }
                 // finally add the original executable and its arguments
                 process.StartInfo.ArgumentList.Add(info.FileName);
-                foreach (var arg in CommandLineEscaping.SplitArguments(info.Arguments))
+                foreach (var arg in CommandLineEscaping.SplitArguments(info.Arguments!))
                 {
                     process.StartInfo.ArgumentList.Add(arg.Value.ToString());
                 }

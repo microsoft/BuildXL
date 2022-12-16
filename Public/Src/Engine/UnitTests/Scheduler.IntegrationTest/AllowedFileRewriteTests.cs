@@ -179,12 +179,53 @@ namespace IntegrationTest.BuildXL.Scheduler
             AssertErrorEventLogged(LogEventId.DependencyViolationWriteInUndeclaredSourceRead);
         }
 
+        /// <summary>
+        /// Enabling undeclared source reads interplays with same content double writes: the second writer sees the first write before the second write takes place and the sandbox
+        /// signals that as a violation based on file existence. We should be able to recognize this case and ignore the sandbox bound violation.
+        /// </summary>
+        [Fact]
+        public void SameContentDoubleWriteIsAllowedWhenUndeclaredSourceReadsAreEnabled()
+        {
+            string sharedOpaqueDir = Path.Combine(ObjectRoot, "sod");
+            AbsolutePath sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
+
+            var output = CreateOutputFileArtifact(sharedOpaqueDir);
+            var content = "content";
+
+            // Writes a file under a shared opaque
+            var writerBuilder1 = CreatePipBuilder(new Operation[]
+            {
+                Operation.WriteFile(output, content: content, doNotInfer: true) 
+            });
+
+            writerBuilder1.Options |= Process.Options.AllowUndeclaredSourceReads;
+            writerBuilder1.RewritePolicy = RewritePolicy.DefaultSafe;
+            writerBuilder1.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
+
+            var writer1 = SchedulePipBuilder(writerBuilder1);
+
+            // Writes the same file (with the same content) to a shared opaque
+            var writerBuilder2 = CreatePipBuilder(new Operation[]
+            {
+                // Write implies append, so make sure we delete it first to write the same content
+                Operation.DeleteFile(output, doNotInfer: true),
+                Operation.WriteFile(output, content: content, doNotInfer: true)
+            });
+
+            writerBuilder2.Options |= Process.Options.AllowUndeclaredSourceReads;
+            writerBuilder2.RewritePolicy = RewritePolicy.DefaultSafe;
+            writerBuilder2.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
+
+            var writer2 = SchedulePipBuilder(writerBuilder2);
+
+            RunScheduler(constraintExecutionOrder: new List<(Pip, Pip)> { (writer1.Process, writer2.Process) }).AssertSuccess();
+        }
 
         private ProcessBuilder CreateWriter(string rewrittenContent, FileArtifact source)
         {
             var writer = CreatePipBuilder(new Operation[]
             {
-                // WriteFile appends content, so delete it first to guarantee we are writing the specified content
+                // Operation.WriteFile appends content, so delete it first to guarantee we are writing the specified content
                 Operation.DeleteFile(source, doNotInfer: true),
                 Operation.WriteFile(source, content: rewrittenContent, doNotInfer: true)
             });

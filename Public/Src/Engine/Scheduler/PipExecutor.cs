@@ -3823,10 +3823,7 @@ namespace BuildXL.Scheduler
 
             public string Description => m_pipDescription;
 
-            public AbsolutePath GetPathOfObservation(ObservedPathEntry assertion)
-            {
-                return assertion.Path;
-            }
+            public AbsolutePath GetPathOfObservation(ObservedPathEntry assertion) => assertion.Path;
 
             public ObservationFlags GetObservationFlags(ObservedPathEntry assertion)
             {
@@ -3850,28 +3847,19 @@ namespace BuildXL.Scheduler
 
             public void CheckProposedObservedInput(ObservedPathEntry assertion, ObservedInput proposedObservedInput)
             {
-                return;
             }
 
-            public bool IsSearchPathEnumeration(ObservedPathEntry directoryEnumeration)
-            {
-                return directoryEnumeration.IsSearchPath;
-            }
+            public bool IsSearchPathEnumeration(ObservedPathEntry directoryEnumeration) => directoryEnumeration.IsSearchPath;
 
-            public string GetEnumeratePatternRegex(ObservedPathEntry directoryEnumeration)
-            {
-                return directoryEnumeration.EnumeratePatternRegex;
-            }
+            public string GetEnumeratePatternRegex(ObservedPathEntry directoryEnumeration) => directoryEnumeration.EnumeratePatternRegex;
 
             public void ReportUnexpectedAccess(ObservedPathEntry assertion, ObservedInputType observedInputType)
             {
-                // noop
             }
 
-            public bool IsReportableUnexpectedAccess(AbsolutePath path)
-            {
-                return false;
-            }
+            public bool IsReportableUnexpectedAccess(AbsolutePath path) => false;
+
+            public ObservedInputAccessCheckFailureAction OnAllowingUndeclaredAccessCheck(ObservedPathEntry observation) => ObservedInputAccessCheckFailureAction.Fail;
         }
 
         private readonly struct ObservedFileAccessValidationTarget : IObservedInputProcessingTarget<ObservedFileAccess>
@@ -3898,30 +3886,19 @@ namespace BuildXL.Scheduler
                 m_state = state;
             }
 
-            public ObservationFlags GetObservationFlags(ObservedFileAccess observation)
-            {
-                return observation.ObservationFlags;
-            }
+            public ObservationFlags GetObservationFlags(ObservedFileAccess observation) => observation.ObservationFlags;
 
-            public AbsolutePath GetPathOfObservation(ObservedFileAccess observation)
-            {
-                return observation.Path;
-            }
+            public AbsolutePath GetPathOfObservation(ObservedFileAccess observation) => observation.Path;
 
             public void CheckProposedObservedInput(ObservedFileAccess observation, ObservedInput proposedObservedInput)
             {
-                return;
             }
 
             public void ReportUnexpectedAccess(ObservedFileAccess observation, ObservedInputType observedInputType)
             {
-                // noop
             }
 
-            public bool IsReportableUnexpectedAccess(AbsolutePath path)
-            {
-                return false;
-            }
+            public bool IsReportableUnexpectedAccess(AbsolutePath path) => false;
 
             public ObservedInputAccessCheckFailureAction OnAccessCheckFailure(ObservedFileAccess observation, bool fromTopLevelDirectory)
             {
@@ -4004,6 +3981,23 @@ namespace BuildXL.Scheduler
 
                     return RegexDirectoryMembershipFilter.ConvertWildcardsToRegex(set.OrderBy(m => m, StringComparer.OrdinalIgnoreCase).ToArray());
                 }
+            }
+
+            public ObservedInputAccessCheckFailureAction OnAllowingUndeclaredAccessCheck(ObservedFileAccess observation)
+            {
+                (FileAccessAllowlist.MatchType aggregateMatchType, (ReportedFileAccess, FileAccessAllowlist.MatchType)[] reportedMatchTypes) = m_fileAccessReportingContext.MatchObservedFileAccess(observation);
+                if (aggregateMatchType != FileAccessAllowlist.MatchType.NoMatch)
+                {
+                    // Report cacheable/uncachable so that pip executor can decide if the pip is cacheable or uncacheable.
+                    foreach ((ReportedFileAccess fa, FileAccessAllowlist.MatchType matchType) in reportedMatchTypes.Where(t => t.Item2 != FileAccessAllowlist.MatchType.NoMatch))
+                    {
+                        m_fileAccessReportingContext.ReportFileAccess(fa, matchType);
+                    }
+
+                    return ObservedInputAccessCheckFailureAction.SuppressAndIgnorePath;
+                }
+
+                return ObservedInputAccessCheckFailureAction.Fail;
             }
         }
 

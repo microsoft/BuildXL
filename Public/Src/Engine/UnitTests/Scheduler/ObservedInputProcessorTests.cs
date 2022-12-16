@@ -244,7 +244,6 @@ namespace Test.BuildXL.Scheduler
 
             public ObservationFlags GetObservationFlags(TestObservation observation)
             {
-                var str = observation.Path.ToString(Context.PathTable);
                 if (observation.IsDirectoryEnumeration)
                 {
                     return ObservationFlags.Enumeration;
@@ -357,6 +356,11 @@ namespace Test.BuildXL.Scheduler
             public bool IsReportableUnexpectedAccess(AbsolutePath path)
             {
                 return true;
+            }
+
+            public ObservedInputAccessCheckFailureAction OnAllowingUndeclaredAccessCheck(TestObservation observation)
+            {
+                return ObservedInputAccessCheckFailureAction.Fail;
             }
         }
 

@@ -2887,6 +2887,149 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler().AssertSuccess().AssertCacheHit(proberPip.Process.PipId, dirCreatorPip.Process.PipId);
         }
 
+        public enum AllowListKind
+        {
+            None,
+            Cacheable,
+            UnCacheable
+        }
+
+        [Theory]
+        [InlineData(AllowListKind.None)]
+        [InlineData(AllowListKind.Cacheable)]
+        [InlineData(AllowListKind.UnCacheable)]
+        public void DoubleWritesWithAllowList(AllowListKind allowListKind)
+        {
+            string sharedOpaqueDir = Path.Combine(ObjectRoot, "sod");
+            AbsolutePath sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
+            FileArtifact sharedOutput = FileArtifact.CreateOutputFile(sharedOpaqueDirPath.Combine(Context.PathTable, "shared.out"));
+            FileArtifact source = CreateSourceFile(ObjectRoot);
+            WriteSourceFile(source);
+            FileArtifact outputP = CreateOutputFileArtifact(sharedOpaqueDir);
+            FileArtifact outputQ = CreateOutputFileArtifact(sharedOpaqueDir);
+
+            if (allowListKind != AllowListKind.None)
+            {
+                var entry = new global::BuildXL.Utilities.Configuration.Mutable.FileAccessAllowlistEntry
+                {
+                    Name = nameof(DoubleWritesWithAllowList),
+                    ToolPath = new DiscriminatingUnion<FileArtifact, PathAtom>(TestProcessExecutable.Path.GetName(Context.PathTable)),
+                    PathFragment = ArtifactToString(sharedOutput),
+                };
+
+                if (allowListKind == AllowListKind.Cacheable)
+                {
+                    Configuration.CacheableFileAccessAllowlist.Add(entry);
+                }
+                else
+                {
+                    Configuration.FileAccessAllowList.Add(entry);
+                }
+            }
+
+            ProcessBuilder pBuilder = CreatePipBuilder(new Operation[]
+            {
+                Operation.ReadFile(source),
+                Operation.WriteFile(outputP, doNotInfer: true),
+                Operation.WriteFile(sharedOutput, doNotInfer: true)
+            });
+            pBuilder.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
+            pBuilder.RewritePolicy |= RewritePolicy.DefaultSafe;
+            ProcessWithOutputs p = SchedulePipBuilder(pBuilder);
+
+            ProcessBuilder qBuilder = CreatePipBuilder(new Operation[]
+            {
+                Operation.ReadFile(outputP, doNotInfer: true),
+                Operation.WriteFile(outputQ, doNotInfer: true),
+                Operation.WriteFile(sharedOutput, doNotInfer: true)
+            });
+            qBuilder.AddInputDirectory(p.ProcessOutputs.GetOpaqueDirectory(sharedOpaqueDirPath));
+            qBuilder.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
+            qBuilder.RewritePolicy |= RewritePolicy.DefaultSafe;
+            ProcessWithOutputs q = SchedulePipBuilder(qBuilder);
+
+            if (allowListKind == AllowListKind.None)
+            {
+                RunScheduler().AssertFailure();
+                AssertVerboseEventLogged(LogEventId.DependencyViolationDoubleWrite);
+                AssertErrorEventLogged(LogEventId.FileMonitoringError);
+            }
+            else
+            {
+                RunScheduler().AssertSuccess();
+                File.Delete(ArtifactToString(sharedOutput));
+
+                var secondRunResult = RunScheduler().AssertSuccess();
+                if (allowListKind == AllowListKind.Cacheable)
+                {
+                    secondRunResult.AssertCacheHit(p.Process.PipId, q.Process.PipId);
+                    XAssert.IsFalse(File.Exists(ArtifactToString(sharedOutput)));
+                }
+                else
+                {
+                    secondRunResult.AssertCacheMiss(p.Process.PipId, q.Process.PipId);
+                    XAssert.IsTrue(File.Exists(ArtifactToString(sharedOutput)));
+                    AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, allowMore: true);
+                }
+            }
+        }
+
+        [Theory]
+        [MemberData(nameof(TruthTable.GetTable), 1, MemberType = typeof(TruthTable))]
+        public void DoubleWritesOnStaticallyDeclaredOutputsWithAllowList(bool onExclusiveOpaque)
+        {
+            string sharedOpaqueDir = Path.Combine(ObjectRoot, "sod");
+            AbsolutePath sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
+
+            AbsolutePath nestedUnderSharedOpaqueDirPath = sharedOpaqueDirPath.Combine(Context.PathTable, "nested");
+            FileArtifact sharedOutput = FileArtifact.CreateOutputFile(nestedUnderSharedOpaqueDirPath.Combine(Context.PathTable, "shared.out"));
+            FileArtifact source = CreateSourceFile(ObjectRoot);
+            WriteSourceFile(source);
+
+            FileArtifact outputP = CreateOutputFileArtifact(sharedOpaqueDir);
+            FileArtifact outputQ = CreateOutputFileArtifact(sharedOpaqueDir);
+
+            Configuration.CacheableFileAccessAllowlist.Add(new global::BuildXL.Utilities.Configuration.Mutable.FileAccessAllowlistEntry
+            {
+                Name = nameof(DoubleWritesOnStaticallyDeclaredOutputsWithAllowList),
+                ToolPath = new DiscriminatingUnion<FileArtifact, PathAtom>(TestProcessExecutable.Path.GetName(Context.PathTable)),
+                PathFragment = ArtifactToString(sharedOutput),
+            });
+
+            ProcessBuilder pBuilder = CreatePipBuilder(new Operation[]
+            {
+                Operation.ReadFile(source),
+                Operation.WriteFile(outputP),
+                Operation.WriteFile(sharedOutput, doNotInfer: onExclusiveOpaque)
+            });
+            if (onExclusiveOpaque)
+            {
+                pBuilder.AddOutputDirectory(nestedUnderSharedOpaqueDirPath, SealDirectoryKind.Opaque);
+            }
+            
+            pBuilder.RewritePolicy |= RewritePolicy.DefaultSafe;
+            ProcessWithOutputs p = SchedulePipBuilder(pBuilder);
+
+            ProcessBuilder qBuilder = CreatePipBuilder(new Operation[]
+            {
+                Operation.ReadFile(outputP),
+                Operation.WriteFile(outputQ),
+                Operation.WriteFile(sharedOutput, doNotInfer: true)
+            });
+            qBuilder.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
+            qBuilder.RewritePolicy |= RewritePolicy.DefaultSafe;
+            ProcessWithOutputs q = SchedulePipBuilder(qBuilder);
+
+            RunScheduler().AssertFailure();
+            AssertVerboseEventLogged(LogEventId.DependencyViolationDoubleWrite);
+            AssertErrorEventLogged(LogEventId.FileMonitoringError);
+
+            if (!onExclusiveOpaque)
+            {
+                AssertWarningEventLogged(LogEventId.AllowSameContentPolicyNotAvailableForStaticallyDeclaredOutputs);
+            }
+        }
+
         private string ToString(AbsolutePath path) => path.ToString(Context.PathTable);
     }
 }

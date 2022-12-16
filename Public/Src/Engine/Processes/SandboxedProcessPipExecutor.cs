@@ -1686,14 +1686,24 @@ namespace BuildXL.Processes
             JobObject.AccountingInformation? jobAccounting = result.JobAccountingInformation;
 
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+
+            var fileAccessReportingContext = new FileAccessReportingContext(
+                loggingContext,
+                m_context,
+                m_sandboxConfig,
+                m_pip,
+                m_validateDistribution,
+                m_fileAccessAllowlist);
+
             // If this operation fails, error was logged already
             bool sharedOpaqueProcessingSuccess = TryGetObservedFileAccesses(
-                    result,
-                    allInputPathsUnderSharedOpaques,
-                    out var unobservedOutputs,
-                    out var sharedDynamicDirectoryWriteAccesses,
-                    out SortedReadOnlyArray<ObservedFileAccess, ObservedFileAccessExpandedPathComparer> observed,
-                    out IReadOnlySet<AbsolutePath> createdDirectories);
+                fileAccessReportingContext,
+                result,
+                allInputPathsUnderSharedOpaques,
+                out var unobservedOutputs,
+                out var sharedDynamicDirectoryWriteAccesses,
+                out SortedReadOnlyArray<ObservedFileAccess, ObservedFileAccessExpandedPathComparer> observed,
+                out IReadOnlySet<AbsolutePath> createdDirectories);
 
             LogSubPhaseDuration(m_loggingContext, m_pip, SandboxedProcessCounters.SandboxedPipExecutorPhaseGettingObservedFileAccesses, stopwatch.Elapsed, $"(count: {observed.Length})");
 
@@ -1807,14 +1817,6 @@ namespace BuildXL.Processes
             }
 
             stopwatch.Restart();
-
-            var fileAccessReportingContext = new FileAccessReportingContext(
-                loggingContext,
-                m_context,
-                m_sandboxConfig,
-                m_pip,
-                m_validateDistribution,
-                m_fileAccessAllowlist);
 
             // Note that when MonitorFileAccesses == false, we should not assume the various reported-access sets are non-null.
             if (MonitorFileAccesses)
@@ -2756,7 +2758,13 @@ namespace BuildXL.Processes
             // Rationale: probes may be performed on those directories (directory probes don't need declarations)
             // so they need to be faked as well
             var currentPath = path.GetParent(m_pathTable);
-            while (currentPath.IsValid && !allInputPathsUnderSharedOpaques.Contains(currentPath) && currentPath.IsWithin(m_pathTable, sharedOpaqueRoot))
+
+            if (!currentPath.IsValid || !currentPath.IsWithin(m_pathTable, sharedOpaqueRoot))
+            {
+                return;
+            }
+
+            while (currentPath.IsValid && !allInputPathsUnderSharedOpaques.Contains(currentPath))
             {
                 // We want to set a policy for the directory without affecting the scope for the underlying artifacts
                 m_fileAccessManifest.AddPath(
@@ -2765,6 +2773,12 @@ namespace BuildXL.Processes
                         mask: DefaultMask); // but block real timestamps
 
                 allInputPathsUnderSharedOpaques.Add(currentPath);
+
+                if (currentPath == sharedOpaqueRoot)
+                {
+                    break;
+                }
+
                 currentPath = currentPath.GetParent(m_pathTable);
             }
         }
@@ -2816,7 +2830,7 @@ namespace BuildXL.Processes
             }
         }
 
-        private void AddStaticFileDependencyToFileAccessManifest(FileArtifact dependency, HashSet<AbsolutePath> allInputPaths)
+        private void AddStaticFileDependencyToFileAccessManifest(FileArtifact dependency, HashSet<AbsolutePath> allInputPathsUnderSharedOpaques)
         {
             // TODO:22476: We allow inputs to not exist. Is that the right thing to do?
             // We mask 'report' here, since inputs are expected read and should never fail observed-access validation (directory dependency, etc.)
@@ -2840,15 +2854,14 @@ namespace BuildXL.Processes
                           FileAccessPolicy.MaskNothing));
             m_remoteSbDataBuilder?.AddFileDependency(dependency.Path);
 
-            allInputPaths.Add(path);
-
             // If the file artifact is under the root of a shared opaque we make sure all the directories
             // walking that path upwards get added to the manifest explicitly, so timestamp faking happens for them
             // We need the outmost matching root in case shared opaques are nested within each other: timestamp faking
             // needs to happen for all directories under all shared opaques
             if (pathIsUnderSharedOpaque)
             {
-                AddDirectoryAncestorsToManifest(path, allInputPaths, sharedOpaqueRoot);
+                allInputPathsUnderSharedOpaques.Add(path);
+                AddDirectoryAncestorsToManifest(path, allInputPathsUnderSharedOpaques, sharedOpaqueRoot);
             }
         }
 
@@ -3892,6 +3905,7 @@ namespace BuildXL.Processes
         /// </remarks>
         /// <returns>Whether the operation succeeded. This operation may fail only in regards to shared dynamic write access processing.</returns>
         private bool TryGetObservedFileAccesses(
+            FileAccessReportingContext fileAccessReportingContext,
             SandboxedProcessResult result,
             HashSet<AbsolutePath> allInputPathsUnderSharedOpaques,
             out List<AbsolutePath> unobservedOutputs,
@@ -4089,13 +4103,23 @@ namespace BuildXL.Processes
                         // if the path is still a candidate to be part of a shared opaque, that means there was at least a write to that path. If the path is then
                         // in the cone of a shared opaque, then it is a dynamic write access
                         bool? isAccessUnderASharedOpaque = null;
-                        if (isPathCandidateToBeOwnedByASharedOpaque && IsAccessUnderASharedOpaque(
-                                firstAccess,
-                                dynamicWriteAccesses,
-                                out AbsolutePath sharedDynamicDirectoryRoot))
+                        if (isPathCandidateToBeOwnedByASharedOpaque &&
+                            IsAccessUnderASharedOpaque(firstAccess, dynamicWriteAccesses, out AbsolutePath sharedDynamicDirectoryRoot))
                         {
-                            dynamicWriteAccesses[sharedDynamicDirectoryRoot].Add(entry.Key);
-                            isAccessUnderASharedOpaque = true;
+                            bool shouldBeConsideredAsOutput = ShouldBeConsideredSharedOpaqueOutput(fileAccessReportingContext, firstAccess, out FileAccessAllowlist.MatchType matchType);
+
+                            if (matchType != FileAccessAllowlist.MatchType.NoMatch)
+                            {
+                                // If the match is cacheable/uncacheable, report the access so that pip executor knows if the pip can be cached or not.
+                                fileAccessReportingContext.ReportFileAccess(firstAccess, matchType);
+                            }
+
+                            if (shouldBeConsideredAsOutput)
+                            {
+                                dynamicWriteAccesses[sharedDynamicDirectoryRoot].Add(entry.Key);
+                                isAccessUnderASharedOpaque = true;
+                            }
+
                             // This is a known output, so don't store it
                             continue;
                         }
@@ -4375,7 +4399,6 @@ namespace BuildXL.Processes
 
             // TODO: consider adding a cache from manifest paths to containing shared opaques. It is likely
             // that many writes for a given pip happens under the same cones.
-
             foreach (var currentNode in m_context.PathTable.EnumerateHierarchyBottomUp(initialNode))
             {
                 var currentPath = new AbsolutePath(currentNode);
@@ -4388,6 +4411,29 @@ namespace BuildXL.Processes
             }
 
             return false;
+        }
+
+        /// <summary>
+        /// Checks whether a reported file access should be considered as an output under a shared opaque.
+        /// </summary>
+        private bool ShouldBeConsideredSharedOpaqueOutput(
+            FileAccessReportingContext fileAccessReportingContext,
+            ReportedFileAccess access,
+            out FileAccessAllowlist.MatchType matchType)
+        {
+            // Given a file access f under a shared opaque.
+            // - NoMatch => true
+            // - MatchCacheable / NotCacheable
+            //   - case 1: f is static source/output => true
+            //   - case 2: f is under exclusive opaque => true
+            //   - otherwise: false
+            //
+            // In case 1 & 2 above, f is considered an output so that the pip executor can detect for double writes.
+            matchType = fileAccessReportingContext.MatchReportedFileAccess(access);
+            return matchType == FileAccessAllowlist.MatchType.NoMatch
+                || (access.TryParseAbsolutePath(m_context, m_loggingContext, m_pip, out AbsolutePath accessPath)
+                    && (m_pipGraphFileSystemView.TryGetLatestFileArtifactForPath(accessPath).IsValid
+                        || (m_pipGraphFileSystemView.IsPathUnderOutputDirectory(accessPath, out bool isSharedOpaque) && !isSharedOpaque)));
         }
 
         /// <summary>

@@ -439,18 +439,18 @@ namespace BuildXL.Scheduler.Fingerprints
                         {
                             if (allowUndeclaredSourceReads)
                             {
-                                allowedUndeclaredSourceReads.Add(path);
+                                var undeclaredAccessCheckResult = target.OnAllowingUndeclaredAccessCheck(observation);
+                                if (undeclaredAccessCheckResult == ObservedInputAccessCheckFailureAction.Fail)
+                                {
+                                    // Undeclared access doesn't match any entry in the allow list.
+                                    allowedUndeclaredSourceReads.Add(path);
+                                }
+                                else
+                                {
+                                    Contract.Assert(undeclaredAccessCheckResult == ObservedInputAccessCheckFailureAction.SuppressAndIgnorePath);
+                                    continue;
+                                }
                             }
-                            // reclassify ExistingFileProbe as AbsentPathProbe if
-                            //   - file doesn't actually exist on disk
-                            //   - file is under an output directory
-                            //   - lazy shared opaque output deletion is disabled
-                            //   - the declared producer of the file is a pip downstream of the prober pip
-                            // reason:
-                            //   - access was originally classified as ExistingFileProbe despite the file being absent
-                            //     because the path is a declared ouput in the pip graph
-                            //   - however, if that path is under an opaque directory and lazy deletion is disabled,
-                            //     the file will always be scrubbed before the build so to this pip it will always be absent.
                             else if (
                                 type == ObservedInputType.ExistingFileProbe &&
                                 envAdapter?.IsLazySODeletionEnabled == false &&
@@ -460,6 +460,17 @@ namespace BuildXL.Scheduler.Fingerprints
                                 envAdapter.TryGetFileProducerPip(path, out var producerPipId) &&
                                 envAdapter.IsReachableFrom(from: pip.PipId, to: producerPipId))
                             {
+                                // reclassify ExistingFileProbe as AbsentPathProbe if
+                                //   - file doesn't actually exist on disk
+                                //   - file is under an output directory
+                                //   - lazy shared opaque output deletion is disabled
+                                //   - the declared producer of the file is a pip downstream of the prober pip
+                                // reason:
+                                //   - access was originally classified as ExistingFileProbe despite the file being absent
+                                //     because the path is a declared ouput in the pip graph
+                                //   - however, if that path is under an opaque directory and lazy deletion is disabled,
+                                //     the file will always be scrubbed before the build so to this pip it will always be absent.
+
                                 environment.Counters.IncrementCounter(PipExecutorCounter.ExistingFileProbeReclassifiedAsAbsentForNonExistentSharedOpaqueOutput);
                                 observationTypes[i] = ObservedInputType.AbsentPathProbe;
                                 continue;
@@ -1192,6 +1203,11 @@ namespace BuildXL.Scheduler.Fingerprints
         /// the access being allowed but we want to report it differently.</param>
         ObservedInputAccessCheckFailureAction OnAccessCheckFailure(TObservation observation, bool fromTopLevelDirectory);
 
+        /// <summary>
+        /// Actions to perform when BuildXL allows undeclared access.
+        /// </summary>
+        ObservedInputAccessCheckFailureAction OnAllowingUndeclaredAccessCheck(TObservation observation);
+
         void ReportUnexpectedAccess(TObservation observation, ObservedInputType observedInputType);
 
         bool IsReportableUnexpectedAccess(AbsolutePath path);
@@ -1820,7 +1836,7 @@ namespace BuildXL.Scheduler.Fingerprints
         /// </remarks>
         internal bool MayDetermineMinimalGraphWithAlienFiles(bool allowUndeclaredSourceReads)
         {
-            return m_env.Configuration.Sandbox.FileSystemMode == BuildXL.Utilities.Configuration.FileSystemMode.AlwaysMinimalGraph || allowUndeclaredSourceReads;
+            return m_env.Configuration.Sandbox.FileSystemMode == FileSystemMode.AlwaysMinimalGraph || allowUndeclaredSourceReads;
         }
 
         /// <summary>

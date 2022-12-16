@@ -67,6 +67,70 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler().AssertCacheHit(pip.Process.PipId);
         }
 
+        public enum AllowListKind
+        {
+            None,
+            Cacheable,
+            UnCacheable
+        }
+
+        [Theory]
+        [InlineData(AllowListKind.None)]
+        [InlineData(AllowListKind.Cacheable)]
+        [InlineData(AllowListKind.UnCacheable)]
+        public void UndeclaredReadsWithAllowList(AllowListKind allowListKind)
+        {
+            FileArtifact source = CreateSourceFile();
+            if (allowListKind != AllowListKind.None)
+            {
+                var entry = new FileAccessAllowlistEntry
+                {
+                    Name = nameof(UndeclaredReadsWithAllowList),
+                    ToolPath = new DiscriminatingUnion<FileArtifact, PathAtom>(TestProcessExecutable.Path.GetName(Context.PathTable)),
+                    PathFragment = ArtifactToString(source),
+                };
+
+                if (allowListKind == AllowListKind.Cacheable)
+                {
+                    Configuration.CacheableFileAccessAllowlist.Add(entry);
+                }
+                else
+                {
+                    Configuration.FileAccessAllowList.Add(entry);
+                }
+            }
+
+            ProcessWithOutputs pip = ScheduleProcessWithUndeclaredReads(source);
+            RunScheduler().AssertSuccess();
+            ScheduleRunResult secondRun = RunScheduler().AssertSuccess();
+
+            if (allowListKind != AllowListKind.UnCacheable)
+            {
+                secondRun.AssertCacheHit(pip.Process.PipId);
+            }
+            else
+            {
+                secondRun.AssertCacheMiss(pip.Process.PipId);
+            }
+
+            WriteSourceFile(source);
+            ScheduleRunResult thirdRun = RunScheduler().AssertSuccess();
+
+            if (allowListKind == AllowListKind.Cacheable)
+            {
+                thirdRun.AssertCacheHit(pip.Process.PipId);
+            }
+            else
+            {
+                thirdRun.AssertCacheMiss(pip.Process.PipId);
+            }
+
+            if (allowListKind == AllowListKind.UnCacheable)
+            {
+                AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, allowMore: true);
+            }
+        }
+
         [Fact]
         public void PresentProbeCachingBehavior()
         {
@@ -447,8 +511,7 @@ namespace IntegrationTest.BuildXL.Scheduler
 
         // TODO: fix this test case for Linux where writes under a shared opaque are DFAs. Work item #1984802
         [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)]
-        [InlineData(true)]
-        [InlineData(false)]
+        [MemberData(nameof(TruthTable.GetTable), 1, MemberType = typeof(TruthTable))]
         public void WritingToExistentFileProducedBySamePipIsAllowed(bool varyPath)
         {
             // Run a pip that writes into a file twice: the second time, the file will exist. However, this should be allowed.

@@ -81,6 +81,32 @@ namespace BuildXL.Processes
         }
 
         /// <summary>
+        /// Matches an instance of <see cref="ReportedFileAccess"/> with allow list entries.
+        /// </summary>
+        public FileAccessAllowlist.MatchType MatchReportedFileAccess(ReportedFileAccess fileAccess) =>
+            m_fileAccessAllowlist?.HasEntries == true
+            ? m_fileAccessAllowlist.Matches(m_loggingContext, fileAccess, m_pip)
+            : FileAccessAllowlist.MatchType.NoMatch;
+
+        /// <summary>
+        /// Matches an instance of <see cref="ObservedFileAccess"/> with allow list entries.
+        /// </summary>
+        public (FileAccessAllowlist.MatchType aggregateMatchType, (ReportedFileAccess, FileAccessAllowlist.MatchType)[] reportedMatchTypes) MatchObservedFileAccess(ObservedFileAccess observedFileAccess)
+        {
+            var aggregateMatch = FileAccessAllowlist.MatchType.MatchesAndCacheable;
+            var rfas = new (ReportedFileAccess, FileAccessAllowlist.MatchType)[observedFileAccess.Accesses.Count];
+            int index = 0;
+            foreach (ReportedFileAccess reportedAccess in observedFileAccess.Accesses)
+            {
+                FileAccessAllowlist.MatchType thisMatch = MatchReportedFileAccess(reportedAccess);
+                rfas[index++] = (reportedAccess, thisMatch);
+                aggregateMatch = AggregateMatchType(aggregateMatch, thisMatch);
+            }
+
+            return (aggregateMatch, rfas);
+        }
+
+        /// <summary>
         /// For an unexpected <see cref="ObservedFileAccess"/> (which is actually an aggregation of <see cref="ReportedFileAccess"/>es to
         /// a single path), reports each constituent access and computes an aggregate allowlist match type (the least permissive of any
         /// individual access).
@@ -91,26 +117,32 @@ namespace BuildXL.Processes
             foreach (ReportedFileAccess reportedAccess in unexpectedObservedFileAccess.Accesses)
             {
                 FileAccessAllowlist.MatchType thisMatch = MatchAndReportUnexpectedFileAccess(reportedAccess);
-
-                switch (thisMatch)
-                {
-                    case FileAccessAllowlist.MatchType.NoMatch:
-                        aggregateMatch = FileAccessAllowlist.MatchType.NoMatch;
-                        break;
-                    case FileAccessAllowlist.MatchType.MatchesButNotCacheable:
-                        if (aggregateMatch == FileAccessAllowlist.MatchType.MatchesAndCacheable)
-                        {
-                            aggregateMatch = FileAccessAllowlist.MatchType.MatchesButNotCacheable;
-                        }
-
-                        break;
-                    default:
-                        Contract.Assert(thisMatch == FileAccessAllowlist.MatchType.MatchesAndCacheable);
-                        break;
-                }
+                aggregateMatch = AggregateMatchType(aggregateMatch, thisMatch);
             }
 
             return aggregateMatch;
+        }
+
+        private static FileAccessAllowlist.MatchType AggregateMatchType(FileAccessAllowlist.MatchType aggregateType, FileAccessAllowlist.MatchType currentType) 
+        {
+            switch (currentType)
+            {
+                case FileAccessAllowlist.MatchType.NoMatch:
+                    aggregateType = FileAccessAllowlist.MatchType.NoMatch;
+                    break;
+                case FileAccessAllowlist.MatchType.MatchesButNotCacheable:
+                    if (aggregateType == FileAccessAllowlist.MatchType.MatchesAndCacheable)
+                    {
+                        aggregateType = FileAccessAllowlist.MatchType.MatchesButNotCacheable;
+                    }
+
+                    break;
+                default:
+                    Contract.Assert(currentType == FileAccessAllowlist.MatchType.MatchesAndCacheable);
+                    break;
+            }
+
+            return aggregateType;
         }
 
         /// <summary>
@@ -118,49 +150,50 @@ namespace BuildXL.Processes
         /// </summary>
         private FileAccessAllowlist.MatchType MatchAndReportUnexpectedFileAccess(ReportedFileAccess unexpectedFileAccess)
         {
+            FileAccessAllowlist.MatchType matchType = FileAccessAllowlist.MatchType.NoMatch;
+
             if (m_fileAccessAllowlist != null && m_fileAccessAllowlist.HasEntries)
             {
                 Contract.Assert(
                     m_config.FailUnexpectedFileAccesses == false,
                     "Having a file-access allowlist requires that Detours failure injection is off.");
 
-                FileAccessAllowlist.MatchType matchType = m_fileAccessAllowlist.Matches(m_loggingContext, unexpectedFileAccess, m_pip);
-                switch (matchType)
-                {
-                    case FileAccessAllowlist.MatchType.NoMatch:
-                        AddUnexpectedFileAccessNotAllowlisted(unexpectedFileAccess);
-                        ReportUnexpectedFileAccessNotAllowlisted(unexpectedFileAccess);
-                        break;
-                    case FileAccessAllowlist.MatchType.MatchesButNotCacheable:
-                        AddUnexpectedFileAccessAllowlisted(unexpectedFileAccess);
-                        m_numAllowlistedButNotCacheableFileAccessViolations++;
-                        ReportAllowlistedFileAccessNonCacheable(unexpectedFileAccess);
-                        break;
-                    case FileAccessAllowlist.MatchType.MatchesAndCacheable:
-                        AddUnexpectedFileAccessAllowlisted(unexpectedFileAccess);
-                        m_numAllowlistedAndCacheableFileAccessViolations++;
-                        ReportAllowlistedFileAccessCacheable(unexpectedFileAccess);
-                        break;
-                    default:
-                        throw Contract.AssertFailure("Unknown allowlist-match type.");
-                }
-
-                return matchType;
+                matchType = m_fileAccessAllowlist.Matches(m_loggingContext, unexpectedFileAccess, m_pip);
             }
-            else
+
+            ReportFileAccess(unexpectedFileAccess, matchType);
+            return matchType;
+        }
+
+        /// <summary>
+        /// Reports file access to this reporting context.
+        /// </summary>
+        public void ReportFileAccess(ReportedFileAccess fileAccess, FileAccessAllowlist.MatchType matchType)
+        {
+            switch (matchType)
             {
-                AddUnexpectedFileAccessNotAllowlisted(unexpectedFileAccess);
-                ReportUnexpectedFileAccessNotAllowlisted(unexpectedFileAccess);
-                return FileAccessAllowlist.MatchType.NoMatch;
+                case FileAccessAllowlist.MatchType.NoMatch:
+                    AddUnexpectedFileAccessNotAllowlisted(fileAccess);
+                    ReportUnexpectedFileAccessNotAllowlisted(fileAccess);
+                    break;
+                case FileAccessAllowlist.MatchType.MatchesButNotCacheable:
+                    AddUnexpectedFileAccessAllowlisted(fileAccess);
+                    m_numAllowlistedButNotCacheableFileAccessViolations++;
+                    ReportAllowlistedFileAccessNonCacheable(fileAccess);
+                    break;
+                case FileAccessAllowlist.MatchType.MatchesAndCacheable:
+                    AddUnexpectedFileAccessAllowlisted(fileAccess);
+                    m_numAllowlistedAndCacheableFileAccessViolations++;
+                    ReportAllowlistedFileAccessCacheable(fileAccess);
+                    break;
+                default:
+                    throw Contract.AssertFailure("Unknown allowlist-match type.");
             }
         }
 
         private void AddUnexpectedFileAccessNotAllowlisted(ReportedFileAccess reportedFileAccess)
         {
-            if (m_violations == null)
-            {
-                m_violations = new List<ReportedFileAccess>();
-            }
+            m_violations ??= new List<ReportedFileAccess>();
 
             if (reportedFileAccess.Operation != ReportedFileOperation.NtCreateFile || m_config.UnsafeSandboxConfiguration.MonitorNtCreateFile)
             {
@@ -175,10 +208,7 @@ namespace BuildXL.Processes
 
         private void AddUnexpectedFileAccessAllowlisted(ReportedFileAccess reportedFileAccess)
         {
-            if (m_allowlistedAccesses == null)
-            {
-                m_allowlistedAccesses = new List<ReportedFileAccess>();
-            }
+            m_allowlistedAccesses ??= new List<ReportedFileAccess>();
 
             if (reportedFileAccess.Operation != ReportedFileOperation.NtCreateFile || m_config.UnsafeSandboxConfiguration.MonitorNtCreateFile)
             {
@@ -193,7 +223,7 @@ namespace BuildXL.Processes
 
             if (path.StartsWith(PipEnvironment.RestrictedTemp, OperatingSystemHelper.PathComparison))
             {
-                BuildXL.Processes.Tracing.Logger.Log.PipProcessDisallowedTempFileAccess(
+                Tracing.Logger.Log.PipProcessDisallowedTempFileAccess(
                     m_loggingContext,
                     m_pip.SemiStableHash,
                     m_pip.GetDescription(m_context),
@@ -202,7 +232,7 @@ namespace BuildXL.Processes
             }
             else
             {
-                BuildXL.Processes.Tracing.Logger.Log.PipProcessDisallowedFileAccess(
+                Tracing.Logger.Log.PipProcessDisallowedFileAccess(
                     m_loggingContext,
                     m_pip.SemiStableHash,
                     m_pip.GetDescription(m_context),
@@ -212,13 +242,13 @@ namespace BuildXL.Processes
                     path);
 
                 if (reportedFileAccess.Operation == ReportedFileOperation.NtCreateFile &&
-                     !m_config.UnsafeSandboxConfiguration.MonitorNtCreateFile)
+                    !m_config.UnsafeSandboxConfiguration.MonitorNtCreateFile)
                 {
                     // If the unsafe_IgnoreNtCreate is set, disallowed ntCreateFile accesses are not marked as violations.
                     // Since there will be no error or warning for the ignored NtCreateFile violations in the FileMonitoringViolationAnalyzer, 
                     // this is the only place for us to log a warning for those.
                     // We also need to emit a dx09 verbose above for those violations due to WrapItUp. 
-                    BuildXL.Processes.Tracing.Logger.Log.PipProcessDisallowedNtCreateFileAccessWarning(
+                    Tracing.Logger.Log.PipProcessDisallowedNtCreateFileAccessWarning(
                         m_loggingContext,
                         m_pip.SemiStableHash,
                         m_pip.GetDescription(m_context),
@@ -237,7 +267,7 @@ namespace BuildXL.Processes
 
             if (m_reportAllowlistedAccesses)
             {
-                BuildXL.Processes.Tracing.Logger.Log.PipProcessUncacheableAllowlistNotAllowedInDistributedBuilds(
+                Tracing.Logger.Log.PipProcessUncacheableAllowlistNotAllowedInDistributedBuilds(
                     m_loggingContext,
                     m_pip.SemiStableHash,
                     m_pip.GetDescription(m_context),
@@ -248,7 +278,7 @@ namespace BuildXL.Processes
             }
             else
             {
-                BuildXL.Processes.Tracing.Logger.Log.PipProcessDisallowedFileAccessAllowlistedNonCacheable(
+                Tracing.Logger.Log.PipProcessDisallowedFileAccessAllowlistedNonCacheable(
                     m_loggingContext,
                     m_pip.SemiStableHash,
                     m_pip.GetDescription(m_context),
@@ -262,7 +292,7 @@ namespace BuildXL.Processes
             string path = reportedFileAccess.GetPath(m_context.PathTable);
             string description = reportedFileAccess.Describe();
 
-            BuildXL.Processes.Tracing.Logger.Log.PipProcessDisallowedFileAccessAllowlistedCacheable(
+            Tracing.Logger.Log.PipProcessDisallowedFileAccessAllowlistedCacheable(
                 m_loggingContext,
                 m_pip.SemiStableHash,
                 m_pip.GetDescription(m_context),

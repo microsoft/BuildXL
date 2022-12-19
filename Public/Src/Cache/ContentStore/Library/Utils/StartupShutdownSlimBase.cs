@@ -160,7 +160,13 @@ namespace BuildXL.Cache.ContentStore.Utils
             _shutdownStartedCancellationTokenSource.Cancel();
         }
 
-        /// <nodoc />
+        /// <summary>
+        /// Starts up the service asynchronously after setting some important invariants in the base implementation of <see cref="StartupAsync"/> method.
+        /// </summary>
+        /// <remarks>
+        /// One notable difference between <see cref="StartupAsync"/> is that <paramref name="context"/> already linked to
+        /// the instance's lifetime. It means that the <code>context.Token</code> will be triggered on the instance shutdown.
+        /// </remarks>
         protected virtual Task<BoolResult> StartupCoreAsync(OperationContext context) => BoolResult.SuccessTask;
 
         /// <nodoc />

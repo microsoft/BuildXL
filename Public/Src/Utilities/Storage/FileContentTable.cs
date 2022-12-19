@@ -24,6 +24,8 @@ using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using Microsoft.Win32.SafeHandles;
 
+#nullable enable
+
 namespace BuildXL.Storage
 {
     /// <summary>
@@ -88,7 +90,6 @@ namespace BuildXL.Storage
         public CounterCollection<FileContentTableCounters> Counters { get; } = new CounterCollection<FileContentTableCounters>();
 
         private readonly ObserverData m_observerData = new ObserverData();
-
         private readonly LoggingContext m_loggingContext;
 
         /// <summary>
@@ -128,8 +129,6 @@ namespace BuildXL.Storage
         /// </remarks>
         public static FileContentTable CreateFromTable(FileContentTable other, LoggingContext loggingContext, ushort? newEntryTimeToLive = null)
         {
-            Contract.Requires(other != null);
-
             var sw = Stopwatch.StartNew();
             var fct = new FileContentTable(other, loggingContext, newEntryTimeToLive ?? other.EntryTimeToLive);
 
@@ -141,7 +140,6 @@ namespace BuildXL.Storage
 
         private FileContentTable(FileContentTable other, LoggingContext loggingContext, ushort entryTimeToLive = DefaultTimeToLive)
         {
-            Contract.Requires(other != null);
             Contract.Requires(entryTimeToLive > 0);
 
             m_loggingContext = loggingContext;
@@ -220,7 +218,6 @@ namespace BuildXL.Storage
         /// </remarks>
         public VersionedFileIdentityAndContentInfo? TryGetKnownContentHash(FileStream stream)
         {
-            Contract.Requires(stream != null);
             Contract.Requires(stream.SafeFileHandle != null);
             Contract.Requires(!string.IsNullOrWhiteSpace(stream.Name));
 
@@ -232,8 +229,6 @@ namespace BuildXL.Storage
         /// </summary>
         public VersionedFileIdentityAndContentInfo? TryGetKnownContentHash(string path, SafeFileHandle handle)
         {
-            Contract.Requires(handle != null);
-
             Possible<VersionedFileIdentity, Failure<VersionedFileIdentity.IdentityUnavailabilityReason>> possibleVersionedIdentity =
                     TryQueryWeakIdentity(handle);
 
@@ -358,8 +353,6 @@ namespace BuildXL.Storage
             ContentHash hash,
             bool? strict = default)
         {
-            Contract.Requires(stream != null);
-
             strict = strict ?? stream.CanWrite;
 
             Contract.AssertDebug(stream.SafeFileHandle != null && stream.Name != null);
@@ -415,7 +408,6 @@ namespace BuildXL.Storage
             bool? strict = default,
             VersionedFileIdentity? strongIdentity = null)
         {
-            Contract.Requires(handle != null);
             Contract.Requires(!string.IsNullOrWhiteSpace(path));
             Contract.Requires(!strongIdentity.HasValue || strongIdentity.Value.Kind == VersionedFileIdentity.IdentityKind.StrongUsn);
 
@@ -570,9 +562,6 @@ namespace BuildXL.Storage
             FileShare fileShare,
             Func<FileIdAndVolumeId, SafeFileHandle, string, Usn, ContentHash, bool> visitor)
         {
-            Contract.Requires(accessor != null);
-            Contract.Requires(visitor != null);
-
             foreach (KeyValuePair<FileIdAndVolumeId, Entry> entry in m_entries)
             {
                 if (accessor.TryGetFileHandleAndPathFromFileIdAndVolumeId(entry.Key, fileShare, out SafeFileHandle handle, out string path))
@@ -661,7 +650,7 @@ namespace BuildXL.Storage
         /// Thrown in the event of a recoverable I/O exception, including the absence of the
         /// specified table or a deserialization failure.
         /// </exception>
-        public static Task<FileContentTable> LoadAsync(
+        public static Task<FileContentTable?> LoadAsync(
             LoggingContext loggingContext,
             string fileContentTablePath,
             ushort entryTimeToLive = DefaultTimeToLive)
@@ -686,9 +675,6 @@ namespace BuildXL.Storage
         [SuppressMessage("Microsoft.Usage", "CA2202:Do not dispose objects multiple times")]
         private static LoadResult TryLoadInternal(LoggingContext loggingContext, string fileContentTablePath, ushort entryTimeToLive)
         {
-            Contract.Requires(!string.IsNullOrWhiteSpace(fileContentTablePath));
-            Contract.Requires(entryTimeToLive > 0);
-
             if (!FileUtilities.FileExistsNoFollow(fileContentTablePath))
             {
                 return LoadResult.FileNotFound(fileContentTablePath);
@@ -728,7 +714,7 @@ namespace BuildXL.Storage
                         // way of reading in the file as quickly as possible
                         ConcurrentQueue<KeyValuePair<FileIdAndVolumeId, Entry>> itemsToInsert = new ConcurrentQueue<KeyValuePair<FileIdAndVolumeId, Entry>>();
                         bool completeReadingFile = false;
-                        Exception deserializationHelperException = null;
+                        Exception? deserializationHelperException = null;
                         Thread deserializationHelper = new Thread(() =>
                         {
                             try
@@ -838,13 +824,13 @@ namespace BuildXL.Storage
             private readonly string m_fileContentTablePath;
             private readonly Kind m_kind;
             private readonly long m_loadedDurationMs;
-            private readonly string m_reason;
-            private readonly string m_stackTrace;
-            public readonly FileContentTable LoadedFileContentTable;
+            private readonly string? m_reason;
+            private readonly string? m_stackTrace;
+            public readonly FileContentTable? LoadedFileContentTable;
 
             public bool Succeeded => m_kind == Kind.Success;
 
-            private LoadResult(string fileContentTablePath, Kind kind, long loadedDurationMs, FileContentTable loadedFileContentTable = null, string reason = null, string stackTrace = null)
+            private LoadResult(string fileContentTablePath, Kind kind, long loadedDurationMs, FileContentTable? loadedFileContentTable = null, string? reason = null, string? stackTrace = null)
             {
                 Contract.Requires(!string.IsNullOrWhiteSpace(fileContentTablePath));
 
@@ -858,31 +844,21 @@ namespace BuildXL.Storage
 
             public static LoadResult Success(string fileContentTablePath, FileContentTable loadedFileContentTable, long loadedDurationMs)
             {
-                Contract.Requires(!string.IsNullOrWhiteSpace(fileContentTablePath));
-                Contract.Requires(loadedFileContentTable != null);
-
                 return new LoadResult(fileContentTablePath, Kind.Success, loadedDurationMs, loadedFileContentTable);
             }
 
             public static LoadResult FileNotFound(string fileContentTablePath)
             {
-                Contract.Requires(!string.IsNullOrWhiteSpace(fileContentTablePath));
-
                 return new LoadResult(fileContentTablePath, Kind.FileNotFound, 0);
             }
 
             public static LoadResult InvalidFormat(string fileContentTablePath, string reason, long loadedDurationMs)
             {
-                Contract.Requires(!string.IsNullOrWhiteSpace(fileContentTablePath));
-
                 return new LoadResult(fileContentTablePath, Kind.InvalidFormat, loadedDurationMs, reason: reason);
             }
 
             public static LoadResult Exception(string fileContentTablePath, Exception exception, long loadedDurationMs)
             {
-                Contract.Requires(!string.IsNullOrWhiteSpace(fileContentTablePath));
-                Contract.Requires(exception != null);
-
                 return new LoadResult(fileContentTablePath, Kind.Exception, loadedDurationMs, reason: exception.Message, stackTrace: exception.StackTrace);
             }
 
@@ -917,15 +893,17 @@ namespace BuildXL.Storage
         [SuppressMessage("Microsoft.Usage", "CA2202:Do not dispose objects multiple times")]
         private void SaveInternal(string fileContentTablePath)
         {
-            Contract.Requires(!string.IsNullOrWhiteSpace(fileContentTablePath));
-
             ExceptionUtilities.HandleRecoverableIOException(
                 () =>
                 {
                     Stopwatch sw = Stopwatch.StartNew();
                     int numEvicted = 0;
 
-                    Directory.CreateDirectory(Path.GetDirectoryName(fileContentTablePath));
+                    string? dir = Path.GetDirectoryName(fileContentTablePath);
+                    if (dir != null)
+                    {
+                        Directory.CreateDirectory(dir);
+                    }
 
                     // Note that we are using a non-async file stream here. That's because we're doing lots of tiny writes for simplicity,
                     // but tiny writes on an async stream end up blocking anyway while adding silly overhead.
@@ -1029,7 +1007,7 @@ namespace BuildXL.Storage
             }
 
             /// <inheritdoc />
-            public override bool Equals(object obj)
+            public override bool Equals(object? obj)
             {
                 return StructUtilities.Equals(this, obj);
             }

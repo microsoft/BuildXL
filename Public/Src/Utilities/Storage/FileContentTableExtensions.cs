@@ -10,6 +10,8 @@ using BuildXL.Native.IO;
 using BuildXL.Utilities;
 using Microsoft.Win32.SafeHandles;
 
+#nullable enable
+
 namespace BuildXL.Storage
 {
     /// <summary>
@@ -62,7 +64,7 @@ namespace BuildXL.Storage
             }
 
             /// <inheritdoc />
-            public override bool Equals(object obj)
+            public override bool Equals(object? obj)
             {
                 return StructUtilities.Equals(this, obj);
             }
@@ -101,12 +103,9 @@ namespace BuildXL.Storage
             this FileContentTable fileContentTable,
             string path,
             bool? strict = default,
-            Action<SafeFileHandle, VersionedFileIdentityAndContentInfoWithOrigin> beforeClose = null,
+            Action<SafeFileHandle, VersionedFileIdentityAndContentInfoWithOrigin>? beforeClose = null,
             bool ignoreKnownContentHash = false)
         {
-            Contract.Requires(fileContentTable != null);
-            Contract.Requires(path != null);
-
             if (beforeClose == null && !ignoreKnownContentHash)
             {
                 // Due to path mapping in FileContentTable, querying with path will be much faster than opening a handle for a stream.
@@ -155,13 +154,9 @@ namespace BuildXL.Storage
             bool? strict = default, 
             bool ignoreKnownContentHash = false)
         {
-            Contract.Requires(fileContentTable != null);
-            Contract.Requires(contentStream != null);
-
             if (!ignoreKnownContentHash)
             {
                 VersionedFileIdentityAndContentInfo? existingInfo = fileContentTable.TryGetKnownContentHash(contentStream);
-
                 if (existingInfo.HasValue)
                 {
                     return new VersionedFileIdentityAndContentInfoWithOrigin(existingInfo.Value, ContentHashOrigin.Cached);
@@ -193,8 +188,8 @@ namespace BuildXL.Storage
             string destinationPath,
             FileContentInfo sourceContentInfo)
         {
-            Contract.Requires(!string.IsNullOrEmpty(sourcePath));
-            Contract.Requires(!string.IsNullOrEmpty(destinationPath));
+            Contract.Requires(sourcePath.Length != 0);
+            Contract.Requires(destinationPath.Length != 0);
 
             VersionedFileIdentityAndContentInfo? destinationInfo = null;
 
@@ -254,9 +249,7 @@ namespace BuildXL.Storage
             byte[] contents,
             ContentHash contentsHash)
         {
-            Contract.Requires(fileContentTable != null);
-            Contract.Requires(!string.IsNullOrEmpty(destinationPath));
-            Contract.Requires(contents != null);
+            Contract.Requires(destinationPath.Length != 0);
 
             VersionedFileIdentityAndContentInfo? destinationInfo = null;
 

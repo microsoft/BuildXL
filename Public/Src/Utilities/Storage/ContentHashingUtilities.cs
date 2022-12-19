@@ -14,6 +14,8 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Tracing;
 using static BuildXL.Utilities.FormattableStringEx;
 
+#nullable enable
+
 namespace BuildXL.Storage
 {
     /// <summary>
@@ -33,8 +35,8 @@ namespace BuildXL.Storage
         private static int s_asyncMemoryMappedFileHashingThreshold = DefaultAsyncMemoryMappedFileHashingThreshold;
 #endif // NETCOREAPP
         private static bool s_isInitialized;
-        private static HashInfo s_hashingAlgorithm;
-        private static IContentHasher s_contentHasher;
+        private static HashInfo? s_hashingAlgorithm;
+        private static IContentHasher? s_contentHasher;
         private static ContentHash s_zeroHash;
 
         /// <summary>
@@ -65,7 +67,7 @@ namespace BuildXL.Storage
             get
             {
                 Contract.Assert(s_isInitialized, "HashInfo was not initialized");
-                return s_hashingAlgorithm;
+                return s_hashingAlgorithm!;
             }
             set
             {
@@ -97,7 +99,7 @@ namespace BuildXL.Storage
                 Contract.Assert(s_isInitialized, "HashInfo was not initialized");
                 return s_zeroHash;
             }
-            set { s_zeroHash = value; }
+            set => s_zeroHash = value;
         }
 
         /// <summary>
@@ -110,9 +112,9 @@ namespace BuildXL.Storage
             get
             {
                 Contract.Assert(s_isInitialized, "HashInfo was not initialized");
-                return s_contentHasher;
+                return s_contentHasher!;
             }
-            set { s_contentHasher = value; }
+            set => s_contentHasher = value;
         }
 
         /// <summary>
@@ -333,7 +335,7 @@ namespace BuildXL.Storage
         {
             var result = await ExceptionUtilities.HandleRecoverableIOException(
                 () => HashContentStreamCoreAsync(content, hashType),
-                ex => { throw new BuildXLException(I($"Cannot read from stream '{content.ToString()}'"), ex); });
+                ex => throw new BuildXLException(I($"Cannot read from stream '{content}'"), ex));
             Contract.Assert(result.HashType != HashType.Unknown);
             return result;
         }

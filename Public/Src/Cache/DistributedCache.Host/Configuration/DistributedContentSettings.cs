@@ -981,7 +981,7 @@ namespace BuildXL.Cache.Host.Configuration
 
         /// <inheritdoc cref="ContentLocationDatabaseRocksDbTracingLevel"/>
         [DataMember]
-        public int? ContentMetadataDatabaseRocksDbTracingLevel { get; set; }
+        public int? ContentMetadataDatabaseRocksDbTracingLevel { get; set; } = 1;
 
         [DataMember]
         public string ContentMetadataBlobSecretName { get; set; }

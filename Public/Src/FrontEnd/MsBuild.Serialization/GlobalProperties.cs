@@ -17,7 +17,7 @@ namespace BuildXL.FrontEnd.MsBuild.Serialization
     public class GlobalProperties : ReadOnlyDictionary<string, string>
     {
         /// <nodoc/>
-        public static GlobalProperties Empty = new GlobalProperties();
+        public static readonly GlobalProperties Empty = new();
         
         private GlobalProperties() : base(new Dictionary<string, string>())
         {
@@ -26,12 +26,10 @@ namespace BuildXL.FrontEnd.MsBuild.Serialization
         /// <nodoc/>
         public GlobalProperties(IEnumerable<KeyValuePair<string, string>> dictionary): 
             base(dictionary.ToDictionary(kvp => kvp.Key, kvp => kvp.Value ?? string.Empty, StringComparer.OrdinalIgnoreCase))
-        { }
+        { 
+        }
 
         /// <inheritdoc/>
-        public override string ToString()
-        {
-            return $"[{string.Join(";", Keys.Select(key => $"{key.ToUpperInvariant()}={this[key]}"))}]";
-        }
+        public override string ToString() => $"[{string.Join(";", Keys.Select(key => $"{key.ToUpperInvariant()}={this[key]}"))}]";
     }
 }

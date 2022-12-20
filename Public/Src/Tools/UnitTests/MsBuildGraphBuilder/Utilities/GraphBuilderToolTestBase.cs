@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
+using System.IO;
 using BuildXL.FrontEnd.MsBuild.Serialization;
 using MsBuildGraphBuilderTool;
 using Test.BuildXL.TestUtilities.Xunit;
@@ -23,7 +24,7 @@ namespace Test.ProjectGraphBuilder.Utilities
         protected bool RunningUnderDotNetCore => true;
 #endif
         /// <nodoc/>
-        protected MsBuildAssemblyLoader AssemblyLoader => new MsBuildAssemblyLoader(RunningUnderDotNetCore);
+        protected MsBuildAssemblyLoader AssemblyLoader => new(RunningUnderDotNetCore);
 
         /// <nodoc/>
         protected MSBuildGraphBuilderArguments GetStandardBuilderArguments(
@@ -32,7 +33,8 @@ namespace Test.ProjectGraphBuilder.Utilities
             GlobalProperties globalProperties,
             IReadOnlyCollection<string> entryPointTargets,
             IReadOnlyCollection<GlobalProperties> requestedQualifiers,
-            bool allowProjectsWithoutTargetProtocol)
+            bool allowProjectsWithoutTargetProtocol,
+            bool? useLegacyProjectIsolation = default)
         {
             return new MSBuildGraphBuilderArguments(
                     projectsToParse,
@@ -42,7 +44,21 @@ namespace Test.ProjectGraphBuilder.Utilities
                     entryPointTargets,
                     requestedQualifiers,
                     allowProjectsWithoutTargetProtocol,
-                    RunningUnderDotNetCore);
+                    RunningUnderDotNetCore,
+                    useLegacyProjectIsolation == true);
         }
+
+        protected ProjectGraphWithPredictionsResult<string> BuildGraphAndDeserialize(MSBuildGraphBuilderArguments arguments)
+        {
+            MsBuildGraphBuilder.BuildGraphAndSerialize(AssemblyLoader, arguments);
+
+            // The serialized graph should exist
+            XAssert.IsTrue(File.Exists(arguments.OutputPath));
+
+            var projectGraphWithPredictionsResult = SimpleDeserializer.Instance.DeserializeGraph(arguments.OutputPath);
+
+            return projectGraphWithPredictionsResult;
+        }
+
     }
 }

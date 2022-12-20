@@ -6,7 +6,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using BuildXL.FrontEnd.MsBuild.Serialization;
-using MsBuildGraphBuilderTool;
 using Test.BuildXL.TestUtilities.Xunit;
 using Test.ProjectGraphBuilder.Utilities;
 using Xunit;
@@ -18,10 +17,7 @@ namespace Test.ProjectGraphBuilder
     {
         private readonly MsBuildProjectBuilder m_builder;
 
-        public MsBuildGraphConstructionTests(ITestOutputHelper output): base(output)
-        {
-            m_builder = new MsBuildProjectBuilder(TemporaryDirectory);
-        }
+        public MsBuildGraphConstructionTests(ITestOutputHelper output) : base(output) => m_builder = new MsBuildProjectBuilder(TemporaryDirectory);
 
         [Theory]
         // One isolated project
@@ -54,7 +50,7 @@ namespace Test.ProjectGraphBuilder
             // Parse the projects, build the graph, serialize it to disk and deserialize it back
             var projectGraphWithPredictionsResult = BuildGraphAndDeserialize(new[] { entryPointPath });
 
-            Assert.True(projectGraphWithPredictionsResult.Succeeded);
+            XAssert.IsTrue(projectGraphWithPredictionsResult.Succeeded);
 
             // Validate the graph matches (or is a subset) of the original project chains
             m_builder.ValidateGraphIsSubgraphOfChains(projectGraphWithPredictionsResult.Result, exactMatch, projectChains);
@@ -79,20 +75,20 @@ namespace Test.ProjectGraphBuilder
             // Parse the projects, build the graph, serialize it to disk and deserialize it back
             var projectGraphWithPredictionsResult = BuildGraphAndDeserialize(new[] { entryPointPath });
 
-            Assert.True(projectGraphWithPredictionsResult.Succeeded);
+            XAssert.IsTrue(projectGraphWithPredictionsResult.Succeeded);
 
             // There should be two projects: the outer and the inner ones
             var projectNodes = projectGraphWithPredictionsResult.Result.ProjectNodes;
-            Assert.Equal(2, projectNodes.Length);
+            XAssert.AreEqual(2, projectNodes.Length);
 
             // The outer project has just one global property (IsGraphBuild: true)
             var outerProject = projectNodes.First(project => project.GlobalProperties.Count == 1);
             var innerProject = projectNodes.First(project => project.GlobalProperties.Count == 2);
 
             // There should be only a single reference from the outer project to the inner one
-            Assert.Equal(1, outerProject.Dependencies.Count);
+            XAssert.AreEqual(1, outerProject.Dependencies.Count);
             // And the inner one should have no references
-            Assert.Equal(0, innerProject.Dependencies.Count);
+            XAssert.AreEqual(0, innerProject.Dependencies.Count);
         }
 
         [Fact]
@@ -107,7 +103,7 @@ namespace Test.ProjectGraphBuilder
 
             var projectGraphWithPredictionsResult = BuildGraphAndDeserialize(arguments);
 
-            Assert.False(projectGraphWithPredictionsResult.Succeeded);
+            XAssert.IsFalse(projectGraphWithPredictionsResult.Succeeded);
             Assert.Contains("the specified values for 'PLATFORM' do not agree", projectGraphWithPredictionsResult.Failure.Message);
         }
 
@@ -123,11 +119,11 @@ namespace Test.ProjectGraphBuilder
 
             var projectGraphWithPredictionsResult = BuildGraphAndDeserialize(arguments);
 
-            Assert.True(projectGraphWithPredictionsResult.Succeeded);
+            XAssert.IsTrue(projectGraphWithPredictionsResult.Succeeded);
             var projectProperties = projectGraphWithPredictionsResult.Result.ProjectNodes.Single().GlobalProperties;
 
-            Assert.Equal("x64", projectProperties["platform"]);
-            Assert.Equal("release", projectProperties["configuration"]);
+            XAssert.AreEqual("x64", projectProperties["platform"]);
+            XAssert.AreEqual("release", projectProperties["configuration"]);
         }
 
         [Fact]
@@ -136,7 +132,8 @@ namespace Test.ProjectGraphBuilder
             var entryPointPath = m_builder.WriteProjectsWithReferences(("A", "<Project/>"));
 
             // let's 'build' for debug and release
-            var requestedQualifiers = new GlobalProperties[] {
+            var requestedQualifiers = new GlobalProperties[]
+            {
                 new GlobalProperties(new Dictionary<string, string> { ["configuration"] = "debug" }),
                 new GlobalProperties(new Dictionary<string, string> { ["configuration"] = "release" }),
             };
@@ -147,16 +144,16 @@ namespace Test.ProjectGraphBuilder
 
             var projectGraphWithPredictionsResult = BuildGraphAndDeserialize(arguments);
 
-            Assert.True(projectGraphWithPredictionsResult.Succeeded);
+            XAssert.IsTrue(projectGraphWithPredictionsResult.Succeeded);
             var nodes = projectGraphWithPredictionsResult.Result.ProjectNodes;
 
             // There should be two nodes, one per qualifier
-            Assert.Equal(2, nodes.Count());
+            XAssert.AreEqual(2, nodes.Length);
             var debugNode = nodes.First(node => node.GlobalProperties["configuration"] == "debug");
             var releaseNode = nodes.First(node => node.GlobalProperties["configuration"] == "release");
 
             // Both nodes should have the same platform, since that's part of the global properties
-            XAssert.All(nodes, node => Assert.Equal("x86", node.GlobalProperties["platform"]));
+            XAssert.All(nodes, node => XAssert.AreEqual("x86", node.GlobalProperties["platform"]));
         }
 
         [Theory]
@@ -173,12 +170,12 @@ namespace Test.ProjectGraphBuilder
             if (allowProjectsWithoutTargetProtocol)
             {
                 // If projects are allowed to not implement the protocol, then everything should succeed
-                Assert.True(projectGraphWithPredictionsResult.Succeeded);
+                XAssert.IsTrue(projectGraphWithPredictionsResult.Succeeded);
             }
             else
             {
                 // Otherwise, there should be a failure involving A.proj (the non-leaf project)
-                Assert.False(projectGraphWithPredictionsResult.Succeeded);
+                XAssert.IsFalse(projectGraphWithPredictionsResult.Succeeded);
                 Assert.Contains("A.proj", projectGraphWithPredictionsResult.Failure.Message);
             }
         }
@@ -207,26 +204,14 @@ namespace Test.ProjectGraphBuilder
 
             var projectGraphWithPredictionsResult = BuildGraphAndDeserialize(arguments);
 
-            Assert.True(projectGraphWithPredictionsResult.Succeeded);
+            XAssert.IsTrue(projectGraphWithPredictionsResult.Succeeded);
             var projectB = projectGraphWithPredictionsResult.Result.ProjectNodes.First(projectNode => projectNode.FullPath.Contains("B.proj"));
 
             // The targets of B should be flagged so we know default targets were appended,
             // and B targets should contain the default targets
-            Assert.True(projectB.PredictedTargetsToExecute.IsDefaultTargetsAppended);
+            XAssert.IsTrue(projectB.PredictedTargetsToExecute.IsDefaultTargetsAppended);
             Assert.Contains("Build", projectB.PredictedTargetsToExecute.Targets);
             Assert.Contains("Pack", projectB.PredictedTargetsToExecute.Targets);
-        }
-
-        private ProjectGraphWithPredictionsResult<string> BuildGraphAndDeserialize(MSBuildGraphBuilderArguments arguments)
-        {
-            MsBuildGraphBuilder.BuildGraphAndSerialize(AssemblyLoader, arguments);
-
-            // The serialized graph should exist
-            Assert.True(File.Exists(arguments.OutputPath));
-
-            var projectGraphWithPredictionsResult = SimpleDeserializer.Instance.DeserializeGraph(arguments.OutputPath);
-
-            return projectGraphWithPredictionsResult;
         }
 
         private ProjectGraphWithPredictionsResult<string> BuildGraphAndDeserialize(IReadOnlyCollection<string> projectEntryPoints)
@@ -237,7 +222,7 @@ namespace Test.ProjectGraphBuilder
                 projectEntryPoints,
                 outputFile,
                 GlobalProperties.Empty,
-                new string[0],
+                Array.Empty<string>(),
                 new GlobalProperties[] { GlobalProperties.Empty },
                 allowProjectsWithoutTargetProtocol: true);
 
@@ -249,12 +234,12 @@ namespace Test.ProjectGraphBuilder
         {
             string outputFile = Path.Combine(TemporaryDirectory, Guid.NewGuid().ToString());
             var arguments = GetStandardBuilderArguments(
-                    new string[] { entryPointPath },
-                    outputFile,
-                    globalProperties: globalProperties ?? GlobalProperties.Empty,
-                    entryPointTargets: new string[0],
-                    requestedQualifiers: requestedQualifiers ?? new GlobalProperties[] { GlobalProperties.Empty },
-                    allowProjectsWithoutTargetProtocol: allowProjectsWithoutTargetProtocol);
+                new string[] { entryPointPath },
+                outputFile,
+                globalProperties: globalProperties ?? GlobalProperties.Empty,
+                entryPointTargets: Array.Empty<string>(),
+                requestedQualifiers: requestedQualifiers ?? new GlobalProperties[] { GlobalProperties.Empty },
+                allowProjectsWithoutTargetProtocol: allowProjectsWithoutTargetProtocol);
 
             return arguments;
         }

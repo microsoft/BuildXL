@@ -140,7 +140,7 @@ namespace BuildXL.FrontEnd.MsBuild
 
             BuildParameters.IBuildParameters buildParameters = RetrieveBuildParameters();
 
-            return  await TryComputeBuildGraphAsync(msBuildSearchLocations, dotNetSearchLocations, parsingEntryPoints, buildParameters);
+            return await TryComputeBuildGraphAsync(msBuildSearchLocations, dotNetSearchLocations, parsingEntryPoints, buildParameters);
         }
 
         private bool TryRetrieveParsingEntryPoint(out IEnumerable<AbsolutePath> parsingEntryPoints)
@@ -185,18 +185,29 @@ namespace BuildXL.FrontEnd.MsBuild
 
         }
 
-        private async Task<Possible<ProjectGraphResult>> TryComputeBuildGraphAsync(IEnumerable<AbsolutePath> msBuildSearchLocations, IEnumerable<AbsolutePath> dotnetSearchLocations, IEnumerable<AbsolutePath> parsingEntryPoints, BuildParameters.IBuildParameters buildParameters)
+        private async Task<Possible<ProjectGraphResult>> TryComputeBuildGraphAsync(
+            IEnumerable<AbsolutePath> msBuildSearchLocations,
+            IEnumerable<AbsolutePath> dotnetSearchLocations,
+            IEnumerable<AbsolutePath> parsingEntryPoints,
+            BuildParameters.IBuildParameters buildParameters)
         {
             // We create a unique output file on the obj folder associated with the current front end, and using a GUID as the file name
             AbsolutePath outputDirectory = Host.GetFolderForFrontEnd(Name);
             AbsolutePath outputFile = outputDirectory.Combine(Context.PathTable, Guid.NewGuid().ToString());
+            
             // We create a unique response file that will contain the tool arguments
             AbsolutePath responseFile = outputDirectory.Combine(Context.PathTable, Guid.NewGuid().ToString());
 
             // Make sure the directories are there
             FileUtilities.CreateDirectory(outputDirectory.ToString(Context.PathTable));
 
-            Possible<ProjectGraphWithPredictionsResult<AbsolutePath>> maybeProjectGraphResult = await ComputeBuildGraphAsync(responseFile, parsingEntryPoints, outputFile, msBuildSearchLocations, dotnetSearchLocations, buildParameters);
+            Possible<ProjectGraphWithPredictionsResult<AbsolutePath>> maybeProjectGraphResult = await ComputeBuildGraphAsync(
+                responseFile,
+                parsingEntryPoints,
+                outputFile,
+                msBuildSearchLocations,
+                dotnetSearchLocations,
+                buildParameters);
 
             if (!maybeProjectGraphResult.Succeeded)
             {
@@ -305,6 +316,7 @@ namespace BuildXL.FrontEnd.MsBuild
                         CollectionUtilities.EmptyDictionary<string, AbsolutePath>(), AbsolutePath.Invalid);
                 }
             }
+
             SandboxedProcessResult result = await RunMsBuildGraphBuilderAsync(responseFile, projectEntryPoints, outputFile, msBuidSearchLocations, dotnetExeLocation, buildParameters);
 
             string standardError = result.StandardError.CreateReader().ReadToEndAsync().GetAwaiter().GetResult();
@@ -375,8 +387,8 @@ namespace BuildXL.FrontEnd.MsBuild
                 }
             }
 
-            failure = $"Cannot find dotnet.exe. " +
-                $"This is required because the dotnet core version of MSBuild was specified to run. Searched locations: [{string.Join(", ", dotnetSearchLocations.Select(location => location.ToString(Context.PathTable)))}]";
+            string searchLocationsStr = string.Join(", ", dotnetSearchLocations.Select(location => location.ToString(Context.PathTable)));
+            failure = $"Cannot find dotnet.exe. This is required because the dotnet core version of MSBuild was specified to run. Searched locations: [{searchLocationsStr}]";
             return false;
         }
 
@@ -405,7 +417,8 @@ namespace BuildXL.FrontEnd.MsBuild
                 entryPointTargets,
                 requestedQualifiers,
                 ResolverSettings.AllowProjectsToNotSpecifyTargetProtocol == true,
-                ResolverSettings.ShouldRunDotNetCoreMSBuild());
+                ResolverSettings.ShouldRunDotNetCoreMSBuild(),
+                ResolverSettings.UseLegacyProjectIsolation == true);
 
             var responseFilePath = responseFile.ToString(Context.PathTable);
             SerializeResponseFile(responseFilePath, arguments);

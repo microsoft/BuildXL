@@ -31,10 +31,9 @@ namespace Test.ProjectGraphBuilder
 
             collector.AddOutputFile(absoluteFilePath, TemporaryDirectory, "Mock");
 
-            Assert.Equal(1, outputFolderPredictions.Count);
+            XAssert.AreEqual(1, outputFolderPredictions.Count);
             Assert.Contains(absoluteDirectoryPath, outputFolderPredictions);
-
-            Assert.Equal(0, predictionFailures.Count);
+            XAssert.AreEqual(0, predictionFailures.Count);
         }
 
         [Fact]
@@ -50,10 +49,9 @@ namespace Test.ProjectGraphBuilder
 
             collector.AddOutputFile(relativeFilePath, TemporaryDirectory, "Mock");
 
-            Assert.Equal(1, outputFolderPredictions.Count);
+            XAssert.AreEqual(1, outputFolderPredictions.Count);
             Assert.Contains(absoluteDirectoryPath, outputFolderPredictions);
-
-            Assert.Equal(0, predictionFailures.Count);
+            XAssert.AreEqual(0, predictionFailures.Count);
         }
 
         [Fact]
@@ -65,10 +63,9 @@ namespace Test.ProjectGraphBuilder
 
             collector.AddOutputFile("!@#$%^&*()\0", TemporaryDirectory, "Mock");
 
-            Assert.Equal(0, outputFolderPredictions.Count);
-
-            Assert.Equal(1, predictionFailures.Count);
-            Assert.Equal("Mock", predictionFailures.Single().predictorName);
+            XAssert.AreEqual(0, outputFolderPredictions.Count);
+            XAssert.AreEqual(1, predictionFailures.Count);
+            XAssert.AreEqual("Mock", predictionFailures.Single().predictorName);
             Assert.Contains("!@#$%^&*()\0", predictionFailures.Single().failure);
         }
 
@@ -83,10 +80,9 @@ namespace Test.ProjectGraphBuilder
 
             collector.AddOutputDirectory(absoluteDirectoryPath, TemporaryDirectory, "Mock");
 
-            Assert.Equal(1, outputFolderPredictions.Count);
+            XAssert.AreEqual(1, outputFolderPredictions.Count);
             Assert.Contains(absoluteDirectoryPath, outputFolderPredictions);
-
-            Assert.Equal(0, predictionFailures.Count);
+            XAssert.AreEqual(0, predictionFailures.Count);
         }
 
         [Fact]
@@ -101,10 +97,9 @@ namespace Test.ProjectGraphBuilder
 
             collector.AddOutputDirectory(relativeDirectoryPath, TemporaryDirectory, "Mock");
 
-            Assert.Equal(1, outputFolderPredictions.Count);
+            XAssert.AreEqual(1, outputFolderPredictions.Count);
             Assert.Contains(absoluteDirectoryPath, outputFolderPredictions);
-
-            Assert.Equal(0, predictionFailures.Count);
+            XAssert.AreEqual(0, predictionFailures.Count);
         }
 
         [Fact]
@@ -116,10 +111,9 @@ namespace Test.ProjectGraphBuilder
 
             collector.AddOutputDirectory("!@#$%^&*()\0", TemporaryDirectory, "Mock");
 
-            Assert.Equal(0, outputFolderPredictions.Count);
-
-            Assert.Equal(1, predictionFailures.Count);
-            Assert.Equal("Mock", predictionFailures.Single().predictorName);
+            XAssert.AreEqual(0, outputFolderPredictions.Count);
+            XAssert.AreEqual(1, predictionFailures.Count);
+            XAssert.AreEqual("Mock", predictionFailures.Single().predictorName);
             Assert.Contains("!@#$%^&*()", predictionFailures.Single().failure);
         }
     }

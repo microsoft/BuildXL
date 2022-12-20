@@ -7,7 +7,7 @@ using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
 using BuildXL.FrontEnd.MsBuild.Serialization;
-using Xunit;
+using Test.BuildXL.TestUtilities.Xunit;
 
 namespace Test.ProjectGraphBuilder.Utilities
 {
@@ -73,10 +73,10 @@ namespace Test.ProjectGraphBuilder.Utilities
             Directory.CreateDirectory(outputDirectory);
 
             // Write all generated projects to disk
-            foreach (var kvp in projects)
+            foreach (var (projectName, projectContent) in projects)
             {
-                var projectFile = Path.Combine(outputDirectory, kvp.projectName);
-                File.WriteAllText(projectFile, kvp.projectContent);
+                var projectFile = Path.Combine(outputDirectory, projectName);
+                File.WriteAllText(projectFile, projectContent);
             }
 
             return Path.Combine(outputDirectory, projects[0].projectName);
@@ -94,14 +94,17 @@ namespace Test.ProjectGraphBuilder.Utilities
             if (assertEqual)
             {
                 // Number of projects should be equal
-                Assert.True(projectGraph.ProjectNodes.Length == projectsAndReferences.Keys.Count, $"Expected {projectGraph.ProjectNodes.Length} nodes but found '{projectsAndReferences.Keys.Count}'");
+                XAssert.AreEqual(
+                    projectsAndReferences.Keys.Count,
+                    projectGraph.ProjectNodes.Length,
+                    $"Expected {projectGraph.ProjectNodes.Length} nodes but found '{projectsAndReferences.Keys.Count}'");
             }
 
             foreach (ProjectWithPredictions<string> node in projectGraph.ProjectNodes)
             {
                 // We should be able to find the corresponding project in the chains
                 string nodeName = Path.GetFileName(node.FullPath);
-                Assert.True(projectsAndReferences.ContainsKey(nodeName));
+                XAssert.IsTrue(projectsAndReferences.ContainsKey(nodeName));
 
                 // And its references should match
                 IEnumerable<string> nodeReferenceNames = node.Dependencies.Select(nodeReference => Path.GetFileName(nodeReference.FullPath));
@@ -109,8 +112,7 @@ namespace Test.ProjectGraphBuilder.Utilities
                 {
                     var difference = new HashSet<string>(projectsAndReferences[nodeName]);
                     difference.SymmetricExceptWith(nodeReferenceNames);
-                    
-                    Assert.True(false, $"Expected same set of references but these elements are not in the intersection of them: {string.Join(",", difference)}");
+                    XAssert.Fail($"Expected same set of references but these elements are not in the intersection of them: {string.Join(",", difference)}");
                 }
             }
         }
@@ -132,7 +134,7 @@ namespace Test.ProjectGraphBuilder.Utilities
                         if (project.StartsWith("[") && project.EndsWith("]"))
                         {
                             // There should be just one defined entry point
-                            Contract.Assert(projectEntryPoint == null, "At most one entry point needs to be defined");
+                            XAssert.IsNull(projectEntryPoint, "At most one entry point needs to be defined");
                             project = project.Trim('[', ']');
                             projectEntryPoint = project;
                         }
@@ -148,7 +150,7 @@ namespace Test.ProjectGraphBuilder.Utilities
             }
 
             // There should be at least one entry point defined
-            Contract.Assert(projectEntryPoint != null, "At least one entry point needs to be defined");
+            XAssert.IsNotNull(projectEntryPoint, "At least one entry point needs to be defined");
 
             return projectsAndReferences;
         }
@@ -159,7 +161,7 @@ namespace Test.ProjectGraphBuilder.Utilities
 $@"<?xml version=""1.0"" encoding=""utf-8""?>
 <Project xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"">
    <ItemGroup>
-      {string.Join(Environment.NewLine, projectReferences.Select(reference => CreateReference(reference)))}
+      {string.Join(Environment.NewLine, projectReferences.Select(CreateReference))}
    </ItemGroup>
 </Project>";
         }

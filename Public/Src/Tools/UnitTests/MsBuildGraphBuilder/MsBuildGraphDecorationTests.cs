@@ -28,8 +28,8 @@ namespace Test.ProjectGraphBuilder
             var projectGraphWithPredictionsResult = BuildGraphAndDeserialize(new FailedMsBuildAssemblyLoader());
 
             // We expect the result to have failed
-            Assert.False(projectGraphWithPredictionsResult.Succeeded);
-            Assert.False(string.IsNullOrEmpty(projectGraphWithPredictionsResult.Failure.Message));
+            XAssert.IsFalse(projectGraphWithPredictionsResult.Succeeded);
+            XAssert.IsFalse(string.IsNullOrEmpty(projectGraphWithPredictionsResult.Failure.Message));
         }
 
         [Fact]
@@ -39,8 +39,8 @@ namespace Test.ProjectGraphBuilder
             var projectGraphWithPredictionsResult = BuildGraphAndDeserialize("<Malformed XML");
 
             // We expect the result to have failed
-            Assert.False(projectGraphWithPredictionsResult.Succeeded);
-            Assert.False(string.IsNullOrEmpty(projectGraphWithPredictionsResult.Failure.Message));
+            XAssert.IsFalse(projectGraphWithPredictionsResult.Succeeded);
+            XAssert.IsFalse(string.IsNullOrEmpty(projectGraphWithPredictionsResult.Failure.Message));
         }
 
         [Fact]
@@ -54,7 +54,7 @@ namespace Test.ProjectGraphBuilder
             var projectGraphWithPredictionsResult = BuildGraphAndDeserialize(entryPoint);
 
             // We expect the result to succeed
-            Assert.True(projectGraphWithPredictionsResult.Succeeded);
+            XAssert.IsTrue(projectGraphWithPredictionsResult.Succeeded);
             // The locations for MSBuild.exe and its assemblies should be properly set
             Assert.Contains(TestDeploymentDir, projectGraphWithPredictionsResult.PathToMsBuild);
             XAssert.All(projectGraphWithPredictionsResult.MsBuildAssemblyPaths.Values, assemblyPath => assemblyPath.Contains(TestDeploymentDir));
@@ -89,7 +89,7 @@ namespace Test.ProjectGraphBuilder
             }
 
             // The serialized graph should exist
-            Assert.True(File.Exists(outputFile));
+            XAssert.IsTrue(File.Exists(outputFile));
 
             var projectGraphWithPredictionsResult = SimpleDeserializer.Instance.DeserializeGraph(outputFile);
 

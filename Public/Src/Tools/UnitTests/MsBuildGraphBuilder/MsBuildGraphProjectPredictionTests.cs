@@ -7,6 +7,7 @@ using System.Linq;
 using BuildXL.FrontEnd.MsBuild.Serialization;
 using Microsoft.Build.Prediction;
 using MsBuildGraphBuilderTool;
+using Test.BuildXL.TestUtilities.Xunit;
 using Test.ProjectGraphBuilder.Utilities;
 using Test.Tool.ProjectGraphBuilder.Mocks;
 using Xunit;
@@ -52,12 +53,12 @@ namespace Test.ProjectGraphBuilder
                     allowProjectsWithoutTargetProtocol: false));
 
             var result = SimpleDeserializer.Instance.DeserializeGraph(outputFile);
-            Assert.True(result.Succeeded);
+            XAssert.IsTrue(result.Succeeded);
 
             // There is a single project in this graph, which should have non-empty predictions
             ProjectWithPredictions<string> project = result.Result.ProjectNodes.Single();
-            Assert.True(project.PredictedInputFiles.Count > 0, "Expected a non-empty collection of predicted input files");
-            Assert.True(project.PredictedOutputFolders.Count > 0, "Expected a non-empty collection of predicted output folders");
+            XAssert.IsTrue(project.PredictedInputFiles.Count > 0, "Expected a non-empty collection of predicted input files");
+            XAssert.IsTrue(project.PredictedOutputFolders.Count > 0, "Expected a non-empty collection of predicted output folders");
         }
 
         [Fact]
@@ -87,8 +88,8 @@ namespace Test.ProjectGraphBuilder
             var result = SimpleDeserializer.Instance.DeserializeGraph(outputFile);
 
             // The result should gracefully fail, with some error message.
-            Assert.False(result.Succeeded);
-            Assert.True(result.Failure.Message != null);
+            XAssert.IsFalse(result.Succeeded);
+            XAssert.IsFalse(string.IsNullOrEmpty(result.Failure.Message));
         }
     }
 }

@@ -64,6 +64,12 @@ namespace BuildXL.FrontEnd.MsBuild.Serialization
         /// </summary>
         public bool MsBuildRuntimeIsDotNetCore { get; }
 
+        /// <summary>
+        /// When true, MSBuild projects are not treated as first class citizens and MSBuild is instructed to build each project using the legacy mode,
+        /// which relies on SDK conventions to respect the boundaries of a project and not build dependencies.
+        /// </summary>
+        public bool UseLegacyProjectIsolation { get; }
+
         /// <nodoc/>
         public MSBuildGraphBuilderArguments(
             IReadOnlyCollection<string> projectsToParse,
@@ -73,7 +79,8 @@ namespace BuildXL.FrontEnd.MsBuild.Serialization
             IReadOnlyCollection<string> entryPointTargets,
             IReadOnlyCollection<GlobalProperties> requestedQualifiers,
             bool allowProjectsWithoutTargetProtocol,
-            bool msBuildRuntimeIsDotNetCore)
+            bool msBuildRuntimeIsDotNetCore,
+            bool useLegacyProjectIsolation)
         {
             Contract.Requires(projectsToParse?.Count > 0);
             Contract.Requires(!string.IsNullOrEmpty(outputPath));
@@ -90,6 +97,7 @@ namespace BuildXL.FrontEnd.MsBuild.Serialization
             RequestedQualifiers = requestedQualifiers;
             AllowProjectsWithoutTargetProtocol = allowProjectsWithoutTargetProtocol;
             MsBuildRuntimeIsDotNetCore = msBuildRuntimeIsDotNetCore;
+            UseLegacyProjectIsolation = useLegacyProjectIsolation;
         }
 
         /// <inheritdoc/>
@@ -102,6 +110,7 @@ Global properties: {string.Join(" ", GlobalProperties.Select(kvp => $"[{kvp.Key}
 Search locations: {string.Join(" ", MSBuildSearchLocations)}
 Requested qualifiers: {string.Join(" ", RequestedQualifiers.Select(qualifier => string.Join(";", qualifier.Select(kvp => $"[{kvp.Key}]={kvp.Value}"))))}
 Allow projects without target protocol: {AllowProjectsWithoutTargetProtocol}
+Use legacy project isolation: {UseLegacyProjectIsolation}
 MSBuild runtime is DotNetCore: {MsBuildRuntimeIsDotNetCore}";
         }
     }

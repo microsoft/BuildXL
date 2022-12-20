@@ -24,6 +24,7 @@ using ProjectGraphWithPredictionsResult = BuildXL.FrontEnd.MsBuild.Serialization
 using ProjectGraphWithPredictions = BuildXL.FrontEnd.MsBuild.Serialization.ProjectGraphWithPredictions<string>;
 using ProjectWithPredictions = BuildXL.FrontEnd.MsBuild.Serialization.ProjectWithPredictions<string>;
 using ProjectGraphBuilder;
+using BuildXL.Utilities;
 
 namespace MsBuildGraphBuilderTool
 {
@@ -176,9 +177,8 @@ namespace MsBuildGraphBuilderTool
                     projectGraph,
                     reporter,
                     projectInstanceToProjectCache,
-                    graphBuildArguments.EntryPointTargets,
+                    graphBuildArguments,
                     projectPredictorsForTesting,
-                    graphBuildArguments.AllowProjectsWithoutTargetProtocol,
                     out ProjectGraphWithPredictions projectGraphWithPredictions,
                     out failure))
                 {
@@ -302,16 +302,15 @@ namespace MsBuildGraphBuilderTool
         private static bool TryConstructGraph(
             ProjectGraph projectGraph,
             GraphBuilderReporter reporter,
-            ConcurrentDictionary<ProjectInstance, Project> projectInstanceToProjectCache,
-            IReadOnlyCollection<string> entryPointTargets,
+            ConcurrentDictionary<ProjectInstance, Project> projectInstanceToProjectMap,
+            MSBuildGraphBuilderArguments graphBuilderArguments,
             IReadOnlyCollection<IProjectPredictor> projectPredictorsForTesting,
-            bool allowProjectsWithoutTargetProtocol,
             out ProjectGraphWithPredictions projectGraphWithPredictions,
             out string failure)
         {
             Contract.Assert(projectGraph != null);
 
-            var projectNodes = new ProjectWithPredictions[projectGraph.ProjectNodes.Count];
+            var projectNodes = new MutableProjectWithPredictions[projectGraph.ProjectNodes.Count];
 
             var nodes = projectGraph.ProjectNodes.ToArray();
 
@@ -319,12 +318,12 @@ namespace MsBuildGraphBuilderTool
             reporter.ReportMessage("Computing targets to execute for each project...");
 
             // This dictionary should be exclusively read only at this point, and therefore thread safe
-            var targetsPerProject = projectGraph.GetTargetLists(entryPointTargets.ToArray());
+            var targetsPerProject = projectGraph.GetTargetLists(graphBuilderArguments.EntryPointTargets.ToArray());
 
             // Bidirectional access from nodes with predictions to msbuild nodes in order to compute node references in the second pass
             // TODO: revisit the structures, since the projects are known upfront we might be able to use lock-free structures
-            var nodeWithPredictionsToMsBuildNodes = new ConcurrentDictionary<ProjectWithPredictions, ProjectGraphNode>(Environment.ProcessorCount, projectNodes.Length);
-            var msBuildNodesToNodeWithPredictionIndex = new ConcurrentDictionary<ProjectGraphNode, ProjectWithPredictions>(Environment.ProcessorCount, projectNodes.Length);
+            var nodeWithPredictionsToMsBuildNodes = new ConcurrentDictionary<MutableProjectWithPredictions, ProjectGraphNode>(Environment.ProcessorCount, projectNodes.Length);
+            var msBuildNodesToNodeWithPredictionIndex = new ConcurrentDictionary<ProjectGraphNode, MutableProjectWithPredictions>(Environment.ProcessorCount, projectNodes.Length);
 
             reporter.ReportMessage("Statically predicting inputs and outputs...");
 
@@ -338,7 +337,7 @@ namespace MsBuildGraphBuilderTool
             catch(Exception ex)
             {
                 failure = $"Cannot create standard predictors. An unexpected error occurred. Please contact BuildPrediction project owners with this stack trace: {ex}";
-                projectGraphWithPredictions = new ProjectGraphWithPredictions(Array.Empty<ProjectWithPredictions<string>>());
+                projectGraphWithPredictions = new ProjectGraphWithPredictions(Array.Empty<ProjectWithPredictions>());
                 return false;
             }
 
@@ -351,6 +350,7 @@ namespace MsBuildGraphBuilderTool
 
             // The predicted targets to execute (per project) go here
             var computedTargets = new ConcurrentBigMap<ProjectGraphNode, PredictedTargetsToExecute>();
+
             // When projects are allowed to not implement the target protocol, its references need default targets as a post-processing step
             var pendingAddDefaultTargets = new ConcurrentBigSet<ProjectGraphNode>();
 
@@ -360,11 +360,11 @@ namespace MsBuildGraphBuilderTool
 
                 ProjectGraphNode msBuildNode = nodes[i];
                 ProjectInstance projectInstance = msBuildNode.ProjectInstance;
-                Project project = projectInstanceToProjectCache[projectInstance];
+                Project project = projectInstanceToProjectMap[projectInstance];
 
-                var outputFolderPredictions = new List<string>();
-
+                var outputFolderPredictions = new HashSet<string>(OperatingSystemHelper.PathComparer);
                 var predictionCollector = new MsBuildOutputPredictionCollector(outputFolderPredictions, predictionFailures);
+
                 try
                 {
                     // Again, be defensive when using arbitrary predictors
@@ -383,7 +383,7 @@ namespace MsBuildGraphBuilderTool
                     targetsPerProject,
                     computedTargets,
                     pendingAddDefaultTargets,
-                    allowProjectsWithoutTargetProtocol,
+                    graphBuilderArguments.AllowProjectsWithoutTargetProtocol,
                     out GlobalProperties globalProperties,
                     out string protocolMissingFailure))
                 {
@@ -393,10 +393,10 @@ namespace MsBuildGraphBuilderTool
 
                 // The project file itself and all its imports are considered inputs to this project.
                 // Predicted inputs are not actually used.
-                var inputs = new List<string>() { project.FullPath };
-                inputs.AddRange(project.Imports.Select(i => i.ImportedProject.FullPath));
+                var inputs = new HashSet<string>(OperatingSystemHelper.PathComparer) { project.FullPath };
+                inputs.UnionWith(project.Imports.Select(i => i.ImportedProject.FullPath));
 
-                projectNodes[i] = new ProjectWithPredictions(
+                projectNodes[i] = new MutableProjectWithPredictions(
                     projectInstance.FullPath,
                     projectInstance.GetItems(ProjectReferenceTargets).Count > 0,
                     globalProperties,
@@ -407,9 +407,9 @@ namespace MsBuildGraphBuilderTool
                 // to avoid wasted allocations
                 // Otherwise, we leave it as a post-processing step. Since we are visiting the graph in parallel, without considering edges at all,
                 // we need to wait until all nodes are visited to know the full set of projects that have pending default targets to be added
-                if (!allowProjectsWithoutTargetProtocol)
+                if (!graphBuilderArguments.AllowProjectsWithoutTargetProtocol)
                 {
-                    projectNodes[i].SetTargetsToExecute(computedTargets[msBuildNode]);
+                    projectNodes[i].PredictedTargetsToExecute = computedTargets[msBuildNode];
                 }
 
                 nodeWithPredictionsToMsBuildNodes[projectNodes[i]] = msBuildNode;
@@ -419,7 +419,7 @@ namespace MsBuildGraphBuilderTool
             // There were IO prediction errors.
             if (!predictionFailures.IsEmpty)
             {
-                projectGraphWithPredictions = new ProjectGraphWithPredictions(new ProjectWithPredictions<string>[] { });
+                projectGraphWithPredictions = new ProjectGraphWithPredictions(Array.Empty<ProjectWithPredictions>());
                 failure = $"Errors found during static prediction of inputs and outputs. " +
                     $"{string.Join(", ", predictionFailures.Select(failureWithCulprit => $"[Predicted by: {failureWithCulprit.predictorName}] {failureWithCulprit.failure}"))}";
                 return false;
@@ -428,13 +428,13 @@ namespace MsBuildGraphBuilderTool
             // There were target prediction errors.
             if (!predictedTargetFailures.IsEmpty)
             {
-                projectGraphWithPredictions = new ProjectGraphWithPredictions(new ProjectWithPredictions<string>[] { });
+                projectGraphWithPredictions = new ProjectGraphWithPredictions(Array.Empty<ProjectWithPredictions>());
                 failure = $"Errors found during target prediction. {string.Join(", ", predictedTargetFailures) }";
                 return false;
             }
 
             // If there are references from (allowed) projects not implementing the target protocol, then we may need to change the already computed targets to add default targets to them
-            if (allowProjectsWithoutTargetProtocol)
+            if (graphBuilderArguments.AllowProjectsWithoutTargetProtocol)
             {
                 Parallel.ForEach(computedTargets.Keys, (ProjectGraphNode projectNode) =>
                 {
@@ -445,7 +445,7 @@ namespace MsBuildGraphBuilderTool
                         targets = targets.WithDefaultTargetsAppended(projectNode.ProjectInstance.DefaultTargets);
                     }
 
-                    msBuildNodesToNodeWithPredictionIndex[projectNode].SetTargetsToExecute(targets);
+                    msBuildNodesToNodeWithPredictionIndex[projectNode].PredictedTargetsToExecute = targets;
                 });
             }
 
@@ -453,21 +453,147 @@ namespace MsBuildGraphBuilderTool
             // Reconstruct all references. A two-pass approach avoids needing to do more complicated reconstruction of references that would need traversing the graph
             foreach (var projectWithPredictions in projectNodes)
             {
-                // TODO: temporarily getting this as a set due to an MSBuild bug where edges are sometimes duplicated. We can just
-                // treat this as an array once the bug is fixed on MSBuild side
                 var references = nodeWithPredictionsToMsBuildNodes[projectWithPredictions]
                     .ProjectReferences
-                    .Select(projectReference => msBuildNodesToNodeWithPredictionIndex[projectReference])
-                    .ToHashSet();
+                    .Select(projectReference => msBuildNodesToNodeWithPredictionIndex[projectReference]);
 
-                projectWithPredictions.SetDependencies(references);
+                var referencing = nodeWithPredictionsToMsBuildNodes[projectWithPredictions]
+                    .ReferencingProjects
+                    .Select(referencingProject => msBuildNodesToNodeWithPredictionIndex[referencingProject]);
+
+                projectWithPredictions.AddDependencies(references);
+                projectWithPredictions.AddDependents(referencing);
+            }
+
+            if (graphBuilderArguments.UseLegacyProjectIsolation)
+            {
+                Possible<MutableProjectWithPredictions[]> maybeProjectNodes = TryMergeProjectNodes(
+                    projectNodes,
+                    nodeWithPredictionsToMsBuildNodes);
+
+                if (!maybeProjectNodes.Succeeded)
+                {
+                    projectGraphWithPredictions = new ProjectGraphWithPredictions(Array.Empty<ProjectWithPredictions>());
+                    failure = maybeProjectNodes.Failure.DescribeIncludingInnerFailures();
+                    return false;
+                }
+
+                projectNodes = maybeProjectNodes.Result;
             }
 
             reporter.ReportMessage("Done predicting inputs and outputs.");
 
-            projectGraphWithPredictions = new ProjectGraphWithPredictions(projectNodes);
+            projectGraphWithPredictions = new MutableProjectGraphWithPredictions(projectNodes).ToImmutable();
             failure = string.Empty;
             return true;
+        }
+
+        private static Possible<MutableProjectWithPredictions[]> TryMergeProjectNodes(
+            MutableProjectWithPredictions[] projectNodes,
+            IReadOnlyDictionary<MutableProjectWithPredictions, ProjectGraphNode> nodeWithPredictionsToMsBuildNodes)
+        {
+            string failure = string.Empty;
+
+            // Step 1: Group project nodes based on dimension tuple (file, configuration, platform).
+            var projectFileDimensionToProjectNodes = new Dictionary<ProjectFileAndDimension, List<MutableProjectWithPredictions>>();
+            foreach (var projectNode in projectNodes)
+            {
+                ProjectInstance projectInstance = nodeWithPredictionsToMsBuildNodes[projectNode].ProjectInstance;
+                ProjectFileAndDimension projectFileAndDimension = ProjectFileAndDimension.CreateFrom(projectInstance) ?? ProjectFileAndDimension.CreateFakeUnique(projectInstance);
+
+                if (!projectFileDimensionToProjectNodes.TryGetValue(projectFileAndDimension, out List<MutableProjectWithPredictions> projectNodesForDimension))
+                {
+                    projectNodesForDimension = new List<MutableProjectWithPredictions>();
+                    projectFileDimensionToProjectNodes.Add(projectFileAndDimension, projectNodesForDimension);
+                }
+
+                projectNodesForDimension.Add(projectNode);
+            }
+
+            if (!string.IsNullOrEmpty(failure))
+            {
+                return new Failure<string>(failure);
+            }
+
+            var newProjectNodes = new List<MutableProjectWithPredictions>(projectFileDimensionToProjectNodes.Count);
+
+            // Step 2: Identify outer and inner builds.
+            var innerBuilds = new List<MutableProjectWithPredictions>();
+
+            foreach (KeyValuePair<ProjectFileAndDimension, List<MutableProjectWithPredictions>> kvp in projectFileDimensionToProjectNodes)
+            {
+                innerBuilds.Clear();
+
+                List<MutableProjectWithPredictions> projectNodesForDimension = kvp.Value;
+                if (projectNodesForDimension.Count == 1)
+                {
+                    newProjectNodes.Add(projectNodesForDimension[0]);
+                }
+                else
+                {
+                    // Found multiple project instances for the tuple (file, configuration, platform). These instances could be from a multi-targeting project.
+                    // Identify the outer build, and merge the inner builds into it.
+                    MutableProjectWithPredictions outerBuild = null;
+
+                    foreach (var projectNode in projectNodesForDimension) 
+                    {
+                        ProjectInstance projectInstance = nodeWithPredictionsToMsBuildNodes[projectNode].ProjectInstance;
+
+                        // See: https://github.com/microsoft/msbuild/blob/master/src/Build/Graph/ProjectInterpretation.cs
+                        bool isInnerBuild = !string.IsNullOrWhiteSpace(projectInstance.GetPropertyValue(projectInstance.GetPropertyValue("InnerBuildProperty")));
+                        bool isOuterBuild = !isInnerBuild && !string.IsNullOrWhiteSpace(projectInstance.GetPropertyValue(projectInstance.GetPropertyValue("InnerBuildPropertyValues")));
+
+                        if (!isInnerBuild && !isOuterBuild)
+                        {
+                            return new Failure<string>($"Project at {projectInstance.FullPath}" +
+                                $" with global properties {DictionaryToString(projectInstance.GlobalProperties)}" +
+                                $" is neither an outer nor an inner build");
+                        }
+
+                        if (isInnerBuild)
+                        {
+                            innerBuilds.Add(projectNode);
+                        }
+
+                        if (isOuterBuild)
+                        {
+                            if (outerBuild != null)
+                            {
+                                return new Failure<string>($"Project at {projectInstance.FullPath} has multiple outer builds");
+                            }
+
+                            outerBuild = projectNode;
+                        }
+                    }
+
+                    if (outerBuild == null)
+                    {
+                        return new Failure<string>($"Project at {kvp.Key.ProjectFile} (Configuration: {kvp.Key.Configuration}, Platform: {kvp.Key.Platform}) does not have an outer build");
+                    }
+
+                    // Step 3: Merge inner builds into outer build.
+                    foreach (var innerBuild in innerBuilds)
+                    {
+                        // Merge dependencies and file/folder predictions.
+                        outerBuild.Merge(innerBuild);
+
+                        innerBuild.MakeOrphan();
+                    }
+
+                    // Set proper target.
+                    outerBuild.PredictedTargetsToExecute = outerBuild.PredictedTargetsToExecute.WithDefaultTargetsAppended(
+                        nodeWithPredictionsToMsBuildNodes[outerBuild].ProjectInstance.DefaultTargets);
+
+                    newProjectNodes.Add(outerBuild);
+                }
+            }
+
+            return newProjectNodes.ToArray();
+
+            static string DictionaryToString(IDictionary<string, string> dictionary) =>
+                string.Join(
+                    ", ",
+                    dictionary.Select(kvp => $"{kvp.Key}={kvp.Value}"));
         }
 
         private static bool TryGetPredictedTargetsAndPropertiesToExecute(
@@ -524,13 +650,60 @@ namespace MsBuildGraphBuilderTool
 
             var serializer = JsonSerializer.Create(ProjectGraphSerializationSettings.Settings);
 
-            using (StreamWriter sw = new StreamWriter(outputFile))
-            using (JsonWriter writer = new JsonTextWriter(sw))
-            {
-                serializer.Serialize(writer, projectGraphWithPredictions);
-            }
+            using var sw = new StreamWriter(outputFile);
+            using var writer = new JsonTextWriter(sw);
+            serializer.Serialize(writer, projectGraphWithPredictions);
 
             reporter.ReportMessage("Done serializing graph.");
+        }
+
+        private record ProjectFileAndDimension(string ProjectFile, string Configuration, string Platform)
+        {
+            public const string ConfigurationProperty = "Configuration";
+            public const string PlatformProperty = "Platform";
+            private const string FakeDimensionPrefix = "__Dummy__";
+            private static int s_freshId = 0;
+
+            /// <summary>
+            /// Creates an instance of <see cref="ProjectFileAndDimension"/> from properties <see cref="ConfigurationProperty"/> and <see cref="PlatformProperty"/>,
+            /// and returns <code>null</code> if either of the properties is not specified.
+            /// </summary>
+            public static ProjectFileAndDimension CreateFrom(ProjectInstance projectInstance, IDictionary<string, string> globalProperties = null)
+            {
+                string projectFile = projectInstance.FullPath;
+                globalProperties ??= projectInstance.GlobalProperties;
+                string configuration = GetPropertyValue(ConfigurationProperty, projectInstance, globalProperties);
+                string platform = GetPropertyValue(PlatformProperty, projectInstance, globalProperties);
+
+                return string.IsNullOrEmpty(configuration) || string.IsNullOrEmpty(platform)
+                    ? null
+                    : new ProjectFileAndDimension(OperatingSystemHelper.IsUnixOS ? projectFile : projectFile.ToUpperInvariant(), configuration, platform);
+
+                static string GetPropertyValue(string property, ProjectInstance project, IDictionary<string, string> properties) =>
+                    properties.TryGetValue(property, out string value)
+                        ? value
+                        : project.GetPropertyValue(property);
+            }
+
+            /// <summary>
+            /// Creates a fake and unique <see cref="ProjectFileAndDimension"/>.
+            /// </summary>
+            public static ProjectFileAndDimension CreateFakeUnique(ProjectInstance projectInstance)
+            {
+                string projectFile = projectInstance.FullPath;
+                int id = s_freshId++;
+                return new ProjectFileAndDimension(
+                    OperatingSystemHelper.IsUnixOS ? projectFile : projectFile.ToUpperInvariant(),
+                    $"{FakeDimensionPrefix}{ConfigurationProperty}{id}",
+                    $"{FakeDimensionPrefix}{PlatformProperty}{id}");
+            }
+
+            /// <summary>
+            /// Checks if this instance is a fake one or not.
+            /// </summary>
+            public bool IsFake => 
+                Configuration.StartsWith(FakeDimensionPrefix, StringComparison.OrdinalIgnoreCase)
+                || Platform.StartsWith(FakeDimensionPrefix, StringComparison.OrdinalIgnoreCase);
         }
     }
 }

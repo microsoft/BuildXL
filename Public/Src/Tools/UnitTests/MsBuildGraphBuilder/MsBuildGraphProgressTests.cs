@@ -8,6 +8,7 @@ using System.Text;
 using System.Threading.Tasks;
 using BuildXL.FrontEnd.MsBuild.Serialization;
 using MsBuildGraphBuilderTool;
+using Test.BuildXL.TestUtilities.Xunit;
 using Test.ProjectGraphBuilder.Utilities;
 using Xunit;
 using Xunit.Abstractions;
@@ -30,7 +31,7 @@ namespace Test.ProjectGraphBuilder
             using (var reporter = new GraphBuilderReporter(Guid.NewGuid().ToString()))
             {
                 var result = BuildAndReport(reporter, out var failure);
-                Assert.True(result, failure);
+                XAssert.IsTrue(result, failure);
             }
         }
 
@@ -46,7 +47,7 @@ namespace Test.ProjectGraphBuilder
             finally
             {
                 reporter.Dispose();
-                Assert.True(reporter.Errors.Count > 0);
+                XAssert.IsTrue(reporter.Errors.Count > 0);
             }
         }
 
@@ -58,11 +59,11 @@ namespace Test.ProjectGraphBuilder
             using (var reporter = new GraphBuilderReporter(pipeName))
             {
                 var result = BuildAndReport(reporter, out var failure);
-                Assert.True(result, failure);
+                XAssert.IsTrue(result, failure);
             }
 
             var progress = task.GetAwaiter().GetResult();
-            Assert.True(!string.IsNullOrEmpty(progress));
+            XAssert.IsTrue(!string.IsNullOrEmpty(progress));
         }
 
         private bool BuildAndReport(GraphBuilderReporter reporter, out string failure)
@@ -88,7 +89,7 @@ namespace Test.ProjectGraphBuilder
             return result.Succeeded;
         }
 
-        private Task<string> ConnectToServerPipeAndLogProgress(string pipeName)
+        private static Task<string> ConnectToServerPipeAndLogProgress(string pipeName)
         {
             return Task.Factory.StartNew(
                     () =>

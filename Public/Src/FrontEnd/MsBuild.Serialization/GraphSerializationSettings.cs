@@ -14,7 +14,7 @@ namespace BuildXL.FrontEnd.MsBuild.Serialization
         /// Preserves references for objects (so project references get correctly reconstructed), adds indentation for easier 
         /// debugging (at the cost of a slightly higher serialization size) and includes nulls explicitly
         /// </summary>
-        public static JsonSerializerSettings Settings = new JsonSerializerSettings
+        public static readonly JsonSerializerSettings Settings = new()
         {
             PreserveReferencesHandling = PreserveReferencesHandling.Objects,
             Formatting = Formatting.Indented,

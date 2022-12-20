@@ -716,7 +716,6 @@ namespace BuildXL.FrontEnd.MsBuild
                 pipDataBuilder.Add(PipDataAtom.FromString($"/t:{target}"));
             }
 
-
             // Pass the output result cache file if present
             if (outputResultCacheFile != AbsolutePath.Invalid)
             {
@@ -738,7 +737,7 @@ namespace BuildXL.FrontEnd.MsBuild
             return true;
         }
 
-        private bool TryGetLogVerbosity(string logVerbosity, out string result)
+        private static bool TryGetLogVerbosity(string logVerbosity, out string result)
         {
             // Keep in sync with Prelude.Configuration.Resolvers.dsc
             // logVerbosity?: "quiet" | "minimal" | "normal" | "detailed" | "diagnostic";

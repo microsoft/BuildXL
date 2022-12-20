@@ -1,6 +1,7 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
@@ -47,6 +48,11 @@ namespace BuildXL.FrontEnd.MsBuild.Serialization
             Contract.Requires(targets != null);
             return new PredictedTargetsToExecute(isDefaultTargetsAppended: false, targets: targets, appendedDefaultTargets: null);
         }
+
+        /// <summary>
+        /// Creates for an empty target.
+        /// </summary>
+        public static PredictedTargetsToExecute CreateEmpty() => Create(Array.Empty<string>());
 
         /// <summary>
         /// Returns a new instance of this class with the provided targets appended to the existing targets of this

@@ -30,11 +30,11 @@ namespace Test.ProjectGraphBuilder
                     out var locatedMsBuildExePath);
 
                 // We expect success
-                Assert.True(succeed);
+                XAssert.IsTrue(succeed);
 
                 // All located assemblies (and MSBuild.exe) should be the ones in the deployment directory
                 XAssert.All(locatedAssemblyPaths.Values, locatedAssemblyPath => locatedAssemblyPath.StartsWith(TestDeploymentDir));
-                Assert.True(locatedMsBuildExePath.StartsWith(TestDeploymentDir));
+                XAssert.IsTrue(locatedMsBuildExePath.StartsWith(TestDeploymentDir));
             }
         }
 
@@ -52,9 +52,9 @@ namespace Test.ProjectGraphBuilder
                     out _);
 
                 // We expect a failure
-                Assert.False(succeed);
+                XAssert.IsFalse(succeed);
                 // And a non-empty failure reason
-                Assert.True(!string.IsNullOrEmpty(failureReason));
+                XAssert.IsFalse(string.IsNullOrEmpty(failureReason));
             }
         }
     }

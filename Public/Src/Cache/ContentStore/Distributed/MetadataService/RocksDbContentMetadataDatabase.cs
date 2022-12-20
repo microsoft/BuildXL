@@ -329,6 +329,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 
                 if (possibleStore.Succeeded)
                 {
+                    if (ShutdownStarted)
+                    {
+                        // If the shutdown already started (and this is possible due to something like background restore)
+                        // we should immediately close the newly opened store to avoid resource leaks.
+
+                        Tracer.Debug(context, "Closing a newly opened store because the shutdown was requested");
+                        possibleStore.Result.Dispose();
+                        return BoolResult.Success;
+                    }
+
                     var oldKeyValueStore = _keyValueStore;
                     var store = possibleStore.Result;
 

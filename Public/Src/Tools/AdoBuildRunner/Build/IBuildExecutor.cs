@@ -29,9 +29,8 @@ namespace BuildXL.AdoBuildRunner.Build
         /// </summary>
         /// <param name="buildContext">Information about the build setup</param>
         /// <param name="buildArguments">Arguments to be executed when synchronization succeeds</param>
-        /// <param name="dynamicWorkerCount">Count of workers that will be joining the distributed build</param>
         /// <returns>Status code of the build argument execution</returns>
-        int ExecuteDistributedBuildAsOrchestrator(BuildContext buildContext, string[] buildArguments, int dynamicWorkerCount);
+        int ExecuteDistributedBuildAsOrchestrator(BuildContext buildContext, string[] buildArguments);
 
         /// <summary>
         /// Perfrorm any work before setting the machine "ready" to build
@@ -45,8 +44,7 @@ namespace BuildXL.AdoBuildRunner.Build
         /// </summary>
         /// <param name="buildContext">The build context</param>
         /// <param name="buildArguments">Arguments to be executed when synchronization succeeds</param>
-        /// <param name="orchestratorInfo">The address information describing the build orchestrator</param>
         /// <returns>Status code of the build argument execution</returns>
-        int ExecuteDistributedBuildAsWorker(BuildContext buildContext, string[] buildArguments, IDictionary<string, string> orchestratorInfo);
+        int ExecuteDistributedBuildAsWorker(BuildContext buildContext, string[] buildArguments);
     }
 }

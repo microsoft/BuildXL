@@ -4,6 +4,9 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using BuildXL.AdoBuildRunner.Build;
+
+#nullable enable
 
 namespace BuildXL.AdoBuildRunner.Vsts
 {
@@ -85,11 +88,9 @@ namespace BuildXL.AdoBuildRunner.Vsts
         Task<IEnumerable<IDictionary<string, string>>> GetOrchestratorAddressInformationAsync();
 
         /// <summary>
-        /// Get the starting time of the build according to VSTS
+        /// Gets the build context from the ADO build run information 
         /// </summary>
-        /// <returns>Time when the build started</returns>
-        Task<DateTime> GetBuildStartTimeAsync();
-
+        Task<BuildContext> GetBuildContextAsync();
         /// <summary>
         /// Indicate that this machine is ready to build using a timeline record
         /// </summary>
@@ -120,5 +121,9 @@ namespace BuildXL.AdoBuildRunner.Vsts
         /// <returns></returns>
         Task SetBuildResult(bool success);
 
+        /// <summary>
+        /// Queue a build
+        /// </summary>
+        Task QueueBuildAsync(int pipelineId, string sourceBranch, string sourceVersion, Dictionary<string, string>? parameters = null, Dictionary<string, string>? templateParameters = null, Dictionary<string, string>? triggerInfo = null);
     }
 }

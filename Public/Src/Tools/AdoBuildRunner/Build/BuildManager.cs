@@ -2,14 +2,15 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
-using System.Security.Cryptography;
-using System.Text;
 using System.Threading.Tasks;
 using AdoBuildRunner.Vsts;
 using BuildXL.AdoBuildRunner.Vsts;
+
+#nullable enable
 
 namespace BuildXL.AdoBuildRunner.Build
 {
@@ -36,9 +37,9 @@ namespace BuildXL.AdoBuildRunner.Build
         /// <param name="logger">Interface to log build info</param>
         public BuildManager(IApi vstsApi, IBuildExecutor executor, string[] args, ILogger logger)
         {
-            m_vstsApi = vstsApi ?? throw new ArgumentNullException(nameof(vstsApi));
-            m_executor = executor ?? throw new ArgumentNullException(nameof(executor));
-            m_logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            m_vstsApi = vstsApi;
+            m_executor = executor;
+            m_logger = logger;
             m_buildArguments = args;
         }
 
@@ -46,18 +47,8 @@ namespace BuildXL.AdoBuildRunner.Build
         /// Executes a build depending on orchestrator / worker context
         /// </summary>
         /// <returns>The exit code returned by the worker process</returns>
-        public async Task<int> BuildAsync()
+        public async Task<int> BuildAsync(BuildContext buildContext)
         {
-            var buildContext = new BuildContext()
-            {
-                SessionId        = await GetBuildSessionId(),
-                BuildId          = m_vstsApi.BuildId,
-                SourcesDirectory = m_vstsApi.SourcesDirectory,
-                RepositoryUrl    = m_vstsApi.RepositoryUrl,
-                ServerUrl        = m_vstsApi.ServerUri,
-                TeamProjectId    = m_vstsApi.TeamProjectId,
-            };
-
             // Possibly extend context with additional info that can influence the build environment as needed
             m_executor.PrepareBuildEnvironment(buildContext);
 
@@ -78,8 +69,15 @@ namespace BuildXL.AdoBuildRunner.Build
             {
                 await m_vstsApi.SetMachineReadyToBuild(GetAgentHostName(), GetAgentIPAddress(false), GetAgentIPAddress(true), isOrchestrator: true);
 
-                var numDynamicWorkers = m_vstsApi.TotalJobsInPhase - 1; // The number of worker that might show up for the build
-                returnCode = m_executor.ExecuteDistributedBuildAsOrchestrator(buildContext, m_buildArguments, numDynamicWorkers);
+                // Add the dynamic slot argument. In the worker pool approach this is defined
+                // externally, here we infer it from the amount of machines in this parallel execution
+                var numDynamicWorkers = m_vstsApi.TotalJobsInPhase - 1; 
+                var buildArguments = new List<string>(m_buildArguments)
+                {
+                    $"/dynamicBuildWorkerSlots:{numDynamicWorkers}"
+                };
+
+                returnCode = m_executor.ExecuteDistributedBuildAsOrchestrator(buildContext, buildArguments.ToArray());
 
                 await m_vstsApi.SetBuildResult(success: returnCode == 0);
                 PublishRoleInEnvironment(isOrchestrator: true);
@@ -98,11 +96,12 @@ namespace BuildXL.AdoBuildRunner.Build
                     CoordinationException.LogAndThrow(m_logger, "Couldn't get orchestrator address info, aborting!");
                 }
 
-                m_logger.Info($@"Found orchestrator: {orchestratorInfo[Constants.MachineHostName]}@{orchestratorInfo[Constants.MachineIpV4Address]}");
+                m_logger.Info($@"Found orchestrator: {orchestratorInfo![Constants.MachineHostName]}@{orchestratorInfo[Constants.MachineIpV4Address]}");
 
                 await m_vstsApi.SetMachineReadyToBuild(GetAgentHostName(), GetAgentIPAddress(false), GetAgentIPAddress(true));
 
-                returnCode = m_executor.ExecuteDistributedBuildAsWorker(buildContext, m_buildArguments, orchestratorInfo);
+                buildContext.OrchestratorLocation = $"{orchestratorInfo[Constants.MachineIpV4Address]}:{Constants.MachineGrpcPort}";
+                returnCode = m_executor.ExecuteDistributedBuildAsWorker(buildContext, m_buildArguments);
                 LogExitCode(returnCode);
                 PublishRoleInEnvironment(isOrchestrator: false);
 
@@ -140,37 +139,10 @@ namespace BuildXL.AdoBuildRunner.Build
             Console.WriteLine($"##vso[task.setvariable variable={Constants.BuildRoleVariableName}]{role}");
         }
 
-        /// <summary>
-        /// Returns the build id (related session id) as a GUID that is stable across workers of this build but unique across builds
-        /// </summary>
-        private async Task<string> GetBuildSessionId()
-        {
-            // We use the task name which is required to be unique for parallel builds in the same pipeline
-            // as we use it to get the build records. The attempt number is also relevant.
-            string taskName = Environment.GetEnvironmentVariable(Constants.TaskDisplayNameVariableName);
-            string attemptNumber = Environment.GetEnvironmentVariable(Constants.JobAttemptVariableName);
-            string startTime = (await m_vstsApi.GetBuildStartTimeAsync()).ToString("MMdd_HHmmss");
-            return GuidFromString($"{m_vstsApi.TeamProjectId}-{m_vstsApi.BuildId}-{startTime}-{taskName}-{attemptNumber}");
-        }
-
         private string GetAgentHostName()
         {
             return System.Net.Dns.GetHostName();
         }
-
-#pragma warning disable CA5350 // GuidFromString uses a weak cryptographic algorithm SHA1.
-        private static string GuidFromString(string value)
-        {
-            using var hash = SHA1.Create();
-            byte[] bytesToHash = Encoding.Unicode.GetBytes(value);
-            hash.TransformFinalBlock(bytesToHash, 0, bytesToHash.Length);
-
-            // Guid takes a 16-byte array
-            byte[] low16 = new byte[16];
-            Array.Copy(hash.Hash, low16, 16);
-            return new Guid(low16).ToString("D");
-        }
-#pragma warning restore CA5350 // GuidFromString uses a weak cryptographic algorithm SHA1.
 
         /// <nodoc />
         public static string GetAgentIPAddress(bool ipv6)

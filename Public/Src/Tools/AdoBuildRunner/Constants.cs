@@ -14,6 +14,11 @@ namespace BuildXL.AdoBuildRunner
         public const string BuildIdVarName = "BUILD_BUILDID";
 
         /// <summary>
+        /// Name of the environment variable that contains the build id of the build that triggered this one
+        /// </summary>
+        public const string TriggeredByBuildIdVarName = "BUILD_TRIGGEREDBY_BUILDID";
+
+        /// <summary>
         /// Name of the environment variable that contains the team project
         /// </summary>
         public const string TeamProjectVarName = "SYSTEM_TEAMPROJECT";
@@ -84,6 +89,21 @@ namespace BuildXL.AdoBuildRunner
         public const string JobAttemptVariableName = "SYSTEM_JOBATTEMPT";
 
         /// <summary>
+        /// Name of the variable of the source version (i.e., commit id)
+        /// </summary>
+        public const string SourceVersionVariableName = "BUILD_SOURCEVERSION";
+
+        /// <summary>
+        /// Name of the variable of the source branch
+        /// </summary>
+        public const string SourceBranchVariableName = "BUILD_SOURCEBRANCH";
+
+        /// <summary>
+        /// Name of the variable of the target pr branch
+        /// </summary>
+        public const string TargetBranchVariableName = "BUILD_TARGETBRANCH";
+
+        /// <summary>
         /// Variable indicating the current agent type
         /// </summary>
         public const string MachineType = "MachineType";
@@ -133,6 +153,15 @@ namespace BuildXL.AdoBuildRunner
         public const string BuildRoleOrchestrator = "BuildXLOrchestrator";
 
         /// <nodoc />
+        public const string RelatedSessionIdParameter = "BuildXLRelatedSessionId";
+
+        /// <nodoc />
+        public const string TriggeringAdoBuildIdParameter = "BuildXLTriggeringAdoBuildId";
+
+        /// <nodoc />
+        public const string OrchestratorLocationParameter = "BuildXLOrchestratorLocation";
+
+        /// <nodoc />
         public const string BuildRoleWorker = "BuildXLWorker";
 
         /// <summary>
@@ -159,6 +188,12 @@ namespace BuildXL.AdoBuildRunner
         /// The maximum time an agent waits for the other agents to get ready before failing
         /// </summary>
         public const string WaitForOrchestratorExitVariableName = "AdoBuildRunnerWaitForOrchestratorExit";
+
+        /// <summary>
+        /// Indicates the distributed build role taken by the build runner
+        /// Should be either "Orchestrator" or "Worker"
+        /// </summary>
+        public const string AdoBuildRunnerPipelineRole = "AdoBuildRunnerWorkerPipelineRole";
 
         /// <summary>
         /// The time the agent waits before re-checking if the other agents are ready

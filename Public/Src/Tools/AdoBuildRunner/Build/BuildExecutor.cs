@@ -2,13 +2,13 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using BuildXL.AdoBuildRunner.Vsts;
+
+#nullable enable
 
 namespace BuildXL.AdoBuildRunner.Build
 {
@@ -24,7 +24,7 @@ namespace BuildXL.AdoBuildRunner.Build
         {
             // Resolve the bxl executable location
             var exeName = RuntimeInformation.IsOSPlatform(OSPlatform.Linux) ? "bxl" : "bxl.exe";
-            m_bxlExeLocation = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), exeName);
+            m_bxlExeLocation = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!, exeName);
         }
 
         private int ExecuteBuild(string arguments, string buildSourcesDirectory)
@@ -94,32 +94,31 @@ namespace BuildXL.AdoBuildRunner.Build
         }
 
         /// <inherit />
-        public int ExecuteDistributedBuildAsOrchestrator(BuildContext buildContext, string[] buildArguments, int numDynamicWorkers)
+        public int ExecuteDistributedBuildAsOrchestrator(BuildContext buildContext, string[] buildArguments)
         {
             Logger.Info($@"Launching distributed build as orchestrator");
 
             return ExecuteBuild(
                 ExtractAndEscapeCommandLineArguments(buildArguments) +
-                $" /distributedBuildRole:master" +
+                $" /ado /distributedBuildRole:master" +
                 $" /distributedBuildServicePort:{Constants.MachineGrpcPort}" +
-                $" /relatedActivityId:{buildContext.SessionId} " +
-                $"/dynamicBuildWorkerSlots:{numDynamicWorkers}",
+                $" /relatedActivityId:{buildContext.RelatedSessionId}",
                 buildContext.SourcesDirectory
             );
         }
 
         /// <inherit />
-        public int ExecuteDistributedBuildAsWorker(BuildContext buildContext, string[] buildArguments, IDictionary<string, string> orchestratorInfo)
+        public int ExecuteDistributedBuildAsWorker(BuildContext buildContext, string[] buildArguments)
         {
             Logger.Info($@"Launching distributed build as worker");
 
             return ExecuteBuild(
-                "/p:BuildXLWorkerAttachTimeoutMin=10 " +  // By default, set the timeout to 10min in the workers to avoid unnecessary waiting upon connection failures
+                "/p:BuildXLWorkerAttachTimeoutMin=20 " +  // By default, set the timeout to 20min in the workers to avoid unnecessary waiting upon connection failures
                 ExtractAndEscapeCommandLineArguments(buildArguments) +
-                $" /distributedBuildRole:worker" +
+                $" /ado /distributedBuildRole:worker" +
                 $" /distributedBuildServicePort:{Constants.MachineGrpcPort}" +
-                $" /distributedBuildOrchestratorLocation:{orchestratorInfo[Constants.MachineIpV4Address]}:{Constants.MachineGrpcPort}" +
-                $" /relatedActivityId:{buildContext.SessionId} ",
+                $" /distributedBuildOrchestratorLocation:{buildContext.OrchestratorLocation}" +
+                $" /relatedActivityId:{buildContext.RelatedSessionId}",
                 buildContext.SourcesDirectory
             );
         }

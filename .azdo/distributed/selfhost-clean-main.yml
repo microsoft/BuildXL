@@ -1,0 +1,100 @@
+# This pipeline does a clean build of the BuildXL repo as a distributed build
+# The BuildXL version to download from drop and use for the build (e.g., 0.1.0-20221026.0)
+# should be specified via the queue-time variable $(BuildXLPackageVersion) 
+trigger: none   # This pipeline is explicitly scheduled
+
+parameters:
+  - name: DropName
+    type: string
+    default: buildxl.dogfood.$(BuildXLPackageVersion)
+  - name: WorkerPipelineId
+    type: string
+
+variables:
+  - group: "BuildXL Common variables"
+  - group: "BuildXL Secrets"
+  - name: Domino.DogfoodPackagePath
+    value: $(Build.StagingDirectory)\$(Build.BuildId)\Dogfood
+  - name: BuildXL.RepoDirectory
+    value: $(Build.Repository.LocalPath)
+  - name: BuildXL.LogsDirectory
+    value: $(BuildXL.RepoDirectory)\Out\Logs
+  - name: PatArgs
+    value: -OneEsPat $(PAT-TseBuild-AzureDevOps-1esSharedAssets-Package-Read) -CbPat $(PAT-TseBuild-AzureDevOps-CloudBuild-Packaging-Read) -MsEngGitPat $(PAT-TseBuild-AzureDevOps-MsEng-ReadCode) -VstsPat $(PAT-TseBuild-AzureDevOps-mseng-buildcache)
+  - name: BxlScriptArgs
+    value: -UseAdoBuildRunner -SharedCacheMode ConsumeAndPublish -Use Dev -DevRoot $(Domino.DogfoodPackagePath)\release\win-x64
+  - name: BuildXLArgs
+    value: /q:ReleaseDotNet6 /server- /p:[Sdk.BuildXL]microsoftInternal=1 /p:BUILDXL_FINGERPRINT_SALT=* /p:BuildXLWorkerAttachTimeoutMin=5 /logOutput:FullOutputOnWarningOrError /p:RetryXunitTests=1 /processRetries:3 /traceinfo:valdation=ReleasePipelineDistribution /enableIncrementalFrontEnd- /p:xunitSemaphoreCount=12
+
+pool:
+  name: BuildXL-DevOpsAgents-PME
+
+jobs:
+- job: Distributed_Clean
+  steps:  
+  - task: ms-vscs-artifact.build-tasks.artifactDropDownloadTask-1.artifactDropDownloadTask@1
+    displayName: 'Download ${{ parameters.DropName }} from drop'
+    inputs:
+      dropServiceURI: 'https://mseng.artifacts.visualstudio.com/DefaultCollection'
+      buildNumber: '${{ parameters.DropName }}'
+      destinationPath: '$(Domino.DogfoodPackagePath)'
+      rootPaths: 'release/win-x64'
+  
+  - task: PowerShell@2
+    inputs:
+      targetType: 'inline'
+      script: .\AdoBuildRunner.exe launchworkers ${{ parameters.WorkerPipelineId }} /param:DropName=${{ parameters.DropName }}
+      workingDirectory: $(Domino.DogfoodPackagePath)\release\win-x64
+    displayName: 'Trigger worker pipeline'
+    env:
+      SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+
+  - checkout: self
+    fetchDepth: 1
+
+  - template: ../common/set-artifacts-pat.yml
+    parameters:
+      AzDevPAT: $(PAT-TseBuild-AzureDevOps-MsEng)
+
+  - template: ../common/journaling.yml
+
+  - script: |
+      netsh advfirewall set allprofiles state off
+    displayName: Disable local firewall
+
+  - task: PowerShell@2
+    inputs:
+      targetType: filePath
+      filePath: 'RunBxlWithPAT.ps1'
+      # CODESYNC: /dynamicBuildWorkerSlots must be kept in sync with the amount of workers in the worker pipeline 
+      arguments: '$(PatArgs) $(BxlScriptArgs) /dynamicBuildWorkerSlots:2 $(BuildXLArgs) /logsDirectory:$(BuildXL.LogsDirectory) /ado'
+      workingDirectory: $(BuildXL.RepoDirectory)
+    displayName: 'Run clean selfhost build distributed'
+    env:
+      SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+      AdoBuildRunnerWorkerPipelineRole: Orchestrator # TODO: This will be removed after we fully transition to the worker-pipeline model
+  
+  - powershell: |
+      $bxlWithRemotingLogDir = "$(BuildXL.LogsDirectory)"
+      $statsContent = Get-Content -Path (Join-Path $bxlWithRemotingLogDir "BuildXL.stats") | Out-String
+      $stats = ConvertFrom-StringData -StringData $statsContent
+      $runDistributedCount = $stats.Get_Item("PipExecution.ProcessesExecutedRemotely")
+      
+      Write-Host "Pips run on remote workers: $runDistributedCount"
+
+      if ($runDistributedCount -eq 0)
+      {
+          Write-Error "##[error]No process pip ran in distributed workers."
+          exit 1
+      }
+            
+      exit 0
+    displayName: 'Validate that distribution happened'
+    condition: succeeded()
+
+  - task: PublishPipelineArtifact@1
+    displayName: 'Upload logs'
+    inputs:
+      targetPath: $(BuildXL.LogsDirectory)
+    condition: always()
+  displayName: Clean distributed build

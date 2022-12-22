@@ -3,13 +3,19 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.ContractsLight;
 using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
 using System.Threading.Tasks;
 using AdoBuildRunner.Vsts;
+using BuildXL.AdoBuildRunner.Build;
 using Microsoft.TeamFoundation.Build.WebApi;
 using Microsoft.TeamFoundation.DistributedTask.WebApi;
 using Microsoft.VisualStudio.Services.Common;
 using TimelineRecord = Microsoft.TeamFoundation.DistributedTask.WebApi.TimelineRecord;
+
+#nullable enable
 
 namespace BuildXL.AdoBuildRunner.Vsts
 {
@@ -71,23 +77,27 @@ namespace BuildXL.AdoBuildRunner.Vsts
         /// <nodoc />
         public string RepositoryUrl { get; }
 
+        private VstsHttpRelay m_http;
+
         /// <nodoc />
         public Api(ILogger logger)
         {
-            m_logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            m_logger = logger;
 
-            BuildId = Environment.GetEnvironmentVariable(Constants.BuildIdVarName);
-            TeamProject = Environment.GetEnvironmentVariable(Constants.TeamProjectVarName);
-            ServerUri = Environment.GetEnvironmentVariable(Constants.ServerUriVarName);
-            AccessToken = Environment.GetEnvironmentVariable(Constants.AccessTokenVarName);
-            AgentName = Environment.GetEnvironmentVariable(Constants.AgentNameVarName);
-            SourcesDirectory = Environment.GetEnvironmentVariable(Constants.SourcesDirectoryVarName);
-            TeamProjectId = Environment.GetEnvironmentVariable(Constants.TeamProjectIdVarName);
-            TimelineId = Environment.GetEnvironmentVariable(Constants.TimelineIdVarName);
-            PlanId = Environment.GetEnvironmentVariable(Constants.PlanIdVarName);
-            RepositoryUrl = Environment.GetEnvironmentVariable(Constants.RepositoryUrlVariableName);
+            BuildId = Environment.GetEnvironmentVariable(Constants.BuildIdVarName)!;
+            TeamProject = Environment.GetEnvironmentVariable(Constants.TeamProjectVarName)!;
+            ServerUri = Environment.GetEnvironmentVariable(Constants.ServerUriVarName)!;
+            AccessToken = Environment.GetEnvironmentVariable(Constants.AccessTokenVarName)!;
+            AgentName = Environment.GetEnvironmentVariable(Constants.AgentNameVarName)!;
+            SourcesDirectory = Environment.GetEnvironmentVariable(Constants.SourcesDirectoryVarName)!;
+            TeamProjectId = Environment.GetEnvironmentVariable(Constants.TeamProjectIdVarName)!;
+            TimelineId = Environment.GetEnvironmentVariable(Constants.TimelineIdVarName)!;
+            PlanId = Environment.GetEnvironmentVariable(Constants.PlanIdVarName)!;
+            RepositoryUrl = Environment.GetEnvironmentVariable(Constants.RepositoryUrlVariableName)!;
 
-            string jobPositionInPhase = Environment.GetEnvironmentVariable(Constants.JobsPositionInPhaseVarName);
+            m_http = new VstsHttpRelay(AccessToken, logger);
+
+            string jobPositionInPhase = Environment.GetEnvironmentVariable(Constants.JobsPositionInPhaseVarName)!;
 
             if (string.IsNullOrWhiteSpace(jobPositionInPhase))
             {
@@ -103,7 +113,7 @@ namespace BuildXL.AdoBuildRunner.Vsts
                 }
 
                 JobPositionInPhase = position;
-                string totalJobsInPhase = Environment.GetEnvironmentVariable(Constants.TotalJobsInPhaseVarName);
+                string totalJobsInPhase = Environment.GetEnvironmentVariable(Constants.TotalJobsInPhaseVarName)!;
 
                 if (!int.TryParse(totalJobsInPhase, out int totalJobs))
                 {
@@ -176,8 +186,36 @@ namespace BuildXL.AdoBuildRunner.Vsts
             return records;
         }
 
+
+        private async Task<string> ComputeRelatedSessionIdAsync()
+        {
+            // If we don't have an externally specified related session id, we calculate it based on this run
+            // This will be the case on orchestrator runs, that will set the parameter for the workers:
+            // it is here that the value for this parameter will be computed.
+            string attemptNumber = Environment.GetEnvironmentVariable(Constants.JobAttemptVariableName)!;
+            string startTime = (await GetBuildStartTimeAsync()).ToString("MMdd_HHmmss");
+            var r = GuidFromString($"{TeamProjectId}-{BuildId}-{startTime}-{attemptNumber}");
+            m_logger.Info($"Computed related session id for this build: {r}");
+            return r;
+        }
+
+#pragma warning disable CA5350 // GuidFromString uses a weak cryptographic algorithm SHA1.
+        private static string GuidFromString(string value)
+        {
+            using var hash = SHA1.Create();
+            byte[] bytesToHash = Encoding.Unicode.GetBytes(value);
+            hash.TransformFinalBlock(bytesToHash, 0, bytesToHash.Length);
+            Contract.Assert(hash.Hash is not null);
+            // Guid takes a 16-byte array
+            byte[] low16 = new byte[16];
+            Array.Copy(hash.Hash, low16, 16);
+            return new Guid(low16).ToString("D");
+        }
+#pragma warning restore CA5350 // GuidFromString uses a weak cryptographic algorithm SHA1.
+
+
         /// <inherit />
-        public async Task<DateTime> GetBuildStartTimeAsync()
+        private async Task<DateTime> GetBuildStartTimeAsync()
         {
             if (!int.TryParse(BuildId, out int buildId))
             {
@@ -185,7 +223,7 @@ namespace BuildXL.AdoBuildRunner.Vsts
             }
 
             var build = await m_buildClient.GetBuildAsync(new Guid(TeamProjectId), buildId);
-            return build.StartTime.Value;
+            return build.StartTime.GetValueOrDefault();
         }
 
         /// <inherit />
@@ -193,7 +231,7 @@ namespace BuildXL.AdoBuildRunner.Vsts
         {
             // Inject the information into a timeline record for this worker
             var records = await GetTimelineRecords();
-            TimelineRecord record = records.FirstOrDefault(t => t.WorkerName.Equals(AgentName, StringComparison.OrdinalIgnoreCase));
+            TimelineRecord? record = records.FirstOrDefault(t => t.WorkerName.Equals(AgentName, StringComparison.OrdinalIgnoreCase));
             if (record != null)
             {
                 record.Variables[Constants.MachineType] = (isOrchestrator ? AgentType.Orchestrator : AgentType.Worker).ToString();
@@ -326,9 +364,50 @@ namespace BuildXL.AdoBuildRunner.Vsts
             }
         }
 
+        /// <inheritdoc />
+        public Task QueueBuildAsync(int pipelineId, 
+            string sourceBranch, 
+            string sourceVersion, 
+            Dictionary<string, string>? parameters = null, 
+            Dictionary<string, string>? templateParameters = null,
+            Dictionary<string, string>? triggerInfo = null)
+        {
+            return m_http.QueuePipelineAsync(pipelineId, sourceBranch, sourceVersion, parameters, templateParameters, triggerInfo);
+        }
+
         private void LogAndThrow(string error)
         {
             CoordinationException.LogAndThrow(m_logger, error);
+        }
+
+        /// <summary>
+        /// Gets the build context from the parameters and environment of this 
+        /// </summary>
+        /// <returns></returns>
+        public async Task<BuildContext> GetBuildContextAsync()
+        {
+            var triggerInfo = await m_http.GetBuildTriggerInfoAsync();  
+            var relatedSessionId = triggerInfo.TryGetValue(Constants.RelatedSessionIdParameter, out var specifiedId) 
+                ? specifiedId : await ComputeRelatedSessionIdAsync();
+
+            var buildContext = new BuildContext()
+            {
+                RelatedSessionId = relatedSessionId,
+                BuildId = BuildId,
+                SourcesDirectory = SourcesDirectory,
+                RepositoryUrl = RepositoryUrl,
+                ServerUrl = ServerUri,
+                TeamProjectId = TeamProjectId,
+            };
+
+            if (triggerInfo.ContainsKey(Constants.OrchestratorLocationParameter))
+            {
+                // This build was triggered by an orchestrator pipeline
+                buildContext.OrchestratorLocation = triggerInfo[Constants.OrchestratorLocationParameter];
+                buildContext.OrchestratorBuildId = triggerInfo[Constants.TriggeringAdoBuildIdParameter];
+            }
+
+            return buildContext;
         }
     }
 }

@@ -4,6 +4,8 @@
 using System;
 using BuildXL.AdoBuildRunner.Vsts;
 
+#nullable enable
+
 namespace BuildXL.AdoBuildRunner.Build
 {
     /// <summary>
@@ -17,7 +19,7 @@ namespace BuildXL.AdoBuildRunner.Build
         /// <nodoc />
         protected BuildExecutorBase(ILogger logger)
         {
-            Logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            Logger = logger;
         }
 
         /// <summary>

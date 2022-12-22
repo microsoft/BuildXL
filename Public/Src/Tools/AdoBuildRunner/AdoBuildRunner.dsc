@@ -7,6 +7,7 @@ import * as BuildXLSdk from "Sdk.BuildXL";
 import * as Deployment from "Sdk.Deployment";
 
 namespace AdoBuildRunner {
+    export declare const qualifier: BuildXLSdk.DefaultQualifier;
 
     @@public
     export const exe = BuildXLSdk.executable({

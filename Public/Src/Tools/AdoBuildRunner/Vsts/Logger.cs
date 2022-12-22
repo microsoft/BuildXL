@@ -4,6 +4,8 @@
 using System;
 using Newtonsoft.Json;
 
+#nullable enable
+
 namespace BuildXL.AdoBuildRunner.Vsts
 {
     /// <summary>

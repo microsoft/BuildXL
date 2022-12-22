@@ -15,7 +15,7 @@ export const NetFx = BuildXLSdk.NetFx;
 
 @@public
 export const kustoPackages = [
-    ...(BuildXLSdk.isDotNetCoreBuild ? [
+    ...(BuildXLSdk.isDotNetCoreOrStandard ? [
         importFrom("Microsoft.Azure.Kusto.Data.NETStandard").pkg,
         importFrom("Microsoft.Azure.Kusto.Ingest.NETStandard").pkg,
         importFrom("Microsoft.Azure.Kusto.Cloud.Platform.Azure.NETStandard").pkg,
@@ -69,7 +69,7 @@ export function getSystemTextJson(includeNetStandard: boolean) : (Managed.Manage
 export function getSystemTextJsonWithoutNetStandard() : Managed.ManagedNugetPackage[] {
     return [
         ...addIf(
-            qualifier.targetFramework !== "net6.0",
+            !BuildXLSdk.isDotNetCoreApp,
             importFrom("System.Text.Json").withQualifier({targetFramework: "netstandard2.0"}).pkg),
     ];
 }
@@ -115,7 +115,7 @@ export function getGrpcPackagesWithoutNetStandard() : Managed.ManagedNugetPackag
 @@public
 export function getGrpcDotNetPackages() : (Managed.ManagedNugetPackage | Managed.Assembly)[] {
     return [
-        ...addIfLazy(BuildXLSdk.isDotNetCoreBuild, () => [
+        ...addIfLazy(BuildXLSdk.isDotNetCoreOrStandard, () => [
                   importFrom("Grpc.Net.Common").pkg,
                   importFrom("Grpc.Net.Client").pkg,
                   // Grpc.Net.Common depends on Grpc.Core.Api, but this package should
@@ -130,7 +130,7 @@ export function getGrpcDotNetPackages() : (Managed.ManagedNugetPackage | Managed
 export function getGrpcAspNetCorePackages() : (Managed.ManagedNugetPackage | Managed.Assembly)[] {
     return [
         ...getGrpcDotNetPackages(),
-        ...addIfLazy(BuildXLSdk.isDotNetCoreBuild, () => [
+        ...addIfLazy(BuildXLSdk.isDotNetCoreApp, () => [
                   importFrom("Grpc.Net.Client.Web").pkg,
                   importFrom("Grpc.Net.ClientFactory").pkg,
                  

@@ -5,7 +5,7 @@ namespace VstsTest {
     export declare const qualifier : BuildXLSdk.DefaultQualifierWithNet472;
     
     @@public
-    export const dll = !BuildXLSdk.Flags.isVstsArtifactsEnabled ? undefined : BuildXLSdk.cacheTest({
+    export const dll = !BuildXLSdk.Flags.isVstsArtifactsEnabled || BuildXLSdk.isDotNetCoreOrStandard ? undefined : BuildXLSdk.cacheTest({
         assemblyName: "BuildXL.Cache.MemoizationStore.Vsts.Test",
         sources: globR(d`.`,"*.cs"),
         appConfig: f`App.config`,

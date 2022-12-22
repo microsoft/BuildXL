@@ -68,6 +68,7 @@ namespace DeploymentHelpers {
         export const enabled = Environment.hasVariable("BUILDXL_DROP_ENABLED") ? Environment.getBooleanValue("BUILDXL_DROP_ENABLED") : false;
 
         /** The runner that preforms the upload */
+        // TODO ST: add support for .net7
         export const runner = enabled ? DropDaemonRunner.withQualifier({configuration: "release", targetFramework: "net6.0", targetRuntime: "win-x64"}).cloudBuildRunner : undefined;
 
         /** The settings for this drop */
@@ -110,11 +111,13 @@ namespace DeploymentHelpers {
             : false;
 
         /** The runner that preforms the publishing */
+        // TODO ST: add support for .net7
         export const runner = enabled ? SymbolDaemon.withQualifier({configuration: "release", targetFramework: "net6.0", targetRuntime: "win-x64"}).cloudBuildRunner : undefined;
 
         /** The settings for this symbol publishing request */
         const settings : SymbolDaemon.SymbolCreateArguments = {
             debugEntryCreateBehavior :  enabled 
+                // TODO ST: add support for .net7
                 ? SymbolDaemon.withQualifier({configuration: "release", targetFramework: "net6.0", targetRuntime: "win-x64"}).DebugEntryCreateBehavior.SkipIfExists
                 : undefined,
             symbolServiceConfigFile: Environment.getFileValue("BUILDXL_SYMBOL_CONFIG")

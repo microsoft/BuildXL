@@ -23,7 +23,11 @@ namespace BuildXL.Cache.Host.Service
             (_name, _context) = (name, context);
         }
 
-        public IDisposable BeginScope<TState>(TState state) => default!;
+        public IDisposable BeginScope<TState>(TState state) 
+#if NET7_0_OR_GREATER
+        where TState : notnull 
+#endif
+        => default!;
 
         public ILogger CreateLogger(string categoryName)
         {

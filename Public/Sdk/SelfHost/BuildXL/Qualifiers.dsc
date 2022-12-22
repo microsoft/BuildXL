@@ -29,7 +29,7 @@ export interface NetStandardQualifier extends Qualifier {
 @@public
 export interface DefaultQualifier extends Qualifier {
     configuration: "debug" | "release";
-    targetFramework: "net6.0";
+    targetFramework: "net6.0" | "net7.0"; // Temporarily having 2 target frameworks untile the migration to the new one is fully done.
     targetRuntime: "win-x64" | "osx-x64" | "linux-x64";
 }
 
@@ -39,7 +39,7 @@ export interface DefaultQualifier extends Qualifier {
 @@public
 export interface DefaultQualifierWithNet472 extends Qualifier {
     configuration: "debug" | "release";
-    targetFramework: "net6.0" | "net472";
+    targetFramework: "net6.0" | "net7.0" | "net472";
     targetRuntime: "win-x64" | "osx-x64" | "linux-x64";
 }
 
@@ -49,7 +49,7 @@ export interface DefaultQualifierWithNet472 extends Qualifier {
 @@public
 export interface DefaultQualifierWithNet472AndNetStandard20 extends Qualifier {
     configuration: "debug" | "release";
-    targetFramework: "net6.0" | "net472" | "netstandard2.0";
+    targetFramework: "net6.0" | "net7.0" | "net472" | "netstandard2.0";
     targetRuntime: "win-x64" | "osx-x64" | "linux-x64";
 }
 
@@ -59,7 +59,7 @@ export interface DefaultQualifierWithNet472AndNetStandard20 extends Qualifier {
 @@public
 export interface AllSupportedQualifiers extends Qualifier {
     configuration: "debug" | "release";
-    targetFramework: "net6.0" | "net472" | "netstandard2.0";
+    targetFramework: "net6.0" | "net7.0" | "net472" | "netstandard2.0";
     targetRuntime: "win-x64" | "osx-x64" | "linux-x64";
 }
 
@@ -75,7 +75,14 @@ export interface PlatformDependentQualifier extends Qualifier {
 @@public
 export interface NetCoreAppQualifier extends Qualifier {
     configuration: "debug" | "release";
-    targetFramework: "net6.0";
+    targetFramework: "net6.0" | "net7.0";
+    targetRuntime: "win-x64" | "osx-x64" | "linux-x64";
+}
+
+@@public
+export interface NetCoreQualifier extends Qualifier {
+    configuration: "debug" | "release";
+    targetFramework: "net6.0" | "net7.0";
     targetRuntime: "win-x64" | "osx-x64" | "linux-x64";
 }
 
@@ -83,6 +90,13 @@ export interface NetCoreAppQualifier extends Qualifier {
 export interface Net6Qualifier extends Qualifier {
     configuration: "debug" | "release";
     targetFramework: "net6.0";
+    targetRuntime: "win-x64" | "osx-x64" | "linux-x64";
+}
+
+@@public
+export interface Net7Qualifier extends Qualifier {
+    configuration: "debug" | "release";
+    targetFramework: "net7.0";
     targetRuntime: "win-x64" | "osx-x64" | "linux-x64";
 }
 

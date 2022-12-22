@@ -20,7 +20,7 @@ namespace BuildCacheAdapter {
             importFrom("Microsoft.IdentityModel.Clients.ActiveDirectory").pkg,
             importFrom("Microsoft.VisualStudio.Services.BlobStore.Client").pkg,
 
-            ...addIf(BuildXLSdk.isDotNetCoreBuild,
+            ...addIf(BuildXLSdk.isDotNetCoreOrStandard,
                 Managed.Factory.createBinary(importFrom("Microsoft.Net.Http").Contents.all, r`lib/portable-net40+sl4+win8+wp71+wpa81/System.Net.Http.Primitives.dll`)
             ),
 

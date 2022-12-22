@@ -72,7 +72,7 @@ param(
     [ValidateSet("Release", "Debug")]
     [string]$DeployConfig = "Debug", # must match defaultQualifier.configuration in config.dsc 
 
-    [ValidateSet("net472", "win-x64", "osx-x64")]
+    [ValidateSet("net472", "net7.0", "win-x64", "osx-x64")]
     [string]$DeployRuntime = "win-x64", # must correspond to defaultQualifier.targetFramework in config.dsc 
 
     [Parameter(Mandatory=$false)]
@@ -582,6 +582,9 @@ if ($DeployConfig -eq "Release") {
     if ($DeployRuntime -eq "net472") {
         $AdditionalBuildXLArguments += "/q:ReleaseNet472"
     }
+    if ($DeployRuntime -eq "net7.0") {
+        $AdditionalBuildXLArguments += "/q:ReleaseDotNet7"
+    }
     elseif ($DeployRuntime -eq "osx-x64") {
         $AdditionalBuildXLArguments += "/q:ReleaseDotNetCoreMac"
     }
@@ -594,6 +597,9 @@ if ($DeployConfig -eq "Release") {
 } else {
     if ($DeployRuntime -eq "net472") {
         $AdditionalBuildXLArguments += "/q:DebugNet472"
+    }
+    if ($DeployRuntime -eq "net7.0") {
+        $AdditionalBuildXLArguments += "/q:DebugDotNet7"
     }
     elseif ($DeployRuntime -eq "osx-x64") {
         $AdditionalBuildXLArguments += "/q:DebugDotNetCoreMac"

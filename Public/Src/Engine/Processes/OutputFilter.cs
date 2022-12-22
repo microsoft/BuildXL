@@ -82,7 +82,7 @@ namespace BuildXL.Processes
         }
 
         /// <summary>
-        /// If errRegex is set and its options include <see cref="RegexOptions.Singleline"/> (which means that
+        /// If errRegex is set and its options include <code>RegexOptions.Singleline</code> (which means that
         /// the whole input string---which in turn may contain multiple lines---should be treated as a single line), returns the
         /// regex itself (to be used later to find all the matches in the input string); otherwise, returns a line filter
         /// (to be used later to match individual lines from the input string).

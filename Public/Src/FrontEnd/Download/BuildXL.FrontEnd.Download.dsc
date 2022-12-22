@@ -36,11 +36,11 @@ namespace Download {
         runtimeContent:[
             // We don't actually need to deploy the downloader for full framework
             // (it causes some deployment issues, and the full framework packages we generate don't need it anyway)
-            ...addIf(BuildXLSdk.isDotNetCoreBuild,
-                importFrom("BuildXL.Tools").FileDownloader.withQualifier({
-                configuration : qualifier.configuration, 
-                targetFramework: Managed.TargetFrameworks.DefaultTargetFramework, 
-                targetRuntime: qualifier.targetRuntime }).deployment)
+            ...addIfLazy(BuildXLSdk.isDotNetCoreApp,
+                () => [importFrom("BuildXL.Tools").FileDownloader.withQualifier({
+                    configuration : qualifier.configuration, 
+                    targetFramework: qualifier.targetFramework,
+                    targetRuntime: qualifier.targetRuntime }).deployment])
         ],
     });
 }

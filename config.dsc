@@ -264,7 +264,7 @@ config({
                 { id: "Pipelines.Sockets.Unofficial", version: "2.2.0",
                     dependentPackageIdsToSkip: ["System.IO.Pipelines", "System.Runtime.CompilerServices.Unsafe", "Microsoft.Bcl.AsyncInterfaces"] },
                 { id: "System.Diagnostics.PerformanceCounter", version: "5.0.0" },
-                { id: "System.Threading.Channels", version: "6.0.0", dependentPackageIdsToSkip: ["System.Threading.Tasks.Extensions"] },
+                { id: "System.Threading.Channels", version: "7.0.0", dependentPackageIdsToSkip: ["System.Threading.Tasks.Extensions"] },
 
                 { id: "System.Linq.Async", version: "4.0.0"},
                 { id: "Polly", version: "7.2.1" },
@@ -330,7 +330,7 @@ config({
                 { id: "System.Buffers", version: "4.5.1" }, /* Change Sync: BuildXLSdk.cacheBindingRedirects() */ // A different version, because StackExchange.Redis uses it.
                 { id: "System.Memory", version: "4.5.4", dependentPackageIdsToSkip: ["System.Runtime.CompilerServices.Unsafe", "System.Numerics.Vectors"] }, /* Change Sync: BuildXLSdk.cacheBindingRedirects() */
                 { id: "System.Runtime.CompilerServices.Unsafe", version: "5.0.0" }, /* Change Sync: BuildXLSdk.cacheBindingRedirects() */
-                { id: "System.IO.Pipelines", version: "6.0.2", dependentPackageIdsToSkip: ["System.Threading.Tasks.Extensions"] },
+                { id: "System.IO.Pipelines", version: "7.0.0-rc.1.22426.10", dependentPackageIdsToSkip: ["System.Threading.Tasks.Extensions"] },
                 { id: "System.Numerics.Vectors", version: "4.5.0" }, /* Change Sync: BuildXLSdk.cacheBindingRedirects() */
 
                 // Extra dependencies to make MSBuild work
@@ -443,6 +443,7 @@ config({
         { kind: "SourceResolver", modules: [f`Public\Sdk\SelfHost\Libraries\Dotnet-Runtime-External\module.config.dsc`] },
         { kind: "SourceResolver", modules: [f`Public\Sdk\SelfHost\Libraries\Dotnet-Runtime-5-External\module.config.dsc`] },
         { kind: "SourceResolver", modules: [f`Public\Sdk\SelfHost\Libraries\Dotnet-Runtime-6-External\module.config.dsc`] },
+        { kind: "SourceResolver", modules: [f`Public\Sdk\SelfHost\Libraries\Dotnet-Runtime-7-External\module.config.dsc`] },
 
         {
             kind: "Download",
@@ -476,6 +477,26 @@ config({
                     archiveType: "tgz",
                 },
 
+                // DotNet Core Runtime 7.0
+                {
+                    moduleName: "DotNet-Runtime.win-x64.7.0", 
+                    url: "https://download.visualstudio.microsoft.com/download/pr/6f54d642-c177-427c-a7a1-026e63cc2ac9/bcd79d98b9e56fc339507ac802051efb/dotnet-runtime-7.0.1-win-x64.zip",
+                    hash: "VSO0:477CCFC4D1BD6BF3188B219EBFD3344656C7C315317F0E6CE058C801BC72C07100",
+                    archiveType: "zip",
+                },
+                {
+                    moduleName: "DotNet-Runtime.osx-x64.7.0",
+                    url: "https://download.visualstudio.microsoft.com/download/pr/45a4345a-ed55-49a9-ab5b-4e85e94f489f/54011a3f9000b22ecb3a823f8f1a6f7a/dotnet-runtime-7.0.1-osx-x64.tar.gz",
+                    hash: "VSO0:4C746FBEC674C52F5C71161368B5AD98A7C82C856C1BEFF21FF549D6A632BCD200",
+                    archiveType: "tgz",
+                },
+                {
+                    moduleName: "DotNet-Runtime.linux-x64.7.0",
+                    url: "https://download.visualstudio.microsoft.com/download/pr/0b330412-234f-48c5-957c-c3c8c854a400/8d9a07cc153fd16a828d78c136b47e6f/dotnet-runtime-7.0.1-linux-x64.tar.gz",
+                    hash: "VSO0:91B7CFDD9FC5F5F03819C3DFCF17618095146DB1BF304256DFB69B7ED346578700",
+                    archiveType: "tgz",
+                },
+
                 // DotNet Core Runtime 6.0.3
                 {
                     moduleName: "DotNet-Runtime.win-x64.6.0.201", 
@@ -495,7 +516,6 @@ config({
                     hash: "VSO0:A3426598ACFE162FB39F2D508DF43F23B4169BD3DA26A69535DA11CAB387641F00",
                     archiveType: "tgz",
                 },
-
 
                 // DotNet Core Runtime 5.0
                 {
@@ -592,6 +612,11 @@ config({
                 targetFramework: "net472",
                 targetRuntime: "win-x64",
             },
+            DebugNet7: {
+                configuration: "debug",
+                targetFramework: "net7.0",
+                targetRuntime: "win-x64",
+            },
             DebugDotNet6: {
                 configuration: "debug",
                 targetFramework: "net6.0",
@@ -616,6 +641,11 @@ config({
             ReleaseNet472: {
                 configuration: "release",
                 targetFramework: "net472",
+                targetRuntime: "win-x64",
+            },
+            ReleaseNet7: {
+                configuration: "release",
+                targetFramework: "net7.0",
                 targetRuntime: "win-x64",
             },
 

@@ -119,13 +119,22 @@ export interface InternalsVisibleToArguments {
 }
 
 /**
- * Returns if the current qualifier is targeting .NET Core
+ * Returns true if the current qualifier is targeting .NET Core or .NET Standard
  */
 @@public
-export const isDotNetCoreBuild : boolean = qualifier.targetFramework === "netstandard2.0" || qualifier.targetFramework === "net6.0";
+export const isDotNetCoreOrStandard : boolean = qualifier.targetFramework === "netstandard2.0" || qualifier.targetFramework === "net6.0" || qualifier.targetFramework === "net7.0";
 
+/**
+ * Returns true if the current qualifier is targeting .NET Core
+ */
 @@public
-export const isDotNetCoreApp : boolean = qualifier.targetFramework === "net6.0";
+export const isDotNetCoreApp : boolean = qualifier.targetFramework === "net6.0" || qualifier.targetFramework === "net7.0";
+
+/**
+ * Returns true if the current qualifier is targeting .NET Core
+ */
+@@public
+export const isDotNetCore : boolean = qualifier.targetFramework === "net6.0" || qualifier.targetFramework === "net7.0";
 
 @@public
 export const isFullFramework : boolean = qualifier.targetFramework === "net472";
@@ -156,14 +165,14 @@ export const targetFrameworkMatchesCurrentHost =
 export const restrictTestRunToSomeQualifiers =
     qualifier.configuration !== "debug" ||
     // Running tests for .NET Core App 3.0, .NET 5 and 4.7.2 frameworks only.
-    (qualifier.targetFramework !== "net6.0" && qualifier.targetFramework !== "net472") ||
+    (qualifier.targetFramework !== "net6.0" && qualifier.targetFramework !== "net7.0" && qualifier.targetFramework !== "net472") ||
     !targetFrameworkMatchesCurrentHost;
 
 /***
 * Whether service pip daemon tooling is included with the BuildXL deployment
 */
 @@public
-export const isDaemonToolingEnabled = Flags.isMicrosoftInternal && isDotNetCoreBuild;
+export const isDaemonToolingEnabled = Flags.isMicrosoftInternal && isDotNetCoreOrStandard;
 
 /***
 * Whether drop tooling is included with the BuildXL deployment
@@ -294,7 +303,7 @@ export const devKey = f`BuildXL.DevKey.snk`;
 export const cacheRuleSet = f`BuildXl.Cache.ruleset`;
 
 @@public
-export const dotNetFramework = isDotNetCoreBuild
+export const dotNetFramework = isDotNetCoreOrStandard
     ? qualifier.targetRuntime
     : qualifier.targetFramework;
 
@@ -466,7 +475,7 @@ export function cacheTest(args: TestArguments) : TestResult {
         // Cache tests don't use QTest because QTest doesn't support skipGroups and skipGroups is needed because cache tests fail otherwise.
         testFramework: XUnit.framework,
         runTestArgs: {
-            skipGroups: [ "QTestSkip", "Performance", "Simulation", ...(isDotNetCoreBuild ? [ "SkipDotNetCore" ] : []) ],
+            skipGroups: [ "QTestSkip", "Performance", "Simulation", ...(isDotNetCore ? [ "SkipDotNetCore" ] : []) ],
             tags: [ "cacheTest" ]
         },
     }, args);
@@ -584,15 +593,15 @@ export function cacheBindingRedirects() {
                 name: "System.IO.Pipelines",
                 publicKeyToken: "cc7b13ffcd2ddd51",
                 culture: "neutral",
-                oldVersion: "0.0.0.0-6.0.0.0",
-                newVersion: "6.0.0.0", // Corresponds to { id: "System.IO.Pipelines", version: "6.0.2"...
+                oldVersion: "0.0.0.0-7.0.0.0",
+                newVersion: "7.0.0.0", // Corresponds to { id: "System.IO.Pipelines", version: "7.0.0"...
             },
             {
                 name: "System.Threading.Channels",
                 publicKeyToken: "cc7b13ffcd2ddd51",
                 culture: "neutral",
-                oldVersion: "0.0.0.0-6.0.0.0",
-                newVersion: "6.0.0.0", // Corresponds to { id: "System.Threading.Channels", version: "6.0.0"...
+                oldVersion: "0.0.0.0-7.0.0.0",
+                newVersion: "7.0.0.0", // Corresponds to { id: "System.Threading.Channels", version: "7.0.0"...
             },
         ];
 }
@@ -690,7 +699,7 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
             defineConstants: [
                 "DEFTEMP",
 
-                ...addIf(isDotNetCoreBuild,
+                ...addIf(isDotNetCoreOrStandard,
                     "FEATURE_SAFE_PROCESS_HANDLE",
                     "DISABLE_FEATURE_VSEXTENSION_INSTALL_CHECK",
                     "DISABLE_FEATURE_EXTENDED_ENCODING"
@@ -705,7 +714,7 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
             ],
             references: [
                 ...(args.skipDefaultReferences ? [] : [
-                    ...(isDotNetCoreBuild ? [] : [
+                    ...(isDotNetCoreOrStandard ? [] : [
                         NetFx.System.Threading.Tasks.dll,
                     ]),
                     importFrom("BuildXL.Utilities.Instrumentation").Common.dll,
@@ -824,7 +833,7 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
 
     // Add the file with non-nullable attributes for non-dotnet core projects
     // if nullable flag is set, but a special flag is false.
-    if (args.addNotNullAttributeFile !== false && qualifier.targetFramework !== "net6.0") {
+    if (args.addNotNullAttributeFile !== false && !isDotNetCore) {
         if ( (args.nullable || args.addNotNullAttributeFile === true)) {
             args = args.merge({
                 sources: [notNullAttributesFile],
@@ -832,8 +841,8 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
         }
     }
 
-    // Adding 'IsExternalInit.cs' but only for the older .net versions.
-    if (!isDotNetCoreApp) {
+    // Adding 'IsExternalInit.cs' file but only for the older .net versions.
+    if (!isDotNetCore) {
         args = args.merge({
             sources: [isExternalInit],
         });
@@ -910,7 +919,7 @@ const testFrameworkOverrideAttribute = Transformer.writeAllLines({
 /** Returns true if test should use QTest framework. */
 function shouldUseQTest(runTestArgs: Managed.TestRunArguments) : boolean {
     return Flags.isQTestEnabled                               // Flag to use QTest is enabled.
-        && !(qualifier.targetFramework === "net6.0")          // Disable QTest for .net 5 & 6 for now.
+        && !isDotNetCore                                      // Disable QTest for .net 6 & 7 for now.
         && !(runTestArgs && runTestArgs.parallelBucketCount); // QTest does not support passing environment variables to the underlying process
 }
 

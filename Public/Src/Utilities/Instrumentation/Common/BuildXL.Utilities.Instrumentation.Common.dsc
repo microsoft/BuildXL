@@ -15,7 +15,7 @@ namespace Common {
         nullable: true,
         skipDefaultReferences: true,
         references: [
-            ...addIf(qualifier.targetFramework === Managed.TargetFrameworks.DefaultTargetFramework,
+            ...addIf(BuildXLSdk.isDotNetCoreApp,
                 importFrom("Microsoft.Applications.Events.Server").pkg)
         ],
         runtimeContent: [

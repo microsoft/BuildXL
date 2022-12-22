@@ -74,11 +74,11 @@ export type ApplicationDeploymentStyle = "frameworkDependent" | "selfContained";
 export type RuntimeVersion = "win-x64" | "osx-x64" | "linux-x64";
 
 @@public
-export type DotNetCoreVersion = "net6.0";
+export type DotNetCoreVersion = "net6.0" | "net7.0";
 
 @@public
 export function isDotNetCore(targetFramework: TargetFrameworks.AllFrameworks) : targetFramework is DotNetCoreVersion {
-    return targetFramework === 'net6.0';
+    return targetFramework === 'net6.0' || targetFramework === 'net7.0';
 }
 
 namespace TargetFrameworks {
@@ -89,7 +89,7 @@ namespace TargetFrameworks {
     export type DesktopTargetFrameworks = "net472";
 
     @@public
-    export type CoreClrTargetFrameworks = "net6.0";
+    export type CoreClrTargetFrameworks = "net6.0" | "net7.0";
 
     @@public
     export type StandardTargetFrameworks = "netstandard2.0";

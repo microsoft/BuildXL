@@ -26,7 +26,7 @@ export const msbuildRuntimeContent = [
     importFrom("System.Runtime.CompilerServices.Unsafe").pkg,
     importFrom("System.Threading.Tasks.Dataflow").pkg,
     
-    ...BuildXLSdk.isDotNetCoreBuild ? [
+    ...BuildXLSdk.isDotNetCoreOrStandard ? [
         importFrom("System.Text.Encoding.CodePages").withQualifier({targetFramework: "netstandard2.0"}).pkg,
         importFrom("Microsoft.Build.Tasks.Core").pkg,
         importFrom("Microsoft.Build.Runtime").Contents.all.getFile(r`contentFiles/any/net6.0/MSBuild.dll`),
@@ -40,7 +40,7 @@ export const msbuildRuntimeContent = [
 ];
 
 function getFrameworkFolder() : string { 
-    return BuildXLSdk.isDotNetCoreBuild ? "dotnetcore" : qualifier.targetFramework;
+    return BuildXLSdk.isDotNetCoreOrStandard ? "dotnetcore" : qualifier.targetFramework;
 }  
 
 @@public

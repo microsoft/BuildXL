@@ -35,7 +35,7 @@ namespace Test {
             Library.Deployment.runtimeContent,
         ],
         runTestArgs: {
-            skipGroups: BuildXLSdk.isDotNetCoreBuild ? [ "SkipDotNetCore" ] : []
+            skipGroups: BuildXLSdk.isDotNetCoreOrStandard ? [ "SkipDotNetCore" ] : []
         }
     });
 }

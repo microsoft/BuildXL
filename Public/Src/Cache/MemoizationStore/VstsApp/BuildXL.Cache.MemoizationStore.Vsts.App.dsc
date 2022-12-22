@@ -3,7 +3,7 @@
 
 namespace VstsApp {
     @@public
-    export const dll = !BuildXLSdk.Flags.isVstsArtifactsEnabled || BuildXLSdk.isDotNetCoreBuild ? undefined : BuildXLSdk.executable({
+    export const dll = !BuildXLSdk.Flags.isVstsArtifactsEnabled || BuildXLSdk.isDotNetCoreOrStandard ? undefined : BuildXLSdk.executable({
         assemblyName: "BuildXL.MemoizationStoreVstsApp",
         sources: globR(d`.`,"*.cs"),
         references: [

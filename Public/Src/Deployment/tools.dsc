@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+import * as Managed from "Sdk.Managed";
 import * as Deployment from "Sdk.Deployment";
 import * as BuildXLSdk from "Sdk.BuildXL";
 import * as DetoursServices from "BuildXL.Sandbox.Windows";
@@ -101,13 +102,13 @@ namespace Tools {
             ],
         };
 
-        const frameworkSpecificPart = BuildXLSdk.isDotNetCoreBuild
+        const frameworkSpecificPart = BuildXLSdk.isDotNetCoreOrStandard
             ? qualifier.targetRuntime
             : qualifier.targetFramework;
 
         const deployed = BuildXLSdk.DeploymentHelpers.deploy({
             definition: deployment,
-            targetLocation: (qualifier.targetFramework === "net6.0")
+            targetLocation: (qualifier.targetFramework === Managed.TargetFrameworks.DefaultTargetFramework) // If targetFramework is not a default one (net6.0), then we put it in a separate directory.
             ? r`${qualifier.configuration}/tools/DistributedBuildRunner/${frameworkSpecificPart}` 
             : r`${qualifier.targetFramework}/${qualifier.configuration}/tools/DistributedBuildRunner/${qualifier.targetRuntime}`    
         });

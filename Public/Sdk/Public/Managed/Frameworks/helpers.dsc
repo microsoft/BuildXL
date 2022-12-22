@@ -1,8 +1,52 @@
 import {Artifact, Cmd, Transformer} from "Sdk.Transformers";
-import {DotNetCoreVersion} from "Sdk.Managed.Shared";
+import {DotNetCoreVersion, Assembly, Factory} from "Sdk.Managed.Shared";
 
 namespace Helpers {
     export declare const qualifier : {};
+
+    const assemblyNamesToExclude = Set.create(
+        a`System.IO.FileSystem.AccessControl`,
+        a`System.Security.AccessControl`,
+        a`System.Security.Principal.Windows`
+    );
+
+    // We skip deploying those files from the .NET Core package as we need those very assemblies from their dedicated package
+    // to compile our platform abstraction layer, which depends on datatypes present only in the dedicated packages
+    const assembliesToExclude = Set.create(...assemblyNamesToExclude.toArray().map(f => a`${f}.dll`));
+
+    @@public
+    export function ignoredAssemblyFile(file: File): boolean {
+        return assembliesToExclude.contains(file.name);
+    }
+
+    @@public
+    export function ignoredAssembly(assembly: Assembly): boolean {
+        return ignoreAssemblyFileName(assembly.name);
+    }
+
+    @@public
+    export function ignoreAssemblyFileName(file: PathAtom): boolean {
+        return assemblyNamesToExclude.contains(file);
+    }
+
+    @@public
+    export function createDefaultAssemblies(netCoreRuntimeContents: StaticDirectory, targetFramework: string, includeAllAssemblies: boolean) : Assembly[] {
+        const netcoreAppPackageContents = netCoreRuntimeContents.contents;
+        const dlls = netcoreAppPackageContents.filter(file => file.hasExtension && file.extension === a`.dll`);
+        return dlls
+            .map(file  => Factory.createAssembly(netCoreRuntimeContents, file, targetFramework, [], true))
+            .filter(a => includeAllAssemblies || !ignoreAssemblyFileName(a.name));
+    }
+
+    @@public
+    export function macOSRuntimeExtensions(file: File): boolean {
+        return file.extension === a`.dylib` || file.extension === a`.a` || file.extension === a`.dll`;
+    }
+    
+    @@public
+    export function linuxRuntimeExtensions(file: File): boolean {
+        return file.extension === a`.so` || file.extension === a`.o` || file.extension === a`.dll`;
+    }
 
     @@public
     export function getDotNetCoreToolTemplate(version: DotNetCoreVersion) : Transformer.ExecuteArgumentsComposible {
@@ -47,6 +91,19 @@ namespace Helpers {
                     Contract.fail(`The current DotNetCore Runtime package doesn't support the current target runtime: ${host.os}. Ensure you run on a supported OS -or- update the DotNet-Runtime package to have the version embdded.`);
             }
         }
+        else if (version === 'net7.0')
+        {
+            switch (host.os) {
+                case "win":
+                    return importFrom("DotNet-Runtime-7.win-x64").extracted;
+                case "macOS":
+                    return importFrom("DotNet-Runtime-7.osx-x64").extracted;
+                case "unix":
+                    return importFrom("DotNet-Runtime-7.linux-x64").extracted;
+                default:
+                    Contract.fail(`The current DotNetCore Runtime package doesn't support the current target runtime: ${host.os}. Ensure you run on a supported OS -or- update the DotNet-Runtime package to have the version embdded.`);
+            }
+        }
         
         Contract.fail(`Unsupport .NET Core version ${version}.`);
     }
@@ -57,10 +114,12 @@ namespace Helpers {
     }
 
     const tool6Template = getDotNetCoreToolTemplate("net6.0");
+    const tool7Template = getDotNetCoreToolTemplate("net7.0");
 
     function getCachedDotNetCoreToolTemplate(dotNetCoreVersion: DotNetCoreVersion) {
         switch (dotNetCoreVersion) {
             case "net6.0": return tool6Template;
+            case "net7.0": return tool7Template;
             default: Contract.fail(`Unknown .NET Core version '${dotNetCoreVersion}'.`);
         }
     }

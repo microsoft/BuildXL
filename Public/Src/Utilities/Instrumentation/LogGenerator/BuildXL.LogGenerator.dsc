@@ -36,7 +36,7 @@ namespace LogGenerator {
         ]
     };
 
-    const frameworkSpecificPart = BuildXLSdk.isDotNetCoreBuild
+    const frameworkSpecificPart = BuildXLSdk.isDotNetCoreOrStandard
         ? qualifier.targetFramework + qualifier.targetRuntime
         : qualifier.targetFramework;
 

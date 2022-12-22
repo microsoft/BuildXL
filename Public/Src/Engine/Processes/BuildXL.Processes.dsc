@@ -26,7 +26,7 @@ namespace Processes {
                 BuildXLSdk.NetFx.System.Net.Http.dll,
                 NetFx.Netstandard.dll
             ),
-            ...addIf(BuildXLSdk.isDotNetCoreBuild,
+            ...addIf(BuildXLSdk.isDotNetCoreOrStandard,
                 SysMng.pkg.override<Shared.ManagedNugetPackage>({
                     runtime: [
                         Shared.Factory.createBinaryFromFiles(SysMng.Contents.all.getFile(r`runtimes/win/lib/netcoreapp2.0/System.Management.dll`))

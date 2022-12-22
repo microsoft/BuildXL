@@ -29,7 +29,7 @@ namespace InterfacesTest {
             ...BuildXLSdk.fluentAssertionsWorkaround,
         ],
         runTestArgs: {
-            skipGroups: BuildXLSdk.isDotNetCoreBuild ? [ "SkipDotNetCore" ] : [],
+            skipGroups: BuildXLSdk.isDotNetCoreOrStandard ? [ "SkipDotNetCore" ] : [],
             parallelBucketCount: 16,
         }
     });

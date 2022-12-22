@@ -16,7 +16,7 @@ namespace Deployment {
             ImplementationSupport.dll,
             MemoizationStoreAdapter.dll,
             VerticalAggregator.dll,
-            ...addIf(!BuildXLSdk.isDotNetCoreBuild,
+            ...addIf(!BuildXLSdk.isDotNetCoreOrStandard,
                 Compositing.dll,
                 InputListFilter.dll
             )

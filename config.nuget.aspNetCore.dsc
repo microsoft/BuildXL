@@ -8,6 +8,9 @@ const aspVersion = "2.2.0";
 const asp6RefVersion = "6.0.10";
 const asp6RuntimeVersion = "6.0.10";
 
+const asp7RefVersion = "7.0.0-rc.1.22427.2";
+const asp7RuntimeVersion = "7.0.0-rc.1.22427.2";
+
 export const pkgs = [
     // aspnet web api
     { id: "Microsoft.AspNet.WebApi.Client", version: "5.2.7" },
@@ -30,4 +33,9 @@ export const pkgs = [
     { id: "Microsoft.AspNetCore.App.Runtime.win-x64", version: asp6RuntimeVersion, alias: "Microsoft.AspNetCore.App.Runtime.win-x64.6.0.0" },
     { id: "Microsoft.AspNetCore.App.Runtime.linux-x64", version: asp6RuntimeVersion, alias: "Microsoft.AspNetCore.App.Runtime.linux-x64.6.0.0" },
     { id: "Microsoft.AspNetCore.App.Runtime.osx-x64", version: asp6RuntimeVersion, alias: "Microsoft.AspNetCore.App.Runtime.osx-x64.6.0.0" },
+
+    { id: "Microsoft.AspNetCore.App.Ref", version: asp7RefVersion, alias: "Microsoft.AspNetCore.App.Ref.7.0.0" },
+    { id: "Microsoft.AspNetCore.App.Runtime.win-x64", version: asp7RuntimeVersion, alias: "Microsoft.AspNetCore.App.Runtime.win-x64.7.0.0" },
+    { id: "Microsoft.AspNetCore.App.Runtime.linux-x64", version: asp7RuntimeVersion, alias: "Microsoft.AspNetCore.App.Runtime.linux-x64.7.0.0" },
+    { id: "Microsoft.AspNetCore.App.Runtime.osx-x64", version: asp7RuntimeVersion, alias: "Microsoft.AspNetCore.App.Runtime.osx-x64.7.0.0" },
 ];

@@ -17,7 +17,7 @@ namespace App {
         assemblyBindingRedirects: BuildXLSdk.cacheBindingRedirects(),
         appConfig: f`App.config`,
         references: [
-            ...(BuildXLSdk.isDotNetCoreBuild ? [
+            ...(BuildXLSdk.isDotNetCoreOrStandard ? [
                 importFrom("CLAP-DotNetCore").pkg,
             ] : [
                 importFrom("CLAP").pkg,

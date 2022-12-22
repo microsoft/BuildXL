@@ -617,8 +617,26 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "Microsoft.AspNetCore.App.Ref",
+          "Version": "7.0.0-rc.1.22427.2"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "Microsoft.AspNetCore.App.Runtime.linux-x64",
           "Version": "6.0.10"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.AspNetCore.App.Runtime.linux-x64",
+          "Version": "7.0.0-rc.1.22427.2"
         }
       }
     },
@@ -635,8 +653,26 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "Microsoft.AspNetCore.App.Runtime.osx-x64",
+          "Version": "7.0.0-rc.1.22427.2"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "Microsoft.AspNetCore.App.Runtime.win-x64",
           "Version": "6.0.10"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.AspNetCore.App.Runtime.win-x64",
+          "Version": "7.0.0-rc.1.22427.2"
         }
       }
     },
@@ -1661,6 +1697,15 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "Microsoft.NETCore.App.Host.linux-x64",
+          "Version": "7.0.1"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "Microsoft.NETCore.App.Host.osx-x64",
           "Version": "6.0.11"
         }
@@ -1670,8 +1715,26 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "Microsoft.NETCore.App.Host.osx-x64",
+          "Version": "7.0.1"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "Microsoft.NETCore.App.Host.win-x64",
           "Version": "6.0.11"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.NETCore.App.Host.win-x64",
+          "Version": "7.0.1"
         }
       }
     },
@@ -1697,8 +1760,26 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "Microsoft.NETCore.App.Ref",
+          "Version": "7.0.1"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "Microsoft.NETCore.App.Runtime.linux-x64",
           "Version": "6.0.11"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.NETCore.App.Runtime.linux-x64",
+          "Version": "7.0.1"
         }
       }
     },
@@ -1715,8 +1796,26 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "Microsoft.NETCore.App.Runtime.osx-x64",
+          "Version": "7.0.1"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "Microsoft.NETCore.App.Runtime.win-x64",
           "Version": "6.0.11"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.NETCore.App.Runtime.win-x64",
+          "Version": "7.0.1"
         }
       }
     },
@@ -1751,6 +1850,15 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "Microsoft.NETCore.DotNetAppHost",
+          "Version": "7.0.1"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "Microsoft.NETCore.DotNetHostPolicy",
           "Version": "3.1.0"
         }
@@ -1769,6 +1877,15 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "Microsoft.NETCore.DotNetHostPolicy",
+          "Version": "7.0.1"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "Microsoft.NETCore.DotNetHostResolver",
           "Version": "3.1.0"
         }
@@ -1780,6 +1897,15 @@
         "NuGet": {
           "Name": "Microsoft.NETCore.DotNetHostResolver",
           "Version": "6.0.11"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.NETCore.DotNetHostResolver",
+          "Version": "7.0.1"
         }
       }
     },
@@ -1798,6 +1924,15 @@
         "NuGet": {
           "Name": "Microsoft.NETCore.Platforms",
           "Version": "6.0.7"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.NETCore.Platforms",
+          "Version": "7.0.0"
         }
       }
     },
@@ -3318,7 +3453,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.IO.Pipelines",
-          "Version": "6.0.2"
+          "Version": "7.0.0-rc.1.22426.10"
         }
       }
     },
@@ -4182,7 +4317,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Threading.Channels",
-          "Version": "6.0.0"
+          "Version": "7.0.0"
         }
       }
     },
@@ -4496,8 +4631,26 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "runtime.linux-x64.Microsoft.NETCore.DotNetHostPolicy",
+          "Version": "7.0.1"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "runtime.linux-x64.Microsoft.NETCore.DotNetHostResolver",
           "Version": "6.0.11"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.linux-x64.Microsoft.NETCore.DotNetHostResolver",
+          "Version": "7.0.1"
         }
       }
     },
@@ -4604,8 +4757,26 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "runtime.osx-x64.Microsoft.NETCore.DotNetHostPolicy",
+          "Version": "7.0.1"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "runtime.osx-x64.Microsoft.NETCore.DotNetHostResolver",
           "Version": "6.0.11"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.osx-x64.Microsoft.NETCore.DotNetHostResolver",
+          "Version": "7.0.1"
         }
       }
     },
@@ -4676,8 +4847,26 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "runtime.win-x64.Microsoft.NETCore.DotNetHostPolicy",
+          "Version": "7.0.1"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "runtime.win-x64.Microsoft.NETCore.DotNetHostResolver",
           "Version": "6.0.11"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.win-x64.Microsoft.NETCore.DotNetHostResolver",
+          "Version": "7.0.1"
         }
       }
     },

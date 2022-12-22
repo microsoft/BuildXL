@@ -269,6 +269,14 @@ export function compile(inputArgs: Arguments) : Result {
  * The function looks into the defined constants because this module is qualifier agnostic.
  */
 export function getDotNetCoreVersion(cscArguments: Arguments): Shared.DotNetCoreVersion {
+    if (!cscArguments.defines) {
+        return "net6.0";
+    }
+
+    if (cscArguments.defines.some(e => e === "NET_COREAPP_70")) {
+        return "net7.0";
+    }
+
     return "net6.0";
 }
 

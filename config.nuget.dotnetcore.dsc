@@ -2,16 +2,22 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 const coreVersion = "3.1.0";
+const core50Version = "5.0.0";
 const core60Version = "6.0.11";
 // Microsoft.NETCore.Platforms has become out of sync with the rest of the packages that use core60Version
 // Updaters of this file might want to try to restore the sync: for now we are using the latest version we can
 const core60VersionPrev = "6.0.7"; 
+const core700Version = "7.0.0";
+const core70Version = "7.0.1";
 
 const pkgVersion = "4.3.0";
 const pkgVersionNext = "4.7.0";
 const pkgVersion5 = "5.0.0";
 const pkgVersion6 = "6.0.0";
 const pkgVersion6Preview = "6.0.0-preview.5.21301.5";
+
+const pkgVersion7 = "7.0.0";
+const pkgVErsion7Preview = "7.0.0-preview.5.21301.5";
 
 export const pkgs = [
 
@@ -59,6 +65,38 @@ export const pkgs = [
     { id: "Microsoft.NETCore.App.Host.linux-x64", version: core60Version, alias: "Microsoft.NETCore.App.Host.linux-x64.6.0" },
     { id: "runtime.linux-x64.Microsoft.NETCore.DotNetHostResolver", version: core60Version, alias: "runtime.linux-x64.Microsoft.NETCore.DotNetHostResolver.6.0" },
     { id: "runtime.linux-x64.Microsoft.NETCore.DotNetHostPolicy", version: core60Version, alias: "runtime.linux-x64.Microsoft.NETCore.DotNetHostPolicy.6.0" },    
+
+    // .NET 7
+
+    // .NET Core 7.0 Dependencies
+    { id: "Microsoft.NETCore.App.Ref", version: core70Version, alias: "Microsoft.NETCore.App.Ref70" },
+
+    { id: "Microsoft.NETCore.Platforms", version: core700Version, alias: "Microsoft.NETCore.Platforms.7.0" },
+    
+    // .NET Core Self-Contained Deployment
+    { id: "Microsoft.NETCore.DotNetHostResolver", version: core70Version, alias: "Microsoft.NETCore.DotNetHostResolver.7.0" },
+
+    { id: "Microsoft.NETCore.DotNetHostPolicy", version: core70Version, alias: "Microsoft.NETCore.DotNetHostPolicy.7.0" },
+
+    { id: "Microsoft.NETCore.DotNetAppHost", version: core70Version, alias: "Microsoft.NETCore.DotNetAppHost.7.0" },
+
+    // .NET Core win-x64 runtime deps
+    { id: "Microsoft.NETCore.App.Host.win-x64", version: core70Version, osSkip: [ "macOS", "unix" ], alias: "Microsoft.NETCore.App.Host.win-x64.7.0" },
+    { id: "Microsoft.NETCore.App.Runtime.win-x64", version: core70Version, osSkip: [ "macOS", "unix" ], alias: "Microsoft.NETCore.App.Runtime.win-x64.7.0" },
+    { id: "runtime.win-x64.Microsoft.NETCore.DotNetHostResolver", version: core70Version, osSkip: [ "macOS", "unix" ], alias: "runtime.win-x64.Microsoft.NETCore.DotNetHostResolver.7.0" },
+    { id: "runtime.win-x64.Microsoft.NETCore.DotNetHostPolicy", version: core70Version, osSkip: [ "macOS", "unix" ], alias: "runtime.win-x64.Microsoft.NETCore.DotNetHostPolicy.7.0" },
+
+    // .NET Core osx-x64 runtime deps
+    { id: "Microsoft.NETCore.App.Host.osx-x64", version: core70Version, alias: "Microsoft.NETCore.App.Host.osx-x64.7.0" },
+    { id: "Microsoft.NETCore.App.Runtime.osx-x64", version: core70Version, alias: "Microsoft.NETCore.App.Runtime.osx-x64.7.0"},
+    { id: "runtime.osx-x64.Microsoft.NETCore.DotNetHostResolver", version: core70Version, alias: "runtime.osx-x64.Microsoft.NETCore.DotNetHostResolver.7.0" },
+    { id: "runtime.osx-x64.Microsoft.NETCore.DotNetHostPolicy", version: core70Version, alias: "runtime.osx-x64.Microsoft.NETCore.DotNetHostPolicy.7.0" },
+
+    // .NET Core linux-x64 runtime deps
+    { id: "Microsoft.NETCore.App.Runtime.linux-x64", version: core70Version, alias: "Microsoft.NETCore.App.Runtime.linux-x64.7.0" },
+    { id: "Microsoft.NETCore.App.Host.linux-x64", version: core70Version, alias: "Microsoft.NETCore.App.Host.linux-x64.7.0" },
+    { id: "runtime.linux-x64.Microsoft.NETCore.DotNetHostResolver", version: core70Version, alias: "runtime.linux-x64.Microsoft.NETCore.DotNetHostResolver.7.0" },
+    { id: "runtime.linux-x64.Microsoft.NETCore.DotNetHostPolicy", version: core70Version, alias: "runtime.linux-x64.Microsoft.NETCore.DotNetHostPolicy.7.0" },    
 
     { id: "runtime.native.System", version: pkgVersion },
     { id: "runtime.win7-x64.runtime.native.System.Data.SqlClient.sni", version: pkgVersion, osSkip: [ "macOS", "unix" ] },

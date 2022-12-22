@@ -24,14 +24,14 @@ export const dll = BuildXLSdk.library({
         Interop.dll,
         importFrom("BuildXL.Utilities.Instrumentation").Common.dll,
 
-        // Don't need to add the dependency for .net 6
-        ...addIfLazy(BuildXLSdk.isDotNetCoreBuild && qualifier.targetFramework !== 'net6.0', () => [
+        // Don't need to add the dependency for .net6+
+        ...addIfLazy(qualifier.targetFramework === "netstandard2.0", () => [
             importFrom("Microsoft.Win32.Registry").pkg,
         ]),
 
         ...BuildXLSdk.systemThreadingChannelsPackages,
 
-        ...addIfLazy(BuildXLSdk.isDotNetCoreBuild, () => [
+        ...addIfLazy(BuildXLSdk.isDotNetCoreOrStandard, () => [
             SysMng.pkg.override<Shared.ManagedNugetPackage>({
                     runtime: [
                         Shared.Factory.createBinaryFromFiles(SysMng.Contents.all.getFile(r`runtimes/win/lib/netcoreapp2.0/System.Management.dll`))

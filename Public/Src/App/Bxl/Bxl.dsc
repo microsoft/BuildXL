@@ -17,7 +17,7 @@ namespace Main {
         sources: globR(d`.`, "*.cs"),
         embeddedResources: [{resX: f`Strings.resx`}],
         references: [
-            ...(BuildXLSdk.isDotNetCoreBuild ? [
+            ...(BuildXLSdk.isDotNetCoreOrStandard ? [
                 importFrom("BuildXL.Cache.VerticalStore").BasicFilesystem.dll,
                 importFrom("BuildXL.Cache.VerticalStore").Interfaces.dll,
                 importFrom("BuildXL.Cache.VerticalStore").InMemory.dll,

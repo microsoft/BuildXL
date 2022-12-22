@@ -12,16 +12,8 @@ namespace TestUtilities {
                 NetFx.System.Xml.dll,
                 NetFx.System.Xml.Linq.dll
             ),
-            ...addIf(BuildXLSdk.isDotNetCoreBuild && qualifier.targetFramework !== 'net6.0',
-                BuildXLSdk.withWinRuntime(importFrom("System.Security.AccessControl").pkg, r`runtimes/win/lib/netcoreapp2.0`),
-                BuildXLSdk.withWinRuntime(importFrom("System.IO.FileSystem.AccessControl").pkg, r`runtimes/win/lib/netstandard2.0`)
-            ),
-            ...addIf(BuildXLSdk.isTargetRuntimeOsx && !BuildXLSdk.isFullFramework && qualifier.targetFramework !== 'net6.0',
-                Managed.Factory.createBinary(importFrom("System.Security.Principal.Windows").Contents.all, r`runtimes/unix/lib/netcoreapp2.0/System.Security.Principal.Windows.dll`)
-            ),
-            ...addIf(!BuildXLSdk.isTargetRuntimeOsx && !BuildXLSdk.isFullFramework && qualifier.targetFramework !== 'net6.0',
-                Managed.Factory.createBinary(importFrom("System.Security.Principal.Windows").Contents.all, r`runtimes/win/lib/netcoreapp2.0/System.Security.Principal.Windows.dll`)
-            ),
+
+            ...importFrom("BuildXL.Utilities").Native.securityDlls,
             importFrom("BuildXL.Utilities").Collections.dll,
             importFrom("BuildXL.Utilities").Interop.dll,
             importFrom("BuildXL.Utilities").dll,

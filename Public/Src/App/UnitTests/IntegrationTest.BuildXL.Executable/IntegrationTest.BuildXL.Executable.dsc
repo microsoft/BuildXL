@@ -34,7 +34,7 @@ namespace IntegrationTest.BuildXL.Executable {
                 return true;
             }
 
-            return BuildXLSdk.isDotNetCoreBuild ===  fileName.startsWith("DotNetCore");
+            return BuildXLSdk.isDotNetCoreOrStandard ===  fileName.startsWith("DotNetCore");
         }),
         skipTestRun: true,
         references: [
@@ -52,7 +52,7 @@ namespace IntegrationTest.BuildXL.Executable {
             {
                 subfolder: "TestBuild",
                 contents: [
-                    BuildXLSdk.isDotNetCoreBuild
+                    BuildXLSdk.isDotNetCoreOrStandard
                         ? Deployment.createFromDisk(d`${exampleMountPath}\DotNetCoreBuild`, {excludeDirectories: [d`${exampleMountPath}\DotNetCoreBuild\Out`]}, true /*recursive*/)
                         : Deployment.createFromDisk(d`${exampleMountPath}\HelloWorld`, {excludeDirectories: [d`${exampleMountPath}\HelloWorld\Out`]}, true /*recursive*/),
                 ],

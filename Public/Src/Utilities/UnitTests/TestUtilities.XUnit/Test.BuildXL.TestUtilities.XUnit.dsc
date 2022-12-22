@@ -24,6 +24,6 @@ namespace TestUtilities.XUnit {
             TestUtilities.dll,
 			importFrom("BuildXL.Cache.ContentStore").Hashing.dll,
         ],
-        defineConstants: BuildXLSdk.isDotNetCoreBuild ? ["DISABLE_FEATURE_XUNIT_PRETTYSTACKTRACE"] : []
+        defineConstants: BuildXLSdk.isDotNetCoreOrStandard ? ["DISABLE_FEATURE_XUNIT_PRETTYSTACKTRACE"] : []
     });
 }

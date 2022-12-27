@@ -45,10 +45,11 @@ namespace Test.BuildXL.FrontEnd.Rush
         [Fact]
         public void SimpleCustomRushCommand()
         {
-            // Schedule a rush project with a build command 'execute', and extend it to be
-            // 'execute --test' via a custom command
-            var config = Build(customRushCommands: "[{command: 'build', extraArguments: '--test'}]")
-               .AddJavaScriptProject("@ms/project-A", "src/A", scriptCommands: new[] { ("build", "execute") })
+            // Schedule a rush project with a build command 'npm run execute', and extend it to be
+            // 'npm run execute --test' via a custom command. Purposely use a command with spaces so
+            // we can verify correct escaping on unix
+            var config = Build(customRushCommands: "[{command: 'build', extraArguments: '--test --me'}]")
+               .AddJavaScriptProject("@ms/project-A", "src/A", scriptCommands: new[] { ("build", "npm run execute") })
                .PersistSpecsAndGetConfiguration();
 
             var result = RunRushProjects(config, new[] {
@@ -58,7 +59,8 @@ namespace Test.BuildXL.FrontEnd.Rush
             Assert.True(result.IsSuccess);
 
             var pip = result.EngineState.RetrieveProcess("@ms/project-A", "build");
-            Assert.Contains("execute --test", pip.Arguments.ToString(PathTable));
+            var arguments = pip.Arguments.ToString(PathTable);
+            Assert.Contains("npm run execute --test --me", arguments);
         }
 
         [Fact]

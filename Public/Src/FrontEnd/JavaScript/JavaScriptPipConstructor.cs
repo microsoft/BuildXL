@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
+using System.Text;
 using BuildXL.FrontEnd.JavaScript.ProjectGraph;
 using BuildXL.FrontEnd.Script.Ambients.Transformers;
 using BuildXL.FrontEnd.Sdk;
@@ -462,12 +463,11 @@ namespace BuildXL.FrontEnd.JavaScript
             {
                 JavaScriptUtilities.AddCmdArguments(processBuilder);
 
-                // On non-Windows OS, the arguments need (double quoute) escaping
-                using (processBuilder.ArgumentsBuilder.StartFragment(OperatingSystemHelper.IsWindowsOS ? PipDataFragmentEscaping.NoEscaping : PipDataFragmentEscaping.CRuntimeArgumentRules, " "))
+                // We want to enclose all arguments in double quotes, including potential extra arguments
+                using (processBuilder.ArgumentsBuilder.StartFragment(PipDataFragmentEscaping.NoEscaping, " "))
                 {
                     // Execute the command and redirect the output to a designated log file
                     processBuilder.ArgumentsBuilder.Add(PipDataAtom.FromString(project.ScriptCommand));
-
                     // If we need to append arguments to the script command, do it here
                     if (m_customCommands.TryGetValue(project.ScriptCommandName, out IReadOnlyList<JavaScriptArgument> extraArguments))
                     {

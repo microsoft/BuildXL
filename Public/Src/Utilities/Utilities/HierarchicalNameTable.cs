@@ -1291,7 +1291,7 @@ namespace BuildXL.Utilities
             // The null node has a special owner-less ID (and we don't allow flags on it). Don't add an owner tag or equality would break.
             return index == 0
                     ? new HierarchicalNameId(0)
-                    : new HierarchicalNameId(index | (DebugTag << DebugTagShift));
+                    : new HierarchicalNameId(unchecked(index | (DebugTag << DebugTagShift)));
         }
 
         private static int GetIndexFromId(HierarchicalNameId id)
@@ -1387,7 +1387,7 @@ namespace BuildXL.Utilities
 
             Contract.Assert((int)flags > 0 && (int)flags <= DebugTagValueMask);
 
-            int shiftedFlags = (int)flags << DebugTagShift;
+            int shiftedFlags = unchecked((int)flags << DebugTagShift);
 
             int nodeIndex = GetIndexFromId(name);
             m_nodes.GetEntryBuffer(nodeIndex, out int index, out Node[] buffer);
@@ -1446,7 +1446,7 @@ namespace BuildXL.Utilities
 
             Contract.Assert((int)flags > 0 && (int)flags <= DebugTagValueMask);
 
-            int shiftedFlags = (int)flags << DebugTagShift;
+            int shiftedFlags = unchecked((int)flags << DebugTagShift);
 
             int nodeIndex = GetIndexFromId(name);
             m_nodes.GetEntryBuffer(nodeIndex, out int index, out Node[] buffer);

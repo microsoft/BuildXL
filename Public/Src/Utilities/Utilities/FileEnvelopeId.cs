@@ -369,11 +369,14 @@ namespace BuildXL.Utilities
         {
             // HashCodeHelper performs a stable hash code computation.
             // We take into account the other header fields, and the file length.
-            return HashCodeHelper.Combine(
-                HashCodeHelper.GetOrdinalHashCode64(m_name),
-                HashCodeHelper.GetOrdinalHashCode64(id.Value),
-                Version | (long)(((ulong)(uint)m_version) << 32),
-                length);
+            unchecked
+            {
+                return HashCodeHelper.Combine(
+                    HashCodeHelper.GetOrdinalHashCode64(m_name),
+                    HashCodeHelper.GetOrdinalHashCode64(id.Value),
+                    Version | (long)(((ulong)(uint)m_version) << 32),
+                    length);
+            }
         }
 
         /// <summary>

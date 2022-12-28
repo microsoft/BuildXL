@@ -143,7 +143,10 @@ namespace BuildXL.Utilities.Serialization
             {
                 // ReadByte handles end of stream cases for us.
                 byteReadJustNow = reader.ReadByte();
-                result |= (byteReadJustNow & 0x7Fu) << shift;
+                unchecked
+                {
+                    result |= (byteReadJustNow & 0x7Fu) << shift;
+                }
 
                 if (byteReadJustNow <= 0x7Fu)
                 {
@@ -237,16 +240,6 @@ namespace BuildXL.Utilities.Serialization
         {
             var itemSpan = reader.ReadSpan(Unsafe.SizeOf<T>());
             var result = MemoryMarshal.Read<T>(itemSpan);
-            return result;
-        }
-
-        /// <nodoc />
-        public static ReadOnlySpan<T> Read<T>(this ref SpanReader reader, int count)
-            where T : unmanaged
-        {
-            // Reading a span instead of reading bytes to avoid unnecessary allocations.
-            var itemSpan = reader.ReadSpan(Unsafe.SizeOf<T>() * count);
-            var result = MemoryMarshal.Cast<byte, T>(itemSpan);
             return result;
         }
 

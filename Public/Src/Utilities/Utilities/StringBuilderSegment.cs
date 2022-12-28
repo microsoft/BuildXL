@@ -124,7 +124,7 @@ namespace BuildXL.Utilities
             int end = m_index + Length;
             for (int i = m_index; i < end; i++)
             {
-                var storedCh = (char)((buffer[index++] << 8) | buffer[index++]);
+                var storedCh = unchecked((char)((buffer[index++] << 8) | buffer[index++]));
                 if (storedCh != m_value[i])
                 {
                     return false;

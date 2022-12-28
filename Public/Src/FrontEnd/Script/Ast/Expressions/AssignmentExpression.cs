@@ -145,7 +145,10 @@ namespace BuildXL.FrontEnd.Script.Expressions
                                 Converter.ExpectNumber(value, position: 1), LocationForLogging(context, env));
                             break;
                         case AssignmentOperator.LeftShiftAssignment:
-                            frame[Index] = NumberLiteral.Box(Converter.ExpectNumber(frame[Index], position: 0) << Converter.ExpectNumber(value, position: 1));
+                            unchecked
+                            {
+                                frame[Index] = NumberLiteral.Box(Converter.ExpectNumber(frame[Index], position: 0) << Converter.ExpectNumber(value, position: 1));
+                            }
                             break;
                         case AssignmentOperator.RightShiftAssignment:
                             frame[Index] = NumberLiteral.Box(NumberOperations.SignPropagatingRightShift(

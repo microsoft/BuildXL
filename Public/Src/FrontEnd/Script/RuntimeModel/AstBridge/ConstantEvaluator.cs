@@ -86,8 +86,10 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
                                     return Script.Core.NumberOperations.SignPropagatingRightShift(left.Value, right.Value);
 
                                 case TypeScript.Net.Types.SyntaxKind.LessThanLessThanToken:
-                                    return GetNumber(left) << GetNumber(right);
-
+                                    unchecked
+                                    {
+                                        return GetNumber(left) << GetNumber(right);
+                                    }
                                 case TypeScript.Net.Types.SyntaxKind.AsteriskToken:
                                     return GetNumber(left) * GetNumber(right);
                                 case TypeScript.Net.Types.SyntaxKind.SlashToken:

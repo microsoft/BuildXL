@@ -9,16 +9,16 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
     ///     Information about a file.
     /// </summary>
     [SuppressMessage("Microsoft.Performance", "CA1815:OverrideEqualsAndOperatorEqualsOnValueTypes")]
-    public struct FileInfo
+    public readonly struct FileInfo
     {
         /// <summary>
         ///     Full path to the file.
         /// </summary>
-        public AbsolutePath FullPath;
+        public required AbsolutePath FullPath { get; init; }
 
         /// <summary>
         ///     Size of the file in bytes.
         /// </summary>
-        public long Length;
+        public required long Length { get; init; }
     }
 }

@@ -211,7 +211,11 @@ namespace BuildXL.Cache.ContentStore.Hashing
             {
                 int bitShift = 8 * i;
                 ulong b = br.ReadByte();
-                b <<= bitShift;
+                unchecked
+                {
+                    b <<= bitShift;
+                }
+                
                 value |= b;
             }
 

@@ -358,8 +358,8 @@ namespace BuildXL.Utilities
                 index2++; // skip the marker
                 for (int i = 0; i < length1; i++)
                 {
-                    var ch1 = (char)((buffer1[index1 + (2 * i)] << 8) | buffer1[index1 + (2 * i) + 1]);
-                    var ch2 = (char)((buffer2[index2 + (2 * i)] << 8) | buffer2[index2 + (2 * i) + 1]);
+                    var ch1 = unchecked((char)((buffer1[index1 + (2 * i)] << 8) | buffer1[index1 + (2 * i) + 1]));
+                    var ch2 = unchecked((char)((buffer2[index2 + (2 * i)] << 8) | buffer2[index2 + (2 * i) + 1]));
                     if (ch1.ToUpperInvariantFast() != ch2.ToUpperInvariantFast())
                     {
                         return false;
@@ -491,7 +491,7 @@ namespace BuildXL.Utilities
                 index++; // skip the marker
                 while (length-- > 0)
                 {
-                    var ch = (char)((buffer[index++] << 8) | buffer[index++]);
+                    var ch = unchecked((char)((buffer[index++] << 8) | buffer[index++]));
                     ch = ch.ToUpperInvariantFast();
                     unchecked
                     {
@@ -606,7 +606,7 @@ namespace BuildXL.Utilities
                     if (space < BytesPerBuffer - byteIndex)
                     {
                         // there's room in the buffer so try to claim it
-                        int next = (bufferNum << BytesPerBufferBits) | (byteIndex + space);
+                        int next = unchecked((bufferNum << BytesPerBufferBits) | (byteIndex + space));
                         if (Interlocked.CompareExchange(ref m_nextId, next, current) == current)
                         {
                             // got some room, now go fill it in
@@ -671,12 +671,12 @@ namespace BuildXL.Utilities
                     if (space >= BytesPerBuffer)
                     {
                         // force writing into a fresh buffer
-                        Volatile.Write(ref m_nextId, (bufferNum << BytesPerBufferBits) | BytesPerBufferMask);
+                        Volatile.Write(ref m_nextId, unchecked((bufferNum << BytesPerBufferBits) | BytesPerBufferMask));
                     }
                     else
                     {
                         // force writing into this new buffer
-                        Volatile.Write(ref m_nextId, (bufferNum << BytesPerBufferBits) | space);
+                        Volatile.Write(ref m_nextId, unchecked((bufferNum << BytesPerBufferBits) | space));
                     }
 
                     // go write the string at the base of the new buffer
@@ -808,7 +808,7 @@ namespace BuildXL.Utilities
                 index++; // skip the marker
                 while (length-- > 0)
                 {
-                    destination[destinationIndex++] = (char)((buffer[index++] << 8) | buffer[index++]);
+                    destination[destinationIndex++] = unchecked((char)((buffer[index++] << 8) | buffer[index++]));
                 }
             }
 
@@ -844,7 +844,7 @@ namespace BuildXL.Utilities
                 index++; // skip the marker
                 while (length-- > 0)
                 {
-                    destination.Append((char)((buffer[index++] << 8) | buffer[index++]));
+                    destination.Append(unchecked((char)((buffer[index++] << 8) | buffer[index++])));
                 }
             }
         }

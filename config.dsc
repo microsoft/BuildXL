@@ -90,8 +90,11 @@ config({
                 { id: "System.Diagnostics.DiagnosticSource", version: "4.0.0-beta-23516", alias: "System.Diagnostics.DiagnosticsSource.ForEventHub"},
 
                 // Roslyn
+                // The old compiler used by integration tests only.
                 { id: "Microsoft.Net.Compilers", version: "4.0.1" }, // Update Public/Src/Engine/UnitTests/Engine/Test.BuildXL.Engine.dsc if you change the version of Microsoft.Net.Compilers.
                 { id: "Microsoft.NETCore.Compilers", version: "4.0.1" },
+                // The package with an actual csc.dll
+                { id: "Microsoft.Net.Compilers.Toolset", version: "4.4.0" },
 
                 { id: "Microsoft.CodeAnalysis.Common", version: "3.5.0" },
                 { id: "Microsoft.CodeAnalysis.CSharp", version: "3.5.0" },

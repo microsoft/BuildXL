@@ -1967,6 +1967,15 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "Microsoft.Net.Compilers.Toolset",
+          "Version": "4.4.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "Microsoft.Net.Http",
           "Version": "2.2.29"
         }

@@ -5,13 +5,9 @@ import {Artifact, Cmd, Tool, Transformer} from "Sdk.Transformers";
 import * as Shared from "Sdk.Managed.Shared";
 import * as RoslynAnalyzers from "Sdk.Managed.Tools.RoslynAnalyzers";
 
-const pkgContents = Context.getCurrentHost().os === "win"
-    ? importFrom("Microsoft.Net.Compilers").Contents.all
-    : importFrom("Microsoft.NETCore.Compilers").Contents.all;
+const pkgContents = importFrom("Microsoft.Net.Compilers.Toolset").Contents.all;
 
-const cscTool = Context.getCurrentHost().os === "win"
-    ? r`tools/csc.exe`
-    : r`tools/bincore/csc.dll`;
+const cscTool = r`tasks/net6.0/bincore/csc.dll`;
 
 export const tool: Transformer.ToolDefinition = Shared.Factory.createTool({
     exe: pkgContents.getFile(cscTool),
@@ -190,15 +186,16 @@ export function compile(inputArgs: Arguments) : Result {
         // compensate for the unobserved ones.
         unsafe: args.shared ?
             {
-                childProcessesToBreakawayFromSandbox: isCurrentHostOsWindows
-                    ? [ a`VBCSCompiler.exe` ]
-                    : [ a`dotnet` ],
+                childProcessesToBreakawayFromSandbox: isCurrentHostOsWindows ? [a`dotnet.exe`] : [a`dotnet`],
+
                 trustStaticallyDeclaredAccesses: true,
             } : undefined,
     };
 
+    // Microsoft.Net.Compilers.Toolset contains csc.dll for all platforms.
+    cscExecuteArgs = importFrom("Sdk.Managed.Frameworks").Helpers.wrapInDotNetExeForCurrentOs(getDotNetCoreVersion(cscExecuteArgs), cscExecuteArgs);
+
     if (!isCurrentHostOsWindows) {
-        cscExecuteArgs = importFrom("Sdk.Managed.Frameworks").Helpers.wrapInDotNetExeForCurrentOs(getDotNetCoreVersion(cscExecuteArgs), cscExecuteArgs);
         cscExecuteArgs = cscExecuteArgs.merge<Transformer.ExecuteArguments>({
             tool: { 
                 // Conceptually, we want to set 'dependsOnCurrentHostOSDirectories' to true and not specify 'untrackedDirectoryScopes' here;

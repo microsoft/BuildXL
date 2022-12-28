@@ -225,8 +225,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </param>
         public Result<MachineId[]> GetDesignatedLocations(ContentHash hash, bool includeExpired)
         {
-            uint binNumber = (uint)((hash[0] | hash[1] << 8) % NumberOfBins);
-            return GetDesignatedLocations(binNumber, includeExpired);
+            unchecked
+            {
+                uint binNumber = (uint)((hash[0] | hash[1] << 8) % NumberOfBins);
+                return GetDesignatedLocations(binNumber, includeExpired);
+            }
         }
 
         /// <nodoc />

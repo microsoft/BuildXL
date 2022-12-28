@@ -83,7 +83,10 @@ namespace TypeScript.Net.Types
         /// <nodoc />
         public static Number operator <<(Number left, int right)
         {
-            return new Number(left.AsInt64() << right);
+            unchecked
+            {
+                return new Number(left.AsInt64() << right);
+            }
         }
 
         /// <nodoc />

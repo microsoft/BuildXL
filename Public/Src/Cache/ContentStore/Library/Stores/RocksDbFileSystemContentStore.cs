@@ -276,7 +276,10 @@ namespace BuildXL.Cache.ContentStore.Stores
 
             for (var i = 0; i < Math.Min(value.Length, sizeof(long)); i++)
             {
-                output |= ((long)value[i]) << (8 * i);
+                unchecked
+                {
+                    output |= ((long)value[i]) << (8 * i);
+                }
             }
             return output;
         }

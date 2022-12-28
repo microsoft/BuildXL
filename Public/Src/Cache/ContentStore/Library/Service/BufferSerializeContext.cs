@@ -99,7 +99,10 @@ namespace BuildXL.Cache.ContentStore.Service
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int DeserializeInt32()
         {
-            return _buffer[_offset++] | (_buffer[_offset++] << 8) | (_buffer[_offset++] << 16) | (_buffer[_offset++] << 24);
+            unchecked
+            {
+                return _buffer[_offset++] | (_buffer[_offset++] << 8) | (_buffer[_offset++] << 16) | (_buffer[_offset++] << 24);
+            }
         }
 
         /// <summary>
@@ -126,15 +129,18 @@ namespace BuildXL.Cache.ContentStore.Service
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public long DeserializeInt64()
         {
-            return
-                _buffer[_offset++] |
-                (long)_buffer[_offset++] << 8 |
-                (long)_buffer[_offset++] << 16 |
-                (long)_buffer[_offset++] << 24 |
-                (long)_buffer[_offset++] << 32 |
-                (long)_buffer[_offset++] << 40 |
-                (long)_buffer[_offset++] << 48 |
-                (long)_buffer[_offset++] << 56;
+            unchecked
+            {
+                return
+                    _buffer[_offset++] |
+                    (long)_buffer[_offset++] << 8 |
+                    (long)_buffer[_offset++] << 16 |
+                    (long)_buffer[_offset++] << 24 |
+                    (long)_buffer[_offset++] << 32 |
+                    (long)_buffer[_offset++] << 40 |
+                    (long)_buffer[_offset++] << 48 |
+                    (long)_buffer[_offset++] << 56;
+            }
         }
 
         /// <summary>

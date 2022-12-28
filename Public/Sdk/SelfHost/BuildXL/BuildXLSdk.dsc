@@ -463,7 +463,7 @@ export function test(args: TestArguments) : TestResult {
 export const notNullAttributesFile = f`NotNullAttributes.cs`;
 
 const callerArgumentExpressionAttributeFile = f`CallerArgumentExpressionAttribute.cs`;
-
+const requiredAttributeFile = f`RequiredAttribute.cs`;
 const isExternalInit = f`IsExternalInit.cs`;
 
 /**
@@ -847,6 +847,14 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
             sources: [isExternalInit],
         });
     }
+
+    // Required members is needed for non .net7 target frameworks.
+    // Uncomment once the .net7 PR is in.
+    // if (qualifier.targetFramework !== "net7.0") {
+        args = args.merge({
+            sources: [requiredAttributeFile]
+        });
+    // }
 
     // Adding 'CallerArgumentExpressionAttribute' unless spcified not to.
     if (!isDotNetCoreApp && args.addCallerArgumentExpressionAttribute !== false) {

@@ -163,7 +163,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         yield return new MachineId(((i - Offset) * 8) + position);
                     }
 
-                    @char <<= 1;
+                    // C# 11 compiler makes the '<<' operator checked potentially causing OverflowException
+                    // if @char will get above byte.MaxValue.
+                    unchecked
+                    {
+                        @char <<= 1;
+                    }
+                    
                     position++;
                 }
             }
@@ -206,7 +212,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     machineIdIndex++;
                 }
 
-                redisChar <<= 1;
+                // C# 11 compiler makes the '<<' operator checked potentially causing OverflowException
+                // if @char will get above byte.MaxValue.
+                unchecked
+                {
+                    redisChar <<= 1;
+                }
+                
                 position++;
             }
 
@@ -225,7 +237,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             // The bit mask uses the most significant bits to specify lower machine ids.
             // It means that 0b10000010 is translated into machines 0 and 6, but not 1 and 7.
-            return (data[dataIndex] & (1 << (7 - (index % 8)))) != 0;
+            unchecked
+            {
+                return (data[dataIndex] & (1 << (7 - (index % 8)))) != 0;
+            }
         }
         
         private static void SetValue(byte[] data, int offset, int index, bool value)

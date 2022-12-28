@@ -201,7 +201,10 @@ namespace BuildXL.FrontEnd.Script.Expressions
 
                             break;
                         case BinaryOperator.LeftShift:
-                            return EvaluationResult.Create(Converter.ExpectNumber(left, position: 0) << Converter.ExpectNumber(right, position: 1));
+                            unchecked
+                            {
+                                return EvaluationResult.Create(Converter.ExpectNumber(left, position: 0) << Converter.ExpectNumber(right, position: 1));
+                            }
                         case BinaryOperator.SignPropagatingRightShift:
                             return EvaluationResult.Create(NumberOperations.SignPropagatingRightShift(
                                     Converter.ExpectNumber(left, position: 0),

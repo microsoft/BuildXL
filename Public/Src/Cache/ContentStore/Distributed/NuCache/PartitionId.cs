@@ -103,9 +103,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             partitionCount = Math.Min(Math.Max(minValue, partitionCount), maxValue);
 
             // Round to power of two
-            var powerOfTwo = Bits.HighestBitSet((uint)partitionCount);
-            partitionCount = (int)(powerOfTwo < partitionCount ? powerOfTwo << 1 : powerOfTwo);
-            return partitionCount;
+            unchecked
+            {
+                var powerOfTwo = Bits.HighestBitSet((uint)partitionCount);
+                partitionCount = (int)(powerOfTwo < partitionCount ? powerOfTwo << 1 : powerOfTwo);
+                return partitionCount;
+            }
         }
     }
 }

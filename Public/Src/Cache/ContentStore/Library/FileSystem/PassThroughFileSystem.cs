@@ -191,7 +191,10 @@ namespace BuildXL.Cache.ContentStore.FileSystem
                         throw ThrowLastWin32Error(path.Path, errorMessage);
                     }
 
-                    return (((ulong)handleInfo.FileIndexHigh) << 32) | handleInfo.FileIndexLow;
+                    unchecked
+                    {
+                        return (((ulong)handleInfo.FileIndexHigh) << 32) | handleInfo.FileIndexLow;
+                    }
                 }
             }
         }

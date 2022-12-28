@@ -111,7 +111,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
             Assert.Equal(v1, v2);
         }
 
-        private ReadOnlySpan<byte> ToSpan(ReadOnlyFixedBytes fixedBytes)
+        private ReadOnlySpan<byte> ToSpan(in ReadOnlyFixedBytes fixedBytes)
         {
 #if NETCOREAPP
             return MemoryHelpers.AsBytesUnsafe(fixedBytes);

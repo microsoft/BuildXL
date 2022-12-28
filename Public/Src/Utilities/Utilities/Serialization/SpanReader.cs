@@ -3,6 +3,7 @@
 
 using System;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 #nullable enable
 
@@ -85,7 +86,17 @@ namespace BuildXL.Utilities.Serialization
             Position += length;
             return result;
         }
-        
+
+        /// <nodoc />
+        public ReadOnlySpan<T> Read<T>(int count)
+            where T : unmanaged
+        {
+            // Reading a span instead of reading bytes to avoid unnecessary allocations.
+            var itemSpan = ReadSpan(Unsafe.SizeOf<T>() * count);
+            var result = MemoryMarshal.Cast<byte, T>(itemSpan);
+            return result;
+        }
+
         internal void EnsureLength(int minLength)
         {
             if (RemainingLength < minLength)

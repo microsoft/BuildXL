@@ -85,7 +85,10 @@ namespace BuildXL.Utilities
             Contract.Requires(((byte)fileExistence) <= MaxFileExistence);
 
             m_path = path;
-            m_rewriteCountAndFileExistenceAndFileRewrite = ((uint)rewriteCount | (uint)((byte)fileExistence << RewriteCountSize) | (isUndeclaredFileRewrite ? UndeclaredFileRewriteMask : 0));
+            unchecked
+            {
+                m_rewriteCountAndFileExistenceAndFileRewrite = ((uint)rewriteCount | (uint)((byte)fileExistence << RewriteCountSize) | (isUndeclaredFileRewrite ? UndeclaredFileRewriteMask : 0));
+            }
         }
 
         /// <summary>

@@ -462,9 +462,14 @@ namespace BuildXL.FrontEnd.JavaScript
             {
                 JavaScriptUtilities.AddCmdArguments(processBuilder);
 
-                // We want to enclose all arguments in double quotes, including potential extra arguments
                 using (processBuilder.ArgumentsBuilder.StartFragment(PipDataFragmentEscaping.NoEscaping, " "))
                 {
+                    // On Linux/Mac we want to enclose all arguments in double quotes, including potential extra arguments
+                    if (!OperatingSystemHelper.IsWindowsOS)
+                    {
+                        processBuilder.ArgumentsBuilder.Add(PipDataAtom.FromString("\""));
+                    }
+
                     // Execute the command and redirect the output to a designated log file
                     processBuilder.ArgumentsBuilder.Add(PipDataAtom.FromString(project.ScriptCommand));
                     // If we need to append arguments to the script command, do it here
@@ -475,9 +480,14 @@ namespace BuildXL.FrontEnd.JavaScript
                             AddJavaScriptArgumentToBuilder(processBuilder.ArgumentsBuilder, value);
                         }
                     }
+                    
+                    // Closing the double quotes for Linux/Mac
+                    if (!OperatingSystemHelper.IsWindowsOS)
+                    {
+                        processBuilder.ArgumentsBuilder.Add(PipDataAtom.FromString("\""));
+                    }
                 }
             }
-
             FrontEndUtilities.SetProcessEnvironmentVariables(CreateEnvironment(project), m_userDefinedPassthroughVariables, processBuilder, m_context.PathTable);
         }
 

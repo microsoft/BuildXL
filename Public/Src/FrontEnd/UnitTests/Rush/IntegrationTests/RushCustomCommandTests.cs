@@ -60,7 +60,16 @@ namespace Test.BuildXL.FrontEnd.Rush
 
             var pip = result.EngineState.RetrieveProcess("@ms/project-A", "build");
             var arguments = pip.Arguments.ToString(PathTable);
-            Assert.Contains("npm run execute --test --me", arguments);
+
+            string testCommand = "npm run execute --test --me";
+            
+            // On Linux/Mac we want to make sure the whole command is enclosed in double quotes
+            if (!OperatingSystemHelper.IsWindowsOS)
+            {
+                testCommand = $"\" {testCommand} \"";
+            }
+
+            Assert.Contains(testCommand, arguments);
         }
 
         [Fact]

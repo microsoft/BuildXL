@@ -1044,6 +1044,59 @@ namespace Test.BuildXL.Scheduler
             analyzer.AssertNoExtraViolationsCollected();
         }
 
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void DynamicWriteInStaticallyDeclaredSourceFile(bool enableSafeSourceRewrites)
+        {
+            BuildXLContext context = BuildXLContext.CreateInstanceForTesting();
+            var graph = new QueryablePipDependencyGraph(context);
+            var analyzer = new TestFileMonitoringViolationAnalyzer(LoggingContext, context, graph, doLogging: true);
+
+            AbsolutePath sourcePath = CreateAbsolutePath(context, ProducedPath);
+            AbsolutePath violatorOutput = CreateAbsolutePath(context, JunkPath);
+
+            var hashSourceFile = graph.AddSourceFile(sourcePath);
+            Process violator = graph.AddProcess(violatorOutput,
+                enableSafeSourceRewrites ? RewritePolicy.SafeSourceRewritesAreAllowed : RewritePolicy.DoubleWritesAreErrors,
+                dependencies: new List<FileArtifact>() { hashSourceFile.Artifact });
+
+            // Simulate a dynamic write on the source path
+            var sharedOpaqueDirectoryWriteAccesses = new Dictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>>()
+            {
+                [sourcePath] = new[] { FileArtifactWithAttributes.Create(FileArtifact.CreateOutputFile(sourcePath), FileExistence.Required) }
+            };
+
+            var res = analyzer.AnalyzePipViolations(
+                violator,
+                new[] { CreateViolation(RequestedAccess.Write, sourcePath) },
+                new ReportedFileAccess[0],
+                exclusiveOpaqueDirectoryContent: null,
+                sharedOpaqueDirectoryWriteAccesses: sharedOpaqueDirectoryWriteAccesses,
+                allowedUndeclaredReads: null,
+                dynamicObservations: null,
+                ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty,
+                out _);
+            
+            analyzer.AssertContainsViolation(
+                new DependencyViolation(
+                    FileMonitoringViolationAnalyzer.DependencyViolationType.WriteInStaticallyDeclaredSourceFile,
+                    FileMonitoringViolationAnalyzer.AccessLevel.Write,
+                    sourcePath,
+                    violator,
+                    hashSourceFile),
+                "The violator writes into a statically declared source file, but it wasn't reported.");
+
+            AssertErrorEventLogged(LogEventId.FileMonitoringError);
+            
+            if (enableSafeSourceRewrites)
+            {
+                AssertWarningEventLogged(LogEventId.SafeSourceRewriteNotAvailableForStaticallyDeclaredSources);
+            }
+
+            analyzer.AssertNoExtraViolationsCollected();
+        }
+
         private static AbsolutePath CreateAbsolutePath(BuildXLContext context, string path)
         {
             return AbsolutePath.Create(context.PathTable, path);

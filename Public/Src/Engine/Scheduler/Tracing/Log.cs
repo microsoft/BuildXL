@@ -2318,6 +2318,21 @@ namespace BuildXL.Scheduler.Tracing
             string path,
             string relatedPipDescription);
 
+        [GeneratedEvent(
+            (ushort)LogEventId.DependencyViolationWriteInStaticallyDeclaredSourceFile,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.Scheduler,
+            Message =
+                PipDependencyAnalysisPrefix +
+                "This pip writes to the statically declared source '{2}'. Statically declared sources cannot be rewritten.")]
+        public abstract void DependencyViolationWriteInStaticallyDeclaredSourceFile(
+            LoggingContext context,
+            long pipSemiStableHash,
+            string pipDescription,
+            string path);
+
         #endregion
 
         [GeneratedEvent(
@@ -2580,6 +2595,20 @@ namespace BuildXL.Scheduler.Tracing
             LoggingContext context,
             string pipDescription,
             string outputFile);
+
+        [GeneratedEvent(
+            (int)LogEventId.SafeSourceRewriteNotAvailableForStaticallyDeclaredSources,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
+            EventTask = (int)Tasks.Scheduler,
+            Message =
+                "Pip '{pipDescription}' is writing to the statically declared source '{sourceFile}'. The pip is set to allow safe source rewrites, but this policy is only supported for undeclared sources, not for statically specified ones.")]
+        public abstract void SafeSourceRewritePolicyNotAvailableForStaticallyDeclaredSources(
+            LoggingContext context,
+            string pipDescription,
+            string sourceFile);
+        
 
         [GeneratedEvent(
             (int)LogEventId.DirectoryFingerprintExercisedRule,

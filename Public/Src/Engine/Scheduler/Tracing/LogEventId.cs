@@ -327,6 +327,7 @@ namespace BuildXL.Scheduler.Tracing
         FingerprintStoreUnableToCopyOnWriteLogFile = 5031, // was FingerprintStoreFormatVersionChangeDetected = 5031,
 
         DependencyViolationTheSameTempFileProducedByIndependentPips = 5032,
+        DependencyViolationWriteInStaticallyDeclaredSourceFile = 5033,
 
         MovingCorruptFile = 5040,
         FailedToMoveCorruptFile = 5041,
@@ -439,6 +440,7 @@ namespace BuildXL.Scheduler.Tracing
 
         PipCopyFileSourceFileDoesNotExist = 12201,
         AllowSameContentPolicyNotAvailableForStaticallyDeclaredOutputs = 12212,
+        SafeSourceRewriteNotAvailableForStaticallyDeclaredSources = 12215,
 
         // Determinism probe to detect nondeterministic PIPs
         DeterminismProbeEncounteredNondeterministicOutput = 13000,

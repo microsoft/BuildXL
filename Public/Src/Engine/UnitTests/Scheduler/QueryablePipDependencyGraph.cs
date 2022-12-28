@@ -27,6 +27,7 @@ namespace Test.BuildXL.Scheduler
 
         private readonly BuildXLContext m_context;
         private readonly Dictionary<AbsolutePath, Pip> m_pathProducers = new Dictionary<AbsolutePath, Pip>();
+        private readonly Dictionary<AbsolutePath, Pip> m_sources = new Dictionary<AbsolutePath, Pip>();
         private readonly Dictionary<PipId, Pip> m_pips = new Dictionary<PipId, Pip>();
         private int m_nextPipIdValue = 1;
 
@@ -65,7 +66,10 @@ namespace Test.BuildXL.Scheduler
             Pip producer;
             if (!m_pathProducers.TryGetValue(producedPath, out producer))
             {
-                return null;
+                if (!m_sources.TryGetValue(producedPath, out producer))
+                {
+                    return null;
+                }
             }
 
             if (maybeOrderingFilter.HasValue)
@@ -125,15 +129,19 @@ namespace Test.BuildXL.Scheduler
         /// <summary>
         /// Adds a fake process pip that produces only the given path.
         /// </summary>
-        public Process AddProcess(AbsolutePath producedPath, RewritePolicy doubleWritePolicy = RewritePolicy.DoubleWritesAreErrors)
+        public Process AddProcess(AbsolutePath producedPath, RewritePolicy doubleWritePolicy = RewritePolicy.DoubleWritesAreErrors, List<FileArtifact> dependencies = null)
         {
             Contract.Assume(!m_pathProducers.ContainsKey(producedPath), "Each path may have only one producer (no rewrites)");
 
             AbsolutePath workingDirectory = AbsolutePath.Create(m_context.PathTable, PathGeneratorUtilities.GetAbsolutePath("X", ""));
             AbsolutePath exe = AbsolutePath.Create(m_context.PathTable, PathGeneratorUtilities.GetAbsolutePath("X", "fake.exe"));
+            var executable = FileArtifact.CreateSourceFile(exe);
+
+            dependencies = dependencies ?? new List<FileArtifact>();
+            dependencies.Add(executable);
 
             var process = new Process(
-                executable: FileArtifact.CreateSourceFile(exe),
+                executable: executable,
                 workingDirectory: workingDirectory,
                 arguments: PipDataBuilder.CreatePipData(m_context.StringTable, string.Empty, PipDataFragmentEscaping.NoEscaping),
                 responseFile: FileArtifact.Invalid,
@@ -145,7 +153,7 @@ namespace Test.BuildXL.Scheduler
                 standardDirectory: workingDirectory,
                 warningTimeout: null,
                 timeout: null,
-                dependencies: ReadOnlyArray<FileArtifact>.FromWithoutCopy(FileArtifact.CreateSourceFile(exe)),
+                dependencies: ReadOnlyArray<FileArtifact>.FromWithoutCopy(dependencies.ToArray()),
                 outputs: ReadOnlyArray<FileArtifactWithAttributes>.FromWithoutCopy(FileArtifact.CreateSourceFile(producedPath).CreateNextWrittenVersion().WithAttributes()),
                 directoryDependencies: ReadOnlyArray<DirectoryArtifact>.Empty,
                 directoryOutputs: ReadOnlyArray<DirectoryArtifact>.Empty,
@@ -165,6 +173,17 @@ namespace Test.BuildXL.Scheduler
             m_pathProducers.Add(producedPath, process);
 
             return process;
+        }
+
+        /// <summary>
+        /// Adds a (fake) source file to the graph
+        /// </summary>
+        public HashSourceFile AddSourceFile(AbsolutePath sourcePath)
+        {
+            var hashSourceFile = new HashSourceFile(new FileArtifact(sourcePath, 0));
+            m_sources.Add(sourcePath, hashSourceFile);
+
+            return hashSourceFile;
         }
 
         /// <summary>

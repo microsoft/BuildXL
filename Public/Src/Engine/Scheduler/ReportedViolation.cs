@@ -71,6 +71,7 @@ namespace BuildXL.Scheduler
                     case DependencyViolationType.WriteToTempPathInsideSharedOpaque:
                     case DependencyViolationType.WriteOnAbsentPathProbe:
                     case DependencyViolationType.TempFileProducedByIndependentPips:
+                    case DependencyViolationType.WriteInStaticallyDeclaredSourceFile:
                         return SimplifiedViolationType.Write;
                     case DependencyViolationType.AbsentPathProbeUnderUndeclaredOpaque:
                         return SimplifiedViolationType.Probe;

@@ -211,6 +211,15 @@ namespace BuildXL.Scheduler
             /// Detected a temp file produced by two pips that do not share an explicit dependency
             /// </summary>
             TempFileProducedByIndependentPips,
+
+            /// <summary>
+            /// Detected a write on a path that corresponds to a statically declared source file.
+            /// </summary>
+            /// <remarks>
+            /// Observe the write has to be a dynamic one (e.g. under shared opaque one), since otherwise we would have caught this
+            /// violation at graph construction time.
+            /// </remarks>
+            WriteInStaticallyDeclaredSourceFile,
         }
 
         /// <summary>
@@ -917,25 +926,56 @@ namespace BuildXL.Scheduler
 
             if (maybeProducer != null && maybeProducer.PipId != pip.PipId)
             {
-                // AllowSameContentDoubleWrites is not actually supported for statically declared files, since the double write may not have occurred yet, and the content
-                // may be unavailable. So just warn about this, and log the violation as an error.
-                if ((pip.RewritePolicy & RewritePolicy.AllowSameContentDoubleWrites) != 0)
+                // If the producer is a statically declared hash source file pip, that means this violation is about a (dynamic) write into a statically declared source file
+                if (maybeProducer.PipType == PipType.HashSourceFile)
                 {
-                    Logger.Log.AllowSameContentPolicyNotAvailableForStaticallyDeclaredOutputs(LoggingContext, pip.GetDescription(Context), access.Path.ToString(Context.PathTable));
-                }
+                    // If the pip has the source file declared as a dependency, then the violation was caught already at the sandbox level. Let's not report it then, as a way
+                    // to avoid reporting a duplicate
+                    if (pip.Dependencies.Contains((maybeProducer as HashSourceFile).Artifact))
+                    {
+                        return;
+                    }
 
-                // We found a double write: two pips tried to produce the same file in the cone of a shared opaque directory. One statically, the current one
-                // dynamically
-                reportedViolations.Add(
-                    HandleDependencyViolation(
-                        DependencyViolationType.DoubleWrite,
-                        AccessLevel.Write,
-                        access.Path,
-                        pip,
-                        isAllowlistedViolation: false,
-                        related: maybeProducer,
-                        // we don't have the path of the process that caused the file access violation, so 'blame' the main process (i.e., the current pip) instead
-                        pip.Executable.Path));
+                    // SafeSourceRewrites are not allowed for statically declared sources. So warn about this if the pip is configured to use this policy.
+                    if ((pip.RewritePolicy & RewritePolicy.SafeSourceRewritesAreAllowed) != 0)
+                    {
+                        Logger.Log.SafeSourceRewritePolicyNotAvailableForStaticallyDeclaredSources(LoggingContext, pip.GetDescription(Context), access.Path.ToString(Context.PathTable));
+                    }
+
+                    reportedViolations.Add(
+                        HandleDependencyViolation(
+                            DependencyViolationType.WriteInStaticallyDeclaredSourceFile,
+                            AccessLevel.Write,
+                            access.Path,
+                            pip,
+                            isAllowlistedViolation: false,
+                            related: maybeProducer,
+                            // we don't have the path of the process that caused the file access violation, so 'blame' the main process (i.e., the current pip) instead
+                            pip.Executable.Path));
+                }
+                else
+                {
+
+                    // AllowSameContentDoubleWrites is not actually supported for statically declared files, since the double write may not have occurred yet, and the content
+                    // may be unavailable. So just warn about this, and log the violation as an error.
+                    if ((pip.RewritePolicy & RewritePolicy.AllowSameContentDoubleWrites) != 0)
+                    {
+                        Logger.Log.AllowSameContentPolicyNotAvailableForStaticallyDeclaredOutputs(LoggingContext, pip.GetDescription(Context), access.Path.ToString(Context.PathTable));
+                    }
+
+                    // We found a double write: two pips tried to produce the same file in the cone of a shared opaque directory. One statically, the current one
+                    // dynamically
+                    reportedViolations.Add(
+                        HandleDependencyViolation(
+                            DependencyViolationType.DoubleWrite,
+                            AccessLevel.Write,
+                            access.Path,
+                            pip,
+                            isAllowlistedViolation: false,
+                            related: maybeProducer,
+                            // we don't have the path of the process that caused the file access violation, so 'blame' the main process (i.e., the current pip) instead
+                            pip.Executable.Path));
+                }
             }
         }
 
@@ -1531,6 +1571,8 @@ namespace BuildXL.Scheduler
                             VersionDisposition.Latest,
                             new DependencyOrderingFilter(DependencyOrderingFilterType.PossiblyPrecedingInWallTime, pip));
 
+                        bool dynamicProducer = false;
+
                         // If there was not a static producer, check if there is a dynamic one so we can refine
                         // the report as a double write if found. 
                         // Otherwise the case where the pip writes to a path that is part of a shared opaque dependency 
@@ -1543,28 +1585,51 @@ namespace BuildXL.Scheduler
                             m_dynamicReadersAndWriters.TryGetValue(violation.Path, out var kvp) && 
                             kvp.accessType == DynamicFileAccessType.Write)
                         {
+                            dynamicProducer= true;
                             maybeProducer = m_graph.HydratePip(kvp.processPip, PipQueryContext.FileMonitoringViolationAnalyzerClassifyAndReportAggregateViolations);
                         }
 
                         if (maybeProducer != null)
                         {
-                            // AllowSameContentDoubleWrites is not actually supported for statically declared files, since the double write may not have occurred yet, and the content
-                            // may be unavailable. So just warn about this, and log the violation as an error.
-                            if ((pip.RewritePolicy & RewritePolicy.AllowSameContentDoubleWrites) != 0)
+                            // If the producer is a statically declared hash source file pip, that means this violation is about a (dynamic) write into a statically declared source file
+                            if (!dynamicProducer && maybeProducer.PipType == PipType.HashSourceFile)
                             {
-                                Logger.Log.AllowSameContentPolicyNotAvailableForStaticallyDeclaredOutputs(LoggingContext, pip.GetDescription(Context), violation.Path.ToString(Context.PathTable));
+                                // SafeSourceRewrites are not allowed for statically decared sources. So warn about this if the pip is configured to use this policy.
+                                if ((pip.RewritePolicy & RewritePolicy.SafeSourceRewritesAreAllowed) != 0)
+                                {
+                                    Logger.Log.SafeSourceRewritePolicyNotAvailableForStaticallyDeclaredSources(LoggingContext, pip.GetDescription(Context), violation.Path.ToString(Context.PathTable));
+                                }
+
+                                reportedViolations.Add(
+                                    HandleDependencyViolation(
+                                        DependencyViolationType.WriteInStaticallyDeclaredSourceFile,
+                                        AccessLevel.Write,
+                                        violation.Path,
+                                        pip,
+                                        isAllowlistedViolation,
+                                        related: maybeProducer,
+                                        violation.ProcessPath));
+                            }
+                            else
+                            {
+                                // AllowSameContentDoubleWrites is not actually supported for statically declared files, since the double write may not have occurred yet, and the content
+                                // may be unavailable. So just warn about this, and log the violation as an error.
+                                if (!dynamicProducer && (pip.RewritePolicy & RewritePolicy.AllowSameContentDoubleWrites) != 0)
+                                {
+                                    Logger.Log.AllowSameContentPolicyNotAvailableForStaticallyDeclaredOutputs(LoggingContext, pip.GetDescription(Context), violation.Path.ToString(Context.PathTable));
+                                }
+
+                                reportedViolations.Add(
+                                    HandleDependencyViolation(
+                                        DependencyViolationType.DoubleWrite,
+                                        AccessLevel.Write,
+                                        violation.Path,
+                                        pip,
+                                        isAllowlistedViolation,
+                                        related: maybeProducer,
+                                        violation.ProcessPath));
                             }
 
-                            // TODO: Maybe have a separate violation type for writing to source files.
-                            reportedViolations.Add(
-                                HandleDependencyViolation(
-                                    DependencyViolationType.DoubleWrite,
-                                    AccessLevel.Write,
-                                    violation.Path,
-                                    pip,
-                                    isAllowlistedViolation,
-                                    related: maybeProducer,
-                                    violation.ProcessPath));
                             continue;
                         }
                         else
@@ -2050,6 +2115,17 @@ namespace BuildXL.Scheduler
                             violator.GetDescription(Context),
                             path.ToString(Context.PathTable),
                             related.GetDescription(Context));
+                    }
+
+                    break;
+                case DependencyViolationType.WriteInStaticallyDeclaredSourceFile:
+                    if (isError)
+                    {
+                        Logger.Log.DependencyViolationWriteInStaticallyDeclaredSourceFile(
+                            LoggingContext,
+                            violator.SemiStableHash,
+                            violator.GetDescription(Context),
+                            path.ToString(Context.PathTable));
                     }
 
                     break;

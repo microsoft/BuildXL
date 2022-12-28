@@ -706,8 +706,8 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             // We are expecting a file monitor violation
             AssertErrorEventLogged(LogEventId.FileMonitoringError);
-            // It gets reported as a double write (between the writing pip and the hash source file pip)
-            AssertVerboseEventLogged(LogEventId.DependencyViolationDoubleWrite);
+            // It gets reported as a write in a statically declared source file
+            AssertVerboseEventLogged(LogEventId.DependencyViolationWriteInStaticallyDeclaredSourceFile);
         }
 
         [Theory]

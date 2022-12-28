@@ -213,11 +213,10 @@ namespace Test.BuildXL.Scheduler
             IDictionary<string, (string, bool)> environmentVariables = null,
             IEnumerable<int> succeedFastExitCodes = null,
             ProcessBuilder builder = null,
-            IReadOnlyList<string> credScanEnvironmentVariablesAllowList = null,
-            bool enableCredScan = false)
+            IFrontEndConfiguration frontEndConfig = null)
         {
-            var frontEndContext = FrontEndContext.CreateInstanceForTesting(enableCredScan: enableCredScan);
-            builder ??= ProcessBuilder.CreateForTesting(Context.PathTable, frontEndContext.CredentialScanner, frontEndContext.LoggingContext, credScanEnvironmentVariablesAllowList);
+            var frontEndContext = FrontEndContext.CreateInstanceForTesting(frontEndConfig: frontEndConfig);
+            builder ??= ProcessBuilder.CreateForTesting(Context.PathTable, frontEndContext.CredentialScanner, frontEndContext.LoggingContext);
             builder.Executable = TestProcessExecutable;
             if (succeedFastExitCodes != null)
             {

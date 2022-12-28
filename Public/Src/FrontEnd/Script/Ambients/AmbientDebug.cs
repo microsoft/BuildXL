@@ -95,8 +95,7 @@ namespace BuildXL.FrontEnd.Script.Ambients
                 pathTable,
                 context.FrontEndContext.GetPipDataBuilder(),
                 context.FrontEndContext.CredentialScanner,
-                context.FrontEndContext.LoggingContext,
-                context.FrontEndHost.Configuration.Sandbox.CredScanEnvironmentVariablesAllowList))
+                context.FrontEndContext.LoggingContext))
             {
                 TransformerExecuteArgumentsProcessor.ProcessArguments(context, processBuilder, cmdLineArgs);
 

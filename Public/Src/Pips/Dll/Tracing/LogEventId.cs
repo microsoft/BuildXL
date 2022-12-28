@@ -93,5 +93,6 @@ namespace BuildXL.Pips.Tracing
 
         // CredScan
         CredentialsDetectedInEnvVar = 14420,
+        CredScanFailedToComplete = 14421,
     }
 }

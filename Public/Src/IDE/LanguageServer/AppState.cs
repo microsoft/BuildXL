@@ -11,6 +11,7 @@ using BuildXL.FrontEnd.Sdk.FileSystem;
 using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Ide.LanguageServer.Providers;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.Utilities.Instrumentation.Common;
 
 namespace BuildXL.Ide.LanguageServer
@@ -93,7 +94,7 @@ namespace BuildXL.Ide.LanguageServer
                 fileSystem: fileSystem);
             var engineAbstraction = new LanguageServiceEngineAbstraction(documentManager, pathTable, engineContext.FileSystem);
 
-            var frontEndContext = engineContext.ToFrontEndContext(loggingContext);
+            var frontEndContext = engineContext.ToFrontEndContext(loggingContext, new FrontEndConfiguration());
 
             var rootFolderAsAbsolutePath = rootFolder.ToAbsolutePath(pathTable);
 

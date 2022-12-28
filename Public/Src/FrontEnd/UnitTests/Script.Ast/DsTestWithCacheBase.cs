@@ -151,7 +151,7 @@ namespace Test.DScript.Ast
                 out var engine,
                 verifyEngineTestHooksData);
 
-            m_frontEndContext = engine.Context.ToFrontEndContext(LoggingContext);
+            m_frontEndContext = engine.Context.ToFrontEndContext(LoggingContext, config.FrontEnd);
             verifyEngineTestHooksData?.Invoke(engine.TestHooks);
 
             // If the engine reloaded and created a new pipGraph we need to udpate the Test file system with that new pipgraph as well

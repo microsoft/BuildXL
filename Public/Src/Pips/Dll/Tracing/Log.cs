@@ -37,6 +37,14 @@ namespace BuildXL.Pips.Tracing
         public abstract void CredScanDetection(LoggingContext context, string pipDescription, string envVarName);
 
         [GeneratedEvent(
+            (ushort)LogEventId.CredScanFailedToComplete,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Keywords.UserMessage,
+            Message = "Timed out waiting for CredScan to complete. Timeout period - {credScanCompletionWaitTimeInMs} milliseconds.")]
+        public abstract void CredScanFailedToCompleteInfo(LoggingContext context, int credScanCompletionWaitTimeInMs);
+
+        [GeneratedEvent(
             (ushort)LogEventId.DeserializationStatsPipGraphFragment,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,

@@ -1557,11 +1557,13 @@ namespace IntegrationTest.BuildXL.Scheduler
         [Theory]
         public void TestCredScan(bool isPassThrough, string envVarValue, string envVarKey, bool credentialDetected, bool enableCredScan)
         {
+            Configuration.FrontEnd.EnableCredScan = enableCredScan;
+
             var ops = new Operation[]
             {
               Operation.WriteFile(CreateOutputFileArtifact()),
             };
-            var builder = CreatePipBuilderWithEnvironment(ops, environmentVariables: new Dictionary<string, (string, bool)>() { [envVarKey] = (envVarValue, isPassThrough) }, enableCredScan: enableCredScan);
+            var builder = CreatePipBuilderWithEnvironment(ops, environmentVariables: new Dictionary<string, (string, bool)>() { [envVarKey] = (envVarValue, isPassThrough) }, frontEndConfig: Configuration.FrontEnd);
             var process = SchedulePipBuilder(builder).Process;
 
             // This event is logged when a credential is detected in the env variables.
@@ -1583,17 +1585,17 @@ namespace IntegrationTest.BuildXL.Scheduler
         {
             string envVarKey = "password";
             string envVarValue = "Cr3d5c@n_D3m0_P@55w0rd";
-            Configuration.Sandbox.CredScanEnvironmentVariablesAllowList = new List<string>() { envVarKey };
-            bool enableCredScan = false;
+            Configuration.FrontEnd.CredScanEnvironmentVariablesAllowList = new List<string>() { envVarKey };
+            Configuration.FrontEnd.EnableCredScan = false;
             var ops = new Operation[]
             {
               Operation.WriteFile(CreateOutputFileArtifact()),
             };
-            var builder = CreatePipBuilderWithEnvironment(ops, environmentVariables: new Dictionary<string, (string, bool)>() { [envVarKey] = (envVarValue, false) }, credScanEnvironmentVariablesAllowList: Configuration.Sandbox.CredScanEnvironmentVariablesAllowList, enableCredScan: enableCredScan);
+            var builder = CreatePipBuilderWithEnvironment(ops, environmentVariables: new Dictionary<string, (string, bool)>() { [envVarKey] = (envVarValue, false) }, frontEndConfig: Configuration.FrontEnd);
             var process = SchedulePipBuilder(builder).Process;
 
             // This event is logged when a credential is detected in the env variables. In this case, the count value has to be zero as no event should be logged when the env is present in allowListEnvVar list.
-            if (enableCredScan)
+            if (Configuration.FrontEnd.EnableCredScan)
             {
                 AssertWarningEventLogged(PipsTracingLogEventId.CredentialsDetectedInEnvVar, 0);
             }

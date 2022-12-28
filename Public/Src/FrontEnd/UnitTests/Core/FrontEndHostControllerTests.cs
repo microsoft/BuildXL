@@ -285,15 +285,17 @@ namespace Test.BuildXL.FrontEnd.Core
 
             var fileSystem = new InMemoryFileSystem(context.PathTable);
 
-            ((IFrontEndController)controller).InitializeHost(
-                new FrontEndContext(context,new LoggingContext("UnitTest"), fileSystem),
-                new ConfigurationImpl()
+            var config = new ConfigurationImpl()
+            {
+                FrontEnd = new FrontEndConfiguration()
                 {
-                    FrontEnd = new FrontEndConfiguration()
-                    {
-                        MaxFrontEndConcurrency = 1,
-                    }
-                });
+                    MaxFrontEndConcurrency = 1,
+                }
+            };
+
+            ((IFrontEndController)controller).InitializeHost(
+                new FrontEndContext(context,new LoggingContext("UnitTest"), fileSystem, config.FrontEnd),
+                config);
 
             var inMemoryCache = new EngineCache(
                 new InMemoryArtifactContentCache(),

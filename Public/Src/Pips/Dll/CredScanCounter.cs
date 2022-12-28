@@ -14,6 +14,27 @@ namespace BuildXL.Pips.Builders
         /// The amount of time spent scanning the environment variables using the CredScan library for credentials.
         /// </summary>
         [CounterType(CounterType.Stopwatch)]
-        CredScanOfEnvironmentVariablesDuration,
+        ScanDuration,
+
+        /// <summary>
+        /// The amount of time spent scanning the environment variables using the CredScan library for credentials.
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        PostDuration,
+
+        /// <summary>
+        /// The amount of time spent scanning the environment variables using the CredScan library for credentials.
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        CompleteDuration,
+
+        /// <nodoc/>
+        NumSkipped,
+
+        /// <nodoc/>
+        NumScanCalls,
+
+        /// <nodoc/>
+        NumProcessed,
     }
 }

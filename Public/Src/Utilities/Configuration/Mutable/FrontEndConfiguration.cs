@@ -19,6 +19,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             EnabledPolicyRules = new List<string>();
             LogStatistics = true;
             ReleaseWorkspaceBeforeEvaluation = true;
+            CredScanEnvironmentVariablesAllowList = new List<string>();
         }
 
         /// <nodoc />
@@ -74,6 +75,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
             GenerateCgManifestForNugets = template.GenerateCgManifestForNugets;
             ValidateCgManifestForNugets = template.ValidateCgManifestForNugets;
             AllowMissingSpecs = template.AllowMissingSpecs;
+            EnableCredScan = template.EnableCredScan;
+            CredScanEnvironmentVariablesAllowList = new List<string>(template.CredScanEnvironmentVariablesAllowList);
         }
 
         /// <inheritdoc />
@@ -222,5 +225,14 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public bool? AllowMissingSpecs { get; set; }
+
+        /// <inheritdoc />
+        public bool EnableCredScan { get; set; }
+
+        /// <nodoc />
+        public List<string> CredScanEnvironmentVariablesAllowList { get; set; }
+
+        /// <inheritdoc />
+        IReadOnlyList<string> IFrontEndConfiguration.CredScanEnvironmentVariablesAllowList => CredScanEnvironmentVariablesAllowList;
     }
 }

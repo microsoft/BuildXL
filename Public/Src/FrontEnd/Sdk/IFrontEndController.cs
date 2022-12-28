@@ -62,6 +62,11 @@ namespace BuildXL.FrontEnd.Sdk
         IReadOnlyList<string> GetNonScrubbablePaths();
 
         /// <summary>
+        /// Wait for the completion of CredentialScanner and log the detected credentials.
+        /// </summary>
+        void CompleteCredentialScanner();
+
+        /// <summary>
         /// The collection of frontends that are registered with the controller.
         /// </summary>
         IEnumerable<IFrontEnd> RegisteredFrontEnds { get; }

@@ -350,8 +350,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
                 context.PathTable,
                 context.FrontEndContext.GetPipDataBuilder(),
                 context.FrontEndContext.CredentialScanner,
-                context.FrontEndContext.LoggingContext,
-                context.FrontEndHost.Configuration.Sandbox.CredScanEnvironmentVariablesAllowList))
+                context.FrontEndContext.LoggingContext))
             {
                 ProcessExecuteArguments(context, obj, processBuilder, serviceKind);
 

@@ -280,8 +280,7 @@ namespace BuildXL.FrontEnd.MsBuild
                 PathTable,
                 m_context.GetPipDataBuilder(),
                 m_context.CredentialScanner,
-                m_context.LoggingContext,
-                m_frontEndHost.Configuration.Sandbox.CredScanEnvironmentVariablesAllowList))
+                m_context.LoggingContext))
             {
                 // Configure the process to add an assortment of settings: arguments, response file, etc.
                 if (!TryConfigureProcessBuilder(processBuilder, pipConstructionHelper, project, deltaGlobalProperties, out AbsolutePath outputResultCacheFile, out failureDetail))

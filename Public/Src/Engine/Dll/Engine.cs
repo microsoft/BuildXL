@@ -89,11 +89,6 @@ namespace BuildXL.Engine
         /// </summary>
         public EngineContext Context;
 
-        ///<summary>
-        /// Enable cred scan
-        ///</summary>
-        private readonly bool m_enableCredScan;
-
         /// <summary>
         /// BuildXLEngine configuration
         /// </summary>
@@ -272,8 +267,7 @@ namespace BuildXL.Engine
             TrackingEventListener trackingEventListener,
             bool rememberAllChangedTrackedInputs,
             [CanBeNull] string commitId,
-            [CanBeNull] string buildVersion,
-            bool enableCredScan)
+            [CanBeNull] string buildVersion)
         {
             Contract.Requires(context != null);
             Contract.Requires(configuration != null);
@@ -351,7 +345,6 @@ namespace BuildXL.Engine
             m_commitId = commitId;
             m_buildVersion = buildVersion;
             m_buildViewModel = buildViewModel;
-            m_enableCredScan = enableCredScan;
             var loggingConfig = Configuration.Logging;
             if (loggingConfig.OptimizeConsoleOutputForAzureDevOps || loggingConfig.OptimizeVsoAnnotationsForAzureDevOps)
             {
@@ -392,8 +385,7 @@ namespace BuildXL.Engine
             TrackingEventListener trackingEventListener = null,
             bool rememberAllChangedTrackedInputs = false,
             string commitId = null,
-            string buildVersion = null,
-            bool enableCredScan = false)
+            string buildVersion = null)
         {
             Contract.Requires(context != null);
             Contract.Requires(buildViewModel != null);
@@ -419,7 +411,7 @@ namespace BuildXL.Engine
                 return null;
             }
             initialCommandLineConfiguration = mutableInitialConfig;
-            var frontEndContext = context.ToFrontEndContext(loggingContext, enableCredScan: enableCredScan);
+            var frontEndContext = context.ToFrontEndContext(loggingContext, initialCommandLineConfiguration.FrontEnd);
             frontEndController.InitializeHost(frontEndContext, initialCommandLineConfiguration);
 
             ConfigurationImpl configuration;
@@ -466,8 +458,7 @@ namespace BuildXL.Engine
                 trackingEventListener,
                 rememberAllChangedTrackedInputs,
                 commitId,
-                buildVersion,
-                enableCredScan);
+                buildVersion);
         }
 
         /// <summary>

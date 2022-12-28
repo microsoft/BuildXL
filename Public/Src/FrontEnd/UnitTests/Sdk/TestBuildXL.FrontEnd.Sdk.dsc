@@ -9,6 +9,7 @@ namespace FrontEnd.Sdk {
         references: [
             importFrom("BuildXL.FrontEnd").Sdk.dll,
             importFrom("BuildXL.Utilities").dll,
+            importFrom("BuildXL.Utilities").Configuration.dll,
         ]
     });
 }

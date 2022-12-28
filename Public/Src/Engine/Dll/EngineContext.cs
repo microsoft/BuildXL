@@ -10,6 +10,7 @@ using BuildXL.FrontEnd.Sdk.FileSystem;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Qualifier;
 using BuildXL.Utilities.Tracing;
@@ -107,9 +108,9 @@ namespace BuildXL.Engine
         /// Creates a new <see cref="FrontEndContext"/> and copies <see cref="PathTable"/>,
         /// <see cref="SymbolTable"/>, and <see cref="CancellationToken"/> over to it.
         /// </summary>
-        public FrontEndContext ToFrontEndContext(LoggingContext loggingContext, bool enableCredScan = false)
+        public FrontEndContext ToFrontEndContext(LoggingContext loggingContext, IFrontEndConfiguration frontEndConfig)
         {
-            return new FrontEndContext(this, loggingContext, FileSystem, enableCredScan);
+            return new FrontEndContext(this, loggingContext, FileSystem, frontEndConfig);
         }
 
         /// <inheritdoc/>

@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Threading;
@@ -9,6 +10,8 @@ using BuildXL.Pips.Builders;
 using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Qualifier;
 using BuildXL.Utilities.Tracing;
@@ -40,7 +43,7 @@ namespace BuildXL.FrontEnd.Sdk
         public PooledObjectWrapper<PipDataBuilder> GetPipDataBuilder() => this.PipDataBuilderPool.GetInstance();
 
         /// <nodoc />
-        private FrontEndContext(PathTable pathTable, SymbolTable symbolTable, QualifierTable qualifierTable, LoggingContext loggingContext, IFileSystem fileSystem, CancellationToken cancellationToken, bool enableCredScan = false)
+        private FrontEndContext(PathTable pathTable, SymbolTable symbolTable, QualifierTable qualifierTable, LoggingContext loggingContext, IFileSystem fileSystem, IFrontEndConfiguration frontEndConfig, CancellationToken cancellationToken)
             : base(cancellationToken, pathTable.StringTable, pathTable, symbolTable, qualifierTable)
         {
             Contract.Requires(pathTable != null);
@@ -53,12 +56,12 @@ namespace BuildXL.FrontEnd.Sdk
 
             LoggingContext = loggingContext;
             FileSystem = fileSystem;
-            CredentialScanner = new CredentialScanner(enableCredScan);
+            CredentialScanner = new CredentialScanner(frontEndConfig, pathTable, loggingContext);
             PipDataBuilderPool = new ObjectPool<PipDataBuilder>(() => new PipDataBuilder(StringTable), builder => builder.Clear());
         }
 
         /// <nodoc />
-        public FrontEndContext(PipExecutionContext context, LoggingContext loggingContext, IFileSystem fileSystem, bool enableCredScan = false)
+        public FrontEndContext(PipExecutionContext context, LoggingContext loggingContext, IFileSystem fileSystem, IFrontEndConfiguration frontEndConfig)
             : base(context)
         {
             Contract.Requires(loggingContext != null);
@@ -66,13 +69,13 @@ namespace BuildXL.FrontEnd.Sdk
 
             LoggingContext = loggingContext;
             FileSystem = fileSystem;
-            CredentialScanner = new CredentialScanner(enableCredScan);
+            CredentialScanner = new CredentialScanner(frontEndConfig, context.PathTable, loggingContext);
             PipDataBuilderPool = new ObjectPool<PipDataBuilder>(() => new PipDataBuilder(StringTable), builder => builder.Clear());
         }
 
         /// <nodoc />
         [SuppressMessage("Microsoft.Design", "CA1011:Consider Changing type of 'pathTable' from PathTable to HierarchicalNameTable", Justification = "Completely and utterly bogus suggestion")]
-        public static FrontEndContext CreateInstanceForTesting(PathTable pathTable = null, SymbolTable symbolTable = null, QualifierTable qualifierTable = null, IFileSystem fileSystem = null, CancellationToken? cancellationToken = null, bool enableCredScan = false)
+        public static FrontEndContext CreateInstanceForTesting(PathTable pathTable = null, SymbolTable symbolTable = null, QualifierTable qualifierTable = null, IFileSystem fileSystem = null, CancellationToken? cancellationToken = null, IFrontEndConfiguration frontEndConfig = null)
         {
             pathTable = pathTable ?? new PathTable();
             return new FrontEndContext(
@@ -81,8 +84,8 @@ namespace BuildXL.FrontEnd.Sdk
                 qualifierTable ?? new QualifierTable(pathTable.StringTable),
                 new LoggingContext("UnitTest"),
                 fileSystem ?? new PassThroughFileSystem(pathTable), // TODO: Consider moving this entire function into test helpers and then use the test file system.
-                cancellationToken ?? CancellationToken.None,
-                enableCredScan);
+                frontEndConfig ?? new FrontEndConfiguration(),
+                cancellationToken ?? CancellationToken.None);
         }
 
 #if DEBUG

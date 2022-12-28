@@ -241,7 +241,7 @@ namespace BuildXL.PipGraphFragmentGenerator
             var fileSystem = new PassThroughFileSystem(pathTable);
             var engineContext = EngineContext.CreateNew(CancellationToken.None, pathTable, fileSystem);
             
-            FrontEndContext context = engineContext.ToFrontEndContext(loggingContext, enableCredScan: commandLineConfig.Sandbox.EnableCredScan);
+            FrontEndContext context = engineContext.ToFrontEndContext(loggingContext, commandLineConfig.FrontEnd);
 
             // Parse filter string.
 

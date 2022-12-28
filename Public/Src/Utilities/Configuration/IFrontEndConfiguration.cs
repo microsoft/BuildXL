@@ -344,5 +344,16 @@ namespace BuildXL.Utilities.Configuration
         /// </summary>
         /// <remarks> This option is disabled by default. </remarks>
         bool? AllowMissingSpecs { get; }
+
+        /// <summary>
+        /// This flag when set is used to turn on the cred scan feature.
+        /// </summary>
+        bool EnableCredScan { get; }
+
+        /// <summary>
+        /// These environment variables are passed using the /credScanEnvironmentVariablesAllowList flag.
+        /// These environment variables are to be skipped by CredScan library.
+        /// </summary>
+        IReadOnlyList<string> CredScanEnvironmentVariablesAllowList { get; }
     }
 }

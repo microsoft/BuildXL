@@ -162,8 +162,7 @@ namespace BuildXL.FrontEnd.Ninja
                 m_context.PathTable,
                 m_context.GetPipDataBuilder(),
                 m_context.CredentialScanner,
-                m_context.LoggingContext,
-                m_frontEndHost.Configuration.Sandbox.CredScanEnvironmentVariablesAllowList))
+                m_context.LoggingContext))
             {
                 if (!TryConfigureProcessBuilder(processBuilder, node, qualifierId))
                 {

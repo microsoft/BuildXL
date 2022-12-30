@@ -353,7 +353,9 @@ config({{
                 UseShellExecute = false,
             };
             
-            startInfo.Environment["PATH"] += $"{Path.PathSeparator}{PathToNodeFolder}";
+            // The default pip on Linux adds some common paths to PATH (e.g. /usr/bin). In some scenarios
+            // node can be installed in those folders, so make sure the version we want takes precedence
+            startInfo.Environment["PATH"] = $"{PathToNodeFolder}{Path.PathSeparator}{startInfo.Environment["PATH"]}";
             startInfo.Environment["NODE_PATH"] = PathToNodeModules;
             if (OperatingSystemHelper.IsWindowsOS)
             {

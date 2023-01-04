@@ -479,21 +479,40 @@ namespace BuildXL.Cache.ContentStore.FileSystem
                     throw new FileNotFoundException(message, sourcePath.Path);
                 }
 
-                CreateDirectory(destinationPath.GetParent());
+                // For performance reasons we don't want to unconditionally create the parent directory here
+                // because in most cases its there.
+                // So instead we're trying to do the work and if DirectoryNotFoundException occur then we'll
+                // create the parent directory and try again.
+                await copyFileAndCreateDirectoryIfNeededAsync();
 
-                // If asked to replace the file Create mode must be use to truncate the content of the file
-                // if the target file larger than the source.
-                var mode = replaceExisting ? FileMode.Create : FileMode.CreateNew;
-                using (Stream? writeStream = this.OpenForWrite(destinationPath, readStream.Value.Length, mode, FileShare.Delete))
+                async Task copyFileAndCreateDirectoryIfNeededAsync(bool createDirectory = false)
                 {
-                    if (writeStream == null)
+                    if (createDirectory)
                     {
-                        var message = string.Format(CultureInfo.InvariantCulture, "missing destination file=[{0}]", sourcePath);
-                        throw new FileNotFoundException(message, sourcePath.Path);
+                        CreateDirectory(destinationPath.GetParent());
                     }
 
-                    using var pooledHandle = GlobalObjectPools.FileIOBuffersArrayPool.Get();
-                    await readStream.Value.Stream.CopyToWithFullBufferAsync(writeStream, pooledHandle.Value).ConfigureAwait(false);
+                    try
+                    {
+                        // If asked to replace the file Create mode must be use to truncate the content of the file
+                        // if the target file larger than the source.
+                        var mode = replaceExisting ? FileMode.Create : FileMode.CreateNew;
+                        using (Stream? writeStream = this.OpenForWrite(destinationPath, readStream.Value.Length, mode, FileShare.Delete))
+                        {
+                            if (writeStream == null)
+                            {
+                                var message = string.Format(CultureInfo.InvariantCulture, "missing destination file=[{0}]", sourcePath);
+                                throw new FileNotFoundException(message, sourcePath.Path);
+                            }
+
+                            using var pooledHandle = GlobalObjectPools.FileIOBuffersArrayPool.Get();
+                            await readStream.Value.Stream.CopyToWithFullBufferAsync(writeStream, pooledHandle.Value).ConfigureAwait(false);
+                        }
+                    }
+                    catch (DirectoryNotFoundException) when (createDirectory == false)
+                    {
+                        await copyFileAndCreateDirectoryIfNeededAsync(createDirectory: true);
+                    }
                 }
             }
         }

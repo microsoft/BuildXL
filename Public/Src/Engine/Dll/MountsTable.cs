@@ -100,7 +100,15 @@ namespace BuildXL.Engine
             // If any resolver settings allows for a writable source directory, then the source directory is writable
             var writableSourceRoot = resolverSettings.Any(resolverSetting => resolverSetting.AllowWritableSourceDirectory);
 
+            // Various tools invoked in the build like drop and symbol upload are bundled alongside the build engine. This mount is used to reference those tools.
+            // Depending on the infrastructure, the location of the engine may change as new versions are deployed. This is true in CloudBuild.
+            // A normalized version of the build engine directory may be created to address this. Make sure that normalized version is tracked
+            // as a readable static mount as well so accesses to those files do not emit the warning for reads under undefined mounts.
             table.AddStaticMount("BuildEnginePath", layout.BuildEngineDirectory, isWriteable: false);
+            if (layout.NormalizedBuildEngineDirectory.IsValid)
+            {
+                table.AddStaticMount("BuildEngineDirectory", layout.NormalizedBuildEngineDirectory, isWriteable: false);
+            }
             table.AddStaticMount("SourceRoot", layout.SourceDirectory, isWriteable: writableSourceRoot);
             table.AddStaticMount("ObjectRoot", layout.ObjectDirectory, isWriteable: true, isScrubbable: true);
             table.AddStaticMount(

@@ -385,37 +385,6 @@ config({
                 { id: "Microsoft.Rest.ClientRuntime.Azure", version: "3.3.18" },
                 { id: "Microsoft.Rest.ClientRuntime.Azure.Authentication", version: "2.4.0" },
 
-                // Azure Management SDK
-                { id: "Microsoft.Azure.Management.AppService.Fluent", version: "1.33.0" },
-                { id: "Microsoft.Azure.Management.BatchAI.Fluent", version: "1.33.0" },
-                { id: "Microsoft.Azure.Management.Cdn.Fluent", version: "1.33.0" },
-                { id: "Microsoft.Azure.Management.Compute.Fluent", version: "1.33.0" },
-                { id: "Microsoft.Azure.Management.ContainerInstance.Fluent", version: "1.33.0" },
-                { id: "Microsoft.Azure.Management.ContainerRegistry.Fluent", version: "1.33.0" },
-                { id: "Microsoft.Azure.Management.ContainerService.Fluent", version: "1.33.0" },
-                { id: "Microsoft.Azure.Management.CosmosDB.Fluent", version: "1.33.0" },
-                { id: "Microsoft.Azure.Management.Dns.Fluent", version: "1.33.0" },
-                { id: "Microsoft.Azure.Management.EventHub.Fluent", version: "1.33.0" },
-                { id: "Microsoft.Azure.Management.Graph.RBAC.Fluent", version: "1.33.0" },
-                { id: "Microsoft.Azure.Management.KeyVault.Fluent", version: "1.33.0" },
-                { id: "Microsoft.Azure.Management.Locks.Fluent", version: "1.33.0" },
-                { id: "Microsoft.Azure.Management.Msi.Fluent", version: "1.33.0" },
-                { id: "Microsoft.Azure.Management.Network.Fluent", version: "1.33.0" },
-                { id: "Microsoft.Azure.Management.PrivateDns.Fluent", version: "1.33.0" },
-                { id: "Microsoft.Azure.Management.Search.Fluent", version: "1.33.0" },
-                { id: "Microsoft.Azure.Management.ServiceBus.Fluent", version: "1.33.0" },
-                { id: "Microsoft.Azure.Management.Sql.Fluent", version: "1.33.0" },
-                { id: "Microsoft.Azure.Management.Storage.Fluent", version: "1.33.0" },
-                { id: "Microsoft.Azure.Management.TrafficManager.Fluent", version: "1.33.0" },
-
-                // These are the ones we actually care about
-                { id: "Microsoft.Azure.Management.Redis", version: "5.0.0" },
-                { id: "Microsoft.Azure.Management.Redis.Fluent", version: "1.33.0" },
-                { id: "Microsoft.Azure.Management.ResourceManager.Fluent", version: "1.33.0" },
-                { id: "Microsoft.Azure.Management.Fluent", version: "1.33.0" },
-                { id: "Microsoft.Azure.Management.Monitor.Fluent", version: "1.33.0" },
-                { id: "Microsoft.Azure.Management.Monitor", version: "0.25.0-preview" },
-                
                 // FsCheck
                 { id: "FsCheck", version: "2.14.3" },
                 { id: "FSharp.Core", version: "4.2.3" },

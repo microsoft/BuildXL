@@ -28,7 +28,6 @@ namespace Test.Tool.DropDaemon {
             importFrom("Drop.Client").pkg,
             importFrom("Microsoft.AspNet.WebApi.Client").pkg,
             importFrom("Microsoft.VisualStudio.Services.ArtifactServices.Shared").pkg,
-            importFrom("Microsoft.Azure.Storage.Common").pkg,
             importFrom("Microsoft.VisualStudio.Services.BlobStore.Client").pkg,
             importFrom("Microsoft.VisualStudio.Services.BlobStore.Client.Cache").pkg,
             importFrom("Microsoft.IdentityModel.Clients.ActiveDirectory").pkg,

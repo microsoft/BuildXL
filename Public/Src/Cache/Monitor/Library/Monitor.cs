@@ -164,15 +164,12 @@ namespace BuildXL.Cache.Monitor.App
             return environmentResources;
         }
 
-        private static async Task<EnvironmentResources> CreateEnvironmentResourcesAsync(OperationContext context, EnvironmentConfiguration configuration)
+        private static Task<EnvironmentResources> CreateEnvironmentResourcesAsync(OperationContext context, EnvironmentConfiguration configuration)
         {
-            var azure = ExternalDependenciesFactory.CreateAzureClient(configuration.AzureCredentials).ThrowIfFailure();
-            var monitorManagementClient = await ExternalDependenciesFactory.CreateAzureMetricsClientAsync(configuration.AzureCredentials).ThrowIfFailureAsync();
-
             var kustoClient = ExternalDependenciesFactory.CreateKustoQueryClient(configuration.KustoCredentials).ThrowIfFailure();
 
             context.Token.ThrowIfCancellationRequested();
-            return new EnvironmentResources(azure, monitorManagementClient, kustoClient);
+            return Task.FromResult(new EnvironmentResources(kustoClient));
         }
 
         private Monitor(Configuration configuration, IKustoIngestClient kustoIngestClient, IIcmClient icmClient, IClock clock, IReadOnlyDictionary<MonitorEnvironment, EnvironmentResources> environmentResources, ILogger logger)

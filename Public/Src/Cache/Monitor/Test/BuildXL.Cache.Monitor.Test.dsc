@@ -29,7 +29,6 @@ namespace MonitorTest {
             importFrom("BuildXL.Cache.ContentStore").Test.dll,
             
             importFrom("RuntimeContracts").pkg,
-            ...azureSdk,
             ...importFrom("BuildXL.Cache.ContentStore").kustoPackages,
         ],
         runTestArgs: {

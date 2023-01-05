@@ -24,7 +24,6 @@ namespace Library {
             importFrom("Newtonsoft.Json").pkg,
 
             importFrom("RuntimeContracts").pkg,
-            ...azureSdk,
 
             // IcM
             importFrom("Microsoft.AzureAd.Icm.Types.amd64").pkg,

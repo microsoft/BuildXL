@@ -1,8 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Text;
 using System.Threading.Tasks;
-using Kusto.Cloud.Platform.Data;
 using Kusto.Data.Common;
 
 namespace BuildXL.Cache.Monitor.Library.Client

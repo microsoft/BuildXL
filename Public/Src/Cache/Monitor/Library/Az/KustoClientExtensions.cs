@@ -12,8 +12,8 @@ namespace BuildXL.Cache.Monitor.App.Az
     {
         public static async Task<ObjectReader<T>> QuerySingleResultSetAsync<T>(this ICslQueryProvider cslQueryProvider, string query, string database, ClientRequestProperties? requestProperties = null)
         {
-            Contract.RequiresNotNullOrEmpty(query);
-            Contract.RequiresNotNullOrEmpty(database);
+            Contract.Requires(string.IsNullOrEmpty(query));
+            Contract.Requires(string.IsNullOrEmpty(database));
 
             requestProperties ??= new ClientRequestProperties();
 

@@ -56,6 +56,12 @@ namespace BuildXL.Scheduler
 
         internal TimeSpan QueueWaitDurationForMaterializeOutputsInBackground { get; private set; }
 
+
+        /// <summary>
+        /// Total grpc duration spent for this pip
+        /// </summary>
+        public TimeSpan GrpcDuration { get; set; }
+
         internal bool IsExecuted { get; private set; }
 
         internal long InputMaterializationCostMbForBestWorker { get; private set; }

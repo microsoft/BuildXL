@@ -24,8 +24,6 @@ namespace BuildXL.Engine.Distribution.Grpc
         public const string EnvironmentKey = "environment";
         public const string SenderKey = "sender";
         public const string AuthKey = "authorization";
-        public const string CompressionKey = "grpc-internal-encoding-request";
-        public const string CompressionType = "gzip";
 
         // Values
         public const string True = "1";
@@ -102,9 +100,23 @@ namespace BuildXL.Engine.Distribution.Grpc
         /// This is an unsafe operation as the concurrent changes in the stream can cause problematic behaviors for the 
         /// consumers of <see cref="ByteString"/>.
         /// </summary>
-        public static ByteString ToByteString(this MemoryStream stream)
+        public static ByteString AsByteString(this MemoryStream stream)
         {
             return UnsafeByteOperations.UnsafeWrap(new ArraySegment<byte>(stream.GetBuffer(), 0, (int)stream.Length));
+        }
+
+        public static (Metadata headers, string traceId) InitializeHeaders(DistributedInvocationId invocationId)
+        {
+            string traceId = Guid.NewGuid().ToString("N").Substring(0, 5);
+            var headers = new Metadata
+            {
+                { GrpcMetadata.TraceIdKey, traceId },
+                { GrpcMetadata.RelatedActivityIdKey, invocationId.RelatedActivityId },
+                { GrpcMetadata.EnvironmentKey, invocationId.Environment },
+                { GrpcMetadata.SenderKey, DistributionHelpers.MachineName }
+            };
+
+            return (headers, traceId);
         }
     }
 }

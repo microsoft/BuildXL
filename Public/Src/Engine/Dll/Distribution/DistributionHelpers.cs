@@ -99,58 +99,5 @@ namespace BuildXL.Engine.Distribution
         {
             return string.Format(CultureInfo.InvariantCulture, "{0}::{1}", ipAddress, port);
         }
-
-        internal static string GetExecuteDescription(IList<long> semiStableHashes, int hashListLength)
-        {
-            using (var sbPool = Pools.GetStringBuilder())
-            {
-                var sb = sbPool.Instance;
-
-                sb.Append("ExecutePips: ");
-                sb.Append($"{semiStableHashes.Count} pips, {hashListLength} file hashes, ");
-                AppendSemiStableHashes(sb, semiStableHashes);
-
-                return sb.ToString();
-            }
-        }
-
-        internal static string GetPipResultsDescription(PipResultsInfo notificationArgs, IList<long> semiStableHashes)
-        {
-            using (var sbPool = Pools.GetStringBuilder())
-            {
-                var sb = sbPool.Instance;
-
-                if (semiStableHashes?.Count > 0)
-                {
-                    sb.Append("ReportPipResults: ");
-                    AppendSemiStableHashes(sb, semiStableHashes);
-                }
-
-                var xlgDataCount = notificationArgs.BuildManifestEvents.DataBlob.Count();
-                if (xlgDataCount > 0)
-                {
-                    sb.AppendFormat(" BuildManifestEvents: Size={0}, SequenceNumber={1}", xlgDataCount, notificationArgs.BuildManifestEvents.SequenceNumber);
-                }
-
-                if (notificationArgs.ForwardedEvents?.Count > 0)
-                {
-                    sb.AppendFormat(" ForwardedEvents: Count={0}", notificationArgs.ForwardedEvents.Count);
-                }
-
-                return sb.ToString();
-            }
-        }
-
-        internal static void AppendSemiStableHashes(StringBuilder builder, IList<long> semiStableHashes)
-        {
-            if (semiStableHashes.Count > 0)
-            {
-                builder.AppendFormat(CultureInfo.InvariantCulture, "{0:X16}", semiStableHashes[0]);
-                for (int i = 1; i < semiStableHashes.Count; i++)
-                {
-                    builder.Append(',').AppendFormat(CultureInfo.InvariantCulture, " {0:X16}", semiStableHashes[i]);
-                }
-            }
-        }
     }
 }

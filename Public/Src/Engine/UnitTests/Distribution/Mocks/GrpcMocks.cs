@@ -166,7 +166,7 @@ namespace Test.BuildXL.Distribution
             return Task.CompletedTask;
         }
 
-        Task<RpcCallResult<Unit>> IOrchestratorClient.ReportPipResultsAsync(PipResultsInfo message, IList<long> semiStableHashes, CancellationToken cancellationToken)
+        Task<RpcCallResult<Unit>> IOrchestratorClient.ReportPipResultsAsync(PipResultsInfo message, string description, CancellationToken cancellationToken)
         {
             return Task.FromResult(m_fail ? Failure : SuccessResult);
         }

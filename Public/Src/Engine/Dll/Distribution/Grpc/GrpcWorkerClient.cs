@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using BuildXL.Distribution.Grpc;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
+using Grpc.Core;
 using static BuildXL.Engine.Distribution.DistributionHelpers;
 using static BuildXL.Engine.Distribution.Grpc.ClientConnectionManager;
 
@@ -56,7 +57,7 @@ namespace BuildXL.Engine.Distribution.Grpc
             Contract.Assert(m_connectionManager != null, "The worker location should be known before attaching");
 
             var attachment = await m_connectionManager.CallAsync(
-                async (callOptions) => await m_client.AttachAsync(message, options: callOptions),
+                (callOptions) => m_client.AttachAsync(message, options: callOptions),
                 "Attach",
                 cancellationToken,
                 waitForConnection: true);
@@ -69,13 +70,21 @@ namespace BuildXL.Engine.Distribution.Grpc
             return attachment;
         }
 
-        public Task<RpcCallResult<Unit>> ExecutePipsAsync(PipBuildRequest message, IList<long> semiStableHashes)
+        public Task<RpcCallResult<Unit>> ExecutePipsAsync(PipBuildRequest message, string description)
         {
             Contract.Assert(m_connectionManager != null, "The worker location should be known if calling ExecutePips");
 
             return m_connectionManager.CallAsync(
-               async (callOptions) => await m_client.ExecutePipsAsync(message, options: callOptions),
-               GetExecuteDescription(semiStableHashes, message.Hashes.Count));
+               (callOptions) => m_client.ExecutePipsAsync(message, options: callOptions),
+               description);
+        }
+
+        public AsyncClientStreamingCall<PipBuildRequest, RpcResponse> StreamExecutePips(CancellationToken cancellationToken = default)
+        {
+            Contract.Assert(m_connectionManager != null, "The worker location should be known if calling ExecutePips");
+
+            var headerResult = GrpcUtils.InitializeHeaders(m_invocationId);
+            return m_client.StreamExecutePips(headers: headerResult.headers, cancellationToken: cancellationToken);
         }
 
         public Task<RpcCallResult<Unit>> ExitAsync(BuildEndData message, CancellationToken cancellationToken)
@@ -85,7 +94,7 @@ namespace BuildXL.Engine.Distribution.Grpc
             m_connectionManager.ReadyForExit();
 
             return m_connectionManager.CallAsync(
-                async (callOptions) => await m_client.ExitAsync(message, options: callOptions),
+                (callOptions) => m_client.ExitAsync(message, options: callOptions),
                 "Exit",
                 cancellationToken);
         }

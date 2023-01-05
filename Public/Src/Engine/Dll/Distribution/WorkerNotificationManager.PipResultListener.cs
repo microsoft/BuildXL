@@ -3,13 +3,7 @@
 
 using System;
 using System.Threading;
-using BuildXL.Utilities;
 using System.Collections.Concurrent;
-using BuildXL.Pips;
-using BuildXL.Scheduler.Distribution;
-using System.Diagnostics.CodeAnalysis;
-using System.IO;
-using BuildXL.Scheduler;
 using BuildXL.Pips.Operations;
 
 namespace BuildXL.Engine.Distribution
@@ -41,6 +35,7 @@ namespace BuildXL.Engine.Distribution
                         DistributionService.Counters.AddToCounter(pipCompletion.PipType == PipType.Process ? DistributionCounter.ProcessExecutionResultSize : DistributionCounter.IpcExecutionResultSize, pipCompletion.SerializedData.ResultBlob.Length);
                     }
 
+                    pipCompletion.SerializedData.BeforeSendTicks = DateTime.UtcNow.Ticks;
                     ReadyToSendResultList.Add(pipCompletion);
                 }
                 catch (InvalidOperationException)

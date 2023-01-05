@@ -171,13 +171,13 @@ namespace BuildXL.Engine.Distribution
         {
             var worker = GetWorkerById(pipResults.WorkerId);
 
-            if (pipResults.BuildManifestEvents.DataBlob.Count() != 0)
+            if (pipResults.BuildManifestEvents?.DataBlob.Count() > 0)
             {
                 // The channel is unblocked and ACK is sent after we put the execution blob to the queue in 'LogExecutionBlobAsync' method.
                 await worker.ReadBuildManifestEventsAsync(pipResults.BuildManifestEvents);
             }
             else
-            {   
+            {
                 // Return immediately to unblock the channel so that worker can receive the ACK for the sent message
                 await Task.Yield();
             }

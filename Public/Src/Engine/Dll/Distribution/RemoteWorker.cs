@@ -40,6 +40,9 @@ using static BuildXL.Utilities.Tasks.TaskUtilities;
 using Logger = BuildXL.Engine.Tracing.Logger;
 using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Cache.ContentStore.Extensions;
+using static BuildXL.Distribution.Grpc.Orchestrator;
+using Grpc.Core;
+using System.Globalization;
 
 namespace BuildXL.Engine.Distribution
 {
@@ -61,6 +64,8 @@ namespace BuildXL.Engine.Distribution
         private int m_nextSequenceNumber;
         private PipGraph m_pipGraph;
         private CancellationTokenRegistration m_cancellationTokenRegistration;
+
+        private AsyncClientStreamingCall<PipBuildRequest, RpcResponse> m_pipBuildRequestStream;
 
         /// <summary>
         /// Indicates failure which should cause the worker build to fail. NOTE: This may not correspond to the
@@ -256,21 +261,36 @@ namespace BuildXL.Engine.Distribution
 
                     var dateTimeBeforeSend = DateTime.UtcNow;
                     TimeSpan sendDuration;
+                    
+                    var pipRequest = new PipBuildRequest();
+                    pipRequest.Pips.AddRange(m_buildRequestList);
+                    pipRequest.Hashes.AddRange(m_hashList);
+                    string description = getExecuteDescription();
+
                     RpcCallResult<Unit> callResult;
 
                     using (var watch = m_orchestratorService.Environment.Counters.StartStopwatch(PipExecutorCounter.RemoteWorker_BuildRequestSendDuration))
                     {
-                        var pipRequest = new PipBuildRequest();
-                        pipRequest.Pips.AddRange(m_buildRequestList);
-                        pipRequest.Hashes.AddRange(m_hashList);
+                        if (EngineEnvironmentSettings.GrpcStreamingEnabled)
+                        {
+                            if (m_pipBuildRequestStream == null)
+                            {
+                                m_pipBuildRequestStream = ((GrpcWorkerClient)m_workerClient).StreamExecutePips();
+                            }
 
-                        callResult = m_workerClient.ExecutePipsAsync(pipRequest,
-                            m_pipCompletionTaskList.Select(a => a.Pip.SemiStableHash).ToList()).GetAwaiter().GetResult();
+                            m_pipBuildRequestStream.RequestStream.WriteAsync(pipRequest).GetAwaiter().GetResult();
+                            Tracing.Logger.Log.GrpcTrace(m_appLoggingContext, $"{WorkerIpAddress}", description);
+                            callResult = new RpcCallResult<Unit>();
+                        }
+                        else
+                        {
+                            callResult = m_workerClient.ExecutePipsAsync(pipRequest, description).GetAwaiter().GetResult();
+                        }
 
                         sendDuration = watch.Elapsed;
                     }
 
-                    if (callResult.State == RpcCallResultState.Failed)
+                    if (!callResult.Succeeded)
                     {
                         failRemotePips(callResult);
                     }
@@ -302,6 +322,23 @@ namespace BuildXL.Engine.Distribution
                 ResetAvailableHashes(m_pipGraph);
 
                 m_orchestratorService.Environment.Counters.IncrementCounter(PipExecutorCounter.BuildRequestBatchesFailedSentToWorkers);
+            }
+
+            string getExecuteDescription()
+            {
+                using (var sbPool = Pools.GetStringBuilder())
+                {
+                    var sb = sbPool.Instance;
+
+                    sb.Append("ExecutePips: ");
+                    sb.Append($"{m_pipCompletionTaskList.Count} pips, {m_hashList.Count} file hashes, ");
+                    foreach (var pipCompletionTask in m_pipCompletionTaskList)
+                    {
+                        sb.AppendFormat(CultureInfo.InvariantCulture, "{0:X16} ", pipCompletionTask.Pip.SemiStableHash);
+                    }
+
+                    return sb.ToString();
+                }
             }
         }
 
@@ -599,6 +636,13 @@ namespace BuildXL.Engine.Distribution
             if (m_sendThread.IsAlive)
             {
                 m_sendThread.Join();
+            }
+
+            if (m_pipBuildRequestStream != null)
+            {
+                m_pipBuildRequestStream.RequestStream.CompleteAsync().GetAwaiter().GetResult();
+                m_pipBuildRequestStream.GetAwaiter().GetResult();
+                m_pipBuildRequestStream.Dispose();
             }
 
             // If we still have a connection with the worker, we should send a message to worker to make it exit. 
@@ -1261,9 +1305,6 @@ namespace BuildXL.Engine.Distribution
                 var pip = pipCompletionTask.Pip;
                 pipCompletionTask.SetDuration(pipCompletionData.ExecuteStepTicks, pipCompletionData.QueueTicks);
 
-                int dataSize = pipCompletionData.ResultBlob.Length;
-                m_orchestratorService.Counters.AddToCounter(pip.PipType == PipType.Process ? DistributionCounter.ProcessExecutionResultSize : DistributionCounter.IpcExecutionResultSize, dataSize);
-
                 ExecutionResult result = null;
                 using (m_orchestratorService.Environment.Counters.StartStopwatch(PipExecutorCounter.RemoteWorker_DeserializeFromBlobDuration))
                 {
@@ -1275,6 +1316,10 @@ namespace BuildXL.Engine.Distribution
                 pipCompletionTask.RunnablePip.ThreadId = pipCompletionData.ThreadId;
                 pipCompletionTask.RunnablePip.StepStartTime = new DateTime(pipCompletionData.StartTimeTicks);
                 pipCompletionTask.RunnablePip.StepDuration = new TimeSpan(pipCompletionData.ExecuteStepTicks);
+                var grpcDuration = TimeSpan.FromTicks(DateTime.UtcNow.Ticks - pipCompletionData.BeforeSendTicks);
+                pipCompletionTask.RunnablePip.Performance.GrpcDuration += grpcDuration;
+                m_orchestratorService.Counters.AddToCounter(DistributionCounter.ForAllPipsGrpcDurationMs, (long)grpcDuration.TotalMilliseconds);
+
                 pipCompletionTask.TrySet(result);
             }
         }

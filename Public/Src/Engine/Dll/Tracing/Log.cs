@@ -926,6 +926,16 @@ namespace BuildXL.Engine.Tracing
         public abstract void DistributionWorkerFinishedPipRequest(LoggingContext context, long pipSemiStableHash, string step);
 
         [GeneratedEvent(
+            (ushort)LogEventId.Custom,
+            EventGenerators = EventGenerators.LocalOnly,
+            Message = "[Pip{pipSemiStableHash:X16}] {message}.",
+            EventLevel = Level.Verbose,
+            EventTask = (ushort)Tasks.Distribution,
+            EventOpcode = (byte)EventOpcode.Info,
+            Keywords = (int)Keywords.UserMessage)]
+        public abstract void Custom(LoggingContext context, long pipSemiStableHash, string message);
+
+        [GeneratedEvent(
             (ushort)LogEventId.DistributionWorkerCouldNotLoadGraph,
             EventGenerators = EventGenerators.LocalOnly,
             Message = "Distributed build worker failed because it could not load a graph.",

@@ -14,7 +14,7 @@ namespace BuildXL.Engine.Distribution
     {
         Task<RpcCallResult<Unit>> AttachAsync(BuildStartData startData, CancellationToken cancellationToken);
 
-        Task<RpcCallResult<Unit>> ExecutePipsAsync(PipBuildRequest input, IList<long> semiStableHashes);
+        Task<RpcCallResult<Unit>> ExecutePipsAsync(PipBuildRequest input, string description);
 
         Task<RpcCallResult<Unit>> ExitAsync(BuildEndData buildEndData, CancellationToken cancellationToken);
 

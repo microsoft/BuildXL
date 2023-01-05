@@ -540,7 +540,7 @@ namespace BuildXL.Engine.Distribution.Grpc
         }
 
         public async Task<RpcCallResult<Unit>> CallAsync(
-            Func<CallOptions, Task<RpcResponse>> func,
+            Func<CallOptions, AsyncUnaryCall<RpcResponse>> func,
             string operation,
             CancellationToken cancellationToken = default(CancellationToken),
             bool waitForConnection = false)
@@ -561,17 +561,8 @@ namespace BuildXL.Engine.Distribution.Grpc
                 }
             }
 
-            string traceId = Guid.NewGuid().ToString("N").Substring(0, 5);
-            var headers = new Metadata();
-            headers.Add(GrpcMetadata.TraceIdKey, traceId);
-            headers.Add(GrpcMetadata.RelatedActivityIdKey, m_invocationId.RelatedActivityId);
-            headers.Add(GrpcMetadata.EnvironmentKey, m_invocationId.Environment);
-            headers.Add(GrpcMetadata.SenderKey, DistributionHelpers.MachineName);
-
-            if (EngineEnvironmentSettings.GrpcDotNetCompressionEnabled)
-            {
-                headers.Add(GrpcMetadata.CompressionKey, GrpcMetadata.CompressionType);
-            }
+            var headerResult = GrpcUtils.InitializeHeaders(m_invocationId);
+            string traceId = headerResult.traceId;
 
             RpcCallResultState state = RpcCallResultState.Succeeded;
             Failure failure = null;
@@ -588,7 +579,7 @@ namespace BuildXL.Engine.Distribution.Grpc
                     var callOptions = new CallOptions(
                         deadline: DateTime.UtcNow.Add(GrpcSettings.CallTimeout),
                         cancellationToken: cancellationToken,
-                        headers: headers).WithWaitForReady();
+                        headers: headerResult.headers).WithWaitForReady();
 
                     Logger.Log.GrpcTrace(m_loggingContext, m_ipAddress, GenerateLog(traceId, "Call", numTry, operation));
                     await func(callOptions);

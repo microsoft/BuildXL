@@ -20,6 +20,8 @@ namespace BuildXL.Engine.Distribution
         private readonly BinaryLogger m_logger;
         private readonly Scheduler.Scheduler m_scheduler;
 
+        internal long TotalSize => (long)NotifyStream.EventDataSizeThreshold * m_notifyStream.NumFlushes;
+
         internal NotifyOrchestratorExecutionLogTarget(Action<MemoryStream> notifyAction, EngineSchedule engineSchedule, bool flushIfNeeded)
             : this(new NotifyStream(notifyAction), flushIfNeeded, engineSchedule.Context, engineSchedule.Scheduler.PipGraph.GraphId, engineSchedule.Scheduler.PipGraph.MaxAbsolutePathIndex)
         {
@@ -95,7 +97,8 @@ namespace BuildXL.Engine.Distribution
             /// <summary>
             /// Threshold over which events are sent to master. 32MB limit
             /// </summary>
-            private const int EventDataSizeThreshold = 1 << 25;
+            internal const int EventDataSizeThreshold = 1 << 16; //64kb
+                //1 << 25;
 
             private MemoryStream m_eventDataBuffer = new MemoryStream();
             private readonly Action<MemoryStream> m_notifyAction;
@@ -104,6 +107,8 @@ namespace BuildXL.Engine.Distribution
             /// If deactivated, functions stop writing or flushing <see cref="m_eventDataBuffer"/>.
             /// </summary>
             private bool m_isDeactivated = false;
+
+            internal int NumFlushes;
 
             public override bool CanRead => false;
 
@@ -125,6 +130,7 @@ namespace BuildXL.Engine.Distribution
                 if (m_eventDataBuffer.Length >= EventDataSizeThreshold)
                 {
                     Flush();
+                    NumFlushes++;
                 }
             }
             

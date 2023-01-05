@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using BuildXL.Distribution.Grpc;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
+using Grpc.Core;
 using static BuildXL.Engine.Distribution.Grpc.ClientConnectionManager;
 
 namespace BuildXL.Engine.Distribution.Grpc
@@ -32,7 +33,7 @@ namespace BuildXL.Engine.Distribution.Grpc
         public Task<RpcCallResult<Unit>> SayHelloAsync(ServiceLocation myLocation, CancellationToken cancellationToken = default)
         {
             return m_connectionManager.CallAsync(
-               async (callOptions) => await m_client.HelloAsync(myLocation, options: callOptions),
+               (callOptions) => m_client.HelloAsync(myLocation, options: callOptions),
                "Hello",
                cancellationToken: cancellationToken,
                waitForConnection: true);
@@ -63,7 +64,7 @@ namespace BuildXL.Engine.Distribution.Grpc
             Contract.Assert(m_initialized);
 
             var attachmentCompletion = await m_connectionManager.CallAsync(
-                async (callOptions) => await m_client.AttachCompletedAsync(message, options: callOptions),
+                (callOptions) => m_client.AttachCompletedAsync(message, options: callOptions),
                 "AttachCompleted",
                 waitForConnection: true);
 
@@ -75,13 +76,13 @@ namespace BuildXL.Engine.Distribution.Grpc
             return attachmentCompletion;
         }
 
-        public Task<RpcCallResult<Unit>> ReportPipResultsAsync(PipResultsInfo message, IList<long> semiStableHashes, CancellationToken cancellationToken = default)
+        public Task<RpcCallResult<Unit>> ReportPipResultsAsync(PipResultsInfo message, string description, CancellationToken cancellationToken = default)
         {
             Contract.Assert(m_initialized);
 
             return m_connectionManager.CallAsync(
-               async (callOptions) => await m_client.ReportPipResultsAsync(message, options: callOptions),
-               DistributionHelpers.GetPipResultsDescription(message, semiStableHashes),
+               (callOptions) => m_client.ReportPipResultsAsync(message, options: callOptions),
+               description,
                cancellationToken: cancellationToken);
         }
 
@@ -90,9 +91,25 @@ namespace BuildXL.Engine.Distribution.Grpc
             Contract.Assert(m_initialized);
 
             return m_connectionManager.CallAsync(
-               async (callOptions) => await m_client.ReportExecutionLogAsync(message, options: callOptions),
+               (callOptions) => m_client.ReportExecutionLogAsync(message, options: callOptions),
                $" ReportExecutionLog: Size={message.Events.DataBlob.Count()}, SequenceNumber={message.Events.SequenceNumber}",
                cancellationToken: cancellationToken);
+        }
+
+        public AsyncClientStreamingCall<ExecutionLogInfo, RpcResponse> StreamExecutionLog(CancellationToken cancellationToken = default)
+        {
+            Contract.Assert(m_initialized);
+
+            var headerResult = GrpcUtils.InitializeHeaders(m_invocationId);
+            return m_client.StreamExecutionLog(headers: headerResult.headers, cancellationToken: cancellationToken);
+        }
+
+        public AsyncClientStreamingCall<PipResultsInfo, RpcResponse> StreamPipResults(CancellationToken cancellationToken = default)
+        {
+            Contract.Assert(m_initialized);
+
+            var headerResult = GrpcUtils.InitializeHeaders(m_invocationId);
+            return m_client.StreamPipResults(headers: headerResult.headers, cancellationToken: cancellationToken);
         }
     }
 }

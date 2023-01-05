@@ -294,7 +294,7 @@ namespace Test.BuildXL.Distribution
             public Task<RpcCallResult<Unit>> SendBuildRequestAsync()
             {
                 var pipRequest = GrpcMockData.PipBuildRequest(m_nextPipSequenceNumber++, (0, PipExecutionStep.CacheLookup));
-                return WorkerClient.ExecutePipsAsync(pipRequest, new List<long> { 0 });
+                return WorkerClient.ExecutePipsAsync(pipRequest, string.Empty);
             }
 
             public async Task<RpcCallResult<Unit>> ExitAsync(bool exitWithFailure = false)

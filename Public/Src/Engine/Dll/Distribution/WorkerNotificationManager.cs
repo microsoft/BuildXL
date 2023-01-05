@@ -5,6 +5,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -19,6 +20,7 @@ using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using Google.Protobuf;
+using Grpc.Core;
 
 namespace BuildXL.Engine.Distribution
 {
@@ -85,17 +87,15 @@ namespace BuildXL.Engine.Distribution
         private int m_manifestEventsSequenceNumber = 0;
         private int m_executionLogSequenceNumber = 0;
         private int m_numBatchesSent = 0;
+        private int m_numResultsSent = 0;
         private volatile bool m_finishedSendingPipResults;
 
         // Reusable objects for send thread
         private readonly List<ExtendedPipCompletionData> m_executionResults = new List<ExtendedPipCompletionData>();
         private readonly List<EventMessage> m_eventList = new List<EventMessage>();
 
-        private readonly static ExecutionLogData s_emptyManifestEventData = new ExecutionLogData()
-        {
-            DataBlob = ByteString.Empty,
-            SequenceNumber = 0
-        };
+        private AsyncClientStreamingCall<ExecutionLogInfo, RpcResponse> m_executionLogStream;
+        private AsyncClientStreamingCall<PipResultsInfo, RpcResponse> m_pipResultsStream;
 
         /// <nodoc/>
         public WorkerNotificationManager(DistributionService distributionService, IWorkerPipExecutionService executionService, LoggingContext loggingContext)
@@ -167,6 +167,28 @@ namespace BuildXL.Engine.Distribution
             m_manifestExecutionLog?.Dispose();
             m_forwardingEventListener?.Dispose();
             m_sendCancellationSource.Cancel();
+
+            if (m_executionLogStream != null)
+            {
+                using (DistributionService.Counters.StartStopwatch(DistributionCounter.FinalReportExecutionLogDuration))
+                {
+                    m_executionLogStream.RequestStream.CompleteAsync().GetAwaiter().GetResult();
+                    m_executionLogStream.GetAwaiter().GetResult();
+                    m_executionLogStream.Dispose();
+                }
+            }
+
+            if (m_pipResultsStream != null)
+            {
+                using (DistributionService.Counters.StartStopwatch(DistributionCounter.FinalReportPipResultsDuration))
+                {
+                    m_pipResultsStream.RequestStream.CompleteAsync().GetAwaiter().GetResult();
+                    m_pipResultsStream.GetAwaiter().GetResult();
+                    m_pipResultsStream.Dispose();
+                }
+            }
+
+            DistributionService.Counters.AddToCounter(DistributionCounter.ExecutionLogSentSize, m_executionLogTarget?.TotalSize ?? 0);
         }
 
         /// <inheritdoc/>
@@ -207,20 +229,21 @@ namespace BuildXL.Engine.Distribution
                 && !m_sendCancellationSource.IsCancellationRequested
                 && m_flushedManifestEvents.Length > 0)
             {
-                
-
-                // A final flush of the execution log may come after all the pip results are sent
-                // In that case, we send the blob individually:
-                m_orchestratorClient.ReportPipResultsAsync(new PipResultsInfo()
+                var message = new PipResultsInfo()
                 {
                     BuildManifestEvents = new ExecutionLogData()
                     {
-                        DataBlob = m_flushedManifestEvents.ToByteString(),
+                        DataBlob = m_flushedManifestEvents.AsByteString(),
                         SequenceNumber = m_manifestEventsSequenceNumber++
                     }
-                },
-                null,
-                m_sendCancellationSource.Token).Wait();
+                };
+
+                // A final flush of the execution log may come after all the pip results are sent
+                // In that case, we send the blob individually:
+                m_orchestratorClient.ReportPipResultsAsync(
+                    message,
+                    GetPipResultsDescription(message, null),
+                    m_sendCancellationSource.Token).GetAwaiter().GetResult();
 
                 m_flushedManifestEvents.SetLength(0);
             }
@@ -410,38 +433,64 @@ namespace BuildXL.Engine.Distribution
                 notification.ForwardedEvents.AddRange(m_eventList);
 
                 notification.BuildManifestEvents = m_flushedManifestEvents.Length <= 0 ?
-                    s_emptyManifestEventData :
+                    null :
                     new ExecutionLogData()
                     {
-                        DataBlob = m_flushedManifestEvents.ToByteString(),
+                        DataBlob = m_flushedManifestEvents.AsByteString(),
                         SequenceNumber = m_manifestEventsSequenceNumber++
                     };
 
+                string description;
+                RpcCallResult<Unit> callResult;
+
+                using (DistributionService.Counters.StartStopwatch(DistributionCounter.GetPipResultsDescriptionDuration))
+                {
+                    description = GetPipResultsDescription(notification, m_executionResults);
+                }
+
                 using (DistributionService.Counters.StartStopwatch(DistributionCounter.ReportPipResultsDuration))
                 {
-                    var callResult = m_orchestratorClient.ReportPipResultsAsync(notification,
-                        m_executionResults.Select(a => a.SemiStableHash).ToList(),
-                        cancellationToken).GetAwaiter().GetResult();
+                    if (EngineEnvironmentSettings.GrpcStreamingEnabled)
+                    {
+                        if (m_pipResultsStream == null)
+                        {
+                            m_pipResultsStream = ((GrpcOrchestratorClient)m_orchestratorClient).StreamPipResults();
+                        }
 
-                    if (callResult.Succeeded)
+                        m_pipResultsStream.RequestStream.WriteAsync(notification).GetAwaiter().GetResult();
+                        Tracing.Logger.Log.GrpcTrace(m_loggingContext, "Orchestrator", description);
+                        callResult = new RpcCallResult<Unit>();
+                    }
+                    else
+                    {
+                        callResult = m_orchestratorClient.ReportPipResultsAsync(notification,
+                              description,
+                              cancellationToken).GetAwaiter().GetResult();
+                    }
+                }
+
+                if (callResult.Succeeded)
+                {
+                    using (DistributionService.Counters.StartStopwatch(DistributionCounter.PrintFinishedLogsDuration))
                     {
                         foreach (var result in m_executionResults)
                         {
                             Tracing.Logger.Log.DistributionWorkerFinishedPipRequest(m_loggingContext, result.SemiStableHash, ((PipExecutionStep)result.SerializedData.Step).AsString());
+                            m_numResultsSent++;
                         }
 
                         m_numBatchesSent++;
                     }
-                    else if (!cancellationToken.IsCancellationRequested)
-                    {
-                        // Fire-forget exit call with failure.
-                        // If we fail to send notification to orchestrator and we were not cancelled, the worker should fail.
-                        m_executionLogTarget?.Deactivate();
-                        m_manifestExecutionLog?.Deactivate();
-                        m_uncleanExit = true;
-                        DistributionService.ExitAsync(failure: "Notify event failed to send to orchestrator", isUnexpected: true).Forget();
-                        break;
-                    }
+                }
+                else if (!cancellationToken.IsCancellationRequested)
+                {
+                    // Fire-forget exit call with failure.
+                    // If we fail to send notification to orchestrator and we were not cancelled, the worker should fail.
+                    m_executionLogTarget?.Deactivate();
+                    m_manifestExecutionLog?.Deactivate();
+                    m_uncleanExit = true;
+                    DistributionService.ExitAsync(failure: "Notify event failed to send to orchestrator", isUnexpected: true).Forget();
+                    break;
                 }
 
                 m_flushedManifestEvents.SetLength(0);
@@ -478,25 +527,42 @@ namespace BuildXL.Engine.Distribution
             }
 
             DistributionService.Counters.AddToCounter(DistributionCounter.BuildResultBatchesSentToOrchestrator, m_numBatchesSent);
+            DistributionService.Counters.AddToCounter(DistributionCounter.BuildResultsSentToOrchestrator, m_numResultsSent);
         }
 
         private bool ReportExecutionLog(MemoryStream memoryStream)
         {
+            var message = new ExecutionLogInfo()
+            {
+                WorkerId = ExecutionService.WorkerId,
+                Events = new ExecutionLogData()
+                {
+                    DataBlob = memoryStream.AsByteString(),
+                    SequenceNumber = m_executionLogSequenceNumber++
+                }
+            };
+
+            bool callSuccess = true;
+
             using (DistributionService.Counters.StartStopwatch(DistributionCounter.ReportExecutionLogDuration))
             {
-                // Send event data to orchestrator synchronously. This will only block the dedicated thread used by the binary logger.
-                var callResult = m_orchestratorClient.ReportExecutionLogAsync(new ExecutionLogInfo()
+                if (EngineEnvironmentSettings.GrpcStreamingEnabled)
                 {
-                    WorkerId = ExecutionService.WorkerId,
-                    Events = new ExecutionLogData()
+                    if (m_executionLogStream == null)
                     {
-                        DataBlob = memoryStream.ToByteString(),
-                        SequenceNumber = m_executionLogSequenceNumber++
+                        m_executionLogStream = ((GrpcOrchestratorClient)m_orchestratorClient).StreamExecutionLog();
                     }
-                }).GetAwaiter().GetResult();
 
-                return callResult.Succeeded;
+                    m_executionLogStream.RequestStream.WriteAsync(message).GetAwaiter().GetResult();
+                }
+                else
+                {
+                    // Send event data to orchestrator synchronously. This will only block the dedicated thread used by the binary logger.
+                    callSuccess = m_orchestratorClient.ReportExecutionLogAsync(message).GetAwaiter().GetResult().Succeeded;
+                }
             }
+
+            return callSuccess;
         }
 
         public void MarkPipProcessingStarted(long semistableHash)
@@ -504,6 +570,36 @@ namespace BuildXL.Engine.Distribution
             // Add a queue for pending messages for this pip step
             Contract.Assert(m_pendingMessages.TryAdd(semistableHash, m_queuePool.GetInstance()), 
                 "There shouldn't be a pending message queue for a pip we are about to process"); 
+        }
+
+        private static string GetPipResultsDescription(PipResultsInfo notificationArgs, IList<ExtendedPipCompletionData> pips)
+        {
+            using (var sbPool = Pools.GetStringBuilder())
+            {
+                var sb = sbPool.Instance;
+
+                if (pips?.Count > 0)
+                {
+                    sb.Append("ReportPipResults: ");
+                    foreach (var pip in pips)
+                    {
+                        sb.AppendFormat(CultureInfo.InvariantCulture, "{0:X16} ", pip.SemiStableHash);
+                    }
+                }
+
+                var xlgDataCount = notificationArgs.BuildManifestEvents?.DataBlob.Count();
+                if (xlgDataCount > 0)
+                {
+                    sb.AppendFormat(" BuildManifestEvents: Size={0}, SequenceNumber={1}", xlgDataCount, notificationArgs.BuildManifestEvents.SequenceNumber);
+                }
+
+                if (notificationArgs.ForwardedEvents?.Count > 0)
+                {
+                    sb.AppendFormat(" ForwardedEvents: Count={0}", notificationArgs.ForwardedEvents.Count);
+                }
+
+                return sb.ToString();
+            }
         }
     }
 }

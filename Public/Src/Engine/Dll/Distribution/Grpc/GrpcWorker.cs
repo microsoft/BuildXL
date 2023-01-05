@@ -6,6 +6,7 @@ using BuildXL.Distribution.Grpc;
 using Grpc.Core;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Tasks;
+using System;
 
 namespace BuildXL.Engine.Distribution.Grpc
 {
@@ -38,6 +39,23 @@ namespace BuildXL.Engine.Distribution.Grpc
             m_workerService.ExecutePipsAsync(message).Forget();
             return GrpcUtils.EmptyResponse;
         }
+
+        /// <inheritdoc/>
+#pragma warning disable 1998 // Disable the warning for "This async method lacks 'await'"
+        public override async Task<RpcResponse> StreamExecutePips(IAsyncStreamReader<PipBuildRequest> requestStream, ServerCallContext context)
+        {
+#if NETCOREAPP
+            await foreach (var message in requestStream.ReadAllAsync())
+            {
+                m_workerService.ExecutePipsAsync(message).Forget();
+            }
+
+            return new RpcResponse();
+#else
+            throw new NotImplementedException();
+#endif
+        }
+#pragma warning restore 1998
 
         /// <inheritdoc/>
         public override Task<RpcResponse> Exit(BuildEndData message, ServerCallContext context)

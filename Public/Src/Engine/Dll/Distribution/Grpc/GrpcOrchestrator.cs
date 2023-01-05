@@ -6,6 +6,7 @@ using BuildXL.Distribution.Grpc;
 using Grpc.Core;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Configuration;
+using System;
 
 namespace BuildXL.Engine.Distribution.Grpc
 {
@@ -47,5 +48,39 @@ namespace BuildXL.Engine.Distribution.Grpc
             m_orchestratorService.ReceivedExecutionLog(message).Forget();
             return GrpcUtils.EmptyResponse;
         }
+
+        /// <inheritdoc/>
+#pragma warning disable 1998 // Disable the warning for "This async method lacks 'await'"
+        public override async Task<RpcResponse> StreamExecutionLog(IAsyncStreamReader<ExecutionLogInfo> requestStream, ServerCallContext context)
+        {
+#if NETCOREAPP
+            await foreach (var message in requestStream.ReadAllAsync())
+            {
+                m_orchestratorService.ReceivedExecutionLog(message).Forget();
+            }
+            
+            return new RpcResponse();
+#else
+            throw new NotImplementedException();
+#endif
+        }
+#pragma warning restore 1998
+
+        /// <inheritdoc/>
+#pragma warning disable 1998 // Disable the warning for "This async method lacks 'await'"
+        public override async Task<RpcResponse> StreamPipResults(IAsyncStreamReader<PipResultsInfo> requestStream, ServerCallContext context)
+        {
+#if NETCOREAPP
+            await foreach (var message in requestStream.ReadAllAsync())
+            {
+                m_orchestratorService.ReceivedPipResults(message).Forget();
+            }
+
+            return new RpcResponse();
+#else
+            throw new NotImplementedException();
+#endif
+        }
+#pragma warning restore 1998
     }
 }

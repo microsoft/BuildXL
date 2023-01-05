@@ -307,12 +307,12 @@ namespace BuildXL.Utilities.Configuration
         public static readonly Setting<bool> GrpcDotNetMonitorConnectionsEnabled = CreateSetting("BuildXLGrpcDotNetMonitorConnectionsEnabled", value => string.IsNullOrWhiteSpace(value) || value == "1");
 
         /// <summary>
-        /// Whether compression is enabled for grpc.net
+        /// Whether streaming is enabled for grpc calls
         /// </summary>
         /// <remarks>
         /// Default disabled
         /// </remarks>
-        public static readonly Setting<bool> GrpcDotNetCompressionEnabled = CreateSetting("BuildXLGrpcDotNetCompressionEnabled", value => value == "1");
+        public static readonly Setting<bool> GrpcStreamingEnabled = CreateSetting("BuildXLGrpcStreamingEnabled", value => value == "1");
 
         /// <summary>
         /// Time to wait for the pip build request to be removed from the concurrent blocking collections

@@ -320,7 +320,7 @@ namespace BuildXL.Engine.Tracing
         DistributionWaitingForOrchestratorAttached = 7032,
         DistributionCallWorkerCodeException = 7033,
         DistributionCallOrchestratorCodeException = 7034,
-        //DistributionPipRemoteResultReceived = 7035,
+        Custom = 7035,
         DistributionHostLog = 7036,
         DistributionOrchestratorStatus = 7037,
         //DistributionWorkerStatus = 7038,

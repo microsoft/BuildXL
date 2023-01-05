@@ -13,8 +13,14 @@ service Orchestrator {
     // Report the completion of the given pips
     rpc ReportPipResults(PipResultsInfo) returns (RpcResponse) {}
 
+    // Report the completion of the given pips via stream
+    rpc StreamPipResults(stream PipResultsInfo) returns (RpcResponse) {}
+
     // Report the execution log data
     rpc ReportExecutionLog(ExecutionLogInfo) returns (RpcResponse) {}
+
+    // Report the execution log data via stream
+    rpc StreamExecutionLog(stream ExecutionLogInfo) returns (RpcResponse) {}
 }
 
 // Defines the service for talking to builder worker processes
@@ -26,12 +32,14 @@ service Worker
     // Triggers a build of the given pips on the worker
     rpc ExecutePips(PipBuildRequest) returns (RpcResponse) {}
 
+    // Triggers a build of the given pips on the worker via stream
+    rpc StreamExecutePips(stream PipBuildRequest) returns (RpcResponse) {}
+
     // Signals that build is finished and that worker should exit
     rpc Exit(BuildEndData) returns (RpcResponse) {}
 }
 
-message RpcResponse {
-}
+message RpcResponse {}
 
 // The response from an Attach event
 message AttachCompletionInfo
@@ -84,6 +92,9 @@ message PipCompletionData
 
     // Start of the duration
     int64 StartTimeTicks = 7;
+
+    // DateTime before we send the results back to orchestrator
+    int64 BeforeSendTicks = 8;
 }
 
 // Events that have been logged on workers and are transited to the orchestrator. Any changes here may require changes

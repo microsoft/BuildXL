@@ -84,11 +84,12 @@ namespace BuildXL.Engine.Distribution
                 return m_lastFailure;
             }
         }
+        
 
         /// <summary>
         /// Class constructor
         /// </summary>
-        public RpcCallResult(T value, uint attempts, TimeSpan duration, TimeSpan waitForConnectionDuration)
+        public RpcCallResult(T value = default(T), uint attempts = 0, TimeSpan duration = default(TimeSpan), TimeSpan waitForConnectionDuration = default(TimeSpan))
         {
             m_value = value;
             State = RpcCallResultState.Succeeded;

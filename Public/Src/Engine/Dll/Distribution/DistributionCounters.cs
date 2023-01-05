@@ -98,6 +98,9 @@ namespace BuildXL.Engine.Distribution
         BuildResultBatchesSentToOrchestrator,
 
         /// <nodoc/>
+        BuildResultsSentToOrchestrator,
+
+        /// <nodoc/>
         [CounterType(CounterType.Stopwatch)]
         ReportExecutionLogDuration,
 
@@ -107,8 +110,30 @@ namespace BuildXL.Engine.Distribution
         /// <nodoc/>
         SendPipBuildRequestCallDurationMs,
 
-        /// Time sending notifications to the orchestrator
+        /// <nodoc/>
         [CounterType(CounterType.Stopwatch)]
         ReportPipResultsDuration,
+
+        /// <nodoc/>
+        [CounterType(CounterType.Stopwatch)]
+        FinalReportExecutionLogDuration,
+
+        /// <nodoc/>
+        [CounterType(CounterType.Stopwatch)]
+        FinalReportPipResultsDuration,
+
+        /// <nodoc/>
+        ForAllPipsGrpcDurationMs,
+
+        /// <nodoc/>
+        [CounterType(CounterType.Stopwatch)]
+        PrintFinishedLogsDuration,
+
+        /// <nodoc/>
+        [CounterType(CounterType.Stopwatch)]
+        GetPipResultsDescriptionDuration,
+
+        /// <nodoc/>
+        ExecutionLogSentSize
     }
 }

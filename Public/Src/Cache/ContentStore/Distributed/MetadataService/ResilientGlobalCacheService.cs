@@ -563,7 +563,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                 case RpcMethodId.CompareExchange:
                 {
                     var rq = (CompareExchangeRequest)request;
-                    key = rq.StrongFingerprint.GetHashCode();
+                    // The key must be positive to avoid IndexOutOfRangeException when the key is used as an index.
+                    key = Math.Abs(rq.StrongFingerprint.GetHashCode());
                     break;
                 }
                 default:

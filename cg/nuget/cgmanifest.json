@@ -743,26 +743,8 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "Microsoft.Azure.KeyVault",
-          "Version": "3.0.1"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
           "Name": "Microsoft.Azure.KeyVault.Core",
           "Version": "1.0.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.Azure.KeyVault.WebKey",
-          "Version": "3.0.1"
         }
       }
     },

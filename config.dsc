@@ -358,9 +358,6 @@ config({
                 // Ninja JSON Linux Text
                 { id: "BuildXL.Tools.Ninjson.linux-x64", version: "1.11.2", osSkip: [ "macOS" ] },
 
-                { id: "Microsoft.Azure.KeyVault", version: "3.0.1"},
-                { id: "Microsoft.Azure.KeyVault.WebKey", version: "3.0.1"},
-
                 // Kusto SDK
                 { id: "Microsoft.Azure.Kusto.Data", version: "11.2.1" },
                 { id: "Microsoft.Azure.Kusto.Ingest", version: "11.2.1" },

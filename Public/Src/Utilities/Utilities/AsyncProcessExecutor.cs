@@ -258,7 +258,8 @@ namespace BuildXL.Utilities
             {
                 Log($"timed out after {ExitTime.Subtract(StartTime)} (timeout: {m_timeout})");
                 TimedOut = true;
-                await KillAsync();
+                // We always want to dump the process tree on timeout
+                await KillAsync(dumpProcessTree: true);
             }
             else
             {
@@ -298,7 +299,7 @@ namespace BuildXL.Utilities
         /// <summary>
         /// Kills process.
         /// </summary>
-        public Task KillAsync()
+        public Task KillAsync(bool dumpProcessTree)
         {
             Contract.RequiresNotNull(Process);
 
@@ -306,7 +307,11 @@ namespace BuildXL.Utilities
             {
                 if (!Process.HasExited)
                 {
-                    m_dumpProcessTree?.Invoke();
+                    if (dumpProcessTree)
+                    {
+                        Log($"Dumping process tree for root process {Process.Id}");
+                        m_dumpProcessTree?.Invoke();
+                    }
 
                     Log($"calling Kill({Process.Id})");
                     Process.Kill();

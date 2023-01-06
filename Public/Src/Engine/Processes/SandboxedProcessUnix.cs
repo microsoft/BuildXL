@@ -355,7 +355,7 @@ namespace BuildXL.Processes
                 // IOException can happen if the process is forcefully killed while we're feeding its std in.
                 // When that happens, instead of crashing, just make sure the process is killed.
                 LogProcessState($"IOException caught while feeding the standard input: {e.ToString()}");
-                await KillAsync();
+                await KillAsyncInternal(dumpProcessTree: false);
             }
             finally
             {
@@ -380,7 +380,7 @@ namespace BuildXL.Processes
         protected override bool Killed => Interlocked.Read(ref m_processKilledFlag) > 0;
 
         /// <inheritdoc />
-        public override async Task KillAsync()
+        protected override async Task KillAsyncInternal(bool dumpProcessTree)
         {
             // In the case that the process gets shut down by either its timeout or e.g. SandboxedProcessPipExecutor
             // detecting resource usage issues and calling KillAsync(), we flag the process with m_processKilled so we
@@ -392,7 +392,7 @@ namespace BuildXL.Processes
             {
                 // surviving child processes may only be set when the process is explicitly killed
                 m_survivingChildProcesses = NullIfEmpty(CoalesceProcesses(GetCurrentlyActiveChildProcesses()));
-                await base.KillAsync();
+                await base.KillAsyncInternal(dumpProcessTree);
                 KillAllChildProcesses();
                 SandboxConnection.NotifyRootProcessExited(PipId, this);
                 await m_pendingReports.Completion;
@@ -413,7 +413,8 @@ namespace BuildXL.Processes
                 var awaitedTask = await Task.WhenAny(m_pendingReports.Completion, m_processTreeTimeoutTask!);
                 if (awaitedTask == m_processTreeTimeoutTask)
                 {
-                    await KillAsync();
+                    // The process tree timed out, so let's try to dump it
+                    await KillAsyncInternal(dumpProcessTree: true);
                 }
             }
 
@@ -750,7 +751,9 @@ namespace BuildXL.Processes
                                         $"and no reports have been received for over {ReportQueueProcessTimeout.TotalSeconds} seconds!");
 
                         m_pendingReports.Complete();
-                        await KillAsync();
+                        // This is a corner case about the sandbox connection not responding, and therefore an unusual case.
+                        // Let's dump the process tree in order to help debug this scenario.
+                        await KillAsyncInternal(dumpProcessTree: true);
                         processTreeTimeoutSource.SetResult(Unit.Void);
                         break;
                     }

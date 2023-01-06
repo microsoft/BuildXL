@@ -247,7 +247,8 @@ namespace BuildXL.Processes
 
             ProcessDumper.TryDumpProcessAndChildren(ProcessId, WorkingDirectory, out DumpCreationException);
 
-            return executor.KillAsync();
+            // We explicitly dumped the process tree above already
+            return executor.KillAsync(dumpProcessTree: false);
         }
 
         /// <summary>

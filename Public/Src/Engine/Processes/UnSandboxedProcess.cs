@@ -340,13 +340,20 @@ namespace BuildXL.Processes
                 .ToList();
         }
 
-        /// <inheritdoc />
-        public virtual Task KillAsync()
+        /// <inheritdoc/>
+        public Task KillAsync() => 
+            // Observe we never dump the process tree here, since the expectation is that KillAsync is called on pip cancellation only
+            KillAsyncInternal(dumpProcessTree: false);
+
+        /// <summary>
+        /// Kills the process indicating whether a dump should be produced before killing it.
+        /// </summary>        
+        protected virtual Task KillAsyncInternal(bool dumpProcessTree)
         {
             Contract.Requires(Started);
 
             LogProcessState($"UnsandboxedProcess::KillAsync({ProcessId})");
-            return m_processExecutor.KillAsync();
+            return m_processExecutor.KillAsync(dumpProcessTree);
         }
 
         /// <summary>

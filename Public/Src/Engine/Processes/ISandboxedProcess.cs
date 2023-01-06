@@ -70,6 +70,9 @@ namespace BuildXL.Processes
         /// </summary>
         /// <remarks>
         /// Also kills all nested processes; if the process hasn't already finished by itself, the Result task gets canceled.
+        /// This method is typically used for cancelling a pip (e.g. due to resource exhaustion). Killing a pip on timeout is handled
+        /// internally by implementors of this interface, and those kills don't go through this method. With that spirit, dump collection
+        /// is not expected to happen under this method either.
         /// </remarks>
         Task KillAsync();
     }

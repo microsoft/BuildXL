@@ -4,15 +4,26 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Linq;
+using BuildXL.Cache.ContentStore.FileSystem;
+using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Logging;
 using BuildXL.Utilities.ParallelAlgorithms;
 using Kusto.Data.Common;
 using Kusto.Ingest;
 
+#nullable enable
+
 namespace BuildXL.Cache.ContentStore.App
 {
+    public record struct FileDescription
+    {
+        public required string FilePath { get; init; }
+        public required Guid SourceId { get; init; }
+    }
+
     /// <summary>
     ///     Responsible for pumping provided log files to Kusto.
     ///
@@ -34,12 +45,13 @@ namespace BuildXL.Cache.ContentStore.App
     /// </summary>
     public sealed class KustoUploader : IDisposable
     {
-        private readonly ILog _log;
+        private readonly ILog? _log;
         private readonly bool _deleteFilesOnSuccess;
         private readonly bool _checkForIngestionErrors;
         private readonly IKustoQueuedIngestClient _client;
         private readonly KustoQueuedIngestionProperties _ingestionProperties;
         private readonly ActionBlockSlim<FileDescription> _block;
+        private readonly IAbsFileSystem _fileSystem;
 
         private bool _hasUploadErrors = false;
 
@@ -56,29 +68,33 @@ namespace BuildXL.Cache.ContentStore.App
         ///     Note that at this time not all uploaded files have necessarily been ingested; this class
         ///     does not wait for ingestions to complete, it only checks for failures of those that have completed.
         /// </param>
-        /// <param name="log">Optional log to which to write some debug information.</param>
+        /// <param name="log">An optional log to which to write some debug information.</param>
+        /// <param name="fileSystem">An option file system abstraction layer.</param>
         public KustoUploader
             (
             string connectionString,
             string database,
             string table,
-            IEnumerable<CsvColumnMapping> csvMapping,
+            IEnumerable<ColumnMapping> csvMapping,
             bool deleteFilesOnSuccess,
             bool checkForIngestionErrors,
-            ILog log = null
+            ILog? log = null,
+            IAbsFileSystem? fileSystem = null
             )
         {
             _log = log;
+            _fileSystem = fileSystem ?? new PassThroughFileSystem();
             _deleteFilesOnSuccess = deleteFilesOnSuccess;
             _checkForIngestionErrors = checkForIngestionErrors;
             _client = KustoIngestFactory.CreateQueuedIngestClient(connectionString);
             _hasUploadErrors = false;
             _ingestionProperties = new KustoQueuedIngestionProperties(database, table)
             {
-                CSVMapping   = csvMapping,
                 ReportLevel  = IngestionReportLevel.FailuresOnly,
                 ReportMethod = IngestionReportMethod.Queue,
             };
+            _ingestionProperties.IngestionMapping.IngestionMappings = csvMapping;
+
             _block = ActionBlockSlim.Create<FileDescription>(
                 degreeOfParallelism: 1,
                 UploadSingleCsvFile);
@@ -134,7 +150,8 @@ namespace BuildXL.Cache.ContentStore.App
             try
             {
                 var start = DateTime.UtcNow;
-                var result = _client.IngestFromSingleFile(fileDesc, _deleteFilesOnSuccess, _ingestionProperties);
+                using var file = _fileSystem.Open(new AbsolutePath(fileDesc.FilePath), FileAccess.Read, FileMode.Open, FileShare.None, FileOptions.DeleteOnClose);
+                var result = _client.IngestFromStream(file, _ingestionProperties);
                 var duration = DateTime.UtcNow.Subtract(start);
 
                 Always("Uploading file '{0}' took {1} ms", fileDesc.FilePath, duration.TotalMilliseconds);
@@ -154,7 +171,7 @@ namespace BuildXL.Cache.ContentStore.App
             }
 
             var start = DateTime.UtcNow;
-            var ingestionFailures = _client.GetAndDiscardTopIngestionFailures().GetAwaiter().GetResult().ToList();
+            var ingestionFailures = _client.GetAndDiscardTopIngestionFailuresAsync().GetAwaiter().GetResult().ToList();
             var duration = DateTime.UtcNow.Subtract(start);
             Always("Checking for ingestion failures took {0} ms", duration.TotalMilliseconds);
 

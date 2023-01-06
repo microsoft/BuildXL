@@ -410,11 +410,11 @@ namespace BuildXL.Cache.ContentStore.App
                 maxFileSize: _csvLogMaxFileSize
                 );
 
-            var indexedColumns = _csvFileLog.FileSchema.Select((col, idx) => new CsvColumnMapping { ColumnName = col.ToString(), Ordinal = idx });
-            var constColumns = _csvFileLog.ConstSchema.Select(col => new CsvColumnMapping { ColumnName = col.ToString(), ConstValue = _csvFileLog.RenderConstColumn(col) });
+            var indexedColumns = _csvFileLog.FileSchema.Select((col, idx) => CreateOrdinalColumn(col.ToString(), idx));
+            var constColumns = _csvFileLog.ConstSchema.Select(col => CreateConstColumn(col.ToString(), _csvFileLog.RenderConstColumn(col)));
             var csvMapping = indexedColumns.Concat(constColumns).ToArray();
 
-            var csvMappingStr = string.Join("", csvMapping.Select(col => $"{Environment.NewLine}  Name: '{col.ColumnName}', ConstValue: '{col.ConstValue}', Ordinal: {col.Ordinal}"));
+            var csvMappingStr = string.Join("", csvMapping.Select(col => $"{Environment.NewLine}  Name: '{col.ColumnName}', ConstValue: '{GetConstValueOrDefault(col) ?? "null"}', Ordinal: {GetOrdinalOrDefault(col) ?? "N/A"}"));
             _logger.Always("Using csv mapping:{0}", csvMappingStr);
 
             _kustoUploader = new KustoUploader
@@ -440,6 +440,32 @@ namespace BuildXL.Cache.ContentStore.App
 
             _logger.AddLog(_csvFileLog);
             _logger.Always("Remote telemetry enabled");
+        }
+
+        private static ColumnMapping CreateOrdinalColumn(string columnName, int ordinal)
+        {
+            var result = new ColumnMapping() {ColumnName = columnName};
+            result.Properties["Ordinal"] = ordinal.ToString();
+            return result;
+        }
+
+        private static ColumnMapping CreateConstColumn(string columnName, string constValue)
+        {
+            var result = new ColumnMapping() {ColumnName = columnName};
+            result.Properties["ConstValue"] = constValue;
+            return result;
+        }
+
+        private static string GetConstValueOrDefault(ColumnMapping mapping)
+        {
+            mapping.Properties.TryGetValue("ConstValue", out var result);
+            return result;
+        }
+
+        private static string GetOrdinalOrDefault(ColumnMapping mapping)
+        {
+            mapping.Properties.TryGetValue("Ordinal", out var result);
+            return result;
         }
 
         private void RunFileSystemContentStoreInternal(AbsolutePath rootPath, System.Func<Context, FileSystemContentStoreInternal, Task> funcAsync)

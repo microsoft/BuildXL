@@ -9,8 +9,6 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
-using BuildXL.Cache.ContentStore.Utils;
-using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.ParallelAlgorithms;
 using Kusto.Data.Common;
 using Kusto.Ingest;
@@ -36,7 +34,6 @@ namespace BuildXL.Cache.Monitor.App.Notifications
         }
 
         private readonly ILogger _logger;
-        private readonly Configuration _configuration;
         private readonly IKustoIngestClient _kustoIngestClient;
 
         private readonly KustoIngestionProperties _kustoIngestionProperties;
@@ -45,23 +42,22 @@ namespace BuildXL.Cache.Monitor.App.Notifications
 
         public KustoNotifier(Configuration configuration, ILogger logger, IKustoIngestClient kustoIngestClient)
         {
-            _configuration = configuration;
             _logger = logger;
             _kustoIngestClient = kustoIngestClient;
 
-            _kustoIngestionProperties = new KustoIngestionProperties(_configuration.KustoDatabaseName, _configuration.KustoTableName)
+            _kustoIngestionProperties = new KustoIngestionProperties(configuration.KustoDatabaseName, configuration.KustoTableName)
             {
                 Format = DataSourceFormat.json,
             };
 
-            Contract.RequiresNotNullOrEmpty(_configuration.KustoTableIngestionMappingName,
+            Contract.Assert(!string.IsNullOrEmpty(configuration.KustoTableIngestionMappingName),
                 "Kusto ingestion will fail to authenticate without a proper ingestion mapping.");
-            _kustoIngestionProperties.JSONMappingReference = _configuration.KustoTableIngestionMappingName;
+            _kustoIngestionProperties.IngestionMapping.IngestionMappingReference = configuration.KustoTableIngestionMappingName;
 
             _queue = NagleQueue<T>.Create(FlushAsync,
-                _configuration.MaxDegreeOfParallelism,
-                _configuration.FlushInterval,
-                _configuration.BatchSize);
+                configuration.MaxDegreeOfParallelism,
+                configuration.FlushInterval,
+                configuration.BatchSize);
         }
 
         public void Emit(T row)

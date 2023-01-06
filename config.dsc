@@ -358,32 +358,33 @@ config({
                 // Ninja JSON Linux Text
                 { id: "BuildXL.Tools.Ninjson.linux-x64", version: "1.11.2", osSkip: [ "macOS" ] },
 
-                // Kusto SDK (for netstandard)
-                { id: "Microsoft.Azure.Kusto.Cloud.Platform.Azure.NETStandard", version: "6.1.8",
-                    dependentPackageIdsToSkip: ["Microsoft.Extensions.PlatformAbstractions"] },
-                { id: "Microsoft.Azure.Kusto.Cloud.Platform.NETStandard", version: "6.1.8",
-                    dependentPackageIdsToSkip: ["Microsoft.Extensions.PlatformAbstractions"] },
-                { id: "Microsoft.Azure.Kusto.Data.NETStandard", version: "6.1.8",
-                    dependentPackageIdsToSkip: ["Microsoft.Extensions.PlatformAbstractions"] },
-                { id: "Microsoft.Azure.Kusto.Ingest.NETStandard", version: "6.1.8",
-                    dependentPackageIdsToSkip: ["Microsoft.Extensions.PlatformAbstractions"] },
-                { id: "Microsoft.IO.RecyclableMemoryStream", version: "1.2.2" },
                 { id: "Microsoft.Azure.KeyVault", version: "3.0.1"},
                 { id: "Microsoft.Azure.KeyVault.WebKey", version: "3.0.1"},
 
-                // Kusto SDK (for full framework)
-                { id: "Microsoft.Azure.Kusto.Data", version: "6.1.8" },
-                { id: "Microsoft.Azure.Kusto.Ingest", version: "6.1.8" },
-                { id: "Microsoft.Azure.Kusto.Tools", version: "2.2.2" },
-                { id: "Microsoft.Azure.Management.Kusto", version: "1.0.0" },
+                // Kusto SDK
+                { id: "Microsoft.Azure.Kusto.Data", version: "11.2.1" },
+                { id: "Microsoft.Azure.Kusto.Ingest", version: "11.2.1" },
+                { id: "Microsoft.Azure.Kusto.Tools", version: "7.2.1" },
+                { id: "Azure.ResourceManager.Kusto", version: "1.1.0" },
+
+                { id: "Microsoft.Azure.Kusto.Cloud.Platform", version: "11.2.1" },
+                { id: "Microsoft.Azure.Kusto.Cloud.Platform.Aad", version: "11.2.1" },
+
+                { id: "Azure.ResourceManager", version: "1.3.2" },
+
+                { id: "Microsoft.IO.RecyclableMemoryStream", version: "2.2.0",
+                    dependentPackageIdsToSkip: ["System.Buffers", "System.Memory"] }, // Used by Microsoft.Azure.Kusto.Cloud.Platform
 
                 // Azure Communication
-                { id: "Microsoft.Rest.ClientRuntime", version: "2.3.21",
+                { id: "Microsoft.Rest.ClientRuntime", version: "2.3.24",
                     dependentPackageIdsToSkip: ["Microsoft.NETCore.Runtime"],
                     dependentPackageIdsToIgnore: ["Microsoft.NETCore.Runtime"],
                 },
-                { id: "Microsoft.Rest.ClientRuntime.Azure", version: "3.3.18" },
-                { id: "Microsoft.Rest.ClientRuntime.Azure.Authentication", version: "2.4.0" },
+                { id: "Microsoft.Rest.ClientRuntime.Azure", version: "3.3.19" },
+                { id: "Microsoft.Rest.ClientRuntime.Azure.Authentication", version: "2.4.1" },
+
+                { id: "Azure.Data.Tables", version: "12.6.1" },
+                { id: "Azure.Storage.Queues", version: "12.11.0" },
 
                 // FsCheck
                 { id: "FsCheck", version: "2.14.3" },

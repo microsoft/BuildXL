@@ -15,17 +15,10 @@ export const NetFx = BuildXLSdk.NetFx;
 
 @@public
 export const kustoPackages = [
-    ...(BuildXLSdk.isDotNetCoreOrStandard ? [
-        importFrom("Microsoft.Azure.Kusto.Data.NETStandard").pkg,
-        importFrom("Microsoft.Azure.Kusto.Ingest.NETStandard").pkg,
-        importFrom("Microsoft.Azure.Kusto.Cloud.Platform.Azure.NETStandard").pkg,
-        importFrom("Microsoft.Azure.Kusto.Cloud.Platform.NETStandard").pkg,
-        importFrom("Microsoft.Extensions.PlatformAbstractions").pkg,
-        importFrom("Microsoft.IO.RecyclableMemoryStream").pkg,
-    ] : [
-        importFrom("Microsoft.Azure.Kusto.Ingest").pkg,
-    ]),
-    importFrom("Microsoft.Azure.Management.Kusto").pkg,
+    importFrom("Microsoft.Azure.Kusto.Data").pkg,
+    importFrom("Microsoft.Azure.Kusto.Cloud.Platform").pkg,
+    importFrom("Microsoft.Azure.Kusto.Ingest").pkg,
+    importFrom("Azure.ResourceManager.Kusto").pkg,
     importFrom("Microsoft.IdentityModel.Clients.ActiveDirectory").pkg,
     ...getAzureBlobStorageSdkPackages(true),
 ];

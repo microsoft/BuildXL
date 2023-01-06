@@ -20,7 +20,6 @@ using BuildXL.Cache.Monitor.Library.IcM;
 using BuildXL.Cache.Monitor.Library.Notifications;
 using BuildXL.Cache.Monitor.Library.Rules.Kusto;
 using BuildXL.Cache.Monitor.Library.Scheduling;
-using Kusto.Cloud.Platform.Utils;
 using Kusto.Data.Common;
 using Kusto.Ingest;
 

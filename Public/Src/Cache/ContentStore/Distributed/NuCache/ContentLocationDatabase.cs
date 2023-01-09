@@ -691,10 +691,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public BoolResult SaveCheckpoint(OperationContext context, AbsolutePath checkpointDirectory)
         {
             var snapshot = Counters.Snapshot();
-            Tracer.TrackMetric(context, "CreateLocationEntryCount", snapshot.GetDifference(_lastCheckpointCountersSnapshot, ContentLocationDatabaseCounters.TotalNumberOfCreatedEntries));
-            Tracer.TrackMetric(context, "CreateLocationEntryContentSize", snapshot.GetDifference(_lastCheckpointCountersSnapshot, ContentLocationDatabaseCounters.UniqueContentAddedSize));
-            Tracer.TrackMetric(context, "DeleteLocationEntryCount", snapshot.GetDifference(_lastCheckpointCountersSnapshot, ContentLocationDatabaseCounters.TotalNumberOfDeletedEntries));
-            Tracer.TrackMetric(context, "DeleteLocationEntryContentSize", snapshot.GetDifference(_lastCheckpointCountersSnapshot, ContentLocationDatabaseCounters.UniqueContentRemovedSize));
+            // The computed metrics might be negative. So not emitting any warnings due to that.
+            Tracer.TrackMetric(context, "CreateLocationEntryCount", snapshot.GetDifference(_lastCheckpointCountersSnapshot, ContentLocationDatabaseCounters.TotalNumberOfCreatedEntries), warnOnNegativeValue: false);
+            Tracer.TrackMetric(context, "CreateLocationEntryContentSize", snapshot.GetDifference(_lastCheckpointCountersSnapshot, ContentLocationDatabaseCounters.UniqueContentAddedSize), warnOnNegativeValue: false);
+            Tracer.TrackMetric(context, "DeleteLocationEntryCount", snapshot.GetDifference(_lastCheckpointCountersSnapshot, ContentLocationDatabaseCounters.TotalNumberOfDeletedEntries), warnOnNegativeValue: false);
+            Tracer.TrackMetric(context, "DeleteLocationEntryContentSize", snapshot.GetDifference(_lastCheckpointCountersSnapshot, ContentLocationDatabaseCounters.UniqueContentRemovedSize), warnOnNegativeValue: false);
 
             _lastCheckpointCountersSnapshot = snapshot;
 

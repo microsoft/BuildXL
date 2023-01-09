@@ -291,9 +291,20 @@ namespace BuildXL.Cache.ContentStore.Tracing
         /// <summary>
         /// Track metric with a given name and a value in MDM.
         /// </summary>
-        public void TrackMetric(Context context, string name, long value)
+        public void TrackMetric(Context context, string name, long value, bool warnOnNegativeValue = true)
         {
-            context.TrackMetric(name, value, Name);
+            if (value < 0)
+            {
+                if (warnOnNegativeValue)
+                {
+                    // We can't trace negative metrics.
+                    Warning(context, $"Failed logging metric '{name}' with a negative value '{value}'");
+                }
+            }
+            else
+            {
+                context.TrackMetric(name, value, Name);
+            }
         }
 
         /// <nodoc />

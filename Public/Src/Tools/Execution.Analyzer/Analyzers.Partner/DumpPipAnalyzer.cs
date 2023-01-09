@@ -26,6 +26,7 @@ namespace BuildXL.Execution.Analyzer
             string outputFilePath = null;
             long semiStableHash = 0;
             bool useOriginalPaths = false;
+            bool launchHtmlViewer = false;
             DirectoryArtifact outputDirectory = default;
 
             foreach (var opt in AnalyzerOptions)
@@ -50,6 +51,11 @@ namespace BuildXL.Execution.Analyzer
                 {
                     outputDirectory = parseDirectoryArtifact(opt);
                 }
+                else if (opt.Name.Equals("launchHtmlViewer", StringComparison.OrdinalIgnoreCase) ||
+                         opt.Name.Equals("l", StringComparison.OrdinalIgnoreCase))
+                {
+                    launchHtmlViewer = ParseBooleanOption(opt);
+                }
                 else
                 {
                     throw Error("Unknown option for dump pip analysis: {0}", opt.Name);
@@ -61,7 +67,7 @@ namespace BuildXL.Execution.Analyzer
                 throw Error("Either /pip or /directory parameter must be specified");
             }
 
-            return new DumpPipAnalyzer(GetAnalysisInput(), outputFilePath, semiStableHash, outputDirectory, useOriginalPaths);
+            return new DumpPipAnalyzer(GetAnalysisInput(), outputFilePath, launchHtmlViewer, semiStableHash, outputDirectory, useOriginalPaths);
 
             DirectoryArtifact parseDirectoryArtifact(Option opt)
             {
@@ -92,6 +98,7 @@ namespace BuildXL.Execution.Analyzer
         private readonly HtmlHelper m_html;
 
         private readonly string m_outputFilePath;
+        private readonly bool m_launchHtmlViewer;
 
         private readonly List<XElement> m_sections = new List<XElement>();
         private readonly Dictionary<ModuleId, string> m_moduleIdToFriendlyName = new Dictionary<ModuleId, string>();
@@ -100,7 +107,7 @@ namespace BuildXL.Execution.Analyzer
         private BxlInvocationEventData m_invocationData;
         private readonly bool m_useOriginalPaths;
 
-        public DumpPipAnalyzer(AnalysisInput input, string outputFilePath, long semiStableHash, DirectoryArtifact directory, bool useOriginalPaths, bool logProgress = false)
+        public DumpPipAnalyzer(AnalysisInput input, string outputFilePath, bool launchHtmlViewer, long semiStableHash, DirectoryArtifact directory, bool useOriginalPaths, bool logProgress = false)
             : base(input)
         {
             if (string.IsNullOrEmpty(outputFilePath))
@@ -110,6 +117,7 @@ namespace BuildXL.Execution.Analyzer
             }
 
             m_outputFilePath = outputFilePath;
+            m_launchHtmlViewer = launchHtmlViewer;
             m_useOriginalPaths = useOriginalPaths;
 
             if (logProgress)
@@ -253,6 +261,15 @@ namespace BuildXL.Execution.Analyzer
             }
 
             doc.Save(m_outputFilePath);
+            if (m_launchHtmlViewer) {
+                System.Diagnostics.Process.Start(
+                    new System.Diagnostics.ProcessStartInfo(m_outputFilePath)
+                    {
+                        UseShellExecute = true
+                    }
+                );
+            }
+
             return 0;
         }
 

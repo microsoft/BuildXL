@@ -115,7 +115,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             UrgencyHint urgencyHint)
         {
             return new OperationContext(context, cts).PerformOperationAsync(
-                Tracer.MemoizationStoreTracer,
+                CacheTracer.MemoizationStoreTracer,
                 async () =>
                 {
                     // TODO: Split this out into separate implementations for WriteThrough vs. WriteBehind (bug 1365340)
@@ -154,7 +154,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                         var debugString = $"Adding contentHashList=[{valueToAdd.ContentHashListWithDeterminism.ContentHashList}] " +
                                             $"determinism=[{valueToAdd.ContentHashListWithDeterminism.Determinism}] to VSTS with " +
                                             $"contentAvailabilityGuarantee=[{valueToAdd.ContentGuarantee}], expirationUtc=[{expirationUtc}], forceUpdate=[{ForceUpdateOnAddContentHashList}]";
-                        Tracer.Debug(context, debugString);
+                        CacheTracer.Debug(context, debugString);
                         Result<ContentHashListWithCacheMetadata> responseObject =
                             await ContentHashListAdapter.AddContentHashListAsync(
                                 context,
@@ -197,7 +197,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                         }
 
                         var hashOfExistingContentHashList = response.HashOfExistingContentHashList;
-                        Tracer.Debug(context, $"Attempting to replace unbacked value with hash {hashOfExistingContentHashList.ToHex()}");
+                        CacheTracer.Debug(context, $"Attempting to replace unbacked value with hash {hashOfExistingContentHashList.ToHex()}");
                         valueToAdd = new ContentHashListWithCacheMetadata(
                             contentHashListWithDeterminism,
                             expirationUtc,
@@ -206,7 +206,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                         );
                     }
 
-                    Tracer.Warning(
+                    CacheTracer.Warning(
                         context,
                         $"Lost the AddOrUpdate race {addLimit} times against unbacked values. Returning as though the add succeeded for now.");
                     await TrackFingerprintAsync(context, strongFingerprint, rawExpiration, hashes: null).ConfigureAwait(false);
@@ -271,7 +271,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             CancellationToken cts,
             UrgencyHint urgencyHint)
         {
-            return IncorporateStrongFingerprintsCall.RunAsync(Tracer.MemoizationStoreTracer, context, async () =>
+            return IncorporateStrongFingerprintsCall.RunAsync(CacheTracer.MemoizationStoreTracer, context, async () =>
             {
                 // BuildCache remembers fingerprints for all content that has been fetched or added through it's APIs.
                 // However, the build may end up satisfying some fingerprints without using BuildCache. The build or
@@ -299,7 +299,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             CancellationToken cts,
             UrgencyHint urgencyHint)
         {
-            return Tracer.ContentSessionTracer.PutFileAsync(new OperationContext(context), path, realizationMode, hashType, trustedHash: false, () =>
+            return CacheTracer.ContentSessionTracer.PutFileAsync(new OperationContext(context), path, realizationMode, hashType, trustedHash: false, () =>
                     WriteThroughContentSession != null
                     ? WriteThroughContentSession.PutFileAsync(context, hashType, path, realizationMode, cts, urgencyHint)
                     : BackingContentSession.PutFileAsync(context, hashType, path, realizationMode, cts, urgencyHint));
@@ -314,7 +314,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             CancellationToken cts,
             UrgencyHint urgencyHint)
         {
-            return Tracer.ContentSessionTracer.PutFileAsync(new OperationContext(context), path, realizationMode, contentHash, trustedHash: false, () =>
+            return CacheTracer.ContentSessionTracer.PutFileAsync(new OperationContext(context), path, realizationMode, contentHash, trustedHash: false, () =>
                     WriteThroughContentSession != null
                     ? WriteThroughContentSession.PutFileAsync(context, contentHash, path, realizationMode, cts, urgencyHint)
                     : BackingContentSession.PutFileAsync(context, contentHash, path, realizationMode, cts, urgencyHint));
@@ -328,7 +328,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             CancellationToken cts,
             UrgencyHint urgencyHint)
         {
-            return Tracer.ContentSessionTracer.PutStreamAsync(new OperationContext(context), hashType, () =>
+            return CacheTracer.ContentSessionTracer.PutStreamAsync(new OperationContext(context), hashType, () =>
                 WriteThroughContentSession != null
                 ? WriteThroughContentSession.PutStreamAsync(context, hashType, stream, cts, urgencyHint)
                 : BackingContentSession.PutStreamAsync(context, hashType, stream, cts, urgencyHint));
@@ -342,20 +342,10 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             CancellationToken cts,
             UrgencyHint urgencyHint)
         {
-            return Tracer.ContentSessionTracer.PutStreamAsync(new OperationContext(context), contentHash, () =>
+            return CacheTracer.ContentSessionTracer.PutStreamAsync(new OperationContext(context), contentHash, () =>
                 WriteThroughContentSession != null
                 ? WriteThroughContentSession.PutStreamAsync(context, contentHash, stream, cts, urgencyHint)
                 : BackingContentSession.PutStreamAsync(context, contentHash, stream, cts, urgencyHint));
-        }
-
-        // ReSharper disable once RedundantOverridenMember
-
-        /// <summary>
-        /// Dispose native resources.
-        /// </summary>
-        protected override void Dispose(bool disposing)
-        {
-            base.Dispose(disposing);
         }
 
         private async Task<bool> EnsureContentIsAvailableAsync(

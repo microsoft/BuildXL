@@ -25,10 +25,10 @@ using BuildXL.Cache.ContentStore.Synchronization;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore.Internal;
+using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.ContentStore.Vsts;
 using BuildXL.Cache.MemoizationStore.Interfaces.Results;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
-using BuildXL.Cache.MemoizationStore.Tracing;
 using BuildXL.Cache.MemoizationStore.Vsts.Adapters;
 using BuildXL.Cache.MemoizationStore.VstsInterfaces;
 using BuildXL.Utilities.ParallelAlgorithms;
@@ -40,12 +40,14 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
     /// <summary>
     ///     IReadOnlyCacheSession for BuildCacheCache.
     /// </summary>
-    [SuppressMessage("Microsoft.Maintainability", "CA1506:AvoidExcessiveClassCoupling")]
-    [SuppressMessage("ReSharper", "UnusedMember.Global")]
-    [SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
-    [SuppressMessage("ReSharper", "NotAccessedField.Global")]
-    public class BuildCacheReadOnlySession : IReadOnlyCacheSessionWithLevelSelectors
+    public class BuildCacheReadOnlySession : StartupShutdownSlimBase, IReadOnlyCacheSessionWithLevelSelectors
     {
+        /// <inheritdoc />
+        protected override Tracer Tracer => CacheTracer;
+
+        /// <nodoc />
+        protected BuildCacheCacheTracer CacheTracer;
+
         private const int MaxSealingErrorsToPrintOnShutdown = 10;
 
         /// <summary>
@@ -93,11 +95,6 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         /// </summary>
         protected readonly Guid CacheId;
 
-        /// <summary>
-        /// A tracer for logging calls and performance counters.
-        /// </summary>
-        protected readonly BuildCacheCacheTracer Tracer;
-
         private readonly bool _enableEagerFingerprintIncorporation;
         private readonly TimeSpan _inlineFingerprintIncorporationExpiry;
         private readonly TimeSpan _eagerFingerprintIncorporationInterval;
@@ -128,7 +125,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         private readonly bool _overrideUnixFileAccessMode;
 
         private Context _eagerFingerprintIncorporationTracingContext; // must be set at StartupAsync
-        private readonly BuildXL.Utilities.ParallelAlgorithms.NagleQueue<StrongFingerprint> _eagerFingerprintIncorporationNagleQueue;
+        private readonly NagleQueue<StrongFingerprint> _eagerFingerprintIncorporationNagleQueue;
 
         /// <nodoc />
         protected readonly bool ManuallyExtendContentLifetime;
@@ -201,7 +198,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             CacheId = cacheId;
             WriteThroughContentSession = writeThroughContentSession;
             _sealUnbackedContentHashLists = sealUnbackedContentHashLists;
-            Tracer = tracer;
+            CacheTracer = tracer;
             _enableEagerFingerprintIncorporation = enableEagerFingerprintIncorporation;
             _inlineFingerprintIncorporationExpiry = inlineFingerprintIncorporationExpiry;
             _eagerFingerprintIncorporationInterval = eagerFingerprintIncorporationInterval;
@@ -229,226 +226,193 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         /// <inheritdoc />
         public void Dispose()
         {
-            Dispose(true);
-            GC.SuppressFinalize(this);
-        }
-
-        /// <summary>
-        ///     Dispose native resources.
-        /// </summary>
-        [SuppressMessage("ReSharper", "UnusedParameter.Global")]
-        protected virtual void Dispose(bool disposing)
-        {
-            if (disposing)
-            {
-                _taskTracker?.Dispose();
-                BackingContentSession?.Dispose();
-                WriteThroughContentSession?.Dispose();
-                _tempDirectory.Dispose();
-            }
+            _taskTracker?.Dispose();
+            BackingContentSession?.Dispose();
+            WriteThroughContentSession?.Dispose();
+            _tempDirectory.Dispose();
         }
 
         /// <inheritdoc />
         public string Name { get; }
 
         /// <inheritdoc />
-        public Task<BoolResult> StartupAsync(Context context)
+        protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
         {
-            StartupStarted = true;
-
             _eagerFingerprintIncorporationTracingContext = context;
 
-            return StartupCall<MemoizationStoreTracer>.RunAsync(Tracer.MemoizationStoreTracer, context, async () =>
+            LogIncorporateOptions(context);
+
+            var backingContentSessionTask = Task.Run(async () => await BackingContentSession.StartupAsync(context).ConfigureAwait(false));
+            var writeThroughContentSessionResult = WriteThroughContentSession != null
+                ? await WriteThroughContentSession.StartupAsync(context).ConfigureAwait(false)
+                : BoolResult.Success;
+            var backingContentSessionResult = await backingContentSessionTask.ConfigureAwait(false);
+            if (backingContentSessionResult.Succeeded && writeThroughContentSessionResult.Succeeded)
             {
-                LogIncorporateOptions(context);
+                _taskTracker = new BackgroundTaskTracker(Component, context.CreateNested(Component));
+                return BoolResult.Success;
+            }
 
-                BoolResult result;
-                var backingContentSessionTask = Task.Run(async () => await BackingContentSession.StartupAsync(context).ConfigureAwait(false));
-                var writeThroughContentSessionResult = WriteThroughContentSession != null
-                    ? await WriteThroughContentSession.StartupAsync(context).ConfigureAwait(false)
+            var sb = new StringBuilder();
+
+            if (backingContentSessionResult.Succeeded)
+            {
+                var r = await BackingContentSession.ShutdownAsync(context).ConfigureAwait(false);
+                if (!r.Succeeded)
+                {
+                    sb.Append($"Backing content session shutdown failed, error=[{r}]");
+                }
+            }
+            else
+            {
+                sb.Append($"Backing content session startup failed, error=[{backingContentSessionResult}]");
+            }
+
+            if (writeThroughContentSessionResult.Succeeded)
+            {
+                var r = WriteThroughContentSession != null
+                    ? await WriteThroughContentSession.ShutdownAsync(context).ConfigureAwait(false)
                     : BoolResult.Success;
-                var backingContentSessionResult = await backingContentSessionTask.ConfigureAwait(false);
-                if (backingContentSessionResult.Succeeded && writeThroughContentSessionResult.Succeeded)
+                if (!r.Succeeded)
                 {
-                    _taskTracker = new BackgroundTaskTracker(Component, context.CreateNested(Component));
-                    result = BoolResult.Success;
+                    sb.Append(sb.Length > 0 ? ", " : string.Empty);
+                    sb.Append($"Write-through content session shutdown failed, error=[{r}]");
                 }
-                else
-                {
-                    var sb = new StringBuilder();
+            }
+            else
+            {
+                sb.Append(sb.Length > 0 ? ", " : string.Empty);
+                sb.Append($"Write-through content session startup failed, error=[{writeThroughContentSessionResult}]");
+            }
 
-                    if (backingContentSessionResult.Succeeded)
-                    {
-                        var r = await BackingContentSession.ShutdownAsync(context).ConfigureAwait(false);
-                        if (!r.Succeeded)
-                        {
-                            sb.Append($"Backing content session shutdown failed, error=[{r}]");
-                        }
-                    }
-                    else
-                    {
-                        sb.Append($"Backing content session startup failed, error=[{backingContentSessionResult}]");
-                    }
-
-                    if (writeThroughContentSessionResult.Succeeded)
-                    {
-                        var r = WriteThroughContentSession != null
-                            ? await WriteThroughContentSession.ShutdownAsync(context).ConfigureAwait(false)
-                            : BoolResult.Success;
-                        if (!r.Succeeded)
-                        {
-                            sb.Append(sb.Length > 0 ? ", " : string.Empty);
-                            sb.Append($"Write-through content session shutdown failed, error=[{r}]");
-                        }
-                    }
-                    else
-                    {
-                        sb.Append(sb.Length > 0 ? ", " : string.Empty);
-                        sb.Append($"Write-through content session startup failed, error=[{writeThroughContentSessionResult}]");
-                    }
-
-                    result = new BoolResult(sb.ToString());
-                }
-
-                StartupCompleted = true;
-                return result;
-            });
+            return new BoolResult(sb.ToString());
         }
 
         private void LogIncorporateOptions(Context context)
         {
-            Tracer.Debug(context, $"BuildCacheReadOnlySession incorporation options: FingerprintIncorporationEnabled={_fingerprintIncorporationEnabled}, EnableEagerFingerprintIncorporation={_enableEagerFingerprintIncorporation} " +
+            CacheTracer.Debug(context, $"BuildCacheReadOnlySession incorporation options: FingerprintIncorporationEnabled={_fingerprintIncorporationEnabled}, EnableEagerFingerprintIncorporation={_enableEagerFingerprintIncorporation} " +
                           $"InlineFingerprintIncorporationExpiry={_inlineFingerprintIncorporationExpiry}, " +
                           $"EagerFingerprintIncorporationInterval={_eagerFingerprintIncorporationInterval}, EagerFingerprintIncorporationBatchSize={_eagerFingerprintIncorporationBatchSize}.");
         }
 
         /// <inheritdoc />
-        public bool StartupCompleted { get; private set; }
-
-        /// <inheritdoc />
-        public bool StartupStarted { get; private set; }
-
-        /// <inheritdoc />
-        public Task<BoolResult> ShutdownAsync(Context context)
+        protected override async Task<BoolResult> ShutdownCoreAsync(OperationContext context)
         {
-            ShutdownStarted = true;
-            return ShutdownCall<MemoizationStoreTracer>.RunAsync(Tracer.MemoizationStoreTracer, context, async () =>
+            _eagerFingerprintIncorporationNagleQueue?.Dispose();
+
+            CacheTracer.Debug(context, "IncorporateOnShutdown start");
+            CacheTracer.Debug(context, $"Incorporate fingerprints feature enabled:[{_fingerprintIncorporationEnabled}]");
+            CacheTracer.Debug(context, $"Total fingerprints to be incorporated:[{FingerprintTracker.Count}]");
+            CacheTracer.Debug(context, $"Max fingerprints per incorporate request(=chunk size):[{_maxFingerprintsPerIncorporateRequest}]");
+            CacheTracer.Debug(context, $"Max incorporate requests allowed in parallel:[{_maxDegreeOfParallelismForIncorporateRequests}]");
+            if (_fingerprintIncorporationEnabled)
             {
-                _eagerFingerprintIncorporationNagleQueue?.Dispose();
+                // Incorporating all of the fingerprints for a build, in one request, to a single endpoint causes pain. Incorporation involves
+                // extending the lifetime of all fingerprints *and* content/s mapped to each fingerprint. Processing a large request payload
+                // results in, potentially, fanning out a massive number of "lifetime extend" requests to itemstore and blobstore, which can
+                // bring down the endpoint. Break this down into chunks so that multiple, load-balanced endpoints can share the burden.
+                List<StrongFingerprint> fingerprintsToBump = FingerprintTracker.StaleFingerprints.ToList();
+                CacheTracer.Debug(context, $"Total fingerprints to be sent in incorporation requests to the service: {fingerprintsToBump.Count}");
 
-                Tracer.Debug(context, "IncorporateOnShutdown start");
-                Tracer.Debug(context, $"Incorporate fingerprints feature enabled:[{_fingerprintIncorporationEnabled}]");
-                Tracer.Debug(context, $"Total fingerprints to be incorporated:[{FingerprintTracker.Count}]");
-                Tracer.Debug(context, $"Max fingerprints per incorporate request(=chunk size):[{_maxFingerprintsPerIncorporateRequest}]");
-                Tracer.Debug(context, $"Max incorporate requests allowed in parallel:[{_maxDegreeOfParallelismForIncorporateRequests}]");
-                if (_fingerprintIncorporationEnabled)
-                {
-                    // Incorporating all of the fingerprints for a build, in one request, to a single endpoint causes pain. Incorporation involves
-                    // extending the lifetime of all fingerprints *and* content/s mapped to each fingerprint. Processing a large request payload
-                    // results in, potentially, fanning out a massive number of "lifetime extend" requests to itemstore and blobstore, which can
-                    // bring down the endpoint. Break this down into chunks so that multiple, load-balanced endpoints can share the burden.
-                    List<StrongFingerprint> fingerprintsToBump = FingerprintTracker.StaleFingerprints.ToList();
-                    Tracer.Debug(context, $"Total fingerprints to be sent in incorporation requeststo the service: {fingerprintsToBump.Count}");
+                List<List<StrongFingerprintAndExpiration>> chunks = fingerprintsToBump.Select(
+                    strongFingerprint => new StrongFingerprintAndExpiration(strongFingerprint, FingerprintTracker.GenerateNewExpiration())
+                    ).GetPages(_maxFingerprintsPerIncorporateRequest).ToList();
+                CacheTracer.Debug(context, $"Total fingerprint incorporation requests to be issued(=number of fingerprint chunks):[{chunks.Count}]");
 
-                    List<List<StrongFingerprintAndExpiration>> chunks = fingerprintsToBump.Select(
-                        strongFingerprint => new StrongFingerprintAndExpiration(strongFingerprint, FingerprintTracker.GenerateNewExpiration())
-                        ).GetPages(_maxFingerprintsPerIncorporateRequest).ToList();
-                    Tracer.Debug(context, $"Total fingerprint incorporation requests to be issued(=number of fingerprint chunks):[{chunks.Count}]");
-
-                    var incorporateBlock = ActionBlockSlim.Create<IEnumerable<StrongFingerprintAndExpiration>>(
-                        degreeOfParallelism: _maxDegreeOfParallelismForIncorporateRequests,
-                        processItemAction: async chunk =>
-                        {
-                            var pinResult = await PinContentManuallyAsync(new OperationContext(context, CancellationToken.None), chunk);
-                            if (!pinResult)
-                            {
-                                return;
-                            }
-
-                            await ContentHashListAdapter.IncorporateStrongFingerprints(
-                                context,
-                                CacheNamespace,
-                                new IncorporateStrongFingerprintsRequest(chunk.ToList().AsReadOnly())
-                                ).ConfigureAwait(false);
-                        });
-
-                    foreach (var chunk in chunks)
+                var incorporateBlock = ActionBlockSlim.Create<IEnumerable<StrongFingerprintAndExpiration>>(
+                    degreeOfParallelism: _maxDegreeOfParallelismForIncorporateRequests,
+                    processItemAction: async chunk =>
                     {
-                        await incorporateBlock.PostAsync(chunk);
-                    }
-
-                    incorporateBlock.Complete();
-                    await incorporateBlock.Completion.ConfigureAwait(false); // TODO: Gracefully handle exceptions so that the rest of shutdown can happen (bug 1365340)
-                    Tracer.Debug(context, "IncorporateOnShutdown stop");
-                }
-
-                if (_taskTracker != null)
-                {
-                    await _taskTracker.Synchronize().ConfigureAwait(false);
-                    await _taskTracker.ShutdownAsync(context).ConfigureAwait(false);
-                }
-
-                var backingContentSessionTask = Task.Run(async () => await BackingContentSession.ShutdownAsync(context).ConfigureAwait(false));
-                var writeThroughContentSessionResult = WriteThroughContentSession != null
-                    ? await WriteThroughContentSession.ShutdownAsync(context).ConfigureAwait(false)
-                    : BoolResult.Success;
-                var backingContentSessionResult = await backingContentSessionTask.ConfigureAwait(false);
-
-                BoolResult result;
-                if (backingContentSessionResult.Succeeded && writeThroughContentSessionResult.Succeeded)
-                {
-                    if (_sealingErrorsToPrintOnShutdown.Any())
-                    {
-                        var sb = new StringBuilder();
-                        sb.AppendLine("Error(s) during background sealing:");
-                        foreach (var sealingError in _sealingErrorsToPrintOnShutdown)
+                        var pinResult = await PinContentManuallyAsync(new OperationContext(context, CancellationToken.None), chunk);
+                        if (!pinResult)
                         {
-                            sb.AppendLine($"[{sealingError}]");
+                            return;
                         }
 
-                        if (_sealingErrorCount > MaxSealingErrorsToPrintOnShutdown)
-                        {
-                            sb.AppendLine($"See log for the other {MaxSealingErrorsToPrintOnShutdown - _sealingErrorCount} error(s).");
-                        }
+                        await ContentHashListAdapter.IncorporateStrongFingerprints(
+                            context,
+                            CacheNamespace,
+                            new IncorporateStrongFingerprintsRequest(chunk.ToList().AsReadOnly())
+                            ).ConfigureAwait(false);
+                    });
 
-                        result = new BoolResult(sb.ToString());
-                    }
-                    else
-                    {
-                        result = BoolResult.Success;
-                    }
+                foreach (var chunk in chunks)
+                {
+                    await incorporateBlock.PostAsync(chunk);
                 }
-                else
+
+                incorporateBlock.Complete();
+                await incorporateBlock.Completion.ConfigureAwait(false); // TODO: Gracefully handle exceptions so that the rest of shutdown can happen (bug 1365340)
+                CacheTracer.Debug(context, "IncorporateOnShutdown stop");
+            }
+
+            if (_taskTracker != null)
+            {
+                await _taskTracker.Synchronize().ConfigureAwait(false);
+                await _taskTracker.ShutdownAsync(context).ConfigureAwait(false);
+            }
+
+            var backingContentSessionTask = Task.Run(async () => await BackingContentSession.ShutdownAsync(context).ConfigureAwait(false));
+            var writeThroughContentSessionResult = WriteThroughContentSession != null
+                ? await WriteThroughContentSession.ShutdownAsync(context).ConfigureAwait(false)
+                : BoolResult.Success;
+            var backingContentSessionResult = await backingContentSessionTask.ConfigureAwait(false);
+
+            BoolResult result;
+            if (backingContentSessionResult.Succeeded && writeThroughContentSessionResult.Succeeded)
+            {
+                if (_sealingErrorsToPrintOnShutdown.Any())
                 {
                     var sb = new StringBuilder();
-                    if (!backingContentSessionResult.Succeeded)
+                    sb.AppendLine("Error(s) during background sealing:");
+                    foreach (var sealingError in _sealingErrorsToPrintOnShutdown)
                     {
-                        sb.Append($"Backing content session shutdown failed, error=[{backingContentSessionResult}]");
+                        sb.AppendLine($"[{sealingError}]");
                     }
 
-                    if (!writeThroughContentSessionResult.Succeeded)
+                    if (_sealingErrorCount > MaxSealingErrorsToPrintOnShutdown)
                     {
-                        sb.Append(sb.Length > 0 ? ", " : string.Empty);
-                        sb.Append($"Write-through content session shutdown failed, error=[{writeThroughContentSessionResult}]");
+                        sb.AppendLine($"See log for the other {MaxSealingErrorsToPrintOnShutdown - _sealingErrorCount} error(s).");
                     }
 
                     result = new BoolResult(sb.ToString());
                 }
+                else
+                {
+                    result = BoolResult.Success;
+                }
+            }
+            else
+            {
+                var sb = new StringBuilder();
+                if (!backingContentSessionResult.Succeeded)
+                {
+                    sb.Append($"Backing content session shutdown failed, error=[{backingContentSessionResult}]");
+                }
 
-                ShutdownCompleted = true;
-                return result;
-            });
+                if (!writeThroughContentSessionResult.Succeeded)
+                {
+                    sb.Append(sb.Length > 0 ? ", " : string.Empty);
+                    sb.Append($"Write-through content session shutdown failed, error=[{writeThroughContentSessionResult}]");
+                }
+
+                result = new BoolResult(sb.ToString());
+            }
+
+            return result;
         }
 
         private async Task IncorporateBatchAsync(List<StrongFingerprint> fingerprints)
         {
-            var context = new OperationContext(_eagerFingerprintIncorporationTracingContext);
+            // Tracking shutdown to avoid using nagle queue after the shutdown.
+            using var shutdownContext = TrackShutdown(_eagerFingerprintIncorporationTracingContext);
 
+            var context = shutdownContext.Context;
             BoolResult result = await context.CreateOperation(
-                Tracer,
+                CacheTracer,
                 async () =>
                 {
-                    Tracer.Debug(context, $"IncorporateBatch: Total fingerprints to be incorporated {fingerprints.Count}, ChunkSize={_maxFingerprintsPerIncorporateRequest}, DegreeOfParallelism={_maxDegreeOfParallelismForIncorporateRequests}.");
+                    CacheTracer.Debug(context, $"IncorporateBatch: Total fingerprints to be incorporated {fingerprints.Count}, ChunkSize={_maxFingerprintsPerIncorporateRequest}, DegreeOfParallelism={_maxDegreeOfParallelismForIncorporateRequests}.");
 
                     // Incorporating all of the fingerprints for a build, in one request, to a single endpoint causes pain. Incorporation involves
                     // extending the lifetime of all fingerprints *and* content/s mapped to each fingerprint. Processing a large request payload
@@ -482,7 +446,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         private async Task IncorporateFingerprintAsync(OperationContext context, StrongFingerprint fingerprint)
         {
             BoolResult result = await context.CreateOperation(
-                Tracer,
+                CacheTracer,
                 async () =>
                 {
                     var fingerprintWithExpiration = new StrongFingerprintAndExpiration(fingerprint, FingerprintTracker.GenerateNewExpiration());
@@ -540,12 +504,6 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         }
 
         /// <inheritdoc />
-        public bool ShutdownCompleted { get; private set; }
-
-        /// <inheritdoc />
-        public bool ShutdownStarted { get; private set; }
-
-        /// <inheritdoc />
         public System.Collections.Generic.IAsyncEnumerable<GetSelectorResult> GetSelectors(Context context, Fingerprint weakFingerprint, CancellationToken cts, UrgencyHint urgencyHint = UrgencyHint.Nominal)
         {
             return this.GetSelectorsAsAsyncEnumerable(context, weakFingerprint, cts, urgencyHint);
@@ -560,7 +518,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
 
         private async Task<Result<Selector[]>> GetSelectorsAsync(Context context, Fingerprint weakFingerprint)
         {
-            Tracer.MemoizationStoreTracer.GetSelectorsStart(context, weakFingerprint);
+            CacheTracer.MemoizationStoreTracer.GetSelectorsStart(context, weakFingerprint);
             Stopwatch sw = Stopwatch.StartNew();
             try
             {
@@ -592,7 +550,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                             CacheId);
                         if (unpackResult && unpackResult.ContentHashListWithDeterminism.Determinism.IsDeterministic)
                         {
-                            Tracer.RecordPrefetchedContentHashList();
+                            CacheTracer.RecordPrefetchedContentHashList();
                             ContentHashListWithDeterminismCache.Instance.AddValue(
                                 CacheNamespace,
                                 strongFingerprint,
@@ -605,7 +563,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                     }
                 }
 
-                Tracer.MemoizationStoreTracer.GetSelectorsCount(context, weakFingerprint, responseResult.Value.Count());
+                CacheTracer.MemoizationStoreTracer.GetSelectorsCount(context, weakFingerprint, responseResult.Value.Count());
                 return responseResult.Value.Select(responseData => responseData.Selector).ToArray();
             }
             catch (Exception e)
@@ -614,7 +572,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             }
             finally
             {
-                Tracer.MemoizationStoreTracer.GetSelectorsStop(context, sw.Elapsed, weakFingerprint);
+                CacheTracer.MemoizationStoreTracer.GetSelectorsStop(context, sw.Elapsed, weakFingerprint);
             }
         }
 
@@ -644,7 +602,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             UrgencyHint urgencyHint)
         {
             return new OperationContext(context, cts).PerformOperationAsync(
-                Tracer,
+                CacheTracer,
                 async () =>
                 {
                     // Check for pre-fetched data
@@ -653,7 +611,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                     if (ContentHashListWithDeterminismCache.Instance.TryGetValue(
                         CacheNamespace, strongFingerprint, out contentHashListWithDeterminism))
                     {
-                        Tracer.RecordUseOfPrefetchedContentHashList();
+                        CacheTracer.RecordUseOfPrefetchedContentHashList();
                         await TrackFingerprintAsync(
                             context,
                             strongFingerprint,
@@ -720,7 +678,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             {
                 if (expirationUtc != null && (expirationUtc.Value - DateTime.UtcNow < _inlineFingerprintIncorporationExpiry))
                 {
-                    Tracer.Debug(context, $"Incorporating fingerprint inline: StrongFingerprint=[{strongFingerprint}], ExpirationUtc=[{expirationUtc}].");
+                    CacheTracer.Debug(context, $"Incorporating fingerprint inline: StrongFingerprint=[{strongFingerprint}], ExpirationUtc=[{expirationUtc}].");
 
                     await IncorporateFingerprintAsync(new OperationContext(context), strongFingerprint);
                 }
@@ -741,7 +699,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         public Task<PinResult> PinAsync(
             Context context, ContentHash contentHash, CancellationToken cts, UrgencyHint urgencyHint)
         {
-            return PinCall<ContentSessionTracer>.RunAsync(Tracer.ContentSessionTracer, new OperationContext(context), contentHash, async () =>
+            return PinCall<ContentSessionTracer>.RunAsync(CacheTracer.ContentSessionTracer, new OperationContext(context), contentHash, async () =>
             {
                 var bulkResults = await PinAsync(context, new[] { contentHash }, cts, urgencyHint);
                 return await bulkResults.SingleAwaitIndexed();
@@ -752,7 +710,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         public Task<OpenStreamResult> OpenStreamAsync(
             Context context, ContentHash contentHash, CancellationToken cts, UrgencyHint urgencyHint)
         {
-            return OpenStreamCall<ContentSessionTracer>.RunAsync(Tracer.ContentSessionTracer, new OperationContext(context), contentHash, async () =>
+            return OpenStreamCall<ContentSessionTracer>.RunAsync(CacheTracer.ContentSessionTracer, new OperationContext(context), contentHash, async () =>
                 {
                     if (WriteThroughContentSession != null)
                     {
@@ -779,7 +737,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             CancellationToken cts,
             UrgencyHint urgencyHint)
         {
-            return PlaceFileCall<ContentSessionTracer>.RunAsync(Tracer.ContentSessionTracer, new OperationContext(context), contentHash, path, accessMode, replacementMode, realizationMode, async () =>
+            return PlaceFileCall<ContentSessionTracer>.RunAsync(CacheTracer.ContentSessionTracer, new OperationContext(context), contentHash, path, accessMode, replacementMode, realizationMode, async () =>
                 {
                     if (WriteThroughContentSession != null)
                     {
@@ -867,7 +825,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                 var valueToAdd = new ContentHashListWithCacheMetadata(
                     contentHashListWithDeterminism, expirationUtc, guarantee);
 
-                Tracer.Debug(
+                CacheTracer.Debug(
                             context,
                     $"Adding contentHashList=[{valueToAdd.ContentHashListWithDeterminism.ContentHashList}] determinism=[{valueToAdd.ContentHashListWithDeterminism.Determinism}] to VSTS with contentAvailabilityGuarantee=[{valueToAdd.ContentGuarantee}], expirationUtc=[{expirationUtc}], forceUpdate=[{ForceUpdateOnAddContentHashList}]");
 
@@ -1032,7 +990,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                     UrgencyHint.Low).ConfigureAwait(false);
                 if (uploadResult.Code == PinResult.ResultCode.ContentNotFound)
                 {
-                    Tracer.Debug(context, "Background seal unable to find all content during upload.");
+                    CacheTracer.Debug(context, "Background seal unable to find all content during upload.");
                     return;
                 }
 
@@ -1046,7 +1004,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                     context, strongFingerprint, contentHashListWithDeterminism, ContentAvailabilityGuarantee.AllContentBackedByCache).ConfigureAwait(false);
                 if (sealResult.Succeeded)
                 {
-                    Tracer.Debug(
+                    CacheTracer.Debug(
                         context,
                         sealResult.ContentHashListWithDeterminism.ContentHashList == null ? $"Successfully sealed value for strongFingerprint [{strongFingerprint}]." : $"Lost the race in sealing value for strongFingerprint [{strongFingerprint}].");
                 }
@@ -1064,7 +1022,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         private void ReportSealingError(Context context, string errorMessage, [CallerMemberName] string operation = null)
         {
             Interlocked.Increment(ref _sealingErrorCount);
-            Tracer.Error(context, errorMessage, operation);
+            CacheTracer.Error(context, errorMessage, operation);
             if (_sealingErrorCount < MaxSealingErrorsToPrintOnShutdown)
             {
                 _sealingErrorsToPrintOnShutdown.Add(errorMessage);
@@ -1143,7 +1101,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                         }
                         catch (Exception e)
                         {
-                            Tracer.Warning(context, $"Error deleting temporary file at {tempFile.Path}: {e}");
+                            CacheTracer.Warning(context, $"Error deleting temporary file at {tempFile.Path}: {e}");
                         }
                     }
                 }

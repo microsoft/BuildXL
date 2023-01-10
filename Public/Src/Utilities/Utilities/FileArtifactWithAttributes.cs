@@ -71,6 +71,8 @@ namespace BuildXL.Utilities
         /// </remarks>
         private readonly uint m_rewriteCountAndFileExistenceAndFileRewrite;
 
+        private int RewriteCountAndFileExistenceAndFileRewriteAsInt => unchecked((int)m_rewriteCountAndFileExistenceAndFileRewrite);
+
         /// <summary>
         /// Invalid <see cref="FileArtifactWithAttributes"/> for uninitialized fields.
         /// </summary>
@@ -219,7 +221,7 @@ namespace BuildXL.Utilities
         public int CompareTo(FileArtifactWithAttributes other, PathTable.ExpandedAbsolutePathComparer comparer, bool pathOnly)
         {
             var pathCompare = comparer.Compare(Path, other.Path);
-            return pathCompare != 0 || pathOnly ? pathCompare : (((int)m_rewriteCountAndFileExistenceAndFileRewrite) - ((int)other.m_rewriteCountAndFileExistenceAndFileRewrite));
+            return pathCompare != 0 || pathOnly ? pathCompare : (RewriteCountAndFileExistenceAndFileRewriteAsInt - other.RewriteCountAndFileExistenceAndFileRewriteAsInt);
         }
 
         /// <summary>
@@ -238,7 +240,7 @@ namespace BuildXL.Utilities
         /// <inheritdoc/>
         public override int GetHashCode()
         {
-            return HashCodeHelper.Combine(Path.GetHashCode(), (int)m_rewriteCountAndFileExistenceAndFileRewrite);
+            return HashCodeHelper.Combine(Path.GetHashCode(), RewriteCountAndFileExistenceAndFileRewriteAsInt);
         }
 
         /// <summary>

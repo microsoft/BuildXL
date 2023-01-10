@@ -1,11 +1,13 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.IO;
 using BuildXL.Utilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
+using Xunit.Sdk;
 
 namespace Test.BuildXL.Utilities
 {
@@ -78,6 +80,22 @@ namespace Test.BuildXL.Utilities
                 eq: (left, right) => left == right,
                 neq: (left, right) => left != right,
                 skipHashCodeForNotEqualValues: true);
+        }
+
+        [Fact]
+        public void FileArtifactWithUndeclaredRewriteDoesNotCauseIntOverflow()
+        {
+            var pathTable = new PathTable();
+            FileArtifact file = FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, A("t", "file.txt")));
+            var faa = FileArtifactWithAttributes.Create(file, FileExistence.Temporary, isUndeclaredFileRewrite: true);
+            try
+            {
+                faa.GetHashCode();
+            }
+            catch (OverflowException e)
+            {
+                XAssert.Fail(e.ToString());
+            }
         }
 
         [Theory]

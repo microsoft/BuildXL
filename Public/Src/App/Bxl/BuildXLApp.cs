@@ -2701,11 +2701,12 @@ namespace BuildXL
             }
 
             await Task.Delay(msUntilTimeout);
+            m_cancellationSource.Cancel();
+
             Logger.Log.CbTimeoutReached(
                 m_appLoggingContext,
                 earlyCbTimeoutMins,
                 Convert.ToInt32(TimeSpan.FromMilliseconds(msUntilTimeout).TotalMinutes));
-            m_cancellationSource.Cancel();
         }
     }
 

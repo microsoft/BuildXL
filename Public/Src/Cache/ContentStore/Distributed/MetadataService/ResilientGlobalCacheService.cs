@@ -411,11 +411,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 
         internal async Task<BoolResult> RestoreCheckpointAsync(OperationContext context)
         {
+            CheckpointState checkpointState = null;
+            CheckpointLogId logId = default;
+            CheckpointLogId startReadLogId = default;
+            CheckpointLogId startWriteLogId = default;
             return await context.PerformOperationAsync<Result<(string checkpointId, CheckpointLogId logId, CheckpointLogId startReadLogId, int startWriteLogId)>>(
                 Tracer,
                 async () =>
                 {
-                    var checkpointState = await RestoreCheckpointDatabaseAsync(context);
+                    checkpointState = await RestoreCheckpointDatabaseAsync(context);
 
                     // It is possible for a system failure (in creating checkpoints, for example) to create a huge
                     // backlog of events to be processed. If that happens, the system can enter a state where it needs
@@ -430,15 +434,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                         return Result.Success((checkpointId: string.Empty, CheckpointLogId.InitialLogId, CheckpointLogId.InitialLogId, startWriteLogId: CheckpointLogId.InitialLogId.Value));
                     }
 
-                    CheckpointLogId logId = default;
-
                     using (await _createCheckpointGate.AcquireAsync())
                     {
                         await _checkpointManager.RestoreCheckpointAsync(context, checkpointState).ThrowIfFailureAsync();
                     }
 
                     logId = CheckpointLogId.InitialLogId;
-                    var startReadLogId = logId;
+                    startReadLogId = logId;
                     if (_store.Database.TryGetGlobalEntry(LogCursorKey, out var cursor))
                     {
                         logId = CheckpointLogId.Deserialize(cursor);
@@ -455,7 +457,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                         return (Channel: requestChannel, Task: dispatchTask);
                     }).ToArray();
 
-                    var startWriteLogId = await _eventStream.ReadEventsAsync(
+                    startWriteLogId = await _eventStream.ReadEventsAsync(
                         context,
                         startReadLogId,
                         request =>
@@ -478,7 +480,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 
                     return Result.Success((checkpointId: checkpointState.CheckpointId, logId, startReadLogId, startWriteLogId: startWriteLogId.Value));
                 },
-                extraEndMessage: r => $"CheckpointId=[{r.GetValueOrDefault().checkpointId}] DbLogId=[{r.GetValueOrDefault().logId}] StartReadLogId=[{r.GetValueOrDefault().startReadLogId}] StartWriteLogId=[{r.GetValueOrDefault().startWriteLogId}]");
+                extraEndMessage: r => $"CheckpointId=[{checkpointState?.CheckpointId}] DbLogId=[{logId}] StartReadLogId=[{startReadLogId}] StartWriteLogId=[{startWriteLogId}]");
         }
 
         private async Task<BoolResult> BackgroundRestoreCheckpointAsync(OperationContext context)

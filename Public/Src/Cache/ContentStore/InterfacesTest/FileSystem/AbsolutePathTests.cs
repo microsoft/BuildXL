@@ -6,6 +6,7 @@ using System.IO;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using BuildXL.Cache.ContentStore.InterfacesTest.Utils;
+using FluentAssertions;
 using Xunit;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 using RelativePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.RelativePath;
@@ -38,6 +39,14 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
             ExpectPathRoot(@"\\?\J:\test\", @"J:\");
             ExpectPathRoot(@"\\?\Z:\", @"Z:\");
             ExpectPathRoot(@"L:\", @"L:\");
+        }
+
+        [Fact]
+        [Trait("Category", "WindowsOSOnly")] 
+        public void ParentDirectory()
+        {
+            var path = new AbsolutePath(@"d:\test\file.txt");
+            path.Parent.Should().Be(new AbsolutePath(@"d:\test"));
         }
 
         private void ExpectPathRoot(string path, string expectedRoot)

@@ -164,6 +164,25 @@ namespace ContentStoreTest.FileSystem
         }
 
         [Fact]
+        public async Task CopyFileWithStreamRaceConditionTest()
+        {
+            for (int i = 0; i < 100; i++)
+            {
+                using (var testDirectory = new DisposableDirectory(FileSystem))
+                {
+                    var source = testDirectory.Path / "a.txt";
+                    FileSystem.WriteAllText(source, "My content");
+
+                    var destinationPath1 = testDirectory.Path / "a" / Guid.NewGuid().ToString();
+                    var destinationPath2 = testDirectory.Path / "a" / Guid.NewGuid().ToString();
+                    var t1 = Task.Run(() => PassThroughFileSystem.CopyFileWithStreamsAsync(source, destinationPath1, replaceExisting: false));
+                    var t2 = PassThroughFileSystem.CopyFileWithStreamsAsync(source, destinationPath2, replaceExisting: false);
+                    await Task.WhenAll(t1, t2);
+                }
+            }
+        }
+
+        [Fact]
         public void CreateHardLinkFromFileWithDenyWrites()
         {
             // This test mimics an actual behavior:

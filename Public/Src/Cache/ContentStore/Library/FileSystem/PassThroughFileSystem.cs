@@ -468,7 +468,10 @@ namespace BuildXL.Cache.ContentStore.FileSystem
             });
         }
 
-        private async Task CopyFileWithStreamsAsync(AbsolutePath sourcePath, AbsolutePath destinationPath, bool replaceExisting)
+        /// <summary>
+        /// Copy the source path to the destination path.
+        /// </summary>
+        public async Task CopyFileWithStreamsAsync(AbsolutePath sourcePath, AbsolutePath destinationPath, bool replaceExisting)
         {
             using (StreamWithLength? readStream = TryOpenFile(
                 sourcePath, FileAccess.Read, FileMode.Open, FileShare.Read | FileShare.Delete, FileOptions.None, AbsFileSystemExtension.DefaultFileStreamBufferSize))
@@ -497,19 +500,14 @@ namespace BuildXL.Cache.ContentStore.FileSystem
                         // If asked to replace the file Create mode must be use to truncate the content of the file
                         // if the target file larger than the source.
                         var mode = replaceExisting ? FileMode.Create : FileMode.CreateNew;
-                        using (Stream? writeStream = this.OpenForWrite(destinationPath, readStream.Value.Length, mode, FileShare.Delete))
+                        using (Stream writeStream = this.OpenForWrite(destinationPath, readStream.Value.Length, mode, FileShare.Delete))
                         {
-                            if (writeStream == null)
-                            {
-                                var message = string.Format(CultureInfo.InvariantCulture, "missing destination file=[{0}]", sourcePath);
-                                throw new FileNotFoundException(message, sourcePath.Path);
-                            }
-
                             using var pooledHandle = GlobalObjectPools.FileIOBuffersArrayPool.Get();
                             await readStream.Value.Stream.CopyToWithFullBufferAsync(writeStream, pooledHandle.Value).ConfigureAwait(false);
                         }
                     }
-                    catch (DirectoryNotFoundException) when (createDirectory == false)
+                    // Making sure we're trying to create directory for DirectoryNotFound or FileNotFound exceptions.
+                    catch (Exception e) when (e is DirectoryNotFoundException or FileNotFoundException && createDirectory == false)
                     {
                         await copyFileAndCreateDirectoryIfNeededAsync(createDirectory: true);
                     }

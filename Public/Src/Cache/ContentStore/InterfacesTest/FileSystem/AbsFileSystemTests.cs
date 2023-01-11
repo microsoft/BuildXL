@@ -23,6 +23,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
         protected const FileShare ShareNone = FileShare.None;
         protected const FileShare ShareDelete = FileShare.Delete;
         protected readonly IAbsFileSystem FileSystem;
+        protected PassThroughFileSystem PassThroughFileSystem => (ContentStore.FileSystem.PassThroughFileSystem)FileSystem;
 
         protected AbsFileSystemTests(ITestOutputHelper helper, Func<IAbsFileSystem> createFileSystemFunc)
         : base(helper)

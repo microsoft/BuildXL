@@ -212,12 +212,17 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
             if (stream == null)
             {
                 // Stream is null when the file or a directory is not found.
-                if (fileSystem.DirectoryExists(path.Parent!))
+                // If the file mode is Create or CreateNew, then the only possible explanation is that the directory is missing.
+                // Checking for the directory existence to separate the two cases
+                // is not 100% correct because due to the race condition another thread might create a directory
+                // causing the wrong exception type to be thrown here.
+
+                if (fileMode is FileMode.Create or FileMode.CreateNew || !fileSystem.DirectoryExists(path.GetParent()))
                 {
-                    throw new FileNotFoundException($"The file '{path}' does not exist.");
+                    throw new DirectoryNotFoundException($"The directory '{path.Parent}' does not exist.");
                 }
 
-                throw new DirectoryNotFoundException($"The directory '{path.Parent}' does not exist.");
+                throw new FileNotFoundException($"The file '{path}' does not exist.");
             }
 
             return stream.Value;

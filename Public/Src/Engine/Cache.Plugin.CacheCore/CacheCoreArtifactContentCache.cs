@@ -339,16 +339,22 @@ namespace BuildXL.Engine.Cache.Plugin.CacheCore
             //       When placing content, we may be replacing output that has been hardlinked elsewhere.
             //       Deleting links requires some care and magic, e.g. if a process has the file mapped.
             //       Correspondingly, IArtifactContentCache prescribes that materialization always produces a 'new' file.
+            try
+            {
+                Possible<Unit, Failure> placeResult = await PerformArtifactCacheOperationAsync(
+                    () => Helpers.RetryOnFailureAsync(
+                        async lastAttempt =>
+                        {
+                            return await TryMaterializeCoreAsync(fileRealizationModes, path, contentHash, cancellationToken);
+                        }),
+                    nameof(TryMaterializeAsync));
 
-            Possible<Unit, Failure> placeResult = await PerformArtifactCacheOperationAsync(
-                () => Helpers.RetryOnFailureAsync(
-                    async lastAttempt =>
-                    {
-                        return await TryMaterializeCoreAsync(fileRealizationModes, path, contentHash, cancellationToken);
-                    }),
-                nameof(TryMaterializeAsync));
-
-            return placeResult;
+                return placeResult;
+            }
+            catch(NullReferenceException ex)
+            {
+                return new Failure<string>($"Failed to place content at the specified path - '{path}' : {ex.GetLogEventMessage()}");
+            }
         }
 
         /// <inheritdoc />

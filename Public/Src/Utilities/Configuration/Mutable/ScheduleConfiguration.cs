@@ -105,6 +105,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
             // arguments is not possible (or not under our control).
             // NumOfRemoteAgentLeases = 80;
 
+            // By default we will avoid querying the L3 cache after 2 consecutive misses
+            // in a dependency chain
+            RemoteCacheCutoff = true;
             RemoteCacheCutoffLength = 2;
         }
 

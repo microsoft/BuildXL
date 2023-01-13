@@ -2499,7 +2499,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "NuGet.CommandLine",
-          "Version": "6.3.1"
+          "Version": "6.4.0"
         }
       }
     },

@@ -174,7 +174,7 @@ config({
                 { id: "NuGet.Common", version: "5.11.3" },
                 { id: "NuGet.Protocol", version: "5.11.3" },
                 { id: "NuGet.Versioning", version: "5.11.3" }, 
-                { id: "NuGet.CommandLine", version: "6.3.1" },
+                { id: "NuGet.CommandLine", version: "6.4.0" },
                 { id: "NuGet.Frameworks", version: "5.11.3"}, // needed for qtest on .net core
 
                 // ProjFS (virtual file system)

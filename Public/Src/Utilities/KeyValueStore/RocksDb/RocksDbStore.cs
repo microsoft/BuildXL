@@ -964,6 +964,9 @@ namespace BuildXL.Engine.Cache.KeyValueStores
 
                 // Disabling the log to avoid execution engine exceptions by calling deleted delegates
                 m_store.Dispose();
+
+                // Disposing options to avoid getting them finalized.
+                m_defaults.DbOptions.Dispose();
             }
             else
             {

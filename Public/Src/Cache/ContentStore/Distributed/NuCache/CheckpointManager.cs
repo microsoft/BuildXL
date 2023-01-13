@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -349,7 +350,29 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                                 checkpointFile,
                                 isImmutable: true).ThrowIfFailure();
 
-                            checkpointManifest = LoadCheckpointManifest(checkpointFile);
+                            try
+                            {
+                                checkpointManifest = LoadCheckpointManifest(checkpointFile);
+                            }
+                            catch (JsonException)
+                            {
+                                // The file download is direct to a FileStream and it's not guaranteed to match because
+                                // we don't actually have the hash of the file. It sometimes happens that the download
+                                // gets corrupted and we wind up with a non-parseable json. In such cases, we do an
+                                // explicit minor retry. We don't want an actual retry policy here because this is
+                                // already a very infrequent occurrence.
+                                // If this does fail, however, it can trigger a state of permanent breakage if it's the
+                                // leader that fails. The reason being that we'll keep on refreshing the master status
+                                // without being able to restore a checkpoint and make progress.
+                                await Storage.PruneInternalCacheAsync(context, checkpointId).IgnoreFailure();
+                                await Storage.TryGetFileAsync(
+                                    nestedContext,
+                                    checkpointId,
+                                    checkpointFile,
+                                    isImmutable: true).ThrowIfFailure();
+                                checkpointManifest = LoadCheckpointManifest(checkpointFile);
+                            }
+                            
 
                             if (_checkpointObserver != null)
                             {

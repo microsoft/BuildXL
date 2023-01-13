@@ -1472,12 +1472,6 @@ namespace BuildXL.Scheduler
                         StrongFingerprintComputations = CollectionUtilities.EmptyArray<ProcessStrongFingerprintComputationData>(),
                     };
 
-                if (!pip.IsStartOrShutdownKind)
-                {
-                    // We do not hash source inputs for Service start and shutdown pips. They are noop in the scheduler, meaning we do not perform cache lookup or materializeinput for them.
-                    PopulateFingerprintDataWithSourceHashes(fingerprintComputation, pip, environment);
-                }
-
                 bool outputHashSuccess = false;
 
                 if (succeeded)
@@ -2219,8 +2213,6 @@ namespace BuildXL.Scheduler
 
             RunnableFromCacheResult runnableFromCacheResult = null;
 
-            PopulateFingerprintDataWithSourceHashes(processFingerprintComputationResult, processRunnable.Process, environment);
-
             using (var strongFingerprintComputationListWrapper = SchedulerPools.StrongFingerprintDataListPool.GetInstance())
             using (operationContext.StartOperation(PipExecutorCounter.CheckProcessRunnableFromCacheDuration))
             {
@@ -2269,18 +2261,6 @@ namespace BuildXL.Scheduler
             }
 
             return runnableFromCacheResult;
-        }
-
-        private static void PopulateFingerprintDataWithSourceHashes(BoxRef<ProcessFingerprintComputationEventData> processFingerprintComputationResult, Process pip, IPipExecutionEnvironment environment)
-        {
-            if (environment.Configuration.EnableDistributedSourceHashing() &&
-                environment.Configuration.Distribution.BuildRole == DistributedBuildRoles.Worker &&
-                (environment.Configuration.Logging.StoreFingerprints == true || environment.Configuration.Logging.CacheMissAnalysisOption.Mode != CacheMissMode.Disabled))
-            {
-                // If runtime cache miss analyzer is enabled and source file hashing is distributed, workers will report source file hashes back to the orchestrator
-                // because the orchestrator might not have the hashes for all source files.
-                processFingerprintComputationResult.Value.SourceInputHashes = environment.State.FileContentManager.GetSourceInputHashes(pip);
-            }
         }
 
         private static async Task<RunnableFromCacheResult> TryCheckProcessRunnableFromCacheAsync(

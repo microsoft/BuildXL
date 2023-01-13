@@ -339,11 +339,5 @@ namespace BuildXL.Scheduler.Tracing
         /// </summary>
         [CounterType(CounterType.Stopwatch)]
         PreviousFingerprintStoreDisposeDuration,
-
-        /// <summary>
-        /// The number of ms spent reporting source inputs along with their hashes
-        /// </summary>
-        [CounterType(CounterType.Stopwatch)]
-        ReportingSourceInputsDuration,
     }
 }

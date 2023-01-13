@@ -4,6 +4,8 @@
 using System;
 using System.Linq;
 using BuildXL.Scheduler.Distribution;
+using BuildXL.Storage;
+using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using static BuildXL.Utilities.FormattableStringEx;
@@ -60,6 +62,27 @@ namespace BuildXL.Scheduler.Tracing
                 m_loggingContext,
                 pip.GetDescription(m_scheduler.Context),
                 descriptionFailure);
+        }
+
+        /// <inheritdoc/>
+        public override void FileArtifactContentDecided(FileArtifactContentDecidedEventData data)
+        {
+            var configuration = ((IPipExecutionEnvironment)m_scheduler).Configuration;
+            if (configuration.ProcessSourceFileHashes() && m_workerId != 0)
+            {
+                using (m_scheduler.PipExecutionCounters.StartStopwatch(PipExecutorCounter.FileArtifactContentDecidedDuration))
+                {
+                    // When distributed source hashing is enabled, orchestrator does not know the hashes for all source files.
+                    // However, runtime cache miss analyzer needs the hashes for source files. That's why, when the runtime
+                    // cache miss analyzer is enabled, orchestrator reports the hashes for source files, which come from workers.
+                    if (data.FileArtifact.IsSourceFile)
+                    {
+                        PathAtom fileName = data.FileArtifact.Path.GetName(m_scheduler.Context.PathTable);
+                        var materializationInfo = new FileMaterializationInfo(data.FileContentInfo, fileName);
+                        m_scheduler.State.FileContentManager.ReportInputContent(data.FileArtifact, materializationInfo, contentMismatchErrorsAreWarnings: true);
+                    }
+                }
+            }
         }
     }
 }

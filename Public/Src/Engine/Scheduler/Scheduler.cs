@@ -1347,12 +1347,37 @@ namespace BuildXL.Scheduler
 
             Contract.Assert(configuration.Logging.StoreFingerprints.HasValue, "Configuration.Logging.StoreFingerprints should be assigned some value before constructing the scheduler.");
 
+            OperationContext operationContext = new OperationContext(loggingContext, operation: null);
             m_fingerprintStoreTarget = CreateFingerprintStoreTarget(
                     loggingContext,
                     configuration,
                     context,
                     graph.PipTable,
-                    m_pipContentFingerprinter,
+                    new PipContentFingerprinter(
+                        context.PathTable,
+                        artifact =>
+                        {
+                            if (m_fileContentManager.TryGetInputContent(artifact, out var info))
+                            {
+                                return info.FileContentInfo;
+                            }
+
+                            // When calculating fingerprints for cache miss analysis, the orchestrator needs to have source file hashes for the pips executed so far.
+                            // For the distributed builds, the source files are hashed on the machine where the pip is being executed. Then, those hashes are sent to
+                            // the orchestrator via an xlg event (FileArtifactContentDecided). Sometimes, we might not have processed those events ontime, so it can cause
+                            // missing hash errors. To prevent this from happening, we hash those missing files here. The number of those files is expected to be very low.
+                            PipExecutionCounters.IncrementCounter(PipExecutorCounter.NumMissingInputContent);
+                            using (PipExecutionCounters.StartStopwatch(PipExecutorCounter.MissingInputContentHashDuration))
+                            {
+                                var result = m_fileContentManager.TryHashSourceFile(operationContext, artifact).GetAwaiter().GetResult();
+                                return result.HasValue ? result.Value.FileContentInfo : default(FileContentInfo);
+                            }
+                        },
+                        extraFingerprintSalts,
+                        m_semanticPathExpander,
+                        PipGraph.QueryFileArtifactPipData,
+                        process => m_fileContentManager.SourceChangeAffectedInputs.GetChangeAffectedInputs(process),
+                        pipId => PipGraph.TryGetPipFingerprint(pipId, out var fingerprint) ? fingerprint.Hash : default),
                     cache,
                     DirectedGraph,
                     m_fingerprintStoreCounters,

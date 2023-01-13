@@ -33,6 +33,15 @@ namespace BuildXL.Utilities.Configuration
         }
 
         /// <summary>
+        /// Whether to enable distributed source file hashing.
+        /// </summary>
+        public static bool ProcessSourceFileHashes(this IConfiguration configuration)
+        {
+            return configuration.EnableDistributedSourceHashing()
+                && (configuration.Logging.StoreFingerprints == true || configuration.Logging.CacheMissAnalysisOption.Mode != CacheMissMode.Disabled);
+        }
+
+        /// <summary>
         /// Disable the default source resolver (as the last considered resolver) when set to true.
         /// </summary>
         public static bool DisableDefaultSourceResolver(this IConfiguration configuration)

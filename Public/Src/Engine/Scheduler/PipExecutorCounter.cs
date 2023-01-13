@@ -1434,6 +1434,19 @@ namespace BuildXL.Scheduler
         /// the number of cache lookups that avoided querying the remote cache
         /// </summary>
         TotalCacheLookupsAvoidingRemote,
+
+        /// <summary>
+        /// Time spent processing FileArtifactContentDecided events
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        FileArtifactContentDecidedDuration,
+
+        /// <nodoc/>
+        NumMissingInputContent,
+
+        /// <nodoc/>
+        [CounterType(CounterType.Stopwatch)]
+        MissingInputContentHashDuration,
     }
 
     /// <summary>

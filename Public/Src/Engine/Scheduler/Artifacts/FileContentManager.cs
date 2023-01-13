@@ -1591,6 +1591,24 @@ namespace BuildXL.Scheduler.Artifacts
             return Unit.Void;
         }
 
+        /// <nodoc/>
+        public async Task<FileMaterializationInfo?> TryHashSourceFile(OperationContext operationContext, FileArtifact fileArtifact)
+        {
+            var artifactContentInfo = await TryQueryContentAsync(
+                            fileArtifact,
+                            operationContext,
+                            fileArtifact,
+                            allowUndeclaredSourceReads: true,
+                            consumerDescription: string.Empty);
+
+            if (!artifactContentInfo.HasValue)
+            {
+                Logger.Log.PipSourceDependencyCannotBeHashed(operationContext.LoggingContext, fileArtifact.Path.ToString(Context.PathTable), string.Empty, isSourceFile: true);
+            }
+
+            return artifactContentInfo;
+        }
+
         private async Task<FileMaterializationInfo?> TryQueryContentAndLogHashFailureAsync(
             FileArtifact fileArtifact,
             OperationContext operationContext,

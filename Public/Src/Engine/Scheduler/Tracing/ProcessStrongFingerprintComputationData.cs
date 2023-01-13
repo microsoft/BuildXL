@@ -47,11 +47,6 @@ namespace BuildXL.Scheduler.Tracing
         public IReadOnlyList<ProcessStrongFingerprintComputationData> StrongFingerprintComputations;
 
         /// <summary>
-        /// Source input hashes
-        /// </summary>
-        public IReadOnlyList<(FileArtifact, FileContentInfo)> SourceInputHashes;
-
-        /// <summary>
         /// Session id of the build who creates the cache entry corresponding to this fingerprint.
         /// </summary>
         public string SessionId;
@@ -73,12 +68,6 @@ namespace BuildXL.Scheduler.Tracing
             writer.WriteNullableString(SessionId);
             writer.WriteNullableString(RelatedSessionId);
             writer.WriteReadOnlyList(StrongFingerprintComputations, (w, v) => v.Serialize((BinaryLogger.EventWriter)w));
-            writer.WriteNullableReadOnlyList(SourceInputHashes, (w, v) =>
-            {
-                w.Write(v.Item1);
-                v.Item2.Hash.SerializeHashBytes(writer);
-                writer.WriteCompact(v.Item2.Length);
-            });
         }
 
         /// <inheritdoc />
@@ -90,14 +79,6 @@ namespace BuildXL.Scheduler.Tracing
             SessionId = reader.ReadNullableString();
             RelatedSessionId = reader.ReadNullableString();
             StrongFingerprintComputations = reader.ReadReadOnlyList(r => new ProcessStrongFingerprintComputationData((BinaryLogReader.EventReader)r));
-            SourceInputHashes = reader.ReadNullableReadOnlyList(r =>
-            {
-                var artifact = r.ReadFileArtifact();
-                var fileContentInfo = new FileContentInfo(
-                    hash: ContentHashingUtilities.CreateFrom(reader),
-                    length: reader.ReadInt64Compact());
-                return (artifact, fileContentInfo);
-            });
         }
     }
 

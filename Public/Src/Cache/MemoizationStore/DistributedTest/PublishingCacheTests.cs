@@ -84,34 +84,41 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
                 Guid.NewGuid());
             await publishingCache.StartupAsync(context).ShouldBeSuccess();
 
-            var sessionResult = publishingCache.CreatePublishingSession(
-                context,
-                name: "Default",
-                ImplicitPin.None,
-                CreateConfiguration(publishAsynchronously: true),
-                pat: Guid.NewGuid().ToString()).ShouldBeSuccess();
+            try
+            {
+                var sessionResult = publishingCache.CreatePublishingSession(
+                    context,
+                    name: "Default",
+                    ImplicitPin.None,
+                    CreateConfiguration(publishAsynchronously: true),
+                    pat: Guid.NewGuid().ToString()).ShouldBeSuccess();
 
-            var session = sessionResult.Session;
-            await session.StartupAsync(context).ShouldBeSuccess();
+                var session = sessionResult.Session;
+                await session.StartupAsync(context).ShouldBeSuccess();
 
-            var amountOfFiles = 10;
+                var amountOfFiles = 10;
 
-            var putResults = await Task.WhenAll(Enumerable.Range(0, amountOfFiles + 2)
-                .Select(n => session.PutRandomAsync(context, HashType.Vso0, provideHash: false, size: 1024, Token).ShouldBeSuccess()));
+                var putResults = await Task.WhenAll(Enumerable.Range(0, amountOfFiles + 2)
+                    .Select(n => session.PutRandomAsync(context, HashType.Vso0, provideHash: false, size: 1024, Token).ShouldBeSuccess()));
 
-            var hashes = putResults.Select(r => r.ContentHash);
-            var contentHashList = new ContentHashListWithDeterminism(
-                new ContentHashList(hashes.Take(amountOfFiles).ToArray()),
-                CacheDeterminism.None);
-            var strongFingerprint = new StrongFingerprint(
-                new Fingerprint(hashes.Skip(amountOfFiles).First().ToByteArray()),
-                new Selector(hashes.Skip(amountOfFiles + 1).First()));
+                var hashes = putResults.Select(r => r.ContentHash);
+                var contentHashList = new ContentHashListWithDeterminism(
+                    new ContentHashList(hashes.Take(amountOfFiles).ToArray()),
+                    CacheDeterminism.None);
+                var strongFingerprint = new StrongFingerprint(
+                    new Fingerprint(hashes.Skip(amountOfFiles).First().ToByteArray()),
+                    new Selector(hashes.Skip(amountOfFiles + 1).First()));
 
-            await session.AddOrGetContentHashListAsync(context, strongFingerprint, contentHashList, Token).ShouldBeSuccess();
+                await session.AddOrGetContentHashListAsync(context, strongFingerprint, contentHashList, Token).ShouldBeSuccess();
 
-            Assert.False(blockingStore.TaskCompletionSource.Task.IsCompleted);
-            blockingStore.TaskCompletionSource.SetResult(new BoolResult(new Exception()));
-            await blockingStore.TaskCompletionSource.Task.ShouldBeError();
+                Assert.False(blockingStore.TaskCompletionSource.Task.IsCompleted);
+                blockingStore.TaskCompletionSource.SetResult(new BoolResult(new Exception()));
+                await blockingStore.TaskCompletionSource.Task.ShouldBeError();
+            }
+            finally
+            {
+                await publishingCache.ShutdownAsync(context).ShouldBeSuccess();
+            }
         }
     }
 

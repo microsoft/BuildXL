@@ -59,7 +59,8 @@ jobs:
   - template: ../common/journaling.yml
 
   - script: |
-      netsh advfirewall set allprofiles state off
+      netsh advfirewall firewall add rule name="Open BuildXL inbound port" dir=in action=allow protocol=TCP localport=6979
+      netsh advfirewall firewall add rule name="Open BuildXL outbound port" protocol=TCP localport=6979 action=allow dir=OUT
     displayName: Disable local firewall
 
   - task: PowerShell@2

@@ -51,8 +51,9 @@ jobs:
       rootPaths: 'release/win-x64'
 
   - script: |
-      netsh advfirewall set allprofiles state off
-    displayName: Disable local firewall
+      netsh advfirewall firewall add rule name="Open BuildXL inbound port" dir=in action=allow protocol=TCP localport=6979
+      netsh advfirewall firewall add rule name="Open BuildXL outbound port" protocol=TCP localport=6979 action=allow dir=OUT
+    displayName: Disable local firewall for BuildXL port
 
   - task: PowerShell@2
     inputs:

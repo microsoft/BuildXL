@@ -2900,6 +2900,8 @@ namespace IntegrationTest.BuildXL.Scheduler
         [InlineData(AllowListKind.UnCacheable)]
         public void DoubleWritesWithAllowList(AllowListKind allowListKind)
         {
+            EngineEnvironmentSettings.ApplyAllowListToDynamicOutputs.Value = true;
+
             string sharedOpaqueDir = Path.Combine(ObjectRoot, "sod");
             AbsolutePath sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
             FileArtifact sharedOutput = FileArtifact.CreateOutputFile(sharedOpaqueDirPath.Combine(Context.PathTable, "shared.out"));
@@ -2978,6 +2980,8 @@ namespace IntegrationTest.BuildXL.Scheduler
         [MemberData(nameof(TruthTable.GetTable), 1, MemberType = typeof(TruthTable))]
         public void DoubleWritesOnStaticallyDeclaredOutputsWithAllowList(bool onExclusiveOpaque)
         {
+            EngineEnvironmentSettings.ApplyAllowListToDynamicOutputs.Value = true;
+
             string sharedOpaqueDir = Path.Combine(ObjectRoot, "sod");
             AbsolutePath sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
 

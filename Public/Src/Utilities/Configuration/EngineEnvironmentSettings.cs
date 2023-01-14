@@ -489,6 +489,11 @@ namespace BuildXL.Utilities.Configuration
         public static readonly Setting<bool> NinjaResolverAllowPdbOutputFlags = CreateSetting("BuildXLNinjaResolverAllowPdbOutputFlags", value => value == "1");
 
         /// <summary>
+        /// Applies cacheable/uncacheable allow list entries to filter dynamic (shared opaque directory) outputs.
+        /// </summary>
+        public static readonly Setting<bool> ApplyAllowListToDynamicOutputs = CreateSetting("BuildXLApplyAllowListToDynamicOutputs", value => value == "1");
+
+        /// <summary>
         /// Sets the variable for consumption by settings
         /// </summary>
         public static void SetVariable(string name, string value)

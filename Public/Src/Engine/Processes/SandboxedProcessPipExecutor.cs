@@ -4421,6 +4421,12 @@ namespace BuildXL.Processes
             ReportedFileAccess access,
             out FileAccessAllowlist.MatchType matchType)
         {
+            if (!EngineEnvironmentSettings.ApplyAllowListToDynamicOutputs.Value)
+            {
+                matchType = FileAccessAllowlist.MatchType.NoMatch;
+                return true;
+            }
+
             // Given a file access f under a shared opaque.
             // - NoMatch => true
             // - MatchCacheable / NotCacheable

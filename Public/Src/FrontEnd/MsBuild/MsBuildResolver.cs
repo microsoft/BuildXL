@@ -75,8 +75,6 @@ namespace BuildXL.FrontEnd.MsBuild
             m_msBuildWorkspaceResolver = workspaceResolver as MsBuildWorkspaceResolver;
             Contract.Assert(m_msBuildWorkspaceResolver != null, $"Wrong type for resolver, expected {nameof(MsBuildWorkspaceResolver)} but got {nameof(workspaceResolver.GetType)}");
 
-            EngineEnvironmentSettings.ApplyAllowListToDynamicOutputs.Value = true;
-
             return !ValidateResolverSettings(m_msBuildResolverSettings) ? Task.FromResult(false) : Task.FromResult(true);
         }
 

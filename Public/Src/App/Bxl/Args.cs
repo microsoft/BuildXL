@@ -1150,6 +1150,10 @@ namespace BuildXL
                             sign => schedulingConfiguration.AllowCopySymlink = sign,
                             isUnsafe: true),
                         OptionHandlerFactory.CreateBoolOption(
+                            "unsafe_DoNotApplyAllowListToDynamicOutputs",
+                            sign => sandboxConfiguration.UnsafeSandboxConfigurationMutable.DoNotApplyAllowListToDynamicOutputs = sign,
+                            isUnsafe: true),
+                        OptionHandlerFactory.CreateBoolOption(
                             "unsafe_AllowDuplicateTemporaryDirectory",
                             sign => engineConfiguration.AllowDuplicateTemporaryDirectory = sign,
                             isUnsafe: true),

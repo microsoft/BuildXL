@@ -1158,6 +1158,12 @@ namespace BuildXL.Engine
                 success = false;
             }
 
+            if (mutableConfig.Resolvers.Any(r => r is JavaScriptResolverSettings _ || r is MsBuildResolverSettings _))
+            {
+                // Apply allow list to dynamic outputs if there is a JavaScript or MsBuild resolver.
+                mutableConfig.Sandbox.UnsafeSandboxConfigurationMutable.DoNotApplyAllowListToDynamicOutputs = false;
+            }
+
             // CloudBuild overrides
             if (mutableConfig.InCloudBuild())
             {
@@ -2561,6 +2567,7 @@ namespace BuildXL.Engine
                 { "unsafe_AllowDuplicateTemporaryDirectory", Logger.Log.ConfigUnsafeAllowDuplicateTemporaryDirectory },
                 { "unsafe_SkipFlaggingSharedOpaqueOutputs", Logger.Log.ConfigUnsafeSkipFlaggingSharedOpaqueOutputs },
                 { "unsafe_IgnorePreserveOutputsPrivatization", Logger.Log.ConfigUnsafeIgnorePreserveOutputsPrivatization },
+                { "unsafe_DoNotApplyAllowListToDynamicOutputs", loggingContext => { } /* Special case: unsafe option we do not want logged because the option is temporary and the default value is unsafe */ },
             };
         }
 

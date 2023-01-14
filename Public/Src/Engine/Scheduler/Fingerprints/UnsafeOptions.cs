@@ -167,6 +167,7 @@ namespace BuildXL.Scheduler.Fingerprints
             fingerprinter.Add(nameof(UnsafeConfiguration.ProbeDirectorySymlinkAsDirectory), getBoolString(UnsafeConfiguration.ProbeDirectorySymlinkAsDirectory));
             fingerprinter.Add(nameof(UnsafeConfiguration.SkipFlaggingSharedOpaqueOutputs), getBoolString(UnsafeConfiguration.SkipFlaggingSharedOpaqueOutputs));
             fingerprinter.Add(nameof(UnsafeConfiguration.EnableFullReparsePointResolving), getBoolString(UnsafeConfiguration.EnableFullReparsePointResolving));
+            fingerprinter.Add(nameof(UnsafeConfiguration.DoNotApplyAllowListToDynamicOutputs), getBoolString(UnsafeConfiguration.DoNotApplyAllowListToDynamicOutputs));
 
             if (m_preservedOutputInfo.HasValue)
             {

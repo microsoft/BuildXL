@@ -96,8 +96,6 @@ namespace BuildXL.FrontEnd.JavaScript
                 return Task.FromResult(false);
             }
 
-            EngineEnvironmentSettings.ApplyAllowListToDynamicOutputs.Value = true;
-
             return Task.FromResult(true);
         }
 

@@ -77,7 +77,8 @@ namespace BuildXL.Pips.Graph
         /// 100: Alien file enumerations exclude untracked artifacts
         /// 101: Direct dirty should apply to all pips, not just filtered pips
         /// 102: Add dynamic absent path probe observations to incremental scheduling state
+        /// 103: Add apply-allow-list logic on dynamic (shared opaque) outputs.
         /// </remarks>
-        TwoPhaseV2 = 102,
+        TwoPhaseV2 = 103,
     }
 }

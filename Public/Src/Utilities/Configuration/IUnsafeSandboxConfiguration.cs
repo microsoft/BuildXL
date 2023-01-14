@@ -201,6 +201,11 @@ namespace BuildXL.Utilities.Configuration
         /// </remarks>
         bool? SkipFlaggingSharedOpaqueOutputs { get; }
 
+        /// <summary>
+        /// Disable the application of allow list to filter dynamic (shared opaque) outputs; unsafe when the value is true.
+        /// </summary>
+        bool DoNotApplyAllowListToDynamicOutputs { get; }
+
         // NOTE: if you add a property here, don't forget to update UnsafeSandboxConfigurationExtensions
 
         // NOTE: whenever unsafe options change, the fingerprint version needs to be bumped
@@ -263,6 +268,7 @@ namespace BuildXL.Utilities.Configuration
             {
                 writer.Write(@this.EnableFullReparsePointResolving.Value);
             }
+            writer.Write(@this.DoNotApplyAllowListToDynamicOutputs);
         }
 
         /// <nodoc/>
@@ -294,6 +300,7 @@ namespace BuildXL.Utilities.Configuration
                 IgnoreFullReparsePointResolving = reader.ReadBoolean(),
                 SkipFlaggingSharedOpaqueOutputs = reader.ReadBoolean() ? (bool?)reader.ReadBoolean() : null,
                 EnableFullReparsePointResolving = reader.ReadBoolean() ? (bool?)reader.ReadBoolean() : null,
+                DoNotApplyAllowListToDynamicOutputs = reader.ReadBoolean(),
             };
         }
 
@@ -326,7 +333,8 @@ namespace BuildXL.Utilities.Configuration
                 && IsAsSafeOrSafer(lhs.IgnoreCreateProcessReport, rhs.IgnoreCreateProcessReport, SafeDefaults.IgnoreCreateProcessReport)
                 && IsAsSafeOrSafer(lhs.ProbeDirectorySymlinkAsDirectory, rhs.ProbeDirectorySymlinkAsDirectory, SafeDefaults.ProbeDirectorySymlinkAsDirectory)
                 && IsAsSafeOrSafer(lhs.SkipFlaggingSharedOpaqueOutputs(), rhs.SkipFlaggingSharedOpaqueOutputs(), SafeDefaults.SkipFlaggingSharedOpaqueOutputs())
-                && IsAsSafeOrSafer(lhs.EnableFullReparsePointResolving(), rhs.EnableFullReparsePointResolving(), SafeDefaults.EnableFullReparsePointResolving());
+                && IsAsSafeOrSafer(lhs.EnableFullReparsePointResolving(), rhs.EnableFullReparsePointResolving(), SafeDefaults.EnableFullReparsePointResolving())
+                && IsAsSafeOrSafer(lhs.DoNotApplyAllowListToDynamicOutputs, rhs.DoNotApplyAllowListToDynamicOutputs, SafeDefaults.DoNotApplyAllowListToDynamicOutputs);
         }
 
         /// <nodoc />

@@ -31,6 +31,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             IgnoreDynamicWritesOnAbsentProbes = DynamicWriteOnAbsentProbePolicy.IgnoreDirectoryProbes; // TODO: eventually change this to IgnoreNothing
             IgnoreUndeclaredAccessesUnderSharedOpaques = false;
             ProbeDirectorySymlinkAsDirectory = true;
+            DoNotApplyAllowListToDynamicOutputs = true;
 
             if (EngineVersion.Version < 1)
             {
@@ -49,7 +50,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
             IgnorePreloadedDlls = false,
             IgnoreCreateProcessReport = false,
             IgnoreDynamicWritesOnAbsentProbes = DynamicWriteOnAbsentProbePolicy.IgnoreNothing,
-            ProbeDirectorySymlinkAsDirectory = false
+            ProbeDirectorySymlinkAsDirectory = false,
+            DoNotApplyAllowListToDynamicOutputs = false,
         };
 
         /// <nodoc />
@@ -79,6 +81,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             ProbeDirectorySymlinkAsDirectory = template.ProbeDirectorySymlinkAsDirectory;
             SkipFlaggingSharedOpaqueOutputs = template.SkipFlaggingSharedOpaqueOutputs;
             EnableFullReparsePointResolving = template.EnableFullReparsePointResolving;
+            DoNotApplyAllowListToDynamicOutputs = template.DoNotApplyAllowListToDynamicOutputs;
         }
 
         /// <inheritdoc />
@@ -152,5 +155,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc/>
         public bool IgnorePreserveOutputsPrivatization { get; set; }
+
+        /// <inheritdoc/>
+        public bool DoNotApplyAllowListToDynamicOutputs { get; set; }
     }
 }

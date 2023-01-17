@@ -2293,7 +2293,10 @@ namespace BuildXL.Scheduler
                 {
                     EnumTraits<PipState>.EnumerateValues(), (rows, state) =>
                     {
-                        rows.Add(I($"State.{state}"), _ => m_pipTypesToLogCountersSnapshot[state]);
+                        if (!IsDistributedWorker)
+                        {
+                            rows.Add(I($"State.{state}"), _ => m_pipTypesToLogCountersSnapshot[state]);
+                        }
                     }
                 },
                 {
@@ -2335,10 +2338,13 @@ namespace BuildXL.Scheduler
                 {
                     EnumTraits<PipType>.EnumerateValues().Where(pipType => pipType != PipType.Max), (rows, pipType) =>
                     {
-                        rows.Add(I($"{pipType} Waiting"), _ => m_pipStateCountersSnapshots[(int)pipType][PipState.Waiting]);
-                        rows.Add(I($"{pipType} Ready"), _ => m_pipStateCountersSnapshots[(int)pipType][PipState.Ready]);
-                        rows.Add(I($"{pipType} Running"), _ => m_pipStateCountersSnapshots[(int)pipType][PipState.Running]);
-                        rows.Add(I($"{pipType} Done"), _ => m_pipStateCountersSnapshots[(int)pipType][PipState.Done]);
+                        if (!IsDistributedWorker)
+                        {
+                            rows.Add(I($"{pipType} Waiting"), _ => m_pipStateCountersSnapshots[(int)pipType][PipState.Waiting]);
+                            rows.Add(I($"{pipType} Ready"), _ => m_pipStateCountersSnapshots[(int)pipType][PipState.Ready]);
+                            rows.Add(I($"{pipType} Running"), _ => m_pipStateCountersSnapshots[(int)pipType][PipState.Running]);
+                            rows.Add(I($"{pipType} Done"), _ => m_pipStateCountersSnapshots[(int)pipType][PipState.Done]);
+                        }
                     }
                 },
 

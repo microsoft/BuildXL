@@ -6947,8 +6947,10 @@ namespace Test.BuildXL.Processes.Detours
             }
         }
 
-        [Fact]
-        public async Task TestPipeCreation()
+        [Theory]
+        [InlineData("CallCreateNamedPipeTest")]
+        [InlineData("CallCreatePipeTest")]
+        public async Task TestPipeCreation(string method)
         {
             var context = BuildXLContext.CreateInstanceForTesting();
             var pathTable = context.PathTable;
@@ -6959,7 +6961,7 @@ namespace Test.BuildXL.Processes.Detours
                     context,
                     pathTable,
                     tempFiles,
-                    argumentStr: "CallPipeTest",
+                    argumentStr: method,
                     inputFiles: ReadOnlyArray<FileArtifact>.Empty,
                     inputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
                     outputFiles: ReadOnlyArray<FileArtifactWithAttributes>.Empty,

@@ -27,7 +27,7 @@ using namespace std;
 #define ERROR_INVALID_COMMAND   2
 
 // Generic tests.
-int CallPipeTest()
+int CallCreateNamedPipeTest()
 {
     HANDLE hPipe = CreateNamedPipe(
         L"\\\\.\\pipe\\foo\\bar", // pipe name 
@@ -57,6 +57,25 @@ int CallPipeTest()
 
     CloseHandle(hFile);
     CloseHandle(hPipe);
+
+    return (int)GetLastError();
+}
+
+int CallCreatePipeTest()
+{
+    HANDLE readHandle = NULL;
+    HANDLE writeHandle = NULL;
+    SECURITY_ATTRIBUTES saAttr;
+    saAttr.nLength = sizeof(SECURITY_ATTRIBUTES);
+    saAttr.bInheritHandle = FALSE;
+    saAttr.lpSecurityDescriptor = NULL;
+    if (!CreatePipe(&readHandle, &writeHandle, &saAttr, 0))
+    {
+        return (int)GetLastError();
+    }
+
+    CloseHandle(readHandle);
+    CloseHandle(writeHandle);
 
     return (int)GetLastError();
 }
@@ -1340,7 +1359,8 @@ static void LoggingTests(const string& verb)
     IF_COMMAND(OpenEncryptedFileRawALogging);
     IF_COMMAND(OpenFileByIdLogging);
     IF_COMMAND(CallDirectoryEnumerationTest);
-    IF_COMMAND(CallPipeTest);
+    IF_COMMAND(CallCreateNamedPipeTest);
+    IF_COMMAND(CallCreatePipeTest);
     IF_COMMAND(CallDeleteFileTest);
     IF_COMMAND(CallDeleteDirectoryTest);
     IF_COMMAND(CallDeleteFileStdRemoveTest);

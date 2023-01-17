@@ -486,3 +486,10 @@ typedef NTSTATUS(NTAPI *ZwSetInformationFile_t)(
 typedef NTSTATUS(NTAPI *NtClose_t)(
     __in HANDLE Handle
     );
+
+typedef BOOL(WINAPI* CreatePipe_t)(
+    _Out_          PHANDLE               hReadPipe,
+    _Out_          PHANDLE               hWritePipe,
+    _In_opt_       LPSECURITY_ATTRIBUTES lpPipeAttributes,
+    _In_           DWORD                 nSize
+    );

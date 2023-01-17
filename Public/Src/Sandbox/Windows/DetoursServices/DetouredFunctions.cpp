@@ -7042,4 +7042,17 @@ NTSTATUS NTAPI Detoured_NtClose(_In_ HANDLE handle)
     return Real_NtClose(handle);
 }
 
+IMPLEMENTED(Detoured_CreatePipe)
+BOOL WINAPI Detoured_CreatePipe(
+    _Out_          PHANDLE               hReadPipe,
+    _Out_          PHANDLE               hWritePipe,
+    _In_opt_       LPSECURITY_ATTRIBUTES lpPipeAttributes,
+    _In_           DWORD                 nSize)
+{
+    // The reason for this scope check is that CreatePipe calls many other detoured APIs, e.g., NtOpenFile, and we do not want to have any reports
+    // for file accesses from those APIs (they are not what the application calls).
+    DetouredScope scope;
+    return Real_CreatePipe(hReadPipe, hWritePipe, lpPipeAttributes, nSize);
+}
+
 #undef IMPLEMENTED

@@ -3,7 +3,8 @@
 
 #pragma once
 
-int CallPipeTest();
+int CallCreateNamedPipeTest();
+int CallCreatePipeTest();
 int CallDirectoryEnumerationTest();
 int CallDeleteFileTest();
 int CallDeleteFileStdRemoveTest();

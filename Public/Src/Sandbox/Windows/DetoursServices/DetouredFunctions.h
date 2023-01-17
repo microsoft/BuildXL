@@ -578,10 +578,17 @@ PVOID NTAPI Detoured_RtlReAllocateHeap(
     _In_ SIZE_T Size);
 
 LPVOID WINAPI Detoured_VirtualAlloc(
-_In_opt_ LPVOID lpAddress,
-_In_ SIZE_T dwSize,
-_In_ DWORD flAllocationType,
-_In_ DWORD flProtect);
+    _In_opt_ LPVOID lpAddress,
+    _In_ SIZE_T dwSize,
+    _In_ DWORD flAllocationType,
+    _In_ DWORD flProtect);
+
+BOOL WINAPI Detoured_CreatePipe(
+    _Out_          PHANDLE               hReadPipe,
+    _Out_          PHANDLE               hWritePipe,
+    _In_opt_       LPSECURITY_ATTRIBUTES lpPipeAttributes,
+    _In_           DWORD                 nSize
+);
 
 /*
 
@@ -606,14 +613,6 @@ HANDLE WINAPI CreateIoCompletionPort
 
 // requires transaction dlls (KtmW32.lib and .h)
 HANDLE WINAPI CreateTransaction // neuter transactions
-
-// requires (NtDll.dll and Winternl.h)
-NTSTATUS WINAPI NtCreateFile (
-NTSTATUS WINAPI NtOpenFile (
-NTSTATUS WINAPI ZwCreateFile (
-NTSTATUS WINAPI ZwOpenFile (
-NTSTATUS WINAPI NtDeleteFile (
-NTSTATUS WINAPI NtClose (
 
 // this API doesn't seem to exist (specifically with Ex suffix)
 BOOL WINAPI SetFileInformationByHandleEx(    // it is possible to delete files this way

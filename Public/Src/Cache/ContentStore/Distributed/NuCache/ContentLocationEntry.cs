@@ -3,6 +3,8 @@
 
 using System;
 using System.Diagnostics.ContractsLight;
+using BuildXL.Cache.ContentStore.Tracing;
+using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Utilities.Serialization;
 
@@ -13,6 +15,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     /// </summary>
     public sealed class ContentLocationEntry : IEquatable<ContentLocationEntry>
     {
+        private static readonly Tracer Tracer = new Tracer(nameof(ContentLocationEntry));
+
+        /// <summary>
+        /// A size of a missing entry.
+        /// </summary>
+        public const long MissingSize = -1;
+
         /// <nodoc />
         public const int BytesInFileSize = sizeof(long);
 
@@ -70,7 +79,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Returns a special "missing" entry.
         /// </summary>
-        public static ContentLocationEntry Missing { get; } = new ContentLocationEntry(MachineIdSet.Empty, -1, default, default);
+        public static ContentLocationEntry Missing { get; } = new ContentLocationEntry(MachineIdSet.Empty, contentSize: MissingSize, default, default);
 
         /// <summary>
         /// Serializes an instance into a binary stream.
@@ -121,27 +130,38 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Process and merge two <see cref="ContentLocationEntry"/> into the <paramref name="mergeWriter"/>.
         /// </summary>
-        public static bool TryMergeSortedLocations(ref SpanReader reader1, ref SpanReader reader2, ref SpanWriter mergeWriter)
+        public static bool TryMergeSortedLocations(OperationContext context, ref SpanReader reader1, ref SpanReader reader2, ref SpanWriter mergeWriter)
         {
             var entry1Size = reader1.ReadInt64Compact();
             var entry2Size = reader2.ReadInt64Compact();
 
-            // One of the entries is missing, falling back to regular merge.
-            if (entry1Size == -1 || entry2Size == -1)
+            // With the existing serialization scheme it is not easy to get if the entry is missing.
+            // The missing entry is identified by a negative size (-1) AND the last access time is 'default'.
+            // It is a little bit unfortunate because we can't make a decision right here.
+
+            if (entry1Size != MissingSize && entry2Size != MissingSize && entry1Size != entry2Size)
             {
+                // The size exists but they don't match.
+                // Tracing this as a warning and falling back to the old merge logic.
+                
+                Tracer.Warning(context, $"Sorted content location entries must have equal size. entry1Size={entry1Size}, entry2Size={entry2Size}.");
                 return false;
             }
-
-            Contract.Assert(entry1Size == entry2Size, $"Sorted content location entries must have equal size. entry1Size={entry1Size}, entry2Size={entry2Size}.");
 
             if (!SortedLocationChangeMachineIdSet.CanMergeSortedLocations(ref reader1, ref reader2))
             {
                 // Can't merge in-flight. Need to deserialize the entries and merge in memory.
+                // This case covers the Missing case.
+                // If one of the entries is missing, then the MachineIdSet is not sorted, so we'll fallback to the serialization-based merge which should not be very common.
                 return false;
             }
 
+            // We could merge two entries with -1 size, like two removals.
+            // In this case the merged size also would be -1.
+            var entrySize = entry1Size > 0 ? entry1Size : entry2Size;
+
             // Writing the Size first
-            mergeWriter.WriteCompact(entry1Size);
+            mergeWriter.WriteCompact(entrySize);
 
             // Writing a list of merged locations.
             SortedLocationChangeMachineIdSet.MergeSortedMachineLocationChanges(ref reader1, ref reader2, ref mergeWriter);

@@ -935,7 +935,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             using (Counters[ContentLocationDatabaseCounters.LocationRemoved].Start())
             {
-                return SetMachineExistenceAndUpdateDatabase(context, hash, machine, existsOnMachine: false, size: -1, lastAccessTime: null, reconciling: reconciling);
+                return SetMachineExistenceAndUpdateDatabase(context, hash, machine, existsOnMachine: false, size: ContentLocationEntry.MissingSize, lastAccessTime: null, reconciling: reconciling);
             }
         }
 
@@ -944,7 +944,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             using (Counters[ContentLocationDatabaseCounters.ContentTouched].Start())
             {
-                return SetMachineExistenceAndUpdateDatabase(context, hash, machine: null, existsOnMachine: false, -1, lastAccessTime: accessTime, reconciling: false);
+                return SetMachineExistenceAndUpdateDatabase(context, hash, machine: null, existsOnMachine: false, size: ContentLocationEntry.MissingSize, lastAccessTime: accessTime, reconciling: false);
             }
         }
         

@@ -7,6 +7,7 @@ using System.Collections.Immutable;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
+using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Serialization;
 using FluentAssertions;
@@ -38,7 +39,7 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
 
             byte[] mergedData = new byte[4 * 1024];
             var mergeWriter = mergedData.AsSpan().AsWriter();
-            bool merged = ContentLocationEntry.TryMergeSortedLocations(ref reader1, ref reader2, ref mergeWriter);
+            bool merged = ContentLocationEntry.TryMergeSortedLocations(new OperationContext(), ref reader1, ref reader2, ref mergeWriter);
             merged.Should().BeTrue();
 
             // Deserializing the entry back.

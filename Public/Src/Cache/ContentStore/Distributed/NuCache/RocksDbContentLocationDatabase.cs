@@ -361,7 +361,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             ReadOnlySpan<byte> value2,
             MergeResult result)
         {
-
             var leftEntry = ContentLocationEntry.Deserialize(value1);
             var rightEntry = ContentLocationEntry.Deserialize(value2);
 
@@ -388,7 +387,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     var reader1 = value1.AsReader();
                     var reader2 = value2.AsReader();
                     var mergeWriter = result.ValueBuffer.Value.AsWriter();
-                    if (!ContentLocationEntry.TryMergeSortedLocations(ref reader1, ref reader2, ref mergeWriter))
+                    if (!ContentLocationEntry.TryMergeSortedLocations(operationContext, ref reader1, ref reader2, ref mergeWriter))
                     {
                         // We haven't merged, so discarding the counter.
                         c.Discard();

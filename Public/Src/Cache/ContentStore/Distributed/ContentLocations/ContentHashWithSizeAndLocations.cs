@@ -4,10 +4,10 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
-using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Hashing;
+using static BuildXL.Cache.ContentStore.Distributed.NuCache.ContentLocationEntry;
 
 #nullable enable
 
@@ -51,7 +51,7 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// <summary>
         /// The size of the content hash's file.
         /// </summary>
-        public long? NullableSize => Size == -1 ? null : Size;
+        public long? NullableSize => Size == MissingSize ? null : Size;
 
         /// <summary>
         /// Optional underlying entry
@@ -93,7 +93,8 @@ namespace BuildXL.Cache.ContentStore.Distributed
         public static ContentHashWithSizeAndLocations Merge(ContentHashWithSizeAndLocations left, ContentHashWithSizeAndLocations right)
         {
             Contract.Requires(left.ContentHash == right.ContentHash);
-            Contract.Requires(left.Size == -1 || right.Size == -1 || right.Size == left.Size);
+            Contract.Requires(left.Size == MissingSize || right.Size == MissingSize || right.Size == left.Size, $"left.Size={left.Size}, right.Size={right.Size}");
+
             var finalList = (left.Locations ?? Enumerable.Empty<MachineLocation>()).Union(right.Locations ?? Enumerable.Empty<MachineLocation>()).ToList();
 
             return new ContentHashWithSizeAndLocations(
@@ -115,7 +116,7 @@ namespace BuildXL.Cache.ContentStore.Distributed
         }
 
         /// <inheritdoc />
-        public bool Equals([AllowNull]ContentHashWithSizeAndLocations other)
+        public bool Equals(ContentHashWithSizeAndLocations? other)
         {
             if (other is null)
             {

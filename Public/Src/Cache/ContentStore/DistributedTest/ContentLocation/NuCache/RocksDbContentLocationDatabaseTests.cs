@@ -52,7 +52,7 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
             {
                 if (expectedCount > 0)
                 {
-                    c[ContentLocationDatabaseCounters.MergeEntrySorted].Value.Should().BeGreaterThan(0);
+                    c[ContentLocationDatabaseCounters.MergeEntrySorted].Value.Should().Be(expectedCount);
                 }
             }
 
@@ -141,6 +141,7 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
                     {
                         ValidateMergeCount(useSortedMerge, db.Counters, 2);
                     }
+
                 }, useMerge, useSortedMerge);
         }
 

@@ -19,6 +19,7 @@ using BuildXL.Utilities;
 using System;
 using System.Diagnostics;
 using BuildXL.Processes;
+using BuildXL.FrontEnd.Utilities;
 
 namespace Test.BuildXL.FrontEnd.MsBuild
 {
@@ -166,7 +167,7 @@ namespace Test.BuildXL.FrontEnd.MsBuild
         /// <summary>
         /// Returns an empty project
         /// </summary>
-        protected string CreateEmptyProject()
+        protected static string CreateEmptyProject()
         {
             return
 $@"<?xml version='1.0' encoding='utf-8'?>
@@ -178,7 +179,7 @@ $@"<?xml version='1.0' encoding='utf-8'?>
         /// <summary>
         /// Returns a project that just echoes 'Hello World'
         /// </summary>
-        protected string CreateHelloWorldProject()
+        protected static string CreateHelloWorldProject()
         {
             return
 $@"<?xml version='1.0' encoding='utf-8'?>
@@ -196,7 +197,7 @@ $@"<?xml version='1.0' encoding='utf-8'?>
         /// The project explicitly declares its project reference protocol, and just propagates the given target
         /// name to its children
         /// </remarks>
-        protected string CreateProjectWithTarget(string targetName)
+        protected static string CreateProjectWithTarget(string targetName)
         {
             return
                 $@"<Project>
@@ -264,9 +265,9 @@ $@"<UsingTask TaskName='WriteFile' TaskFactory='CodeTaskFactory' AssemblyFile='{
         /// <summary>
         /// Returns a 'dirs' project, listing all specified <paramref name="projectNames"/>
         /// </summary>
-        protected string CreateDirsProject(params string[] projectNames)
+        protected static string CreateDirsProject(params string[] projectNames)
         {
-            StringBuilder projectList = new StringBuilder();
+            var projectList = new StringBuilder();
             foreach (var projectName in projectNames)
             {
                 projectList.AppendLine($"<ProjectReference Include='{projectName}'/>");
@@ -352,6 +353,12 @@ config({{
             return (dictionary == null ?
                 string.Empty :
                 $"{memberName}: Map.empty<string, (PassthroughEnvironmentVariable | string)>(){ string.Join(string.Empty, dictionary.Select(property => $".add('{property.Key}', {(property.Value?.GetValue() is UnitValue ? "Unit.unit()" : $"'{property.Value?.GetValue()}'")})")) },");
+        }
+
+        protected static FullSymbol GetValueSymbolFromProjectRelPath(SymbolTable symbolTable, StringTable stringTable, string relativePath)
+        {
+            var p = RelativePath.Create(stringTable, relativePath).RemoveExtension(stringTable);
+            return FullSymbol.Create(symbolTable, PipConstructionUtilities.SanitizeStringForSymbol(p.ToString(stringTable)));
         }
     }
 }

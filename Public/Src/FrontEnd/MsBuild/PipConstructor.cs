@@ -31,12 +31,12 @@ namespace BuildXL.FrontEnd.MsBuild
     internal sealed class PipConstructor : IProjectToPipConstructor<ProjectWithPredictions>
     {
         private readonly FrontEndContext m_context;
-        private readonly ConcurrentDictionary<ProjectWithPredictions, MSBuildProjectOutputs> m_processOutputsPerProject = new ConcurrentDictionary<ProjectWithPredictions, MSBuildProjectOutputs>();
+        private readonly ConcurrentDictionary<ProjectWithPredictions, MSBuildProjectOutputs> m_processOutputsPerProject = new();
 
         // Only used if resolverSettings.EnableTransitiveProjectReferences = true
-        private readonly ConcurrentBigMap<ProjectWithPredictions, IReadOnlySet<ProjectWithPredictions>> m_transitiveDependenciesPerProject = new ConcurrentBigMap<ProjectWithPredictions, IReadOnlySet<ProjectWithPredictions>>();
+        private readonly ConcurrentBigMap<ProjectWithPredictions, IReadOnlySet<ProjectWithPredictions>> m_transitiveDependenciesPerProject = new();
 
-        private readonly ConcurrentBigMap<(ProjectWithPredictions, QualifierId, GlobalProperties), PipConstructionHelper> m_pipConstructionHelperPerProject = new ConcurrentBigMap<(ProjectWithPredictions, QualifierId, GlobalProperties), PipConstructionHelper>();
+        private readonly ConcurrentBigMap<(FullSymbol, QualifierId), PipConstructionHelper> m_pipConstructionHelperPerProject = new();
 
         private readonly FrontEndHost m_frontEndHost;
         private readonly ModuleDefinition m_moduleDefinition;
@@ -876,13 +876,15 @@ namespace BuildXL.FrontEnd.MsBuild
 
         private PipConstructionHelper GetPipConstructionHelperForProject(ProjectWithPredictions project, QualifierId qualifierId, GlobalProperties deltaGlobalProperties)
         {
-            // Check the cache first
-            var cachedResult = m_pipConstructionHelperPerProject.TryGet((project, qualifierId, deltaGlobalProperties));
-            if (cachedResult.IsFound)
-            {
-                return cachedResult.Item.Value;
-            }
+            // Get a symbol that is unique for this particular project instance
+            var fullSymbol = GetFullSymbolFromProject(project, deltaGlobalProperties);
+            var result = m_pipConstructionHelperPerProject.GetOrAdd((fullSymbol, qualifierId), project, (k, p) => CreatePipConstructionHelper(p, k.Item1, k.Item2));
 
+            return result.Item.Value;
+        }
+
+        private PipConstructionHelper CreatePipConstructionHelper(ProjectWithPredictions<AbsolutePath> project, FullSymbol fullSymbol, QualifierId qualifierId)
+        {
             var pathToProject = project.FullPath;
 
             // We might be adding the same spec file pip more than once when the same project is evaluated
@@ -893,14 +895,13 @@ namespace BuildXL.FrontEnd.MsBuild
                     new LocationData(pathToProject, 0, 0),
                     m_moduleDefinition.Descriptor.Id));
 
-            Root.TryGetRelative(PathTable, pathToProject, out var specRelativePath);
+            bool getRelativePath = Root.TryGetRelative(PathTable, pathToProject, out var specRelativePath);
+            Contract.Assert(getRelativePath);
+
             if (!PathAtom.TryCreate(m_context.StringTable, m_moduleDefinition.Descriptor.Name, out _))
             {
                 throw new ArgumentException($"Failed to create PathAtom from {m_moduleDefinition.Descriptor.Name}");
             }
-
-            // Get a symbol that is unique for this particular project instance
-            var fullSymbol = GetFullSymbolFromProject(project, deltaGlobalProperties);
 
             var pipConstructionHelper = PipConstructionHelper.Create(
                 m_context,
@@ -915,9 +916,6 @@ namespace BuildXL.FrontEnd.MsBuild
                 new LocationData(pathToProject, 0, 0),
                 qualifierId);
 
-            // Update the pip construction helper cache
-            m_pipConstructionHelperPerProject.TryAdd((project, qualifierId, deltaGlobalProperties), pipConstructionHelper);
-
             return pipConstructionHelper;
         }
 
@@ -927,7 +925,9 @@ namespace BuildXL.FrontEnd.MsBuild
             // Observe this symbol has to be unique wrt another symbol coming from the same physical project (i.e. same project full
             // path) but different global properties. The project full path is already being passed as part of the 'key' when creating the
             // pip construction helper
-            var valueName = PipConstructionUtilities.SanitizeStringForSymbol(project.FullPath.GetName(PathTable).ToString(m_context.StringTable));
+            bool success = Root.TryGetRelative(PathTable, project.FullPath, out var specRelativePath);
+            Contract.Assert(success);
+            var valueName = PipConstructionUtilities.SanitizeStringForSymbol(specRelativePath.RemoveExtension(m_context.StringTable).ToString(m_context.StringTable));
 
             // If global properties are present, we append to the value name a flatten representation of them
             // There should always be a 'IsGraphBuild' property, so we count > 1
@@ -942,8 +942,8 @@ namespace BuildXL.FrontEnd.MsBuild
                     // let's sort global properties keys to make sure the same string is generated consistently
                     // case-sensitivity is already handled (and ignored) by GlobalProperties class
                     .Where(kvp => kvp.Key != s_isGraphBuildProperty)
-                    .OrderBy(kvp => kvp.Key, StringComparer.Ordinal)
-                    .Select(gp => $"{PipConstructionUtilities.SanitizeStringForSymbol(gp.Key)}_{PipConstructionUtilities.SanitizeStringForSymbol(gp.Value)}"));
+                    .OrderBy(kvp => kvp.Key, OperatingSystemHelper.EnvVarComparer)
+                    .Select(gp => $"{PipConstructionUtilities.SanitizeStringForSymbol(OperatingSystemHelper.CanonicalizeEnvVar(gp.Key))}_{PipConstructionUtilities.SanitizeStringForSymbol(gp.Value)}"));
 
             var fullSymbol = FullSymbol.Create(m_context.SymbolTable, valueName);
             return fullSymbol;

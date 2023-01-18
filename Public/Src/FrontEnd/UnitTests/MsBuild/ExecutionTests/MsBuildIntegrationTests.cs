@@ -63,13 +63,16 @@ namespace Test.BuildXL.FrontEnd.MsBuild
             var processPips = pipGraph.RetrievePipsOfType(PipType.Process).ToList();
             Assert.Equal(3, processPips.Count);
 
-            var testProj1 = processPips.Find(pip => pip.Provenance.OutputValueSymbol.ToString(engineResult.EngineState.SymbolTable).Contains(TestProj1));
+            var testProj1Value = GetValueSymbolFromProjectRelPath(engineResult.EngineState.SymbolTable, engineResult.EngineState.StringTable, pathToTestProj1);
+            var testProj1 = processPips.Find(pip => pip.Provenance.OutputValueSymbol == testProj1Value);
             Assert.True(testProj1 != null);
 
-            var testProj2 = processPips.Find(pip => pip.Provenance.OutputValueSymbol.ToString(engineResult.EngineState.SymbolTable).Contains(TestProj2));
+            var testProj2Value = GetValueSymbolFromProjectRelPath(engineResult.EngineState.SymbolTable, engineResult.EngineState.StringTable, pathToTestProj2);
+            var testProj2 = processPips.Find(pip => pip.Provenance.OutputValueSymbol == testProj2Value);
             Assert.True(testProj2 != null);
 
-            var dirs = processPips.Find(pip => pip.Provenance.OutputValueSymbol.ToString(engineResult.EngineState.SymbolTable).Contains(Dirs));
+            var dirsValue = GetValueSymbolFromProjectRelPath(engineResult.EngineState.SymbolTable, engineResult.EngineState.StringTable, Dirs);
+            var dirs = processPips.Find(pip => pip.Provenance.OutputValueSymbol == dirsValue);
             Assert.True(dirs != null);
 
             // Let's do some basic graph validation

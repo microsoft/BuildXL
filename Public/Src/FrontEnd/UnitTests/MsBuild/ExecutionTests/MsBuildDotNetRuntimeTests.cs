@@ -54,7 +54,8 @@ namespace Test.BuildXL.FrontEnd.MsBuild
             var pipGraph = engineResult.EngineState.PipGraph;
 
             var processPips = pipGraph.RetrievePipsOfType(PipType.Process).ToList();
-            var testProj1 = (Process)processPips.Find(pip => pip.Provenance.OutputValueSymbol.ToString(engineResult.EngineState.SymbolTable).Contains(TestProj1));
+            var testProj1Value = GetValueSymbolFromProjectRelPath(engineResult.EngineState.SymbolTable, engineResult.EngineState.StringTable, pathToTestProj1);
+            var testProj1 = (Process)processPips.Find(pip => pip.Provenance.OutputValueSymbol == testProj1Value);
             Assert.True(testProj1 != null);
 
             if (msBuildRuntime == "DotNetCore")

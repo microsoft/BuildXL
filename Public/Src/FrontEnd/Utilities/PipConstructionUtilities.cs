@@ -27,8 +27,8 @@ namespace BuildXL.FrontEnd.Utilities
         /// with a valid one
         /// </summary>
         /// <remarks>
-        /// Invalid characters are replaced by '$'. Invalid start characters are preserved if possible by shifting
-        /// them to occur after a '$'.
+        /// Invalid characters are replaced by '_'. Invalid start characters are preserved if possible by shifting
+        /// them to occur after a '_'.
         /// </remarks>
         public static string SanitizeStringForSymbol(string aString)
         {

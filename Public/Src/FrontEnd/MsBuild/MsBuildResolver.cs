@@ -44,8 +44,8 @@ namespace BuildXL.FrontEnd.MsBuild
         private IMsBuildResolverSettings m_msBuildResolverSettings;
 
         private ModuleDefinition ModuleDefinition => m_msBuildWorkspaceResolver.ComputedProjectGraph.Result.ModuleDefinition;
-        private readonly ConcurrentDictionary<(QualifierId, AbsolutePath), List<ProcessOutputs>> m_scheduledProcessOutputsByPath = new ConcurrentDictionary<(QualifierId, AbsolutePath), List<ProcessOutputs>>();
-        private readonly SemaphoreSlim m_evaluationSemaphore = new SemaphoreSlim(1);
+        private readonly ConcurrentDictionary<(QualifierId, AbsolutePath), List<ProcessOutputs>> m_scheduledProcessOutputsByPath = new();
+        private readonly ConcurrentDictionary<(ModuleDefinition, QualifierId), Lazy<Task<bool>>> m_evaluatedModules = new();
 
         /// <nodoc />
         public string Name { get; private set; }
@@ -187,24 +187,16 @@ namespace BuildXL.FrontEnd.MsBuild
             // TODO: we don't really need to evaluate all the specs in the module, we could evaluate a
             // partial graph here. 
 
-            // Make sure we only evaluate once per qualifier/path by waiting on the evaluation semaphore
-            await m_evaluationSemaphore.WaitAsync();
             List<ProcessOutputs> processOutputs = null;
-            try
+            if (!m_scheduledProcessOutputsByPath.TryGetValue((qualifierId, path), out processOutputs))
             {
-                if (!m_scheduledProcessOutputsByPath.TryGetValue((qualifierId, path), out processOutputs))
+                var success = await EvaluateAllFilesAsync(ModuleDefinition, qualifierId);
+                if (!success)
                 {
-                    var success = await EvaluateAllFilesAsync(ModuleDefinition.Specs, qualifierId);
-                    if (!success)
-                    {
-                        return EvaluationResult.Error;
-                    }
-                    processOutputs = m_scheduledProcessOutputsByPath[(qualifierId, path)];
+                    return EvaluationResult.Error;
                 }
-            }
-            finally 
-            {
-                m_evaluationSemaphore.Release();
+
+                processOutputs = m_scheduledProcessOutputsByPath[(qualifierId, path)];
             }
 
             // Let's put together all output directories for all pips under this project
@@ -240,19 +232,7 @@ namespace BuildXL.FrontEnd.MsBuild
             }
 
             var module = (ModuleDefinition)iModule;
-
-            // Make sure evaluating is guarded by the semaphore, so it only happens one at a time
-            // There is no need to make sure we don't evaluate duplicate work here since module evaluation
-            // happens once per qualifier.
-            await m_evaluationSemaphore.WaitAsync();
-            try
-            {
-                return await EvaluateAllFilesAsync(module.Specs, qualifierId);
-            }
-            finally
-            {
-                m_evaluationSemaphore.Release();
-            }
+            return await EvaluateAllFilesAsync(module, qualifierId);
         }
 
         /// <inheritdoc/>
@@ -261,20 +241,30 @@ namespace BuildXL.FrontEnd.MsBuild
             // Nothing to do.
         }
 
-        private async Task<bool> EvaluateAllFilesAsync(IReadOnlySet<AbsolutePath> evaluationGoals, QualifierId qualifierId)
+        private Task<bool> EvaluateAllFilesAsync(ModuleDefinition module, QualifierId qualifierId)
+        {
+            // Dedupe per (module, qualifier) pair, i.e., only happens one at a time, and only happens once.
+            return m_evaluatedModules.GetOrAdd(
+                (module, qualifierId),
+                new Lazy<Task<bool>>(() => EvaluateAllFilesNoDedupeAsync(module, qualifierId), LazyThreadSafetyMode.ExecutionAndPublication)).Value;
+        }
+
+        private async Task<bool> EvaluateAllFilesNoDedupeAsync(ModuleDefinition module, QualifierId qualifierId)
         {
             // TODO: consider revisiting this and keeping track of individually evaluated projects, so partial
             // evaluation is possible
             Contract.Assert(m_msBuildWorkspaceResolver.ComputedProjectGraph.Succeeded);
+
+            IReadOnlySet<AbsolutePath> evaluationGoals = module.Specs;
 
             ProjectGraphResult result = m_msBuildWorkspaceResolver.ComputedProjectGraph.Result;
 
             GlobalProperties qualifier = MsBuildResolverUtils.CreateQualifierAsGlobalProperties(qualifierId, m_context);
 
             IReadOnlySet<ProjectWithPredictions> filteredBuildFiles = result.ProjectGraph.ProjectNodes
-                            .Where(project => evaluationGoals.Contains(project.FullPath))
-                            .Where(project => ProjectMatchesQualifier(project, qualifier))
-                            .ToReadOnlySet();
+                .Where(project => evaluationGoals.Contains(project.FullPath))
+                .Where(project => ProjectMatchesQualifier(project, qualifier))
+                .ToReadOnlySet();
 
             var pipConstructor = new PipConstructor(
                 m_context, 

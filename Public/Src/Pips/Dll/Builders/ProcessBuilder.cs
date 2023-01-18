@@ -774,7 +774,7 @@ namespace BuildXL.Pips.Builders
                 retryAttemptEnvironmentVariable: m_retryAttemptEnvironmentVariable
                 );
 
-            m_credentialScanner.PostEnvVarsForProcessing(process, m_environmentVariables);
+            m_credentialScanner.PostEnvVarsForProcessing(process, process.EnvironmentVariables);
 
             return true;
         }

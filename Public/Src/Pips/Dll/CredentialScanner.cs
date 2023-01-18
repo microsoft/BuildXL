@@ -20,6 +20,7 @@ using BuildXL.Utilities.Collections;
 using System.Net;
 using System.Diagnostics.CodeAnalysis;
 using System.Collections;
+using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 #if (MICROSOFT_INTERNAL && NETCOREAPP)
 using Microsoft.Security.CredScan.ClientLib;
 using Microsoft.Security.CredScan.KnowledgeBase.Client;
@@ -38,20 +39,18 @@ namespace BuildXL.Pips.Builders
         /// <summary>
         /// The dictionary is used as a cache to store the envvar(key, value), this is used to avoid scanning of the same env var multiple times.
         /// </summary>
-        private ConcurrentBigSet<(StringId key, PipData value)> m_scannedEnvVars = new ConcurrentBigSet<(StringId,PipData)>();
+        private ConcurrentBigSet<EnvironmentVariable> m_scannedEnvVars = new ConcurrentBigSet<EnvironmentVariable>();
 
         /// <summary>
         /// Concurrent bag to store a list of environment variables whose values are credentials and the associated pip info which is later used for logging.
         /// </summary>
         private readonly ConcurrentBag<(string envVarKey, Process process)> m_envVarsWithCredentials = new ConcurrentBag<(string, Process)>();
 
-        private readonly bool m_enableCredScan = false;
+        private readonly bool m_enableCredScan;
         private readonly CounterCollection<CredScanCounter> m_counters = new CounterCollection<CredScanCounter>();
         private readonly LoggingContext m_loggingContext;
         private readonly PathTable m_pathTable;
         private readonly ActionBlockSlim<(string kvp, Process process)> m_credScanActionBlock;
-
-        private bool BatchEnabled => EngineEnvironmentSettings.CredScanBatchEnabled;
 
         /// <summary>
         /// This list of user defined environment variables which are to ignored by the CredScan library.
@@ -80,12 +79,14 @@ namespace BuildXL.Pips.Builders
                 m_credScan = CredentialScannerFactory.Create();
             }
 #endif
+
+
         }
 
         /// <summary>
         /// Method to send required envVars for CredentialScanning and logging of envVars with credentials.
         /// </summary>
-        public void PostEnvVarsForProcessing(Process process, Dictionary<StringId, (PipData, bool)> environmentVariables)
+        public void PostEnvVarsForProcessing(Process process, ReadOnlyArray<EnvironmentVariable> environmentVariables)
         {
             if (!m_enableCredScan)
             {
@@ -98,20 +99,17 @@ namespace BuildXL.Pips.Builders
             // The results of credscan are being logged. Based on the results obtained from telemetry one of the above two implementations is opted.
             // Adding a stopwatch here to measure the performance of the credscan implementation.
             using (m_counters.StartStopwatch(CredScanCounter.PostDuration))
-            using (var stringBuilderWrapper = Pools.StringBuilderPool.GetInstance())
             {
-                var sb = stringBuilderWrapper.Instance;
-
-                foreach (var kvp in environmentVariables)
+                foreach (var env in environmentVariables)
                 {
-                    if (!kvp.Value.Item1.IsValid || !m_scannedEnvVars.Add((kvp.Key, kvp.Value.Item1)))
+                    if (!env.Value.IsValid || !m_scannedEnvVars.Add(env))
                     {
                         // We already queued this item for processing.
                         m_counters.IncrementCounter(CredScanCounter.NumSkipped);
                         continue;
                     }
 
-                    string envVarKey = m_pathTable.StringTable.GetString(kvp.Key);
+                    string envVarKey = m_pathTable.StringTable.GetString(env.Name);
                     if (m_credScanEnvironmentVariablesAllowList?.Contains(envVarKey) == true)
                     {
                         continue;
@@ -122,20 +120,7 @@ namespace BuildXL.Pips.Builders
                     // Converting the env variable into the below pattern.
                     // Ex: string input = "password = Cr3d5c@n_D3m0_P@55w0rd";
                     // The above example is one of the suggested patterns to represent the input string which is to be passed to the CredScan method.
-                    sb.AppendFormat("{0} = {1}", envVarKey, kvp.Value.Item1.ToString(m_pathTable));
-                    if (!BatchEnabled)
-                    {
-                        m_credScanActionBlock.Post((sb.ToString(), process));
-                    }
-                    else
-                    {
-                        sb.Append("; ");
-                    }
-                }
-
-                if (BatchEnabled)
-                {
-                    m_credScanActionBlock.Post((sb.ToString(), process));
+                    m_credScanActionBlock.Post(($"{envVarKey}={env.Value.ToString(m_pathTable)}", process));
                 }
             }
         }

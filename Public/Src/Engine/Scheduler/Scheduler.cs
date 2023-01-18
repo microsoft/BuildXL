@@ -8265,6 +8265,11 @@ namespace BuildXL.Scheduler
             m_schedulerCancellationTokenSource.Dispose();
 
             m_pipTwoPhaseCache?.CloseAsync().GetAwaiter().GetResult();
+
+            // The store is disposed if WhenDone method was called and finished successfully.
+            // Disposing here just in case if something went wrong in WhenDone or that method was never call.
+            // Dispsing the fingerprint store twice is safe.
+            m_fingerprintStoreTarget?.Dispose();
         }
 
         /// <inheritdoc />

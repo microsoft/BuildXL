@@ -170,6 +170,11 @@ namespace BuildXL.Engine.Cache.KeyValueStores
 
         /// <nodoc />
         public RocksDbPerformanceConfiguration PerformanceConfiguration { get; set; } = new RocksDbPerformanceConfiguration();
+
+        /// <summary>
+        /// Crashes an application if the <see cref="RocksDbStore"/> was not properly disposed.
+        /// </summary>
+        public bool FailIfNotDisposed { get; set; } = false;
     }
 
     /// <summary>

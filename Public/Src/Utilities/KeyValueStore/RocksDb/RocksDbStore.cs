@@ -3,7 +3,9 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -125,11 +127,19 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             public Func<string?, ColumnFamilyOptions> CreateColumnFamilyOptions;
         }
 
+        private readonly string? m_stackTrace;
+
         /// <summary>
         /// Provides access to and/or creates a RocksDb persistent key-value store.
         /// </summary>
         public RocksDbStore(RocksDbStoreConfiguration configuration)
         {
+            if (configuration.FailIfNotDisposed)
+            {
+                // Capturing the creation stacktrace to fail with with a better error message that should help to figure out why the instance was not properly disposed.
+                m_stackTrace = new StackTrace(fNeedFileInfo: true).ToString();
+            }
+
             m_storeDirectory = configuration.StoreDirectory;
             m_openBulkLoad = configuration.OpenBulkLoad;
 
@@ -900,7 +910,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             return gcResult;
         }
 
-        [return: NotNullIfNotNull(parameterName: "str")]
+        [return: NotNullIfNotNull(parameterName: nameof(str))]
         private byte[]? StringToBytes(string? str)
         {
             if (str == null)
@@ -911,7 +921,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             return Encoding.UTF8.GetBytes(str);
         }
 
-        [return: NotNullIfNotNull(parameterName: "bytes")]
+        [return: NotNullIfNotNull(parameterName: nameof(bytes))]
         private string? BytesToString(byte[]? bytes)
         {
             if (bytes == null)
@@ -945,11 +955,22 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             throw new KeyNotFoundException($"The given column family '{columnFamilyName}' does not exist.");
         }
 
+        /// <nodoc />
+        ~RocksDbStore()
+        {
+            if (m_stackTrace != null)
+            {
+                Contract.Assert(false, $"The {nameof(RocksDbStore)} instance was not properly disposed. Construction call stack: {m_stackTrace}");
+            }
+        }
+
         /// <summary>
         /// Disposes.
         /// </summary>
         public void Dispose()
         {
+            GC.SuppressFinalize(this);
+
             if (m_snapshot == null)
             {
                 // The db instance was opened in bulk load mode. Issue a manual compaction on Dispose.
@@ -964,7 +985,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
 
                 // Disabling the log to avoid execution engine exceptions by calling deleted delegates
                 m_store.Dispose();
-
+                
                 // Disposing options to avoid getting them finalized.
                 m_defaults.DbOptions.Dispose();
             }

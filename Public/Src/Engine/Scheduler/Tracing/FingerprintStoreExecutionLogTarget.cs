@@ -245,10 +245,20 @@ namespace BuildXL.Scheduler.Tracing
                 {
                     Logger.Log.FingerprintStoreUnableToOpen(loggingContext, possibleExecutionStore.Failure.DescribeIncludingInnerFailures());
                 }
-                
+                else
+                {
+                    // Need to dispose possibleExecutionStore because it was opened successfully.
+                    possibleExecutionStore.Result.Dispose();
+                }
+
                 if (!possibleCacheLookupStore.Succeeded)
                 {
                     Logger.Log.FingerprintStoreUnableToOpen(loggingContext, possibleCacheLookupStore.Failure.DescribeIncludingInnerFailures());
+                }
+                else
+                {
+                    // Need to dispose possibleCacheLookupStore because it was opened successfully.
+                    possibleCacheLookupStore.Result.Dispose();
                 }
             }
 

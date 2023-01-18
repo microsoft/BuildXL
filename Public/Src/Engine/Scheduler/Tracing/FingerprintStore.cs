@@ -741,7 +741,7 @@ namespace BuildXL.Scheduler.Tracing
         /// <summary>
         /// Provides access to the fingerprint store.
         /// </summary>
-        private KeyValueStoreAccessor Accessor { get; set; }
+        private KeyValueStoreAccessor Accessor { get; }
 
         /// <summary>
         /// Whether the fingerprint store can still be accessed.
@@ -823,7 +823,7 @@ namespace BuildXL.Scheduler.Tracing
                 {
                     if (!existingColumns.Contains(column))
                     {
-                        // To enable backwards compatability with older stores when a new column family is added,
+                        // To enable backwards compatibility with older stores when a new column family is added,
                         // override read only requests with read-write to allow the new column to be created.
                         // The new column will be empty, but reads to the column will not throw exceptions.
                         readOnly = false;

@@ -37,6 +37,11 @@ namespace BuildXL.Cache.ContentStore.Utils
         /// </summary>
         public virtual bool AllowMultipleStartupAndShutdowns => false;
 
+        /// <summary>
+        /// Indicates whether the shutdowns should be traced or not.
+        /// </summary>
+        public virtual bool TraceShutdown => true;
+
         private int _refCount = 0;
         private Lazy<Task<BoolResult>>? _lazyStartupTask;
 
@@ -148,7 +153,9 @@ namespace BuildXL.Cache.ContentStore.Utils
             var result = await operationContext.PerformOperationAsync(
                 Tracer,
                 () => ShutdownCoreAsync(operationContext),
-                extraEndMessage: r => GetComponentMessage());
+                extraEndMessage: r => GetComponentMessage(),
+                traceOperationStarted: TraceShutdown,
+                traceOperationFinished: TraceShutdown);
             ShutdownCompleted = true;
 
             return result;

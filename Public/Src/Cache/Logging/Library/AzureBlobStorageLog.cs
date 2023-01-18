@@ -91,6 +91,12 @@ namespace BuildXL.Cache.Logging
         /// </summary>
         public Func<StreamWriter, Task>? OnFileClose { get; set; } = null;
 
+        /// <summary>
+        /// Can't trace the shutdowns because of the following: the shutdown complete message can't be delivered
+        /// because all the traces goes through this instance and the shutdown itself cleans up the resources.
+        /// </summary>
+        public override bool TraceShutdown => false;
+
         /// <nodoc />
         public AzureBlobStorageLog(
             AzureBlobStorageLogConfiguration configuration,

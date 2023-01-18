@@ -4,7 +4,6 @@
 using System.IO;
 using System.Threading.Tasks;
 using NLog;
-using NLog.Common;
 using NLog.Targets;
 
 #nullable enable

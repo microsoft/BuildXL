@@ -151,8 +151,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <inheritdoc />
-        public void ReportReputation(MachineLocation location, MachineReputation reputation) =>
-            MachineReputationTracker.ReportReputation(location, reputation);
+        public void ReportReputation(Context context, MachineLocation location, MachineReputation reputation) =>
+            MachineReputationTracker.ReportReputation(context, location, reputation);
 
         /// <inheritdoc />
         public Result<MachineLocation> GetRandomMachineLocation(IReadOnlyList<MachineLocation> except)

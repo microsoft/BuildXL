@@ -76,7 +76,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public LocalLocationStoreConfiguration Configuration { get; }
 
         /// <nodoc />
-        public MachineReputationTracker MachineReputationTracker { get; private set; }
+        public MachineReputationTracker MachineReputationTracker { get; }
 
         /// <nodoc />
         public ContentLocationEventStore EventStore { get; }
@@ -181,11 +181,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             GlobalCacheStore = globalCacheStore;
             MasterElectionMechanism = masterElectionMechanism;
             ClusterStateManager = clusterStateManager;
+
             _checkpointRegistry = checkpointManager.CheckpointRegistry;
             _coldStorage = coldStorage;
             _evictionPartitions = PartitionId.GetPartitions(Configuration.Settings.EvictionPartitionCount);
 
-            _machineHash = MurmurHash3.Create(Encoding.UTF8.GetBytes(Configuration.PrimaryMachineLocation.Path ?? String.Empty)).ToByteArray();
+            _machineHash = MurmurHash3.Create(Encoding.UTF8.GetBytes(Configuration.PrimaryMachineLocation.Path ?? string.Empty)).ToByteArray();
 
             var reader = new SpanReader(_machineHash.AsSpan());
             _evictionPartitionOffset = reader.Read<uint>();
@@ -218,6 +219,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             LinkLifetime(GlobalCacheStore);
             LinkLifetime(Database);
             LinkLifetime(EventStore);
+
+            MachineReputationTracker = new MachineReputationTracker(_clock, ClusterStateManager.ClusterState, Configuration.ReputationTrackerConfiguration);
         }
 
         internal void PostInitialization(MachineId machineId, ILocalContentStore localContentStore)
@@ -257,9 +260,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <inheritdoc />
         protected override async Task<BoolResult> StartupComponentAsync(OperationContext context)
         {
-            MachineReputationTracker = new MachineReputationTracker(context, _clock, ClusterState, Configuration.ReputationTrackerConfiguration);
-
-            // We need to detect what our previous exit state was in order to choose the appropriate recovery strategy.
             var fetchLastMachineStateResult = await SetOrGetMachineStateAsync(context, MachineState.Unknown);
             var lastMachineState = MachineState.Unknown;
             if (fetchLastMachineStateResult.Succeeded)

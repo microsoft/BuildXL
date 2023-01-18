@@ -188,7 +188,7 @@ namespace ContentStoreTest.Distributed.Stores
         {
             return RunTestAsync(async (context, store, directory) =>
             {
-                ClusterState clusterState = ClusterState.CreateForTest();
+                ClusterState clusterState = ClusterState.CreateEmpty();
                 for (int i = 0; i <= 10; i++)
                 {
                     var machineId = new MachineId(i);
@@ -227,7 +227,7 @@ namespace ContentStoreTest.Distributed.Stores
         {
             return RunTestAsync(async (context, store, directory) =>
             {
-                ClusterState clusterState = ClusterState.CreateForTest();
+                ClusterState clusterState = ClusterState.CreateEmpty();
                 for (int i = 0; i <= 10; i++)
                 {
                     clusterState.AddMachineForTest(context, new MachineId(i), new MachineLocation(i.ToString()));

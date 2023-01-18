@@ -338,7 +338,7 @@ namespace ContentStoreTest.Distributed.Stores
 
         public AbsolutePath WorkingFolder { get; }
 
-        public void ReportReputation(MachineLocation location, MachineReputation reputation)
+        public void ReportReputation(Context context, MachineLocation location, MachineReputation reputation)
         {
         }
 

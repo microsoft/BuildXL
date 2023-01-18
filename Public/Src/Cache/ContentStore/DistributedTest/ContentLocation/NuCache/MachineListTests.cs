@@ -14,6 +14,7 @@ using BuildXL.Cache.ContentStore.InterfacesTest.Time;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
+using BuildXL.Native.Tracing;
 using ContentStoreTest.Test;
 using FluentAssertions;
 using Xunit;
@@ -36,6 +37,7 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
         [Fact]
         public void SortsUsingReputation()
         {
+            var context = new Context(Logger);
             var amountMachines = 10;
             var settings = new MachineLocationResolver.Settings()
             {
@@ -48,11 +50,11 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
 
             foreach (var machine in factory.MachineMappings)
             {
-                tracker.ReportReputation(machine.Location, MachineReputation.Missing);
+                tracker.ReportReputation(context, machine.Location, MachineReputation.Missing);
             }
 
-            tracker.ReportReputation(machines[0].Location, MachineReputation.Bad);
-            tracker.ReportReputation(machines[amountMachines - 2].Location, MachineReputation.Good);
+            tracker.ReportReputation(context, machines[0].Location, MachineReputation.Bad);
+            tracker.ReportReputation(context, machines[amountMachines - 2].Location, MachineReputation.Good);
 
             // Because the machine list may be eager or lazy, we need to change the state before creating a list.
             var machineList = factory.Create(settings);
@@ -140,6 +142,7 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
         [Fact]
         public void CombineRules()
         {
+            var context = new Context(Logger);
             var amountMachines = 10;
             var designatedLocations = 3;
             var settings = new MachineLocationResolver.Settings()
@@ -154,7 +157,7 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
             // Bad reputation for half of the machines.
             for (var i = 1; i < amountMachines / 2; i++)
             {
-                tracker.ReportReputation(machines[i].Location, MachineReputation.Bad);
+                tracker.ReportReputation(context, machines[i].Location, MachineReputation.Bad);
             }
 
             var machineList = factory.Create(settings);
@@ -177,7 +180,7 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
             var lastReputation = -1;
             for (var i = designatedLocations; i < amountMachines - 1; i++)
             {
-                var reputation = (int)tracker.GetReputationByMachineLocation(machineList[i]);
+                var reputation = (int)tracker.GetReputationByMachineLocation(context, machineList[i]);
                 reputation.Should().BeGreaterOrEqualTo(lastReputation);
                 lastReputation = reputation;
             }
@@ -192,6 +195,7 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
         [Fact]
         public void CombineRulesWithRandomization()
         {
+            var context = new Context(Logger);
             var amountMachines = 100;
             var designatedLocations = 3;
             var settings = new MachineLocationResolver.Settings()
@@ -206,7 +210,7 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
             // Bad reputation for half of the machines.
             for (var i = 1; i < amountMachines / 2; i++)
             {
-                tracker.ReportReputation(machines[i].Location, MachineReputation.Bad);
+                tracker.ReportReputation(context, machines[i].Location, MachineReputation.Bad);
             }
 
             // Master should be moved to the back.
@@ -229,7 +233,7 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
             var lastReputation = -1;
             for (var i = designatedLocations; i < amountMachines - 1; i++)
             {
-                var reputation = (int)tracker.GetReputationByMachineLocation(machineList[i]);
+                var reputation = (int)tracker.GetReputationByMachineLocation(context, machineList[i]);
                 reputation.Should().BeGreaterOrEqualTo(lastReputation);
                 lastReputation = reputation;
             }
@@ -281,7 +285,7 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
                 clusterState.InitializeBinManagerIfNeeded(locationsPerBin: designatedLocations, clock, expiryTime: TimeSpan.FromSeconds(1));
 
                 ClusterState = clusterState;
-                Tracker = new MachineReputationTracker(Context, clock, clusterState);
+                Tracker = new MachineReputationTracker(clock, clusterState);
                 MachineMappings = machineMappings;
                 MasterElectionMechanism = new MockMasterElectionMechanism()
                 {

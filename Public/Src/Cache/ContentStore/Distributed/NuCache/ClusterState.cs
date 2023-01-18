@@ -55,12 +55,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// In multi-drive scenarios where one CAS instance is on SSD and others are on HDD
         /// this should correspond to the SSD CAS instance.
         /// </summary>
-        public MachineId PrimaryMachineId { get; init; }
+        public MachineId PrimaryMachineId { get; private set; }
 
         /// <summary>
         /// Gets a list of machine ids representing unique CAS instances on the current machine
         /// </summary>
-        public IReadOnlyList<MachineMapping> LocalMachineMappings { get; init; }
+        public IReadOnlyList<MachineMapping> LocalMachineMappings { get; private set; }
 
         #endregion
 
@@ -256,6 +256,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             _clusterStateCache = new QueryableClusterState(new ClusterStateMachine(), PrimaryMachineId);
         }
 
+        /// <summary>
+        /// Update primary machine id and the local machine mappings.
+        /// </summary>
+        public void UpdateMachineMappings(MachineId primaryMachineId, IReadOnlyList<MachineMapping> localMachineMappings)
+        {
+            PrimaryMachineId = primaryMachineId;
+            LocalMachineMappings = localMachineMappings;
+            _clusterStateCache = new QueryableClusterState(new ClusterStateMachine(), PrimaryMachineId);
+        }
+
         public BoolResult Update(OperationContext context, ClusterStateMachine stateMachine, DateTime? nowUtc = null)
         {
             // This is an operation just for performance tracking purposes (i.e., if this takes too long, it'd be
@@ -339,9 +349,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public int MaxMachineIdSlowForTest => ComputeMaxMachineId();
 
         /// <summary>
-        /// Create an empty cluster state only suitable for testing purposes.
+        /// Create an empty cluster state.
         /// </summary>
-        public static ClusterState CreateForTest()
+        public static ClusterState CreateEmpty()
         {
             return new ClusterState(default(MachineId), Array.Empty<MachineMapping>());
         }

@@ -7,15 +7,19 @@ using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Utils;
-using OperationContext = BuildXL.Cache.ContentStore.Tracing.Internal.OperationContext;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System;
+
+using OperationContext = BuildXL.Cache.ContentStore.Tracing.Internal.OperationContext;
 
 #nullable enable
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
+    /// <summary>
+    /// Provides <see cref="ClusterState"/>.
+    /// </summary>
     public class ClusterStateManager : StartupShutdownComponentBase
     {
         protected override Tracer Tracer { get; } = new Tracer(nameof(ClusterStateManager));
@@ -28,7 +32,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private readonly BlobClusterStateStorage _storage;
 
-        public ClusterState ClusterState { get; private set; } = ClusterState.CreateForTest();
+        public ClusterState ClusterState { get; } = ClusterState.CreateEmpty();
 
         public ClusterStateManager(
             LocalLocationStoreConfiguration configuration,
@@ -68,9 +72,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 Tracer.Info(context, $"Machine mapping created. Mapping=[{mapping}]");
             }
 
-            var initialState = new ClusterState(machineMappings[0].Id, machineMappings);
-            initialState.Update(context, currentState, nowUtc: _clock.UtcNow).ThrowIfFailure();
-            ClusterState = initialState;
+            ClusterState.UpdateMachineMappings(machineMappings[0].Id, machineMappings);
+            ClusterState.Update(context, currentState, nowUtc: _clock.UtcNow).ThrowIfFailure();
 
             return BoolResult.Success;
         }

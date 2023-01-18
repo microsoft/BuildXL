@@ -1,16 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
-using System.IO;
-using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.Stores;
-using BuildXL.Cache.ContentStore.Extensions;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
@@ -21,13 +14,13 @@ using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
-using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tasks;
 using ContentStore.Grpc;
+
 #nullable enable
+
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
-    using static CheckpointManifest;
 
     /// <summary>
     /// <see cref="CentralStorage"/> which uses uses distributed CAS as cache aside for a fallback central storage
@@ -68,7 +61,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         AbsolutePath IDistributedContentCopierHost.WorkingFolder => _copierWorkingDirectory.Path;
 
-        void IDistributedContentCopierHost.ReportReputation(MachineLocation location, MachineReputation reputation)
+        void IDistributedContentCopierHost.ReportReputation(Context context, MachineLocation location, MachineReputation reputation)
         {
             // Don't report reputation as this component modifies machine locations so they won't be recognized
             // by the machine reputation tracker

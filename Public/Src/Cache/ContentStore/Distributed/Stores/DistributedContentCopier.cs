@@ -578,27 +578,27 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                         switch (copyFileResult.Code)
                         {
                             case CopyResultCode.Success:
-                                request.Host.ReportReputation(location, MachineReputation.Good);
+                                request.Host.ReportReputation(context, location, MachineReputation.Good);
                                 break;
                             case CopyResultCode.FileNotFoundError:
                                 lastErrorMessage = $"Could not copy file with hash {hashInfo.ContentHash.ToShortString()} from path {sourcePath} to path {tempLocation} due to an error with the sourcepath: {copyFileResult}";
                                 missingContentLocations.Add(location);
-                                request.Host.ReportReputation(location, MachineReputation.Missing);
+                                request.Host.ReportReputation(context, location, MachineReputation.Missing);
                                 break;
                             case CopyResultCode.ServerUnavailable:
                             case CopyResultCode.UnknownServerError:
                                 lastErrorMessage = $"Could not copy file with hash {hashInfo.ContentHash.ToShortString()} from path {sourcePath} to path {tempLocation} due to an error with the sourcepath: {copyFileResult}";
-                                request.Host.ReportReputation(location, MachineReputation.Bad);
+                                request.Host.ReportReputation(context, location, MachineReputation.Bad);
                                 badContentLocations.Add(location);
                                 break;
                             case CopyResultCode.ConnectionTimeoutError:
                                 lastErrorMessage = $"Could not copy file with hash {hashInfo.ContentHash.ToShortString()} from path {sourcePath} to path {tempLocation} due to a grpc connection timeout: {copyFileResult}";
-                                request.Host.ReportReputation(location, MachineReputation.Timeout);
+                                request.Host.ReportReputation(context, location, MachineReputation.Timeout);
                                 badContentLocations.Add(location);
                                 break;
                             case CopyResultCode.TimeToFirstByteTimeoutError:
                                 lastErrorMessage = $"Could not copy file with hash {hashInfo.ContentHash.ToShortString()} from path {sourcePath} to path {tempLocation} due to timeout receiving the first bytes: {copyFileResult}";
-                                request.Host.ReportReputation(location, MachineReputation.Timeout);
+                                request.Host.ReportReputation(context, location, MachineReputation.Timeout);
                                 badContentLocations.Add(location);
                                 break;
                             case CopyResultCode.DestinationPathError:
@@ -609,22 +609,22 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                                 return (result: new ErrorResult(copyFileResult).AsResult<PutResult>(), retry: true);
                             case CopyResultCode.CopyTimeoutError:
                                 lastErrorMessage = $"Could not copy file with hash {hashInfo.ContentHash.ToShortString()} from path {sourcePath} to path {tempLocation} due to copy timeout: {copyFileResult}";
-                                request.Host.ReportReputation(location, MachineReputation.Timeout);
+                                request.Host.ReportReputation(context, location, MachineReputation.Timeout);
                                 break;
                             case CopyResultCode.CopyBandwidthTimeoutError:
                                 lastErrorMessage = $"Could not copy file with hash {hashInfo.ContentHash.ToShortString()} from path {sourcePath} to path {tempLocation} due to insufficient bandwidth timeout: {copyFileResult}";
-                                request.Host.ReportReputation(location, MachineReputation.Timeout);
+                                request.Host.ReportReputation(context, location, MachineReputation.Timeout);
                                 break;
                             case CopyResultCode.InvalidHash:
                                 lastErrorMessage = $"Could not copy file with hash {hashInfo.ContentHash.ToShortString()} from path {sourcePath} to path {tempLocation} due to invalid hash: {copyFileResult}";
                                 break;
                             case CopyResultCode.RpcError:
                                 lastErrorMessage = $"Could not copy file with hash {hashInfo.ContentHash.ToShortString()} from path {sourcePath} to temp path {tempLocation} due to communication error: {copyFileResult}";
-                                request.Host.ReportReputation(location, MachineReputation.Bad);
+                                request.Host.ReportReputation(context, location, MachineReputation.Bad);
                                 break;
                             case CopyResultCode.Unknown:
                                 lastErrorMessage = $"Could not copy file with hash {hashInfo.ContentHash.ToShortString()} from path {sourcePath} to temp path {tempLocation} due to an internal error: {copyFileResult}";
-                                request.Host.ReportReputation(location, MachineReputation.Bad);
+                                request.Host.ReportReputation(context, location, MachineReputation.Bad);
                                 break;
                             default:
                                 lastErrorMessage = $"File copier result code {copyFileResult.Code} is not recognized. Not trying another replica.";

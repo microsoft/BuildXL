@@ -57,7 +57,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             // Resolving the machine locations eagerly.
             var sortedLocations = machineIds
-                .OrderBy(machineId => GetMachinePriority(settings, clusterState, reputationTracker, machineId, master, hash));
+                .OrderBy(machineId => GetMachinePriority(context, settings, clusterState, reputationTracker, machineId, master, hash));
 
             var (resolvedLocations, unresolvedLocations) = resolveMachines(clusterState, sortedLocations, locations.Count);
 
@@ -102,6 +102,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// Gets the priority for a given <paramref name="machineId"/>.
         /// </summary>
         private static int GetMachinePriority(
+            Context context,
             Settings settings,
             ClusterState clusterState,
             MachineReputationTracker reputationTracker,
@@ -125,7 +126,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             // Sort by reputation.
             // In some cases the reputation can be not available. Considering its a bad one.
-            var reputation = reputationTracker.GetReputation(machineId);
+            var reputation = reputationTracker.GetReputation(context, machineId);
 
             return (int)reputation;
         }

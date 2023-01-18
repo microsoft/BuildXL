@@ -163,9 +163,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
 
         AbsolutePath IDistributedContentCopierHost.WorkingFolder => _copierWorkingDirectory.Path;
 
-        void IDistributedContentCopierHost.ReportReputation(MachineLocation location, MachineReputation reputation)
+        void IDistributedContentCopierHost.ReportReputation(Context context, MachineLocation location, MachineReputation reputation)
         {
-            ContentLocationStore.MachineReputationTracker.ReportReputation(location, reputation);
+            ContentLocationStore.MachineReputationTracker.ReportReputation(context, location, reputation);
         }
 
         string IDistributedContentCopierHost2.ReportCopyResult(OperationContext context, ContentLocation info, CopyFileResult result)

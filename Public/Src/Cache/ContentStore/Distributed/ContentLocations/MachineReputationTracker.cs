@@ -72,20 +72,19 @@ namespace BuildXL.Cache.ContentStore.Distributed
     {
         private static readonly Tracer Tracer = new Tracer(nameof(MachineReputationTracker));
 
-        private readonly Context _context;
         private readonly IClock _clock;
         private readonly MachineReputationTrackerConfiguration _configuration;
-        private readonly ClusterState _clusterState;
+
+        private ClusterState _clusterState { get; }
+
         private readonly ConcurrentDictionary<MachineId, ReputationState> _reputations = new ();
 
         /// <nodoc />
         public MachineReputationTracker(
-            Context context,
             IClock clock,
             ClusterState clusterState,
             MachineReputationTrackerConfiguration? configuration = null)
         {
-            _context = context;
             _clock = clock;
             _configuration = configuration ?? new MachineReputationTrackerConfiguration();
             _clusterState = clusterState;
@@ -94,30 +93,30 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// <summary>
         /// Reports about new reputation for a given location.
         /// </summary>
-        public virtual void ReportReputation(MachineLocation location, MachineReputation reputation)
+        public void ReportReputation(Context context, MachineLocation location, MachineReputation reputation)
         {
             if (_clusterState.TryResolveMachineId(location, out var machineId))
             {
                 var reputationState = _reputations.GetOrAdd(machineId, _ => new ReputationState());
                 string displayLocation = location.ToString();
 
-                ChangeReputation(reputation, reputationState, displayLocation, reason: "");
+                ChangeReputation(context, reputation, reputationState, displayLocation, reason: "");
             }
             else
             {
                 // The machine is unknown.
-                Tracer.Warning(_context, $"Can't change machine reputation for {location} because machine id resolution failed.");
+                Tracer.Warning(context, $"Can't change machine reputation for {location} because machine id resolution failed.");
             }
         }
         
         /// <summary>
         /// Gets a current reputation for a given machine and resets the reputation if bad reputation expires.
         /// </summary>
-        public virtual MachineReputation GetReputationByMachineLocation(MachineLocation machine)
+        public MachineReputation GetReputationByMachineLocation(Context context, MachineLocation machine)
         {
             if (_clusterState.TryResolveMachineId(machine, out var machineId))
             {
-                return GetReputation(machineId);
+                return GetReputation(context, machineId);
             }
 
             // This is unknown machine. Don't fail here
@@ -130,7 +129,7 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// <remarks>
         /// Returns <see cref="MachineReputation.Good"/> if the <paramref name="machineId"/> is unknown.
         /// </remarks>
-        public virtual MachineReputation GetReputation(MachineId machineId)
+        public MachineReputation GetReputation(Context context, MachineId machineId)
         {
             if (_clusterState.IsMachineMarkedInactive(machineId) || _clusterState.IsMachineMarkedClosed(machineId))
             {
@@ -155,14 +154,14 @@ namespace BuildXL.Cache.ContentStore.Distributed
                     machineName = machineId.ToString();
                 }
 
-                ChangeReputation(MachineReputation.Good, state, machineName, $" due to expiry (expire time: {state.ExpireTime}, current time: {_clock.UtcNow})");
+                ChangeReputation(context, MachineReputation.Good, state, machineName, $" due to expiry (expire time: {state.ExpireTime}, current time: {_clock.UtcNow})");
                 return MachineReputation.Good;
             }
 
             return state.Reputation;
         }
 
-        private void ChangeReputation(MachineReputation reputation, ReputationState reputationState, string displayLocation, string reason)
+        private void ChangeReputation(Context context, MachineReputation reputation, ReputationState reputationState, string displayLocation, string reason)
         {
             bool reputationChanged = false;
             var oldReputation = reputationState.Reputation;
@@ -194,7 +193,7 @@ namespace BuildXL.Cache.ContentStore.Distributed
 
             if (reputationChanged)
             {
-                Tracer.Debug(_context, $"Changed reputation{reason} (new: {reputation}, old: {oldReputation}) for machine with location {displayLocation}.");
+                Tracer.Debug(context, $"Changed reputation{reason} (new: {reputation}, old: {oldReputation}) for machine with location {displayLocation}.");
             }
         }
 

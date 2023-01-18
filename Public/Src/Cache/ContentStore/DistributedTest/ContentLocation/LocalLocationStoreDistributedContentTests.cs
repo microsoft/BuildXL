@@ -1466,12 +1466,12 @@ namespace ContentStoreTest.Distributed.Sessions
                     Assert.Equal(3, getBulkResult.ContentHashesInfo[0].Locations.Count);
 
                     var firstLocation = getBulkResult.ContentHashesInfo[0].Locations[0];
-                    var reputation = redisStore0.MachineReputationTracker.GetReputationByMachineLocation(firstLocation);
+                    var reputation = redisStore0.MachineReputationTracker.GetReputationByMachineLocation(context, firstLocation);
                     Assert.Equal(MachineReputation.Good, reputation);
 
                     // Changing the reputation
-                    redisStore0.MachineReputationTracker.ReportReputation(firstLocation, badReputation);
-                    reputation = redisStore0.MachineReputationTracker.GetReputationByMachineLocation(firstLocation);
+                    redisStore0.MachineReputationTracker.ReportReputation(context, firstLocation, badReputation);
+                    reputation = redisStore0.MachineReputationTracker.GetReputationByMachineLocation(context, firstLocation);
                     Assert.Equal(badReputation, reputation);
 
                     getBulkResult = await redisStore0.GetBulkAsync(context, new[] { putResult0.ContentHash }, Token, UrgencyHint.Nominal).ShouldBeSuccess();
@@ -1483,7 +1483,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     // Causing reputation to expire
                     TestClock.UtcNow += TimeSpan.FromHours(1);
 
-                    reputation = redisStore0.MachineReputationTracker.GetReputationByMachineLocation(firstLocation);
+                    reputation = redisStore0.MachineReputationTracker.GetReputationByMachineLocation(context, firstLocation);
                     Assert.Equal(MachineReputation.Good, reputation);
                 });
         }

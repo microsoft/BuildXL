@@ -53,7 +53,7 @@ namespace BuildXL.Execution.Analyzer.Analyzers.CacheMiss
         public IReadOnlyList<EnvVar> GetEnvironmentVariables()
         {
             var context = Model.CachedGraph.Context;
-            return GetOriginalProcess().EnvironmentVariables.Select(env => new EnvVar(env.Name.ToString(context.StringTable), (env.Value.IsValid ? "{unset}" : env.Value.ToString(context.PathTable), env.IsPassThrough))).ToList();
+            return GetOriginalProcess().EnvironmentVariables.Select(env => new EnvVar(env.Name.ToString(context.StringTable), (!env.Value.IsValid ? "{unset}" : env.Value.ToString(context.PathTable), env.IsPassThrough))).ToList();
         }
 
         public IReadOnlyList<FileData> DependencyData => CacheablePipInfo.Dependencies.ToFileDataList(WorkerId, Model);

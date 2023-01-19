@@ -114,13 +114,6 @@ namespace BuildXL.Cache.Host.Service
             }
 
             var config = JsonSerializer.Deserialize<TConfig>(preprocessedConfigJson, DeploymentUtilities.ConfigurationSerializationOptions);
-            var configInfo = new ConfigInfo<TConfig>()
-            {
-                ConfigurationPath = configurationPath,
-                OverlayPath = overlayConfigurationPath,
-                Parameters = hostParameters,
-                Configuration = config
-            };
 
             context.TracingContext.Debug(JsonSerializer.Serialize(config, DeploymentUtilities.ConfigurationSerializationOptions), nameof(CacheServiceRunner));
             return config;

@@ -3,10 +3,7 @@
 
 
 using System;
-using System.Collections.Generic;
-using System.Diagnostics.ContractsLight;
 using System.IO;
-using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -15,9 +12,6 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.MetadataService;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
-using BuildXL.Cache.ContentStore.Interfaces.Secrets;
-using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.Host.Configuration;
 
@@ -46,11 +40,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
 
         private static JsonSerializerOptions GetOptions(bool indent)
         {
-            return new JsonSerializerOptions()
+            var result = new JsonSerializerOptions()
             {
                 IgnoreReadOnlyProperties = true,
                 AllowTrailingCommas = true,
                 ReadCommentHandling = JsonCommentHandling.Skip,
+                // The following option allows an automatic conversion from strings to numbers.
+                // So both cases will work fine: 'someIntProp': 42 and 'someIntProp': '42'.
+#if NET5_0_OR_GREATER
+                NumberHandling = JsonNumberHandling.AllowReadingFromString,
+#endif
                 WriteIndented = indent,
                 Converters =
                 {
@@ -66,6 +65,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
                     FuncJsonConverter.Create(ReadCompactSize, (writer, value) => writer.WriteNumberValue(value.Value)),
                 }
             };
+            return result;
         }
 
         private static MachineLocation ReadMachineLocation(ref Utf8JsonReader reader)

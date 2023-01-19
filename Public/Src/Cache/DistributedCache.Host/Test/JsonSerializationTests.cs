@@ -77,6 +77,34 @@ namespace BuildXL.Cache.Host.Test
             Assert.Equal(136, deserialized.DoP2.ThreadCount);
         }
 
+        [Fact]
+        public void SerializationNumbersFromStringShouldNotFail()
+        {
+            string input = """
+                {
+                    "GlobalRegisterNagleInterval": "5ms",
+                    "GlobalRegisterNagleParallelism": 5,
+                    "EvictionPartitionCount": 4
+                }
+                """;
+            var config = JsonSerializer.Deserialize<LocalLocationStoreSettings>(input, DeploymentUtilities.ConfigurationSerializationOptions);
+            config.EvictionPartitionCount.Should().Be(4);
+            config.GlobalRegisterNagleParallelism.Should().Be(5);
+
+            // The option that controls an automatic conversion from string to number is only available in .net5+
+#if NET5_0_OR_GREATER
+            input = """
+                {
+                        "GlobalRegisterNagleInterval": "5ms",
+                        "GlobalRegisterNagleParallelism": "5",
+                        "EvictionPartitionCount": 4
+                }
+                """;
+            config = JsonSerializer.Deserialize<LocalLocationStoreSettings>(input, DeploymentUtilities.ConfigurationSerializationOptions);
+            config.GlobalRegisterNagleParallelism.Should().Be(5);
+#endif
+        }
+
         public enum TestEnum
         {
             A,

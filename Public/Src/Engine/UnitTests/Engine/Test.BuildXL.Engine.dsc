@@ -55,15 +55,6 @@ namespace Engine {
     };
 
     @@public
-    export const categoriesToRunInParallel = [
-        "ValuePipTests",
-        "MiniBuildTester",
-        "LazyMaterializationBuildTests",
-        "DeterminismProbeTests",
-        "DirectoryArtifactIncrementalBuildTests"
-    ];
-
-    @@public
     export const dll = BuildXLSdk.test({
         assemblyName: "Test.BuildXL.Engine",
         rootNamespace: "Test.BuildXL.EngineTests",
@@ -73,7 +64,7 @@ namespace Engine {
             unsafeTestRunArguments: {
                 runWithUntrackedDependencies: true
             },
-            parallelGroups: categoriesToRunInParallel,
+            parallelBucketCount: 8,
             testRunData: {
                 MicrosoftNetCompilersSdkLocation: "compilers/module.config.bm",
             },

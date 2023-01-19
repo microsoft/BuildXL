@@ -357,6 +357,12 @@ interface UnsafeSandboxConfiguration {
      * Defaults to false.
      */
     skipFlaggingSharedOpaqueOutputs?: boolean;
+
+    /**
+     * Disable the application of allow list to filter dynamic (shared opaque) outputs; unsafe when the value is true.
+     * The default is for now true since turning on this option is a breaking change for some customers. Will be eventually turned to false.
+     */
+    doNotApplyAllowListToDynamicOutputs?: boolean;
 }
 
 type DoubleWritePolicy =

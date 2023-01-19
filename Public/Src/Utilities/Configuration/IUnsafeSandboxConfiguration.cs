@@ -204,6 +204,9 @@ namespace BuildXL.Utilities.Configuration
         /// <summary>
         /// Disable the application of allow list to filter dynamic (shared opaque) outputs; unsafe when the value is true.
         /// </summary>
+        /// <remarks>
+        /// The default is for now true since turning on this option is a breaking change for some customers. Will be eventually turned to false.
+        /// </remarks>
         bool DoNotApplyAllowListToDynamicOutputs { get; }
 
         // NOTE: if you add a property here, don't forget to update UnsafeSandboxConfigurationExtensions

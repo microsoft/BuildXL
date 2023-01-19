@@ -1158,12 +1158,6 @@ namespace BuildXL.Engine
                 success = false;
             }
 
-            if (mutableConfig.Resolvers.Any(r => r is JavaScriptResolverSettings _ || r is MsBuildResolverSettings _))
-            {
-                // Apply allow list to dynamic outputs if there is a JavaScript or MsBuild resolver.
-                mutableConfig.Sandbox.UnsafeSandboxConfigurationMutable.DoNotApplyAllowListToDynamicOutputs = false;
-            }
-
             // CloudBuild overrides
             if (mutableConfig.InCloudBuild())
             {

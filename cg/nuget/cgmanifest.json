@@ -1301,6 +1301,15 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "Microsoft.Extensions.ObjectPool",
+          "Version": "5.0.10"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "Microsoft.Extensions.Options",
           "Version": "2.2.0"
         }
@@ -3462,7 +3471,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Private.ServiceModel",
-          "Version": "4.7.0"
+          "Version": "4.10.0"
         }
       }
     },
@@ -3957,7 +3966,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.ServiceModel.Http",
-          "Version": "4.7.0"
+          "Version": "4.10.0"
         }
       }
     },
@@ -3966,7 +3975,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.ServiceModel.Primitives",
-          "Version": "4.7.0"
+          "Version": "4.10.0"
         }
       }
     },

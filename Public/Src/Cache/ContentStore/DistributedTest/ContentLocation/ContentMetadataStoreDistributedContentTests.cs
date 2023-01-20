@@ -65,7 +65,6 @@ namespace ContentStoreTest.Distributed.Sessions
             ConfigureWithOneMaster(
                 overrideDistributed: d =>
                 {
-                    d.ContentMetadataEnableResilience = true;
                     d.ContentMetadataPersistInterval = "1000s";
                     d.ContentMetadataUseMergeWrites = true;
                 },
@@ -103,7 +102,6 @@ namespace ContentStoreTest.Distributed.Sessions
             ConfigureWithOneMaster(
                 overrideDistributed: d =>
                 {
-                    d.ContentMetadataEnableResilience = true;
                     d.ContentMetadataPersistInterval = "1000s";
                 },
                 overrideRedis: r =>
@@ -166,7 +164,6 @@ namespace ContentStoreTest.Distributed.Sessions
                     }
 
                     d.HeartbeatIntervalMinutes = 1;
-                    d.ContentMetadataEnableResilience = true;
                     d.ContentMetadataPersistInterval = "1000s";
                     d.BlobMasterElectionReleaseLeaseOnShutdown = true;
                     d.BlobMasterElectionLeaseExpiryTime = TimeSpan.FromMinutes(5);
@@ -236,7 +233,6 @@ namespace ContentStoreTest.Distributed.Sessions
                     // On first iteration machine 0 is master.
                     // On second iteration, both machines may be master machines
                     d.IsMasterEligible = d.TestIteration >= d.TestMachineIndex;
-                    d.ContentMetadataEnableResilience = true;
                     d.ContentMetadataPersistInterval = "1000s";
                     d.CreateCheckpointIntervalMinutes = 10;
                 });
@@ -317,7 +313,6 @@ namespace ContentStoreTest.Distributed.Sessions
             ConfigureWithOneMaster(
                 overrideDistributed: d =>
                 {
-                    d.ContentMetadataEnableResilience = true;
                     d.ContentMetadataPersistInterval = "1000s";
                     d.CreateCheckpointIntervalMinutes = 10;
                 });

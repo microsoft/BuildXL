@@ -68,7 +68,6 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Test
             ConfigureWithOneMaster(dcs =>
             {
                 dcs.TouchContentHashLists = true;
-                dcs.ContentMetadataEnableResilience = true;
             });
 
             return RunTestAsync(
@@ -233,7 +232,6 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Test
             ConfigureWithOneMaster(dcs =>
             {
                 dcs.TouchContentHashLists = true;
-                dcs.ContentMetadataEnableResilience = true;
             });
 
             return RunTestAsync(

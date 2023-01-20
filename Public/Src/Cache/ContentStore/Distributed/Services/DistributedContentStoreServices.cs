@@ -299,41 +299,34 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
             var configuration = GlobalCacheServiceConfiguration.Instance;
             var clock = Arguments.Clock;
 
-            if (!DistributedContentSettings.ContentMetadataEnableResilience)
+            var volatileConfig = configuration.PersistentEventStorage with
             {
-                return new GlobalCacheService(RocksDbContentMetadataStore.Instance);
-            }
-            else
-            {
-                var volatileConfig = configuration.PersistentEventStorage with
-                {
-                    Credentials = DistributedContentSettings.GlobalCacheWriteAheadBlobSecretName != null
-                        ? Arguments.Secrets.GetStorageCredentials(new[] { DistributedContentSettings.GlobalCacheWriteAheadBlobSecretName })[0]
-                        : configuration.PersistentEventStorage.Credentials,
-                    ContainerName = "volatileeventstorage"
-                };
+                Credentials = DistributedContentSettings.GlobalCacheWriteAheadBlobSecretName != null
+                    ? Arguments.Secrets.GetStorageCredentials(new[] { DistributedContentSettings.GlobalCacheWriteAheadBlobSecretName })[0]
+                    : configuration.PersistentEventStorage.Credentials,
+                ContainerName = "volatileeventstorage"
+            };
 
-                var volatileEventStorage = new BlobWriteAheadEventStorage(volatileConfig);
+            var volatileEventStorage = new BlobWriteAheadEventStorage(volatileConfig);
 
-                var checkpointManager = GlobalCacheCheckpointManager.Instance;
+            var checkpointManager = GlobalCacheCheckpointManager.Instance;
 
-                var persistentEventStorage = Arguments.Overrides.Override(new BlobWriteBehindEventStorage(configuration.PersistentEventStorage));
+            var persistentEventStorage = Arguments.Overrides.Override(new BlobWriteBehindEventStorage(configuration.PersistentEventStorage));
 
-                var eventStream = new ContentMetadataEventStream(
-                    configuration.EventStream,
-                    Arguments.Overrides.Override(volatileEventStorage),
-                    persistentEventStorage);
+            var eventStream = new ContentMetadataEventStream(
+                configuration.EventStream,
+                Arguments.Overrides.Override(volatileEventStorage),
+                persistentEventStorage);
 
-                var service = new ResilientGlobalCacheService(
-                    configuration,
-                    checkpointManager,
-                    RocksDbContentMetadataStore.Instance,
-                    eventStream,
-                    clock,
-                    registry: ContentLocationStoreServices.Instance.BlobContentLocationRegistry.InstanceOrDefault());
+            var service = new ResilientGlobalCacheService(
+                configuration,
+                checkpointManager,
+                RocksDbContentMetadataStore.Instance,
+                eventStream,
+                clock,
+                registry: ContentLocationStoreServices.Instance.BlobContentLocationRegistry.InstanceOrDefault());
 
-                return service;
-            }
+            return service;
         }
     }
 }

@@ -39,12 +39,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
         protected override TestDistributedContentSettings ModifySettings(TestDistributedContentSettings dcs)
         {
-            if (dcs.IsMasterEligible)
-            {
-                // Enable GCS on the master machine so checkpoint can be created.
-                dcs.ContentMetadataEnableResilience = true;
-            }
-            else
+            if (!dcs.IsMasterEligible)
             {
                 // Prevent workers from processing partition to simplify test logging so that
                 // partition writes only come from one machine (typically during CreateCheckpointAsync below)

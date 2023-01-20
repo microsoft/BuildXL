@@ -168,7 +168,6 @@ namespace BuildXL.Cache.Host.Configuration
         public void DisableRedis()
         {
             GlobalCacheBackgroundRestore = true;
-            ContentMetadataEnableResilience = true;
         }
 
         // TODO: file a work item to remove the flag!
@@ -969,9 +968,6 @@ namespace BuildXL.Cache.Host.Configuration
 
         [DataMember]
         public bool ContentMetadataDisableDatabaseRegisterLocation { get; set; }
-
-        [DataMember]
-        public bool ContentMetadataEnableResilience { get; set; } = true;
 
         [DataMember]
         public bool ContentMetadataUseMergeWrites { get; set; }

@@ -224,11 +224,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         public bool UseInRingMachinesForCopies { get; set; }
 
         /// <summary>
-        /// If true, the build id will be put into the cache as the file to prevent the removal of this information during reconciliation.
-        /// </summary>
-        public bool StoreBuildIdInCache { get; set; }
-
-        /// <summary>
         /// If true, put calls with <see cref="UrgencyHint.SkipRegisterContent"/> do not register content.
         /// </summary>
         public bool RespectSkipRegisterContentHint { get; set; }

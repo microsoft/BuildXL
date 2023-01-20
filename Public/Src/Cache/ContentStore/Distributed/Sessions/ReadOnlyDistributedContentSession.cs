@@ -179,17 +179,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 
                 var buildIdHash = GetBuildIdHash(buildIdContent);
 
-                var arguments = $"Build={_buildId}, BuildIdHash={buildIdHash.ToShortString()}, StoreBuildIdInCache={Settings.StoreBuildIdInCache}";
+                var arguments = $"Build={_buildId}, BuildIdHash={buildIdHash.ToShortString()}";
 
                 context.PerformOperationAsync(Tracer, async () =>
                 {
                     // Storing the build id in the cache to prevent this data to be removed during reconciliation.
-                    if (Settings.StoreBuildIdInCache)
-                    {
-                        using var stream = new MemoryStream(buildIdContent);
-                        var result = await Inner.PutStreamAsync(context, buildIdHash, stream, CancellationToken.None, UrgencyHint.Nominal);
-                        result.ThrowIfFailure();
-                    }
+                    using var stream = new MemoryStream(buildIdContent);
+                    var result = await Inner.PutStreamAsync(context, buildIdHash, stream, CancellationToken.None, UrgencyHint.Nominal);
+                    result.ThrowIfFailure();
 
                     // Even if 'StoreBuildIdInCache' is true we need to register the content manually,
                     // because Inner.PutStreamAsync will just add the content to the cache but won't send a registration message.
@@ -216,21 +213,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             // Unregister from build machine location set
             if (_buildIdHash.HasValue)
             {
-                if (Settings.StoreBuildIdInCache)
-                {
-                    Guid.TryParse(_buildId, out var buildIdGuid);
-                    var buildIdHash = GetBuildIdHash(buildIdGuid.ToByteArray());
-                    Tracer.Debug(context, $"Deleting in-ring mapping from cache: Build={_buildId}, BuildIdHash={buildIdHash.ToShortString()}, StoreBuildIdInCache={Settings.StoreBuildIdInCache}.");
+                Guid.TryParse(_buildId, out var buildIdGuid);
+                var buildIdHash = GetBuildIdHash(buildIdGuid.ToByteArray());
+                Tracer.Debug(context, $"Deleting in-ring mapping from cache: Build={_buildId}, BuildIdHash={buildIdHash.ToShortString()}");
 
-                    // DeleteAsync will unregister the content as well. No need for calling 'TrimBulkAsync'.
-                    await _contentStore.DeleteAsync(context, _buildIdHash.Value, new DeleteContentOptions() {DeleteLocalOnly = true})
-                        .IgnoreErrorsAndReturnCompletion();
-                }
-                else
-                {
-                    await ContentLocationStore.TrimBulkAsync(context, new[] { _buildIdHash.Value }, context.Token, UrgencyHint.Nominal)
-                        .IgnoreErrorsAndReturnCompletion();
-                }
+                // DeleteAsync will unregister the content as well. No need for calling 'TrimBulkAsync'.
+                await _contentStore.DeleteAsync(context, _buildIdHash.Value, new DeleteContentOptions() { DeleteLocalOnly = true })
+                    .IgnoreErrorsAndReturnCompletion();
             }
 
             await Inner.ShutdownAsync(context).ThrowIfFailure();

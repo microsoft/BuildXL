@@ -232,7 +232,7 @@ namespace BuildXL.Cache.Host.Configuration
         /// 5 - Header
         /// </remarks>
         [DataMember]
-        public int? ContentLocationDatabaseRocksDbTracingLevel { get; set; } = 1;
+        public int? ContentLocationDatabaseRocksDbTracingLevel { get; set; }
 
         [DataMember]
         public bool TraceTouches { get; set; } = true;
@@ -974,7 +974,7 @@ namespace BuildXL.Cache.Host.Configuration
 
         /// <inheritdoc cref="ContentLocationDatabaseRocksDbTracingLevel"/>
         [DataMember]
-        public int? ContentMetadataDatabaseRocksDbTracingLevel { get; set; } = 1;
+        public int? ContentMetadataDatabaseRocksDbTracingLevel { get; set; }
 
         [DataMember]
         public string ContentMetadataBlobSecretName { get; set; }

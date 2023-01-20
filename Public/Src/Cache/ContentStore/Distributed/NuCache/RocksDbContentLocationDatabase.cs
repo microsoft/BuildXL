@@ -343,7 +343,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 if (!TryMergeSortedContentLocations(operationContext, value1, value2, result))
                 {
                     // And falling back to the deserialization-based one only when the optimized version is not supported or failed.
-                    MergeContentLocations(value1, value2, result);
+                    MergeContentLocations(operationContext, value1, value2, result);
                 }
             }
             catch (Exception e)
@@ -357,6 +357,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         private void MergeContentLocations(
+            OperationContext context,
             ReadOnlySpan<byte> value1,
             ReadOnlySpan<byte> value2,
             MergeResult result)
@@ -364,7 +365,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             var leftEntry = ContentLocationEntry.Deserialize(value1);
             var rightEntry = ContentLocationEntry.Deserialize(value2);
 
-            var mergedEntry = ContentLocationEntry.MergeEntries(leftEntry, rightEntry, sortLocations: _configuration.SortMergeableContentLocations);
+            var mergedEntry = ContentLocationEntry.MergeEntries(context, leftEntry, rightEntry, sortLocations: _configuration.SortMergeableContentLocations);
 
             using var serializedEntry = SerializeContentLocationEntry(mergedEntry);
             result.ValueBuffer.Set(serializedEntry.WrittenSpan);

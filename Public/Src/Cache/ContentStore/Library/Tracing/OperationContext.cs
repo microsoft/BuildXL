@@ -5,7 +5,6 @@ using System;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Utilities.Tracing;
@@ -36,6 +35,11 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
         /// Optional cancellation token for an operation.
         /// </summary>
         public CancellationToken Token { get; }
+
+        /// <summary>
+        /// Returns true if the instance was not created with 'default' expression.
+        /// </summary>
+        public bool IsValid => TracingContext is not null;
 
         /// <nodoc />
         public OperationContext(Context tracingContext, CancellationToken token = default)

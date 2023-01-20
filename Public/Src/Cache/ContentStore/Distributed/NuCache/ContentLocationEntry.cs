@@ -143,8 +143,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             {
                 // The size exists but they don't match.
                 // Tracing this as a warning and falling back to the old merge logic.
-                
-                Tracer.Warning(context, $"Sorted content location entries must have equal size. entry1Size={entry1Size}, entry2Size={entry2Size}.");
+                if (context.IsValid)
+                {
+                    Tracer.Warning(context, $"Sorted content location entries do not have equal size. entry1Size={entry1Size}, entry2Size={entry2Size}.");
+                }
+
                 return false;
             }
 
@@ -193,10 +196,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <nodoc />
-        public ContentLocationEntry Merge(ContentLocationEntry other, bool sortLocations) => MergeEntries(this, other, sortLocations);
+        public ContentLocationEntry Merge(OperationContext context, ContentLocationEntry other, bool sortLocations) => MergeEntries(context, this, other, sortLocations);
 
         /// <nodoc />
-        public static ContentLocationEntry MergeEntries(ContentLocationEntry entry1, ContentLocationEntry entry2, bool sortLocations)
+        public static ContentLocationEntry MergeEntries(OperationContext context, ContentLocationEntry entry1, ContentLocationEntry entry2, bool sortLocations)
         {
             if (entry1 == null || entry1.IsMissing)
             {
@@ -206,6 +209,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             if (entry2 == null || entry2.IsMissing)
             {
                 return entry1;
+            }
+
+            if (entry1.ContentSize != entry2.ContentSize && context.IsValid)
+            {
+                Tracer.Warning(context, $"Content location entries do not have equal size. entry1.ContentSize={entry1.ContentSize}, entry2.ContentSize={entry2.ContentSize}.");
             }
 
             return new ContentLocationEntry(

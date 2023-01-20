@@ -25,7 +25,7 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
 
         public static ContentLocationEntry MergeTest(this ContentLocationEntry left, ContentLocationEntry right)
         {
-            var merge = left.Merge(right, sortLocations: true);
+            var merge = left.Merge(default, right, sortLocations: true);
             var merge2 = MergeViaDeserialization(left, right);
 
             merge2.Should().Be(merge, "Manual merge should be equivalent to the deserialization-based one.");

@@ -311,8 +311,11 @@ AccessCheckResult BxlObserver::report_access_fd(const char *syscallName, es_even
     }
 
     std::string fullpath = fd_to_path(fd);
-    
-    return report_access(syscallName, eventType, fullpath, empty_str_, mode);
+
+    // Only reports when fd_to_path succeeded.
+    return fullpath.length() > 0
+        ? report_access(syscallName, eventType, fullpath, empty_str_, mode)
+        : sNotChecked;
 }
 
 bool BxlObserver::is_non_file(const mode_t mode)
@@ -435,8 +438,13 @@ std::string BxlObserver::fd_to_path(int fd)
     }
 
     // read from the filesystem and update the file descriptor table
-    read_path_for_fd(fd, path, PATH_MAX);
-    fdTable_[fd] = path;
+    ssize_t result = read_path_for_fd(fd, path, PATH_MAX);
+    if (result != -1)
+    {
+        // Only cache if read_path_for_fd succeeded.
+        fdTable_[fd] = path;
+    }
+
     return path;
 }
 

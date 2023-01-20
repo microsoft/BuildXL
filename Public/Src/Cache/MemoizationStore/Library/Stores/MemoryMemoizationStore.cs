@@ -27,7 +27,10 @@ namespace BuildXL.Cache.MemoizationStore.Stores
     /// <summary>
     ///     An IMemoizationStore implementation using memory.
     /// </summary>
-    public sealed class MemoryMemoizationStore : StartupShutdownBase, IMemoizationStore
+    /// <remarks>
+    ///     This is only for testing purposes.
+    /// </remarks>
+    internal sealed class MemoryMemoizationStore : StartupShutdownBase, IMemoizationStore
     {
         private const string Component = nameof(MemoryMemoizationStore);
 

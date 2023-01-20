@@ -16,7 +16,10 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
     /// <summary>
     ///     An IMemoizationSession implemented in Memory
     /// </summary>
-    public class MemoryMemoizationSession : ReadOnlyMemoryMemoizationSession, IMemoizationSession
+    /// <remarks>
+    ///     This is only for testing purposes.
+    /// </remarks>
+    internal class MemoryMemoizationSession : ReadOnlyMemoryMemoizationSession, IMemoizationSession
     {
         private readonly IContentSession _contentSession;
 

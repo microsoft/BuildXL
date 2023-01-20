@@ -80,7 +80,7 @@ namespace BuildXL.Engine.Distribution
         {
             get
             {
-                Contract.Requires(State == RpcCallResultState.Failed);
+                Contract.Requires(State != RpcCallResultState.Succeeded);
                 return m_lastFailure;
             }
         }

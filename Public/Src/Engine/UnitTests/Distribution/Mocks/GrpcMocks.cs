@@ -190,5 +190,10 @@ namespace Test.BuildXL.Distribution
         {
             return Task.FromResult(SuccessResult);
         }
+
+        public void FinalizeStreaming()
+        {
+
+        }
     }
 }

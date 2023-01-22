@@ -14,11 +14,13 @@ namespace BuildXL.Engine.Distribution
     {
         Task<RpcCallResult<Unit>> AttachAsync(BuildStartData startData, CancellationToken cancellationToken);
 
-        Task<RpcCallResult<Unit>> ExecutePipsAsync(PipBuildRequest input, string description);
+        Task<RpcCallResult<Unit>> ExecutePipsAsync(PipBuildRequest input, string description, CancellationToken cancellationToken = default);
 
         Task<RpcCallResult<Unit>> ExitAsync(BuildEndData buildEndData, CancellationToken cancellationToken);
 
         void SetWorkerLocation(ServiceLocation serviceLocation);
+
+        void FinalizeStreaming();
 
         Task CloseAsync();
     }

@@ -8,6 +8,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Distribution.Grpc;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using Grpc.Core;
@@ -23,6 +24,8 @@ namespace BuildXL.Engine.Distribution.Grpc
         private ClientConnectionManager m_connectionManager;
         private readonly LoggingContext m_loggingContext;
         private volatile bool m_initialized;
+        private AsyncClientStreamingCall<ExecutionLogInfo, RpcResponse> m_executionLogStream;
+        private AsyncClientStreamingCall<PipResultsInfo, RpcResponse> m_pipResultsStream;
 
         public GrpcOrchestratorClient(LoggingContext loggingContext, DistributedInvocationId invocationId)
         {
@@ -33,7 +36,7 @@ namespace BuildXL.Engine.Distribution.Grpc
         public Task<RpcCallResult<Unit>> SayHelloAsync(ServiceLocation myLocation, CancellationToken cancellationToken = default)
         {
             return m_connectionManager.CallAsync(
-               (callOptions) => m_client.HelloAsync(myLocation, options: callOptions),
+               async (callOptions) => await m_client.HelloAsync(myLocation, options: callOptions),
                "Hello",
                cancellationToken: cancellationToken,
                waitForConnection: true);
@@ -64,7 +67,7 @@ namespace BuildXL.Engine.Distribution.Grpc
             Contract.Assert(m_initialized);
 
             var attachmentCompletion = await m_connectionManager.CallAsync(
-                (callOptions) => m_client.AttachCompletedAsync(message, options: callOptions),
+                async (callOptions) => await m_client.AttachCompletedAsync(message, options: callOptions),
                 "AttachCompleted",
                 waitForConnection: true);
 
@@ -80,36 +83,65 @@ namespace BuildXL.Engine.Distribution.Grpc
         {
             Contract.Assert(m_initialized);
 
-            return m_connectionManager.CallAsync(
-               (callOptions) => m_client.ReportPipResultsAsync(message, options: callOptions),
-               description,
-               cancellationToken: cancellationToken);
+            Func<CallOptions, Task> func;
+
+            if (EngineEnvironmentSettings.GrpcStreamingEnabled)
+            {
+                if (m_pipResultsStream == null)
+                {
+                    var headerResult = GrpcUtils.InitializeHeaders(m_invocationId);
+                    m_pipResultsStream = m_client.StreamPipResults(headers: headerResult.headers, cancellationToken: cancellationToken);
+                }
+
+                func = async (callOptions) => await m_pipResultsStream.RequestStream.WriteAsync(message);
+            }
+            else
+            {
+                func = async (callOptions) => await m_client.ReportPipResultsAsync(message, options: callOptions);
+            }
+
+            return m_connectionManager.CallAsync(func, description, cancellationToken: cancellationToken);
         }
 
         public Task<RpcCallResult<Unit>> ReportExecutionLogAsync(ExecutionLogInfo message, CancellationToken cancellationToken = default)
         {
             Contract.Assert(m_initialized);
 
-            return m_connectionManager.CallAsync(
-               (callOptions) => m_client.ReportExecutionLogAsync(message, options: callOptions),
-               $" ReportExecutionLog: Size={message.Events.DataBlob.Count()}, SequenceNumber={message.Events.SequenceNumber}",
-               cancellationToken: cancellationToken);
+            Func<CallOptions, Task> func;
+
+            if (EngineEnvironmentSettings.GrpcStreamingEnabled)
+            {
+                if (m_executionLogStream == null)
+                {
+                    var headerResult = GrpcUtils.InitializeHeaders(m_invocationId);
+                    m_executionLogStream = m_client.StreamExecutionLog(headers: headerResult.headers, cancellationToken: cancellationToken);
+                }
+
+                func = async (callOptions) => await m_executionLogStream.RequestStream.WriteAsync(message);
+            }
+            else
+            {
+                func = async (callOptions) => await m_client.ReportExecutionLogAsync(message, options: callOptions);
+            }
+
+            return m_connectionManager.CallAsync(func, $" ReportExecutionLog: Size={message.Events.DataBlob.Count()}, SequenceNumber={message.Events.SequenceNumber}", cancellationToken: cancellationToken);
         }
 
-        public AsyncClientStreamingCall<ExecutionLogInfo, RpcResponse> StreamExecutionLog(CancellationToken cancellationToken = default)
+        public void FinalizeStreaming()
         {
-            Contract.Assert(m_initialized);
+            if (m_executionLogStream != null)
+            {
+                m_executionLogStream.RequestStream.CompleteAsync().GetAwaiter().GetResult();
+                m_executionLogStream.GetAwaiter().GetResult();
+                m_executionLogStream.Dispose();
+            }
 
-            var headerResult = GrpcUtils.InitializeHeaders(m_invocationId);
-            return m_client.StreamExecutionLog(headers: headerResult.headers, cancellationToken: cancellationToken);
-        }
-
-        public AsyncClientStreamingCall<PipResultsInfo, RpcResponse> StreamPipResults(CancellationToken cancellationToken = default)
-        {
-            Contract.Assert(m_initialized);
-
-            var headerResult = GrpcUtils.InitializeHeaders(m_invocationId);
-            return m_client.StreamPipResults(headers: headerResult.headers, cancellationToken: cancellationToken);
+            if (m_pipResultsStream != null)
+            {
+                m_pipResultsStream.RequestStream.CompleteAsync().GetAwaiter().GetResult();
+                m_pipResultsStream.GetAwaiter().GetResult();
+                m_pipResultsStream.Dispose();
+            }
         }
     }
 }

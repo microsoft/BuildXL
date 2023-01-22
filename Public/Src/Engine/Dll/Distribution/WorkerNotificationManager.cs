@@ -94,9 +94,6 @@ namespace BuildXL.Engine.Distribution
         private readonly List<ExtendedPipCompletionData> m_executionResults = new List<ExtendedPipCompletionData>();
         private readonly List<EventMessage> m_eventList = new List<EventMessage>();
 
-        private AsyncClientStreamingCall<ExecutionLogInfo, RpcResponse> m_executionLogStream;
-        private AsyncClientStreamingCall<PipResultsInfo, RpcResponse> m_pipResultsStream;
-
         /// <nodoc/>
         public WorkerNotificationManager(DistributionService distributionService, IWorkerPipExecutionService executionService, LoggingContext loggingContext)
         {
@@ -168,25 +165,7 @@ namespace BuildXL.Engine.Distribution
             m_forwardingEventListener?.Dispose();
             m_sendCancellationSource.Cancel();
 
-            if (m_executionLogStream != null)
-            {
-                using (DistributionService.Counters.StartStopwatch(DistributionCounter.FinalReportExecutionLogDuration))
-                {
-                    m_executionLogStream.RequestStream.CompleteAsync().GetAwaiter().GetResult();
-                    m_executionLogStream.GetAwaiter().GetResult();
-                    m_executionLogStream.Dispose();
-                }
-            }
-
-            if (m_pipResultsStream != null)
-            {
-                using (DistributionService.Counters.StartStopwatch(DistributionCounter.FinalReportPipResultsDuration))
-                {
-                    m_pipResultsStream.RequestStream.CompleteAsync().GetAwaiter().GetResult();
-                    m_pipResultsStream.GetAwaiter().GetResult();
-                    m_pipResultsStream.Dispose();
-                }
-            }
+            m_orchestratorClient.FinalizeStreaming();
 
             DistributionService.Counters.AddToCounter(DistributionCounter.ExecutionLogSentSize, m_executionLogTarget?.TotalSize ?? 0);
         }
@@ -450,23 +429,9 @@ namespace BuildXL.Engine.Distribution
 
                 using (DistributionService.Counters.StartStopwatch(DistributionCounter.ReportPipResultsDuration))
                 {
-                    if (EngineEnvironmentSettings.GrpcStreamingEnabled)
-                    {
-                        if (m_pipResultsStream == null)
-                        {
-                            m_pipResultsStream = ((GrpcOrchestratorClient)m_orchestratorClient).StreamPipResults();
-                        }
-
-                        m_pipResultsStream.RequestStream.WriteAsync(notification).GetAwaiter().GetResult();
-                        Tracing.Logger.Log.GrpcTrace(m_loggingContext, "Orchestrator", description);
-                        callResult = new RpcCallResult<Unit>();
-                    }
-                    else
-                    {
-                        callResult = m_orchestratorClient.ReportPipResultsAsync(notification,
-                              description,
-                              cancellationToken).GetAwaiter().GetResult();
-                    }
+                    callResult = m_orchestratorClient.ReportPipResultsAsync(notification,
+                        description,
+                        cancellationToken).GetAwaiter().GetResult();
                 }
 
                 if (callResult.Succeeded)
@@ -542,27 +507,11 @@ namespace BuildXL.Engine.Distribution
                 }
             };
 
-            bool callSuccess = true;
-
             using (DistributionService.Counters.StartStopwatch(DistributionCounter.ReportExecutionLogDuration))
             {
-                if (EngineEnvironmentSettings.GrpcStreamingEnabled)
-                {
-                    if (m_executionLogStream == null)
-                    {
-                        m_executionLogStream = ((GrpcOrchestratorClient)m_orchestratorClient).StreamExecutionLog();
-                    }
-
-                    m_executionLogStream.RequestStream.WriteAsync(message).GetAwaiter().GetResult();
-                }
-                else
-                {
-                    // Send event data to orchestrator synchronously. This will only block the dedicated thread used by the binary logger.
-                    callSuccess = m_orchestratorClient.ReportExecutionLogAsync(message).GetAwaiter().GetResult().Succeeded;
-                }
+                // Send event data to orchestrator synchronously. This will only block the dedicated thread used by the binary logger.
+                return m_orchestratorClient.ReportExecutionLogAsync(message).GetAwaiter().GetResult().Succeeded;
             }
-
-            return callSuccess;
         }
 
         public void MarkPipProcessingStarted(long semistableHash)

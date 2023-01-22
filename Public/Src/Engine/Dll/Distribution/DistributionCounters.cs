@@ -115,14 +115,6 @@ namespace BuildXL.Engine.Distribution
         ReportPipResultsDuration,
 
         /// <nodoc/>
-        [CounterType(CounterType.Stopwatch)]
-        FinalReportExecutionLogDuration,
-
-        /// <nodoc/>
-        [CounterType(CounterType.Stopwatch)]
-        FinalReportPipResultsDuration,
-
-        /// <nodoc/>
         ForAllPipsGrpcDurationMs,
 
         /// <nodoc/>

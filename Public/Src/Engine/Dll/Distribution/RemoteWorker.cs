@@ -65,8 +65,6 @@ namespace BuildXL.Engine.Distribution
         private PipGraph m_pipGraph;
         private CancellationTokenRegistration m_cancellationTokenRegistration;
 
-        private AsyncClientStreamingCall<PipBuildRequest, RpcResponse> m_pipBuildRequestStream;
-
         /// <summary>
         /// Indicates failure which should cause the worker build to fail. NOTE: This may not correspond to the
         /// entire distributed build failing. Namely, connection failures for operations materialize outputs
@@ -271,22 +269,7 @@ namespace BuildXL.Engine.Distribution
 
                     using (var watch = m_orchestratorService.Environment.Counters.StartStopwatch(PipExecutorCounter.RemoteWorker_BuildRequestSendDuration))
                     {
-                        if (EngineEnvironmentSettings.GrpcStreamingEnabled)
-                        {
-                            if (m_pipBuildRequestStream == null)
-                            {
-                                m_pipBuildRequestStream = ((GrpcWorkerClient)m_workerClient).StreamExecutePips();
-                            }
-
-                            m_pipBuildRequestStream.RequestStream.WriteAsync(pipRequest).GetAwaiter().GetResult();
-                            Tracing.Logger.Log.GrpcTrace(m_appLoggingContext, $"{WorkerIpAddress}", description);
-                            callResult = new RpcCallResult<Unit>();
-                        }
-                        else
-                        {
-                            callResult = m_workerClient.ExecutePipsAsync(pipRequest, description).GetAwaiter().GetResult();
-                        }
-
+                        callResult = m_workerClient.ExecutePipsAsync(pipRequest, description).GetAwaiter().GetResult();
                         sendDuration = watch.Elapsed;
                     }
 
@@ -638,12 +621,7 @@ namespace BuildXL.Engine.Distribution
                 m_sendThread.Join();
             }
 
-            if (m_pipBuildRequestStream != null)
-            {
-                m_pipBuildRequestStream.RequestStream.CompleteAsync().GetAwaiter().GetResult();
-                m_pipBuildRequestStream.GetAwaiter().GetResult();
-                m_pipBuildRequestStream.Dispose();
-            }
+            m_workerClient.FinalizeStreaming();
 
             // If we still have a connection with the worker, we should send a message to worker to make it exit. 
             // We might be releasing a worker that didn't say Hello and so m_serviceLocation can be null, don't try to call exit

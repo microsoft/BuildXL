@@ -2,8 +2,11 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using BuildXL.Pips;
+using BuildXL.Pips.Filter;
+using BuildXL.Utilities.Configuration.Mutable;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 
@@ -42,10 +45,11 @@ namespace Test.BuildXL.Processes
 
         private static void ExpectParseSuccess(string value, double rate, bool inverted, int? seed = null)
         {
-            ArtificialCacheMissOptions options = ArtificialCacheMissOptions.TryParse(value, CultureInfo.InvariantCulture);
+            var options = ArtificialCacheMissConfig.TryParse(value, CultureInfo.InvariantCulture);
             XAssert.IsNotNull(options, "Expected parse success for {0}", value);
 
-            XAssert.AreEqual(rate, options.Rate, "Incorrect rate");
+            var codedRate = (ushort)(rate * ushort.MaxValue);
+            XAssert.AreEqual(codedRate, options.Rate, "Incorrect rate");
             XAssert.AreEqual(inverted, options.IsInverted, "Incorrect inversion");
 
             if (seed.HasValue)
@@ -82,7 +86,7 @@ namespace Test.BuildXL.Processes
 
         private static void ExpectParseFailure(string value)
         {
-            ArtificialCacheMissOptions options = ArtificialCacheMissOptions.TryParse(value, CultureInfo.InvariantCulture);
+            var options = ArtificialCacheMissConfig.TryParse(value, CultureInfo.InvariantCulture);
             if (options != null)
             {
                 XAssert.Fail("Expected parse failure for {0}; got options {1}", value, options.ToString());
@@ -99,6 +103,20 @@ namespace Test.BuildXL.Processes
         public void TestMissRate90PercentInverted()
         {
             ExpectMissRate(new ArtificialCacheMissOptions(0.9, invert: true, seed: 12032), samples: 4000);
+        }
+
+        [Fact]
+        public void TestForcedMiss()
+        {
+            var missPips = new HashSet<long>();
+            XAssert.IsTrue(FilterParser.TryParsePipId("Pip3855A4C7E1E820D0", out var pipId));
+            missPips.Add(pipId);
+           
+            // Same seed, but force the pip to be a miss it in one of them:
+            var options = new ArtificialCacheMissOptions(0.01, invert: false, seed: 212121);
+            var optionsWithForcedMiss = new ArtificialCacheMissOptions(0.01, invert: false, seed: 212121, missPips);
+            XAssert.IsFalse(options.ShouldHaveArtificialMiss(pipId));
+            XAssert.IsTrue(optionsWithForcedMiss.ShouldHaveArtificialMiss(pipId));
         }
 
         private static void ExpectMissRate(ArtificialCacheMissOptions options, int samples)

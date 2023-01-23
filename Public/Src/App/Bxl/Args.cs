@@ -10,6 +10,7 @@ using System.Globalization;
 using System.Linq;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Native.IO;
+using BuildXL.Pips.Filter;
 using BuildXL.Pips.Operations;
 using BuildXL.Storage;
 using BuildXL.Storage.Fingerprints;
@@ -544,6 +545,9 @@ namespace BuildXL
                         OptionHandlerFactory.CreateBoolOption(
                             "flushPageCacheToFileSystemOnStoringOutputsToCache",
                             sign => sandboxConfiguration.FlushPageCacheToFileSystemOnStoringOutputsToCache = sign),
+                        OptionHandlerFactory.CreateOption(
+                            "forcedCacheMiss",
+                            opt => HandleForcedCacheMissOption(opt, cacheConfiguration)),
                         OptionHandlerFactory.CreateBoolOption(
                             "forceGenerateNuGetSpecs",
                             sign => frontEndConfiguration.ForceGenerateNuGetSpecs = sign),
@@ -2212,6 +2216,23 @@ namespace BuildXL
             cacheConfiguration.ArtificialCacheMissOptions = missOptions;
         }
 
+        private static void HandleForcedCacheMissOption(
+            CommandLineUtilities.Option opt,
+            BuildXL.Utilities.Configuration.Mutable.CacheConfiguration cacheConfiguration)
+        {
+            string[] pipIds = opt.Value.Split(';', StringSplitOptions.RemoveEmptyEntries);
+
+            foreach (var maybePipId in pipIds)
+            {
+                if (!FilterParser.TryParsePipId(maybePipId, out var pipId))
+                {
+                    throw CommandLineUtilities.Error(Strings.Args_ForcedCacheMiss_InvalidPipId, maybePipId);
+                }
+
+                cacheConfiguration.ForcedCacheMissSemistableHashes.Add(pipId);
+            }
+        }
+
         private static void HandleLoadGraphOption(
             CommandLineUtilities.Option opt,
             PathTable pathTable,
@@ -2236,14 +2257,7 @@ namespace BuildXL
         /// </summary>
         private static BuildXL.Utilities.Configuration.Mutable.ArtificialCacheMissConfig TryParseArtificialCacheMissOptions(string value)
         {
-            var option = BuildXL.Pips.ArtificialCacheMissOptions.TryParse(value, CultureInfo.InvariantCulture);
-
-            return new BuildXL.Utilities.Configuration.Mutable.ArtificialCacheMissConfig
-                   {
-                       Rate = (ushort)(option.Rate * ushort.MaxValue),
-                       IsInverted = option.IsInverted,
-                       Seed = option.Seed,
-                   };
+            return BuildXL.Utilities.Configuration.Mutable.ArtificialCacheMissConfig.TryParse(value, CultureInfo.InvariantCulture);
         }
 
         internal static HelpLevel ParseHelpOption(CommandLineUtilities.Option opt)

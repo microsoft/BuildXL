@@ -477,8 +477,14 @@
   <data name="Args_ArtificialCacheMiss_Invalid" xml:space="preserve">
     <value>Invalid miss-rate options: '{0}'. See the description for /injectCacheMisses. Example: ~0.1#123 (inverted rate of 10%; seed 123)</value>
   </data>
+   <data name="Args_ForcedCacheMiss_InvalidPipId" xml:space="preserve">
+    <value>The specified value '{0}' in the /forcedCacheMiss argument is not a valid pip id.</value>
+  </data>
   <data name="HelpText_DisplayHelp_InjectCacheMisses" xml:space="preserve">
     <value>Sets a rate for artificial cache misses (pips may be re-run with this likelihood, when otherwise not necessary). Miss rate and options are specified as "[~]Rate[#Seed]". The '~' symbol negates the rate (it becomes an allowed hit rate). The 'Rate' must be a numeric value in the range [0.0, 1.0]. The optional 'Seed' is an integer value fully determining the random aspect of the miss rate (the same seed and miss rate will always pick the same set of pips).</value>
+  </data>
+  <data name="HelpText_DisplayHelp_ForcedCacheMiss" xml:space="preserve">
+    <value>Forces a pips to be a cache miss in the build, independently of the artificial cache miss options (see /injectCacheMisses). A list of pips might be specified, separated by semicolons. Example: /forcedCacheMiss:Pip3855A4C7E1E820D0;PipE9638AD7DDD6AF67</value>
   </data>
   <data name="HelpText_DisplayHelp_CustomLog" xml:space="preserve">
     <value>Sets a custom log file for a specific set of event IDs. Event list should be comma separated integers excluding the DX prefix.</value>

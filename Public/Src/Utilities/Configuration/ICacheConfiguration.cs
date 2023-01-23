@@ -63,7 +63,13 @@ namespace BuildXL.Utilities.Configuration
         /// value in the range [0.0, 1.0]. The optional 'Seed' is an integer value fully determining the random aspect of the miss rate (the same seed and miss rate will always pick the same
         /// set of pips).
         /// </summary>
-        IArtificialCacheMissConfig ArtificialCacheMissOptions { get; }
+        IArtificialCacheMissConfig ArtificialCacheMissConfig { get; }
+
+
+        /// <summary>
+        /// Semistable hashes that will be forced to have cache misses.
+        /// </summary>
+        HashSet<long> ForcedCacheMissSemistableHashes { get; }
 
         /// <summary>
         /// An optional string to add to pip fingerprints; thus creating a separate cache universe.

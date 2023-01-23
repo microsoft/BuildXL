@@ -2,9 +2,11 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Collections;
 
 namespace BuildXL.Pips
 {
@@ -15,7 +17,7 @@ namespace BuildXL.Pips
     /// These parameters allow a configurable and optionally deterministic extra miss rate.
     /// This extra miss rate is useful for flushing out non-deterministic tool failures and
     /// bad cache entries (which may otherwise live for a long time).
-    /// The parameters are string-representable as so (see <see cref="TryParse" /> and <see cref="ToString()" />):
+    /// The randomizing parameters are string-representable as so: 
     /// 0.1 indicates "Miss rate 0.1; random seed"
     /// ~0.1 indicates "Miss rate 0.1; inverted; random seed"
     /// ~0.1#123 indicates "Miss rate 0.1 (10%); seed 123; inverted"
@@ -32,15 +34,26 @@ namespace BuildXL.Pips
         private readonly int m_seed;
         private readonly bool m_invert;
         private readonly double m_missRate;
+        private readonly HashSet<long> m_forcedMisses = new();
 
         /// <summary>
-        /// Creates miss-rate options with a random seed.
+        /// Creates miss-rate options with a random seed and no forced hashes.
         /// </summary>
         public ArtificialCacheMissOptions(double missRate, bool invert)
-            : this(missRate, invert, Environment.TickCount)
+            : this(missRate, invert, Environment.TickCount, new())
         {
             Contract.Requires(missRate >= 0.0 && missRate <= 1.0);
         }
+
+        /// <summary>
+        /// Creates miss-rate options with a random seed and no forced hashes, including a seed.
+        /// </summary>
+        public ArtificialCacheMissOptions(double missRate, bool invert, int seed)
+            : this(missRate, invert, seed, new())
+        {
+            Contract.Requires(missRate >= 0.0 && missRate <= 1.0);
+        }
+
 
         /// <summary>
         /// Creates fully specified miss-rate options, including seed.
@@ -48,12 +61,13 @@ namespace BuildXL.Pips
         /// <remarks>
         /// Given these exact parameters and the same pip graph, the same pips will have artificial misses.
         /// </remarks>
-        public ArtificialCacheMissOptions(double missRate, bool invert, int seed)
+        public ArtificialCacheMissOptions(double missRate, bool invert, int seed, HashSet<long> forcedMisses)
         {
             Contract.Requires(missRate >= 0.0 && missRate <= 1.0);
             m_seed = seed;
             m_invert = invert;
             m_missRate = missRate;
+            m_forcedMisses.AddRange(forcedMisses);
         }
 
         /// <summary>
@@ -69,26 +83,18 @@ namespace BuildXL.Pips
         /// <summary>
         /// Miss rate in the range [0.0, 1.0]; derived from the specified rate and whether or not the rate has been inverted.
         /// </summary>
-        public double EffectiveMissRate => IsInverted ? Math.Max(Math.Min(1.0 - m_missRate, 1.0), 0.0) : m_missRate;
-
-        /// <summary>
-        /// Indicates if the <see cref="ShouldHaveArtificialMiss" /> determination is inverted.
-        /// </summary>
-        public bool IsInverted => m_invert;
-
-        /// <summary>
-        /// Inverts these options (adds or removes '~' prefix in the string representation, and flips <see cref="IsInverted" />).
-        /// </summary>
-        public ArtificialCacheMissOptions Invert()
-        {
-            return new ArtificialCacheMissOptions(m_missRate, !m_invert, m_seed);
-        }
+        public double EffectiveMissRate => m_invert ? Math.Max(Math.Min(1.0 - m_missRate, 1.0), 0.0) : m_missRate;
 
         /// <summary>
         /// Indicates if a pip with the given semi-stable hash should have an artificial miss injected.
         /// </summary>
         public bool ShouldHaveArtificialMiss(long semiStableHash)
         {
+            if (m_forcedMisses.Contains(semiStableHash))
+            {
+                return true;
+            }
+
             var hash = unchecked((uint)HashCodeHelper.Combine(semiStableHash, m_seed));
             double percentageOfIntRange = (double)hash / (double)uint.MaxValue;
             return m_invert ^ (percentageOfIntRange <= m_missRate);
@@ -109,74 +115,6 @@ namespace BuildXL.Pips
         public override string ToString()
         {
             return ToString(CultureInfo.InvariantCulture);
-        }
-
-        /// <summary>
-        /// Tries to parse a string representation miss options, with number formatting based on <paramref name="formatProvider" />.
-        /// 0.1 indicates "Miss rate 0.1; random seed"
-        /// ~0.1 indicates "Miss rate 0.1; inverted; random seed"
-        /// ~0.1#123 indicates "Miss rate 0.1 (10%); seed 123; inverted"
-        /// </summary>
-        public static ArtificialCacheMissOptions TryParse(string value, IFormatProvider formatProvider)
-        {
-            Contract.Requires(value != null);
-
-            int pos = 0;
-            if (value.Length == 0)
-            {
-                return null;
-            }
-
-            bool negate = false;
-            if (value[pos] == '~')
-            {
-                negate = true;
-                pos++;
-            }
-
-            if (pos >= value.Length)
-            {
-                return null;
-            }
-
-            int hashPos = value.IndexOf('#', pos);
-            Contract.Assume(hashPos < 0 || hashPos >= pos);
-            bool hasHash = hashPos >= 0;
-            int rateStopPos = hasHash ? hashPos : value.Length;
-            Contract.Assert(rateStopPos >= pos);
-
-            string rateStr = value.Substring(pos, rateStopPos - pos);
-            double rate;
-            if (!double.TryParse(rateStr, NumberStyles.Float, formatProvider, out rate))
-            {
-                return null;
-            }
-
-            if (rate < 0.0 || rate > 1.0)
-            {
-                return null;
-            }
-
-            if (hasHash)
-            {
-                if (hashPos + 1 >= value.Length)
-                {
-                    return null;
-                }
-
-                int seed;
-                string seedStr = value.Substring(hashPos + 1);
-                if (!int.TryParse(seedStr, NumberStyles.Integer, formatProvider, out seed))
-                {
-                    return null;
-                }
-
-                return new ArtificialCacheMissOptions(rate, negate, seed);
-            }
-            else
-            {
-                return new ArtificialCacheMissOptions(rate, negate);
-            }
         }
     }
 }

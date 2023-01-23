@@ -2570,7 +2570,7 @@ namespace BuildXL.Engine
         {
             LogExperimentalOptions(loggingContext, Configuration);
 
-            var artificialCacheMissOptions = Configuration.Cache.ArtificialCacheMissOptions;
+            var artificialCacheMissOptions = Configuration.Cache.ArtificialCacheMissConfig;
             if (artificialCacheMissOptions != null)
             {
                 var effectiveMissRate = artificialCacheMissOptions.IsInverted

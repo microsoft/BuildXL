@@ -1227,13 +1227,14 @@ namespace BuildXL.Scheduler
             m_rootMappings = rootMappings;
 
             // Prepare artificial cache miss.
-            var artificalCacheMissConfig = configuration.Cache.ArtificialCacheMissOptions;
+            var artificalCacheMissConfig = configuration.Cache.ArtificialCacheMissConfig;
             if (artificalCacheMissConfig != null)
             {
                 m_artificialCacheMissOptions = new ArtificialCacheMissOptions(
                     artificalCacheMissConfig.Rate / (double)ushort.MaxValue,
                     artificalCacheMissConfig.IsInverted,
-                    artificalCacheMissConfig.Seed);
+                    artificalCacheMissConfig.Seed,
+                    configuration.Cache.ForcedCacheMissSemistableHashes);
             }
 
             m_fileContentTable = fileContentTable;

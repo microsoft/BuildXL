@@ -574,6 +574,11 @@ namespace BuildXL
                 HelpLevel.Verbose);
 
             hw.WriteOption(
+                "/forcedCacheMiss:<PipId1>[;<PipId2>;<PipId3>...]",
+                Strings.HelpText_DisplayHelp_ForcedCacheMiss,
+                HelpLevel.Verbose);
+
+            hw.WriteOption(
                 "/pipDefaultTimeout:<ms>",
                 Strings.HelpText_DisplayHelp_PipTimeout);
 

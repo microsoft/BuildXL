@@ -18,10 +18,7 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
     /// <summary>
     ///     An <see cref="IReadOnlyMemoizationSession"/> implemented in memory
     /// </summary>
-    /// <remarks>
-    ///     This is only for testing purposes.
-    /// </remarks>
-    internal class ReadOnlyMemoryMemoizationSession : StartupShutdownBase, IReadOnlyMemoizationSessionWithLevelSelectors
+    public class ReadOnlyMemoryMemoizationSession : StartupShutdownBase, IReadOnlyMemoizationSessionWithLevelSelectors
     {
         /// <nodoc />
         protected readonly MemoryMemoizationStore MemoizationStore;

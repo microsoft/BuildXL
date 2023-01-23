@@ -31,8 +31,7 @@ namespace Library {
         ],
         allowUnsafeBlocks: true,
         internalsVisibleTo: [
-            "BuildXL.Cache.MemoizationStore.Test",
-            "BuildXL.Cache.MemoizationStore.Distributed.Test",
+            "BuildXL.Cache.MemoizationStore.Test"
         ]
     });
 }

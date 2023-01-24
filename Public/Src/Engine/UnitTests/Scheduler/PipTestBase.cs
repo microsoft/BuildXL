@@ -161,6 +161,8 @@ namespace Test.BuildXL.Scheduler
         /// </summary>
         protected virtual PipGraph.Builder PipGraphBuilder { get; private set; }
 
+        protected FrontEndContext FrontEndContext { get; private set; }
+
         // Lazily created packing fields. Use the properties instead of these directly
         private PipConstructionHelper m_pipConstructionHelper;
 
@@ -212,11 +214,9 @@ namespace Test.BuildXL.Scheduler
             string description = null,
             IDictionary<string, (string, bool)> environmentVariables = null,
             IEnumerable<int> succeedFastExitCodes = null,
-            ProcessBuilder builder = null,
-            IFrontEndConfiguration frontEndConfig = null)
+            ProcessBuilder builder = null)
         {
-            var frontEndContext = FrontEndContext.CreateInstanceForTesting(frontEndConfig: frontEndConfig);
-            builder ??= ProcessBuilder.CreateForTesting(Context.PathTable, frontEndContext.CredentialScanner, frontEndContext.LoggingContext);
+            builder ??= ProcessBuilder.CreateForTesting(Context.PathTable, FrontEndContext.CredentialScanner, LoggingContext);
             builder.Executable = TestProcessExecutable;
             if (succeedFastExitCodes != null)
             {
@@ -383,6 +383,8 @@ namespace Test.BuildXL.Scheduler
             ((EngineConfiguration)configuration.Engine).UnsafeAllowOutOfMountWrites ??= true;
 
             var searchPathToolsHash = new DirectoryMembershipFingerprinterRuleSet(configuration, stringTable).ComputeSearchPathToolsHash();
+            FrontEndContext  = FrontEndContext.CreateInstanceForTesting(pathTable: Context.PathTable, symbolTable: Context.SymbolTable, qualifierTable: Context.QualifierTable, frontEndConfig: configuration.FrontEnd);
+
             PipGraphBuilder = new PipGraph.Builder(
                 PipTable,
                 Context,

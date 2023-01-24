@@ -957,6 +957,12 @@ function processTestArguments(args: Managed.TestArguments) : Managed.TestArgumen
         ],
         skipTestRun: !targetFrameworkMatchesCurrentHost,
         runTestArgs: {
+            // Adding this path here to resolve the DFA's related to the SRM package of credscan library.
+            unsafeTestRunArguments: {
+                untrackedScopes: [
+                    d`${p`SRM`}`,
+                ]
+            },
             // TODO: When BuildXL has proper threadsafe logging infrastructure we can go back to the default or parallel.
             parallel: "none",
             tools: {

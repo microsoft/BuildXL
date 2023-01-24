@@ -56,7 +56,7 @@ namespace BuildXL.FrontEnd.Sdk
 
             LoggingContext = loggingContext;
             FileSystem = fileSystem;
-            CredentialScanner = new CredentialScanner(frontEndConfig, pathTable, loggingContext);
+            CredentialScanner = (frontEndConfig.EnableCredScan == true) ? new CredentialScanner(pathTable, loggingContext, frontEndConfig.CredScanEnvironmentVariablesAllowList) : null;
             PipDataBuilderPool = new ObjectPool<PipDataBuilder>(() => new PipDataBuilder(StringTable), builder => builder.Clear());
         }
 
@@ -69,7 +69,7 @@ namespace BuildXL.FrontEnd.Sdk
 
             LoggingContext = loggingContext;
             FileSystem = fileSystem;
-            CredentialScanner = new CredentialScanner(frontEndConfig, context.PathTable, loggingContext);
+            CredentialScanner = (frontEndConfig.EnableCredScan == true) ?  new CredentialScanner(context.PathTable, loggingContext, frontEndConfig.CredScanEnvironmentVariablesAllowList) : null;
             PipDataBuilderPool = new ObjectPool<PipDataBuilder>(() => new PipDataBuilder(StringTable), builder => builder.Clear());
         }
 

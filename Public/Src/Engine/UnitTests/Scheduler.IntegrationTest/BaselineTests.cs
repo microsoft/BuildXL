@@ -1549,28 +1549,29 @@ namespace IntegrationTest.BuildXL.Scheduler
         /// Most of these test cases are an assumption of what the credentialscanner might or might not detect as a credential.
         /// The test is disabled due to a couple of DFA's related to Office builds
         /// </summary>
-        [InlineData(false, "Cr3d5c@n_D3m0_P@55w0rd", "password", true, false)]
-        [InlineData(true, "Cr3d5c@n_D3m0_P@55w0rdss", "password", true, false)]
-        [InlineData(false, "src/checking/for/credentials/123/testing", "path", false, false)]
-        [InlineData(true, null, "password", false, false)]
-        [InlineData(false, "123", "id", false, false)]
+        [InlineData(false, "Cr3d5c@n_D3m0_P@55w0rd", "password", true)]
+        [InlineData(true, "Cr3d5c@n_D3m0_P@55w0rd", "password", true)]
+        [InlineData(false, "src/checking/for/credentials/123/testing", "path", false)]
+        [InlineData(true, null, "password", false)]
+        [InlineData(false, "123", "id", false)]
         [Theory]
-        public void TestCredScan(bool isPassThrough, string envVarValue, string envVarKey, bool credentialDetected, bool enableCredScan)
+        public void TestCredScan(bool isPassThrough, string envVarValue, string envVarKey, bool credentialDetected)
         {
-            Configuration.FrontEnd.EnableCredScan = enableCredScan;
-
+            Configuration.FrontEnd.EnableCredScan = true;
+            ResetPipGraphBuilder();
             var ops = new Operation[]
             {
-              Operation.WriteFile(CreateOutputFileArtifact()),
+                Operation.WriteFile(CreateOutputFileArtifact()),
             };
-            var builder = CreatePipBuilderWithEnvironment(ops, environmentVariables: new Dictionary<string, (string, bool)>() { [envVarKey] = (envVarValue, isPassThrough) }, frontEndConfig: Configuration.FrontEnd);
-            var process = SchedulePipBuilder(builder).Process;
+
+            // The value we pass to the pip builder for the given env var can be null, which means that it will be left unset and the environment will take effect
+            var builder = CreatePipBuilderWithEnvironment(ops, environmentVariables: new Dictionary<string, (string, bool)>() { [envVarKey] = (envVarValue, isPassThrough) });
+            SchedulePipBuilder(builder);
+
+            RunScheduler().AssertSuccess();
 
             // This event is logged when a credential is detected in the env variables.
-            if (enableCredScan)
-            {
-                AssertWarningEventLogged(PipsTracingLogEventId.CredentialsDetectedInEnvVar, credentialDetected ? 1 : 0);
-            }
+            AssertWarningEventLogged(PipsTracingLogEventId.CredentialsDetectedInEnvVar, credentialDetected ? 1 : 0);
         }
 #endif
 
@@ -1586,19 +1587,19 @@ namespace IntegrationTest.BuildXL.Scheduler
             string envVarKey = "password";
             string envVarValue = "Cr3d5c@n_D3m0_P@55w0rd";
             Configuration.FrontEnd.CredScanEnvironmentVariablesAllowList = new List<string>() { envVarKey };
-            Configuration.FrontEnd.EnableCredScan = false;
+            Configuration.FrontEnd.EnableCredScan = true;
+            ResetPipGraphBuilder();
+
             var ops = new Operation[]
             {
               Operation.WriteFile(CreateOutputFileArtifact()),
             };
-            var builder = CreatePipBuilderWithEnvironment(ops, environmentVariables: new Dictionary<string, (string, bool)>() { [envVarKey] = (envVarValue, false) }, frontEndConfig: Configuration.FrontEnd);
-            var process = SchedulePipBuilder(builder).Process;
+            var builder = CreatePipBuilderWithEnvironment(ops, environmentVariables: new Dictionary<string, (string, bool)>() { [envVarKey] = (envVarValue, false) });
+            SchedulePipBuilder(builder);
 
-            // This event is logged when a credential is detected in the env variables. In this case, the count value has to be zero as no event should be logged when the env is present in allowListEnvVar list.
-            if (Configuration.FrontEnd.EnableCredScan)
-            {
-                AssertWarningEventLogged(PipsTracingLogEventId.CredentialsDetectedInEnvVar, 0);
-            }
+            RunScheduler().AssertSuccess();
+
+            AssertWarningEventLogged(PipsTracingLogEventId.CredentialsDetectedInEnvVar, 0);
         }
 #endif
 

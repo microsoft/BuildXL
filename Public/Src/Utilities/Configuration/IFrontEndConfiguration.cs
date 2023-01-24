@@ -348,7 +348,7 @@ namespace BuildXL.Utilities.Configuration
         /// <summary>
         /// This flag when set is used to turn on the cred scan feature.
         /// </summary>
-        bool EnableCredScan { get; }
+        bool? EnableCredScan { get; }
 
         /// <summary>
         /// These environment variables are passed using the /credScanEnvironmentVariablesAllowList flag.

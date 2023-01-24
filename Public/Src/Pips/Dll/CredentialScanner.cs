@@ -1,11 +1,10 @@
-﻿
-// Copyright (c) Microsoft Corporation.
+﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
+
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
@@ -13,14 +12,9 @@ using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Utilities.Tracing;
 using Logger = BuildXL.Pips.Tracing.Logger;
-using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Tracing;
 using BuildXL.Utilities.Collections;
-using System.Net;
-using System.Diagnostics.CodeAnalysis;
-using System.Collections;
-using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 #if (MICROSOFT_INTERNAL && NETCOREAPP)
 using Microsoft.Security.CredScan.ClientLib;
 using Microsoft.Security.CredScan.KnowledgeBase.Client;
@@ -45,11 +39,9 @@ namespace BuildXL.Pips.Builders
         /// Concurrent bag to store a list of environment variables whose values are credentials and the associated pip info which is later used for logging.
         /// </summary>
         private readonly ConcurrentBag<(string envVarKey, Process process)> m_envVarsWithCredentials = new ConcurrentBag<(string, Process)>();
-
-        private readonly bool m_enableCredScan;
         private readonly CounterCollection<CredScanCounter> m_counters = new CounterCollection<CredScanCounter>();
         private readonly LoggingContext m_loggingContext;
-        private readonly PathTable m_pathTable;
+        private readonly PipFragmentRenderer m_renderer;
         private readonly ActionBlockSlim<(string kvp, Process process)> m_credScanActionBlock;
 
         /// <summary>
@@ -63,24 +55,19 @@ namespace BuildXL.Pips.Builders
 #endif
 
         /// <nodoc/>
-        public CredentialScanner(IFrontEndConfiguration frontEndConfig, PathTable pathTable, LoggingContext loggingContext)
+        public CredentialScanner(PathTable pathTable, LoggingContext loggingContext, IReadOnlyList<string> credScanEnvironmentVariablesAllowList = null)
         {
-            m_enableCredScan = frontEndConfig.EnableCredScan;
             m_loggingContext = loggingContext;
-            m_pathTable = pathTable;
-            m_credScanEnvironmentVariablesAllowList = frontEndConfig.CredScanEnvironmentVariablesAllowList;
+            m_credScanEnvironmentVariablesAllowList = credScanEnvironmentVariablesAllowList;
             m_credScanActionBlock = ActionBlockSlim.CreateWithAsyncAction<(string, Process)>(
                       degreeOfParallelism: Environment.ProcessorCount,
                       processItemAction: ScanForCredentialsAsync);
 
 #if (MICROSOFT_INTERNAL && NETCOREAPP)
-            if (m_enableCredScan)
-            {
-                m_credScan = CredentialScannerFactory.Create();
-            }
+            m_credScan = CredentialScannerFactory.Create();
 #endif
 
-
+            m_renderer = new PipFragmentRenderer(pathTable);
         }
 
         /// <summary>
@@ -88,11 +75,6 @@ namespace BuildXL.Pips.Builders
         /// </summary>
         public void PostEnvVarsForProcessing(Process process, ReadOnlyArray<EnvironmentVariable> environmentVariables)
         {
-            if (!m_enableCredScan)
-            {
-                return;
-            }
-
             // There are two possible implementations to handle the scenario when a credential is detected in the env var.
             // 1.) The env var is set as a PassthroughEnvVariable, SetPassThroughEnvironmentVariable method is used for that.
             // 2.) An error is thrown to break the build and the user is suggested to pass that env var using the /credScanEnvironmentVariablesAllowList flag to ensure that the variable is not scanned for credentials.
@@ -109,18 +91,19 @@ namespace BuildXL.Pips.Builders
                         continue;
                     }
 
-                    string envVarKey = m_pathTable.StringTable.GetString(env.Name);
+                    string envVarKey = m_renderer.Render(env.Name);
                     if (m_credScanEnvironmentVariablesAllowList?.Contains(envVarKey) == true)
                     {
                         continue;
                     }
 
+                    string value = env.Value.ToString(m_renderer);
                     m_counters.IncrementCounter(CredScanCounter.NumProcessed);
 
                     // Converting the env variable into the below pattern.
                     // Ex: string input = "password = Cr3d5c@n_D3m0_P@55w0rd";
                     // The above example is one of the suggested patterns to represent the input string which is to be passed to the CredScan method.
-                    m_credScanActionBlock.Post(($"{envVarKey}={env.Value.ToString(m_pathTable)}", process));
+                    m_credScanActionBlock.Post(($"{envVarKey} = {value}", process));
                 }
             }
         }
@@ -153,11 +136,6 @@ namespace BuildXL.Pips.Builders
         /// </summary>
         public void Complete(PipExecutionContext context)
         {
-            if (!m_enableCredScan)
-            {
-                return;
-            }
-
             using (m_counters.StartStopwatch(CredScanCounter.CompleteDuration))
             {
                 m_credScanActionBlock.Complete();
@@ -165,7 +143,7 @@ namespace BuildXL.Pips.Builders
                 if (!m_credScanActionBlock.Completion.Wait(credScanCompletionWaitTimeInMs, context.CancellationToken))
                 {
                     Logger.Log.CredScanFailedToCompleteInfo(m_loggingContext, credScanCompletionWaitTimeInMs);
-                }                
+                }
             }
 
             foreach (var tuple in m_envVarsWithCredentials)

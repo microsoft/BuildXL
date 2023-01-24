@@ -1299,6 +1299,11 @@ namespace BuildXL.Engine
                     // We assume clean outputs in CloudBuild builds.
                     mutableConfig.Engine.AssumeCleanOutputs = true;
                 }
+
+                if (!mutableConfig.FrontEnd.EnableCredScan.HasValue)
+                {
+                    mutableConfig.FrontEnd.EnableCredScan = true;
+                }
             }
             else
             {

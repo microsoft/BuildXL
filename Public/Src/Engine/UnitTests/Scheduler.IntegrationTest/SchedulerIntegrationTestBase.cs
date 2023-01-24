@@ -379,6 +379,7 @@ namespace Test.BuildXL.Scheduler
             if (m_graphWasModified || LastGraph == null)
             {
                 LastGraph = PipGraphBuilder.Build();
+                FrontEndContext?.CredentialScanner?.Complete(Context);
                 XAssert.IsNotNull(LastGraph, "Failed to build pip graph");
             }
 

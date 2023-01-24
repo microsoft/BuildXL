@@ -227,7 +227,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
         public bool? AllowMissingSpecs { get; set; }
 
         /// <inheritdoc />
-        public bool EnableCredScan { get; set; }
+        public bool? EnableCredScan { get; set; }
 
         /// <nodoc />
         public List<string> CredScanEnvironmentVariablesAllowList { get; set; }

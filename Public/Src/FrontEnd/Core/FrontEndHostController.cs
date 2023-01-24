@@ -786,7 +786,7 @@ namespace BuildXL.FrontEnd.Core
         /// <inheritdoc/>
         public void CompleteCredentialScanner()
         {
-            FrontEndContext.CredentialScanner.Complete(FrontEndContext);
+            FrontEndContext.CredentialScanner?.Complete(FrontEndContext);
         }
 
         private bool TryGetQualifiers(IConfiguration configuration, IReadOnlyList<string> requestedQualifierExpressions, out QualifierId[] qualifierIds)

@@ -38,6 +38,7 @@ namespace BuildXL.Cache.ContentStore.App
                 var removeFromTrackerResult = retryPolicy.ExecuteAsync(() => rpcClient.RemoveFromTrackerAsync(context), _cancellationToken).Result;
                 if (!removeFromTrackerResult.Succeeded)
                 {
+                    _logger.Debug("RemoveFromTracker failed with error {0}", removeFromTrackerResult.ErrorMessage);
                     throw new CacheException(removeFromTrackerResult.ErrorMessage);
                 }
                 else
@@ -48,6 +49,7 @@ namespace BuildXL.Cache.ContentStore.App
                 var shutdownResult = rpcClient.ShutdownAsync(context).Result;
                 if (!shutdownResult.Succeeded)
                 {
+                    _logger.Debug("Shutdown failed after RemoveFromTracker with error {0}", shutdownResult.ErrorMessage);
                     throw new CacheException(shutdownResult.ErrorMessage);
                 }
             }

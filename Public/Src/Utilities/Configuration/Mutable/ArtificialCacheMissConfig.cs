@@ -13,6 +13,10 @@ namespace BuildXL.Utilities.Configuration.Mutable
         /// <nodoc />
         public ArtificialCacheMissConfig()
         {
+            // Create an "empty" configuration
+            Seed = 0;
+            Rate = 0;
+            IsInverted = false;
         }
 
         /// <nodoc />

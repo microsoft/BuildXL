@@ -94,6 +94,14 @@ namespace Test.BuildXL.Processes
         }
 
         [Fact]
+        public void TestMissRate0PercentOnEmptyConfig()
+        {
+            var options = new ArtificialCacheMissConfig();
+            XAssert.AreEqual(options.Rate, 0);
+            ExpectMissRate(new ArtificialCacheMissOptions(options.Rate, invert: options.IsInverted, seed: options.Seed), samples: 4000);
+        }
+
+        [Fact]
         public void TestMissRate50Percent()
         {
             ExpectMissRate(new ArtificialCacheMissOptions(0.5, invert: false, seed: 984502), samples: 4000);

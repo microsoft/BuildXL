@@ -70,6 +70,7 @@ using Process = BuildXL.Pips.Operations.Process;
 using BuildXL.Processes.Sideband;
 using BuildXL.Processes.Remoting;
 using BuildXL.Cache.ContentStore.Extensions;
+using BuildXL.Utilities.Configuration.Mutable;
 
 namespace BuildXL.Scheduler
 {
@@ -1227,15 +1228,12 @@ namespace BuildXL.Scheduler
             m_rootMappings = rootMappings;
 
             // Prepare artificial cache miss.
-            var artificalCacheMissConfig = configuration.Cache.ArtificialCacheMissConfig;
-            if (artificalCacheMissConfig != null)
-            {
-                m_artificialCacheMissOptions = new ArtificialCacheMissOptions(
-                    artificalCacheMissConfig.Rate / (double)ushort.MaxValue,
-                    artificalCacheMissConfig.IsInverted,
-                    artificalCacheMissConfig.Seed,
-                    configuration.Cache.ForcedCacheMissSemistableHashes);
-            }
+            var artificalCacheMissConfig = configuration.Cache.ArtificialCacheMissConfig ?? new ArtificialCacheMissConfig();
+            m_artificialCacheMissOptions = new ArtificialCacheMissOptions(
+                artificalCacheMissConfig.Rate / (double)ushort.MaxValue,
+                artificalCacheMissConfig.IsInverted,
+                artificalCacheMissConfig.Seed,
+                configuration.Cache.ForcedCacheMissSemistableHashes);
 
             m_fileContentTable = fileContentTable;
             m_journalState = journalState ?? JournalState.DisabledJournal;

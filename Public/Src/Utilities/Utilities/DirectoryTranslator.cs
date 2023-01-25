@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
+using System.Security;
 using static BuildXL.Utilities.FormattableStringEx;
 
 namespace BuildXL.Utilities
@@ -390,6 +391,8 @@ namespace BuildXL.Utilities
                     string sourceFile = Path.Combine(source, guidFileName);
                     string targetFile = Path.Combine(target, guidFileName);
 
+                    bool performFallbackCheck = false;
+
                     try
                     {
                         if (File.Exists(sourceFile))
@@ -405,9 +408,41 @@ namespace BuildXL.Utilities
                             }
                         }
                     }
-                    catch (IOException ioException)
+                    catch (Exception exception) when (exception is IOException || exception is UnauthorizedAccessException)
                     {
-                        translationError = ioException.Message;
+                        // Unable to validate the translation via a file creation. This may be due to lack of access.
+                        // Fall back on a quick check to see if a member of the translated directly looks the same.
+                        // That isn't as robust of a check but not all translations will be writeable.
+                        performFallbackCheck = true;
+                    }
+
+                    if (performFallbackCheck)
+                    {
+                        try
+                        {
+                            DirectoryInfo di = new DirectoryInfo(source);
+                            FileSystemInfo fsi = di.EnumerateFileSystemInfos().FirstOrDefault();
+                            if (fsi.Exists)
+                            {
+                                string testPath = Path.Combine(target, fsi.Name);
+                                FileSystemInfo testFsi = new FileInfo(testPath);
+                                if (!testFsi.Exists)
+                                {
+                                    testFsi = new DirectoryInfo(testPath);
+                                }
+
+                                if (!testFsi.Exists || testFsi.LastAccessTime != fsi.LastAccessTime)
+                                {
+                                    translationError = $"Translation invalid. Source directory does not have same content as target. Item '{fsi.Name}' in source directory does not have matching LastAccessTime as target directory.";
+                                }
+
+                                break;
+                            }
+                        }
+                        catch (Exception exception) when (exception is IOException || exception is UnauthorizedAccessException || exception is ArgumentException || exception is SecurityException)
+                        {
+                            translationError = $"Failed to read directory to verify translation: {exception.Message}";
+                        }
                     }
                 }
 

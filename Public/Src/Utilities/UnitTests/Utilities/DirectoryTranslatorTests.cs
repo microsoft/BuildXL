@@ -7,6 +7,7 @@ using System.IO;
 using System.Linq;
 using BuildXL.Native.IO;
 using BuildXL.Utilities;
+using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
@@ -216,6 +217,40 @@ namespace Test.BuildXL.Utilities
                     XAssert.IsTrue(error.Contains("Expect target file"), error);
                 }
             }
+        }
+
+        [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true, requiresAdmin: true)]
+        [InlineData(true, false, false)] // Don't expect success when we cannot read through the junction
+        [InlineData(true, true, true)]
+        [InlineData(false, true, false)]
+        public void TestDirectoryTranslatorJunctionNotWriteable(bool createJunction, bool onlyRevokeWrite, bool expectSuccessfulValidation)
+        {
+            string uniqueTestCaseDirSuffix = $"createJunction_{createJunction}_onlyRevokeWrite_{onlyRevokeWrite}";
+            var context = BuildXLContext.CreateInstanceForTesting();
+            var pathTable = context.PathTable;
+
+            var source = Path.Combine(TestOutputDirectory, uniqueTestCaseDirSuffix,  R("src"));
+            var target = Path.Combine(TestOutputDirectory, uniqueTestCaseDirSuffix, R("target"));
+
+            FileUtilities.CreateDirectory(source);
+            FileUtilities.CreateDirectory(target);
+            File.WriteAllText(Path.Combine(target, "TestFile"), "testContent");
+            if (createJunction)
+            {
+                FileUtilities.CreateJunction(source, target);
+            }
+
+            DirectoryTranslator.RawInputTranslation translation = DirectoryTranslator.RawInputTranslation.Create(AbsolutePath.Create(pathTable, source), AbsolutePath.Create(pathTable, target));
+
+            // Make sure the junction is not writeable to the test. This ensures we are testing the fallback logic
+            ACLHelpers.RevokeAccessNative(target, LoggingContext, onlyRevokeWrite: onlyRevokeWrite);
+            Assert.Throws<UnauthorizedAccessException>(() =>
+            {
+                File.WriteAllText(Path.Combine(target, "ShouldNotBeAbleToWriteHere.txt"), "testContent");
+            });
+
+            Assert.True(expectSuccessfulValidation == DirectoryTranslator.TestForJunctions(pathTable, new DirectoryTranslator.RawInputTranslation[] { translation }, out string error),
+                $"TestForJunctions did not return expected value. Error from function (if applicable):{error}");
         }
 
         private static void AssertEqualTranslatedPath(DirectoryTranslator translator, PathTable pathTable, string[] expected, string[] path)

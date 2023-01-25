@@ -51,7 +51,7 @@ jobs:
   - task: CmdLine@2
     displayName: Run bxl.cmd -Use Dev (microsoftInternal=0) 
     inputs:
-      script: 'bxl.cmd -Use Dev -UseBlobL3 -SharedCacheMode ConsumeAndPublish -CacheNamespace BuildXL.Public.Validation /p:[Sdk.BuildXL]microsoftInternal=0 /server- /ado /q:$(BuildXL.Configuration)DotNet6 /q:$(BuildXL.Configuration)DotNetCoreMac /logOutput:FullOutputOnWarningOrError /p:RetryXunitTests=1 /processRetries:3 /traceInfo:prvalidation=PublicLKG /p:xunitSemaphoreCount=12 /logsDirectory:$(BuildXL.LogsDirectory) /scrubDirectory:Out\objects'
+      script: 'bxl.cmd -Use Dev -UseBlobL3 -SharedCacheMode ConsumeAndPublish -CacheNamespace BuildXL.Public.Validation /p:[Sdk.BuildXL]microsoftInternal=0 /server- /ado /q:$(BuildXL.Configuration)DotNet6 /q:$(BuildXL.Configuration)DotNetCoreMac /logOutput:FullOutputOnWarningOrError /p:RetryXunitTests=1 /processRetries:3 /traceInfo:prvalidation=PublicLKG /p:xunitSemaphoreCount=12 /logsDirectory:$(BuildXL.LogsDirectory) /scrubDirectory:Out\objects /pipTimeoutMultiplier:2'
 
   - task: PublishPipelineArtifact@0
     displayName: Upload logs

@@ -271,7 +271,8 @@ function indexSymbolFiles(files: File[], args: OperationArguments) : DerivedFile
             symbolTag,
             `symbold-indexFiles`,
             ...(args.tags || []),
-        ]
+        ],
+        allowedSurvivingChildProcessNames: ["conhost.exe"]
     };
 
     // run the tool
@@ -348,7 +349,8 @@ function indexSymbolFilesInDirectories(directories: OpaqueDirectory[], createRes
             symbolTag,
             `symbold-indexDirectories`,
             ...(args.tags || []),
-        ]
+        ],
+        allowedSurvivingChildProcessNames: ["conhost.exe"]
     };
 
     // run the tool

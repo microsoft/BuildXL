@@ -57,9 +57,6 @@ export const pkgs = isMicrosoftInternal ? [
     // CloudTest internal dependencies
     { id: "GvfsTestHelpersForBuildXL", version: "0.1.0"},
 
-    // Internal pacakged version to avoid downloading from the web but the trusted stable internal feed:
-    { id: "PowerShell.Core", version: "6.1.0", osSkip: [ "macOS", "unix" ] },
-
     // IcM and dependencies
     { id: "Microsoft.AzureAd.Icm.Types.amd64", version: "2.2.1363.11" },
     { id: "Microsoft.AzureAd.Icm.WebService.Client.amd64", version: "2.2.1363.11" },
@@ -111,7 +108,6 @@ export const resolver = {
         f`Private/InternalSdk/BuildXL.DeviceMap/module.config.dsc`,
         f`Private/InternalSdk/CB.QTest/module.config.dsc`,
         ...addIf(isMicrosoftInternal,
-            f`Private/InternalSdk/PowerShell.Core/module.config.dsc`,
             f`Private/InternalSdk/Windows.Sdk/module.config.dsc`,
             f`Private/InternalSdk/InstrumentationFramework/module.config.dsc`
         ),

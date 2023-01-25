@@ -419,26 +419,6 @@ config({
             kind: "Download",
 
             downloads: [
-                // PowerShell.Core
-                {
-                    moduleName: "PowerShell.Core.win-x64",
-                    url: "https://github.com/PowerShell/PowerShell/releases/download/v6.1.3/PowerShell-6.1.3-win-x64.zip",
-                    hash: "VSO0:E8E98155383EDFE3CA6D06854638560EAB57C8225880B5308547A916DBE9A9A900",
-                    archiveType: "zip",
-                },
-                {
-                    moduleName: "PowerShell.Core.osx-x64",
-                    url: "https://github.com/PowerShell/PowerShell/releases/download/v6.1.3/PowerShell-6.1.3-osx-x64.tar.gz",
-                    hash: "VSO0:6D3B557962CC26CC9BB6F8A35B288CE8C68460E68B74B73C85BECAE87BB311D600",
-                    archiveType: "tgz",
-                },
-                {
-                    moduleName: "PowerShell.Core.linux-x64",
-                    url: "https://github.com/PowerShell/PowerShell/releases/download/v6.1.3/PowerShell-6.1.3-linux-x64.tar.gz",
-                    hash: "VSO0:159D6D8F82D59AD34D2F8A7084D05C25D6B532DE22CD9502882385F62CDD070300",
-                    archiveType: "tgz",
-                },
-
                 // XNU kernel sources
                 {
                     moduleName: "Apple.Darwin.Xnu",

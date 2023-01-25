@@ -16,6 +16,7 @@ using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Tracing;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
@@ -113,7 +114,7 @@ namespace Test.BuildXL.Distribution
 
             public void StartClient(int port)
             {
-                Client = new GrpcOrchestratorClient(LoggingContext, InvocationId);
+                Client = new GrpcOrchestratorClient(LoggingContext, InvocationId, new CounterCollection<DistributionCounter>());
                 Client.Initialize("localhost", port, OnConnectionFailureAsync);
             }
 
@@ -281,7 +282,8 @@ namespace Test.BuildXL.Distribution
             {
                 WorkerClient = new GrpcWorkerClient(LoggingContext,
                     InvocationId,
-                    OnConnectionFailureAsync);
+                    OnConnectionFailureAsync,
+                    new CounterCollection<DistributionCounter>());
                 WorkerClient.SetWorkerLocation(new ServiceLocation() { IpAddress = "localhost", Port = port });
             }
 

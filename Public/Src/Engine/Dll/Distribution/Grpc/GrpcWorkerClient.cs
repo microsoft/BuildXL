@@ -9,6 +9,7 @@ using BuildXL.Distribution.Grpc;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Tracing;
 using Grpc.Core;
 using static BuildXL.Engine.Distribution.Grpc.ClientConnectionManager;
 
@@ -23,12 +24,14 @@ namespace BuildXL.Engine.Distribution.Grpc
         private ClientConnectionManager m_connectionManager;
         private Worker.WorkerClient m_client;
         private AsyncClientStreamingCall<PipBuildRequest, RpcResponse> m_pipBuildRequestStream;
+        private readonly CounterCollection<DistributionCounter> m_counters;
 
-        public GrpcWorkerClient(LoggingContext loggingContext, DistributedInvocationId invocationId, EventHandler<ConnectionFailureEventArgs> onConnectionFailureAsync)
+        public GrpcWorkerClient(LoggingContext loggingContext, DistributedInvocationId invocationId, EventHandler<ConnectionFailureEventArgs> onConnectionFailureAsync, CounterCollection<DistributionCounter> counters)
         {
             m_loggingContext = loggingContext;
             m_onConnectionFailureAsync = onConnectionFailureAsync;
             m_invocationId = invocationId;
+            m_counters = counters;
         }
         
         /// <summary>
@@ -39,7 +42,7 @@ namespace BuildXL.Engine.Distribution.Grpc
             Contract.Assert(m_connectionManager == null, "The worker location can only be set once");
             Contract.Assert(serviceLocation != null);
 
-            m_connectionManager = new ClientConnectionManager(m_loggingContext, serviceLocation.IpAddress, serviceLocation.Port, m_invocationId);
+            m_connectionManager = new ClientConnectionManager(m_loggingContext, serviceLocation.IpAddress, serviceLocation.Port, m_invocationId, m_counters);
             m_connectionManager.OnConnectionFailureAsync += m_onConnectionFailureAsync;
             m_client = new Worker.WorkerClient(m_connectionManager.Channel);
         }

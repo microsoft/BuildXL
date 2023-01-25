@@ -126,7 +126,7 @@ namespace BuildXL.Engine.Distribution
         {
             m_pipExecutionService = new WorkerPipExecutionService(this);
             m_notificationManager = new WorkerNotificationManager(this, m_pipExecutionService, appLoggingContext);
-            m_orchestratorClient = new Grpc.GrpcOrchestratorClient(m_appLoggingContext, InvocationId);
+            m_orchestratorClient = new Grpc.GrpcOrchestratorClient(m_appLoggingContext, InvocationId, Counters);
             m_workerServer = new Grpc.GrpcWorkerServer(appLoggingContext, this, invocationId);
         }
 

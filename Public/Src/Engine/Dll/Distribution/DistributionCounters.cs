@@ -126,6 +126,15 @@ namespace BuildXL.Engine.Distribution
         GetPipResultsDescriptionDuration,
 
         /// <nodoc/>
-        ExecutionLogSentSize
+        ExecutionLogSentSize,
+
+        /// <nodoc/>
+        ConnectionManagerTimeout,
+
+        /// <nodoc/>
+        ConnectionManagerIdle,
+
+        /// <nodoc/>
+        ConnectionManagerFailCalls
     }
 }

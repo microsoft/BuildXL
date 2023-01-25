@@ -11,6 +11,7 @@ using BuildXL.Distribution.Grpc;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Tracing;
 using Grpc.Core;
 using static BuildXL.Engine.Distribution.Grpc.ClientConnectionManager;
 
@@ -26,11 +27,13 @@ namespace BuildXL.Engine.Distribution.Grpc
         private volatile bool m_initialized;
         private AsyncClientStreamingCall<ExecutionLogInfo, RpcResponse> m_executionLogStream;
         private AsyncClientStreamingCall<PipResultsInfo, RpcResponse> m_pipResultsStream;
+        private readonly CounterCollection<DistributionCounter> m_counters;
 
-        public GrpcOrchestratorClient(LoggingContext loggingContext, DistributedInvocationId invocationId)
+        public GrpcOrchestratorClient(LoggingContext loggingContext, DistributedInvocationId invocationId, CounterCollection<DistributionCounter> counters)
         {
             m_invocationId = invocationId;
             m_loggingContext = loggingContext;
+            m_counters = counters;
         }
 
         public Task<RpcCallResult<Unit>> SayHelloAsync(ServiceLocation myLocation, CancellationToken cancellationToken = default)
@@ -46,7 +49,7 @@ namespace BuildXL.Engine.Distribution.Grpc
             int port, 
             EventHandler<ConnectionFailureEventArgs> onConnectionFailureAsync)
         {
-            m_connectionManager = new ClientConnectionManager(m_loggingContext, ipAddress, port, m_invocationId);
+            m_connectionManager = new ClientConnectionManager(m_loggingContext, ipAddress, port, m_invocationId, m_counters);
             m_connectionManager.OnConnectionFailureAsync += onConnectionFailureAsync;
             m_client = new Orchestrator.OrchestratorClient(m_connectionManager.Channel);
             m_initialized = true;

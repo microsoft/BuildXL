@@ -115,6 +115,8 @@ namespace BuildXL.Engine.Distribution.Grpc
         
         private readonly bool m_dotNetClientEnabled;
         private readonly string m_ipAddress;
+        private int m_numReconnectAttempts;
+        private readonly CounterCollection<DistributionCounter> m_counters;
 
         /// <summary>
         /// Channel State 
@@ -139,12 +141,13 @@ namespace BuildXL.Engine.Distribution.Grpc
             return GenerateLog(traceId.ToString(), "Fail", numTry, failure);
         }
 
-        public ClientConnectionManager(LoggingContext loggingContext, string ipAddress, int port, DistributedInvocationId invocationId)
+        public ClientConnectionManager(LoggingContext loggingContext, string ipAddress, int port, DistributedInvocationId invocationId, CounterCollection<DistributionCounter> counters)
         {
             m_invocationId = invocationId;
             m_loggingContext = loggingContext;
             m_dotNetClientEnabled = EngineEnvironmentSettings.GrpcDotNetClientEnabled;
             m_ipAddress = ipAddress;
+            m_counters = counters;
 
             if (m_dotNetClientEnabled)
             {
@@ -452,18 +455,20 @@ namespace BuildXL.Engine.Distribution.Grpc
 
                 if (monitorConnectingState && connectingStateTimer.IsRunning && connectingStateTimer.Elapsed >= EngineEnvironmentSettings.DistributionConnectTimeout)
                 {
+                    m_counters.IncrementCounter(DistributionCounter.ConnectionManagerTimeout);
                     OnConnectionFailureAsync?.Invoke(this, new ConnectionFailureEventArgs(ConnectionFailureType.ReconnectionTimeout, $"Timed out while the gRPC layer was trying to reconnect to the server. Timeout: {EngineEnvironmentSettings.DistributionConnectTimeout.Value.TotalMinutes} minutes"));
                     break;
                 }
 
                 // If we requested 'exit' for the server, the channel can go to 'Idle' state.
-                // We should not reconnect the channel again in that case.
+                // We should not reconnect to the channel again in that case.
                 if (state == ChannelState.Idle && !m_isExitCalledForServer)
                 {
-                    bool isReconnected = await TryReconnectAsync();
-                    if (!isReconnected)
+                    m_counters.IncrementCounter(DistributionCounter.ConnectionManagerIdle);
+
+                    if (!await TryReconnectAsync())
                     {
-                        OnConnectionFailureAsync?.Invoke(this, new ConnectionFailureEventArgs(ConnectionFailureType.ReconnectionTimeout, "Reconnection attempts from the Idle state failed"));
+                        OnConnectionFailureAsync?.Invoke(this, new ConnectionFailureEventArgs(ConnectionFailureType.ReconnectionTimeout, $"Reconnection attempts from the Idle state failed. Reconnection attempts: {m_numReconnectAttempts}"));
                         break;
                     }
                 }
@@ -482,6 +487,16 @@ namespace BuildXL.Engine.Distribution.Grpc
 
         private async Task<bool> TryReconnectAsync()
         {
+            if (m_numReconnectAttempts > 3)
+            {
+                // We sometimes go into deadlock between Idle and Ready states. 
+                // As soon as we connect to the worker, the state is again back to Idle from Ready. 
+                // To avoid the deadlock, we only allow three reconnection attempts.
+                return false;
+            }
+
+            ++m_numReconnectAttempts;
+
             int numRetries = 0;
             bool connectionSucceeded = false;
 
@@ -594,6 +609,8 @@ namespace BuildXL.Engine.Distribution.Grpc
                     state = e.StatusCode == StatusCode.Cancelled ? RpcCallResultState.Cancelled : RpcCallResultState.Failed;
                     failure = state == RpcCallResultState.Failed ? new RecoverableExceptionFailure(new BuildXLException(e.Message)) : null;
 
+                    m_counters.IncrementCounter(DistributionCounter.ConnectionManagerFailCalls);
+
                     if (e.Status.StatusCode == StatusCode.DeadlineExceeded)
                     {
                         timeouts++;
@@ -639,6 +656,7 @@ namespace BuildXL.Engine.Distribution.Grpc
                     state = RpcCallResultState.Failed;
                     failure = new RecoverableExceptionFailure(new BuildXLException(e.Message));
                     Logger.Log.GrpcTrace(m_loggingContext, m_ipAddress, GenerateLog(traceId, "Fail", numTry, e.Message));
+                    m_counters.IncrementCounter(DistributionCounter.ConnectionManagerFailCalls);
 
                     // If stream is already disposed, we cannot retry call. 
                     break;

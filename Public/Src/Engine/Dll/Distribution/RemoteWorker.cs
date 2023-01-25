@@ -167,7 +167,8 @@ namespace BuildXL.Engine.Distribution
             m_workerClient = new Grpc.GrpcWorkerClient(
                 m_appLoggingContext,
                 orchestratorService.InvocationId,
-                OnConnectionFailureAsync);
+                OnConnectionFailureAsync,
+                m_orchestratorService.Counters);
 
             if (serviceLocation != null)
             {

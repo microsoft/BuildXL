@@ -1556,6 +1556,11 @@ namespace BuildXL
                         layoutConfiguration.RedirectedUserProfileJunctionRoot = AbsolutePath.Create(pathTable, RedirectedUserProfileLocationInCloudBuild);
                         enableProfileRedirect = true;
                     }
+
+                    if (!frontEndConfiguration.EnableCredScan.HasValue)
+                    {
+                        frontEndConfiguration.EnableCredScan = true;
+                    }
                 }
 
                 if (!OperatingSystemHelper.IsUnixOS)

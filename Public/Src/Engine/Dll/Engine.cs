@@ -1300,10 +1300,6 @@ namespace BuildXL.Engine
                     mutableConfig.Engine.AssumeCleanOutputs = true;
                 }
 
-                if (!mutableConfig.FrontEnd.EnableCredScan.HasValue)
-                {
-                    mutableConfig.FrontEnd.EnableCredScan = true;
-                }
             }
             else
             {

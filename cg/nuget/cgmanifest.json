@@ -402,7 +402,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Grpc.AspNetCore",
-          "Version": "2.47.0"
+          "Version": "2.51.0"
         }
       }
     },
@@ -411,7 +411,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Grpc.AspNetCore.Server",
-          "Version": "2.47.0"
+          "Version": "2.51.0"
         }
       }
     },
@@ -420,7 +420,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Grpc.AspNetCore.Server.ClientFactory",
-          "Version": "2.47.0"
+          "Version": "2.51.0"
         }
       }
     },
@@ -438,7 +438,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Grpc.Core.Api",
-          "Version": "2.47.0"
+          "Version": "2.51.0"
         }
       }
     },
@@ -447,7 +447,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Grpc.Net.Client",
-          "Version": "2.47.0"
+          "Version": "2.51.0"
         }
       }
     },
@@ -456,7 +456,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Grpc.Net.Client.Web",
-          "Version": "2.47.0"
+          "Version": "2.51.0"
         }
       }
     },
@@ -465,7 +465,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Grpc.Net.ClientFactory",
-          "Version": "2.47.0"
+          "Version": "2.51.0"
         }
       }
     },
@@ -474,7 +474,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Grpc.Net.Common",
-          "Version": "2.47.0"
+          "Version": "2.51.0"
         }
       }
     },
@@ -483,7 +483,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Grpc.Tools",
-          "Version": "2.47.0"
+          "Version": "2.51.0"
         }
       }
     },

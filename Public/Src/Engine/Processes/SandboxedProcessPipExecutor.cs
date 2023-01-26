@@ -328,6 +328,7 @@ namespace BuildXL.Processes
                     SubstituteProcessExecutionInfo = shimInfo,
                     ExplicitlyReportDirectoryProbes = m_sandboxConfig.ExplicitlyReportDirectoryProbes,
                     PreserveFileSharingBehaviour = m_sandboxConfig.PreserveFileSharingBehaviour,
+                    EnableLinuxPTraceSandbox = m_sandboxConfig.EnableLinuxPTraceSandbox
                 };
 
             if (!MonitorFileAccesses)

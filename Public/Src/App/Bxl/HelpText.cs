@@ -885,6 +885,12 @@ namespace BuildXL
                 HelpLevel.Verbose
                 );
 
+            hw.WriteOption(
+                "/enableLinuxPTraceSandbox[+|-]",
+                Strings.HelpText_DisplayHelp_EnableLinuxPTraceSandbox,
+                HelpLevel.Verbose
+                );
+
             #endregion
 
             hw.WriteBanner(

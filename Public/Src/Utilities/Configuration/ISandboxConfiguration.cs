@@ -297,5 +297,14 @@ namespace BuildXL.Utilities.Configuration
         /// we only add FILE_SHARE_DELETE if the file is tracked.
         /// </remarks>
         public bool PreserveFileSharingBehaviour { get;  }
+
+        /// <summary>
+        /// Enables using the PTrace sandbox on Linux. It will only be used if a statically linked process is executed.
+        /// Disabled by default.
+        /// </summary>
+        /// <remarks>
+        /// There will be a significant performance impact on the executing process under this sandbox.
+        /// </remarks>
+        public bool EnableLinuxPTraceSandbox { get; }
     }
 }

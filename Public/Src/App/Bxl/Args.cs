@@ -451,6 +451,9 @@ namespace BuildXL
                             "enableProcessRemoting",
                             sign => schedulingConfiguration.EnableProcessRemoting = sign),
                         OptionHandlerFactory.CreateBoolOption(
+                            "enableLinuxPTraceSandbox",
+                            sign => sandboxConfiguration.EnableLinuxPTraceSandbox = UnixObjectFileDumpUtils.IsObjDumpInstalled.Value && sign),
+                        OptionHandlerFactory.CreateBoolOption(
                             "enableSetupCostWhenChoosingWorker",
                             sign => schedulingConfiguration.EnableSetupCostWhenChoosingWorker = sign),
                         OptionHandlerFactory.CreateOption(

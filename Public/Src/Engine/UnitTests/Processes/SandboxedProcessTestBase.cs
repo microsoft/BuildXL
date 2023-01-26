@@ -40,7 +40,8 @@ namespace Test.BuildXL.Processes
             bool disableConHostSharing = false,
             Dictionary<string, string> overrideEnvVars = null,
             ISandboxConnection sandboxConnection = null,
-            bool enableLinuxSandboxAuditing = false)
+            bool enableLinuxSandboxAuditing = false,
+            string workingDirectory = null)
         {
             // Disables using the audit library on Linux for sandbox tests
             if (OperatingSystemHelper.IsLinuxOS && !enableLinuxSandboxAuditing)
@@ -79,7 +80,7 @@ namespace Test.BuildXL.Processes
             {
                 PipSemiStableHash = 0x1234,
                 PipDescription = pipDescription,
-                WorkingDirectory = TemporaryDirectory,
+                WorkingDirectory = workingDirectory ?? TemporaryDirectory,
                 Arguments = process.Arguments.ToString(Context.PathTable),
                 Timeout = TimeSpan.FromMinutes(15),
                 EnvironmentVariables = BuildParameters.GetFactory().PopulateFromDictionary(envVars),

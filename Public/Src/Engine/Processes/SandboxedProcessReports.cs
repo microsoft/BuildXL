@@ -116,7 +116,7 @@ namespace BuildXL.Processes
 
         private readonly SandboxedProcessTraceBuilder m_traceBuilder;
 
-        private readonly UnixObjectFileDumpUtils m_objFileDumpUtils;
+        private readonly List<AbsolutePath> m_staticallyLinkedProcesses;
 
         public SandboxedProcessReports(
             FileAccessManifest manifest,
@@ -145,8 +145,10 @@ namespace BuildXL.Processes
             m_loggingContext = loggingContext;
             m_fileSystemView = fileSystemView;
             m_traceBuilder = traceBuilder;
-            m_objFileDumpUtils = UnixObjectFileDumpUtils.CreateObjDump(); // Only initialized for Linux
-            
+            if (OperatingSystemHelper.IsLinuxOS)
+            {
+                m_staticallyLinkedProcesses = new List<AbsolutePath>();
+            }
         }
 
         /// <summary>
@@ -157,10 +159,9 @@ namespace BuildXL.Processes
             Volatile.Write(ref m_isFrozen, true);
 
             // Dump any detected statically linked processes for this pip
-            var staticallyLinkedProcessPaths = m_objFileDumpUtils?.GetDetectedStaticallyLinkedProcesses();
-            if (staticallyLinkedProcessPaths != null && staticallyLinkedProcessPaths.Any())
+            if (m_staticallyLinkedProcesses?.Any() == true)
             {
-                Tracing.Logger.Log.LinuxSandboxReportedStaticallyLinkedBinary(m_loggingContext, PipDescription, string.Join(",", staticallyLinkedProcessPaths));
+                Tracing.Logger.Log.LinuxSandboxReportedStaticallyLinkedBinary(m_loggingContext, PipDescription, string.Join(", ", m_staticallyLinkedProcesses.Select(p => p.ToString(m_pathTable))));
             }
         }
 
@@ -774,14 +775,6 @@ namespace BuildXL.Processes
                 m_activeProcesses[processId] = process;
                 Processes.Add(process);
                 m_traceBuilder?.ReportProcess(process);
-
-                // The Linux Sandbox will not detect accesses for statically linked binaries, so check whether the spawned process is statically linked and generate a warning
-                // On process create we should also get a report here to check the root process
-                // Only logs once per unique process path
-                if (OperatingSystemHelper.IsLinuxOS)
-                {
-                    m_objFileDumpUtils.IsBinaryStaticallyLinked(path);
-                }
             }
             else
             {
@@ -867,6 +860,13 @@ namespace BuildXL.Processes
                     m_overrideAllowedWritePaths[finalPath] = (status == FileAccessStatus.Denied);
                 }
 
+                return true;
+            }
+
+            if (operation == ReportedFileOperation.StaticallyLinkedProcess)
+            {
+                // The sandbox should automatically filter out duplicate process names
+                m_staticallyLinkedProcesses.Add(finalPath);
                 return true;
             }
 

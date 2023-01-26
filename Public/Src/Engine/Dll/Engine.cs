@@ -1356,6 +1356,13 @@ namespace BuildXL.Engine
                 mutableConfig.Sandbox.UnsafeSandboxConfigurationMutable.SkipFlaggingSharedOpaqueOutputs = true;
             }
 
+            // Override ptrace option if objdump is not installed
+            if (!UnixObjectFileDumpUtils.IsObjDumpInstalled.Value && mutableConfig.Sandbox.EnableLinuxPTraceSandbox)
+            {
+                mutableConfig.Sandbox.EnableLinuxPTraceSandbox = false;
+                Logger.Log.ObjDumpNotInstalled(loggingContext);
+            }
+
             return success;
         }
 
@@ -2633,11 +2640,6 @@ namespace BuildXL.Engine
                     var currentImplicitModuleName = Configuration.Layout.PrimaryConfigFile.GetParent(Context.PathTable).GetName(Context.PathTable).ToString(Context.StringTable);
                     Logger.Log.WarnToNotUseProjectsField(loggingContext, Configuration.Layout.PrimaryConfigFile.ToString(Context.PathTable), Names.ModuleConfigDsc, currentImplicitModuleName);
                 }
-            }
-
-            if (OperatingSystemHelper.IsLinuxOS && !UnixObjectFileDumpUtils.IsObjDumpInstalled.Value)
-            {
-                Logger.Log.ObjDumpNotInstalled(loggingContext);
             }
 
             return true;

@@ -55,6 +55,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             DirectoriesToEnableFullReparsePointParsing = new List<AbsolutePath>();
             ExplicitlyReportDirectoryProbes = OperatingSystemHelper.IsLinuxOS;
             PreserveFileSharingBehaviour = false;
+            EnableLinuxPTraceSandbox = false;
         }
 
         /// <nodoc />
@@ -107,6 +108,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             DirectoriesToEnableFullReparsePointParsing = pathRemapper.Remap(template.DirectoriesToEnableFullReparsePointParsing);
             ExplicitlyReportDirectoryProbes = template.ExplicitlyReportDirectoryProbes;
             PreserveFileSharingBehaviour = template.PreserveFileSharingBehaviour;
+            EnableLinuxPTraceSandbox = template.EnableLinuxPTraceSandbox;
         }
 
         /// <inheritdoc />
@@ -280,5 +282,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public bool PreserveFileSharingBehaviour { get; set; }
+
+        /// <inheritdoc />
+        public bool EnableLinuxPTraceSandbox { get; set; }
     }
 }

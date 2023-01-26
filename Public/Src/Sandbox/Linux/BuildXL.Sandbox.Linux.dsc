@@ -30,7 +30,7 @@ namespace Sandbox {
     const utilsSrc   = [ f`utils.c` ];
     const bxlEnvSrc  = [ f`bxl-env.c` ];
     const auditSrc   = [ f`bxl_observer.cpp`, f`audit.cpp` ];
-    const detoursSrc = [ f`bxl_observer.cpp`, f`detours.cpp` ];
+    const detoursSrc = [ f`bxl_observer.cpp`, f`detours.cpp`, f`PTraceSandbox.cpp` ];
     const incDirs    = [
         d`./`,
         d`../MacOs/Interop/Sandbox`,

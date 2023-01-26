@@ -134,6 +134,7 @@ namespace BuildXL.Processes
             {
                 case ReportedFileOperation.ChangedReadWriteToReadAccess:
                 case ReportedFileOperation.FirstAllowWriteCheckInProcess:
+                case ReportedFileOperation.StaticallyLinkedProcess:
                     return true;
                 default:
                     return false;

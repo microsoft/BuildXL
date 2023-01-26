@@ -91,6 +91,7 @@ namespace BuildXL.Processes
                 { "ReparsePointTargetCached", ReportedFileOperation.ReparsePointTargetCached },
                 { "ChangedReadWriteToReadAccess", ReportedFileOperation.ChangedReadWriteToReadAccess },
                 { "FirstAllowWriteCheckInProcess", ReportedFileOperation.FirstAllowWriteCheckInProcess },
+                { "StaticallyLinkedProcess", ReportedFileOperation.StaticallyLinkedProcess },
                 { "MoveFileWithProgress_Source", ReportedFileOperation.MoveFileWithProgressSource },
                 { "MoveFileWithProgress_Dest", ReportedFileOperation.MoveFileWithProgressDest },
                 { "MultipleOperations", ReportedFileOperation.MultipleOperations },

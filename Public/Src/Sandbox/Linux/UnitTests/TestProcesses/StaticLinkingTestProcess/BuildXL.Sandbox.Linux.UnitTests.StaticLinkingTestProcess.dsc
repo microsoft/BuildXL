@@ -32,7 +32,8 @@ namespace StaticLinkingTestProcess {
             arguments: [
                 Cmd.argument(Artifact.input(srcFile)),
                 Cmd.option("-o ", Artifact.output(exeFile)),
-                ...(staticallyLink ? [Cmd.rawArgument("-static")] : [])
+                ...(staticallyLink ? [Cmd.rawArgument("-static")] : []),
+                ...(staticallyLink ? [Cmd.rawArgument("-D STATICALLYLINKED")] : [])
             ]
         });
 

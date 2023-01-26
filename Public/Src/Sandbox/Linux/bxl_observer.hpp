@@ -210,10 +210,14 @@ private:
     static const int MAX_FD = 1024;
     std::string fdTable_[MAX_FD];
     std::string empty_str_;
+    bool useFdTable_ = true;
 
     std::shared_ptr<SandboxedPip> pip_;
     std::shared_ptr<SandboxedProcess> process_;
     Sandbox *sandbox_;
+
+    // Cache for statically linked processes in the form <timestamp>:<path>
+    std::vector<std::pair<std::string, bool>> staticallyLinkedProcessCache_;
 
     void InitFam();
     void InitLogFile();
@@ -222,7 +226,7 @@ private:
     bool IsCacheHit(es_event_type_t event, const string &path, const string &secondPath);
     char** ensure_env_value_with_log(char *const envp[], char const *envName);
 
-    ssize_t read_path_for_fd(int fd, char *buf, size_t bufsiz);
+    ssize_t read_path_for_fd(int fd, char *buf, size_t bufsiz, const char *associatedPid = "self");
 
     bool IsMonitoringChildProcesses() const { return !pip_ || CheckMonitorChildProcesses(pip_->GetFamFlags()); }
     inline bool IsValid() const             { return sandbox_ != NULL; }
@@ -294,25 +298,31 @@ public:
     AccessCheckResult report_access(const char *syscallName, es_event_type_t eventType, const std::string &reportPath, const std::string &secondPath, mode_t mode = 0);
 
     AccessCheckResult report_access_fd(const char *syscallName, es_event_type_t eventType, int fd);
-    AccessCheckResult report_access_at(const char *syscallName, es_event_type_t eventType, int dirfd, const char *pathname, int oflags = 0);
+    AccessCheckResult report_access_at(const char *syscallName, es_event_type_t eventType, int dirfd, const char *pathname, int oflags = 0, bool getModeWithFd = true, const char *associatedPid = "self");
 
     // Send a special message to managed code if the policy to override allowed writes based on file existence is set
     // and the write is allowed by policy
     AccessCheckResult report_firstAllowWriteCheck(const char *fullPath);
+
+    bool check_and_report_statically_linked_process(const char *path);
+    bool check_and_report_statically_linked_process(int fd);
 
     // Clears the specified entry on the file descriptor table
     void reset_fd_table_entry(int fd);
     
     // Clears the entire file descriptor table
     void reset_fd_table();
+
+    // Disables the FD table. Cannot be re-enabled for the remainder of the sandbox lifetime.
+    void disable_fd_table();
     
     // Returns the path associated with the given file descriptor
     // Note: This function assumes fd is a file descriptor pointing to a regular file (that is, a file, directory or symlink, not a pipe/socket/etc). The reason for this assumption is that file descriptors
     // are cached and the corresponding invalidation is tied to opening handles against file names. We are currently not detouring pipe creation, so we run the risk of not invalidating the file descriptor
     // table properly for the case of pipes when we miss a close.
-    std::string fd_to_path(int fd);
+    std::string fd_to_path(int fd, const char *associatedPid = "self");
     
-    std::string normalize_path_at(int dirfd, const char *pathname, int oflags = 0);
+    std::string normalize_path_at(int dirfd, const char *pathname, int oflags = 0, const char *associatedPid = "self");
 
     // Whether the given descriptor is a non-file (e.g., a pipe, or socket, etc.)
     static bool is_non_file(const mode_t mode);
@@ -377,9 +387,9 @@ public:
         return result;
     }
 
-    std::string normalize_path(const char *pathname, int oflags = 0)
+    std::string normalize_path(const char *pathname, int oflags = 0, const char *associatedPid = "self")
     {
-        return normalize_path_at(AT_FDCWD, pathname, oflags);
+        return normalize_path_at(AT_FDCWD, pathname, oflags, associatedPid);
     }
 
     bool IsFailingUnexpectedAccesses()
@@ -506,7 +516,9 @@ public:
     GEN_FN_DEF(int, statfs, const char *, struct statfs *buf);
     GEN_FN_DEF(int, statfs64, const char *, struct statfs64 *buf);
     GEN_FN_DEF(int, fstatfs, int fd, struct statfs *buf);
-    GEN_FN_DEF(int, fstatfs64, int fd, struct statfs64 *buf); 
+    GEN_FN_DEF(int, fstatfs64, int fd, struct statfs64 *buf);
+    GEN_FN_DEF(FILE*, popen, const char *command, const char *type);
+    GEN_FN_DEF(int, pclose, FILE *stream);
     /* =================================================================== */
 
     /* ============ old/obsolete/unavailable ==========================

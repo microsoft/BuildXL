@@ -95,6 +95,7 @@ namespace BuildXL.Processes
             ProbeDirectorySymlinkAsDirectory = false;
             ExplicitlyReportDirectoryProbes = false;
             PreserveFileSharingBehaviour = false;
+            EnableLinuxPTraceSandbox = false;
         }
 
         private bool GetFlag(FileAccessManifestFlag flag) => (m_fileAccessManifestFlag & flag) != 0;
@@ -471,6 +472,15 @@ namespace BuildXL.Processes
         {
             get => GetExtraFlag(FileAccessManifestExtraFlag.PreserveFileSharingBehaviour);
             set => SetExtraFlag(FileAccessManifestExtraFlag.PreserveFileSharingBehaviour, value);
+        }
+
+        /// <summary>
+        /// When enabled, the Linux sandbox will use PTrace for binaries that are statically linked
+        /// </summary>
+        public bool EnableLinuxPTraceSandbox
+        {
+            get => GetExtraFlag(FileAccessManifestExtraFlag.EnableLinuxPTraceSandbox);
+            set => SetExtraFlag(FileAccessManifestExtraFlag.EnableLinuxPTraceSandbox, value);
         }
 
         /// <summary>
@@ -1225,6 +1235,7 @@ namespace BuildXL.Processes
             NoneExtra = 0,
             ExplicitlyReportDirectoryProbes = 0x1,
             PreserveFileSharingBehaviour = 0x2,
+            EnableLinuxPTraceSandbox = 0x4,
         }
 
         private readonly struct FileAccessScope

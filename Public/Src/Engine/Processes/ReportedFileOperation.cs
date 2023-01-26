@@ -190,6 +190,12 @@ namespace BuildXL.Processes
         FirstAllowWriteCheckInProcess,
 
         /// <summary>
+        /// This operation used to indicate to the engine by the Linux sandbox that a process being executed statically links libc
+        /// and may have missing file observations.
+        /// </summary>
+        StaticallyLinkedProcess,
+
+        /// <summary>
         /// Access of reparse point target.
         /// </summary>
         ReparsePointTarget,

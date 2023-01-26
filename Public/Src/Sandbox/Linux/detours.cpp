@@ -24,6 +24,7 @@
 #include <sys/xattr.h>
 
 #include "bxl_observer.hpp"
+#include "PTraceSandbox.hpp"
 
 #define ERROR_RETURN_VALUE -1
 
@@ -93,28 +94,76 @@ INTERPOSE(int, clone, int (*fn)(void *), void *child_stack, int flags, void *arg
     return result.restore();
 })
 
+static int handle_exec_with_ptrace(int fd, char *const argv[], char *const envp[], BxlObserver *bxl)
+{
+    // fdtable will not longer be valid because the process will be forked for ptrace
+    bxl->reset_fd_table();
+
+    PTraceSandbox ptraceSandbox(bxl);
+    return ptraceSandbox.ExecuteWithPTraceSandbox("", fd, argv, envp);
+}
+
+static int handle_exec_with_ptrace(const char *file, char *const argv[], char *const envp[], BxlObserver *bxl)
+{
+    // fdtable will not longer be valid because the process will be forked for ptrace
+    bxl->reset_fd_table();
+    
+    PTraceSandbox ptraceSandbox(bxl);
+    return ptraceSandbox.ExecuteWithPTraceSandbox(file, -1, argv, envp);
+}
+
 INTERPOSE(int, fexecve, int fd, char *const argv[], char *const envp[])({
     bxl->report_access_fd(__func__, ES_EVENT_TYPE_NOTIFY_EXEC, fd);
+
+    if (bxl->check_and_report_statically_linked_process(fd))
+    {
+        return handle_exec_with_ptrace(fd, argv, bxl->ensureEnvs(envp), bxl);
+    }
+
     return bxl->fwd_fexecve(fd, argv, bxl->ensureEnvs(envp)).restore();
 })
 
 INTERPOSE(int, execv, const char *file, char *const argv[])({
     bxl->report_exec(__func__, argv[0], file);
+    
+    if (bxl->check_and_report_statically_linked_process(file))
+    {
+        return handle_exec_with_ptrace(file, argv, bxl->ensureEnvs(environ), bxl);
+    }
+
     return bxl->fwd_execve(file, argv, bxl->ensureEnvs(environ)).restore();
 })
 
 INTERPOSE(int, execve, const char *file, char *const argv[], char *const envp[])({
     bxl->report_exec(__func__, argv[0], file);
+
+    if (bxl->check_and_report_statically_linked_process(file))
+    {
+        return handle_exec_with_ptrace(file, argv, bxl->ensureEnvs(envp), bxl);
+    }
+
     return bxl->fwd_execve(file, argv, bxl->ensureEnvs(envp)).restore();
 })
 
 INTERPOSE(int, execvp, const char *file, char *const argv[])({
     bxl->report_exec(__func__, argv[0], file);
+
+    if (bxl->check_and_report_statically_linked_process(file))
+    {
+        return handle_exec_with_ptrace(file, argv, bxl->ensureEnvs(environ), bxl);
+    }
+
     return bxl->fwd_execvpe(file, argv, bxl->ensureEnvs(environ)).restore();
 })
 
 INTERPOSE(int, execvpe, const char *file, char *const argv[], char *const envp[])({
     bxl->report_exec(__func__, argv[0], file);
+
+    if (bxl->check_and_report_statically_linked_process(file))
+    {
+        return handle_exec_with_ptrace(file, argv, bxl->ensureEnvs(envp), bxl);
+    }
+
     return bxl->fwd_execvpe(file, argv, bxl->ensureEnvs(envp)).restore();
 })
 

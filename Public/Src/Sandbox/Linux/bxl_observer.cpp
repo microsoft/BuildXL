@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+#include <algorithm>
 #include "bxl_observer.hpp"
 #include "IOHandler.hpp"
 #include <stack>
@@ -262,6 +263,12 @@ AccessCheckResult BxlObserver::report_access(const char *syscallName, es_event_t
         mode = get_mode(reportPath.c_str());
     }
 
+    // If this file descriptor is a non-file (e.g., a pipe, or socket, etc.) then we don't care about it
+    if (is_non_file(mode))
+    {
+        return sNotChecked;
+    }
+
     std::string execPath = eventType == ES_EVENT_TYPE_NOTIFY_EXEC
         ? reportPath
         : std::string(progFullPath_);
@@ -324,7 +331,7 @@ bool BxlObserver::is_non_file(const mode_t mode)
     return mode != 0 && !S_ISDIR(mode) && !S_ISREG(mode) && !S_ISLNK(mode);
 }
 
-AccessCheckResult BxlObserver::report_access_at(const char *syscallName, es_event_type_t eventType, int dirfd, const char *pathname, int flags)
+AccessCheckResult BxlObserver::report_access_at(const char *syscallName, es_event_type_t eventType, int dirfd, const char *pathname, int flags, bool getModeWithFd, const char *associatedPid)
 {
     if (pathname[0] == '/')
     {
@@ -346,15 +353,31 @@ AccessCheckResult BxlObserver::report_access_at(const char *syscallName, es_even
     }
     else
     {
-        mode = get_mode(dirfd);
+        std::string dirPath;
+
+        // If getModeWithFd is set, then we can call get_mode directly with the file descriptor instead of a path
+        // If false, then use the provided associatedPid to convert the fd to a path and the get_mode on the path
+        if (getModeWithFd)
+        {
+            mode = get_mode(dirfd);
+        }
+        else
+        {
+            dirPath = fd_to_path(dirfd, associatedPid);
+            mode = get_mode(dirPath.c_str());
+        }
 
         // If this file descriptor is a non-file (e.g., a pipe, or socket, etc.) then we don't care about it
         if (is_non_file(mode)) 
         {
             return sNotChecked;
         }
-    
-        std::string dirPath = fd_to_path(dirfd);
+
+        if (dirPath.empty())
+        {
+            dirPath = fd_to_path(dirfd);
+        }
+        
         len = dirPath.length();
         strcpy(fullpath, dirPath.c_str());
     }
@@ -365,7 +388,7 @@ AccessCheckResult BxlObserver::report_access_at(const char *syscallName, es_even
     }
 
     snprintf(&fullpath[len], PATH_MAX - len, "/%s", pathname);
-    return report_access(syscallName, eventType, fullpath, flags, mode);
+    return report_access(syscallName, eventType, fullpath, mode, flags);
 }
 
 AccessCheckResult BxlObserver::report_firstAllowWriteCheck(const char *fullPath)
@@ -397,10 +420,123 @@ AccessCheckResult BxlObserver::report_firstAllowWriteCheck(const char *fullPath)
     return result;
 }
 
-ssize_t BxlObserver::read_path_for_fd(int fd, char *buf, size_t bufsiz)
+bool BxlObserver::check_and_report_statically_linked_process(int fd)
+{
+    return check_and_report_statically_linked_process(fd_to_path(fd).c_str());
+}
+
+bool BxlObserver::check_and_report_statically_linked_process(const char *path)
+{
+    if (!CheckEnableLinuxPTraceSandbox(pip_->GetFamExtraFlags()))
+    {
+        return false;
+    }
+
+    // Stat the path to get the last modified time of the path
+    // We need to do this because the executable file could be changed in between this stat and the previous stat
+    // If it was changed (has a different modified time), then we should run objdump on it once more
+    struct stat statbuf;
+#if (__GLIBC__ == 2 && __GLIBC_MINOR__ < 33)
+        real___lxstat(1, path, &statbuf);
+#else
+        real_lstat(path, &statbuf);
+#endif
+
+    std::string key = std::to_string(statbuf.st_mtim.tv_sec);
+    key.append(":");
+    key.append(path);
+
+    auto maybeProcess = std::find_if(
+        staticallyLinkedProcessCache_.begin(),
+        staticallyLinkedProcessCache_.end(),
+        [key](const std::pair<std::string, bool>& item) { return item.first == key; }
+    );
+
+    if (maybeProcess != staticallyLinkedProcessCache_.end())
+    {
+        // Already reported previously so we don't need to send a report here
+        return maybeProcess->second;
+    }
+    
+    bool isStaticallyLinked = false;
+    std::string result;
+    std::string objDumpOutput = "NEEDED               libc.so.";
+    int pipefd[2];
+    char mutablePath[PATH_MAX];
+
+    pipe(pipefd);
+
+    if (real_fork() == 0)
+    {
+        // Child process to execute objdump
+        real_close(pipefd[0]);    // close reading end in the child
+        real_dup2(pipefd[1], 1);  // send stdout to the pipe
+        real_dup2(pipefd[1], 2);  // send stderr to the pipe
+        real_close(pipefd[1]);    // this descriptor is no longer needed
+
+        // TODO: don't cast to char * here?
+        char *args[] = {"", "-p", (char *)path, NULL};
+        char *envp[] = { NULL};
+
+        real_execvpe("/usr/bin/objdump", args, envp);
+
+        real__exit(1); // If exec was successful then we should never reach this
+    }
+    else
+    {
+        char buffer[4096];
+        real_close(pipefd[1]);  // close the write end of the pipe in the parent
+
+        while (true)
+        {
+            auto bytesRead = read(pipefd[0], buffer, sizeof(buffer)-1);
+            if (bytesRead == 0)
+            {
+                break;
+            }
+
+            buffer[bytesRead] = '\0';
+            result.append(buffer);
+        }
+    }
+
+    isStaticallyLinked = result.find(objDumpOutput) == std::string::npos;
+
+    if (isStaticallyLinked)
+    {
+        AccessReport report =
+        {
+            .operation        = kOpStaticallyLinkedProcess,
+            .pid              = getpid(),
+            .rootPid          = pip_->GetProcessId(),
+            .requestedAccess  = (int) RequestedAccess::Read,
+            .status           = FileAccessStatus::FileAccessStatus_Allowed,
+            .reportExplicitly = (int) ReportLevel::Report,
+            .error            = 0,
+            .pipId            = pip_->GetPipId(),
+            .path             = {0},
+            .stats            = {0},
+            .isDirectory      = 0
+        };
+
+        strlcpy(report.path, path, sizeof(report.path));
+
+        SendReport(report);
+    }
+
+    staticallyLinkedProcessCache_.push_back(std::make_pair(key, isStaticallyLinked));
+    return isStaticallyLinked;
+}
+
+void BxlObserver::disable_fd_table()
+{
+    useFdTable_ = false;
+}
+
+ssize_t BxlObserver::read_path_for_fd(int fd, char *buf, size_t bufsiz, const char *associatedPid)
 {
     char procPath[100] = {0};
-    sprintf(procPath, "/proc/self/fd/%d", fd);
+    sprintf(procPath, "/proc/%s/fd/%d", associatedPid, fd);
     return real_readlink(procPath, buf, bufsiz);
 }
 
@@ -420,35 +556,41 @@ void BxlObserver::reset_fd_table()
     }
 }
 
-std::string BxlObserver::fd_to_path(int fd)
+std::string BxlObserver::fd_to_path(int fd, const char *associatedPid)
 {
     char path[PATH_MAX] = {0};
 
     // ignore if fd is out of range
     if (fd < 0 || fd >= MAX_FD)
     {
-        read_path_for_fd(fd, path, PATH_MAX);
+        read_path_for_fd(fd, path, PATH_MAX, associatedPid);
         return path;
     }
 
-    // check the file descriptor table
-    if (fdTable_[fd].length() > 0)
+    if (useFdTable_)
     {
-        return fdTable_[fd];
+        // check the file descriptor table
+        if (fdTable_[fd].length() > 0)
+        {
+            return fdTable_[fd];
+        }
     }
 
     // read from the filesystem and update the file descriptor table
-    ssize_t result = read_path_for_fd(fd, path, PATH_MAX);
+    ssize_t result = read_path_for_fd(fd, path, PATH_MAX, associatedPid);
     if (result != -1)
     {
         // Only cache if read_path_for_fd succeeded.
-        fdTable_[fd] = path;
+        if (useFdTable_)
+        {
+            fdTable_[fd] = path;
+        }
     }
 
     return path;
 }
 
-std::string BxlObserver::normalize_path_at(int dirfd, const char *pathname, int oflags)
+std::string BxlObserver::normalize_path_at(int dirfd, const char *pathname, int oflags, const char *associatedPid)
 {
     // Observe that dirfd is assumed to point to a directory file descriptor. Under that assumption, it is safe to call fd_to_path for it.
     // TODO: If we wanted to be very defensive, we could also consider the case of some tool invoking any of the *at(... dirfd ...) family with a 
@@ -458,7 +600,7 @@ std::string BxlObserver::normalize_path_at(int dirfd, const char *pathname, int 
     // no pathname given --> read path for dirfd
     if (pathname == NULL)
     {
-        return fd_to_path(dirfd);
+        return fd_to_path(dirfd, associatedPid);
     }
 
     char fullpath[PATH_MAX] = {0};
@@ -477,7 +619,7 @@ std::string BxlObserver::normalize_path_at(int dirfd, const char *pathname, int 
         }
         else
         {
-            std::string dirPath = fd_to_path(dirfd);
+            std::string dirPath = fd_to_path(dirfd, associatedPid);
             len = dirPath.length();
             strcpy(fullpath, dirPath.c_str());
         }

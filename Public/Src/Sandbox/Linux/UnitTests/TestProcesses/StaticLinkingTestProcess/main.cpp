@@ -7,8 +7,20 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <limits.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 #define STATICALLY_LINKED_PROCESS_NAME "TestProcessStaticallyLinked"
+
+// Appends filename to a provided root path
+std::string GetPath(std::string root, std::string filename)
+{
+    std::string path(root);
+    path.append("/");
+    path.append(filename);
+
+    return path;
+}
 
 int main(int argc, char **argv)
 {
@@ -19,6 +31,27 @@ int main(int argc, char **argv)
     fstream.open(testFileName);
     fstream << "TestFile.\n";
     fstream.close();
+
+    // CODESYNC: Public/Src/Engine/UnitTests/Processes/SandboxedProcessTest.cs
+#ifdef STATICALLYLINKED
+    std::cout << "STATIC" << std::endl;
+    char cwd[PATH_MAX];
+    getcwd(cwd, sizeof(cwd));
+    std::string workingDir(cwd);
+
+    unlink(GetPath(workingDir, "unlinkme").c_str());
+
+    struct stat statbuf;
+    auto res = stat(GetPath(workingDir, "writeme").c_str(), &statbuf);
+
+    int fd = open(GetPath(workingDir, "writeme").c_str(), O_CREAT);
+    write(fd, workingDir.c_str(), workingDir.length());
+    close(fd);
+
+    rmdir(GetPath(workingDir, "rmdirme").c_str());
+
+    rename(GetPath(workingDir, "renameme").c_str(), GetPath(workingDir, "renamed").c_str());
+#endif
 
     // If requested, launch statically linked binary as sub process to verify whether file accesses are detected
     // When a process is launched with execv, argv[0] will not be set to the program name, instead it will be the first argument

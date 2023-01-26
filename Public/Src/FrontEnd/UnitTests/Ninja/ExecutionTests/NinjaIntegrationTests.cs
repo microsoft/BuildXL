@@ -259,7 +259,7 @@ namespace Test.BuildXL.FrontEnd.Ninja
             Assert.Equal(responseFileContent, contents);
         }
 
-        [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [Theory]
         [InlineData(true)]
         [InlineData(false)]
         public void BuildWithAdditionalOutputDirectory(bool declareAdditionalOutput)

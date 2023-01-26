@@ -334,6 +334,10 @@ namespace BuildXL.FrontEnd.Ninja
                 processBuilder.AddUntrackedDirectoryScope(programFilesX86DirectoryArtifact);
                 processBuilder.AddUntrackedDirectoryScope(DirectoryArtifact.CreateWithZeroPartialSealId(AbsolutePath.Create(m_context.PathTable, @"C:\PROGRA~1\"))); // TODO: This but better
                 processBuilder.AddUntrackedDirectoryScope(DirectoryArtifact.CreateWithZeroPartialSealId(AbsolutePath.Create(m_context.PathTable, @"C:\PROGRA~2\"))); // TODO: This but better
+                // Untrack the user profile. The corresponding mount is already configured for not tracking source files, and with allowed undeclared source reads,
+                // any attempt to read into the user profile will fail to compute its corresponding hash
+                // Skip this untrack for linux because Environment.SpecialFolder.UserProfile always return $HOME on linux 
+                processBuilder.AddUntrackedDirectoryScope(DirectoryArtifact.CreateWithZeroPartialSealId(m_context.PathTable, SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.UserProfile)));
             }
             // TODO: This is just here because the cloud build requires manually dropping the necessary executables and libraries, and should be removed
             // when that issue is resolved.
@@ -348,10 +352,6 @@ namespace BuildXL.FrontEnd.Ninja
                 processBuilder.AddUntrackedFile(FileArtifact.CreateSourceFile(m_projectRoot.Combine(m_context.PathTable, ".gitattributes")));
                 processBuilder.AddUntrackedFile(FileArtifact.CreateSourceFile(m_projectRoot.Combine(m_context.PathTable, ".gitignore")));
             }
-
-            // Untrack the user profile. The corresponding mount is already configured for not tracking source files, and with allowed undeclared source reads,
-            // any attempt to read into the user profile will fail to compute its corresponding hash
-            processBuilder.AddUntrackedDirectoryScope(DirectoryArtifact.CreateWithZeroPartialSealId(m_context.PathTable, SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.UserProfile)));
         }
 
         private void AddRequiredSurvivingChildren(ProcessBuilder processBuilder)

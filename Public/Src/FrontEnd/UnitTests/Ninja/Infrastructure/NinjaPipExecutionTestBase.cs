@@ -30,8 +30,8 @@ namespace Test.BuildXL.FrontEnd.Ninja
         private string DefaultSpecFileLocation => $"{DefaultProjectRoot}/{DefaultSpecFileName}";
 
         protected string SHELL => OperatingSystemHelper.IsWindowsOS ? $@"{CmdHelper.CmdX64} /C" : $@"{CmdHelper.Bash} -c";
-        protected string COPY => OperatingSystemHelper.IsWindowsOS ? "COPY" : "cp";
-        protected string DELETE => OperatingSystemHelper.IsWindowsOS ? "DEL /f" : "rm -f";
+        protected string COPY => OperatingSystemHelper.IsWindowsOS ? "COPY" : "/usr/bin/cp";
+        protected string DELETE => OperatingSystemHelper.IsWindowsOS ? "DEL /f" : "/usr/bin/rm -f";
 
         /// <summary>
         /// Root to the source enlistment root

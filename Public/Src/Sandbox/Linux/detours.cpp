@@ -804,6 +804,32 @@ INTERPOSE(int, fclose, FILE *f) ({
     return bxl->fwd_fclose(f).restore();
 })
 
+INTERPOSE(int, dup, int fd) ({ 
+    return ret_fd(bxl->real_dup(fd), bxl);    
+    // Sometimes useful (for debugging) to interpose without access checking:
+    // return bxl->fwd_dup(fd).restore();     
+})
+
+INTERPOSE(int, dup2, int oldfd, int newfd)({
+    // If the file descriptor newfd was previously open, it is closed
+    // before being reused; the close is performed silently, so we should reset the fd table.
+    bxl->reset_fd_table_entry(newfd);
+
+    return bxl->real_dup2(oldfd, newfd); 
+    // Sometimes useful (for debugging) to interpose without access checking:
+    // return bxl->fwd_dup2(oldfd, newfd).restore();  
+})
+
+INTERPOSE(int, dup3, int oldfd, int newfd, int flags)({
+    // If the file descriptor newfd was previously open, it is closed
+    // before being reused; the close is performed silently, so we should reset the fd table.
+    bxl->reset_fd_table_entry(newfd);
+
+    return bxl->real_dup3(oldfd, newfd, flags); 
+    // Sometimes useful (for debugging) to interpose without access checking:
+    //return bxl->fwd_dup3(oldfd, newfd).restore();  
+})
+
 static void report_exit(int exitCode, void *args)
 {
     BxlObserver::GetInstance()->report_access("on_exit", ES_EVENT_TYPE_NOTIFY_EXIT, std::string(""), std::string(""));
@@ -827,13 +853,6 @@ int main(int argc, char **argv)
     BxlObserver *inst = BxlObserver::GetInstance();
     printf("Path: %s\n", inst->GetReportsPath());
 }
-
-/* ============ Sometimes useful (for debugging) to interpose without access checking
-
-INTERPOSE(int, dup, int fd)               ({ return bxl->fwd_dup(fd).restore(); })
-INTERPOSE(int, dup2, int oldfd, int newfd)({ return bxl->fwd_dup2(oldfd, newfd).restore(); })
-
-=================================================================== */
 
 /* ============ don't need to be interposed =======================
 

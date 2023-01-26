@@ -496,10 +496,11 @@ public:
     GEN_FN_DEF(ssize_t, sendfile64, int out_fd, int in_fd, off_t *offset, size_t count);
     GEN_FN_DEF(ssize_t, copy_file_range, int fd_in, loff_t *off_in, int fd_out, loff_t *off_out, size_t len, unsigned int flags);
     GEN_FN_DEF(int, name_to_handle_at, int dirfd, const char *pathname, struct file_handle *handle, int *mount_id, int flags);
-
-    /* ============ don't need to be interposed ======================= */
     GEN_FN_DEF(int, dup, int oldfd);
     GEN_FN_DEF(int, dup2, int oldfd, int newfd);
+    GEN_FN_DEF(int, dup3, int oldfd, int newfd, int flags);
+
+    /* ============ don't need to be interposed ======================= */
     GEN_FN_DEF(int, close, int fd);
     GEN_FN_DEF(int, fclose, FILE *stream);
     GEN_FN_DEF(int, statfs, const char *, struct statfs *buf);

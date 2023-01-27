@@ -364,6 +364,15 @@ namespace BuildXL.Scheduler
         {
             Performance.Suspended(ExecutionResult?.PerformanceInformation?.SuspendedDurationMs ?? 0);
 
+            if (Environment.IsTerminating)
+            {
+                // If we are terminating (and this means the build was cancelled externally)
+                // don't bother checking our invariants below, just return and let the cancellation
+                // run its course.
+                Result = result;
+                return PipExecutionStep.HandleResult;
+            }
+
             if (result.Status == PipResultStatus.Canceled &&
                 !Environment.IsTerminating)
             {
@@ -372,7 +381,7 @@ namespace BuildXL.Scheduler
                 return DecideNextStepForRetry();
             }
 
-            if (result.Status.IndicatesFailure())
+            if (result.Status == PipResultStatus.Failed)
             {
                 Contract.Assert(LoggingContext.ErrorWasLogged, "Error was not logged for pip marked as failure");
             }

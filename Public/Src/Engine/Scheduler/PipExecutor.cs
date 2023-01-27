@@ -4554,6 +4554,18 @@ namespace BuildXL.Scheduler
                                 else
                                 {
                                     fileList.Add(access);
+                                    // Let's report the shared opaque directory content to the file content manager before they get cached. This is so the output file system gets populated
+                                    // and therefore we avoid races when using DirectoryEnumerationMode.MinimalGraphWithAlienFiles mode in ObservedInputProcessor. By caching outputs we may be changing
+                                    // the creation date of outputs via cache hardlinking and hindering one of heuristics we use there to identify files that existed before the build started. This heuristic
+                                    // assumes the output file system does not believe these are outputs, but there is a window between the file gets produced, it gets cached, and the output file system gets populated.
+                                    // By reporting these here, we minimize the chance of a race.
+                                    // On the other hand, statically declared outputs need to be reported after pushing to the cache since hashes are reported as part of the same report operation. However
+                                    // consider that statically declared outputs do not suffer from the problem described here since they are already part of the pip graph.
+                                    if (access.FileExistence == FileExistence.Required)
+                                    {
+                                        environment.State.FileSystemView.ReportSharedOpaqueOutputProducedBeforeCaching(access.Path);
+                                    }
+
                                     FileOutputData.UpdateFileData(allOutputData, access.Path, OutputFlags.DynamicFile, index);
 
                                     allOutputs.Add(access);
@@ -4567,6 +4579,7 @@ namespace BuildXL.Scheduler
                         }
 
                         processExecutionResult.ReportDirectoryOutput(directoryArtifact, fileList);
+
                         numDynamicOutputs += fileList.Count;
                     }
                 }

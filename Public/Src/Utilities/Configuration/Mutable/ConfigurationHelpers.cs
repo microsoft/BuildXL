@@ -39,7 +39,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
                 {
                     LogsDirectory = logsPath,
                     LogExecution = false,
-                    StoreFingerprints = false
+                    StoreFingerprints = false,
                 },
                 Engine =
                 {

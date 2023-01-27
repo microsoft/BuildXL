@@ -405,6 +405,14 @@ namespace BuildXL.Interop.Unix
             ? throw new NotImplementedException()
             : Impl_Linux.RealPath(path, stringBuilder);
 
+
+        /// <summary>
+        /// Whether the underlying OS supports dealing with file creation date 
+        /// </summary>
+        public static bool SupportsCreationDate() => IsMacOS
+            ? true
+            // On Linux, creation time can only be retrieved with Statx, which is not supported on all Linux systems
+            : Impl_Linux.SupportsStatx;
     }
 
     public static class UnixPaths

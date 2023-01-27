@@ -169,7 +169,8 @@ namespace Test.BuildXL.Scheduler.Utils
                 preserveOutputsSalt: preserveOutputsSalt,
                 serviceManager: new DummyServiceManager(),
                 sidebandState: null,
-                alienFileEnumerationCache: new ConcurrentBigMap<AbsolutePath, IReadOnlyList<(AbsolutePath, string)>>());
+                alienFileEnumerationCache: new ConcurrentBigMap<AbsolutePath, IReadOnlyList<(AbsolutePath, string)>>(),
+                fileTimestampTracker: new FileTimestampTracker(DateTime.UtcNow, context.PathTable));
 
             m_sealContentsById = new ConcurrentBigMap<DirectoryArtifact, int[]>();
             

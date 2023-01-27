@@ -374,7 +374,8 @@ namespace Test.BuildXL.Scheduler
             Action<TestScheduler> verifySchedulerPostRun = default,
             string runNameOrDescription = null,
             bool allowEmptySchedule = false,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default,
+            FileTimestampTracker fileTimestampTracker = null)
         {
             if (m_graphWasModified || LastGraph == null)
             {
@@ -397,7 +398,8 @@ namespace Test.BuildXL.Scheduler
                 verifySchedulerPostRun: verifySchedulerPostRun,
                 runNameOrDescription: runNameOrDescription,
                 allowEmptySchedule: allowEmptySchedule,
-                cancellationToken: cancellationToken);
+                cancellationToken: cancellationToken,
+                fileTimestampTracker: fileTimestampTracker);
         }
 
         public NodeId GetProducerNode(FileArtifact file) => PipGraphBuilder.GetProducerNode(file);
@@ -437,7 +439,8 @@ namespace Test.BuildXL.Scheduler
             bool updateStatusTimerEnabled = false,
             Action<TestScheduler> verifySchedulerPostRun = default,
             bool allowEmptySchedule = false,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default,
+            FileTimestampTracker fileTimestampTracker = null)
         {
             XAssert.IsTrue(m_graphWasEverModified || allowEmptySchedule,
     "Attempting to run an empty scheduler. This usually means you forgot to schedule the pips in the test case. Suppress this failure by passing allowEmptySchedule = true");
@@ -532,7 +535,8 @@ namespace Test.BuildXL.Scheduler
                     config.Layout.ExternalSandboxedProcessDirectory.ToString(Context.PathTable),
                     subst: subst), // VM command proxy for unit tests comes from engine.
                 testHooks: testHooks,
-                performanceCollector: performanceCollector))
+                performanceCollector: performanceCollector,
+                fileTimestampTracker: fileTimestampTracker))
             {
                 CancellableTimedAction updateStatusAction = null;
 
@@ -848,5 +852,18 @@ namespace Test.BuildXL.Scheduler
             return waitFile;
         }
 
+        /// <see cref="GetFileTimestampTrackerFromNow(int)"/>
+        protected FileTimestampTracker GetFileTimestampTrackerFromTomorrow() => GetFileTimestampTrackerFromNow(1);
+
+        /// <see cref="GetFileTimestampTrackerFromNow(int)"/>
+        protected FileTimestampTracker GetFileTimestampTrackerFromYesterday() => GetFileTimestampTrackerFromNow(-1);
+
+        /// <summary>
+        /// Returns a <see cref="FileTimestampTracker"/> with an engine start time from UTCNow plus the number of days specified
+        /// </summary>
+        /// <remarks>
+        /// Useful for running test builds that simulate a particular start date
+        /// </remarks>
+        protected FileTimestampTracker GetFileTimestampTrackerFromNow(int addedDays = 0) => new FileTimestampTracker(DateTime.UtcNow.AddDays(addedDays), Context.PathTable);
     }
 }

@@ -39,6 +39,12 @@ namespace BuildXL.Interop.Unix
 
         private static long TicksPerSecond;
 
+        /// <summary>
+        /// Statx is supported starting from kernel 4.11. Check https://man7.org/linux/man-pages/man2/statx.2.html
+        /// </summary>
+        public static readonly bool SupportsStatx = Environment.OSVersion.Version is var version 
+            && ((version.Major == 4 && version.Minor >= 11) || version.Major >= 5);
+
         /// <summary>Convert a number of "jiffies", or ticks, to a TimeSpan.</summary>
         /// <param name="ticks">The number of ticks.</param>
         /// <returns>The equivalent TimeSpan.</returns>
@@ -97,17 +103,34 @@ namespace BuildXL.Interop.Unix
 
         private static int StatFile(int fd, string path, bool followSymlink, ref StatBuffer statBuf)
         {
-            // using 'fstatat' instead of the newer 'statx' because Ubuntu 18.04 doesn't have iit
-            var buf = new stat_buf();
-            int result = StatFile(fd, path, followSymlink, ref buf);
-            if (result != 0)
+            // If statx is supported, we prefer it since it gives us back the file creation time as well
+            if (SupportsStatx)
             {
-                return ERROR;
+                var buf = new statx_buf();
+                int result = StatXFile(fd, path, followSymlink, ref buf);
+                if (result != 0)
+                {
+                    return ERROR;
+                }
+                else
+                {
+                    Translate(buf, ref statBuf);
+                    return 0;
+                }
             }
             else
             {
-                Translate(buf, ref statBuf);
-                return 0;
+                var buf = new stat_buf();
+                int result = StatFile(fd, path, followSymlink, ref buf);
+                if (result != 0)
+                {
+                    return ERROR;
+                }
+                else
+                {
+                    Translate(buf, ref statBuf);
+                    return 0;
+                }
             }
         }
 
@@ -138,6 +161,22 @@ namespace BuildXL.Interop.Unix
             int result;
             while (
                 (result = fstatat(__Ver, dirfd, pathname, ref buf, flags)) < 0 &&
+                Marshal.GetLastWin32Error() == (int)Errno.EINTR);
+            return result;
+        }
+
+        private static int StatXFile(int dirfd, string pathname, bool followSymlink, ref statx_buf buf)
+        {
+            Contract.Requires(pathname != null);
+            
+            int flags = 0
+                | (!followSymlink ? AT_SYMLINK_NOFOLLOW : 0)
+                | (string.IsNullOrEmpty(pathname) ? AT_EMPTY_PATH : 0);
+
+            int result;
+            while (
+                // We request all basic stats (returned by the regular stat) plus BTIME (birth time)
+                (result = statx(dirfd, pathname, flags, STATX_BASIC_STATS | STATX_BTIME, ref buf)) < 0 &&
                 Marshal.GetLastWin32Error() == (int)Errno.EINTR);
             return result;
         }
@@ -494,6 +533,29 @@ namespace BuildXL.Interop.Unix
             to.TimeNSecCreation         = 0; // not available
         }
 
+        private static void Translate(statx_buf from, ref StatBuffer to)
+        {
+            // statx return the device id already decomposed into major/minor, so let's put it back
+            // together so the result is compatible with the regular stat buffer
+            to.DeviceID                 = (int)makedev(from.stx_dev_major, from.stx_dev_minor);
+            to.InodeNumber              = from.stx_ino;
+            to.Mode                     = (ushort)from.stx_mode;
+            to.HardLinks                = (ushort)from.stx_nlink;
+            to.UserID                   = from.stx_uid;
+            to.GroupID                  = from.stx_gid;
+            to.Size                     = (long)from.stx_size;
+            to.TimeLastAccess           = from.stx_atime.tv_sec;
+            to.TimeLastModification     = from.stx_mtime.tv_sec;
+            to.TimeLastStatusChange     = from.stx_ctime.tv_sec;
+            to.TimeCreation             = from.stx_btime.tv_sec; 
+            // even though EXT4 supports nanosecond precision, the kernel time is not
+            // necessarily getting updated every 1ns so nsec values can still be quantized
+            to.TimeNSecLastAccess       = from.stx_atime.tv_nsec;
+            to.TimeNSecLastModification = from.stx_mtime.tv_nsec;
+            to.TimeNSecLastStatusChange = from.stx_ctime.tv_nsec;
+            to.TimeNSecCreation         = from.stx_btime.tv_nsec;
+        }
+
         private static T Try<T>(Func<T> action, T errorValue)
         {
             try
@@ -514,6 +576,9 @@ namespace BuildXL.Interop.Unix
         private const int AT_FDCWD              = -100;
         private const int AT_SYMLINK_NOFOLLOW   = 0x100;
         private const int AT_EMPTY_PATH         = 0x1000;
+
+        private const uint STATX_BASIC_STATS    = 0x000007ff;
+        private const uint STATX_BTIME          = 0x00000800U;
 
         /// <summary>
         /// struct stat from stat.h
@@ -542,6 +607,51 @@ namespace BuildXL.Interop.Unix
             public  Int64    st_ctime;   // time of last status change
             public  Int64    st_ctime_nsec; // Timespec.tv_nsec partner to st_ctime
             /* More spare space here for future expansion (controlled by explicitly specifying struct size) */
+        }
+
+        /// <summary>
+        /// struct statx from stat.h
+        /// </summary>
+        /// <remarks>
+        /// IMPORTANT: the explicitly specified size of 256 must match the value of 'sizeof(struct statx)' in C
+        /// </remarks>
+        [StructLayout(LayoutKind.Sequential, Size = 256)]
+        private struct statx_buf
+        {
+            public UInt32           stx_mask;        /* Mask of bits indicating filled fields */
+            public UInt32           stx_blksize;     /* Block size for filesystem I/O */
+            public UInt64           stx_attributes;  /* Extra file attribute indicators */
+            public UInt32           stx_nlink;       /* Number of hard links */
+            public UInt32           stx_uid;         /* User ID of owner */
+            public UInt32           stx_gid;         /* Group ID of owner */
+            public UInt16           stx_mode;        /* File type and mode */
+            private UInt16          padding;
+            public UInt64           stx_ino;         /* Inode number */
+            public UInt64           stx_size;        /* Total size in bytes */
+            public UInt64           stx_blocks;      /* Number of 512B blocks allocated */
+            public UInt64           stx_attributes_mask;        /* Mask to show what's supported in stx_attributes */
+            public statx_timestamp  stx_atime;  /* Last access */
+            public statx_timestamp  stx_btime;  /* Creation */
+            public statx_timestamp  stx_ctime;  /* Last status change */
+            public statx_timestamp  stx_mtime;  /* Last modification */
+
+            /* If this file represents a device, then the next two fields contain the ID of the device */
+            public UInt32           stx_rdev_major;  /* Major ID */
+            public UInt32           stx_rdev_minor;  /* Minor ID */
+
+            /* The next two fields contain the ID of the device containing the filesystem where the file resides */
+            public UInt32           stx_dev_major;   /* Major ID */
+            public UInt32           stx_dev_minor;   /* Minor ID */
+            public UInt64           stx_mnt_id;      /* Mount ID */
+            private UInt32          stx_dio_mem_align; /* Memory buffer alignment for direct I/O */
+            private UInt32          stx_dio_offset_align; /* File offset alignment for direct I/O */
+        };
+
+        private struct statx_timestamp 
+        {
+            public Int64    tv_sec;    /* Seconds since the Epoch (UNIX time) */
+            public UInt32   tv_nsec;   /* Nanoseconds since tv_sec */
+            private Int32   _reserved;
         }
 
         /// <summary>
@@ -610,6 +720,9 @@ namespace BuildXL.Interop.Unix
         private static extern int fstatat(int __ver, int fd, string pathname, ref stat_buf buff, int flags);
 
         [DllImport(LibC, SetLastError = true, CharSet = CharSet.Ansi)]
+        private static extern int statx(int fd, string pathname, int flags, uint mask, ref statx_buf buff);
+
+        [DllImport(LibC, SetLastError = true, CharSet = CharSet.Ansi)]
         private static extern int utimensat(int dirfd, string pathname, Timespec[] times, int flags);
 
         [DllImport(LibC, SetLastError = true, CharSet = CharSet.Ansi)]
@@ -626,6 +739,9 @@ namespace BuildXL.Interop.Unix
 
         [DllImport(LibC, SetLastError = true, CharSet = CharSet.Ansi)]
         internal static extern long sysconf(int name);
+
+        [DllImport(LibC, EntryPoint = "gnu_dev_makedev", SetLastError = true, CharSet = CharSet.Ansi)]
+        internal static extern ulong makedev(uint major, uint minor);
 
         [DllImport(Libraries.LibC, SetLastError = true)]
         unsafe internal static extern int lsetxattr(

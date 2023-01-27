@@ -1303,5 +1303,8 @@ namespace BuildXL.Native.IO.Unix
                 throw new BuildXLException(I($"Failed to get a full path from '{path}'"), e);
             }
         }
+
+        /// <inheritdoc/>
+        public bool SupportsCreationDate() => Interop.Unix.IO.SupportsCreationDate();
     }
 }

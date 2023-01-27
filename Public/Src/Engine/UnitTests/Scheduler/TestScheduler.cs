@@ -69,14 +69,16 @@ namespace Test.BuildXL.Scheduler
             IIpcProvider ipcProvider = null,
             DirectoryTranslator directoryTranslator = null,
             VmInitializer vmInitializer = null,
-            SchedulerTestHooks testHooks = null) : base(graph, pipQueue, context, fileContentTable, cache,
+            SchedulerTestHooks testHooks = null,
+            FileTimestampTracker fileTimestampTracker = null) : base(graph, pipQueue, context, fileContentTable, cache,
                 configuration, fileAccessAllowlist, loggingContext, null, directoryMembershipFingerprinterRules,
                 tempCleaner, AsyncLazy<HistoricPerfDataTable>.FromResult(runningTimeTable), performanceCollector, fingerprintSalt, previousInputsSalt,
                 ipcProvider: ipcProvider, 
                 directoryTranslator: directoryTranslator, 
                 journalState: journalState, 
                 vmInitializer: vmInitializer,
-                testHooks: testHooks)
+                testHooks: testHooks,
+                fileTimestampTracker: fileTimestampTracker)
         {
             m_testPipQueue = pipQueue;
 

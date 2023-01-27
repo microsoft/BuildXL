@@ -923,6 +923,12 @@ namespace BuildXL.Scheduler
         private readonly ConcurrentBigMap<AbsolutePath, IReadOnlyList<DirectoryMemberEntry>> m_alienFileEnumerationCache;
 
         /// <summary>
+        /// Used for making coarse grained decisions about files being created/modified after the build started
+        /// when computing directory fingerprints in <see cref="ObservedInputProcessor"/>
+        /// </summary>
+        private readonly FileTimestampTracker m_fileTimestampTracker;
+
+        /// <summary>
         /// Whether diagnostics events are enabled to be logged.
         /// </summary>
         private readonly bool m_diagnosticsEnabled;
@@ -1165,7 +1171,8 @@ namespace BuildXL.Scheduler
             PipTwoPhaseCache pipTwoPhaseCache = null,
             JournalState journalState = null,
             VmInitializer vmInitializer = null,
-            SchedulerTestHooks testHooks = null)
+            SchedulerTestHooks testHooks = null,
+            FileTimestampTracker fileTimestampTracker = null)
         {
             Contract.Requires(graph != null);
             Contract.Requires(pipQueue != null);
@@ -1473,6 +1480,12 @@ namespace BuildXL.Scheduler
                 m_moduleWorkerMapping);
             m_chooseWorkerCacheLookup = new ChooseWorkerCacheLookup(m_workers);
             m_chooseWorkerIpc = new ChooseWorkerIpc(m_workers, m_moduleWorkerMapping);
+            m_fileTimestampTracker = fileTimestampTracker ?? new FileTimestampTracker(DateTime.UtcNow, context.PathTable);
+
+            if (!m_fileTimestampTracker.IsFileCreationTrackingSupported)
+            {
+                Logger.Log.CreationTimeNotSupported(m_loggingContext);
+            }
         }
 
         /// <summary>
@@ -6535,7 +6548,8 @@ namespace BuildXL.Scheduler
                     preserveOutputsSalt: m_previousInputsSalt,
                     sidebandState: m_sidebandState,
                     serviceManager: m_serviceManager,
-                    alienFileEnumerationCache: m_alienFileEnumerationCache);
+                    alienFileEnumerationCache: m_alienFileEnumerationCache,
+                    fileTimestampTracker: m_fileTimestampTracker);
 
                 if (m_scheduleConfiguration.EnableProcessRemoting)
                 {

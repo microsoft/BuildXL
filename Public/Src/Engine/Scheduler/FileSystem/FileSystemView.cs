@@ -94,10 +94,15 @@ namespace BuildXL.Scheduler.FileSystem
         /// <summary>
         /// Gets the existence of a path for the given file system view mode
         /// </summary>
-        public Possible<PathExistence> GetExistence(AbsolutePath path, FileSystemViewMode mode, bool? isReadOnly = default, bool cachePathExistence = true)
+        /// <remarks>
+        /// The option to include outputs reported before caching allows to get the reported existence
+        /// of just-produced outputs that are not cached yet. These outputs may or may not become legit outputs
+        /// since cache convergence may happen afterwards and may change the final outputs.
+        /// </remarks>
+        public Possible<PathExistence> GetExistence(AbsolutePath path, FileSystemViewMode mode, bool? isReadOnly = default, bool cachePathExistence = true, bool includeOutputsProducedBeforeCaching = false)
         {
             PathExistence existence;
-            if (TryGetKnownPathExistence(path, mode, out existence))
+            if (TryGetKnownPathExistence(path, mode, out existence, includeOutputsProducedBeforeCaching))
             {
                 return existence;
             }
@@ -125,7 +130,7 @@ namespace BuildXL.Scheduler.FileSystem
         /// <summary>
         /// Gets the existence of a path for the given file system view mode if set
         /// </summary>
-        private bool TryGetKnownPathExistence(AbsolutePath path, FileSystemViewMode mode, out PathExistence existence)
+        private bool TryGetKnownPathExistence(AbsolutePath path, FileSystemViewMode mode, out PathExistence existence, bool includeOutputsProducedBeforeCaching = false)
         {
             if (mode == FileSystemViewMode.FullGraph || mode == FileSystemViewMode.Output)
             {
@@ -148,6 +153,16 @@ namespace BuildXL.Scheduler.FileSystem
             if (existence == PathExistence.ExistsAsDirectory && 
                 entry.HasFlag(FileSystemEntryFlags.IsDirectoryCreatedByPip) && 
                 !entry.HasFlag(FileSystemEntryFlags.DirectoryContainingFiles))
+            {
+                existence = PathExistence.Nonexistent;
+            }
+
+            // If we find an existing entry that is reported before caching happens, we consider that as absent
+            // unless specified otherwise
+            if (!includeOutputsProducedBeforeCaching && 
+                existence == PathExistence.ExistsAsFile && 
+                entry.HasFlag(FileSystemEntryFlags.OutputProducedBeforeCaching) && 
+                !entry.HasFlag(FileSystemEntryFlags.OutputProducedAfterCaching))
             {
                 existence = PathExistence.Nonexistent;
             }
@@ -537,7 +552,9 @@ namespace BuildXL.Scheduler.FileSystem
         /// </summary>
         public void ReportOutputFileSystemExistence(AbsolutePath path, PathExistence existence)
         {
-            GetOrAddExistence(path, FileSystemViewMode.Output, existence, updateParents: true);
+            // Make sure we flag the output as reported after caching, so it becomes a 'legit' output and existence
+            // is reported accordingly
+            GetOrAddExistence(path, FileSystemViewMode.Output, existence, updateParents: true, flags: FileSystemEntryFlags.OutputProducedAfterCaching);
         }
 
         /// <summary>
@@ -550,6 +567,19 @@ namespace BuildXL.Scheduler.FileSystem
             // part of the output file system just because a file was created underneath. We flag the directory
             // with FileSystemEntryFlags.IsDirectoryCreatedByPip for that purpose
             GetOrAddExistence(path, FileSystemViewMode.Output, PathExistence.ExistsAsDirectory, updateParents: false, FileSystemEntryFlags.IsDirectoryCreatedByPip);
+        }
+
+        /// <summary>
+        /// Reports that a shared opaque output was just produced by an executing pip before the output is cached
+        /// </summary>
+        /// <remarks>
+        /// This output may not become a legit output if cache convergence happens and the final
+        /// result does not contain this particular path
+        /// </remarks>
+        public void ReportSharedOpaqueOutputProducedBeforeCaching(AbsolutePath path)
+        {
+            Contract.Requires(path.IsValid);
+            GetOrAddExistence(path, FileSystemViewMode.Output, PathExistence.ExistsAsFile, updateParents: false, FileSystemEntryFlags.OutputProducedBeforeCaching);
         }
 
         /// <summary>
@@ -632,6 +662,8 @@ namespace BuildXL.Scheduler.FileSystem
             CheckedIsDirectorySymlink = 1 << 2,
             IsDirectoryCreatedByPip = 1 << 3,
             DirectoryContainingFiles = 1 << 4,
+            OutputProducedBeforeCaching = 1 << 5,
+            OutputProducedAfterCaching = 1 << 6,
         }
 
         private readonly struct FileSystemEntry

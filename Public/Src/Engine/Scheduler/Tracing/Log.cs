@@ -4020,6 +4020,15 @@ namespace BuildXL.Scheduler.Tracing
                     EventTask = (ushort)Tasks.Scheduler,
                     Message = "The scheduler has been marked completed except for MaterializeOutput pip steps")]
         internal abstract void SchedulerCompleteExceptMaterializeOutputs(LoggingContext loggingContext);
+
+        [GeneratedEvent(
+                    (ushort)LogEventId.CreationTimeNotSupported,
+                    EventGenerators = EventGenerators.LocalOnly,
+                    EventLevel = Level.Verbose,
+                    Keywords = (int)Keywords.UserMessage,
+                    EventTask = (ushort)Tasks.Scheduler,
+                    Message = "File creation time retrieval is not supported by the underlying operating system. Some optimizations will be disabled.")]
+        internal abstract void CreationTimeNotSupported(LoggingContext loggingContext);
     }
 }
 #pragma warning restore CA1823 // Unused field

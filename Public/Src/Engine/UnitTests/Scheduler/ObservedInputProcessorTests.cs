@@ -751,7 +751,8 @@ namespace Test.BuildXL.Scheduler
                             unsafeConfiguration: config.Sandbox.UnsafeSandboxConfiguration,
                             preserveOutputsSalt: default,
                             fileSystemView: null,
-                            new ConcurrentBigMap<AbsolutePath, IReadOnlyList<(AbsolutePath, string)>>()),
+                            new ConcurrentBigMap<AbsolutePath, IReadOnlyList<(AbsolutePath, string)>>(),
+                            new FileTimestampTracker(DateTime.Now, context.PathTable)),
                         moduleId: ModuleId.UnsafeCreate(2, "Test"),
                         ifPreserveOutputs: false);
                 }
@@ -1271,7 +1272,8 @@ namespace Test.BuildXL.Scheduler
                 fileContentManager: new FileContentManager(dummy, new NullOperationTracker()),
                 directoryMembershipFinterprinterRuleSet: parentRuleSet,
                 sidebandState: null, 
-                alienFileEnumerationCache: new ConcurrentBigMap<AbsolutePath, IReadOnlyList<(AbsolutePath, string)>>());
+                alienFileEnumerationCache: new ConcurrentBigMap<AbsolutePath, IReadOnlyList<(AbsolutePath, string)>>(),
+                fileTimestampTracker: new FileTimestampTracker(DateTime.UtcNow, context.PathTable));
             PipExecutionState.PipScopeState state = new PipExecutionState.PipScopeState(pes, testModule, ifPreserveOutputs: false);
 
             var adapter = new ObservedInputProcessingEnvironmentAdapter(dummy, state);

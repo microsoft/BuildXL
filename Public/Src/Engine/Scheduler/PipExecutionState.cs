@@ -113,6 +113,11 @@ namespace BuildXL.Scheduler
         /// </summary>
         public ConcurrentBigMap<AbsolutePath, IReadOnlyList<(AbsolutePath, string)>> AlienFileEnumerationCache { get; }
         
+        /// <summary>
+        /// Helper to identify files that were present before the build started
+        /// </summary>
+        public FileTimestampTracker FileTimestampTracker { get; }
+
         public SidebandState SidebandState { get; }
 
         /// <summary>
@@ -132,6 +137,7 @@ namespace BuildXL.Scheduler
             PreserveOutputsInfo preserveOutputsSalt,
             FileSystemView fileSystemView,
             ConcurrentBigMap<AbsolutePath, IReadOnlyList<(AbsolutePath, string)>> alienFileEnumerationCache,
+            FileTimestampTracker fileTimestampTracker,
             ServiceManager serviceManager = null,
             SidebandState sidebandState = null)
         {
@@ -139,6 +145,7 @@ namespace BuildXL.Scheduler
             Contract.Requires(directoryMembershipFingerprinter != null);
             Contract.Requires(pathExpander != null);
             Contract.RequiresNotNull(alienFileEnumerationCache);
+            Contract.RequiresNotNull(fileTimestampTracker);
 
             Cache = cache;
             m_fileAccessAllowlist = fileAccessAllowlist;
@@ -156,6 +163,7 @@ namespace BuildXL.Scheduler
             m_preserveOutputsSalt = preserveOutputsSalt;
             AlienFileEnumerationCache = alienFileEnumerationCache;
             SidebandState = sidebandState;
+            FileTimestampTracker = fileTimestampTracker;
 
             if (fileSystemView != null)
             {

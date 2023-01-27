@@ -345,7 +345,8 @@ namespace Test.BuildXL.Scheduler
                     fileContentManager: new FileContentManager(this, new NullOperationTracker()),
                     directoryMembershipFinterprinterRuleSet: null,
                     sidebandState: null,
-                    alienFileEnumerationCache: new ConcurrentBigMap<AbsolutePath, IReadOnlyList<(AbsolutePath, string)>>());
+                    alienFileEnumerationCache: new ConcurrentBigMap<AbsolutePath, IReadOnlyList<(AbsolutePath, string)>>(),
+                    fileTimestampTracker: new FileTimestampTracker(DateTime.UtcNow, context.PathTable));
 
                 ProcessInContainerManager = new ProcessInContainerManager(LoggingContext, context.PathTable);
 

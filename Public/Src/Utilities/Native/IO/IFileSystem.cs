@@ -397,6 +397,11 @@ namespace BuildXL.Native.IO
         /// </remarks>
         Possible<string> TryResolveReparsePointRelativeTarget(string path, string relativeTarget);
 
+        /// <summary>
+        /// Whether the underlying OS supports dealing with file creation date 
+        /// </summary>
+        bool SupportsCreationDate();
+
         #endregion
 
         #region Journaling functions

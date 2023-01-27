@@ -5,13 +5,14 @@ using System;
 using System.IO;
 using System.Linq;
 using BuildXL.Engine.Tracing;
+using BuildXL.Native.IO;
 using BuildXL.Pips;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Filter;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes.Sideband;
+using BuildXL.Scheduler;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Tracing;
 using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.Scheduler;
 using Test.BuildXL.TestUtilities;
@@ -106,6 +107,8 @@ namespace IntegrationTest.BuildXL.Scheduler
         [Fact]
         public void CacheMissBecauseOfEmptyDirectoriesNotScrubbed()
         {
+            var timestampTracker = GetFileTimestampTrackerFromYesterday();
+
             // This test explains why lazy scrubbing causes cache misses
             // when the pip enumerates the root shared opaque and then produces some content under it
 
@@ -131,8 +134,12 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             // Before the process runs for the first time buildxl prepares the directory output, which will be empty 
             // So the enumeration that the process does will be of an empty directory.
-            RunScheduler().AssertSuccess();
+            RunScheduler(fileTimestampTracker: timestampTracker).AssertSuccess();
             AssertSharedOpaqueOutputDeletionNotPostponed();
+           
+            // Simulate an engine re-run that finds those stale files as 'older' files, as this second build happens
+            // after the first one
+            timestampTracker = GetFileTimestampTrackerFromTomorrow();
 
             // After the first run, here's what the file system looks like:
             //
@@ -142,13 +149,13 @@ namespace IntegrationTest.BuildXL.Scheduler
             //
             // In cache lookup, the strong fingerprint doesn't match
             // because sod is not empty, but the observation we have is for an "empty directory enumeration" 
-            RunScheduler().AssertCacheMiss(pip.Process.PipId);
+            RunScheduler(fileTimestampTracker: timestampTracker).AssertCacheMiss(pip.Process.PipId);
             AssertSharedOpaqueOutputDeletionPostponed(numPipsLazilyScrubbed: 1);
 
             // Next run will be a cache hit, because the second run enumerated the directory
             // and the empty directory sod\A was not deleted by the lazy scrubber, 
             // so the strong fingerprint will match the one of the second run.
-            RunScheduler().AssertCacheHit(pip.Process.PipId);
+            RunScheduler(fileTimestampTracker: timestampTracker).AssertCacheHit(pip.Process.PipId);
         }
 
         /// <remarks>
@@ -171,6 +178,8 @@ namespace IntegrationTest.BuildXL.Scheduler
             // causes this discrepancy in observations
             //
             // This was actually observed in practice (see bug #1838467)
+
+            var timestampTracker = GetFileTimestampTrackerFromNow();
 
             // We will control the pip non-determinism with this untracked file
             string untracked = Path.Combine(ObjectRoot, "untracked.txt");
@@ -209,13 +218,15 @@ namespace IntegrationTest.BuildXL.Scheduler
             // Run 1.
             // Exercise scenario A
             File.WriteAllText(untracked, "A");
-            RunScheduler().AssertSuccess();
+            RunScheduler(fileTimestampTracker: timestampTracker).AssertSuccess();
             AssertSharedOpaqueOutputDeletionNotPostponed(); // (First run - no lazy deletions)
-
 
             // Run 2.
             // We will exercise scenario B for the pip
             File.WriteAllText(untracked, "B");
+
+            // Let's simulate that the build started over by moving the timestamp tracker one day into the future
+            timestampTracker = GetFileTimestampTrackerFromNow(1);
 
             // After the first run, here's what the file system looks like:
             //
@@ -233,7 +244,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             // Because lazy scrubbing is on, when in cache lookup we compute the strong fingerprint 
             // we now see that opaqueDir contains subdirA. This causes a cache miss, because the enumeration
             // that the pip did in the first run results in an empty directory.
-            RunScheduler().AssertCacheMiss(pipA.Process.PipId);
+            RunScheduler(fileTimestampTracker: timestampTracker).AssertCacheMiss(pipA.Process.PipId);
             AssertSharedOpaqueOutputDeletionPostponed(numPipsLazilyScrubbed: 1);
 
             // After the second run, a new pathset is added for subsequent cache lookups based on observations2:
@@ -252,6 +263,9 @@ namespace IntegrationTest.BuildXL.Scheduler
             // Run 3.
             // Switch back to scenario A
             File.WriteAllText(untracked, "A");
+
+            // And now make the 3rd build occur two days into the future
+            timestampTracker = GetFileTimestampTrackerFromNow(2);
 
             // After the second run, here's what the file system looks like:
             //
@@ -282,7 +296,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             //  Without this reclassification, we would assume that fileB exists after checking the PathExistenceCache
             //  This makes us characterize the access as a FileContentRead (refer to ObservedInputProcessor.MapPathExistenceToObservedInputType)
             //  But the FileContentManager doesn't have a FileContentInfo for fileB, because it was never produced in this run.
-            RunScheduler().AssertCacheMiss(pipA.Process.PipId);
+            RunScheduler(fileTimestampTracker: timestampTracker).AssertCacheMiss(pipA.Process.PipId);
         }
 
         [Fact]

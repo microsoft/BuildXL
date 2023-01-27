@@ -1,6 +1,7 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -8,6 +9,7 @@ using BuildXL.Native.IO;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes;
+using BuildXL.Scheduler;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using Test.BuildXL.Executables.TestProcess;
@@ -27,6 +29,8 @@ namespace IntegrationTest.BuildXL.Scheduler
         [Fact]
         public void FingerprintIsStable()
         {
+            var tracker = GetFileTimestampTrackerFromTomorrow();
+
             // Schedule a pip that produces the three kind of available outputs (declared, shared and exclusive opaque outputs)
             // and make sure the fingerprint is stable when there are no changes
             AbsolutePath dirPath = AbsolutePath.Create(Context.PathTable, Path.Combine(SourceRoot, "dir"));
@@ -55,9 +59,9 @@ namespace IntegrationTest.BuildXL.Scheduler
             var pip = SchedulePipBuilder(builder);
 
             // Run once
-            RunScheduler().AssertSuccess();
+            RunScheduler(fileTimestampTracker: tracker).AssertSuccess();
             // Run a second time. Nothing changed, we should get a hit
-            RunScheduler().AssertCacheHit(pip.Process.PipId);
+            RunScheduler(fileTimestampTracker: tracker).AssertCacheHit(pip.Process.PipId);
         }
 
         [Theory]
@@ -65,6 +69,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         [InlineData(false)]
         public void AlienFilesArePartOfTheFingerprint(bool isUndeclaredRead)
         {
+            var timestampTracker = GetFileTimestampTrackerFromTomorrow();
             AbsolutePath dirPath = AbsolutePath.Create(Context.PathTable, Path.Combine(SourceRoot, "dir"));
             DirectoryArtifact dirToEnumerate = DirectoryArtifact.CreateWithZeroPartialSealId(dirPath);
             var alienFile = CreateSourceFile(root: dirPath);
@@ -91,15 +96,17 @@ namespace IntegrationTest.BuildXL.Scheduler
             var pip = SchedulePipBuilder(builder);
 
             // Run once
-            RunScheduler().AssertSuccess();
+            RunScheduler(fileTimestampTracker: timestampTracker).AssertSuccess();
             // Delete the alien file under the enumerated directory. We should get a miss on re-run
             File.Delete(alienFile.Path.ToString(Context.PathTable));
-            RunScheduler().AssertCacheMiss(pip.Process.PipId);
+            RunScheduler(fileTimestampTracker: timestampTracker).AssertCacheMiss(pip.Process.PipId);
         }
 
         [Fact]
         public void AlienFilesInsideDirectoryArePartOfTheFingerprint()
         {
+            var timestampTracker = GetFileTimestampTrackerFromYesterday();
+
             string dir = Path.Combine(SourceRoot, "dir");
             AbsolutePath dirPath = AbsolutePath.Create(Context.PathTable, dir);
             DirectoryArtifact dirToEnumerate = DirectoryArtifact.CreateWithZeroPartialSealId(dirPath);
@@ -120,20 +127,26 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             // Run once
             var pip = SchedulePipBuilder(builder);
-            RunScheduler().AssertSuccess();
+            RunScheduler(fileTimestampTracker: timestampTracker).AssertSuccess();
 
             // Create a file under a nested dir
             string nestedDir = Path.Combine(dir, "nested");
             FileUtilities.CreateDirectory(nestedDir);
+
             File.WriteAllText(Path.Combine(nestedDir, "another-file.txt"), "some text");
 
+            // Make sure the next build runs 'tomorrow' so the newly created artifacts are picked up
+            timestampTracker = GetFileTimestampTrackerFromTomorrow();
+
             // The presence of the new file under a nested dir should trigger a cache miss
-            RunScheduler().AssertCacheMiss(pip.Process.PipId);
+            RunScheduler(fileTimestampTracker: timestampTracker).AssertCacheMiss(pip.Process.PipId);
         }
 
         [Fact]
         public void StaleSharedOpaqueOutputsAreNotPartOfTheFingerprint()
         {
+            var timestampTracker = GetFileTimestampTrackerFromYesterday();
+
             AbsolutePath dirPath = AbsolutePath.Create(Context.PathTable, Path.Combine(SourceRoot, "dir"));
             DirectoryArtifact dirToEnumerate = DirectoryArtifact.CreateWithZeroPartialSealId(dirPath);
             var alienFile = CreateSourceFile(root: dirPath);
@@ -158,11 +171,16 @@ namespace IntegrationTest.BuildXL.Scheduler
             var pip = SchedulePipBuilder(builder);
 
             // Run once
-            RunScheduler().AssertSuccess();
+            RunScheduler(fileTimestampTracker: timestampTracker).AssertSuccess();
             // Delete the sharedOpaque under the enumerated directory. We should get a cache hit on re-run since
             // old outputs are ignored
             File.Delete(alienFile.Path.ToString(Context.PathTable));
-            RunScheduler().AssertCacheHit(pip.Process.PipId);
+            
+             // Simulate that this stale shared opaque output was left from a previous build by making the next
+             // one happening 'tomorrow'
+            timestampTracker = GetFileTimestampTrackerFromTomorrow();
+ 
+            RunScheduler(fileTimestampTracker: timestampTracker).AssertCacheHit(pip.Process.PipId);
         }
 
         [Fact]
@@ -200,6 +218,8 @@ namespace IntegrationTest.BuildXL.Scheduler
         [Fact]
         public void ExistingDirectoriesArePartOfTheFingerprint()
         {
+            var tracker = GetFileTimestampTrackerFromTomorrow();
+
             string dir = Path.Combine(SourceRoot, "dir");
             AbsolutePath dirPath = AbsolutePath.Create(Context.PathTable, dir);
             DirectoryArtifact dirToEnumerate = DirectoryArtifact.CreateWithZeroPartialSealId(dirPath);
@@ -222,11 +242,11 @@ namespace IntegrationTest.BuildXL.Scheduler
             var pip = SchedulePipBuilder(builder);
 
             // Run once
-            RunScheduler().AssertSuccess();
+            RunScheduler(fileTimestampTracker: tracker).AssertSuccess();
 
             // Delete the directory. We should get a miss on re-run since directories not created by this pip are part of the fingerprint
             Directory.Delete(nestedDir);
-            RunScheduler().AssertCacheMiss(pip.Process.PipId);
+            RunScheduler(fileTimestampTracker: tracker).AssertCacheMiss(pip.Process.PipId);
         }
 
         /// <summary>
@@ -338,6 +358,8 @@ namespace IntegrationTest.BuildXL.Scheduler
         [Fact]
         public void ImmediateDependencyOutputsArePartOfTheFingerprint()
         {
+            var tracker = GetFileTimestampTrackerFromTomorrow();
+
             // Schedule a pip that writes a file
             var outputFile = CreateOutputFileArtifact();
             var writer = CreatePipBuilder(new Operation[]
@@ -369,12 +391,12 @@ namespace IntegrationTest.BuildXL.Scheduler
             Configuration.Filter = $"output='*{Path.DirectorySeparatorChar}{dummyOutput.Path.GetName(Context.PathTable).ToString(Context.StringTable)}'";
 
             // Run once
-            RunScheduler().AssertSuccess();
+            RunScheduler(fileTimestampTracker: tracker).AssertSuccess();
 
             // Delete the produced file. However, we should get a hit because the fingerprint should still include the intermediate output
             // even if it is not on disk
             File.Delete(outputFile.Path.ToString(Context.PathTable));
-            RunScheduler().AssertCacheHit(enumeratorPip.Process.PipId);
+            RunScheduler(fileTimestampTracker: tracker).AssertCacheHit(enumeratorPip.Process.PipId);
 
             // Make sure the intermediate output was in fact not produced
             Assert.False(File.Exists(outputFile.Path.ToString(Context.PathTable)));
@@ -423,8 +445,10 @@ namespace IntegrationTest.BuildXL.Scheduler
         [Fact]
         public void KnownOutputsOutsideImmediateDependenciesAreNotPartOfTheFingerprint()
         {
+            var tracker = GetFileTimestampTrackerFromYesterday();
+
             // Schedule a pip that writes a file
-            var outputFile = CreateOutputFileArtifact();
+            var outputFile = CreateOutputFileArtifact(Path.Combine(ObjectRoot, "dirToEnumerate"));
             var writer = CreatePipBuilder(new Operation[]
             {
                 Operation.WriteFile(outputFile)
@@ -452,17 +476,58 @@ namespace IntegrationTest.BuildXL.Scheduler
             Configuration.Filter = $"output='*{Path.DirectorySeparatorChar}{dummyOutput.Path.GetName(Context.PathTable).ToString(Context.StringTable)}'";
 
             // Run once
-            RunScheduler().AssertSuccess();
+            RunScheduler(fileTimestampTracker: tracker).AssertSuccess();
 
             // Make sure the file produced by the writer was actually never produced
             Assert.False(File.Exists(outputFile.Path.ToString(Context.PathTable)));
 
             // Now re-create the file as if it was produced
+            Directory.CreateDirectory(dirPath.ToString(Context.PathTable));
             File.WriteAllText(outputFile.Path.ToString(Context.PathTable), "some content");
-
+            
             // We should get a cache hit: even though the output produced by the writer pip is now there,
             // it shouldn't have been part of the fingerprint to begin with
-            RunScheduler().AssertCacheHit(enumeratorPip.Process.PipId);
+            RunScheduler(fileTimestampTracker: tracker).AssertCacheHit(enumeratorPip.Process.PipId);
+        }
+
+        [Fact]
+        public void RacyOutputsAreNotPartOfTheFingerprint()
+        {
+            // Output file representing the output of a (non-existent) pip that runs concurrently with the enumerator pip
+            var outputFile = CreateOutputFileArtifact();
+
+            var tracker = GetFileTimestampTrackerFromYesterday();
+
+            // Schedule a pip enumerates the dir containing the writer file
+            AbsolutePath dirPath = outputFile.Path.GetParent(Context.PathTable);
+            DirectoryArtifact dirToEnumerate = DirectoryArtifact.CreateWithZeroPartialSealId(dirPath);
+
+            var dummyOutput = CreateOutputFileArtifact();
+            var enumerator = CreatePipBuilder(new Operation[]
+            {
+                Operation.EnumerateDir(dirToEnumerate, doNotInfer: true),
+                Operation.WriteFile(dummyOutput)
+            });
+
+            // This makes sure we use the right file system, which is aware of alien files
+            enumerator.Options |= Process.Options.AllowUndeclaredSourceReads;
+
+            var enumeratorPip = SchedulePipBuilder(enumerator);
+
+            // This simulates a pip running concurrently with the enumerator that produces a file that, when
+            // the enumeration happens, didn't have time to go through our virtual file system and therefore
+            // we won't recognize it as such using our in-memory models. The check is timestamp based.
+            File.WriteAllText(outputFile.Path.ToString(Context.PathTable), "This is an output");
+
+            // Run once
+            RunScheduler(fileTimestampTracker: tracker).AssertSuccess();
+
+            // Now delete the file as if the enumerator now runs non-concurrently with the non-existent pip
+            File.Delete(outputFile.Path.ToString(Context.PathTable));
+
+            // We should get a cache hit: the output produced concurrently should have never been a
+            // part of the fingerprint to begin with
+            RunScheduler(fileTimestampTracker: tracker).AssertCacheHit(enumeratorPip.Process.PipId);
         }
 
         [FactIfSupported(requiresSymlinkPermission: true, requiresWindowsBasedOperatingSystem: true)]

@@ -922,6 +922,9 @@ namespace BuildXL.Native.IO
             return Path.Combine(Path.GetTempPath(), "bxl_" + Guid.NewGuid().ToString() + ".tmp");
         }
 
+        /// <see cref="IFileSystem.SupportsCreationDate"/>
+        public static bool SupportsCreationDate() => s_fileSystem.SupportsCreationDate();
+
         #endregion
 
         #region Journaling functions

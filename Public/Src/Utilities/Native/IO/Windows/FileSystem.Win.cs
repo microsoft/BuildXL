@@ -4390,6 +4390,9 @@ namespace BuildXL.Native.IO.Windows
 
             return result;
         }
+
+        /// <inheritdoc/>
+        public bool SupportsCreationDate() => true;
     }
 }
 

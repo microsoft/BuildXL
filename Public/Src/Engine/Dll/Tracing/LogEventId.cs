@@ -410,6 +410,7 @@ namespace BuildXL.Engine.Tracing
 
         ObjDumpNotInstalled = 7133,
 
+        DistributionStreamingNetworkFailure = 7134,
         // max 7200
     }
 }

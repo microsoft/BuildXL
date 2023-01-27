@@ -377,16 +377,18 @@ namespace BuildXL
                         (int)EngineLogEventId.ChosenABTesting,
                         (int)EngineLogEventId.SynchronouslyWaitedForCache,
                         (int)Scheduler.Tracing.LogEventId.PipFingerprintData,
-
-                        (int)EngineLogEventId.DistributionWorkerChangedState,
-                        (int)EngineLogEventId.DistributionConnectedToWorker,
-                        (int)EngineLogEventId.DistributionWorkerFinish,
                         (int)Scheduler.Tracing.LogEventId.WorkerReleasedEarly,
                         (int)AppLogEventId.CbTimeoutReached,
                         (int)AppLogEventId.CbTimeoutInfo,
+                        (int)EngineLogEventId.DistributionWorkerChangedState,
+                        (int)EngineLogEventId.DistributionConnectedToWorker,
+                        (int)EngineLogEventId.DistributionWorkerFinish,
+                        (int)EngineLogEventId.DistributionConnectionTimeout,
+                        (int)EngineLogEventId.DistributionConnectionFailure,
+                        (int)SharedLogEventId.StoppedDistributionWorkerForwardedError,
                     },
-                    // all errors should be included in a dev log
-                    EventLevel.Error));
+                    // all warning/errors should be included in a dev log
+                    EventLevel.Warning));
 
                 // Distribution related messages are disabled in default text log and routed to special log file
                 mutableConfig.Logging.NoLog.AddRange(DistributionHelpers.DistributionInfoMessages);

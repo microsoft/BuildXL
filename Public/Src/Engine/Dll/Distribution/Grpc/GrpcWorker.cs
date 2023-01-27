@@ -30,14 +30,20 @@ namespace BuildXL.Engine.Distribution.Grpc
 
             m_workerService.Attach(message, sender);
 
-            return GrpcUtils.EmptyResponse;
+            return GrpcUtils.EmptyResponseTask;
         }
 
         /// <inheritdoc/>
         public override Task<RpcResponse> ExecutePips(PipBuildRequest message, ServerCallContext context)
         {
             m_workerService.ExecutePipsAsync(message).Forget();
-            return GrpcUtils.EmptyResponse;
+            return GrpcUtils.EmptyResponseTask;
+        }
+
+        /// <inheritdoc/>
+        public override Task<RpcResponse> Heartbeat(RpcResponse message, ServerCallContext context)
+        {
+            return GrpcUtils.EmptyResponseTask;
         }
 
         /// <inheritdoc/>
@@ -50,7 +56,7 @@ namespace BuildXL.Engine.Distribution.Grpc
                 m_workerService.ExecutePipsAsync(message).Forget();
             }
 
-            return new RpcResponse();
+            return GrpcUtils.EmptyResponse;
 #else
             throw new NotImplementedException();
 #endif
@@ -62,7 +68,7 @@ namespace BuildXL.Engine.Distribution.Grpc
         {
             var failure = string.IsNullOrEmpty(message.Failure) ? Optional<string>.Empty : message.Failure;
             m_workerService.ExitRequested(failure);
-            return GrpcUtils.EmptyResponse;
+            return GrpcUtils.EmptyResponseTask;
         }
     }
 }

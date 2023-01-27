@@ -49,7 +49,13 @@ namespace BuildXL.Engine.Distribution.Grpc
             int port, 
             EventHandler<ConnectionFailureEventArgs> onConnectionFailureAsync)
         {
-            m_connectionManager = new ClientConnectionManager(m_loggingContext, ipAddress, port, m_invocationId, m_counters);
+            m_connectionManager = new ClientConnectionManager(
+                m_loggingContext, 
+                ipAddress, 
+                port, 
+                m_invocationId, 
+                m_counters, 
+                async (callOptions) => await m_client.HeartbeatAsync(GrpcUtils.EmptyResponse, callOptions));
             m_connectionManager.OnConnectionFailureAsync += onConnectionFailureAsync;
             m_client = new Orchestrator.OrchestratorClient(m_connectionManager.Channel);
             m_initialized = true;
@@ -130,21 +136,21 @@ namespace BuildXL.Engine.Distribution.Grpc
             return m_connectionManager.CallAsync(func, $" ReportExecutionLog: Size={message.Events.DataBlob.Count()}, SequenceNumber={message.Events.SequenceNumber}", cancellationToken: cancellationToken);
         }
 
-        public void FinalizeStreaming()
+        public bool TryFinalizeStreaming()
         {
+            RpcCallResult<Unit> executionLogResponse = new RpcCallResult<Unit>();
+            RpcCallResult<Unit> pipResultsResponse = new RpcCallResult<Unit>();
             if (m_executionLogStream != null)
             {
-                m_executionLogStream.RequestStream.CompleteAsync().GetAwaiter().GetResult();
-                m_executionLogStream.GetAwaiter().GetResult();
-                m_executionLogStream.Dispose();
+                executionLogResponse = m_connectionManager.FinalizeStreamAsync(m_executionLogStream).GetAwaiter().GetResult();
             }
 
             if (m_pipResultsStream != null)
             {
-                m_pipResultsStream.RequestStream.CompleteAsync().GetAwaiter().GetResult();
-                m_pipResultsStream.GetAwaiter().GetResult();
-                m_pipResultsStream.Dispose();
+                pipResultsResponse = m_connectionManager.FinalizeStreamAsync(m_pipResultsStream).GetAwaiter().GetResult();
             }
+
+            return executionLogResponse.Succeeded && pipResultsResponse.Succeeded;
         }
     }
 }

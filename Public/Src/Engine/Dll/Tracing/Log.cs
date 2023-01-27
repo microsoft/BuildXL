@@ -680,6 +680,15 @@ namespace BuildXL.Engine.Tracing
         public abstract void DistributionStatistics(LoggingContext context, string statistics);
 
         [GeneratedEvent(
+            (ushort)LogEventId.DistributionStreamingNetworkFailure,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)Keywords.UserMessage | (int)Keywords.InfrastructureError,
+            EventTask = (ushort)Tasks.PipExecutor,
+            Message = "Streaming finalization fails on {workerName}")]
+        public abstract void DistributionStreamingNetworkFailure(LoggingContext context, string workerName);
+
+        [GeneratedEvent(
             (ushort)LogEventId.DistributionExecutePipFailedNetworkFailure,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,

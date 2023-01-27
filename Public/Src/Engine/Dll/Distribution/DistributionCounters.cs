@@ -135,6 +135,12 @@ namespace BuildXL.Engine.Distribution
         ConnectionManagerIdle,
 
         /// <nodoc/>
-        ConnectionManagerFailCalls
+        ConnectionManagerFailedCalls,
+
+        /// <nodoc/>
+        LostClientHeartbeatFailure,
+
+        /// <nodoc/>
+        ConnectionManagerFailedHeartbeats
     }
 }

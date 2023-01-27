@@ -20,7 +20,7 @@ namespace BuildXL.Engine.Distribution
 
         void SetWorkerLocation(ServiceLocation serviceLocation);
 
-        void FinalizeStreaming();
+        bool TryFinalizeStreaming();
 
         Task CloseAsync();
     }

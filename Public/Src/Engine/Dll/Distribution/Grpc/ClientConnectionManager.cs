@@ -9,7 +9,6 @@ using System.Net.Http;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Distribution.Grpc;
 using BuildXL.Engine.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
@@ -19,6 +18,7 @@ using BuildXL.Utilities.Tracing;
 using Grpc.Core;
 using static BuildXL.Engine.Distribution.RemoteWorker;
 using BuildXL.Cache.ContentStore.Grpc;
+using BuildXL.Distribution.Grpc;
 
 #if NET6_0_OR_GREATER
 using Grpc.Net.Client.Configuration;
@@ -58,6 +58,7 @@ namespace BuildXL.Engine.Distribution.Grpc
                     case ConnectionFailureType.ReconnectionTimeout:
                     case ConnectionFailureType.AttachmentTimeout:
                     case ConnectionFailureType.RemotePipTimeout:
+                    case ConnectionFailureType.HeartbeatFailure:
                         Logger.Log.DistributionConnectionTimeout(loggingContext, machineName, details);
                         break;
                     case ConnectionFailureType.UnrecoverableFailure:
@@ -117,6 +118,9 @@ namespace BuildXL.Engine.Distribution.Grpc
         private readonly string m_ipAddress;
         private int m_numReconnectAttempts;
         private readonly CounterCollection<DistributionCounter> m_counters;
+        private readonly CancellableTimedAction m_heartbeatAction;
+        private readonly Func<CallOptions, Task> m_heartbeatCall;
+        private int m_numConsecutiveHeartbeatFails;
 
         /// <summary>
         /// Channel State 
@@ -141,7 +145,7 @@ namespace BuildXL.Engine.Distribution.Grpc
             return GenerateLog(traceId.ToString(), "Fail", numTry, failure);
         }
 
-        public ClientConnectionManager(LoggingContext loggingContext, string ipAddress, int port, DistributedInvocationId invocationId, CounterCollection<DistributionCounter> counters)
+        public ClientConnectionManager(LoggingContext loggingContext, string ipAddress, int port, DistributedInvocationId invocationId, CounterCollection<DistributionCounter> counters, Func<CallOptions, Task> heartbeatCall)
         {
             m_invocationId = invocationId;
             m_loggingContext = loggingContext;
@@ -168,6 +172,28 @@ namespace BuildXL.Engine.Distribution.Grpc
             }
 
             Contract.Assert(Channel != null, "Channel must be initialized");
+            m_heartbeatCall = heartbeatCall; 
+            m_heartbeatAction = new CancellableTimedAction(SendHeartbeat, GrpcSettings.HeartbeatIntervalMs);
+        }
+
+        private void SendHeartbeat()
+        {
+            var result = CallAsync(m_heartbeatCall, "Heartbeat", m_exitTokenSource.Token, doNotRetry: true).GetAwaiter().GetResult();
+
+            if (result.Succeeded)
+            {
+                m_numConsecutiveHeartbeatFails = 0;
+            }
+            else
+            {
+                ++m_numConsecutiveHeartbeatFails;
+                m_counters.IncrementCounter(DistributionCounter.ConnectionManagerFailedHeartbeats);
+
+                if (m_numConsecutiveHeartbeatFails > 5)
+                {
+                    OnConnectionFailureAsync?.Invoke(this, new ConnectionFailureEventArgs(ConnectionFailureType.HeartbeatFailure, $"Heartbeats consecutively failed. Attempts: {m_numConsecutiveHeartbeatFails}"));
+                }
+            }
         }
 
         private ChannelBase SetupGrpcCoreClient(string ipAddress, int port)
@@ -439,6 +465,12 @@ namespace BuildXL.Engine.Distribution.Grpc
 
                 Logger.Log.GrpcTrace(m_loggingContext, m_ipAddress, $"{lastState} -> {state}");
 
+                if (state == ChannelState.Ready && GrpcSettings.HeartbeatEnabled)
+                {
+                    // When connected to the server, start heartbeat messages.
+                    m_heartbeatAction.Start();
+                }
+
                 // Check if we're stuck in reconnection attemps after losing connection
                 // In this situation, the state will alternate between "Connecting" and "TransientFailure"
                 if (state == ChannelState.Connecting || state == ChannelState.TransientFailure)
@@ -526,6 +558,10 @@ namespace BuildXL.Engine.Distribution.Grpc
             if (!m_isShutdownInitiated)
             {
                 m_isShutdownInitiated = true;
+                ReadyForExit();
+
+                m_heartbeatAction.Cancel();
+                m_heartbeatAction.Join();
 
                 if (m_dotNetClientEnabled)
                 {
@@ -558,7 +594,8 @@ namespace BuildXL.Engine.Distribution.Grpc
             Func<CallOptions, Task> func,
             string operation,
             CancellationToken cancellationToken = default(CancellationToken),
-            bool waitForConnection = false)
+            bool waitForConnection = false,
+            bool doNotRetry = false)
         {
             var watch = StopwatchSlim.Start();
 
@@ -609,7 +646,7 @@ namespace BuildXL.Engine.Distribution.Grpc
                     state = e.StatusCode == StatusCode.Cancelled ? RpcCallResultState.Cancelled : RpcCallResultState.Failed;
                     failure = state == RpcCallResultState.Failed ? new RecoverableExceptionFailure(new BuildXLException(e.Message)) : null;
 
-                    m_counters.IncrementCounter(DistributionCounter.ConnectionManagerFailCalls);
+                    m_counters.IncrementCounter(DistributionCounter.ConnectionManagerFailedCalls);
 
                     if (e.Status.StatusCode == StatusCode.DeadlineExceeded)
                     {
@@ -643,11 +680,8 @@ namespace BuildXL.Engine.Distribution.Grpc
                         break;
                     }
 
-                    if (EngineEnvironmentSettings.GrpcDotNetServiceConfigEnabled)
+                    if (doNotRetry)
                     {
-                        // When we use the built-in retry for grpc.net, do not retry manually.
-
-                        timeouts = GrpcSettings.MaxAttempts;
                         break;
                     }
                 }
@@ -656,7 +690,7 @@ namespace BuildXL.Engine.Distribution.Grpc
                     state = RpcCallResultState.Failed;
                     failure = new RecoverableExceptionFailure(new BuildXLException(e.Message));
                     Logger.Log.GrpcTrace(m_loggingContext, m_ipAddress, GenerateLog(traceId, "Fail", numTry, e.Message));
-                    m_counters.IncrementCounter(DistributionCounter.ConnectionManagerFailCalls);
+                    m_counters.IncrementCounter(DistributionCounter.ConnectionManagerFailedCalls);
 
                     // If stream is already disposed, we cannot retry call. 
                     break;
@@ -685,6 +719,19 @@ namespace BuildXL.Engine.Distribution.Grpc
                 duration: totalCallDuration,
                 waitForConnectionDuration: waitForConnectionDuration,
                 lastFailure: failure);
+        }
+
+        public Task<RpcCallResult<Unit>> FinalizeStreamAsync<TRequest>(AsyncClientStreamingCall<TRequest, RpcResponse> stream)
+        {
+            return CallAsync(
+                    async (_) =>
+                    {
+                        await stream.RequestStream.CompleteAsync();
+                        await stream;
+                        stream.Dispose();
+                    },
+                    nameof(FinalizeStreamAsync),
+                    doNotRetry: true);
         }
 
         private async Task<bool> TryConnectChannelAsync(TimeSpan timeout, string operation, StopwatchSlim? watch = null)

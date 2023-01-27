@@ -42,7 +42,13 @@ namespace BuildXL.Engine.Distribution.Grpc
             Contract.Assert(m_connectionManager == null, "The worker location can only be set once");
             Contract.Assert(serviceLocation != null);
 
-            m_connectionManager = new ClientConnectionManager(m_loggingContext, serviceLocation.IpAddress, serviceLocation.Port, m_invocationId, m_counters);
+            m_connectionManager = new ClientConnectionManager(
+                m_loggingContext, 
+                serviceLocation.IpAddress, 
+                serviceLocation.Port, 
+                m_invocationId, 
+                m_counters, 
+                async (callOptions) => await m_client.HeartbeatAsync(GrpcUtils.EmptyResponse, callOptions));
             m_connectionManager.OnConnectionFailureAsync += m_onConnectionFailureAsync;
             m_client = new Worker.WorkerClient(m_connectionManager.Channel);
         }
@@ -109,14 +115,14 @@ namespace BuildXL.Engine.Distribution.Grpc
                 cancellationToken);
         }
 
-        public void FinalizeStreaming()
+        public bool TryFinalizeStreaming()
         {
-            if (m_pipBuildRequestStream != null)
+            if (m_pipBuildRequestStream == null)
             {
-                m_pipBuildRequestStream.RequestStream.CompleteAsync().GetAwaiter().GetResult();
-                m_pipBuildRequestStream.GetAwaiter().GetResult();
-                m_pipBuildRequestStream.Dispose();
+                return true;
             }
+
+            return m_connectionManager.FinalizeStreamAsync(m_pipBuildRequestStream).GetAwaiter().GetResult().Succeeded;
         }
     }
 }

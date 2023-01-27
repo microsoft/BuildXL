@@ -30,6 +30,16 @@ namespace BuildXL.Engine.Distribution.Grpc
                 EngineEnvironmentSettings.CBBuildUserCertificateName.Value != null;
 
         /// <summary>
+        /// Whether we should enable heartbeat messages.
+        /// </summary>
+        public static bool HeartbeatEnabled => EngineEnvironmentSettings.GrpcHeartbeatEnabled;
+
+        /// <summary>
+        /// The frequency of heartbeat messages.
+        /// </summary>
+        public static int HeartbeatIntervalMs => EngineEnvironmentSettings.GrpcHeartbeatIntervalMs.Value ?? 60000;
+
+        /// <summary>
         /// Maximum time to wait for the orchestrator to connect to a worker.
         /// </summary>
         /// <remarks>

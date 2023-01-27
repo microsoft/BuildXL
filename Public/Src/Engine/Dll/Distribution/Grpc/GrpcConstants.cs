@@ -93,7 +93,9 @@ namespace BuildXL.Engine.Distribution.Grpc
 
     internal static class GrpcUtils
     {
-        public readonly static Task<RpcResponse> EmptyResponse = Task.FromResult(new RpcResponse());
+        public readonly static RpcResponse EmptyResponse = new RpcResponse();
+
+        public readonly static Task<RpcResponse> EmptyResponseTask = Task.FromResult(EmptyResponse);
 
         /// <summary>
         /// Returns a <see cref="ByteString"/> that is backed by the underlying byte array of <see cref="MemoryStream"/>

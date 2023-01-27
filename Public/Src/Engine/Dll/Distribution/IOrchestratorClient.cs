@@ -19,6 +19,6 @@ namespace BuildXL.Engine.Distribution
         Task<RpcCallResult<Unit>> ReportPipResultsAsync(PipResultsInfo message, string description, CancellationToken cancellationToken = default);
         Task<RpcCallResult<Unit>> ReportExecutionLogAsync(ExecutionLogInfo message, CancellationToken cancellationToken = default);
         Task CloseAsync();
-        void FinalizeStreaming();
+        bool TryFinalizeStreaming();
     }
 }

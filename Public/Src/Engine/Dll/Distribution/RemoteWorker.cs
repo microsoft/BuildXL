@@ -77,7 +77,7 @@ namespace BuildXL.Engine.Distribution
         /// <summary>
         /// Possible scenarios of connection failure
         /// </summary>
-        public enum ConnectionFailureType { CallDeadlineExceeded, ReconnectionTimeout, UnrecoverableFailure, AttachmentTimeout, RemotePipTimeout }
+        public enum ConnectionFailureType { CallDeadlineExceeded, ReconnectionTimeout, UnrecoverableFailure, AttachmentTimeout, RemotePipTimeout, HeartbeatFailure }
 
         private int m_connectionClosedFlag = 0;     // Used to prevent double shutdowns upon connection failures
 
@@ -381,6 +381,7 @@ namespace BuildXL.Engine.Distribution
                 ConnectionFailureType.UnrecoverableFailure => DistributionCounter.LostClientUnrecoverableFailure,
                 ConnectionFailureType.AttachmentTimeout => DistributionCounter.LostClientAttachmentTimeout,
                 ConnectionFailureType.RemotePipTimeout => DistributionCounter.LostClientRemotePipTimeout,
+                ConnectionFailureType.HeartbeatFailure => DistributionCounter.LostClientHeartbeatFailure,
                 _ => null
             };
 
@@ -622,7 +623,10 @@ namespace BuildXL.Engine.Distribution
                 m_sendThread.Join();
             }
 
-            m_workerClient.FinalizeStreaming();
+            if (!m_workerClient.TryFinalizeStreaming())
+            {
+                Logger.Log.DistributionStreamingNetworkFailure(m_appLoggingContext, Name);
+            }
 
             // If we still have a connection with the worker, we should send a message to worker to make it exit. 
             // We might be releasing a worker that didn't say Hello and so m_serviceLocation can be null, don't try to call exit

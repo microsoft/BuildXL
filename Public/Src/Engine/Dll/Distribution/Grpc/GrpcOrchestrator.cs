@@ -25,28 +25,34 @@ namespace BuildXL.Engine.Distribution.Grpc
         public override Task<RpcResponse> Hello(ServiceLocation workerLocation, ServerCallContext context)
         {
             m_orchestratorService.Hello(workerLocation);
-            return Task.FromResult(new RpcResponse());
+            return GrpcUtils.EmptyResponseTask;
         }
 
         /// <inheritdoc/>
         public override Task<RpcResponse> AttachCompleted(AttachCompletionInfo message, ServerCallContext context)
         {
             m_orchestratorService.AttachCompleted(message);
-            return GrpcUtils.EmptyResponse;
+            return GrpcUtils.EmptyResponseTask;
         }
 
         /// <inheritdoc/>
         public override Task<RpcResponse> ReportPipResults(PipResultsInfo message, ServerCallContext context)
         {
             m_orchestratorService.ReceivedPipResults(message).Forget();
-            return GrpcUtils.EmptyResponse;
+            return GrpcUtils.EmptyResponseTask;
         }
 
         /// <inheritdoc/>
         public override Task<RpcResponse> ReportExecutionLog(ExecutionLogInfo message, ServerCallContext context)
         {
             m_orchestratorService.ReceivedExecutionLog(message).Forget();
-            return GrpcUtils.EmptyResponse;
+            return GrpcUtils.EmptyResponseTask;
+        }
+
+        /// <inheritdoc/>
+        public override Task<RpcResponse> Heartbeat(RpcResponse message, ServerCallContext context)
+        {
+            return GrpcUtils.EmptyResponseTask;
         }
 
         /// <inheritdoc/>
@@ -59,7 +65,7 @@ namespace BuildXL.Engine.Distribution.Grpc
                 m_orchestratorService.ReceivedExecutionLog(message).Forget();
             }
             
-            return new RpcResponse();
+            return GrpcUtils.EmptyResponse;
 #else
             throw new NotImplementedException();
 #endif
@@ -76,7 +82,7 @@ namespace BuildXL.Engine.Distribution.Grpc
                 m_orchestratorService.ReceivedPipResults(message).Forget();
             }
 
-            return new RpcResponse();
+            return GrpcUtils.EmptyResponse;
 #else
             throw new NotImplementedException();
 #endif

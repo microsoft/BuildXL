@@ -21,6 +21,9 @@ service Orchestrator {
 
     // Report the execution log data via stream
     rpc StreamExecutionLog(stream ExecutionLogInfo) returns (RpcResponse) {}
+
+    // Heartbeat
+    rpc Heartbeat(RpcResponse) returns (RpcResponse) {}
 }
 
 // Defines the service for talking to builder worker processes
@@ -37,6 +40,9 @@ service Worker
 
     // Signals that build is finished and that worker should exit
     rpc Exit(BuildEndData) returns (RpcResponse) {}
+
+    // Heartbeat
+    rpc Heartbeat(RpcResponse) returns (RpcResponse) {}
 }
 
 message RpcResponse {}

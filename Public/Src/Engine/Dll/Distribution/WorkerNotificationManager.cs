@@ -165,7 +165,10 @@ namespace BuildXL.Engine.Distribution
             m_forwardingEventListener?.Dispose();
             m_sendCancellationSource.Cancel();
 
-            m_orchestratorClient.FinalizeStreaming();
+            if (!m_orchestratorClient.TryFinalizeStreaming())
+            {
+                Tracing.Logger.Log.DistributionStreamingNetworkFailure(m_loggingContext, "localhost");
+            }
 
             DistributionService.Counters.AddToCounter(DistributionCounter.ExecutionLogSentSize, m_executionLogTarget?.TotalSize ?? 0);
         }

@@ -352,6 +352,19 @@ namespace BuildXL.Utilities.Configuration
         public static readonly Setting<int?> GrpcVerbosityLevel = CreateSetting("BuildXLGrpcVerbosityLevel", value => ParseInt32(value, allowZero: true));
 
         /// <summary>
+        /// Whether we should enable heartbeat messages.
+        /// </summary>
+        /// <remarks>
+        /// Default disabled
+        /// </remarks>
+        public static readonly Setting<bool> GrpcHeartbeatEnabled = CreateSetting("BuildXLGrpcHeartbeatEnabled", value => value == "1");
+
+        /// <summary>
+        /// The frequency of heartbeat messages.
+        /// </summary>
+        public static readonly Setting<int?> GrpcHeartbeatIntervalMs = CreateSetting("BuildXLGrpcHeartbeatIntervalMs", value => ParseInt32(value));
+
+        /// <summary>
         /// Comma separated list of grpc tracers for grpc logging. Only relevant if GrpcVerbosityEnabled is true
         /// </summary>
         /// <remarks>

@@ -401,7 +401,7 @@ config({
                 { id: "System.Reactive", version: "4.4.1" },
 
                 // Windows CoW on ReFS
-                { id: "CopyOnWrite", version: "0.2.1" },
+                { id: "CopyOnWrite", version: "0.2.2" },
             ],
 
             doNotEnforceDependencyVersions: true,

@@ -159,15 +159,21 @@ namespace BuildXL.Processes.Remoting
 
                     Tracing.Logger.Log.FindOrStartAnyBuildDaemon(m_loggingContext, extraParams, logDir);
 
+                    var options = new AnyBuildClientFindDaemonOptions
+                    {
+                        LogDirectory = logDir,
+                        AdditionalAnyBuildParameters = extraParams,
+                        InheritHandlesOnProcessCreation = false,
+
+                        // TODO: Use available ports instead of the defaults. It may address the issue with /server-.
+                        // DaemonPort = GetUnusedPort(),
+                        // ShimPort = GetUnusedPort(),
+                    };
+
                     daemonManager = await abClient.FindOrStartAnyBuildDaemonAsync(
                         closeDaemonOnDispose: true,
                         m_executionContext.CancellationToken,
-                        logDirectory: logDir,
-                        additionalAnyBuildParameters: extraParams,
-                        // TODO: Use available ports instead of the defaults. It may address the issue with /server-.
-                        // daemonPort: GetUnusedPort(),
-                        // shimPort: GetUnusedPort(),
-                        inheritHandlesOnProcessCreation: false);
+                        options);
                 }
                 catch (Exception e)
                 {

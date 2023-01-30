@@ -38,8 +38,8 @@ namespace BuildXL.Processes.Remoting.AnyBuild
             {
                 ShouldRunLocally = result.ShouldRunLocally,
                 ExitCode = result.ExitCode,
-                StdOut = result.StdOut,
-                StdErr = result.StdErr,
+                StdOut = result.GetStdOut(),
+                StdErr = result.GetStdErr(),
                 Disposition = result.ExecutionDisposition switch
                 {
                     CommandExecutionDisposition.CacheHit => RemoteResultDisposition.CacheHit,

@@ -30,6 +30,48 @@
 
 static std::string sEmptyStr("");
 
+INTERPOSE(int, statx, int dirfd, const char * pathname, int flags, unsigned int mask, struct statx * statxbuf)({
+    auto check = bxl->report_access_at(__func__, ES_EVENT_TYPE_NOTIFY_STAT, dirfd, pathname);
+    return bxl->check_and_fwd_statx(check, ERROR_RETURN_VALUE, dirfd, pathname, flags, mask, statxbuf);
+})
+
+
+INTERPOSE(int, scandir, const char * dirp,
+                   struct dirent *** namelist,
+                   int (*filter)(const struct dirent *),
+                   int (*compar)(const struct dirent **, const struct dirent **))
+({
+    auto check = bxl->report_access(__func__, ES_EVENT_TYPE_NOTIFY_READDIR, dirp);
+    return bxl->check_and_fwd_scandir(check, ERROR_RETURN_VALUE, dirp, namelist, filter, compar);
+})
+
+INTERPOSE(int, scandir64, const char * dirp,
+                   struct dirent64 *** namelist,
+                   int (*filter)(const struct dirent64  *),
+                   int (*compar)(const dirent64 **, const dirent64 **))
+({
+    auto check = bxl->report_access(__func__, ES_EVENT_TYPE_NOTIFY_READDIR, dirp);
+    return bxl->check_and_fwd_scandir64(check, ERROR_RETURN_VALUE, dirp, namelist, filter, compar);
+})
+
+INTERPOSE(int, scandirat, int dirfd, const char * dirp,
+                   struct dirent *** namelist,
+                   int (*filter)(const struct dirent *),
+                   int (*compar)(const struct dirent **, const struct dirent **))
+({
+    auto check = bxl->report_access_at(__func__, ES_EVENT_TYPE_NOTIFY_READDIR, dirfd, dirp);
+    return bxl->check_and_fwd_scandirat(check, ERROR_RETURN_VALUE, dirfd, dirp, namelist, filter, compar);
+})
+
+INTERPOSE(int, scandirat64, int dirfd, const char * dirp,
+                   struct dirent64 *** namelist,
+                   int (*filter)(const struct dirent64  *),
+                   int (*compar)(const dirent64 **, const dirent64 **))
+({
+    auto check = bxl->report_access_at(__func__, ES_EVENT_TYPE_NOTIFY_READDIR, dirfd, dirp);
+    return bxl->check_and_fwd_scandirat64(check, ERROR_RETURN_VALUE, dirfd, dirp, namelist, filter, compar);
+})
+
 INTERPOSE(void, _exit, int status)({
     bxl->report_access("_exit", ES_EVENT_TYPE_NOTIFY_EXIT, std::string(""), std::string(""));
     bxl->real__exit(status);

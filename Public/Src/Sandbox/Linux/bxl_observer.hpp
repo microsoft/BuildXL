@@ -509,7 +509,12 @@ public:
     GEN_FN_DEF(int, dup, int oldfd);
     GEN_FN_DEF(int, dup2, int oldfd, int newfd);
     GEN_FN_DEF(int, dup3, int oldfd, int newfd, int flags);
-
+    GEN_FN_DEF(int, scandir, const char * dirp, struct dirent *** namelist, int (*filter)(const struct dirent *), int (*compar)(const struct dirent **, const struct dirent **));
+    GEN_FN_DEF(int, scandir64, const char * dirp, struct dirent64 *** namelist, int (*filter)(const struct dirent64  *), int (*compar)(const dirent64 **, const dirent64 **));
+    GEN_FN_DEF(int, scandirat, int dirfd, const char * dirp, struct dirent *** namelist, int (*filter)(const struct dirent *), int (*compar)(const struct dirent **, const struct dirent **));
+    GEN_FN_DEF(int, scandirat64, int dirfd, const char * dirp, struct dirent64 *** namelist, int (*filter)(const struct dirent64  *), int (*compar)(const dirent64 **, const dirent64 **));
+    GEN_FN_DEF(int, statx, int dirfd, const char * pathname, int flags, unsigned int mask, struct statx * statxbuf);
+    
     /* ============ don't need to be interposed ======================= */
     GEN_FN_DEF(int, close, int fd);
     GEN_FN_DEF(int, fclose, FILE *stream);

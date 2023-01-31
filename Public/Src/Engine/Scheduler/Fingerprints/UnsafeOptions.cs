@@ -165,7 +165,7 @@ namespace BuildXL.Scheduler.Fingerprints
             fingerprinter.Add(nameof(UnsafeConfiguration.IgnoreUndeclaredAccessesUnderSharedOpaques), getBoolString(UnsafeConfiguration.IgnoreUndeclaredAccessesUnderSharedOpaques));
             fingerprinter.Add(nameof(UnsafeConfiguration.IgnoreCreateProcessReport), getBoolString(UnsafeConfiguration.IgnoreCreateProcessReport));
             fingerprinter.Add(nameof(UnsafeConfiguration.ProbeDirectorySymlinkAsDirectory), getBoolString(UnsafeConfiguration.ProbeDirectorySymlinkAsDirectory));
-            fingerprinter.Add(nameof(UnsafeConfiguration.SkipFlaggingSharedOpaqueOutputs), getBoolString(UnsafeConfiguration.SkipFlaggingSharedOpaqueOutputs));
+            fingerprinter.Add(nameof(UnsafeConfiguration.SkipFlaggingSharedOpaqueOutputs), getBoolString(true)); // TODO: Remove this line when bumping the fingerprint version.
             fingerprinter.Add(nameof(UnsafeConfiguration.EnableFullReparsePointResolving), getBoolString(UnsafeConfiguration.EnableFullReparsePointResolving));
             fingerprinter.Add(nameof(UnsafeConfiguration.DoNotApplyAllowListToDynamicOutputs), getBoolString(UnsafeConfiguration.DoNotApplyAllowListToDynamicOutputs));
 

@@ -80,5 +80,14 @@ namespace BuildXL.Pips.Graph
         /// 103: Add apply-allow-list logic on dynamic (shared opaque) outputs.
         /// </remarks>
         TwoPhaseV2 = 103,
+
+        /* 
+         * We do not want to bump the fingerprint version more than needed, so we will accumulate the tasks to do when we really need to bump the fingerprint version:
+         ************ TODOs ******************
+         * 1) Remove UnsafeConfiguration.SkipFlaggingSharedOpaqueOutputs from the list of unsafe options that participate in the fingerprint.
+         *    Approximate location: UnsafeOptions.cs -> Line 168. 
+         * 2) 
+         * 
+         */
     }
 }

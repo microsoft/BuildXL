@@ -211,7 +211,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 return entry1;
             }
 
-            if (entry1.ContentSize != entry2.ContentSize && context.IsValid)
+            if (entry1.ContentSize != MissingSize && entry2.ContentSize != MissingSize && entry1.ContentSize != entry2.ContentSize && context.IsValid)
             {
                 Tracer.Warning(context, $"Content location entries do not have equal size. entry1.ContentSize={entry1.ContentSize}, entry2.ContentSize={entry2.ContentSize}.");
             }

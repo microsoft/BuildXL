@@ -2374,6 +2374,8 @@ namespace BuildXL.Scheduler
                     }
                 },
 
+                { "ProcessPipsCacheMiss", _ => Volatile.Read(ref m_numProcessPipsUnsatisfiedFromCache) },
+                { "ProcessPipsCacheHit", _ => Volatile.Read(ref m_numProcessPipsSatisfiedFromCache) },
                 { "ProcessPipsPending", data => data.ProcessPipsPending },
                 { "ProcessPipsAllocatedSlots", data => data.ProcessPipsAllocatedSlots },
                 { "ProcessPipsWaiting", data => data.ProcessPipsPending - data.ProcessPipsAllocatedSlots },

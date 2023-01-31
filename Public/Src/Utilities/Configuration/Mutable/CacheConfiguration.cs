@@ -19,8 +19,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
             CacheGraph = true;
             CacheSalt = null;
             CacheSessionName = string.Empty;
-            DeterminismProbe = false;
-            DisableDeterminismProbeLogging = false;
             AllowFetchingCachedGraphFromContentCache = true;
             MinimumReplicaCountForStrongGuarantee = 3;
             StrongContentGuaranteeRefreshProbability = 1;
@@ -51,8 +49,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
             ArtificialCacheMissOptions = template.ArtificialCacheMissConfig == null ? null : new ArtificialCacheMissConfig(template.ArtificialCacheMissConfig);
             ForcedCacheMissSemistableHashes = template.ForcedCacheMissSemistableHashes;
             CacheSalt = template.CacheSalt;
-            DeterminismProbe = template.DeterminismProbe;
-            DisableDeterminismProbeLogging = template.DisableDeterminismProbeLogging;
             HistoricMetadataCache = template.HistoricMetadataCache;
             AllowFetchingCachedGraphFromContentCache = template.AllowFetchingCachedGraphFromContentCache;
             MinimumReplicaCountForStrongGuarantee = template.MinimumReplicaCountForStrongGuarantee;
@@ -118,12 +114,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public string CacheSalt { get; set; }
-
-        /// <inheritdoc />
-        public bool DeterminismProbe { get; set; }
-
-        /// <inheritdoc />
-        public bool DisableDeterminismProbeLogging { get; set; }
 
         /// <inheritdoc />
         public bool ElideMinimalGraphEnumerationAbsentPathProbes { get; set; }

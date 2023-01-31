@@ -4630,11 +4630,6 @@ namespace BuildXL.Scheduler
                         return processRunnable.SetPipResult(tupleResult.Item2);
                     }
 
-                    if (!m_configuration.Cache.DisableDeterminismProbeLogging)
-                    {
-                        HandleDeterminismProbe(loggingContext, environment, cacheResult, runnablePip.Description);
-                    }
-
                     processRunnable.SetCacheableProcess(cacheableProcess);
                     processRunnable.SetCacheResult(cacheResult);
 
@@ -4677,12 +4672,7 @@ namespace BuildXL.Scheduler
 
                     if (cacheResult.CanRunFromCache)
                     {
-                        // Always execute the process if the determinism probe is enabled.
-                        // Pips that must be run due to non-determinism are NOT counted as cache misses.
-                        if (!m_configuration.Cache.DeterminismProbe)
-                        {
-                            return PipExecutionStep.RunFromCache;
-                        }
+                        return PipExecutionStep.RunFromCache;
                     }
                     else if (m_configuration.Schedule.CacheOnly)
                     {
@@ -4820,16 +4810,9 @@ namespace BuildXL.Scheduler
                         PipExecutionCounters.IncrementCounter(PipExecutorCounter.ProcessesExecutedRemotely);
                     }
 
-                    if (m_configuration.Cache.DeterminismProbe && processRunnable.CacheResult.CanRunFromCache)
+                    if (processRunnable.CacheResult.CanRunFromCache)
                     {
-                        if (m_configuration.Cache.DisableDeterminismProbeLogging)
-                        {
-                            // Don't check determinism probe
-                            return PipExecutionStep.RunFromCache;
-                        }
-
-                        // Compare strong fingerprints between execution and cache hit for determinism probe
-                        return CheckMatchForDeterminismProbe(processRunnable);
+                        return PipExecutionStep.RunFromCache;
                     }
 
                     return PipExecutionStep.PostProcess;
@@ -5066,258 +5049,6 @@ namespace BuildXL.Scheduler
         private void ScrubSharedOpaqueOutputs(List<string> outputs)
         {
             outputs.ForEach(o => FileUtilities.DeleteFile(o));
-        }
-
-        private static void HandleDeterminismProbe(
-            LoggingContext loggingContext,
-            IPipExecutionEnvironment environment,
-            RunnableFromCacheResult cacheResult,
-            string pipDescription)
-        {
-            // The purpose of the determinism probe is to identify nondeterministic PIPs. It works by leveraging the two phase cache,
-            // which is highly effective at revealing nondeterminism. As part of its routine interaction with this cache, BuildXL will
-            // sometimes encounter a collision when it attempts to publish an entry into the cache because it differs from the entry that
-            // is already present. When such a collision occurs, BuildXL chooses to use the entry from the cache rather than the entry it
-            // is attempting to publish. Its choice to use the existing entry is key to converging with what is in the cache. "Determinism
-            // recovery from cache" is the term coined to describe this behavior, and it provides a big win for downstream PIPs. By not
-            // publishing to the cache, BuildXL ensures that a downstream PIP has the same input because the cached output from the upstream
-            // PIP remains unchanged. This is essential for the determinism probe to work beyond the first PIPs.
-            //
-            // To illustrate, consider a C++ compiler that produces the same .obj file each time it compiles unchanged input.  This is
-            // an example of a deterministic tool. The first time the compiler runs, BuildXL publishes the .obj directly into the cache.
-            // During its next run, BuildXL determines the C++ compiler is runnable from cache (via fingerprinting and cache hits) and
-            // consequently does not rerun the compiler, instead using the cached .obj file.
-            //
-            // Now, consider BuildXL's behavior when the probe is enabled. It tells BuildXL to ignore the fact that the compiler is
-            // runnable from cache, thereby causing the compiler to run again. BuildXL then attempts to publish the .obj file into the
-            // cache. Because the tool is deterministic, there will be no cache collision, and nothing for the probe to do.
-            //
-            // Contrast this with a C++ compiler that produces a different .obj file each time it compiles -- even when its input
-            // is unchanged.  This is an example of a nondeterministic tool. In this case, the probe will again tell BuildXL to
-            // disregard the fact that the compiler is runnable from cache, causing the the compiler to run again. In this case,
-            // BuildXL's attempt to publish into cache results in a collision because the compiler is nondeterministic.  This
-            // collision triggers the determinism probe to capture the name of the conflicting file and the tool that produced
-            // it (C++ compiler). It then logs this information as an instance of nondeterminism.
-            //
-            // Executive summary:
-            //  The determinism probe is:
-            //    - Extremely simple, leveraging BuildXL's routine interactions with the two phase cache.
-            //    - Active only when enabled via a command line parameter and, even then, is inert until a cache collision occurs.
-            //    - Dependent on an existing cache. It triggers off of collisions that occur when BuildXL attempts to
-            //      publish an entry into the cache that conflicts with an existing entry.
-            //    - Forcing a cache race (the reason for cache collisions in normal use) to get a second running of the
-            //      tools without actually running them twice locally. The prior run comes from the "cache" thus making this both faster
-            //      (only one run) and more flexible (check across machines, different users, etc when using a working shared cache).
-            //    - Provides significant improvement in performance relative to checking for determinism by manually running the tool twice.
-            if (!cacheResult.CanRunFromCache && environment.Configuration.Cache.DeterminismProbe)
-            {
-                // Encountered a process that cannot run from cache, noteworthy because it prevents probing for determinism.
-                environment.Counters.IncrementCounter(PipExecutorCounter.ProcessPipDeterminismProbeProcessCannotRunFromCache);
-
-                Logger.Log.DeterminismProbeEncounteredProcessThatCannotRunFromCache(loggingContext, pipDescription);
-            }
-        }
-
-        private PipExecutionStep CheckMatchForDeterminismProbe(ProcessRunnablePip processRunnable)
-        {
-            Contract.Requires(processRunnable.CacheResult.CanRunFromCache);
-
-            var process = processRunnable.Process;
-            var processFiles = process.GetCacheableOutputs().ToList();
-            var processFilesInfo = processFiles.ToDictionary(t => t, t => null as FileMaterializationInfo?);
-            var loggingContext = processRunnable.LoggingContext;
-            var executionResult = processRunnable.ExecutionResult;
-            var executionCachingInfo = executionResult.TwoPhaseCachingInfo;
-            var cacheHitData = processRunnable.CacheResult.GetCacheHitData();
-            var pipDescription = processRunnable.Description;
-            var outputContent = executionResult.OutputContent;
-
-            // Log pip failures.
-            // This pip behaves nondeterministically. It is currently failing but its presence in the cache indicates a prior success.
-            if (executionResult.Result != PipResultStatus.Succeeded)
-            {
-                Logger.Log.DeterminismProbeEncounteredPipFailure(
-                    loggingContext,
-                    pipDescription);
-                return PipExecutionStep.PostProcess;
-            }
-
-            // The pip was cacheable originally (and checked for a cache hit) but uncacheable during this build
-            if (executionResult.TwoPhaseCachingInfo == null)
-            {
-                Logger.Log.DeterminismProbeEncounteredUncacheablePip(
-                    loggingContext,
-                    pipDescription);
-                return PipExecutionStep.PostProcess;
-            }
-
-            // Log strong fingerprint inconsistencies.
-            // When the determinism probe is enabled, strong fingerprint mismatches occur when BuildXL runs PIPs that have inconsistent input.
-            // This inconsistency is exposed because the determinism probe intentionally causes re-execution of PIPs that BuildXL would normally
-            // not execute.
-            if (executionCachingInfo.StrongFingerprint != cacheHitData.StrongFingerprint)
-            {
-                Logger.Log.DeterminismProbeEncounteredUnexpectedStrongFingerprintMismatch(
-                    loggingContext,
-                    pipDescription,
-                    cacheHitData.StrongFingerprint.Hash.ToHex(),
-                    cacheHitData.PathSetHash.ToHex(),
-                    executionCachingInfo.StrongFingerprint.Hash.ToHex(),
-                    executionCachingInfo.PathSetHash.ToHex()
-                );
-            }
-
-            // The tables below are snapshots of actual hash content captured when BuildXL invoked the C++ compiler to build HelloWorld.cpp.
-            // The table on the left contains hashes of the two files that were just created by the compiler.  The table on the right, their counterparts in the cache.
-            //
-            //         Files output by the the compiler                                               Cache hits (Files cached during a previous run of the compiler)
-            //         --------------------------------                                                --------------------------------------------------------------
-            // Slot 0: VSO0: 0E7A6E2773985FBDBAC38BCE94855E44E38B8CC383BBB4C7AC74918549C62BD100        VSO0: 50A24D5D3FF0062440B286A43AC7396CAF75F15AF4CCF2F11ECF9F8DD200100D00
-            // Slot 1: VSO0: D46949208400260BB9127488CA6AFC6AE0B92E8F745E70AE5099AF0C86415FC600        VSO0: D46949208400260BB9127488CA6AFC6AE0B92E8F745E70AE5099AF0C86415FC600
-            //
-            // HelloWorld.nativeCodeAnalysis.Xml == VS0: D46949208400260BB9127488CA6AFC6AE0B92E8F745E70AE5099AF0C86415FC600
-            // HelloWorld.obj (just created)     == VS0: 0E7A6E2773985FBDBAC38BCE94855E44E38B8CC383BBB4C7AC74918549C62BD100
-            // HelloWorld.obj (from cache)       == VS0: 50A24D5D3FF0062440B286A43AC7396CAF75F15AF4CCF2F11ECF9F8DD200100D00
-            //
-            // The C++ compiler is running nondeterministicly, producing a different .obj file each time it compiles HelloWorld.cpp even though this file is unchanged.
-            // This leads to the differences in the first slot of the tables. The hashes in the second slot, however, are identical.  These hashes correspond to the XML file
-            // produced by the PREFast static code analysis tool. It is typically deterministic.
-            //
-            // The code below iterates through the slots of these tables, comparing the hashes.  For each mismatch, the name of the file associated with the hash is pulled from the
-            // hash/fileArtifact tuple contained in cacheHitData.  This information is then logged along with the pip.
-            //
-            // Noteworthy assumptions used in the code below:
-            //
-            // 1. The code assumes the number of files output by the process (process.GetCacheableOutputs()) equals the number of files that were cached during its prior execution.
-            //    This assumption is asserted below, preventing the index from exceeding the bounds of the processFiles list in the loop below. This assumptions does not include the
-            // content of opaque directories, if any.
-            // 2. The code assumes the same ordering of files in the list of process files, cache hit files, and execution files. This assumption is asserted in the code contracts
-            //    within the loop below.
-
-            // Number of static outputs found outside of Opaque directories
-
-            Contract.Assert(
-                processFiles.Count == cacheHitData.CachedArtifactContentHashes.Length - cacheHitData.DynamicDirectoryContents.Sum(opaque => opaque.Length),
-                "Count of files output by the current run of the process differs from the count of files cached during prior run"
-            );
-
-            for (int outputIndex = 0; outputIndex < processFiles.Count; outputIndex++)
-            {
-                var artifactContent = cacheHitData.CachedArtifactContentHashes[outputIndex];
-                var executionFile = processFiles[outputIndex];
-                var executionContent = outputContent[outputIndex];
-
-                // Ensure files match
-                Contract.Assert(artifactContent.fileArtifact == executionFile);
-                Contract.Assert(executionContent.fileArtifact == executionFile);
-
-                ContentHash cacheHitHash = artifactContent.fileMaterializationInfo.Hash; // hash from artifact in cache
-                ContentHash executionHash = executionContent.fileInfo.Hash; // hash from artifact that was just produced from this pip
-
-                processFilesInfo[executionFile] = executionContent.fileInfo;
-
-                // Compare the hashes.  A mismatch is considered nondeterminism.
-                if (cacheHitHash == executionHash)
-                {
-                    PipExecutionCounters.IncrementCounter(PipExecutorCounter.ProcessPipDeterminismProbeSameFiles);
-                }
-                else
-                {
-                    PipExecutionCounters.IncrementCounter(PipExecutorCounter.ProcessPipDeterminismProbeDifferentFiles);
-
-                    // Log this instance of nondeterminism, including the name of the file associated with the mismatched hash.
-                    Logger.Log.DeterminismProbeEncounteredNondeterministicOutput(
-                        loggingContext,
-                        pipDescription,
-                        artifactContent.fileArtifact.Path.ToString(Context.PathTable),
-                        cacheHitHash.ToHex(),
-                        executionHash.ToHex());
-                }
-            }
-
-            Contract.Assert(
-                cacheHitData.DynamicDirectoryContents.Length == process.DirectoryOutputs.Length,
-                "Count of directory outputs in the cache hit differs from the list of directory outputs on the Process pip"
-            );
-
-            Contract.Assert(
-                executionResult.DirectoryOutputs.Length == process.DirectoryOutputs.Length,
-                "Count of directory outputs in the execution differs from the list of directory outputs on the Process pip"
-            );
-
-            int offset = processFiles.Count;
-            for (int outputDirectoryIndex = 0; outputDirectoryIndex < process.DirectoryOutputs.Length; ++outputDirectoryIndex)
-            {
-                var cacheHitContents = cacheHitData.DynamicDirectoryContents[outputDirectoryIndex];
-                var executionContents = executionResult.DirectoryOutputs[outputDirectoryIndex];
-                var fileArtifactArray = executionContents.fileArtifactArray.Select(faa => faa.ToFileArtifact()).ToReadOnlyArray();
-
-                var outputs = new List<(FileArtifact fileArtifact, FileMaterializationInfo fileInfo)>();
-
-                foreach (var fileArtifactWithAttributes in executionContents.fileArtifactArray)
-                {
-                    var fileArtifact = fileArtifactWithAttributes.ToFileArtifact();
-                    if (processFilesInfo.TryGetValue(fileArtifact, out var value))
-                    {
-                        outputs.Add((fileArtifact, value.Value));
-                    }
-                    else
-                    {
-                        outputs.Add((fileArtifact, outputContent[offset++].fileInfo));
-                    }
-                }
-
-                var cacheHitFiles = Enumerable.Range(0, cacheHitContents.Length).ToDictionary(i => cacheHitContents[i].fileArtifact, i => cacheHitContents[i]);
-                var executionFiles = Enumerable.Range(0, cacheHitContents.Length).ToDictionary(i => fileArtifactArray[i], i => outputs[i]);
-
-                var intersection = cacheHitFiles.Keys.Where(t => executionFiles.ContainsKey(t)).ToHashSet();
-
-                foreach (var fileArtifact in intersection)
-                {
-                    var cacheHitFile = cacheHitFiles[fileArtifact];
-                    var executionFile = executionFiles[fileArtifact];
-
-                    Contract.Assert(cacheHitFile.fileArtifact == fileArtifact);
-                    Contract.Assert(executionFile.fileArtifact == fileArtifact);
-
-                    if (cacheHitFile.fileMaterializationInfo.Hash != executionFile.fileInfo.Hash)
-                    {
-                        PipExecutionCounters.IncrementCounter(PipExecutorCounter.ProcessPipDeterminismProbeDifferentFiles);
-
-                        Logger.Log.DeterminismProbeEncounteredNondeterministicDirectoryOutput(
-                            loggingContext,
-                            pipDescription,
-                            process.DirectoryOutputs[outputDirectoryIndex].Path.ToString(Context.PathTable),
-                            fileArtifact.Path.ToString(Context.PathTable),
-                            cacheHitFile.fileMaterializationInfo.Hash.ToHex(),
-                            executionFile.fileInfo.Hash.ToHex());
-                    }
-                }
-
-                if (intersection.Count == cacheHitFiles.Count && intersection.Count == executionFiles.Count)
-                {
-                    PipExecutionCounters.IncrementCounter(PipExecutorCounter.ProcessPipDeterminismProbeSameDirectories);
-                }
-                else
-                {
-                    PipExecutionCounters.IncrementCounter(PipExecutorCounter.ProcessPipDeterminismProbeDifferentDirectories);
-
-                    var cacheHitOnly = cacheHitContents.Select(t => t.fileArtifact).Except(intersection);
-                    var executionOnly = fileArtifactArray.Except(intersection);
-
-                    Logger.Log.DeterminismProbeEncounteredOutputDirectoryDifferentFiles(
-                        loggingContext,
-                        pipDescription,
-                        process.DirectoryOutputs[outputDirectoryIndex].Path.ToString(Context.PathTable),
-                        string.Join("", cacheHitOnly.Select(f => f.Path.ToString(Context.PathTable)).Select(t => $"\t{t}\n")),
-                        string.Join("", executionOnly.Select(f => f.Path.ToString(Context.PathTable)).Select(t => $"\t{t}\n"))
-                    );
-
-                }
-
-            }
-
-            return PipExecutionStep.RunFromCache;
         }
 
         private PipState TryStartPip(RunnablePip runnablePip)

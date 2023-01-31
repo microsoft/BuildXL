@@ -86,7 +86,6 @@ namespace Test.BuildXL.Scheduler
             bool pausePipQueue = false,
             bool disableLazyOutputMaterialization = false,
             bool disablePipSerialization = false,
-            bool enableDeterminismProbe = false,
             bool scheduleMetaPips = false,
             int maxProcesses = 1,
             bool enableJournal = false,
@@ -109,7 +108,6 @@ namespace Test.BuildXL.Scheduler
             m_configuration.Schedule.MaxLight = 1;
             m_configuration.Schedule.EnableLazyOutputMaterialization = enableLazyOutputMaterialization;
             m_configuration.Sandbox.FileAccessIgnoreCodeCoverage = true;
-            m_configuration.Cache.DeterminismProbe = enableDeterminismProbe;
             m_configuration.Schedule.ScheduleMetaPips = scheduleMetaPips;
             m_configuration.Schedule.StopDirtyOnSucceedFastPips = stopDirtyOnSucceedFastPips;
 
@@ -197,36 +195,6 @@ namespace Test.BuildXL.Scheduler
             AssertSchedulerErrorEventLogged(PipLogEventId.InvalidInputUnderNonReadableRoot);
 
             return RunScheduler();
-        }
-
-        private Task TestSchedulerNoHashFromNonHashableRoot(bool determinismProbe = false)
-        {
-            Setup(enableDeterminismProbe: determinismProbe);
-            FileArtifact sourceArtifact = CreateSourceFile(NonHashableRoot);
-            FileArtifact processDestinationArtifact = CreateOutputFileArtifact();
-
-            Process process = CreateProcess(
-                dependencies: new[] { sourceArtifact },
-                outputs: new[] { processDestinationArtifact });
-
-            XAssert.IsTrue(PipGraphBuilder.AddProcess(process));
-            return RunScheduler();
-        }
-
-        [Feature(Features.Mount)]
-        [Fact]
-        public async Task TestSchedulerNoHashFromNonHashableRootDeterminismProbeDisabled()
-        {
-            await TestSchedulerNoHashFromNonHashableRoot(determinismProbe: false);
-            XAssert.AreEqual(0, m_scheduler.PipExecutionCounters.GetCounterValue(PipExecutorCounter.ProcessPipDeterminismProbeProcessCannotRunFromCache), "count of processes that cannot run from cache");
-        }
-
-        [Feature(Features.Mount)]
-        [Fact]
-        public async Task TestSchedulerNoHashFromNonHashableRootWithDeterminismProbeEnabled()
-        {
-            await TestSchedulerNoHashFromNonHashableRoot(determinismProbe: true);
-            XAssert.AreEqual(1, m_scheduler.PipExecutionCounters.GetCounterValue(PipExecutorCounter.ProcessPipDeterminismProbeProcessCannotRunFromCache), "count of processes that cannot run from cache");
         }
 
         [Feature(Features.Mount)]

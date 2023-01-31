@@ -2549,15 +2549,13 @@ EXIT /b 3
             bool fileAccessIgnoreCodeCoverage = true,
             bool enableLazyOutputs = true,
             bool failUnexpectedFileAccesses = true,
-            bool unexpectedFileAccessesAreErrors = true,
-            bool enableDeterminismProbe = false)
+            bool unexpectedFileAccessesAreErrors = true)
         {
             var config = ConfigurationHelpers.GetDefaultForTesting(pathTable, AbsolutePath.Create(pathTable, TestPath));
             config.Sandbox.FileAccessIgnoreCodeCoverage = fileAccessIgnoreCodeCoverage;
             config.Schedule.EnableLazyOutputMaterialization = enableLazyOutputs;
             config.Sandbox.FailUnexpectedFileAccesses = failUnexpectedFileAccesses;
             config.Sandbox.UnsafeSandboxConfigurationMutable.UnexpectedFileAccessesAreErrors = unexpectedFileAccessesAreErrors;
-            config.Cache.DeterminismProbe = enableDeterminismProbe;
             return config;
         }
 

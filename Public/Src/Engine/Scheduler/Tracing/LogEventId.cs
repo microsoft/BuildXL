@@ -442,16 +442,6 @@ namespace BuildXL.Scheduler.Tracing
         AllowSameContentPolicyNotAvailableForStaticallyDeclaredOutputs = 12212,
         SafeSourceRewriteNotAvailableForStaticallyDeclaredSources = 12215,
 
-        // Determinism probe to detect nondeterministic PIPs
-        DeterminismProbeEncounteredNondeterministicOutput = 13000,
-        DeterminismProbeEncounteredProcessThatCannotRunFromCache = 13001,
-        DeterminismProbeEncounteredUnexpectedStrongFingerprintMismatch = 13002,
-        DeterminismProbeEncounteredPipFailure = 13003,
-        DeterminismProbeDetectedUnexpectedMismatch = 13004,
-        DeterminismProbeEncounteredUncacheablePip = 13005,
-        DeterminismProbeEncounteredOutputDirectoryDifferentFiles = 13006,
-        DeterminismProbeEncounteredNondeterministicDirectoryOutput = 13007,
-
         MissingKeyWhenSavingFingerprintStore = 13300,
         FingerprintStoreSavingFailed = 13301,
         FingerprintStoreToCompareTrace = 13302,

@@ -352,7 +352,10 @@ namespace BuildXL
                             opt => HandleLoadGraphOption(opt, pathTable, cacheConfiguration)),
                         OptionHandlerFactory.CreateBoolOption(
                             "determinismProbe",
-                            sign => cacheConfiguration.DeterminismProbe = sign),
+                            sign =>
+                            {
+                                // DeterminismProbe feature was removed
+                            }),
                         OptionHandlerFactory.CreateOption2(
                             "diagnostic",
                             "diag",
@@ -658,7 +661,10 @@ namespace BuildXL
                             sign => loggingConfiguration.LogCounters = sign),
                         OptionHandlerFactory.CreateBoolOption(
                             "logDeterminismProbe",
-                            sign => cacheConfiguration.DisableDeterminismProbeLogging = !sign),
+                            sign =>
+                            {
+                                // DeterminishProbe feature was removed, determinishProbeLogging need to be removed too
+                            }),
                         OptionHandlerFactory.CreateBoolOption(
                             "logExecution",
                             sign => loggingConfiguration.LogExecution = sign),
@@ -1612,12 +1618,6 @@ namespace BuildXL
 
                 // Disable any options that may prevent cache convergence
                 if (engineConfiguration.Converge)
-                {
-                    schedulingConfiguration.IncrementalScheduling = false;
-                }
-
-                // Disable any option that may interfere with determinism validation
-                if (cacheConfiguration.DeterminismProbe)
                 {
                     schedulingConfiguration.IncrementalScheduling = false;
                 }

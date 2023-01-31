@@ -77,17 +77,6 @@ namespace BuildXL.Utilities.Configuration
         string CacheSalt { get; }
 
         /// <summary>
-        /// When enabled, cache updates are "ignored" and cache collisions are logged in order to identify nondeterministic tools. Defaults to off.
-        /// </summary>
-        bool DeterminismProbe { get; }
-
-        /// <summary>
-        /// When enabled along with <see cref="DeterminismProbe"/>, determines if tool determinism is computed and logged. Defaults to off (i.e. logging is enabled by default)
-        /// This is used to run a full clean build which reuses cached results.
-        /// </summary>
-        bool DisableDeterminismProbeLogging { get; }
-
-        /// <summary>
         /// When enabled, metadata and pathsets are stored in a single file. Defaults to off.
         /// </summary>
         bool? HistoricMetadataCache { get; }

@@ -533,36 +533,6 @@ namespace BuildXL.Scheduler
         ProcessStartTimeMs,
 
         /// <summary>
-        /// Counts the number of processes not runnable from cache
-        /// </summary>
-        ProcessPipDeterminismProbeProcessCannotRunFromCache,
-
-        /// <summary>
-        /// In a given cache entry that BuildXL is attempting to publish, counts the number of files
-        /// that match its cached counterpart. Valid only when the determinism probe is enabled.
-        /// </summary>
-        ProcessPipDeterminismProbeSameFiles,
-
-        /// <summary>
-        /// In a given cache entry that BuildXL is attempting to publish, counts the number of files
-        /// that differ from its cached counterpart. Valid only when the determinism probe is enabled.
-        /// </summary>
-        ProcessPipDeterminismProbeDifferentFiles,
-
-        /// <summary>
-        /// In a given cache entry that BuildXL is attempting to publish, counts the number of output
-        /// directories that are the same.  Valid only when the determinism probe is enabled.
-        /// </summary>
-        ProcessPipDeterminismProbeSameDirectories,
-
-        /// <summary>
-        /// In a given cache entry that BuildXL is attempting to publish, the number of files whose
-        /// presence are non-deterministic.
-        /// Valid only when the determinism probe is enabled.
-        /// </summary>
-        ProcessPipDeterminismProbeDifferentDirectories,
-
-        /// <summary>
         /// The amount of time FileContentManager spent pinning content
         /// </summary>
         [CounterType(CounterType.Stopwatch)]

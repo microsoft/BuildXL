@@ -1836,7 +1836,7 @@ namespace BuildXL.Scheduler.Fingerprints
         /// </remarks>
         internal bool MayDetermineMinimalGraphWithAlienFiles(bool allowUndeclaredSourceReads)
         {
-            return m_env.Configuration.Sandbox.FileSystemMode == FileSystemMode.AlwaysMinimalGraph || allowUndeclaredSourceReads;
+            return m_env.Configuration.Sandbox.FileSystemMode == FileSystemMode.AlwaysMinimalWithAlienFilesGraph || allowUndeclaredSourceReads;
         }
 
         /// <summary>

@@ -27,7 +27,7 @@ namespace TypeScript.Net
             lst => { lst.Clear(); return lst; });
 
         public static readonly ObjectPool<StringBuilder> StringBuilderPool = new ObjectPool<StringBuilder>(
-            () => new StringBuilder(),
+            () => new StringBuilder(256),
             lst => { lst.Clear(); return lst; });
 
         public static readonly ObjectPool<Binder.ModuleInstanceStateContext> ModuleInstanceStateContextPool = new ObjectPool<Binder.ModuleInstanceStateContext>(

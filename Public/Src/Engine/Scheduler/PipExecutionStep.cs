@@ -1,4 +1,4 @@
-// Copyright (c) Microsoft Corporation.
+﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
 using System;
@@ -13,84 +13,70 @@ namespace BuildXL.Scheduler
     ///  Execution steps for pips
     /// </summary>
     /// <remarks>
+    /// WARNING: SYNC WITH PipExecutionUtils.AsString
     /// The state diagram is below:
     /// </remarks>
-    /*
-                                                 +----+
-                                                 |None|
-                                                 +--+-+
-                                                    |
-                                                 +--v--+
-                                                 |Start|
-        +-----------------------+-------------------------------------+--------------------+
-        |                       |                                     |                    |
-        |                Process|Copy                                 |MetaPip             |
-        |                       |Write                                |HashSource          |IpC
-        |                       |SealDir                              |                    |
-+-------v-------+     +---------v-----+                        +------v------+      +------v-----+
-|SkipDueToFailed|     |Check          | Copy                   |Execute      |      |ChooseWorker|
-|Dependencies   |     |IncrementalSkip+------------------------>NonProcessPip<--+   |    CPU     |
-+-------+-------+     +---------+-----+ Write                  +------+------+  |   +------+-----+
-        |             |         |       SealDir                       |         |          |
-        +-------------+         |                                     |         |   +------v-----+
-        |                Process|                                     |         +---+Materialize*|
-        |          +----------------------+                           |             |Inputs      |
-        |          |  DelayedCacheLookup? |                           |             +------------+
-        |          |                      |                           |
-        |          |Disabled       Enabled|                           |
-        |   +------v-----+            +---v-------+                   |
-        |   |ChooseWorker<------------+Delayed    |                   |
-        |   |CacheLookup |            |CacheLookup|                   |
-        |   +------------+-----+      +-----------+                   |
-        |                      |                                      |
-        |                +-----v-----+                                |
-        |                |CacheLookup|                                |
-        |           +----------------------+                          |
-        |           |      CacheHit?       |                          |
-        |           |Yes                 No|                          |
-        |           |                      +----------------+         |
-        |           |                      |   CacheOnly?   |         |
-        |           |                      |No           Yes|         |
-        |           |                      |                |         |
-        |           |                      |                |         |
-        |           |                 +----v-------+        |         |
-        |           |                 |ChooseWorker|        |         |
-        |           |                 |    CPU     |        |         |
-        |           |                 +----+-------+        |         |
-        |           |                      |                |         |
-        |           |                 +----v-------+        |         |
-        |           |                 |Materialize*|        |         |
-        |           |                 |inputs      |        |         |
-        |           |                 +----+-------+        |         |
-        |           |                      |                |         |
-        |     +-----v------+   Det.  +-----v--------+    +--v-+       |
-        |     |RunFromCache+<--------+ExecuteProcess|    |Skip|       |
-        |     +-----+------+  Probe  +-----+--------+    +--+-+       |
-        |           |                      |                |         |
-        |           |                 +----v------+         |         |
-        |           |                 |PostProcess|         |         |
-        |           |                 +----+------+         |         |
-        |           |                      |                |         |
-        |           |             +--------v------+         |   +-----v---------+
-        |           +------------->  Materialize* |         |   |  Materialize* |
-        |                         |  Outputs      |         |   |  Outputs      |
-        |                         +--------+------+         |   +-----+---------+
-        |                                  |                |         |
-        |                           +------v-------+        |         |  +------+
-        +---------------------------> HandleResult <--------+---------+--+Cancel|
-                                    +------+-------+                     +------+
-                                           |                             (Cancel is reachable from any step except Done and None)
-                                       +---v--+
-                                       | Done |
-                                       +------+
+    /* 
+     * To edit this diagram, please use the following link: https://asciiflow.com/#/share/eJzdWM1um0AQfhVrzxyqVlVUX3rAqWIpSa34EFXissGjGHm9i5alshPl1keI6Hv0aPVp%2FCTF%2BCcQ9h%2BSQxGSd2Hnm%2Fnmm1kwj4jiJaAhzQkJEMFr4GiIHiO0itDwy6fPQYTW5ejj2YdyJGAlykmEBt7H9vlv%2B4wi2glxKjAXPeDoI5twFkOWBSFL18EtTwQEU8BklHAtaB1C6uO%2FOV8x9dPALosuoFcg8CRJZVbjSbjH1hErDLT3UO2q8EliIUHWlI06tD2nUZIJntzlAmYXOJsn9L68%2BAOyrloXm%2FMVxCXsNaOHtthl%2BPcvjVE4ZyyDW8YXwMdpfIqxYnhO8R2B2Vepvo159zLtgGSoFFvPuireNmq91Kr6vWavlrUutG1fPNQHPSVP50taMOEc4sWYxhyWQAUm00XVkqpi1PX7O7BoHU75li1UXH6jp4PO26Fh1dGqKPSyT1r5GMHuTWQW4ngOl4wtcunurbavZto9xZOjT95lPk7TY10dG93FdtvYy8zmpp41CWjJWOPFUldDnD0p0082PTtCdsvOW%2F056tAg3WvbPVqXbFrF6pw1KWozax6vQ45RW5ejDnc%2Flj6GrK012XJnVWzsGNqbqjw3Kj7Nm9g3Of3G2bLS1KOK%2FXpCx%2B2PPbeuqmgXhYz%2BBH4PNAZ7TR3Y%2B%2BasGcEVFsATTJIHGNM0F4pePP3hULy8eCvZMyOVkC56Ku7bCKVarjYyeZ2wTLzkXHkWmwtMZwRuIMuJ8VOMY37tFXH%2FAHSJH9Y1P44Ater1AxgMvudiV%2Fa%2BERzN6uP3gfDptKKurJd828aWcUietCBHjMLbMXk2MEFP6Okf63yEwQ%3D%3D
+                                                          ┌─────┐
+                                                          │Start│
+                                                          └──┬──┘
+         Process,Copy,Write,SealDir                          │
+         ┌───────────────────────────────────────────────────┼────────────────────┐
+         │                                                   │                    │
+         │                                            MetaPip│                 IPC│
+┌────────▼─────────┐      Copy,Write,SealDir┌────────────────▼───┐        ┌───────▼───────┐
+│DistributedHashing│Yes──────────┬──────────►ExecuteNonProcessPip◄────────┤ChooseWorkerIpc│
+│     Enabled?     │             │          └─────────┬──────────┘        └───────────────┘
+└──────────────────┘             │                    │
+        Yes     No               No                   │
+         │      │      ┌────────────────────┐         │
+         │      └──────►CheckIncrementalSkip│Yes──────┤
+         │             └────────────────────┘         │
+         │                       No                   │
+         │                       │                    │
+         ├───────────────────────┘                    │
+  Process│                                            │
+┌────────▼─────────┐                                  │
+│DelayedCacheLookup│                                  │
+│     Enabled?     │                                  │
+└──────────────────┘                                  │
+         No      Yes                                  │
+         │        │                                   │
+         │      ┌─▼────────────────┐                  │
+         │      │DelayedCacheLookup│                  │
+         │      └─┬────────────────┘                  │
+         │        │                                   │
+┌────────▼────────▼─────┐                             │
+│ChooseWorkerCacheLookup│                             │
+└─────┬─────────────────┘                             │
+      │                                               │
+┌─────▼─────┐                                         │
+│CacheLookup│Yes───────────────┐                      │
+└───────────┘                  │                      │
+      No                       │                      │
+      │                        │                      │
+┌─────▼─────────┐        ┌─────▼──────┐               │
+│ChooseWorkerCpu│        │RunFromCache├───────────────┤
+└─────┬─────────┘        └─────▲──────┘               │
+      │                        │                      │
+      │                    Convergence                │
+┌─────▼───────────┐      ┌──────────────┐             │
+│MaterializeInputs├──────►ExecuteProcess│             │
+└─────────────────┘      └─────┬────────┘             │
+                               │                      │
+                          ┌────▼──────┐        ┌──────▼─────┐
+                          │PostProcess├────────►HandleResult│
+                          └───────────┘        └───────────┬┘
+                                               Lazy        │
+                                            Materialize    │
+                                              Outputs      │
+                                                 │         │
+                                                 │         │
+                                ┌────────────────▼─┐     ┌─┴──┐
+                                │MaterializeOutputs├─────►Done│
+                                └──────────────────┘     └────┘
 
-NOTE:                                  
- *MaterializeOutputs is only run after PostProcess for cache convergence where the outputs from prior cache entry are used
-    instead of newly produced reduced
- *MaterializeOutputs is only run if lazy materialization is DISABLED (otherwise goes directly to HandleResult)
- *MaterializeInputs is only run if lazy materialization is ENABLED (otherwise goes directly to ExecuteProcess/ExecuteNonProcessPip)
-
-WARNING: SYNC WITH PipExecutionUtils.AsString
 */
     public enum PipExecutionStep
     {

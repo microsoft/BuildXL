@@ -4371,7 +4371,7 @@ namespace BuildXL.Scheduler
                         return m_configuration.EnableDistributedSourceHashing() ? PreCacheLookupStep : PipExecutionStep.CheckIncrementalSkip; 
                     }
 
-                    // CopyFile, WriteFile, Process, SealDirectory pips
+                    // CopyFile, WriteFile, SealDirectory pips
                     return m_configuration.EnableDistributedSourceHashing() ? PipExecutionStep.ExecuteNonProcessPip : PipExecutionStep.CheckIncrementalSkip;
                 }
 

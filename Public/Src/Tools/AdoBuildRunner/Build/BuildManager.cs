@@ -105,16 +105,20 @@ namespace BuildXL.AdoBuildRunner.Build
                 LogExitCode(returnCode);
                 PublishRoleInEnvironment(isOrchestrator: false);
 
-                if (returnCode == 0 && Environment.GetEnvironmentVariable(Constants.WaitForOrchestratorExitVariableName) == "true")
+                if (returnCode == 0)
                 {
-                    // If the worker finished successfully but the build fails, we still want to fail this task
+                    // If the worker finished successfully but the build fails, we may still want to fail this task
                     // so the task can be retried as a distributed build with the same number of workers by
-                    // running "retry failed tasks".
-                    var orchestratorSucceeded = await m_vstsApi.WaitForOrchestratorExit();
-                    if (!orchestratorSucceeded)
+                    // running "retry failed tasks". This behavior makes the agents wait unnecessarily so it's 
+                    // disabled by default.
+                    if (Environment.GetEnvironmentVariable(Constants.WaitForOrchestratorExitVariableName) == "true")
                     {
-                        m_logger.Error($"The build finished with errors in the orchestrator. Failing this task with exit code {Constants.OrchestratorFailedWorkerReturnCode} so this worker will participate in retries.");
-                        returnCode = Constants.OrchestratorFailedWorkerReturnCode;
+                        var orchestratorSucceeded = await m_vstsApi.WaitForOrchestratorExit();
+                        if (!orchestratorSucceeded)
+                        {
+                            m_logger.Error($"The build finished with errors in the orchestrator. Failing this task with exit code {Constants.OrchestratorFailedWorkerReturnCode} so this worker will participate in retries.");
+                            returnCode = Constants.OrchestratorFailedWorkerReturnCode;
+                        }
                     }
                 }
                 else

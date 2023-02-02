@@ -254,7 +254,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blobs
                     contentHash,
                     urgencyHint,
                     retryCounter).WithIndexAsync(index);
-            });
+            }).ToList();
 
             await TaskUtilities.SafeWhenAll(tasks);
             return tasks;
@@ -410,7 +410,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blobs
                     realizationMode,
                     urgencyHint,
                     retryCounter).WithIndexAsync(index);
-            });
+            }).ToList();
 
             await TaskUtilities.SafeWhenAll(tasks);
             return tasks;

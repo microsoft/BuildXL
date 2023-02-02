@@ -53,7 +53,8 @@ Once installed you can run the solution generation. The result will be placed in
  
  There are two modes for what to generate
  1. `bxl -vs` Generates most projects
- 1. `bxl -vsall` Generates all flavors of all projects. If you are missing something try this
+ 1. `bxl -vs -cache` Generates cache projects
+ 1. `bxl -vsall` Generates almost all flavors of all projects. If you are missing something try this
 
 The `bxl.sh` script has a corresponding `--vs` argument.
 

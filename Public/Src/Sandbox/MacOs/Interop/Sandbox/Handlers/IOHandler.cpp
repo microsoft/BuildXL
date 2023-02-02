@@ -7,7 +7,7 @@
 
 static AccessCheckResult s_allowedCheckResult(RequestedAccess::None, ResultAction::Allow, ReportLevel::Report);
 
-AccessCheckResult IOHandler::HandleProcessFork(const IOEvent &event)
+AccessCheckResult IOHandler::HandleProcessFork(const IOEvent &event, AccessReport &accessToReport)
 {
     if (GetPip()->AllowChildProcessesToBreakAway())
     {
@@ -17,46 +17,58 @@ AccessCheckResult IOHandler::HandleProcessFork(const IOEvent &event)
     pid_t childProcessPid = event.GetChildPid();
     if (GetSandbox()->TrackChildProcess(childProcessPid, event.GetExecutablePath(), GetProcess()))
     {
-        ReportChildProcessSpawned(childProcessPid);
+        CreateReportChildProcessSpawned(childProcessPid, accessToReport);
     }
 
     return s_allowedCheckResult;
 }
 
-AccessCheckResult IOHandler::HandleProcessExec(const IOEvent &event)
+AccessCheckResult IOHandler::HandleProcessExec(const IOEvent &event, AccessReport &accessToReport)
 {
     GetProcess()->SetPath(event.GetExecutablePath());
-    ReportChildProcessSpawned(GetProcess()->GetPid());
+    CreateReportChildProcessSpawned(GetProcess()->GetPid(), accessToReport);
     return s_allowedCheckResult;
 }
 
-AccessCheckResult IOHandler::HandleProcessExit(const IOEvent &event)
+AccessCheckResult IOHandler::HandleProcessExit(const IOEvent &event, AccessReport &processExitReport, AccessReport &processTreeCompletedReport)
 {
     pid_t pid = event.GetPid();
 
-    ReportProcessExited(pid);
-    HandleProcessUntracked(pid);
+    CreateReportProcessExited(pid, processExitReport);
+    HandleProcessUntracked(pid, processTreeCompletedReport);
+
+    return s_allowedCheckResult;
+}
+
+AccessCheckResult IOHandler::HandleProcessUntracked(const pid_t pid, AccessReport &accessToReport)
+{
+    GetSandbox()->UntrackProcess(pid, GetProcess());
+    if (GetPip()->GetTreeSize() == 0)
+    {
+        CreateReportProcessTreeCompleted(GetPip()->GetProcessId(), accessToReport);
+    }
     return s_allowedCheckResult;
 }
 
 AccessCheckResult IOHandler::HandleProcessUntracked(const pid_t pid)
 {
-    GetSandbox()->UntrackProcess(pid, GetProcess());
-    if (GetPip()->GetTreeSize() == 0)
-    {
-        ReportProcessTreeCompleted(GetPip()->GetProcessId());
-    }
-    return s_allowedCheckResult;
+    AccessReport accessReport;
+
+    AccessCheckResult result = HandleProcessUntracked(pid, accessReport);
+
+    GetSandbox()->SendAccessReport(accessReport, GetPip());
+
+    return result;
 }
 
 #pragma mark Process I/O observation
 
-AccessCheckResult IOHandler::HandleLookup(const IOEvent &event)
+AccessCheckResult IOHandler::HandleLookup(const IOEvent &event, AccessReport &accessToReport)
 {
-    return CheckAndReport(kOpMacLookup, event.GetEventPath(SRC_PATH), Checkers::CheckLookup, event.GetPid(), /*isDir*/ false);
+    return CheckAndCreateReport(kOpMacLookup, event.GetEventPath(SRC_PATH), Checkers::CheckLookup, event.GetPid(), /*isDir*/ false, event.GetError(), accessToReport);
 }
 
-AccessCheckResult IOHandler::HandleOpen(const IOEvent &event)
+AccessCheckResult IOHandler::HandleOpen(const IOEvent &event, AccessReport &accessToReport)
 {
     if (!event.EventPathExists())
     {
@@ -71,12 +83,10 @@ AccessCheckResult IOHandler::HandleOpen(const IOEvent &event)
             CheckFunc checker = isDir ? Checkers::CheckEnumerateDir : Checkers::CheckRead;
             FileOperation op  = isDir ? kOpKAuthOpenDir : kOpKAuthReadFile;
 
-            return CheckAndReport(op, event.GetEventPath(SRC_PATH), checker, event.GetPid(), isDir);
+            return CheckAndCreateReport(op, event.GetEventPath(SRC_PATH), checker, event.GetPid(), isDir, event.GetError(), accessToReport);
         }
 
-        return AccessCheckResult::Invalid();
-        // Fallback
-        return CheckAndReport(kOpMacLookup, event.GetEventPath(SRC_PATH), Checkers::CheckLookup, event.GetPid(), false);
+        return CheckAndCreateReport(kOpMacLookup, event.GetEventPath(SRC_PATH), Checkers::CheckLookup, event.GetPid(), false, event.GetError(), accessToReport);
     }
 
     bool isDir = S_ISDIR(event.GetMode());
@@ -84,63 +94,69 @@ AccessCheckResult IOHandler::HandleOpen(const IOEvent &event)
     CheckFunc checker = isDir ? Checkers::CheckEnumerateDir : Checkers::CheckRead;
     FileOperation op  = isDir ? kOpKAuthOpenDir : kOpKAuthReadFile;
 
-    return CheckAndReport(op, event.GetEventPath(SRC_PATH), checker, event.GetPid(), isDir);
+    return CheckAndCreateReport(op, event.GetEventPath(SRC_PATH), checker, event.GetPid(), isDir, event.GetError(), accessToReport);
 }
 
-AccessCheckResult IOHandler::HandleClose(const IOEvent &event)
+AccessCheckResult IOHandler::HandleClose(const IOEvent &event, AccessReport &accessToReport)
 {
     if (event.FSEntryModified())
     {
-        return CheckAndReport(kOpKAuthCloseModified, event.GetEventPath(SRC_PATH), Checkers::CheckWrite, event.GetPid());
+        return CheckAndCreateReport(kOpKAuthCloseModified, event.GetEventPath(SRC_PATH), Checkers::CheckWrite, event.GetPid(), /*isDir*/ false, event.GetError(), accessToReport);
     }
 
     bool isDir = S_ISDIR(event.GetMode());
-    return CheckAndReport(kOpKAuthClose, event.GetEventPath(SRC_PATH), Checkers::CheckRead, event.GetPid(), isDir);
+    return CheckAndCreateReport(kOpKAuthClose, event.GetEventPath(SRC_PATH), Checkers::CheckRead, event.GetPid(), isDir, event.GetError(), accessToReport);
 }
 
-AccessCheckResult IOHandler::HandleLink(const IOEvent &event)
+AccessCheckResult IOHandler::HandleLink(const IOEvent &event, AccessReport &sourceAccessToReport, AccessReport &destinationAccessToReport)
 {
     bool isDir = S_ISDIR(event.GetMode());
-    return AccessCheckResult::Combine(
-        CheckAndReport(kOpKAuthCreateHardlinkSource, event.GetEventPath(SRC_PATH), Checkers::CheckRead, event.GetPid(), isDir),
-        CheckAndReport(kOpKAuthCreateHardlinkDest, event.GetEventPath(DST_PATH), Checkers::CheckWrite, event.GetPid(), isDir));
+    
+    AccessCheckResult sourceResult = CheckAndCreateReport(kOpKAuthCreateHardlinkSource, event.GetEventPath(SRC_PATH), Checkers::CheckRead, event.GetPid(), isDir, event.GetError(), sourceAccessToReport);
+    AccessCheckResult destResult = CheckAndCreateReport(kOpKAuthCreateHardlinkDest, event.GetEventPath(DST_PATH), Checkers::CheckWrite, event.GetPid(), isDir, event.GetError(), destinationAccessToReport);
+    
+    return AccessCheckResult::Combine(sourceResult, destResult);
 }
 
-AccessCheckResult IOHandler::HandleUnlink(const IOEvent &event)
+AccessCheckResult IOHandler::HandleUnlink(const IOEvent &event, AccessReport &accessToReport)
 {
     bool isDir = S_ISDIR(event.GetMode());
     FileOperation operation = isDir ? kOpKAuthDeleteDir : kOpKAuthDeleteFile;
-    return CheckAndReport(operation, event.GetEventPath(SRC_PATH), Checkers::CheckWrite, event.GetPid(), isDir);
+    return CheckAndCreateReport(operation, event.GetEventPath(SRC_PATH), Checkers::CheckWrite, event.GetPid(), isDir, event.GetError(), accessToReport);
 }
 
-AccessCheckResult IOHandler::HandleReadlink(const IOEvent &event)
+AccessCheckResult IOHandler::HandleReadlink(const IOEvent &event, AccessReport &accessToReport)
 {
-    return CheckAndReport(kOpMacReadlink, event.GetEventPath(SRC_PATH), Checkers::CheckRead, event.GetPid(), false);
+    return CheckAndCreateReport(kOpMacReadlink, event.GetEventPath(SRC_PATH), Checkers::CheckRead, event.GetPid(), false, event.GetError(), accessToReport);
 }
 
-AccessCheckResult IOHandler::HandleRename(const IOEvent &event)
+AccessCheckResult IOHandler::HandleRename(const IOEvent &event, AccessReport &sourceAccessToReport, AccessReport &destinationAccessToReport)
 {
     bool isDir = S_ISDIR(event.GetMode());
-    return AccessCheckResult::Combine(
-        CheckAndReport(kOpKAuthMoveSource, event.GetEventPath(SRC_PATH), Checkers::CheckRead, event.GetPid(), isDir),
-        CheckAndReport(kOpKAuthMoveDest, event.GetEventPath(DST_PATH), Checkers::CheckWrite, event.GetPid(), isDir));
+    
+    AccessCheckResult sourceResult = CheckAndCreateReport(kOpKAuthMoveSource, event.GetEventPath(SRC_PATH), Checkers::CheckRead, event.GetPid(), isDir, event.GetError(), sourceAccessToReport);
+    AccessCheckResult destResult = CheckAndCreateReport(kOpKAuthMoveDest, event.GetEventPath(DST_PATH), Checkers::CheckWrite, event.GetPid(), isDir, event.GetError(), destinationAccessToReport);
+
+    return AccessCheckResult::Combine(sourceResult, destResult);
 }
 
-AccessCheckResult IOHandler::HandleClone(const IOEvent &event)
+AccessCheckResult IOHandler::HandleClone(const IOEvent &event, AccessReport &sourceAccessToReport, AccessReport &destinationAccessToReport)
 {
-    return AccessCheckResult::Combine(
-        CheckAndReport(kOpMacVNodeCloneSource, event.GetEventPath(SRC_PATH), Checkers::CheckReadWrite, event.GetPid()),
-        CheckAndReport(kOpMacVNodeCloneDest, event.GetEventPath(DST_PATH), Checkers::CheckReadWrite, event.GetPid()));
+    AccessCheckResult sourceResult = CheckAndCreateReport(kOpMacVNodeCloneSource, event.GetEventPath(SRC_PATH), Checkers::CheckReadWrite, event.GetPid(), false, event.GetError(), sourceAccessToReport);
+    AccessCheckResult destResult = CheckAndCreateReport(kOpMacVNodeCloneDest, event.GetEventPath(DST_PATH), Checkers::CheckReadWrite, event.GetPid(), false, event.GetError(), destinationAccessToReport);
+
+    return AccessCheckResult::Combine(sourceResult, destResult);
 }
 
-AccessCheckResult IOHandler::HandleExchange(const IOEvent &event)
+AccessCheckResult IOHandler::HandleExchange(const IOEvent &event, AccessReport &sourceAccessToReport, AccessReport &destinationAccessToReport)
 {
-    return AccessCheckResult::Combine(
-        CheckAndReport(kOpKAuthCopySource, event.GetEventPath(SRC_PATH), Checkers::CheckReadWrite, event.GetPid(), /*isDir*/false),
-        CheckAndReport(kOpKAuthCopyDest, event.GetEventPath(DST_PATH), Checkers::CheckReadWrite, event.GetPid(), /*isDir*/false));
+    AccessCheckResult sourceResult = CheckAndCreateReport(kOpKAuthCopySource, event.GetEventPath(SRC_PATH), Checkers::CheckReadWrite, event.GetPid(), /*isDir*/false, event.GetError(), sourceAccessToReport);
+    AccessCheckResult destResult = CheckAndCreateReport(kOpKAuthCopyDest, event.GetEventPath(DST_PATH), Checkers::CheckReadWrite, event.GetPid(), /*isDir*/false, event.GetError(), destinationAccessToReport);
+
+    return AccessCheckResult::Combine(sourceResult, destResult);
 }
 
-AccessCheckResult IOHandler::HandleCreate(const IOEvent &event)
+AccessCheckResult IOHandler::HandleCreate(const IOEvent &event, AccessReport &accessToReport)
 {
     CheckFunc checker = Checkers::CheckWrite;
     bool isDir = false;
@@ -160,19 +176,19 @@ AccessCheckResult IOHandler::HandleCreate(const IOEvent &event)
                                 : Checkers::CheckCreateDirectoryNoEnforcement;
     }
 
-    return CheckAndReport(isDir ? kOpKAuthCreateDir : kOpMacVNodeCreate, event.GetEventPath(SRC_PATH), checker, event.GetPid(), isDir);
+    return CheckAndCreateReport(isDir ? kOpKAuthCreateDir : kOpMacVNodeCreate, event.GetEventPath(SRC_PATH), checker, event.GetPid(), isDir, event.GetError(), accessToReport);
 }
 
-AccessCheckResult IOHandler::HandleGenericWrite(const IOEvent &event)
+AccessCheckResult IOHandler::HandleGenericWrite(const IOEvent &event, AccessReport &accessToReport)
 {
     const char *path = event.GetEventPath(SRC_PATH);
     mode_t mode = event.GetMode();
     bool isDir = S_ISDIR(mode);
 
-    return CheckAndReport(kOpKAuthVNodeWrite, path, Checkers::CheckWrite, event.GetPid(), isDir);
+    return CheckAndCreateReport(kOpKAuthVNodeWrite, path, Checkers::CheckWrite, event.GetPid(), isDir, event.GetError(), accessToReport);
 }
 
-AccessCheckResult IOHandler::HandleGenericRead(const IOEvent &event)
+AccessCheckResult IOHandler::HandleGenericRead(const IOEvent &event, AccessReport &accessToReport)
 {
     const char *path = event.GetEventPath(SRC_PATH);
     mode_t mode = event.GetMode();
@@ -180,59 +196,80 @@ AccessCheckResult IOHandler::HandleGenericRead(const IOEvent &event)
 
     if (!event.EventPathExists())
     {
-        return CheckAndReport(kOpMacLookup, path, Checkers::CheckLookup, event.GetPid(), false);
+        return CheckAndCreateReport(kOpMacLookup, path, Checkers::CheckLookup, event.GetPid(), false, event.GetError(), accessToReport);
     }
     else
     {
-        return CheckAndReport(kOpKAuthVNodeRead, path, Checkers::CheckRead, event.GetPid(), isDir);
+        return CheckAndCreateReport(kOpKAuthVNodeRead, path, Checkers::CheckRead, event.GetPid(), isDir, event.GetError(), accessToReport);
     }
 }
 
-AccessCheckResult IOHandler::HandleGenericProbe(const IOEvent &event)
+AccessCheckResult IOHandler::HandleGenericProbe(const IOEvent &event, AccessReport &accessToReport)
 {
     const char *path = event.GetEventPath(SRC_PATH);
     bool isDir = S_ISDIR(event.GetMode());
 
     if (!event.EventPathExists())
     {
-        return CheckAndReport(kOpMacLookup, path, Checkers::CheckLookup, event.GetPid(), false);
+        return CheckAndCreateReport(kOpMacLookup, path, Checkers::CheckLookup, event.GetPid(), false, event.GetError(), accessToReport);
     }
     else
     {
-        return CheckAndReport(kOpKAuthVNodeProbe, path, Checkers::CheckProbe, event.GetPid(), isDir);
+        return CheckAndCreateReport(kOpKAuthVNodeProbe, path, Checkers::CheckProbe, event.GetPid(), isDir, event.GetError(), accessToReport);
     }
 }
 
 AccessCheckResult IOHandler::HandleEvent(const IOEvent &event)
 {
+    AccessReportGroup report;
+    AccessCheckResult result = CheckAccessAndBuildReport(event, report);
+
+    if (report.firstReport.shouldReport)
+    {
+        SendReport(report.firstReport);
+    }
+
+    if (report.secondReport.shouldReport)
+    {
+        SendReport(report.secondReport);
+    }
+
+    return result;
+}
+
+AccessCheckResult IOHandler::CheckAccessAndBuildReport(const IOEvent &event, AccessReportGroup &accessToReportGroup)
+{
+    // The second report may not be set below, so prevently flag it as a no report one.
+    accessToReportGroup.secondReport.shouldReport = false;
+
     switch (event.GetEventType())
     {
         case ES_EVENT_TYPE_AUTH_EXEC:
         case ES_EVENT_TYPE_NOTIFY_EXEC:
         {
-            return HandleProcessExec(event);
+            return HandleProcessExec(event, accessToReportGroup.firstReport);
         }
         case ES_EVENT_TYPE_NOTIFY_FORK:
-            return HandleProcessFork(event);
+            return HandleProcessFork(event, accessToReportGroup.firstReport);
 
         case ES_EVENT_TYPE_NOTIFY_EXIT:
-            return HandleProcessExit(event);
+            return HandleProcessExit(event, accessToReportGroup.firstReport, accessToReportGroup.secondReport);
 
         case ES_EVENT_TYPE_NOTIFY_LOOKUP:
-            return HandleLookup(event);
+            return HandleLookup(event, accessToReportGroup.firstReport);
 
         case ES_EVENT_TYPE_AUTH_OPEN:
         case ES_EVENT_TYPE_NOTIFY_OPEN:
         {
-            return HandleOpen(event);
+            return HandleOpen(event, accessToReportGroup.firstReport);
         }
         case ES_EVENT_TYPE_NOTIFY_CLOSE:
-            return HandleClose(event);
+            return HandleClose(event, accessToReportGroup.firstReport);
 
         case ES_EVENT_TYPE_AUTH_CREATE:
         case ES_EVENT_TYPE_NOTIFY_CREATE:
         {
-            return HandleCreate(event);
+            return HandleCreate(event, accessToReportGroup.firstReport);
         }
         case ES_EVENT_TYPE_AUTH_TRUNCATE:
         case ES_EVENT_TYPE_NOTIFY_TRUNCATE:
@@ -253,12 +290,12 @@ AccessCheckResult IOHandler::HandleEvent(const IOEvent &event)
         case ES_EVENT_TYPE_NOTIFY_SETTIME:
         case ES_EVENT_TYPE_AUTH_SETACL:
         case ES_EVENT_TYPE_NOTIFY_SETACL:
-            return HandleGenericWrite(event);
+            return HandleGenericWrite(event, accessToReportGroup.firstReport);
 
         case ES_EVENT_TYPE_NOTIFY_CHDIR:
         case ES_EVENT_TYPE_NOTIFY_READDIR:
         case ES_EVENT_TYPE_NOTIFY_FSGETPATH:
-            return HandleGenericRead(event);
+            return HandleGenericRead(event, accessToReportGroup.firstReport);
 
         case ES_EVENT_TYPE_AUTH_GETATTRLIST:
         case ES_EVENT_TYPE_NOTIFY_GETATTRLIST:
@@ -268,39 +305,40 @@ AccessCheckResult IOHandler::HandleEvent(const IOEvent &event)
         case ES_EVENT_TYPE_NOTIFY_LISTEXTATTR:
         case ES_EVENT_TYPE_NOTIFY_ACCESS:
         case ES_EVENT_TYPE_NOTIFY_STAT:
-            return HandleGenericProbe(event);
+            return HandleGenericProbe(event, accessToReportGroup.firstReport);
 
         case ES_EVENT_TYPE_AUTH_CLONE:
         case ES_EVENT_TYPE_NOTIFY_CLONE:
         {
-            return HandleClone(event);
+            return HandleClone(event, accessToReportGroup.firstReport, accessToReportGroup.secondReport);
         }
         case ES_EVENT_TYPE_AUTH_EXCHANGEDATA:
         case ES_EVENT_TYPE_NOTIFY_EXCHANGEDATA:
         {
-            return HandleExchange(event);
+            return HandleExchange(event, accessToReportGroup.firstReport, accessToReportGroup.secondReport);
         }
         case ES_EVENT_TYPE_AUTH_RENAME:
         case ES_EVENT_TYPE_NOTIFY_RENAME:
         {
-            return HandleRename(event);
+            return HandleRename(event, accessToReportGroup.firstReport, accessToReportGroup.secondReport);
         }
         case ES_EVENT_TYPE_AUTH_READLINK:
         case ES_EVENT_TYPE_NOTIFY_READLINK:
         {
-            return HandleReadlink(event);
+            return HandleReadlink(event, accessToReportGroup.firstReport);
         }
         case ES_EVENT_TYPE_AUTH_LINK:
         case ES_EVENT_TYPE_NOTIFY_LINK:
         {
-            return HandleLink(event);
+            return HandleLink(event, accessToReportGroup.firstReport, accessToReportGroup.secondReport);
         }
         case ES_EVENT_TYPE_AUTH_UNLINK:
         case ES_EVENT_TYPE_NOTIFY_UNLINK:
         {
-            return HandleUnlink(event);
+            return HandleUnlink(event, accessToReportGroup.firstReport);
         }
         case ES_EVENT_TYPE_LAST:
+            accessToReportGroup.firstReport.shouldReport = false;
             return AccessCheckResult::Invalid();
         default:
             std::string message("Unhandled ES event: ");

@@ -1060,6 +1060,45 @@ namespace Test.BuildXL.Processes
             AssertReportedAccessesContains(Context.PathTable, result.AllUnexpectedFileAccesses, rfa);
         }
 
+        [FactIfSupported(requiresLinuxBasedOperatingSystem: true)]
+        public async Task OperationErrorsAreReportedOnLinux()
+        {
+            var existentFile = CreateSourceFile();
+
+            var fam = new FileAccessManifest(Context.PathTable);
+            fam.ReportFileAccesses = false;
+            fam.FailUnexpectedFileAccesses = false;
+
+            // Pick a random operation (create directory) and make sure we perform it on an 
+            // existing file
+            var info = ToProcessInfo(
+                ToProcess(
+                    Operation.CreateDir(existentFile)
+                ),
+                fileAccessManifest: fam);
+
+            var result = await RunProcess(info);
+
+            // We should get a report where we see the creation attemp that results in a file exists error
+            result.AllUnexpectedFileAccesses.Single(fa => 
+                fa.Operation == ReportedFileOperation.KAuthCreateDir && 
+                fa.Error == (uint) global::BuildXL.Interop.Unix.IO.Errno.EEXIST);
+
+            // Now perform the same operation but in a way it should succeed
+            info = ToProcessInfo(
+                ToProcess(
+                    Operation.CreateDir(FileArtifact.CreateSourceFile(CreateUniqueSourcePath()))
+                ),
+                fileAccessManifest: fam);
+
+            result = await RunProcess(info);
+
+            // We should get a report where we see the creation attemp with a successful error code
+            result.AllUnexpectedFileAccesses.Single(fa => 
+                fa.Operation == ReportedFileOperation.KAuthCreateDir && 
+                fa.Error == 0);
+        }
+
         [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public async Task IgnoreInvalidPathRead()
         {
@@ -1717,7 +1756,7 @@ namespace Test.BuildXL.Processes
 
         private string RelevantFieldsToString(ReportedFileAccess rfa)
         {
-            return I($"{rfa.GetPath(m_pathTable)}|{rfa.Status}|{rfa.RequestedAccess}|{rfa.ExplicitlyReported}|{rfa.Error}");
+            return I($"{rfa.GetPath(m_pathTable)}|{rfa.Status}|{rfa.RequestedAccess}|{rfa.ExplicitlyReported}");
         }
     }
 }

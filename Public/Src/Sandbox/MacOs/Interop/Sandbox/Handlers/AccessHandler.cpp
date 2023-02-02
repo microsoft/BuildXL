@@ -29,100 +29,98 @@ void AccessHandler::SetProcessPath(AccessReport *report)
     strlcpy(report->path, process_->GetPath(), sizeof(report->path));
 }
 
-ReportResult AccessHandler::ReportFileOpAccess(FileOperation operation,
+ReportResult AccessHandler::CreateReportFileOpAccess(FileOperation operation,
                                                PolicyResult policyResult,
                                                AccessCheckResult checkResult,
                                                pid_t processID,
-                                               uint isDirectory)
+                                               uint isDirectory,
+                                               uint error,
+                                               AccessReport &accessReport)
 {
-    AccessReport report =
-    {
-        .operation          = operation,
-        .pid                = processID,
-        .rootPid            = GetProcessId(),
-        .requestedAccess    = (DWORD)checkResult.Access,
-        .status             = checkResult.GetFileAccessStatus(),
-        .reportExplicitly   = checkResult.Level == ReportLevel::ReportExplicit,
-        .error              = 0,
-        .pipId              = GetPipId(),
-        .path               = {0},
-        .stats              = {0},
-        .isDirectory        = isDirectory
-    };
+    accessReport.operation          = operation;
+    accessReport.pid                = processID;
+    accessReport.rootPid            = GetProcessId();
+    accessReport.requestedAccess    = (DWORD)checkResult.Access;
+    accessReport.status             = checkResult.GetFileAccessStatus();
+    accessReport.reportExplicitly   = checkResult.Level == ReportLevel::ReportExplicit;
+    accessReport.error              = error;
+    accessReport.pipId              = GetPipId();
+    accessReport.stats              = {0};
+    accessReport.isDirectory        = isDirectory;
+    accessReport.shouldReport       = checkResult.ShouldReport();
+    std::fill_n(accessReport.path, MAXPATHLEN, 0);
 
     assert(strlen(policyResult.Path()) > 0);
-    strlcpy(report.path, policyResult.Path(), sizeof(report.path));
+    strlcpy(accessReport.path, policyResult.Path(), sizeof(accessReport.path));
+
+    return kReported;
+}
+
+ReportResult AccessHandler::SendReport(AccessReport& report)
+{
     sandbox_->SendAccessReport(report, GetPip());
 
     return kReported;
 }
 
-bool AccessHandler::ReportProcessTreeCompleted(pid_t processId)
+bool AccessHandler::CreateReportProcessTreeCompleted(pid_t processId, AccessReport &accessReport)
 {
-    AccessReport report =
-    {
-        .operation        = kOpProcessTreeCompleted,
-        .pid              = processId,
-        .rootPid          = GetProcessId(),
-        .requestedAccess  = 0,
-        .status           = FileAccessStatus::FileAccessStatus_Allowed,
-        .reportExplicitly = 0,
-        .error            = 0,
-        .pipId            = GetPipId(),
-        .path             = {0},
-        .stats            = {0},
-        .isDirectory       = 0
-    };
+    accessReport.operation        = kOpProcessTreeCompleted;
+    accessReport.pid              = processId;
+    accessReport.rootPid          = GetProcessId();
+    accessReport.requestedAccess  = 0;
+    accessReport.status           = FileAccessStatus::FileAccessStatus_Allowed;
+    accessReport.reportExplicitly = 0;
+    accessReport.error            = 0;
+    accessReport.pipId            = GetPipId();
+    accessReport.stats            = {0};
+    accessReport.isDirectory      = 0;
+    accessReport.shouldReport     = true;
+    std::fill_n(accessReport.path, MAXPATHLEN, 0);
 
-    SetProcessPath(&report);
-    sandbox_->SendAccessReport(report, GetPip());
+    SetProcessPath(&accessReport);
 
     return kReported;
 }
 
-bool AccessHandler::ReportProcessExited(pid_t childPid)
+bool AccessHandler::CreateReportProcessExited(pid_t childPid, AccessReport &accessReport)
 {
-    AccessReport report =
-    {
-        .operation        = kOpProcessExit,
-        .pid              = childPid,
-        .rootPid          = GetProcessId(),
-        .requestedAccess  = 0,
-        .status           = FileAccessStatus::FileAccessStatus_Allowed,
-        .reportExplicitly = 0,
-        .error            = 0,
-        .pipId            = GetPipId(),
-        .path             = {0},
-        .stats            = {0},
-        .isDirectory       = 0
-    };
+    accessReport.operation        = kOpProcessExit;
+    accessReport.pid              = childPid;
+    accessReport.rootPid          = GetProcessId();
+    accessReport.requestedAccess  = 0;
+    accessReport.status           = FileAccessStatus::FileAccessStatus_Allowed;
+    accessReport.reportExplicitly = 0;
+    accessReport.error            = 0;
+    accessReport.pipId            = GetPipId();
+    accessReport.stats            = {0};
+    accessReport.isDirectory      = 0;
+    accessReport.shouldReport     = true;
+    std::fill_n(accessReport.path, MAXPATHLEN, 0);
 
-    SetProcessPath(&report);
-    sandbox_->SendAccessReport(report, GetPip());
+    SetProcessPath(&accessReport);
 
     return kReported;
 }
 
-bool AccessHandler::ReportChildProcessSpawned(pid_t childPid)
+bool AccessHandler::CreateReportChildProcessSpawned(pid_t childPid, AccessReport &accessReport)
 {
-    AccessReport report =
-    {
-        .operation          = kOpProcessStart,
-        .pid                = childPid,
-        .rootPid            = GetProcessId(),
-        .requestedAccess    = (int)RequestedAccess::Read,
-        .status             = FileAccessStatus::FileAccessStatus_Allowed,
-        .reportExplicitly   = 0,
-        .error              = 0,
-        .pipId              = GetPipId(),
-        .path               = {0},
-        .stats              = {0},
-        .isDirectory         = 0
-    };
+    accessReport.operation          = kOpProcessStart;
+    accessReport.pid                = childPid;
+    accessReport.rootPid            = GetProcessId();
+    accessReport.requestedAccess    = (int)RequestedAccess::Read;
+    accessReport.status             = FileAccessStatus::FileAccessStatus_Allowed;
+    accessReport.reportExplicitly   = 0;
+    accessReport.error              = 0;
+    accessReport.pipId              = GetPipId();
+    accessReport.stats              = {0};
+    accessReport.isDirectory        = 0;
+    accessReport.shouldReport       = true;
+    std::fill_n(accessReport.path, MAXPATHLEN, 0);
 
-    SetProcessPath(&report);
-    assert(strlen(report.path) > 0);
-    sandbox_->SendAccessReport(report, GetPip());
+    SetProcessPath(&accessReport);
+    assert(strlen(accessReport.path) > 0);
+
 
     return kReported;
 }
@@ -163,22 +161,19 @@ const char* AccessHandler::IgnoreDataPartitionPrefix(const char* path)
     return marker;
 }
 
-AccessCheckResult AccessHandler::CheckAndReportInternal(FileOperation operation,
+AccessCheckResult AccessHandler::CheckAndCreateReportInternal(FileOperation operation,
                                                         const char *path,
                                                         CheckFunc checker,
                                                         const pid_t pid,
-                                                        bool isDir)
+                                                        bool isDir,
+                                                        uint error,
+                                                        AccessReport &accessToReport)
 {
     PolicyResult policy = PolicyForPath(IgnoreDataPartitionPrefix(path));
     AccessCheckResult result = AccessCheckResult::Invalid();
     checker(policy, isDir, &result);
 
-    if (!result.ShouldReport())
-    {
-        return result;
-    }
-
-    ReportFileOpAccess(operation, policy, result, pid, (uint)isDir);
+    CreateReportFileOpAccess(operation, policy, result, pid, (uint)isDir, error, accessToReport);
 
     return result;
 }

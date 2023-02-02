@@ -70,6 +70,9 @@ private:
     std::string src_path_;
     std::string dst_path_;
 
+    // Reflects the errno of the operation
+    uint error_;
+
     // Only used when the IOEvent is backed by an EndpointSecurity message
     pid_t oppid_;
     audit_token_t auditToken_;
@@ -90,8 +93,9 @@ public:
             const char *src, const char *dst,
             const std::string exec,
             bool get_mode = true,
-            bool modified = false)
-    : pid_(pid), cpid_(cpid), ppid_(ppid), eventType_(type), actionType_(action), modified_(modified)
+            bool modified = false,
+            uint error = 0)
+    : pid_(pid), cpid_(cpid), ppid_(ppid), eventType_(type), actionType_(action), modified_(modified), error_(error)
     {
         assert(!exec.empty());
         executable_ = exec;
@@ -117,8 +121,11 @@ public:
             std::string dst,
             const std::string exec,
             mode_t mode,
-            bool modified = false)
-    : pid_(pid), cpid_(cpid), ppid_(ppid), oppid_(ppid), eventType_(type), actionType_(action), src_path_(src), dst_path_(dst), executable_(exec), mode_(mode), modified_(modified)
+            bool modified = false,
+            uint error = 0,
+            bool shouldSendReport = false)
+    : pid_(pid), cpid_(cpid), ppid_(ppid), oppid_(ppid), eventType_(type), actionType_(action), src_path_(src), dst_path_(dst), executable_(exec), 
+        mode_(mode), modified_(modified), error_(error)
     {
     }
 
@@ -128,8 +135,9 @@ public:
             const std::string exec,
             mode_t mode,
             bool modified = false,
-            std::string dest = "")
-    : IOEvent(getpid(), 0, getppid(), type, action, src, dest, exec, mode, modified)
+            std::string dest = "",
+            uint error = 0)
+    : IOEvent(getpid(), 0, getppid(), type, action, src, dest, exec, mode, modified, error)
     {
     }
 
@@ -145,6 +153,8 @@ public:
 
     inline const std::string& GetSrcPath() const { return src_path_; }
     inline const std::string& GetDstPath() const { return dst_path_; }
+
+    inline const uint GetError() const { return error_; }
 
     inline const char* GetEventPath(int index = SRC_PATH) const { return (index == SRC_PATH ? src_path_ : dst_path_).c_str(); }
     inline void SetEventPath(char *value, int index = SRC_PATH)
@@ -174,6 +184,7 @@ public:
         return (3 * std::to_string(PID_MAX).length()) +   // Pids
                (3 * std::to_string(USHRT_MAX).length()) + // Type + Action + Mode
                std::to_string(true).length() +            // Modified
+               std::to_string(UINT_MAX).length() +        // error
                (3 * PATH_MAX) +                           // Executable, src and dst paths
                10;                                        // Delimiters
     }

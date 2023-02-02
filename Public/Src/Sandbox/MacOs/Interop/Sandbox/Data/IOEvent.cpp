@@ -263,19 +263,21 @@ const size_t IOEvent::Size() const
         executable_.length() + (executable_.length() > 0 ? 1 : 0) +
         src_path_.length() + (src_path_.length() > 0 ? 1 : 0) +
         dst_path_.length() + (dst_path_.length() > 0 ? 1 : 0) +
-        7; // 7 delimiters + 1 per string (if string is present)
+        std::to_string(error_).length() +
+        8; // 8 delimiters + 1 per string (if string is present)
 }
 
 omemorystream& operator<<(omemorystream &os, const IOEvent &event)
 {
     os
-    << event.pid_        << "|"
-    << event.cpid_       << "|"
-    << event.ppid_       << "|"
-    << event.eventType_  << "|"
-    << event.actionType_ << "|"
-    << event.mode_       << "|"
-    << event.modified_   << "|"
+    << event.pid_                   << "|"
+    << event.cpid_                  << "|"
+    << event.ppid_                  << "|"
+    << event.eventType_             << "|"
+    << event.actionType_            << "|"
+    << event.mode_                  << "|"
+    << event.modified_              << "|"
+    << event.error_                 << "|"
     ;
 
     if (event.executable_.size() > 0)
@@ -322,6 +324,7 @@ imemorystream& operator>>(imemorystream &is, IOEvent &event)
     >> event.actionType_
     >> event.mode_
     >> event.modified_
+    >> event.error_
     >> event.executable_
     >> event.src_path_
     >> event.dst_path_

@@ -30,13 +30,17 @@ private:
 
     std::shared_ptr<SandboxedProcess> process_;
 
-    ReportResult ReportFileOpAccess(FileOperation operation,
+protected:
+
+    ReportResult CreateReportFileOpAccess(FileOperation operation,
                                     PolicyResult policy,
                                     AccessCheckResult accessCheckResult,
                                     pid_t processID,
-                                    uint isDirectory);
+                                    uint isDirectory,
+                                    uint error,
+                                    AccessReport &accessReport);
 
-protected:
+    ReportResult SendReport(AccessReport& report);
 
     inline Sandbox* GetSandbox()                                const { return sandbox_; }
     inline const std::shared_ptr<SandboxedProcess> GetProcess() const { return process_; }
@@ -50,7 +54,8 @@ protected:
     void SetProcessPath(AccessReport *report);
 
     /*!
-     * Template for checking and reporting file accesses.
+     * Template for checking and creating a file access report. The report is created but not sent
+     * to managed BuildXL.
      *
      * The key used for looking up if the operation was already reported is "<operation>,<path>".
      *
@@ -59,21 +64,19 @@ protected:
      * @param checker Checker function to apply to policy
      * @param pid The id of the process belonging to this I/O obsevation
      * @param isDir Indicates if the report is being generated for a directory or file
+     * @param error errno of the operation
      */
-    AccessCheckResult CheckAndReportInternal(FileOperation operation,
+    AccessCheckResult CheckAndCreateReportInternal(FileOperation operation,
                                      const char *path,
                                      CheckFunc checker,
                                      const pid_t pid,
-                                     bool isDir);
+                                     bool isDir,
+                                     uint error,
+                                     AccessReport &accessToReport);
 
-    inline AccessCheckResult CheckAndReport(FileOperation operation, const char *path, CheckFunc checker, const pid_t pid)
+    inline AccessCheckResult CheckAndCreateReport(FileOperation operation, const char *path, CheckFunc checker, const pid_t pid, bool isDir, uint error, AccessReport &accessToReport)
     {
-        return CheckAndReportInternal(operation, path, checker, pid, false);
-    }
-
-    inline AccessCheckResult CheckAndReport(FileOperation operation, const char *path, CheckFunc checker, const pid_t pid, bool isDir)
-    {
-        return CheckAndReportInternal(operation, path, checker, pid, isDir);
+        return CheckAndCreateReportInternal(operation, path, checker, pid, isDir, error, accessToReport);
     }
 
 public:
@@ -114,9 +117,9 @@ public:
 
     PolicyResult PolicyForPath(const char *absolutePath);
 
-    bool ReportProcessTreeCompleted(pid_t processId);
-    bool ReportProcessExited(pid_t childPid);
-    bool ReportChildProcessSpawned(pid_t childPid);
+    bool CreateReportProcessTreeCompleted(pid_t processId, AccessReport &accessReport);
+    bool CreateReportProcessExited(pid_t childPid, AccessReport &accessReport);
+    bool CreateReportChildProcessSpawned(pid_t childPid, AccessReport &accessReport);
 };
 
 #endif /* AccessHandler_hpp */

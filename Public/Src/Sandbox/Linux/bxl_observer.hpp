@@ -112,6 +112,12 @@ static const char LD_PRELOAD_ENV_VAR_PREFIX[] = "LD_PRELOAD=";
     #define INTERPOSE(ret, name, ...) IGNORE_BODY
 #endif
 
+// Linux libraries are required to set errno only when the operation fails. 
+// In most cases, when the operation succeeds errno is set to a random value
+// (or it does not get updated at all). Therefore, only report errno when   
+// the operation fails, and otherwise return 0. This allows the managed     
+// side of BuildXL to interpret when an operation succeeds or fails, and    
+// to retrieve the details in case of the failure.                                                                                         
 #define GEN_FN_DEF(ret, name, ...)                                              \
     GEN_FN_DEF_REAL(ret, name, __VA_ARGS__)                                     \
     template<typename ...TArgs> result_t<ret> fwd_##name(TArgs&& ...args)       \
@@ -122,19 +128,34 @@ static const char LD_PRELOAD_ENV_VAR_PREFIX[] = "LD_PRELOAD=";
             RenderSyscall(#name, result, std::forward<TArgs>(args)...).c_str(), \
             return_value.get_errno());                                          \
         return return_value;                                                    \
-    }                                                                           \
-    template<typename ...TArgs> ret check_and_fwd_##name(AccessCheckResult &check, ret error_val, TArgs&& ...args) \
+    }                                                                           \  
+    template<typename ...TArgs> ret check_fwd_and_report_##name(                \
+        AccessReportGroup& report,                                              \
+        AccessCheckResult &check,                                               \
+        ret error_val,                                                          \
+        TArgs&& ...args)                                                        \
     {                                                                           \
-        if (should_deny(check))                                                 \
-        {                                                                       \
-            errno = EPERM;                                                      \
-            return error_val;                                                   \
-        }                                                                       \
-        else                                                                    \
-        {                                                                       \
-            return fwd_##name(args...).restore();                               \
-        }                                                                       \
-    }
+        result_t<ret> return_value = should_deny(check)                         \
+            ? result_t<ret>(error_val, EPERM)                                   \
+            : fwd_##name(args...);                                              \
+        report.SetErrno(return_value.get() == error_val                         \
+            ? return_value.get_errno()                                          \
+            : 0);                                                               \
+        BxlObserver::GetInstance()->SendReport(report);                         \
+        return return_value.restore();                                          \
+    }                                                                           \
+    template<typename ...TArgs> result_t<ret> fwd_and_report_##name(            \
+        AccessReportGroup& report,                                              \
+        ret error_val,                                                          \
+        TArgs&& ...args)                                                        \
+    {                                                                           \
+        result_t<ret> return_value = fwd_##name(args...);                       \
+        report.SetErrno(return_value.get() == error_val                         \
+            ? return_value.get_errno()                                          \
+            : 0);                                                               \
+        BxlObserver::GetInstance()->SendReport(report);                         \
+        return return_value;                                                    \
+    }                                                                           \
 
 #define _fatal(fmt, ...) do { real_fprintf(stderr, "(%s) " fmt "\n", __func__, __VA_ARGS__); _exit(1); } while (0)
 #define fatal(msg) _fatal("%s", msg)
@@ -155,6 +176,7 @@ private:
 
 public:
     result_t(T result) : result_(result), my_errno_(errno) {}
+    result_t(T result, int error) : result_(result), my_errno_(error) {}
 
     /** Returns the remembered result and restores 'errno' to the value captured in the constructor. */
     inline T restore()
@@ -277,32 +299,43 @@ private:
 public:
     static BxlObserver* GetInstance();
 
-    bool SendReport(AccessReport &report);
+    bool SendReport(const AccessReport &report);
+    bool SendReport(const AccessReportGroup &report);
     char** ensureEnvs(char *const envp[]);
 
     const char* GetProgramPath() { return progFullPath_; }
     const char* GetReportsPath() { int len; return IsValid() ? pip_->GetReportsPath(&len) : NULL; }
     const char* GetDetoursLibPath() { return detoursLibFullPath_; }
 
-    void report_exec(const char *syscallName, const char *procName, const char *file);
+    void report_exec(const char *syscallName, const char *procName, const char *file, int error);
     void report_audit_objopen(const char *fullpath)
     {
         IOEvent event(ES_EVENT_TYPE_NOTIFY_OPEN, ES_ACTION_TYPE_NOTIFY, fullpath, progFullPath_, S_IFREG);
         report_access("la_objopen", event, /* checkCache */ true);
     }
 
-    AccessCheckResult report_access(const char *syscallName, IOEvent &event, bool checkCache = true);
+    // The following functions create an access report and performs an access check. They do not report the created access to managed BuildXL.
+    // The created access report is returned as an out param in the given 'report' param. The returned report is ready to be sent with the exception of
+    // setting the operation error. In operations where the error is reported back, the typical flow is creating the report, performing the operation, 
+    // setting errno in the report and sending out the report.
+    AccessCheckResult create_access(const char *syscallName, IOEvent &event, AccessReportGroup &report, bool checkCache = true);
     // In this method (and immediately below) 'mode' is provided on a best effort basis. If 0 is passed for mode, it will be
     // explicitly computed
-    AccessCheckResult report_access(const char *syscallName, es_event_type_t eventType, const char *pathname, mode_t mode = 0, int oflags = 0);
-    AccessCheckResult report_access(const char *syscallName, es_event_type_t eventType, const std::string &reportPath, const std::string &secondPath, mode_t mode = 0);
+    AccessCheckResult create_access(const char *syscallName, es_event_type_t eventType, const char *pathname, AccessReportGroup &report, mode_t mode = 0, int oflags = 0);
+    AccessCheckResult create_access(const char *syscallName, es_event_type_t eventType, const std::string &reportPath, const std::string &secondPath, AccessReportGroup &reportGroup, mode_t mode = 0);
+    AccessCheckResult create_access_fd(const char *syscallName, es_event_type_t eventType, int fd, AccessReportGroup &reportGroup);
+    AccessCheckResult create_access_at(const char *syscallName, es_event_type_t eventType, int dirfd, const char *pathname, AccessReportGroup &reportGroup, int oflags = 0, bool getModeWithFd = true, const char *associatedPid = "self");
 
-    AccessCheckResult report_access_fd(const char *syscallName, es_event_type_t eventType, int fd);
-    AccessCheckResult report_access_at(const char *syscallName, es_event_type_t eventType, int dirfd, const char *pathname, int oflags = 0, bool getModeWithFd = true, const char *associatedPid = "self");
+    // The following functions are the create_* equivalent of the ones above but the access is reported to managed BuildXL
+    void report_access(const char *syscallName, IOEvent &event, bool checkCache = true);
+    void report_access(const char *syscallName, es_event_type_t eventType, const char *pathname, mode_t mode = 0, int oflags = 0, int error = 0);
+    void report_access(const char *syscallName, es_event_type_t eventType, const std::string &reportPath, const std::string &secondPath, mode_t mode = 0, int error = 0);
+    void report_access_fd(const char *syscallName, es_event_type_t eventType, int fd, int error);
+    void report_access_at(const char *syscallName, es_event_type_t eventType, int dirfd, const char *pathname, int oflags, bool getModeWithFd = true, const char *associatedPid = "self", int error = 0);
 
     // Send a special message to managed code if the policy to override allowed writes based on file existence is set
     // and the write is allowed by policy
-    AccessCheckResult report_firstAllowWriteCheck(const char *fullPath);
+    void report_firstAllowWriteCheck(const char *fullPath);
 
     bool check_and_report_statically_linked_process(const char *path);
     bool check_and_report_statically_linked_process(int fd);

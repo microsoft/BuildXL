@@ -283,7 +283,33 @@ typedef struct {
 #endif
     AccessReportStatistics stats;
     uint isDirectory;
+    bool shouldReport;
 } AccessReport;
+
+// Some IOEvents may result in a pair of reports (the typical case is an operation that involves a source and a 
+// destination). To avoid allocations related to arrays/vectors, an AccessReportGroup is used, representing
+// one or two access reports that need to be reported to managed BuildXL. Therefore, an access report group 
+// typically contains a valid first report, and  may or may not contain a valid second report. 
+// The 'shouldReport' member should be used to determine whether an actual report is there to be reported.
+// is actually
+struct AccessReportGroup {
+    AccessReport firstReport;
+    AccessReport secondReport;
+
+    // Initializes both reports by setting `shouldReport` to false
+    AccessReportGroup()
+    {
+        firstReport.shouldReport = false;
+        secondReport.shouldReport = false;
+    }
+    
+    // Sets an error number on both reports
+    inline void SetErrno(int err)
+    {
+        firstReport.error = err;
+        secondReport.error = err;
+    }
+};
 
 inline bool HasAnyFlags(const int source, const int bitMask)
 {

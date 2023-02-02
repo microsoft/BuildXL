@@ -214,7 +214,20 @@ bool BxlObserver::Send(const char *buf, size_t bufsiz)
     return true;
 }
 
-bool BxlObserver::SendReport(AccessReport &report)
+bool BxlObserver::SendReport(const AccessReportGroup &report)
+{
+    bool result = report.firstReport.shouldReport 
+        ? SendReport(report.firstReport)
+        : true;
+
+    result &= report.secondReport.shouldReport
+        ? SendReport(report.secondReport)
+        : true;
+
+    return result;
+}
+
+bool BxlObserver::SendReport(const AccessReport &report)
 {
     // there is no central sendbox process here (i.e., there is an instance of this
     // guy in every child process), so counting process tree size is not feasible
@@ -240,17 +253,25 @@ bool BxlObserver::SendReport(AccessReport &report)
     return Send(buffer, numWritten + PrefixLength);
 }
 
-void BxlObserver::report_exec(const char *syscallName, const char *procName, const char *file)
+void BxlObserver::report_exec(const char *syscallName, const char *procName, const char *file, int error)
 {
     if (IsMonitoringChildProcesses())
     {
         // first report 'procName' as is (without trying to resolve it) to ensure that a process name is reported before anything else
-        report_access(syscallName, ES_EVENT_TYPE_NOTIFY_EXEC, std::string(procName), empty_str_);
-        report_access(syscallName, ES_EVENT_TYPE_NOTIFY_EXEC, file);
+        report_access(syscallName, ES_EVENT_TYPE_NOTIFY_EXEC, std::string(procName), empty_str_, /* mode */ 0, error);
+        report_access(syscallName, ES_EVENT_TYPE_NOTIFY_EXEC, file, error);
     }
 }
 
-AccessCheckResult BxlObserver::report_access(const char *syscallName, es_event_type_t eventType, const std::string &reportPath, const std::string &secondPath, mode_t mode)
+void BxlObserver::report_access(const char *syscallName, es_event_type_t eventType, const std::string &reportPath, const std::string &secondPath, mode_t mode, int error)
+{
+    AccessReportGroup report;
+    create_access(syscallName, eventType, reportPath, secondPath, report, mode);
+    report.SetErrno(error);
+    SendReport(report);
+}
+
+AccessCheckResult BxlObserver::create_access(const char *syscallName, es_event_type_t eventType, const std::string &reportPath, const std::string &secondPath, AccessReportGroup &reportGroup, mode_t mode)
 {
     if (IsCacheHit(eventType, reportPath, secondPath))
     {
@@ -274,13 +295,20 @@ AccessCheckResult BxlObserver::report_access(const char *syscallName, es_event_t
         : std::string(progFullPath_);
 
     IOEvent event(getpid(), 0, getppid(), eventType, ES_ACTION_TYPE_NOTIFY, reportPath, secondPath, execPath, mode, false);
-    return report_access(syscallName, event, /* checkCache */ false /* because already checked cache above */);
+    return create_access(syscallName, event, reportGroup, /* checkCache */ false /* because already checked cache above */);
 }
 
-AccessCheckResult BxlObserver::report_access(const char *syscallName, IOEvent &event, bool checkCache)
+void BxlObserver::report_access(const char *syscallName, IOEvent &event, bool checkCache)
+{
+    AccessReportGroup report;
+    create_access(syscallName, event, report, checkCache);
+    SendReport(report);
+}
+
+AccessCheckResult BxlObserver::create_access(const char *syscallName, IOEvent &event, AccessReportGroup &reportGroup, bool checkCache)
 {
     es_event_type_t eventType = event.GetEventType();
-
+    
     if (checkCache && IsCacheHit(eventType, event.GetSrcPath(), event.GetDstPath()))
     {
         return sNotChecked;
@@ -292,7 +320,7 @@ AccessCheckResult BxlObserver::report_access(const char *syscallName, IOEvent &e
     {
         IOHandler handler(sandbox_);
         handler.SetProcess(process_);
-        result = handler.HandleEvent(event);
+        result = handler.CheckAccessAndBuildReport(event, reportGroup);
     }
 
     LOG_DEBUG("(( %10s:%2d )) %s %s%s", syscallName, event.GetEventType(), event.GetEventPath(),
@@ -302,26 +330,39 @@ AccessCheckResult BxlObserver::report_access(const char *syscallName, IOEvent &e
     return result;
 }
 
-AccessCheckResult BxlObserver::report_access(const char *syscallName, es_event_type_t eventType, const char *pathname, mode_t mode, int flags)
+void BxlObserver::report_access(const char *syscallName, es_event_type_t eventType, const char *pathname, mode_t mode, int flags, int error)
 {
-    return report_access(syscallName, eventType, normalize_path(pathname, flags), "", mode);
+    report_access(syscallName, eventType, normalize_path(pathname, flags), "", mode, error);
 }
 
-AccessCheckResult BxlObserver::report_access_fd(const char *syscallName, es_event_type_t eventType, int fd)
+AccessCheckResult BxlObserver::create_access(const char *syscallName, es_event_type_t eventType, const char *pathname, AccessReportGroup &reportGroup, mode_t mode, int flags)
 {
+    return create_access(syscallName, eventType, normalize_path(pathname, flags), "", reportGroup, mode);
+}
+
+void BxlObserver::report_access_fd(const char *syscallName, es_event_type_t eventType, int fd, int error)
+{   
+    AccessReportGroup report;
+    create_access_fd(syscallName, eventType, fd, report);
+    report.SetErrno(error);
+    SendReport(report);
+}
+
+AccessCheckResult BxlObserver::create_access_fd(const char *syscallName, es_event_type_t eventType, int fd, AccessReportGroup &report)
+{   
     mode_t mode = get_mode(fd);
 
     // If this file descriptor is a non-file (e.g., a pipe, or socket, etc.) then we don't care about it
     if (is_non_file(mode))
     {
-        return sNotChecked;
+        return sNotChecked; 
     }
 
     std::string fullpath = fd_to_path(fd);
 
     // Only reports when fd_to_path succeeded.
     return fullpath.length() > 0
-        ? report_access(syscallName, eventType, fullpath, empty_str_, mode)
+        ? create_access(syscallName, eventType, fullpath, empty_str_, report, mode)
         : sNotChecked;
 }
 
@@ -331,11 +372,11 @@ bool BxlObserver::is_non_file(const mode_t mode)
     return mode != 0 && !S_ISDIR(mode) && !S_ISREG(mode) && !S_ISLNK(mode);
 }
 
-AccessCheckResult BxlObserver::report_access_at(const char *syscallName, es_event_type_t eventType, int dirfd, const char *pathname, int flags, bool getModeWithFd, const char *associatedPid)
+AccessCheckResult BxlObserver::create_access_at(const char *syscallName, es_event_type_t eventType, int dirfd, const char *pathname, AccessReportGroup &report, int flags, bool getModeWithFd, const char *associatedPid)
 {
     if (pathname[0] == '/')
     {
-        return report_access(syscallName, eventType, pathname, /* mode */0, flags);
+        return create_access(syscallName, eventType, pathname, report, /* mode */0, flags);
     }
 
     char fullpath[PATH_MAX] = {0};
@@ -388,10 +429,18 @@ AccessCheckResult BxlObserver::report_access_at(const char *syscallName, es_even
     }
 
     snprintf(&fullpath[len], PATH_MAX - len, "/%s", pathname);
-    return report_access(syscallName, eventType, fullpath, mode, flags);
+    return create_access(syscallName, eventType, fullpath, report, flags, mode);
 }
 
-AccessCheckResult BxlObserver::report_firstAllowWriteCheck(const char *fullPath)
+void BxlObserver::report_access_at(const char *syscallName, es_event_type_t eventType, int dirfd, const char *pathname, int flags, bool getModeWithFd, const char *associatedPid, int error)
+{
+    AccessReportGroup report;
+    create_access_at(syscallName, eventType, dirfd, pathname, report, flags, getModeWithFd, associatedPid);
+    report.SetErrno(error);
+    SendReport(report);
+}
+
+void BxlObserver::report_firstAllowWriteCheck(const char *fullPath)
 {
     mode_t mode = get_mode(fullPath);
     bool fileExists = mode != 0 && !S_ISDIR(mode);
@@ -408,7 +457,8 @@ AccessCheckResult BxlObserver::report_firstAllowWriteCheck(const char *fullPath)
             .pipId            = pip_->GetPipId(),
             .path             = {0},
             .stats            = {0},
-            .isDirectory      = (uint)S_ISDIR(mode)
+            .isDirectory      = (uint)S_ISDIR(mode),
+            .shouldReport     = true
         };
 
     strlcpy(report.path, fullPath, sizeof(report.path));
@@ -416,8 +466,6 @@ AccessCheckResult BxlObserver::report_firstAllowWriteCheck(const char *fullPath)
     SendReport(report);
 
     AccessCheckResult result(RequestedAccess::Write, fileExists ? ResultAction::Deny : ResultAction::Allow, ReportLevel::Report);
-
-    return result;
 }
 
 bool BxlObserver::check_and_report_statically_linked_process(int fd)
@@ -516,7 +564,8 @@ bool BxlObserver::check_and_report_statically_linked_process(const char *path)
             .pipId            = pip_->GetPipId(),
             .path             = {0},
             .stats            = {0},
-            .isDirectory      = 0
+            .isDirectory      = 0,
+            .shouldReport     = true,
         };
 
         strlcpy(report.path, path, sizeof(report.path));

@@ -394,17 +394,19 @@ void PTraceSandbox::ReportOpen(std::string path, int oflag, std::string syscallN
     bool pathExists = pathMode != 0;
     bool isCreate = !pathExists && (oflag & (O_CREAT|O_TRUNC));
     bool isWrite = pathExists && (oflag & (O_CREAT|O_TRUNC) && (oflag & O_WRONLY));
+    // TODO: Figure out how to report the errno
     IOEvent event(
         isCreate ? ES_EVENT_TYPE_NOTIFY_CREATE : isWrite ? ES_EVENT_TYPE_NOTIFY_WRITE : ES_EVENT_TYPE_NOTIFY_OPEN,
         ES_ACTION_TYPE_NOTIFY,
-        path, m_bxl->GetProgramPath(), pathMode, false);
+        path, m_bxl->GetProgramPath(), pathMode, false, "", /* error */ 0);
 
     m_bxl->report_access(syscallName.c_str(), event);
 }
 
 void PTraceSandbox::ReportCreate(std::string syscallName, int dirfd, const char *pathname, mode_t mode)
 {
-    IOEvent event(ES_EVENT_TYPE_NOTIFY_CREATE, ES_ACTION_TYPE_NOTIFY, m_bxl->normalize_path_at(dirfd, pathname, /*oflags*/0, m_pidStr.c_str()), m_bxl->GetProgramPath(), mode);
+    // TODO: Figure out how to report the errno
+    IOEvent event(ES_EVENT_TYPE_NOTIFY_CREATE, ES_ACTION_TYPE_NOTIFY, m_bxl->normalize_path_at(dirfd, pathname, /*oflags*/0, m_pidStr.c_str()), m_bxl->GetProgramPath(), mode, false, "", /* error */ 0);
     m_bxl->report_access(syscallName.c_str(), event);
 }
 
@@ -421,7 +423,8 @@ void PTraceSandbox::HandleChildProcess(const char *syscall)
     {
         long childPid = ReadArgumentLong(0);
         string exePath(m_bxl->GetProgramPath());
-        IOEvent event(m_traceePid, childPid, getpid(), ES_EVENT_TYPE_NOTIFY_FORK, ES_ACTION_TYPE_NOTIFY, exePath, std::string(""), exePath, 0, false);
+        // TODO: Figure out how to report the errno
+        IOEvent event(m_traceePid, childPid, getpid(), ES_EVENT_TYPE_NOTIFY_FORK, ES_ACTION_TYPE_NOTIFY, exePath, std::string(""), exePath, 0, false, /* error */ 0);
         
         m_bxl->report_access(syscall, event);
     }
@@ -454,7 +457,8 @@ HANDLER_FUNCTION(execveat)
 
     strcpy(mutableExePath, exePath.c_str());
 
-    m_bxl->report_exec(SYSCALL_NAME_STRING(execve), basename(mutableExePath), exePath.c_str());
+    // TODO: figure out how to report the errno
+    m_bxl->report_exec(SYSCALL_NAME_STRING(execve), basename(mutableExePath), exePath.c_str(), /* error*/ 0);
 }
 
 HANDLER_FUNCTION(execve)
@@ -464,19 +468,22 @@ HANDLER_FUNCTION(execve)
 
     strcpy(mutableFilePath, file.c_str());
 
-    m_bxl->report_exec(SYSCALL_NAME_STRING(execve), basename(mutableFilePath), file.c_str());
+    // TODO: figure out how to report the errno
+    m_bxl->report_exec(SYSCALL_NAME_STRING(execve), basename(mutableFilePath), file.c_str(), /* error*/ 0);
 }
 
 HANDLER_FUNCTION(stat)
 {
     auto pathname = ReadArgumentString(1, /*nullTerminated*/ true);
-    m_bxl->report_access(SYSCALL_NAME_STRING(stat), ES_EVENT_TYPE_NOTIFY_STAT, pathname.c_str(), /*mode*/ 0, O_NOFOLLOW);
+    // TODO: Figure out how to report the errno
+    m_bxl->report_access(SYSCALL_NAME_STRING(stat), ES_EVENT_TYPE_NOTIFY_STAT, pathname.c_str(), /*mode*/ 0, O_NOFOLLOW, /* error */ 0);
 }
 
 HANDLER_FUNCTION(lstat)
 {
     auto pathname = ReadArgumentString(1, /*nullTerminated*/ true);
-    m_bxl->report_access(SYSCALL_NAME_STRING(lstat), ES_EVENT_TYPE_NOTIFY_STAT, pathname.c_str(), /*mode*/ 0, O_NOFOLLOW);
+    // TODO: Figure out how to report the errno
+    m_bxl->report_access(SYSCALL_NAME_STRING(lstat), ES_EVENT_TYPE_NOTIFY_STAT, pathname.c_str(), /*mode*/ 0, O_NOFOLLOW, /* error */ 0);
 }
 
 HANDLER_FUNCTION(fstat)
@@ -493,20 +500,23 @@ HANDLER_FUNCTION_NEW(fstatat)
     auto pathname = ReadArgumentString(2, /*nullTerminated*/ true);
     auto flags = ReadArgumentLong(4);
 
-    m_bxl->report_access_at(SYSCALL_NAME_STRING(fstatat), ES_EVENT_TYPE_NOTIFY_STAT, dirfd, pathname.c_str(), flags, /*getModeWithFd*/ false, m_pidStr.c_str());
+    // TODO: Figure out how to report the errno
+    m_bxl->report_access_at(SYSCALL_NAME_STRING(fstatat), ES_EVENT_TYPE_NOTIFY_STAT, dirfd, pathname.c_str(), flags, /*getModeWithFd*/ false, m_pidStr.c_str(), /* error */ 0);
 }
 
 HANDLER_FUNCTION(access)
 {
     auto pathname = ReadArgumentString(1, /*nullTerminated*/ true);
-    m_bxl->report_access(SYSCALL_NAME_STRING(access), ES_EVENT_TYPE_NOTIFY_ACCESS, pathname.c_str());
+    // TODO: Figure out how to report the errno
+    m_bxl->report_access(SYSCALL_NAME_STRING(access), ES_EVENT_TYPE_NOTIFY_ACCESS, pathname.c_str(), 0U, 0, /* error */ 0);
 }
 
 HANDLER_FUNCTION(faccessat)
 {
     auto dirfd = ReadArgumentLong(1);
     auto pathname = ReadArgumentString(2, /*nullTerminated*/ true);
-    m_bxl->report_access_at(SYSCALL_NAME_STRING(faccessat), ES_EVENT_TYPE_NOTIFY_ACCESS, dirfd, pathname.c_str(), /*oflags*/ 0, /*getModeWithFd*/ false, m_pidStr.c_str());
+    // TODO: Figure out how to report the errno
+    m_bxl->report_access_at(SYSCALL_NAME_STRING(faccessat), ES_EVENT_TYPE_NOTIFY_ACCESS, dirfd, pathname.c_str(), /*oflags*/ 0, /*getModeWithFd*/ false, m_pidStr.c_str(), /* error */ 0);
 }
 
 HANDLER_FUNCTION(creat)
@@ -539,7 +549,8 @@ void PTraceSandbox::HandleReportAccessFd(const char *syscall, int fd, es_event_t
     // Readlink returns type:[inode] if the path is not a file (files will return absolute paths)
     if (path[0] == '/')
     {
-        m_bxl->report_access(syscall, event, path, m_emptyStr, /*mode*/0);
+        // TODO: Figure out how to report the errno
+        m_bxl->report_access(syscall, event, path, m_emptyStr, /*mode*/0, /* error */ 0);
     }
 }
 
@@ -576,7 +587,8 @@ HANDLER_FUNCTION(pwrite64)
 HANDLER_FUNCTION(truncate)
 {
     auto path = ReadArgumentString(1, /*nullTerminated*/ true);
-    m_bxl->report_access(SYSCALL_NAME_STRING(truncate), ES_EVENT_TYPE_NOTIFY_WRITE, path.c_str());
+    // TODO: Figure out how to report the errno
+    m_bxl->report_access(SYSCALL_NAME_STRING(truncate), ES_EVENT_TYPE_NOTIFY_WRITE, path.c_str(), "", 0, /* error */ 0);
 }
 
 HANDLER_FUNCTION(ftruncate)
@@ -588,7 +600,8 @@ HANDLER_FUNCTION(ftruncate)
 HANDLER_FUNCTION(rmdir)
 {
     auto path = ReadArgumentString(1, /*nullTerminated*/ true);
-    m_bxl->report_access(SYSCALL_NAME_STRING(rmdir), ES_EVENT_TYPE_NOTIFY_UNLINK, path.c_str());
+    // TODO: Figure out how to report the errno
+    m_bxl->report_access(SYSCALL_NAME_STRING(rmdir), ES_EVENT_TYPE_NOTIFY_UNLINK, path.c_str(), "", 0, /* error */ 0);
 }
 
 HANDLER_FUNCTION(rename)
@@ -626,7 +639,8 @@ void PTraceSandbox::HandleRenameGeneric(const char *syscall, int olddirfd, const
             {
                 // Source
                 auto mode = m_bxl->get_mode(fileOrDirectory.c_str());
-                m_bxl->report_access(syscall, ES_EVENT_TYPE_NOTIFY_UNLINK, fileOrDirectory.c_str(), mode, O_NOFOLLOW);
+                // TODO: Figure out how to report the errno
+                m_bxl->report_access(syscall, ES_EVENT_TYPE_NOTIFY_UNLINK, fileOrDirectory.c_str(), mode, O_NOFOLLOW, /* error */ 0);
 
                 // Destination
                 fileOrDirectory.replace(0, oldStr.length(), newStr);
@@ -638,7 +652,8 @@ void PTraceSandbox::HandleRenameGeneric(const char *syscall, int olddirfd, const
     {
         auto mode = m_bxl->get_mode(oldStr.c_str());
         // Source
-        m_bxl->report_access(syscall, ES_EVENT_TYPE_NOTIFY_UNLINK, oldStr.c_str(), mode, O_NOFOLLOW);
+        // TODO: Figure out how to report the errno
+        m_bxl->report_access(syscall, ES_EVENT_TYPE_NOTIFY_UNLINK, oldStr.c_str(), mode, O_NOFOLLOW, /* error*/ 0);
 
         // Destination
         ReportOpen(newStr, O_CREAT, std::string(syscall));
@@ -650,11 +665,13 @@ HANDLER_FUNCTION(link)
     auto oldpath = ReadArgumentString(1, /*nullTerminated*/ true);
     auto newpath = ReadArgumentString(2, /*nullTerminated*/ true);
 
+    // TODO: Figure out how to report the errno
     m_bxl->report_access(
         SYSCALL_NAME_STRING(link),
         ES_EVENT_TYPE_NOTIFY_LINK,
         m_bxl->normalize_path(oldpath.c_str(), O_NOFOLLOW, m_pidStr.c_str()),
-        m_bxl->normalize_path(newpath.c_str(), O_NOFOLLOW, m_pidStr.c_str()));
+        m_bxl->normalize_path(newpath.c_str(), O_NOFOLLOW, m_pidStr.c_str()), 
+        0, /* error */ 0);
 }
 
 HANDLER_FUNCTION(linkat)
@@ -664,11 +681,13 @@ HANDLER_FUNCTION(linkat)
     auto newdirfd = ReadArgumentLong(3);
     auto newpath = ReadArgumentString(4, /*nullTerminated*/ true);
 
+    // TODO: Figure out how to report the errno
     m_bxl->report_access(
         SYSCALL_NAME_STRING(linkat),
         ES_EVENT_TYPE_NOTIFY_LINK,
         m_bxl->normalize_path_at(olddirfd, oldpath.c_str(), O_NOFOLLOW, m_pidStr.c_str()),
-        m_bxl->normalize_path_at(newdirfd, newpath.c_str(), O_NOFOLLOW, m_pidStr.c_str()));
+        m_bxl->normalize_path_at(newdirfd, newpath.c_str(), O_NOFOLLOW, m_pidStr.c_str()),
+        0, /* error */ 0);
 }
 
 HANDLER_FUNCTION(unlink)
@@ -677,7 +696,8 @@ HANDLER_FUNCTION(unlink)
 
     if (path[0] != '\0')
     {
-        m_bxl->report_access(SYSCALL_NAME_STRING(unlink), ES_EVENT_TYPE_NOTIFY_UNLINK, path.c_str(), /*mode*/ 0, O_NOFOLLOW);
+        // TODO: Figure out how to report the errno
+        m_bxl->report_access(SYSCALL_NAME_STRING(unlink), ES_EVENT_TYPE_NOTIFY_UNLINK, path.c_str(), /*mode*/ 0, O_NOFOLLOW, /* error */ 0);
     }
 }
 
@@ -690,7 +710,8 @@ HANDLER_FUNCTION(unlinkat)
     if (dirfd != AT_FDCWD && path[0] != '\0')
     {
         int oflags = (flags & AT_REMOVEDIR) ? 0 : O_NOFOLLOW;
-        m_bxl->report_access_at(SYSCALL_NAME_STRING(unlinkat), ES_EVENT_TYPE_NOTIFY_UNLINK, dirfd, path.c_str(), oflags, /*getModeWithFd*/ false, m_pidStr.c_str());
+        // TODO: Figure out how to report the errno
+        m_bxl->report_access_at(SYSCALL_NAME_STRING(unlinkat), ES_EVENT_TYPE_NOTIFY_UNLINK, dirfd, path.c_str(), oflags, /*getModeWithFd*/ false, m_pidStr.c_str(), /* error */ 0);
     }
 }
 
@@ -698,7 +719,8 @@ HANDLER_FUNCTION(symlink)
 {
     auto linkPath = ReadArgumentString(2, /*nullTerminated*/ true);
 
-    IOEvent event(ES_EVENT_TYPE_NOTIFY_CREATE, ES_ACTION_TYPE_NOTIFY, m_bxl->normalize_path(linkPath.c_str(), O_NOFOLLOW, m_pidStr.c_str()), m_bxl->GetProgramPath(), S_IFLNK);
+    // TODO: Figure out how to report the errno
+    IOEvent event(ES_EVENT_TYPE_NOTIFY_CREATE, ES_ACTION_TYPE_NOTIFY, m_bxl->normalize_path(linkPath.c_str(), O_NOFOLLOW, m_pidStr.c_str()), m_bxl->GetProgramPath(), S_IFLNK, false, "", /* error */ 0);
     m_bxl->report_access(SYSCALL_NAME_STRING(symlink), event);
 }
 
@@ -707,7 +729,8 @@ HANDLER_FUNCTION(symlinkat)
     auto dirfd = ReadArgumentLong(2);
     auto linkPath = ReadArgumentString(3, /*nullTerminated*/ true);
 
-    IOEvent event(ES_EVENT_TYPE_NOTIFY_CREATE, ES_ACTION_TYPE_NOTIFY, m_bxl->normalize_path_at(dirfd, linkPath.c_str(), O_NOFOLLOW, m_pidStr.c_str()), m_bxl->GetProgramPath(), S_IFLNK);
+    // TODO: Figure out how to report the errno
+    IOEvent event(ES_EVENT_TYPE_NOTIFY_CREATE, ES_ACTION_TYPE_NOTIFY, m_bxl->normalize_path_at(dirfd, linkPath.c_str(), O_NOFOLLOW, m_pidStr.c_str()), m_bxl->GetProgramPath(), S_IFLNK, false, "", /* error */ 0);
     m_bxl->report_access(SYSCALL_NAME_STRING(symlinkat), event);
 
 }
@@ -716,7 +739,8 @@ HANDLER_FUNCTION(readlink)
 {
     auto path = ReadArgumentString(1, /*nullTerminated*/ true);
 
-    m_bxl->report_access(SYSCALL_NAME_STRING(readlink), ES_EVENT_TYPE_NOTIFY_READLINK, path.c_str(), /*mode*/ 0, O_NOFOLLOW);
+    // TODO: Figure out how to report the errno
+    m_bxl->report_access(SYSCALL_NAME_STRING(readlink), ES_EVENT_TYPE_NOTIFY_READLINK, path.c_str(), /*mode*/ 0, O_NOFOLLOW, /* error */ 0);
 }
 
 HANDLER_FUNCTION(readlinkat)
@@ -724,14 +748,16 @@ HANDLER_FUNCTION(readlinkat)
     auto fd = ReadArgumentLong(1);
     auto path = ReadArgumentString(2, /*nullTerminated*/ true);
 
-    m_bxl->report_access_at(SYSCALL_NAME_STRING(readlinkat), ES_EVENT_TYPE_NOTIFY_READLINK, fd, path.c_str(), O_NOFOLLOW, /*getModeWithFd*/ false, m_pidStr.c_str());
+    // TODO: Figure out how to report the errno
+    m_bxl->report_access_at(SYSCALL_NAME_STRING(readlinkat), ES_EVENT_TYPE_NOTIFY_READLINK, fd, path.c_str(), O_NOFOLLOW, /*getModeWithFd*/ false, m_pidStr.c_str(), /* error */ 0);
 }
 
 HANDLER_FUNCTION(utime)
 {
     auto filename = ReadArgumentString(1, /*nullTerminated*/ true);
 
-    m_bxl->report_access(SYSCALL_NAME_STRING(utime), ES_EVENT_TYPE_NOTIFY_SETTIME, filename.c_str());
+    // TODO: Figure out how to report the errno
+    m_bxl->report_access(SYSCALL_NAME_STRING(utime), ES_EVENT_TYPE_NOTIFY_SETTIME, filename.c_str(), "", 0, /* error */ 0);
 }
 
 HANDLER_FUNCTION(utimes)
@@ -744,7 +770,8 @@ HANDLER_FUNCTION(utimensat)
     auto dirfd = ReadArgumentLong(1);
     auto pathname = ReadArgumentString(2, /*nullTerminated*/ true);
 
-    m_bxl->report_access_at(SYSCALL_NAME_STRING(utimensat), ES_EVENT_TYPE_NOTIFY_SETTIME, dirfd, pathname.c_str(), /*oflags*/ 0, /*getModeWithFd*/ false, m_pidStr.c_str());
+    // TODO: Figure out how to report the errno
+    m_bxl->report_access_at(SYSCALL_NAME_STRING(utimensat), ES_EVENT_TYPE_NOTIFY_SETTIME, dirfd, pathname.c_str(), /*oflags*/ 0, /*getModeWithFd*/ false, m_pidStr.c_str(), /* error */ 0);
 }
 
 HANDLER_FUNCTION(futimesat)
@@ -752,7 +779,8 @@ HANDLER_FUNCTION(futimesat)
     auto dirfd = ReadArgumentLong(1);
     auto pathname = ReadArgumentString(2, /*nullTerminated*/ true);
 
-    m_bxl->report_access_at(SYSCALL_NAME_STRING(futimesat), ES_EVENT_TYPE_NOTIFY_SETTIME, dirfd, pathname.c_str(), /*oflags*/ 0, /*getModeWithFd*/ false, m_pidStr.c_str());
+    // TODO: Figure out how to report the errno
+    m_bxl->report_access_at(SYSCALL_NAME_STRING(futimesat), ES_EVENT_TYPE_NOTIFY_SETTIME, dirfd, pathname.c_str(), /*oflags*/ 0, /*getModeWithFd*/ false, m_pidStr.c_str(), /* error */ 0);
 }
 
 HANDLER_FUNCTION(mkdir)
@@ -806,13 +834,15 @@ HANDLER_FUNCTION(fchmodat)
     auto flags = ReadArgumentLong(4);
 
     int oflags = (flags & AT_SYMLINK_NOFOLLOW) ? O_NOFOLLOW : 0;
-    m_bxl->report_access_at(SYSCALL_NAME_STRING(fchmodat), ES_EVENT_TYPE_NOTIFY_SETMODE, dirfd, pathname.c_str(), oflags, /*getModeWithFd*/ false, m_pidStr.c_str());
+    // TODO: Figure out how to report the errno
+    m_bxl->report_access_at(SYSCALL_NAME_STRING(fchmodat), ES_EVENT_TYPE_NOTIFY_SETMODE, dirfd, pathname.c_str(), oflags, /*getModeWithFd*/ false, m_pidStr.c_str(), /* error */ 0);
 }
 
 HANDLER_FUNCTION(chown)
 {
     auto pathname = ReadArgumentString(1, /*nullTerminated*/ true);
-    m_bxl->report_access(SYSCALL_NAME_STRING(chown), ES_EVENT_TYPE_AUTH_SETOWNER, pathname.c_str());
+    // TODO: Figure out how to report the errno
+    m_bxl->report_access(SYSCALL_NAME_STRING(chown), ES_EVENT_TYPE_AUTH_SETOWNER, pathname.c_str(), "", 0, /* error */ 0);
 }
 
 HANDLER_FUNCTION(fchown)
@@ -824,7 +854,8 @@ HANDLER_FUNCTION(fchown)
 HANDLER_FUNCTION(lchown)
 {
     auto pathname = ReadArgumentString(1, /*nullTerminated*/ true);
-    m_bxl->report_access(SYSCALL_NAME_STRING(lchown), ES_EVENT_TYPE_AUTH_SETOWNER, pathname.c_str(), /*mode*/ 0, O_NOFOLLOW);
+    // TODO: Figure out how to report the errno
+    m_bxl->report_access(SYSCALL_NAME_STRING(lchown), ES_EVENT_TYPE_AUTH_SETOWNER, pathname.c_str(), /*mode*/ 0, O_NOFOLLOW, /* error */ 0);
 }
 
 HANDLER_FUNCTION(fchownat)
@@ -834,7 +865,8 @@ HANDLER_FUNCTION(fchownat)
     auto flags = ReadArgumentLong(5);
 
     int oflags = (flags & AT_SYMLINK_NOFOLLOW) ? O_NOFOLLOW : 0;
-    auto check = m_bxl->report_access_at(SYSCALL_NAME_STRING(fchownat), ES_EVENT_TYPE_AUTH_SETOWNER, dirfd, pathname.c_str(), oflags, /*getModeWithFd*/ false, m_pidStr.c_str());
+    // TODO: figure out how to report the errno
+    m_bxl->report_access_at(SYSCALL_NAME_STRING(fchownat), ES_EVENT_TYPE_AUTH_SETOWNER, dirfd, pathname.c_str(), oflags, /*getModeWithFd*/ false, m_pidStr.c_str(), /* error */ 0);
 }
 
 HANDLER_FUNCTION(sendfile)
@@ -862,5 +894,5 @@ HANDLER_FUNCTION(name_to_handle_at)
 
 HANDLER_FUNCTION(exit)
 {
-    m_bxl->report_access("on_exit", ES_EVENT_TYPE_NOTIFY_EXIT, std::string(""), std::string(""));
+    m_bxl->report_access("on_exit", ES_EVENT_TYPE_NOTIFY_EXIT, std::string(""), std::string(""), 0, /* error */ 0);
 }

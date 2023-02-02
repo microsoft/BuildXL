@@ -1876,6 +1876,11 @@ namespace BuildXL
                         listener.EnableEtwOutputLogging(new EtwOnlyTextLogger(loggingContext, logEntry.Value));
                     }
                 }
+
+                if (EngineEnvironmentSettings.EnableCacheClientLogFileTelemetry)
+                {
+                    BuildXL.Cache.MemoizationStoreAdapter.EtwFileLog.EnableEtwLogging = true;
+                }
             }
         }
 

@@ -9,11 +9,18 @@ using BuildXL.Utilities.Instrumentation.Common;
 namespace BuildXL.Cache.MemoizationStoreAdapter
 {
     /// <summary>
-    /// Specialized logger which routes log messages to telemetry as well as a log file
+    /// Specialized logger which logs messages to a file and optionally also to an ETW stream which may be picked
+    /// up by telemetry depending on the environment. Defaults to just logging to a <see cref="FileLog"/>.
     /// </summary>
     public sealed class EtwFileLog : FileLog
     {
         private readonly EtwOnlyTextLogger m_logger;
+
+        /// <summary>
+        /// Controls whether lines written to this <see cref="EtwFileLog"/> get emitted to ETW in addition to the file log.
+        /// ETW logging is disabled by default. Disabled by default
+        /// </summary>
+        public static bool EnableEtwLogging { get; set; }
 
         /// <summary>
         /// Class constructor
@@ -21,7 +28,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         public EtwFileLog(string logFilePath, string logKind)
             : base(logFilePath)
         {
-            if (EtwOnlyTextLogger.TryGetDefaultGlobalLoggingContext(out var loggingContext))
+            if (EnableEtwLogging && EtwOnlyTextLogger.TryGetDefaultGlobalLoggingContext(out var loggingContext))
             {
                 m_logger = new EtwOnlyTextLogger(loggingContext, logKind);
             }

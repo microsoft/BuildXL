@@ -502,6 +502,12 @@ namespace BuildXL.Utilities.Configuration
         public static readonly Setting<bool> NinjaResolverAllowPdbOutputFlags = CreateSetting("BuildXLNinjaResolverAllowPdbOutputFlags", value => value == "1");
 
         /// <summary>
+        /// Whether to route cache client logs to an ETW stream which may be picked up by telemetry. Enabling this will
+        /// cause cache client logs to get routed to Kusto in CloudBuild.
+        /// </summary>
+        public static readonly Setting<bool> EnableCacheClientLogFileTelemetry = CreateSetting("EnableCacheClientLogFileTelemetry", value => value == "1");
+
+        /// <summary>
         /// Sets the variable for consumption by settings
         /// </summary>
         public static void SetVariable(string name, string value)

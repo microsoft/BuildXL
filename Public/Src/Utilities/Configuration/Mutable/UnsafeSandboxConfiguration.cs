@@ -157,6 +157,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
         public bool IgnorePreserveOutputsPrivatization { get; set; }
 
         /// <inheritdoc/>
-        public bool DoNotApplyAllowListToDynamicOutputs { get; set; }
+        public bool? DoNotApplyAllowListToDynamicOutputs { get; set; }
     }
 }

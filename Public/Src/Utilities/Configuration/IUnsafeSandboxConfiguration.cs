@@ -207,7 +207,7 @@ namespace BuildXL.Utilities.Configuration
         /// <remarks>
         /// The default is for now true since turning on this option is a breaking change for some customers. Will be eventually turned to false.
         /// </remarks>
-        bool DoNotApplyAllowListToDynamicOutputs { get; }
+        bool? DoNotApplyAllowListToDynamicOutputs { get; }
 
         // NOTE: if you add a property here, don't forget to update UnsafeSandboxConfigurationExtensions
 
@@ -271,7 +271,11 @@ namespace BuildXL.Utilities.Configuration
             {
                 writer.Write(@this.EnableFullReparsePointResolving.Value);
             }
-            writer.Write(@this.DoNotApplyAllowListToDynamicOutputs);
+            writer.Write(@this.DoNotApplyAllowListToDynamicOutputs.HasValue);
+            if (@this.DoNotApplyAllowListToDynamicOutputs.HasValue)
+            {
+                writer.Write(@this.DoNotApplyAllowListToDynamicOutputs.Value);
+            }
         }
 
         /// <nodoc/>
@@ -303,7 +307,7 @@ namespace BuildXL.Utilities.Configuration
                 IgnoreFullReparsePointResolving = reader.ReadBoolean(),
                 SkipFlaggingSharedOpaqueOutputs = reader.ReadBoolean() ? (bool?)reader.ReadBoolean() : null,
                 EnableFullReparsePointResolving = reader.ReadBoolean() ? (bool?)reader.ReadBoolean() : null,
-                DoNotApplyAllowListToDynamicOutputs = reader.ReadBoolean(),
+                DoNotApplyAllowListToDynamicOutputs = reader.ReadBoolean() ? (bool?)reader.ReadBoolean() : null,
             };
         }
 
@@ -337,7 +341,7 @@ namespace BuildXL.Utilities.Configuration
                 && IsAsSafeOrSafer(lhs.ProbeDirectorySymlinkAsDirectory, rhs.ProbeDirectorySymlinkAsDirectory, SafeDefaults.ProbeDirectorySymlinkAsDirectory)
                 && IsAsSafeOrSafer(lhs.SkipFlaggingSharedOpaqueOutputs(), rhs.SkipFlaggingSharedOpaqueOutputs(), SafeDefaults.SkipFlaggingSharedOpaqueOutputs())
                 && IsAsSafeOrSafer(lhs.EnableFullReparsePointResolving(), rhs.EnableFullReparsePointResolving(), SafeDefaults.EnableFullReparsePointResolving())
-                && IsAsSafeOrSafer(lhs.DoNotApplyAllowListToDynamicOutputs, rhs.DoNotApplyAllowListToDynamicOutputs, SafeDefaults.DoNotApplyAllowListToDynamicOutputs);
+                && IsAsSafeOrSafer(lhs.DoNotApplyAllowListToDynamicOutputs(), rhs.DoNotApplyAllowListToDynamicOutputs(), SafeDefaults.DoNotApplyAllowListToDynamicOutputs());
         }
 
         /// <nodoc />

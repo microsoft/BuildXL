@@ -4422,7 +4422,7 @@ namespace BuildXL.Processes
             ReportedFileAccess access,
             out FileAccessAllowlist.MatchType matchType)
         {
-            if (m_sandboxConfig.UnsafeSandboxConfiguration.DoNotApplyAllowListToDynamicOutputs)
+            if (m_sandboxConfig.UnsafeSandboxConfiguration.DoNotApplyAllowListToDynamicOutputs())
             {
                 matchType = FileAccessAllowlist.MatchType.NoMatch;
                 return true;

@@ -22,6 +22,9 @@ namespace BuildXL.Utilities.Configuration
         /// <nodoc/>
         public const bool DefaultSkipFlaggingSharedOpaqueOutputs = false;
 
+        /// <nodoc/>
+        public const bool DefaultsDoNotApplyAllowListToDynamicOutputs = true;
+
         // Extension methods
 
         /// <nodoc/>
@@ -45,5 +48,8 @@ namespace BuildXL.Utilities.Configuration
         public static bool SkipFlaggingSharedOpaqueOutputs(this IUnsafeSandboxConfiguration configuration) =>
             (configuration.SkipFlaggingSharedOpaqueOutputs ?? DefaultSkipFlaggingSharedOpaqueOutputs);
 
+        /// <nodoc/>
+        public static bool DoNotApplyAllowListToDynamicOutputs(this IUnsafeSandboxConfiguration configuration) =>
+            (configuration.DoNotApplyAllowListToDynamicOutputs ?? DefaultsDoNotApplyAllowListToDynamicOutputs);
     }
 }

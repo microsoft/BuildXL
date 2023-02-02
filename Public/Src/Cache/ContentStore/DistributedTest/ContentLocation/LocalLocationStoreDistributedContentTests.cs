@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -326,7 +327,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     var masterLocationStore = context.GetLocationStore(masterIndex);
 
                     var content = ThreadSafeRandom.GetBytes((int)ContentByteCount);
-                    var path = context.Directories[0].CreateRandomFileName();
+                    var path = AbsolutePath.CreateRandomFileName(context.Directories[0]);
                     FileSystem.WriteAllBytes(path, content);
 
                     // Put file into master session
@@ -448,7 +449,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     var session2 = context.GetDistributedSession(2);
 
                     var content = ThreadSafeRandom.GetBytes((int)ContentByteCount);
-                    var path = context.Directories[0].CreateRandomFileName();
+                    var path = AbsolutePath.CreateRandomFileName(context.Directories[0]);
                     FileSystem.WriteAllBytes(path, content);
 
                     // Insert random file in session 1
@@ -495,7 +496,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     var session2 = context.GetDistributedSession(2);
 
                     var content = ThreadSafeRandom.GetBytes((int)ContentByteCount);
-                    var path = context.Directories[0].CreateRandomFileName();
+                    var path = AbsolutePath.CreateRandomFileName(context.Directories[0]);
                     FileSystem.WriteAllBytes(path, content);
 
                     //------------------------------------------------
@@ -588,7 +589,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     var session2 = context.GetDistributedSession(2);
 
                     var content = ThreadSafeRandom.GetBytes((int)ContentByteCount);
-                    var path = context.Directories[0].CreateRandomFileName();
+                    var path = AbsolutePath.CreateRandomFileName(context.Directories[0]);
                     FileSystem.WriteAllBytes(path, content);
 
                     // Insert random file in session 1
@@ -1653,7 +1654,7 @@ namespace ContentStoreTest.Distributed.Sessions
                             var multiLevelSessions = multiLevelContext.Sessions;
 
                             // Verify pulling the content using place file
-                            var multiLevelPlaceFilePath = multiLevelContext.Directories[0].Path / "ml.randomfile";
+                            var multiLevelPlaceFilePath = multiLevelContext.Directories[0] / "ml.randomfile";
                             var placeFileResult = await multiLevelSessions[0].PlaceFileAsync(
                                 multiLevelContext,
                                 remotePutResult0.ContentHash,
@@ -1678,7 +1679,7 @@ namespace ContentStoreTest.Distributed.Sessions
                         },
                         ensureLiveness: false);
 
-                    var remotePlaceFilePath = remoteContext.Directories[0].Path / "remote.randomfile";
+                    var remotePlaceFilePath = remoteContext.Directories[0] / "remote.randomfile";
 
                     // Verify content is in remote store by placing the content
                     var remotePlaceFileResult = await remoteSessions[0].PlaceFileAsync(
@@ -1765,7 +1766,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     await sessions[1].PlaceFileAsync(
                         context,
                         contentHash,
-                        context.Directories[0].Path / "randomfile",
+                        context.Directories[0] / "randomfile",
                         FileAccessMode.Write,
                         FileReplacementMode.ReplaceExisting,
                         FileRealizationMode.Copy,
@@ -1824,7 +1825,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     await sessions[2].PlaceFileAsync(
                         context,
                         contentHash,
-                        context.Directories[0].Path / "randomfile",
+                        context.Directories[0] / "randomfile",
                         FileAccessMode.Write,
                         FileReplacementMode.ReplaceExisting,
                         FileRealizationMode.Copy,

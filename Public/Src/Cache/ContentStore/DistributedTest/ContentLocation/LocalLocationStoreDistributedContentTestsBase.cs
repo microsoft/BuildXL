@@ -159,23 +159,6 @@ namespace ContentStoreTest.Distributed.Sessions
             _overrideLocationStore = overrideRedis;
         }
 
-        internal TestServerProvider CreateStoreForDistributedContentTests(
-            Context context,
-            IRemoteFileCopier fileCopier,
-            DisposableDirectory testDirectory,
-            int index,
-            int iteration,
-            uint grpcPort)
-        {
-            return CreateStore(
-                context,
-                fileCopier,
-                testDirectory,
-                index,
-                iteration,
-                grpcPort);
-        }
-
         protected override TestServerProvider CreateStore(
             Context context,
             IRemoteFileCopier fileCopier,
@@ -280,13 +263,12 @@ namespace ContentStoreTest.Distributed.Sessions
 
             var localCasSettings = new LocalCasSettings()
             {
-                UseScenarioIsolation = false,
                 CasClientSettings = new LocalCasClientSettings()
                 {
                     UseCasService = true,
                     DefaultCacheName = "Default",
                 },
-                PreferredCacheDrive = Path.GetPathRoot(rootPath.Path),
+                DrivePreferenceOrder = new List<string>() { Path.GetPathRoot(rootPath.Path) },
                 CacheSettings = new Dictionary<string, NamedCacheSettings>()
                                                        {
                                                            {
@@ -316,8 +298,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 };
             }
 
-            settings = ModifySettings(settings);
-            var configuration = new DistributedCacheServiceConfiguration(localCasSettings, settings);
+            settings = ModifyDistributedContentSettingsAcrossAllTests(settings);
 
             var arguments = new DistributedCacheServiceArguments(
                 new Context(Logger),
@@ -327,20 +308,23 @@ namespace ContentStoreTest.Distributed.Sessions
                 Host,
                 new HostInfo("TestStamp", "TestRing", capabilities: new string[0]),
                 Token,
-                dataRootPath: rootPath.Path,
-                configuration: configuration,
+                dataRootPath: localCasSettings.DefaultRootPath.Path,
+                configuration: new DistributedCacheServiceConfiguration(localCasSettings, settings),
                 keyspace: UniqueTestId,
                 fileSystem: FileSystem
-            );
+            )
+            { Overrides = TestInfos[index].Overrides };
 
-            arguments.Overrides = TestInfos[index].Overrides;
             arguments = ModifyArguments(arguments);
             TestInfos[index].Arguments = arguments;
 
             return CreateStore(context, arguments);
         }
 
-        protected virtual TestDistributedContentSettings ModifySettings(TestDistributedContentSettings dcs) => dcs;
+        protected virtual TestDistributedContentSettings ModifyDistributedContentSettingsAcrossAllTests(TestDistributedContentSettings dcs)
+        {
+            return dcs;
+        }
 
         protected virtual TestServerProvider CreateStore(Context context, DistributedCacheServiceArguments arguments)
         {
@@ -348,11 +332,12 @@ namespace ContentStoreTest.Distributed.Sessions
             {
                 var server = (ILocalContentServer<TStore>)new CacheServerFactory(arguments).CreateAsync(new OperationContext(context)).GetAwaiter().GetResult();
                 TStore store = server.StoresByName["Default"];
-                return (store, server);
+                return new TestServerProvider(arguments, server, () => store);
             }
             else
             {
-                return (CreateFromArguments(arguments), null);
+                var store = CreateFromArguments(arguments);
+                return new TestServerProvider(arguments, store, () => store);
             }
         }
 
@@ -416,8 +401,8 @@ namespace ContentStoreTest.Distributed.Sessions
                 return null;
             }
 
-            public static implicit operator InstanceRef(LocalLocationStore value) => new InstanceRef(LocalLocationStore: value); 
-            public static implicit operator InstanceRef(int value) => new InstanceRef(Index: value); 
+            public static implicit operator InstanceRef(LocalLocationStore value) => new InstanceRef(LocalLocationStore: value);
+            public static implicit operator InstanceRef(int value) => new InstanceRef(Index: value);
             public static implicit operator InstanceRef(TransitioningContentLocationStore value) => new InstanceRef(LocationStore: value);
         }
 
@@ -611,7 +596,7 @@ namespace ContentStoreTest.Distributed.Sessions
         private class MockTelemetryFieldsProvider : ITelemetryFieldsProvider
         {
             public string BuildId => "BuildId";
-            
+
             public string ServiceName { get; } = "MockServiceName";
 
             public string APEnvironment { get; } = "MockAPEnvironment";

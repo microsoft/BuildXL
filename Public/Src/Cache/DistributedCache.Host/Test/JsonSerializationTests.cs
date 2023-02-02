@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.IO;
 using System.Runtime.Serialization;
 using System.Text.Json;
 using BuildXL.Cache.Host.Configuration;
@@ -31,7 +32,7 @@ namespace BuildXL.Cache.Host.Test
         [Fact]
         public void TestLocalCASSettings()
         {
-            var input = LocalCasSettings.Default();
+            var input = LocalCasSettings.Default(cacheRootPath: Path.GetTempPath());
             var options = new JsonSerializerOptions() {WriteIndented = true};
             var json = JsonSerializer.Serialize(input, options);
 

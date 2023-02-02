@@ -59,7 +59,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
             var server = new TestCacheServerWrapper(Host, arguments);
 
-            return new TestServerProvider(server, new Func<IContentStore>(() =>
+            return new TestServerProvider(arguments, server, new Func<IContentStore>(() =>
             {
                 return server.Host.Store.Task.Result;
             }));

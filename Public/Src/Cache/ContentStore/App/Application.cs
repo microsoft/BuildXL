@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
@@ -649,12 +650,12 @@ namespace BuildXL.Cache.ContentStore.App
             var distributedCacheServiceHost = new EnvironmentVariableHost(context);
 
             var localCasSettings = LocalCasSettings.Default(
-                maxSizeQuotaMB: maxSizeQuotaMB,
                 cacheRootPath: cacheRootPath,
+                maxSizeQuotaMB: maxSizeQuotaMB,
                 cacheName: cacheName,
                 grpcPort: grpcPort,
                 grpcPortFileName: _scenario);
-            localCasSettings.PreferredCacheDrive = new AbsolutePath(cacheRootPath).GetPathRoot();
+            localCasSettings.DrivePreferenceOrder = new List<string>() { new AbsolutePath(cacheRootPath).GetPathRoot() };
             localCasSettings.ServiceSettings = new LocalCasServiceSettings(60, scenarioName: _scenario, grpcPort: grpcPort, grpcPortFileName: _scenario, bufferSizeForGrpcCopies: bufferSizeForGrpcCopies);
 
             var config = new DistributedCacheServiceConfiguration(localCasSettings, dcs, loggingSettings);

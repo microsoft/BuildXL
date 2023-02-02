@@ -7,7 +7,6 @@ using System.IO;
 using System.Linq;
 using System.Runtime.Serialization;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
-using BuildXL.Cache.ContentStore.Interfaces.Utils;
 
 #nullable disable
 
@@ -22,8 +21,6 @@ namespace BuildXL.Cache.Host.Configuration
         {    
         }
 
-        public static readonly AbsolutePath DefaultCacheDrive = OperatingSystemHelper.IsUnixOS ? new AbsolutePath("/") : new AbsolutePath("D:\\");
-
         public LocalCasSettings(
             string cacheSizeQuotaString,
             long defaultSingleInstanceTimeoutSec,
@@ -33,11 +30,9 @@ namespace BuildXL.Cache.Host.Configuration
             uint gracefulShutdownSeconds = LocalCasServiceSettings.DefaultGracefulShutdownSeconds,
             uint retryIntervalSecondsOnFailServiceCalls = LocalCasClientSettings.DefaultRetryCountOnFailServiceCalls,
             uint retryCountOnFailServiceCalls = LocalCasClientSettings.DefaultRetryCountOnFailServiceCalls,
-            bool supportsSensitiveSessions = false,
             string scenarioName = null,
             uint grpcPort = 0,
             string grpcPortFileName = null,
-            bool supportsProactiveReplication = true,
             int? bufferSizeForGrpcCopies = null)
         {
             CasClientSettings = new LocalCasClientSettings(useCasService, cacheName, retryIntervalSecondsOnFailServiceCalls, retryCountOnFailServiceCalls);
@@ -50,25 +45,22 @@ namespace BuildXL.Cache.Host.Configuration
                 grpcPortFileName: grpcPortFileName,
                 bufferSizeForGrpcCopies: bufferSizeForGrpcCopies);
 
-            AddNamedCache(cacheName, new NamedCacheSettings(
-                cacheRootPath, cacheSizeQuotaString, supportsSensitiveSessions, supportsProactiveReplication, requiredCapabilites: null));
+            AddNamedCache(cacheName, new NamedCacheSettings() { CacheRootPath = cacheRootPath, CacheSizeQuotaString = cacheSizeQuotaString, });
         }
 
-        public static LocalCasSettings Default(int maxSizeQuotaMB = 1024, string cacheRootPath = null, string cacheName = "CacheName", uint grpcPort = 7096, string grpcPortFileName = LocalCasServiceSettings.DefaultFileName) =>
+        public static LocalCasSettings Default(string cacheRootPath, int maxSizeQuotaMB = 1024, string cacheName = "CacheName", uint grpcPort = 7096, string grpcPortFileName = LocalCasServiceSettings.DefaultFileName) =>
             new LocalCasSettings(
                 cacheSizeQuotaString: $"{maxSizeQuotaMB}MB",
                 defaultSingleInstanceTimeoutSec: 0,
-                cacheRootPath: cacheRootPath ?? (DefaultCacheDrive / "Cache" / "cacheRoot").Path,
+                cacheRootPath: cacheRootPath,
                 cacheName: cacheName,
                 useCasService: false,
                 gracefulShutdownSeconds: 15,
                 retryIntervalSecondsOnFailServiceCalls: 12,
                 retryCountOnFailServiceCalls: 12,
-                supportsSensitiveSessions: false,
                 scenarioName: null,
                 grpcPort: grpcPort,
-                grpcPortFileName: grpcPortFileName,
-                supportsProactiveReplication: false);
+                grpcPortFileName: grpcPortFileName);
 
         /// <summary>
         /// For unit test use only.
@@ -91,61 +83,20 @@ namespace BuildXL.Cache.Host.Configuration
         public Dictionary<string, NamedCacheSettings> CacheSettings { get; set; }
 
         /// <summary>
-        /// Deprecated - Recognized in config, but deprecated in favor of <see cref="DrivePreferenceOrder"/>.
-        /// Will be removed once all configs are updated.
-        /// TODO: Remove DataMemberAttribute and setter.
-        /// </summary>
-        [DataMember]
-        public string PreferredCacheDrive
-        {
-            get
-            {
-                if(DrivePreferenceOrder == null || DrivePreferenceOrder.Count == 0)
-                {
-                    return null;
-                }
-                return DrivePreferenceOrder[0];
-            }
-            set
-            {
-                if (value == null)
-                {
-                    if (DrivePreferenceOrder != null)
-                    {
-                        DrivePreferenceOrder.Clear();
-                    }
-                }
-                else
-                {
-                    if (DrivePreferenceOrder == null)
-                    {
-                        DrivePreferenceOrder = new List<string>();
-                    }
-
-                    DrivePreferenceOrder.Clear();
-                    DrivePreferenceOrder.Add(value);
-                }
-            }
-        }
-
-        /// <summary>
         /// Order of drive preference when multiple cache sessions enabled.  
         /// At runtime, the first element of this list is used for streamed content.
         /// Configuration allows multiple drives, since some may not be availble on some machines, 
         /// and be removed from config based on capability checks.
         /// </summary>
         [DataMember]
-        public List<string> DrivePreferenceOrder { get; set; } = new List<string> { DefaultCacheDrive.Path };
-
-        /// <summary>
-        /// Indicates whether CAS instances should be separated by Scenario
-        /// </summary>
-        public bool UseScenarioIsolation { get; set; } = true;
+        public List<string> DrivePreferenceOrder { get; set; } = new();
 
         /// <summary>
         /// The resolved scenario name
         /// </summary>
         public string ResolvedScenario => ServiceSettings?.ScenarioName ?? DefaultScenario;
+
+        public AbsolutePath DefaultRootPath => GetCacheRootPathWithScenario(CasClientSettings.DefaultCacheName);
 
         public AbsolutePath GetCacheRootPathWithScenario(string cacheName)
         {
@@ -161,30 +112,23 @@ namespace BuildXL.Cache.Host.Configuration
             }
         }
 
-        public string GetCacheRootPath(string cacheName, string intent)
+        private string GetCacheRootPath(string name, string scenario)
         {
-            if (string.IsNullOrEmpty(cacheName))
+            if (string.IsNullOrEmpty(name))
             {
-                throw new ArgumentException($"Could not get cache root path due to null or empty {nameof(cacheName)}");
+                throw new ArgumentException($"Could not get cache root path due to null or empty {nameof(name)}");
             }
 
-            var settings = GetCacheSettings(cacheName);
-            if (UseScenarioIsolation)
+            if (string.IsNullOrEmpty(scenario))
             {
-                if (string.IsNullOrEmpty(intent))
-                {
-                    throw new ArgumentException($"Could not get cache root path due to null or empty {nameof(intent)}");
-                }
+                throw new ArgumentException($"Could not get cache root path due to null or empty {nameof(scenario)}");
+            }
 
-                return Path.Combine(settings.CacheRootPath, intent);
-            }
-            else
-            {
-                return settings.CacheRootPath;
-            }
+            var settings = GetCacheSettings(name);
+            return Path.Combine(settings.CacheRootPath, scenario);
         }
 
-        public NamedCacheSettings GetCacheSettings(string cacheName)
+        private NamedCacheSettings GetCacheSettings(string cacheName)
         {
             NamedCacheSettings settings;
             if (!CacheSettingsByCacheName.TryGetValue(cacheName, out settings))
@@ -199,7 +143,7 @@ namespace BuildXL.Cache.Host.Configuration
         {
             AddNamedCache(cacheName, new NamedCacheSettings()
             {
-                CacheRootPath = cacheRoot
+                CacheRootPath = cacheRoot,
             });
         }
 

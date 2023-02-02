@@ -27,7 +27,6 @@ namespace BuildXL.Cache.Host.Service.Internal
 
             var result = new LocalCasSettings
             {
-                UseScenarioIsolation = @this.UseScenarioIsolation,
                 CasClientSettings = @this.CasClientSettings,
                 ServiceSettings = @this.ServiceSettings,
                 DrivePreferenceOrder = new List<string>(@this.DrivePreferenceOrder)
@@ -37,21 +36,6 @@ namespace BuildXL.Cache.Host.Service.Internal
 
             foreach (KeyValuePair<string, NamedCacheSettings> kvp in @this.CacheSettingsByCacheName)
             {
-                // check that the stamp has the capabilities required by the named cache.
-                if (kvp.Value.RequiredCapabilities != null && kvp.Value.RequiredCapabilities.Count > 0)
-                {
-                    string missingCaps = string.Join(",", kvp.Value.RequiredCapabilities
-                        .Where(cap => !hostCapabilities.Contains(cap, StringComparer.OrdinalIgnoreCase)));
-                    if (!string.IsNullOrEmpty(missingCaps))
-                    {
-                        logger.Debug(
-                            "Named cache '{0}' was discarded since environment lacks required capabilities: {1}.",
-                            kvp.Key, missingCaps);
-
-                        continue;
-                    }
-                }
-
                 AbsolutePath rootPath = @this.GetCacheRootPathWithScenario(kvp.Key);
                 string root = rootPath.GetPathRoot();
 

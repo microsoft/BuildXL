@@ -37,7 +37,7 @@ namespace ContentStoreTest.Distributed.Sessions
             return Task.CompletedTask;
         }
 
-        protected override TestDistributedContentSettings ModifySettings(TestDistributedContentSettings dcs)
+        protected override TestDistributedContentSettings ModifyDistributedContentSettingsAcrossAllTests(TestDistributedContentSettings dcs)
         {
             if (!dcs.IsMasterEligible)
             {
@@ -54,7 +54,7 @@ namespace ContentStoreTest.Distributed.Sessions
             dcs.LocationStoreSettings.EnableBlobContentLocationRegistry = true;
             dcs.GlobalCacheDatabaseValidationMode = DatabaseValidationMode.LogAndError;
             dcs.ContentMetadataUseMergeWrites = true;
-            return base.ModifySettings(dcs);
+            return base.ModifyDistributedContentSettingsAcrossAllTests(dcs);
         }
 
         protected override async Task<BoolResult> RestoreCheckpointAsync(InstanceRef storeRef, TestContext context)

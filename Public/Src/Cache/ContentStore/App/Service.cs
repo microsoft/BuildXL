@@ -88,7 +88,7 @@ namespace BuildXL.Cache.ContentStore.App
 
             using var exitEvent = GetExitEvent();
 
-            var localCasSettings = LocalCasSettings.Default(maxSizeQuotaMB, paths[0], names[0], grpcPort, grpcPortFileName);
+            var localCasSettings = LocalCasSettings.Default(paths[0], maxSizeQuotaMB, names[0], grpcPort, grpcPortFileName);
             for (int i = 1; i < names.Length; i++)
             {
                 localCasSettings.AddNamedCache(names[i], paths[i]);

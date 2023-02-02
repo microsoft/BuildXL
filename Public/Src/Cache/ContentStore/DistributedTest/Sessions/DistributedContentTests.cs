@@ -3,6 +3,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.Diagnostics.Contracts;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -75,7 +77,11 @@ namespace ContentStoreTest.Distributed.Sessions
 
         protected abstract TStore CreateFromArguments(DistributedCacheServiceArguments arguments);
 
-        protected virtual DistributedCacheServiceArguments ModifyArguments(DistributedCacheServiceArguments arguments) => arguments;
+        protected virtual DistributedCacheServiceArguments ModifyArguments(DistributedCacheServiceArguments arguments)
+        {
+            Assert.NotNull(arguments);
+            return arguments;
+        }
 
         protected abstract TestServerProvider CreateStore(
             Context context,
@@ -88,26 +94,22 @@ namespace ContentStoreTest.Distributed.Sessions
         public class TestServerProvider
         {
             private readonly Func<TStore> _getStore;
+
+            public DistributedCacheServiceArguments Arguments { get; }
+
             public IStartupShutdownSlim Server { get; }
+
             public TStore Store => _getStore();
 
-            public TestServerProvider(IStartupShutdownSlim server, TStore store)
-                : this(server ?? store, () => store)
+            public TestServerProvider(DistributedCacheServiceArguments arguments, IStartupShutdownSlim server, Func<TStore> getStore)
             {
-            }
-
-            public TestServerProvider(IStartupShutdownSlim server, Func<TStore> getStore)
-            {
+                Assert.NotNull(arguments);
                 Assert.NotNull(server);
                 Assert.NotNull(getStore);
 
+                Arguments = arguments;
                 Server = server;
                 _getStore = getStore;
-            }
-
-            public static implicit operator TestServerProvider((TStore store, IStartupShutdownSlim server) t)
-            {
-                return new TestServerProvider(t.server, t.store);
             }
         }
 
@@ -119,7 +121,7 @@ namespace ContentStoreTest.Distributed.Sessions
             public readonly OperationContext[] StoreContexts;
             public readonly TestFileCopier TestFileCopier;
             public readonly IRemoteFileCopier FileCopier;
-            public readonly IList<DisposableDirectory> Directories;
+            public readonly IList<AbsolutePath> Directories;
             public IList<TSession> Sessions { get; protected set; }
             public IReadOnlyList<TestServerProvider> ServerProviders;
             public readonly IReadOnlyList<TStore> Stores;
@@ -130,24 +132,11 @@ namespace ContentStoreTest.Distributed.Sessions
 
             public virtual bool ShouldCreateContentSessions => true;
 
-            public TestContext(TestContext other)
-                : this(
-                      other._testInstance,
-                      other.Context,
-                      other.FileCopier,
-                      other.Directories,
-                      other.ServerProviders,
-                      other.Iteration,
-                      other.Ports,
-                      other._traceStoreStatistics)
-            {
-            }
-
             public TestContext(
                 DistributedContentTests<TStore, TSession> testInstance,
                 Context context,
                 IRemoteFileCopier fileCopier,
-                IList<DisposableDirectory> directories,
+                IList<AbsolutePath> directories,
                 IReadOnlyList<TestServerProvider> serverProviders,
                 int iteration,
                 int[] ports,
@@ -156,7 +145,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 _testInstance = testInstance;
                 _traceStoreStatistics = traceStoreStatistics;
                 Context = context;
-                StoreContexts = serverProviders.Select((s, index) => new OperationContext(CreateContext(index, iteration))).ToArray();
+                StoreContexts = serverProviders.Select((s, index) => new OperationContext(CreateTracingContext(index, iteration))).ToArray();
                 TestFileCopier = fileCopier as TestFileCopier;
                 FileCopier = fileCopier;
                 Directories = directories;
@@ -167,7 +156,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 Ports = ports;
             }
 
-            private Context CreateContext(int index, int iteration)
+            private Context CreateTracingContext(int index, int iteration)
             {
                 var idBytes = Enumerable.Repeat(byte.MaxValue, 16).ToArray();
 
@@ -536,7 +525,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 Assert.True(putResult.Succeeded);
 
                 // Place file from session 1
-                var filePath = context.Directories[1].Path / "Temp" / "file.txt";
+                var filePath = context.Directories[1] / "Temp" / "file.txt";
                 var placeResult = await sessions[1].PlaceFileAsync(
                     context,
                     putResult.ContentHash,
@@ -549,7 +538,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 FileSystem.FileExists(filePath).Should().BeTrue();
 
                 // Ensure file is added to local content store for session 1
-                var expectedLocalContentPath = PathUtilities.GetContentPath(context.Directories[1].Path / "Root", putResult.ContentHash);
+                var expectedLocalContentPath = PathUtilities.GetContentPath(context.Directories[1], putResult.ContentHash);
                 Assert.True(File.Exists(expectedLocalContentPath.Path));
             });
         }
@@ -571,7 +560,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 var placeResult = await sessions[0].PlaceFileAsync(
                     context,
                     hash,
-                    context.Directories[0].Path / "blah",
+                    context.Directories[0] / "blah",
                     FileAccessMode.ReadOnly,
                     FileReplacementMode.FailIfExists,
                     FileRealizationMode.Any,
@@ -598,7 +587,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 putResult0.ContentHash.Should().Be(putResult1.ContentHash, "both puts of the same content should have the same hash.");
 
                 // Delete file from local content store 0
-                var localContentPath = PathUtilities.GetContentPath(context.Directories[0].Path / "Root", putResult0.ContentHash);
+                var localContentPath = PathUtilities.GetContentPath(context.Directories[0], putResult0.ContentHash);
                 File.Delete(localContentPath.Path);
                 context.TestFileCopier.FilesCopied.TryAdd(localContentPath, localContentPath);
 
@@ -616,11 +605,12 @@ namespace ContentStoreTest.Distributed.Sessions
 
                 var randomBytesForHash = ThreadSafeRandom.GetBytes(0x40);
                 var putResult0 = await sessions[0].PutStreamAsync(testContext.Context, HashType.Vso0, new MemoryStream(randomBytesForHash), Token).ShouldBeSuccess();
-                File.Exists(PathUtilities.GetContentPath(testContext.Directories[0].Path / "Root", putResult0.ContentHash).Path).Should().BeTrue();
+                var path = PathUtilities.GetContentPath(testContext.Directories[0], putResult0.ContentHash).Path;
+                File.Exists(path).Should().BeTrue();
 
                 var randomBytesForPut = ThreadSafeRandom.GetBytes(0x40);
                 var putResult1 = await sessions[1].PutStreamAsync(testContext.Context, putResult0.ContentHash, new MemoryStream(randomBytesForPut), Token).ShouldBeError();
-                File.Exists(PathUtilities.GetContentPath(testContext.Directories[1].Path / "Root", putResult0.ContentHash).Path).Should().BeFalse();
+                File.Exists(PathUtilities.GetContentPath(testContext.Directories[1], putResult0.ContentHash).Path).Should().BeFalse();
             });
         }
 
@@ -979,7 +969,7 @@ namespace ContentStoreTest.Distributed.Sessions
                                 iteration: iteration,
                                 grpcPort: (uint)ports[directory.Index])).ToList();
 
-                    var testContext = ConfigureTestContext(new TestContext(this, context, testFileCopier, indexedDirectories.Select(p => p.Directory).ToList(), stores, iteration, ports));
+                    var testContext = new TestContext(this, context, testFileCopier, stores.Select(p => p.Arguments.Configuration.LocalCasSettings.DefaultRootPath).ToList(), stores, iteration, ports);
 
                     GlobalTestContext.Value = testContext;
 
@@ -1021,11 +1011,6 @@ namespace ContentStoreTest.Distributed.Sessions
                     directory.Dispose();
                 }
             }
-        }
-
-        protected virtual TestContext ConfigureTestContext(TestContext context)
-        {
-            return context;
         }
 
         protected async Task OpenStreamReturnsExpectedFile(

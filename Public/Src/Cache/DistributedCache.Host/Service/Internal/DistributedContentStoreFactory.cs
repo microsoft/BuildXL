@@ -306,24 +306,14 @@ namespace BuildXL.Cache.Host.Service.Internal
 
         public MultiplexedContentStore CreateMultiplexedStore(Func<ResolvedNamedCacheSettings, IContentStore> createContentStore)
         {
-            var cacheConfig = _arguments.Configuration;
-            var distributedSettings = cacheConfig.DistributedContentSettings;
-            var drivesWithContentStore = new Dictionary<string, IContentStore>(StringComparer.OrdinalIgnoreCase);
-
-            foreach (var resolvedCacheSettings in OrderedResolvedCacheSettings)
+            var contentStores = new Dictionary<string, IContentStore>(StringComparer.OrdinalIgnoreCase);
+            foreach (var settings in OrderedResolvedCacheSettings)
             {
-                _logger.Debug($"Using [{resolvedCacheSettings.Settings.CacheRootPath}]'s settings: {resolvedCacheSettings.Settings}");
-
-                drivesWithContentStore[resolvedCacheSettings.Drive] = createContentStore(resolvedCacheSettings);
+                _logger.Debug($"Using [{settings.Settings.CacheRootPath}]'s settings: {settings.Settings}");
+                contentStores[settings.Drive] = createContentStore(settings);
             }
 
-            if (string.IsNullOrEmpty(cacheConfig.LocalCasSettings.PreferredCacheDrive))
-            {
-                var knownDrives = string.Join(",", OrderedResolvedCacheSettings.Select(cacheSetting => cacheSetting.Drive));
-                throw new ArgumentException($"Preferred cache drive is missing, which can indicate an invalid configuration. Known drives={knownDrives}");
-            }
-
-            return new MultiplexedContentStore(drivesWithContentStore, cacheConfig.LocalCasSettings.PreferredCacheDrive);
+            return new MultiplexedContentStore(contentStores, OrderedResolvedCacheSettings[0].Drive);
         }
 
         private static DistributedContentStoreSettings CreateDistributedStoreSettings(

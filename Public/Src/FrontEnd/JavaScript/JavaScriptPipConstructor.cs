@@ -415,9 +415,13 @@ namespace BuildXL.FrontEnd.JavaScript
                 (m_resolverSettings.DoubleWritePolicy.Value | RewritePolicy.SafeSourceRewritesAreAllowed) : 
                 RewritePolicy.DefaultSafe;
 
-            // Untrack the user profile. The corresponding mount is already configured for not tracking source files, and with allowed undeclared source reads,
+            // On Windows, untrack the user profile. The corresponding mount is already configured for not tracking source files, and with allowed undeclared source reads,
             // any attempt to read into the user profile will fail to compute its corresponding hash
-            processBuilder.AddUntrackedDirectoryScope(DirectoryArtifact.CreateWithZeroPartialSealId(PathTable, SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.UserProfile)));
+            // On Linux the user profile maps to the user home folder, which is a location too broad to untrack.
+            if (OperatingSystemHelper.IsWindowsOS)
+            {
+                processBuilder.AddUntrackedDirectoryScope(DirectoryArtifact.CreateWithZeroPartialSealId(PathTable, SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.UserProfile)));
+            }
 
             // Add the associated build script name as a tag, so filtering on 'build' or 'test' can happen
             processBuilder.Tags = ReadOnlyArray<StringId>.FromWithoutCopy(new[] { StringId.Create(m_context.StringTable, project.ScriptCommandName) });

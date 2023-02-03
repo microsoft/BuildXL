@@ -1479,15 +1479,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         AddToRecentReconcileRemoves(hash, Configuration.ReconcileCacheLifetime);
                     }
 
-                    // Send remove event for hashes
-                    var result = EventStore.RemoveLocations(context, machineId, shortHashes);
-
-                    if (Configuration.OnEvictionDeleteLocationFromGCS)
-                    {
-                        result &= await GlobalCacheStore.DeleteLocationAsync(context, machineId, shortHashes);
-                    }
-                    
-                    return result;
+                    return EventStore.RemoveLocations(context, machineId, shortHashes) & await GlobalCacheStore.DeleteLocationAsync(context, machineId, shortHashes);
                 },
                 Counters[ContentLocationStoreCounters.TrimBulkLocal]);
         }

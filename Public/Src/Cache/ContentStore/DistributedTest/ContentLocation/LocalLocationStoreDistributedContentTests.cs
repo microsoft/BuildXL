@@ -2168,12 +2168,6 @@ namespace ContentStoreTest.Distributed.Sessions
         [Fact]
         public Task EventStreamContentLocationStoreBasicTests()
         {
-            ConfigureWithOneMaster(
-                d =>
-                {
-                    d.OnEvictionDeleteLocationFromGCS = false;
-                });
-
             return RunTestAsync(
                 3,
                 async context =>
@@ -2246,7 +2240,7 @@ namespace ContentStoreTest.Distributed.Sessions
                         Token,
                         UrgencyHint.Nominal,
                         GetBulkOrigin.Global).ShouldBeSuccess();
-                    masterResult.ContentHashesInfo[0].Locations.Should().NotBeNullOrEmpty("With LLS only mode, content is not eagerly removed from Redis.");
+                    masterResult.ContentHashesInfo[0].Locations.Should().BeNullOrEmpty("With LLS + GCS mode, content is eagerly removed from GCS.");
 
                     masterResult = await master.GetBulkAsync(
                         context,

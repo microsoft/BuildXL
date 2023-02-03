@@ -214,6 +214,15 @@ bool BxlObserver::Send(const char *buf, size_t bufsiz)
     return true;
 }
 
+bool BxlObserver::SendExitReport()
+{
+    IOHandler handler(sandbox_);
+    handler.SetProcess(process_);
+    AccessReport report;
+    handler.CreateReportProcessExited(getpid(), report);
+    return SendReport(report);
+}
+
 bool BxlObserver::SendReport(const AccessReportGroup &report)
 {
     bool result = report.firstReport.shouldReport 

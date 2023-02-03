@@ -1046,7 +1046,7 @@ INTERPOSE(int, dup3, int oldfd, int newfd, int flags)({
 
 static void report_exit(int exitCode, void *args)
 {
-    BxlObserver::GetInstance()->report_access("on_exit", ES_EVENT_TYPE_NOTIFY_EXIT, std::string(""), std::string(""));
+    BxlObserver::GetInstance()->SendExitReport();
 }
 
 // invoked by the loader when our shared library is dynamically loaded into a new host process

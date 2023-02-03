@@ -122,8 +122,7 @@ public:
             const std::string exec,
             mode_t mode,
             bool modified = false,
-            uint error = 0,
-            bool shouldSendReport = false)
+            uint error = 0)
     : pid_(pid), cpid_(cpid), ppid_(ppid), oppid_(ppid), eventType_(type), actionType_(action), src_path_(src), dst_path_(dst), executable_(exec), 
         mode_(mode), modified_(modified), error_(error)
     {

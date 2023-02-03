@@ -301,6 +301,10 @@ public:
 
     bool SendReport(const AccessReport &report);
     bool SendReport(const AccessReportGroup &report);
+    // Specialization for the exit report event. 
+    // We may need to send an exit report on exit handlers after destructors
+    // have been called. This method avoids accessing shared structures.
+    bool SendExitReport();
     char** ensureEnvs(char *const envp[]);
 
     const char* GetProgramPath() { return progFullPath_; }

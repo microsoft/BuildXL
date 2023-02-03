@@ -988,6 +988,11 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                 
                 // Disposing options to avoid getting them finalized.
                 m_defaults.DbOptions.Dispose();
+
+                foreach (var columnFamilyInfo in m_columns.Values)
+                {
+                    columnFamilyInfo.Options.Dispose();
+                }
             }
             else
             {

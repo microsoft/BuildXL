@@ -12,7 +12,6 @@ using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Secrets;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
-using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using BuildXL.Cache.ContentStore.InterfacesTest.Sessions;
@@ -225,7 +224,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test
             {
                 Credentials = new AzureBlobStorageCredentials(storage.ConnectionString),
                 FolderName = OverrideFolderName ?? _runId.ToString(),
-                BlobDownloadStrategyConfiguration = new BlobDownloadStrategyConfiguration(Strategy: BlobDownloadStrategy.HttpClientDownloadToMemoryMappedFile),
                 // NOTE: bulk pin strategies don't work with the storage emulator, so if you want to test these, you
                 // need to hard code a connection string to an actual storage account.
                 BulkPinStrategy = AzureBlobStorageContentSession.BulkPinStrategy.Individual,

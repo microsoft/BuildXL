@@ -20,7 +20,6 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
                 AzureBlobStorageCredentials Credentials,
                 string Universe,
                 TimeSpan StorageInteractionTimeout,
-                BlobDownloadStrategyConfiguration DownloadStrategyConfiguration,
                 TimeSpan MetadataPinElisionDuration,
                 string Namespace = "default",
                 bool CoerceNames = true
@@ -73,7 +72,6 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
                 ContainerName = namespce,
                 FolderName = $"content/{universe}",
                 StorageInteractionTimeout = configuration.StorageInteractionTimeout,
-                BlobDownloadStrategyConfiguration = configuration.DownloadStrategyConfiguration,
             });
 
             var cache = new OneLevelCache(

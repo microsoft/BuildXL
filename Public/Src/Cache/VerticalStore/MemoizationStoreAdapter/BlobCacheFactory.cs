@@ -120,13 +120,12 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         private static MemoizationStore.Interfaces.Caches.ICache CreateCache(Config configuration)
         {
             var connectionString = Environment.GetEnvironmentVariable(configuration.ConnectionStringEnvironmentVariableName);
-
+            Contract.Assert(!string.IsNullOrEmpty(connectionString), $"Can't find a connection string in environment variable '{configuration.ConnectionStringEnvironmentVariableName}'.");
             var factoryConfiguration = new AzureBlobStorageCacheFactory.Configuration(
                 Credentials: new ContentStore.Interfaces.Secrets.AzureBlobStorageCredentials(connectionString),
                 Universe: configuration.Universe,
                 Namespace: configuration.Namespace,
                 StorageInteractionTimeout: TimeSpan.FromHours(1),
-                DownloadStrategyConfiguration: new ContentStore.Distributed.Blobs.BlobDownloadStrategyConfiguration(),
                 MetadataPinElisionDuration: TimeSpan.FromDays(1));
 
             return AzureBlobStorageCacheFactory.Create(factoryConfiguration);

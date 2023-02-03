@@ -10,6 +10,18 @@ using Microsoft.Win32.SafeHandles;
 
 namespace BuildXL.Cache.ContentStore.FileSystem
 {
+    /// <nodoc />
+    public static class TrackingFileStreamExtensions
+    {
+        /// <summary>
+        /// Gets the write duration for <paramref name="fileStream"/> if the underlying file stream is <see cref="TrackingFileStream"/>.
+        /// </summary>
+        public static TimeSpan? GetWriteDurationIfAvailable(this FileStream fileStream)
+        {
+            return (fileStream is TrackingFileStream tfs) ? tfs.WriteDuration : null;
+        }
+    }
+
     /// <summary>
     /// Special tracking file stream that fails with more readable error message if unhandled error occurs in the finalizer of the instance and the time spent reading/writing a file.
     /// </summary>

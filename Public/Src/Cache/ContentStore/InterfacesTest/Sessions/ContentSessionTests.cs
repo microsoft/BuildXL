@@ -21,6 +21,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using BuildXL.Cache.ContentStore.InterfacesTest.Utils;
 using BuildXL.Cache.ContentStore.InterfacesTest;
+using FluentAssertions;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -287,7 +288,8 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Sessions
                     FileReplacementMode.ReplaceExisting,
                     FileRealizationMode.Any,
                     Token);
-                Assert.Equal(PlaceFileResult.ResultCode.NotPlacedContentNotFound, result.Code);
+
+                result.Code.Should().Be(PlaceFileResult.ResultCode.NotPlacedContentNotFound, $"Result: {result.ToString()}");
             });
         }
 

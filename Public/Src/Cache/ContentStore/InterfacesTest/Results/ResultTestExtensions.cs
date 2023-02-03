@@ -4,6 +4,7 @@
 using System;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using FluentAssertions;
 using Xunit;
 
 namespace BuildXL.Cache.ContentStore.InterfacesTest.Results
@@ -82,14 +83,14 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Results
 
         public static OpenStreamResult ShouldBeNotFound(this OpenStreamResult result)
         {
-            Assert.Equal(OpenStreamResult.ResultCode.ContentNotFound, result.Code);
+            result.Code.Should().Be(OpenStreamResult.ResultCode.ContentNotFound, $"Result: {result}");
             Assert.Null(result.Stream);
             return result;
         }
 
         public static OpenStreamResult ShouldBeCancelled(this OpenStreamResult result)
         {
-            Assert.Equal(OpenStreamResult.ResultCode.Error, result.Code);
+            result.Code.Should().Be(OpenStreamResult.ResultCode.Error, $"Result: {result}");
             Assert.Null(result.Stream);
             Assert.Contains("canceled", result.ToString());
             return result;

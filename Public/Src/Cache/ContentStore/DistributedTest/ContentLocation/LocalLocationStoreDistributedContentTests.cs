@@ -2478,14 +2478,12 @@ namespace ContentStoreTest.Distributed.Sessions
                         Token,
                         UrgencyHint.Nominal,
                         GetBulkOrigin.Local).ShouldBeSuccess();
-                    masterResult.ContentHashesInfo[0].Locations.Should().BeNullOrEmpty("After heartbeat, worker location should be filtered due to inactivity");
+                    masterResult.ContentHashesInfo[0].Locations.Count.Should().Be(1, "RemoveFromTracker should keep the machine available until shutdown");
 
                     master.LocalLocationStore.Database.Counters[ContentLocationDatabaseCounters.TotalNumberOfCleanedEntries].Value.Should().Be(0, "No entries should be cleaned before GC is called");
                     master.LocalLocationStore.Database.Counters[ContentLocationDatabaseCounters.TotalNumberOfCollectedEntries].Value.Should().Be(0, "No entries should be cleaned before GC is called");
 
                     await master.LocalLocationStore.Database.GarbageCollectAsync(context).ShouldBeSuccess();
-
-                    master.LocalLocationStore.Database.Counters[ContentLocationDatabaseCounters.TotalNumberOfCollectedEntries].Value.Should().Be(1, "After GC, the entry with only a location from the expired machine should be collected");
 
                     // Heartbeat worker to switch back to active state
                     await worker0.LocalLocationStore.SetOrGetMachineStateAsync(context, MachineState.Unknown).ShouldBeSuccess();
@@ -2493,7 +2491,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     // Insert random file in session 0
                     var putResult1 = await workerSession.PutRandomAsync(context, ContentHashType, false, ContentByteCount, Token).ShouldBeSuccess();
 
-                    worker0.LocalLocationStore.Counters[ContentLocationStoreCounters.LocationAddRecentInactiveEager].Value.Should().Be(1, "Putting content after inactivity should eagerly go to global store.");
+                    worker0.LocalLocationStore.Counters[ContentLocationStoreCounters.LocationAddRecentInactiveEager].Value.Should().Be(0, "New content shouldn't eagerly go to global store because RemoveFromTracker keeps the machine available");
 
                     var worker1GlobalResult = await worker1.GetBulkAsync(
                         context,
@@ -2918,16 +2916,11 @@ namespace ContentStoreTest.Distributed.Sessions
                     state = (await lls.SetOrGetMachineStateAsync(ctx, MachineState.Unknown).ShouldBeSuccess()).Value;
                     state.Should().Be(MachineState.Open);
 
-                    // Invalidate leads to unavailable
+                    // Invalidate keeps the same state (change to DeadUnavailable before shutdown)
                     var workerPrimaryMachineId = worker.LocalLocationStore.ClusterState.PrimaryMachineId;
                     await worker.LocalLocationStore.InvalidateLocalMachineAsync(ctx, workerPrimaryMachineId).ShouldBeSuccess();
                     state = (await lls.SetOrGetMachineStateAsync(ctx, MachineState.Unknown).ShouldBeSuccess()).Value;
-                    state.Should().Be(MachineState.DeadUnavailable);
-
-                    // Keep the same state after heartbeat!
-                    await worker.LocalLocationStore.HeartbeatAsync(ctx, inline: true).ShouldBeSuccess();
-                    state = (await lls.SetOrGetMachineStateAsync(ctx, MachineState.Unknown).ShouldBeSuccess()).Value;
-                    state.Should().Be(MachineState.DeadUnavailable);
+                    state.Should().Be(MachineState.Open);
                 });
         }
 
@@ -2971,6 +2964,52 @@ namespace ContentStoreTest.Distributed.Sessions
                     // Reload cluster state
                     await master.LocalLocationStore.SetOrGetMachineStateAsync(ctx, MachineState.Unknown).ShouldBeSuccess();
                     master.LocalLocationStore.ClusterState.ClosedMachines.Contains(workerPrimaryMachineId).Should().BeTrue();
+                });
+        }
+
+        [Fact]
+        public Task MachineShutdownTransitionsToDeadUnavailable()
+        {
+            ConfigureWithOneMaster(
+                overrideDistributed: s =>
+                {
+                    s.MachineActiveToClosedIntervalMinutes = null;
+                    s.MachineActiveToExpiredIntervalMinutes = null;
+                });
+
+            int machineCount = 2;
+            
+            return RunTestAsync(
+                machineCount,
+                ensureLiveness: false,
+                testFunc: async context =>
+                {
+
+                    var sessions = context.Sessions;
+
+                    var masterSession = sessions[context.GetMasterIndex()];
+                    var workerSession = sessions[context.GetFirstWorkerIndex()];
+                    var master = context.GetMaster();
+                    var workerIndex = context.GetFirstWorkerIndex();
+                    var worker = context.GetFirstWorker();
+
+                    var ctx = new OperationContext(context);
+
+                    // Ensure initialization finishes on the worker
+                    await worker.LocalLocationStore.HeartbeatAsync(ctx, inline: true).ShouldBeSuccess();
+
+                    var workerPrimaryMachineId = worker.LocalLocationStore.ClusterState.PrimaryMachineId;
+
+                    await worker.LocalLocationStore.InvalidateLocalMachineAsync(ctx, workerPrimaryMachineId).ShouldBeSuccess();
+
+                    // Ensure safe shutdown
+                    await workerSession.ShutdownAsync(ctx).ShouldBeSuccess();
+                    // Shutting down the entire store to avoid issue with double shut down.
+                    await context.Servers[workerIndex].ShutdownAsync(ctx).ShouldBeSuccess();
+
+                    // Reload cluster state
+                    var currentState = (await worker.LocalLocationStore.SetOrGetMachineStateAsync(ctx, MachineState.Unknown).ShouldBeSuccess()).Value;
+                    currentState.Should().Be(MachineState.DeadUnavailable);
                 });
         }
 

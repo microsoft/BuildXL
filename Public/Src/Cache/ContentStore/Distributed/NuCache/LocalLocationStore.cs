@@ -129,6 +129,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private ILocalContentStore? _localContentStore;
         private bool _forceRestoreOnNextProcessState;
 
+        private bool _repairPendingToHandle = false;
+
         public ClusterStateManager ClusterStateManager { get; private set; }
         internal ClusterState ClusterState => ClusterStateManager.ClusterState;
 
@@ -372,8 +374,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             // Cancel any ongoing reconciliation cycles, and has to be before we set the machine state as closed, because reconciliation completion can set the state as open.
             await CancelCurrentReconciliationAsync(context);
-
-            await SetOrGetMachineStateAsync(context, MachineState.Closed).IgnoreFailure();
+            MachineState proposedState = _repairPendingToHandle ? MachineState.DeadUnavailable : MachineState.Closed;
+            await SetOrGetMachineStateAsync(context, proposedState).IgnoreFailure();
 
             _heartbeatTimer?.Dispose();
 
@@ -2112,13 +2114,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             return context.PerformOperationAsync(
                 Tracer,
-                async () =>
+                () =>
                 {
-                    // TODO: Setting machine state to DeadUnavailable is too aggressive as the machine may not shutdown immediately.
-                    // Instead we need to mark the machine as untrusted.
-                    await SetOrGetMachineStateAsync(context, MachineState.DeadUnavailable).IgnoreFailure();
+                    // Setting machine state to DeadUnavailable before shutdown.
+                    _repairPendingToHandle = true;
 
-                    return BoolResult.Success;
+                    return Task.FromResult(BoolResult.Success);
                 });
         }
 

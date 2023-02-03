@@ -87,7 +87,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
         protected override async Task<ContentHashListResult> GetContentHashListCoreAsync(OperationContext context, StrongFingerprint strongFingerprint, bool preferShared)
         {
             var result = await GetContentHashListMultiLevelAsync(context, strongFingerprint, preferShared);
-            if (_localLocationStore.Configuration.TouchContentHashLists && result.Succeeded && result.Value.contentHashListInfo.ContentHashList != null)
+            if (result.Succeeded && result.Value.contentHashListInfo.ContentHashList != null)
             {
                 // TODO: We can represent touches to content in the system with BlobContentLocationRegistry by creating
                 // a content entry for the content hash list and touching that.

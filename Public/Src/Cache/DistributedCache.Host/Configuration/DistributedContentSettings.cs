@@ -936,9 +936,6 @@ namespace BuildXL.Cache.Host.Configuration
         public Dictionary<string, string> AlternateDriveMap { get; set; } = new Dictionary<string, string>();
 
         [DataMember]
-        public bool TouchContentHashLists { get; set; }
-
-        [DataMember]
         public CacheActivityTrackerConfiguration CacheActivityTracker { get; set; } = new CacheActivityTrackerConfiguration();
 
         /// <summary>

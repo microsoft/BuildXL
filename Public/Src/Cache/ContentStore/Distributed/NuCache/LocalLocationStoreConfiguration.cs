@@ -355,11 +355,6 @@ namespace BuildXL.Cache.ContentStore.Distributed
         public bool MachineListPrioritizeDesignatedLocations { get; set; }
 
         /// <summary>
-        /// Indicates whether content hash lists should be touched after retrieval
-        /// </summary>
-        public bool TouchContentHashLists { get; set; }
-
-        /// <summary>
         /// Whether to filter out inactive machines in <see cref="LocalLocationStore"/> or rely on the old behavior when the filtering was happening on the database level only.
         /// </summary>
         public bool ShouldFilterInactiveMachinesInLocalLocationStore { get; set; } = false;

@@ -202,7 +202,6 @@ namespace BuildXL.Cache.Host.Service.Internal
                 PreferredLocationsExpiryTime = TimeSpan.FromMinutes(_distributedSettings.PreferredLocationsExpiryTimeMinutes),
                 PrimaryMachineLocation = OrderedResolvedCacheSettings[0].MachineLocation,
                 MachineListPrioritizeDesignatedLocations = _distributedSettings.PrioritizeDesignatedLocationsOnCopies,
-                TouchContentHashLists = _distributedSettings.TouchContentHashLists,
             };
 
             ApplyIfNotNull(_distributedSettings.ReplicaCreditInMinutes, v => result.ContentLifetime = TimeSpan.FromMinutes(v));

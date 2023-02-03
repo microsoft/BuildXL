@@ -65,11 +65,6 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Test
             EnablePublishingCache = true;
             UseGrpcServer = true;
 
-            ConfigureWithOneMaster(dcs =>
-            {
-                dcs.TouchContentHashLists = true;
-            });
-
             return RunTestAsync(
                 3,
                 async context =>
@@ -229,11 +224,6 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Test
         {
             UseGrpcServer = true;
 
-            ConfigureWithOneMaster(dcs =>
-            {
-                dcs.TouchContentHashLists = true;
-            });
-
             return RunTestAsync(
                 3,
                 async context =>
@@ -309,11 +299,6 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Test
         [Fact]
         public Task RespectPreferSharedWithSinglePhaseNonDeterminism()
         {
-            ConfigureWithOneMaster(dcs =>
-            {
-                dcs.TouchContentHashLists = true;
-            });
-
             return RunTestAsync(
                 3,
                 async context =>
@@ -390,7 +375,6 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Test
                 dcs.RegisterHintHandling = skipMode
                     ? RegisterHintHandling.SkipAndRegisterAssociatedContent
                     : RegisterHintHandling.RegisterAssociatedContent;
-                dcs.TouchContentHashLists = true;
             });
 
             return RunTestAsync(

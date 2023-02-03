@@ -90,7 +90,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
                                 selectorAndPossible.Selector.ContentHash,
                                 expirationUtc.Value);
                             _blobContentSession.ExpiryCache.AddExpiry(
-                                selectorAndPossible.ContentHashList.ContentHashListWithDeterminism.BlobIdentifier.ToContentHash(),
+                                BlobIdentifier.IdToContentHash(selectorAndPossible.ContentHashList.ContentHashListWithDeterminism.BlobIdentifier),
                                 expirationUtc.Value);
                         }
                     }
@@ -237,7 +237,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
             if (contentHashListWithDeterminism.MetadataBlobDownloadUri != null)
             {
                 _blobContentSession.UriCache.AddDownloadUri(
-                    contentHashListWithDeterminism.BlobIdentifier.ToContentHash(),
+                    BlobIdentifier.IdToContentHash(contentHashListWithDeterminism.BlobIdentifier),
                     new PreauthenticatedUri(contentHashListWithDeterminism.MetadataBlobDownloadUri, EdgeType.Unknown)); // EdgeType value shouldn't matter because we don't use it.
             }
         }

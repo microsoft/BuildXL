@@ -164,11 +164,11 @@ namespace BuildXL.Cache.ContentStore.Hashing
 
             if (_lastNode.Value.Type == DedupNode.NodeType.ChunkLeaf)
             {
-                result[bytes.Length] = ChunkDedupIdentifier.ChunkAlgorithmId;
+                result[bytes.Length] = (byte)AlgorithmId.Chunk;
             }
             else
             {
-                result[bytes.Length] = (byte)ChunkerConfiguration.GetNodeAlgorithmId(_chunker.Configuration);
+                result[bytes.Length] = (byte)Hashing.AlgorithmId.Node;
             }
 
             return result;

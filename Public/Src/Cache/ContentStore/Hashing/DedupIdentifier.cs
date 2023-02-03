@@ -17,19 +17,19 @@ namespace BuildXL.Cache.ContentStore.Hashing
     {
         private readonly byte[] _value;
         private int AlgorithmIdIndex => _value.Length - 1;
-
         /// <nodoc />
-        protected DedupIdentifier(byte[] algorithmResult, byte algorithmId)
+        protected DedupIdentifier(byte[] algorithmResult,AlgorithmId dedupType)
         {
             Contract.Requires(algorithmResult != null);
             Contract.Requires(algorithmResult.Length == 32);
 
             _value = new byte[algorithmResult.Length + 1];
             algorithmResult.CopyTo(_value, 0);
-            _value[algorithmResult.Length] = algorithmId;
+
+            _value[algorithmResult.Length] = (byte)dedupType;
         }
 
-        protected DedupIdentifier(HashAndAlgorithm hashAndAlgorithm)
+        protected DedupIdentifier(HashAndAlgorithmId hashAndAlgorithm)
         {
             if (null == hashAndAlgorithm.Bytes)
             {
@@ -47,63 +47,62 @@ namespace BuildXL.Cache.ContentStore.Hashing
             }
 
             byte[] value = HexUtilities.HexToBytes(valueIncludingAlgorithm);
-            return DedupIdentifier.Create(new HashAndAlgorithm(value));
+            return DedupIdentifier.Create(new HashAndAlgorithmId(value));
         }
 
-        public static DedupIdentifier Create(DedupNode node)
+        public static DedupIdentifier Create(DedupNode node, HashType hashType)
         {
             Contract.Requires(node != null);
 
             return Create(
                 node.Hash,
-                (node.Type == DedupNode.NodeType.ChunkLeaf) ?
-                    ChunkDedupIdentifier.ChunkAlgorithmId :
-                    (byte)NodeAlgorithmId.Node64K); // TODO: We need to fix this.
+                node.Type == DedupNode.NodeType.ChunkLeaf ? Hashing.AlgorithmId.Chunk 
+                    : Hashing.AlgorithmId.Node); 
         }
 
-        public static DedupIdentifier Create(byte[] algorithmResult, byte algorithmId)
+        public static DedupIdentifier Create(byte[] algorithmResult, AlgorithmId dedupType)
         {
             Contract.Requires(algorithmResult != null);
 
-            if (algorithmId == ChunkDedupIdentifier.ChunkAlgorithmId)
+            if (dedupType == Hashing.AlgorithmId.Chunk)
             {
                 return new ChunkDedupIdentifier(algorithmResult);
             }
-            else if (((NodeAlgorithmId)algorithmId).IsValidNode())
+            else if (dedupType == Hashing.AlgorithmId.Node)
             {
-                return new NodeDedupIdentifier(algorithmResult, (NodeAlgorithmId)algorithmId);
+                return new NodeDedupIdentifier(algorithmResult);
             }
 
-            throw new NotSupportedException($"Unknown algorithm {algorithmId}");
+            throw new NotSupportedException($"Unknown algorithm {dedupType}");
         }
 
-        public static DedupIdentifier Create(HashAndAlgorithm hashAndAlgorithm)
+        public static DedupIdentifier Create(HashAndAlgorithmId hashAndAlgorithm)
         {
             Contract.Requires(hashAndAlgorithm.Bytes != null);
 
-            byte algorithmId = hashAndAlgorithm.AlgorithmId;
-            if (algorithmId == ChunkDedupIdentifier.ChunkAlgorithmId)
+            AlgorithmId dedupType = hashAndAlgorithm.AlgorithmId;
+            if (dedupType == Hashing.AlgorithmId.Chunk)
             {
                 return new ChunkDedupIdentifier(hashAndAlgorithm);
             }
-            else if (((NodeAlgorithmId)algorithmId).IsValidNode())
+            else if (dedupType == Hashing.AlgorithmId.Node)
             {
                 return new NodeDedupIdentifier(hashAndAlgorithm);
             }
             else
             {
-                throw new NotSupportedException($"Unknown algorithm {algorithmId}");
+                throw new NotSupportedException($"Unknown algorithm {dedupType}");
             }
         }
 
         public NodeDedupIdentifier CastToNodeDedupIdentifier()
         {
-            return new NodeDedupIdentifier(new HashAndAlgorithm(Value));
+            return new NodeDedupIdentifier(new HashAndAlgorithmId(Value));
         }
 
         public ChunkDedupIdentifier CastToChunkDedupIdentifier()
         {
-            return new ChunkDedupIdentifier(new HashAndAlgorithm(Value));
+            return new ChunkDedupIdentifier(new HashAndAlgorithmId(Value));
         }
 
         /// <summary>
@@ -127,24 +126,24 @@ namespace BuildXL.Cache.ContentStore.Hashing
         public BlobIdentifier ToBlobIdentifier() => new BlobIdentifier(AlgorithmResult, AlgorithmId);
 
         /// <summary>
-        /// Hash produced by AlgorithmId's hashing algorithm.
+        /// Hash produced by Dedup Types's hashing algorithm.
         /// </summary>
         public byte[] AlgorithmResult => _value.Take(AlgorithmIdIndex).ToArray();
 
         /// <summary>
-        /// Dedup identifier string representation without the algorithm Id.
+        /// Dedup identifier string representation without the dedup type.
         /// </summary>
         public string AlgorithmResultString => AlgorithmResult.ToHex();
 
         /// <summary>
-        /// Dedup identifier string representation with the algorithm Id.
+        /// Dedup identifier string representation with thededup type.
         /// </summary>
         public string ValueString => _value.ToHex();
 
         /// <summary>
-        /// Byte appended to end of identifier to mark the type of hashing algorithm used.
+        /// Get the type of dedup represented by this content:
         /// </summary>
-        public byte AlgorithmId => _value[AlgorithmIdIndex];
+        public AlgorithmId AlgorithmId => (AlgorithmId)_value[AlgorithmIdIndex];
 
         /// <nodoc />
         public byte[] Value
@@ -217,11 +216,11 @@ namespace BuildXL.Cache.ContentStore.Hashing
         }
     }
 
-    public readonly struct HashAndAlgorithm
+    public readonly struct HashAndAlgorithmId
     {
         public readonly byte[] Bytes;
-        public byte AlgorithmId => Bytes[Bytes.Length - 1];
-        public HashAndAlgorithm(byte[] bytes)
+        public AlgorithmId AlgorithmId => (Hashing.AlgorithmId)Bytes[Bytes.Length - 1];
+        public HashAndAlgorithmId(byte[] bytes)
         {
             Contract.Requires(bytes != null);
             Contract.Assert(bytes.Length > 32, $"Byte representing the hash algorithm id is missing. Actual Hash Length: {bytes.Length}");

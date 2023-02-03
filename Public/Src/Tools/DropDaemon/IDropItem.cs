@@ -59,6 +59,12 @@ namespace Tool.DropDaemon
         /// </summary>
         [NotNull]
         Task<FileInfo> EnsureMaterialized();
+
+        /// <summary>
+        /// (Optional) ContentHash.
+        /// </summary>
+        [CanBeNull]
+        ContentHash? ContentHash { get; }
     }
 }
 

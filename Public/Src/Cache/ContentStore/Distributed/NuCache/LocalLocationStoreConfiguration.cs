@@ -41,11 +41,6 @@ namespace BuildXL.Cache.ContentStore.Distributed
     public record LocalLocationStoreConfiguration
     {
         /// <summary>
-        /// The keyspace under which all keys in global store are stored
-        /// </summary>
-        public string? Keyspace { get; set; }
-
-        /// <summary>
         /// The time before a machine is marked as closed from its last heartbeat as open.
         /// </summary>
         public TimeSpan MachineActiveToClosedInterval { get; set; } = TimeSpan.FromMinutes(10);

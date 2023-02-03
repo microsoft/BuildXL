@@ -6,16 +6,18 @@ using BuildXL.Cache.ContentStore.Distributed.Services;
 using BuildXL.Cache.ContentStore.Distributed.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 
+#nullable enable
+
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
-    public record ContentLocationStoreFactoryArguments
+    public sealed class ContentLocationStoreFactoryArguments
     {
-        public DistributedContentCopier Copier { get; init; }
+        public required DistributedContentCopier Copier { get; init; }
 
-        public IClock Clock { get; init; }
+        public required IClock Clock { get; init; }
 
-        public GrpcConnectionPool ConnectionPool { get; init; }
+        public required GrpcConnectionPool ConnectionPool { get; init; }
 
-        public ContentLocationStoreServicesDependencies Dependencies { get; init; } = new ContentLocationStoreServicesDependencies();
+        public required ContentLocationStoreServicesDependencies Dependencies { get; init; }
     }
 }

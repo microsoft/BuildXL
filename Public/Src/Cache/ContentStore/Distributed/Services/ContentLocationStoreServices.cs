@@ -60,9 +60,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
         protected DistributedContentCopier Copier => Arguments.Copier;
 
         /// <nodoc />
-        protected string KeySpace => Configuration.Keyspace!;
-
-        /// <nodoc />
         public OptionalServiceDefinition<ClientGlobalCacheStore> ClientGlobalCacheStore { get; }
 
         /// <nodoc />

@@ -18,9 +18,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     /// </summary>
     public class ContentLocationStoreFactory
     {
-        // https://github.com/StackExchange/StackExchange.Redis/blob/master/Docs/Basics.md
-        // Maintain the same connection multiplexer to reuse across sessions
-
         /// <nodoc />
         private Tracer Tracer { get; } = new Tracer(nameof(ContentLocationStoreFactory));
 
@@ -31,29 +28,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         protected DistributedContentCopier Copier => Arguments.Copier;
 
         /// <nodoc />
-        protected string KeySpace => Configuration.Keyspace!;
-
-        /// <nodoc />
         protected readonly LocalLocationStoreConfiguration Configuration;
 
+        /// <nodoc />
         protected internal ContentLocationStoreFactoryArguments Arguments { get; }
 
         /// <nodoc />
         public ContentLocationStoreServices Services { get; }
-
-        public ContentLocationStoreFactory(
-            IClock clock,
-            LocalLocationStoreConfiguration configuration,
-            DistributedContentCopier copier)
-            : this(
-                new ContentLocationStoreFactoryArguments()
-                {
-                    Clock = clock,
-                    Copier = copier
-                },
-                configuration)
-        {
-        }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ContentLocationStoreFactory"/> class.
@@ -63,7 +44,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             LocalLocationStoreConfiguration configuration)
         {
             Contract.Requires(configuration != null);
-            Contract.Requires(!string.IsNullOrWhiteSpace(configuration.Keyspace));
             Contract.Requires(arguments.Copier != null);
 
             Arguments = arguments;

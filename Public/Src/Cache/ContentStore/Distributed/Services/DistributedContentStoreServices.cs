@@ -86,8 +86,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
 
         internal IServiceDefinition<ICheckpointRegistry> CacheServiceCheckpointRegistry { get; }
 
-        internal IServiceDefinition<AzureBlobStorageCheckpointRegistry> CacheServiceBlobCheckpointRegistry { get; }
-
         internal DistributedContentStoreServices(DistributedContentStoreServicesArguments arguments)
         {
             Arguments = arguments;
@@ -239,8 +237,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
             var clock = Arguments.Clock;
 
             CentralStorage centralStorage = GlobalCacheStreamStorage.Instance;
-
-            var blobCheckpointRegistry = CacheServiceCheckpointRegistry.Instance as AzureBlobStorageCheckpointRegistry;
 
             if (ContentLocationStoreConfiguration.DistributedCentralStore != null)
             {

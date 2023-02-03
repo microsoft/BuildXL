@@ -6,7 +6,6 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Text;
-using System.Threading;
 using BuildXL.Cache.ContentStore.Distributed;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
@@ -15,19 +14,16 @@ using BuildXL.Cache.ContentStore.Distributed.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Distributed;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
-using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Secrets;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Sessions;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
-using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.Host.Configuration;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling;
 using ContentStore.Grpc;
 using BuildXL.Cache.ContentStore.Service.Grpc;
-using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Cache.ContentStore.Distributed.MetadataService;
 using BuildXL.Cache.ContentStore.Distributed.Services;
 using BuildXL.Cache.ContentStore.Grpc;
@@ -39,11 +35,6 @@ namespace BuildXL.Cache.Host.Service.Internal
 {
     public sealed class DistributedContentStoreFactory : IDistributedServicesSecrets
     {
-        /// <summary>
-        /// Salt to determine keyspace's current version
-        /// </summary>
-        public const string KeySpaceSalt = "V4";
-
         private readonly string _keySpace;
         private readonly IAbsFileSystem _fileSystem;
         private readonly DistributedCacheSecretRetriever _secretRetriever;
@@ -188,7 +179,6 @@ namespace BuildXL.Cache.Host.Service.Internal
 
             var result = new LocalLocationStoreConfiguration
             {
-                Keyspace = _keySpace + KeySpaceSalt,
                 LogReconciliationHashes = _distributedSettings.LogReconciliationHashes,
                 UseFullEvictionSort = _distributedSettings.UseFullEvictionSort,
                 EvictionWindowSize = _distributedSettings.EvictionWindowSize,
@@ -598,10 +588,9 @@ namespace BuildXL.Cache.Host.Service.Internal
                 configuration.DistributedCentralStore = distributedCentralStoreConfiguration;
             }
 
-            ContentLocationEventStoreConfiguration eventStoreConfiguration;
             string epoch = _keySpace + _distributedSettings.EventHubEpoch;
 
-            eventStoreConfiguration = _distributedSettings.DisableContentLocationEvents
+            ContentLocationEventStoreConfiguration eventStoreConfiguration = _distributedSettings.DisableContentLocationEvents
                 ? new NullContentLocationEventStoreConfiguration()
                 : new EventHubContentLocationEventStoreConfiguration(
                     eventHubName: _distributedSettings.EventHubName,

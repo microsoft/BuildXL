@@ -521,10 +521,9 @@ namespace BuildXL.Processes
         /// Whether this access represents a directory creation, and the directory was effectively created
         /// </summary>
         public bool IsDirectoryEffectivelyCreated() =>
-            // For the MacOS case, only effectively created directories are reported
-            Operation == ReportedFileOperation.KAuthCreateDir ||
-            // For the Windows case, this is the case when the return code is zero
-            (Operation == ReportedFileOperation.CreateDirectory && Error == 0);
+            Error == 0 &&
+            (Operation == ReportedFileOperation.KAuthCreateDir ||
+            Operation == ReportedFileOperation.CreateDirectory);
 
         /// <summary>
         /// Whether this access represents a directory removal

@@ -215,8 +215,10 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler().AssertCacheHit(pip.Process.PipId);
         }
 
-        [Fact]
-        public void ExistingDirectoriesArePartOfTheFingerprint()
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void ExistingDirectoriesArePartOfTheFingerprint(bool createDirectoryInBuild)
         {
             var tracker = GetFileTimestampTrackerFromTomorrow();
 
@@ -228,11 +230,21 @@ namespace IntegrationTest.BuildXL.Scheduler
             string nestedDir = Path.Combine(dir, "nested");
             Directory.CreateDirectory(nestedDir);
 
-            var operations = new List<Operation>
+            var operations = new List<Operation>();
+
+            if (createDirectoryInBuild)
             {
-                Operation.EnumerateDir(dirToEnumerate, doNotInfer: true),
-                Operation.WriteFile(CreateOutputFileArtifact()) // dummy output
-            };
+                // Excercise the case when there is a create directory attempt by the current pip
+                // but since that directory already exists, the operation fails. Even though
+                // we get the report of this operation, we shouldn't interpret that as a directory
+                // created by the build, and therefore a change in source files/directories should force
+                // a re-run
+                operations.Add(Operation.CreateDir(dirToEnumerate, doNotInfer: true));
+            }
+
+            operations.Add(Operation.EnumerateDir(dirToEnumerate, doNotInfer: true));
+            // dummy output
+            operations.Add(Operation.WriteFile(CreateOutputFileArtifact())); 
 
             var builder = CreatePipBuilder(operations);
 

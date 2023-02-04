@@ -83,6 +83,27 @@ INTERPOSE(int, scandirat64, int dirfd, const char * dirp,
     return bxl->check_fwd_and_report_scandirat64(report, check, ERROR_RETURN_VALUE, dirfd, dirp, namelist, filter, compar);
 })
 
+INTERPOSE(struct dirent *, readdir, DIR *dirp)
+({
+    AccessReportGroup report;
+    auto check = bxl->create_access_fd(__func__, ES_EVENT_TYPE_NOTIFY_READDIR, dirfd(dirp), report);
+    return bxl->check_fwd_and_report_readdir(report, check, (struct dirent *)NULL, dirp);
+})
+
+INTERPOSE(struct dirent64 *, readdir64, DIR *dirp)
+({
+    AccessReportGroup report;
+    auto check = bxl->create_access_fd(__func__, ES_EVENT_TYPE_NOTIFY_READDIR, dirfd(dirp), report);
+    return bxl->check_fwd_and_report_readdir64(report, check, (struct dirent64 *)NULL, dirp);
+})
+
+INTERPOSE(int, readdir_r, DIR *dirp, struct dirent *entry, struct dirent **result)
+({
+    AccessReportGroup report;
+    auto check = bxl->create_access_fd(__func__, ES_EVENT_TYPE_NOTIFY_READDIR, dirfd(dirp), report);
+    return bxl->check_fwd_and_report_readdir_r(report, check, ERROR_RETURN_VALUE, dirp, entry, result);
+})
+
 INTERPOSE(void, _exit, int status)({
     bxl->report_access("_exit", ES_EVENT_TYPE_NOTIFY_EXIT, std::string(""), std::string(""));
     bxl->real__exit(status);
@@ -730,7 +751,7 @@ INTERPOSE(ssize_t, readlinkat, int fd, const char *path, char *buf, size_t bufsi
 
 INTERPOSE(DIR*, opendir, const char *name)({
     AccessReportGroup report;
-    auto check = bxl->create_access(__func__, ES_EVENT_TYPE_NOTIFY_READDIR, name, report);
+    auto check = bxl->create_access(__func__, ES_EVENT_TYPE_NOTIFY_STAT, name, report);
     DIR *d = bxl->check_fwd_and_report_opendir(report, check, (DIR*)NULL, name);
     if (d) { bxl->reset_fd_table_entry(dirfd(d)); }
     return d;
@@ -738,7 +759,7 @@ INTERPOSE(DIR*, opendir, const char *name)({
 
 INTERPOSE(DIR*, fdopendir, int fd)({
     AccessReportGroup report;
-    auto check = bxl->create_access_fd(__func__, ES_EVENT_TYPE_NOTIFY_READDIR, fd, report);
+    auto check = bxl->create_access_fd(__func__, ES_EVENT_TYPE_NOTIFY_STAT, fd, report);
     return bxl->check_fwd_and_report_fdopendir(report, check, (DIR*)NULL, fd);
 })
 
@@ -1016,6 +1037,11 @@ INTERPOSE(int, close, int fd) ({
 INTERPOSE(int, fclose, FILE *f) ({
     bxl->reset_fd_table_entry(fileno(f));
     return bxl->fwd_fclose(f).restore();
+})
+
+INTERPOSE(int, closedir, DIR *dirp) ({ 
+    bxl->reset_fd_table_entry(dirfd(dirp));
+    return bxl->fwd_closedir(dirp).restore();
 })
 
 INTERPOSE(int, dup, int fd) ({ 

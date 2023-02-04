@@ -877,7 +877,7 @@ bool BxlObserver::EnumerateDirectory(std::string rootDirectory, bool recursive, 
 
         if (dir != NULL)
         {
-            while ((ent = readdir(dir)) != NULL)
+            while ((ent = real_readdir(dir)) != NULL)
             {
                 std::string fileOrDirectory(ent->d_name);
                 if (fileOrDirectory == "." || fileOrDirectory == "..")
@@ -897,7 +897,7 @@ bool BxlObserver::EnumerateDirectory(std::string rootDirectory, bool recursive, 
                 filesAndDirectories.push_back(fullPath);
             }
 
-            closedir(dir);
+            real_closedir(dir);
         }
         else
         {

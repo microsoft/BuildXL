@@ -551,7 +551,11 @@ public:
     GEN_FN_DEF(int, scandirat, int dirfd, const char * dirp, struct dirent *** namelist, int (*filter)(const struct dirent *), int (*compar)(const struct dirent **, const struct dirent **));
     GEN_FN_DEF(int, scandirat64, int dirfd, const char * dirp, struct dirent64 *** namelist, int (*filter)(const struct dirent64  *), int (*compar)(const dirent64 **, const dirent64 **));
     GEN_FN_DEF(int, statx, int dirfd, const char * pathname, int flags, unsigned int mask, struct statx * statxbuf);
-    
+    GEN_FN_DEF(int, closedir, DIR *dirp);
+    GEN_FN_DEF(struct dirent *, readdir, DIR *dirp);
+    GEN_FN_DEF(struct dirent64 *, readdir64, DIR *dirp);
+    GEN_FN_DEF(int, readdir_r, DIR *dirp, struct dirent *entry, struct dirent **result);
+
     /* ============ don't need to be interposed ======================= */
     GEN_FN_DEF(int, close, int fd);
     GEN_FN_DEF(int, fclose, FILE *stream);

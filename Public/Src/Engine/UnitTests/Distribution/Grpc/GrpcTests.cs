@@ -142,6 +142,8 @@ namespace Test.BuildXL.Distribution
         [Fact]
         public async Task InvocationIdUnrecoverableMismatch()
         {
+            EngineEnvironmentSettings.GrpcHeartbeatEnabled.Value = false;
+
             var orchestratorHarness = new OrchestratorHarness(LoggingContext, s_defaultDistributedInvocationId);
 
             var mismatchedId = new DistributedInvocationId(Guid.NewGuid().ToString(), "Test");

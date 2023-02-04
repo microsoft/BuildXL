@@ -745,7 +745,6 @@ namespace BuildXL.Scheduler.Distribution
             Contract.Assert(runnablePip.AcquiredResourceWorker == this);
 
             var stepCompleted = runnablePip.Step;
-            bool isCancelledOrFailed = nextStep.IsChooseWorker() || nextStep == PipExecutionStep.HandleResult;
 
             var processRunnablePip = runnablePip as ProcessRunnablePip;
             if (processRunnablePip != null)
@@ -768,7 +767,7 @@ namespace BuildXL.Scheduler.Distribution
                         }
 
                         OnWorkerResourcesChanged(WorkerResource.AvailableMaterializeInputSlots, increased: true);
-                        if (isCancelledOrFailed)
+                        if (nextStep != PipExecutionStep.ExecuteProcess)
                         {
                             releaseExecuteProcessSlots();
                             releasePostProcessSlots();
@@ -779,7 +778,7 @@ namespace BuildXL.Scheduler.Distribution
                     case PipExecutionStep.ExecuteProcess:
                     {
                         releaseExecuteProcessSlots();
-                        if (isCancelledOrFailed)
+                        if (nextStep != PipExecutionStep.PostProcess)
                         {
                             releasePostProcessSlots();
                         }
@@ -796,7 +795,7 @@ namespace BuildXL.Scheduler.Distribution
 
             if (runnablePip.PipType == PipType.Ipc)
             {
-                if (stepCompleted == PipExecutionStep.ExecuteNonProcessPip || isCancelledOrFailed)
+                if (stepCompleted == PipExecutionStep.ExecuteNonProcessPip)
                 {
                     Interlocked.Decrement(ref m_acquiredIpcSlots);
                     runnablePip.SetWorker(null);

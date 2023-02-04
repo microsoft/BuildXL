@@ -355,9 +355,9 @@ namespace BuildXL.Utilities.Configuration
         /// Whether we should enable heartbeat messages.
         /// </summary>
         /// <remarks>
-        /// Default disabled
+        /// Default enabled
         /// </remarks>
-        public static readonly Setting<bool> GrpcHeartbeatEnabled = CreateSetting("BuildXLGrpcHeartbeatEnabled", value => value == "1");
+        public static readonly Setting<bool> GrpcHeartbeatEnabled = CreateSetting("BuildXLGrpcHeartbeatEnabled", value => string.IsNullOrWhiteSpace(value) || value == "1");
 
         /// <summary>
         /// The frequency of heartbeat messages.

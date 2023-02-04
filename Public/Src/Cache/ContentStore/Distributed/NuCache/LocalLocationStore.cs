@@ -155,7 +155,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private ResultNagleQueue<IReadOnlyList<ShortHashWithSize>, (BoolResult Result, string TraceId)>? _registerNagleQueue;
 
-        private readonly MachineLocationResolver.Settings _machineListSettings;
+        private readonly MachineLocationResolver.Settings _machineListSettings = new();
 
         private readonly ColdStorage? _coldStorage;
 
@@ -205,11 +205,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             Configuration.Database.TouchFrequency = configuration.TouchFrequency;
             Database = checkpointManager.Database;
-
-            _machineListSettings = new MachineLocationResolver.Settings
-            {
-                PrioritizeDesignatedLocations = Configuration.MachineListPrioritizeDesignatedLocations,
-            };
 
             CheckpointManager = checkpointManager;
             EventStore = CreateEventStore(Configuration, subfolder: "main");

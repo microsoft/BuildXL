@@ -72,10 +72,7 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
         {
             var amountMachines = 10;
             var designatedLocations = 3;
-            var settings = new MachineLocationResolver.Settings()
-            {
-                PrioritizeDesignatedLocations = true,
-            };
+            var settings = new MachineLocationResolver.Settings();
 
             var factory = new MachineListFactory(_clock, amountMachines, designatedLocations);
             var (clusterState, _, _) = factory;
@@ -147,7 +144,6 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
             var designatedLocations = 3;
             var settings = new MachineLocationResolver.Settings()
             {
-                PrioritizeDesignatedLocations = true,
                 Randomize = false,
             };
 
@@ -200,7 +196,6 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
             var designatedLocations = 3;
             var settings = new MachineLocationResolver.Settings()
             {
-                PrioritizeDesignatedLocations = true,
                 Randomize = true,
             };
 

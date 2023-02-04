@@ -191,7 +191,6 @@ namespace BuildXL.Cache.Host.Service.Internal
                 UseBinManager = _distributedSettings.UseBinManager || _distributedSettings.ProactiveCopyUsePreferredLocations,
                 PreferredLocationsExpiryTime = TimeSpan.FromMinutes(_distributedSettings.PreferredLocationsExpiryTimeMinutes),
                 PrimaryMachineLocation = OrderedResolvedCacheSettings[0].MachineLocation,
-                MachineListPrioritizeDesignatedLocations = _distributedSettings.PrioritizeDesignatedLocationsOnCopies,
             };
 
             ApplyIfNotNull(_distributedSettings.ReplicaCreditInMinutes, v => result.ContentLifetime = TimeSpan.FromMinutes(v));

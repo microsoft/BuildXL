@@ -26,7 +26,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             /// <summary>
             /// If true, then designated locations from the cluster state have higher priority and appear first in resolved machine list.
             /// </summary>
-            public bool PrioritizeDesignatedLocations { get; init; }
+            public bool PrioritizeDesignatedLocations { get; init; } = true;
 
             /// <summary>
             /// If true, the machines should be randomized first before sorting them based on reputation and designation to avoid

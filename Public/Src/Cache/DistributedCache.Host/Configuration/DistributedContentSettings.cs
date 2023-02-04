@@ -303,9 +303,6 @@ namespace BuildXL.Cache.Host.Configuration
         public bool UseTieredDistributedEviction { get; set; } = false;
 
         [DataMember]
-        public bool PrioritizeDesignatedLocationsOnCopies { get; set; } = false;
-
-        [DataMember]
         [Validation.Range(0, int.MaxValue)]
         public int CopyAttemptsWithRestrictedReplicas { get; set; } = 0;
 

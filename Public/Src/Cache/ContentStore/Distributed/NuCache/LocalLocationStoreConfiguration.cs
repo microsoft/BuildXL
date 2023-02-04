@@ -343,12 +343,7 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// all prior checkpoints/cluster state are discarded and a new set of checkpoints is created)
         /// </summary>
         internal string? GetCheckpointPrefix() => CentralStore?.CentralStateKeyBase + EventStore?.Epoch;
-
-        /// <summary>
-        /// Whether to prioritize designated locations in machine lists, so that they are the first elements.
-        /// </summary>
-        public bool MachineListPrioritizeDesignatedLocations { get; set; }
-
+        
         /// <summary>
         /// Whether to filter out inactive machines in <see cref="LocalLocationStore"/> or rely on the old behavior when the filtering was happening on the database level only.
         /// </summary>

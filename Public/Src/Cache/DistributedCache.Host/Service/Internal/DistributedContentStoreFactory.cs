@@ -183,7 +183,6 @@ namespace BuildXL.Cache.Host.Service.Internal
                 UseFullEvictionSort = _distributedSettings.UseFullEvictionSort,
                 EvictionWindowSize = _distributedSettings.EvictionWindowSize,
                 EvictionPoolSize = _distributedSettings.EvictionPoolSize,
-                UpdateStaleLocalLastAccessTimes = _distributedSettings.UpdateStaleLocalLastAccessTimes,
                 EvictionRemovalFraction = _distributedSettings.EvictionRemovalFraction,
                 EvictionDiscardFraction = _distributedSettings.EvictionDiscardFraction,
                 UseTieredDistributedEviction = _distributedSettings.UseTieredDistributedEviction,

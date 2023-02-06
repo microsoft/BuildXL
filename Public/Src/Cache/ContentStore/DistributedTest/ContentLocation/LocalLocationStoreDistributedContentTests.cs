@@ -2506,15 +2506,12 @@ namespace ContentStoreTest.Distributed.Sessions
         }
 
         [Theory]
-        [InlineData(true)]
-        [InlineData(false)]
-        public async Task TestFullSortEviction(bool updateStaleLocalAges)
+        public async Task TestFullSortEviction()
         {
             ConfigureWithOneMaster(dcs =>
             {
                 dcs.UseTieredDistributedEviction = true;
                 dcs.UseFullEvictionSort = true;
-                dcs.UpdateStaleLocalLastAccessTimes = updateStaleLocalAges;
             });
 
             var hashCount = 20_000;
@@ -2578,7 +2575,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
                             llsEvictionPrecedence.Should().BeCloseTo(fullOrderPredecedence, 100, "Hash precedence should roughly match the precedence if hashes were all sorted");
 
-                            if (iteration == 0 || !updateStaleLocalAges)
+                            if (iteration == 0)
                             {
                                 // Local age and distributed age should not match
                                 info.LocalAge.Should().NotBe(info.Age);

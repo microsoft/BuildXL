@@ -2221,8 +2221,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                 bool foundDistributedEntry = _localLocationStore.TryGetContentLocations(context, hash, out var distributedEntry);
 
-                if (_localLocationStore.Configuration.UpdateStaleLocalLastAccessTimes
-                    && foundLocalInfo
+                if (foundLocalInfo
                     && foundDistributedEntry
                     && distributedEntry.LastAccessTimeUtc.ToDateTime() > localInfo.LastAccessTimeUtc)
                 {

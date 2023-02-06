@@ -291,12 +291,6 @@ namespace BuildXL.Cache.Host.Configuration
         public bool UseFullEvictionSort { get; set; } = false;
 
         /// <summary>
-        /// Configures whether ages of content are updated when sorting during eviction
-        /// </summary>
-        [DataMember]
-        public bool UpdateStaleLocalLastAccessTimes { get; set; } = false;
-
-        /// <summary>
         /// Configures whether to use new tiered eviction logic or not.
         /// </summary>
         [DataMember]

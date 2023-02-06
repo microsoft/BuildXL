@@ -294,11 +294,6 @@ namespace BuildXL.Cache.ContentStore.Distributed
         public bool UseFullEvictionSort { get; set; } = false;
 
         /// <summary>
-        /// Indicates whether local last access times should be updated if out of date with respect to distributed last access times
-        /// </summary>
-        public bool UpdateStaleLocalLastAccessTimes { get; set; } = false;
-
-        /// <summary>
         /// Amount of entries to compute evictability metric for in a single pass. The larger this is, the faster the
         /// candidate pool fills up, but also the slower it is to produce a candidate. Helps control how fast we need
         /// to produce candidates.

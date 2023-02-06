@@ -17,6 +17,13 @@ export function addCredScanCalls(rootDirectory : Directory, guardianToolRoot : S
     const additionalCalls = Math.mod(files.length, minFilesPerCall) > 0 ? 1 : 0;
     const numCredScanCalls = Math.div(files.length, minFilesPerCall) + additionalCalls;
 
+    // Since "latest" is used as the version for the credscan tool, we will not know which directory to untrack ahead of time
+    const credScanToolDirectories = globFolders(d`${packageDirectory.path}/nuget`, "Microsoft.Security.CredScan.Client*");
+    const srmDirectories = [
+        ...credScanToolDirectories.map((d, i) => Directory.fromPath(d.path.combine(r`lib/net6.0/SRM`))), 
+        ...credScanToolDirectories.map((d, i) => Directory.fromPath(d.path.combine(r`lib/netcoreapp3.1/SRM`)))
+    ];
+
     for (let i = 0; i < numCredScanCalls; i++) {
         const credScanWorkingDirectory = Context.getNewOutputDirectory("credscan");
     
@@ -44,7 +51,7 @@ export function addCredScanCalls(rootDirectory : Directory, guardianToolRoot : S
             /*pathDirectories*/undefined,
             /*additionalOutputs*/undefined,
             /*untrackedPaths*/undefined,
-            /*untrackedScopes*/[d`${packageDirectory.path}/nuget/Microsoft.Security.CredScan.Client.2.2.7.8/lib/netcoreapp3.1/SRM`],
+            /*untrackedScopes*/srmDirectories,
             /*allowUndeclaredSourceReads*/false,
             /*passThroughEnvironmentVariables*/undefined)
         );
@@ -61,7 +68,7 @@ function credScanConfiguration() : Object {
                 "fileVersion": "1.4",
                 "tool": {
                     "name": "CredScan",
-                    "version": "2.2.7.8"
+                    "version": "latest"
                 },
                 "arguments": {
                     "TargetDirectory": "$(WorkingDirectory)/guardian.TSV",

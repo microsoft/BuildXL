@@ -152,7 +152,11 @@ namespace Tool.Download
                             packageStream,
                             new PackagePathResolver(arguments.DownloadDirectory),
                             new PackageExtractionContext(
-                                PackageSaveMode.Files | PackageSaveMode.Nuspec, 
+                                // Only extract actual files.
+                                // CODESYNC: BuildXL.FrontEnd.Nuget.NugetPackageInspector.InspectContentAsync - NugetPackageInspector.cs (PackageSaveMode must match)
+                                // PackageExtractor has custom logic for handling the extraction of nuspec files: file name casing of nuspec file is based on the value
+                                // from nuspec file itself rather than its name in the archive. This difference might cause issues if file system paths are case-sensitive.
+                                PackageSaveMode.Files, 
                                 XmlDocFileSaveMode.None, 
                                 ClientPolicyContext.GetClientPolicy(NullSettings.Instance, logger), 
                                 logger),

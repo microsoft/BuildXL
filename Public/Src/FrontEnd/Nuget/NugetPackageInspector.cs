@@ -344,7 +344,9 @@ namespace BuildXL.FrontEnd.Nuget
 
                     return entries
                         .Select(entry => entry.FullName.Contains('%') ? System.Net.WebUtility.UrlDecode(entry.FullName) : entry.FullName)
-                        .Where(entry => PackageHelper.IsPackageFile(entry, PackageSaveMode.Files | PackageSaveMode.Nuspec))
+                        // Only include actual files; we have already downloaded nuspec (see the caller of this method), so we don't need it.
+                        // CODESYNC: Tool.Download.NugetDownloader.TryDownloadNugetToDiskAsync - NugetDownloader.cs (PackageSaveMode must match)
+                        .Where(entry => PackageHelper.IsPackageFile(entry, PackageSaveMode.Files))
                         .Select(entry => RelativePath.Create(m_stringTable, entry)).ToArray();
                 }
             }

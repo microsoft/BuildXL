@@ -261,6 +261,53 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler(fileTimestampTracker: tracker).AssertCacheMiss(pip.Process.PipId);
         }
 
+        [Fact]
+        public void FileRewritesArePartOfTheFingerprint()
+        {
+            // Make sure the source file we create before the build runs is considered a true source file by making
+            // it older than the engine start time
+            var timestampTracker = GetFileTimestampTrackerFromTomorrow();
+
+            AbsolutePath dirPath = AbsolutePath.Create(Context.PathTable, Path.Combine(SourceRoot, "dir"));
+            DirectoryArtifact dirToEnumerate = DirectoryArtifact.CreateWithZeroPartialSealId(dirPath);
+            
+            var sourceFile = CreateSourceFile(root: dirPath);
+            string sourceFileString = sourceFile.Path.ToString(Context.PathTable);
+
+            // Create a source file under the directory we will enumerate
+            File.WriteAllText(sourceFileString, "some text");
+
+            var builder = CreatePipBuilder(new Operation[]
+            {
+                // Rewrite the source file
+                Operation.WriteFile(sourceFile, doNotInfer: true),
+                // And enumerate it
+                Operation.EnumerateDir(dirToEnumerate, doNotInfer: true),
+                // Dummy output
+                Operation.WriteFile(CreateOutputFileArtifact())
+            });
+
+            // This makes sure we use the right file system, which is aware of alien files
+            builder.Options |= global::BuildXL.Pips.Operations.Process.Options.AllowUndeclaredSourceReads;
+            // Let source rewrites happen
+            builder.RewritePolicy = RewritePolicy.SafeSourceRewritesAreAllowed;
+
+            builder.AddOutputDirectory(dirPath, SealDirectoryKind.SharedOpaque);
+
+            var pip = SchedulePipBuilder(builder);
+
+            // Run once
+            RunScheduler(fileTimestampTracker: timestampTracker).AssertSuccess();
+
+            // Make sure fingerprints are stable
+            RunScheduler(fileTimestampTracker: timestampTracker).AssertSuccess().AssertCacheHit(pip.Process.PipId);
+
+            // Delete the source file and make sure we get a cache miss since the enumeration changed
+            File.Delete(sourceFileString);
+
+            RunScheduler(fileTimestampTracker: timestampTracker).AssertCacheMiss(pip.Process.PipId);
+        }
+
         /// <summary>
         /// Requiring Windows for this test is not actually a limitation of the enumeration mode (which should work fine in non-windows OSs) but
         /// a limitation of <see cref="IScheduleConfiguration.TreatAbsentDirectoryAsExistentUnderOpaque"/>, where directory probes cannot be simulated

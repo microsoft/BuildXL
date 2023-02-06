@@ -771,7 +771,7 @@ namespace Test.BuildXL.Scheduler
                     DirectoryMembershipFilter filter,
                     bool isReadOnlyDirectory,
                     DirectoryMembershipHashedEventData eventData,
-                    IReadOnlyCollection<AbsolutePath> sharedOpaqueOutputs,
+                    IReadOnlyDictionary<AbsolutePath, bool> sharedOpaqueOutputs,
                     IReadOnlyCollection<AbsolutePath> createdDirectories,
                     ConcurrentBigMap<AbsolutePath, IReadOnlyList<(AbsolutePath, string)>> alienFileEnumerationCache,
                     out DirectoryEnumerationMode mode,

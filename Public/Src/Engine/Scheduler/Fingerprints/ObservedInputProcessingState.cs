@@ -26,7 +26,10 @@ namespace BuildXL.Scheduler.Fingerprints
         public readonly Dictionary<AbsolutePath, (DirectoryMembershipFilter, DirectoryEnumerationMode)> EnumeratedDirectories = new Dictionary<AbsolutePath, (DirectoryMembershipFilter, DirectoryEnumerationMode)>();
         public readonly HashSet<HierarchicalNameId> AllDependencyPathIds = new HashSet<HierarchicalNameId>();
         public readonly HashSet<AbsolutePath> SearchPaths = new HashSet<AbsolutePath>();
-        public readonly HashSet<AbsolutePath> SharedOpaqueOutputs = new HashSet<AbsolutePath>();
+        /// <summary>
+        /// Shared opaque outputs paths produced by the pip to whether they are allowed undeclared rewrites
+        /// </summary>
+        public readonly Dictionary<AbsolutePath, bool> SharedOpaqueOutputs = new Dictionary<AbsolutePath, bool>();
 
         /// <summary>
         /// Gets a pooled instance instance of <see cref="ObservedInputProcessingState"/>.
@@ -48,12 +51,12 @@ namespace BuildXL.Scheduler.Fingerprints
             AllDependencyPathIds.Clear();
             SearchPaths.Clear();
             SharedOpaqueOutputs.Clear();
-        }
+    }
 
-        /// <summary>
-        /// Returns the instance to the pool
-        /// </summary>
-        public void Dispose()
+    /// <summary>
+    /// Returns the instance to the pool
+    /// </summary>
+    public void Dispose()
         {
             s_pool.PutInstance(this);
         }

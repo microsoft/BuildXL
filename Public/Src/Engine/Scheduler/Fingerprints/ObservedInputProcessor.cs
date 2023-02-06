@@ -182,15 +182,16 @@ namespace BuildXL.Scheduler.Fingerprints
 
                 // Compute the set of all shared dynamic outputs. This is only done if there is a chance we end up using MinimalGraphWithAlienFiles 
                 // for this pip, otherwise we keep the set empty to avoid unnecessary computations
-                HashSet<AbsolutePath> sharedOpaqueOutputs = processingState.SharedOpaqueOutputs;
+                Dictionary<AbsolutePath, bool> sharedOpaqueOutputs = processingState.SharedOpaqueOutputs;
+
                 if (unPopulatedSharedOpaqueOutputs != null && envAdapter.MayDetermineMinimalGraphWithAlienFiles(allowUndeclaredSourceReads))
                 {
-                    // We filter out artifacts that are allowed file rewrites since that information is not available
-                    // when processing a prior path set. The final result will be that allowed rewrites, even though outputs,
-                    // will be part of the directory fingerprint when using minimal with alien files. This is the desired outcome
-                    // since those files existed before the build begun.
+                    // Let's distinguish rewrites vs not. We want rewritten files to be part of the fingerprint (those files
+                    // existed before the build begun) so we could exclude them from the just-produced outputs we pass to the 
+                    // fingerprint enumeration computation, but on the other hand we need to know about them for the creation time
+                    // check
                     sharedOpaqueOutputs.AddRange(unPopulatedSharedOpaqueOutputs.Values.SelectMany(fileArtifacts => 
-                        fileArtifacts.Where(fa => !fa.IsUndeclaredFileRewrite).Select(fa => fa.Path)));
+                        fileArtifacts.Select(fa => new KeyValuePair<AbsolutePath, bool>(fa.Path, fa.IsUndeclaredFileRewrite))));
                 }
                 
                 using (operationContext.StartOperation(PipExecutorCounter.ObservedInputProcessorPreProcessDuration))
@@ -1264,7 +1265,7 @@ namespace BuildXL.Scheduler.Fingerprints
             DirectoryMembershipFilter filter,
             bool isReadOnlyDirectory,
             DirectoryMembershipHashedEventData eventData,
-            IReadOnlyCollection<AbsolutePath> sharedOpaqueOutputs,
+            IReadOnlyDictionary<AbsolutePath, bool> sharedOpaqueOutputs,
             IReadOnlyCollection<AbsolutePath> createdDirectories,
             ConcurrentBigMap<AbsolutePath, IReadOnlyList<DirectoryMemberEntry>> alienFileEnumerationCache,
             out DirectoryEnumerationMode enumerationMode,
@@ -1938,7 +1939,7 @@ namespace BuildXL.Scheduler.Fingerprints
             DirectoryMembershipFilter filter,
             bool isReadOnlyDirectory,
             DirectoryMembershipHashedEventData eventData,
-            IReadOnlyCollection<AbsolutePath> sharedOpaqueOutputs,
+            IReadOnlyDictionary<AbsolutePath, bool> sharedOpaqueOutputs,
             IReadOnlyCollection<AbsolutePath> createdDirectories,
             ConcurrentBigMap<AbsolutePath, IReadOnlyList<DirectoryMemberEntry>> alienFileEnumerationCache,
             out DirectoryEnumerationMode enumerationMode,
@@ -2106,7 +2107,7 @@ namespace BuildXL.Scheduler.Fingerprints
         }
 
         private Func<EnumerationRequest, PathExistence?> TryEnumerateDirectoryWithMinimalGraphWithAlienFiles(
-            IReadOnlyCollection<AbsolutePath> sharedDynamicOutputs,
+            IReadOnlyDictionary<AbsolutePath, bool> sharedDynamicOutputs,
             IReadOnlyCollection<AbsolutePath> createdDirectories,
             ConcurrentBigMap<AbsolutePath, IReadOnlyList<DirectoryMemberEntry>> alienFileEnumerationCache)
         {
@@ -2216,7 +2217,9 @@ namespace BuildXL.Scheduler.Fingerprints
 
                                     // Rule out all shared opaques produced by this pip. These files may not be part yet of the output file system since those get registered
                                     // in a post-execution step which is not reached yet on cache miss, so the output file system may have not captured them yet
-                                    if (sharedDynamicOutputs.Contains(realFileEntryPath))
+                                    // Only exclude the ones that are not a file rewrite, in consonance with the check we did above against the output file system
+                                    var isOutputProducedByThisPip = sharedDynamicOutputs.TryGetValue(realFileEntryPath, out var isFileRewrite);
+                                    if (isOutputProducedByThisPip && !isFileRewrite)
                                     {
                                         continue;
                                     }
@@ -2241,7 +2244,10 @@ namespace BuildXL.Scheduler.Fingerprints
                                     // Some considerations here: the correctness of this check relies on making sure outputs get to the output
                                     // file system before they are either hardlinked from the cache or (on Windows) made shared opaque by virtue of timestamp flagging.
                                     // Otherwise, we run the risk of altering the file creation original timestamp.
-                                    if (m_env.State.FileTimestampTracker.IsFileCreationTrackingSupported && m_env.State.FileTimestampTracker.PathCreatedAfterEngineStarted(realFileEntryPath))
+                                    // We could have here an output produced by this pip that is a file rewrite (and whose creation will therefore had occurred after the engine
+                                    // started. We do want those as part of the fingerprint, so don't rule it out here.
+                                    if (m_env.State.FileTimestampTracker.IsFileCreationTrackingSupported && !isOutputProducedByThisPip && 
+                                        m_env.State.FileTimestampTracker.PathCreatedAfterEngineStarted(realFileEntryPath))
                                     {
                                         continue;
                                     }

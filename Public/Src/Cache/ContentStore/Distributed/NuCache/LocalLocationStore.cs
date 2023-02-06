@@ -1025,15 +1025,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             // When the machines switches from inactive state we forcing the locations to be registered in the global store.
             // It means that filtering out the global store will not allow us to see those locations until the
             // machine state will be propagated to all the clients.
-            bool shouldFilter = Configuration.ShouldFilterInactiveMachinesInLocalLocationStore && (origin == GetBulkOrigin.Local ||
-                                                                                                   Configuration.FilterInactiveMachinesForGlobalLocations ||
-                                                                                                   Configuration.TraceInactiveMachinesForGlobalLocations);
-            var inactiveMachineSet = shouldFilter ? ClusterState.InactiveMachines : null;
-            var inactiveMachineList = shouldFilter ? ClusterState.InactiveMachineList : null;
+            var inactiveMachineSet = ClusterState.InactiveMachines;
 
-            for (int i = 0; i < entries.Count; i++)
+            for (var i = 0; i < entries.Count; i++)
             {
-                var filteredOutMachines = Configuration.ShouldFilterInactiveMachinesInLocalLocationStore ? new List<MachineId>() : null;
+                var filteredOutMachines = new List<MachineId>();
 
                 // TODO: Its probably possible to do this by getting the max machine id in the locations set rather than enumerating all of them (bug 1365340)
                 var entry = entries[i];
@@ -1054,19 +1050,35 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     }
                 }
 
-                if (Configuration.ShouldFilterInactiveMachinesInLocalLocationStore && (origin == GetBulkOrigin.Local || Configuration.FilterInactiveMachinesForGlobalLocations))
-                {
-                    entry = entry.SetMachineExistence(MachineIdCollection.Create(inactiveMachineList!), exists: false);
-                }
+                entry = entry.SetMachineExistence(MachineIdCollection.Create(filteredOutMachines!), exists: false);
 
                 var contentHash = contentHashes[i];
+
+                var machineList = entry.IsMissing ? CollectionUtilities.EmptyArray<MachineLocation>() : MachineLocationResolver.Resolve(
+                    context,
+                    entry.Locations,
+                    MachineReputationTracker,
+                    ClusterState,
+                    contentHash,
+                    _machineListSettings,
+                    MasterElectionMechanism);
+
+                var filteredOutMachineList = MachineLocationResolver.Resolve(
+                    context,
+                    MachineIdSet.Empty.SetExistence(MachineIdCollection.Create(filteredOutMachines), exists: true),
+                    MachineReputationTracker,
+                    ClusterState,
+                    contentHash,
+                    _machineListSettings,
+                    MasterElectionMechanism);
+
                 results.Add(
                     new ContentHashWithSizeAndLocations(
                         contentHash,
                         entry.ContentSize,
-                        GetMachineList(context.TracingContext, contentHash, entry),
+                        machineList,
                         entry,
-                        GetFilteredOutMachineList(context.TracingContext, contentHash, filteredOutMachines)));
+                        filteredOutMachineList));
             }
 
             // If we faced at least one unknown machine location we're forcing an update of a cluster state to make the resolution successful.
@@ -1082,40 +1094,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
 
             return new GetBulkLocationsResult(results, origin);
-        }
-
-        private IReadOnlyList<MachineLocation> GetMachineList(Context context, ContentHash hash, ContentLocationEntry entry)
-        {
-            if (entry.IsMissing)
-            {
-                return CollectionUtilities.EmptyArray<MachineLocation>();
-            }
-
-            return MachineLocationResolver.Resolve(
-                context,
-                entry.Locations,
-                MachineReputationTracker,
-                ClusterState,
-                hash,
-                _machineListSettings,
-                MasterElectionMechanism);
-        }
-
-        private IReadOnlyList<MachineLocation>? GetFilteredOutMachineList(Context context, ContentHash hash, List<MachineId>? machineIds)
-        {
-            if (machineIds == null)
-            {
-                return null;
-            }
-
-            return MachineLocationResolver.Resolve(
-                context,
-                MachineIdSet.Empty.SetExistence(MachineIdCollection.Create(machineIds), exists: true),
-                MachineReputationTracker,
-                ClusterState,
-                hash,
-                _machineListSettings,
-                MasterElectionMechanism);
         }
 
         /// <summary>

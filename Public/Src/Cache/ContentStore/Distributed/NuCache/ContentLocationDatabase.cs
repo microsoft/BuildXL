@@ -226,12 +226,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             if (TryGetEntryCore(context, hash, out entry))
             {
-                // Filtering the inactive machines if configured. Otherwise the filtering is happening in another layer.
-                if (_configuration.FilterInactiveMachines)
-                {
-                    entry = FilterInactiveMachines(entry);
-                }
-
                 return true;
             }
 

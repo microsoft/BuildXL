@@ -574,15 +574,6 @@ namespace BuildXL.Cache.Host.Configuration
         [Validation.Range(1, int.MaxValue)]
         public int? IncrementalCheckpointDegreeOfParallelism { get; set; }
 
-        [DataMember]
-        public bool? ShouldFilterInactiveMachinesInLocalLocationStore { get; set; }
-
-        [DataMember]
-        public bool? FilterInactiveMachinesForGlobalLocations { get; set; }
-
-        [DataMember]
-        public bool? TraceInactiveMachinesForGlobalLocations { get; set; }
-
         #region Content Location Database
 
         [DataMember]

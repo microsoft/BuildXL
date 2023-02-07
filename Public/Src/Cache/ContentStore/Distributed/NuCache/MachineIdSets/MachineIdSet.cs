@@ -47,7 +47,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Creates a list of machine ids that represents additions or removals of the content on them.
         /// </summary>
-        public static LocationChangeMachineIdSet CreateChangeSet(bool sortLocations, bool exists, params MachineId[] machineIds) // Rename it to avoid confusion.
+        public static LocationChangeMachineIdSet CreateChangeSet(bool sortLocations, bool exists, params MachineId[] machineIds)
         {
             var set = sortLocations ? SortedEmptyChangeSet : EmptyChangeSet;
             if (machineIds.Length == 0)
@@ -99,7 +99,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public LocationChangeMachineIdSet Merge(MachineIdSet other, bool sortLocations)
         {
             MachineIdSet currentInstance = this;
-            if (this is not LocationChangeMachineIdSet)
+
+            if (sortLocations && this is LocationChangeMachineIdSet locationChange)
+            {
+                // The current instance is not sorted, but we want to make sure the result is sorted
+                // because sortLocations flag is true.
+                // We can just create the instance with an existing set of locations,
+                // because the sorting is happening during serialization.
+                currentInstance = new SortedLocationChangeMachineIdSet(locationChange.LocationStates);
+            }
+            else if (this is not LocationChangeMachineIdSet)
             {
                 // If the current instance is not mergeable, re-creating a mergeable one to avoid losing removals.
                 currentInstance = CreateChangeSet(sortLocations, exists: true, EnumerateMachineIds().ToArray());

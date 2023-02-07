@@ -8,7 +8,6 @@ using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using BuildXL.Cache.ContentStore.Distributed.MetadataService;
-using BuildXL.Utilities;
 using BuildXL.Utilities.Serialization;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
@@ -25,8 +24,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         protected override SetFormat Format => SetFormat.LocationChangeSorted;
 
         /// <nodoc />
-        public SortedLocationChangeMachineIdSet(ImmutableArray<LocationChange> machineIds)
-            : base(machineIds)
+        public SortedLocationChangeMachineIdSet(ImmutableArray<LocationChange> sortedMachineIds)
+            : base(sortedMachineIds)
         {
         }
 
@@ -67,7 +66,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             var immutableMachineIds = Unsafe.As<LocationChange[], ImmutableArray<LocationChange>>(ref machineIds);
 
-            AssertSorted(immutableMachineIds);
+            
 
             return new SortedLocationChangeMachineIdSet(immutableMachineIds);
         }

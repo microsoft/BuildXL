@@ -38,6 +38,42 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
         protected override MachineIdSet EmptyInstance => MachineIdSet.SortedEmptyChangeSet;
 
         [Fact]
+        public void LocationsAreSortedAfterMerge()
+        {
+            // Making sure that the locations are sorted after merge.
+            var set1 = (LocationChangeMachineIdSet)MachineIdSet.EmptyChangeSet
+                .SetExistence(2.AsMachineId(), false)
+                .SetExistence(1.AsMachineId(), true)
+                .SetExistence(5.AsMachineId(), false)
+                .SetExistence(3.AsMachineId(), true);
+
+            set1.Should().NotBeOfType<SortedLocationChangeMachineIdSet>();
+
+            var set2 = set1.Merge(MachineIdSet.Empty, sortLocations: true);
+            set2.Should().BeOfType<SortedLocationChangeMachineIdSet>();
+            set2.LocationStates.Should()
+                .BeEquivalentTo(set1.LocationStates.Sort(LocationChangeMachineIdSet.LocationChangeMachineIdComparer.Instance));
+
+            set2 = MachineIdSet.Empty.Merge(set1, sortLocations: true);
+            set2.Should().BeOfType<SortedLocationChangeMachineIdSet>();
+        }
+
+        [Fact]
+        public void LocationsAreSortedAfterMergingEmptyLocations()
+        {
+            // Making sure that the locations are sorted after merge.
+            var set1 = MachineIdSet.Empty;
+
+            set1.Should().NotBeOfType<SortedLocationChangeMachineIdSet>();
+
+            var set2 = set1.Merge(MachineIdSet.Empty, sortLocations: true);
+            set2.Should().BeOfType<SortedLocationChangeMachineIdSet>();
+
+            set2 = MachineIdSet.Empty.Merge(set1, sortLocations: true);
+            set2.Should().BeOfType<SortedLocationChangeMachineIdSet>();
+        }
+
+        [Fact]
         public void SortedLocationChangeMachineIdSetSortsOnSerialize()
         {
             var set1 = (SortedLocationChangeMachineIdSet)MachineIdSet.SortedEmptyChangeSet

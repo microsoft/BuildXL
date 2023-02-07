@@ -2,10 +2,8 @@
 // Licensed under the MIT License.
 
 using System;
-using System.IO;
 using System.Linq;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
-using BuildXL.Utilities;
 using BuildXL.Utilities.Serialization;
 using FluentAssertions;
 using Xunit;

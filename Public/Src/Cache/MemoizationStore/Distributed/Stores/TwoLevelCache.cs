@@ -3,6 +3,7 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
@@ -25,16 +26,30 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
         private readonly CacheTracer _tracer = new CacheTracer(nameof(TwoLevelCache));
         private readonly ICache _localCache;
         private readonly ICache _remoteCache;
-        private readonly bool _remoteCacheIsReadOnly;
-        private readonly bool _alwaysUpdateFromRemote;
+        private readonly TwoLevelCacheConfiguration _config;
 
         /// <nodoc />
-        public TwoLevelCache(ICache localCache, ICache remoteCache, bool remoteCacheIsReadOnly = true, bool alwaysUpdateFromRemote = false)
+        [Obsolete("Please use constructor with TwoLevelCacheConfiguration object ")]
+        public TwoLevelCache(
+            ICache localCache,
+            ICache remoteCache,
+            bool remoteCacheIsReadOnly = true,
+            bool alwaysUpdateFromRemote = false)
+            : this(
+                  localCache,
+                  remoteCache,
+                  new TwoLevelCacheConfiguration {
+                      RemoteCacheIsReadOnly = remoteCacheIsReadOnly,
+                      AlwaysUpdateFromRemote = alwaysUpdateFromRemote })
+        {
+        }
+
+        /// <nodoc />
+        public TwoLevelCache(ICache localCache, ICache remoteCache, TwoLevelCacheConfiguration config)
         {
             _localCache = localCache;
             _remoteCache = remoteCache;
-            _remoteCacheIsReadOnly = remoteCacheIsReadOnly;
-            _alwaysUpdateFromRemote = alwaysUpdateFromRemote;
+            _config = config;
         }
 
         private async Task<(TResult Local, TResult Remote)> MultiLevel<TResult>(Func<ICache, Task<TResult>> func)
@@ -160,8 +175,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
                         name,
                         localSession.Session,
                         remoteSession.Session,
-                        remoteCacheIsReadOnly: _remoteCacheIsReadOnly,
-                        alwaysUpdateFromRemote: _alwaysUpdateFromRemote);
+                        _config);
                     return new CreateSessionResult<IReadOnlyCacheSession>(cacheSession);
                 });
         }
@@ -187,8 +201,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
                     name,
                     localResult.Session,
                     remoteResult.Session,
-                    remoteCacheIsReadOnly: _remoteCacheIsReadOnly,
-                    alwaysUpdateFromRemote: _alwaysUpdateFromRemote);
+                    _config);
                 return new CreateSessionResult<ICacheSession>(cacheSession);
             }
 

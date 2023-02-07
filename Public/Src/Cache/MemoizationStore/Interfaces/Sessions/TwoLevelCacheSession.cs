@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
@@ -15,10 +16,20 @@ using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using BuildXL.Cache.ContentStore.Synchronization;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
+using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.MemoizationStore.Interfaces.Results;
+using BuildXL.Utilities.Tasks;
 
 namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
 {
+    /// <nodoc />
+    public record TwoLevelCacheConfiguration(
+        bool RemoteCacheIsReadOnly = true,
+        bool AlwaysUpdateFromRemote = false,
+        bool BatchRemotePinsOnPut = false,
+        int RemotePinOnPutBatchMaxSize = 500,
+        double RemotePinOnPutBatchIntervalSeconds = 5);
+
     /// <summary>
     /// Wraps multiple underlying cache sessions under a single wrapper.
     /// </summary>
@@ -28,9 +39,10 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         private readonly Tracer _tracer = new Tracer(nameof(TwoLevelCacheSession));
         private readonly ICacheSession _localCacheSession;
         private readonly ICacheSession _remoteCacheSession;
-        private readonly bool _remoteCacheIsReadOnly;
-        private readonly bool _alwaysUpdateFromRemote;
+        private readonly TwoLevelCacheConfiguration _config;
         private readonly LockSet<ContentHash> _remoteFetchLock = new LockSet<ContentHash>();
+
+        private ResultNagleQueue<(Context context, ContentHash hash), PinResult> _batchSinglePinNagleQueue;
 
         /// <summary>
         /// Initializes an instance of the <see cref="TwoLevelCacheSession"/> class
@@ -38,20 +50,17 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         /// <param name="name"></param>
         /// <param name="localCacheSession"></param>
         /// <param name="remoteCacheSession"></param>
-        /// <param name="remoteCacheIsReadOnly"></param>
-        /// <param name="alwaysUpdateFromRemote"></param>
+        /// <param name="config"></param>
         public TwoLevelCacheSession(
             string name,
             ICacheSession localCacheSession,
             ICacheSession remoteCacheSession,
-            bool remoteCacheIsReadOnly,
-            bool alwaysUpdateFromRemote)
+            TwoLevelCacheConfiguration config)
         {
             Name = name;
             _remoteCacheSession = remoteCacheSession;
             _localCacheSession = localCacheSession;
-            _remoteCacheIsReadOnly = remoteCacheIsReadOnly;
-            _alwaysUpdateFromRemote = alwaysUpdateFromRemote;
+            _config = config;
         }
 
         /// <inheritdoc />
@@ -84,6 +93,16 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
                         {
                             await _remoteCacheSession.ShutdownAsync(context).TraceIfFailure(context);
                         }
+                    }
+                    else
+                    {
+                        _batchSinglePinNagleQueue = _config.BatchRemotePinsOnPut
+                            ? ResultNagleQueue<(Context context, ContentHash hash), PinResult>.CreateAndStart(
+                                execute: requests => ExecutePinBatch(context, requests),
+                                maxDegreeOfParallelism: 1,
+                                interval: TimeSpan.FromSeconds(_config.RemotePinOnPutBatchIntervalSeconds),
+                                batchSize: _config.RemotePinOnPutBatchMaxSize)
+                            : null;
                     }
 
                     StartupStarted = false;
@@ -161,7 +180,7 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
             UrgencyHint urgencyHint = UrgencyHint.Nominal)
         {
             GetContentHashListResult remoteContentHashListResult = null;
-            if (_alwaysUpdateFromRemote)
+            if (_config.AlwaysUpdateFromRemote)
             {
                 remoteContentHashListResult = await lookupInRemoteAsync();
                 if (remoteContentHashListResult.Succeeded && remoteContentHashListResult.ContentHashListWithDeterminism.ContentHashList != null)
@@ -216,7 +235,7 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
                 async () =>
                 {
                     PinResult pinResult = await _localCacheSession.PinAsync(context, contentHash, cts, urgencyHint);
-                    if (_remoteCacheIsReadOnly)
+                    if (_config.RemoteCacheIsReadOnly)
                     {
                         return pinResult;
                     }
@@ -367,7 +386,7 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
                 _tracer,
                 async () =>
                 {
-                    if (_remoteCacheIsReadOnly)
+                    if (_config.RemoteCacheIsReadOnly)
                     {
                         // If the remote cache is readonly, then just relying on the local cache.
                         return await _localCacheSession.AddOrGetContentHashListAsync(
@@ -435,7 +454,7 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
                 {
                     List<Task<StrongFingerprint>> strongFingerprintsList = strongFingerprints.ToList();
                     BoolResult result = await _localCacheSession.IncorporateStrongFingerprintsAsync(context, strongFingerprintsList, cts, urgencyHint);
-                    if (!result || _remoteCacheIsReadOnly)
+                    if (!result || _config.RemoteCacheIsReadOnly)
                     {
                         // TODO: is IncorporateStrongFingerprint actually a write? Or it is ok to call it for the remote even when _remoteMetadataIsReadonly is true?
                         return result;
@@ -450,6 +469,61 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
                 traceErrorsOnly: true);
         }
 
+        private Task<PutResult> PutCoreAsync(
+            Context context,
+            CancellationToken cancellationToken,
+            Func<Task<PutResult>> localPut,
+            Func<PutResult, Task<PutResult>> remotePut,
+            UrgencyHint urgencyHint,
+            Func<PutResult, string> extraEndMessage,
+            [CallerMemberName] string caller = "")
+        {
+            return OperationContext(context, cancellationToken).PerformOperationAsync(
+                _tracer,
+                async () =>
+                {
+                    var localResult = await localPut();
+                    if (!localResult || _config.RemoteCacheIsReadOnly)
+                    {
+                        return localResult;
+                    }
+
+                    var pinResult = _config.BatchRemotePinsOnPut
+                        ? await _batchSinglePinNagleQueue.EnqueueAsync((context, localResult.ContentHash))
+                        : await _remoteCacheSession.PinAsync(context, localResult.ContentHash, cancellationToken, urgencyHint);
+
+                    if (pinResult.Code == PinResult.ResultCode.Success)
+                    {
+                        // content was found in the remote - simply return local result at this point.
+                        return localResult;
+                    }
+
+                    return await remotePut(localResult);
+                },
+                extraEndMessage: extraEndMessage,
+                traceErrorsOnly: true,
+                caller: caller);
+        }
+
+        private async Task<IReadOnlyList<PinResult>> ExecutePinBatch(Context nagleQueueContext, IReadOnlyList<(Context context, ContentHash hash)> requests)
+        {
+            var context = nagleQueueContext.CreateNested(_tracer.Name);
+
+            var hashes = requests.Select(x => x.hash).ToList();
+            var results = await _remoteCacheSession.PinAsync(nagleQueueContext, hashes, CancellationToken.None, UrgencyHint.Nominal);
+            var awaitedResults = await TaskUtilities.SafeWhenAll(results);
+            var orderedResults = awaitedResults.OrderBy(r => r.Index).Select(r => r.Item).ToArray();
+
+            for (var i = 0; i < requests.Count; i++)
+            {
+                var result = orderedResults[i];
+                _tracer.Debug(requests[i].context, $"PinAsync({requests[i].hash.ToShortString()}) was bulkified with result=[{result.Code}]." +
+                    $" Bulk operation correlation ID: [{context.TraceId}]");
+            }
+
+            return orderedResults;
+        }
+
         /// <inheritdoc />
         public Task<PutResult> PutFileAsync(
             Context context,
@@ -459,28 +533,13 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
             CancellationToken cts,
             UrgencyHint urgencyHint = UrgencyHint.Nominal)
         {
-            return OperationContext(context, cts).PerformOperationAsync(
-                _tracer,
-                async () =>
-                {
-                    PutResult putResult = await _localCacheSession.PutFileAsync(context, hashType, path, realizationMode, cts, urgencyHint);
-                    if (!putResult || _remoteCacheIsReadOnly)
-                    {
-                        return putResult;
-                    }
-
-                    PinResult pinResult = await _remoteCacheSession.PinAsync(context, putResult.ContentHash, cts, urgencyHint);
-                    if (pinResult.Code == PinResult.ResultCode.Success)
-                    {
-                        // content was found in the remote - simply return local result at this point.
-                        return putResult;
-                    }
-
-                    // content wasn't found in the remote - put the file in the remote now.
-                    return await _remoteCacheSession.PutFileAsync(context, hashType, path, realizationMode, cts, urgencyHint);
-                },
-                extraEndMessage: r => $"HashType={hashType}, Path={path}",
-                traceErrorsOnly: true);
+            return PutCoreAsync(
+                context,
+                cts,
+                localPut: () => _localCacheSession.PutFileAsync(context, hashType, path, realizationMode, cts, urgencyHint),
+                remotePut: _ => _remoteCacheSession.PutFileAsync(context, hashType, path, realizationMode, cts, urgencyHint),
+                urgencyHint,
+                extraEndMessage: r => $"HashType={hashType}, Path={path}");
         }
 
         /// <inheritdoc />
@@ -492,28 +551,13 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
             CancellationToken cts,
             UrgencyHint urgencyHint = UrgencyHint.Nominal)
         {
-            return OperationContext(context, cts).PerformOperationAsync(
-                _tracer,
-                async () =>
-                {
-                    PutResult putResult = await _localCacheSession.PutFileAsync(context, contentHash, path, realizationMode, cts, urgencyHint);
-                    if (!putResult || _remoteCacheIsReadOnly)
-                    {
-                        return putResult;
-                    }
-
-                    PinResult pinResult = await _remoteCacheSession.PinAsync(context, putResult.ContentHash, cts, urgencyHint);
-                    if (pinResult.Code == PinResult.ResultCode.Success)
-                    {
-                        // content was found in the remote - simply return local result at this point.
-                        return putResult;
-                    }
-
-                    // content wasn't found in the remote - put the file in the remote now.
-                    return await _remoteCacheSession.PutFileAsync(context, contentHash, path, realizationMode, cts, urgencyHint);
-                },
-                extraEndMessage: r => $"Hash={contentHash.ToShortString()}, Path={path}",
-                traceErrorsOnly: true);
+            return PutCoreAsync(
+                context,
+                cts,
+                localPut: () => _localCacheSession.PutFileAsync(context, contentHash, path, realizationMode, cts, urgencyHint),
+                remotePut: _ => _remoteCacheSession.PutFileAsync(context, contentHash, path, realizationMode, cts, urgencyHint),
+                urgencyHint,
+                extraEndMessage: r => $"Hash={contentHash.ToShortString()}, Path={path}");
         }
 
         /// <inheritdoc />
@@ -524,37 +568,30 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
             CancellationToken cts,
             UrgencyHint urgencyHint = UrgencyHint.Nominal)
         {
-            return OperationContext(context, cts).PerformOperationAsync(
-                _tracer,
-                async () =>
-                {
-                    PutResult localPutResult = await _localCacheSession.PutStreamAsync(context, hashType, stream, cts, urgencyHint);
-                    if (!localPutResult || _remoteCacheIsReadOnly)
-                    {
-                        return localPutResult;
-                    }
-
-                    return await PropagateStreamToRemote(context, localPutResult, stream, cts, urgencyHint);
-                },
-                extraEndMessage: r => $"HashType={hashType}",
-                traceErrorsOnly: true);
+            return PutCoreAsync(
+                context,
+                cts,
+                localPut: () => _localCacheSession.PutStreamAsync(context, hashType, stream, cts, urgencyHint),
+                remotePut: localPutResult => PropagateStreamToRemote(context, localPutResult, stream, cts, urgencyHint),
+                urgencyHint,
+                extraEndMessage: r => $"HashType={hashType}");
         }
 
         /// <inheritdoc />
-        public async Task<PutResult> PutStreamAsync(
+        public Task<PutResult> PutStreamAsync(
             Context context,
             ContentHash contentHash,
             Stream stream,
             CancellationToken cts,
             UrgencyHint urgencyHint = UrgencyHint.Nominal)
         {
-            PutResult localPutResult = await _localCacheSession.PutStreamAsync(context, contentHash, stream, cts, urgencyHint);
-            if (!localPutResult || _remoteCacheIsReadOnly)
-            {
-                return localPutResult;
-            }
-
-            return await PropagateStreamToRemote(context, localPutResult, stream, cts, urgencyHint);
+            return PutCoreAsync(
+                context,
+                cts,
+                localPut: () => _localCacheSession.PutStreamAsync(context, contentHash, stream, cts, urgencyHint),
+                remotePut: localPutResult => PropagateStreamToRemote(context, localPutResult, stream, cts, urgencyHint),
+                urgencyHint,
+                extraEndMessage: r => $"Hash={contentHash.ToShortString()}");
         }
 
         /// <inheritdoc />
@@ -564,7 +601,7 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
             CancellationToken cts,
             UrgencyHint urgencyHint = UrgencyHint.Nominal)
         {
-            if (_remoteCacheIsReadOnly)
+            if (_config.RemoteCacheIsReadOnly)
             {
                 return _localCacheSession.PinAsync(context, contentHashes, cts, urgencyHint);
             }
@@ -580,7 +617,7 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         /// <inheritdoc />
         public Task<IEnumerable<Task<Indexed<PinResult>>>> PinAsync(Context context, IReadOnlyList<ContentHash> contentHashes, PinOperationConfiguration config)
         {
-            if (_remoteCacheIsReadOnly)
+            if (_config.RemoteCacheIsReadOnly)
             {
                 return _localCacheSession.PinAsync(context, contentHashes, config);
             }
@@ -606,13 +643,6 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
             CancellationToken cts,
             UrgencyHint urgencyHint = UrgencyHint.Nominal)
         {
-            PinResult pinResult = await _remoteCacheSession.PinAsync(context, localPutResult.ContentHash, cts, urgencyHint);
-            if (pinResult.Code == PinResult.ResultCode.Success)
-            {
-                // content was found in the remote - simply return local result at this point.
-                return localPutResult;
-            }
-
             // content wasn't found in remote ...
             if (stream.CanSeek)
             {

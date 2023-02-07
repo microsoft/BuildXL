@@ -147,6 +147,7 @@ namespace BuildXL.Scheduler.Tracing
         PipFailedTempDirectoryCleanup = 2200,
         PipTempCleanerThreadSummary = 2202,
         PipFailedTempFileCleanup = 2204,
+        PipFailedSharedOpaqueOutputsCleanUp = 2207,
 
         FailPipOutputWithNoAccessed = 2602,
         PipWillBeRetriedDueToExitCode = 2604,

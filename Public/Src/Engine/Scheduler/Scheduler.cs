@@ -4751,7 +4751,10 @@ namespace BuildXL.Scheduler
                         {
                             // Because the scheduler will re-run this pip, we have to nuke all outputs created under shared opaque directories
                             var sharedOpaqueOutputs = FlagAndReturnScrubbableSharedOpaqueOutputs(environment, processRunnable);
-                            ScrubSharedOpaqueOutputs(sharedOpaqueOutputs);
+                            if (!ScrubSharedOpaqueOutputs(operationContext, m_pipTable.GetPipSemiStableHash(pipId), sharedOpaqueOutputs))
+                            {
+                                return runnablePip.SetPipResult(PipResultStatus.Failed);
+                            }
                         }
 
                         // If it is a single machine or distributed build orchestrator
@@ -4928,7 +4931,11 @@ namespace BuildXL.Scheduler
                     // will be consumed from the already cached pip and the just produced outputs should be absent.
                     if (executionResult.Converged && worker.IsLocal)
                     {
-                        ScrubSharedOpaqueOutputs(sharedOpaqueOutputs);
+                        if (!ScrubSharedOpaqueOutputs(operationContext, m_pipTable.GetPipSemiStableHash(pipId), sharedOpaqueOutputs))
+                        {
+                            return runnablePip.SetPipResult(PipResultStatus.Failed);
+                        }
+                        
                     }
 
                     if (!IsDistributedWorker)
@@ -5046,9 +5053,22 @@ namespace BuildXL.Scheduler
             return outputPaths;
         }
 
-        private void ScrubSharedOpaqueOutputs(List<string> outputs)
+        private bool ScrubSharedOpaqueOutputs(LoggingContext loggingContext, long pipSemiStableHash, List<string> outputs)
         {
-            outputs.ForEach(o => FileUtilities.DeleteFile(o));
+            foreach (string o in outputs)
+            {
+                try
+                {
+                    FileUtilities.DeleteFile(o);
+                }
+                catch (BuildXLException ex)
+                {
+                    Logger.Log.PipFailedSharedOpaqueOutputsCleanup(loggingContext, pipSemiStableHash, o, ex.LogEventMessage);
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         private PipState TryStartPip(RunnablePip runnablePip)

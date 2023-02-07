@@ -2336,6 +2336,15 @@ namespace BuildXL.Scheduler.Tracing
         #endregion
 
         [GeneratedEvent(
+            (ushort)LogEventId.PipFailedSharedOpaqueOutputsCleanUp,
+            EventLevel = Level.Verbose,
+            EventGenerators = EventGenerators.LocalOnly,
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
+            EventTask = (int)Tasks.PipExecutor,
+            Message = "[{pipSemiStableHash}] Failed to clean up SharedOpaque output at '{0}'. Reason: {1}") ]
+        public abstract void PipFailedSharedOpaqueOutputsCleanup(LoggingContext context, long pipSemiStableHash, string file, string exceptionMessage);
+
+        [GeneratedEvent(
             (ushort)LogEventId.PipFailedTempDirectoryCleanup,
             EventLevel = Level.Verbose,
             EventGenerators = EventGenerators.LocalOnly,

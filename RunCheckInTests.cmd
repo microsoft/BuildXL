@@ -86,6 +86,11 @@ call :StatusMessage %stepName%
     if %ERRORLEVEL% NEQ 0 goto BadLKGMessage
 call :RecordStep "%stepName%" %start%
 
+IF "%RUN_CODEX%" == "true" (
+    call :RunCodex
+    if !ERRORLEVEL! NEQ 0 goto error
+)
+
 IF "%RUN_PART_A%" == "1" (
     call :PartA
     if !ERRORLEVEL! NEQ 0 goto error
@@ -129,6 +134,42 @@ echo.
 call %ENLISTMENTROOT%\Shared\Scripts\KillBxlInstancesInRepo.cmd
 title
 endlocal && exit /b 0
+
+
+:RunCodex
+    set start=!time!
+    set stepName=Building using BuildXL
+    call :StatusMessage !stepName!
+        call :RunBxl -Use RunCheckinTests %BUILDXL_ARGS% /q:Debug /q:DebugNet472 /f:tag='compile' /TraceInfo:RunCheckinTests=RunCodex  /incrementalScheduling- /enableLazyOutputs- -SharedCacheMode disable 
+        if !ERRORLEVEL! NEQ 0 (exit /b 1)
+    call :RecordStep "!stepName!" !start!
+
+    set start=!time!
+    set stepName=Running Codex execution analyzer to %CodexAnalysisOutDir%\domlog
+    call :StatusMessage !stepName!
+        %EXE_DIR%\bxlAnalyzer.exe /mode:Codex /o:%CodexAnalysisOutDir%\domlog
+    call :RecordStep "!stepName!" !start!
+
+    set start=!time!
+    set stepName=Running Codex script analyzer to %CodexAnalysisOutDir%\dsc
+    call :StatusMessage !stepName!
+        %EXE_DIR%\RunInSubst.exe B=%ENLISTMENTROOT% %EXE_DIR%\BxlScriptAnalyzer.exe /c:B:\config.dsc /a:Codex /o:%CodexAnalysisOutDir%\dsc
+    call :RecordStep "!stepName!" !start!
+
+    set start=!time!
+    set stepName=Generating solution
+    call :StatusMessage !stepName!
+        call :RunBxl -Use RunCheckinTests %BUILDXL_ARGS% /q:Debug /q:DebugNet472 *.exe *.dll /vs /vsOutputSrc- /solutionName:Domino -SharedCacheMode disable 
+    call :RecordStep "!stepName!" !start!
+
+    set start=!time!
+    set stepName=Running Codex
+    call :StatusMessage !stepName!
+        %EXE_DIR%\RunInSubst.exe B=%ENLISTMENTROOT% %RunCodexArgs%
+        if !ERRORLEVEL! NEQ 0 (exit /b 1)
+    call :RecordStep "!stepName!" !start!
+
+    exit /b 0
 
 :PartA
     set start=!time!
@@ -318,6 +359,11 @@ endlocal && exit /b 0
         set BUILDXL_ARGS=%INTERNAL_BUILD_ARGS% %BUILDXL_ARGS%
         echo ***Running internal build***
         shift
+    )
+
+    if "%RUN_CODEX%" == "true" (
+        set RUN_PART_A=0
+        set RUN_PART_B=0
     )
 
     if "%1" NEQ "" (

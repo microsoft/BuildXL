@@ -128,7 +128,7 @@ namespace BuildXL.Scheduler.Tracing
         /// <summary>
         /// Gets the command line arguments for the process.
         /// </summary>
-        public PipData GetArgumentsDataFromProcess(Process process)
+        public PipData GetArgumentsDataFromProcess(Process process, int skipFragmentCount = 0)
         {
             PipData arguments = process.Arguments;
             if (process.ResponseFile.IsValid)
@@ -137,7 +137,7 @@ namespace BuildXL.Scheduler.Tracing
                 PipDataBuilder pipDataBuilder = new PipDataBuilder(StringTable);
 
                 // Add all the arguments from the command line excluding the response file (the last fragment)
-                foreach (var fragment in process.Arguments.Take(process.Arguments.FragmentCount - 1).Concat(responseFileData))
+                foreach (var fragment in process.Arguments.Take(process.Arguments.FragmentCount - 1).Concat(responseFileData).Skip(skipFragmentCount))
                 {
                     Contract.Assume(fragment.FragmentType != PipFragmentType.Invalid);
 

@@ -51,7 +51,7 @@ namespace BuildXL.Storage
                             }
                             else
                             {
-                                return new Failure<string>(I($"Querying journal results in {result.Response.Status.ToString()}"));
+                                return new Failure<string>(I($"Querying journal results in {result.Response.Status}"));
                             }
                         }
                         else

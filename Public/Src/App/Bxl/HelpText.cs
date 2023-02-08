@@ -1326,7 +1326,7 @@ namespace BuildXL
 
             hw.WriteOption(
                 "/verifyJournalForEngineVolumes[+|-]",
-                Strings.HelpText_DisplayHelp_VsOutputSrc,
+                Strings.HelpText_DisplayHelp_VerifyJournalForEngineVolumes,
                 HelpLevel.Verbose);
 
             #endregion

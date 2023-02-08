@@ -1406,6 +1406,7 @@ namespace BuildXL.Native.IO.Windows
                         errorStatus = QueryUsnJournalStatus.JournalDeleteInProgress;
                         break;
                     case NativeIOConstants.ErrorInvalidFunction:
+                    case NativeIOConstants.ErrorNotSupported:
                         errorStatus = QueryUsnJournalStatus.VolumeDoesNotSupportChangeJournals;
                         break;
                     case NativeIOConstants.ErrorInvalidParameter:

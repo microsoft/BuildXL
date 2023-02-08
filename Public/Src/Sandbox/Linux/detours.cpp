@@ -104,6 +104,13 @@ INTERPOSE(int, readdir_r, DIR *dirp, struct dirent *entry, struct dirent **resul
     return bxl->check_fwd_and_report_readdir_r(report, check, ERROR_RETURN_VALUE, dirp, entry, result);
 })
 
+INTERPOSE(int, readdir64_r, DIR *dirp, struct dirent64 *entry, struct dirent64 **result)
+({
+    AccessReportGroup report;
+    auto check = bxl->create_access_fd(__func__, ES_EVENT_TYPE_NOTIFY_READDIR, dirfd(dirp), report);
+    return bxl->check_fwd_and_report_readdir64_r(report, check, ERROR_RETURN_VALUE, dirp, entry, result);
+})
+
 INTERPOSE(void, _exit, int status)({
     bxl->report_access("_exit", ES_EVENT_TYPE_NOTIFY_EXIT, std::string(""), std::string(""));
     bxl->real__exit(status);

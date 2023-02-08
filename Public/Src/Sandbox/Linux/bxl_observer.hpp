@@ -555,6 +555,7 @@ public:
     GEN_FN_DEF(struct dirent *, readdir, DIR *dirp);
     GEN_FN_DEF(struct dirent64 *, readdir64, DIR *dirp);
     GEN_FN_DEF(int, readdir_r, DIR *dirp, struct dirent *entry, struct dirent **result);
+    GEN_FN_DEF(int, readdir64_r, DIR *dirp, struct dirent64 *entry, struct dirent64 **result);
 
     /* ============ don't need to be interposed ======================= */
     GEN_FN_DEF(int, close, int fd);

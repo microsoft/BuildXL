@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Runtime.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
@@ -23,12 +24,29 @@ using BuildXL.Utilities.Tasks;
 namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
 {
     /// <nodoc />
-    public record TwoLevelCacheConfiguration(
-        bool RemoteCacheIsReadOnly = true,
-        bool AlwaysUpdateFromRemote = false,
-        bool BatchRemotePinsOnPut = false,
-        int RemotePinOnPutBatchMaxSize = 500,
-        double RemotePinOnPutBatchIntervalSeconds = 5);
+    [DataContract]
+    public class TwoLevelCacheConfiguration
+    {
+        /// <nodoc />
+        [DataMember]
+        public bool RemoteCacheIsReadOnly { get; set; } = true;
+
+        /// <nodoc />
+        [DataMember]
+        public bool AlwaysUpdateFromRemote { get; set; } = false;
+
+        /// <nodoc />
+        [DataMember]
+        public bool BatchRemotePinsOnPut { get; set; } = false;
+
+        /// <nodoc />
+        [DataMember]
+        public int RemotePinOnPutBatchMaxSize { get; set; } = 500;
+
+        /// <nodoc />
+        [DataMember]
+        public double RemotePinOnPutBatchIntervalSeconds { get; set; } = 5;
+    }
 
     /// <summary>
     /// Wraps multiple underlying cache sessions under a single wrapper.

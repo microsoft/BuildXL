@@ -112,7 +112,7 @@ namespace BuildXL.Cache.Host.Configuration
             }
         }
 
-        private string GetCacheRootPath(string name, string scenario)
+        public string GetCacheRootPath(string name, string scenario)
         {
             if (string.IsNullOrEmpty(name))
             {

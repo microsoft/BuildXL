@@ -477,7 +477,7 @@
   <data name="Args_ArtificialCacheMiss_Invalid" xml:space="preserve">
     <value>Invalid miss-rate options: '{0}'. See the description for /injectCacheMisses. Example: ~0.1#123 (inverted rate of 10%; seed 123)</value>
   </data>
-   <data name="Args_ForcedCacheMiss_InvalidPipId" xml:space="preserve">
+  <data name="Args_ForcedCacheMiss_InvalidPipId" xml:space="preserve">
     <value>The specified value '{0}' in the /forcedCacheMiss argument is not a valid pip id.</value>
   </data>
   <data name="HelpText_DisplayHelp_InjectCacheMisses" xml:space="preserve">
@@ -1137,5 +1137,8 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   </data>
   <data name="HelpText_DisplayHelp_EnableLinuxPTraceSandbox" xml:space="preserve">
     <value>Enables the ptrace sandbox on Linux when a statically linked binary is detected. Note that this will have a negative impact on performance, but is necessary to ensure correctness on some Linux builds.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_VerifyJournalForEngineVolumes" xml:space="preserve">
+    <value>Verifies that change journal is available for engine volumes (source/object/cache directories). Defaults to on.</value>
   </data>
 </root>

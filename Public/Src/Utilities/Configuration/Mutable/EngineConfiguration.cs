@@ -36,6 +36,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             UseFileContentTable = default;
             AllowDuplicateTemporaryDirectory = false;
             VerifyFileContentOnBuildManifestHashComputation = false;
+            VerifyJournalForEngineVolumes = true;
         }
 
         /// <nodoc />
@@ -79,6 +80,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             AllowDuplicateTemporaryDirectory = template.AllowDuplicateTemporaryDirectory;
             UnsafeAllowOutOfMountWrites = template.UnsafeAllowOutOfMountWrites;
             VerifyFileContentOnBuildManifestHashComputation = template.VerifyFileContentOnBuildManifestHashComputation;
+            VerifyJournalForEngineVolumes = template.VerifyJournalForEngineVolumes;
         }
 
         /// <inheritdoc />
@@ -176,5 +178,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public bool VerifyFileContentOnBuildManifestHashComputation { get; set; }
+
+        /// <inheritdoc />
+        public bool VerifyJournalForEngineVolumes { get; set; }
     }
 }

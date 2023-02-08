@@ -2687,20 +2687,21 @@ namespace BuildXL.Engine
         /// </summary>
         private bool VerifyJournalAvailableForEngineVolumesIfRequired(LoggingContext loggingContext)
         {
+            bool isRequired = Configuration.Engine.VerifyJournalForEngineVolumes;
             bool allEnabled =
-                VerifyJournalAvailableForPath(loggingContext, Configuration.Layout.SourceDirectory) &&
-                VerifyJournalAvailableForPath(loggingContext, Configuration.Layout.ObjectDirectory) &&
-                VerifyJournalAvailableForPath(loggingContext, Configuration.Layout.CacheDirectory) &&
-                VerifyJournalAvailableForPath(loggingContext, Configuration.Layout.BuildEngineDirectory) &&
-                VerifyJournalAvailableForPath(loggingContext, Configuration.Layout.EngineCacheDirectory);
+                VerifyJournalAvailableForPath(loggingContext, Configuration.Layout.SourceDirectory, isRequired) &&
+                VerifyJournalAvailableForPath(loggingContext, Configuration.Layout.ObjectDirectory, isRequired) &&
+                VerifyJournalAvailableForPath(loggingContext, Configuration.Layout.CacheDirectory, isRequired) &&
+                VerifyJournalAvailableForPath(loggingContext, Configuration.Layout.BuildEngineDirectory, isRequired) &&
+                VerifyJournalAvailableForPath(loggingContext, Configuration.Layout.EngineCacheDirectory, isRequired);
 
-            return allEnabled;
+            return !isRequired || allEnabled;
         }
 
         /// <summary>
         /// Verifies that a path is possibly on a volume with an enabled change journal. If false is returned, an error has been logged.
         /// </summary>
-        private bool VerifyJournalAvailableForPath(LoggingContext loggingContext, AbsolutePath path)
+        private bool VerifyJournalAvailableForPath(LoggingContext loggingContext, AbsolutePath path, bool isRequired)
         {
             Contract.Requires(path.IsValid);
 
@@ -2708,12 +2709,28 @@ namespace BuildXL.Engine
             if (!possiblyEnabled)
             {
                 var drive = finalPath.GetRoot(Context.PathTable).ToString(Context.PathTable).TrimEnd('\\');
-                Logger.Log.JournalRequiredOnVolumeError(
-                    loggingContext,
-                    drive,
-                    path.ToString(Context.PathTable),
-                    finalPath.IsValid ? finalPath.ToString(Context.PathTable) : string.Empty,
-                    GetConfigureJournalCommand(drive));
+                var pathStr = path.ToString(Context.PathTable);
+                var finalPathStr = finalPath.IsValid ? finalPath.ToString(Context.PathTable) : string.Empty;
+                var command = GetConfigureJournalCommand(drive);
+
+                if (isRequired)
+                {
+                    Logger.Log.JournalRequiredOnVolumeError(
+                        loggingContext,
+                        drive,
+                        pathStr,
+                        finalPathStr,
+                        command);
+                }
+                else
+                {
+                    Logger.Log.JournalNotEnabledOnVolumeWarning(
+                        loggingContext,
+                        drive,
+                        pathStr,
+                        finalPathStr,
+                        command);
+                }
             }
 
             return possiblyEnabled;

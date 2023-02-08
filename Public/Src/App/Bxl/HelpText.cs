@@ -1324,6 +1324,11 @@ namespace BuildXL
                 Strings.HelpText_DisplayHelp_AssumeCleanOutputs,
                 HelpLevel.Verbose);
 
+            hw.WriteOption(
+                "/verifyJournalForEngineVolumes[+|-]",
+                Strings.HelpText_DisplayHelp_VsOutputSrc,
+                HelpLevel.Verbose);
+
             #endregion
 
             if (helpLevel < HelpLevel.Verbose)

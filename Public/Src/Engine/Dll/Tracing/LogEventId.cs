@@ -411,6 +411,8 @@ namespace BuildXL.Engine.Tracing
         ObjDumpNotInstalled = 7133,
 
         DistributionStreamingNetworkFailure = 7134,
+
+        JournalNotEnabledOnVolumeWarning = 7135,
         // max 7200
     }
 }

@@ -1416,6 +1416,9 @@ namespace BuildXL
                             "verifyCacheLookupPin",
                             sign => schedulingConfiguration.VerifyCacheLookupPin = sign),
                         OptionHandlerFactory.CreateBoolOption(
+                            "verifyJournalForEngineVolumes",
+                            sign => engineConfiguration.VerifyJournalForEngineVolumes = sign),
+                        OptionHandlerFactory.CreateBoolOption(
                             "verifySourceFilesOnWorkers",
                             opt => distributionConfiguration.VerifySourceFilesOnWorkers = opt),
                         OptionHandlerFactory.CreateBoolOption(

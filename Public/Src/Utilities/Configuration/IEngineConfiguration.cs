@@ -71,6 +71,16 @@ namespace BuildXL.Utilities.Configuration
         int ScanChangeJournalTimeLimitInSec { get; }
 
         /// <summary>
+        /// Verifies that change journal is available for engine volumes (source/object/cache directories).
+        /// </summary>
+        /// <remarks>
+        /// BuildXL itself can run without change journal, although some optimizations (file content table and file change tracker will be in disabled state).
+        /// However, some builds, e.g., pips that test/use change journal capabilities, will unexpectedly fail when change journal is not available/enabled.
+        /// An example of such builds is BuildXL selfhost builds.
+        /// </remarks>
+        bool VerifyJournalForEngineVolumes { get; }
+
+        /// <summary>
         /// Specifies the phase until which BuildXL runs. Allowed values are None (no phase is run), Parse (run until parsing is done), Evaluate (run until value evaluation is done), Schedule
         /// (run until scheduling is done), Execute (run until execution is done). Default isExecute.
         /// </summary>

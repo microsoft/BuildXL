@@ -332,7 +332,6 @@ namespace BuildXL.Cache.Host.Service.Internal
                 DelayForProactiveReplication = TimeSpan.FromSeconds(distributedSettings.ProactiveReplicationDelaySeconds),
                 ProactiveReplicationCopyLimit = distributedSettings.ProactiveReplicationCopyLimit,
                 EnableProactiveReplication = distributedSettings.EnableProactiveReplication,
-                TraceProactiveCopy = distributedSettings.TraceProactiveCopy,
                 ProactiveCopyGetBulkBatchSize = distributedSettings.ProactiveCopyGetBulkBatchSize,
                 ProactiveCopyGetBulkInterval = TimeSpan.FromSeconds(distributedSettings.ProactiveCopyGetBulkIntervalSeconds),
                 ProactiveCopyMaxRetries = distributedSettings.ProactiveCopyMaxRetries,

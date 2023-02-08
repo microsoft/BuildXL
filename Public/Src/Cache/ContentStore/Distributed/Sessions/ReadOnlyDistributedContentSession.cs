@@ -1328,7 +1328,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
             return context.PerformOperationAsync(
                 Tracer,
-                traceErrorsOnly: !Settings.TraceProactiveCopy,
                 operation: async () =>
                 {
                     try

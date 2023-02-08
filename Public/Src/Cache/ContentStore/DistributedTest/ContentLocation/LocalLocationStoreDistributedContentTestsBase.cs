@@ -229,8 +229,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 PinMinUnverifiedCount = 1,
                 // Low risk and high risk tolerance for machine or file loss to prevent pin better from kicking in
                 MachineRisk = 0.0000001,
-
-                TraceProactiveCopy = true,
+                
                 ProactiveCopyMode = EnableProactiveCopy ? ProactiveCopyMode.ToString() : nameof(ProactiveCopyMode.Disabled),
                 PushProactiveCopies = true,
                 EnableProactiveReplication = EnableProactiveReplication,

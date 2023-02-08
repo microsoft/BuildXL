@@ -90,11 +90,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         public int MaxRetryCount { get; set; } = 32;
 
         /// <summary>
-        /// Indicates whether proactive copies will trace successful results
-        /// </summary>
-        public bool TraceProactiveCopy { get; set; } = false;
-
-        /// <summary>
         /// The mode in which proactive copy should run
         /// </summary>
         public ProactiveCopyMode ProactiveCopyMode { get; set; } = ProactiveCopyMode.Disabled;

@@ -310,7 +310,13 @@ namespace BuildXL.Scheduler
                 }
                 catch (BuildXLException ex)
                 {
-                    Logger.Log.PipCopyFileFailed(operationContext, pipDescription, source, destination, ex.LogEventErrorCode, ex.LogEventMessage);
+                    string message = ex.LogEventMessage;
+                    if (ex.NativeErrorCode() == NativeIOConstants.ErrorSharingViolation && OperatingSystemHelper.IsWindowsOS && FileUtilities.TryFindOpenHandlesToFile(source, out string diagnosticInfo, printCurrentFilePath: true))
+                    {
+                        message = message + " " + $"Open file handle diagnostic data: {diagnosticInfo}";
+                    }
+                    Logger.Log.PipCopyFileFailed(operationContext, pipDescription, source, destination, ex.LogEventErrorCode, message);
+
                     return PipResult.Create(PipResultStatus.Failed, startTime);
                 }
             }

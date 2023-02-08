@@ -22,7 +22,8 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
                 TimeSpan StorageInteractionTimeout,
                 TimeSpan MetadataPinElisionDuration,
                 string Namespace = "default",
-                bool CoerceNames = true
+                bool CoerceNames = true,
+                AzureBlobStorageContentSession.BulkPinStrategy BulkPinStrategy = AzureBlobStorageContentSession.BulkPinStrategy.Individual
             );
 
         /// <nodoc />
@@ -72,6 +73,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
                 ContainerName = namespce,
                 FolderName = $"content/{universe}",
                 StorageInteractionTimeout = configuration.StorageInteractionTimeout,
+                BulkPinStrategy = configuration.BulkPinStrategy,
             });
 
             var cache = new OneLevelCache(

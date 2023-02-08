@@ -50,7 +50,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
             return DedupIdentifier.Create(new HashAndAlgorithmId(value));
         }
 
-        public static DedupIdentifier Create(DedupNode node, HashType hashType)
+        public static DedupIdentifier Create(DedupNode node)
         {
             Contract.Requires(node != null);
 

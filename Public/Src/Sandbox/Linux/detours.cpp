@@ -187,9 +187,8 @@ static int handle_exec_with_ptrace(const char *file, char *const argv[], char *c
 }
 
 INTERPOSE(int, fexecve, int fd, char *const argv[], char *const envp[])({
-    // exec* functions don't return unless they fail (the executing image gets replaced
-    // by the specified one). So we cannot actually report back the errno
-    bxl->report_access_fd(__func__, ES_EVENT_TYPE_NOTIFY_EXEC, fd, /* error */ 0);
+    // exec* functions start a new instance of the sandbox and therefore the process creation report
+    // is sent on __init__
 
     if (bxl->check_and_report_statically_linked_process(fd))
     {
@@ -197,13 +196,16 @@ INTERPOSE(int, fexecve, int fd, char *const argv[], char *const envp[])({
     }
 
     result_t<int> result = bxl->fwd_fexecve(fd, argv, bxl->ensureEnvs(envp));
+
+    // This will only execute if exec failed
+    bxl->report_access_fd(__func__, ES_EVENT_TYPE_NOTIFY_EXEC, fd, result.get_errno());
+
     return result.restore();
 })
 
 INTERPOSE(int, execv, const char *file, char *const argv[])({
-    // exec* functions don't return unless they fail (the executing image gets replaced
-    // by the specified one). So we cannot actually report back the errno
-    bxl->report_exec(__func__, argv[0], file,  /* error */ 0);
+    // exec* functions start a new instance of the sandbox and therefore the process creation report
+    // is sent on __init__
 
     if (bxl->check_and_report_statically_linked_process(file))
     {
@@ -211,13 +213,16 @@ INTERPOSE(int, execv, const char *file, char *const argv[])({
     }
 
     result_t<int> result =  bxl->fwd_execve(file, argv, bxl->ensureEnvs(environ));
+
+    // This will only execute if exec failed
+    bxl->report_exec(__func__, argv[0], file,  result.get_errno());
+
     return result.restore();
 })
 
 INTERPOSE(int, execve, const char *file, char *const argv[], char *const envp[])({
-    // exec* functions don't return unless they fail (the executing image gets replaced
-    // by the specified one). So we cannot actually report back the errno
-    bxl->report_exec(__func__, argv[0], file,  /* error */ 0);
+    // exec* functions start a new instance of the sandbox and therefore the process creation report
+    // is sent on __init__
 
     if (bxl->check_and_report_statically_linked_process(file))
     {
@@ -225,13 +230,16 @@ INTERPOSE(int, execve, const char *file, char *const argv[], char *const envp[])
     }
 
     result_t<int> result =  bxl->fwd_execve(file, argv, bxl->ensureEnvs(envp));
+
+    // This will only execute if exec failed
+    bxl->report_exec(__func__, argv[0], file,  result.get_errno());
+
     return result.restore();
 })
 
 INTERPOSE(int, execvp, const char *file, char *const argv[])({
-    // exec* functions don't return unless they fail (the executing image gets replaced
-    // by the specified one). So we cannot actually report back the errno
-    bxl->report_exec(__func__, argv[0], file,  /* error */ 0);
+    // exec* functions start a new instance of the sandbox and therefore the process creation report
+    // is sent on __init__
 
     if (bxl->check_and_report_statically_linked_process(file))
     {
@@ -239,13 +247,16 @@ INTERPOSE(int, execvp, const char *file, char *const argv[])({
     }
 
     result_t<int> result =  bxl->fwd_execvpe(file, argv, bxl->ensureEnvs(environ));
+
+    // This will only execute if exec failed
+    bxl->report_exec(__func__, argv[0], file,  result.get_errno());
+
     return result.restore();
 })
 
 INTERPOSE(int, execvpe, const char *file, char *const argv[], char *const envp[])({
-    // exec* functions don't return unless they fail (the executing image gets replaced
-    // by the specified one). So we cannot actually report back the errno
-    bxl->report_exec(__func__, argv[0], file, /* error */ 0);
+    // exec* functions start a new instance of the sandbox and therefore the process creation report
+    // is sent on __init__
 
     if (bxl->check_and_report_statically_linked_process(file))
     {
@@ -253,6 +264,10 @@ INTERPOSE(int, execvpe, const char *file, char *const argv[], char *const envp[]
     }
 
     result_t<int> result = bxl->fwd_execvpe(file, argv, bxl->ensureEnvs(envp)).restore();
+
+    // This will only execute if exec failed
+    bxl->report_exec(__func__, argv[0], file,  result.get_errno());
+
     return result.restore();
 })
 

@@ -250,7 +250,7 @@ bool BxlObserver::SendReport(const AccessReport &report)
     int maxMessageLength = PIPE_BUF - PrefixLength;
     int numWritten = snprintf(
         &buffer[PrefixLength], maxMessageLength, "%s|%d|%d|%d|%d|%d|%d|%s|%d\n",
-        __progname, getpid(), report.requestedAccess, report.status, report.reportExplicitly, report.error, report.operation, report.path, report.isDirectory);
+        __progname, report.pid, report.requestedAccess, report.status, report.reportExplicitly, report.error, report.operation, report.path, report.isDirectory);
     if (numWritten == maxMessageLength)
     {
         // TODO: once 'send' is capable of sending more than PIPE_BUF at once, allocate a bigger buffer and send that

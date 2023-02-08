@@ -1300,6 +1300,31 @@ namespace Test.BuildXL.Processes
             }
         }
 
+        [FactIfSupported(requiresUnixBasedOperatingSystem: true)]
+        public async Task ForkedProcessIsReportedWithRightPid()
+        {
+            var fam = new FileAccessManifest(Context.PathTable);
+            fam.ReportFileAccesses = true;
+            fam.FailUnexpectedFileAccesses = false;
+
+            var info = ToProcessInfo(
+                ToProcess(new Operation[]
+                    {
+                        Operation.Spawn(Context.PathTable, waitToFinish: true, Operation.WriteFile(CreateOutputFileArtifact())),
+                        Operation.WriteFile(CreateOutputFileArtifact()),
+                    }),
+                fileAccessManifest: fam);
+
+            var result = await RunProcess(info);
+            
+            // Retrieve the pids of the fork process reports
+            var processReportsPids = result.FileAccesses.Where(fa =>
+                fa.Operation == ReportedFileOperation.Process).Select(fa => fa.Process.ProcessId).Distinct();
+
+            // We should see two different pids (root and spawned processes)
+            XAssert.AreEqual(2, processReportsPids.Count());
+        }
+
         private void AssertReportedAccessesIsEmpty(PathTable pathTable, IEnumerable<ReportedFileAccess> result)
         {
             if (result == null || !result.Any())

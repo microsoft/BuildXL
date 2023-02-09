@@ -33,11 +33,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public TimeSpan GarbageCollectionInterval { get; set; } = TimeSpan.FromHours(1);
 
         /// <summary>
-        /// Whether to log evicted metadata
-        /// </summary>
-        public bool MetadataGarbageCollectionLogEnabled { get; set; } = false;
-
-        /// <summary>
         /// Maximum allowed size of the Metadata column family.
         /// </summary>
         public double MetadataGarbageCollectionMaximumSizeMb { get; set; } = 20_000;
@@ -123,11 +118,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public string? Epoch { get; set; } = null;
 
         /// <summary>
-        /// When logs backup is enabled, the maximum time logs are kept since their creation date.
-        /// </summary>
-        public TimeSpan LogsRetention { get; set; } = TimeSpan.FromDays(7);
-
-        /// <summary>
         /// Number of keys to buffer on <see cref="RocksDbContentLocationDatabase.EnumerateSortedKeysFromStorage(ContentStore.Tracing.Internal.OperationContext)"/>
         /// </summary>
         public long EnumerateSortedKeysFromStorageBufferSize { get; set; } = 100_000;
@@ -136,27 +126,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// Number of keys to buffer on <see cref="RocksDbContentLocationDatabase.EnumerateEntriesWithSortedKeysFromStorage(ContentStore.Tracing.Internal.OperationContext, ContentLocationDatabase.EnumerationFilter, bool)"/>
         /// </summary>
         public long EnumerateEntriesWithSortedKeysFromStorageBufferSize { get; set; } = 100_000;
-
-        /// <summary>
-        /// Whether to use 'SetTotalOrderSeek' option during database enumeration.
-        /// </summary>
-        /// <remarks>
-        /// Setting this flag is important in order to get the correct behavior for content enumeration of the database.
-        /// When the prefix extractor is used by calling SetIndexType(BlockBasedTableIndexType.Hash) and SetPrefixExtractor(SliceTransform.CreateNoOp())
-        /// then the full database enumeration may return already removed keys or the previous version for some values.
-        ///
-        /// Not setting this flag was causing issues during reconciliation because the database enumeration was producing values for already removed keys
-        /// and some keys were missing.
-        /// </remarks>
-        public bool UseReadOptionsWithSetTotalOrderSeekInDbEnumeration { get; set; } = true;
-
-        /// <summary>
-        /// Whether to use 'SetTotalOrderSeek' option during database garbage collection.
-        /// </summary>
-        /// <remarks>
-        /// See the remarks section for <see cref="UseReadOptionsWithSetTotalOrderSeekInDbEnumeration"/>.
-        /// </remarks>
-        public bool UseReadOptionsWithSetTotalOrderSeekInGarbageCollection { get; set; } = true;
 
         /// <summary>
         /// Whether to use RocksDb merge operator for content location entries.
@@ -191,19 +160,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             ApplyIfNotNull(settings.ContentLocationDatabaseGcIntervalMinutes, v => configuration.GarbageCollectionInterval = TimeSpan.FromMinutes(v));
             ApplyIfNotNull(settings.ContentLocationDatabaseGarbageCollectionConcurrent, v => configuration.GarbageCollectionConcurrent = v);
             ApplyIfNotNull(settings.ContentLocationDatabaseMetadataGarbageCollectionMaximumSizeMb, v => configuration.MetadataGarbageCollectionMaximumSizeMb = v);
-            ApplyIfNotNull(settings.ContentLocationDatabaseMetadataGarbageCollectionLogEnabled, v => configuration.MetadataGarbageCollectionLogEnabled = v);
 
             ApplyIfNotNull(settings.ContentLocationDatabaseOpenReadOnly, v => configuration.OpenReadOnly = (v && !settings.IsMasterEligible));
             ApplyIfNotNull(settings.UseMergeOperatorForContentLocations, v => configuration.UseMergeOperatorForContentLocations = v);
             ApplyIfNotNull(settings.SortMergeableContentLocations, v => configuration.SortMergeableContentLocations = v);
 
-            ApplyIfNotNull(settings.ContentLocationDatabaseLogsBackupRetentionMinutes, v => configuration.LogsRetention = TimeSpan.FromMinutes(v));
-
             ApplyIfNotNull(settings.ContentLocationDatabaseEnumerateSortedKeysFromStorageBufferSize, v => configuration.EnumerateSortedKeysFromStorageBufferSize = v);
             ApplyIfNotNull(settings.ContentLocationDatabaseEnumerateEntriesWithSortedKeysFromStorageBufferSize, v => configuration.EnumerateEntriesWithSortedKeysFromStorageBufferSize = v);
-
-            ApplyIfNotNull(settings.ContentLocationDatabaseUseReadOptionsWithSetTotalOrderSeekInDbEnumeration, v => configuration.UseReadOptionsWithSetTotalOrderSeekInDbEnumeration = v);
-            ApplyIfNotNull(settings.ContentLocationDatabaseUseReadOptionsWithSetTotalOrderSeekInGarbageCollection, v => configuration.UseReadOptionsWithSetTotalOrderSeekInGarbageCollection = v);
 
             return configuration;
         }

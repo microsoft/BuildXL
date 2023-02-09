@@ -8,8 +8,17 @@ using System.ComponentModel.DataAnnotations;
 
 namespace BuildXL.Cache.Host.Configuration
 {
+    /// <summary>
+    /// This class helps clients validate our configuration before actually using it. It's basically used as a PR gate.
+    /// </summary>
     public static class DistributedContentSettingsValidator
     {
+        /// <summary>
+        /// Entry point to <see cref="DistributedContentSettings"/> validation.
+        /// </summary>
+        /// <remarks>
+        /// This method is called by ConfigCop to ensure that DistributedContentSettings isn't obviously broken.
+        /// </remarks>
         public static IReadOnlyList<string> Validate(this DistributedContentSettings settings)
         {
             var errorList = new List<string>();

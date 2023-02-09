@@ -578,10 +578,6 @@ namespace BuildXL.Cache.Host.Configuration
         public bool? ContentLocationDatabaseOpenReadOnly { get; set; }
 
         [DataMember]
-        [Validation.Range(1, int.MaxValue)]
-        public int? ContentLocationDatabaseLogsBackupRetentionMinutes { get; set; }
-
-        [DataMember]
         public bool? UseMergeOperatorForContentLocations { get; set; }
 
         [DataMember]
@@ -607,15 +603,6 @@ namespace BuildXL.Cache.Host.Configuration
 
         [DataMember]
         public ByteSizeSetting? GlobalCacheMetadataSizeRotationThreshold { get; set; }
-
-        [DataMember]
-        public bool? ContentLocationDatabaseUseReadOptionsWithSetTotalOrderSeekInDbEnumeration { get; set; }
-
-        [DataMember]
-        public bool? ContentLocationDatabaseUseReadOptionsWithSetTotalOrderSeekInGarbageCollection { get; set; }
-
-        [DataMember]
-        public bool? ContentLocationDatabaseMetadataGarbageCollectionLogEnabled { get; set; }
 
         #endregion
 

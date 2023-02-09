@@ -41,7 +41,6 @@ namespace ContentStoreTest.Distributed.Sessions
                                                                        {
                                                                            CleanOnInitialize = false,
                                                                            Epoch = "DM_S220201001ReconcileTest.03312020.0",
-                                                                           UseReadOptionsWithSetTotalOrderSeekInDbEnumeration = setTotalOrderSeek,
                 }, () => CollectionUtilities.EmptyArray<MachineId>());
 
                 var context = new OperationContext(new Context(Logger));
@@ -93,7 +92,6 @@ namespace ContentStoreTest.Distributed.Sessions
                                                                        {
                                                                            CleanOnInitialize = false,
                                                                            Epoch = "DM_S220201001ReconcileTest.03312020.0",
-                                                                           UseReadOptionsWithSetTotalOrderSeekInDbEnumeration = setTotalOrderSeek,
                                                                        }, () => CollectionUtilities.EmptyArray<MachineId>());
 
                 var context = new OperationContext(new Context(Logger));

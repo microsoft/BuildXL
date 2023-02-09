@@ -238,8 +238,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     DisableAutomaticCompactions = !IsDatabaseWriteable,
                     LeveledCompactionDynamicLevelTargetSizes = true,
                     Compression = Compression.Zstd,
-                    UseReadOptionsWithSetTotalOrderSeekInDbEnumeration = _configuration.UseReadOptionsWithSetTotalOrderSeekInDbEnumeration,
-                    UseReadOptionsWithSetTotalOrderSeekInGarbageCollection = _configuration.UseReadOptionsWithSetTotalOrderSeekInGarbageCollection,
+                    UseReadOptionsWithSetTotalOrderSeekInDbEnumeration = true,
+                    UseReadOptionsWithSetTotalOrderSeekInGarbageCollection = true,
                 };
 
                 RocksDbUtilities.ConfigureRocksDbTracingIfNeeded(context, _configuration, settings, Tracer, componentName: nameof(RocksDbContentLocationDatabase));
@@ -1237,11 +1237,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         secondPassRemovedValueSize += (ulong)value.Length;
                         secondPassRemovedEntries++;
 
-                        if (_configuration.MetadataGarbageCollectionLogEnabled)
-                        {
-                            var fingerprint = DeserializeStrongFingerprint(strongFingerprint);
-                            NagleOperationTracer?.Enqueue((context, fingerprint, EntryOperation.RemoveMetadataEntry, OperationReason.GarbageCollect));
-                        }
+                        var fingerprint = DeserializeStrongFingerprint(strongFingerprint);
+                        NagleOperationTracer?.Enqueue((context, fingerprint, EntryOperation.RemoveMetadataEntry, OperationReason.GarbageCollect));
                     }
 
                     secondPassSumKeySize += (ulong)key.Length;

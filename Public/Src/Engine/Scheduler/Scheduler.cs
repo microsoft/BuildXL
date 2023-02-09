@@ -5475,6 +5475,7 @@ namespace BuildXL.Scheduler
                 long exeDurationCriticalPathMs = 0;
                 long pipDurationCriticalPathMs = 0;
                 long totalGrpcDurationMs = 0;
+                long totalSerializationDurationMs = 0;
 
                 foreach (var node in criticalPath)
                 {
@@ -5496,6 +5497,7 @@ namespace BuildXL.Scheduler
                     pipDurationCriticalPathMs += pipDurationMs;
                     exeDurationCriticalPathMs += runtimeInfo.ProcessExecuteTimeMs;
                     totalGrpcDurationMs += (long)performance.GrpcDuration.TotalMilliseconds;
+                    totalSerializationDurationMs += (long)performance.SerializationDuration.TotalMilliseconds;
 
                     Logger.Log.CriticalPathPipRecord(m_executePhaseLoggingContext,
                         pipSemiStableHash: pip.SemiStableHash,
@@ -5632,7 +5634,9 @@ namespace BuildXL.Scheduler
 
                 statistics.Add("CriticalPath.TotalOrchestratorQueueDurationMs", totalOrchestratorQueueTime);
                 statistics.Add("CriticalPath.TotalGrpcDurationMs", totalGrpcDurationMs);
+                statistics.Add("CriticalPath.TotalSerializationDurationMs", totalSerializationDurationMs);
                 builder.AppendLine(I($"{"Total Grpc Duration (ms) on the Critical Path",-106}: {totalGrpcDurationMs,10}"));
+                builder.AppendLine(I($"{"Total Serialization Duration (ms) on the Critical Path",-106}: {totalSerializationDurationMs,10}"));
 
                 builder.AppendLine(I($"Total Orchestrator Queue Waiting Time (ms) on the Critical Path"));
                 for (int i = 0; i < totalOrchestratorQueueDurations.Count; i++)
@@ -5764,7 +5768,8 @@ namespace BuildXL.Scheduler
                 }            
             }
 
-            stringBuilder.AppendLine(I($"\t\t  {"GrpcDurationMs",-88}: {performanceInfo.GrpcDuration.TotalMilliseconds,10}"));
+            stringBuilder.AppendLine(I($"\t\t  {"GrpcDurationMs",-88}: {(long)performanceInfo.GrpcDuration.TotalMilliseconds,10}"));
+            stringBuilder.AppendLine(I($"\t\t  {"SerializationDurationMs",-88}: {(long)performanceInfo.SerializationDuration.TotalMilliseconds,10}"));
 
             for (int i = 0; i < (int)PipExecutionStep.Done + 1; i++)
             {

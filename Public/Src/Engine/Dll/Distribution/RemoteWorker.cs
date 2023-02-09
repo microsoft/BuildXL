@@ -1285,22 +1285,24 @@ namespace BuildXL.Engine.Distribution
                     return;
                 }
 
-                var pip = pipCompletionTask.Pip;
-                pipCompletionTask.SetDuration(pipCompletionData.ExecuteStepTicks, pipCompletionData.QueueTicks);
-
+                var serializationDuration = TimeSpan.FromTicks(pipCompletionData.SerializationTicks);
                 ExecutionResult result = null;
-                using (m_orchestratorService.Environment.Counters.StartStopwatch(PipExecutorCounter.RemoteWorker_DeserializeFromBlobDuration))
+                using (var counter = m_orchestratorService.Environment.Counters.StartStopwatch(PipExecutorCounter.RemoteWorker_DeserializeFromBlobDuration))
                 {
                     result = m_orchestratorService.ResultSerializer.DeserializeFromBlob(
                         pipCompletionData.ResultBlob.Memory.Span,
                         WorkerId);
+                    serializationDuration += counter.Elapsed;
                 }
+
+                pipCompletionTask.SetDuration(pipCompletionData.ExecuteStepTicks, pipCompletionData.QueueTicks);
 
                 pipCompletionTask.RunnablePip.ThreadId = pipCompletionData.ThreadId;
                 pipCompletionTask.RunnablePip.StepStartTime = new DateTime(pipCompletionData.StartTimeTicks);
                 pipCompletionTask.RunnablePip.StepDuration = new TimeSpan(pipCompletionData.ExecuteStepTicks);
                 var grpcDuration = TimeSpan.FromTicks(DateTime.UtcNow.Ticks - pipCompletionData.BeforeSendTicks);
                 pipCompletionTask.RunnablePip.Performance.GrpcDuration += grpcDuration;
+                pipCompletionTask.RunnablePip.Performance.SerializationDuration += serializationDuration;
                 m_orchestratorService.Counters.AddToCounter(DistributionCounter.ForAllPipsGrpcDurationMs, (long)grpcDuration.TotalMilliseconds);
 
                 pipCompletionTask.TrySet(result);

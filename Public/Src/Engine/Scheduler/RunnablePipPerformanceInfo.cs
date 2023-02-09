@@ -62,6 +62,11 @@ namespace BuildXL.Scheduler
         /// </summary>
         public TimeSpan GrpcDuration { get; set; }
 
+        /// <summary>
+        /// Total ExecutionResult (de)serialization duration
+        /// </summary>
+        public TimeSpan SerializationDuration { get; set; }
+
         internal bool IsExecuted { get; private set; }
 
         internal long InputMaterializationCostMbForBestWorker { get; private set; }

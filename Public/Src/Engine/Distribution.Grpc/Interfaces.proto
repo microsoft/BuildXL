@@ -101,6 +101,9 @@ message PipCompletionData
 
     // DateTime before we send the results back to orchestrator
     int64 BeforeSendTicks = 8;
+
+    // The elapsed time in ticks of ExecutionResult (de)serialization duration
+    int64 SerializationTicks = 9;
 }
 
 // Events that have been logged on workers and are transited to the orchestrator. Any changes here may require changes

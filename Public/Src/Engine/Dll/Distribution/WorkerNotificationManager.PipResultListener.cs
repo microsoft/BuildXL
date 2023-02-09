@@ -29,10 +29,12 @@ namespace BuildXL.Engine.Distribution
             {
                 try
                 {
-                    using (DistributionService.Counters.StartStopwatch(DistributionCounter.WorkerServiceResultSerializationDuration))
+                    using (var counter = DistributionService.Counters.StartStopwatch(DistributionCounter.WorkerServiceResultSerializationDuration))
                     {
                         m_resultSerializer.SerializeExecutionResult(pipCompletion);
                         DistributionService.Counters.AddToCounter(pipCompletion.PipType == PipType.Process ? DistributionCounter.ProcessExecutionResultSize : DistributionCounter.IpcExecutionResultSize, pipCompletion.SerializedData.ResultBlob.Length);
+
+                        pipCompletion.SerializedData.SerializationTicks = counter.Elapsed.Ticks;
                     }
 
                     pipCompletion.SerializedData.BeforeSendTicks = DateTime.UtcNow.Ticks;

@@ -244,7 +244,7 @@ namespace BuildXL.Cache.ContentStore.Utils
             ReleaseExpiredWrappers(context, disposing: true);
 
             var tasks = _shutdownQueue.Select(wrapper => ReleaseWrapperAsync(context, wrapper));
-            return Task.WhenAll(tasks);
+            return TaskUtilities.SafeWhenAll(tasks);
         }
 
         private async Task ReleaseWrapperAsync(Context context, ResourceWrapper<TObject> wrapper)

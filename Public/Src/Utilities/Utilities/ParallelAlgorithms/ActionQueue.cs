@@ -49,7 +49,7 @@ namespace BuildXL.Utilities.ParallelAlgorithms
                 index++;
             }
 
-            return Task.WhenAll(tasks);
+            return TaskUtilities.SafeWhenAll(tasks);
         }
 
         /// <summary>

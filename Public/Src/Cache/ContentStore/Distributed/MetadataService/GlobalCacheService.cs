@@ -11,6 +11,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
+using BuildXL.Cache.MemoizationStore.Interfaces.Results;
 using ProtoBuf.Grpc;
 
 namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
@@ -141,12 +142,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             return ExecuteAsync(request, callContext, context =>
             {
                 return Store.GetLevelSelectorsAsync(context, request.WeakFingerprint, request.Level)
-                    .SelectAsync(r => new GetLevelSelectorsResponse()
-                    {
-                        HasMore = r.Value.HasMore,
-                        Selectors = r.Value.Selectors
-                    });
+                    .SelectAsync(fromResult);
             });
+
+            static GetLevelSelectorsResponse fromResult(Result<LevelSelectors> result)
+            {
+                return result.Succeeded
+                    ? new GetLevelSelectorsResponse() { HasMore = result.Value.HasMore, Selectors = result.Value.Selectors }
+                    : new GetLevelSelectorsResponse() { ErrorMessage = result.ErrorMessage, Diagnostics = result.Diagnostics };
+            }
         }
 
         public Task<GetContentHashListResponse> GetContentHashListAsync(GetContentHashListRequest request, CallContext callContext = default)
@@ -154,11 +158,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             return ExecuteAsync(request, callContext, context =>
             {
                 return Store.GetContentHashListAsync(context, request.StrongFingerprint)
-                    .SelectAsync(r => new GetContentHashListResponse()
-                    {
-                        MetadataEntry = r.Value
-                    });
+                    .SelectAsync(fromResult);
             });
+
+            static GetContentHashListResponse fromResult(Result<SerializedMetadataEntry> result)
+            {
+                return result.Succeeded
+                    ? new GetContentHashListResponse() { MetadataEntry = result.Value }
+                    : new GetContentHashListResponse() { ErrorMessage = result.ErrorMessage, Diagnostics = result.Diagnostics };
+            }
         }
 
         protected virtual Task<Result<TResponse>> ExecuteCoreAsync<TRequest, TResponse>(

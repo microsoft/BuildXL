@@ -2325,21 +2325,21 @@ namespace BuildXL.Scheduler.Artifacts
 
                 if (state.PlacementTasks.Count != 0)
                 {
-                    await Task.WhenAll(state.PlacementTasks);
+                    await TaskUtilities.SafeWhenAll(state.PlacementTasks);
                 }
 
                 // Wait on any placements for files already in progress by other pips
                 state.PlacementTasks.Clear();
                 foreach (var pendingPlacementTask in state.PendingPlacementTasks)
                 {
-                    state.PlacementTasks.Add(pendingPlacementTask.Item2);
+                    state.PlacementTasks.Add(pendingPlacementTask.tasks);
                 }
 
-                await Task.WhenAll(state.PlacementTasks);
+                await TaskUtilities.SafeWhenAll(state.PlacementTasks);
 
                 foreach (var pendingPlacement in state.PendingPlacementTasks)
                 {
-                    var result = await pendingPlacement.Item2;
+                    var result = await pendingPlacement.tasks;
                     if (result == PipOutputOrigin.NotMaterialized)
                     {
                         var file = pendingPlacement.fileArtifact;
@@ -2789,7 +2789,7 @@ namespace BuildXL.Scheduler.Artifacts
                     possibleResults =
                         await
                             ArtifactContentCache.TryLoadAvailableContentAsync(
-                                filesAndContentHashes.Select(pathAndContentHash => pathAndContentHash.Item2).ToList(), Context.CancellationToken);
+                                filesAndContentHashes.Select(pathAndContentHash => pathAndContentHash.contentHash).ToList(), Context.CancellationToken);
                 }
             }
 
@@ -3105,7 +3105,7 @@ namespace BuildXL.Scheduler.Artifacts
                 state.PlacementTasks.Add(placeFile(i));
             }
 
-            await Task.WhenAll(state.PlacementTasks);
+            await TaskUtilities.SafeWhenAll(state.PlacementTasks);
 
             return new ContentAvailabilityBatchResult(ReadOnlyArray<ContentAvailabilityResult>.FromWithoutCopy(results), allContentAvailable);
         }

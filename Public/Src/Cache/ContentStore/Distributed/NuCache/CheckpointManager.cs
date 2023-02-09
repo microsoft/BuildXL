@@ -393,6 +393,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                             return BoolResult.Success;
                         }
 
+                        // The Diagnostics property might be null if the error was constructed from the error message only.
+                        if (restoreResult.Diagnostics is null)
+                        {
+                            return restoreResult;
+                        }
+                        
                         var attemptPrune = restoreResult.Diagnostics.Contains("block checksum mismatch")
                             || restoreResult.Diagnostics.Contains("Bad table magic number");
                         if (!attemptPrune)

@@ -3,7 +3,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -18,6 +17,8 @@ using BuildXL.Cache.ContentStore.Sessions;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
+
+#nullable enable
 
 namespace BuildXL.Cache.ContentStore.Distributed.Utilities
 {
@@ -190,7 +191,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
         private (string host, int port) ExtractHostInfo(MachineLocation machineLocation)
         {
             var info = machineLocation.ExtractHostInfo();
-            bool? encryptionEnabled = _configuration?.GrpcCopyClientCacheConfiguration?.GrpcCopyClientConfiguration?.GrpcCoreClientOptions?.EncryptionEnabled;
+            bool? encryptionEnabled = _configuration.GrpcCopyClientCacheConfiguration?.GrpcCopyClientConfiguration?.GrpcCoreClientOptions?.EncryptionEnabled;
 
             if (encryptionEnabled == true)
             {
@@ -215,7 +216,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
 
             if (!cacheRoot.GetFileName().Equals(Constants.SharedDirectoryName))
             {
-                cacheRoot = cacheRoot / Constants.SharedDirectoryName;
+                cacheRoot /= Constants.SharedDirectoryName;
             }
 
             var cacheRootString = cacheRoot.Path.ToUpperInvariant();
@@ -232,7 +233,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
                 cacheRootString = cacheRootString.Replace(directoryToReplace.Path.ToUpperInvariant(), junction.Path);
             }
 
-            string networkPathRoot = null;
+            string networkPathRoot;
             if (OperatingSystemHelper.IsWindowsOS)
             {
                 // Only unify paths along casing if on Windows

@@ -56,6 +56,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         /// <inheritdoc />
         public bool Equals(EventSequencePoint other)
         {
+            if (other is null)
+            {
+                return false;
+            }
+
             return SequenceNumber == other.SequenceNumber && EventStartCursorTimeUtc == other.EventStartCursorTimeUtc;
         }
 

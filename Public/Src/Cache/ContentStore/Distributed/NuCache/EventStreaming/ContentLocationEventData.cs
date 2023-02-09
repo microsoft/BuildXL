@@ -212,6 +212,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         /// <nodoc />
         public virtual bool Equals(ContentLocationEventData other)
         {
+            if (other is null)
+            {
+                return false;
+            }
+
             return Kind == other.Kind && Sender == other.Sender && ContentHashes.SequenceEqual(other.ContentHashes);
         }
     }
@@ -264,6 +269,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         /// <inheritdoc />
         public override bool Equals(ContentLocationEventData other)
         {
+            if (other is null)
+            {
+                return false;
+            }
+
             var rhs = (AddContentLocationEventData)other;
             return base.Equals(other) && (Touch == rhs.Touch) && ContentSizes.SequenceEqual(rhs.ContentSizes);
         }
@@ -369,6 +379,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         /// <inheritdoc />
         public override bool Equals(ContentLocationEventData other)
         {
+            if (other is null)
+            {
+                return false;
+            }
+
             var otherTouch = (TouchContentLocationEventData)other;
             return base.Equals(other) && AccessTime == otherTouch.AccessTime;
         }

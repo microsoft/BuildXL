@@ -545,7 +545,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
                 var registry = new BlobContentLocationRegistry(
                     configuration,
                     clusterStateManager,
-                    location,
                     database,
                     store,
                     Clock);

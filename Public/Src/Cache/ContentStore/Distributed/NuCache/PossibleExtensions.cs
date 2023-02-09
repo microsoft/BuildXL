@@ -5,6 +5,8 @@ using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Tasks;
 
+#nullable enable
+
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
     /// <nodoc />

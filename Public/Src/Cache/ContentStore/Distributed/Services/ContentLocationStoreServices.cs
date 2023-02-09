@@ -131,7 +131,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
                     Credentials = Configuration.AzureBlobStorageCheckpointRegistryConfiguration!.Credentials,
                 },
                 ClusterStateManager.Instance,
-                Configuration.PrimaryMachineLocation,
                 database,
                 localContentStore: null, // Set to null initially. Will be populated when content location store is initialized similar to LLS.
                 clock: Arguments.Clock);

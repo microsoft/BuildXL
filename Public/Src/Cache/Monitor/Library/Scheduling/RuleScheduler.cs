@@ -12,6 +12,7 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.Monitor.App.Notifications;
+using BuildXL.Utilities.Tasks;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
 
@@ -256,7 +257,7 @@ namespace BuildXL.Cache.Monitor.App.Scheduling
             }
 
             _logger.Info($"Waiting for `{runningTasks.Count}` tasks to complete running before shutdown");
-            await Task.WhenAll(runningTasks);
+            await TaskUtilities.SafeWhenAll(runningTasks);
 
             if (IsPersistanceEnabled())
             {

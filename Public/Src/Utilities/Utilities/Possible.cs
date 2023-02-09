@@ -83,11 +83,8 @@ namespace BuildXL.Utilities
         /// <summary>
         /// Indicates if this is a successful outcome (<see cref="Result" /> available) or not (<see cref="Failure" /> available).
         /// </summary>
-        [MemberNotNullWhen(false, nameof(Failure))]
-        [MemberNotNullWhen(false, nameof(m_failure))]
-#pragma warning disable CS8775 // Member must have a non-null value when exiting in some condition. The compiler can't figure out that 'Failure' and 'm_failure' are the same.
+        [MemberNotNullWhen(false, nameof(Failure), nameof(m_failure))]
         public bool Succeeded => m_failure == null;
-#pragma warning restore CS8775 // Member must have a non-null value when exiting in some condition.
 
         /// <summary>
         /// Result, available only if <see cref="Succeeded" />.

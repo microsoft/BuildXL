@@ -13,10 +13,8 @@ using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
-using BuildXL.Cache.ContentStore.Synchronization;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
-using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Utilities;
 using BuildXL.Utilities.ParallelAlgorithms;
@@ -62,56 +60,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
     /// </summary>
     public class ResilientGlobalCacheService : GlobalCacheService, IRoleObserver
     {
-        private class CancellableOperation : IDisposable
-        {
-            private readonly AsyncLazy<bool> _lazyOperation;
-            private bool _isDisposedOrCanceled = false;
-            private readonly CancellationTokenSource _cts = new CancellationTokenSource();
-
-            public CancellableOperation(Func<CancellationToken, Task<bool>> operation)
-            {
-                _lazyOperation = new AsyncLazy<bool>(() =>
-                {
-                    if (_isDisposedOrCanceled)
-                    {
-                        return BoolTask.False;
-                    }
-
-                    return operation(_cts.Token);
-                });
-            }
-
-            public Task<bool> EnsureStartedAndAwaitCompletionAsync()
-            {
-                return _lazyOperation.GetValueAsync();
-            }
-
-            public void Dispose()
-            {
-                lock (this)
-                {
-                    _isDisposedOrCanceled = true;
-                    _cts.Dispose();
-                }
-            }
-
-            public void Cancel()
-            {
-                if (!_isDisposedOrCanceled)
-                {
-                    lock (this)
-                    {
-                        if (!_isDisposedOrCanceled)
-                        {
-                            _cts.Cancel();
-                            _isDisposedOrCanceled = true;
-                        }
-                    }
-                }
-            }
-
-        }
-
         private const string LogCursorKey = "ResilientContentMetadataService.LogCursor";
 
         private readonly ContentMetadataEventStream _eventStream;
@@ -401,7 +349,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                         ShouldRetry = true,
                         ErrorMessage = errorMessage,
                         RetryReason = retryReason,
-                        Diagnostics = !response.Succeeded ? response.Diagnostics : null,
+                        Diagnostics = response?.Succeeded == false ? response.Diagnostics : null,
                     };
                 }
             }
@@ -688,5 +636,56 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                     }
                 });
         }
+
+        private class CancellableOperation : IDisposable
+        {
+            private readonly AsyncLazy<bool> _lazyOperation;
+            private bool _isDisposedOrCanceled = false;
+            private readonly CancellationTokenSource _cts = new CancellationTokenSource();
+
+            public CancellableOperation(Func<CancellationToken, Task<bool>> operation)
+            {
+                _lazyOperation = new AsyncLazy<bool>(() =>
+                                                     {
+                                                         if (_isDisposedOrCanceled)
+                                                         {
+                                                             return BoolTask.False;
+                                                         }
+
+                                                         return operation(_cts.Token);
+                                                     });
+            }
+
+            public Task<bool> EnsureStartedAndAwaitCompletionAsync()
+            {
+                return _lazyOperation.GetValueAsync();
+            }
+
+            public void Dispose()
+            {
+                lock (this)
+                {
+                    _isDisposedOrCanceled = true;
+                    _cts.Dispose();
+                }
+            }
+
+            public void Cancel()
+            {
+                if (!_isDisposedOrCanceled)
+                {
+                    lock (this)
+                    {
+                        if (!_isDisposedOrCanceled)
+                        {
+                            _cts.Cancel();
+                            _isDisposedOrCanceled = true;
+                        }
+                    }
+                }
+            }
+
+        }
+
     }
 }

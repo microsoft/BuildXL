@@ -2,7 +2,6 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Globalization;
@@ -12,21 +11,17 @@ using System.Net;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.MetadataService;
 using BuildXL.Cache.ContentStore.Distributed.Utilities;
-using BuildXL.Cache.ContentStore.Extensions;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
-using BuildXL.Cache.ContentStore.Interfaces.Secrets;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
-using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Utils;
@@ -34,13 +29,9 @@ using BuildXL.Cache.Host.Configuration;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.ParallelAlgorithms;
-using BuildXL.Utilities.Serialization;
-using BuildXL.Utilities.Tasks;
 using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Blob;
 using RocksDbSharp;
-using static BuildXL.Cache.ContentStore.Distributed.NuCache.BlobFolderStorage;
-using static BuildXL.Cache.ContentStore.Utils.DateTimeUtilities;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 using EnumerableExtensions = BuildXL.Cache.ContentStore.Extensions.EnumerableExtensions;
 using OperationContext = BuildXL.Cache.ContentStore.Tracing.Internal.OperationContext;
@@ -107,7 +98,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public BlobContentLocationRegistry(
             BlobContentLocationRegistryConfiguration configuration,
             ClusterStateManager clusterStateManager,
-            MachineLocation primaryMachineLocation,
             RocksDbContentMetadataDatabase database,
             ILocalContentStore? localContentStore = null,
             IClock? clock = null)
@@ -155,7 +145,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         internal void SetLocalContentStore(ILocalContentStore localContentStore)
         {
-            Contract.Requires(localContentStore != null);
             Contract.Requires(!StartupStarted);
             _localContentStore = localContentStore;
             LinkLifetime(localContentStore as IStartupShutdownSlim);
@@ -412,9 +401,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         messageFactory: r => $"Partition={partitionId} SnapshotId={snapshotChain.LastOrDefault()?.Blob.SnapshotId} Files={snapshotChain.Count} ByteLength={totalLength}")
                     .ThrowIfFailure();
 
-                    // 
                     TryGetDatabasePartitionRecord(partitionId).TryGetValue(out databaseRecord);
-                    Contract.Assert(databaseRecord != null && databaseRecord?.SnapshotId == currentSnapshot.SnapshotId, $"Expected database snapshot id '{currentSnapshot.SnapshotId}' but found '{databaseRecord?.SnapshotId}'");
+
+                    Contract.Assert(currentSnapshot != null);
+                    Contract.Assert(databaseRecord != null && databaseRecord.Value.SnapshotId == currentSnapshot.SnapshotId, $"Expected database snapshot id '{currentSnapshot.SnapshotId}' but found '{databaseRecord?.SnapshotId}'");
 
                     return Result.Success(new UpdatePartitionResult(Updated: true, Record: databaseRecord, LastUpdateTime: lastUpdateTime));
                 })

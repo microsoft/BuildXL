@@ -8,6 +8,7 @@ using System.Diagnostics.Tracing;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
 using BuildXL.Pips.Tracing;
 using BuildXL.Utilities;
@@ -43,16 +44,19 @@ namespace BuildXL.Pips.Graph
 
         private readonly ConcurrentBigMap<AbsolutePath, (PipGraphFragmentSerializer, Task<bool>)> m_taskMap = new ConcurrentBigMap<AbsolutePath, (PipGraphFragmentSerializer, Task<bool>)>();
 
+        private readonly CredentialScanner m_credentialScanner;
+
         /// <summary>
         /// PipGraphFragmentManager
         /// </summary>
-        public PipGraphFragmentManager(LoggingContext loggingContext, PipExecutionContext context, IMutablePipGraph pipGraph, int? maxParallelism)
+        public PipGraphFragmentManager(LoggingContext loggingContext, PipExecutionContext context, IMutablePipGraph pipGraph, int? maxParallelism, CredentialScanner credentialScanner = null)
         {
             m_loggingContext = loggingContext;
             m_context = context;
             m_pipGraph = pipGraph;
             maxParallelism = maxParallelism ?? Environment.ProcessorCount;
             m_taskFactory = new Lazy<TaskFactory>(() => new TaskFactory(new LimitedConcurrencyLevelTaskScheduler(maxParallelism.Value)));
+            m_credentialScanner = credentialScanner;
         }
 
         /// <summary>
@@ -215,6 +219,13 @@ namespace BuildXL.Pips.Graph
             Contract.Requires(fragmentContext != null);
             Contract.Requires(process != null);
             Analysis.IgnoreArgument(provenance, "Debugging purpose");
+
+            // This method is used to post the environment variables to the credscan action block, these variables will be scanned for credentials.
+            // Typically Credscan scans the environment variables in a pip after the process pip has been created in ProcessBuilder class(TryFinish()).
+            // But with the binary graph implementation in office that method is not invoked during product build.
+            // One of the other reasons to add this to the PipGraphFragmentManager and not the PipGraphFragmentGenerator is that the process pip referred here is created by the pip from the meta build.
+            // This may result in events related to credentialscanner not being reported in telemetry, hence we are enabling credential scanner here instead of PipGraphFragmentGenerator.
+            m_credentialScanner?.PostEnvVarsForProcessing(process, process.EnvironmentVariables);
 
             var result = AddPip(process, p => m_pipGraph.AddProcess(p, default));
 

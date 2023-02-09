@@ -375,7 +375,8 @@ namespace Test.BuildXL.Scheduler
             string runNameOrDescription = null,
             bool allowEmptySchedule = false,
             CancellationToken cancellationToken = default,
-            FileTimestampTracker fileTimestampTracker = null)
+            FileTimestampTracker fileTimestampTracker = null,
+            bool expectSchedulerInitSuccess = true)
         {
             if (m_graphWasModified || LastGraph == null)
             {
@@ -399,7 +400,8 @@ namespace Test.BuildXL.Scheduler
                 runNameOrDescription: runNameOrDescription,
                 allowEmptySchedule: allowEmptySchedule,
                 cancellationToken: cancellationToken,
-                fileTimestampTracker: fileTimestampTracker);
+                fileTimestampTracker: fileTimestampTracker,
+                expectSchedulerInitSuccess: expectSchedulerInitSuccess);
         }
 
         public NodeId GetProducerNode(FileArtifact file) => PipGraphBuilder.GetProducerNode(file);
@@ -440,7 +442,8 @@ namespace Test.BuildXL.Scheduler
             Action<TestScheduler> verifySchedulerPostRun = default,
             bool allowEmptySchedule = false,
             CancellationToken cancellationToken = default,
-            FileTimestampTracker fileTimestampTracker = null)
+            FileTimestampTracker fileTimestampTracker = null,
+            bool expectSchedulerInitSuccess = true)
         {
             XAssert.IsTrue(m_graphWasEverModified || allowEmptySchedule,
     "Attempting to run an empty scheduler. This usually means you forgot to schedule the pips in the test case. Suppress this failure by passing allowEmptySchedule = true");
@@ -551,7 +554,8 @@ namespace Test.BuildXL.Scheduler
                 var nonScrubbablePaths = EngineSchedule.GetNonScrubbablePaths(Context.PathTable, config, frontEndNonScrubbablePaths, tempCleaner);
                 EngineSchedule.ScrubExtraneousFilesAndDirectories(mountPathExpander, testScheduler, localLoggingContext, config, nonScrubbablePaths, tempCleaner, filter);
 
-                XAssert.IsTrue(testScheduler.InitForOrchestrator(localLoggingContext, filter, schedulerState), "Failed to initialized test scheduler");
+                bool schedulerInitResult = testScheduler.InitForOrchestrator(localLoggingContext, filter, schedulerState);
+                XAssert.AreEqual(expectSchedulerInitSuccess, schedulerInitResult, "Test scheduler initialization result unexpected");
 
                 if (ShouldCreateLogDir || ShouldLogSchedulerStats)
                 {
@@ -559,19 +563,23 @@ namespace Test.BuildXL.Scheduler
                     Directory.CreateDirectory(logsDir);
                 }
 
-                testScheduler.Start(localLoggingContext);
-                testScheduler.UpdateStatus();
-
-                if (updateStatusTimerEnabled)
+                bool success = false;
+                if (schedulerInitResult)
                 {
-                    updateStatusAction = new CancellableTimedAction(
-                        () => testScheduler.UpdateStatus(overwriteable: true, expectedCallbackFrequency: 1000),
-                        1000,
-                        "SchedulerUpdateStatus");
-                    updateStatusAction.Start();
-                }
+                    testScheduler.Start(localLoggingContext);
+                    testScheduler.UpdateStatus();
 
-                bool success = testScheduler.WhenDone().GetAwaiter().GetResult();
+                    if (updateStatusTimerEnabled)
+                    {
+                        updateStatusAction = new CancellableTimedAction(
+                            () => testScheduler.UpdateStatus(overwriteable: true, expectedCallbackFrequency: 1000),
+                            1000,
+                            "SchedulerUpdateStatus");
+                        updateStatusAction.Start();
+                    }
+
+                    success = testScheduler.WhenDone().GetAwaiter().GetResult();
+                }
 
                 // Only save file change tracking information for incremental scheduling tests in order to reduce I/O
                 if (Configuration.Schedule.IncrementalScheduling)

@@ -133,7 +133,7 @@ namespace BuildXL.Storage.Tracing
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.ChangeDetection,
-            Keywords = (int)Keywords.UserMessage,
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
             Message = "Input change list file '{path}' does not exist")]
         public abstract void InputChangeListFileNotFound(LoggingContext context, string path);
 

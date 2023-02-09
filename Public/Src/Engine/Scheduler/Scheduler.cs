@@ -6034,7 +6034,7 @@ namespace BuildXL.Scheduler
                     Logger.Log.StartSchedulingPipsWithFilter,
                     Logger.Log.EndSchedulingPipsWithFilter))
             {
-                InitSchedulerRuntimeState(pm.LoggingContext, schedulerState: schedulerState);
+                m_hasFailures = m_hasFailures || !TryInitSchedulerRuntimeState(pm.LoggingContext, schedulerState: schedulerState);
 
                 // Start workers after scheduler runtime state is successfully established
                 if (!HasFailed)
@@ -6239,7 +6239,7 @@ namespace BuildXL.Scheduler
             }
         }
 
-        private void InitSchedulerRuntimeState(LoggingContext loggingContext, SchedulerState schedulerState)
+        private bool TryInitSchedulerRuntimeState(LoggingContext loggingContext, SchedulerState schedulerState)
         {
             using (PipExecutionCounters.StartStopwatch(PipExecutorCounter.InitSchedulerRuntimeStateDuration))
             {
@@ -6251,7 +6251,10 @@ namespace BuildXL.Scheduler
                 m_historicPerfDataTableTask?.Start();
 
                 InitFileChangeTracker(loggingContext);
-                ProcessFileChanges(loggingContext, schedulerState);
+                if (!TryProcessFileChanges(loggingContext, schedulerState))
+                {
+                    return false;
+                }
 
                 var fileChangeTrackingSelector = new FileChangeTrackingSelector(
                     pathTable: Context.PathTable,
@@ -6320,9 +6323,11 @@ namespace BuildXL.Scheduler
                     }
                 }
             }
+
+            return true;
         }
 
-        private void ProcessFileChanges(LoggingContext loggingContext, SchedulerState schedulerState)
+        private bool TryProcessFileChanges(LoggingContext loggingContext, SchedulerState schedulerState)
         {
             InputChangeList inputChangeList = null;
 
@@ -6333,6 +6338,11 @@ namespace BuildXL.Scheduler
                     m_configuration.Schedule.InputChanges.ToString(Context.PathTable),
                     m_configuration.Layout.SourceDirectory.ToString(Context.PathTable),
                     DirectoryTranslator);
+
+                if (inputChangeList == null)
+                {
+                    return false;
+                }
 
                 m_fileContentManager.SourceChangeAffectedInputs.InitialAffectedOutputList(inputChangeList, Context.PathTable);
             }
@@ -6416,6 +6426,8 @@ namespace BuildXL.Scheduler
             {
                 m_testHooks.IncrementalSchedulingState = IncrementalSchedulingState;
             }
+
+            return true;
         }
 
         private void InitFileChangeTracker(LoggingContext loggingContext)
@@ -6457,7 +6469,7 @@ namespace BuildXL.Scheduler
         {
             Contract.Requires(loggingContext != null);
 
-            InitSchedulerRuntimeState(loggingContext, schedulerState: null);
+            m_hasFailures = m_hasFailures || !TryInitSchedulerRuntimeState(loggingContext, schedulerState: null);
             InitPipStates(loggingContext);
             m_hasFailures = m_hasFailures || InitSandboxConnectionKext(loggingContext);
 

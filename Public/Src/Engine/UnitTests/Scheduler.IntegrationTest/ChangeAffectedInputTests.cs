@@ -72,6 +72,28 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         [Fact]
+        public void MisconfigurationTest()
+        {
+            var pipBuilderA = CreatePipBuilder(new[]
+            {
+                Operation.ReadFile(CreateSourceFile()),
+                Operation.WriteFile(CreateOutputFileArtifact())
+            });
+
+            pipBuilderA.SetChangeAffectedInputListWrittenFile(CreateUniqueObjPath("change"));
+            SchedulePipBuilder(pipBuilderA);
+
+            // Specify the InputChanges path but don't actually have any file there
+            var inputChangesFile = CreateOutputFileArtifact();
+            Configuration.Schedule.InputChanges = inputChangesFile.Path;
+
+            // Scheduler should fail on initialization
+            RunScheduler(expectSchedulerInitSuccess:false).AssertFailure();
+
+            AssertErrorEventLogged(global::BuildXL.Storage.Tracing.LogEventId.InputChangeListFileNotFound);
+        }
+
+        [Fact]
         public void RevertChangeCacheMissTest()
         {
             // aInput-->(pipA)-->aOutput-->(pipC)-->cOutput

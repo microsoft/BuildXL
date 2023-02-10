@@ -20,20 +20,20 @@ inline void* dd_malloc(size_t size)
     assert(g_hPrivateHeap != nullptr);
     void* ret = HeapAlloc(g_hPrivateHeap, BUILDXL_DETOURS_MEMORY_ALLOC_FLAGS, size);
 
-    if (ShouldLogProcessData())
-    {
-        // Get the size since alignment matters and the actual allocated bytes can be a bit moe than size.
-        LONG64 allocatedSize = (LONG64)HeapSize(g_hPrivateHeap, BUILDXL_DETOURS_MEMORY_ALLOC_FLAGS, ret);
-        allocatedSize = InterlockedAdd64(&g_detoursHeapAllocatedMemoryInBytes, allocatedSize);
-        LONG64 localMax = InterlockedAdd64(&g_detoursMaxAllocatedMemoryInBytes, 0);
-
-        // Update the global MaxAllocated heap only if the current allocated heap is bigger than what is recorded.
-        while (allocatedSize > localMax)
-        {
-            InterlockedCompareExchange64(&g_detoursMaxAllocatedMemoryInBytes, allocatedSize, localMax);
-            localMax = InterlockedAdd64(&g_detoursMaxAllocatedMemoryInBytes, 0);
-        }
-    }
+     if (ret != nullptr && ShouldLogProcessData())
+     {
+         // Get the size since alignment matters and the actual allocated bytes can be a bit moe than size.
+         LONG64 allocatedSize = (LONG64)HeapSize(g_hPrivateHeap, BUILDXL_DETOURS_MEMORY_ALLOC_FLAGS, ret);
+         allocatedSize = InterlockedAdd64(&g_detoursHeapAllocatedMemoryInBytes, allocatedSize);
+         LONG64 localMax = InterlockedAdd64(&g_detoursMaxAllocatedMemoryInBytes, 0);
+       
+         // Update the global MaxAllocated heap only if the current allocated heap is bigger than what is recorded.
+         while (allocatedSize > localMax)
+         {
+             InterlockedCompareExchange64(&g_detoursMaxAllocatedMemoryInBytes, allocatedSize, localMax);
+             localMax = InterlockedAdd64(&g_detoursMaxAllocatedMemoryInBytes, 0);
+         }
+     }
 
     return ret;
 }
@@ -46,12 +46,12 @@ inline void dd_free(void* pMem)
         return;
     }
 
-    if (ShouldLogProcessData())
-    {
-        // Get the size since alignment matters and the actual allocated bytes can be a bit moe than size.
-        LONG64 deallocatedSize = (LONG64)HeapSize(g_hPrivateHeap, BUILDXL_DETOURS_MEMORY_ALLOC_FLAGS, pMem);
-        InterlockedAdd64(&g_detoursHeapAllocatedMemoryInBytes, -(deallocatedSize));
-    }
+     if (ShouldLogProcessData())
+     {
+         // Get the size since alignment matters and the actual allocated bytes can be a bit moe than size.
+         LONG64 deallocatedSize = (LONG64)HeapSize(g_hPrivateHeap, BUILDXL_DETOURS_MEMORY_ALLOC_FLAGS, pMem);
+         InterlockedAdd64(&g_detoursHeapAllocatedMemoryInBytes, -(deallocatedSize));
+     }
 
     HeapFree(g_hPrivateHeap, HEAP_ZERO_MEMORY, pMem);
 }

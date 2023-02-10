@@ -149,11 +149,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blobs
 
             // The Blob Batch API doesn't support more than 256 operations per batch, so we limit it here
             const int PageLimit = 255;
-            var tasks = new Task<IEnumerable<PinResult>>[(contentHashes.Count / PageLimit) + 1];
-            var i = 0;
+            var tasks = new List<Task<IEnumerable<PinResult>>>();
             foreach (var contentHashSubset in contentHashes.GetPages(PageLimit))
             {
-                tasks[i++] = BulkPinRemoteAsync(context, batchClient, contentHashSubset, strategy);
+                tasks.Add(BulkPinRemoteAsync(context, batchClient, contentHashSubset, strategy));
             }
 
             var results = await TaskUtilities.SafeWhenAll(tasks);

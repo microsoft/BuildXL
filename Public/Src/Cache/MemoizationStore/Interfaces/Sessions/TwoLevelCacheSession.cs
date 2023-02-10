@@ -41,11 +41,18 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
 
         /// <nodoc />
         [DataMember]
-        public int RemotePinOnPutBatchMaxSize { get; set; } = 500;
+        public int RemotePinOnPutBatchMaxSize { get; set; } = 255;
 
         /// <nodoc />
         [DataMember]
-        public double RemotePinOnPutBatchIntervalSeconds { get; set; } = 5;
+        public TimeSpan RemotePinOnPutBatchInterval { get; set; } = TimeSpan.FromSeconds(1);
+
+        /// <summary>
+        /// This is an experimental feature that should only be used in the context where the local cache
+        /// represents a *temporary* L1, which means that any content that we've already put into the L1,
+        /// the remote will already have, since we've already added it during the current session.
+        /// </summary>
+        public bool SkipRemotePutIfAlreadyExistsInLocal { get; set; } = false;
     }
 
     /// <summary>
@@ -117,8 +124,8 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
                         _batchSinglePinNagleQueue = _config.BatchRemotePinsOnPut
                             ? ResultNagleQueue<(Context context, ContentHash hash), PinResult>.CreateAndStart(
                                 execute: requests => ExecutePinBatch(context, requests),
-                                maxDegreeOfParallelism: 1,
-                                interval: TimeSpan.FromSeconds(_config.RemotePinOnPutBatchIntervalSeconds),
+                                maxDegreeOfParallelism: int.MaxValue,
+                                interval: _config.RemotePinOnPutBatchInterval,
                                 batchSize: _config.RemotePinOnPutBatchMaxSize)
                             : null;
                     }
@@ -501,7 +508,8 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
                 async () =>
                 {
                     var localResult = await localPut();
-                    if (!localResult || _config.RemoteCacheIsReadOnly)
+                    if (!localResult || _config.RemoteCacheIsReadOnly ||
+                        (localResult.ContentAlreadyExistsInCache && _config.SkipRemotePutIfAlreadyExistsInLocal))
                     {
                         return localResult;
                     }

@@ -35,14 +35,14 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
         [Fact]
         public void AlgorithmIdIsPreservedWhenPassedIn()
         {
-            var identifier1 = BlobIdentifier.CreateFromAlgorithmResult(HashIdentifier, (AlgorithmId)0xF);
+            var identifier1 = BlobIdentifier.CreateFromAlgorithmResult(HashIdentifier, 0xF);
             Assert.True(identifier1.AlgorithmId.Equals(0xF));
         }
 
         [Fact]
         public void InputHashIsPreservedButCaseIsNot()
         {
-            var identifier1 = BlobIdentifier.CreateFromAlgorithmResult(HashIdentifier.ToLowerInvariant(), (AlgorithmId)0xF);
+            var identifier1 = BlobIdentifier.CreateFromAlgorithmResult(HashIdentifier.ToLowerInvariant(), 0xF);
             Assert.True(identifier1.ValueString.Equals(HashIdentifier.ToUpperInvariant() + "0F"));
         }
 
@@ -54,7 +54,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
             Assert.True(identifier1.ValueString.EndsWith("00", StringComparison.CurrentCultureIgnoreCase));
             Assert.True(identifier1.ValueString.StartsWith(HashIdentifier, StringComparison.CurrentCultureIgnoreCase));
 
-            identifier1 = BlobIdentifier.CreateFromAlgorithmResult(HashIdentifier, (AlgorithmId)0x0F);
+            identifier1 = BlobIdentifier.CreateFromAlgorithmResult(HashIdentifier, 0x0F);
             Assert.True(identifier1.ValueString.EndsWith("0F", StringComparison.CurrentCultureIgnoreCase));
         }
 
@@ -137,7 +137,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
         [Fact]
         public void SerializationFormatIsCorrect_NewtonsoftJson()
         {
-            BlobIdentifier original = BlobIdentifier.CreateFromAlgorithmResult(HashIdentifier, (AlgorithmId)0xF);
+            BlobIdentifier original = BlobIdentifier.CreateFromAlgorithmResult(HashIdentifier, 0xF);
             string serialized = JsonConvert.SerializeObject(original);
             JObject jObject = JObject.Parse(serialized);
             Assert.Equal(1, jObject.Count);

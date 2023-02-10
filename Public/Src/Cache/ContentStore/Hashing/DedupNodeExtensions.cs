@@ -22,8 +22,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
                     break;
                 case HashType.Dedup64K:
                 case HashType.Dedup1024K:
-                    // TODO: BJB: What is this doing and why?  Why do we need to do this?
-                    hash = node.GetDedupIdentifier().ToBlobIdentifier().Bytes;
+                    hash = node.GetDedupIdentifier(hashType).ToBlobIdentifier().Bytes;
                     break;
                 default:
                     throw new NotImplementedException($"Unexpected HashType '{hashType}' for DedupNode.");
@@ -33,24 +32,17 @@ namespace BuildXL.Cache.ContentStore.Hashing
         }
 
         /// <nodoc />
-        public static NodeDedupIdentifier CalculateNodeDedupIdentifier(this DedupNode node)
+        public static NodeDedupIdentifier CalculateNodeDedupIdentifier(this DedupNode node, HashType hashType)
         {
-            return  NodeDedupIdentifier.CalculateIdentifierFromSerializedNode(node.Serialize());
+            return new NodeDedupIdentifier(ChunkHasher.GetContentHash(node.Serialize()).ToHashByteArray(), hashType.GetNodeAlgorithmId());
         }
 
-        // DEVNOTE: this method is just here for compatibility till we can remove it from ADO.
         /// <nodoc />
         public static DedupIdentifier GetDedupIdentifier(this DedupNode node, HashType hashType)
         {
-            return GetDedupIdentifier(node);
-        }
-
-        /// <nodoc />
-        public static DedupIdentifier GetDedupIdentifier(this DedupNode node)
-        {
             if (node.Type == DedupNode.NodeType.InnerNode)
             {
-                return node.GetNodeIdentifier();
+                return node.GetNodeIdentifier(hashType);
             }
             else
             {
@@ -59,13 +51,13 @@ namespace BuildXL.Cache.ContentStore.Hashing
         }
 
         /// <nodoc />
-        public static NodeDedupIdentifier GetNodeIdentifier(this DedupNode node)
+        public static NodeDedupIdentifier GetNodeIdentifier(this DedupNode node, HashType hashType)
         {
             if (node.Type != DedupNode.NodeType.InnerNode)
             {
                 throw new ArgumentException($"The given hash does not represent a {nameof(NodeDedupIdentifier)}");
             }
-            return new NodeDedupIdentifier(node.Hash);
+            return new NodeDedupIdentifier(node.Hash, hashType.GetNodeAlgorithmId());
         }
 
         /// <nodoc />

@@ -104,9 +104,23 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <summary>
         /// Converts a BlobIdentifier to its corresponding ContentHash.
         /// </summary>
-        public static ContentHash ToContentHash(this BlobIdentifier blobId, HashType hashType)
+        public static ContentHash ToContentHash(this BlobIdentifier blobId)
         {
-            return new ContentHash(hashType,blobId.Bytes);
+            switch(blobId.AlgorithmId)
+            {
+                case VsoHash.VsoAlgorithmId:
+                    return new ContentHash(HashType.Vso0, blobId.Bytes);
+                case ChunkDedupIdentifier.ChunkAlgorithmId:
+                    return new ContentHash(HashType.Dedup64K, blobId.Bytes); // TODO: Chunk size optimization
+                case (byte)NodeAlgorithmId.Node64K:
+                    return new ContentHash(HashType.Dedup64K, blobId.Bytes);
+                case (byte)NodeAlgorithmId.Node1024K:
+                    return new ContentHash(HashType.Dedup1024K, blobId.Bytes);
+                case MurmurHashInfo.MurmurAlgorithmId:
+                    return new ContentHash(HashType.Murmur, blobId.Bytes);
+                default:
+                    throw new ArgumentException($"BlobIdentifier has an unrecognized AlgorithmId: {blobId.AlgorithmId}");
+            }
         }
     }
 }

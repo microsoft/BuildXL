@@ -12,6 +12,13 @@ namespace BuildXL.Cache.ContentStore.Hashing
     /// </summary>
     public readonly struct ChunkerConfiguration
     {
+        private static readonly IReadOnlyDictionary<int, NodeAlgorithmId> ChunkSizeToAlgorithmId =
+            new Dictionary<int, NodeAlgorithmId>()
+        {
+            {64 * 1024, NodeAlgorithmId.Node64K},
+            {1024 * 1024, NodeAlgorithmId.Node1024K},
+        };
+
         /// <summary>
         /// To get deterministic chunks out of the chunker, only give it buffers of at least 256KB, unless EOF.
         /// Cosmin Rusu recommends larger buffers for performance, so going with 1MB.
@@ -74,6 +81,14 @@ namespace BuildXL.Cache.ContentStore.Hashing
             MinChunkSize = minChunkSize;
             AvgChunkSize = avgChunkSize;
             MaxChunkSize = maxChunkSize;
+        }
+
+        /// <nodoc />
+        public static NodeAlgorithmId GetNodeAlgorithmId(ChunkerConfiguration chunkerConfiguration)
+        {
+            var hit = ChunkSizeToAlgorithmId.TryGetValue(chunkerConfiguration.AvgChunkSize, out var nodeAlgorithmId);
+            if (!hit) {throw new NotImplementedException($"{nameof(GetNodeAlgorithmId)}: No algorithm id found for chunker with avg chnk size: {chunkerConfiguration.AvgChunkSize} bytes.");}
+            return nodeAlgorithmId;
         }
 
         /// <nodoc />

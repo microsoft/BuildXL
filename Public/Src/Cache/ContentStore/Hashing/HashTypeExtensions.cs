@@ -29,6 +29,13 @@ namespace BuildXL.Cache.ContentStore.Hashing
 
         private static readonly Dictionary<HashType, string> ValueToName = NameToValue.ToDictionary(kvp => kvp.Value, kvp => kvp.Key);
 
+        private static readonly Dictionary<HashType, NodeAlgorithmId> TypeToAlgorithmId =
+            new Dictionary<HashType, NodeAlgorithmId>()
+            {
+                {HashType.Dedup64K, NodeAlgorithmId.Node64K},
+                {HashType.Dedup1024K, NodeAlgorithmId.Node1024K},
+            };
+
         private static readonly IReadOnlyDictionary<HashType, int> TypeToAvgChunkSize =
             new Dictionary<HashType, int>()
             {
@@ -113,6 +120,15 @@ namespace BuildXL.Cache.ContentStore.Hashing
             var hit = TypeToAvgChunkSize.TryGetValue(hashType, out var avgChunkSize);
             if (!hit) {throw new NotImplementedException($"{nameof(GetAvgChunkSize)}: No average chunk size found for hash type {hashType.Serialize()}.");}
             return avgChunkSize;
+        }
+
+        /// <nodoc />
+        public static NodeAlgorithmId GetNodeAlgorithmId(this HashType hashType)
+        {
+            if (!hashType.IsValidDedup()) {throw new NotImplementedException($"{hashType.Serialize()} doesn't support chunking.");}
+            var hit = TypeToAlgorithmId.TryGetValue(hashType, out var nodeAlgorithmId);
+            if (!hit) {throw new NotImplementedException($"{nameof(GetNodeAlgorithmId)}: No algorithm id found for hash type {hashType.Serialize()}.");}
+            return nodeAlgorithmId;
         }
     }
 }

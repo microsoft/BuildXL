@@ -58,7 +58,6 @@ namespace Tool.DropDaemon
                 var contentInfo = fileContentInfo.Value;
                 BlobIdentifier = ContentHashToBlobIdentifier(contentInfo.Hash);
                 FileLength = contentInfo.HasKnownLength ? contentInfo.Length : UnknownFileLength;
-                ContentHash = contentInfo.Hash;
             }
             else
             {
@@ -81,12 +80,9 @@ namespace Tool.DropDaemon
 
         /// <inheritdoc />
         public string FullyQualifiedDropName { get; }
-
+        
         /// <inheritdoc />
         public virtual FileArtifact? Artifact => null;
-
-        /// <inheritdoc />
-        public ContentHash? ContentHash { get; }
 
         /// <inheritdoc />
         public virtual Task<FileInfo> EnsureMaterialized()
@@ -169,7 +165,7 @@ namespace Tool.DropDaemon
                 case BuildXL.Cache.ContentStore.Hashing.HashType.DedupSingleChunk:
                     return new ChunkDedupIdentifier(contentHash.ToHashByteArray()).ToBlobIdentifier();
                 case BuildXL.Cache.ContentStore.Hashing.HashType.DedupNode:
-                    return new NodeDedupIdentifier(contentHash.ToHashByteArray()).ToBlobIdentifier();
+                    return new NodeDedupIdentifier(contentHash.ToHashByteArray(), NodeAlgorithmId.Node64K).ToBlobIdentifier();
                 default:
                     throw new ArgumentException($"ContentHash has unsupported type when converting to BlobIdentifier: {contentHash.HashType}");
             }

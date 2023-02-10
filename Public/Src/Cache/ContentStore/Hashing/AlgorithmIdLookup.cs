@@ -12,21 +12,23 @@ namespace BuildXL.Cache.ContentStore.Hashing
     /// </summary>
     public static class AlgorithmIdLookup
     {
+        private static readonly IReadOnlyDictionary<HashType, byte> AlgorithmIdByHashType = new Dictionary<HashType, byte>
+        {
+            {HashType.Vso0, VsoHash.VsoAlgorithmId},
+            {HashType.DedupSingleChunk, ChunkDedupIdentifier.ChunkAlgorithmId},
+            {HashType.DedupNode, (byte)NodeAlgorithmId.Node64K},
+            {HashType.Dedup64K, (byte)NodeAlgorithmId.Node64K},
+            {HashType.Dedup1024K, (byte)NodeAlgorithmId.Node1024K},
+            {HashType.Murmur, MurmurHashInfo.MurmurAlgorithmId}
+        };
+
         /// <summary>
         ///     Retrieve algorithm id.
         /// </summary>
         public static byte Find(HashType hashType)
         {
-            return hashType switch
-            {
-                HashType.Vso0 => (byte)AlgorithmId.File,
-                HashType.DedupSingleChunk => (byte)AlgorithmId.Chunk,
-                HashType.DedupNode => (byte)AlgorithmId.Node,
-                HashType.Dedup64K => (byte)AlgorithmId.Node,
-                HashType.Dedup1024K => (byte)AlgorithmId.Node,
-                HashType.Murmur => MurmurHashInfo.MurmurAlgorithmId,
-                _ => throw new ArgumentException($"{hashType} is not a tagged hash.")
-            };
+            Contract.Assert(AlgorithmIdByHashType.ContainsKey(hashType));
+            return AlgorithmIdByHashType[hashType];
         }
     }
 
@@ -36,16 +38,16 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <nodoc />
         public static bool IsHashTagValid(ContentHash contentHash)
         {
-            byte hashTag = contentHash[contentHash.ByteLength-1];
+            var hashTag = contentHash[contentHash.ByteLength-1];
 
             return contentHash.HashType switch
             {
-                HashType.Vso0 => hashTag == (byte)AlgorithmId.File,
-                HashType.Dedup64K => hashTag == (byte)AlgorithmId.Node ||
-                                     hashTag == (byte)AlgorithmId.Chunk,
-                HashType.Dedup1024K => hashTag == (byte)AlgorithmId.Node ||
-                                       hashTag == (byte)AlgorithmId.Chunk,
-                HashType.Murmur => hashTag == (byte)MurmurHashInfo.MurmurAlgorithmId,
+                HashType.Vso0 => hashTag == AlgorithmIdLookup.Find(HashType.Vso0),
+                HashType.Dedup64K => hashTag == AlgorithmIdLookup.Find(HashType.DedupNode) ||
+                                     hashTag == AlgorithmIdLookup.Find(HashType.DedupSingleChunk),
+                HashType.Dedup1024K => hashTag == AlgorithmIdLookup.Find(HashType.Dedup1024K) ||
+                                       hashTag == AlgorithmIdLookup.Find(HashType.DedupSingleChunk),
+                HashType.Murmur => hashTag == AlgorithmIdLookup.Find(HashType.Murmur),
                 _ => throw new ArgumentException($"{contentHash.HashType} is not a tagged hash.")
             };
         }

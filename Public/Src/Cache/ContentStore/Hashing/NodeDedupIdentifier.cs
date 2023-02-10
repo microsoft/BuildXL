@@ -8,42 +8,51 @@ namespace BuildXL.Cache.ContentStore.Hashing
     /// <nodoc />
     public sealed class NodeDedupIdentifier : DedupIdentifier
     {
-        internal static readonly IContentHasher Hasher = DedupSingleChunkHashInfo.Instance.CreateContentHasher(); // Regardless of underlying chunk size, always hash this way.
+        private static readonly IContentHasher Hasher = DedupSingleChunkHashInfo.Instance.CreateContentHasher(); // Regardless of underlying chunk size, always hash this way.
 
         /// <nodoc />
-        public NodeDedupIdentifier(HashAndAlgorithmId hash)
+        public byte NodeAlgorithm { get; } = (byte)NodeAlgorithmId.Node64K; // Default to node of 64K chunks.
+
+        /// <nodoc />
+        public NodeDedupIdentifier(HashAndAlgorithm hash)
             : base(hash)
         {
             Contract.Requires(hash.Bytes != null);
-            Contract.Assert(hash.AlgorithmId == Hashing.AlgorithmId.Node, $"The given hash does not represent a {nameof(NodeDedupIdentifier)}: {hash.AlgorithmId}");
+            Contract.Assert(((NodeAlgorithmId)hash.AlgorithmId).IsValidNode(), $"The given hash does not represent a {nameof(NodeDedupIdentifier)}: {hash.AlgorithmId}");
+            NodeAlgorithm = hash.AlgorithmId;
         }
 
         /// <nodoc />
-        public NodeDedupIdentifier(byte[] hashResult)
-            : base(hashResult, Hashing.AlgorithmId.Node)
+        public NodeDedupIdentifier(byte[] hashResult, NodeAlgorithmId algorithmId)
+            : base(hashResult, (byte)algorithmId)
         {
             Contract.Requires(hashResult != null);
+            Contract.Assert(algorithmId.IsValidNode(), $"The given hash does not represent a {nameof(NodeDedupIdentifier)}: {algorithmId}");
+            NodeAlgorithm = (byte)algorithmId;
         }
 
         /// <nodoc />
-        public static NodeDedupIdentifier CalculateIdentifierFromSerializedNode(byte[] bytes)
+        public static NodeDedupIdentifier CalculateIdentifierFromSerializedNode(byte[] bytes, HashType hashType)
         {
             Contract.Requires(bytes != null);
-            return new NodeDedupIdentifier(Hasher.GetContentHash(bytes).ToHashByteArray());
+            Contract.Assert(((NodeAlgorithmId)hashType.GetNodeAlgorithmId()).IsValidNode(), $"Cannot serialize from hash because hash type is invalid: {hashType}");
+            return new NodeDedupIdentifier(Hasher.GetContentHash(bytes).ToHashByteArray(), hashType.GetNodeAlgorithmId());
         }
 
         /// <nodoc />
-        public static NodeDedupIdentifier CalculateIdentifierFromSerializedNode(byte[] bytes, int offset, int count)
+        public static NodeDedupIdentifier CalculateIdentifierFromSerializedNode(byte[] bytes, int offset, int count, HashType hashType)
         {
             Contract.Requires(bytes != null);
-            return new NodeDedupIdentifier(Hasher.GetContentHash(bytes, offset, count).ToHashByteArray());
+            Contract.Assert(((NodeAlgorithmId)hashType.GetNodeAlgorithmId()).IsValidNode(), $"Cannot serialize from hash because hash type is invalid: {hashType}");
+            return new NodeDedupIdentifier(Hasher.GetContentHash(bytes, offset, count).ToHashByteArray(), hashType.GetNodeAlgorithmId());
         }
 
         /// <nodoc />
-        public static NodeDedupIdentifier CalculateIdentifierFromSerializedNode(ArraySegment<byte> bytes)
+        public static NodeDedupIdentifier CalculateIdentifierFromSerializedNode(ArraySegment<byte> bytes, HashType hashType)
         {
             Contract.Requires(bytes.Array != null);
-            return new NodeDedupIdentifier(Hasher.GetContentHash(bytes.Array, bytes.Offset, bytes.Count).ToHashByteArray());
+            Contract.Assert(((NodeAlgorithmId)hashType.GetNodeAlgorithmId()).IsValidNode(), $"Cannot serialize from hash because hash type is invalid: {hashType}");
+            return new NodeDedupIdentifier(Hasher.GetContentHash(bytes.Array, bytes.Offset, bytes.Count).ToHashByteArray(), hashType.GetNodeAlgorithmId());
         }
 
         /// <nodoc />

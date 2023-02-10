@@ -31,22 +31,10 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <nodoc />
         public static readonly BlobIdentifier MinValue = CreateFromAlgorithmResult(Enumerable.Repeat<byte>(byte.MinValue, 32).ToArray(), algorithmId: byte.MinValue);
         /// <nodoc />
-        public static readonly BlobIdentifier MaxValue = CreateFromAlgorithmResult(Enumerable.Repeat<byte>(byte.MaxValue, 32).ToArray(), algorithmId: (Hashing.AlgorithmId)byte.MaxValue);
+        public static readonly BlobIdentifier MaxValue = CreateFromAlgorithmResult(Enumerable.Repeat<byte>(byte.MaxValue, 32).ToArray(), algorithmId: byte.MaxValue);
 
         /// <nodoc />
         public static BlobIdentifier TestInstance() => new BlobIdentifier();
-
-        public static ContentHash IdStringToContentHash(string blobId) {
-            return IdToContentHash(BlobIdentifier.Deserialize(blobId));
-        }
-
-        public static ContentHash IdToContentHash(BlobIdentifier id) {
-            // DEVNOTE: this should work for chunked content because these URLs should all point to specific chunks or nodes and 
-            // not entire files UNLESS the file fits in a single chunk.  I am using 1mb chunk size since 64k chunks
-            // are also valid 1mb chunks where 1mb chunks are too large for 64k chunk size.
-            HashType hashType = (AlgorithmId)id.AlgorithmId == Hashing.AlgorithmId.File ? HashType.Vso0 : HashType.Dedup1024K;
-            return id.ToContentHash(hashType);
-        }
 
         // Default constructor for test ONLY usage in the ADO repo.
         private BlobIdentifier()
@@ -54,18 +42,14 @@ namespace BuildXL.Cache.ContentStore.Hashing
             _identifierValue = null!; // CS8618 - Nullable value initialize, suppressing since the usage is test only.
         }
 
-        // DEVNOTE: this is just for compatibility purpose while we push changes to ADO.
-        public BlobIdentifier(byte[] algorithmResult, byte algorithmId) : this(algorithmResult, (AlgorithmId) algorithmId)
-        { }
-
-        public BlobIdentifier(byte[] algorithmResult, AlgorithmId dedupType)
+        public BlobIdentifier(byte[] algorithmResult, byte algorithmId)
         {
             Contract.Requires(algorithmResult != null);
 
             // copy algorithmResult and append AlgorithmId to identifierValue
             _identifierValue = new byte[algorithmResult.Length + 1];
             algorithmResult.CopyTo(_identifierValue, 0);
-            _identifierValue[algorithmResult.Length] = (byte)dedupType;
+            _identifierValue[algorithmResult.Length] = algorithmId;
             Validate();
         }
 
@@ -111,7 +95,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// Gets the (single byte) algorithm id used to generate the blob identifier (hash).
         /// </summary>
         public byte AlgorithmId => _identifierValue[AlgorithmIdIndex];
-        
+
         /// <summary>
         /// Gets the unique identifier for binary content computed when the
         /// class instance was created
@@ -169,9 +153,9 @@ namespace BuildXL.Cache.ContentStore.Hashing
             return BitConverter.ToInt64(_identifierValue, 0);
         }
 
-        public ContentHash ToContentHash(HashType hashType)
+        public ContentHash ToContentHash()
         {
-            return BlobIdentifierHelperExtensions.ToContentHash(this, hashType);
+            return BlobIdentifierHelperExtensions.ToContentHash(this);
         }
 
         /// <summary>
@@ -179,14 +163,14 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// when it is required that the result can't be predicted.
         /// </summary>
         [CLSCompliant(false)]
-        public static BlobIdentifier Random(AlgorithmId dedupType = Hashing.AlgorithmId.File)
+        public static BlobIdentifier Random(HashType hashType = HashType.Vso0)
         {
             var randomBlob = new byte[32];
             ThreadSafeRandom.Generator.NextBytes(randomBlob);
-            return CreateFromAlgorithmResult(randomBlob, dedupType);
+            return CreateFromAlgorithmResult(randomBlob, AlgorithmIdLookup.Find(hashType));
         }
 
-        public static BlobIdentifier CreateFromAlgorithmResult(string algorithmResult, Hashing.AlgorithmId algorithmId = Hashing.AlgorithmId.File)
+        public static BlobIdentifier CreateFromAlgorithmResult(string algorithmResult, byte algorithmId = VsoHash.VsoAlgorithmId)
         {
             if (!HexUtilities.TryToByteArray(algorithmResult, out var identifier))
             {
@@ -196,7 +180,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
             return new BlobIdentifier(identifier, algorithmId);
         }
 
-        public static BlobIdentifier CreateFromAlgorithmResult(byte[] algorithmResult, Hashing.AlgorithmId algorithmId = Hashing.AlgorithmId.File)
+        public static BlobIdentifier CreateFromAlgorithmResult(byte[] algorithmResult, byte algorithmId = VsoHash.VsoAlgorithmId)
         {
             return new BlobIdentifier(algorithmResult, algorithmId);
         }

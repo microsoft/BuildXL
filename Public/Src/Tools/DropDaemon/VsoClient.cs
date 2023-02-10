@@ -364,7 +364,7 @@ namespace Tool.DropDaemon
                 {
                     BuildManifestEntry[] buildManifestEntries = dedupedBatch
                         .Where(dropItem => dropItem.BlobIdentifier != null && dropItem.FileId.HasValue)
-                        .Select(dropItem => new BuildManifestEntry(dropItem.RelativeDropFilePath, dropItem.ContentHash.Value, dropItem.FullFilePath, dropItem.FileId.Value))
+                        .Select(dropItem => new BuildManifestEntry(dropItem.RelativeDropFilePath, dropItem.BlobIdentifier.ToContentHash(), dropItem.FullFilePath, dropItem.FileId.Value))
                         .ToArray();
 
                     if (buildManifestEntries.Length > 0) // dropItem.BlobIdentifier = null for files generated in the DropDaemon
@@ -455,7 +455,7 @@ namespace Tool.DropDaemon
                     }
                     else
                     {
-                        item.DropResultTaskSource.SetException(new Exception($"An item with a drop path '{item.RelativeDropFilePath}' is already present -- existing content: '{existingItem?.ContentHash?.ToString()}', new content: '{item?.ContentHash?.ToString()}'"));
+                        item.DropResultTaskSource.SetException(new Exception($"An item with a drop path '{item.RelativeDropFilePath}' is already present -- existing content: '{existingItem?.BlobIdentifier?.ToContentHash()}', new content: '{item?.BlobIdentifier?.ToContentHash()}'"));
                         item.BuildManifestTaskSource.SetResult(RegisterFileForBuildManifestResult.Skipped);
                         ++numFailed;
                     }
@@ -604,8 +604,6 @@ namespace Tool.DropDaemon
             internal BlobIdentifier BlobIdentifier => m_dropItem.BlobIdentifier;
 
             internal FileArtifact? FileId => m_dropItem.Artifact;
-
-            internal ContentHash? ContentHash => m_dropItem.ContentHash;
 
             /// <summary>
             /// Optional pre-computed file length. This field is set only for files that have known length

@@ -252,7 +252,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
 
         private Task PutNodeAsync(OperationContext context, DedupNode dedupNode, AbsolutePath path)
         {
-            var dedupIdentifier = dedupNode.GetDedupIdentifier();
+            var dedupIdentifier = dedupNode.GetDedupIdentifier(HashType.Dedup64K);
 
             return TryGatedArtifactOperationAsync<object>(
                 context,
@@ -267,7 +267,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
 
         private Task PutChunkAsync(OperationContext context, DedupNode dedupNode, AbsolutePath path)
         {
-            var dedupIdentifier = dedupNode.GetDedupIdentifier();
+            var dedupIdentifier = dedupNode.GetDedupIdentifier(HashType.Dedup64K);
             return TryGatedArtifactOperationAsync(
                 context,
                 dedupIdentifier.ValueString,

@@ -52,7 +52,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
             foreach (var blobDownloadUri in blobDownloadUris)
             {
                 AddDownloadUri(
-                    BlobIdentifier.IdStringToContentHash(blobDownloadUri.Key),
+                    BlobIdentifier.Deserialize(blobDownloadUri.Key).ToContentHash(),
                     new PreauthenticatedUri(blobDownloadUri.Value, EdgeType.Unknown)); // EdgeType value shouldn't matter because we don't use it.
             }
         }

@@ -130,10 +130,12 @@ namespace BuildXL.Engine
             }
 
             // Cross Plat supported MountPoints
+            // On Linux the user profile maps to the user home folder - we shouldn't treat that as a special system mount.
+            // We still add it as a static mount for the sake of the tools that output to this mount, but we enable hashing on it
             table.AddStaticSystemMount("ProgramData", Environment.SpecialFolder.CommonApplicationData);
             if (!layout.RedirectedUserProfileJunctionRoot.IsValid)
             {
-                table.AddStaticSystemMount("UserProfile", Environment.SpecialFolder.UserProfile);
+                table.AddStaticSystemMount("UserProfile", Environment.SpecialFolder.UserProfile, trackSourceFileChanges: !OperatingSystemHelper.IsWindowsOS);                
                 table.AddStaticSystemMount("AppData", Environment.SpecialFolder.ApplicationData, allowCreateDirectory: true);
                 table.AddStaticSystemMount("LocalAppData", Environment.SpecialFolder.LocalApplicationData, allowCreateDirectory: true);
             }
@@ -141,7 +143,8 @@ namespace BuildXL.Engine
             {
                 // User profile is redirected; need to use the paths specified in the env block.
                 Contract.Assert(properties != null);
-                RegisterRedirectedMount(context, properties, table, "UserProfile");
+
+                RegisterRedirectedMount(context, properties, table, "UserProfile", trackSourceFileChanges: !OperatingSystemHelper.IsWindowsOS);
                 RegisterRedirectedMount(context, properties, table, "AppData", allowCreateDirectory: true);
                 RegisterRedirectedMount(context, properties, table, "LocalAppData", allowCreateDirectory: true);
             }
@@ -196,7 +199,8 @@ namespace BuildXL.Engine
             MountsTable table,
             string mountName,
             string envVariable = null,
-            bool allowCreateDirectory = false)
+            bool allowCreateDirectory = false,
+            bool trackSourceFileChanges = false)
         {
             envVariable = envVariable ?? mountName.ToCanonicalizedEnvVar();
 
@@ -205,7 +209,7 @@ namespace BuildXL.Engine
                 Contract.Assert(false, $"Failed to register a redirected mount ('{mountName}') using a path defined by '{envVariable}' environment variable. The variable was not specified.");
             }
 
-            table.AddStaticSystemMount(mountName, redirectedPath, allowCreateDirectory);
+            table.AddStaticSystemMount(mountName, redirectedPath, allowCreateDirectory, trackSourceFileChanges);
 
             // We don't need to add the real path of redirected mount into alternative roots.
             // Internally inside BuildXL itself, all accesses to user-related paths should go through the redirected paths by querying the mount table,

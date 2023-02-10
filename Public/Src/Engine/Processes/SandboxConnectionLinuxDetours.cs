@@ -100,7 +100,7 @@ namespace BuildXL.Processes
 
             private static ArrayPool<byte> ByteArrayPool { get; } = new ArrayPool<byte>(4096);
 
-            internal Info(Sandbox.ManagedFailureCallback failureCallback, SandboxedProcessUnix process, string reportsFifoPath, string famPath, string debugLogPath, bool isInTestMode)
+            internal Info(Sandbox.ManagedFailureCallback failureCallback, SandboxedProcessUnix process, string reportsFifoPath, string famPath,  bool isInTestMode)
             {
                 m_isInTestMode = isInTestMode;
                 m_stopRequestCounter = 0;
@@ -493,15 +493,11 @@ namespace BuildXL.Processes
         public IEnumerable<(string, string)> AdditionalEnvVarsToSet(SandboxedProcessInfo info, string uniqueName)
         {
             var detoursLibPath = info.RootJailInfo.CopyToRootJailIfNeeded(DetoursLibFile);
-            (string fifoPath, string famPath, string debugLogPath) = GetPaths(info.RootJailInfo, uniqueName);
+            (string fifoPath, string famPath) = GetPaths(info.RootJailInfo, uniqueName);
 
             yield return ("__BUILDXL_ROOT_PID", "1"); // CODESYNC: Public/Src/Sandbox/Linux/bxl_observer.hpp (temp solution for breakaway processes)
             yield return ("__BUILDXL_FAM_PATH", info.RootJailInfo.ToPathInsideRootJail(famPath));
             yield return ("__BUILDXL_DETOURS_PATH", detoursLibPath);
-            if (debugLogPath != null)
-            {
-                yield return ("__BUILDXL_LOG_PATH", info.RootJailInfo.ToPathInsideRootJail(debugLogPath));
-            }
 
             if (info.RootJailInfo?.DisableSandboxing != true)
             {
@@ -520,13 +516,12 @@ namespace BuildXL.Processes
             }
         }
 
-        private (string fifo, string fam, string log) GetPaths(RootJailInfo? rootJailInfo, string uniqueName)
+        private (string fifo, string fam) GetPaths(RootJailInfo? rootJailInfo, string uniqueName)
         {
             string rootDir = rootJailInfo?.RootJail ?? Path.GetTempPath();
             string fifoPath = Path.Combine(rootDir, $"bxl_{uniqueName}.fifo");
             string famPath = Path.ChangeExtension(fifoPath, ".fam");
-            string debugLogPath = IsInTestMode ? Path.ChangeExtension(fifoPath, ".log") : null;
-            return (fifo: fifoPath, fam: famPath, log: debugLogPath);
+            return (fifo: fifoPath, fam: famPath);
         }
 
         /// <inheritdoc />
@@ -547,10 +542,11 @@ namespace BuildXL.Processes
             Contract.Requires(!process.Started);
             Contract.Requires(process.PipId != 0);
 
-            (string fifoPath, string famPath, string debugLogPath) = GetPaths(process.RootJailInfo, process.UniqueName);
-            if (debugLogPath != null)
+            (string fifoPath, string famPath) = GetPaths(process.RootJailInfo, process.UniqueName);
+            
+            if (IsInTestMode)
             {
-                fam.AddPath(toAbsPath(process.ToPathInsideRootJail(debugLogPath)), mask: FileAccessPolicy.MaskAll, values: FileAccessPolicy.AllowAll);
+                fam.EnableLinuxSandboxLogging = true;
             }
 
             // serialize FAM
@@ -580,7 +576,7 @@ namespace BuildXL.Processes
             process.LogProcessState($"Created FIFO at '{fifoPath}'");
 
             // create and save info for this pip
-            var info = new Info(m_failureCallback, process, fifoPath, famPath, debugLogPath, IsInTestMode);
+            var info = new Info(m_failureCallback, process, fifoPath, famPath, IsInTestMode);
             if (!m_pipProcesses.TryAdd(process.PipId, info))
             {
                 throw new BuildXLException($"Process with PidId {process.PipId} already exists");
@@ -590,8 +586,6 @@ namespace BuildXL.Processes
             reportCompletion.ContinueWith(t => info.Dispose(), TaskContinuationOptions.OnlyOnRanToCompletion | TaskContinuationOptions.RunContinuationsAsynchronously);
 
             info.Start();
-
-            AbsolutePath toAbsPath(string path) => AbsolutePath.Create(process.PathTable, path);
         }
 
         /// <inheritdoc />

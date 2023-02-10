@@ -32,7 +32,6 @@ BxlObserver::BxlObserver()
         rootPid_ = getpid();
     }
 
-    InitLogFile();
     InitFam();
     InitDetoursLibPath();
 }
@@ -94,17 +93,51 @@ void BxlObserver::InitFam()
     sandbox_->SetAccessReportCallback(HandleAccessReport);
 }
 
-void BxlObserver::InitLogFile()
+void BxlObserver::LogDebug(const char *fmt, ...)
 {
-    const char *logPath = getenv(BxlEnvLogPath);
-    if (!is_null_or_empty(logPath))
+    if (LogDebugEnabled())
     {
-        strlcpy(logFile_, logPath, PATH_MAX);
-        logFile_[PATH_MAX-1] = '\0';
-    }
-    else
-    {
-        logFile_[0] = '\0';
+        // Build an access report that represents the debug message
+        AccessReport debugReport = 
+        {
+            .operation          = kOpDebugMessage,
+            .pid                = getpid(),
+            .rootPid            = pip_->GetProcessId(),
+            .requestedAccess    = (int)RequestedAccess::Read,
+            .status             = FileAccessStatus::FileAccessStatus_Allowed,
+            .reportExplicitly   = 0,
+            .error              = 0,
+            .pipId              = pip_->GetPipId(),
+            .path               = {0},
+            .stats              = {0},
+            .isDirectory        = 0,
+            .shouldReport       = true,
+        };
+
+        va_list args;
+        va_start(args, fmt);
+        // We (re)use the path for the debug message in order to not change the report format just for debugging
+        // So we limit the message to MAXPATHLEN (~4k chars, which should be enough)
+        vsnprintf(debugReport.path, MAXPATHLEN, fmt, args);
+        va_end(args);
+
+        // Sanitize the debug message so we don't confuse the parser on managed code:
+        // Pipes (|) are used to delimit the message parts and we expect one line (\n) per report, so
+        // replace those occurrences with something else.
+        for (int i = 0 ; i < MAXPATHLEN; i++)
+        {
+            if (debugReport.path[i] == '|')
+            {
+                debugReport.path[i] = '!';
+            }
+            
+            if (debugReport.path[i] == '\n')
+            {
+                debugReport.path[i] = '.';
+            }
+        }
+
+        SendReport(debugReport, /* isDebugMessage */ true);
     }
 }
 
@@ -236,7 +269,7 @@ bool BxlObserver::SendReport(const AccessReportGroup &report)
     return result;
 }
 
-bool BxlObserver::SendReport(const AccessReport &report)
+bool BxlObserver::SendReport(const AccessReport &report, bool isDebugMessage)
 {
     // there is no central sendbox process here (i.e., there is an instance of this
     // guy in every child process), so counting process tree size is not feasible
@@ -251,15 +284,15 @@ bool BxlObserver::SendReport(const AccessReport &report)
     int numWritten = snprintf(
         &buffer[PrefixLength], maxMessageLength, "%s|%d|%d|%d|%d|%d|%d|%s|%d\n",
         __progname, report.pid, report.requestedAccess, report.status, report.reportExplicitly, report.error, report.operation, report.path, report.isDirectory);
-    if (numWritten == maxMessageLength)
+    // For debug messages it is fine to truncate the message
+    if (!isDebugMessage && numWritten >= maxMessageLength)
     {
         // TODO: once 'send' is capable of sending more than PIPE_BUF at once, allocate a bigger buffer and send that
         _fatal("Message truncated to fit PIPE_BUF (%d): %s", PIPE_BUF, buffer);
     }
 
-    LOG_DEBUG("Sending report: %s", &buffer[PrefixLength]);
     *(uint*)(buffer) = numWritten;
-    return Send(buffer, numWritten + PrefixLength);
+    return Send(buffer, std::min(numWritten + PrefixLength, PIPE_BUF));
 }
 
 void BxlObserver::report_exec(const char *syscallName, const char *procName, const char *file, int error)
@@ -836,7 +869,6 @@ char** BxlObserver::ensureEnvs(char *const envp[])
     {
         char **newEnvp = remove_path_from_LDPRELOAD(envp, detoursLibFullPath_);
         newEnvp = ensure_env_value(newEnvp, BxlEnvFamPath, "");
-        newEnvp = ensure_env_value(newEnvp, BxlEnvLogPath, "");
         newEnvp = ensure_env_value(newEnvp, BxlEnvDetoursPath, "");
         newEnvp = ensure_env_value(newEnvp, BxlEnvRootPid, "");
         return newEnvp;
@@ -850,7 +882,6 @@ char** BxlObserver::ensureEnvs(char *const envp[])
         }
 
         newEnvp = ensure_env_value_with_log(newEnvp, BxlEnvFamPath);
-        newEnvp = ensure_env_value_with_log(newEnvp, BxlEnvLogPath);
         newEnvp = ensure_env_value_with_log(newEnvp, BxlEnvDetoursPath);
         newEnvp = ensure_env_value(newEnvp, BxlEnvRootPid, "");
 

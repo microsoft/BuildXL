@@ -226,12 +226,6 @@ namespace BuildXL.FrontEnd.JavaScript
                 }
             }
 
-            if (resolverSettings.EnableSandboxLogging == true && !OperatingSystemHelper.IsLinuxOS)
-            {
-                Tracing.Logger.Log.InvalidResolverSettings(Context.LoggingContext, Location.FromFile(pathToFile), $"'enableSandboxLogging' is only supported on Linux.");
-                return false;
-            }
-
             return true;
         }
 

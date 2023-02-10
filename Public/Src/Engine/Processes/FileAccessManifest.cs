@@ -96,6 +96,7 @@ namespace BuildXL.Processes
             ExplicitlyReportDirectoryProbes = false;
             PreserveFileSharingBehaviour = false;
             EnableLinuxPTraceSandbox = false;
+            EnableLinuxSandboxLogging = false; 
         }
 
         private bool GetFlag(FileAccessManifestFlag flag) => (m_fileAccessManifestFlag & flag) != 0;
@@ -481,6 +482,15 @@ namespace BuildXL.Processes
         {
             get => GetExtraFlag(FileAccessManifestExtraFlag.EnableLinuxPTraceSandbox);
             set => SetExtraFlag(FileAccessManifestExtraFlag.EnableLinuxPTraceSandbox, value);
+        }
+
+        /// <summary>
+        /// When enabled, the Linux sandbox will emit debug messages as access reports
+        /// </summary>
+        public bool EnableLinuxSandboxLogging
+        {
+            get => GetExtraFlag(FileAccessManifestExtraFlag.EnableLinuxSandboxLogging);
+            set => SetExtraFlag(FileAccessManifestExtraFlag.EnableLinuxSandboxLogging, value);
         }
 
         /// <summary>
@@ -1236,6 +1246,7 @@ namespace BuildXL.Processes
             ExplicitlyReportDirectoryProbes = 0x1,
             PreserveFileSharingBehaviour = 0x2,
             EnableLinuxPTraceSandbox = 0x4,
+            EnableLinuxSandboxLogging = 0x8,
         }
 
         private readonly struct FileAccessScope

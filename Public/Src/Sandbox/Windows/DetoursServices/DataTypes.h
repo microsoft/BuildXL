@@ -94,7 +94,8 @@ inline bool CheckReportAnyAccess(FileAccessManifestFlag flags, bool accessDenied
     m(NoneExtra,                          0x0) \
     m(ExplicitlyReportDirectoryProbes,    0x1) \
     m(PreserveFileSharingBehaviour,       0x2) \
-    m(EnableLinuxPTraceSandbox,           0x4)
+    m(EnableLinuxPTraceSandbox,           0x4) \
+    m(EnableLinuxSandboxLogging,          0x8) 
 
 enum class FileAccessManifestExtraFlag {
     FOR_ALL_FAM_EXTRA_FLAGS(GEN_FAM_FLAG_ENUM_NAME_VALUE)

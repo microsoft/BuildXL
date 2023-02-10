@@ -35,7 +35,8 @@
   macro_to_apply(OpKAuthVNodeExecute,                   "VNODE_EXECUTE")                  \
   macro_to_apply(OpKAuthVNodeWrite,                     "VNODE_WRITE")                    \
   macro_to_apply(OpKAuthVNodeRead,                      "VNODE_READ")                     \
-  macro_to_apply(OpKAuthVNodeProbe,                     "VNODE_PROBE")
+  macro_to_apply(OpKAuthVNodeProbe,                     "VNODE_PROBE")                    \
+  macro_to_apply(OpDebugMessage,                        "DEBUG_MESSAGE")
 
 #define GEN_ENUM_CONST(name, value) k ## name,
 enum FileOperation : char

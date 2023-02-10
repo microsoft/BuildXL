@@ -73,7 +73,6 @@ extern const char *__progname;
 
 // CODESYNC: Public/Src/Engine/Processes/SandboxConnectionLinuxDetours.cs
 #define BxlEnvFamPath "__BUILDXL_FAM_PATH"
-#define BxlEnvLogPath "__BUILDXL_LOG_PATH"
 #define BxlEnvRootPid "__BUILDXL_ROOT_PID"
 #define BxlEnvDetoursPath "__BUILDXL_DETOURS_PATH"
 
@@ -217,7 +216,6 @@ private:
     volatile int disposed_;
     int rootPid_;
     char progFullPath_[PATH_MAX];
-    char logFile_[PATH_MAX];
     char detoursLibFullPath_[PATH_MAX];
 
     std::timed_mutex cacheMtx_;
@@ -242,7 +240,6 @@ private:
     std::vector<std::pair<std::string, bool>> staticallyLinkedProcessCache_;
 
     void InitFam();
-    void InitLogFile();
     void InitDetoursLibPath();
     bool Send(const char *buf, size_t bufsiz);
     bool IsCacheHit(es_event_type_t event, const string &path, const string &secondPath);
@@ -289,7 +286,7 @@ private:
     static AccessCheckResult sNotChecked;
 
 #if _DEBUG
-    #define BXL_LOG_DEBUG(bxl, fmt, ...) if (bxl->LogDebugEnabled()) bxl->LogDebug("[%s:%d] " fmt "\n", __progname, getpid(), __VA_ARGS__);
+    #define BXL_LOG_DEBUG(bxl, fmt, ...) if (bxl->LogDebugEnabled()) bxl->LogDebug("[%s:%d] " fmt, __progname, getpid(), __VA_ARGS__);
 #else
     #define BXL_LOG_DEBUG(bxl, fmt, ...)
 #endif
@@ -299,7 +296,7 @@ private:
 public:
     static BxlObserver* GetInstance();
 
-    bool SendReport(const AccessReport &report);
+    bool SendReport(const AccessReport &report, bool isDebugMessage = false);
     bool SendReport(const AccessReportGroup &report);
     // Specialization for the exit report event. 
     // We may need to send an exit report on exit handlers after destructors
@@ -369,30 +366,10 @@ public:
 
     inline bool LogDebugEnabled()
     {
-        return logFile_ && *logFile_;
+        return CheckEnableLinuxSandboxLogging(pip_->GetFamExtraFlags());
     }
 
-    inline void LogDebug(const char *fmt, ...)
-    {
-        if (LogDebugEnabled())
-        {
-            FILE* f = real_fopen(logFile_, "a");
-            if (f)
-            {
-                va_list args;
-                va_start(args, fmt);
-                real_vfprintf(f, fmt, args);
-                va_end(args);
-
-                // A handle was opened for our own internal purposes. That
-                // could have reused a fd where we missed a close, 
-                // so reset that entry in the fd table
-                reset_fd_table_entry(fileno(f));
-
-                real_fclose(f);
-            }
-        }
-    }
+    void LogDebug(const char *fmt, ...);
 
     mode_t get_mode(const char *path)
     {

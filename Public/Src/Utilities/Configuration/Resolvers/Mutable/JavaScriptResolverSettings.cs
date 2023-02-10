@@ -46,7 +46,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
             ProcessRetries = resolverSettings.ProcessRetries;
             AdditionalDependencies = resolverSettings.AdditionalDependencies?.Select(additionalDependency => new JavaScriptDependency(additionalDependency, pathRemapper))?.ToList();
             NestedProcessTerminationTimeoutMs = resolverSettings.NestedProcessTerminationTimeoutMs;
-            EnableSandboxLogging = resolverSettings.EnableSandboxLogging;
         }
 
         /// <inheritdoc/>
@@ -105,8 +104,5 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc/>
         public int? NestedProcessTerminationTimeoutMs { get; set; }
-
-        /// <inheritdoc/>
-        public bool? EnableSandboxLogging { get; set; }
     }
 }

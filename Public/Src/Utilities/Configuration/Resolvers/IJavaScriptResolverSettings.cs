@@ -126,14 +126,6 @@ namespace BuildXL.Utilities.Configuration
         /// The timeout in milliseconds that the execution sandbox waits for child processes started by the top-level process to exit after the top-level process exits.
         /// </summary>
         int? NestedProcessTerminationTimeoutMs { get; }
-
-        /// <summary>
-        /// Debug option to enable sandbox logging. Corresponding logs will be sent to the project-level log folder.
-        /// </summary>
-        /// <remarks>
-        /// Enabling this option may affect performance. Intended for debugging only.
-        /// </remarks>
-        bool? EnableSandboxLogging { get; }
     }
 
     /// <nodoc/>

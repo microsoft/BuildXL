@@ -809,6 +809,14 @@ namespace BuildXL.Processes
                 // TODO: check if the tests are overspecified because in practice BuildXL doesn't really rely much on the outcome of this check
                 var reportPath = report.DecodePath();
 
+                if (report.Operation == FileOperation.OpDebugMessage)
+                {
+                    // The debug message uses the path to carry the actual message
+                    // We don't want this reported anywhere downstream, just log and return
+                    LogDebug(reportPath);
+                    return;
+                }
+
                 // Set the process exit time once we receive it from the sandbox kernel extension report queue
                 if (report.Operation == FileOperation.OpProcessExit && report.Pid == Process.Id)
                 {

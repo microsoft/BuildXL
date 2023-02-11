@@ -33,9 +33,8 @@ extern SpecialProcessKind  g_ProcessKind;
 
 extern HANDLE g_hPrivateHeap;
 
-// Not referenced, but useful during debugging.
-extern PVOID g_manifestPtr;
-extern PDWORD g_manifestSizePtr;
+extern DWORD g_manifestSize;
+
 extern DWORD g_currentProcessId;
 extern PCWSTR g_currentProcessCommandLine;
 

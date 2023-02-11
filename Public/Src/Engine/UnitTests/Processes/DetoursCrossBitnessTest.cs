@@ -27,28 +27,28 @@ namespace Test.BuildXL.Processes
             _output = output;
         }
 
-        [Fact(Skip = "Skip -- Disabled (temporarily) because fails in many machines")]
+        [Fact]
         public void TestRun64BitCmdFrom64BitProcess()
         {
             int exCode = StartProcess(true, ProcessKind.Cmd, true);
             XAssert.AreEqual(0, exCode);
         }
 
-        [Fact(Skip = "Skip -- Disabled (temporarily) because fails in many machines")]
+        [Fact]
         public void TestRun32BitCmdFrom64BitProcess()
         {
             int exCode = StartProcess(true, ProcessKind.Cmd, false);
             XAssert.AreEqual(0, exCode);
         }
 
-        [Fact(Skip = "Skip")]
+        [Fact]
         public void TestRun32BitCmdFrom32BitProcess()
         {
             int exCode = StartProcess(false, ProcessKind.Cmd, false);
             XAssert.AreEqual(0, exCode);
         }
 
-        [Fact(Skip = "Skip")]
+        [Fact]
         public void TestRun64BitCmdFrom32BitProcess()
         {
             // This is successful without Detours launching UpdImports-64.
@@ -72,17 +72,16 @@ namespace Test.BuildXL.Processes
             XAssert.AreEqual(0, exCode);
         }
 
-        [Fact(Skip = "Skip")]
+        [Fact]
         public void TestRun32BitSelfFrom32BitProcess()
         {
             int exCode = StartProcess(false, ProcessKind.Self, false);
             XAssert.AreEqual(0, exCode);
         }
 
-        [Fact(Skip = "Skip")]
+        [Fact]
         public void TestRun64BitSelfFrom32BitProcess()
         {
-            // This should be successful because Detours launches UpdImports-64.
             int exCode = StartProcess(false, ProcessKind.Self, true);
             XAssert.AreEqual(0, exCode);
         }
@@ -115,28 +114,28 @@ namespace Test.BuildXL.Processes
             XAssert.AreEqual(0, exCode);
         }
 
-        [Fact(Skip = "Skip")]
+        [Fact]
         public void TestRun64BitSelfChildFrom64BitSelfFrom32BitProcess()
         {
             int exCode = StartProcess(false, ProcessKind.SelfChild64, true);
             XAssert.AreEqual(0, exCode);
         }
 
-        [Fact(Skip = "Skip")]
+        [Fact]
         public void TestRun32BitSelfChildFrom64BitSelfFrom32BitProcess()
         {
             int exCode = StartProcess(false, ProcessKind.SelfChild32, true);
             XAssert.AreEqual(0, exCode);
         }
 
-        [Fact(Skip = "Skip")]
+        [Fact]
         public void TestRun64BitSelfChildFrom32BitSelfFrom32BitProcess()
         {
             int exCode = StartProcess(false, ProcessKind.SelfChild64, false);
             XAssert.AreEqual(0, exCode);
         }
 
-        [Fact(Skip = "Skip")]
+        [Fact]
         public void TestRun32BitSelfChildFrom32BitSelfFrom32BitProcess()
         {
             int exCode = StartProcess(false, ProcessKind.SelfChild32, false);

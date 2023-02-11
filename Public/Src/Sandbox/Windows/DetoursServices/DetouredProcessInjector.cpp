@@ -41,7 +41,7 @@ void DetouredProcessInjector::Clear()
     _mapDirectory.reset();
     _remoteInjectorPipe.reset();
     _reportPipe.reset();
-    _payload.reset(nullptr);
+    _payload = nullptr;
     _payloadSize = 0;
     _otherHandles.clear();
     _dllX64.clear();
@@ -127,18 +127,9 @@ bool DetouredProcessInjector::Init(const byte *payloadWrapper, std::wstring& err
         }
     }
 
-    // Copy payload
+    // Assign payload.
     _payloadSize = size;
-    _payload = make_unique<byte[]>(size);
-    if (size == 0)
-    {
-        _payload.reset(nullptr);
-    }
-    else {
-        byte *newPayload = new byte[size];
-        memcpy_s(newPayload, size, handles, size);
-        _payload.reset(newPayload);
-    }
+    _payload = reinterpret_cast<const byte *>(handles);
 
     _initialized = true;
     return true;
@@ -147,9 +138,12 @@ bool DetouredProcessInjector::Init(const byte *payloadWrapper, std::wstring& err
 // Initialize object based on the explicit data. Note that the mapDirectory handle
 // is not provided -- it's global to the process.
 void DetouredProcessInjector::Init(
-    HANDLE remoteInterjectorPipe, HANDLE reportPipe,
-    uint32_t payloadSize, const byte *payload,
-    uint32_t otherHandleCount, PHANDLE otherHandles)
+    HANDLE remoteInterjectorPipe,
+    HANDLE reportPipe,
+    uint32_t payloadSize,
+    const byte *payload,
+    uint32_t otherHandleCount,
+    PHANDLE otherHandles)
 {
     LockGuard lock(_injectorLock);
 
@@ -163,14 +157,7 @@ void DetouredProcessInjector::Init(
     _remoteInjectorPipe.duplicate(remoteInterjectorPipe);
     _reportPipe.duplicate(reportPipe);
     _payloadSize = payloadSize;
-    if (payloadSize == 0)
-    {
-        _payload.reset(nullptr);
-    }
-    else {
-        _payload = make_unique<byte[]>(payloadSize);
-        memcpy_s(_payload.get(), payloadSize, payload, payloadSize);
-    }
+    _payload = payload;
 
     SetHandles(otherHandleCount, otherHandles);
     _initialized = true;
@@ -236,7 +223,7 @@ DWORD DetouredProcessInjector::LocalInjectProcess(HANDLE processHandle, bool inh
     }
 
     // Copy payload
-    errno_t memcpyerror = memcpy_s(handles, _payloadSize, _payload.get(), _payloadSize);
+    errno_t memcpyerror = memcpy_s(handles, _payloadSize, _payload, _payloadSize);
     if (memcpyerror != 0)
     {
         Dbg(L"DetouredProcessInjector::LocalInjectProcess: Failed to do memcpy (error code: 0x%08x)", (int)memcpyerror);

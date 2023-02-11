@@ -214,9 +214,8 @@ using std::make_unique;
 
 _locale_t g_invariantLocale;
 
-// Not referenced, but useful during debugging.
-PVOID g_manifestPtr = nullptr;
-PDWORD g_manifestSizePtr = 0;
+DWORD g_manifestSize = 0;
+
 DWORD g_currentProcessId;
 PCWSTR g_currentProcessCommandLine = nullptr;
 DWORD g_parentProcessId = 0;

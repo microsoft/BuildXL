@@ -415,7 +415,7 @@ void ReportProcessData(
         exitCode,
         parentProcessId,
         (ULONG64)detoursMaxMemHeapSize,
-        (ULONG)*g_manifestSizePtr,
+        (ULONG)g_manifestSize,
         (ULONG64)g_detoursHeapAllocatedMemoryInBytes,
         (ULONG)g_detoursAllocatedNoLockConcurentPoolEntries,
         (ULONG64)g_detoursMaxHandleHeapEntries,

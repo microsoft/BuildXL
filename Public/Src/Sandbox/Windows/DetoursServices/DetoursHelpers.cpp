@@ -716,13 +716,6 @@ bool ParseFileAccessManifest(
     const void* payload,
     DWORD)
 {
-    if (g_manifestPtr != nullptr) {
-        // Fail if the pointer is not null. We are loading the Dll, so we could have not loaded this yet.
-        std::wstring errorMsg = DebugStringFormat(L"ParseFileAccessManifest: g_manifestPtr already set (pointer value: %p)", g_manifestPtr);
-        HandleDetoursInjectionAndCommunicationErrors(DETOURS_PAYLOAD_PARSE_FAILED_9, errorMsg.c_str(), DETOURS_WINDOWS_LOG_MESSAGE_9);
-        return false;
-    }
-
     //
     // Parse the file access manifest payload
     //
@@ -744,39 +737,6 @@ bool ParseFileAccessManifest(
     assert(payloadSize > 0);
     assert(payloadBytes != nullptr);
 
-    g_manifestPtr = VirtualAlloc(nullptr, payloadSize, MEM_COMMIT, PAGE_READWRITE);
-    g_manifestSizePtr = (PDWORD)VirtualAlloc(nullptr, sizeof(DWORD), MEM_COMMIT, PAGE_READWRITE);
-    if (g_manifestPtr == nullptr || g_manifestSizePtr == nullptr)
-    {
-        // Error allocating memory.
-        HandleDetoursInjectionAndCommunicationErrors(DETOURS_PAYLOAD_PARSE_FAILED_10, L"ParseFileAccessManifest: Error allocating virtual memory", DETOURS_WINDOWS_LOG_MESSAGE_10);
-        return false;
-    }
-
-    if (memcpy_s(g_manifestPtr, payloadSize, payloadBytes, payloadSize))
-    {
-        // Could't copy the payload.
-        HandleDetoursInjectionAndCommunicationErrors(DETOURS_PAYLOAD_PARSE_FAILED_11, L"ParseFileAccessManifest: Error copying payload to virtual memory", DETOURS_WINDOWS_LOG_MESSAGE_11);
-        return false;
-    }
-
-    *g_manifestSizePtr = payloadSize;
-
-    DWORD oldProtection = 0;
-    if (VirtualProtect(g_manifestPtr, payloadSize, PAGE_READONLY, &oldProtection) == 0)
-    {
-        // Error protecting the memory for the payload.
-        HandleDetoursInjectionAndCommunicationErrors(DETOURS_PAYLOAD_PARSE_FAILED_12, L"ParseFileAccessManifest: Error protecting payload in virtual memory", DETOURS_WINDOWS_LOG_MESSAGE_12);
-        return false;
-    }
-
-    if (VirtualProtect(g_manifestSizePtr, sizeof(DWORD), PAGE_READONLY, &oldProtection) == 0)
-    {
-        // Error protecting the memory for the payloadSize.
-        HandleDetoursInjectionAndCommunicationErrors(DETOURS_PAYLOAD_PARSE_FAILED_13, L"ParseFileAccessManifest: Error protecting payload size in virtual memory", DETOURS_WINDOWS_LOG_MESSAGE_13);
-        return false;
-    }
-
     g_currentProcessId = GetCurrentProcessId();
 
     g_currentProcessCommandLine = GetCommandLine();
@@ -784,16 +744,7 @@ bool ParseFileAccessManifest(
     g_lpDllNameX86 = NULL;
     g_lpDllNameX64 = NULL;
 
-    if (*g_manifestSizePtr <= sizeof(size_t))
-    {
-#pragma warning( push ) //warning C4777: 'wprintf' : format string '%llu' requires an argument of type 'unsigned __int64', but variadic argument 2 has type 'size_t'
-#pragma warning( disable : 4777)
-        std::wstring errorMsg = DebugStringFormat(L"ParseFileAccessManifest: Error bad payload size %d:%llu.", (int)*g_manifestSizePtr, (unsigned long long)sizeof(size_t));
-#pragma warning( pop )
-        HandleDetoursInjectionAndCommunicationErrors(DETOURS_PAYLOAD_PARSE_FAILED_14, errorMsg.c_str(), DETOURS_WINDOWS_LOG_MESSAGE_14);
-        return false;
-    }
-
+    g_manifestSize = payloadSize;
     size_t offset = 0;
 
     PCManifestDebugFlag debugFlag = reinterpret_cast<PCManifestDebugFlag>(&payloadBytes[offset]);

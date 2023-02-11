@@ -38,7 +38,7 @@ private:
     unique_handle<INVALID_HANDLE_VALUE> _mapDirectory;
     unique_handle<INVALID_HANDLE_VALUE> _remoteInjectorPipe;
     unique_handle<INVALID_HANDLE_VALUE> _reportPipe;
-    unique_ptr<byte[]> _payload = nullptr;
+    const byte* _payload = nullptr;
     uint32_t _payloadSize = 0;
     vector<HANDLE> _otherHandles;
     string _dllX86;
@@ -156,7 +156,7 @@ public:
     HANDLE MapDirectory() const { return _mapDirectory.get(); }
     HANDLE RemoteInjectorPipe() const { return _remoteInjectorPipe.get(); }
     HANDLE ReportPipe() const { return _reportPipe.get(); }
-    LPCBYTE Payload() const { return _payload.get(); }
+    LPCBYTE Payload() const { return _payload; }
     uint32_t PayloadSize() const { return _payloadSize; }
     uint32_t OtherHandleCount() const { return static_cast<uint32_t>(_otherHandles.size()); }
     const HANDLE *OtherHandles() const { return _otherHandles.data(); }

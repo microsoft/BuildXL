@@ -44,7 +44,7 @@ private:
 #if _WIN32
     std::unordered_set<std::wstring, CaseInsensitiveStringHasher, CaseInsensitiveStringComparer> m_pathSet;
 #else
-    std::unordered_set<PCPathChar> m_pathSet;
+    std::unordered_set<std::string> m_pathSet;
 #endif
     std::shared_mutex m_lock;
 };

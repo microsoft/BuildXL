@@ -27,8 +27,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
         private readonly IProducerConsumerCollection<TaskSourceSlim<bool>> _collection;
         private readonly SemaphoreOrder _order;
 
-        private readonly Context _context;
-
         public int ConcurrencyLimit { get; }
 
         /// <nodoc />
@@ -40,12 +38,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
             _collection = order == SemaphoreOrder.FIFO
                 ? (IProducerConsumerCollection<TaskSourceSlim<bool>>)new ConcurrentQueue<TaskSourceSlim<bool>>()
                 : new ConcurrentStack<TaskSourceSlim<bool>>();
-            _context = context.CreateNested(nameof(OrderedSemaphore));
 
             // Non-deterministic means to skip this as a wrapper and use the underlying Semaphore, so a main loop is not needed.
             if (order != SemaphoreOrder.NonDeterministic)
             {
-                Task.Run(MainLoopAsync).FireAndForget(_context, failureSeverity: Severity.Fatal, failFast: true);
+                Task.Run(MainLoopAsync).FireAndForget(context, failureSeverity: Severity.Fatal, failFast: true);
             }
         }
 

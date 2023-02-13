@@ -34,6 +34,7 @@ using Microsoft.Sbom.Contracts;
 using Microsoft.Sbom.Contracts.Entities;
 using Microsoft.Sbom.Contracts.Enums;
 using Microsoft.VisualStudio.Services.Common;
+using Microsoft.VisualStudio.Services.Drop.App.Core.Tracing;
 using Microsoft.VisualStudio.Services.Drop.WebApi;
 using Microsoft.VisualStudio.Services.WebApi;
 using Newtonsoft.Json.Linq;
@@ -73,6 +74,7 @@ namespace Tool.DropDaemon
         internal static IEnumerable<Command> SupportedCommands => Commands.Values;
 
         private int m_logFileNameCounter;
+        private int m_artifactTracerInitialized = 0;
 
         /// SBOM Generation
         private readonly ISBOMGenerator m_sbomGenerator;
@@ -325,6 +327,14 @@ namespace Tool.DropDaemon
             HelpText = "personal access token environment",
             IsRequired = false,
             DefaultValue = string.Empty,
+        });
+
+        internal static readonly BoolOption EnableArtifactTracer = RegisterConfigOption(new BoolOption("enableArtifactTracer")
+        {
+            ShortName = "eat",
+            HelpText = "Enables Drop App Tracer",
+            IsRequired = false,
+            DefaultValue = DropConfig.DefaultEnableArtifactTracer,
         });
 
         // ==============================================================================
@@ -1373,7 +1383,7 @@ namespace Tool.DropDaemon
                 httpSendTimeout: TimeSpan.FromMilliseconds(conf.Get(HttpSendTimeoutMillis)),
                 enableTelemetry: conf.Get(EnableTelemetry),
                 enableChunkDedup: conf.Get(EnableChunkDedup),
-                artifactLogName: conf.Get(ArtifactLogName),
+                enableArtifactTracer: conf.Get(EnableArtifactTracer),
                 batchSize: conf.Get(BatchSize),
                 dropDomainId: domainId,
                 generateBuildManifest: conf.Get(GenerateBuildManifest),
@@ -1829,6 +1839,24 @@ namespace Tool.DropDaemon
             if (!result.IsFound)
             {
                 m_logger.Info("Created a log file '{0}-{1}' for drop '{2}'", logFileName, logFileNameCounter, dropConfig.Name);
+
+                // It is the first time we see this drop; check if it needs a drop app tracer.
+                // If we need a tracer, initialize it only once (VsoClient is using the default tracer, i.e., DropAppTraceSource.SingleInstance).
+                if (dropConfig.EnableArtifactTracer && Interlocked.CompareExchange(ref m_artifactTracerInitialized, 1, 0) == 0)
+                {
+                    if (string.IsNullOrWhiteSpace(Config.LogDir))
+                    {
+                        m_logger.Warning("Drop '{0}' is configured to use Artifact Tracer, but the log directory is not set.", dropConfig.Name);
+                    }
+                    else
+                    {
+                        // Place tracer log next to the main drop log.
+                        var tracerFileName = Path.Combine(Config.LogDir, $"{LogFileName}-{Config.Moniker}-artifactTracer.log");
+                        DropAppTraceSource.SingleInstance.SetSourceLevel(SourceLevels.Verbose);
+                        DropAppTraceSource.SingleInstance.AddFileTraceListener(tracerFileName);
+                        m_logger.Info("Artifact tracer will be saved to '{0}'", tracerFileName);
+                    }
+                }
             }
 
             return result.Item.Value.Value;

@@ -58,9 +58,9 @@ namespace Tool.DropDaemon
         public bool EnableChunkDedup { get; }
 
         /// <summary>
-        ///     File name for artifact-side logs
+        ///     Whether to enable artifact tracer.
         /// </summary>
-        public string ArtifactLogName { get; }
+        public bool EnableArtifactTracer { get; }
 
         /// <summary>
         ///     Optional domain id. Null represents a default value.
@@ -129,6 +129,9 @@ namespace Tool.DropDaemon
 
         /// <nodoc/>
         public static bool DefaultSignBuildManifest { get; } = true;
+
+        /// <nodoc/>
+        public static bool DefaultEnableArtifactTracer { get; } = false;
         #endregion
 
         // ==================================================================================================
@@ -144,7 +147,7 @@ namespace Tool.DropDaemon
             TimeSpan? httpSendTimeout = null,
             bool? enableTelemetry = null,
             bool? enableChunkDedup = null,
-            string artifactLogName = null,
+            bool? enableArtifactTracer = null,
             int? batchSize = null,
             byte? dropDomainId = null,
             bool? generateBuildManifest = null,
@@ -161,7 +164,7 @@ namespace Tool.DropDaemon
             HttpSendTimeout = httpSendTimeout ?? DefaultHttpSendTimeout;
             EnableTelemetry = enableTelemetry ?? DefaultEnableTelemetry;
             EnableChunkDedup = enableChunkDedup ?? DefaultEnableChunkDedup;
-            ArtifactLogName = artifactLogName;
+            EnableArtifactTracer = enableArtifactTracer ?? DefaultEnableArtifactTracer;
             BatchSize = batchSize ?? DefaultBatchSizeForAssociate;
             DomainId = dropDomainId;
             GenerateBuildManifest = generateBuildManifest ?? DefaultGenerateBuildManifest;

@@ -116,12 +116,6 @@ namespace Tool.DropDaemon
                 batchSize: m_config.BatchSize,
                 interval: m_config.NagleTime,
                 processBatch: ProcessAddFilesAsync);
-
-            if (m_config.ArtifactLogName != null)
-            {
-                DropAppTraceSource.SingleInstance.SetSourceLevel(System.Diagnostics.SourceLevels.Verbose);
-                Tracer.AddFileTraceListener(Path.Combine(daemonConfig.LogDir, m_config.ArtifactLogName));
-            }
         }
 
         /// <summary>

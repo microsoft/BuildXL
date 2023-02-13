@@ -38,12 +38,13 @@ private:
     unique_handle<INVALID_HANDLE_VALUE> _mapDirectory;
     unique_handle<INVALID_HANDLE_VALUE> _remoteInjectorPipe;
     unique_handle<INVALID_HANDLE_VALUE> _reportPipe;
-    const byte* _payload = nullptr;
+    unique_ptr<byte[]> _payload = nullptr;
     uint32_t _payloadSize = 0;
     vector<HANDLE> _otherHandles;
     string _dllX86;
     string _dllX64;
     GUID _payloadGuid;
+    bool _alwaysRemoteInjectFromWow64Process;
     bool _initialized = false;
 
     CRITICAL_SECTION _injectorLock;
@@ -98,8 +99,7 @@ private:
 #pragma warning( disable: 4100 )
     inline bool NeedRemoteInjection(HANDLE processHandle)
     {
-        return s_isWow64Process && (_mapDirectory.isValid() || !isWow64Process(processHandle));
-        //// return s_isWow64Process && !isWow64Process(processHandle);
+        return s_isWow64Process && (_alwaysRemoteInjectFromWow64Process || _mapDirectory.isValid() || !isWow64Process(processHandle));
     }
 #pragma warning( pop )
 
@@ -141,6 +141,11 @@ public:
         _dllX64 = dllX64;
     }
 
+    void inline SetAlwaysRemoteInjectFromWow64Process(bool alwaysRemoteInjectFromWow64Process)
+    {
+        _alwaysRemoteInjectFromWow64Process = alwaysRemoteInjectFromWow64Process;
+    }
+
     // Set "other" handles. These are duplicated if needed.
     void SetHandles(uint32_t otherHandleCount, PHANDLE otherHandles);
 
@@ -156,7 +161,7 @@ public:
     HANDLE MapDirectory() const { return _mapDirectory.get(); }
     HANDLE RemoteInjectorPipe() const { return _remoteInjectorPipe.get(); }
     HANDLE ReportPipe() const { return _reportPipe.get(); }
-    LPCBYTE Payload() const { return _payload; }
+    LPCBYTE Payload() const { return _payload.get(); }
     uint32_t PayloadSize() const { return _payloadSize; }
     uint32_t OtherHandleCount() const { return static_cast<uint32_t>(_otherHandles.size()); }
     const HANDLE *OtherHandles() const { return _otherHandles.data(); }
@@ -176,8 +181,9 @@ public:
     // injector and injectee processes.
     DWORD InjectProcess(HANDLE processHandle, bool inheritedHandles)
     {
-        return NeedRemoteInjection(processHandle) ? RemoteInjectProcess(processHandle, inheritedHandles) :
-            LocalInjectProcess(processHandle, inheritedHandles);
+        return NeedRemoteInjection(processHandle)
+            ? RemoteInjectProcess(processHandle, inheritedHandles)
+            : LocalInjectProcess(processHandle, inheritedHandles);
     }
 
     // No default constructor, no copies

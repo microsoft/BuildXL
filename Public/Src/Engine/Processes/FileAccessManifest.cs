@@ -96,7 +96,8 @@ namespace BuildXL.Processes
             ExplicitlyReportDirectoryProbes = false;
             PreserveFileSharingBehaviour = false;
             EnableLinuxPTraceSandbox = false;
-            EnableLinuxSandboxLogging = false; 
+            EnableLinuxSandboxLogging = false;
+            AlwaysRemoteInjectDetoursFrom32BitProcess = false;
         }
 
         private bool GetFlag(FileAccessManifestFlag flag) => (m_fileAccessManifestFlag & flag) != 0;
@@ -491,6 +492,15 @@ namespace BuildXL.Processes
         {
             get => GetExtraFlag(FileAccessManifestExtraFlag.EnableLinuxSandboxLogging);
             set => SetExtraFlag(FileAccessManifestExtraFlag.EnableLinuxSandboxLogging, value);
+        }
+
+        /// <summary>
+        /// When true, always use remote detours injection when launching processes from a 32-bit process.
+        /// </summary>
+        public bool AlwaysRemoteInjectDetoursFrom32BitProcess
+        {
+            get => GetExtraFlag(FileAccessManifestExtraFlag.AlwaysRemoteInjectDetoursFrom32BitProcess);
+            set => SetExtraFlag(FileAccessManifestExtraFlag.AlwaysRemoteInjectDetoursFrom32BitProcess, value);
         }
 
         /// <summary>
@@ -1247,6 +1257,7 @@ namespace BuildXL.Processes
             PreserveFileSharingBehaviour = 0x2,
             EnableLinuxPTraceSandbox = 0x4,
             EnableLinuxSandboxLogging = 0x8,
+            AlwaysRemoteInjectDetoursFrom32BitProcess = 0x10,
         }
 
         private readonly struct FileAccessScope

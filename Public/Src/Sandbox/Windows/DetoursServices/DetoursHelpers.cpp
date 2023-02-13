@@ -846,6 +846,7 @@ bool ParseFileAccessManifest(
     PCManifestExtraFlags extraFlags = reinterpret_cast<PCManifestExtraFlags>(&payloadBytes[offset]);
     extraFlags->AssertValid();
     g_fileAccessManifestExtraFlags = static_cast<FileAccessManifestExtraFlag>(extraFlags->ExtraFlags);
+    g_pDetouredProcessInjector->SetAlwaysRemoteInjectFromWow64Process(CheckAlwaysRemoteInjectDetoursFrom32BitProcess(g_fileAccessManifestExtraFlags));
     offset += extraFlags->GetSize();
 
     PCManifestPipId pipId = reinterpret_cast<PCManifestPipId>(&payloadBytes[offset]);

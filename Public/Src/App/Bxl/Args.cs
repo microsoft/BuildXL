@@ -237,6 +237,9 @@ namespace BuildXL
                             "allowMissingSpecs",
                             opt => frontEndConfiguration.AllowMissingSpecs = opt),
                         OptionHandlerFactory.CreateBoolOption(
+                            "alwaysRemoteInjectDetoursFrom32BitProcess",
+                            opt => sandboxConfiguration.AlwaysRemoteInjectDetoursFrom32BitProcess = opt),
+                        OptionHandlerFactory.CreateBoolOption(
                             "analyzeDependencyViolations",
                             opt => { /* DEPRECATED -- DO NOTHING */ }),
                         OptionHandlerFactory.CreateOption(

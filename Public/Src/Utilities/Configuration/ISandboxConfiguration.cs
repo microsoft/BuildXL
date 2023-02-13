@@ -306,5 +306,15 @@ namespace BuildXL.Utilities.Configuration
         /// There will be a significant performance impact on the executing process under this sandbox.
         /// </remarks>
         public bool EnableLinuxPTraceSandbox { get; }
+
+        /// <summary>
+        /// Always use remote detours injection when launching processes from a 32-bit process.
+        /// </summary>
+        /// <remarks>
+        /// Remote injection means asking the BuildXL process root to inject detours into the target process.
+        /// A 32-bit process only has 2G address space, which can be insufficient inject detours and its payload the target process.
+        /// With this option, we can use remote injection to avoid the address space limitation because the root BuildXL is always a 64-bit process.
+        /// </remarks>
+        public bool AlwaysRemoteInjectDetoursFrom32BitProcess { get; }
     }
 }

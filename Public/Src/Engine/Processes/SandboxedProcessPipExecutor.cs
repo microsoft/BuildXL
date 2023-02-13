@@ -330,6 +330,7 @@ namespace BuildXL.Processes
                     PreserveFileSharingBehaviour = m_sandboxConfig.PreserveFileSharingBehaviour,
                     EnableLinuxPTraceSandbox = m_sandboxConfig.EnableLinuxPTraceSandbox,
                     EnableLinuxSandboxLogging = m_sandboxConfig.LogObservedFileAccesses,
+                    AlwaysRemoteInjectDetoursFrom32BitProcess = m_sandboxConfig.AlwaysRemoteInjectDetoursFrom32BitProcess,
                 };
 
             if (!MonitorFileAccesses)

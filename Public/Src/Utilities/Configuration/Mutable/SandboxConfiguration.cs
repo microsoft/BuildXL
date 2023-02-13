@@ -56,6 +56,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             ExplicitlyReportDirectoryProbes = OperatingSystemHelper.IsLinuxOS;
             PreserveFileSharingBehaviour = false;
             EnableLinuxPTraceSandbox = false;
+            AlwaysRemoteInjectDetoursFrom32BitProcess = false;
         }
 
         /// <nodoc />
@@ -109,6 +110,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             ExplicitlyReportDirectoryProbes = template.ExplicitlyReportDirectoryProbes;
             PreserveFileSharingBehaviour = template.PreserveFileSharingBehaviour;
             EnableLinuxPTraceSandbox = template.EnableLinuxPTraceSandbox;
+            AlwaysRemoteInjectDetoursFrom32BitProcess = template.AlwaysRemoteInjectDetoursFrom32BitProcess;
         }
 
         /// <inheritdoc />
@@ -285,5 +287,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public bool EnableLinuxPTraceSandbox { get; set; }
+
+        /// <inheritdoc />
+        public bool AlwaysRemoteInjectDetoursFrom32BitProcess { get; set; }
     }
 }

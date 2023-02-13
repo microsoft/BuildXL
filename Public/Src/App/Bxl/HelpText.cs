@@ -891,6 +891,12 @@ namespace BuildXL
                 HelpLevel.Verbose
                 );
 
+            hw.WriteOption(
+                "/alwaysRemoteInjectDetoursFrom32BitProcess[+|-]",
+                Strings.HelpText_DisplayHelp_AlwaysRemoteInjectDetoursFrom32BitProcess,
+                HelpLevel.Verbose
+                );
+
             #endregion
 
             hw.WriteBanner(

@@ -334,7 +334,7 @@ namespace BuildXL.Cache.ContentStore.Test.Tracing
             // to the long operation tracer.
 
             // This test relies on static state. We'll have issues if more then one test will start changing the log manager configuration!
-            LogManager.Update(
+            LogManager.Instance.Update(
                 new LogManagerConfiguration()
                 {
                     Logs = new Dictionary<string, OperationLoggingConfiguration>()

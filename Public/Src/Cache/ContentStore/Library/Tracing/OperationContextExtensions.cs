@@ -7,6 +7,7 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.Host.Configuration;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 
@@ -193,7 +194,7 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
                 return;
             }
 
-            var configuration = LogManager.GetConfiguration(_tracer.Name, caller);
+            var configuration = LogManager.Instance.GetOperationConfiguration(_tracer.Name, caller);
             if (configuration is not null)
             {
                 _traceOperationStarted = configuration.StartMessage ?? _traceOperationStarted;
@@ -395,7 +396,7 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
             var traceOperationFinished = _traceOperationFinished;
             var traceErrorsOnly = _traceErrorsOnly;
 
-            var configuration = LogManager.GetConfiguration(_tracer.Name, caller);
+            var configuration = LogManager.Instance.GetOperationConfiguration(_tracer.Name, caller);
             if (configuration is not null)
             {
                 traceOperationFinished = configuration.StopMessage ?? traceOperationFinished;

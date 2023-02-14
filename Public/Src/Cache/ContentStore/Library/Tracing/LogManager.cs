@@ -13,25 +13,34 @@ using BuildXL.Cache.Host.Configuration;
 namespace BuildXL.Cache.ContentStore.Tracing
 {
     /// <nodoc />
-    public static class LogManager
+    public class LogManager
     {
-        private static Dictionary<(string, string), OperationLoggingConfiguration> Configuration = new Dictionary<(string, string), OperationLoggingConfiguration>();
+        private static readonly Lazy<LogManager> _lazyInstance = new Lazy<LogManager>(() => new LogManager());
 
-        /// <nodoc />
-        public static OperationLoggingConfiguration? GetConfiguration(string component, [CallerMemberName] string? caller = null)
+        private Dictionary<(string, string), OperationLoggingConfiguration> _configuration = new Dictionary<(string, string), OperationLoggingConfiguration>();
+
+        /// <summary>
+        /// Gets a global instance of a log manager.
+        /// </summary>
+        public static LogManager Instance => _lazyInstance.Value;
+
+        /// <summary>
+        /// Gets the configuration for a given <paramref name="operationName"/> and <paramref name="component"/>.
+        /// </summary>
+        public OperationLoggingConfiguration? GetOperationConfiguration(string component, [CallerMemberName] string? operationName = null)
         {
             if (string.IsNullOrWhiteSpace(component))
             {
                 component = string.Empty;
             }
 
-            if (string.IsNullOrWhiteSpace(caller))
+            if (string.IsNullOrWhiteSpace(operationName))
             {
-                caller = string.Empty;
+                operationName = string.Empty;
             }
 
-            if (!Configuration.TryGetValue(((string)component, (string)caller!), out var configuration)
-                && !Configuration.TryGetValue(((string)component, "*"), out configuration))
+            if (!_configuration.TryGetValue(((string)component, (string)operationName!), out var configuration)
+                && !_configuration.TryGetValue(((string)component, "*"), out configuration))
             {
                 return null;
             }
@@ -42,14 +51,14 @@ namespace BuildXL.Cache.ContentStore.Tracing
         private static readonly Regex NameRegex = new Regex(@"(?<component>[^\.]+)(?:\.(?<operation>[^\.]+))?", RegexOptions.Compiled);
 
         /// <nodoc />
-        public static void Update(LogManagerConfiguration? configuration)
+        public LogManager Update(LogManagerConfiguration? configuration)
         {
             if (configuration is null)
             {
-                return;
+                return this;
             }
 
-            Configuration = configuration.Logs.ToDictionary(kvp =>
+            _configuration = configuration.Logs.ToDictionary(kvp =>
             {
                 var key = kvp.Key;
 
@@ -74,6 +83,8 @@ namespace BuildXL.Cache.ContentStore.Tracing
                 (string, string) parsed = (component, operation);
                 return parsed;
             }, kvp => kvp.Value);
+
+            return this;
         }
     }
 }

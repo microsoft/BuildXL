@@ -40,6 +40,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
 
         private int _numberOfRecoverableErrors;
         private int _numberOfCriticalErrors;
+        private readonly LogManager _logManager;
 
         public bool LogOperationStarted { get; set; } = true;
 
@@ -58,10 +59,11 @@ namespace BuildXL.Cache.ContentStore.Tracing
         /// </summary>
         public int NumberOfCriticalErrors => _numberOfCriticalErrors;
 
-        public Tracer(string name)
+        public Tracer(string name, LogManager? logManager = null)
         {
             Contract.Requires(name != null);
             Name = name;
+            _logManager = logManager ?? LogManager.Instance;
         }
 
         /// <nodoc />
@@ -135,7 +137,22 @@ namespace BuildXL.Cache.ContentStore.Tracing
 
         public void Trace(Severity severity, Context context, string message, string? operation = null, Exception? exception = null)
         {
-            context.TraceMessage(severity, message, exception, component: Name, operation: operation);
+            var configuration = _logManager.GetOperationConfiguration(Name, operation);
+
+            if (configuration is null)
+            {
+                // No configuration is available.
+                context.TraceMessage(severity, message, exception, component: Name, operation: operation);
+            }
+            else
+            {
+                // Tracing if not disabled
+                if (configuration.Disabled != true &&
+                    (configuration.ErrorsOnly != true || severity >= Severity.Error))
+                {
+                    context.TraceMessage(severity, message, exception, component: Name, operation: operation);
+                }
+            }
         }
 
         public virtual void StartupStart(Context context)

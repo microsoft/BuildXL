@@ -102,7 +102,7 @@ namespace BuildXL.Cache.Host.Service.Internal
 
             if (distributedSettings is not null)
             {
-                LogManager.Update(distributedSettings.LogManager);
+                LogManager.Instance.Update(distributedSettings.LogManager);
             }
 
             var serviceConfiguration = CreateServiceConfiguration(

@@ -26,6 +26,12 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public bool? ErrorsOnly { get; set; }
 
+        /// <summary>
+        /// If true then none of the messages should be traced.
+        /// </summary>
+        [DataMember]
+        public bool? Disabled { get; set; }
+
         [DataMember]
         public TimeSpanSetting? SilentOperationDurationThreshold { get; set; }
 

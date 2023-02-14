@@ -4,10 +4,9 @@
 using System;
 using System.Collections.Generic;
 using System.Net;
-using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
-using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Vsts;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Cache.MemoizationStore.VstsInterfaces;
@@ -39,7 +38,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
 
         /// <inheritdoc />
         public async Task<Result<IEnumerable<SelectorAndContentHashListWithCacheMetadata>>> GetSelectorsAsync(
-            Context context,
+            OperationContext context,
             string cacheNamespace,
             Fingerprint weakFingerprint,
             int maxSelectorsToFetch)
@@ -52,7 +51,8 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
                     innerCts => _buildCacheHttpClient.GetSelectors(
                         cacheNamespace,
                         weakFingerprint,
-                        maxSelectorsToFetch), CancellationToken.None);
+                        maxSelectorsToFetch),
+                    context.Token);
                 var selectorsToReturn = new List<SelectorAndContentHashListWithCacheMetadata>();
                 foreach (
                     SelectorAndPossibleContentHashListResponse selectorAndPossible in selectorsResponse.SelectorsAndPossibleContentHashLists
@@ -79,7 +79,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
 
         /// <inheritdoc />
         public async Task<Result<ContentHashListWithCacheMetadata>> GetContentHashListAsync(
-            Context context,
+            OperationContext context,
             string cacheNamespace,
             StrongFingerprint strongFingerprint)
         {
@@ -90,7 +90,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
                         context,
                         "GetContentHashList",
                         innerCts => _buildCacheHttpClient.GetContentHashListAsync(cacheNamespace, strongFingerprint),
-                        CancellationToken.None).ConfigureAwait(false);
+                        context.Token).ConfigureAwait(false);
 
                 _downloadUriCache.BulkAddDownloadUris(response.BlobDownloadUris);
 
@@ -124,7 +124,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
 
         /// <inheritdoc />
         public async Task<Result<ContentHashListWithCacheMetadata>> AddContentHashListAsync(
-            Context context,
+            OperationContext context,
             string cacheNamespace,
             StrongFingerprint strongFingerprint,
             ContentHashListWithCacheMetadata valueToAdd,
@@ -139,7 +139,8 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
                         cacheNamespace,
                         strongFingerprint,
                         valueToAdd,
-                        forceUpdate), CancellationToken.None).ConfigureAwait(false);
+                        forceUpdate),
+                    context.Token).ConfigureAwait(false);
 
                 // The return value is null if the server fails adding content hash list to the backing store.
                 // See BuildCacheService.AddContentHashListAsync for more details about the implementation invariants/guarantees.
@@ -182,7 +183,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
 
         /// <inheritdoc />
         public Task IncorporateStrongFingerprints(
-            Context context,
+            OperationContext context,
             string cacheNamespace,
             IncorporateStrongFingerprintsRequest incorporateStrongFingerprintsRequest)
         {
@@ -190,7 +191,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
                 context,
                 "IncorporateStrongFingerprints",
                 () => _buildCacheHttpClient.IncorporateStrongFingerprints(cacheNamespace, incorporateStrongFingerprintsRequest),
-                CancellationToken.None);
+                context.Token);
         }
     }
 }

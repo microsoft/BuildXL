@@ -114,7 +114,8 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             CancellationToken cts,
             UrgencyHint urgencyHint)
         {
-            return new OperationContext(context, cts).PerformOperationAsync(
+            var operationContext = new OperationContext(context, cts);
+            return operationContext.PerformOperationAsync(
                 CacheTracer.MemoizationStoreTracer,
                 async () =>
                 {
@@ -127,7 +128,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                                 : ContentAvailabilityGuarantee.AllContentBackedByCache;
 
                         return await AddOrGetContentHashListAsync(
-                            context,
+                            operationContext,
                             strongFingerprint,
                             contentHashListWithDeterminism,
                             guarantee).ConfigureAwait(false);
@@ -135,7 +136,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
 
                     // Ensure that the content exists somewhere before trying to add
                     if (!await EnsureContentIsAvailableAsync(
-                        context, contentHashListWithDeterminism.ContentHashList.Hashes, cts, urgencyHint).ConfigureAwait(false))
+                            operationContext, contentHashListWithDeterminism.ContentHashList.Hashes, urgencyHint).ConfigureAwait(false))
                     {
                         return new AddOrGetContentHashListResult(
                             "Referenced content must exist in the cache before a new content hash list is added.");
@@ -154,10 +155,10 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                         var debugString = $"Adding contentHashList=[{valueToAdd.ContentHashListWithDeterminism.ContentHashList}] " +
                                             $"determinism=[{valueToAdd.ContentHashListWithDeterminism.Determinism}] to VSTS with " +
                                             $"contentAvailabilityGuarantee=[{valueToAdd.ContentGuarantee}], expirationUtc=[{expirationUtc}], forceUpdate=[{ForceUpdateOnAddContentHashList}]";
-                        CacheTracer.Debug(context, debugString);
+                        CacheTracer.Debug(operationContext, debugString);
                         Result<ContentHashListWithCacheMetadata> responseObject =
                             await ContentHashListAdapter.AddContentHashListAsync(
-                                context,
+                                operationContext,
                                 CacheNamespace,
                                 strongFingerprint,
                                 valueToAdd,
@@ -182,22 +183,21 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                         CacheDeterminism determinismToReturn = UnpackDeterminism(response, CacheId);
 
                         bool needToUpdateExistingValue = await CheckNeedToUpdateExistingValueAsync(
-                            context,
+                            operationContext,
                             response,
                             contentHashListToReturn,
-                            cts,
                             urgencyHint).ConfigureAwait(false);
                         if (!needToUpdateExistingValue)
                         {
-                            SealIfNecessaryAfterUnbackedAddOrGet(context, strongFingerprint, contentHashListWithDeterminism, response);
+                            SealIfNecessaryAfterUnbackedAddOrGet(operationContext, strongFingerprint, contentHashListWithDeterminism, response);
 
-                            await TrackFingerprintAsync(context, strongFingerprint, rawExpiration, hashes: contentHashListToReturn).ConfigureAwait(false);
+                            await TrackFingerprintAsync(operationContext, strongFingerprint, rawExpiration, hashes: contentHashListToReturn).ConfigureAwait(false);
                             return new AddOrGetContentHashListResult(
                                 new ContentHashListWithDeterminism(contentHashListToReturn, determinismToReturn));
                         }
 
                         var hashOfExistingContentHashList = response.HashOfExistingContentHashList;
-                        CacheTracer.Debug(context, $"Attempting to replace unbacked value with hash {hashOfExistingContentHashList.ToHex()}");
+                        CacheTracer.Debug(operationContext, $"Attempting to replace unbacked value with hash {hashOfExistingContentHashList.ToHex()}");
                         valueToAdd = new ContentHashListWithCacheMetadata(
                             contentHashListWithDeterminism,
                             expirationUtc,
@@ -207,9 +207,9 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                     }
 
                     CacheTracer.Warning(
-                        context,
+                        operationContext,
                         $"Lost the AddOrUpdate race {addLimit} times against unbacked values. Returning as though the add succeeded for now.");
-                    await TrackFingerprintAsync(context, strongFingerprint, rawExpiration, hashes: null).ConfigureAwait(false);
+                    await TrackFingerprintAsync(operationContext, strongFingerprint, rawExpiration, hashes: null).ConfigureAwait(false);
                     return new AddOrGetContentHashListResult(new ContentHashListWithDeterminism(null, CacheDeterminism.None));
 
                 },
@@ -219,20 +219,19 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         }
 
         private async Task<bool> CheckNeedToUpdateExistingValueAsync(
-            Context context,
+            OperationContext context,
             ContentHashListWithCacheMetadata cacheMetadata,
             ContentHashList contentHashListToReturn,
-            CancellationToken cts,
             UrgencyHint urgencyHint)
         {
             return cacheMetadata != null &&
                    cacheMetadata.GetEffectiveExpirationTimeUtc() == null &&
                    contentHashListToReturn != null &&
-                   (!await EnsureContentIsAvailableAsync(context, contentHashListToReturn.Hashes, cts, urgencyHint).ConfigureAwait(false));
+                   (!await EnsureContentIsAvailableAsync(context, contentHashListToReturn.Hashes, urgencyHint).ConfigureAwait(false));
         }
 
         private void SealIfNecessaryAfterUnbackedAddOrGet(
-            Context context,
+            OperationContext context,
             StrongFingerprint strongFingerprint,
             ContentHashListWithDeterminism addedValue,
             ContentHashListWithCacheMetadata cacheMetadata)
@@ -283,7 +282,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                     var strongFingerprint = await strongFingerprintTask.ConfigureAwait(false);
 
                     // The Incorporate API currently does allow passing the expiration, so we can't pass it here.
-                    await TrackFingerprintAsync(context, strongFingerprint, expirationUtc: null, hashes: null).ConfigureAwait(false);
+                    await TrackFingerprintAsync(new OperationContext(context, cts), strongFingerprint, expirationUtc: null, hashes: null).ConfigureAwait(false);
                 }
 
                 return BoolResult.Success;
@@ -314,7 +313,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             CancellationToken cts,
             UrgencyHint urgencyHint)
         {
-            return CacheTracer.ContentSessionTracer.PutFileAsync(new OperationContext(context), path, realizationMode, contentHash, trustedHash: false, () =>
+            return CacheTracer.ContentSessionTracer.PutFileAsync(new OperationContext(context, cts), path, realizationMode, contentHash, trustedHash: false, () =>
                     WriteThroughContentSession != null
                     ? WriteThroughContentSession.PutFileAsync(context, contentHash, path, realizationMode, cts, urgencyHint)
                     : BackingContentSession.PutFileAsync(context, contentHash, path, realizationMode, cts, urgencyHint));
@@ -328,7 +327,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             CancellationToken cts,
             UrgencyHint urgencyHint)
         {
-            return CacheTracer.ContentSessionTracer.PutStreamAsync(new OperationContext(context), hashType, () =>
+            return CacheTracer.ContentSessionTracer.PutStreamAsync(new OperationContext(context, cts), hashType, () =>
                 WriteThroughContentSession != null
                 ? WriteThroughContentSession.PutStreamAsync(context, hashType, stream, cts, urgencyHint)
                 : BackingContentSession.PutStreamAsync(context, hashType, stream, cts, urgencyHint));
@@ -342,18 +341,18 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             CancellationToken cts,
             UrgencyHint urgencyHint)
         {
-            return CacheTracer.ContentSessionTracer.PutStreamAsync(new OperationContext(context), contentHash, () =>
+            return CacheTracer.ContentSessionTracer.PutStreamAsync(new OperationContext(context, cts), contentHash, () =>
                 WriteThroughContentSession != null
                 ? WriteThroughContentSession.PutStreamAsync(context, contentHash, stream, cts, urgencyHint)
                 : BackingContentSession.PutStreamAsync(context, contentHash, stream, cts, urgencyHint));
         }
 
         private async Task<bool> EnsureContentIsAvailableAsync(
-            Context context, IReadOnlyList<ContentHash> contentHashes, CancellationToken cts, UrgencyHint urgencyHint)
+            OperationContext context, IReadOnlyList<ContentHash> contentHashes, UrgencyHint urgencyHint)
         {
             bool missingContent = false;
 
-            var tasks = await PinAsync(context, contentHashes, cts, urgencyHint);
+            var tasks = await PinAsync(context, contentHashes, context.Token, urgencyHint);
 
             foreach (var task in tasks)
             {

@@ -14,6 +14,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.MemoizationStore.Vsts;
 using BuildXL.Cache.MemoizationStore.Vsts.Adapters;
 using BuildXL.Cache.MemoizationStore.Vsts.Http;
@@ -361,7 +362,7 @@ namespace BuildXL.Cache.MemoizationStore.VstsTest
                 // Raw expiration is only visible to the adapter, not through the ICacheSession APIs.
                 // This also has the nice (non-)side-effect of not updating the expiration as part of *this* read.
                 IContentHashListAdapter buildCacheHttpClientAdapter = buildCacheSession.ContentHashListAdapter;
-                Result<ContentHashListWithCacheMetadata> getResult = await buildCacheHttpClientAdapter.GetContentHashListAsync(context, cacheNamespace, strongFingerprint);
+                Result<ContentHashListWithCacheMetadata> getResult = await buildCacheHttpClientAdapter.GetContentHashListAsync(new OperationContext(context), cacheNamespace, strongFingerprint);
                 Assert.True(getResult.Succeeded);
                 Assert.NotNull(getResult.Value);
                 DateTime? rawExpiration = getResult.Value.GetRawExpirationTimeUtc();

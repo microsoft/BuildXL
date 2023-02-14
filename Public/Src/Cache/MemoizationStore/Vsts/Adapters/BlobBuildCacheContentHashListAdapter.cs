@@ -10,8 +10,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
-using BuildXL.Cache.ContentStore.Interfaces.Sessions;
-using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Vsts;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Cache.MemoizationStore.VstsInterfaces;
@@ -49,7 +48,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
 
         /// <inheritdoc />
         public async Task<Result<IEnumerable<SelectorAndContentHashListWithCacheMetadata>>> GetSelectorsAsync(
-            Context context,
+            OperationContext context,
             string cacheNamespace,
             Fingerprint weakFingerprint,
             int maxSelectorsToFetch)
@@ -64,7 +63,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
                         weakFingerprint,
                         _includeDownloadUris,
                         maxSelectorsToFetch),
-                    CancellationToken.None);
+                    context.Token);
                 var selectorsToReturn = new List<SelectorAndContentHashListWithCacheMetadata>();
 
                 _blobContentSession.UriCache.BulkAddDownloadUris(selectorsResponse.BlobDownloadUris);
@@ -111,7 +110,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
 
         /// <inheritdoc />
         public async Task<Result<ContentHashListWithCacheMetadata>> GetContentHashListAsync(
-            Context context,
+            OperationContext context,
             string cacheNamespace,
             StrongFingerprint strongFingerprint)
         {
@@ -123,7 +122,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
                             context,
                             "GetContentHashList",
                             innerCts => _buildCacheHttpClient.GetContentHashListAsync(cacheNamespace, strongFingerprint, _includeDownloadUris),
-                            CancellationToken.None)
+                            context.Token)
                         .ConfigureAwait(false);
 
                     _blobContentSession.UriCache.BulkAddDownloadUris(blobResponse.BlobDownloadUris);
@@ -159,7 +158,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
         }
         /// <inheritdoc />
         public async Task<Result<ContentHashListWithCacheMetadata>> AddContentHashListAsync(
-            Context context,
+            OperationContext context,
             string cacheNamespace,
             StrongFingerprint strongFingerprint,
             ContentHashListWithCacheMetadata valueToAdd,
@@ -208,7 +207,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
                         strongFingerprint,
                         blobContentHashListWithCacheMetadata,
                         forceUpdate),
-                    CancellationToken.None).ConfigureAwait(false);
+                    context.Token).ConfigureAwait(false);
                 _blobContentSession.UriCache.BulkAddDownloadUris(addResult.BlobDownloadUris);
 
                 // add succeeded but returned an empty contenthashlistwith cache metadata. correct this.
@@ -242,7 +241,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
             }
         }
 
-        private async Task<Result<ContentHashListWithCacheMetadata>> UnpackBlobContentHashListAsync(Context context, BlobContentHashListWithCacheMetadata blobCacheMetadata)
+        private async Task<Result<ContentHashListWithCacheMetadata>> UnpackBlobContentHashListAsync(OperationContext context, BlobContentHashListWithCacheMetadata blobCacheMetadata)
         {
             Contract.Assert(blobCacheMetadata != null);
             if (blobCacheMetadata.ContentHashListWithDeterminism.BlobIdentifier == null)
@@ -290,7 +289,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
 
         /// <inheritdoc />
         public Task IncorporateStrongFingerprints(
-            Context context,
+            OperationContext context,
             string cacheNamespace,
             IncorporateStrongFingerprintsRequest incorporateStrongFingerprintsRequest)
         {
@@ -298,7 +297,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
                 context,
                 "IncorporateStrongFingerprints",
                 () => _buildCacheHttpClient.IncorporateStrongFingerprints(cacheNamespace, incorporateStrongFingerprintsRequest),
-                CancellationToken.None);
+                context.Token);
         }
     }
 }

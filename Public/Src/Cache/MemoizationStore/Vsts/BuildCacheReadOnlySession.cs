@@ -319,7 +319,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                     ).GetPages(_maxFingerprintsPerIncorporateRequest).ToList();
                 CacheTracer.Debug(context, $"Total fingerprint incorporation requests to be issued(=number of fingerprint chunks):[{chunks.Count}]");
 
-                var incorporateBlock = ActionBlockSlim.Create<IEnumerable<StrongFingerprintAndExpiration>>(
+                var incorporateBlock = ActionBlockSlim.Create<List<StrongFingerprintAndExpiration>>(
                     degreeOfParallelism: _maxDegreeOfParallelismForIncorporateRequests,
                     processItemAction: async chunk =>
                     {
@@ -332,7 +332,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                         await ContentHashListAdapter.IncorporateStrongFingerprints(
                             context,
                             CacheNamespace,
-                            new IncorporateStrongFingerprintsRequest(chunk.ToList().AsReadOnly())
+                            new IncorporateStrongFingerprintsRequest(chunk.AsReadOnly())
                             ).ConfigureAwait(false);
                     });
 
@@ -512,11 +512,11 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         /// <inheritdoc />
         public async Task<Result<LevelSelectors>> GetLevelSelectorsAsync(Context context, Fingerprint weakFingerprint, CancellationToken cts, int level)
         {
-            var result = await GetSelectorsAsync(context, weakFingerprint);
+            var result = await GetSelectorsAsync(new OperationContext(context, cts), weakFingerprint);
             return LevelSelectors.Single(result);
         }
 
-        private async Task<Result<Selector[]>> GetSelectorsAsync(Context context, Fingerprint weakFingerprint)
+        private async Task<Result<Selector[]>> GetSelectorsAsync(OperationContext context, Fingerprint weakFingerprint)
         {
             CacheTracer.MemoizationStoreTracer.GetSelectorsStart(context, weakFingerprint);
             Stopwatch sw = Stopwatch.StartNew();
@@ -601,7 +601,8 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             CancellationToken cts,
             UrgencyHint urgencyHint)
         {
-            return new OperationContext(context, cts).PerformOperationAsync(
+            var operationContext = new OperationContext(context, cts);
+            return operationContext.PerformOperationAsync(
                 CacheTracer,
                 async () =>
                 {
@@ -613,7 +614,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                     {
                         CacheTracer.RecordUseOfPrefetchedContentHashList();
                         await TrackFingerprintAsync(
-                            context,
+                            operationContext,
                             strongFingerprint,
                             contentHashListWithDeterminism.Determinism.ExpirationUtc,
                             contentHashListWithDeterminism.ContentHashList).ConfigureAwait(false);
@@ -622,7 +623,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
 
                     // No pre-fetched data. Need to query the server.
                     Result<ContentHashListWithCacheMetadata> responseObject =
-                        await ContentHashListAdapter.GetContentHashListAsync(context, CacheNamespace, strongFingerprint).ConfigureAwait(false);
+                        await ContentHashListAdapter.GetContentHashListAsync(operationContext, CacheNamespace, strongFingerprint).ConfigureAwait(false);
 
                     if (!responseObject.Succeeded)
                     {
@@ -642,9 +643,9 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                         return unpackResult;
                     }
 
-                    SealIfNecessaryAfterGet(context, strongFingerprint, response);
+                    SealIfNecessaryAfterGet(operationContext, strongFingerprint, response);
 
-                    await TrackFingerprintAsync(context, strongFingerprint, response.GetRawExpirationTimeUtc(), unpackResult.ContentHashListWithDeterminism.ContentHashList);
+                    await TrackFingerprintAsync(operationContext, strongFingerprint, response.GetRawExpirationTimeUtc(), unpackResult.ContentHashListWithDeterminism.ContentHashList);
                     return new GetContentHashListResult(unpackResult.ContentHashListWithDeterminism);
                 },
                 traceOperationStarted: true,
@@ -653,8 +654,9 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         }
 
         /// <nodoc />
-        protected async Task TrackFingerprintAsync(Context context, StrongFingerprint strongFingerprint, DateTime? expirationUtc, ContentHashList hashes)
+        protected async Task TrackFingerprintAsync(OperationContext context, StrongFingerprint strongFingerprint, DateTime? expirationUtc, ContentHashList hashes)
         {
+            context.Token.ThrowIfCancellationRequested();
             if (expirationUtc != null)
             {
                 BackingContentSession.ExpiryCache.AddExpiry(strongFingerprint.Selector.ContentHash, expirationUtc.Value);
@@ -680,7 +682,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                 {
                     CacheTracer.Debug(context, $"Incorporating fingerprint inline: StrongFingerprint=[{strongFingerprint}], ExpirationUtc=[{expirationUtc}].");
 
-                    await IncorporateFingerprintAsync(new OperationContext(context), strongFingerprint);
+                    await IncorporateFingerprintAsync(context, strongFingerprint);
                 }
                 else
                 {
@@ -814,11 +816,15 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
 
         /// <inheritdoc />
         protected async Task<AddOrGetContentHashListResult> AddOrGetContentHashListAsync(
-            Context context,
+            OperationContext context,
             StrongFingerprint strongFingerprint,
             ContentHashListWithDeterminism contentHashListWithDeterminism,
             ContentAvailabilityGuarantee guarantee)
         {
+            using var shutdownContext = TrackShutdown(context);
+
+            context = shutdownContext.Context;
+
             try
             {
                 DateTime expirationUtc = FingerprintTracker.GenerateNewExpiration();
@@ -946,7 +952,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                 : CacheDeterminism.ViaCache(cacheId, expirationUtc.Value); // Value is backed in VSTS
         }
 
-        private void SealIfNecessaryAfterGet(Context context, StrongFingerprint strongFingerprint, ContentHashListWithCacheMetadata cacheMetadata)
+        private void SealIfNecessaryAfterGet(OperationContext context, StrongFingerprint strongFingerprint, ContentHashListWithCacheMetadata cacheMetadata)
         {
             if (WriteThroughContentSession == null)
             {
@@ -965,7 +971,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         ///     Lost races will be ignored and any failures will be logged and reported on shutdown.
         /// </summary>
         protected void SealInTheBackground(
-            Context context, StrongFingerprint strongFingerprint, ContentHashListWithDeterminism contentHashListWithDeterminism)
+            OperationContext context, StrongFingerprint strongFingerprint, ContentHashListWithDeterminism contentHashListWithDeterminism)
         {
             if (_sealUnbackedContentHashLists)
             {
@@ -974,7 +980,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         }
 
         private async Task SealAsync(
-            Context context,
+            OperationContext context,
             StrongFingerprint strongFingerprint,
             ContentHashListWithDeterminism contentHashListWithDeterminism)
         {

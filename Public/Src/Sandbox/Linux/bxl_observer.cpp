@@ -283,7 +283,7 @@ bool BxlObserver::SendReport(const AccessReport &report, bool isDebugMessage)
     int maxMessageLength = PIPE_BUF - PrefixLength;
     int numWritten = snprintf(
         &buffer[PrefixLength], maxMessageLength, "%s|%d|%d|%d|%d|%d|%d|%s|%d\n",
-        __progname, report.pid, report.requestedAccess, report.status, report.reportExplicitly, report.error, report.operation, report.path, report.isDirectory);
+        __progname, report.pid < 0 ? getpid() : report.pid, report.requestedAccess, report.status, report.reportExplicitly, report.error, report.operation, report.path, report.isDirectory);
     // For debug messages it is fine to truncate the message
     if (!isDebugMessage && numWritten >= maxMessageLength)
     {

@@ -28,6 +28,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             Root = pathRemapper.Remap(template.Root);
             DisableFilesystemEnumeration = template.DisableFilesystemEnumeration;
             FileIgnoreWildcards = new List<PathAtom>(template.FileIgnoreWildcards.Select(pathRemapper.Remap));
+            Recursive = template.Recursive;
         }
 
         /// <inheritdoc />
@@ -42,6 +43,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
         /// <nodoc />
         [SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly")]
         public List<PathAtom> FileIgnoreWildcards { get; set; }
+
+        /// <inheritdoc />
+        public bool Recursive { get; set; }
 
         /// <inheritdoc />
         IReadOnlyList<PathAtom> IDirectoryMembershipFingerprinterRule.FileIgnoreWildcards => FileIgnoreWildcards;

@@ -35,7 +35,7 @@ namespace BuildXL.Scheduler
         /// Invalid DirectoryContents which BuildXL fails to check the existence
         /// </summary>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2211:NonConstantFieldsShouldNotBeVisible")]
-        public static DirectoryEnumerationResult Invalid = default(DirectoryEnumerationResult);
+        public static DirectoryEnumerationResult Invalid = default;
 
         /// <summary>
         /// Constructor

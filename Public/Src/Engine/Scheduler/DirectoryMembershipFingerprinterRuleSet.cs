@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
@@ -20,6 +21,14 @@ namespace BuildXL.Scheduler
     /// </summary>
     public sealed class DirectoryMembershipFingerprinterRuleSet
     {
+        /// <summary>
+        /// Mappings from directory path to the rule that applies to that directory as well as its children (when the rule is recursive).
+        /// </summary>
+        /// <remarks>
+        /// These mappings represent the rule set as specified by the user. To get the effective rule for a directory, that rule may need to be
+        /// computed by aggregating the recursive rules that are applicable to the parent directories.
+        /// These mappings also include the rules specified by the parent rule set. 
+        /// </remarks>
         private readonly Dictionary<AbsolutePath, DirectoryMembershipFingerprinterRule> m_rules;
 
         /// <summary>
@@ -33,7 +42,7 @@ namespace BuildXL.Scheduler
         /// The size of the cache is chosen arbitrarily to be 1103, but it should be large enough since there shouldn't be
         /// a huge number of tools active during a build
         /// </summary>
-        private readonly ObjectCache<string, bool> m_searchPathEnumerationToolMatchCache = new ObjectCache<string, bool>(1103);
+        private readonly ObjectCache<string, bool> m_searchPathEnumerationToolMatchCache = new(1103);
 
         /// <summary>
         /// The parent allowlist
@@ -55,6 +64,15 @@ namespace BuildXL.Scheduler
         public IReadOnlyDictionary<ModuleId, DirectoryMembershipFingerprinterRuleSet> ModuleRuleSets => m_moduleRuleSets;
 
         /// <summary>
+        /// Cache of computed directory membership fingerprint rule, which is used to avoid recomputing the rule for a directory.
+        /// </summary>
+        /// <remarks>
+        /// See remarks of <see cref="m_rules"/> that the effective rule for a directory need to be
+        /// computed by aggregating the recursive rules that are applicable to the parent directories. This cache is used to avoid that recomputation.
+        /// </remarks>
+        private readonly ConcurrentDictionary<AbsolutePath, DirectoryMembershipFingerprinterRule> m_ruleCache = new();
+
+        /// <summary>
         /// For testing
         /// </summary>
         internal void AddModuleRuleSet(ModuleId moduleId, DirectoryMembershipFingerprinterRuleSet ruleSet)
@@ -70,10 +88,8 @@ namespace BuildXL.Scheduler
             m_moduleRuleSets = new Dictionary<ModuleId, DirectoryMembershipFingerprinterRuleSet>();
             m_searchPathEnumerationToolFragments = new List<string>(
                 rootConfiguration.SearchPathEnumerationTools?.Select(toolSuffix =>
-
                     // Append leading separator to ensure suffix only matches valid relative path fragments
-                    Path.DirectorySeparatorChar + toolSuffix.ToString(stringTable)) ??
-                Enumerable.Empty<string>());
+                    Path.DirectorySeparatorChar + toolSuffix.ToString(stringTable)) ?? Enumerable.Empty<string>());
 
             foreach (var module in rootConfiguration.ModulePolicies.Values)
             {
@@ -90,14 +106,7 @@ namespace BuildXL.Scheduler
         public DirectoryMembershipFingerprinterRuleSet GetModuleRule(ModuleId module)
         {
             Contract.Assert(m_parent == null, "Only root allowlist can be queried for module allowlists");
-
-            DirectoryMembershipFingerprinterRuleSet rs;
-            if (m_moduleRuleSets.TryGetValue(module, out rs))
-            {
-                return rs;
-            }
-
-            return this;
+            return m_moduleRuleSets.TryGetValue(module, out DirectoryMembershipFingerprinterRuleSet rs) ? rs : this;
         }
 
         /// <nodoc/>
@@ -133,8 +142,7 @@ namespace BuildXL.Scheduler
             {
                 foreach (var rule in rules)
                 {
-                    DirectoryMembershipFingerprinterRule existingException;
-                    if (m_rules.TryGetValue(rule.Root, out existingException))
+                    if (m_rules.TryGetValue(rule.Root, out _))
                     {
                         Contract.Assert(
                             false,
@@ -146,9 +154,14 @@ namespace BuildXL.Scheduler
                     }
                 }
             }
-            else
+
+            if (m_parent != null)
             {
-                m_rules = new Dictionary<AbsolutePath, DirectoryMembershipFingerprinterRule>();
+                // Collect all rules from parent for easy retrieval.
+                foreach (var rule in m_parent.m_rules)
+                {
+                    m_rules.TryAdd(rule.Key, rule.Value);
+                }
             }
         }
 
@@ -163,7 +176,8 @@ namespace BuildXL.Scheduler
                     rule.Name,
                     rule.Root,
                     rule.DisableFilesystemEnumeration,
-                    rule.FileIgnoreWildcards.Select(wildCard => wildCard.ToString(stringTable)).ToList());
+                    rule.FileIgnoreWildcards.Select(wildCard => wildCard.ToString(stringTable)).ToList(),
+                    rule.Recursive);
             }
         }
 
@@ -193,8 +207,7 @@ namespace BuildXL.Scheduler
             // Get the parent module (root config) if applicable. Otherwise, this is the root config so use it.
             var rootRuleSet = m_parent ?? this;
 
-            bool result;
-            if (m_searchPathEnumerationToolMatchCache.TryGetValue(toolPath, out result))
+            if (m_searchPathEnumerationToolMatchCache.TryGetValue(toolPath, out bool result))
             {
                 return result;
             }
@@ -218,19 +231,78 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Attempts to get a rule corresponding to the path
         /// </summary>
-        public bool TryGetRule(AbsolutePath path, out DirectoryMembershipFingerprinterRule rule)
+        public bool TryGetRule(PathTable pathTable, AbsolutePath path, out DirectoryMembershipFingerprinterRule rule)
         {
-            if (!m_rules.TryGetValue(path, out rule))
-            {
-                if (m_parent != null)
-                {
-                    return m_parent.TryGetRule(path, out rule);
-                }
+            rule = m_ruleCache.GetOrAdd(path, p => FindRule(pathTable, path));
+            return rule != null;
+        }
 
-                return false;
+        private DirectoryMembershipFingerprinterRule FindRule(PathTable pathTable, AbsolutePath path)
+        {
+            // Get all rules that are relevant to the path.
+            // - Either the given path matches rule's path or is within the rule's path and the rule is recursive.
+            // - Order by path length descending to ensure that the most specific rule is returned.
+            IEnumerable<DirectoryMembershipFingerprinterRule> relevantRules = m_rules
+                .Where(kvp => path == kvp.Key || (path.IsWithin(pathTable, kvp.Key) && kvp.Value.Recursive))
+                .OrderByDescending(kvp => kvp.Key, pathTable.ExpandedPathComparer)
+                .Select(kvp => kvp.Value);
+
+            int count = relevantRules.Count();
+            if (count == 0)
+            {
+                return null;
             }
 
-            return true;
+            if (count == 1)
+            {
+                return relevantRules.First();
+            }
+
+            bool disableEnumeration = true;
+            var wildcards = new HashSet<string>(DirectoryMembershipFingerprinterRule.WildcardComparer);
+            string name = string.Empty;
+
+            // Scan the relevant rules bottom-up to populate all applicable rules.
+            foreach (var relevantRule in relevantRules)
+            {
+                if (relevantRule.Root == path)
+                {
+                    if (relevantRule.DisableFilesystemEnumeration)
+                    {
+                        // File system enumeration of the given path is disabled.
+                        return relevantRule;
+                    }
+
+                    AddRelevantRule(relevantRule);
+                }
+                else
+                {
+                    Contract.Assert(relevantRule.Recursive, $"Non-recursive rule '${relevantRule.Name}' should have been filtered out");
+
+                    if (relevantRule.DisableFilesystemEnumeration)
+                    {
+                        // File system enumeration is disabled recursively, then stop going to the parent path.
+                        if (string.IsNullOrEmpty(name))
+                        {
+                            // If no rule has been added yet, then return the rule.
+                            return relevantRule;
+                        }
+
+                        break;
+                    }
+
+                    AddRelevantRule(relevantRule);
+                }
+            }
+
+            return new DirectoryMembershipFingerprinterRule(name, path, disableEnumeration, !disableEnumeration ? wildcards.ToArray() : null, false);
+
+            void AddRelevantRule(DirectoryMembershipFingerprinterRule r)
+            {
+                name += (string.IsNullOrEmpty(name) ? r.Name : "__" + r.Name);
+                disableEnumeration = false;
+                wildcards.UnionWith(r.FileIgnoreWildcards);
+            }
         }
 
         /// <nodoc/>
@@ -275,10 +347,7 @@ namespace BuildXL.Scheduler
         }
 
         /// <nodoc/>
-        public static DirectoryMembershipFingerprinterRuleSet Deserialize(BuildXLReader reader)
-        {
-            return Deserialize(reader, parent: null);
-        }
+        public static DirectoryMembershipFingerprinterRuleSet Deserialize(BuildXLReader reader) => Deserialize(reader, parent: null);
 
         private static DirectoryMembershipFingerprinterRuleSet Deserialize(BuildXLReader reader, DirectoryMembershipFingerprinterRuleSet parent)
         {

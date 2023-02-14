@@ -1865,16 +1865,17 @@ namespace BuildXL.Scheduler.Fingerprints
             }
 
             // If the config says to always use the minimal graph, honor it
-            if (m_env.Configuration.Sandbox.FileSystemMode == BuildXL.Utilities.Configuration.FileSystemMode.AlwaysMinimalGraph)
+            if (m_env.Configuration.Sandbox.FileSystemMode == FileSystemMode.AlwaysMinimalGraph)
             {
                 rule = null;
                 return DirectoryEnumerationMode.MinimalGraph;
             }
 
             // Similarly with the minimal graph with alien files file system enumeration mode
-            if (m_env.Configuration.Sandbox.FileSystemMode == BuildXL.Utilities.Configuration.FileSystemMode.AlwaysMinimalWithAlienFilesGraph)
+            if (m_env.Configuration.Sandbox.FileSystemMode == FileSystemMode.AlwaysMinimalWithAlienFilesGraph)
             {
-                rule = null;
+                // Minimal graph with alien files may enumerate real filesystem, so get the directory membership fingerprinter rule.
+                rule = GetRule();
                 return DirectoryEnumerationMode.MinimalGraphWithAlienFiles;
             }
 
@@ -1910,26 +1911,20 @@ namespace BuildXL.Scheduler.Fingerprints
             // If the directory has build outputs, the graph enumeration should be used
             if (mountInfo.HasPotentialBuildOutputs && !isReadOnlyDirectory)
             {
-                rule = null;
+                // Minimal graph with alien files may enumerate real filesystem, so get the directory membership fingerprinter rule.
+                rule = graphEnumerationMode == DirectoryEnumerationMode.MinimalGraphWithAlienFiles
+                    ? GetRule()
+                    : null;
                 return graphEnumerationMode;
             }
 
-            // If there is a rule for this directory path, get it.
-            if (m_state.DirectoryMembershipFingerprinterRuleSet == null || !m_state.DirectoryMembershipFingerprinterRuleSet.TryGetRule(directoryPath, out rule))
-            {
-                rule = null;
-            }
+            rule = GetRule();
 
-            // Check if there is a rule preventing filesystem based enumerations
-            if (rule != null && rule.DisableFilesystemEnumeration)
-            {
-                return graphEnumerationMode;
-            }
-            else
-            {
-                // Otherwise we can use the real filesystem
-                return DirectoryEnumerationMode.RealFilesystem;
-            }
+            // Check if there is a rule preventing filesystem based enumeration; otherwise use the real filesystem.
+            return rule?.DisableFilesystemEnumeration == true ? graphEnumerationMode : DirectoryEnumerationMode.RealFilesystem;
+
+            DirectoryMembershipFingerprinterRule GetRule() =>
+                m_state.DirectoryMembershipFingerprinterRuleSet?.TryGetRule(m_env.Context.PathTable, directoryPath, out DirectoryMembershipFingerprinterRule r) == true ? r : null;
         }
 
         /// <inheritdoc/>
@@ -2027,9 +2022,9 @@ namespace BuildXL.Scheduler.Fingerprints
                             result = m_env.State.DirectoryMembershipFingerprinter.TryComputeDirectoryFingerprint(
                                 directoryPath,
                                 process,
-                                TryEnumerateDirectoryWithMinimalGraphWithAlienFiles(sharedOpaqueOutputs, createdDirectories, alienFileEnumerationCache),
+                                TryEnumerateDirectoryWithMinimalGraphWithAlienFiles(sharedOpaqueOutputs, createdDirectories, alienFileEnumerationCache, rule),
                                 cacheableFingerprint: cacheableFingerprint,
-                                rule: rule,
+                                rule: null /* Only apply the rule within the filesystem enumeration in TryEnumerateDirectoryWithMinimalGraphWithAlienFiles */,
                                 eventData: eventData);
                             Counters.IncrementCounter(PipExecutorCounter.MinimalGraphWithAlienFilesDirectoryEnumerations);
 
@@ -2109,7 +2104,8 @@ namespace BuildXL.Scheduler.Fingerprints
         private Func<EnumerationRequest, PathExistence?> TryEnumerateDirectoryWithMinimalGraphWithAlienFiles(
             IReadOnlyDictionary<AbsolutePath, bool> sharedDynamicOutputs,
             IReadOnlyCollection<AbsolutePath> createdDirectories,
-            ConcurrentBigMap<AbsolutePath, IReadOnlyList<DirectoryMemberEntry>> alienFileEnumerationCache)
+            ConcurrentBigMap<AbsolutePath, IReadOnlyList<DirectoryMemberEntry>> alienFileEnumerationCache,
+            DirectoryMembershipFingerprinterRule rule)
         {
             return (request =>
             {
@@ -2140,7 +2136,8 @@ namespace BuildXL.Scheduler.Fingerprints
                         // if the directory was created after the engine started, then we know it cannot contain sources
                         // This check should avoid races when a directory gets created in the filesystem (and picked up by another enumerating pip) but
                         // it hasn't reached the FileSystemView yet
-                        m_env.State.FileTimestampTracker.PathCreatedAfterEngineStarted(path)))
+                        m_env.State.FileTimestampTracker.PathCreatedAfterEngineStarted(path) ||
+                        rule?.DisableFilesystemEnumeration == true))
                     {
                         // Check the cache to see if we already have an alien file enumeration for this path
                         // Observe this is safe to cache, since the purpose of this enumeration is to add to the pip file system
@@ -2170,6 +2167,13 @@ namespace BuildXL.Scheduler.Fingerprints
                                 foreach (var realFileEntry in realFileEnumResult.Members)
                                 {
                                     AbsolutePath realFileEntryPath = realFileEntry.Item1;
+                                    string fileName = realFileEntry.Item2;
+
+                                    // Entry should be ignored by the rule.
+                                    if (rule?.ShouldIgnoreFileWhenEnumerating(fileName) == true)
+                                    {
+                                        continue;
+                                    }
 
                                     // If the entry is globally untracked, then it should be invisible for the enumeration
                                     // Observe that since this is a global collection of untracked scopes, excluding this entry makes sense for all pips

@@ -58,7 +58,7 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Used to make sure only one instance of a graph based fingerprinting special case is logged per directory
         /// </summary>
-        private readonly HashSet<AbsolutePath> m_pipGraphRuleSpecialCasesLogged = new HashSet<AbsolutePath>();
+        private readonly HashSet<AbsolutePath> m_pipGraphRuleSpecialCasesLogged = new();
 
         /// <nodoc />
         public DirectoryMembershipFingerprinter(
@@ -158,7 +158,7 @@ namespace BuildXL.Scheduler
                 };
 
                 existence = tryEnumerateDirectory(new EnumerationRequest(CachedDirectoryContents, directoryPath, process, handleEntry));
-                    
+
                 if (existence == null)
                 {
                     return null;

@@ -4,7 +4,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using BuildXL.Engine;
 using BuildXL.Native.IO;
 using BuildXL.Pips;
 using BuildXL.Pips.Operations;
@@ -20,18 +19,14 @@ namespace Test.BuildXL.Scheduler
 {
     public class DirectoryMembershipFingerprinterTests : TemporaryStorageTestBase
     {
-        private BuildXLContext m_context;
-        private PipTable m_pipTable;
-        private MountPathExpander m_mountInfo;
-
+        private readonly BuildXLContext m_context;
+        
         /// <summary>
         /// Initialize the test
         /// </summary>
         public DirectoryMembershipFingerprinterTests(ITestOutputHelper output) : base(output)
         {
             m_context = BuildXLContext.CreateInstanceForTesting();
-            m_pipTable = new PipTable(m_context.PathTable, m_context.SymbolTable, initialBufferSize: 1024, maxDegreeOfParallelism: 1, debug: true);
-            m_mountInfo = new MountPathExpander(m_context.PathTable);
 
             RegisterEventSource(global::BuildXL.Scheduler.ETWLogger.Log);
             RegisterEventSource(global::BuildXL.Pips.ETWLogger.Log);
@@ -51,11 +46,17 @@ namespace Test.BuildXL.Scheduler
         public void DirectoryFingerprintRules()
         {
             // Test that files are ignored appropriately
-            List<string> excludedFiles = new List<string>();
-            excludedFiles.Add("ignore");
-            DirectoryMembershipFingerprinterRule excludeFiles = new DirectoryMembershipFingerprinterRule("TestRule", AbsolutePath.Create(m_context.PathTable, X("/Z/fake")), false, excludedFiles);
+            var ruleSet = new DirectoryMembershipFingerprinterRuleSet(new[]
+            {
+                new DirectoryMembershipFingerprinterRule("TestRule1", AbsolutePath.Create(m_context.PathTable, X("/Z/fake")), false, new[] { "ignore" }, false),
+                new DirectoryMembershipFingerprinterRule("TestRule2", AbsolutePath.Create(m_context.PathTable, X("/Z")), false, new[] { "ignoreRec" }, true),
+            });
+
+            XAssert.IsTrue(ruleSet.TryGetRule(m_context.PathTable, AbsolutePath.Create(m_context.PathTable, X("/Z/fake")), out DirectoryMembershipFingerprinterRule rule));
+            XAssert.IsNotNull(rule);
+
             var firstFingerprint = ComputeDirectoryFingerprint(m_context, X("/Z/fake"), new string[] { X("/Z/fake/file1") });
-            var secondFingerprint = ComputeDirectoryFingerprint(m_context, X("/Z/fake"), new string[] { X("/Z/fake/file1"), X("/Z/fake/ignore") }, excludeFiles);
+            var secondFingerprint = ComputeDirectoryFingerprint(m_context, X("/Z/fake"), new string[] { X("/Z/fake/ignoreRec"), X("/Z/fake/file1"), X("/Z/fake/ignore") }, rule);
             XAssert.IsTrue(firstFingerprint.Hash.Equals(secondFingerprint.Hash));
         }
 
@@ -77,7 +78,7 @@ namespace Test.BuildXL.Scheduler
                     return PathExistence.ExistsAsDirectory;
                 };
 
-            var process = CreateDummyProcessWithInputs(new FileArtifact[0], context);
+            var process = CreateDummyProcessWithInputs(Array.Empty<FileArtifact>(), context);
 
             var dirPath = AbsolutePath.Create(context.PathTable, path);
             DirectoryMembershipFingerprinter fingerprinter = new DirectoryMembershipFingerprinter(LoggingContext, context);

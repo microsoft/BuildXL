@@ -29,5 +29,10 @@ namespace BuildXL.Utilities.Configuration
         /// List of wildcards to see if they should be ignored
         /// </summary>
         IReadOnlyList<PathAtom> FileIgnoreWildcards { get; }
+
+        /// <summary>
+        /// Whether this rule is applied to all directories under <see cref="Root"/>.
+        /// </summary>
+        bool Recursive { get; }
     }
 }

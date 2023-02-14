@@ -35,7 +35,7 @@ using SortedFileArtifacts =
 
 namespace Test.BuildXL.Scheduler
 {
-    public class ObservedInputProcessorTests : BuildXL.TestUtilities.Xunit.XunitBuildXLTest
+    public class ObservedInputProcessorTests : XunitBuildXLTest
     {
         public ObservedInputProcessorTests(ITestOutputHelper output)
             : base(output)
@@ -1209,10 +1209,10 @@ namespace Test.BuildXL.Scheduler
                     "TestRule",
                     AbsolutePath.Create(context.PathTable, X("/z/filesystemDisabled")),
                     disableFilesystemEnumeration: true,
-                    fileIgnoreWildcards: new string[] { });
+                    fileIgnoreWildcards: Array.Empty<string>(),
+                    false);
 
             ModuleId testModule = ModuleId.UnsafeCreate(2, "test");
-            ModuleConfiguration moduleConfig = new ModuleConfiguration { ModuleId = testModule };
 
             DirectoryMembershipFingerprinterRuleSet parentRuleSet = new DirectoryMembershipFingerprinterRuleSet(
                 new RootModuleConfiguration(),

@@ -1,7 +1,6 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -140,6 +139,51 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             // The presence of the new file under a nested dir should trigger a cache miss
             RunScheduler(fileTimestampTracker: timestampTracker).AssertCacheMiss(pip.Process.PipId);
+        }
+
+        [Fact]
+        public void AlienFilesInsideDirectoryAreSubjectToDirectoryMembershipRule()
+        {
+            string dir = Path.Combine(SourceRoot, "dir");
+            AbsolutePath dirPath = AbsolutePath.Create(Context.PathTable, dir);
+            DirectoryArtifact dirToEnumerate = DirectoryArtifact.CreateWithZeroPartialSealId(dirPath);
+
+            Configuration.DirectoryMembershipFingerprinterRules = new List<IDirectoryMembershipFingerprinterRule>
+            {
+                new global::BuildXL.Utilities.Configuration.Mutable.DirectoryMembershipFingerprinterRule
+                {
+                    Name = "test",
+                    Root = dirPath,
+                    DisableFilesystemEnumeration = false,
+                    Recursive = false,
+                    FileIgnoreWildcards = new List<PathAtom> { PathAtom.Create(Context.StringTable, ".tmp") },
+                }
+            };
+
+            // Create the directory to be enumerated with one file inside
+            FileUtilities.CreateDirectory(dir);
+            File.WriteAllText(Path.Combine(dir, "file.txt"), string.Empty);
+
+            var operations = new List<Operation>
+            {
+                Operation.EnumerateDir(dirToEnumerate, doNotInfer: true),
+                Operation.WriteFile(CreateOutputFileArtifact()) // dummy output
+            };
+
+            var builder = CreatePipBuilder(operations);
+
+            // This makes sure we use the right file system, which is aware of alien files
+            builder.Options |= Process.Options.AllowUndeclaredSourceReads;
+
+            // Run once
+            var pip = SchedulePipBuilder(builder);
+            RunScheduler().AssertSuccess();
+
+            // Create a temporary file. This can be created by another pip and the name can be <random>.tmp, and
+            // this temporary file is typically git ignored.
+            File.WriteAllText(Path.Combine(dir, "123.tmp"), string.Empty);
+
+            RunScheduler().AssertCacheHit(pip.Process.PipId);
         }
 
         [Fact]

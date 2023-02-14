@@ -84,6 +84,9 @@ interface DirectoryMembershipFingerprinterRule {
 
     /** Wildcards for names of files to exclude from enumeration. Does not apply to files within subdirectories */
     fileIgnoreWildcards?: PathAtom[];
+
+    /** Whether the rule is applied to all directories under root */
+    recursive?: boolean;
 }
 
 interface DependencyViolationErrors {

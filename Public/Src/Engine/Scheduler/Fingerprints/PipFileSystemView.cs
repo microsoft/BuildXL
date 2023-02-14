@@ -4,6 +4,7 @@
 using System;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Native.IO;
+using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 
@@ -82,7 +83,16 @@ namespace BuildXL.Scheduler.Fingerprints
         {
             foreach (var fileArtifact in env.State.FileContentManager.ListSealedDirectoryContents(directoryDependency))
             {
-                AddPath(env.Context.PathTable, fileArtifact);
+                bool getContentInfo = env.State.FileContentManager.TryGetInputContent(fileArtifact, out Storage.FileMaterializationInfo info);
+
+                // Shared opaque output can include absent files as its contents (e.g., temporary files created during pip run).
+                // Such files should not be included when in the file system view, particularly when the view is used for computing directory members.
+                bool skipAdding = getContentInfo && (info.FileContentInfo.Existence == PathExistence.Nonexistent || info.FileContentInfo.Hash == WellKnownContentHashes.AbsentFile);
+
+                if (!skipAdding)
+                {
+                    AddPath(env.Context.PathTable, fileArtifact);
+                }
             }
         }
 

@@ -315,6 +315,12 @@ public:
         report_access("la_objopen", event, /* checkCache */ true);
     }
 
+    // Removes detours path from LD_PRELOAD from the given environment and returns the modified environment
+    inline char** RemoveLDPreloadFromEnv(char *const envp[])
+    { 
+        return remove_path_from_LDPRELOAD(envp, detoursLibFullPath_);
+    }
+
     // The following functions create an access report and performs an access check. They do not report the created access to managed BuildXL.
     // The created access report is returned as an out param in the given 'report' param. The returned report is ready to be sent with the exception of
     // setting the operation error. In operations where the error is reported back, the typical flow is creating the report, performing the operation, 

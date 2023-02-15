@@ -98,6 +98,7 @@ namespace BuildXL.Processes
             EnableLinuxPTraceSandbox = false;
             EnableLinuxSandboxLogging = false;
             AlwaysRemoteInjectDetoursFrom32BitProcess = false;
+            UnconditionallyEnableLinuxPTraceSandbox = false;
         }
 
         private bool GetFlag(FileAccessManifestFlag flag) => (m_fileAccessManifestFlag & flag) != 0;
@@ -501,6 +502,25 @@ namespace BuildXL.Processes
         {
             get => GetExtraFlag(FileAccessManifestExtraFlag.AlwaysRemoteInjectDetoursFrom32BitProcess);
             set => SetExtraFlag(FileAccessManifestExtraFlag.AlwaysRemoteInjectDetoursFrom32BitProcess, value);
+        }
+
+        /// <summary>
+        /// When enabled, the Linux sandbox will use PTrace for all binaries (regardless whether they are statically linked)
+        /// </summary>
+        /// <remarks>
+        /// For testing purposes.
+        /// Enabling this option implies enabling <see cref="EnableLinuxPTraceSandbox"/>
+        /// </remarks>
+        public bool UnconditionallyEnableLinuxPTraceSandbox
+        {
+            get => GetExtraFlag(FileAccessManifestExtraFlag.UnconditionallyEnableLinuxPTraceSandbox);
+            set {
+                    SetExtraFlag(FileAccessManifestExtraFlag.UnconditionallyEnableLinuxPTraceSandbox, value);
+                    if (value)
+                    {
+                        SetExtraFlag(FileAccessManifestExtraFlag.EnableLinuxPTraceSandbox, value);
+                    }
+                }
         }
 
         /// <summary>
@@ -1258,6 +1278,7 @@ namespace BuildXL.Processes
             EnableLinuxPTraceSandbox = 0x4,
             EnableLinuxSandboxLogging = 0x8,
             AlwaysRemoteInjectDetoursFrom32BitProcess = 0x10,
+            UnconditionallyEnableLinuxPTraceSandbox = 0x20,
         }
 
         private readonly struct FileAccessScope

@@ -517,6 +517,12 @@ bool BxlObserver::check_and_report_statically_linked_process(int fd)
 
 bool BxlObserver::check_and_report_statically_linked_process(const char *path)
 {
+    // If the ptrace sandbox is unconditionally enabled, then there is no need to check anything else
+    if (CheckUnconditionallyEnableLinuxPTraceSandbox(pip_->GetFamExtraFlags()))
+    {
+        return true;
+    }
+
     if (!CheckEnableLinuxPTraceSandbox(pip_->GetFamExtraFlags()))
     {
         return false;

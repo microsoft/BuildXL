@@ -57,6 +57,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             PreserveFileSharingBehaviour = false;
             EnableLinuxPTraceSandbox = false;
             AlwaysRemoteInjectDetoursFrom32BitProcess = false;
+            UnconditionallyEnableLinuxPTraceSandbox = false;
         }
 
         /// <nodoc />
@@ -111,6 +112,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             PreserveFileSharingBehaviour = template.PreserveFileSharingBehaviour;
             EnableLinuxPTraceSandbox = template.EnableLinuxPTraceSandbox;
             AlwaysRemoteInjectDetoursFrom32BitProcess = template.AlwaysRemoteInjectDetoursFrom32BitProcess;
+            UnconditionallyEnableLinuxPTraceSandbox = template.UnconditionallyEnableLinuxPTraceSandbox;
         }
 
         /// <inheritdoc />
@@ -290,5 +292,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public bool AlwaysRemoteInjectDetoursFrom32BitProcess { get; set; }
+
+        /// <inheritdoc />
+        public bool UnconditionallyEnableLinuxPTraceSandbox { get; set; }
     }
 }

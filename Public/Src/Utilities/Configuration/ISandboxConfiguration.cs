@@ -316,5 +316,16 @@ namespace BuildXL.Utilities.Configuration
         /// With this option, we can use remote injection to avoid the address space limitation because the root BuildXL is always a 64-bit process.
         /// </remarks>
         public bool AlwaysRemoteInjectDetoursFrom32BitProcess { get; }
+
+        /// <summary>
+        /// Unconditionally enable the PTrace sandbox On Linux. <see cref="EnableLinuxPTraceSandbox"/>
+        /// </summary>
+        /// <remarks>
+        /// This options is used in tests as a way to validate the PTrace sandbox reporting capabilities regardless
+        /// of tools being statically linked or not. Not intended for production use, this option is explicitly not
+        /// exposed as a command line argument nor as a DScript option.
+        /// When turned on, this option also implies <see cref="EnableLinuxPTraceSandbox"/>.
+        /// </remarks>
+        public bool UnconditionallyEnableLinuxPTraceSandbox { get; }
     }
 }

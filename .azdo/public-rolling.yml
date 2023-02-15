@@ -1,0 +1,66 @@
+# Public validation for use in the rolling build. This should have no auth to internal package
+# feeds or resources.
+
+trigger: none #Explicitly schedule while testing
+
+variables:
+  - name: BuildXL.PreReleaseTag
+    # Externally override this in a real release with the dated version number to come after the SemanticVersion
+    value: pr.public.win
+  - name: BuildXL.SemanticVersion
+    value: 0.1.0
+
+pool:
+  name: BuildXL-DevOpsAgents-PME
+
+steps:
+- checkout: self
+  fetchDepth: 1
+
+- template: common/journaling.yml # Enable journaling
+
+- task: Cache@2
+  inputs:
+    key: '"bxl" | "1" | "$(Agent.OS)" | "$(Build.SourceVersion)"'
+    # if no cache entry is already associated with 'key', the most recent cache entry associated with the key prefix below (if any) will be restored
+    restoreKeys: |
+      "bxl" | "1" | "$(Agent.OS)" | "$(Build.SourceVersion)"
+      "bxl" | "1" | "$(Agent.OS)"
+      "bxl" | "1"
+    path: '$(Build.SourcesDirectory)\Out\Cache'
+  displayName: Cache BuildXL's cache dir
+  continueOnError: true
+  timeoutInMinutes: 10
+
+- task: CmdLine@2
+  displayName: Build bxl.exe and deploy to Dev
+  inputs:
+    script: 'bxl.cmd -deploy Dev -deployconfig Release -minimal /p:[Sdk.BuildXL]microsoftInternal=0 /p:MSVC_VERSION=14.20.27508 /server- /p:[BuildXL.Branding]SemanticVersion=$(BuildXL.SemanticVersion) /p:[BuildXL.Branding]PrereleaseTag=$(BuildXL.PreReleaseTag) /logOutput:FullOutputOnWarningOrError /ado /scrubDirectory:Out\objects /logsDirectory:$(Build.SourcesDirectory)\Out\Logs\DeployDev'
+
+- task: CmdLine@2
+  displayName: Build full repo using Dev
+  inputs:
+    # MSVC_VERSION corresponds to whatever version is installed on the agent running this job
+    # maxMaterialize increased to speed up local cache replay
+    script: 'bxl.cmd -use Dev /p:[Sdk.BuildXL]microsoftInternal=0 /p:MSVC_VERSION=14.20.27508 /server- /p:[BuildXL.Branding]SemanticVersion=$(BuildXL.SemanticVersion) /p:[BuildXL.Branding]PrereleaseTag=$(BuildXL.PreReleaseTag) /q:Release /logOutput:FullOutputOnWarningOrError /p:RetryXunitTests=1 /processRetries:3 /p:xunitSemaphoreCount=20 /logsDirectory:$(Build.SourcesDirectory)\Out\Logs\UseDev /scrubDirectory:Out\objects /maxMaterialize:64'
+
+- task: CmdLine@2
+  displayName: Clean up junction that breaks ADO cache
+  inputs:
+    script: 'rmdir $(Build.SourcesDirectory)\Out\Cache\EngineCache\BuildEngineDirectory & exit /B 0'
+  continueOnError: true
+  enabled: true
+
+- task: PublishPipelineArtifact@1
+  inputs:
+    targetPath: '$(Build.SourcesDirectory)\Out\logs'
+    artifact: 'BuildXL_PublicRolling_($Build.BuildId)_Logs'
+    publishLocation: 'pipeline'
+  continueOnError: true
+
+- task: PublishPipelineArtifact@1
+  inputs:
+    targetPath: '$(Build.SourcesDirectory)\Out\Bin\release\public\pkgs'
+    artifact: 'BuildXL_PublicRolling_($Build.BuildId)_PublicPkgs'
+    publishLocation: 'pipeline'
+  continueOnError: true

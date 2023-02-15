@@ -745,13 +745,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <inheritdoc />
-        protected override IEnumerable<ShortHash> EnumerateSortedKeysFromStorage(OperationContext context)
-        {
-            return EnumerateEntriesWithSortedKeysFromStorage(context, valueFilter: null, returnKeysOnly: true)
-                .Select(static pair => pair.key);
-        }
-
-        /// <inheritdoc />
         protected override IEnumerable<(ShortHash key, ContentLocationEntry? entry)> EnumerateEntriesWithSortedKeysFromStorage(
             OperationContext context,
             EnumerationFilter? valueFilter = null,

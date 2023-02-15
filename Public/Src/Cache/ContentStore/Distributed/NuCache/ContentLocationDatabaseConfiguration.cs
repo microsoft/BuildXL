@@ -23,11 +23,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         internal TimeSpan TouchFrequency { get; set; }
 
         /// <summary>
-        /// Whether to run garbage collection content and metadata GC concurrently
-        /// </summary>
-        public bool GarbageCollectionConcurrent { get; set; } = false;
-
-        /// <summary>
         /// Interval between garbage collecting unreferenced content location entries and metadata in a local database.
         /// </summary>
         public TimeSpan GarbageCollectionInterval { get; set; } = TimeSpan.FromHours(1);
@@ -118,11 +113,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public string? Epoch { get; set; } = null;
 
         /// <summary>
-        /// Number of keys to buffer on <see cref="RocksDbContentLocationDatabase.EnumerateSortedKeysFromStorage(ContentStore.Tracing.Internal.OperationContext)"/>
-        /// </summary>
-        public long EnumerateSortedKeysFromStorageBufferSize { get; set; } = 100_000;
-
-        /// <summary>
         /// Number of keys to buffer on <see cref="RocksDbContentLocationDatabase.EnumerateEntriesWithSortedKeysFromStorage(ContentStore.Tracing.Internal.OperationContext, ContentLocationDatabase.EnumerationFilter, bool)"/>
         /// </summary>
         public long EnumerateEntriesWithSortedKeysFromStorageBufferSize { get; set; } = 100_000;
@@ -158,14 +148,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             ApplyIfNotNull(settings.TraceNoStateChangeDatabaseOperations, v => configuration.TraceNoStateChangeOperations = v);
 
             ApplyIfNotNull(settings.ContentLocationDatabaseGcIntervalMinutes, v => configuration.GarbageCollectionInterval = TimeSpan.FromMinutes(v));
-            ApplyIfNotNull(settings.ContentLocationDatabaseGarbageCollectionConcurrent, v => configuration.GarbageCollectionConcurrent = v);
             ApplyIfNotNull(settings.ContentLocationDatabaseMetadataGarbageCollectionMaximumSizeMb, v => configuration.MetadataGarbageCollectionMaximumSizeMb = v);
 
             ApplyIfNotNull(settings.ContentLocationDatabaseOpenReadOnly, v => configuration.OpenReadOnly = (v && !settings.IsMasterEligible));
             ApplyIfNotNull(settings.UseMergeOperatorForContentLocations, v => configuration.UseMergeOperatorForContentLocations = v);
             ApplyIfNotNull(settings.SortMergeableContentLocations, v => configuration.SortMergeableContentLocations = v);
 
-            ApplyIfNotNull(settings.ContentLocationDatabaseEnumerateSortedKeysFromStorageBufferSize, v => configuration.EnumerateSortedKeysFromStorageBufferSize = v);
             ApplyIfNotNull(settings.ContentLocationDatabaseEnumerateEntriesWithSortedKeysFromStorageBufferSize, v => configuration.EnumerateEntriesWithSortedKeysFromStorageBufferSize = v);
 
             return configuration;

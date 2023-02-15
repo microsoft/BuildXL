@@ -2,7 +2,6 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
@@ -62,9 +61,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         protected override Tracer Tracer { get; } = new Tracer(nameof(ContentLocationDatabase)) { LogOperationStarted = false };
 
         /// <nodoc />
-        public CounterCollection<ContentLocationDatabaseCounters> Counters { get; } = new CounterCollection<ContentLocationDatabaseCounters>();
+        public CounterCollection<ContentLocationDatabaseCounters> Counters { get; } = new();
 
-        private CounterCollection<ContentLocationDatabaseCounters> _lastCheckpointCountersSnapshot = new CounterCollection<ContentLocationDatabaseCounters>();
+        private CounterCollection<ContentLocationDatabaseCounters> _lastCheckpointCountersSnapshot = new();
 
         private readonly Func<IReadOnlyList<MachineId>> _getInactiveMachines;
 
@@ -74,11 +73,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         protected bool IsDatabaseWriteable;
 
         private Timer? _gcTimer;
-        private readonly object _garbageCollectionLock = new object();
+        private readonly object _garbageCollectionLock = new();
         private bool _isContentGarbageCollectionEnabled;
         private bool _isMetadataGarbageCollectionEnabled;
         private Task _garbageCollectionTask = Task.CompletedTask;
-        private CancellationTokenSource _garbageCollectionCts = new CancellationTokenSource();
+        private CancellationTokenSource _garbageCollectionCts = new();
 
         /// <summary>
         /// Fine-grained locks that is used for all operations that mutate records.
@@ -232,9 +231,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return false;
         }
 
-        /// <nodoc />
-        protected abstract IEnumerable<ShortHash> EnumerateSortedKeysFromStorage(OperationContext context);
-
         /// <summary>
         /// Enumeration filter used by <see cref="EnumerateEntriesWithSortedKeys"/> to filter out entries by raw value from a database.
         /// </summary>
@@ -332,7 +328,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     {
                         metadataGcResult = TaskExtensions.Run(
                             () => GarbageCollectMetadata(context),
-                            inline: !_configuration.GarbageCollectionConcurrent);
+                            inline: false);
                     }
 
                     // Metadata GC may take a while. During that time, we may have switched roles. Hence, we need to
@@ -347,7 +343,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     {
                         contentGcResult = TaskExtensions.Run(
                             () => GarbageCollectContent(context),
-                            inline: !_configuration.GarbageCollectionConcurrent);
+                            inline: false);
                     }
 
                     await Task.WhenAll(metadataGcResult, contentGcResult);

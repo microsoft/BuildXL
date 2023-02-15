@@ -585,14 +585,7 @@ namespace BuildXL.Cache.Host.Configuration
 
         [DataMember]
         [Validation.Range(1, long.MaxValue)]
-        public long? ContentLocationDatabaseEnumerateSortedKeysFromStorageBufferSize { get; set; }
-
-        [DataMember]
-        [Validation.Range(1, long.MaxValue)]
         public long? ContentLocationDatabaseEnumerateEntriesWithSortedKeysFromStorageBufferSize { get; set; }
-
-        [DataMember]
-        public bool? ContentLocationDatabaseGarbageCollectionConcurrent { get; set; }
 
         [DataMember]
         public string ContentLocationDatabaseMetadataGarbageCollectionStrategy { get; set; }

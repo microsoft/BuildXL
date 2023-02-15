@@ -1306,12 +1306,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             return result;
         }
 
-        /// <inheritdoc />
-        protected override IEnumerable<ShortHash> EnumerateSortedKeysFromStorage(OperationContext context)
-        {
-            throw new NotImplementedException();
-        }
-
         private static readonly Comparer<(DateTime TimeUtc, Selector Selector)> SelectorComparer =
             Comparer<(DateTime TimeUtc, Selector Selector)>.Create((x, y) => y.TimeUtc.CompareTo(x.TimeUtc));
 

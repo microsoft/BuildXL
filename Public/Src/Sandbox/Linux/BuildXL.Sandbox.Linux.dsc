@@ -29,8 +29,8 @@ namespace Sandbox {
     ];
     const utilsSrc   = [ f`utils.c` ];
     const bxlEnvSrc  = [ f`bxl-env.c` ];
-    const auditSrc   = [ f`bxl_observer.cpp`, f`audit.cpp` ];
-    const detoursSrc = [ f`bxl_observer.cpp`, f`detours.cpp`, f`PTraceSandbox.cpp` ];
+    const auditSrc   = [ f`bxl_observer.cpp`, f`audit.cpp`, f`observer_utilities.cpp` ];
+    const detoursSrc = [ f`bxl_observer.cpp`, f`detours.cpp`, f`PTraceSandbox.cpp`, f`observer_utilities.cpp` ];
     const incDirs    = [
         d`./`,
         d`../MacOs/Interop/Sandbox`,

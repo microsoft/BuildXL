@@ -308,7 +308,7 @@ public:
     const char* GetReportsPath() { int len; return IsValid() ? pip_->GetReportsPath(&len) : NULL; }
     const char* GetDetoursLibPath() { return detoursLibFullPath_; }
 
-    void report_exec(const char *syscallName, const char *procName, const char *file, int error);
+    void report_exec(const char *syscallName, const char *procName, const char *file, int error, mode_t mode = 0);
     void report_audit_objopen(const char *fullpath)
     {
         IOEvent event(ES_EVENT_TYPE_NOTIFY_OPEN, ES_ACTION_TYPE_NOTIFY, fullpath, progFullPath_, S_IFREG);
@@ -344,8 +344,10 @@ public:
     // and the write is allowed by policy
     void report_firstAllowWriteCheck(const char *fullPath);
 
+    // Checks and reports when a statically linked binary is about to be executed
     bool check_and_report_statically_linked_process(const char *path);
     bool check_and_report_statically_linked_process(int fd);
+    bool is_statically_linked(const char *path);
 
     // Clears the specified entry on the file descriptor table
     void reset_fd_table_entry(int fd);
@@ -369,7 +371,7 @@ public:
 
     // Enumerates a specified directory
     bool EnumerateDirectory(std::string rootDirectory, bool recursive, std::vector<std::string>& filesAndDirectories);
-
+    
     inline bool LogDebugEnabled()
     {
         return CheckEnableLinuxSandboxLogging(pip_->GetFamExtraFlags());
@@ -440,6 +442,9 @@ public:
     GEN_FN_DEF(int, execve, const char *, char *const[], char *const[]);
     GEN_FN_DEF(int, execvp, const char *, char *const[]);
     GEN_FN_DEF(int, execvpe, const char *, char *const[], char *const[]);
+    GEN_FN_DEF(int, execl, const char *, const char *, ...);
+    GEN_FN_DEF(int, execlp, const char *, const char *, ...);
+    GEN_FN_DEF(int, execle, const char *, const char *, ...);
 #if (__GLIBC__ == 2 && __GLIBC_MINOR__ < 33)
     GEN_FN_DEF(int, __lxstat, int, const char *, struct stat *);
     GEN_FN_DEF(int, __lxstat64, int, const char*, struct stat64*);

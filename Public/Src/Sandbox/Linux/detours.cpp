@@ -24,6 +24,7 @@
 #include <sys/xattr.h>
 
 #include "bxl_observer.hpp"
+#include "observer_utilities.hpp"
 #include "PTraceSandbox.hpp"
 
 #define ERROR_RETURN_VALUE -1
@@ -260,32 +261,153 @@ INTERPOSE(int, execvp, const char *file, char *const argv[])({
     // exec* functions start a new instance of the sandbox and therefore the process creation report
     // is sent on __init__
 
-    if (bxl->check_and_report_statically_linked_process(file))
+    mode_t mode = 0;
+    std::string pathname;
+    auto path_resolution_result = resolve_filename_with_env(file, mode, pathname);
+
+    if (path_resolution_result)
     {
-        return handle_exec_with_ptrace(file, argv, bxl->ensureEnvs(environ), bxl);
+        if (bxl->check_and_report_statically_linked_process(pathname.c_str()))
+        {
+            return handle_exec_with_ptrace(pathname.c_str(), argv, bxl->ensureEnvs(environ), bxl);
+        }
+
+        result_t<int> result = bxl->fwd_execve(pathname.c_str(), argv, bxl->ensureEnvs(environ));
+        bxl->report_exec(__func__, argv[0], pathname.c_str(), /*error*/ result.get_errno(), mode);
+        return result.restore();
     }
-
-    result_t<int> result =  bxl->fwd_execvpe(file, argv, bxl->ensureEnvs(environ));
-
-    // This will only execute if exec failed
-    bxl->report_exec(__func__, argv[0], file,  result.get_errno());
-
-    return result.restore();
+    else
+    {
+        // exec* functions don't return unless they fail (the executing image gets replaced
+        // by the specified one). So we cannot actually report back the errno
+        result_t<int> result = bxl->fwd_execvpe(file, argv, bxl->ensureEnvs(environ));
+        bxl->report_exec(__func__, argv[0], file,  /* error */ result.get_errno(), mode);
+        return result.restore();
+    }
 })
 
 INTERPOSE(int, execvpe, const char *file, char *const argv[], char *const envp[])({
     // exec* functions start a new instance of the sandbox and therefore the process creation report
     // is sent on __init__
 
-    if (bxl->check_and_report_statically_linked_process(file))
+    mode_t mode = 0;
+    std::string pathname;
+    auto path_resolution_result = resolve_filename_with_env(file, mode, pathname);
+
+    // If the path couldn't be resolved, then the exec will likely fail anyways
+    if (path_resolution_result)
     {
-        return handle_exec_with_ptrace(file, argv, bxl->ensureEnvs(envp), bxl);
+        if (bxl->check_and_report_statically_linked_process(pathname.c_str()))
+        {
+            return handle_exec_with_ptrace(pathname.c_str(), argv, bxl->ensureEnvs(envp), bxl);
+        }
+
+        result_t<int> result = bxl->fwd_execve(pathname.c_str(), argv, bxl->ensureEnvs(envp));
+        // This will only execute if exec failed
+        bxl->report_exec(__func__, argv[0], pathname.c_str(), /*error*/ result.get_errno(), mode);
+        return result.restore();
+    }
+    else
+    {
+        result_t<int> result = bxl->fwd_execve(file, argv, bxl->ensureEnvs(envp));
+        // This will only execute if exec failed
+        bxl->report_exec(__func__, argv[0], file, /* error */ result.get_errno(), mode);
+        return result.restore();
+    }
+})
+
+INTERPOSE(int, execl, const char *pathname, const char *arg, ...)({
+    va_list args;
+    va_start(args, arg);
+    ptrdiff_t argc = get_variadic_argc(args);
+    va_end(args);
+
+    if (argc == -1)
+    {
+        return -1;
     }
 
-    result_t<int> result = bxl->fwd_execvpe(file, argv, bxl->ensureEnvs(envp)).restore();
+    va_start(args, arg);
+    char *argv[argc + 1];
+    parse_variadic_args(arg, argc, args, argv);
+    va_end(args);
+
+    if (bxl->check_and_report_statically_linked_process(pathname))
+    {
+        return handle_exec_with_ptrace(pathname, (char **)argv, bxl->ensureEnvs(environ), bxl);
+    }
+    
+    result_t<int> result = bxl->fwd_execve(pathname, (char **)argv, bxl->ensureEnvs(environ));
+    bxl->report_exec(__func__, argv[0], pathname, /*error*/ result.get_errno(), /*mode*/ 0);
+    return result.restore();
+})
+
+INTERPOSE(int, execlp, const char *file, const char *arg, ...)({
+    va_list args;
+    va_start(args, arg);
+    ptrdiff_t argc = get_variadic_argc(args);
+    va_end(args);
+
+    if (argc == -1)
+    {
+        return -1;
+    }
+
+    va_start(args, arg);
+    char *argv[argc + 1];
+    parse_variadic_args(arg, argc, args, argv);
+    va_end(args);
+
+    mode_t mode = 0;
+    std::string pathname;
+    auto path_resolution_result = resolve_filename_with_env(file, mode, pathname);
+
+    if (path_resolution_result)
+    {
+        if (bxl->check_and_report_statically_linked_process(pathname.c_str()))
+        {
+            return handle_exec_with_ptrace(pathname.c_str(), (char **)argv, bxl->ensureEnvs(environ), bxl);
+        }
+
+        result_t<int> result = bxl->fwd_execve(pathname.c_str(), (char **)argv, bxl->ensureEnvs(environ));
+        bxl->report_exec(__func__, argv[0], pathname.c_str(), /*error*/ result.get_errno(), mode);
+        return result.restore();
+    }
+    else
+    {
+        result_t<int> result = bxl->fwd_execvp(file, (char **)argv);
+        bxl->report_exec(__func__, argv[0], file, /*error*/ result.get_errno(), mode);
+        return result.restore();
+    }
+})
+
+INTERPOSE(int, execle, const char *pathname, const char *arg, ...)({
+    va_list args;
+    va_start(args, arg);
+    ptrdiff_t argc = get_variadic_argc(args);
+    va_end(args);
+
+    if (argc == -1)
+    {
+        return -1;
+    }
+
+    va_start(args, arg);
+    char *argv[argc + 1];
+    char **envp;
+    parse_variadic_args(arg, argc, args, argv);
+    envp = va_arg(args, char **);
+    va_end(args);
+
+    if (bxl->check_and_report_statically_linked_process(pathname))
+    {
+        return handle_exec_with_ptrace(pathname, (char **)argv, bxl->ensureEnvs(envp), bxl);
+    }
+
+    result_t<int> result = bxl->fwd_execve(pathname, (char **)argv, bxl->ensureEnvs(envp));
 
     // This will only execute if exec failed
-    bxl->report_exec(__func__, argv[0], file,  result.get_errno());
+    bxl->report_exec(__func__, argv[0], pathname, result.get_errno(), /* mode */ 0);
 
     return result.restore();
 })

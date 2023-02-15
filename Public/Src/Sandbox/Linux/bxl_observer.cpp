@@ -295,13 +295,13 @@ bool BxlObserver::SendReport(const AccessReport &report, bool isDebugMessage)
     return Send(buffer, std::min(numWritten + PrefixLength, PIPE_BUF));
 }
 
-void BxlObserver::report_exec(const char *syscallName, const char *procName, const char *file, int error)
+void BxlObserver::report_exec(const char *syscallName, const char *procName, const char *file, int error, mode_t mode)
 {
     if (IsMonitoringChildProcesses())
     {
         // first report 'procName' as is (without trying to resolve it) to ensure that a process name is reported before anything else
-        report_access(syscallName, ES_EVENT_TYPE_NOTIFY_EXEC, std::string(procName), empty_str_, /* mode */ 0, error);
-        report_access(syscallName, ES_EVENT_TYPE_NOTIFY_EXEC, file, error);
+        report_access(syscallName, ES_EVENT_TYPE_NOTIFY_EXEC, std::string(procName), empty_str_, mode, error);
+        report_access(syscallName, ES_EVENT_TYPE_NOTIFY_EXEC, file, mode, /*flags*/ 0, error);
     }
 }
 
@@ -554,49 +554,7 @@ bool BxlObserver::check_and_report_statically_linked_process(const char *path)
         return maybeProcess->second;
     }
     
-    bool isStaticallyLinked = false;
-    std::string result;
-    std::string objDumpOutput = "NEEDED               libc.so.";
-    int pipefd[2];
-    char mutablePath[PATH_MAX];
-
-    pipe(pipefd);
-
-    if (real_fork() == 0)
-    {
-        // Child process to execute objdump
-        real_close(pipefd[0]);    // close reading end in the child
-        real_dup2(pipefd[1], 1);  // send stdout to the pipe
-        real_dup2(pipefd[1], 2);  // send stderr to the pipe
-        real_close(pipefd[1]);    // this descriptor is no longer needed
-
-        // TODO: don't cast to char * here?
-        char *args[] = {"", "-p", (char *)path, NULL};
-        char *envp[] = { NULL};
-
-        real_execvpe("/usr/bin/objdump", args, envp);
-
-        real__exit(1); // If exec was successful then we should never reach this
-    }
-    else
-    {
-        char buffer[4096];
-        real_close(pipefd[1]);  // close the write end of the pipe in the parent
-
-        while (true)
-        {
-            auto bytesRead = read(pipefd[0], buffer, sizeof(buffer)-1);
-            if (bytesRead == 0)
-            {
-                break;
-            }
-
-            buffer[bytesRead] = '\0';
-            result.append(buffer);
-        }
-    }
-
-    isStaticallyLinked = result.find(objDumpOutput) == std::string::npos;
+    auto isStaticallyLinked = is_statically_linked(path);
 
     if (isStaticallyLinked)
     {
@@ -623,6 +581,58 @@ bool BxlObserver::check_and_report_statically_linked_process(const char *path)
 
     staticallyLinkedProcessCache_.push_back(std::make_pair(key, isStaticallyLinked));
     return isStaticallyLinked;
+}
+
+// Executes objdump against the provided path to determine whether the binary is statically linked.
+bool BxlObserver::is_statically_linked(const char *path)
+{
+    std::string result;
+    int pipefd[2];
+    char mutablePath[PATH_MAX];
+
+    pipe(pipefd);
+
+    if (real_fork() == 0)
+    {
+        // Child process to execute objdump
+        real_close(pipefd[0]);    // close reading end in the child
+        real_dup2(pipefd[1], 1);  // send stdout to the pipe
+        real_dup2(pipefd[1], 2);  // send stderr to the pipe
+        real_close(pipefd[1]);    // this descriptor is no longer needed
+
+        char *args[] = {"", "-p", (char *)path, NULL};
+        char *envp[] = { NULL};
+
+        real_execvpe("/usr/bin/objdump", args, envp);
+
+        real__exit(1); // If exec was successful then we should never reach this
+    }
+    else
+    {
+        char buffer[4096];
+        real_close(pipefd[1]);  // close the write end of the pipe in the parent
+
+        while (true)
+        {
+            auto bytesRead = read(pipefd[0], buffer, sizeof(buffer)-1);
+            if (bytesRead == 0)
+            {
+                break;
+            }
+
+            buffer[bytesRead] = '\0';
+            result.append(buffer);
+        }
+    }
+
+    bool isStaticallyLinked = false;
+    // Objdump should be able to dump the headers for any binary
+    // If it doesn't show this output, then the file does not exist, or is not a binary
+    std::string objDumpExeFound = "Program Header:";
+    // This output confirms that the dynamic section in objdump contains libc
+    std::string objDumpOutput = "NEEDED               libc.so.";
+
+    return result.find(objDumpExeFound) != std::string::npos && result.find(objDumpOutput) == std::string::npos;
 }
 
 void BxlObserver::disable_fd_table()

@@ -12,7 +12,25 @@ namespace UnitTests
         targetRuntime: "linux-x64"
     };
 
-    const testFiles = glob(d`.`, "*.cpp");
+    interface BoostTest {
+        exeName: PathAtom;
+        sourceFiles: File[];
+        includeDirectories?: Directory[];
+    }
+
+    const sandboxSrcDirectory = Directory.fromPath(p`.`.parent);
+    const boostTests : BoostTest[] = [
+        {
+            exeName: a`interpose`,
+            sourceFiles: [ f`interpose.cpp` ]
+        },
+        {
+            exeName: a`observer_utililities_test`,
+            sourceFiles: [ f`observer_utililities_test.cpp`, f`${sandboxSrcDirectory.path}/observer_utilities.cpp` ],
+            includeDirectories: [ sandboxSrcDirectory ]
+        }
+    ];
+
     const isLinux = Context.getCurrentHost().os === "unix";
     const gxx = getTool("g++");
     const env = getTool("env");
@@ -20,23 +38,41 @@ namespace UnitTests
     const boostLibDir = boost.Contents.all.ensureContents({subFolder: r`lib/native/include`});
 
     @@public
-    export const tests = testFiles.map(s => runBoostTest(compileForBoost(s)));
+    export const tests = boostTests.map(s => runBoostTest(compileForBoost(s)));
 
-    function compileForBoost(srcFile: File) : DerivedFile
+    function compileForBoost(testSpec: BoostTest) : DerivedFile
     {
         if (!isLinux) return undefined;
 
         const compiler = gxx;
+        const isDebug = qualifier.configuration === "debug";
         const outDir = Context.getNewOutputDirectory(compiler.exe.name);
-        const exeFile = p`${outDir}/${srcFile.name.changeExtension("")}`;
+        const exeFile = p`${outDir}/${testSpec.exeName}`;
+        let flattenedHeaders = [];
+        const headers = testSpec.includeDirectories
+            ? testSpec.includeDirectories.map((d, i) => glob(d, "*.hpp"))
+            : [];
+        for (let headerSet of headers) {
+            Debug.writeLine(headerSet);
+            flattenedHeaders = flattenedHeaders.concat(...headerSet);
+        }
+
         const result = Transformer.execute({
             tool: compiler,
             workingDirectory: outDir,
-            dependencies: [boostLibDir],
+            dependencies: [
+                boostLibDir,
+                ...testSpec.sourceFiles,
+                ...flattenedHeaders
+            ],
             arguments: [
-                Cmd.option("-I ", Artifact.none(boostLibDir)),
-                Cmd.argument(Artifact.input(srcFile)),
+                Cmd.options("-I ", [
+                    Artifact.none(boostLibDir),
+                    ...(testSpec.includeDirectories ? testSpec.includeDirectories.map((d, i) => Artifact.none(d)) : [])
+                ]),
+                Cmd.args(testSpec.sourceFiles.map((s, i) => Artifact.input(s))),
                 Cmd.option("-o ", Artifact.output(exeFile)),
+                ...addIf(isDebug, Cmd.argument("-g")),
             ]
         });
         return result.getOutputFile(exeFile);

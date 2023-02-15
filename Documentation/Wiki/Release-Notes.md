@@ -1,6 +1,13 @@
 This page is a curated list of the release notes for releases after 0.20170619.4.0 and a manual copy of notable changes from each build before that. See the repo's commit history full details for what is included in each build.
 
 =======
+# 0.1.0-20230209.1 (Release [276369](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=276369) Released 2/15/2023)
+-	Allow BuildXL to run without enabling the change journal
+-	Added some missing interposed methods in the Linux sandbox
+-	Enable heartbeats by default
+-	Improvements on distributed builds handshaking
+
+
 # 0.1.0-20221209.1.11 (Release [256361](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=252305) Released 12/15/2022)
 -	Reenable Ninja tests
 -	Deploy OS-specific RocksDB binaries

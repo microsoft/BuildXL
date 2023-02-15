@@ -795,7 +795,7 @@ namespace BuildXL.Processes
 
         private void HandleAccessReport(AccessReport report)
         {
-            if (ShouldReportFileAccesses)
+            if (ShouldReportFileAccesses && report.Operation != FileOperation.OpDebugMessage)
             {
                 LogProcessState("Access report received: " + AccessReportToString(report));
             }

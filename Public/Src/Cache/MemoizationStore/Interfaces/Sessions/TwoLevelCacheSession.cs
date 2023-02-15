@@ -52,6 +52,7 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         /// represents a *temporary* L1, which means that any content that we've already put into the L1,
         /// the remote will already have, since we've already added it during the current session.
         /// </summary>
+        [DataMember]
         public bool SkipRemotePutIfAlreadyExistsInLocal { get; set; } = false;
     }
 

@@ -185,17 +185,6 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             }
 
             var statisticsFilePath = new AbsolutePath(logPath.Path + ".stats");
-            if (!string.IsNullOrEmpty(configuration.VfsCasRoot))
-            {
-                // Vfs path. Vfs wraps around whatever cache we are using to virtualize
-                logger.Debug($"Creating virtualized cache");
-
-                cache = new VirtualizedContentCache(cache, new ContentStore.Vfs.VfsCasConfiguration.Builder()
-                {
-                    RootPath = new AbsolutePath(configuration.VfsCasRoot),
-
-                }.Build());
-            }
 
             return new MemoizationStoreAdapterCache(configuration.CacheId, cache, logger, statisticsFilePath, configuration.ReplaceExistingOnPlaceFile);
         }

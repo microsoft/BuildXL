@@ -76,21 +76,13 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Extensions
         /// <param name="stream">Source stream</param>
         /// <param name="destination">Destination stream</param>
         /// <param name="bufferSize">Size of the buffer to fill for writes</param>
-        public static async Task CopyToWithFullBufferAsync(this Stream stream, Stream destination, int bufferSize)
+        public static Task CopyToWithFullBufferAsync(this Stream stream, Stream destination, int bufferSize)
         {
             Contract.Requires(stream != null);
-            Contract.Requires(destination != null);
-            Contract.Requires(stream.CanRead);
-            Contract.Requires(destination.CanWrite);
             Contract.Requires(bufferSize > 0);
 
             var buffer = new byte[bufferSize];
-
-            int bytesRead;
-            while ((bytesRead = await stream.ReadBytes(buffer, buffer.Length).ConfigureAwait(false)) != 0)
-            {
-                await destination.WriteAsync(buffer, 0, bytesRead).ConfigureAwait(false);
-            }
+            return stream.CopyToWithFullBufferAsync(destination, buffer);
         }
 
         /// <summary>
@@ -103,7 +95,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Extensions
             Contract.Requires(buffer != null);
             Contract.Requires(stream.CanRead);
             Contract.Requires(destination.CanWrite);
-            
+
             int bytesRead;
             while ((bytesRead = await stream.ReadBytes(buffer, buffer.Length).ConfigureAwait(false)) != 0)
             {

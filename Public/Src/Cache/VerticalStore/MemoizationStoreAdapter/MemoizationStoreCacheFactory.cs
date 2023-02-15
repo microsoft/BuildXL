@@ -273,13 +273,6 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                     : CreateGrpcCache(cacheConfig, logger);
 
                 var statsFilePath = new AbsolutePath(logPath.Path + ".stats");
-                if (!string.IsNullOrEmpty(cacheConfig.VfsCasRoot))
-                {
-                    localCache = new VirtualizedContentCache(localCache, new ContentStore.Vfs.VfsCasConfiguration.Builder()
-                            {
-                                RootPath = new AbsolutePath(cacheConfig.VfsCasRoot),
-                            }.Build());
-                }
 
                 var cache = new MemoizationStoreAdapterCache(cacheConfig.CacheId, localCache, logger, statsFilePath, cacheConfig.ReplaceExistingOnPlaceFile);
 

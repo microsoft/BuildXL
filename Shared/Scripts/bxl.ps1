@@ -119,8 +119,6 @@ param(
 
     [switch]$DeployDev = $false,
 
-    [switch]$Bvfs = $false,
-
     [switch]$PatchDev = $false,
 
     [switch]$DisableInteractive = $false,
@@ -129,9 +127,6 @@ param(
 
     [Parameter(Mandatory=$false)]
     [switch]$UseDedupStore = $false,
-
-    [Parameter(Mandatory=$false)]
-    [switch]$UseVfs = $false,
 
     [Parameter(Mandatory=$false)]
     [switch]$UseBlobL3 = $false,
@@ -421,10 +416,6 @@ function Get-CacheConfig {
          UseRocksDbMemoizationStore = $true;
     };
 
-    if ($UseVfs) {
-        $localCache.Add("VfsCasRoot", "[VfsCasRoot]");
-    }
-
     if (! $UseSharedCache) {
         return $localCache;
     }
@@ -631,10 +622,6 @@ if (! $DoNotUseDefaultCacheConfigFilePath) {
     $AdditionalBuildXLArguments += "/cacheConfigFilePath:" + $cacheConfigPath;
 }
 
-if ($UseVfs) {
-    $AdditionalBuildXLArguments += "/vfsCasRoot:" + (Join-Path $cacheDirectory vfs);
-}
-
 if ($useDeployment.EnableServerMode) {
     Log "Server mode enabled."
     $AdditionalBuildXLArguments += "/server"
@@ -723,10 +710,6 @@ if (!$skipFilter) {
 
     if ($SkipTests) {
         $AdditionalBuildXLArguments +=  "/f:~($CacheLongRunningFilter)and~($CacheNugetFilter)"
-    }
-
-    if ($Bvfs) {
-        $AdditionalBuildXLArguments += "/q:DebugNet472 /f:output='out/bin/debug/tools/bvfs/*'"
     }
 }
 

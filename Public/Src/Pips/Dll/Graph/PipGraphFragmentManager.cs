@@ -44,12 +44,12 @@ namespace BuildXL.Pips.Graph
 
         private readonly ConcurrentBigMap<AbsolutePath, (PipGraphFragmentSerializer, Task<bool>)> m_taskMap = new ConcurrentBigMap<AbsolutePath, (PipGraphFragmentSerializer, Task<bool>)>();
 
-        private readonly IBuildXLCredentialScanner m_credentialScanner;
+        private readonly CredentialScanner m_credentialScanner;
 
         /// <summary>
         /// PipGraphFragmentManager
         /// </summary>
-        public PipGraphFragmentManager(LoggingContext loggingContext, PipExecutionContext context, IMutablePipGraph pipGraph, IBuildXLCredentialScanner credentialScanner, int? maxParallelism)
+        public PipGraphFragmentManager(LoggingContext loggingContext, PipExecutionContext context, IMutablePipGraph pipGraph, int? maxParallelism, CredentialScanner credentialScanner = null)
         {
             m_loggingContext = loggingContext;
             m_context = context;

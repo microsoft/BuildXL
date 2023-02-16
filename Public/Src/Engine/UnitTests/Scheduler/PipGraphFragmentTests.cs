@@ -369,7 +369,7 @@ namespace Test.BuildXL.Scheduler
 
         private PipGraph DeserializeFragments(bool dependent, params TestPipGraphFragment[] fragments)
         {
-            var fragmentManager = new PipGraphFragmentManager(LoggingContext, Context, PipGraphBuilder, FrontEndContext.CredentialScanner, default);
+            var fragmentManager = new PipGraphFragmentManager(LoggingContext, Context, PipGraphBuilder, default);
 
             for (int i = 0; i < fragments.Length; ++i)
             {

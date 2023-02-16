@@ -1555,7 +1555,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         [InlineData(true, null, "password", false)]
         [InlineData(false, "123", "id", false)]
         [Theory]
-        public void TestCredScan(bool isPassThrough, string envVarValue, string envVarKey, bool expectCredentialDetected)
+        public void TestCredScan(bool isPassThrough, string envVarValue, string envVarKey, bool credentialDetected)
         {
             Configuration.FrontEnd.EnableCredScan = true;
             ResetPipGraphBuilder();
@@ -1568,10 +1568,10 @@ namespace IntegrationTest.BuildXL.Scheduler
             var builder = CreatePipBuilderWithEnvironment(ops, environmentVariables: new Dictionary<string, (string, bool)>() { [envVarKey] = (envVarValue, isPassThrough) });
             SchedulePipBuilder(builder);
 
-            var result = expectCredentialDetected ? RunScheduler().AssertFailure() : RunScheduler().AssertSuccess();
+            RunScheduler().AssertSuccess();
 
             // This event is logged when a credential is detected in the env variables.
-            AssertErrorEventLogged(PipsTracingLogEventId.CredentialsDetectedInEnvVar, expectCredentialDetected ? 1 : 0);
+            AssertWarningEventLogged(PipsTracingLogEventId.CredentialsDetectedInEnvVar, credentialDetected ? 1 : 0);
         }
 #endif
 
@@ -1599,8 +1599,7 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             RunScheduler().AssertSuccess();
 
-            // This event should not be logged when environment variable is passed via /credScanEnvironmentVariablesAllowList.
-            AssertErrorEventLogged(PipsTracingLogEventId.CredentialsDetectedInEnvVar, 0);
+            AssertWarningEventLogged(PipsTracingLogEventId.CredentialsDetectedInEnvVar, 0);
         }
 #endif
 

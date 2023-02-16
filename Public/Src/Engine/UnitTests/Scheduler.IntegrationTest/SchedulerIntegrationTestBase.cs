@@ -381,15 +381,7 @@ namespace Test.BuildXL.Scheduler
             if (m_graphWasModified || LastGraph == null)
             {
                 LastGraph = PipGraphBuilder.Build();
-                // Scheduler should not proceed further if the a credential is detected among the environment variables.
-                if (!FrontEndContext.CredentialScanner.Complete(Context))
-                {
-                    return new ScheduleRunResult()
-                    {
-                        Success = false
-                    };
-                }
-
+                FrontEndContext?.CredentialScanner?.Complete(Context);
                 XAssert.IsNotNull(LastGraph, "Failed to build pip graph");
             }
 

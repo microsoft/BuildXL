@@ -89,12 +89,11 @@ namespace BuildXL.Engine
                 return false;
             }
 
-            // Build should gracefully fail if credentials are detected in the environment variables.
-            bool noSecretDetected = FrontEndController.CompleteCredentialScanner();
+            FrontEndController.CompleteCredentialScanner();
             LogFrontEndStats(loggingContext);
 
             // Pip graph must become immutable now that evaluation is done (required to construct a scheduler).
-            return (pipGraphBuilder == null || (pipGraph = pipGraphBuilder.Build()) != null) && noSecretDetected;
+            return pipGraphBuilder == null || (pipGraph = pipGraphBuilder.Build()) != null;
         }
 
         private void AddConfigurationMounts(MountsTable mountsTable)

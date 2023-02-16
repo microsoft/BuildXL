@@ -35,7 +35,7 @@ namespace BuildXL.FrontEnd.Sdk
         public readonly ObjectPool<PipDataBuilder> PipDataBuilderPool;
 
         /// <nodoc />
-        public IBuildXLCredentialScanner CredentialScanner { get; }
+        public CredentialScanner CredentialScanner { get; }
 
         /// <summary>
         /// Helper to get a pipDataBuilder
@@ -56,7 +56,7 @@ namespace BuildXL.FrontEnd.Sdk
 
             LoggingContext = loggingContext;
             FileSystem = fileSystem;
-            CredentialScanner = CreateCredScanInstance(frontEndConfig, pathTable, loggingContext);
+            CredentialScanner = (frontEndConfig.EnableCredScan == true) ? new CredentialScanner(pathTable, loggingContext, frontEndConfig.CredScanEnvironmentVariablesAllowList) : null;
             PipDataBuilderPool = new ObjectPool<PipDataBuilder>(() => new PipDataBuilder(StringTable), builder => builder.Clear());
         }
 
@@ -69,20 +69,20 @@ namespace BuildXL.FrontEnd.Sdk
 
             LoggingContext = loggingContext;
             FileSystem = fileSystem;
-            CredentialScanner = CreateCredScanInstance(frontEndConfig, context.PathTable, loggingContext);   
+            CredentialScanner = (frontEndConfig.EnableCredScan == true) ?  new CredentialScanner(context.PathTable, loggingContext, frontEndConfig.CredScanEnvironmentVariablesAllowList) : null;
             PipDataBuilderPool = new ObjectPool<PipDataBuilder>(() => new PipDataBuilder(StringTable), builder => builder.Clear());
         }
 
         /// <nodoc />
         [SuppressMessage("Microsoft.Design", "CA1011:Consider Changing type of 'pathTable' from PathTable to HierarchicalNameTable", Justification = "Completely and utterly bogus suggestion")]
-        public static FrontEndContext CreateInstanceForTesting(PathTable pathTable = null, SymbolTable symbolTable = null, QualifierTable qualifierTable = null, IFileSystem fileSystem = null, CancellationToken? cancellationToken = null, IFrontEndConfiguration frontEndConfig = null, LoggingContext loggingContext = null)
+        public static FrontEndContext CreateInstanceForTesting(PathTable pathTable = null, SymbolTable symbolTable = null, QualifierTable qualifierTable = null, IFileSystem fileSystem = null, CancellationToken? cancellationToken = null, IFrontEndConfiguration frontEndConfig = null)
         {
             pathTable = pathTable ?? new PathTable();
             return new FrontEndContext(
                 pathTable,
                 symbolTable ?? new SymbolTable(pathTable.StringTable),
                 qualifierTable ?? new QualifierTable(pathTable.StringTable),
-                loggingContext ?? new LoggingContext("UnitTest"),
+                new LoggingContext("UnitTest"),
                 fileSystem ?? new PassThroughFileSystem(pathTable), // TODO: Consider moving this entire function into test helpers and then use the test file system.
                 frontEndConfig ?? new FrontEndConfiguration(),
                 cancellationToken ?? CancellationToken.None);
@@ -113,18 +113,6 @@ namespace BuildXL.FrontEnd.Sdk
         public void SetFileSystem(IFileSystem fileSystem)
         {
             FileSystem = fileSystem;
-        }
-
-        /// <summary>
-        /// This method is used to create the credscan instance.
-        /// </summary>
-        private IBuildXLCredentialScanner CreateCredScanInstance(IFrontEndConfiguration frontEndConfig, PathTable pathTable, LoggingContext loggingContext)
-        {
-#if (MICROSOFT_INTERNAL && NETCOREAPP)
-            return (frontEndConfig.EnableCredScan == true) ? new CredentialScanner(pathTable, loggingContext, frontEndConfig.CredScanEnvironmentVariablesAllowList) : new NoOpCredentialScanner();
-#else
-            return new NoOpCredentialScanner();
-#endif
         }
     }
 }

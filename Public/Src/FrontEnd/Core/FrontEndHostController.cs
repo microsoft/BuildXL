@@ -169,7 +169,7 @@ namespace BuildXL.FrontEnd.Core
             Engine = engine;
             FrontEndArtifactManager = CreateFrontEndArtifactManager();
             PipGraph = pipGraph;
-            PipGraphFragmentManager = new PipGraphFragmentManager(LoggingContext, FrontEndContext, pipGraph, configuration.FrontEnd.MaxFrontEndConcurrency, FrontEndContext.CredentialScanner);
+            PipGraphFragmentManager = new PipGraphFragmentManager(LoggingContext, FrontEndContext, pipGraph, credentialScanner: FrontEndContext.CredentialScanner, maxParallelism: configuration.FrontEnd.MaxFrontEndConcurrency);
 
             // TODO: The EngineBasedFileSystem should be replaced with a tracking file system that wraps the passed in filesystem
             // so that the speccache, engine caching/tracking all work for the real and for the fake filesystem.s
@@ -784,9 +784,9 @@ namespace BuildXL.FrontEnd.Core
         }
 
         /// <inheritdoc/>
-        public void CompleteCredentialScanner()
+        public bool CompleteCredentialScanner()
         {
-            FrontEndContext.CredentialScanner?.Complete(FrontEndContext);
+            return FrontEndContext.CredentialScanner.Complete(FrontEndContext);
         }
 
         private bool TryGetQualifiers(IConfiguration configuration, IReadOnlyList<string> requestedQualifierExpressions, out QualifierId[] qualifierIds)

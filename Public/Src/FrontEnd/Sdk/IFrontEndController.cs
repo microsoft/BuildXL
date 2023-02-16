@@ -64,7 +64,8 @@ namespace BuildXL.FrontEnd.Sdk
         /// <summary>
         /// Wait for the completion of CredentialScanner and log the detected credentials.
         /// </summary>
-        void CompleteCredentialScanner();
+        /// <returns>True when there are no secrets detected by the supplied IBuildXLCredentialScanner.</returns>
+        bool CompleteCredentialScanner();
 
         /// <summary>
         /// The collection of frontends that are registered with the controller.

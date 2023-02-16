@@ -15,6 +15,7 @@ using BuildXL.FrontEnd.Factory;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Sdk.FileSystem;
 using BuildXL.PipGraphFragmentGenerator.Tracing;
+using BuildXL.Pips.Builders;
 using BuildXL.Pips.Filter;
 using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
@@ -242,10 +243,9 @@ namespace BuildXL.PipGraphFragmentGenerator
             var engineContext = EngineContext.CreateNew(CancellationToken.None, pathTable, fileSystem);
             
             FrontEndContext context = engineContext.ToFrontEndContext(loggingContext, commandLineConfig.FrontEnd);
-            Contract.Assert(context.CredentialScanner == null, "We do not enable credential scanning here as this code runs in a separate process which has separate logging and telemetry. To avoid this issue we are adding the required credential scanner logic to PipGraphFragmentManager where all the graph fragments are merged into a full graph.");
+            Contract.Assert(context.CredentialScanner is NoOpCredentialScanner, "We do not enable credential scanning here as this code runs in a separate process which has separate logging and telemetry. To avoid this issue we are adding the required credential scanner logic to PipGraphFragmentManager where all the graph fragments are merged into a full graph.");
 
             // Parse filter string.
-
             var evaluationFilter = EvaluationFilter.Empty;
             if (!string.IsNullOrWhiteSpace(commandLineConfig.Filter))
             {

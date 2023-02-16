@@ -383,9 +383,8 @@ namespace Test.BuildXL.Scheduler
 
             // For tests, allow writes outside of mounts unles defined otherwise
             ((EngineConfiguration)configuration.Engine).UnsafeAllowOutOfMountWrites ??= true;
-
             var searchPathToolsHash = new DirectoryMembershipFingerprinterRuleSet(configuration, stringTable).ComputeSearchPathToolsHash();
-            FrontEndContext  = FrontEndContext.CreateInstanceForTesting(pathTable: Context.PathTable, symbolTable: Context.SymbolTable, qualifierTable: Context.QualifierTable, frontEndConfig: configuration.FrontEnd);
+            FrontEndContext  = FrontEndContext.CreateInstanceForTesting(pathTable: Context.PathTable, symbolTable: Context.SymbolTable, qualifierTable: Context.QualifierTable, frontEndConfig: configuration.FrontEnd, loggingContext: LoggingContext);
 
             PipGraphBuilder = new PipGraph.Builder(
                 PipTable,

@@ -53,7 +53,6 @@ namespace UnitTests
             ? testSpec.includeDirectories.map((d, i) => glob(d, "*.hpp"))
             : [];
         for (let headerSet of headers) {
-            Debug.writeLine(headerSet);
             flattenedHeaders = flattenedHeaders.concat(...headerSet);
         }
 

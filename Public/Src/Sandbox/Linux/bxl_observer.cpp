@@ -118,7 +118,7 @@ void BxlObserver::LogDebug(const char *fmt, ...)
         va_start(args, fmt);
         // We (re)use the path for the debug message in order to not change the report format just for debugging
         // So we limit the message to MAXPATHLEN (~4k chars, which should be enough)
-        vsnprintf(debugReport.path, MAXPATHLEN, fmt, args);
+        int numWritten = vsnprintf(debugReport.path, MAXPATHLEN, fmt, args);
         va_end(args);
 
         // Sanitize the debug message so we don't confuse the parser on managed code:
@@ -131,7 +131,7 @@ void BxlObserver::LogDebug(const char *fmt, ...)
                 debugReport.path[i] = '!';
             }
             
-            if (debugReport.path[i] == '\n')
+            if (debugReport.path[i] == '\n' || debugReport.path[i] == '\r')
             {
                 debugReport.path[i] = '.';
             }
@@ -281,14 +281,27 @@ bool BxlObserver::SendReport(const AccessReport &report, bool isDebugMessage)
     const int PrefixLength = sizeof(uint);
     char buffer[PIPE_BUF] = {0};
     int maxMessageLength = PIPE_BUF - PrefixLength;
-    int numWritten = snprintf(
-        &buffer[PrefixLength], maxMessageLength, "%s|%d|%d|%d|%d|%d|%d|%s|%d\n",
-        __progname, report.pid < 0 ? getpid() : report.pid, report.requestedAccess, report.status, report.reportExplicitly, report.error, report.operation, report.path, report.isDirectory);
-    // For debug messages it is fine to truncate the message
-    if (!isDebugMessage && numWritten >= maxMessageLength)
+    int numWritten = BuildReport(&buffer[PrefixLength], maxMessageLength, report, report.path);
+
+    if (numWritten >= maxMessageLength)
     {
-        // TODO: once 'send' is capable of sending more than PIPE_BUF at once, allocate a bigger buffer and send that
-        _fatal("Message truncated to fit PIPE_BUF (%d): %s", PIPE_BUF, buffer);
+        // For debug messages it is fine to truncate the message, otherwise, this is a problem and we must fail
+        if (!isDebugMessage)
+        {
+            // TODO: once 'send' is capable of sending more than PIPE_BUF at once, allocate a bigger buffer and send that
+            _fatal("Message truncated to fit PIPE_BUF (%d): %s", PIPE_BUF, buffer);
+        }
+        else
+        {
+            // The debug message was truncated. Let's crop the debug message so it fits
+            int truncatedSize = PATH_MAX - (numWritten - maxMessageLength);
+            char truncatedMessage[truncatedSize] = {0};
+
+            // Let's leave an ending \0
+            strncpy(truncatedMessage, report.path, truncatedSize - 1);
+
+            numWritten = BuildReport(&buffer[PrefixLength], maxMessageLength, report, truncatedMessage);
+        }
     }
 
     *(uint*)(buffer) = numWritten;

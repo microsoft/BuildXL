@@ -282,6 +282,14 @@ private:
 
     void resolve_path(char *fullpath, bool followFinalSymlink);
 
+    // Builds the report to be sent over the FIFO in the given buffer
+    inline int BuildReport(char* buffer, int maxMessageLength, const AccessReport &report, const char *path)
+    {
+        return snprintf(
+            buffer, maxMessageLength, "%s|%d|%d|%d|%d|%d|%d|%s|%d\n",
+            __progname, report.pid < 0 ? getpid() : report.pid, report.requestedAccess, report.status, report.reportExplicitly, report.error, report.operation, path, report.isDirectory);
+    }
+
     static BxlObserver *sInstance;
     static AccessCheckResult sNotChecked;
 

@@ -43,7 +43,7 @@ namespace ContentStoreTest.Synchronization
                 failure.Timeout.Should().Be(timeout);
 
                 // Fix for InMemoryFileSystem. Bug #1334691
-                if (!BuildXL.Utilities.OperatingSystemHelper.IsUnixOS && FileSystem is PassThroughFileSystem)
+                if (!BuildXL.Utilities.Core.OperatingSystemHelper.IsUnixOS && FileSystem is PassThroughFileSystem)
                 {
                     // Used to be a flaky check. Enable it because it is important.
                     failure.CompetingProcessId.HasValue.Should().BeTrue();

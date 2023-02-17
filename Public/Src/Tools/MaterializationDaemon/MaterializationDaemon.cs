@@ -13,6 +13,7 @@ using BuildXL.Ipc.Common;
 using BuildXL.Ipc.ExternalApi;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.CLI;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.ParallelAlgorithms;
@@ -21,7 +22,7 @@ using BuildXL.Utilities.Tracing;
 using MaterializationDaemon;
 using Newtonsoft.Json;
 using Tool.ServicePipDaemon;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace Tool.MaterializationDaemon
 {

@@ -5,7 +5,7 @@ using System.Diagnostics.ContractsLight;
 using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.Values;
 using BuildXL.FrontEnd.Sdk.Evaluation;
-using BuildXL.Utilities.Qualifier;
+using BuildXL.Utilities.Core.Qualifier;
 using JetBrains.Annotations;
 
 namespace BuildXL.FrontEnd.Script

@@ -4,7 +4,7 @@
 using System;
 using System.IO;
 using System.Linq;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.CodeGenerationHelper;
 using BuildXL.FrontEnd.Script.Testing.TestGenerator;
 using TypeScript.Net.Types;

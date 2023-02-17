@@ -11,7 +11,7 @@ using BuildXL.FrontEnd.Script;
 using BuildXL.FrontEnd.Script.Debugger;
 using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.Values;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using Test.BuildXL.FrontEnd.Core;
 using Test.BuildXL.TestUtilities.Xunit;
 using VSCode.DebugAdapter;

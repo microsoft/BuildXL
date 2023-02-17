@@ -3,7 +3,7 @@
 
 using BuildXL.Engine.Cache.Artifacts;
 using BuildXL.Engine.Cache.Fingerprints.TwoPhase;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 namespace Test.BuildXL.EngineTestUtilities
 {

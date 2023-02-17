@@ -16,6 +16,7 @@ using Test.DScript.Ast;
 using Test.BuildXL.FrontEnd.Core;
 using Xunit.Abstractions;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using System;
 using System.Diagnostics;
 using BuildXL.Processes;

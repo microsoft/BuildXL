@@ -6,7 +6,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using BuildXL.Pips.DirectedGraph;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Execution.Analyzer
 {

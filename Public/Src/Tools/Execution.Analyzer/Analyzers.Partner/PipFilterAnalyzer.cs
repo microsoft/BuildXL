@@ -10,7 +10,7 @@ using BuildXL.Pips.Filter;
 using BuildXL.Pips.Graph;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities.Tracing;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace BuildXL.Execution.Analyzer
 {

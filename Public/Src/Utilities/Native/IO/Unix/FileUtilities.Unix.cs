@@ -10,12 +10,11 @@ using System.Security.AccessControl;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Utilities;
-using BuildXL.Utilities.Instrumentation.Common;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Tasks;
 using Microsoft.Win32.SafeHandles;
 using static BuildXL.Interop.Unix.IO;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace BuildXL.Native.IO.Unix
 {

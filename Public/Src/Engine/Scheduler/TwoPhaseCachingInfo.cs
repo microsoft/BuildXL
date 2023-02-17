@@ -5,7 +5,7 @@ using System;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Engine.Cache.Fingerprints;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 
 namespace BuildXL.Scheduler

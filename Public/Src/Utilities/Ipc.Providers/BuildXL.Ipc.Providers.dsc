@@ -13,6 +13,7 @@ namespace Ipc.Providers {
             Ipc.Grpc.dll,
             $.dll,
             $.Storage.dll,
+            Utilities.Core.dll,
             importFrom("BuildXL.Cache.ContentStore").Hashing.dll,
             ...BuildXLSdk.systemMemoryDeployment,
             ...BuildXLSdk.systemThreadingTasksDataflowPackageReference,

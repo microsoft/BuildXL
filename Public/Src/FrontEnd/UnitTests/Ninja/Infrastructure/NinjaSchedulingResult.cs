@@ -10,9 +10,9 @@ using BuildXL.Pips.DirectedGraph;
 using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.Graph;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using Test.BuildXL.TestUtilities.Xunit;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace Test.BuildXL.FrontEnd.Ninja.Infrastructure
 {

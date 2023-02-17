@@ -4,7 +4,7 @@
 using System.Diagnostics.ContractsLight;
 using BuildXL.Ipc.Common;
 using BuildXL.Ipc.Interfaces;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Pips.Operations
 {

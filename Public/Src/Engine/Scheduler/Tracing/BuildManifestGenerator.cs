@@ -7,7 +7,7 @@ using System.Diagnostics.ContractsLight;
 using System.Linq;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Ipc.ExternalApi.Commands;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;

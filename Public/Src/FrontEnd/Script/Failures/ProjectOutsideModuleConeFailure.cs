@@ -5,7 +5,7 @@ using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Workspaces.Core;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.FrontEnd.Script.Failures
 {

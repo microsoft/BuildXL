@@ -6,7 +6,7 @@ using System.Diagnostics.ContractsLight;
 using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Native.IO;
 using BuildXL.Storage;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using static BuildXL.Distribution.Grpc.FileArtifactKeyedHash.Types;
 
 namespace BuildXL.Distribution.Grpc

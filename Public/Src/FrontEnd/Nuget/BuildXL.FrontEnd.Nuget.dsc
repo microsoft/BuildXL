@@ -43,6 +43,7 @@ namespace Nuget {
             importFrom("BuildXL.Utilities").Script.Constants.dll,
             importFrom("BuildXL.Utilities").Storage.dll,
             importFrom("BuildXL.Utilities").Script.Constants.dll,
+            importFrom("BuildXL.Utilities").Utilities.Core.dll,
 
             importFrom("Newtonsoft.Json").pkg,
             importFrom("NuGet.Versioning").withQualifier({targetFramework: "netstandard2.0"}).pkg,

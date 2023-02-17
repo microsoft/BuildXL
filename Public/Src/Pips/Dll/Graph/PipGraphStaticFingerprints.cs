@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Pips.Operations;
 using BuildXL.Storage.Fingerprints;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 
 namespace BuildXL.Pips.Graph

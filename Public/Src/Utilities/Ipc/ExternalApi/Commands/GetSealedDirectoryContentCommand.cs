@@ -4,7 +4,7 @@
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Ipc.ExternalApi.Commands
 {

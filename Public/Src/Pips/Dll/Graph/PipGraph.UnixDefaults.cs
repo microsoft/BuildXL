@@ -8,6 +8,7 @@ using BuildXL.Interop.Unix;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 
 namespace BuildXL.Pips.Graph

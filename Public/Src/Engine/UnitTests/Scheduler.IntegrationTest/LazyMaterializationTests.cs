@@ -3,7 +3,7 @@
 
 using System.IO;
 using BuildXL.Pips.Builders;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.Scheduler;
 using Test.BuildXL.TestUtilities;

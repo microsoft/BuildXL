@@ -21,6 +21,7 @@ namespace Test.Tool.JavascriptGraphBuilder {
             importFrom("BuildXL.FrontEnd").Yarn.dll,
             importFrom("BuildXL.FrontEnd").Utilities.dll,
             importFrom("BuildXL.Utilities").dll,
+            importFrom("BuildXL.Utilities").Utilities.Core.dll,
             importFrom("Newtonsoft.Json").pkg,
         ],
         runtimeContent: [

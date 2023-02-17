@@ -12,7 +12,7 @@ using TypeScript.Net.DScript;
 using TypeScript.Net.Extensions;
 using TypeScript.Net.Scanning;
 using TypeScript.Net.Types;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 using static TypeScript.Net.Core.CoreUtilities;
 
 #pragma warning disable 1591 // disabling warning about missing API documentation; TODO: Remove this line and write documentation!

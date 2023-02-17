@@ -4,7 +4,7 @@
 using System.Collections.Generic;
 using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using Test.BuildXL.Scheduler.Utils;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;

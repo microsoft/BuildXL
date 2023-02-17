@@ -11,9 +11,9 @@ using BuildXL.Pips;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.ToolSupport;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Tracing;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace BuildXL.Execution.Analyzer
 {

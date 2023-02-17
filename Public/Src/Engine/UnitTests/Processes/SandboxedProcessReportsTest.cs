@@ -6,7 +6,7 @@ using Xunit;
 using Xunit.Abstractions;
 using BuildXL.Processes;
 using BuildXL.Native.IO;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using System;
 using System.Collections;
 using System.Collections.Generic;

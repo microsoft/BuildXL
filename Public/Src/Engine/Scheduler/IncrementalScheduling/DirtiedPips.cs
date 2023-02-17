@@ -7,7 +7,7 @@ using System.IO;
 using System.Linq;
 using BuildXL.Pips.DirectedGraph;
 using BuildXL.Pips.Graph;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using static BuildXL.Scheduler.IncrementalScheduling.IncrementalSchedulingStateWriteTextHelpers;
 
 namespace BuildXL.Scheduler.IncrementalScheduling

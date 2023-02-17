@@ -12,7 +12,7 @@ using BuildXL.Cache.ContentStore.Synchronization;
 using BuildXL.Cache.ImplementationSupport;
 using BuildXL.Cache.Interfaces;
 using BuildXL.Native.IO;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using System.Threading;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 

@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using BuildXL.Ipc.Common;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using JetBrains.Annotations;
 
 namespace BuildXL.Pips.Graph

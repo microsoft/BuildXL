@@ -6,7 +6,7 @@ using System.Linq;
 using TypeScript.Net.Parsing;
 using TypeScript.Net.Reformatter;
 using TypeScript.Net.Types;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace BuildXL.Ide.LanguageServer.Utilities
 {

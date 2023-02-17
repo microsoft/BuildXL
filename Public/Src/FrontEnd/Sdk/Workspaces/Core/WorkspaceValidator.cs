@@ -4,12 +4,12 @@
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Instrumentation.Common;
 using TypeScript.Net.Diagnostics;
 using TypeScript.Net.Types;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 using Diagnostic = TypeScript.Net.Diagnostics.Diagnostic;
 
 namespace BuildXL.FrontEnd.Workspaces.Core

@@ -4,7 +4,7 @@
 using System;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Storage.Fingerprints;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using StructUtilities = BuildXL.Cache.ContentStore.Interfaces.Utils.StructUtilities;
 
 namespace BuildXL.Scheduler.Fingerprints

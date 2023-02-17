@@ -2,7 +2,7 @@
 // Licensed under the MIT License.
 
 using System.IO;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Cache.ContentStore.InterfacesTest.Utils
 {

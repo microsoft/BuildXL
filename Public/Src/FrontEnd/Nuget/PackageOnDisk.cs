@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using BuildXL.FrontEnd.Script.Constants;
 using BuildXL.FrontEnd.Sdk;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 
 namespace BuildXL.FrontEnd.Nuget

@@ -10,7 +10,7 @@ using BuildXL.Cache.Interfaces;
 using BuildXL.Cache.Interfaces.Test;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace BuildXL.Cache.Tests
 {

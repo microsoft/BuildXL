@@ -36,6 +36,7 @@ using BuildXL.Storage;
 using BuildXL.Storage.ChangeTracking;
 using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
@@ -44,7 +45,7 @@ using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using JetBrains.Annotations;
 using static BuildXL.Processes.SandboxedProcessFactory;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace BuildXL.Scheduler
 {

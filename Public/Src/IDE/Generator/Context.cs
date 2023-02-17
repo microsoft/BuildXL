@@ -7,9 +7,9 @@ using System.Linq;
 using BuildXL.Pips.DirectedGraph;
 using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
-using BuildXL.Utilities.Qualifier;
+using BuildXL.Utilities.Core.Qualifier;
 
 namespace BuildXL.Ide.Generator
 {

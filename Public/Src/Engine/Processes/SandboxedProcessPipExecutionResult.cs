@@ -6,7 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Text;
 using BuildXL.Processes.Containers;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 
 namespace BuildXL.Processes

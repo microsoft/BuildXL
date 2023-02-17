@@ -12,6 +12,7 @@ using BuildXL.Scheduler;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using Newtonsoft.Json;
 using static BuildXL.Scheduler.Tracing.CacheMissAnalysisUtilities;

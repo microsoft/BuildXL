@@ -7,7 +7,7 @@ using BuildXL.Engine.Tracing;
 using BuildXL.Pips.Filter;
 using BuildXL.Storage;
 using BuildXL.Storage.Fingerprints;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using Xunit;
 using BuildXL.Utilities.Configuration.Mutable;

@@ -1,8 +1,6 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-import * as Managed from "Sdk.Managed";
-import * as Branding from "BuildXL.Branding";
 import * as SysMng from "System.Management";
 import * as Shared from "Sdk.Managed.Shared";
 
@@ -12,7 +10,6 @@ export const dll = BuildXLSdk.library({
     allowUnsafeBlocks: true,
     embeddedResources: [{resX: f`Strings.resx`, generatedClassMode: "implicitPublic"}],
     sources: globR(d`.`, "*.cs"),
-    addNotNullAttributeFile: true,
     references: [
         ...addIf(BuildXLSdk.isFullFramework,
             NetFx.System.Xml.dll,
@@ -22,7 +19,7 @@ export const dll = BuildXLSdk.library({
         ),
         Collections.dll,
         Interop.dll,
-        importFrom("BuildXL.Utilities.Instrumentation").Common.dll,
+        Utilities.Core.dll,
 
         // Don't need to add the dependency for .net6+
         ...addIfLazy(qualifier.targetFramework === "netstandard2.0", () => [
@@ -41,11 +38,7 @@ export const dll = BuildXLSdk.library({
         ...BuildXLSdk.tplPackages,
         BuildXLSdk.asyncInterfacesPackage,
         importFrom("Newtonsoft.Json").pkg,
-        BuildXLSdk.isDotNetCoreApp
-            ? importFrom("Grpc.Core.Api").withQualifier({ targetFramework: "netstandard2.1" }).pkg
-            : importFrom("Grpc.Core.Api").pkg,
         ...BuildXLSdk.systemMemoryDeployment,
-        
     ],
     defineConstants: qualifier.configuration === "debug" ? ["DebugStringTable"] : [],
     internalsVisibleTo: [

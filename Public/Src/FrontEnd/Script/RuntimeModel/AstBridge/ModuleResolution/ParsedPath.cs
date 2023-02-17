@@ -5,8 +5,8 @@ using System;
 using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
-using BuildXL.Utilities;
-using static BuildXL.Utilities.FormattableStringEx;
+using BuildXL.Utilities.Core;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
 {
@@ -190,7 +190,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
         {
             Contract.Requires(relativePath.IsValid);
 
-            return new ParsedPath(packageRelativePath: relativePath, fileRelativePath: BuildXL.Utilities.RelativePath.Invalid, parentCount: 0, pathTable: pathTable);
+            return new ParsedPath(packageRelativePath: relativePath, fileRelativePath: BuildXL.Utilities.Core.RelativePath.Invalid, parentCount: 0, pathTable: pathTable);
         }
 
         /// <summary>

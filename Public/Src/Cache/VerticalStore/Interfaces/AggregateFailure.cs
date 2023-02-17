@@ -4,7 +4,7 @@
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Text;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Cache.Interfaces
 {

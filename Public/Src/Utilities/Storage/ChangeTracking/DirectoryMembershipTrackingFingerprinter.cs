@@ -6,7 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using BuildXL.Native.IO;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using Microsoft.Win32.SafeHandles;
 

@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Diagnostics.Tracing;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Utilities.Configuration.Mutable
 {

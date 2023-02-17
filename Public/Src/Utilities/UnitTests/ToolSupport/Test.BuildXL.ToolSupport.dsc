@@ -9,6 +9,7 @@ namespace ToolSupport {
         references: [
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").ToolSupport.dll,
+            importFrom("BuildXL.Utilities").Utilities.Core.dll,
         ],
     });
 }

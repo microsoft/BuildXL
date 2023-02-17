@@ -26,6 +26,7 @@ namespace BxlPipGraphFragmentGenerator {
             importFrom("BuildXL.Utilities").Script.Constants.dll,
             importFrom("BuildXL.Utilities").Storage.dll,
             importFrom("BuildXL.Utilities").ToolSupport.dll,
+            importFrom("BuildXL.Utilities").Utilities.Core.dll,
             importFrom("BuildXL.FrontEnd").Core.dll,
             importFrom("BuildXL.FrontEnd").Factory.dll,
             importFrom("BuildXL.FrontEnd").Download.dll,

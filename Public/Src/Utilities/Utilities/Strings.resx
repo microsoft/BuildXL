@@ -12,14 +12,8 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
-  <data name="EvalStatusLine" xml:space="preserve">
-    <value>Values: {{0,{0}}} done, {{1,{0}}} waiting</value>
-  </data>
   <data name="ErrorLazyReentrancy" xml:space="preserve">
     <value>ValueFactory attempted to access the Value property of this instance.</value>
-  </data>
-  <data name="ExceptionUtilities_MissingDependencyPattern" xml:space="preserve">
-    <value>Could not load file or assembly</value>
   </data>
   <data name="ExecutionAnalyzer_HelpLink" xml:space="preserve">
     <value>https://aka.ms/BuildXLExecutionAnalyzers</value>

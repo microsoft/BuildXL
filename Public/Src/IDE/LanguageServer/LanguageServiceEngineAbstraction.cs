@@ -7,7 +7,7 @@ using System.Linq;
 using System.Text;
 using BuildXL.Engine;
 using BuildXL.Native.IO;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 
 namespace BuildXL.Ide.LanguageServer

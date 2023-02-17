@@ -7,7 +7,7 @@ using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.Values;
 using BuildXL.Pips;
 using BuildXL.Pips.Operations;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using LineInfo = TypeScript.Net.Utilities.LineInfo;
 

@@ -24,13 +24,13 @@ using BuildXL.Storage.ChangeTracking;
 using BuildXL.Storage.Fingerprints;
 using BuildXL.Tracing;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
-using BuildXL.Utilities.Tracing;
 using static BuildXL.Tracing.Diagnostics;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 using Logger = BuildXL.Scheduler.Tracing.Logger;
 
 namespace BuildXL.Scheduler.Artifacts

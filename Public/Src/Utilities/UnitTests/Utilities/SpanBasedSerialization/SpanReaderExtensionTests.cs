@@ -4,7 +4,7 @@
 using System;
 using System.IO;
 using System.Linq;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Serialization;
 using FluentAssertions;
 using Xunit;

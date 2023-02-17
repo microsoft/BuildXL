@@ -7,7 +7,7 @@ using BuildXL.Ipc.Common;
 using BuildXL.Ipc.Common.Connectivity;
 using BuildXL.Plugin;
 using BuildXL.Plugin.Grpc;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;

@@ -16,7 +16,7 @@ using BuildXL.Pips;
 using BuildXL.Pips.DirectedGraph;
 using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Utilities.Configuration;
@@ -27,7 +27,7 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using static BuildXL.Scheduler.Tracing.CacheMissAnalysisUtilities;
 using static BuildXL.Scheduler.Tracing.FingerprintStore;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace BuildXL.Scheduler.Tracing
 {

@@ -5,6 +5,7 @@ using System;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Utilities.Tracing
 {

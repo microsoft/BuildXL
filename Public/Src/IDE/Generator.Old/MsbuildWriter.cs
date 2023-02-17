@@ -14,6 +14,7 @@ using System.Text;
 using System.Xml.Linq;
 using BuildXL.FrontEnd.Script.Constants;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using static BuildXL.Utilities.Collections.CollectionUtilities;
 

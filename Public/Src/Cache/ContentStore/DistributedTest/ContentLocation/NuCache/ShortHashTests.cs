@@ -11,6 +11,7 @@ using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using FluentAssertions;
 using Xunit;
 using Xunit.Abstractions;

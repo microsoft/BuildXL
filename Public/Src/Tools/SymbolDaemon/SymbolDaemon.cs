@@ -15,7 +15,7 @@ using BuildXL.Ipc.Common;
 using BuildXL.Ipc.ExternalApi;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Storage;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.CLI;
 using BuildXL.Utilities.Tasks;
 using Microsoft.VisualStudio.Services.Common;
@@ -24,7 +24,7 @@ using Microsoft.VisualStudio.Services.Symbol.Common;
 using Microsoft.VisualStudio.Services.Symbol.WebApi;
 using Newtonsoft.Json;
 using Tool.ServicePipDaemon;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace Tool.SymbolDaemon
 {

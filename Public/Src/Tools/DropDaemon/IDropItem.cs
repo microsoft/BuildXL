@@ -5,7 +5,7 @@ using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using JetBrains.Annotations;
 using Pure = System.Diagnostics.Contracts.PureAttribute;
 

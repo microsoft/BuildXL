@@ -29,6 +29,7 @@ using BuildXL.Storage;
 using BuildXL.ToolSupport;
 using BuildXL.Tracing;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
@@ -48,7 +49,7 @@ using Strings = bxl.Strings;
 #pragma warning disable SA1649 // File name must match first type name
 using BuildXL.Utilities.CrashReporting;
 
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 using System.Runtime.InteropServices;
 using BuildXL.Utilities.Tasks;
 
@@ -652,10 +653,9 @@ namespace BuildXL
                         // GRPC tends to leave unobserved task exceptions in its normal operation. Eat those.
                         if (eventArgs.Exception != null)
                         {
-                            ExceptionRootCause rootCause = ExceptionUtilities.AnalyzeExceptionRootCause(eventArgs.Exception);
-                            if (rootCause == ExceptionRootCause.NetworkException)
+                            if ((Exception)eventArgs.Exception is Grpc.Core.RpcException)
                             {
-                                UnexpectedCondition.Log(pm.LoggingContext, $"Swallow the following unobserved task exception. Root cause: {rootCause}, Exception: {eventArgs.Exception.ToStringDemystified()}");
+                                UnexpectedCondition.Log(pm.LoggingContext, $"Swallow the following unobserved task exception. Root cause: {ExceptionRootCause.NetworkException}, Exception: {eventArgs.Exception.ToStringDemystified()}");
                                 return;
                             }
                         }

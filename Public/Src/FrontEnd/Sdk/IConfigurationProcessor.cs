@@ -2,7 +2,7 @@
 // Licensed under the MIT License.
 
 using BuildXL.FrontEnd.Sdk.Workspaces;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using JetBrains.Annotations;
 

@@ -15,6 +15,7 @@ namespace Interfaces {
             importFrom("BuildXL.Utilities").Native.dll,
             importFrom("BuildXL.Utilities").Storage.dll,
             importFrom("BuildXL.Utilities").Configuration.dll,
+            importFrom("BuildXL.Utilities").Utilities.Core.dll,
             importFrom("BuildXL.Cache.VerticalStore").ImplementationSupport.dll,
             importFrom("BuildXL.Cache.VerticalStore").InMemory.dll,
             importFrom("BuildXL.Cache.VerticalStore").Interfaces.dll,

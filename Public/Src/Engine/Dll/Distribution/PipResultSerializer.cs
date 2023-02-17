@@ -3,7 +3,7 @@
 
 using System;
 using System.Threading;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using System.Collections.Concurrent;
 using BuildXL.Pips;
 using BuildXL.Scheduler.Distribution;

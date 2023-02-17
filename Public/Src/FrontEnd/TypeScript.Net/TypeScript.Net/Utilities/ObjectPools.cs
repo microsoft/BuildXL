@@ -4,7 +4,7 @@
 using System.Collections.Generic;
 using System.Text;
 using System.Threading;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using TypeScript.Net.Binding;
 using TypeScript.Net.Parsing;
 using TypeScript.Net.Types;

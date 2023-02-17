@@ -4,7 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using LanguageServer;
 using Microsoft.VisualStudio.LanguageServer.Protocol;
 using TypeScript.Net.Types;

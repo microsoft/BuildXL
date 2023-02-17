@@ -6,8 +6,9 @@ using System.Diagnostics.ContractsLight;
 using System.IO;
 using BuildXL.Native.IO;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using Microsoft.Win32.SafeHandles;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace BuildXL.Storage
 {

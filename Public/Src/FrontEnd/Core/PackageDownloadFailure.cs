@@ -3,8 +3,8 @@
 
 using System;
 using System.Diagnostics.CodeAnalysis;
-using BuildXL.Utilities;
-using static BuildXL.Utilities.FormattableStringEx;
+using BuildXL.Utilities.Core;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace BuildXL.FrontEnd.Core
 {

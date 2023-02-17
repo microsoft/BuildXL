@@ -2,10 +2,9 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Diagnostics.ContractsLight;
 using System.IO;
 using BuildXL.Native.Processes;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Native.IO
 {

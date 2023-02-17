@@ -3,7 +3,7 @@
 
 using System.Diagnostics.ContractsLight;
 using BuildXL.FrontEnd.Script.Util;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using JetBrains.Annotations;
 using LineInfo = TypeScript.Net.Utilities.LineInfo;
 

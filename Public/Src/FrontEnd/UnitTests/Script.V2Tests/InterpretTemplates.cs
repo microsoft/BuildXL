@@ -2,7 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.FrontEnd.Script.Tracing;
 using Test.DScript.Ast.DScriptV2;
 using Xunit;

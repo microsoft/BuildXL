@@ -2,7 +2,7 @@
 // Licensed under the MIT License.
 
 using System.Diagnostics.ContractsLight;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using TypeScript.Net.Diagnostics;
 using TypeScript.Net.Scanning;
 using TypeScript.Net.Types;

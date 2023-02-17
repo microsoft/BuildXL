@@ -1,8 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using BuildXL.Utilities;
-using static BuildXL.Utilities.FormattableStringEx;
+using BuildXL.Utilities.Core;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace BuildXL.FrontEnd.Sdk.Workspaces
 {

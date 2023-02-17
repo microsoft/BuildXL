@@ -4,7 +4,7 @@
 using System;
 using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace BuildXL.Native.IO.Windows
 {

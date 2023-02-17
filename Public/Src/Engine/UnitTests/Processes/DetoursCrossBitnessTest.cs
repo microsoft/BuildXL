@@ -9,7 +9,7 @@ using System.Reflection;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
-using AssemblyHelper = BuildXL.Utilities.AssemblyHelper;
+using AssemblyHelper = BuildXL.Utilities.Core.AssemblyHelper;
 
 namespace Test.BuildXL.Processes
 {

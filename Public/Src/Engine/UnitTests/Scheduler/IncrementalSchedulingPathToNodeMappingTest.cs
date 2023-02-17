@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using BuildXL.Pips.DirectedGraph;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using Xunit;
 using Xunit.Abstractions;
 using IncrementalSchedulingPathToNodeMapping = BuildXL.Scheduler.IncrementalScheduling.IncrementalSchedulingPathMapping<BuildXL.Pips.DirectedGraph.NodeId>;

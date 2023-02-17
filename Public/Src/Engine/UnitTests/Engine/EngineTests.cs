@@ -11,6 +11,7 @@ using BuildXL.Engine.Recovery;
 using BuildXL.Native.IO;
 using BuildXL.Native.IO.Windows;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
 using Test.BuildXL.Engine;

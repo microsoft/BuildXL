@@ -3,7 +3,7 @@
 
 using BuildXL.Native.IO;
 using BuildXL.Native.IO.Windows;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 

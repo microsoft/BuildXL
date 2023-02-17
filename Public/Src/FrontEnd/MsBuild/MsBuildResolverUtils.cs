@@ -4,7 +4,7 @@
 using System.Linq;
 using BuildXL.FrontEnd.MsBuild.Serialization;
 using BuildXL.FrontEnd.Sdk;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.FrontEnd.MsBuild
 {

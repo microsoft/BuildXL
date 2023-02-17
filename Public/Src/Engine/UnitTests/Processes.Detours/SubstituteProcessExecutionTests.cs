@@ -9,6 +9,7 @@ using System.Text;
 using System.Threading.Tasks;
 using BuildXL.Processes;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;

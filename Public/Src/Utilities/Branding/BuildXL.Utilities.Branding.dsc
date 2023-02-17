@@ -34,6 +34,7 @@ namespace Branding {
         sources: globR(d`.`, "*.cs"),
         references: [
             $.dll,
+            Utilities.Core.dll,
         ],
         runtimeContent: [
             Manifest.file,

@@ -11,7 +11,7 @@ using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Native.IO;
 using BuildXL.Pips.Graph;
 using BuildXL.ToolSupport;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using TypeScript.Net.Parsing;

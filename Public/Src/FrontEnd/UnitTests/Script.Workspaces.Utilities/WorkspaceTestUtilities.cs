@@ -5,7 +5,7 @@ using BuildXL.Utilities.Configuration.Mutable;
 using Test.BuildXL.TestUtilities.Xunit;
 using TypeScript.Net.Parsing;
 using TypeScript.Net.Types;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace Test.DScript.Workspaces.Utilities
 {

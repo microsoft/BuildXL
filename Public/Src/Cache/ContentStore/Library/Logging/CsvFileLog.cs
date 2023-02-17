@@ -8,7 +8,7 @@ using System.Globalization;
 using System.Linq;
 using System.Text;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Cache.ContentStore.Logging
 {

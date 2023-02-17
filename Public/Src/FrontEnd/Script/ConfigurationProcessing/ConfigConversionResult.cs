@@ -3,7 +3,7 @@
 
 using BuildXL.FrontEnd.Script.RuntimeModel;
 using BuildXL.FrontEnd.Script.Values;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.FrontEnd.Script
 {

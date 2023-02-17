@@ -3,7 +3,7 @@
 
 using System;
 using BuildXL.Utilities;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace BuildXL.Native.IO
 {

@@ -2,7 +2,7 @@
 // Licensed under the MIT License.
 
 using BuildXL.Engine;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;

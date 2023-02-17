@@ -17,13 +17,14 @@ using BuildXL.Pips.Operations;
 using BuildXL.Processes;
 using BuildXL.Processes.Containers;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
 using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-using AssemblyHelper = BuildXL.Utilities.AssemblyHelper;
+using AssemblyHelper = BuildXL.Utilities.Core.AssemblyHelper;
 using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;
 
 #pragma warning disable AsyncFixer02
@@ -556,7 +557,7 @@ namespace Test.BuildXL.Processes.Detours
             {
                 // FileLinkInformationEx is only available starting RS5 (ver 1809, OS build 17763)
                 // skip the test if it's running on a machine that does not support it.
-                var versionString = OperatingSystemHelper.GetOSVersion();
+                var versionString = OperatingSystemHelperExtension.GetOSVersion();
 
                 int build = 0;
                 var match = Regex.Match(versionString, @"^Windows\s\d+\s\w+\s(?<buildId>\d+)", RegexOptions.Compiled | RegexOptions.CultureInvariant);
@@ -7522,15 +7523,15 @@ namespace Test.BuildXL.Processes.Detours
 
             using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory))
             {
-                var targetDirectory = tempFiles.GetDirectory(pathTable, "SourceDirectoryﬂ");
+                var targetDirectory = tempFiles.GetDirectory(pathTable, "SourceDirectory√ü");
                 var targetDirectoryArtifact = CreateDirectory(pathTable, targetDirectory);
                 var expandedDirectoryPath = targetDirectory.Expand(pathTable).ToString();
 
-                var firstDirectorySymlink = tempFiles.GetFileName(pathTable, "First_DirectorySymlinkﬂ");
+                var firstDirectorySymlink = tempFiles.GetFileName(pathTable, "First_DirectorySymlink√ü");
 
                 XAssert.PossiblySucceeded(FileUtilities.TryCreateSymbolicLink(firstDirectorySymlink.ToString(pathTable), expandedDirectoryPath, false));
 
-                var outputFile = tempFiles.GetFileName(pathTable, "SourceDirectoryﬂ\\outputﬂ.txt");
+                var outputFile = tempFiles.GetFileName(pathTable, "SourceDirectory√ü\\output√ü.txt");
 
                 var process = CreateDetourProcess(
                     context,

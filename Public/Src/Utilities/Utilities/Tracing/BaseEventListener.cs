@@ -6,6 +6,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Diagnostics.Tracing;
 using System.Threading;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 
 namespace BuildXL.Utilities.Tracing

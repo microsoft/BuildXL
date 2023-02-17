@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using BuildXL.Utilities.Configuration.Resolvers;
 using BuildXL.Utilities.Configuration.Resolvers.Mutable;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Utilities.Configuration.Mutable
 {

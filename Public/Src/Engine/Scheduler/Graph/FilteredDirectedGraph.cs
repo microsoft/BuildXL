@@ -7,6 +7,7 @@ using System.Diagnostics.ContractsLight;
 using System.Linq;
 using BuildXL.Pips.DirectedGraph;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Scheduler.Graph
 {

@@ -6,7 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using BuildXL.Scheduler;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Tracing;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;

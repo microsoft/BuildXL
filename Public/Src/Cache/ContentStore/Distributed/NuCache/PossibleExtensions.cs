@@ -2,7 +2,7 @@
 // Licensed under the MIT License.
 
 using BuildXL.Cache.ContentStore.Interfaces.Results;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Tasks;
 
 #nullable enable

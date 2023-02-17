@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Engine.Cache.Artifacts;
 using BuildXL.FrontEnd.Sdk.FileSystem;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using JetBrains.Annotations;
 

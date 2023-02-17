@@ -11,7 +11,7 @@ using Test.BuildXL.FrontEnd.Core;
 using Xunit;
 using Xunit.Abstractions;
 using DsSet = BuildXL.FrontEnd.Script.Ambients.Set.OrderedSet;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace Test.DScript.Ast.Interpretation
 {

@@ -3,7 +3,7 @@
 
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 
 #pragma warning disable SA1649 // File name must match first type name

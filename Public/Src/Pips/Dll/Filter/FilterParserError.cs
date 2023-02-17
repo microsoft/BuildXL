@@ -3,7 +3,7 @@
 
 using System.Diagnostics.ContractsLight;
 using System.Globalization;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace BuildXL.Pips.Filter
 {

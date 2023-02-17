@@ -6,7 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.FrontEnd.Script.Ambients.Transformers;
 using BuildXL.FrontEnd.Script.Values;
 using BuildXL.FrontEnd.Script.Evaluator;

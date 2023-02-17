@@ -11,7 +11,7 @@ using BuildXL.Pips;
 using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.Graph;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using TypeScript.Net.Types;
 
 namespace BuildXL.FrontEnd.Script.Testing.Helper

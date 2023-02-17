@@ -8,15 +8,13 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.Interfaces;
-using BuildXL.Engine.Cache.Artifacts;
 using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Engine.Cache.Fingerprints.TwoPhase;
 using BuildXL.Storage;
 using BuildXL.Storage.Fingerprints;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
-using BuildXL.Utilities.Tasks;
 
 namespace BuildXL.Engine.Cache.Plugin.CacheCore
 {

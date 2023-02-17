@@ -4,8 +4,8 @@
 using System.IO;
 using System.Threading.Tasks;
 using BuildXL.Processes;
-using BuildXL.Utilities;
-using BuildXL.Utilities.Qualifier;
+using BuildXL.Utilities.Core;
+using BuildXL.Utilities.Core.Qualifier;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Configuration;
 using Test.BuildXL.TestUtilities.Xunit;

@@ -7,14 +7,14 @@ using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
 using BuildXL.Ide.JsonRpc;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using Microsoft.VisualStudio.LanguageServer.Protocol;
 using Nerdbank.Streams;
 using Newtonsoft.Json.Linq;
 using StreamJsonRpc;
 using Test.BuildXL.FrontEnd.Core;
 using Xunit.Abstractions;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace BuildXL.Ide.LanguageServer.UnitTests.Helpers
 {

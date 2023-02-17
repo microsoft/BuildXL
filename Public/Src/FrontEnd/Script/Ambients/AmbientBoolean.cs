@@ -3,7 +3,7 @@
 
 using System.Collections.Generic;
 using BuildXL.FrontEnd.Script.Values;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.FrontEnd.Script.Ambients
 {

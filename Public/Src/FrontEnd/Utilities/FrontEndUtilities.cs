@@ -23,6 +23,7 @@ using BuildXL.Pips.Operations;
 using BuildXL.Processes;
 using BuildXL.Processes.Containers;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using JetBrains.Annotations;
 using TypeScript.Net.Binding;
@@ -156,7 +157,7 @@ namespace BuildXL.FrontEnd.Utilities
                             {
                                 ReportQueueSizeMB = 1024,
 #if PLATFORM_OSX
-                            EnableCatalinaDataPartitionFiltering = OperatingSystemHelper.IsMacWithoutKernelExtensionSupport
+                            EnableCatalinaDataPartitionFiltering = OperatingSystemHelperExtension.IsMacWithoutKernelExtensionSupport
 #endif
                             }
                         });

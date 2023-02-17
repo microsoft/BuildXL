@@ -3,7 +3,7 @@
 
 using System.Threading.Tasks;
 using BuildXL.Processes;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using Xunit;
 
 namespace Test.BuildXL.Processes

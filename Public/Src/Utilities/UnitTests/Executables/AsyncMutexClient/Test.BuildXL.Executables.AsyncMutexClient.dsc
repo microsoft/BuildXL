@@ -9,6 +9,7 @@ namespace AsyncMutexClient {
         sources: globR(d`.`, "*.cs"),
         references: [
             importFrom("BuildXL.Utilities").dll,
+            importFrom("BuildXL.Utilities").Utilities.Core.dll,
         ]
     });
 }

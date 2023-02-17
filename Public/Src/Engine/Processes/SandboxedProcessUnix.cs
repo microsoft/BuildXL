@@ -9,19 +9,19 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Interop;
 using BuildXL.Interop.Unix;
 using BuildXL.Native.IO;
 using BuildXL.Native.Processes;
 using BuildXL.Pips;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Utilities.Tasks;
 using JetBrains.Annotations;
 using static BuildXL.Interop.Unix.Sandbox;
 using static BuildXL.Processes.SandboxedProcessFactory;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 #nullable enable
 

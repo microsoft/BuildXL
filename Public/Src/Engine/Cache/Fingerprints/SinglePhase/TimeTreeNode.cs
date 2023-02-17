@@ -6,7 +6,7 @@ using System.Collections.Generic;
 using BuildXL.Storage;
 using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities.Collections;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace BuildXL.Engine.Cache.Fingerprints.SinglePhase
 {

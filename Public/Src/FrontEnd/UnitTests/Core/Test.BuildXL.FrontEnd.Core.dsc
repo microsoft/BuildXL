@@ -30,6 +30,7 @@ namespace Core {
             importFrom("BuildXL.Utilities").Native.dll,
             importFrom("BuildXL.Utilities").Storage.dll,
             importFrom("BuildXL.Utilities").Script.Constants.dll,
+            importFrom("BuildXL.Utilities").Utilities.Core.dll,
             importFrom("BuildXL.Utilities.UnitTests").Configuration.dll,
             ...addIf(BuildXLSdk.isFullFramework,
                 importFrom("System.Collections.Immutable").pkg

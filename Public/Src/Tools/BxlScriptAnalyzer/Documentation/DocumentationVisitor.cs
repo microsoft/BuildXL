@@ -4,7 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using TypeScript.Net.Api;
 using TypeScript.Net.Reformatter;
 using TypeScript.Net.Types;

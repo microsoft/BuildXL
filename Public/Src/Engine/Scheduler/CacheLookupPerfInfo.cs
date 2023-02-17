@@ -4,7 +4,7 @@
 using System;
 using System.Threading;
 using BuildXL.Scheduler.Tracing;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Scheduler
 {

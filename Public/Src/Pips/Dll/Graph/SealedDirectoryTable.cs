@@ -7,7 +7,7 @@ using System.Linq;
 using System.Threading;
 using BuildXL.Pips.DirectedGraph;
 using BuildXL.Pips.Operations;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 
 #pragma warning disable 1591 // disabling warning about missing API documentation; TODO: Remove this line and write documentation!
@@ -67,7 +67,7 @@ namespace BuildXL.Pips.Graph
         }
 
         /// <summary>
-        /// Finds the <see cref="BuildXL.Utilities.DirectoryArtifact"/> for one of the <see cref="SealDirectory"/> pips that
+        /// Finds the <see cref="BuildXL.Utilities.Core.DirectoryArtifact"/> for one of the <see cref="SealDirectory"/> pips that
         /// references the given file. Returns <see cref="DirectoryArtifact.Invalid"/> if no existing seal
         /// contains the file.
         /// </summary>
@@ -162,7 +162,7 @@ namespace BuildXL.Pips.Graph
         }
 
         /// <summary>
-        /// Finds the <see cref="BuildXL.Utilities.DirectoryArtifact"/> for a full <see cref="SealDirectory"/> pip in this collection given a path under the
+        /// Finds the <see cref="BuildXL.Utilities.Core.DirectoryArtifact"/> for a full <see cref="SealDirectory"/> pip in this collection given a path under the
         /// directory.
         /// Returns <see cref="DirectoryArtifact.Invalid"/> if no full seal has been added.
         /// </summary>
@@ -181,7 +181,7 @@ namespace BuildXL.Pips.Graph
         }
 
         /// <summary>
-        /// Finds the <see cref="BuildXL.Utilities.DirectoryArtifact"/> for a full <see cref="SealDirectory"/> pip in this collection given a path under the directory.
+        /// Finds the <see cref="BuildXL.Utilities.Core.DirectoryArtifact"/> for a full <see cref="SealDirectory"/> pip in this collection given a path under the directory.
         /// </summary>
         /// <param name="directory">Directory to be validated.</param>
         /// <returns>Found directory artifact, otherwise <see cref="DirectoryArtifact.Invalid"/>.</returns>
@@ -215,7 +215,7 @@ namespace BuildXL.Pips.Graph
         }
 
         /// <summary>
-        /// Reserves a new and unique <see cref="BuildXL.Utilities.DirectoryArtifact"/>. This should be assigned to a seal directory pip
+        /// Reserves a new and unique <see cref="BuildXL.Utilities.Core.DirectoryArtifact"/>. This should be assigned to a seal directory pip
         /// with <see cref="SealDirectory.SetDirectoryArtifact"/> before adding it with <see cref="AddSeal"/>.
         /// </summary>
         public DirectoryArtifact ReserveDirectoryArtifact(SealDirectory sealDirectory)
@@ -249,7 +249,7 @@ namespace BuildXL.Pips.Graph
         }
 
         /// <summary>
-        /// Adds a <see cref="SealDirectory"/> with a unique <see cref="BuildXL.Utilities.DirectoryArtifact"/> previously reserved with <see cref="ReserveDirectoryArtifact"/>.
+        /// Adds a <see cref="SealDirectory"/> with a unique <see cref="BuildXL.Utilities.Core.DirectoryArtifact"/> previously reserved with <see cref="ReserveDirectoryArtifact"/>.
         /// </summary>
         public void AddSeal(SealDirectory seal)
         {

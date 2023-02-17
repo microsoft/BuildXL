@@ -11,7 +11,7 @@ using JetBrains.Annotations;
 using TypeScript.Net.Parsing;
 using TypeScript.Net.Reformatter;
 using TypeScript.Net.Scanning;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace TypeScript.Net.Types
 {

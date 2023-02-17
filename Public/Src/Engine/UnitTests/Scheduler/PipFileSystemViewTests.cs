@@ -4,7 +4,7 @@
 using System.Collections.Generic;
 using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Native.IO;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration.Mutable;
 using Test.BuildXL.Scheduler.Utils;
@@ -12,7 +12,7 @@ using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
 using SortedFileArtifacts =
-    BuildXL.Utilities.Collections.SortedReadOnlyArray<BuildXL.Utilities.FileArtifact, BuildXL.Utilities.OrdinalFileArtifactComparer>;
+    BuildXL.Utilities.Collections.SortedReadOnlyArray<BuildXL.Utilities.Core.FileArtifact, BuildXL.Utilities.Core.OrdinalFileArtifactComparer>;
 using System.Text.RegularExpressions;
 
 namespace Test.BuildXL.Scheduler

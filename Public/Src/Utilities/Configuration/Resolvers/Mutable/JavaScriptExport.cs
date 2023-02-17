@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Utilities.Configuration.Mutable
 {

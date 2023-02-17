@@ -6,8 +6,8 @@ using System.Collections.Generic;
 using System.Linq;
 using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
-using BuildXL.Utilities;
-using static BuildXL.Utilities.FormattableStringEx;
+using BuildXL.Utilities.Core;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace BuildXL.Pips.DirectedGraph
 {

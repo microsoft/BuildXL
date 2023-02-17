@@ -10,10 +10,8 @@ using System.Text;
 using BuildXL.Storage;
 using BuildXL.Storage.ChangeJournalService;
 using BuildXL.Storage.ChangeTracking;
-using BuildXL.Utilities;
 using BuildXL.Utilities.Instrumentation.Common;
 using Test.BuildXL.TestUtilities.Xunit;
-using Xunit;
 using Xunit.Abstractions;
 
 namespace BuildXL.CloudTest.Gvfs

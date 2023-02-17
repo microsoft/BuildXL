@@ -4,6 +4,7 @@
 using System;
 using BuildXL.Native.IO;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL
 {
@@ -65,7 +66,7 @@ namespace BuildXL
 
         /// <summary>
         /// Returns the runtime on which this process is currently running
-        /// (<see cref="OperatingSystemHelper.GetRuntimeFrameworkNameAndVersion"/>)
+        /// (<see cref="OperatingSystemHelperExtension.GetRuntimeFrameworkNameAndVersion"/>)
         /// </summary>
         public string RuntimeFrameworkName { get; private set; }
 
@@ -76,9 +77,9 @@ namespace BuildXL
         {
             MachineInfo mi = new MachineInfo();
             mi.ProcessorCount = Environment.ProcessorCount;
-            mi.OsVersion = OperatingSystemHelper.GetOSVersion();
-            mi.ProcessorName = OperatingSystemHelper.GetProcessorName();
-            mi.ProcessorIdentifier = OperatingSystemHelper.GetProcessorIdentifier();
+            mi.OsVersion = OperatingSystemHelperExtension.GetOSVersion();
+            mi.ProcessorName = OperatingSystemHelperExtension.GetProcessorName();
+            mi.ProcessorIdentifier = OperatingSystemHelperExtension.GetProcessorIdentifier();
 
 #if NET_FRAMEWORK
             try {
@@ -92,8 +93,8 @@ namespace BuildXL
 #if NET_FRAMEWORK
             }
 #endif
-            mi.InstalledMemoryMB = OperatingSystemHelper.GetPhysicalMemorySize().MB;
-            mi.AvailableMemoryMB = OperatingSystemHelper.GetAvailablePhysicalMemorySize().MB;
+            mi.InstalledMemoryMB = OperatingSystemHelperExtension.GetPhysicalMemorySize().MB;
+            mi.AvailableMemoryMB = OperatingSystemHelperExtension.GetAvailablePhysicalMemorySize().MB;
 
 
             char currentDrive = Environment.CurrentDirectory[0];
@@ -101,8 +102,8 @@ namespace BuildXL
                 ? FileUtilities.DoesLogicalDriveHaveSeekPenalty(currentDrive)
                 : false;
             mi.CurrentDriveHasSeekPenalty = seekPenalty ?? false;
-            mi.DotNetFrameworkVersion = OperatingSystemHelper.GetInstalledDotNetFrameworkVersion();
-            mi.RuntimeFrameworkName = OperatingSystemHelper.GetRuntimeFrameworkNameAndVersion();
+            mi.DotNetFrameworkVersion = OperatingSystemHelperExtension.GetInstalledDotNetFrameworkVersion();
+            mi.RuntimeFrameworkName = OperatingSystemHelperExtension.GetRuntimeFrameworkNameAndVersion();
             return mi;
         }
     }

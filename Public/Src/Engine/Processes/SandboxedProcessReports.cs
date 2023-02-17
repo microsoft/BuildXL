@@ -11,12 +11,12 @@ using System.Linq;
 using System.Threading;
 using BuildXL.Native.IO;
 using BuildXL.Processes.Sideband;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Instrumentation.Common;
 using JetBrains.Annotations;
 using static BuildXL.Processes.IDetoursEventListener;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace BuildXL.Processes
 {

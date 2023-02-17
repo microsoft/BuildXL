@@ -13,6 +13,7 @@ namespace Ipc {
             importFrom("BuildXL.Utilities").Ipc.dll,
             importFrom("BuildXL.Utilities").Ipc.Providers.dll,
             importFrom("BuildXL.Utilities").Storage.dll,
+            importFrom("BuildXL.Utilities").Utilities.Core.dll,
             importFrom("BuildXL.Cache.ContentStore").Hashing.dll,
             ...BuildXLSdk.systemThreadingTasksDataflowPackageReference,
             ...addIf(

@@ -6,7 +6,7 @@ using System.IO;
 using System.Linq;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Engine;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 

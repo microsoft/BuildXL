@@ -2,11 +2,11 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Diagnostics.ContractsLight;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Native.IO;
 using BuildXL.Utilities;
-using static BuildXL.Utilities.FormattableStringEx;
+using BuildXL.Utilities.Core;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace BuildXL.Storage.ChangeTracking
 {

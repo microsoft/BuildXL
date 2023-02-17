@@ -2,7 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.FrontEnd.Script.Ambients.Exceptions;
 using BuildXL.FrontEnd.Script.Ambients;
 using BuildXL.FrontEnd.Script.Values;

@@ -23,6 +23,7 @@ using BuildXL.Pips.Graph;
 using BuildXL.Scheduler;
 using BuildXL.Storage;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Utilities.Configuration.Mutable;
@@ -173,7 +174,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer
             {
                 // The IDE engine typically doesn't have mounts configured. We do it here if they haven't been configured yet.
                 // Observe these are just the default mounts used for config evaluation.
-                if (frontEndEngineAbstraction is BasicFrontEndEngineAbstraction basicEngine && !frontEndEngineAbstraction.GetMountNames("Script", BuildXL.Utilities.ModuleId.Invalid).Any())
+                if (frontEndEngineAbstraction is BasicFrontEndEngineAbstraction basicEngine && !frontEndEngineAbstraction.GetMountNames("Script", BuildXL.Utilities.Core.ModuleId.Invalid).Any())
                 {
                     // If this fails we just ignore the failure. Mounts not being properly configured doesn't prevent the IDE plugin from working.
                     basicEngine.TryPopulateWithDefaultMountsTable(loggingContext, engineContext, mutableCommandlineConfig, mutableCommandlineConfig.Startup.Properties);

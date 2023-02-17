@@ -13,6 +13,7 @@ using BuildXL.Interop.Unix;
 using BuildXL.Processes;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.CrashReporting;
 using BuildXL.Utilities.Instrumentation.Common;
@@ -176,7 +177,7 @@ namespace BuildXL.SandboxExec
                 ? new CrashCollectorMacOS(new[] { CrashType.SandboxExec, CrashType.Kernel })
                 : null;
 
-            if (!OperatingSystemHelper.IsMacWithoutKernelExtensionSupport &&
+            if (!OperatingSystemHelperExtension.IsMacWithoutKernelExtensionSupport &&
                 (m_options.SandboxKindUsed == SandboxKind.MacOsEndpointSecurity || m_options.SandboxKindUsed == SandboxKind.MacOsHybrid))
             {
                 throw new NotSupportedException("EndpointSecurity and Hybrid sandbox types can't be run on system older than macOS Catalina (10.15+).");
@@ -199,7 +200,7 @@ namespace BuildXL.SandboxExec
                             ReportQueueSizeMB = m_options.ReportQueueSizeMB,
                             EnableReportBatching = m_options.EnableReportBatching,
 #if PLATFORM_OSX
-                            EnableCatalinaDataPartitionFiltering = OperatingSystemHelper.IsMacWithoutKernelExtensionSupport
+                            EnableCatalinaDataPartitionFiltering = OperatingSystemHelperExtension.IsMacWithoutKernelExtensionSupport
 #endif
                         }
                     });

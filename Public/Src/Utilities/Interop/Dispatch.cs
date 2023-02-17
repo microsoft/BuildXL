@@ -6,7 +6,6 @@ using System.Runtime.InteropServices;
 using BuildXL.Interop.Unix;
 
 using static BuildXL.Interop.Unix.Process;
-using static BuildXL.Interop.Windows.Memory;
 
 namespace BuildXL.Interop
 {

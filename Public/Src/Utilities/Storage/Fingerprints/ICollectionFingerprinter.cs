@@ -2,7 +2,7 @@
 // Licensed under the MIT License.
 
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Storage.Fingerprints
 {

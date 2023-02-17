@@ -7,7 +7,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Processes;
 using BuildXL.Scheduler;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 

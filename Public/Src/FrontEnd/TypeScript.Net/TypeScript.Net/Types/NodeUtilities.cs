@@ -9,7 +9,7 @@ using JetBrains.Annotations;
 using TypeScript.Net.Extensions;
 using TypeScript.Net.Parsing;
 using TypeScript.Net.Scanning;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 using CollectionExtensions = TypeScript.Net.Extensions.CollectionExtensions;
 
 namespace TypeScript.Net.Types

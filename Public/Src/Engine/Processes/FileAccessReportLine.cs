@@ -9,10 +9,10 @@ using System.Globalization;
 using System.Linq;
 using System.Runtime.InteropServices;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Interop.Unix;
 using BuildXL.Native.IO;
-
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 #nullable enable
 

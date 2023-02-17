@@ -3,7 +3,7 @@
 
 using System.Linq;
 using BuildXL.Ide.LanguageServer.Utilities;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using LanguageServer;
 using Microsoft.VisualStudio.LanguageServer.Protocol;
 using TypeScript.Net.Reformatter;

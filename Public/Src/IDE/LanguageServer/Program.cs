@@ -6,7 +6,7 @@ using System.Diagnostics;
 using System.IO;
 using System.IO.Pipes;
 using System.Linq;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 #if !PLATFORM_WIN
 using BuildXL.Ide.JsonRpc;

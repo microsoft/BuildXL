@@ -25,6 +25,7 @@ namespace Yarn {
             importFrom("BuildXL.Utilities").Storage.dll,
             importFrom("BuildXL.Utilities").Script.Constants.dll,
             importFrom("BuildXL.Utilities").Native.dll,
+            importFrom("BuildXL.Utilities").Utilities.Core.dll,
             importFrom("Newtonsoft.Json").pkg,
             Utilities.dll,
             SdkProjectGraph.dll,

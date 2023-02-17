@@ -19,14 +19,14 @@ using BuildXL.Native.IO;
 using BuildXL.Storage;
 using BuildXL.Storage.ChangeTracking;
 using BuildXL.Storage.Fingerprints;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using JetBrains.Annotations;
 using Microsoft.Win32.SafeHandles;
 using static BuildXL.Utilities.BuildParameters;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace BuildXL.Engine
 {

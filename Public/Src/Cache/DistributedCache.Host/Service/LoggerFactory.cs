@@ -20,7 +20,7 @@ using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.Host.Configuration;
 using BuildXL.Cache.Logging;
 using BuildXL.Cache.Logging.External;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.ConfigurationHelpers;
 using NLog.LayoutRenderers;
 

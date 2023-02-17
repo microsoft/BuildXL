@@ -5,8 +5,7 @@ using System;
 using System.Diagnostics.ContractsLight;
 using System.Threading;
 using BuildXL.Pips.Operations;
-using BuildXL.Utilities;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace BuildXL.Pips
 {

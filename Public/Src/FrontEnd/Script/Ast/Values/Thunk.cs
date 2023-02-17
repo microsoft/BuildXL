@@ -10,7 +10,7 @@ using System.Threading;
 using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.Expressions;
 using BuildXL.FrontEnd.Sdk;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using JetBrains.Annotations;
 using LineInfo = TypeScript.Net.Utilities.LineInfo;

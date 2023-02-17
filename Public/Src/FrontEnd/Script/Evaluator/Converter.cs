@@ -10,7 +10,7 @@ using BuildXL.FrontEnd.Script.Literals;
 using BuildXL.FrontEnd.Script.Values;
 using BuildXL.Ipc.Common;
 using BuildXL.Pips;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using DsMap = BuildXL.FrontEnd.Script.Ambients.Map.OrderedMap;
 using DsSet = BuildXL.FrontEnd.Script.Ambients.Set.OrderedSet;
@@ -500,7 +500,7 @@ namespace BuildXL.FrontEnd.Script.Evaluator
         }
 
         /// <summary>
-        /// Extracts <see cref="AbsolutePath"/>, <see cref="BuildXL.Utilities.FileArtifact"/>, <see cref="BuildXL.Utilities.DirectoryArtifact"/> or <see cref="StaticDirectory"/> instance from a given object.
+        /// Extracts <see cref="AbsolutePath"/>, <see cref="BuildXL.Utilities.Core.FileArtifact"/>, <see cref="BuildXL.Utilities.Core.DirectoryArtifact"/> or <see cref="StaticDirectory"/> instance from a given object.
         /// </summary>
         /// <remarks>
         /// Returns <see cref="AbsolutePath.Invalid"/> if <paramref name="allowUndefined"/> is true and <paramref name="literal"/> doesn't have a given property.
@@ -579,7 +579,7 @@ namespace BuildXL.FrontEnd.Script.Evaluator
         }
 
         /// <summary>
-        /// Extracts <see cref="BuildXL.Utilities.FileArtifact"/> or <see cref="AbsolutePath"/> instance from a given object.
+        /// Extracts <see cref="BuildXL.Utilities.Core.FileArtifact"/> or <see cref="AbsolutePath"/> instance from a given object.
         /// </summary>
         /// <remarks>
         /// Returns <see cref="FileArtifact.Invalid"/> if <paramref name="allowUndefined"/> is true and <paramref name="literal"/> doesn't have a given property.
@@ -599,7 +599,7 @@ namespace BuildXL.FrontEnd.Script.Evaluator
         }
 
         /// <summary>
-        /// Extracts <see cref="BuildXL.Utilities.DirectoryArtifact"/> instance from a given object.
+        /// Extracts <see cref="BuildXL.Utilities.Core.DirectoryArtifact"/> instance from a given object.
         /// </summary>
         /// <remarks>
         /// Returns <see cref="DirectoryArtifact.Invalid"/> if <paramref name="allowUndefined"/> is true and <paramref name="literal"/> doesn't have a given property.

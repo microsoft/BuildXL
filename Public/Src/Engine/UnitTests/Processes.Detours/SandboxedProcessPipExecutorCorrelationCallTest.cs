@@ -8,7 +8,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Processes;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;

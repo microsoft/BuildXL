@@ -3,7 +3,7 @@
 
 using System;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Tracing;
 using Test.BuildXL.Engine;
 using Xunit;

@@ -5,9 +5,9 @@ using System.Diagnostics.ContractsLight;
 using BuildXL.FrontEnd.Script.Declarations;
 using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.Values;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
-using BuildXL.Utilities.Qualifier;
+using BuildXL.Utilities.Core.Qualifier;
 
 namespace BuildXL.FrontEnd.Script.RuntimeModel
 {

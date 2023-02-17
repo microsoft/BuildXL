@@ -15,6 +15,7 @@ namespace Utilities {
             importFrom("BuildXL.Utilities").Configuration.dll,
             importFrom("BuildXL.Utilities").Interop.dll,
             importFrom("BuildXL.Utilities").Native.dll,
+            importFrom("BuildXL.Utilities").Utilities.Core.dll,
             importFrom("BuildXL.Engine").Processes.dll,
             Script.dll,
             importFrom("Newtonsoft.Json").pkg,

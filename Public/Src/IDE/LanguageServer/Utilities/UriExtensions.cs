@@ -7,9 +7,9 @@ using System.Globalization;
 using System.IO;
 using System.Text;
 using BuildXL.FrontEnd.Workspaces.Core;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using TypeScript.Net.Types;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace BuildXL.Ide.LanguageServer
 {

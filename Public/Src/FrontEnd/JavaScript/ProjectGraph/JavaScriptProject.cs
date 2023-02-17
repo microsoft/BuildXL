@@ -6,7 +6,7 @@ using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using BuildXL.FrontEnd.Sdk.ProjectGraph;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using JetBrains.Annotations;
 

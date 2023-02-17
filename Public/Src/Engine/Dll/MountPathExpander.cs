@@ -9,7 +9,8 @@ using System.Text;
 using System.Threading.Tasks;
 using BuildXL.Pips;
 using BuildXL.Utilities;
-using static BuildXL.Utilities.FormattableStringEx;
+using BuildXL.Utilities.Core;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace BuildXL.Engine
 {

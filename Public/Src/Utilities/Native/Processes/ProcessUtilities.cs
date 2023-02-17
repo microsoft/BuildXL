@@ -14,7 +14,7 @@ using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Text;
 using BuildXL.Native.Processes.Windows;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using Microsoft.Win32.SafeHandles;
 
 #nullable enable

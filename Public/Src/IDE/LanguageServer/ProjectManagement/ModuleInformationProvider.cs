@@ -3,7 +3,7 @@
 
 using System.Collections.Generic;
 using BuildXL.Ide.JsonRpc;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using JetBrains.Annotations;
 using LanguageServer;
 using Newtonsoft.Json.Linq;

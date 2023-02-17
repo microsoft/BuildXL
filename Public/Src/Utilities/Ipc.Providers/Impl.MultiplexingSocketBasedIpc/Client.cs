@@ -11,6 +11,7 @@ using BuildXL.Ipc.Common;
 using BuildXL.Ipc.Common.Multiplexing;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Tasks;
 
 namespace BuildXL.Ipc.MultiplexingSocketBasedIpc

@@ -14,6 +14,7 @@ using BuildXL.Scheduler;
 using BuildXL.Scheduler.Graph;
 using BuildXL.Scheduler.WorkDispatcher;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 using Test.BuildXL.TestUtilities.Xunit;
 

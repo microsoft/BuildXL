@@ -12,7 +12,7 @@ using System.Text.RegularExpressions;
 using BuildXL.Cache.Interfaces;
 using BuildXL.Cache.VerticalAggregator;
 using BuildXL.ToolSupport;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Cache.Analyzer
 {

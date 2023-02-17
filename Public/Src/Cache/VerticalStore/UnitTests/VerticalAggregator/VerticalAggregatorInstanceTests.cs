@@ -6,7 +6,7 @@ using System.Diagnostics.Tracing;
 using System.Threading.Tasks;
 using BuildXL.Cache.Interfaces;
 using BuildXL.Cache.VerticalAggregator;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 

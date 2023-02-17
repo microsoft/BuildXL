@@ -3,7 +3,7 @@
 
 using BuildXL.FrontEnd.Script.Analyzer.Analyzers;
 using BuildXL.FrontEnd.Script.Analyzer.Tracing;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 using Xunit;
 

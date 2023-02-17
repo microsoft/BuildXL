@@ -8,6 +8,7 @@ using System.IO;
 using BuildXL.Native.IO;
 using BuildXL.Native.Processes;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using Xunit.Sdk;

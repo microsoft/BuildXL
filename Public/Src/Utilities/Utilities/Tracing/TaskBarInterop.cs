@@ -6,6 +6,7 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 using Microsoft.Win32.SafeHandles;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Utilities.Tracing
 {

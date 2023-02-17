@@ -8,7 +8,7 @@ using System.Linq;
 using System.Text;
 using BuildXL.Engine.Cache.KeyValueStores;
 using BuildXL.Native.IO;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 

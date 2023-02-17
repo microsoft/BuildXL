@@ -7,7 +7,7 @@ using System.ComponentModel;
 using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
 using BuildXL.Cache.Interfaces;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 
 namespace BuildXL.Cache.InMemory

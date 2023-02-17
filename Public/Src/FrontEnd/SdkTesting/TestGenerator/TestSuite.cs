@@ -9,7 +9,7 @@ using TypeScript.Net.Binding;
 using TypeScript.Net.DScript;
 using TypeScript.Net.Types;
 using TypeScript.Net.Utilities;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace BuildXL.FrontEnd.Script.Testing.TestGenerator
 {

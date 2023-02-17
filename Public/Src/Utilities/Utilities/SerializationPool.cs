@@ -4,6 +4,7 @@
 using System;
 using System.Buffers;
 using System.IO;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Serialization;
 
 namespace BuildXL.Utilities

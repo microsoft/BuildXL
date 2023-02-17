@@ -67,6 +67,7 @@ namespace Native {
             ...securityDlls,
             Collections.dll,
             Configuration.dll,
+            Utilities.Core.dll,
             importFrom("CopyOnWrite").pkg,
         ],
         runtimeContent: [

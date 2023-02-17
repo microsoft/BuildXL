@@ -13,7 +13,7 @@ using System.Text;
 using System.Threading.Tasks;
 using BuildXL.Scheduler;
 using BuildXL.Scheduler.Graph;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 
 namespace PipExecutionSimulator

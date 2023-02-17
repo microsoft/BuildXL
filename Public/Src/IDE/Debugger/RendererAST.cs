@@ -9,6 +9,7 @@ using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.Values;
 using BuildXL.Pips.Graph;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using JetBrains.Annotations;
 using VSCode.DebugProtocol;
 

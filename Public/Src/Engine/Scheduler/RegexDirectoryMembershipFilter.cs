@@ -3,7 +3,7 @@
 
 using System.Text;
 using System.Text.RegularExpressions;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 
 namespace BuildXL.Scheduler

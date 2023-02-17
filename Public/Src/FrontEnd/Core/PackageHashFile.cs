@@ -7,7 +7,7 @@ using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
 using System.Text;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using TypeScript.Net.Extensions;

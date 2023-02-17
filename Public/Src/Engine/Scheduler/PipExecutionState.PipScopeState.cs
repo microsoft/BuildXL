@@ -8,7 +8,7 @@ using BuildXL.Pips.Operations;
 using BuildXL.Processes;
 using BuildXL.Processes.Sideband;
 using BuildXL.Scheduler.Fingerprints;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 
 namespace BuildXL.Scheduler

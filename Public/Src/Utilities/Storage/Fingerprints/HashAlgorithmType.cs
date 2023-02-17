@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Storage.Fingerprints
 {
@@ -16,7 +16,7 @@ namespace BuildXL.Storage.Fingerprints
         SHA1Managed = 0, 
 
         /// <summary>
-        /// <see cref="MurmurHashEngine"/>
+        /// <see cref="BuildXL.Utilities.MurmurHashEngine"/>
         /// </summary>
         MurmurHash3 = 1
     }

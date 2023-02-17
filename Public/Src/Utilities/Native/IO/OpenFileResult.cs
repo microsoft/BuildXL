@@ -4,9 +4,9 @@
 using System;
 using System.Diagnostics.ContractsLight;
 using System.IO;
-using BuildXL.Native.IO.Windows;
 using BuildXL.Utilities;
-using static BuildXL.Utilities.FormattableStringEx;
+using BuildXL.Utilities.Core;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace BuildXL.Native.IO
 {

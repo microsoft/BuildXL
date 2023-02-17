@@ -1,9 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System;
 using System.Collections.Generic;
-using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration.Resolvers;
 
 namespace BuildXL.Utilities.Configuration

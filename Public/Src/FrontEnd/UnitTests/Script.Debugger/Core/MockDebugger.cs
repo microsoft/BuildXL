@@ -4,7 +4,7 @@
 using System.Collections;
 using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.FrontEnd.Script.Values;

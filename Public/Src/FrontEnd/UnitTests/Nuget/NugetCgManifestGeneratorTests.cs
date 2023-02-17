@@ -4,7 +4,7 @@
 using BuildXL.FrontEnd.Nuget;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Sdk.Mutable;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using Newtonsoft.Json;
 using Test.BuildXL.TestUtilities.Xunit;

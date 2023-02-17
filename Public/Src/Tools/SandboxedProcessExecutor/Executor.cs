@@ -14,6 +14,7 @@ using BuildXL.Processes;
 using BuildXL.Processes.Remoting;
 using BuildXL.SandboxedProcessExecutor.Tracing;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
 using BuildXL.Utilities.VmCommandProxy;
@@ -441,7 +442,7 @@ namespace BuildXL.SandboxedProcessExecutor
                         {
                             ReportQueueSizeMB = ReportQueueSizeForKextMB,
 #if PLATFORM_OSX
-                            EnableCatalinaDataPartitionFiltering = OperatingSystemHelper.IsMacWithoutKernelExtensionSupport
+                            EnableCatalinaDataPartitionFiltering = OperatingSystemHelperExtension.IsMacWithoutKernelExtensionSupport
 #endif
                         }
                     });

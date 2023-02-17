@@ -7,7 +7,7 @@ using System.IO;
 using System.Linq;
 using BuildXL.FrontEnd.Script.Constants;
 using BuildXL.FrontEnd.Sdk.FileSystem;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.ParallelAlgorithms;
 
 namespace BuildXL.FrontEnd.Workspaces.Core

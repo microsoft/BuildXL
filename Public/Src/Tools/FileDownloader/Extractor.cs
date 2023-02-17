@@ -6,7 +6,7 @@ using System.Diagnostics.ContractsLight;
 using System.IO;
 using BuildXL.Native.IO;
 using BuildXL.ToolSupport;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using ICSharpCode.SharpZipLib.Core;
 using ICSharpCode.SharpZipLib.GZip;

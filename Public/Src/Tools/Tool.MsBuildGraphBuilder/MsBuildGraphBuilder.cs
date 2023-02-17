@@ -24,7 +24,7 @@ using ProjectGraphWithPredictionsResult = BuildXL.FrontEnd.MsBuild.Serialization
 using ProjectGraphWithPredictions = BuildXL.FrontEnd.MsBuild.Serialization.ProjectGraphWithPredictions<string>;
 using ProjectWithPredictions = BuildXL.FrontEnd.MsBuild.Serialization.ProjectWithPredictions<string>;
 using ProjectGraphBuilder;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 namespace MsBuildGraphBuilderTool
 {

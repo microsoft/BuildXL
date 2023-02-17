@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
+using BuildXL.Utilities.Core;
 using JetBrains.Annotations;
 
 namespace BuildXL.Utilities.Configuration

@@ -9,9 +9,9 @@ using System.Threading.Tasks;
 using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.Expressions;
 using BuildXL.FrontEnd.Script.Literals;
-using BuildXL.Utilities;
-using BuildXL.Utilities.Qualifier;
-using static BuildXL.Utilities.FormattableStringEx;
+using BuildXL.Utilities.Core;
+using BuildXL.Utilities.Core.Qualifier;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 using LineInfo = TypeScript.Net.Utilities.LineInfo;
 
 namespace BuildXL.FrontEnd.Script.Values

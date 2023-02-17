@@ -5,7 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.FrontEnd.Script.Analyzer;
 using BuildXL.FrontEnd.Script.Analyzer.Tracing;

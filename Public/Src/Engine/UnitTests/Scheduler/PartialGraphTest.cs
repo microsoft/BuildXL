@@ -8,7 +8,7 @@ using BuildXL.Pips;
 using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.Graph;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration.Mutable;
 using Test.BuildXL.Scheduler.Utils;
 using Test.BuildXL.TestUtilities;

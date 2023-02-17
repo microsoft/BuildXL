@@ -6,7 +6,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using BuildXL.FrontEnd.Script.Evaluator;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using LineInfo = TypeScript.Net.Utilities.LineInfo;
 
 namespace BuildXL.FrontEnd.Script.Values

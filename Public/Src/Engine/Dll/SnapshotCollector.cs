@@ -16,11 +16,12 @@ using BuildXL.Pips;
 using BuildXL.Pips.Graph;
 using BuildXL.Scheduler.Graph;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 using ProcessNativeMethods = BuildXL.Native.Processes.ProcessUtilities;
 
 namespace BuildXL.Engine

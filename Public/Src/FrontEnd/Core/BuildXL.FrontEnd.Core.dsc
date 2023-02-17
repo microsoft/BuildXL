@@ -29,6 +29,7 @@ namespace Core {
             importFrom("BuildXL.Utilities").Storage.dll,
             importFrom("BuildXL.Utilities").ToolSupport.dll,
             importFrom("BuildXL.Utilities").Script.Constants.dll,
+            importFrom("BuildXL.Utilities").Utilities.Core.dll,
             importFrom("Newtonsoft.Json").pkg,
             Sdk.dll,
             TypeScript.Net.dll,

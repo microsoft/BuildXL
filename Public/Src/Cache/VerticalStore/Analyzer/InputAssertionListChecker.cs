@@ -14,7 +14,7 @@ using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.Interfaces;
 using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Storage;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Cache.Analyzer
 {

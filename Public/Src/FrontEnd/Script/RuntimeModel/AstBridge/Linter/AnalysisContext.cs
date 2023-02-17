@@ -6,10 +6,10 @@ using System.Diagnostics.ContractsLight;
 using BuildXL.FrontEnd.Script.Tracing;
 using BuildXL.FrontEnd.Workspaces;
 using BuildXL.FrontEnd.Workspaces.Core;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 using TypeScript.Net.Types;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
 {

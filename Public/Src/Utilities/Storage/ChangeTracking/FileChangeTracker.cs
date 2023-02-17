@@ -13,6 +13,7 @@ using BuildXL.Native.IO;
 using BuildXL.Storage.ChangeJournalService;
 using BuildXL.Storage.Tracing;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
 using Microsoft.Win32.SafeHandles;
@@ -163,7 +164,7 @@ namespace BuildXL.Storage.ChangeTracking
         /// <summary>
         /// Creates a new change tracker in the <see cref="FileChangeTrackingState.BuildingInitialChangeTrackingSet"/> state.
         /// The caller may then add tracking for full set of files of interest, for later re-use by
-        /// <see cref="ResumeTrackingChanges(LoggingContext,BuildXL.Utilities.FileEnvelopeId,VolumeMap,IChangeJournalAccessor,FileChangeTrackingSet,string)"/>.
+        /// <see cref="ResumeTrackingChanges(LoggingContext,BuildXL.Utilities.Core.FileEnvelopeId,VolumeMap,IChangeJournalAccessor,FileChangeTrackingSet,string)"/>.
         /// </summary>
         public static FileChangeTracker StartTrackingChanges(
             LoggingContext loggingContext,

@@ -9,7 +9,7 @@ using System.IO;
 using System.Threading;
 using BuildXL.Native.IO;
 using BuildXL.Processes;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 namespace Test.BuildXL.TestUtilities
 {

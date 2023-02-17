@@ -5,7 +5,7 @@ using System;
 using System.Diagnostics.ContractsLight;
 using BuildXL.FrontEnd.Script.Constants;
 using TypeScript.Net.Types;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace TypeScript.Net.DScript
 {

@@ -4,7 +4,7 @@
 using System;
 using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace TypeScript.Net.Types
 {

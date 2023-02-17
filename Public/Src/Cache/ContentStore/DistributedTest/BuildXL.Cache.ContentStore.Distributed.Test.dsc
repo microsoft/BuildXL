@@ -78,6 +78,7 @@ namespace DistributedTest {
             importFrom("BuildXL.Utilities").Collections.dll,
             importFrom("BuildXL.Utilities").KeyValueStore.dll,
             importFrom("BuildXL.Utilities").Native.dll,
+            importFrom("BuildXL.Utilities").Utilities.Core.dll,
             Grpc.dll,
             ...getGrpcPackages(true),
             ...importFrom("Sdk.Selfhost.RocksDbSharp").pkgs,

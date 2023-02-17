@@ -1,14 +1,12 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System;
 using System.Buffers;
-using System.IO;
 using System.Linq;
-using BuildXL.Utilities;
 using BuildXL.Utilities.Serialization;
 using FluentAssertions;
 using Xunit;
+
 
 namespace Test.BuildXL.Utilities.SpanBasedSerialization
 {

@@ -9,7 +9,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Ipc.ExternalApi;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using Microsoft.VisualStudio.Services.Symbol.Common;
 using Tool.ServicePipDaemon;
 

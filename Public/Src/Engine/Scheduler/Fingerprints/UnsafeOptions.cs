@@ -3,7 +3,7 @@
 
 using System.Diagnostics.ContractsLight;
 using BuildXL.Storage.Fingerprints;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using JetBrains.Annotations;
 

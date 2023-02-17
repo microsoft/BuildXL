@@ -7,7 +7,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Plugin.Grpc;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using Grpc.Core;
 using Grpc.Core.Interceptors;
 using Grpc.Core.Logging;

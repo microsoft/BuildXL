@@ -8,7 +8,7 @@ using BuildXL.Native.IO;
 using BuildXL.Storage;
 using BuildXL.Storage.ChangeJournalService;
 using BuildXL.Storage.ChangeTracking;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
 using Test.BuildXL.TestUtilities.Xunit;

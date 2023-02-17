@@ -2,7 +2,7 @@
 // Licensed under the MIT License.
 
 using BuildXL.Pips;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using Test.BuildXL.FrontEnd.Core;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;

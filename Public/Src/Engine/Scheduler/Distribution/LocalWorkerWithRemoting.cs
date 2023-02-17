@@ -9,7 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 
 namespace BuildXL.Scheduler.Distribution

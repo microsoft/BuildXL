@@ -7,6 +7,7 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.Threading;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Utilities.Configuration
 {

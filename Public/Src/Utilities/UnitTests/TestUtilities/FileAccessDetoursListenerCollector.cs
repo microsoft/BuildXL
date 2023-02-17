@@ -5,7 +5,7 @@ using System;
 using System.Collections.Generic;
 using BuildXL.Native.IO;
 using BuildXL.Processes;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 
 namespace Test.BuildXL.TestUtilities

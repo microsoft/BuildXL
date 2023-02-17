@@ -3,7 +3,7 @@
 
 using System;
 using System.IO;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.FrontEnd.Script.Tracing;
 using BuildXL.FrontEnd.Script.Values;
 using BuildXL.FrontEnd.Sdk.FileSystem;

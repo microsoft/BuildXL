@@ -9,7 +9,7 @@ using System.Text;
 using BuildXL.Utilities.Collections;
 using JetBrains.Annotations;
 using static BuildXL.Utilities.CLI.Utils;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace BuildXL.Utilities.CLI
 {

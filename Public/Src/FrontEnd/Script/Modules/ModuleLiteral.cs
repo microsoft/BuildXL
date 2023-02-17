@@ -14,16 +14,16 @@ using BuildXL.FrontEnd.Script.Expressions;
 using BuildXL.FrontEnd.Script.RuntimeModel.AstBridge;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Sdk.Evaluation;
-using BuildXL.Utilities;
-using BuildXL.Utilities.Qualifier;
+using BuildXL.Utilities.Core;
+using BuildXL.Utilities.Core.Qualifier;
 using BuildXL.Utilities.Tasks;
 using JetBrains.Annotations;
 using TypeScript.Net.Utilities;
-using static BuildXL.Utilities.FormattableStringEx;
-using BindingDictionary = System.Collections.Generic.Dictionary<BuildXL.Utilities.SymbolAtom, BuildXL.FrontEnd.Script.Values.ModuleBinding>;
+using static BuildXL.Utilities.Core.FormattableStringEx;
+using BindingDictionary = System.Collections.Generic.Dictionary<BuildXL.Utilities.Core.SymbolAtom, BuildXL.FrontEnd.Script.Values.ModuleBinding>;
 using LineInfo = TypeScript.Net.Utilities.LineInfo;
 using NotNullAttribute = JetBrains.Annotations.NotNullAttribute;
-using NsBindingDictionary = System.Collections.Generic.Dictionary<BuildXL.Utilities.FullSymbol, BuildXL.FrontEnd.Script.Values.ModuleBinding>;
+using NsBindingDictionary = System.Collections.Generic.Dictionary<BuildXL.Utilities.Core.FullSymbol, BuildXL.FrontEnd.Script.Values.ModuleBinding>;
 
 // Enable below code for testing specialized dictionaries.
 // using BindingDictionary = BuildXL.FrontEnd.Script.Util.DsSymbolDictionary<BuildXL.FrontEnd.Script.Types.Value.ModuleBinding>;

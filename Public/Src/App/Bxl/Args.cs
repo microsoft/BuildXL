@@ -16,10 +16,11 @@ using BuildXL.Storage;
 using BuildXL.Storage.Fingerprints;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.CLI;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Tracing;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 using HelpLevel = BuildXL.Utilities.Configuration.HelpLevel;
 using Strings = bxl.Strings;
 #if PLATFORM_OSX
@@ -990,7 +991,7 @@ namespace BuildXL
                                 var parsedOption = CommandLineUtilities.ParseEnumOption<SandboxKind>(opt);
 #if PLATFORM_OSX
                                 var isEndpointSecurityOrHybridSandboxKind = (parsedOption == SandboxKind.MacOsEndpointSecurity || parsedOption == SandboxKind.MacOsHybrid);
-                                if (isEndpointSecurityOrHybridSandboxKind && !OperatingSystemHelper.IsMacWithoutKernelExtensionSupport)
+                                if (isEndpointSecurityOrHybridSandboxKind && !OperatingSystemHelperExtension.IsMacWithoutKernelExtensionSupport)
                                 {
                                     parsedOption = SandboxKind.MacOsKext;
                                 }

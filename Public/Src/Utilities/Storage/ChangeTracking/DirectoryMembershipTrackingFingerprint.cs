@@ -6,6 +6,7 @@ using System.IO;
 using System.Text;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Storage.ChangeTracking
 {

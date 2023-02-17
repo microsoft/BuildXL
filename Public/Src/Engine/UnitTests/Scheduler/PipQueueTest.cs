@@ -35,6 +35,7 @@ using BuildXL.Storage;
 using BuildXL.Storage.ChangeTracking;
 using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;

@@ -15,6 +15,7 @@ namespace KeyValueStoreTests {
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").KeyValueStore.dll,
             importFrom("BuildXL.Utilities").Native.dll,
+            importFrom("BuildXL.Utilities").Utilities.Core.dll,
             ...BuildXLSdk.getSystemMemoryPackages(true)
         ],
     });

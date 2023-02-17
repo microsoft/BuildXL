@@ -7,7 +7,7 @@ using System.Linq;
 using BuildXL.FrontEnd.Workspaces;
 using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Ide.LanguageServer.Server.Utilities;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using LanguageServer;
 using Microsoft.VisualStudio.LanguageServer.Protocol;

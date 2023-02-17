@@ -9,13 +9,13 @@ using System.Linq;
 using System.Xml.Linq;
 using BuildXL.FrontEnd.Nuget.Tracing;
 using BuildXL.FrontEnd.Sdk;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using JetBrains.Annotations;
 using NuGet.Versioning;
-using Moniker = BuildXL.Utilities.PathAtom;
-using static BuildXL.Utilities.FormattableStringEx;
+using Moniker = BuildXL.Utilities.Core.PathAtom;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace BuildXL.FrontEnd.Nuget
 {

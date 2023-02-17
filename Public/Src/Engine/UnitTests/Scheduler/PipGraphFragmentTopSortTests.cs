@@ -5,7 +5,7 @@ using System.Linq;
 using BuildXL.Ipc.Common;
 using BuildXL.Pips;
 using BuildXL.Pips.Operations;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;

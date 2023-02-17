@@ -5,7 +5,7 @@ using System;
 
 using BuildXL;
 using BuildXL.ToolSupport;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;

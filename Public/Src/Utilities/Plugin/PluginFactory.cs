@@ -6,7 +6,7 @@ using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Plugin
 {

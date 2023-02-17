@@ -3,6 +3,7 @@
 
 using System.Collections.Generic;
 using JetBrains.Annotations;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Utilities.Configuration
 {

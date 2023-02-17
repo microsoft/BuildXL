@@ -2,7 +2,7 @@
 // Licensed under the MIT License.
 
 using BuildXL.Pips.Operations;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Scheduler.Tracing;
 using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.Scheduler;

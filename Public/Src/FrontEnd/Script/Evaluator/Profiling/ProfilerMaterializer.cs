@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.IO;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.FrontEnd.Script.Evaluator.Profiling
 {

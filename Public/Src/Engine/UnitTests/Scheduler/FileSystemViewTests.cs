@@ -9,7 +9,7 @@ using System.Linq;
 using BuildXL.Engine.Cache.Artifacts;
 using BuildXL.Native.IO;
 using BuildXL.Pips.Graph;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using Xunit;
 using Xunit.Abstractions;
 

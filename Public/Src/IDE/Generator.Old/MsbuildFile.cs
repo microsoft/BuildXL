@@ -11,8 +11,8 @@ using System.Security.Cryptography;
 using System.Text;
 using BuildXL.FrontEnd.Script.Constants;
 using BuildXL.Pips.Operations;
-using BuildXL.Utilities;
-using static BuildXL.Utilities.FormattableStringEx;
+using BuildXL.Utilities.Core;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace BuildXL.Ide.Generator.Old
 {

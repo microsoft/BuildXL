@@ -16,7 +16,7 @@ using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Native.IO;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using Microsoft.Win32.SafeHandles;
 using static BuildXL.Cache.ContentStore.FileSystem.NativeMethods;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
@@ -156,7 +156,7 @@ namespace BuildXL.Cache.ContentStore.FileSystem
         {
             path.ThrowIfPathTooLong();
 
-            if (BuildXL.Utilities.OperatingSystemHelper.IsUnixOS)
+            if (BuildXL.Utilities.Core.OperatingSystemHelper.IsUnixOS)
             {
                 var createOrOpenResult = FileUtilities.TryCreateOrOpenFile(path.ToString(), FileDesiredAccess.FileReadAttributes,
                                 FileShare.ReadWrite | FileShare.Delete, FileMode.Open, FileFlagsAndAttributes.FileFlagOverlapped, out SafeFileHandle handle);
@@ -1107,7 +1107,7 @@ namespace BuildXL.Cache.ContentStore.FileSystem
         /// <inheritdoc />
         public void FlushVolume(char driveLetter)
         {
-            if (!BuildXL.Utilities.OperatingSystemHelper.IsUnixOS)
+            if (!BuildXL.Utilities.Core.OperatingSystemHelper.IsUnixOS)
             {
                 /*
                  * To flush all open files on a volume, call FlushFileBuffers with a handle to the volume. The caller must have administrative privileges. For more information, see Running with Special Privileges.

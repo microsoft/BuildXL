@@ -6,10 +6,10 @@ using System.IO;
 using BuildXL.FrontEnd.Core.Tracing;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.Native.IO;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 using JetBrains.Annotations;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace BuildXL.FrontEnd.Core.Incrementality
 {

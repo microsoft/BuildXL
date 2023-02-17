@@ -4,6 +4,7 @@
 using System;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 

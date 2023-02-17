@@ -3,7 +3,7 @@
 
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.FrontEnd.Workspaces.Core;
 using JetBrains.Annotations;
 using BuildXL.Utilities.Configuration;
@@ -11,7 +11,7 @@ using BuildXL.Utilities.Configuration.Mutable;
 using TypeScript.Net.Parsing;
 using TypeScript.Net.Types;
 
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace Test.DScript.Workspaces.Utilities
 {

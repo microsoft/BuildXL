@@ -44,6 +44,7 @@ namespace Processes {
             importFrom("BuildXL.Utilities").Configuration.dll,
             importFrom("BuildXL.Utilities").Plugin.dll,
             importFrom("BuildXL.Utilities").PluginGrpc.dll,
+            importFrom("BuildXL.Utilities").Utilities.Core.dll,
             importFrom("Newtonsoft.Json").pkg,
             ...BuildXLSdk.systemThreadingTasksDataflowPackageReference,
             ...addIfLazy(BuildXLSdk.Flags.isMicrosoftInternal, () => [

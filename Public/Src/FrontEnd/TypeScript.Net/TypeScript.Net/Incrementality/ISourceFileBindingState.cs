@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using JetBrains.Annotations;
 
 namespace TypeScript.Net.Incrementality

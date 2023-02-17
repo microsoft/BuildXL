@@ -90,7 +90,7 @@ namespace Test.BuildXL.FrontEnd.Download
 
             // retrieve the single extract pip based on tags
             var extractPip = result.EngineState.RetrieveProcesses()
-                .Where(process => process.Tags.Contains(global::BuildXL.Utilities.StringId.Create(FrontEndContext.StringTable, "extract"))).Single();
+                .Where(process => process.Tags.Contains(global::BuildXL.Utilities.Core.StringId.Create(FrontEndContext.StringTable, "extract"))).Single();
             var extractFolder = extractPip.DirectoryOutputs.Single().Path.ToString(FrontEndContext.PathTable);
             
             var worldFile = Path.Combine(extractFolder, "world");

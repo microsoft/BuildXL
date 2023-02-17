@@ -2,7 +2,6 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Diagnostics.ContractsLight;
 
 namespace BuildXL.Utilities
 {

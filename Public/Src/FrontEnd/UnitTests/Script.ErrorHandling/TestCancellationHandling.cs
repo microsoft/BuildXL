@@ -6,7 +6,7 @@ using BuildXL.FrontEnd.Core.Tracing;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Sdk.FileSystem;
 using BuildXL.Pips.Filter;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using Test.DScript.Ast.DScriptV2;
 using Xunit;
 using Xunit.Abstractions;

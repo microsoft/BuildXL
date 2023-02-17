@@ -4,6 +4,7 @@
 using System;
 using System.IO;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using StackExchange.Redis;
 using Xunit;
 

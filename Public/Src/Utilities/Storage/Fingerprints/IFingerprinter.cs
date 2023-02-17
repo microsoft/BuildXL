@@ -5,7 +5,7 @@ using System;
 using System.Collections.Generic;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Storage.Fingerprints
 {

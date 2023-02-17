@@ -8,7 +8,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using BuildXL.Native.IO;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.FrontEnd.Workspaces.Core;
 using IFileSystem = BuildXL.FrontEnd.Sdk.FileSystem.IFileSystem;
 

@@ -11,6 +11,7 @@ namespace ToolSupport {
         references: [
             $.dll,
             Collections.dll,
+            Utilities.Core.dll
         ],
     });
 }

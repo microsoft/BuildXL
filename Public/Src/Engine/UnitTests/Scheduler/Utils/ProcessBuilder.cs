@@ -7,7 +7,7 @@ using System.Diagnostics.ContractsLight;
 using System.Linq;
 using BuildXL.Pips;
 using BuildXL.Pips.Operations;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 
 namespace Test.BuildXL.Scheduler.Utils

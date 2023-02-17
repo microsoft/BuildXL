@@ -4,6 +4,7 @@
 using System;
 using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
+using BuildXL.Utilities.Core;
 
 #nullable enable
 namespace BuildXL.Utilities.Diagnostics

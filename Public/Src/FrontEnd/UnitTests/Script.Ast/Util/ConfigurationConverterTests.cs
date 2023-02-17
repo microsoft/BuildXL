@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.FrontEnd.Script.Ambients.Map;
@@ -15,7 +16,7 @@ using BuildXL.FrontEnd.Script.Util;
 using BuildXL.FrontEnd.Sdk;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 using static Test.BuildXL.TestUtilities.Xunit.XunitBuildXLTest;
 using LineInfo = TypeScript.Net.Utilities.LineInfo;
 

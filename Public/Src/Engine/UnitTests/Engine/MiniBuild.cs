@@ -6,7 +6,7 @@ using System.IO;
 using System.Linq;
 using BuildXL.Engine.Tracing;
 using BuildXL.Native.IO;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
 using Test.BuildXL.Engine;
@@ -14,7 +14,7 @@ using Test.BuildXL.EngineTestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 using FrontEndEventId = BuildXL.FrontEnd.Core.Tracing.LogEventId;
 
 namespace Test.BuildXL.EngineTests

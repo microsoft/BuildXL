@@ -8,7 +8,7 @@ using System.IO;
 using System.Text;
 using BuildXL.FrontEnd.CMake.Serialization;
 using BuildXL.ToolSupport;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using Newtonsoft.Json;
 
 namespace NinjaGraphBuilderTool

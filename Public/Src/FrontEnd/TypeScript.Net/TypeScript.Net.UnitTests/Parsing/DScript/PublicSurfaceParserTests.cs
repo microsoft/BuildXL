@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using TypeScript.Net.DScript;
 using TypeScript.Net.Parsing;
 using TypeScript.Net.Types;

@@ -9,7 +9,7 @@ using System.Linq;
 using BuildXL.Native.IO;
 using BuildXL.Native.IO.Windows;
 using BuildXL.Storage.Tracing;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 using Microsoft.Win32.SafeHandles;
 

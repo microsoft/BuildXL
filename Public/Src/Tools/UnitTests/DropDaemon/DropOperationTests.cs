@@ -17,7 +17,7 @@ using BuildXL.Ipc.Interfaces;
 using BuildXL.Storage;
 using BuildXL.Storage.Fingerprints;
 using BuildXL.Tracing.CloudBuild;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.CLI;
 using Microsoft.VisualStudio.Services.Common;
 using Microsoft.VisualStudio.Services.Drop.WebApi;

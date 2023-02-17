@@ -5,9 +5,9 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using BuildXL.ToolSupport;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration.Mutable;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace BuildXL.PipGraphFragmentGenerator
 {

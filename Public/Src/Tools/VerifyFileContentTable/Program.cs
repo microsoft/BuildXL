@@ -14,7 +14,7 @@ using BuildXL;
 using BuildXL.Storage;
 using BuildXL.Storage.Diagnostics;
 using BuildXL.Storage.FileContentTableAccessor;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
 

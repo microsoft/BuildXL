@@ -7,6 +7,7 @@ using BuildXL.FrontEnd.JavaScript;
 using BuildXL.FrontEnd.Rush.ProjectGraph;
 using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
 

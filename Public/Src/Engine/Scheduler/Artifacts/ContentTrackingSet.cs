@@ -3,7 +3,7 @@
 
 using BuildXL.Pips;
 using BuildXL.Pips.Graph;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 
 namespace BuildXL.Scheduler.Artifacts

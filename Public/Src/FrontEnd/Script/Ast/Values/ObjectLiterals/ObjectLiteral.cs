@@ -9,7 +9,7 @@ using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.Expressions;
 using BuildXL.FrontEnd.Script.Literals;
 using BuildXL.FrontEnd.Script.Util;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using JetBrains.Annotations;
 using LineInfo = TypeScript.Net.Utilities.LineInfo;

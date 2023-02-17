@@ -16,7 +16,7 @@ using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.InterfacesTest.Time;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using FileInfo = BuildXL.Cache.ContentStore.Interfaces.FileSystem.FileInfo;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 using PathGeneratorUtilities = BuildXL.Cache.ContentStore.InterfacesTest.Utils.PathGeneratorUtilities;

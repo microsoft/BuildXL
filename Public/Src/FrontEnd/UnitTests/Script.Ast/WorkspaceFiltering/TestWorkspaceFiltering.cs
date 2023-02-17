@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.FrontEnd.Core.Incrementality;
@@ -23,7 +24,7 @@ using Xunit;
 using static Test.BuildXL.TestUtilities.Xunit.XunitBuildXLTest;
 using Diagnostic = TypeScript.Net.Diagnostics.Diagnostic;
 using ISymbol = TypeScript.Net.Types.ISymbol;
-using SymbolTable = BuildXL.Utilities.SymbolTable;
+using SymbolTable = BuildXL.Utilities.Core.SymbolTable;
 
 namespace Test.DScript.Ast.WorkspaceFiltering
 {

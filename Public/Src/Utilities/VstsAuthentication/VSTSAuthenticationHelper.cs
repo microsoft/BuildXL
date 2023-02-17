@@ -19,6 +19,7 @@ using NuGet.Protocol.Core.Types;
 using System.Net.Http;
 using BuildXL.Native.IO;
 using System.Text;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Utilities.VstsAuthentication
 {

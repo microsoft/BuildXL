@@ -7,7 +7,7 @@ using System.IO;
 using System.Linq;
 using BuildXL.Native.IO;
 using BuildXL.Native.IO.Windows;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using Microsoft.Win32.SafeHandles;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;

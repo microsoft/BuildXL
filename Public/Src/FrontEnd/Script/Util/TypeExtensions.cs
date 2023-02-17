@@ -4,13 +4,11 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using System.Diagnostics.ContractsLight;
 using System.Reflection;
-using BuildXL.FrontEnd.Script.Core;
 using BuildXL.FrontEnd.Script.Literals;
-using BuildXL.FrontEnd.Script.Types;
 using BuildXL.FrontEnd.Script.Values;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 
 namespace BuildXL.FrontEnd.Script.Util

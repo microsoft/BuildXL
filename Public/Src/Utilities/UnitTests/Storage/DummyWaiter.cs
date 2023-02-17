@@ -6,7 +6,7 @@ using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Reflection;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 namespace Test.BuildXL.Storage
 {

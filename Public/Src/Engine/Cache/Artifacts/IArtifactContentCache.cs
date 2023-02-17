@@ -7,7 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Tasks;
 
 namespace BuildXL.Engine.Cache.Artifacts
@@ -42,7 +42,7 @@ namespace BuildXL.Engine.Cache.Artifacts
         ///
         /// Note that this operation succeeds with a <see cref="ContentAvailabilityBatchResult"/> even if some or all of the content was unavailable.
         /// Each result item should be checked for <see cref="ContentAvailabilityResult.IsAvailable"/>. For any other failure - such as a local or network I/O
-        /// issue - an implementation may choose to return a <see cref="BuildXL.Utilities.Failure"/> instead.
+        /// issue - an implementation may choose to return a <see cref="BuildXL.Utilities.Core.Failure"/> instead.
         ///
         /// The returned batch result will contain an entry for all requested hashes, in the same order as <paramref name="hashes"/>
         /// (for each <c>i</c>, <c>hashes[i] == batchResult.Results[i].Hash</c>).

@@ -4,7 +4,7 @@
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.FrontEnd.Core.Incrementality;
 using TypeScript.Net.Types;
 using Xunit;

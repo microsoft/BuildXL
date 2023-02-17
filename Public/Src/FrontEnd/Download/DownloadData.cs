@@ -6,7 +6,7 @@ using System.Diagnostics.ContractsLight;
 using System.IO;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.FrontEnd.Sdk;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 
 namespace BuildXL.FrontEnd.Download

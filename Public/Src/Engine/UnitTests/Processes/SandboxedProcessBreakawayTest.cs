@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using System;
 using System.Diagnostics;
 using System.Linq;

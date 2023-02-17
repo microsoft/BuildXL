@@ -4,7 +4,7 @@
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using BuildXL.FrontEnd.Ninja.Serialization;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration.Mutable;
 using Test.BuildXL.FrontEnd.Ninja.Infrastructure;
 

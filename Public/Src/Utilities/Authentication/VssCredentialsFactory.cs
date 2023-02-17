@@ -12,6 +12,7 @@ using System.Linq;
 using System.Net;
 using System.Security;
 using System.Threading.Tasks;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Utilities.Authentication
 {

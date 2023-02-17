@@ -12,6 +12,7 @@ using BuildXL.FrontEnd.Utilities;
 using BuildXL.Native.IO;
 using BuildXL.Processes;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using Newtonsoft.Json;
 

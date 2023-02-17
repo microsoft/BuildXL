@@ -6,7 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using BuildXL.FrontEnd.Workspaces.Core;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using Microsoft.VisualStudio.LanguageServer.Protocol;
 
 namespace BuildXL.Ide.LanguageServer.Providers

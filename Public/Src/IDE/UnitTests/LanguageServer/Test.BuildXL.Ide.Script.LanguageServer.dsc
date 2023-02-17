@@ -14,7 +14,7 @@ namespace LanguageService.Server {
      * a deployment definition for it.
      */
 
-    const buildEngineDirectory = Context.getBuildEngineDirectory();
+    const buildEngineDirectory = Context.getBuildEngineDirectory ();
 
     const sdkPreludePath = buildEngineDirectory.combine(r`Sdk\Sdk.prelude`);
 
@@ -56,6 +56,7 @@ namespace LanguageService.Server {
             importFrom("BuildXL.FrontEndUnitTests").Workspaces.Utilities.dll,
             importFrom("BuildXL.Utilities").Configuration.dll,
             importFrom("BuildXL.Utilities").dll,
+            importFrom("BuildXL.Utilities").Utilities.Core.dll,
 
             importFrom("StreamJsonRpc").pkg,
             importFrom("Microsoft.VisualStudio.Validation").pkg,

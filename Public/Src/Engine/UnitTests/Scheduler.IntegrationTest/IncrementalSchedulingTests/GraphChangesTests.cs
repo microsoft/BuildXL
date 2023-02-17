@@ -7,7 +7,7 @@ using BuildXL.Pips.DirectedGraph;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.IncrementalScheduling;
 using BuildXL.Scheduler.Tracing;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;

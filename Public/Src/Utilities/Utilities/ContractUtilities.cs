@@ -1,8 +1,6 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System.Diagnostics.ContractsLight;
-
 namespace BuildXL.Utilities
 {
     /// <summary>

@@ -16,12 +16,12 @@ using BuildXL.Pips.Graph;
 using BuildXL.Scheduler.Graph;
 using BuildXL.Storage;
 using BuildXL.Tracing;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.Utilities.Instrumentation.Common;
 using JetBrains.Annotations;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 using Logger = BuildXL.Engine.Tracing.Logger;
 using Pure = System.Diagnostics.Contracts.PureAttribute;
 

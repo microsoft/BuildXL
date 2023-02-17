@@ -4,7 +4,7 @@
 using System;
 using System.IO;
 using BuildXL.Native.IO;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using JetBrains.Annotations;
 using Microsoft.Win32.SafeHandles;
 

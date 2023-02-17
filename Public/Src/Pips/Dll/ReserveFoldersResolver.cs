@@ -5,7 +5,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Diagnostics.ContractsLight;
 using System.Threading;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Pips
 {

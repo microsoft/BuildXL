@@ -3,7 +3,7 @@
 
 using BuildXL.Pips.Operations;
 using BuildXL.Storage.Fingerprints;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Scheduler
 {

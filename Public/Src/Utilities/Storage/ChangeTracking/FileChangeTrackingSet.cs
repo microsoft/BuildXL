@@ -16,13 +16,13 @@ using BuildXL.Native.IO.Windows;
 using BuildXL.Storage.ChangeJournalService;
 using BuildXL.Storage.ChangeJournalService.Protocol;
 using BuildXL.Storage.Tracing;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using Microsoft.Win32.SafeHandles;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace BuildXL.Storage.ChangeTracking
 {

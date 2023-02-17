@@ -4,7 +4,7 @@
 using System;
 using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using JetBrains.Annotations;
 using TypeScript.Net.Types;
 

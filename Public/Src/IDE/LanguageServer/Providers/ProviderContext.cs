@@ -2,7 +2,7 @@
 // Licensed under the MIT License.
 
 using BuildXL.Ide.LanguageServer.Tracing;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 using JetBrains.Annotations;
 

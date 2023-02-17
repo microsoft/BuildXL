@@ -7,9 +7,9 @@ using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Text;
 using BuildXL.Native.Processes.Windows;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 #nullable enable
 

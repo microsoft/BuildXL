@@ -3,7 +3,7 @@
 
 using System.IO;
 using System.Reflection;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 #nullable enable
 
@@ -34,7 +34,7 @@ namespace BuildXL.Processes.Internal
         {
             if (!File.Exists(fileName))
             {
-                throw new BuildXLException($"Cannot find file '{fileName}' needed to detour processes. Did you build all configurations?", rootCause: ExceptionRootCause.MissingRuntimeDependency);
+                throw new BuildXLException($"Cannot find file '{fileName}' needed to detour processes. Did you build all configurations?", rootCause: Utilities.ExceptionRootCause.MissingRuntimeDependency);
             }
         }
     }

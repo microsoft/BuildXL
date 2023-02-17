@@ -16,14 +16,14 @@ using BuildXL.Scheduler;
 using BuildXL.Scheduler.Artifacts;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Storage;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
 using Test.BuildXL.Scheduler.Utils;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace Test.BuildXL.Scheduler
 {

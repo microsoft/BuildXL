@@ -16,7 +16,7 @@ namespace BuildXL.Utilities.Serialization
     /// </summary>
     /// <remarks>
     /// This class mimics the API available via <see cref="System.IO.BinaryReader"/>,
-    ///  <see cref="System.IO.BinaryWriter"/>, <see cref="BuildXLReader"/>, and <see cref="BuildXLWriter"/>  but for (de)serializing
+    ///  <see cref="System.IO.BinaryWriter"/>, <see cref="BuildXL.Utilities.Core.BuildXLReader"/>, and <see cref="BuildXL.Utilities.Core.BuildXLWriter"/>  but for (de)serializing
     /// entities from a <see cref="ReadOnlySpan{T}"/> and <see cref="Span{T}"/> instead of a stream.
     /// </remarks>
     public static class SpanSerializationExtensions

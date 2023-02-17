@@ -9,7 +9,7 @@ using BuildXL.Engine.Cache.Serialization;
 using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.Fingerprints;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using Newtonsoft.Json.Linq;
 using static BuildXL.Scheduler.Tracing.FingerprintDiff;
 

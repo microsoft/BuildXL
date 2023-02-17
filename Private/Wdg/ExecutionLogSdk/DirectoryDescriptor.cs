@@ -4,7 +4,7 @@
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 namespace Tool.ExecutionLogSdk
 {

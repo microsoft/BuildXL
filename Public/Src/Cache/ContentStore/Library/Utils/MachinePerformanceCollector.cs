@@ -5,6 +5,7 @@ using System;
 using System.Linq;
 using System.Threading;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 #nullable enable
 

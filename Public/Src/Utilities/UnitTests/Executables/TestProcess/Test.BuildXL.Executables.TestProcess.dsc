@@ -14,6 +14,7 @@ namespace TestProcess {
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Interop.dll,
             importFrom("BuildXL.Utilities").Native.dll,
+            importFrom("BuildXL.Utilities").Utilities.Core.dll,
             importFrom("BuildXL.Engine").Processes.dll,
         ]
     });

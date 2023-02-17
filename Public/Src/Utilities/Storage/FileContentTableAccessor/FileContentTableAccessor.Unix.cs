@@ -4,7 +4,7 @@
 using System.IO;
 using BuildXL.Native.IO;
 using Microsoft.Win32.SafeHandles;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace BuildXL.Storage.FileContentTableAccessor
 {

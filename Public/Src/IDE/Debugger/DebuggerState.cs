@@ -6,7 +6,7 @@ using System.Diagnostics.ContractsLight;
 using System.Linq;
 using BuildXL.FrontEnd.Script.Debugger.Tracing;
 using BuildXL.FrontEnd.Script.Evaluator;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 
 namespace BuildXL.FrontEnd.Script.Debugger

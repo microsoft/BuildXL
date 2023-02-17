@@ -9,7 +9,7 @@ using BuildXL.FrontEnd.Script.Constants;
 using BuildXL.FrontEnd.Script.RuntimeModel.AstBridge.Rules;
 using BuildXL.FrontEnd.Script.Tracing;
 using BuildXL.FrontEnd.Workspaces.Core;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.ParallelAlgorithms;
 using TypeScript.Net.Parsing;

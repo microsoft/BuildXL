@@ -3,7 +3,7 @@
 
 using System;
 using System.Globalization;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 namespace TypeScript.Net.Incrementality
 {

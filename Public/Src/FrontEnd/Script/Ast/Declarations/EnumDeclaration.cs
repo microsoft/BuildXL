@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using BuildXL.FrontEnd.Script.Expressions;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using LineInfo = TypeScript.Net.Utilities.LineInfo;
 
 namespace BuildXL.FrontEnd.Script.Declarations

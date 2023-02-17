@@ -10,7 +10,7 @@ using System.Globalization;
 using System.Reflection;
 using BuildXL.FrontEnd.Script.Util;
 using BuildXL.FrontEnd.Script.Values;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration.Mutable;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
@@ -164,9 +164,9 @@ namespace Test.BuildXL.Utilities
                 return PathAtom.Create(context.StringTable, "atom");
             }
 
-            if (type == typeof(global::BuildXL.Utilities.LineInfo))
+            if (type == typeof(global::BuildXL.Utilities.Core.LineInfo))
             {
-                return new global::BuildXL.Utilities.LineInfo(1, 1);
+                return new global::BuildXL.Utilities.Core.LineInfo(1, 1);
             }
 
             if (type.GetTypeInfo().IsEnum)
@@ -382,12 +382,12 @@ namespace Test.BuildXL.Utilities
                 return;
             }
 
-            if (type == typeof(global::BuildXL.Utilities.LineInfo))
+            if (type == typeof(global::BuildXL.Utilities.Core.LineInfo))
             {
                 XAssert.AreEqual(
-                    (global::BuildXL.Utilities.LineInfo)expected,
-                    (global::BuildXL.Utilities.LineInfo)actual,
-                    $"{nameof(global::BuildXL.Utilities.LineInfo)} values don't match for objPath: {objPath}");
+                    (global::BuildXL.Utilities.Core.LineInfo)expected,
+                    (global::BuildXL.Utilities.Core.LineInfo)actual,
+                    $"{nameof(global::BuildXL.Utilities.Core.LineInfo)} values don't match for objPath: {objPath}");
                 return;
             }
 

@@ -5,9 +5,9 @@ using System;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Ipc.ExternalApi;
 using BuildXL.Storage;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using JetBrains.Annotations;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace BuildXL.Pips.Operations
 {
@@ -59,7 +59,7 @@ namespace BuildXL.Pips.Operations
         private StringTable StringTable { get; }
 
         /// <summary>
-        /// Function used to look up <see cref="BuildXL.Cache.ContentStore.Hashing.ContentHash"/> of a given <see cref="BuildXL.Utilities.FileArtifact"/>.
+        /// Function used to look up <see cref="BuildXL.Cache.ContentStore.Hashing.ContentHash"/> of a given <see cref="BuildXL.Utilities.Core.FileArtifact"/>.
         /// </summary>
         [CanBeNull]
         private ContentHashLookup HashLookup { get; }

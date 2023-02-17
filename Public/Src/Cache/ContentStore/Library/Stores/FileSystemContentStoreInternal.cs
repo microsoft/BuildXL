@@ -31,14 +31,13 @@ using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.ContentStore.UtilitiesCore.Internal;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 using FileInfo = BuildXL.Cache.ContentStore.Interfaces.FileSystem.FileInfo;
-using OperatingSystemHelper = BuildXL.Utilities.OperatingSystemHelper;
 using RelativePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.RelativePath;
 using static BuildXL.Cache.ContentStore.Interfaces.Results.PlaceFileResult.ResultCode;
-using System.Security.AccessControl;
 using BuildXL.Utilities.ParallelAlgorithms;
 
 namespace BuildXL.Cache.ContentStore.Stores

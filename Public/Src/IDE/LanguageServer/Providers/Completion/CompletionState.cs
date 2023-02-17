@@ -3,7 +3,7 @@
 
 using System.Diagnostics.ContractsLight;
 using BuildXL.FrontEnd.Workspaces.Core;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using Microsoft.VisualStudio.LanguageServer.Protocol;
 using TypeScript.Net.Types;
 

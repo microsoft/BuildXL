@@ -30,8 +30,8 @@ namespace BuildXL.Cache.Logging
         /// <summary>
         /// A pool for dimension arrays. Using 'Pool' and not 'ArrayPool' because this is lighter weight and we always need to have the exact number of elements.
         /// </summary>
-        private static readonly Utilities.ObjectPool<string[]> DimensionsArrayPool = new (creator: () => new string[2], cleanup: _ => { });
-        private static readonly Utilities.ObjectPool<string[]> OperationFinishedDimensionsArrayPool = new (creator: () => new string[OperationFinishedDimensionsLength], cleanup: _ => { });
+        private static readonly Utilities.Core.ObjectPool<string[]> DimensionsArrayPool = new (creator: () => new string[2], cleanup: _ => { });
+        private static readonly Utilities.Core.ObjectPool<string[]> OperationFinishedDimensionsArrayPool = new (creator: () => new string[OperationFinishedDimensionsLength], cleanup: _ => { });
 
         private static readonly Tracer Tracer = new Tracer(nameof(WindowsMetricLogger));
 

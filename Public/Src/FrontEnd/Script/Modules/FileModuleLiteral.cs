@@ -15,9 +15,10 @@ using BuildXL.FrontEnd.Script.RuntimeModel.AstBridge;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Sdk.Evaluation;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Qualifier;
+using BuildXL.Utilities.Core;
+using BuildXL.Utilities.Core.Qualifier;
 using TypeScript.Net.Utilities;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 using LineInfo = TypeScript.Net.Utilities.LineInfo;
 
 namespace BuildXL.FrontEnd.Script.Values

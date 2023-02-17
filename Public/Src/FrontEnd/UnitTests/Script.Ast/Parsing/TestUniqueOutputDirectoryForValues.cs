@@ -4,7 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.FrontEnd.Script.Values;
 using BuildXL.FrontEnd.Script.Evaluator;
 using Test.BuildXL.FrontEnd.Core;

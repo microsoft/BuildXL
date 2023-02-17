@@ -5,9 +5,9 @@ using System;
 using System.Diagnostics.ContractsLight;
 using System.Text;
 using BuildXL.Scheduler.Fingerprints;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace BuildXL.Scheduler.IncrementalScheduling
 {

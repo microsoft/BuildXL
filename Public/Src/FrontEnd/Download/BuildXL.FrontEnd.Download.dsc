@@ -27,6 +27,7 @@ namespace Download {
             importFrom("BuildXL.Utilities").Interop.dll,
             importFrom("BuildXL.Utilities").Native.dll,
             importFrom("BuildXL.Utilities").Storage.dll,
+            importFrom("BuildXL.Utilities").Utilities.Core.dll,
             ...BuildXLSdk.tplPackages,
             importFrom("Microsoft.IdentityModel.Clients.ActiveDirectory").pkg,
         ],

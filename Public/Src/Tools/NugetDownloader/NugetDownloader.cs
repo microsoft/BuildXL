@@ -10,7 +10,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Native.IO;
 using BuildXL.ToolSupport;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.VstsAuthentication;
 using NuGet.Common;
 using NuGet.Configuration;

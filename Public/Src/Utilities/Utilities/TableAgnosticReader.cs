@@ -3,7 +3,8 @@
 
 using System;
 using System.IO;
-using BuildXL.Utilities.Qualifier;
+using BuildXL.Utilities.Core;
+using BuildXL.Utilities.Core.Qualifier;
 
 namespace BuildXL.Utilities
 {

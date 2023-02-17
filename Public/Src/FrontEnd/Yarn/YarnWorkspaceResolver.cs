@@ -10,6 +10,7 @@ using BuildXL.FrontEnd.Utilities;
 using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.FrontEnd.Yarn.ProjectGraph;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 
 namespace BuildXL.FrontEnd.Yarn

@@ -4,7 +4,7 @@
 using System.Threading.Tasks;
 using BuildXL.Scheduler;
 using BuildXL.Storage;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 namespace Test.BuildXL.Scheduler
 {

@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using BuildXL.Interop;
 using BuildXL.Native.IO;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.VmCommandProxy;
 
 namespace BuildXL.Processes

@@ -15,6 +15,7 @@ namespace NinjaGraphBuilder {
             importFrom("BuildXL.Utilities").ToolSupport.dll,
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Native.dll,
+            importFrom("BuildXL.Utilities").Utilities.Core.dll,
             importFrom("BuildXL.FrontEnd").Ninja.Serialization.dll,
         ],
         internalsVisibleTo: [

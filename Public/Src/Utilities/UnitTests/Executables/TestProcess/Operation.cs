@@ -14,7 +14,7 @@ using System.Threading;
 using BuildXL.Native.IO;
 using BuildXL.Native.IO.Windows;
 using BuildXL.Processes;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 namespace Test.BuildXL.Executables.TestProcess
 {

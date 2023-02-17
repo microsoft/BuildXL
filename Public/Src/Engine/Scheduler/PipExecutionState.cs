@@ -3,7 +3,6 @@
 
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
-using BuildXL.Native.IO;
 using BuildXL.Pips;
 using BuildXL.Processes;
 using BuildXL.Processes.Sideband;
@@ -12,10 +11,9 @@ using BuildXL.Scheduler.Cache;
 using BuildXL.Scheduler.FileSystem;
 using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Scheduler.Tracing;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
-using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.Utilities.Instrumentation.Common;
 
 #pragma warning disable 1591 // disabling warning about missing API documentation; TODO: Remove this line and write documentation!

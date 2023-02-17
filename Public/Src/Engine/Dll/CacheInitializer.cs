@@ -16,9 +16,10 @@ using BuildXL.Engine.Cache.Fingerprints.TwoPhase;
 using BuildXL.Engine.Cache.Plugin.CacheCore;
 using BuildXL.Tracing;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 using ICacheCoreCache = BuildXL.Cache.Interfaces.ICache;
 using ICacheCoreSession = BuildXL.Cache.Interfaces.ICacheSession;
 

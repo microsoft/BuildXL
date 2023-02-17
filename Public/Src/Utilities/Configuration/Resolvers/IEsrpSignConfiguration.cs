@@ -1,9 +1,10 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using BuildXL.Utilities.Core;
+
 namespace BuildXL.Utilities.Configuration
 {
-
     /// <nodoc />
     public interface IEsrpSignConfiguration
     {

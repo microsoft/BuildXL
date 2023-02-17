@@ -3,7 +3,7 @@
 
 using System.Diagnostics.ContractsLight;
 using System.Globalization;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Cache.Interfaces
 {

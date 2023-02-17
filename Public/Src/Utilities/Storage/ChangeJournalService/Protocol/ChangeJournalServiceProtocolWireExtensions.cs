@@ -5,6 +5,7 @@ using System.Diagnostics.ContractsLight;
 using BuildXL.Native.IO;
 using BuildXL.Native.IO.Windows;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Storage.ChangeJournalService.Protocol
 {

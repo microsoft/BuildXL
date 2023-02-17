@@ -8,12 +8,12 @@ using System.Threading.Tasks;
 using BuildXL.FrontEnd.Script.Constants;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Sdk.Workspaces;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using JetBrains.Annotations;
 using TypeScript.Net.Types;
-using SymbolTable = BuildXL.Utilities.SymbolTable;
+using SymbolTable = BuildXL.Utilities.Core.SymbolTable;
 
 #pragma warning disable SA1649 // File name must match first type name
 

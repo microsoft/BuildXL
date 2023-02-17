@@ -11,7 +11,7 @@ using System.Text;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Storage.Fingerprints;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using Newtonsoft.Json;
 
 namespace BuildXL.Engine.Cache

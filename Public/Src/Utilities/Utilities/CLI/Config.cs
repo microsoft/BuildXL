@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.Linq;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Utilities.CLI
 {

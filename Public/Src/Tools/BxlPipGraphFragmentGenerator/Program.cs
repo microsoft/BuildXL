@@ -12,6 +12,7 @@ using BuildXL.PipGraphFragmentGenerator.Tracing;
 using BuildXL.Storage;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
 using BxlPipGraphFragmentGenerator;

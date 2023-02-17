@@ -10,7 +10,8 @@ namespace MockVmCommandProxy {
         assemblyName: "VmCommandProxy",
         sources: globR(d`.`, "*.cs"),
         references: [
-            importFrom("BuildXL.Utilities").dll
+            importFrom("BuildXL.Utilities").dll,
+            importFrom("BuildXL.Utilities").Utilities.Core.dll,
         ]
     });
 }

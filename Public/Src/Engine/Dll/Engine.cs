@@ -40,6 +40,7 @@ using BuildXL.Storage;
 using BuildXL.Storage.Fingerprints;
 using BuildXL.Tracing;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
@@ -50,7 +51,7 @@ using BuildXL.ViewModel;
 using JetBrains.Annotations;
 using Microsoft.Win32.SafeHandles;
 using static BuildXL.Utilities.BuildParameters;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 using IOneBuildModuleConfiguration = BuildXL.Utilities.Configuration.IModuleConfiguration;
 using Logger = BuildXL.Engine.Tracing.Logger;
 

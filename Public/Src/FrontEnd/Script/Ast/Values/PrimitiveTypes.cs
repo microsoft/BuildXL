@@ -3,7 +3,7 @@
 
 using System.Diagnostics.ContractsLight;
 using BuildXL.FrontEnd.Script.Types;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.FrontEnd.Script.Values
 {

@@ -19,6 +19,7 @@ namespace Test {
             importFrom("BuildXL.Cache.ContentStore").InterfacesTest.dll,
             importFrom("BuildXL.Cache.ContentStore").Test.dll,
             importFrom("BuildXL.Utilities").dll,
+            importFrom("BuildXL.Utilities").Utilities.Core.dll,
             ...BuildXLSdk.bclAsyncPackages,
             
             ...addIfLazy(BuildXLSdk.Flags.isMicrosoftInternal, () => [

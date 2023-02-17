@@ -16,12 +16,13 @@ using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Native.IO;
 using BuildXL.Processes;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
 using Newtonsoft.Json;
 using TypeScript.Net.Types;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace BuildXL.FrontEnd.MsBuild
 {

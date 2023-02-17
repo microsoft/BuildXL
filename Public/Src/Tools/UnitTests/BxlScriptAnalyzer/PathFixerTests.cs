@@ -2,7 +2,7 @@
 // Licensed under the MIT License.
 
 using BuildXL.FrontEnd.Script.Analyzer.Analyzers;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using Xunit;
 
 namespace Test.Tool.DScript.Analyzer

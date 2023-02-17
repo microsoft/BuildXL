@@ -4,10 +4,10 @@
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using BuildXL.FrontEnd.Script.RuntimeModel.AstBridge;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using JetBrains.Annotations;
 using TypeScript.Net.Types;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace BuildXL.FrontEnd.Script.RuntimeModel
 {

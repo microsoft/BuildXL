@@ -10,7 +10,7 @@ using System.Text;
 using System.Threading;
 using BuildXL.Interop;
 using BuildXL.Processes;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit.Abstractions;
 

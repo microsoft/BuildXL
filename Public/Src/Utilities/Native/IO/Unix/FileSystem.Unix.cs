@@ -17,13 +17,13 @@ using System.Text;
 using System.Text.RegularExpressions;
 using BuildXL.Native.IO.Windows;
 using BuildXL.Native.Tracing;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using Microsoft.Win32.SafeHandles;
 using static BuildXL.Interop.Unix.IO;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace BuildXL.Native.IO.Unix
 {

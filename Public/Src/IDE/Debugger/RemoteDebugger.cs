@@ -4,7 +4,7 @@
 using System;
 using System.Net.Sockets;
 using BuildXL.FrontEnd.Script.Debugger.Tracing;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 using VSCode.DebugAdapter;
 using VSCode.DebugProtocol;

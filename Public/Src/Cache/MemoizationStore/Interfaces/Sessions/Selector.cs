@@ -6,7 +6,7 @@ using System.Diagnostics.ContractsLight;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Serialization;
 using StructUtilities = BuildXL.Cache.ContentStore.Interfaces.Utils.StructUtilities;
 

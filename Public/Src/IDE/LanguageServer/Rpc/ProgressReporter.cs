@@ -4,7 +4,7 @@
 using System;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Ide.LanguageServer;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using JetBrains.Annotations;
 
 namespace BuildXL.Ide.JsonRpc

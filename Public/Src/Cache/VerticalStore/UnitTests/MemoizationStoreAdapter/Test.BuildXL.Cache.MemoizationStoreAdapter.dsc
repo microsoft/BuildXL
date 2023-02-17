@@ -22,6 +22,7 @@ namespace MemoizationStoreAdapter {
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Native.dll,
             importFrom("BuildXL.Utilities").Storage.dll,
+            importFrom("BuildXL.Utilities").Utilities.Core.dll,
             Interfaces.dll,
             VerticalAggregator.dll,
         ],

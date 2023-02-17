@@ -10,10 +10,10 @@ using BuildXL.Pips;
 using BuildXL.Pips.Graph;
 using BuildXL.Scheduler;
 using BuildXL.Storage;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.Utilities.Qualifier;
-using static BuildXL.Utilities.FormattableStringEx;
+using BuildXL.Utilities.Core.Qualifier;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace BuildXL.Engine
 {

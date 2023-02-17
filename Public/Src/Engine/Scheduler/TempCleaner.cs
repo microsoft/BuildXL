@@ -6,8 +6,7 @@ using System.Collections.Concurrent;
 using System.Diagnostics.ContractsLight;
 using System.Threading;
 using BuildXL.Native.IO;
-using BuildXL.Utilities;
-using BuildXL.Utilities.Tracing;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 
 namespace BuildXL.Scheduler

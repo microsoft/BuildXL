@@ -11,6 +11,7 @@ namespace TypeScript.Net.UnitTests {
         sources: globR(d`.`, "*.cs"),
         references: [
             importFrom("BuildXL.Utilities").dll,
+            importFrom("BuildXL.Utilities").Utilities.Core.dll,
             Script.dll,
             TypeScript.Net.dll,
             Sdk.dll,

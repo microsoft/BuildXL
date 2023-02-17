@@ -4,7 +4,7 @@
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
 using BuildXL.Pips.Tracing;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Tracing;
 using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;

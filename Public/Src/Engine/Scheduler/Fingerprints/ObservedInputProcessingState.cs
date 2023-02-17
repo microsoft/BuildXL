@@ -3,7 +3,7 @@
 
 using System;
 using System.Collections.Generic;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Scheduler.Fingerprints
 {

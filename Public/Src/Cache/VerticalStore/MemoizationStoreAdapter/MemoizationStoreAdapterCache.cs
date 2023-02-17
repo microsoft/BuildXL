@@ -16,7 +16,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.Interfaces;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 using IMemoizationCacheSession = BuildXL.Cache.MemoizationStore.Interfaces.Sessions.ICacheSession;
 

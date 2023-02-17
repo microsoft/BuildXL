@@ -4,7 +4,7 @@
 using BuildXL.Pips;
 using BuildXL.Pips.Filter;
 using BuildXL.Pips.Operations;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using System;
 using System.Collections.Generic;

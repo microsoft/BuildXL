@@ -5,7 +5,7 @@ using System;
 using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Utilities;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace BuildXL.Pips.DirectedGraph
 {

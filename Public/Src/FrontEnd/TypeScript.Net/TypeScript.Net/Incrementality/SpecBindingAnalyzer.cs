@@ -4,7 +4,7 @@
 using System;
 using System.Collections.Generic;
 using BuildXL.FrontEnd.Script.Constants;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using JetBrains.Annotations;
 using TypeScript.Net.Extensions;

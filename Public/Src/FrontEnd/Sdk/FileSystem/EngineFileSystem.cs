@@ -6,7 +6,7 @@ using System.Diagnostics.ContractsLight;
 using System.IO;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Sdk.FileSystem;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.FrontEnd.Workspaces.Core
 {

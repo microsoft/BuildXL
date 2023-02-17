@@ -4,7 +4,7 @@
 using System;
 using System.Globalization;
 using System.Linq;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using Test.BuildXL.FrontEnd.Core;
 using Xunit;

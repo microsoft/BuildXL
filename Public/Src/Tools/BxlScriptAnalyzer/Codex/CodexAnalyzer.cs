@@ -8,7 +8,7 @@ using BuildXL.FrontEnd.Script.Analyzer.Codex;
 using BuildXL.FrontEnd.Script.Constants;
 using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.ToolSupport;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using Codex.Analysis.External;
 using TypeScript.Net.Types;
 

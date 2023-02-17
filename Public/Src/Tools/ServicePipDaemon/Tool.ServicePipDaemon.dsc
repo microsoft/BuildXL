@@ -25,6 +25,7 @@ namespace ServicePipDaemon {
             importFrom("BuildXL.Utilities").Ipc.Providers.dll,
             importFrom("BuildXL.Utilities").Native.dll,
             importFrom("BuildXL.Utilities").Storage.dll,
+            importFrom("BuildXL.Utilities").Utilities.Core.dll,
 
             importFrom("Newtonsoft.Json").pkg,
             ...BuildXLSdk.systemThreadingTasksDataflowPackageReference,

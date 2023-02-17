@@ -5,8 +5,8 @@ using System.Diagnostics.ContractsLight;
 using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.Expressions;
 using BuildXL.FrontEnd.Script.Values;
-using BuildXL.Utilities;
-using BuildXL.Utilities.Qualifier;
+using BuildXL.Utilities.Core;
+using BuildXL.Utilities.Core.Qualifier;
 using LineInfo = TypeScript.Net.Utilities.LineInfo;
 
 namespace BuildXL.FrontEnd.Script.Ambients

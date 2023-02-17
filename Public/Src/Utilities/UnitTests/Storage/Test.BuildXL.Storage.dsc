@@ -27,6 +27,7 @@ namespace Storage {
             importFrom("BuildXL.Utilities").Storage.dll,
             importFrom("BuildXL.Utilities.Instrumentation").Common.dll,
             importFrom("BuildXL.Utilities").Collections.dll,
+            importFrom("BuildXL.Utilities").Utilities.Core.dll,
             ...importFrom("BuildXL.Utilities").Native.securityDlls,
 
             ...BuildXLSdk.systemMemoryDeployment,

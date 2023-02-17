@@ -2,7 +2,7 @@
 // Licensed under the MIT License.
 
 using BuildXL.FrontEnd.JavaScript.ProjectGraph;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.FrontEnd.Rush.ProjectGraph
 {

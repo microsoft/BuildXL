@@ -7,7 +7,7 @@ using BuildXL.Cache.ContentStore.Extensions;
 using BuildXL.Cache.ContentStore.Service;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.InterfacesTest.Utils;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using FluentAssertions;
 using Xunit;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;

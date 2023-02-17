@@ -35,6 +35,7 @@ namespace Library {
             Grpc.dll,
             // TODO: This needs to be renamed to just utilities... but it is in a package in public/src
             importFrom("BuildXL.Utilities").dll,
+            importFrom("BuildXL.Utilities").Utilities.Core.dll,
             importFrom("BuildXL.Utilities").KeyValueStore.dll,
             ...importFrom("Sdk.Selfhost.RocksDbSharp").pkgs,
             importFrom("BuildXL.Utilities").Native.dll,

@@ -6,7 +6,7 @@ using System.Collections.Generic;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Scheduler.Tracing;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 
 namespace BuildXL.Scheduler

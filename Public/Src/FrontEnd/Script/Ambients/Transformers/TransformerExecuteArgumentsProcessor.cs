@@ -10,9 +10,9 @@ using BuildXL.Ipc.ExternalApi;
 using BuildXL.Ipc.Common;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace BuildXL.FrontEnd.Script.Ambients.Transformers
 {

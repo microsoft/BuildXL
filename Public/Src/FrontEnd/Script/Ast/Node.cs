@@ -11,7 +11,7 @@ using BuildXL.FrontEnd.Script.Expressions;
 using BuildXL.FrontEnd.Script.Util;
 using BuildXL.FrontEnd.Script.Values;
 using BuildXL.FrontEnd.Sdk;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 using LineInfo = TypeScript.Net.Utilities.LineInfo;
 

@@ -5,7 +5,7 @@ using System.Diagnostics.ContractsLight;
 using BuildXL.FrontEnd.MsBuild.Serialization;
 using BuildXL.FrontEnd.Utilities.GenericProjectGraphResolver;
 using BuildXL.FrontEnd.Workspaces.Core;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.FrontEnd.MsBuild
 {

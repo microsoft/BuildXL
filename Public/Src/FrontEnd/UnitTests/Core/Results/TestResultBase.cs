@@ -10,7 +10,7 @@ using System.Text;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.FrontEnd.Sdk.Tracing;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace Test.BuildXL.FrontEnd.Core
 {

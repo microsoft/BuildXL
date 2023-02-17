@@ -16,7 +16,7 @@ using BuildXL.FrontEnd.Script.Util;
 using BuildXL.FrontEnd.Script.Values;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.Pips.Operations;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using Newtonsoft.Json;
 
 namespace BuildXL.FrontEnd.Script.Ambients

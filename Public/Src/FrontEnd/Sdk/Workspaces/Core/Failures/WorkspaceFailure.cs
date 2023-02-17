@@ -7,12 +7,12 @@ using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Text;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using JetBrains.Annotations;
 using TypeScript.Net.Diagnostics;
 using TypeScript.Net.Types;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 using NotNullAttribute = JetBrains.Annotations.NotNullAttribute;
 
 // TODO: this file is becoming too big, consider splitting into multiple files based on logical grouping.

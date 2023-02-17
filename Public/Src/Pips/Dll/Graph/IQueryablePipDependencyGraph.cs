@@ -3,7 +3,7 @@
 
 using BuildXL.Pips.DirectedGraph;
 using BuildXL.Pips.Operations;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using JetBrains.Annotations;
 

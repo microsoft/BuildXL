@@ -60,9 +60,14 @@ namespace Main {
             importFrom("BuildXL.Utilities").Storage.dll,
             importFrom("BuildXL.Utilities").ToolSupport.dll,
             importFrom("BuildXL.Utilities").Script.Constants.dll,
+            importFrom("BuildXL.Utilities").Utilities.Core.dll,
             importFrom("BuildXL.FrontEnd").Factory.dll,
             importFrom("BuildXL.FrontEnd").Sdk.dll,
             importFrom("Newtonsoft.Json").pkg,
+            
+            BuildXLSdk.isDotNetCoreApp
+                ? importFrom("Grpc.Core.Api").withQualifier({ targetFramework: "netstandard2.1" }).pkg
+                : importFrom("Grpc.Core.Api").pkg,
         ],
         internalsVisibleTo: [
             "IntegrationTest.BuildXL.Scheduler",

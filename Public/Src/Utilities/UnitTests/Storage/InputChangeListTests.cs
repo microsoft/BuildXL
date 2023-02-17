@@ -6,7 +6,7 @@ using System.IO;
 using System.Linq;
 using BuildXL.Storage.ChangeTracking;
 using BuildXL.Storage.InputChange;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;

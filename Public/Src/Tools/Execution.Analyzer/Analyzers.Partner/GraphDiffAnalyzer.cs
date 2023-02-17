@@ -12,7 +12,7 @@ using BuildXL.Engine;
 using BuildXL.Pips;
 using BuildXL.Pips.Operations;
 using BuildXL.ToolSupport;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using Newtonsoft.Json;
 
 namespace BuildXL.Execution.Analyzer

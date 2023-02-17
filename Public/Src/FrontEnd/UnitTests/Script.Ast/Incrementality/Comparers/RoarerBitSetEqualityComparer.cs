@@ -4,6 +4,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 namespace Test.DScript.Ast.Incrementality
 {

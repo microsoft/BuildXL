@@ -19,11 +19,12 @@ using BuildXL.Ipc.ExternalApi;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Storage;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.CLI;
 using BuildXL.Utilities.Tracing;
 using JetBrains.Annotations;
 using Newtonsoft.Json.Linq;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace Tool.ServicePipDaemon
 {

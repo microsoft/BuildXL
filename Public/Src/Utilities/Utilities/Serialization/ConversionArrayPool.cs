@@ -1,6 +1,8 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using BuildXL.Utilities.Core;
+
 #nullable enable
 
 namespace BuildXL.Utilities.Serialization

@@ -5,7 +5,7 @@ using System;
 using System.IO;
 using BuildXL.Native.IO;
 using BuildXL.Pips;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.Scheduler;
 using Test.BuildXL.TestUtilities.Xunit;

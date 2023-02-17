@@ -5,7 +5,7 @@ using System;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using Xunit;
 
 namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing

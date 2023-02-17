@@ -14,7 +14,7 @@ using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Ipc.Common;
 using BuildXL.Ipc.ExternalApi;
 using BuildXL.Ipc.Interfaces;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Authentication;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.ParallelAlgorithms;
@@ -32,7 +32,7 @@ using Microsoft.VisualStudio.Services.Drop.WebApi;
 using Microsoft.VisualStudio.Services.ItemStore.Common;
 using Newtonsoft.Json;
 using Tool.ServicePipDaemon;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace Tool.DropDaemon
 {

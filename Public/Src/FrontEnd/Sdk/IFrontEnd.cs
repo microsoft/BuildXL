@@ -4,7 +4,7 @@
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using BuildXL.FrontEnd.Workspaces;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using NotNullAttribute = JetBrains.Annotations.NotNullAttribute;
 

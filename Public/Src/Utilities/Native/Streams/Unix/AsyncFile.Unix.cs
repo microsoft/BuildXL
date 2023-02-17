@@ -7,7 +7,7 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Native.IO;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using Microsoft.Win32.SafeHandles;
 using static BuildXL.Native.IO.Unix.FileSystemUnix;
 

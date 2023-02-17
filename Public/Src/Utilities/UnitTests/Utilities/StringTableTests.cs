@@ -8,7 +8,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Text;
 using System.Threading.Tasks;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Serialization;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;

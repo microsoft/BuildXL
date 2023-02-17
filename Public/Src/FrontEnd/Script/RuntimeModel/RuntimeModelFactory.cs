@@ -14,7 +14,7 @@ using BuildXL.FrontEnd.Script.Values;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Workspaces;
 using BuildXL.FrontEnd.Workspaces.Core;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
@@ -217,7 +217,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
         private async Task SerializeAndSaveAst(SourceFileParseResult result, RuntimeModelContext runtimeModelContext, string specPath, AbsolutePath path)
         {
             // Pooled stream can be released only when the blob is saved to disk
-            using (var pooledStream = BuildXL.Utilities.Pools.MemoryStreamPool.GetInstance())
+            using (var pooledStream = BuildXL.Utilities.Core.Pools.MemoryStreamPool.GetInstance())
             {
                 byte[] serializedAst;
                 using (m_statistics.SpecAstSerialization.Start(specPath))

@@ -2,12 +2,10 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Reflection;
-using BuildXL.Utilities;
 using Xunit;
 using Xunit.Abstractions;
 using Xunit.Sdk;
@@ -62,7 +60,7 @@ namespace BuildXL.FrontEnd.Script.Testing.Helper
         {
             var testRoot = Environment.GetEnvironmentVariable("TestOutputDir") ??
                            Environment.GetEnvironmentVariable("TEMP") ??
-                           Path.Combine(Path.GetDirectoryName(BuildXL.Utilities.AssemblyHelper.GetAssemblyLocation(GetType().Assembly)), "TestGen");
+                           Path.Combine(Path.GetDirectoryName(BuildXL.Utilities.Core.AssemblyHelper.GetAssemblyLocation(GetType().Assembly)), "TestGen");
 
             var testOutputHelper = (TestOutputHelper)m_output;
             var iTestObject = testOutputHelper

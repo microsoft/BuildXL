@@ -13,7 +13,7 @@ using BuildXL.Cache.Interfaces;
 using BuildXL.Cache.Interfaces.Test;
 using BuildXL.Cache.Tests;
 using BuildXL.Storage.Fingerprints;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 

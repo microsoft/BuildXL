@@ -44,6 +44,7 @@ namespace IntegrationTest.BuildXL.Executable {
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Configuration.dll,
             importFrom("BuildXL.Utilities").Native.dll,
+            importFrom("BuildXL.Utilities").Utilities.Core.dll,
             importFrom("BuildXL.Utilities.UnitTests").StorageTestUtilities.dll,
             importFrom("Newtonsoft.Json").pkg,
         ],

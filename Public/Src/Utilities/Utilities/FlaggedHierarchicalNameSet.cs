@@ -4,6 +4,7 @@
 using System.Collections.Concurrent;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Utilities
 {

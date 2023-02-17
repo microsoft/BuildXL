@@ -26,6 +26,7 @@ export const dll = BuildXLSdk.library({
         importFrom("BuildXL.Utilities").Storage.dll,
         importFrom("BuildXL.Utilities").Collections.dll,
         importFrom("BuildXL.Utilities").Configuration.dll,
+        importFrom("BuildXL.Utilities").Utilities.Core.dll,
         ...addIf(BuildXLSdk.Flags.isMicrosoftInternal && BuildXLSdk.isDotNetCore,
             importFrom("Microsoft.Automata.SRM").withQualifier({ targetFramework: "netstandard2.1" }).pkg,
             importFrom("Microsoft.ApplicationInsights").pkg,

@@ -3,6 +3,7 @@
 
 using System.IO;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.FrontEnd.Core.Incrementality;
 using Xunit;

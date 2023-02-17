@@ -7,7 +7,7 @@ using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
 using System.Threading;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Processes.Sideband
 {

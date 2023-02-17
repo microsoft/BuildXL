@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 using BuildXL.Engine.Cache;
 using BuildXL.Pips.Filter;
 using BuildXL.Pips.Graph;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using JetBrains.Annotations;
 

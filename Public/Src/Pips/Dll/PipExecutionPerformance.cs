@@ -6,7 +6,7 @@ using System.Diagnostics.ContractsLight;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Native.IO;
 using BuildXL.Storage.Fingerprints;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Pips
 {

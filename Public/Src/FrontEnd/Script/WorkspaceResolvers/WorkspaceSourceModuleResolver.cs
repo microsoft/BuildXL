@@ -18,6 +18,7 @@ using BuildXL.FrontEnd.Workspaces;
 using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.FrontEnd.Workspaces.Core.Failures;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
@@ -26,7 +27,7 @@ using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Utilities.Tasks;
 using JetBrains.Annotations;
 using TypeScript.Net.Types;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace BuildXL.FrontEnd.Script
 {
@@ -1141,7 +1142,7 @@ namespace BuildXL.FrontEnd.Script
                         StringId(packageConfiguration.Version),
                         StringId(packageConfiguration.Version)));
 
-        private StringId StringId(string value) => Utilities.StringId.Create(StringTable, value);
+        private StringId StringId(string value) => Utilities.Core.StringId.Create(StringTable, value);
 
         /// <summary>
         /// Computes the main file of a package. This is either explicitly defined on the package, or is `package.dsc` in the package's root directory.

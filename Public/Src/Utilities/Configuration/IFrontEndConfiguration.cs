@@ -3,6 +3,7 @@
 
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using BuildXL.Utilities.Core;
 using NotNullAttribute = JetBrains.Annotations.NotNullAttribute;
 
 namespace BuildXL.Utilities.Configuration

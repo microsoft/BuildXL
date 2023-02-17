@@ -40,6 +40,7 @@ namespace Script {
             importFrom("BuildXL.Utilities").Storage.dll,
             importFrom("BuildXL.Utilities").Script.Constants.dll,
             importFrom("BuildXL.Utilities").Configuration.dll,
+            importFrom("BuildXL.Utilities").Utilities.Core.dll,
             
             // When we can split apmbients in different assemblies we can move the Json ambients into seperate assembly and remove this reference.
             importFrom("Newtonsoft.Json").pkg,

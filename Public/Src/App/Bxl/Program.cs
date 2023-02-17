@@ -14,7 +14,7 @@ using BuildXL.App.Tracing;
 using BuildXL.Native.IO;
 using BuildXL.Native.Processes;
 using BuildXL.Storage;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;

@@ -5,6 +5,7 @@ using System;
 using System.IO;
 using System.Runtime.InteropServices;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Native.IO
 {

@@ -20,6 +20,7 @@ namespace Generator {
             importFrom("BuildXL.Utilities").Branding.dll,
             importFrom("BuildXL.Utilities").ToolSupport.dll,
             importFrom("BuildXL.Utilities").Script.Constants.dll,
+            importFrom("BuildXL.Utilities").Utilities.Core.dll,
         ],
         embeddedResources: [
             {

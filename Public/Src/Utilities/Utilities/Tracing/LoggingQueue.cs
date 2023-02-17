@@ -10,7 +10,7 @@ using System.Threading.Channels;
 using System.Threading.Tasks;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.ParallelAlgorithms;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 #nullable enable
 
@@ -44,7 +44,6 @@ namespace BuildXL.Utilities.Tracing
         private readonly Channel<(EventCounter, Action)> m_logActionChannel;
 
         private readonly Task m_logActionTask;
-
         [MemberNotNullWhen(true, nameof(m_loggingContext))]
         private bool AsyncLoggingEnabled => m_isAsyncLoggingEnabled;
 

@@ -4,7 +4,7 @@
 using System.Diagnostics.ContractsLight;
 using System.Threading;
 using BuildXL.FrontEnd.Script.Values;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using JetBrains.Annotations;
 
 namespace BuildXL.FrontEnd.Script

@@ -3,7 +3,7 @@
 
 using System;
 using BuildXL.FrontEnd.Workspaces;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using JetBrains.Annotations;
 
 #pragma warning disable SA1649 // File name must match first type name

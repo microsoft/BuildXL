@@ -6,7 +6,7 @@ using System.Diagnostics.CodeAnalysis;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Scheduler.Tracing;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 
 namespace BuildXL.Execution.Analyzer.Analyzers.CacheMiss

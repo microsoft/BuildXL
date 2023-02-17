@@ -4,8 +4,8 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using BuildXL.Utilities;
-using BuildXL.Utilities.Qualifier;
+using BuildXL.Utilities.Core;
+using BuildXL.Utilities.Core.Qualifier;
 using BuildXL.FrontEnd.Script.Expressions.CompositeExpressions;
 using BuildXL.FrontEnd.Script;
 using BuildXL.FrontEnd.Script.Declarations;

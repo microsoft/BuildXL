@@ -26,13 +26,13 @@ using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Pips;
 using BuildXL.Pips.Builders;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using TypeScript.Net.Types;
 using TypeScript.Net.Utilities;
 using static BuildXL.FrontEnd.Script.Values.Thunk;
-using static BuildXL.Utilities.FormattableStringEx;
 
 namespace BuildXL.FrontEnd.JavaScript
 {

@@ -25,6 +25,7 @@ namespace Analyzer {
             importFrom("BuildXL.Utilities").Native.dll,
             importFrom("BuildXL.Utilities").Storage.dll,
             importFrom("BuildXL.Utilities").ToolSupport.dll,
+            importFrom("BuildXL.Utilities").Utilities.Core.dll,
             ...BuildXLSdk.bclAsyncPackages,
         ],
         internalsVisibleTo: [

@@ -16,6 +16,7 @@ namespace TypeScript.Net {
             importFrom("BuildXL.Utilities.Instrumentation").Common.dll,
             importFrom("BuildXL.Utilities").Collections.dll,
             importFrom("BuildXL.Utilities").Script.Constants.dll,
+            importFrom("BuildXL.Utilities").Utilities.Core.dll,
             ...addIf(BuildXLSdk.isFullFramework,
                 importFrom("System.Collections.Immutable").pkg
             ),

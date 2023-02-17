@@ -4,7 +4,7 @@
 using System;
 using System.Collections.Generic;
 using BuildXL.Storage;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Ipc.ExternalApi
 {

@@ -9,7 +9,7 @@ using BuildXL.Pips;
 using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.ToolSupport;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using Newtonsoft.Json;
 
@@ -71,7 +71,7 @@ namespace BuildXL.Execution.Analyzer
         }
 
 
-        private static void WritePipJson(JsonWriter writer, global::BuildXL.Pips.Operations.Pip pip, global::BuildXL.Utilities.PipExecutionContext pipExecutionContext)
+        private static void WritePipJson(JsonWriter writer, global::BuildXL.Pips.Operations.Pip pip, global::BuildXL.Utilities.Core.PipExecutionContext pipExecutionContext)
         {
             writer.WriteStartObject();
             WriteJsonProperty(writer, "SemiStableHash", pip.FormattedSemiStableHash);

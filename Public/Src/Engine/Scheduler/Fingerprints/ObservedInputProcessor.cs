@@ -11,7 +11,6 @@ using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Native.IO;
 using BuildXL.Pips;
-using BuildXL.Pips.Operations;
 using BuildXL.Processes;
 using BuildXL.Scheduler.Artifacts;
 using BuildXL.Scheduler.FileSystem;
@@ -19,11 +18,12 @@ using BuildXL.Scheduler.Tracing;
 using BuildXL.Storage;
 using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Tracing;
 using JetBrains.Annotations;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 #pragma warning disable 1591 // disabling warning about missing API documentation; TODO: Remove this line and write documentation!
 

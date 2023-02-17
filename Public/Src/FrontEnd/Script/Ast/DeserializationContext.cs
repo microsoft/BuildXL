@@ -2,7 +2,7 @@
 // Licensed under the MIT License.
 
 using BuildXL.FrontEnd.Script.Values;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using TypeScript.Net.Utilities;
 
 namespace BuildXL.FrontEnd.Script

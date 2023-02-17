@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Grpc;
 using BuildXL.Engine.Distribution.Grpc;
 using BuildXL.Engine.Tracing;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;

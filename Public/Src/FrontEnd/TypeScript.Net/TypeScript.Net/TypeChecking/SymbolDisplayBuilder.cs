@@ -8,7 +8,7 @@ using System.Diagnostics.ContractsLight;
 using BuildXL.Utilities.Collections;
 using TypeScript.Net.Extensions;
 using TypeScript.Net.Types;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 using static TypeScript.Net.Scanning.Scanner;
 using static TypeScript.Net.Types.NodeUtilities;
 

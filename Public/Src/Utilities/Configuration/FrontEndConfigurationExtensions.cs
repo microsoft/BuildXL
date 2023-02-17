@@ -4,6 +4,7 @@
 using System;
 using System.Linq;
 using BuildXL.Utilities.Configuration.Mutable;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Utilities.Configuration
 {

@@ -9,7 +9,7 @@ using BuildXL.Execution.Analyzer;
 using Xunit.Abstractions;
 using BuildXL.Utilities.Collections;
 using System.Collections.Generic;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using System.IO;
 using static BuildXL.ToolSupport.CommandLineUtilities;
 using System.Text;

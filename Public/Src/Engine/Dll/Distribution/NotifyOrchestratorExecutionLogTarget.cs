@@ -5,7 +5,7 @@ using System;
 using System.IO;
 using System.Threading.Tasks;
 using BuildXL.Scheduler.Tracing;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Tracing;
 
 namespace BuildXL.Engine.Distribution

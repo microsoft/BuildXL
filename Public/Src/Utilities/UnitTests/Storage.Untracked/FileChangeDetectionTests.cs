@@ -10,6 +10,7 @@ using BuildXL.Native.IO;
 using BuildXL.Storage;
 using BuildXL.Storage.ChangeTracking;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;

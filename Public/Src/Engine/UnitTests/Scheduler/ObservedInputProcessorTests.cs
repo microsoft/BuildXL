@@ -19,7 +19,7 @@ using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Storage;
 using BuildXL.Storage.Fingerprints;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
@@ -31,7 +31,7 @@ using Xunit;
 using Xunit.Abstractions;
 using DirectoryMembershipFingerprinterRule = BuildXL.Scheduler.DirectoryMembershipFingerprinterRule;
 using SortedFileArtifacts =
-    BuildXL.Utilities.Collections.SortedReadOnlyArray<BuildXL.Utilities.FileArtifact, BuildXL.Utilities.OrdinalFileArtifactComparer>;
+    BuildXL.Utilities.Collections.SortedReadOnlyArray<BuildXL.Utilities.Core.FileArtifact, BuildXL.Utilities.Core.OrdinalFileArtifactComparer>;
 
 namespace Test.BuildXL.Scheduler
 {

@@ -13,6 +13,7 @@ namespace BuildCacheAdapter {
             importFrom("BuildXL.Utilities").Authentication.dll,
             importFrom("BuildXL.Utilities").Storage.dll,
             importFrom("BuildXL.Utilities").Configuration.dll,
+            importFrom("BuildXL.Utilities").Utilities.Core.dll,
             Interfaces.dll,
             MemoizationStoreAdapter.dll,
             importFrom("Microsoft.VisualStudio.Services.InteractiveClient").pkg,

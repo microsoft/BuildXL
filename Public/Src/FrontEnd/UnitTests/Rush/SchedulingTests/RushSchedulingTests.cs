@@ -6,7 +6,7 @@ using System.Linq;
 using BuildXL.FrontEnd.Rush;
 using BuildXL.FrontEnd.Utilities;
 using BuildXL.FrontEnd.Workspaces.Core;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration.Mutable;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;

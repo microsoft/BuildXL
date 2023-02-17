@@ -8,6 +8,7 @@ using BuildXL.Processes;
 using BuildXL.Storage;
 using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 #pragma warning disable 1591 // disabling warning about missing API documentation; TODO: Remove this line and write documentation!
 

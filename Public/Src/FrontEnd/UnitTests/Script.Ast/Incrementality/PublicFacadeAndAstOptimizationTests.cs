@@ -14,7 +14,7 @@ using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
 using BuildXL.Utilities.Collections;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 namespace Test.DScript.Ast.Incrementality
 {

@@ -10,7 +10,7 @@ using BuildXL.Pips;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes;
 using BuildXL.Processes.Tracing;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.Scheduler;

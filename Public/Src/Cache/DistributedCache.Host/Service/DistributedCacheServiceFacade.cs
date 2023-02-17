@@ -184,7 +184,7 @@ namespace BuildXL.Cache.Host.Service
             {
                 // There is no simple way to separate if the current process is a launcher or a launchee.
                 // But we know that if the current process targeted the full framework, this is not a child process.
-                return OperatingSystemHelper.GetRuntimeFrameworkNameAndVersion().Contains("NETFramework");
+                return OperatingSystemHelperExtension.GetRuntimeFrameworkNameAndVersion().Contains("NETFramework");
             }
         }
 

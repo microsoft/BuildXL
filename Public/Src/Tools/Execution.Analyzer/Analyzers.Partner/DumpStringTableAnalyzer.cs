@@ -7,7 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using BuildXL.ToolSupport;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using Newtonsoft.Json;
 
 namespace BuildXL.Execution.Analyzer

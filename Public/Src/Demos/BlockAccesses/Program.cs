@@ -7,7 +7,7 @@ using System.Diagnostics;
 using System.Linq;
 using BuildXL.Demo;
 using BuildXL.Processes;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.SandboxDemo
 {

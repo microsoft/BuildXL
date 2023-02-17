@@ -11,6 +11,7 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Threading;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using Strings = bxl.Strings;
 
 namespace BuildXL

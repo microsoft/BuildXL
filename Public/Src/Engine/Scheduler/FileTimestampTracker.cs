@@ -4,7 +4,7 @@
 using System;
 using BuildXL.Cache.ContentStore.UtilitiesCore.Internal;
 using BuildXL.Native.IO;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 
 namespace BuildXL.Scheduler

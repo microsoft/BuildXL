@@ -5,9 +5,9 @@ using System;
 using System.Diagnostics.ContractsLight;
 using System.Threading;
 using BuildXL.Native.IO.Windows;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using Microsoft.Win32.SafeHandles;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace BuildXL.Native.Streams.Windows
 {

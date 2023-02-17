@@ -11,6 +11,7 @@ namespace Configuration {
             importFrom("BuildXL.FrontEnd").TypeScript.Net.dll,
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Configuration.dll,
+            importFrom("BuildXL.Utilities").Utilities.Core.dll,
         ]
     });
 }

@@ -8,7 +8,7 @@ using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.IO;
 using BuildXL.Pips.Operations;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 #pragma warning disable SA1203 // Constant fields should appear before non-constant fields
 

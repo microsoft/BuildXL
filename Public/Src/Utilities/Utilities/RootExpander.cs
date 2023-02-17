@@ -3,6 +3,7 @@
 
 using System.Collections.Generic;
 using System.Globalization;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Utilities
 {

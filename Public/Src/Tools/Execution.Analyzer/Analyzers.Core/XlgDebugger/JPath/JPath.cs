@@ -8,7 +8,7 @@ using System.IO;
 using System.Linq;
 using Antlr4.Runtime;
 using Antlr4.Runtime.Misc;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 [assembly: CLSCompliant(false)]
 

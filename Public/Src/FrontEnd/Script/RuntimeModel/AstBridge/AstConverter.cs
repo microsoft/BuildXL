@@ -17,16 +17,17 @@ using BuildXL.FrontEnd.Script.Values;
 using BuildXL.FrontEnd.Workspaces;
 using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
-using BuildXL.Utilities.Qualifier;
+using BuildXL.Utilities.Core.Qualifier;
 using JetBrains.Annotations;
 using TypeScript.Net.DScript;
 using TypeScript.Net.Extensions;
 using TypeScript.Net.Parsing;
 using TypeScript.Net.Reformatter;
 using TypeScript.Net.Types;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 using BinaryExpression = BuildXL.FrontEnd.Script.Expressions.BinaryExpression;
 using CaseClause = BuildXL.FrontEnd.Script.Statements.CaseClause;
 using ConditionalExpression = BuildXL.FrontEnd.Script.Expressions.ConditionalExpression;
@@ -108,7 +109,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
 
         private StringTable StringTable => m_conversionContext.RuntimeModelContext.StringTable;
 
-        private BuildXL.Utilities.SymbolTable SymbolTable => m_conversionContext.RuntimeModelContext.SymbolTable;
+        private BuildXL.Utilities.Core.SymbolTable SymbolTable => m_conversionContext.RuntimeModelContext.SymbolTable;
 
         private readonly StringId m_lazyExpression;
 
@@ -1940,7 +1941,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
             {
                 var name = CreateNameOrFullName(importOrExportSpecifier.Name);
                 var nameIsFullSymbol = name is FullSymbol;
-                var asName = nameIsFullSymbol ? FullSymbol.Invalid : (BuildXL.Utilities.ISymbol)SymbolAtom.Invalid;
+                var asName = nameIsFullSymbol ? FullSymbol.Invalid : (BuildXL.Utilities.Core.ISymbol)SymbolAtom.Invalid;
 
                 ImportOrExportSpecifier specifier;
                 if (nameIsFullSymbol)
@@ -1962,9 +1963,9 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
         /// <summary>
         /// Creates a FullSymbol in case the identifier represents a module, or a Symbol if it is not
         /// </summary>
-        private BuildXL.Utilities.ISymbol CreateNameOrFullName(IIdentifier identifier)
+        private BuildXL.Utilities.Core.ISymbol CreateNameOrFullName(IIdentifier identifier)
         {
-            BuildXL.Utilities.ISymbol name;
+            BuildXL.Utilities.Core.ISymbol name;
             if (identifier.StartsWithUpperCase())
             {
                 name = CreateFullName(identifier.Text);

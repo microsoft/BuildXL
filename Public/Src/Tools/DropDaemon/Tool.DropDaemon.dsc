@@ -29,6 +29,7 @@ export namespace DropDaemon {
             importFrom("BuildXL.Utilities").Native.dll,
             importFrom("BuildXL.Utilities").Storage.dll,
             importFrom("BuildXL.Utilities").SBOMUtilities.dll,
+            importFrom("BuildXL.Utilities").Utilities.Core.dll,
             importFrom("BuildXL.Tools").ServicePipDaemon.dll,
             importFrom("ArtifactServices.App.Shared").pkg,
             importFrom("ArtifactServices.App.Shared.Cache").pkg,

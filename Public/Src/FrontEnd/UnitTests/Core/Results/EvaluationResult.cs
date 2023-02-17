@@ -7,7 +7,7 @@ using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Text;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace Test.BuildXL.FrontEnd.Core
 {

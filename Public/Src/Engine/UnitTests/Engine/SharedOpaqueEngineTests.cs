@@ -9,7 +9,7 @@ using BuildXL.Engine;
 using BuildXL.Native.IO;
 using BuildXL.Processes;
 using BuildXL.Processes.Tracing;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using Test.BuildXL.EngineTestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;

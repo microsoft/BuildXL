@@ -14,7 +14,7 @@ using System.Management;
 using System.Runtime.InteropServices;
 using BuildXL.Native.IO;
 using BuildXL.Native.Processes.Windows;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Processes
 {

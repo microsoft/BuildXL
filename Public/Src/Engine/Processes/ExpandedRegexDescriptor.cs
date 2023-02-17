@@ -3,7 +3,7 @@
 
 using System.Diagnostics.ContractsLight;
 using System.Text.RegularExpressions;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Processes
 {

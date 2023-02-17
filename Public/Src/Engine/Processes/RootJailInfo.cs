@@ -3,7 +3,7 @@
 
 using System.IO;
 using System.Diagnostics.ContractsLight;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 
 namespace BuildXL.Processes

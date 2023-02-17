@@ -3,11 +3,11 @@
 
 using System.Diagnostics.ContractsLight;
 using BuildXL.FrontEnd.Script.Constants;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using JetBrains.Annotations;
 using TypeScript.Net.DScript;
 using TypeScript.Net.Types;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace TypeScript.Net.Parsing
 {

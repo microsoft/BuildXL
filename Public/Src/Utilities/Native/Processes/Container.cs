@@ -4,7 +4,7 @@
 using System;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 using JetBrains.Annotations;
 

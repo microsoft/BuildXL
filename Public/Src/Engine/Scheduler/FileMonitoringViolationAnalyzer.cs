@@ -16,13 +16,13 @@ using BuildXL.Processes;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Storage;
 using BuildXL.Storage.Fingerprints;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
 using JetBrains.Annotations;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 #pragma warning disable 1591 // disabling warning about missing API documentation; TODO: Remove this line and write documentation!
 
 namespace BuildXL.Scheduler

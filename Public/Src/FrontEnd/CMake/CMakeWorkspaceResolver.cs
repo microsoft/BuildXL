@@ -20,6 +20,7 @@ using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Native.IO;
 using BuildXL.Processes;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
@@ -27,7 +28,7 @@ using BuildXL.Utilities.Tasks;
 using Newtonsoft.Json;
 using TypeScript.Net.DScript;
 using TypeScript.Net.Types;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 using NotNullAttribute = JetBrains.Annotations.NotNullAttribute;
 
 namespace BuildXL.FrontEnd.CMake

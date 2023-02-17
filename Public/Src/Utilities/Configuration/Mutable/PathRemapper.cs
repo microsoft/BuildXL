@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Utilities.Configuration.Mutable
 {

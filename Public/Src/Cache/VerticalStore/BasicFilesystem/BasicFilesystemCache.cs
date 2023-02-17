@@ -20,7 +20,7 @@ using BuildXL.Cache.Interfaces;
 using BuildXL.Native.IO;
 using BuildXL.Storage;
 using BuildXL.Storage.Fingerprints;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using Newtonsoft.Json;
 
 namespace BuildXL.Cache.BasicFilesystem

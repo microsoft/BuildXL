@@ -188,7 +188,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
 
             LifetimeTrackerHelper = Tracing.LifetimeTrackerHelper.Starting(clock.GetUtcNow(), processStartupTime ?? GetProcessStartupTimeUtc(), offlineTime.Then(v => Result.Success(v.lastServiceHeartbeatTime)));
 
-            var runtime = OperatingSystemHelper.GetRuntimeFrameworkNameAndVersion();
+            var runtime = OperatingSystemHelperExtension.GetRuntimeFrameworkNameAndVersion();
             Trace(context, $"Starting CaSaaS instance. Runtime={runtime}{offlineTime.ToStringSelect(r => $". LastHeartBeatTime={r.lastServiceHeartbeatTime}, ShutdownCorrectly={r.shutdownCorrectly}")}");
         }
 

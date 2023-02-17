@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ImplementationSupport;
 using BuildXL.Cache.InMemory;
 using BuildXL.Cache.Interfaces;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Tasks;
 

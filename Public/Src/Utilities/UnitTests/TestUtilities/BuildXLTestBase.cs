@@ -14,7 +14,7 @@ using System.Text;
 using System.Xml;
 using System.Xml.Linq;
 using BuildXL.Native.Streams;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
 

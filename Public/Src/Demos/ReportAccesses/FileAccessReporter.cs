@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using BuildXL.Processes;
 using BuildXL.Processes.Containers;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 
 namespace BuildXL.Demo

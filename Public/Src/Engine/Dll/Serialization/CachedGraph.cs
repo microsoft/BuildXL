@@ -13,9 +13,10 @@ using BuildXL.Pips.Graph;
 using BuildXL.Scheduler;
 using BuildXL.Scheduler.Graph;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.Utilities.Qualifier;
+using BuildXL.Utilities.Core.Qualifier;
 
 namespace BuildXL.Engine
 {

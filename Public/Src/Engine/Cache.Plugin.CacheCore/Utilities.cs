@@ -4,7 +4,7 @@
 using System;
 using System.Threading.Tasks;
 using BuildXL.Engine.Cache.Artifacts;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Tasks;
 
 namespace BuildXL.Engine.Cache.Plugin.CacheCore

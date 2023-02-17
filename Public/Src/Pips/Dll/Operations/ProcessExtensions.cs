@@ -4,7 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 
@@ -20,7 +20,7 @@ namespace BuildXL.Pips.Operations
     public static class ProcessExtensions
     {
         /// <summary>
-        /// Returns all outputs for the <paramref name="process"/> in a form of <see cref="BuildXL.Utilities.FileArtifact"/>.
+        /// Returns all outputs for the <paramref name="process"/> in a form of <see cref="BuildXL.Utilities.Core.FileArtifact"/>.
         /// </summary>
         public static IEnumerable<FileArtifact> GetOutputs(this Process process)
         {
@@ -33,7 +33,7 @@ namespace BuildXL.Pips.Operations
         }
 
         /// <summary>
-        /// Returns all cacheable outputs for the <paramref name="process"/> in a form of <see cref="BuildXL.Utilities.FileArtifact"/>.
+        /// Returns all cacheable outputs for the <paramref name="process"/> in a form of <see cref="BuildXL.Utilities.Core.FileArtifact"/>.
         /// </summary>
         public static IEnumerable<FileArtifact> GetCacheableOutputs(this Process process)
         {

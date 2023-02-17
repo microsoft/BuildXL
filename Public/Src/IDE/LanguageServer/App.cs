@@ -15,6 +15,7 @@ using BuildXL.Ide.LanguageServer.Providers;
 using BuildXL.Ide.LanguageServer.Tracing;
 using BuildXL.Storage;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 using JetBrains.Annotations;
 using LanguageServer;

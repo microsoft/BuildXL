@@ -283,7 +283,7 @@ namespace BuildXL.Cache.Host.Service
             }
             catch(Exception ex)
             {
-                Utilities.Analysis.IgnoreArgument(ex);
+                Utilities.Core.Analysis.IgnoreArgument(ex);
                 homeDirectory = null;
             }
 

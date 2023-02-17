@@ -6,7 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Ide.LanguageServer.Tracing;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 using Microsoft.VisualStudio.LanguageServer.Protocol;
 using TypeScript.Net.Parsing;

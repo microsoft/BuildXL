@@ -5,8 +5,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using BuildXL.Pips.Operations;
-using BuildXL.Utilities;
-using JetBrains.Annotations;
+using BuildXL.Utilities.Core;
 using NotNullAttribute = JetBrains.Annotations.NotNullAttribute;
 
 namespace BuildXL.Processes

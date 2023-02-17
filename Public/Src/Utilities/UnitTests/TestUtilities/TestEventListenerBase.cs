@@ -9,7 +9,7 @@ using System.Diagnostics.Tracing;
 using System.Linq;
 using System.Text;
 using System.Threading;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tracing;
 using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;

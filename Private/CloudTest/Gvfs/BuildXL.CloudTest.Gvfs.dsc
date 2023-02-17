@@ -34,6 +34,7 @@ export const dll = BuildXLSdk.test({
         importFrom("BuildXL.Utilities").Native.dll,
         importFrom("BuildXL.Utilities").Configuration.dll,
         importFrom("BuildXL.Utilities").Storage.dll,
+        importFrom("BuildXL.Utilities").Utilities.Core.dll,
         importFrom("BuildXL.Utilities.UnitTests").TestUtilities.XUnit.dll,
 
         ...importFrom("Sdk.Managed.Testing.XUnit").xunitReferences,

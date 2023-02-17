@@ -7,7 +7,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.Reflection;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using JetBrains.Annotations;
 using NotNullAttribute = JetBrains.Annotations.NotNullAttribute;
 
@@ -40,8 +40,8 @@ namespace BuildXL.FrontEnd.Script.Util
         /// <remarks>
         /// Valid values for the <paramref name="value"/>:
         /// * <see cref="AbsolutePath"/>,
-        /// * <see cref="BuildXL.Utilities.FileArtifact"/>,
-        /// * <see cref="BuildXL.Utilities.DirectoryArtifact"/>,
+        /// * <see cref="BuildXL.Utilities.Core.FileArtifact"/>,
+        /// * <see cref="BuildXL.Utilities.Core.DirectoryArtifact"/>,
         /// * <see cref="string"/> (if the conversion to AbsolutePath succeeds).
         /// </remarks>
         public static bool TryConvertAbsolutePath([NotNull] object value, [NotNull] PathTable pathTable, out AbsolutePath result)

@@ -9,6 +9,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Logging;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using Microsoft.Cloud.InstrumentationFramework;
 using Xunit;
 using OperationResult = BuildXL.Cache.ContentStore.Interfaces.Logging.OperationResult;

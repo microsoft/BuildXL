@@ -13,7 +13,7 @@ using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Native.IO;
 using BuildXL.Storage;
 using BuildXL.ToolSupport;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.VstsAuthentication;
 
 namespace Tool.Download

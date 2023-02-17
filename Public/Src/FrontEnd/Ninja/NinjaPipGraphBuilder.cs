@@ -6,7 +6,7 @@ using System.Diagnostics.ContractsLight;
 using BuildXL.FrontEnd.Ninja.Serialization;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Workspaces.Core;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration.Resolvers;
 
 namespace BuildXL.FrontEnd.Ninja

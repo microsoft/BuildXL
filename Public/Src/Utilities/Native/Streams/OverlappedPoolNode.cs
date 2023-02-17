@@ -6,6 +6,7 @@ using System.Diagnostics.ContractsLight;
 using System.Runtime.InteropServices;
 using System.Threading;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Native.Streams
 {  

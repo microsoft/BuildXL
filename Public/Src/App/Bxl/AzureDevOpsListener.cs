@@ -10,6 +10,7 @@ using System.Threading;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes.Tracing;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;

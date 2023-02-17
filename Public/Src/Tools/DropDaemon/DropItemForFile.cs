@@ -8,10 +8,10 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Storage;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using Microsoft.VisualStudio.Services.BlobStore.Common;
 using Tool.ServicePipDaemon;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace Tool.DropDaemon
 {

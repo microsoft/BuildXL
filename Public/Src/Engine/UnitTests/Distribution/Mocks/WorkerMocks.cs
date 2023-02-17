@@ -6,7 +6,7 @@ using System;
 using System.Threading.Tasks;
 using BuildXL.Engine;
 using BuildXL.Engine.Distribution;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Pips;
 using BuildXL.Scheduler;

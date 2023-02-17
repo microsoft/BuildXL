@@ -10,6 +10,7 @@ namespace Collections {
             importFrom("BuildXL.Utilities").Collections.dll,
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Native.dll,
+            importFrom("BuildXL.Utilities").Utilities.Core.dll,
         ],
     });
 }

@@ -3,7 +3,7 @@
 
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Graph;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration.Mutable;
 using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;

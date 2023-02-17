@@ -3,7 +3,7 @@
 
 using System;
 using System.Runtime.InteropServices;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;

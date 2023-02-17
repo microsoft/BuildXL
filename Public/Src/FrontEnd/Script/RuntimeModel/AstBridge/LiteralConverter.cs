@@ -6,7 +6,7 @@ using System.Diagnostics.ContractsLight;
 using BuildXL.FrontEnd.Script.Core;
 using BuildXL.FrontEnd.Script.Expressions;
 using BuildXL.FrontEnd.Script.Literals;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using static TypeScript.Net.Types.NodeExtensions;
 
 namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge

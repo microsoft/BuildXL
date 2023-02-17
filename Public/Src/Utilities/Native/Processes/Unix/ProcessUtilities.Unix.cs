@@ -9,7 +9,7 @@ using System.Text;
 using BuildXL.Interop.Unix;
 using BuildXL.Native.IO;
 using BuildXL.Native.Processes.Windows;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using Microsoft.Win32.SafeHandles;
 
 #if FEATURE_SAFE_PROCESS_HANDLE

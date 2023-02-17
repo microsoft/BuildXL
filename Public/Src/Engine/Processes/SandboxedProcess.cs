@@ -20,13 +20,14 @@ using BuildXL.Pips.Operations;
 using BuildXL.Processes.Internal;
 using BuildXL.Storage;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using Microsoft.Win32.SafeHandles;
 using static BuildXL.Interop.Windows.Memory;
-using static BuildXL.Utilities.OperatingSystemHelper;
+using static BuildXL.Utilities.Core.OperatingSystemHelper;
 #if !FEATURE_SAFE_PROCESS_HANDLE
 using SafeProcessHandle = BuildXL.Interop.Windows.SafeProcessHandle;
 #endif

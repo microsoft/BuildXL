@@ -6,7 +6,7 @@ using System.Linq;
 using BuildXL.FrontEnd.Script.Analyzer.Analyzers;
 using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Ide.JsonRpc;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using JetBrains.Annotations;
 using LanguageServer;
 using Microsoft.VisualStudio.LanguageServer.Protocol;

@@ -2,7 +2,7 @@
 // Licensed under the MIT License.
 
 using System.Linq;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.ParallelAlgorithms;
 using TypeScript.Net.Types;
 

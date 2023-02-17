@@ -48,6 +48,7 @@ namespace Test.Yarn {
             importFrom("BuildXL.Utilities").Configuration.dll,
             importFrom("BuildXL.Utilities").Native.dll,
             importFrom("BuildXL.Utilities").Script.Constants.dll,
+            importFrom("BuildXL.Utilities").Utilities.Core.dll,
             importFrom("BuildXL.Utilities.Instrumentation").Common.dll,
         ],
         runtimeContent: [

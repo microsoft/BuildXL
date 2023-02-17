@@ -8,14 +8,14 @@ using BuildXL.FrontEnd.MsBuild.Serialization;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Utilities.GenericProjectGraphResolver;
 using BuildXL.FrontEnd.Workspaces.Core;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
 using Test.BuildXL.TestUtilities.Xunit;
 using Test.DScript.Ast.Scheduling;
 using Xunit.Abstractions;
-using ProjectWithPredictions = BuildXL.FrontEnd.MsBuild.Serialization.ProjectWithPredictions<BuildXL.Utilities.AbsolutePath>;
+using ProjectWithPredictions = BuildXL.FrontEnd.MsBuild.Serialization.ProjectWithPredictions<BuildXL.Utilities.Core.AbsolutePath>;
 
 namespace Test.BuildXL.FrontEnd.MsBuild.Infrastructure
 {

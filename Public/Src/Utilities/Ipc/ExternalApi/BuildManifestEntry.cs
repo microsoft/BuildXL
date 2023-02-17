@@ -4,7 +4,7 @@
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Ipc.ExternalApi
 {

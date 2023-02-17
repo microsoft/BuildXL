@@ -4,6 +4,7 @@
 using System.Diagnostics.ContractsLight;
 using System.Threading;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Native.Streams
 {

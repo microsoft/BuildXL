@@ -2,7 +2,7 @@
 // Licensed under the MIT License.
 
 using System.Diagnostics.ContractsLight;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 #pragma warning disable SA1649 // File name must match first type name
 

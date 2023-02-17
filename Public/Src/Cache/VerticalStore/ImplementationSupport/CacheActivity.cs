@@ -5,7 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Diagnostics.Tracing;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 #pragma warning disable SA1649 // File name must match first type name
 

@@ -8,7 +8,7 @@ using JetBrains.Annotations;
 using TypeScript.Net;
 using TypeScript.Net.Reformatter;
 using TypeScript.Net.Types;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 using Expression = BuildXL.FrontEnd.Script.Expressions.Expression;
 
 #pragma warning disable SA1649 // File name must match first type name

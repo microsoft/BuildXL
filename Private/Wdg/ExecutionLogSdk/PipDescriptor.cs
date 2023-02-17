@@ -15,6 +15,7 @@ using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 namespace Tool.ExecutionLogSdk
 {

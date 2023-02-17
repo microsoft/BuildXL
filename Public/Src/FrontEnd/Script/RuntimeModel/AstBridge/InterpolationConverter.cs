@@ -8,12 +8,12 @@ using BuildXL.FrontEnd.Script.Constants;
 using BuildXL.FrontEnd.Script.Expressions;
 using BuildXL.FrontEnd.Script.Expressions.CompositeExpressions;
 using BuildXL.FrontEnd.Script.Literals;
-using BuildXL.Utilities;
-using BuildXL.Utilities.Qualifier;
+using BuildXL.Utilities.Core;
+using BuildXL.Utilities.Core.Qualifier;
 using TypeScript.Net.DScript;
 using TypeScript.Net.Parsing;
 using TypeScript.Net.Types;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 using Expression = BuildXL.FrontEnd.Script.Expressions.Expression;
 using LineInfo = TypeScript.Net.Utilities.LineInfo;
 

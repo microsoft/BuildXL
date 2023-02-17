@@ -9,7 +9,7 @@ using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.Artifacts;
 using BuildXL.Scheduler.IncrementalScheduling;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Scheduler
 {

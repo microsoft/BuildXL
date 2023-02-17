@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 using BuildXL.Pips.DirectedGraph;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.Tracing;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;

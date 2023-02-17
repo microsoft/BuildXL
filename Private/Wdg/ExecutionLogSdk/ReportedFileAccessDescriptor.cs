@@ -33,7 +33,7 @@ namespace Tool.ExecutionLogSdk
         /// <param name="pip">The pip that executed that process that reported the file access</param>
         /// <param name="reportedFileAccesse">Reported file access descriptor</param>
         /// <param name="pathTable">Path table used to expand path strings</param>
-        internal ReportedFileAccessDescriptor(PipDescriptor pip, ref ReportedFileAccess reportedFileAccess, BuildXL.Utilities.PathTable pathTable)
+        internal ReportedFileAccessDescriptor(PipDescriptor pip, ref ReportedFileAccess reportedFileAccess, BuildXL.Utilities.Core.PathTable pathTable)
         {
             Pip = pip;
             ReportedFileAccess = new ReportedFileAccess(

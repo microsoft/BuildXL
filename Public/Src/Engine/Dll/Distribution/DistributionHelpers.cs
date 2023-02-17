@@ -11,7 +11,7 @@ using System.Text;
 using BuildXL.Distribution.Grpc;
 using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Engine.Tracing;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tracing;
 using Google.Protobuf;

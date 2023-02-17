@@ -7,6 +7,7 @@ using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
+using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Cache.ContentStore.Hashing;
 using ContentStoreTest.Test;
@@ -44,7 +45,7 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
         [MemberData(nameof(EventKinds))]
         public async Task LargeInstanceEventsTest(EventKind kind, string kindName)
         {
-            BuildXL.Utilities.Analysis.IgnoreArgument(kindName, "Kind name is only specified so enum value name shows up in test name");
+            BuildXL.Utilities.Core.Analysis.IgnoreArgument(kindName, "Kind name is only specified so enum value name shows up in test name");
             if (kind == EventKind.Blob)
             {
                 // Blob events don't have a large equivalent since they just have a storage id
@@ -73,7 +74,7 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
             await sendAndVerifyLargeEvent(kind);
 
             using var stream = new MemoryStream();
-            using var writer = BuildXL.Utilities.BuildXLWriter.Create(stream);
+            using var writer = BuildXL.Utilities.Core.BuildXLWriter.Create(stream);
 
             serializer.SerializeEvents(writer, harness.Events);
 

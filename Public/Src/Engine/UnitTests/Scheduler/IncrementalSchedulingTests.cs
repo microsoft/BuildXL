@@ -18,7 +18,7 @@ using BuildXL.Scheduler.IncrementalScheduling;
 using BuildXL.Storage;
 using BuildXL.Storage.ChangeJournalService;
 using BuildXL.Storage.ChangeTracking;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using Test.BuildXL.TestUtilities.Xunit;
 
 namespace Test.BuildXL.Scheduler

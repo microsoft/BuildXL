@@ -5,7 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using BuildXL.Native.IO.Windows;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Tasks;
 using Microsoft.Win32.SafeHandles;
 

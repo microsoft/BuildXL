@@ -11,6 +11,7 @@ using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using System.Diagnostics;
 
 namespace IntegrationTest.BuildXL.Scheduler

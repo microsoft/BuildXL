@@ -5,7 +5,7 @@ using System;
 using System.Linq;
 using BuildXL;
 using BuildXL.Engine;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using System.Collections.Generic;
 using Test.BuildXL.TestUtilities.Xunit;

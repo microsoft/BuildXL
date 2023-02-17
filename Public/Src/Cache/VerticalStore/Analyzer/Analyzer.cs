@@ -3,7 +3,7 @@
 
 using System;
 using BuildXL.ToolSupport;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Cache.Analyzer
 {

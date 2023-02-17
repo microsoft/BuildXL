@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using BuildXL.FrontEnd.Sdk.Evaluation;
 using BuildXL.FrontEnd.Sdk.Workspaces;
 using BuildXL.FrontEnd.Workspaces.Core;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using JetBrains.Annotations;
 

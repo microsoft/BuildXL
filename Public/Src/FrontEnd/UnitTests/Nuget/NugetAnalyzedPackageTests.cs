@@ -11,7 +11,7 @@ using Xunit;
 
 using static Test.BuildXL.TestUtilities.Xunit.XunitBuildXLTest;
 using Test.BuildXL.TestUtilities.Xunit;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 namespace Test.BuildXL.FrontEnd.Nuget
 {

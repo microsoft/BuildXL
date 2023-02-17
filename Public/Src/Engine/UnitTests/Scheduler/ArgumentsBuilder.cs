@@ -6,7 +6,7 @@ using System.Diagnostics.ContractsLight;
 using BuildXL.Ipc.Common;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 namespace Test.BuildXL.Scheduler
 {

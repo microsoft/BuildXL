@@ -9,7 +9,7 @@ using BuildXL.Pips;
 using BuildXL.Pips.Operations;
 using BuildXL.Pips.Graph;
 using BuildXL.Scheduler.Graph;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;

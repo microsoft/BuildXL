@@ -10,6 +10,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Utilities
 {

@@ -8,7 +8,7 @@ using BuildXL.FrontEnd.Script.Expressions;
 using BuildXL.FrontEnd.Script.RuntimeModel.AstBridge;
 using BuildXL.FrontEnd.Script.Types;
 using BuildXL.FrontEnd.Script.Values;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using LineInfo = TypeScript.Net.Utilities.LineInfo;
 

@@ -16,6 +16,7 @@ using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Tracing;
 using static BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming.ContentLocationEventStoreCounters;
 
@@ -261,8 +262,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Tracing
                           + $"RocksDb={configuration.Database is RocksDbContentLocationDatabaseConfiguration}, "
                           + $"BuildXLVersion={BuildXL.Utilities.Branding.Version}, "
                           + $"BuildXLSourceVersion={BuildXL.Utilities.Branding.SourceVersion}, "
-                          + $"OSVersion={OperatingSystemHelper.GetOSVersion()}, "
-                          + $".NET Framework={OperatingSystemHelper.GetInstalledDotNetFrameworkVersion()}, "
+                          + $"OSVersion={OperatingSystemHelperExtension.GetOSVersion()}, "
+                          + $".NET Framework={OperatingSystemHelperExtension.GetInstalledDotNetFrameworkVersion()}, "
                           ;
             tracer.Info(context, message);
         }

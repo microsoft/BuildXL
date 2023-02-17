@@ -6,7 +6,7 @@ using System.Text.Json;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Pips.Operations;
 using ProcessEventId = BuildXL.Processes.Tracing.LogEventId;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using Test.BuildXL.Scheduler;
 using Xunit;

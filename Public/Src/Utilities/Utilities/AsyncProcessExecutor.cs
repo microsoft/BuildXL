@@ -7,6 +7,7 @@ using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
 using BuildXL.Interop;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Tasks;
 
 #if !PLATFORM_WIN

@@ -5,7 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using Microsoft.VisualStudio.LanguageServer.Protocol;
 using TypeScript.Net.DScript;
 using TypeScript.Net.Extensions;

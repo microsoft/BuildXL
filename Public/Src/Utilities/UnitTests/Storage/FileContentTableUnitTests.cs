@@ -16,7 +16,7 @@ using BuildXL.Native.Tracing;
 using BuildXL.Storage;
 using BuildXL.Storage.Diagnostics;
 using BuildXL.Storage.FileContentTableAccessor;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 

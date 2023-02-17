@@ -7,7 +7,7 @@ using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
 using BuildXL.Interop.Unix;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 namespace Test.BuildXL.Processes
 {

@@ -18,7 +18,7 @@ using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Storage;
 using BuildXL.Storage.Fingerprints;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
@@ -26,7 +26,7 @@ using Test.BuildXL.Scheduler.Utils;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;
 
 namespace Test.BuildXL.Scheduler

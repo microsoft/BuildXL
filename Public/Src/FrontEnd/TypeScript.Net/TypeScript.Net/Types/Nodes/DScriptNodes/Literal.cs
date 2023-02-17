@@ -4,11 +4,11 @@
 using System;
 using System.Diagnostics.ContractsLight;
 using System.Runtime.CompilerServices;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using JetBrains.Annotations;
 using TypeScript.Net.Api;
 using TypeScript.Net.Reformatter;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace TypeScript.Net.Types
 {

@@ -6,7 +6,7 @@ using System.Text;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Storage;
 using BuildXL.Storage.Tracing;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
 using Test.BuildXL.TestUtilities.Xunit;

@@ -3,7 +3,7 @@
 
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
-using BuildXL.Utilities.Qualifier;
+using BuildXL.Utilities.Core.Qualifier;
 using TypeScript.Net.Types;
 using QualifierSpaceDeclaration = System.Collections.Generic.Dictionary<string, System.Collections.Generic.IReadOnlyList<string>>;
 

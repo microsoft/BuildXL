@@ -7,6 +7,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using BuildXL.Interop.Unix;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Utilities.Configuration.Mutable
 {

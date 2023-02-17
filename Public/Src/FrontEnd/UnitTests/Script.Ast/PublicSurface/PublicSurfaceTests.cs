@@ -4,7 +4,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.FrontEnd.Script.Incrementality;
 using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Utilities.Configuration;

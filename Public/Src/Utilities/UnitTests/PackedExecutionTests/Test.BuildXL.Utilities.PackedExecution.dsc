@@ -36,6 +36,7 @@ namespace PackedExecution {
             importFrom("BuildXL.Utilities").PackedExecution.dll,
             importFrom("BuildXL.Utilities").PackedTable.dll,
             importFrom("BuildXL.Utilities").ToolSupport.dll,
+            importFrom("BuildXL.Utilities").Utilities.Core.dll,
         ],
         runTestArgs: { 
             unsafeTestRunArguments: {

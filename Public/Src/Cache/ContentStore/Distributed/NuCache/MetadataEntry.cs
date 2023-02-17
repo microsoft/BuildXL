@@ -3,7 +3,7 @@
 
 using System;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Serialization;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache

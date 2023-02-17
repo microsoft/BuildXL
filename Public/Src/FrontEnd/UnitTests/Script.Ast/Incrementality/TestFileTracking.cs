@@ -316,7 +316,7 @@ namespace Test.DScript.Ast.Incrementality
             var config = (CommandLineConfiguration)specBuilder.PersistSpecsAndGetConfiguration();
             config.Cache.AllowFetchingCachedGraphFromContentCache = false;
             // Make sure to use a different output directory for each test case
-            config.Layout.OutputDirectory = global::BuildXL.Utilities.AbsolutePath.Create(PathTable, Path.Combine(testRoot, "out"));
+            config.Layout.OutputDirectory = global::BuildXL.Utilities.Core.AbsolutePath.Create(PathTable, Path.Combine(testRoot, "out"));
             return config;
         }
 

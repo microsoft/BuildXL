@@ -39,6 +39,7 @@ namespace Scheduler.IntegrationTest {
             importFrom("BuildXL.Utilities").Interop.dll,
             importFrom("BuildXL.Utilities").Ipc.dll,
             importFrom("BuildXL.Utilities").Storage.dll,
+            importFrom("BuildXL.Utilities").Utilities.Core.dll,
             importFrom("BuildXL.Utilities.UnitTests").TestProcess.exe,
             importFrom("BuildXL.Utilities.UnitTests").StorageTestUtilities.dll,
             importFrom("Newtonsoft.Json").pkg,

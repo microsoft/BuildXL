@@ -3,7 +3,7 @@
 
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.Tracing;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Cache.ImplementationSupport
 {

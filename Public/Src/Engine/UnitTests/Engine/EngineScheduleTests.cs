@@ -7,7 +7,7 @@ using System.Linq;
 using System.Threading;
 using BuildXL.Engine;
 using BuildXL.Pips.Filter;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.FrontEnd.Sdk;

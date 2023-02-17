@@ -55,6 +55,7 @@ using BuildXL.Storage.Fingerprints;
 using BuildXL.Tracing;
 using BuildXL.Tracing.CloudBuild;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
@@ -64,7 +65,7 @@ using BuildXL.Utilities.VmCommandProxy;
 using BuildXL.ViewModel;
 using JetBrains.Annotations;
 using static BuildXL.Processes.SandboxedProcessFactory;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 using Logger = BuildXL.Scheduler.Tracing.Logger;
 using Process = BuildXL.Pips.Operations.Process;
 using BuildXL.Processes.Sideband;
@@ -6171,7 +6172,7 @@ namespace BuildXL.Scheduler
                                 ReportQueueSizeMB = m_configuration.Sandbox.KextReportQueueSizeMb,
                                 EnableReportBatching = m_configuration.Sandbox.KextEnableReportBatching,
 #if !PLATFORM_WIN
-                                EnableCatalinaDataPartitionFiltering = OperatingSystemHelper.IsMacWithoutKernelExtensionSupport,
+                                EnableCatalinaDataPartitionFiltering = OperatingSystemHelperExtension.IsMacWithoutKernelExtensionSupport,
 #endif
                                 ResourceThresholds = new Sandbox.ResourceThresholds
                                 {

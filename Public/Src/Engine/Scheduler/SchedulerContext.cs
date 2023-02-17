@@ -3,8 +3,8 @@
 
 using System.Diagnostics.ContractsLight;
 using System.Threading;
-using BuildXL.Utilities;
-using BuildXL.Utilities.Qualifier;
+using BuildXL.Utilities.Core;
+using BuildXL.Utilities.Core.Qualifier;
 
 namespace BuildXL.Scheduler
 {

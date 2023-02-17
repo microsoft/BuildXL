@@ -8,7 +8,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Pips.DirectedGraph;
 using BuildXL.Storage.Fingerprints;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Instrumentation.Common;
 

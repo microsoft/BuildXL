@@ -3,6 +3,7 @@
 
 using System.Collections.Generic;
 using BuildXL.Interop.Unix;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Utilities.Configuration
 {

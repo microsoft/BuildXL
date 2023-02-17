@@ -12,7 +12,7 @@ using BuildXL.Pips.Filter;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes.Sideband;
 using BuildXL.Scheduler;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.Scheduler;
 using Test.BuildXL.TestUtilities;

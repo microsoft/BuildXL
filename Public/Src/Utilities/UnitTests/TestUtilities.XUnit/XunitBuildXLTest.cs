@@ -14,6 +14,7 @@ using BuildXL.Native.Streams.Windows;
 using BuildXL.Processes;
 using BuildXL.Processes.Sideband;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Tracing;
 using Xunit.Abstractions;
@@ -57,7 +58,7 @@ namespace Test.BuildXL.TestUtilities.Xunit
                             FailureCallback = FailureCallback,
                             KextConfig = new KextConfig
                             {
-                                EnableCatalinaDataPartitionFiltering = OperatingSystemHelper.IsMacWithoutKernelExtensionSupport
+                                EnableCatalinaDataPartitionFiltering = OperatingSystemHelperExtension.IsMacWithoutKernelExtensionSupport
                             }
                         });
                 }
@@ -89,7 +90,7 @@ namespace Test.BuildXL.TestUtilities.Xunit
                         ? SandboxKind.MacOsHybrid
                         : SandboxKind.MacOsKext;
 
-            if (!OperatingSystemHelper.IsMacWithoutKernelExtensionSupport &&
+            if (!OperatingSystemHelperExtension.IsMacWithoutKernelExtensionSupport &&
                 (kind == SandboxKind.MacOsEndpointSecurity || kind == SandboxKind.MacOsHybrid))
             {
                 throw new NotSupportedException("EndpointSecurity and Hybrid sandbox types can't be run on system older than macOS Catalina (10.15+).");

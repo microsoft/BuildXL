@@ -3,7 +3,7 @@
 
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Utilities.Configuration;
 using BuildXL.FrontEnd.Sdk.FileSystem;

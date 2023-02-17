@@ -5,7 +5,7 @@ using System;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using BuildXL.ToolSupport;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 namespace Tool.VerifyFileContentTable
 {

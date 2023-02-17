@@ -10,7 +10,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Interop.Unix;
 using BuildXL.Processes;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using Test.BuildXL.Executables.TestProcess;

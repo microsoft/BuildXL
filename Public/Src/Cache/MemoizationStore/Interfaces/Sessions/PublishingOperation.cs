@@ -4,7 +4,7 @@
 using System;
 using System.IO;
 using System.Runtime.Serialization;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
 {

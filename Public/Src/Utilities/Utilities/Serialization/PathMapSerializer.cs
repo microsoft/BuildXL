@@ -7,7 +7,8 @@ using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Threading.Tasks;
 using BuildXL.Utilities.Collections;
-using static BuildXL.Utilities.FormattableStringEx;
+using BuildXL.Utilities.Core;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace BuildXL.Utilities
 {

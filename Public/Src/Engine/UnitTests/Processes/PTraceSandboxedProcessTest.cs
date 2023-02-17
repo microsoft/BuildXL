@@ -11,12 +11,13 @@ using BuildXL.Native.IO;
 using BuildXL.Native.IO.Windows;
 using BuildXL.Processes;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 using FileUtilities = BuildXL.Native.IO.FileUtilities;
 
 #pragma warning disable AsyncFixer02

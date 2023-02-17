@@ -7,7 +7,7 @@ using System.IO;
 using System.Linq;
 using BuildXL.FrontEnd.Script.Expressions;
 using BuildXL.FrontEnd.Script.Literals;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
 {

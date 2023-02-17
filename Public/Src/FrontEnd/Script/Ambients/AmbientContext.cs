@@ -12,9 +12,10 @@ using BuildXL.FrontEnd.Script.Values;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.Interop;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 using LineInfo = TypeScript.Net.Utilities.LineInfo;
 
 namespace BuildXL.FrontEnd.Script.Ambients
@@ -193,7 +194,7 @@ namespace BuildXL.FrontEnd.Script.Ambients
 
                 case TryGetMountResult.NameNotFound:
                     // Check for case mismatch.
-                    var mountNames = engine.GetMountNames("Script", BuildXL.Utilities.ModuleId.Invalid);
+                    var mountNames = engine.GetMountNames("Script", ModuleId.Invalid);
                     foreach (var mountName in mountNames)
                     {
                         if (string.Equals(name, mountName, StringComparison.OrdinalIgnoreCase))

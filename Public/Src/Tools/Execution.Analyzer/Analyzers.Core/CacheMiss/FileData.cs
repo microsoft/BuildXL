@@ -3,7 +3,7 @@
 
 using System;
 using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Execution.Analyzer.Analyzers.CacheMiss
 {

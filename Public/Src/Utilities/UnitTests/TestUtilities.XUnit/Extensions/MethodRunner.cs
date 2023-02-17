@@ -46,7 +46,7 @@ namespace Test.BuildXL.TestUtilities.XUnit.Extensions
 
         private static Task<T> RunInMtaThreadIfNeededAsync<T>(Func<Task<T>> func, bool runInMtaThread)
         {
-            if (runInMtaThread && global::BuildXL.Utilities.OperatingSystemHelper.IsWindowsOS)
+            if (runInMtaThread && global::BuildXL.Utilities.Core.OperatingSystemHelper.IsWindowsOS)
             {
                 var tcs = new TaskCompletionSource<T>();
                 var thread = new Thread(

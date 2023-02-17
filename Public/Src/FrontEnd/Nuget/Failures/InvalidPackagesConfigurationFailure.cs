@@ -3,7 +3,7 @@
 
 using System.Collections.Generic;
 using System.Linq;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace BuildXL.FrontEnd.Nuget
 {

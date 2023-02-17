@@ -3,6 +3,7 @@
 
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Utilities.Configuration
 {

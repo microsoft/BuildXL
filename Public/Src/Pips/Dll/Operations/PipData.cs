@@ -7,6 +7,7 @@ using System.Diagnostics.ContractsLight;
 using System.Text;
 using BuildXL.Storage;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.CLI;
 
 namespace BuildXL.Pips.Operations

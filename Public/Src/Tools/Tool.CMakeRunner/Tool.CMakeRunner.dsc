@@ -14,6 +14,7 @@ namespace CMakeRunner {
             importFrom("Newtonsoft.Json").pkg,
             importFrom("BuildXL.Utilities").ToolSupport.dll,
             importFrom("BuildXL.Utilities").dll,
+            importFrom("BuildXL.Utilities").Utilities.Core.dll,
             importFrom("BuildXL.FrontEnd").CMake.Serialization.dll,
         ]
     });

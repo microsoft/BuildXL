@@ -4,6 +4,7 @@
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Reflection;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Utilities
 {

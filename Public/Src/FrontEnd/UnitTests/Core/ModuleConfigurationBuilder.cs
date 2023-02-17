@@ -2,7 +2,7 @@
 // Licensed under the MIT License.
 
 using System.Linq;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace Test.BuildXL.FrontEnd.Core
 {

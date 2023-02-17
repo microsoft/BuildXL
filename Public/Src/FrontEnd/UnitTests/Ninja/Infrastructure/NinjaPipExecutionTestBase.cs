@@ -15,6 +15,7 @@ using Test.BuildXL.TestUtilities.Xunit;
 using Xunit.Abstractions;
 using Test.BuildXL.Processes;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using System;
 
 namespace Test.BuildXL.FrontEnd.Ninja

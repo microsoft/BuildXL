@@ -16,13 +16,14 @@ using BuildXL.Pips;
 using BuildXL.Pips.Operations;
 using BuildXL.Tracing;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Threading;
 using BuildXL.Utilities.Tracing;
 using Newtonsoft.Json;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 #nullable enable
 

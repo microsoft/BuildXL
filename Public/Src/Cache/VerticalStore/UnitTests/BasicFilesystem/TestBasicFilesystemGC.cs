@@ -11,7 +11,7 @@ using System.Text;
 using System.Threading.Tasks;
 using BuildXL.Cache.BasicFilesystem;
 using BuildXL.Cache.Interfaces;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;

@@ -7,7 +7,7 @@ using System.Diagnostics.Tracing;
 using System.IO;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.Interfaces;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Cache.ImplementationSupport
 {

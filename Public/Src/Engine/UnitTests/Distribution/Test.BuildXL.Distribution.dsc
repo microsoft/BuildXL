@@ -20,6 +20,7 @@ namespace Distribution {
             importFrom("BuildXL.Engine").Distribution.Grpc.dll,
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Configuration.dll,
+            importFrom("BuildXL.Utilities").Utilities.Core.dll,
             Managed.Factory.filterRuntimeSpecificBinaries(BuildXLSdk.WebFramework.getFrameworkPackage(), [
                 importFrom("System.IO.Pipelines").pkg
             ]),

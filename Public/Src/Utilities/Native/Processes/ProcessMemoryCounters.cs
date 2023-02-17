@@ -3,6 +3,7 @@
 
 using System;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Pips
 {

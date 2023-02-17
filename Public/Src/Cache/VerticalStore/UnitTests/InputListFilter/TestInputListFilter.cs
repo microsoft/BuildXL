@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 using BuildXL.Cache.InputListFilter;
 using BuildXL.Cache.Interfaces;
 using BuildXL.Scheduler.Fingerprints;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;

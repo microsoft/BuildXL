@@ -20,7 +20,7 @@ using System.Reflection;
 using BuildXL.Utilities.Tracing;
 using JetBrains.Annotations;
 using Test.BuildXL.TestUtilities;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Native.IO;
 
 namespace Test.BuildXL.FrontEnd.MsBuild

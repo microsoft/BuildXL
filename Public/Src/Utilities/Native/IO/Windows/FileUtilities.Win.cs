@@ -18,6 +18,7 @@ using System.Threading.Tasks;
 using BuildXL.Native.Streams.Windows;
 using BuildXL.Native.Tracing;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
@@ -25,7 +26,7 @@ using BuildXL.Utilities.Tracing;
 using Microsoft.CopyOnWrite;
 #endif
 using Microsoft.Win32.SafeHandles;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace BuildXL.Native.IO.Windows
 {

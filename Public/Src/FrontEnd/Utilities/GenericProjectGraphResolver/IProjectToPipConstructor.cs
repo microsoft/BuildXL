@@ -3,7 +3,7 @@
 
 using BuildXL.FrontEnd.Sdk.ProjectGraph;
 using BuildXL.Pips.Builders;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.FrontEnd.Utilities.GenericProjectGraphResolver
 {

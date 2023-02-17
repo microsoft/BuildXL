@@ -9,6 +9,7 @@ using System.Diagnostics.Tracing;
 using System.Reflection;
 using System.Text;
 using System.Threading;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 
 namespace BuildXL.Utilities.Tracing

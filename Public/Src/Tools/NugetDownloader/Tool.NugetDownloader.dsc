@@ -40,6 +40,7 @@ namespace NugetDownloader {
             importFrom("BuildXL.Utilities").ToolSupport.dll,
             importFrom("BuildXL.Utilities").Native.dll,
             importFrom("BuildXL.Utilities").dll,
+            importFrom("BuildXL.Utilities").Utilities.Core.dll,
 
             importFrom("NuGet.Versioning").withQualifier({targetFramework: "netstandard2.0"}).pkg,
             importFrom("NuGet.Protocol").withQualifier({targetFramework: "netstandard2.0"}).pkg,

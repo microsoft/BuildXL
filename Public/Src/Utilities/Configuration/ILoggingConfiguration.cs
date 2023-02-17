@@ -3,6 +3,7 @@
 
 using System.Collections.Generic;
 using System.Diagnostics.Tracing;
+using BuildXL.Utilities.Core;
 using JetBrains.Annotations;
 
 namespace BuildXL.Utilities.Configuration

@@ -11,10 +11,10 @@ using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Engine.Cache.Artifacts;
 using BuildXL.Native.IO;
 using BuildXL.Storage;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tasks;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 using OperationHints = BuildXL.Cache.ContentStore.Interfaces.Sessions.OperationHints;
 
 namespace Test.BuildXL.EngineTestUtilities

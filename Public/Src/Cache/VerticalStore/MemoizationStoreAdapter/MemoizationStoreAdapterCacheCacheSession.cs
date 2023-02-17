@@ -17,7 +17,7 @@ using BuildXL.Cache.Interfaces;
 using BuildXL.Cache.MemoizationStore.Interfaces.Results;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Storage;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using ICacheSession = BuildXL.Cache.Interfaces.ICacheSession;
 using StrongFingerprint = BuildXL.Cache.Interfaces.StrongFingerprint;
 

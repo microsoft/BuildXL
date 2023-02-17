@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration.Resolvers;
 
 namespace BuildXL.Utilities.Configuration
@@ -29,7 +30,7 @@ namespace BuildXL.Utilities.Configuration
         /// <summary>
         /// When cmake is first run in an empty build tree, it creates a CMakeCache.txt file
         /// and populates it with customizable settings for the project.
-        /// This option may be used to specify a setting that takes priority over the project’s default value.
+        /// This option may be used to specify a setting that takes priority over the projectï¿½s default value.
         /// [https://cmake.org/cmake/help/v3.6/manual/cmake.1.html]
         /// These values will be passed to the CMake generator as -D[key]=[value] arguments
         /// A value of null for a certain key indicates that the entry should be unset (-UKey)

@@ -16,6 +16,7 @@ namespace InMemory {
             importFrom("BuildXL.Utilities").Storage.dll,
             importFrom("BuildXL.Utilities").Collections.dll,
             importFrom("BuildXL.Utilities").Configuration.dll,
+            importFrom("BuildXL.Utilities").Utilities.Core.dll,
         ],
         internalsVisibleTo: [
             "BuildXL.Cache.Interfaces.Test",

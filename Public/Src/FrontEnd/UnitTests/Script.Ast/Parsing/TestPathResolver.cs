@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.FrontEnd.Script.RuntimeModel.AstBridge;
 using Xunit;
 
@@ -154,7 +155,7 @@ namespace Test.DScript.Ast.Parsing
 
         private AbsolutePath CreateAbsolutePath(string path)
         {
-            return global::BuildXL.Utilities.AbsolutePath.Create(m_pathTable, path);
+            return global::BuildXL.Utilities.Core.AbsolutePath.Create(m_pathTable, path);
         }
 
         private RelativePath TryCreateRelativePath(string path)

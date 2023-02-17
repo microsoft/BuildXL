@@ -3,6 +3,7 @@
 
 using System.Collections.Generic;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using static Test.BuildXL.TestUtilities.Xunit.XunitBuildXLTest;
 
 namespace Test.DScript.Ast.Incrementality

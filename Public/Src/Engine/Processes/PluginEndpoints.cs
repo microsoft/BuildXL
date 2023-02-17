@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 using BuildXL.Pips.Operations;
 using BuildXL.Plugin;
 using BuildXL.Plugin.Grpc;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Processes
 {

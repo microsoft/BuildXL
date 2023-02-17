@@ -9,7 +9,7 @@ using System.Text;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using BuildXL.Cache.ContentStore.Utils;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Serialization;
 
 namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions

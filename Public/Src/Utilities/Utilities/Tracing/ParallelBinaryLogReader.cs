@@ -8,6 +8,7 @@ using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Utilities.Tracing
 {

@@ -12,7 +12,7 @@ using Test.BuildXL.EngineTestUtilities;
 using Xunit;
 using Xunit.Abstractions;
 using System;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 
 namespace Test.BuildXL.FrontEnd.MsBuild

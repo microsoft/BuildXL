@@ -5,10 +5,8 @@ using System;
 using System.Threading.Tasks;
 using BuildXL.Tracing;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
-using static BuildXL.Utilities.FormattableStringEx;
 
 namespace BuildXL.Engine.Distribution
 {

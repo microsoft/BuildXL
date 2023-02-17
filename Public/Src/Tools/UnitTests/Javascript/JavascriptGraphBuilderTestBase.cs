@@ -4,7 +4,7 @@
 using System.Diagnostics;
 using System.IO;
 using BuildXL.FrontEnd.Utilities;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using Newtonsoft.Json;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit.Abstractions;

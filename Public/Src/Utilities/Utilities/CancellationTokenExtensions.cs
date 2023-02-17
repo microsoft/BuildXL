@@ -3,6 +3,7 @@
 
 using System.Diagnostics.ContractsLight;
 using System.Threading;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Utilities
 {

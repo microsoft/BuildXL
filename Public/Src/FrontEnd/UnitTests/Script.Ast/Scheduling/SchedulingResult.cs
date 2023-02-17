@@ -8,7 +8,7 @@ using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities.Configuration;
 using Test.BuildXL.TestUtilities.Xunit;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace Test.DScript.Ast.Scheduling
 {

@@ -7,7 +7,7 @@ using System.ComponentModel;
 using System.Text;
 using System.Threading.Tasks;
 using BuildXL.Cache.Interfaces;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;

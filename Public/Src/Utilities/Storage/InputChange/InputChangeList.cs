@@ -8,7 +8,7 @@ using System.IO;
 using System.Linq;
 using BuildXL.Storage.ChangeTracking;
 using BuildXL.Storage.Tracing;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 
 namespace BuildXL.Storage.InputChange

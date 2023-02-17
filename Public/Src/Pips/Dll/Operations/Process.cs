@@ -7,6 +7,7 @@ using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Text.RegularExpressions;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 

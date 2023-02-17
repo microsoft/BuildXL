@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Core;
 using CanBeNullAttribute = JetBrains.Annotations.CanBeNullAttribute;
 using NotNullAttribute = JetBrains.Annotations.NotNullAttribute;
 

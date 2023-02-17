@@ -9,7 +9,7 @@ using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading;
 using BuildXL.FrontEnd.Script.Evaluator;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using VSCode.DebugAdapter;
 using VSCode.DebugProtocol;
 

@@ -5,20 +5,14 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
-using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
-using BuildXL.Pips.Tracing;
-using BuildXL.Tracing;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.Utilities.Tracing;
 using static BuildXL.Pips.Operations.Process;
-using Logger = BuildXL.Pips.Tracing.Logger;
 
 namespace BuildXL.Pips.Builders
 {

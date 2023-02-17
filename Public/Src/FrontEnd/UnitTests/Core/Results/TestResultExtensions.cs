@@ -10,7 +10,7 @@ using BuildXL.FrontEnd.Script.Tracing;
 using BuildXL.FrontEnd.Sdk.Tracing;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace Test.BuildXL.FrontEnd.Core
 {

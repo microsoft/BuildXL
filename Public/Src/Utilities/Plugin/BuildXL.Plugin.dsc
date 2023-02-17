@@ -15,6 +15,7 @@ namespace Plugin {
             $.Ipc.dll,
             $.Ipc.Providers.dll,
             $.PluginGrpc.dll,
+            Utilities.Core.dll,
         ],
         internalsVisibleTo: [
             "Test.BuildXL.Plugin",

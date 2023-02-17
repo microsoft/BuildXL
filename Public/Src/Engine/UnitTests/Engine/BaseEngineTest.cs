@@ -17,6 +17,7 @@ using BuildXL.FrontEnd.Script.Tracing;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Sdk.FileSystem;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
@@ -27,7 +28,7 @@ using Test.BuildXL.Processes;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 using InitializationLogger = global::BuildXL.FrontEnd.Core.Tracing.Logger;
 
 namespace Test.BuildXL.Engine

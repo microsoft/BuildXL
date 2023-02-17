@@ -21,7 +21,7 @@ namespace BuildXL.Pips.Operations
         /// A string literal.
         /// </summary>
         /// <remarks>
-        /// Data is <see cref="BuildXL.Utilities.StringId.Value"/>
+        /// Data is <see cref="BuildXL.Utilities.Core.StringId.Value"/>
         /// </remarks>
         StringLiteral,
 
@@ -29,7 +29,7 @@ namespace BuildXL.Pips.Operations
         /// Absolute file or directory path.
         /// </summary>
         /// <remarks>
-        /// Data is <see cref="BuildXL.Utilities.AbsolutePath.RawValue"/>
+        /// Data is <see cref="BuildXL.Utilities.Core.AbsolutePath.RawValue"/>
         /// </remarks>
         AbsolutePath,
 
@@ -40,39 +40,39 @@ namespace BuildXL.Pips.Operations
 
         /// <summary>
         /// First entry of a <see cref="PipFragmentType.VsoHash"/> fragment which holds the
-        /// <see cref="BuildXL.Utilities.FileArtifact.Path"/> value of the corresponding FileArtifact.  Must
+        /// <see cref="BuildXL.Utilities.Core.FileArtifact.Path"/> value of the corresponding FileArtifact.  Must
         /// be followed by an entry of type <see cref="PipDataEntryType.VsoHashEntry2RewriteCount"/>.
         /// </summary>
         /// <remarks>
-        /// Data is <see cref="BuildXL.Utilities.AbsolutePath.RawValue"/>.
+        /// Data is <see cref="BuildXL.Utilities.Core.AbsolutePath.RawValue"/>.
         /// </remarks>
         VsoHashEntry1Path,
 
         /// <summary>
         /// Second entry of a <see cref="PipFragmentType.VsoHash"/> fragment which holds the
-        /// <see cref="BuildXL.Utilities.FileArtifact.RewriteCount"/> value of the corresponding FileArtifact.
+        /// <see cref="BuildXL.Utilities.Core.FileArtifact.RewriteCount"/> value of the corresponding FileArtifact.
         /// </summary>
         /// <remarks>
-        /// Data is <see cref="BuildXL.Utilities.FileArtifact.RewriteCount"/>.
+        /// Data is <see cref="BuildXL.Utilities.Core.FileArtifact.RewriteCount"/>.
         /// </remarks>
         VsoHashEntry2RewriteCount,
 
         /// <summary>
         /// First entry of a <see cref="PipFragmentType.FileId"/> fragment which holds the
-        /// <see cref="BuildXL.Utilities.FileArtifact.Path"/> value of the corresponding FileArtifact.  Must
+        /// <see cref="BuildXL.Utilities.Core.FileArtifact.Path"/> value of the corresponding FileArtifact.  Must
         /// be followed by an entry of type <see cref="PipDataEntryType.FileId2RewriteCount"/>.
         /// </summary>
         /// <remarks>
-        /// Data is <see cref="BuildXL.Utilities.AbsolutePath.RawValue"/>.
+        /// Data is <see cref="BuildXL.Utilities.Core.AbsolutePath.RawValue"/>.
         /// </remarks>
         FileId1Path,
 
         /// <summary>
         /// Second entry of a <see cref="PipFragmentType.FileId"/> fragment which holds the
-        /// <see cref="BuildXL.Utilities.FileArtifact.RewriteCount"/> value of the corresponding FileArtifact.
+        /// <see cref="BuildXL.Utilities.Core.FileArtifact.RewriteCount"/> value of the corresponding FileArtifact.
         /// </summary>
         /// <remarks>
-        /// Data is <see cref="BuildXL.Utilities.FileArtifact.RewriteCount"/>.
+        /// Data is <see cref="BuildXL.Utilities.Core.FileArtifact.RewriteCount"/>.
         /// </remarks>
         FileId2RewriteCount,
 
@@ -80,7 +80,7 @@ namespace BuildXL.Pips.Operations
         /// IPC moniker.
         /// </summary>
         /// <remarks>
-        /// Data is <see cref="BuildXL.Utilities.StringId"/> of <see cref="BuildXL.Ipc.Common.IpcMoniker.Id"/>.
+        /// Data is <see cref="BuildXL.Utilities.Core.StringId"/> of <see cref="BuildXL.Ipc.Common.IpcMoniker.Id"/>.
         /// </remarks>
         IpcMoniker,
 
@@ -88,7 +88,7 @@ namespace BuildXL.Pips.Operations
         /// The header for a nested pip data fragment.
         /// </summary>
         /// <remarks>
-        /// Data is <see cref="BuildXL.Utilities.StringId.Value"/>
+        /// Data is <see cref="BuildXL.Utilities.Core.StringId.Value"/>
         /// Next entry's type should be <see cref="NestedDataStart"/>
         /// </remarks>
         NestedDataHeader,

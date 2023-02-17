@@ -3,6 +3,7 @@
 
 using System;
 using System.IO;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Utilities
 {

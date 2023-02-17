@@ -5,7 +5,7 @@ using System;
 using System.Collections.Generic;
 using BuildXL.FrontEnd.Script.Analyzer.Documentation;
 using BuildXL.ToolSupport;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using TypeScript.Net.Types;
 

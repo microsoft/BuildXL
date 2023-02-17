@@ -9,6 +9,7 @@ using System.Text;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration.Resolvers;
 using BuildXL.Utilities.Configuration.Resolvers.Mutable;
+using BuildXL.Utilities.Core;
 using JetBrains.Annotations;
 
 namespace BuildXL.Utilities.Configuration

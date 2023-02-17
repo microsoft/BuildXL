@@ -13,7 +13,7 @@ using BuildXL.Cache.Interfaces;
 using BuildXL.Cache.Interfaces.Test;
 using BuildXL.Cache.VerticalAggregator;
 using BuildXL.Storage.Fingerprints;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 
@@ -170,7 +170,7 @@ namespace BuildXL.Cache.Tests
 
                 PoisonSession(wrappedSession);
 
-                return new BuildXL.Utilities.Possible<ICacheSession, BuildXL.Utilities.Failure>(session);
+                return new BuildXL.Utilities.Core.Possible<ICacheSession, BuildXL.Utilities.Core.Failure>(session);
             };
 
             remoteCache.CreateSessionAsyncCallback = async (ICache cacheInstance) =>
@@ -181,7 +181,7 @@ namespace BuildXL.Cache.Tests
 
                 PoisonSession(wrappedSession);
 
-                return new BuildXL.Utilities.Possible<ICacheSession, BuildXL.Utilities.Failure>(session);
+                return new BuildXL.Utilities.Core.Possible<ICacheSession, BuildXL.Utilities.Core.Failure>(session);
             };
 
             remoteCache.CreateReadOnlySessionAsyncCallback = async (ICache cacheInstance) =>
@@ -192,7 +192,7 @@ namespace BuildXL.Cache.Tests
 
                 PoisonROSession(wrappedSession);
 
-                return new BuildXL.Utilities.Possible<ICacheReadOnlySession, BuildXL.Utilities.Failure>(session);
+                return new BuildXL.Utilities.Core.Possible<ICacheReadOnlySession, BuildXL.Utilities.Core.Failure>(session);
             };
 
             remoteCache.CacheGuidGetCallback = (ICache wrappedcache) =>

@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration.Mutable;
 
 namespace BuildXL.Utilities.Configuration.Resolvers.Mutable

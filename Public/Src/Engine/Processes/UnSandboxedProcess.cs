@@ -11,6 +11,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Interop;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.Utilities.Instrumentation.Common;
 using JetBrains.Annotations;
@@ -20,7 +21,7 @@ using Microsoft.Win32.SafeHandles;
 using SafeProcessHandle = BuildXL.Interop.Windows.SafeProcessHandle;
 #endif
 
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 #nullable enable
 

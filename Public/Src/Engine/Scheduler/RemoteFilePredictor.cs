@@ -9,6 +9,7 @@ using BuildXL.Pips.Operations;
 using BuildXL.Processes.Remoting;
 using BuildXL.Scheduler.Artifacts;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Instrumentation.Common;
 

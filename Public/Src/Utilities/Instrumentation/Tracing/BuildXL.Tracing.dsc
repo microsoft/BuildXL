@@ -21,7 +21,8 @@ namespace Tracing {
         references: [
             Common.dll,
             importFrom("BuildXL.Utilities").dll,
-            importFrom("BuildXL.Utilities").Configuration.dll
+            importFrom("BuildXL.Utilities").Configuration.dll,
+            importFrom("BuildXL.Utilities").Utilities.Core.dll,
         ],
         embeddedResources: [{resX: f`Statistics.resx`, generatedClassMode: "implicitPublic"}],
     });

@@ -9,7 +9,7 @@ using BuildXL.Pips;
 using BuildXL.Processes;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.ToolSupport;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Execution.Analyzer
 {

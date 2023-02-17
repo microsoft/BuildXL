@@ -2,7 +2,7 @@
 // Licensed under the MIT License.
 
 using System.IO;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using Test.DScript.Ast.DScriptV2;
 using Xunit;
 using Xunit.Abstractions;

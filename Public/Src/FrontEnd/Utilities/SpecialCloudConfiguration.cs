@@ -3,7 +3,7 @@
 
 using System.Collections.Generic;
 using BuildXL.FrontEnd.Sdk;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using System.Linq;
 
 namespace BuildXL.FrontEnd.Utilities

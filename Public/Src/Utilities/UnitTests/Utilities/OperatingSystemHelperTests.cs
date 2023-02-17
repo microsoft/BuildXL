@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using Xunit;
 
 namespace Test.BuildXL.Utilities
@@ -11,7 +12,7 @@ namespace Test.BuildXL.Utilities
         [Fact]
         public void FrameworkVersionShouldBeAvailableOnWindowsBox()
         {
-            string frameworkAsText = OperatingSystemHelper.GetInstalledDotNetFrameworkVersion();
+            string frameworkAsText = OperatingSystemHelperExtension.GetInstalledDotNetFrameworkVersion();
 
             var noNetFrameworkIsDetected = "No .NET Framework is detected";
             if (OperatingSystemHelper.IsUnixOS)

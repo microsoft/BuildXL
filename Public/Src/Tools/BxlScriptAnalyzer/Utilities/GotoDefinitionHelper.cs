@@ -7,7 +7,7 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using TypeScript.Net.Extensions;
 using TypeScript.Net.Types;
 using ISymbol = TypeScript.Net.Types.ISymbol;

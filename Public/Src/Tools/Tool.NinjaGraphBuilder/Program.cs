@@ -7,9 +7,9 @@ using System.IO;
 using BuildXL.FrontEnd.Ninja.Serialization;
 using BuildXL.ToolSupport;
 using Newtonsoft.Json;
-using static BuildXL.Utilities.AssemblyHelper;
+using static BuildXL.Utilities.Core.AssemblyHelper;
 using static System.Reflection.Assembly;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Native.IO;
 
 namespace NinjaGraphBuilderTool

@@ -15,7 +15,7 @@ using BuildXL.Ipc;
 using BuildXL.Ipc.Common;
 using BuildXL.Ipc.Common.Connectivity;
 using BuildXL.Plugin.Grpc;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 

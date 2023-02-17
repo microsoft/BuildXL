@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Ide.JsonRpc;
 using BuildXL.Ide.LanguageServer.UnitTests.Helpers;
 using Microsoft.VisualStudio.LanguageServer.Protocol;

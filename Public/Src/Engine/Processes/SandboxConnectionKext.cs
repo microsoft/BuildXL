@@ -14,7 +14,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Interop.Unix;
 using BuildXL.Native.Processes;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 
@@ -214,7 +214,7 @@ Use the the following command to load/reload the sandbox kernel extension and fi
                 if (code != Sandbox.ReportQueueSuccessCode)
                 {
                     var message = "Kernel extension report queue failed with error: " + code;
-                    throw new BuildXLException(message, ExceptionRootCause.MissingRuntimeDependency);
+                    throw new BuildXLException(message, Utilities.ExceptionRootCause.MissingRuntimeDependency);
                 }
 
                 // Update last received timestamp

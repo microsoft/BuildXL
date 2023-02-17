@@ -9,7 +9,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using Antlr4.Runtime;
 using BuildXL.FrontEnd.Script.Debugger;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using JetBrains.Annotations;
 

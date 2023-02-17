@@ -6,7 +6,7 @@ using BuildXL.Engine.Cache;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.Processes;
 using BuildXL.Scheduler;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 
 namespace BuildXL.Engine

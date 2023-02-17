@@ -6,10 +6,10 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Storage.ChangeJournalService.Protocol;
 using BuildXL.Storage.ChangeTracking;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Tracing;
 using Microsoft.TeamFoundation.SourceControl.WebApi;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace BuildXL.Execution.Analyzer.Analyzers
 {

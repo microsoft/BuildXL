@@ -9,7 +9,7 @@ using TypeScript.Net.Core;
 using TypeScript.Net.Diagnostics;
 using TypeScript.Net.Parsing;
 using TypeScript.Net.Types;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 using static TypeScript.Net.Binding.ReachabilityExtensions;
 using static TypeScript.Net.Extensions.CollectionExtensions;
 using static TypeScript.Net.Extensions.NodeArrayExtensions;

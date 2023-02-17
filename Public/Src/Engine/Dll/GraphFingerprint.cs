@@ -8,7 +8,7 @@ using BuildXL.Engine.Tracing;
 using BuildXL.Pips.Filter;
 using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace BuildXL.Engine
 {

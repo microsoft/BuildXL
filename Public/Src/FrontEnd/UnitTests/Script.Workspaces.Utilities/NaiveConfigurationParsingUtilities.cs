@@ -5,14 +5,14 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.FrontEnd.Script.Constants;
 using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.FrontEnd.Sdk.FileSystem;
 using TypeScript.Net.Parsing;
 using TypeScript.Net.Reformatter;
 using TypeScript.Net.Types;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace Test.DScript.Workspaces.Utilities
 {

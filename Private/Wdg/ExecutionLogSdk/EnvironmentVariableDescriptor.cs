@@ -3,7 +3,7 @@
 
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 namespace Tool.ExecutionLogSdk
 {

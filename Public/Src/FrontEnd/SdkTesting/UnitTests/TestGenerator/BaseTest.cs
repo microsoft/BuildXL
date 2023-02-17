@@ -3,11 +3,7 @@
 
 using System;
 using System.IO;
-using System.Reflection;
-using BuildXL.Utilities;
 using Xunit.Abstractions;
-using Xunit.Sdk;
-using AssemblyHelper = BuildXL.Utilities.AssemblyHelper;
 
 namespace Test.BuildXL.FrontEnd.Script.Testing.TestGenerator
 {

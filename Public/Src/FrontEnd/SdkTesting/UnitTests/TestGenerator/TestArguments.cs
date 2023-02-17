@@ -4,7 +4,7 @@
 using System;
 using System.IO;
 using BuildXL.FrontEnd.Script.Testing.TestGenerator;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using Xunit;
 
 using static Test.BuildXL.TestUtilities.Xunit.XunitBuildXLTest;

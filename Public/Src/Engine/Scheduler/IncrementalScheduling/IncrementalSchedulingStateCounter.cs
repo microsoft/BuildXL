@@ -7,7 +7,7 @@ using System.Linq;
 using BuildXL.Storage.ChangeTracking;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace BuildXL.Scheduler.IncrementalScheduling
 {

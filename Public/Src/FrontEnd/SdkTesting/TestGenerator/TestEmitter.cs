@@ -5,7 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using BuildXL.Utilities.CodeGenerationHelper;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace BuildXL.FrontEnd.Script.Testing.TestGenerator
 {

@@ -7,7 +7,7 @@ using BuildXL.Native.IO;
 using BuildXL.Native.Streams;
 using BuildXL.Native.Streams.Unix;
 using BuildXL.Native.Streams.Windows;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using Microsoft.Win32.SafeHandles;
 
 namespace BuildXL.Storage

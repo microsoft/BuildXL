@@ -8,7 +8,7 @@ using System.Diagnostics.ContractsLight;
 using System.Diagnostics.Tracing;
 using System.Linq;
 using System.Text;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.FrontEnd.Script.Ambients;
@@ -17,7 +17,7 @@ using BuildXL.FrontEnd.Script.Types;
 using BuildXL.FrontEnd.Script.Values;
 using BuildXL.FrontEnd.Script.Evaluator;
 using Xunit;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace BuildXL.FrontEnd.Script.Testing.Helper.Ambients
 {

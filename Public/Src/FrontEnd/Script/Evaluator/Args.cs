@@ -5,7 +5,7 @@ using System.Diagnostics.ContractsLight;
 using System.Text.RegularExpressions;
 using BuildXL.FrontEnd.Script.Values;
 using BuildXL.Pips;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using DsMap = BuildXL.FrontEnd.Script.Ambients.Map.OrderedMap;
 using DsSet = BuildXL.FrontEnd.Script.Ambients.Set.OrderedSet;

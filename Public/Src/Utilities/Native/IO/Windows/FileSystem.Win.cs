@@ -13,13 +13,13 @@ using System.Text;
 using System.Threading;
 using BuildXL.Native.Streams;
 using BuildXL.Native.Tracing;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using Microsoft.Win32.SafeHandles;
 using static BuildXL.Native.IO.FileUtilities;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 using Overlapped = BuildXL.Native.Streams.Overlapped;
 
 #pragma warning disable 1591   // disabling warning about missing API documentation; TODO: Remove this line and write documentation!

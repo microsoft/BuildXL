@@ -13,6 +13,7 @@ using BuildXL.Processes;
 using BuildXL.Scheduler;
 using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.Scheduler;

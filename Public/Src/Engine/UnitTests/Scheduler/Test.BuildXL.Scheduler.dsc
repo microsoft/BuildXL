@@ -54,6 +54,7 @@ namespace Scheduler {
             importFrom("BuildXL.Utilities").Native.dll,
             importFrom("BuildXL.Utilities").Storage.dll,
             importFrom("BuildXL.Utilities").Plugin.dll,
+            importFrom("BuildXL.Utilities").Utilities.Core.dll,
             importFrom("BuildXL.Utilities.UnitTests").StorageTestUtilities.dll,
             importFrom("BuildXL.Utilities.UnitTests").TestProcess.exe,
             importFrom("BuildXL.FrontEnd").Sdk.dll,

@@ -8,7 +8,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.FrontEnd.Sdk;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
 using TypeScript.Net.Types;
@@ -147,7 +147,7 @@ namespace BuildXL.FrontEnd.Workspaces.Core
             // Recomputing would mean the process path would be used to find assemblies, which would be the path where the CoreCLR CLI is located, thus wrong!
             var assemblyRootDir = Path.GetDirectoryName(AssemblyHelper.GetAssemblyLocation(typeof(PreludeManager).Assembly));
 #endif
-            if (BuildXL.Utilities.OperatingSystemHelper.IsUnixOS)
+            if (OperatingSystemHelper.IsUnixOS)
             {
                 return Path.Combine(assemblyRootDir, PreludeDeploymentDirName);
             }

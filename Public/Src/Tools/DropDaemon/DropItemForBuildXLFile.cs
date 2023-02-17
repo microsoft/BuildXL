@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Ipc.ExternalApi;
 using BuildXL.Storage;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using Tool.ServicePipDaemon;
 
 namespace Tool.DropDaemon

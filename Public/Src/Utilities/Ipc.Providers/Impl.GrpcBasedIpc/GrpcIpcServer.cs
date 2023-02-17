@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 using BuildXL.Ipc.Common;
 using BuildXL.Ipc.Grpc;
 using BuildXL.Ipc.Interfaces;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Tasks;
 using Grpc.Core;
 using IpcResult = BuildXL.Ipc.Common.IpcResult;

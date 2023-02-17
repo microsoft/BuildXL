@@ -11,6 +11,7 @@ namespace TestGenerator {
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").ToolSupport.dll,
             importFrom("BuildXL.Utilities").CodeGenerationHelper.dll,
+            importFrom("BuildXL.Utilities").Utilities.Core.dll,
             importFrom("BuildXL.FrontEnd").Sdk.dll,
             exe,
         ],

@@ -7,7 +7,7 @@ using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using BuildXL.App.Tracing;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL
 {

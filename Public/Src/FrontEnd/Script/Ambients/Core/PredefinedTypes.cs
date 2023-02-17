@@ -11,6 +11,7 @@ using BuildXL.FrontEnd.Script.Core;
 using BuildXL.FrontEnd.Script.Values;
 using BuildXL.Pips;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.FrontEnd.Script.Ambients
 {

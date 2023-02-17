@@ -4,7 +4,6 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
-using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Native.IO;
 using BuildXL.Pips;
@@ -14,11 +13,11 @@ using BuildXL.Scheduler.Distribution;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Scheduler.WorkDispatcher;
 using BuildXL.Storage.Fingerprints;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace BuildXL.Scheduler
 {

@@ -3,7 +3,7 @@
 
 using System;
 using System.Text;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 

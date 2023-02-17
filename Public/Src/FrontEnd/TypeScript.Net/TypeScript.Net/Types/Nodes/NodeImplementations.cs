@@ -9,6 +9,7 @@ using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.Linq;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using JetBrains.Annotations;
 using TypeScript.Net.Core;
@@ -17,7 +18,7 @@ using TypeScript.Net.Extensions;
 using TypeScript.Net.Incrementality;
 using TypeScript.Net.Reformatter;
 using TypeScript.Net.Utilities;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 using NotNullAttribute = JetBrains.Annotations.NotNullAttribute;
 
 namespace TypeScript.Net.Types
@@ -2044,7 +2045,7 @@ namespace TypeScript.Net.Types
         public ISpecBindingSymbols BindingSymbols { get; private set; }
 
         /// <inheritdoc/>
-        public void ComputeBindingFingerprint(BuildXL.Utilities.SymbolTable symbolTable)
+        public void ComputeBindingFingerprint(BuildXL.Utilities.Core.SymbolTable symbolTable)
         {
             Contract.Assert(BindingSymbols == null, "Can't recompute binding symbols more than once.");
             Contract.Assert(State != SourceFileState.Parsed, "Can't compute binding symbols on the unbound source file.");

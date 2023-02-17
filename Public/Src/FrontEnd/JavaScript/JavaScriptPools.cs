@@ -3,7 +3,7 @@
 
 using System.Collections.Generic;
 using BuildXL.FrontEnd.JavaScript.ProjectGraph;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 
 namespace BuildXL.FrontEnd.JavaScript

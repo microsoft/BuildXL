@@ -8,7 +8,7 @@ using System.Linq;
 using System.Xml.Linq;
 using BuildXL.Pips;
 using BuildXL.Pips.Operations;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Execution.Analyzer
 {

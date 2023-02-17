@@ -11,7 +11,7 @@ using BuildXL.FrontEnd.Script.Analyzer.Analyzers;
 using BuildXL.FrontEnd.Script.Analyzer.Tracing;
 using BuildXL.Storage;
 using BuildXL.ToolSupport;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Tracing;
 
 namespace BuildXL.FrontEnd.Script.Analyzer

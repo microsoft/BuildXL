@@ -8,7 +8,7 @@ using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.FrontEnd.Script;
 using BuildXL.FrontEnd.Script.Values;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 using BuildXL.Utilities.Configuration;
 
 namespace Test.BuildXL.FrontEnd.Core

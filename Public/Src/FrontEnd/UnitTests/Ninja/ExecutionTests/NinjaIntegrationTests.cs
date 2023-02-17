@@ -14,7 +14,7 @@ using Test.BuildXL.EngineTestUtilities;
 using Xunit;
 using Xunit.Abstractions;
 using BuildXL.Engine;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using Test.BuildXL.TestUtilities.Xunit;
 
 namespace Test.BuildXL.FrontEnd.Ninja

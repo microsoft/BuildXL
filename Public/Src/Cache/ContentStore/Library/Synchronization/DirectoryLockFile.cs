@@ -60,7 +60,7 @@ namespace BuildXL.Cache.ContentStore.Synchronization
                 try
                 {
                     // Anything other than FileShare.None is effectively ignored in Unix
-                    FileShare fileShare = BuildXL.Utilities.OperatingSystemHelper.IsUnixOS ? FileShare.None : FileShare.Read;
+                    FileShare fileShare = BuildXL.Utilities.Core.OperatingSystemHelper.IsUnixOS ? FileShare.None : FileShare.Read;
 
                     _lockFile = _fileSystem.Open(_lockFilePath, FileAccess.Write, FileMode.OpenOrCreate, fileShare);
 

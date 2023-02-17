@@ -4,7 +4,7 @@
 using System;
 using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace BuildXL.Native.IO
 {
@@ -32,7 +32,7 @@ namespace BuildXL.Native.IO
         {
             // Win32Exception does not initialize HResult but many others like IOException do.
             // In order to have a uniform error checking, initialize HResult using something similar to HRESULT_FROM_WIN32
-            HResult = BuildXL.Utilities.ExceptionUtilities.HResultFromWin32(nativeErrorCode);
+            HResult = BuildXL.Utilities.Core.ExceptionUtilities.HResultFromWin32(nativeErrorCode);
         }
 
         /// <summary>

@@ -4,7 +4,7 @@
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Processes
 {
@@ -38,7 +38,7 @@ namespace BuildXL.Processes
 
             if (!File.Exists(ExecutablePath))
             {
-                throw new BuildXLException($"Cannot find file '{ExecutablePath}' needed to externally execute process. Did you build all configurations?", rootCause: ExceptionRootCause.MissingRuntimeDependency);
+                throw new BuildXLException($"Cannot find file '{ExecutablePath}' needed to externally execute process. Did you build all configurations?", rootCause: Utilities.ExceptionRootCause.MissingRuntimeDependency);
             }
 
             string directory = Path.GetDirectoryName(executablePath);

@@ -3,7 +3,7 @@
 
 using System.Collections.Generic;
 using System.Linq;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 #pragma warning disable 1591
 

@@ -4,6 +4,7 @@
 using System;
 using BuildXL.Pips;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using static BuildXL.Scheduler.FileMonitoringViolationAnalyzer;
 
 namespace BuildXL.Scheduler

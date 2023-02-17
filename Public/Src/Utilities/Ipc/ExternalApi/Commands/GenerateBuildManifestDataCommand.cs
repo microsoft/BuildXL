@@ -4,7 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Cache.ContentStore.Hashing;
 using System.Linq;

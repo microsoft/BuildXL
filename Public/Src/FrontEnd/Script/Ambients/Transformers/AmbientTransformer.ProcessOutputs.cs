@@ -9,7 +9,7 @@ using BuildXL.FrontEnd.Script.Expressions;
 using BuildXL.FrontEnd.Script.Types;
 using BuildXL.FrontEnd.Script.Values;
 using BuildXL.Pips.Builders;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.FrontEnd.Script.Ambients.Transformers
 {

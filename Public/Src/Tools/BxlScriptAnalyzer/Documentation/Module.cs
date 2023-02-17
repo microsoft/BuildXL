@@ -4,8 +4,8 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
-using BuildXL.Utilities;
-using static BuildXL.Utilities.FormattableStringEx;
+using BuildXL.Utilities.Core;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace BuildXL.FrontEnd.Script.Analyzer.Documentation
 {

@@ -2098,7 +2098,7 @@ namespace TypeScript.Net.Types
         /// <summary>
         /// Computes a binding symbols and keeps it in the file.
         /// </summary>
-        void ComputeBindingFingerprint([NotNull]BuildXL.Utilities.SymbolTable symbolTable);
+        void ComputeBindingFingerprint([NotNull]BuildXL.Utilities.Core.SymbolTable symbolTable);
 
         /// <summary>
         /// DScript-specific. Whether to override if the file is a DScript file. 

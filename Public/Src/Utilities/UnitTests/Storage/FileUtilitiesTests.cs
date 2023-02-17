@@ -12,12 +12,12 @@ using System.Text;
 using System.Threading.Tasks;
 using BuildXL.Native.IO;
 using BuildXL.Native.IO.Windows;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using Microsoft.Win32.SafeHandles;
 using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 #pragma warning disable AsyncFixer02
 

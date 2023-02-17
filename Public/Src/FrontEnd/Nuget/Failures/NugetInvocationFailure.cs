@@ -2,7 +2,7 @@
 // Licensed under the MIT License.
 
 using BuildXL.Utilities.Configuration;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 namespace BuildXL.FrontEnd.Nuget
 {
     /// <summary>

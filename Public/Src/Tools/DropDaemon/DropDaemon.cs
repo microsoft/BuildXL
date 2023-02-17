@@ -21,6 +21,7 @@ using BuildXL.Storage;
 using BuildXL.Storage.Fingerprints;
 using BuildXL.Tracing.CloudBuild;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.CLI;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Instrumentation.Common;
@@ -41,7 +42,7 @@ using Newtonsoft.Json.Linq;
 using SBOMCore;
 using Tool.ServicePipDaemon;
 using static BuildXL.Ipc.ExternalApi.Commands.GenerateBuildManifestFileListResult;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 using static Tool.ServicePipDaemon.Statics;
 
 namespace Tool.DropDaemon

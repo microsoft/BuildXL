@@ -11,7 +11,7 @@ using BuildXL.Pips;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes;
 using BuildXL.Storage;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
@@ -19,7 +19,7 @@ using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
-using AssemblyHelper = BuildXL.Utilities.AssemblyHelper;
+using AssemblyHelper = BuildXL.Utilities.Core.AssemblyHelper;
 
 #pragma warning disable AsyncFixer02
 

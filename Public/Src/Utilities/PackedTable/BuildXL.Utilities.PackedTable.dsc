@@ -19,6 +19,7 @@ namespace PackedTable {
             $.dll,
             Collections.dll,
             Native.dll,
+            Utilities.Core.dll,
         ],
     });
 }

@@ -4,12 +4,12 @@
 using System.Diagnostics.ContractsLight;
 using BuildXL.FrontEnd.Script.Constants;
 using BuildXL.FrontEnd.Script.Expressions;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 using JetBrains.Annotations;
 using TypeScript.Net.Types;
 using TypeScript.Net.Utilities;
-using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 using Expression = BuildXL.FrontEnd.Script.Expressions.Expression;
 using LineInfo = TypeScript.Net.Utilities.LineInfo;
 

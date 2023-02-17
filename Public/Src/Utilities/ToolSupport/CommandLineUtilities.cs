@@ -11,6 +11,7 @@ using System.Linq;
 using System.Security;
 using System.Text;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.ToolSupport
 {

@@ -5,7 +5,7 @@ using System;
 using System.IO;
 using BuildXL.Native.IO;
 using BuildXL.Storage.ChangeTracking;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Engine.Cache.Artifacts
 {

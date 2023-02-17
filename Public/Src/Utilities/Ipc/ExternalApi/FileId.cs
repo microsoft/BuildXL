@@ -2,13 +2,13 @@
 // Licensed under the MIT License.
 
 using System;
-using BuildXL.Utilities;
-using static BuildXL.Utilities.FormattableStringEx;
+using BuildXL.Utilities.Core;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace BuildXL.Ipc.ExternalApi
 {
     /// <summary>
-    /// Helper methods for (de)serializing <see cref="BuildXL.Utilities.FileArtifact"/>.
+    /// Helper methods for (de)serializing <see cref="BuildXL.Utilities.Core.FileArtifact"/>.
     /// </summary>
     public static class FileId
     {

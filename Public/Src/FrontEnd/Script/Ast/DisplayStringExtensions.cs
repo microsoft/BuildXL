@@ -8,10 +8,10 @@ using System.IO;
 using System.Text;
 using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.Values;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.Utilities.Qualifier;
-using static BuildXL.Utilities.FormattableStringEx;
+using BuildXL.Utilities.Core.Qualifier;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace BuildXL.FrontEnd.Script
 {

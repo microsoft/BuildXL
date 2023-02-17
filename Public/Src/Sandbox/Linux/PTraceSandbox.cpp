@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+#include <algorithm>
 #include "PTraceSandbox.hpp"
 #include <linux/filter.h>
 #include <linux/seccomp.h>
@@ -39,7 +40,6 @@
 PTraceSandbox::PTraceSandbox(BxlObserver *bxl)
 {
     m_bxl = bxl;
-    m_traceePid = 0;
     m_emptyStr = "";
 }
 
@@ -49,6 +49,10 @@ PTraceSandbox::~PTraceSandbox()
 
 int PTraceSandbox::ExecuteWithPTraceSandbox(const char *file, int fd, char *const argv[], char *const envp[])
 {
+    // If an fd was provided, we need to translate it here first because the child won't be able to
+    // exec directly on the fd from a different process
+    auto resolvedPath = fd == -1 ? file : m_bxl->fd_to_path(fd).c_str();
+
     // Using ptrace requires a separate process
     // The forked child process will continue to do the exec, while the parent process will become the tracee
     // The child process will register itself as the tracee by using PTRACE_TRACEME
@@ -58,35 +62,34 @@ int PTraceSandbox::ExecuteWithPTraceSandbox(const char *file, int fd, char *cons
     // a return value of 0 from fork() indicates that this is the child process
     if (m_traceePid == 0)
     {
-        int execResult = ChildProcess(file, fd, argv, envp);
+        ChildProcess(resolvedPath, argv, envp);
 
-        if (execResult == -1)
-        {
-            execResult = errno;
-        }
+        BXL_LOG_DEBUG(m_bxl, "[PTrace] Failed to start tracee '%s' with error %d: '%s'", resolvedPath, errno, strerror(errno));
 
-        // Child process has finished executing so we can exit here
-        m_bxl->real__exit(execResult);
+        // Child process failed
+        m_bxl->real__exit(errno);
     }
     else
     {
-        m_pidStr = std::to_string(m_traceePid);
-        // Disabling the fd table for now to avoid inaccurate reports because the logic to clear the entries isn't set up properly on the ptrace sandbox
-        m_bxl->disable_fd_table(); // TODO: [pgunasekara] re-enable this later
+        // The bxl_observer FD table doesn't make sense for ptrace because the tracer can have multiple tracees
+        // TODO: [pgunasekara] Re-implement the fd table inside the ptrace sandbox to have a set of per process fd tables
+        m_bxl->disable_fd_table();
+
+        m_traceeTable.push_back(std::make_tuple(m_traceePid, getppid(), resolvedPath));
 
         auto status = ParentProcess();
 
         // Since the process called exec, once the forked process exits the main process can exit as well
         // The exit of the child should have already been reported, so we can directly call _exit here
         // Since this is the parent process theres nothing to report when exiting here.
-        _exit(status);
+        m_bxl->real__exit(status);
     }
 
     // We should never hit this unless the fork call failed for some reason
     return -1;
 }
 
-int PTraceSandbox::ChildProcess(const char *file, int fd, char *const argv[], char *const envp[])
+int PTraceSandbox::ChildProcess(const char *file, char *const argv[], char *const envp[])
 {
     // Filter for the syscalls that BXL is interested in tracing
     // Only the syscalls in here will be signalled to the main process by seccomp
@@ -98,8 +101,6 @@ int PTraceSandbox::ChildProcess(const char *file, int fd, char *const argv[], ch
         // This statement loads the syscall number (seccomp_data.nr) into the accumulator
         BPF_STMT(BPF_LD+BPF_W+BPF_ABS, offsetof(struct seccomp_data, nr)),
         // The next set of statements indicates that we should stop the tracee if one of these syscalls are detected
-        TRACE_SYSCALL(fork),
-        TRACE_SYSCALL(clone),
         TRACE_SYSCALL(execveat),
         TRACE_SYSCALL(execve),
         TRACE_SYSCALL(stat),
@@ -147,7 +148,6 @@ int PTraceSandbox::ChildProcess(const char *file, int fd, char *const argv[], ch
         TRACE_SYSCALL(sendfile),
         TRACE_SYSCALL(copy_file_range),
         TRACE_SYSCALL(name_to_handle_at),
-        TRACE_SYSCALL(exit),
         // SECCOMP_RET_ALLOW tells seccomp to allow all of the calls that were being filtered above (as opposed to killing them)
         // This would happen if none of the syscall numbers above get matched, and therefore should not stop the tracee
         BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_ALLOW),
@@ -178,63 +178,131 @@ int PTraceSandbox::ChildProcess(const char *file, int fd, char *const argv[], ch
     kill(getpid(), SIGSTOP);
 
     // Finally perform the exec syscall, this call to exec along with the syscalls from the child process should be filtered and reported to the tracer by seccomp
-    return fd == -1 ? m_bxl->real_execvpe(file, argv, envp) : m_bxl->real_fexecve(fd, argv, envp);
+    return m_bxl->real_execvpe(file, argv, envp);
 }
 
 int PTraceSandbox::ParentProcess()
 {
-    BXL_LOG_DEBUG(m_bxl, "Starting ptrace for PID %d", m_traceePid);
+    BXL_LOG_DEBUG(m_bxl, "[PTrace] Starting trace for PID %d", m_traceePid);
     int status;
 
     // Wait for initial SIGSTOP from child
     waitpid(m_traceePid, &status, 0);
-    // Enable seccomp tracing option
-    ptrace(PTRACE_SETOPTIONS, m_traceePid, 0, PTRACE_O_TRACESECCOMP);
+
+    // PTRACE_O_TRACESECCOMP: Enables ptrace events from seccomp on the child
+    // PTRACE_O_TRACECLONE/FORK/VFORK: Ptrace will signal on clone/fork/vfork before the syscall returns back to the caller
+    // PTRACE_O_TRACEEXIT: ptrace will signal before exit() returns back to the caller.
+    ptrace(
+        PTRACE_SETOPTIONS,
+        m_traceePid,
+        0,
+        PTRACE_O_TRACESECCOMP | PTRACE_O_TRACECLONE | PTRACE_O_TRACEFORK | PTRACE_O_TRACEVFORK | PTRACE_O_TRACEEXIT);
+
     // Resume child
     ptrace(PTRACE_SYSCALL, m_traceePid, 0, 0);
 
     // Main loop that handles signals from the child
-    // waitpid should get signalled from the following:
-    //  1. seccomp event
+    // wait should get signalled from the following:
+    //  1. ptrace event (seccomp, clone, fork, vfork, exit)
     //  2. Child process exited with status code
     //  3. Child process exited with signal
     while (true)
     {
-        // Wait for signal from seccomp
-        waitpid(m_traceePid, &status, 0);
-        
+        // Passing -1 to waitpid has it wait for a signal from any PID
+        // A call to wait is equivalent to waitpid(-1, &status, 0);
+        // The wait call will return the PID of the process that signalled, this should be used as the traceepid
+        // NOTE: this must be done in a single thread, we cannot split this up into separate threads because only the thread that attached the tracee can issue ptrace commands
+        m_traceePid = wait(&status);
+
         // Handle cases where the child processes has exited
         if (WIFEXITED(status))
         {
-            BXL_LOG_DEBUG(m_bxl, "Child process exited with status '%d'", WEXITSTATUS(status));
-            break;
+            BXL_LOG_DEBUG(m_bxl, "[PTrace] Child process %d exited with status '%d'", m_traceePid, WEXITSTATUS(status));
+
+            if (AllTraceesHaveExited())
+            {
+                break;
+            }
+            continue;
         }
         else if (WIFSIGNALED(status))
         {
-            BXL_LOG_DEBUG(m_bxl, "Child process exited with signal '%d'", WTERMSIG(status));
-            break;
+            BXL_LOG_DEBUG(m_bxl, "[PTrace] Child process %d exited with signal '%d'", m_traceePid, WTERMSIG(status));
+            
+            if (AllTraceesHaveExited())
+            {
+                break;
+            }
+            continue;
         }
         else if (!WIFSTOPPED(status))
         {
-            BXL_LOG_DEBUG(m_bxl, "waitpid() returned bad status '%d'", status);
+            BXL_LOG_DEBUG(m_bxl, "[PTrace] wait() returned bad status '%d'", status);
+            _exit(-1);
             break;
         }
 
-        // Handle signal from seccomp
-        if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_SECCOMP << 8)))
+        // Handle fork/clone/vfork/seccomp
+        if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_CLONE << 8)))
+        {
+            HandleChildProcess("clone");
+        }
+        else if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_FORK << 8)))
+        {
+            HandleChildProcess("fork");
+        }
+        else if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_VFORK << 8)))
+        {
+            HandleChildProcess("vfork");
+        }
+        else if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_EXIT << 8)))
+        {
+            unsigned long traceeStatus = 0;
+            ptrace(PTRACE_GETEVENTMSG, m_traceePid, NULL, &traceeStatus);
+            BXL_LOG_DEBUG(m_bxl, "[PTrace] Tracee %d exited with exit code '%d'", m_traceePid, WEXITSTATUS(traceeStatus));
+
+            auto shouldExit = AllTraceesHaveExited();
+            ptrace(PTRACE_SYSCALL, m_traceePid, NULL, NULL);
+
+            if (shouldExit)
+            {
+                status = traceeStatus;
+                break;
+            }
+        }
+        else if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_SECCOMP << 8)))
         {
             long syscallNumber = ptrace(PTRACE_PEEKUSER, m_traceePid, sizeof(long) * ORIG_RAX, NULL);
             HandleSysCallGeneric(syscallNumber);
-        }
 
-        // Resume child process
-        // Don't use PTRACE_SYSCALL here because we don't want to be interrupted again until the next filtered syscall is hit
-        // This also means that we will not see the return value of the syscall. If it's necessary to do that, then in the handler
-        // Call ptrace with PTRACE_SYSCALL and waitpid before returning back to this function (see PTraceSandbox::HandleChildProcess as an example of this)
-        ptrace(PTRACE_CONT, m_traceePid, NULL, NULL);
+            // We can resume the child with PTRACE_CONT here to ignore the ptrace-exit-stop for this syscall
+            ptrace(PTRACE_CONT, m_traceePid, NULL, NULL);
+        }
+        else
+        {
+            BXL_LOG_DEBUG(m_bxl, "[PTrace] Tracee %d returned an unexpected status '%d'", m_traceePid, status);
+            // This shouldn't happen, but we'll continue here to avoid stalling the tracee
+            ptrace(PTRACE_SYSCALL, m_traceePid, NULL, NULL);
+        }
     }
 
     return WEXITSTATUS(status);
+}
+
+bool PTraceSandbox::AllTraceesHaveExited()
+{
+    BXL_LOG_DEBUG(m_bxl, "[PTrace] Removing process '%d' from ptrace tracee table.", m_traceePid);
+
+    Handleexit();
+
+    m_traceeTable.erase(std::remove_if
+    (
+        m_traceeTable.begin(),
+        m_traceeTable.end(),
+        [this](const std::tuple<pid_t, pid_t, std::string>& item) { return std::get<0>(item) == m_traceePid; }
+    ), m_traceeTable.end());
+
+    return m_traceeTable.size() == 0;
 }
 
 void *PTraceSandbox::GetArgumentAddr(int index)
@@ -287,7 +355,7 @@ std::string PTraceSandbox::ReadArgumentString(int argumentIndex, bool nullTermin
         long addrMemoryLocation = ptrace(PTRACE_PEEKTEXT, m_traceePid, addrRegValue, NULL);
         if (addrMemoryLocation == -1)
         {
-            BXL_LOG_DEBUG(m_bxl, "Error occured while executing PTRACE_PEEKTEXT: '%s'", strerror(errno));
+            BXL_LOG_DEBUG(m_bxl, "[PTrace] Error occured while executing PTRACE_PEEKTEXT: '%s'", strerror(errno));
         }
 
         addrRegValue += sizeof(long);
@@ -330,8 +398,6 @@ void PTraceSandbox::HandleSysCallGeneric(int syscallNumber)
 {
     switch (syscallNumber)
     {
-        CHECK_AND_CALL_HANDLER(fork);
-        CHECK_AND_CALL_HANDLER(clone);
         CHECK_AND_CALL_HANDLER(execveat);
         CHECK_AND_CALL_HANDLER(execve);
         CHECK_AND_CALL_HANDLER(stat);
@@ -379,11 +445,10 @@ void PTraceSandbox::HandleSysCallGeneric(int syscallNumber)
         CHECK_AND_CALL_HANDLER(sendfile);
         CHECK_AND_CALL_HANDLER(copy_file_range);
         CHECK_AND_CALL_HANDLER(name_to_handle_at);
-        CHECK_AND_CALL_HANDLER(exit);
         default:
             // This should not happen in theory with filtering enabled
             // However if it does occur, we can ignore this syscall and log a message for debugging if necessary
-            BXL_LOG_DEBUG(m_bxl, "Unsupported syscall caught by ptrace '%d'", syscallNumber);
+            BXL_LOG_DEBUG(m_bxl, "[PTrace] Unsupported syscall caught by ptrace '%d'", syscallNumber);
             break;
     }
 }
@@ -407,42 +472,60 @@ void PTraceSandbox::ReportOpen(std::string path, int oflag, std::string syscallN
 void PTraceSandbox::ReportCreate(std::string syscallName, int dirfd, const char *pathname, mode_t mode, long returnValue)
 {
     // TODO: Figure out how to report the errno
-    IOEvent event(ES_EVENT_TYPE_NOTIFY_CREATE, ES_ACTION_TYPE_NOTIFY, m_bxl->normalize_path_at(dirfd, pathname, /*oflags*/0, m_pidStr.c_str()), m_bxl->GetProgramPath(), mode, false, "", returnValue);
+    IOEvent event(ES_EVENT_TYPE_NOTIFY_CREATE, ES_ACTION_TYPE_NOTIFY, m_bxl->normalize_path_at(dirfd, pathname, /*oflags*/0, m_traceePid), m_bxl->GetProgramPath(), mode, false, "", returnValue);
     m_bxl->report_access(syscallName.c_str(), event);
+}
+
+std::vector<std::tuple<pid_t, pid_t, std::string>>::iterator PTraceSandbox::FindParentProcess(pid_t pid)
+{
+    return std::find_if
+    (
+        m_traceeTable.begin(),
+        m_traceeTable.end(),
+        [pid](const std::tuple<pid_t, pid_t, std::string>& item) { return std::get<0>(item) == pid; }
+    );
 }
 
 // Syscall Handlers
 // TODO: [pgunasekara] combine these handlers with the ones in detours.cpp
 void PTraceSandbox::HandleChildProcess(const char *syscall)
 {
-    int status = 0;
+    pid_t newPid;
+    ptrace(PTRACE_GETEVENTMSG, m_traceePid, NULL, (long) &newPid);
 
-    ptrace(PTRACE_SYSCALL, m_traceePid, NULL, NULL);
-    waitpid(m_traceePid, &status, 0);
-
-    if (WSTOPSIG(status) == SIGTRAP)
+    // Find the parent pid for this tracee
+    auto maybeParent = FindParentProcess(newPid);
+    pid_t traceeppid;
+    std::string exePath;
+    
+    // Best effort to get the ppid/exe of the tracee here. There's no nice way to do this from outside the process
+    if (maybeParent != m_traceeTable.end())
     {
-        long childPid = ReadArgumentLong(0);
-        string exePath(m_bxl->GetProgramPath());
-        
-        IOEvent event(m_traceePid, childPid, getpid(), ES_EVENT_TYPE_NOTIFY_FORK, ES_ACTION_TYPE_NOTIFY, exePath, std::string(""), exePath, 0, false, /* error */ 0);
-        
-        m_bxl->report_access(syscall, event);
+        traceeppid = std::get<1>(maybeParent[0]);
+        exePath = std::get<2>(maybeParent[0]);
     }
     else
     {
-        BXL_LOG_DEBUG(m_bxl, "Unable to get result of fork call to report child PID for parent process '%d'", m_traceePid);
+        // This case isn't expected to happen as long as ptrace works properly, but in case it does, we will report 0 as the ppid.
+        traceeppid = 0;
+        exePath = m_bxl->GetProgramPath();
     }
-}
 
-HANDLER_FUNCTION(fork)
-{
-    HandleChildProcess(SYSCALL_NAME_STRING(fork));
-}
+    // Parent PID = m_traceePid (the current process being traced)
+    // New child PID = newPid
+    IOEvent event(m_traceePid, newPid, traceeppid, ES_EVENT_TYPE_NOTIFY_FORK, ES_ACTION_TYPE_NOTIFY, exePath, std::string(""), exePath, /* mode */ 0, false, /* error */ 0);
+    m_bxl->report_access(syscall, event);
 
-HANDLER_FUNCTION(clone)
-{
-    HandleChildProcess(SYSCALL_NAME_STRING(clone));
+    // Record the new child tracee
+    // When PTRACE_O_TRACEFORK/CLONE/VFORK is set, the child process is automatically ptraced as well
+    m_traceeTable.push_back(std::make_tuple(newPid, m_traceePid, exePath));
+
+    BXL_LOG_DEBUG(m_bxl, "[PTrace] Added new tracee with PID '%d'", newPid);
+
+    // Resume the tracee and the tracees child
+    // NOTE: We don't want to call PTRACE_CONT here because we want to receive future clone/fork/vfork notifications
+    ptrace(PTRACE_SYSCALL, m_traceePid, NULL, NULL);
+    ptrace(PTRACE_SYSCALL, newPid, NULL, NULL);
 }
 
 HANDLER_FUNCTION(execveat)
@@ -453,7 +536,7 @@ HANDLER_FUNCTION(execveat)
     int flags = ReadArgumentLong(5);
 
     int oflags = (flags & AT_SYMLINK_NOFOLLOW) ? O_NOFOLLOW : 0;
-    std::string exePath = m_bxl->normalize_path_at(dirfd, pathname.c_str(), oflags, m_pidStr.c_str());
+    std::string exePath = m_bxl->normalize_path_at(dirfd, pathname.c_str(), oflags, m_traceePid);
     char mutableExePath[exePath.length() + 1];
 
     strcpy(mutableExePath, exePath.c_str());
@@ -498,13 +581,13 @@ HANDLER_FUNCTION_NEW(fstatat)
     auto flags = ReadArgumentLong(4);
 
     // TODO: Figure out how to report the errno
-    m_bxl->report_access_at(SYSCALL_NAME_STRING(fstatat), ES_EVENT_TYPE_NOTIFY_STAT, dirfd, pathname.c_str(), flags, /*getModeWithFd*/ false, m_pidStr.c_str(), /* error */ 0);
+    m_bxl->report_access_at(SYSCALL_NAME_STRING(fstatat), ES_EVENT_TYPE_NOTIFY_STAT, dirfd, pathname.c_str(), flags, /*getModeWithFd*/ false, m_traceePid, /* error */ 0);
 }
 
 HANDLER_FUNCTION(access)
 {
     auto pathname = ReadArgumentString(1, /*nullTerminated*/ true);
-    m_bxl->report_access(SYSCALL_NAME_STRING(access), ES_EVENT_TYPE_NOTIFY_ACCESS, pathname.c_str(), 0U, 0, /* error */ 0);
+    m_bxl->report_access(SYSCALL_NAME_STRING(access), ES_EVENT_TYPE_NOTIFY_ACCESS, pathname.c_str(), /* mode */ 0U, /* flags */ 0, /* error */ 0);
 }
 
 HANDLER_FUNCTION(faccessat)
@@ -512,12 +595,12 @@ HANDLER_FUNCTION(faccessat)
     auto dirfd = ReadArgumentLong(1);
     auto pathname = ReadArgumentString(2, /*nullTerminated*/ true);
     // TODO: Figure out how to report the errno
-    m_bxl->report_access_at(SYSCALL_NAME_STRING(faccessat), ES_EVENT_TYPE_NOTIFY_ACCESS, dirfd, pathname.c_str(), /*oflags*/ 0, /*getModeWithFd*/ false, m_pidStr.c_str(), /* error */ 0);
+    m_bxl->report_access_at(SYSCALL_NAME_STRING(faccessat), ES_EVENT_TYPE_NOTIFY_ACCESS, dirfd, pathname.c_str(), /*oflags*/ 0, /*getModeWithFd*/ false, m_traceePid, /* error */ 0);
 }
 
 HANDLER_FUNCTION(creat)
 {
-    auto path = m_bxl->normalize_path(ReadArgumentString(1, /*nullTerminated*/ true).c_str(), /*oflags*/0, m_pidStr.c_str());
+    auto path = m_bxl->normalize_path(ReadArgumentString(1, /*nullTerminated*/ true).c_str(), /*oflags*/0, m_traceePid);
     auto oflag = O_CREAT | O_WRONLY | O_TRUNC;
     ReportOpen(path, oflag, SYSCALL_NAME_STRING(creat));
 
@@ -525,7 +608,7 @@ HANDLER_FUNCTION(creat)
 
 HANDLER_FUNCTION(open)
 {
-    auto path = m_bxl->normalize_path(ReadArgumentString(1, /*nullTerminated*/ true).c_str(), /*oflags*/0, m_pidStr.c_str());
+    auto path = m_bxl->normalize_path(ReadArgumentString(1, /*nullTerminated*/ true).c_str(), /*oflags*/0, m_traceePid);
     auto oflag = ReadArgumentLong(2);
     ReportOpen(path, oflag, SYSCALL_NAME_STRING(open));
 }
@@ -533,14 +616,14 @@ HANDLER_FUNCTION(open)
 HANDLER_FUNCTION(openat)
 {
     auto dirfd = ReadArgumentLong(1);
-    auto path = m_bxl->normalize_path_at(dirfd, ReadArgumentString(2, /*nullTerminated*/ true).c_str(), /*oflags*/0, m_pidStr.c_str());
+    auto path = m_bxl->normalize_path_at(dirfd, ReadArgumentString(2, /*nullTerminated*/ true).c_str(), /*oflags*/0, m_traceePid);
     auto flags = ReadArgumentLong(3);
     ReportOpen(path, flags, SYSCALL_NAME_STRING(openat));
 }
 
 void PTraceSandbox::HandleReportAccessFd(const char *syscall, int fd, es_event_type_t event /*ES_EVENT_TYPE_NOTIFY_WRITE*/)
 {
-    auto path = m_bxl->fd_to_path(fd, m_pidStr.c_str());
+    auto path = m_bxl->fd_to_path(fd, m_traceePid);
 
     // Readlink returns type:[inode] if the path is not a file (files will return absolute paths)
     if (path[0] == '/')
@@ -582,7 +665,7 @@ HANDLER_FUNCTION(pwrite64)
 HANDLER_FUNCTION(truncate)
 {
     auto path = ReadArgumentString(1, /*nullTerminated*/ true);
-    m_bxl->report_access(SYSCALL_NAME_STRING(truncate), ES_EVENT_TYPE_NOTIFY_WRITE, path.c_str(), "", 0, /* error */ 0);
+    m_bxl->report_access(SYSCALL_NAME_STRING(truncate), ES_EVENT_TYPE_NOTIFY_WRITE, path.c_str(), "", /* mode */ 0, /* error */ 0);
 }
 
 HANDLER_FUNCTION(ftruncate)
@@ -594,7 +677,7 @@ HANDLER_FUNCTION(ftruncate)
 HANDLER_FUNCTION(rmdir)
 {
     auto path = ReadArgumentString(1, /*nullTerminated*/ true);
-    m_bxl->report_access(SYSCALL_NAME_STRING(rmdir), ES_EVENT_TYPE_NOTIFY_UNLINK, path.c_str(), "", 0, /* error */ 0);
+    m_bxl->report_access(SYSCALL_NAME_STRING(rmdir), ES_EVENT_TYPE_NOTIFY_UNLINK, path.c_str(), "", /* mode */ 0, /* error */ 0);
 }
 
 HANDLER_FUNCTION(rename)
@@ -617,8 +700,8 @@ HANDLER_FUNCTION(renameat)
 
 void PTraceSandbox::HandleRenameGeneric(const char *syscall, int olddirfd, const char *oldpath, int newdirfd, const char *newpath)
 {
-    string oldStr = m_bxl->normalize_path_at(olddirfd, oldpath, O_NOFOLLOW, m_pidStr.c_str());
-    string newStr = m_bxl->normalize_path_at(newdirfd, newpath, O_NOFOLLOW, m_pidStr.c_str());
+    string oldStr = m_bxl->normalize_path_at(olddirfd, oldpath, O_NOFOLLOW, m_traceePid);
+    string newStr = m_bxl->normalize_path_at(newdirfd, newpath, O_NOFOLLOW, m_traceePid);
 
     mode_t mode = m_bxl->get_mode(oldStr.c_str());    
     std::vector<std::string> filesAndDirectories;
@@ -659,8 +742,8 @@ HANDLER_FUNCTION(link)
     m_bxl->report_access(
         SYSCALL_NAME_STRING(link),
         ES_EVENT_TYPE_NOTIFY_LINK,
-        m_bxl->normalize_path(oldpath.c_str(), O_NOFOLLOW, m_pidStr.c_str()),
-        m_bxl->normalize_path(newpath.c_str(), O_NOFOLLOW, m_pidStr.c_str()), 
+        m_bxl->normalize_path(oldpath.c_str(), O_NOFOLLOW, m_traceePid),
+        m_bxl->normalize_path(newpath.c_str(), O_NOFOLLOW, m_traceePid), 
         0, /* error */ 0);
 }
 
@@ -674,8 +757,8 @@ HANDLER_FUNCTION(linkat)
     m_bxl->report_access(
         SYSCALL_NAME_STRING(linkat),
         ES_EVENT_TYPE_NOTIFY_LINK,
-        m_bxl->normalize_path_at(olddirfd, oldpath.c_str(), O_NOFOLLOW, m_pidStr.c_str()),
-        m_bxl->normalize_path_at(newdirfd, newpath.c_str(), O_NOFOLLOW, m_pidStr.c_str()),
+        m_bxl->normalize_path_at(olddirfd, oldpath.c_str(), O_NOFOLLOW, m_traceePid),
+        m_bxl->normalize_path_at(newdirfd, newpath.c_str(), O_NOFOLLOW, m_traceePid),
         0, /* error */ 0);
 }
 
@@ -699,7 +782,7 @@ HANDLER_FUNCTION(unlinkat)
     {
         int oflags = (flags & AT_REMOVEDIR) ? 0 : O_NOFOLLOW;
         // TODO: Figure out how to report the errno
-        m_bxl->report_access_at(SYSCALL_NAME_STRING(unlinkat), ES_EVENT_TYPE_NOTIFY_UNLINK, dirfd, path.c_str(), oflags, /*getModeWithFd*/ false, m_pidStr.c_str(), /* error */ 0);
+        m_bxl->report_access_at(SYSCALL_NAME_STRING(unlinkat), ES_EVENT_TYPE_NOTIFY_UNLINK, dirfd, path.c_str(), oflags, /*getModeWithFd*/ false, m_traceePid, /* error */ 0);
     }
 }
 
@@ -708,7 +791,7 @@ HANDLER_FUNCTION(symlink)
     auto linkPath = ReadArgumentString(2, /*nullTerminated*/ true);
 
     // TODO: Figure out how to report the errno
-    IOEvent event(ES_EVENT_TYPE_NOTIFY_CREATE, ES_ACTION_TYPE_NOTIFY, m_bxl->normalize_path(linkPath.c_str(), O_NOFOLLOW, m_pidStr.c_str()), m_bxl->GetProgramPath(), S_IFLNK, false, "", /* error */ 0);
+    IOEvent event(ES_EVENT_TYPE_NOTIFY_CREATE, ES_ACTION_TYPE_NOTIFY, m_bxl->normalize_path(linkPath.c_str(), O_NOFOLLOW, m_traceePid), m_bxl->GetProgramPath(), S_IFLNK, false, "", /* error */ 0);
     m_bxl->report_access(SYSCALL_NAME_STRING(symlink), event);
 }
 
@@ -718,7 +801,7 @@ HANDLER_FUNCTION(symlinkat)
     auto linkPath = ReadArgumentString(3, /*nullTerminated*/ true);
 
     // TODO: Figure out how to report the errno
-    IOEvent event(ES_EVENT_TYPE_NOTIFY_CREATE, ES_ACTION_TYPE_NOTIFY, m_bxl->normalize_path_at(dirfd, linkPath.c_str(), O_NOFOLLOW, m_pidStr.c_str()), m_bxl->GetProgramPath(), S_IFLNK, false, "", /* error */ 0);
+    IOEvent event(ES_EVENT_TYPE_NOTIFY_CREATE, ES_ACTION_TYPE_NOTIFY, m_bxl->normalize_path_at(dirfd, linkPath.c_str(), O_NOFOLLOW, m_traceePid), m_bxl->GetProgramPath(), S_IFLNK, false, "", /* error */ 0);
     m_bxl->report_access(SYSCALL_NAME_STRING(symlinkat), event);
 
 }
@@ -736,14 +819,14 @@ HANDLER_FUNCTION(readlinkat)
     auto path = ReadArgumentString(2, /*nullTerminated*/ true);
 
     // TODO: Figure out how to report the errno
-    m_bxl->report_access_at(SYSCALL_NAME_STRING(readlinkat), ES_EVENT_TYPE_NOTIFY_READLINK, fd, path.c_str(), O_NOFOLLOW, /*getModeWithFd*/ false, m_pidStr.c_str(), /* error */ 0);
+    m_bxl->report_access_at(SYSCALL_NAME_STRING(readlinkat), ES_EVENT_TYPE_NOTIFY_READLINK, fd, path.c_str(), O_NOFOLLOW, /*getModeWithFd*/ false, m_traceePid, /* error */ 0);
 }
 
 HANDLER_FUNCTION(utime)
 {
     auto filename = ReadArgumentString(1, /*nullTerminated*/ true);
 
-    m_bxl->report_access(SYSCALL_NAME_STRING(utime), ES_EVENT_TYPE_NOTIFY_SETTIME, filename.c_str(), "", 0, /* error */ 0);
+    m_bxl->report_access(SYSCALL_NAME_STRING(utime), ES_EVENT_TYPE_NOTIFY_SETTIME, filename.c_str(), "", /* mode */ 0, /* error */ 0);
 }
 
 HANDLER_FUNCTION(utimes)
@@ -757,7 +840,7 @@ HANDLER_FUNCTION(utimensat)
     auto pathname = ReadArgumentString(2, /*nullTerminated*/ true);
 
     // TODO: Figure out how to report the errno
-    m_bxl->report_access_at(SYSCALL_NAME_STRING(utimensat), ES_EVENT_TYPE_NOTIFY_SETTIME, dirfd, pathname.c_str(), /*oflags*/ 0, /*getModeWithFd*/ false, m_pidStr.c_str(), /* error */ 0);
+    m_bxl->report_access_at(SYSCALL_NAME_STRING(utimensat), ES_EVENT_TYPE_NOTIFY_SETTIME, dirfd, pathname.c_str(), /*oflags*/ 0, /*getModeWithFd*/ false, m_traceePid, /* error */ 0);
 }
 
 HANDLER_FUNCTION(futimesat)
@@ -766,7 +849,7 @@ HANDLER_FUNCTION(futimesat)
     auto pathname = ReadArgumentString(2, /*nullTerminated*/ true);
 
     // TODO: Figure out how to report the errno
-    m_bxl->report_access_at(SYSCALL_NAME_STRING(futimesat), ES_EVENT_TYPE_NOTIFY_SETTIME, dirfd, pathname.c_str(), /*oflags*/ 0, /*getModeWithFd*/ false, m_pidStr.c_str(), /* error */ 0);
+    m_bxl->report_access_at(SYSCALL_NAME_STRING(futimesat), ES_EVENT_TYPE_NOTIFY_SETTIME, dirfd, pathname.c_str(), /*oflags*/ 0, /*getModeWithFd*/ false, m_traceePid, /* error */ 0);
 }
 
 HANDLER_FUNCTION(mkdir)
@@ -838,13 +921,13 @@ HANDLER_FUNCTION(fchmodat)
 
     int oflags = (flags & AT_SYMLINK_NOFOLLOW) ? O_NOFOLLOW : 0;
     // TODO: Figure out how to report the errno
-    m_bxl->report_access_at(SYSCALL_NAME_STRING(fchmodat), ES_EVENT_TYPE_NOTIFY_SETMODE, dirfd, pathname.c_str(), oflags, /*getModeWithFd*/ false, m_pidStr.c_str(), /* error */ 0);
+    m_bxl->report_access_at(SYSCALL_NAME_STRING(fchmodat), ES_EVENT_TYPE_NOTIFY_SETMODE, dirfd, pathname.c_str(), oflags, /*getModeWithFd*/ false, m_traceePid, /* error */ 0);
 }
 
 HANDLER_FUNCTION(chown)
 {
     auto pathname = ReadArgumentString(1, /*nullTerminated*/ true);
-    m_bxl->report_access(SYSCALL_NAME_STRING(chown), ES_EVENT_TYPE_AUTH_SETOWNER, pathname.c_str(), "", 0, /* error */ 0);
+    m_bxl->report_access(SYSCALL_NAME_STRING(chown), ES_EVENT_TYPE_AUTH_SETOWNER, pathname.c_str(), "", /* mode */ 0, /* error */ 0);
 }
 
 HANDLER_FUNCTION(fchown)
@@ -867,7 +950,7 @@ HANDLER_FUNCTION(fchownat)
 
     int oflags = (flags & AT_SYMLINK_NOFOLLOW) ? O_NOFOLLOW : 0;
     // TODO: figure out how to report the errno
-    m_bxl->report_access_at(SYSCALL_NAME_STRING(fchownat), ES_EVENT_TYPE_AUTH_SETOWNER, dirfd, pathname.c_str(), oflags, /*getModeWithFd*/ false, m_pidStr.c_str(), /* error */ 0);
+    m_bxl->report_access_at(SYSCALL_NAME_STRING(fchownat), ES_EVENT_TYPE_AUTH_SETOWNER, dirfd, pathname.c_str(), oflags, /*getModeWithFd*/ false, m_traceePid, /* error */ 0);
 }
 
 HANDLER_FUNCTION(sendfile)
@@ -889,11 +972,11 @@ HANDLER_FUNCTION(name_to_handle_at)
     auto flags = ReadArgumentLong(5);
 
     int oflags = (flags & AT_SYMLINK_FOLLOW) ? 0 : O_NOFOLLOW;
-    string pathStr = m_bxl->normalize_path_at(dirfd, pathname.c_str(), oflags, m_pidStr.c_str());
+    string pathStr = m_bxl->normalize_path_at(dirfd, pathname.c_str(), oflags, m_traceePid);
     ReportOpen(pathStr, oflags, SYSCALL_NAME_STRING(name_to_handle_at));
 }
 
 HANDLER_FUNCTION(exit)
 {
-    m_bxl->report_access("on_exit", ES_EVENT_TYPE_NOTIFY_EXIT, std::string(""), std::string(""), 0, /* error */ 0);
+    m_bxl->SendExitReport(m_traceePid);
 }

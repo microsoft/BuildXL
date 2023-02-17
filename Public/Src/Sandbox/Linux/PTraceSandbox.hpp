@@ -39,8 +39,8 @@ public:
 private:
     BxlObserver *m_bxl;
     pid_t m_traceePid;
-    std::string m_pidStr;
     std::string m_emptyStr;
+    std::vector<std::tuple<pid_t, pid_t, std::string>> m_traceeTable; // tracee pid, parent pid, tracee exe path
 
     /*
     * @brief Child Process from fork (tracee)
@@ -49,12 +49,22 @@ private:
     * @param envp Environment for exec
     * @return Result of exec call
     */
-    int ChildProcess(const char *file, int fd, char *const argv[], char *const envp[]);
+    int ChildProcess(const char *file, char *const argv[], char *const envp[]);
     
     /* 
      * @brief The body of the tracer process
      */
     int ParentProcess();
+
+    /**
+     * Removes a process that has exited from the tracee table and returns true if all tracees have exited
+     */
+    bool AllTraceesHaveExited();
+
+    /**
+     * Finds the parent process in the tracee table for a given PID.
+     */
+    std::vector<std::tuple<pid_t, pid_t, std::string>>::iterator FindParentProcess(pid_t pid);
 
     void HandleSysCallGeneric(int syscallNumber);
 
@@ -74,8 +84,6 @@ private:
     void ReportCreate(std::string syscallName, int dirfd, const char *pathname, mode_t mode, long returnValue = 0);
 
     // Handlers
-    MAKE_HANDLER_FN_DEF(fork);
-    MAKE_HANDLER_FN_DEF(clone);
     MAKE_HANDLER_FN_DEF(execveat);
     MAKE_HANDLER_FN_DEF(execve);
     MAKE_HANDLER_FN_DEF(stat);

@@ -247,12 +247,12 @@ bool BxlObserver::Send(const char *buf, size_t bufsiz)
     return true;
 }
 
-bool BxlObserver::SendExitReport()
+bool BxlObserver::SendExitReport(pid_t pid)
 {
     IOHandler handler(sandbox_);
     handler.SetProcess(process_);
     AccessReport report;
-    handler.CreateReportProcessExited(getpid(), report);
+    handler.CreateReportProcessExited(pid == 0 ? getpid() : pid, report);
     return SendReport(report);
 }
 
@@ -414,7 +414,7 @@ bool BxlObserver::is_non_file(const mode_t mode)
     return mode != 0 && !S_ISDIR(mode) && !S_ISREG(mode) && !S_ISLNK(mode);
 }
 
-AccessCheckResult BxlObserver::create_access_at(const char *syscallName, es_event_type_t eventType, int dirfd, const char *pathname, AccessReportGroup &report, int flags, bool getModeWithFd, const char *associatedPid)
+AccessCheckResult BxlObserver::create_access_at(const char *syscallName, es_event_type_t eventType, int dirfd, const char *pathname, AccessReportGroup &report, int flags, bool getModeWithFd, pid_t associatedPid)
 {
     if (pathname[0] == '/')
     {
@@ -474,7 +474,7 @@ AccessCheckResult BxlObserver::create_access_at(const char *syscallName, es_even
     return create_access(syscallName, eventType, fullpath, report, flags, mode);
 }
 
-void BxlObserver::report_access_at(const char *syscallName, es_event_type_t eventType, int dirfd, const char *pathname, int flags, bool getModeWithFd, const char *associatedPid, int error)
+void BxlObserver::report_access_at(const char *syscallName, es_event_type_t eventType, int dirfd, const char *pathname, int flags, bool getModeWithFd, pid_t associatedPid, int error)
 {
     AccessReportGroup report;
     create_access_at(syscallName, eventType, dirfd, pathname, report, flags, getModeWithFd, associatedPid);
@@ -640,10 +640,19 @@ void BxlObserver::disable_fd_table()
     useFdTable_ = false;
 }
 
-ssize_t BxlObserver::read_path_for_fd(int fd, char *buf, size_t bufsiz, const char *associatedPid)
+ssize_t BxlObserver::read_path_for_fd(int fd, char *buf, size_t bufsiz, pid_t associatedPid)
 {
     char procPath[100] = {0};
-    sprintf(procPath, "/proc/%s/fd/%d", associatedPid, fd);
+
+    if (associatedPid == 0)
+    {
+        sprintf(procPath, "/proc/self/fd/%d", fd);
+    }
+    else
+    {
+        sprintf(procPath, "/proc/%d/fd/%d", associatedPid, fd);
+    }
+    
     return real_readlink(procPath, buf, bufsiz);
 }
 
@@ -663,7 +672,7 @@ void BxlObserver::reset_fd_table()
     }
 }
 
-std::string BxlObserver::fd_to_path(int fd, const char *associatedPid)
+std::string BxlObserver::fd_to_path(int fd, pid_t associatedPid)
 {
     char path[PATH_MAX] = {0};
 
@@ -697,7 +706,7 @@ std::string BxlObserver::fd_to_path(int fd, const char *associatedPid)
     return path;
 }
 
-std::string BxlObserver::normalize_path_at(int dirfd, const char *pathname, int oflags, const char *associatedPid)
+std::string BxlObserver::normalize_path_at(int dirfd, const char *pathname, int oflags, pid_t associatedPid)
 {
     // Observe that dirfd is assumed to point to a directory file descriptor. Under that assumption, it is safe to call fd_to_path for it.
     // TODO: If we wanted to be very defensive, we could also consider the case of some tool invoking any of the *at(... dirfd ...) family with a 

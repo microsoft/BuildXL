@@ -427,13 +427,13 @@ INTERPOSE(int, __fxstat64, int __ver, int fd, struct stat64 *buf)({
 
 INTERPOSE(int, __fxstatat, int __ver, int fd, const char *pathname, struct stat *__stat_buf, int flag)({
     result_t<int> result = bxl->fwd___fxstatat(__ver, fd, pathname, __stat_buf, flag);
-    bxl->report_access_at(__func__, ES_EVENT_TYPE_NOTIFY_STAT, fd, pathname, 0, true, "self", get_errno_from_result(result));
+    bxl->report_access_at(__func__, ES_EVENT_TYPE_NOTIFY_STAT, fd, pathname, 0, true, /* associated_pid */ 0, get_errno_from_result(result));
     return result.restore();
 })
 
 INTERPOSE(int, __fxstatat64, int __ver, int fd, const char *pathname, struct stat64 *buf, int flag)({
     result_t<int> result = bxl->fwd___fxstatat64(__ver, fd, pathname, buf, flag);
-    bxl->report_access_at(__func__, ES_EVENT_TYPE_NOTIFY_STAT, fd, pathname, 0, true, "self", get_errno_from_result(result));
+    bxl->report_access_at(__func__, ES_EVENT_TYPE_NOTIFY_STAT, fd, pathname, 0, true, /* associated_pid */ 0, get_errno_from_result(result));
     return result.restore();
 })
 

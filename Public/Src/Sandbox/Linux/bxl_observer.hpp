@@ -245,7 +245,7 @@ private:
     bool IsCacheHit(es_event_type_t event, const string &path, const string &secondPath);
     char** ensure_env_value_with_log(char *const envp[], char const *envName);
 
-    ssize_t read_path_for_fd(int fd, char *buf, size_t bufsiz, const char *associatedPid = "self");
+    ssize_t read_path_for_fd(int fd, char *buf, size_t bufsiz, pid_t associatedPid = 0);
 
     bool IsMonitoringChildProcesses() const { return !pip_ || CheckMonitorChildProcesses(pip_->GetFamFlags()); }
     inline bool IsValid() const             { return sandbox_ != NULL; }
@@ -301,7 +301,7 @@ public:
     // Specialization for the exit report event. 
     // We may need to send an exit report on exit handlers after destructors
     // have been called. This method avoids accessing shared structures.
-    bool SendExitReport();
+    bool SendExitReport(pid_t pid = 0);
     char** ensureEnvs(char *const envp[]);
 
     const char* GetProgramPath() { return progFullPath_; }
@@ -331,14 +331,14 @@ public:
     AccessCheckResult create_access(const char *syscallName, es_event_type_t eventType, const char *pathname, AccessReportGroup &report, mode_t mode = 0, int oflags = 0);
     AccessCheckResult create_access(const char *syscallName, es_event_type_t eventType, const std::string &reportPath, const std::string &secondPath, AccessReportGroup &reportGroup, mode_t mode = 0);
     AccessCheckResult create_access_fd(const char *syscallName, es_event_type_t eventType, int fd, AccessReportGroup &reportGroup);
-    AccessCheckResult create_access_at(const char *syscallName, es_event_type_t eventType, int dirfd, const char *pathname, AccessReportGroup &reportGroup, int oflags = 0, bool getModeWithFd = true, const char *associatedPid = "self");
+    AccessCheckResult create_access_at(const char *syscallName, es_event_type_t eventType, int dirfd, const char *pathname, AccessReportGroup &reportGroup, int oflags = 0, bool getModeWithFd = true, pid_t associatedPid = 0);
 
     // The following functions are the create_* equivalent of the ones above but the access is reported to managed BuildXL
     void report_access(const char *syscallName, IOEvent &event, bool checkCache = true);
     void report_access(const char *syscallName, es_event_type_t eventType, const char *pathname, mode_t mode = 0, int oflags = 0, int error = 0);
     void report_access(const char *syscallName, es_event_type_t eventType, const std::string &reportPath, const std::string &secondPath, mode_t mode = 0, int error = 0);
     void report_access_fd(const char *syscallName, es_event_type_t eventType, int fd, int error);
-    void report_access_at(const char *syscallName, es_event_type_t eventType, int dirfd, const char *pathname, int oflags, bool getModeWithFd = true, const char *associatedPid = "self", int error = 0);
+    void report_access_at(const char *syscallName, es_event_type_t eventType, int dirfd, const char *pathname, int oflags, bool getModeWithFd = true, pid_t associatedPid = 0, int error = 0);
 
     // Send a special message to managed code if the policy to override allowed writes based on file existence is set
     // and the write is allowed by policy
@@ -362,9 +362,9 @@ public:
     // Note: This function assumes fd is a file descriptor pointing to a regular file (that is, a file, directory or symlink, not a pipe/socket/etc). The reason for this assumption is that file descriptors
     // are cached and the corresponding invalidation is tied to opening handles against file names. We are currently not detouring pipe creation, so we run the risk of not invalidating the file descriptor
     // table properly for the case of pipes when we miss a close.
-    std::string fd_to_path(int fd, const char *associatedPid = "self");
+    std::string fd_to_path(int fd, pid_t associatedPid = 0);
     
-    std::string normalize_path_at(int dirfd, const char *pathname, int oflags = 0, const char *associatedPid = "self");
+    std::string normalize_path_at(int dirfd, const char *pathname, int oflags = 0, pid_t associatedPid = 0);
 
     // Whether the given descriptor is a non-file (e.g., a pipe, or socket, etc.)
     static bool is_non_file(const mode_t mode);
@@ -409,7 +409,7 @@ public:
         return result;
     }
 
-    std::string normalize_path(const char *pathname, int oflags = 0, const char *associatedPid = "self")
+    std::string normalize_path(const char *pathname, int oflags = 0, pid_t associatedPid = 0)
     {
         return normalize_path_at(AT_FDCWD, pathname, oflags, associatedPid);
     }

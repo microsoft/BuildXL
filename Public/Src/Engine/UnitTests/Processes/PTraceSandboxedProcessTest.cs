@@ -89,13 +89,24 @@ namespace Test.BuildXL.Processes
                 (renamedDirectoryOld, ReportedFileOperation.KAuthDeleteDir),
                 (renamedDirectoryNew, ReportedFileOperation.MacVNodeCreate),
                 (renamePathOld, ReportedFileOperation.KAuthDeleteFile),
-                (renamePathNew, ReportedFileOperation.MacVNodeCreate)
+                (renamePathNew, ReportedFileOperation.MacVNodeCreate),
+                (staticProcessArtifact.Path.ToString(Context.PathTable), ReportedFileOperation.Process),
+                (staticProcessArtifact.Path.ToString(Context.PathTable), ReportedFileOperation.ProcessExit),
             };
 
             var intersection = result.FileAccesses.ToList()
                 .Select(i => (i.GetPath(Context.PathTable), i.Operation))
                 .Intersect(expectedAccesses)
                 .ToList();
+
+            var forksAndExits = result.FileAccesses.ToList()
+                .Where(i => (i.Operation == ReportedFileOperation.Process || i.Operation == ReportedFileOperation.ProcessExit) && i.GetPath(Context.PathTable) == staticProcessArtifact.Path.ToString(Context.PathTable))
+                .Select(i => $"{i.Operation}: '{i.GetPath(Context.PathTable)}'")
+                .ToList();
+            var expectedForkAndExitCount = 10;
+
+            // We should get 10 here because we call fork 4 times (8 create/exit), and the main process will have one create and exit
+            XAssert.IsTrue(forksAndExits.Count() == expectedForkAndExitCount, $"Mismatch in the number of process creations and exits. Expected {expectedForkAndExitCount}, got {forksAndExits.Count()}. Process creations and exits:\n{string.Join("\n", forksAndExits)}");
 
             XAssert.IsTrue(intersection.Count == expectedAccesses.Count, $"Ptrace sandbox did not report the following accesses: {string.Join("\n", expectedAccesses.Except(intersection).ToList())}");
         }

@@ -51,6 +51,23 @@ int main(int argc, char **argv)
     rmdir(GetPath(workingDir, "rmdirme").c_str());
 
     rename(GetPath(workingDir, "renameme").c_str(), GetPath(workingDir, "renamed").c_str());
+
+    auto child = fork();
+
+    if (child == 0)
+    {
+        auto child2 = fork();
+    }
+    else
+    {
+        auto child3 = fork();
+        if (child3 == 0)
+        {
+            auto child4 = fork();
+        }
+    }
+
+    exit(0);
 #endif
 
     // If requested, launch statically linked binary as sub process to verify whether file accesses are detected

@@ -92,6 +92,7 @@ function compileWithBxl() {
         /nowarn:11319 # DX11319: nuget version mismatch
         /logsToRetain:20
         /cachemiss
+        /generateCgManifestForNugets:cg/nuget/cgmanifest.json
         "$@"
     )
 
@@ -267,10 +268,6 @@ fi
 
 if [[ -n "$arg_Internal" ]]; then
     setInternal $@
-fi
-
-if [[ -n "$arg_Cgmanifest" ]]; then
-    arg_Positional+=(/generateCgManifestForNugets:"${MY_DIR}/cg/nuget/cgmanifest.json")
 fi
 
 # if the nuget credential provider is not configured (and the build is an internal one, which is where it is needed)

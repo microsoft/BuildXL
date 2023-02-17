@@ -1176,6 +1176,36 @@ namespace Test.BuildXL.Storage
             XAssert.IsFalse(FileUtilities.DirectoryExistsNoFollow(directorySymlinkPath));
         }
 
+        [Fact]
+        public void TestDeleteDirectoryContentsWithShouldDeleteFilter()
+        {
+            string testDirPath = Path.Combine(TemporaryDirectory, "testdir");
+            string subdir = Path.Combine(testDirPath, "subdir");
+            string file1 = Path.Combine(subdir, "file1.txt");
+            string emptysubdir = Path.Combine(testDirPath, "emptySubdir");
+
+            Directory.CreateDirectory(testDirPath);
+            Directory.CreateDirectory(subdir);
+            File.WriteAllText(file1, "test");
+            Directory.CreateDirectory(emptysubdir);
+
+            StringBuilder sb = new StringBuilder();
+            FileUtilities.DeleteDirectoryContents(testDirPath, deleteRootDirectory: false, shouldDelete: (path, isReparsePoint) =>
+            {
+                if (path.Equals(emptysubdir, StringComparison.OrdinalIgnoreCase))
+                {
+                    return false;
+                }
+
+                return true;
+            });
+
+            XAssert.IsTrue(Directory.Exists(testDirPath));
+            XAssert.IsFalse(File.Exists(file1));
+            XAssert.IsFalse(Directory.Exists(subdir));
+            XAssert.IsTrue(Directory.Exists(emptysubdir));
+        }
+
         // TODO: re-enable this for Linux after fixing work item #1981689
         [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public void HasWritableAccessControlTest()

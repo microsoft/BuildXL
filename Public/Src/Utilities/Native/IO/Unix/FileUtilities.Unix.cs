@@ -104,7 +104,7 @@ namespace BuildXL.Native.IO.Unix
                     {
                         int subDirectoryCount = DeleteDirectoryContentsInternal(
                             childPath,
-                            deleteRootDirectory: true,
+                            deleteRootDirectory: shouldDelete(childPath, isDirectory),
                             shouldDelete: shouldDelete,
                             tempDirectoryCleaner: tempDirectoryCleaner,
                             bestEffort: bestEffort,

@@ -42,6 +42,7 @@ namespace Test.BuildXL.TestUtilities
         public const string Allowlist = "Allowlist";
         public const string WriteFilePip = "WriteFilePip";
         public const string PipRetry = "PipRetry";
+        public const string PreserveOutputs = "PreserveOutputs";
 #pragma warning restore 1591
     }
 }

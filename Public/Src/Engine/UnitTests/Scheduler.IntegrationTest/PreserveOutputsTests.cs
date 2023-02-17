@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using BuildXL.Engine;
 using BuildXL.Native.IO;
 using BuildXL.Pips;
@@ -1078,6 +1079,62 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler().AssertCacheHit(preservingProcessA.PipId, preservingProcessB.PipId);
             outputContents = File.ReadAllText(ArtifactToString(rewrittenOutput));
             XAssert.AreEqual(CONTENT_TWICE, outputContents);
+        }
+
+
+        [Feature(Features.OpaqueDirectory)]
+        [Feature(Features.PreserveOutputs)]
+        [Fact]
+        public void OpaqueDirectoryCleanupWithPreserveOutputs()
+        {
+            // Create a pip with the following:
+            // 1. An opaque directory output "opaqueDir"
+            // 2. Produces a symlink (of any kind) at path "opaqueDir\A\AA\B"
+            // 3. Utilized PreservedOutputs
+            var opaqueDir = FileOrDirectoryArtifact.Create(DirectoryArtifact.CreateWithZeroPartialSealId(CreateUniquePath("opaqueDir", ObjectRoot)));
+            var dirA = FileOrDirectoryArtifact.Create(DirectoryArtifact.CreateWithZeroPartialSealId(opaqueDir.Path.Combine(Context.PathTable, "A")));
+            string dirAPathString = dirA.Path.ToString(Context.PathTable);
+            var dirAA = FileOrDirectoryArtifact.Create(DirectoryArtifact.CreateWithZeroPartialSealId(dirA.Path.Combine(Context.PathTable, "AA")));
+            var fileB = new FileArtifact(dirAA.Path.Combine(Context.PathTable, "B"));
+
+            var pip1 = CreatePipBuilder(new Operation[]
+            {
+                        Operation.CreateDir(opaqueDir),
+                        Operation.CreateDir(dirA),
+                        Operation.CreateDir(dirAA),
+                        Operation.CreateSymlink(fileB, @"c:\anotherDummy", symLinkFlag: Operation.SymbolicLinkFlag.DIRECTORY, doNotInfer:true),
+            });
+            pip1.AddOutputDirectory(opaqueDir.Path);
+            pip1.Options |= Process.Options.AllowPreserveOutputs;
+
+            var process = SchedulePipBuilder(pip1);
+            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.PreserveOutputs = global::BuildXL.Utilities.Configuration.PreserveOutputsMode.Enabled;
+            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.IgnoreFullReparsePointResolving = false;
+
+            // The first build will pass without any problems
+            RunScheduler().AssertSuccess();
+
+            // Next, we externally mess with the state of the opaque directory. We replace "opaqueDir\A" with a directory symlink that is dangling
+            FileUtilities.DeleteDirectoryContents(dirAPathString, deleteRootDirectory: true);
+            XAssert.IsTrue(FileUtilities.TryCreateSymbolicLink(dirAPathString, @"c:\dummyPath", isTargetFile: false).Succeeded);
+            // Should not be able to successfully enumerate this dangling symlink
+            Assert.Throws<DirectoryNotFoundException>(() => Directory.EnumerateFileSystemEntries(dirAPathString));
+
+            // Also add some other outputs to ensure they are not altered
+            string extraFile = Path.Combine(opaqueDir.Path.ToString(Context.PathTable), "extraFile.txt");
+            File.WriteAllText(extraFile, "blah");
+
+            string extraDirSymlink = Path.Combine(opaqueDir.Path.ToString(Context.PathTable), "extraDirSymlink");
+            XAssert.IsTrue(FileUtilities.TryCreateSymbolicLink(extraDirSymlink, @"c:\dummyPath", isTargetFile: false).Succeeded);
+
+            // Rerun the build. This should be a cache hit against the first build and re-create the same state on disk
+            RunScheduler().AssertCacheHit(process.Process.PipId);
+
+            // We should now be able to successfully enumerate what was a dangling synlink
+            XAssert.AreEqual(1, Directory.EnumerateFileSystemEntries(dirAPathString).Count());
+            // Other entries should be left as-is
+            XAssert.IsTrue(File.Exists(extraFile));
+            Assert.Throws<DirectoryNotFoundException>(() => Directory.EnumerateFileSystemEntries(extraDirSymlink));
         }
 
         private void ModifyFile(FileArtifact file, string content = null)

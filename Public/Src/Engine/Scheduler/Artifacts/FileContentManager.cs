@@ -1853,12 +1853,9 @@ namespace BuildXL.Scheduler.Artifacts
 
                     if (sealDirectoryKind == SealDirectoryKind.Opaque)
                     {
-                        if (!m_host.IsPreservedOutputArtifact(artifact))
-                        {
-                            // Dynamic directories must be deleted before materializing files
-                            // We don't want this to happen for shared dynamic ones
-                            AddDirectoryDeletion(state, artifact.DirectoryArtifact);
-                        }
+                        // Dynamic directories must be deleted before materializing files
+                        // We don't want this to happen for shared dynamic ones
+                        AddDirectoryDeletion(state, artifact.DirectoryArtifact, m_host.IsPreservedOutputArtifact(artifact));
 
                         // For dynamic directories we need to specify the value of
                         // allow read only since the host will not know about the
@@ -1953,7 +1950,7 @@ namespace BuildXL.Scheduler.Artifacts
             m_host.ReportMaterializedArtifact(directoryArtifact);
         }
 
-        private void AddDirectoryDeletion(PipArtifactsState state, DirectoryArtifact directoryArtifact)
+        private void AddDirectoryDeletion(PipArtifactsState state, DirectoryArtifact directoryArtifact, bool isPreservedOutputsDirectory)
         {
             var sealDirectoryKind = m_host.GetSealDirectoryKind(directoryArtifact);
             if (sealDirectoryKind != SealDirectoryKind.Opaque)
@@ -1973,7 +1970,7 @@ namespace BuildXL.Scheduler.Artifacts
             }
             else
             {
-                state.DirectoryDeletionCompletions.Add((directoryArtifact, deletionCompletion));
+                state.DirectoryDeletionCompletions.Add((directoryArtifact, isPreservedOutputsDirectory, deletionCompletion));
             }
         }
 
@@ -2144,7 +2141,7 @@ namespace BuildXL.Scheduler.Artifacts
                 bool success = true;
 
                 // Delete the contents of opaque directories before deploying files from cache, or re-create empty directories if they don't exist.
-                foreach (var (directory, completion) in state.DirectoryDeletionCompletions)
+                foreach (var (directory, isPreservedOutputsDirectory, completion) in state.DirectoryDeletionCompletions)
                 {
                     try
                     {
@@ -2165,6 +2162,14 @@ namespace BuildXL.Scheduler.Artifacts
                                             PipExecutorCounter.FileContentManagerDeleteDirectoriesPathParsingDuration))
                                     {
                                         var path = AbsolutePath.Create(Context.PathTable, filePath);
+
+                                        // For opaque directories that have preserved outputs enabled, we want to leave all contents alone unless
+                                        // a parent of an output to potentially be materialized is in the wrong state (reparse point instead of a directory)
+                                        if (isPreservedOutputsDirectory)
+                                        {
+                                            // Delete the path if it is supposed to be a directory leading up to an output but is instead a reparse point
+                                            return state.MaterializedDirectoryContents.TryGetValue(path, out bool isThisADirectory) && isThisADirectory && isReparsePoint;
+                                        }
 
                                         // MaterializedDirectoryContents will contain all declared contents of the directory which should not be deleted
                                         // as the file may already have been materialized by the file content manager. If the file was not materialized
@@ -4211,8 +4216,8 @@ namespace BuildXL.Scheduler.Artifacts
             /// <summary>
             /// The completion results for directory deletions
             /// </summary>
-            public readonly List<(DirectoryArtifact, TaskSourceSlim<bool>)> DirectoryDeletionCompletions =
-                new List<(DirectoryArtifact, TaskSourceSlim<bool>)>();
+            public readonly List<(DirectoryArtifact, bool, TaskSourceSlim<bool>)> DirectoryDeletionCompletions =
+                new List<(DirectoryArtifact, bool, TaskSourceSlim<bool>)>();
 
             /// <summary>
             /// Required directory deletions initiated by other pips which must be awaited

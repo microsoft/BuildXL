@@ -87,9 +87,11 @@ function compileWithBxl() {
     local args=(
         --config "$MY_DIR/config.dsc"
         /fancyConsoleMaxStatusPips:10
-        /exp:LazySODeletion
+        # LazySODeletion is disabled as it is flaky on linux
+        # /exp:LazySODeletion
         /nowarn:11319 # DX11319: nuget version mismatch
         /logsToRetain:20
+        /cachemiss
         "$@"
     )
 

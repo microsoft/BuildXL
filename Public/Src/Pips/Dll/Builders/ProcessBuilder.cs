@@ -205,11 +205,11 @@ namespace BuildXL.Pips.Builders
         private int? m_processRetries;
 
         // CredScan
-        private readonly IBuildXLCredentialScanner m_credentialScanner;
+        private readonly CredentialScanner m_credentialScanner;
         private readonly LoggingContext m_loggingContext;
 
         /// <nodoc />
-        private ProcessBuilder(PathTable pathTable, PooledObjectWrapper<PipDataBuilder> argumentsBuilder, IBuildXLCredentialScanner credentialScanner, LoggingContext loggingContext)
+        private ProcessBuilder(PathTable pathTable, PooledObjectWrapper<PipDataBuilder> argumentsBuilder, CredentialScanner credentialScanner, LoggingContext loggingContext)
         {
             m_pathTable = pathTable;
             m_argumentsBuilder = argumentsBuilder;
@@ -239,6 +239,8 @@ namespace BuildXL.Pips.Builders
 
             // TODO: change this once Unsafe mode is removed / no longer a default mode
             AbsentPathProbeUnderOpaquesMode = AbsentPathProbeInUndeclaredOpaquesMode.Unsafe;
+
+            //CredScan
             m_credentialScanner = credentialScanner;
             m_loggingContext = loggingContext;
         }
@@ -246,7 +248,7 @@ namespace BuildXL.Pips.Builders
         /// <summary>
         /// Creates a new ProcessBuilder
         /// </summary>
-        public static ProcessBuilder Create(PathTable pathTable, PooledObjectWrapper<PipDataBuilder> argumentsBuilder, IBuildXLCredentialScanner credentialScanner, LoggingContext loggingContext)
+        public static ProcessBuilder Create(PathTable pathTable, PooledObjectWrapper<PipDataBuilder> argumentsBuilder, CredentialScanner credentialScanner, LoggingContext loggingContext)
         {
             Contract.Requires(pathTable != null);
             Contract.Requires(argumentsBuilder.Instance != null);
@@ -256,7 +258,7 @@ namespace BuildXL.Pips.Builders
         /// <summary>
         /// Helper to create a new ProcessBuilder for testing that doesn't need to pass the pooled PipDataBuilder for convenience
         /// </summary>
-        public static ProcessBuilder CreateForTesting(PathTable pathTable, IBuildXLCredentialScanner credentialScanner, LoggingContext loggingContext)
+        public static ProcessBuilder CreateForTesting(PathTable pathTable, CredentialScanner credentialScanner, LoggingContext loggingContext)
         {
             var tempPool = new ObjectPool<PipDataBuilder>(() => new PipDataBuilder(pathTable.StringTable), _ => { });
             return new ProcessBuilder(pathTable, tempPool.GetInstance(), credentialScanner, loggingContext);
@@ -772,7 +774,7 @@ namespace BuildXL.Pips.Builders
                 retryAttemptEnvironmentVariable: m_retryAttemptEnvironmentVariable
                 );
 
-            m_credentialScanner.PostEnvVarsForProcessing(process, process.EnvironmentVariables);
+            m_credentialScanner?.PostEnvVarsForProcessing(process, process.EnvironmentVariables);
 
             return true;
         }

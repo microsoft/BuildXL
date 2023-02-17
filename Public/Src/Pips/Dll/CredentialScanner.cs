@@ -22,14 +22,13 @@ using Microsoft.Security.CredScan.KnowledgeBase.Client;
 
 namespace BuildXL.Pips.Builders
 {
-#if (MICROSOFT_INTERNAL && NETCOREAPP)
     /// <summary>
     /// This class is used to detect credentials in environment variables.
     /// </summary>
     /// <remarks>
     /// For now the implementation of the methods in the class are not yet finalized until sufficient information is collected from logging of the warnings on detection of credentials.
     /// </remarks>
-    public sealed class CredentialScanner : IBuildXLCredentialScanner
+    public sealed class CredentialScanner
     {
         /// <summary>
         /// The dictionary is used as a cache to store the envvar(key, value), this is used to avoid scanning of the same env var multiple times.
@@ -50,7 +49,10 @@ namespace BuildXL.Pips.Builders
         /// </summary>
         private readonly IReadOnlyList<string> m_credScanEnvironmentVariablesAllowList;
 
+
+#if (MICROSOFT_INTERNAL && NETCOREAPP)
         private readonly ICredentialScanner m_credScan;
+#endif
 
         /// <nodoc/>
         public CredentialScanner(PathTable pathTable, LoggingContext loggingContext, IReadOnlyList<string> credScanEnvironmentVariablesAllowList = null)
@@ -60,7 +62,11 @@ namespace BuildXL.Pips.Builders
             m_credScanActionBlock = ActionBlockSlim.CreateWithAsyncAction<(string, Process)>(
                       degreeOfParallelism: Environment.ProcessorCount,
                       processItemAction: ScanForCredentialsAsync);
+
+#if (MICROSOFT_INTERNAL && NETCOREAPP)
             m_credScan = CredentialScannerFactory.Create();
+#endif
+
             m_renderer = new PipFragmentRenderer(pathTable);
         }
 
@@ -108,6 +114,7 @@ namespace BuildXL.Pips.Builders
 #pragma warning disable 1998 // Disable the warning for "This async method lacks 'await'"
         private async Task ScanForCredentialsAsync((string envVar, Process process) item)
         {
+#if (MICROSOFT_INTERNAL && NETCOREAPP)
             using (m_counters.StartStopwatch(CredScanCounter.ScanDuration))
             {
                 m_counters.IncrementCounter(CredScanCounter.NumScanCalls);
@@ -120,14 +127,14 @@ namespace BuildXL.Pips.Builders
                     m_envVarsWithCredentials.Add((key, item.process));
                 }
             }
+#endif
         }
 #pragma warning restore 1998
 
         /// <summary>
         /// Wait for the completion of the action block and log the detected credentials.
         /// </summary>
-        /// <returns> Returns true when there are no credentials detected.</returns>
-        public bool Complete(PipExecutionContext context)
+        public void Complete(PipExecutionContext context)
         {
             using (m_counters.StartStopwatch(CredScanCounter.CompleteDuration))
             {
@@ -139,21 +146,15 @@ namespace BuildXL.Pips.Builders
                 }
             }
 
+            foreach (var tuple in m_envVarsWithCredentials)
+            {
+                Logger.Log.CredScanDetection(m_loggingContext, tuple.process.GetDescription(context), tuple.envVarKey);
+            }
+
             m_counters.LogAsStatistics("CredScan", m_loggingContext);
 
             // Clear reference to scannedEnvVars due to the huge size in order to help GC
             m_scannedEnvVars = null;
-
-            if (m_envVarsWithCredentials.Count > 0)
-            {
-                foreach (var tuple in m_envVarsWithCredentials)
-                {
-                   Logger.Log.CredScanDetection(m_loggingContext, tuple.process.GetDescription(context), tuple.envVarKey);
-                }
-                return false;
-            }
-            return true;
         }
     }
-#endif
 }

@@ -9,7 +9,7 @@
     #include "CanonicalizedPath.h"
     typedef CanonicalizedPath CanonicalizedPathType;
 #else // _WIN32
-    typedef PCPathChar CanonicalizedPathType;
+    typedef std::string CanonicalizedPathType;
 #endif // _WIN32
 
 #include <unordered_set>

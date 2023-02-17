@@ -13,7 +13,7 @@
     #include "CanonicalizedPath.h"
     typedef CanonicalizedPath CanonicalizedPathType;
 #else // _WIN32
-    typedef PCPathChar CanonicalizedPathType;
+    typedef std::string CanonicalizedPathType;
 #endif // _WIN32
 
 #if !(_WIN32) && !(MAC_OS_SANDBOX) && !(MAC_OS_LIBRARY)
@@ -49,7 +49,11 @@ public:
     PolicyResult(const PolicyResult& other) = default;
     PolicyResult& operator=(const PolicyResult&) = default;
 
+#if _WIN32
     CanonicalizedPathType Path() const        { return m_canonicalizedPath; }
+#else
+    PCPathChar Path() const       { return m_canonicalizedPath.c_str(); }
+#endif // _WIN32
 
 #if _WIN32
 

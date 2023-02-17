@@ -194,8 +194,7 @@ bool PolicyResult::AllowWrite(bool basedOnlyOnPolicy) const {
             // So what we do is just to emit a special report line with the information of whether the access should be allowed or not, based on existence, from
             // the perspective of the running process. These special report lines are then processed outside of detours to determine the real first write attempt
             // Observe this implies that in this case we never block accesses on detours based on file existence, but generate a DFA on managed code
-
-            BxlObserver::GetInstance()->report_firstAllowWriteCheck(GetCanonicalizedPath());
+            BxlObserver::GetInstance()->report_firstAllowWriteCheck(Path());
         }
     }
 

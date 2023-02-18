@@ -10,10 +10,15 @@ bool resolve_filename_with_env(const char *filename, mode_t &mode, std::string &
 {
     mode = 0;
 
-    // Filename should not contain a '/' at any point because that would indicate that its an absolute/relative path
     if (*filename == '\0' || strchr(filename, '/') != NULL)
     {
-        return false;
+        // Filename should not contain a '/' at any point because that would indicate that its an absolute/relative path
+        // This path doesn't need to be resolved and we can return true here because one of the following cases occurs:
+        // 1. Already an absolute path
+        // 2. A relative path (therefore it would be resolved against the working directory, not PATH)
+        // 3. An empty string, in this case we want the exec call to continue, fail and set errno to indicate what went wrong to the caller.
+        path = filename;
+        return true;
     }
 
     char *env_path = getenv("PATH");

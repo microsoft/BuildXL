@@ -5,6 +5,7 @@
 #include "bxl_observer.hpp"
 #include "IOHandler.hpp"
 #include <stack>
+#include <sys/wait.h>
 
 static void HandleAccessReport(AccessReport report, int _)
 {
@@ -605,7 +606,9 @@ bool BxlObserver::is_statically_linked(const char *path)
 
     pipe(pipefd);
 
-    if (real_fork() == 0)
+    pid_t objDumpChild = real_fork();
+
+    if (objDumpChild == 0)
     {
         // Child process to execute objdump
         real_close(pipefd[0]);    // close reading end in the child
@@ -636,6 +639,11 @@ bool BxlObserver::is_statically_linked(const char *path)
             buffer[bytesRead] = '\0';
             result.append(buffer);
         }
+
+        // We need to waitpid on the child to allow the OS to release resources for a terminated child
+        // We don't care about the result of the objdump process here, just need to waitpid to ensure proper cleanup
+        int status;
+        waitpid(objDumpChild, &status, 0);
     }
 
     bool isStaticallyLinked = false;

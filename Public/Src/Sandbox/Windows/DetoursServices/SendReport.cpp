@@ -315,6 +315,10 @@ void ReportProcessDetouringStatus(
 
     wchar_t* nullStringPtr = L"null";
 
+    std::wstring commandLine(lpCommandLine != nullptr ? lpCommandLine : nullStringPtr);
+    std::replace(commandLine.begin(), commandLine.end(), L'\r', L' ');
+    std::replace(commandLine.begin(), commandLine.end(), L'\n', L' ');
+
     unique_ptr<wchar_t[]> report(new wchar_t[reportBufferSize]);
 
 #pragma warning(suppress: 4826)
@@ -335,7 +339,7 @@ void ReportProcessDetouringStatus(
         detoured ? 1 : 0,
         (unsigned)error,
         (unsigned)createProcessStatus,
-        lpCommandLine != nullptr ? lpCommandLine : nullStringPtr);
+        commandLine.c_str());
 
     assert(constructReportResult > 0);
 

@@ -87,7 +87,10 @@ namespace BuildXL.Cache.Host.Service.Internal
             _distributedContentStoreSettings = CreateDistributedStoreSettings(_arguments, ContentLocationStoreConfiguration);
 
             // Tracing configuration before creating anything.
-            TraceConfiguration();
+            if (arguments.TraceConfiguration)
+            {
+                TraceConfiguration();
+            }
 
             _copier = new DistributedContentCopier(
                 _distributedContentStoreSettings,

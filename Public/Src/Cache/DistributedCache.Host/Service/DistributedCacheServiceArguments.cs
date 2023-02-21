@@ -67,6 +67,11 @@ namespace BuildXL.Cache.Host.Service
         public string Keyspace { get; }
 
         /// <summary>
+        /// If true, the configuration will be traced during construction.
+        /// </summary>
+        public bool TraceConfiguration { get; set; } = true;
+
+        /// <summary>
         /// A backward compat constructor.
         /// </summary>
         public DistributedCacheServiceArguments(

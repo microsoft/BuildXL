@@ -304,14 +304,18 @@ namespace ContentStoreTest.Distributed.Sessions
                 fileCopier,
                 (IContentCommunicationManager)fileCopier,
                 Host,
-                new HostInfo("TestStamp", "TestRing", capabilities: new string[0]),
+                new HostInfo("TestStamp", "TestRing", capabilities: Array.Empty<string>()),
                 Token,
                 dataRootPath: localCasSettings.DefaultRootPath.Path,
                 configuration: new DistributedCacheServiceConfiguration(localCasSettings, settings),
                 keyspace: UniqueTestId,
                 fileSystem: FileSystem
             )
-            { Overrides = TestInfos[index].Overrides };
+                            {
+                                // The configuration makes the tests output less readable. Not printing it in tests.
+                                TraceConfiguration = false,
+                                Overrides = TestInfos[index].Overrides
+                            };
 
             arguments = ModifyArguments(arguments);
             TestInfos[index].Arguments = arguments;

@@ -30,7 +30,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         /// <nodoc />
         [JsonIgnore]
-        internal BlobName? FileName { get; set; }
+        internal BlobPath? FileName { get; set; }
 
         /// <nodoc />
         [JsonIgnore]

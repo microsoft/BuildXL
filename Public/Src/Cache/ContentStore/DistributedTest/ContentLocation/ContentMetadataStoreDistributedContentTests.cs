@@ -169,10 +169,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     d.BlobMasterElectionLeaseExpiryTime = TimeSpan.FromMinutes(5);
                     d.CreateCheckpointIntervalMinutes = 10;
 
-                    d.LocationStoreSettings = new LocalLocationStoreSettings()
-                    {
-                        EnableBlobContentLocationRegistry = true
-                    };
+                    d.LocationStoreSettings = new LocalLocationStoreSettings();
                 },
                 overrideRedis: r =>
                 {

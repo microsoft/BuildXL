@@ -77,7 +77,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         private ActionQueue _concurrencyLimitingQueue;
 
         private readonly IClock _clock;
-        private readonly BlobContentLocationRegistry _registry;
 
         protected override Tracer Tracer { get; } = new Tracer(nameof(ResilientGlobalCacheService));
 
@@ -148,8 +147,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             CheckpointManager checkpointManager,
             RocksDbContentMetadataStore store,
             ContentMetadataEventStream eventStream,
-            IClock clock = null,
-            BlobContentLocationRegistry registry = null)
+            IClock clock = null)
             : base(store)
         {
             _configuration = configuration;
@@ -157,11 +155,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             _checkpointManager = checkpointManager;
             _eventStream = eventStream;
             _clock = clock ?? SystemClock.Instance;
-            _registry = registry;
 
             LinkLifetime(_eventStream);
             LinkLifetime(_checkpointManager);
-            LinkLifetime(registry);
 
             RunInBackground(nameof(CreateCheckpointLoopAsync), CreateCheckpointLoopAsync, fireAndForget: true);
 
@@ -193,9 +189,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         {
             if (!ShouldRetry(out var retryReason, out var errorMessage, isShutdown: true))
             {
-                // Stop database updates
-                _registry?.SetDatabaseUpdateLeaseExpiry(null);
-
                 // Stop logging
                 _eventStream.SetIsLogging(false);
 
@@ -224,18 +217,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             _lastSuccessfulHeartbeat = _clock.UtcNow;
             if (_role != role)
             {
-                // Stop database updates
-                _registry?.SetDatabaseUpdateLeaseExpiry(null);
-
                 _eventStream.SetIsLogging(false);
                 _hasRestoredCheckpoint = false;
                 _role = role;
-            }
-
-            if (!ShouldRetry(out _, out _))
-            {
-                // Notify registry that master lease is still held to ensure database is updated.
-                _registry?.SetDatabaseUpdateLeaseExpiry(electionState.MasterLeaseExpiryUtc);
             }
 
             if (_role == Role.Master)
@@ -262,9 +246,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                         {
                             _hasRestoredCheckpoint = true;
                             _eventStream.SetIsLogging(true);
-
-                            // Resume database updates
-                            _registry?.SetDatabaseUpdateLeaseExpiry(electionState.MasterLeaseExpiryUtc);
                         }
                     }
                     finally

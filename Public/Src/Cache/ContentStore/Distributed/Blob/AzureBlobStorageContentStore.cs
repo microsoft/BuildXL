@@ -79,27 +79,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blobs
         /// <inheritdoc />
         protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
         {
-            ApplyServicePointSettings();
-
             return await EnsureContainerExists(context);
-        }
-
-        private void ApplyServicePointSettings()
-        {
-            // The following is used only pre-.NET Core, but it is important to set these for those usages.
-            
-#pragma warning disable SYSLIB0014 // Type or member is obsolete
-            var servicePoint = ServicePointManager.FindServicePoint(_blobClient.Uri);
-#pragma warning restore SYSLIB0014 // Type or member is obsolete
-
-            // See: https://github.com/Azure/azure-storage-net-data-movement#best-practice
-            var connectionLimit = Environment.ProcessorCount * 8;
-            if (servicePoint.ConnectionLimit < connectionLimit)
-            {
-                servicePoint.ConnectionLimit = connectionLimit;
-            }
-            servicePoint.UseNagleAlgorithm = false;
-            servicePoint.Expect100Continue = false;
         }
 
         private Task<Result<bool>> EnsureContainerExists(OperationContext context)

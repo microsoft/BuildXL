@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -87,7 +88,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
         {
             return RunTest(async (context, storage, clock) =>
                 {
-                    var file = new BlobName("ThisIsATest", IsRelative: true);
+                    var file = new BlobPath("ThisIsATest", relative: true);
                     await storage.WriteAsync(context, file, "Test").ShouldBeSuccess();
 
                     var r = await storage.EnsureContainerExists(context).ShouldBeSuccess();
@@ -95,12 +96,30 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
                 }, elideStartup: true);
         }
 
+        [Fact(Skip = "Manual testing only. Please replace connection string")]
+        public Task UpdatesLastAccessTimeOnTouch()
+        {
+            return RunTest(async (context, storage, clock) =>
+               {
+                   Debugger.Launch();
+                   var file = new BlobPath("ThisIsATest", relative: true);
+                   var now = clock.UtcNow;
+                   await storage.WriteAsync(context, file, "hello").ShouldBeSuccess();
+                   var dt1 = (await storage.TouchAsync(context, file).ThrowIfFailureAsync()).Value;
+                   var dt2 = (await storage.TouchAsync(context, file).ThrowIfFailureAsync()).Value;
+                   // Azure Storage only updates last access time once per day, so we won't see this update.
+                   (dt1 <= dt2).Should().BeTrue();
+                   // We do expect it to update after we create it though.
+                   (now <= dt1).Should().BeTrue();
+               }, connectionString: "REPLACE ME");
+        }
+
         [Fact]
         public Task DoesNotCreateMissingContainerOnRead()
         {
             return RunTest(async (context, storage, clock) =>
             {
-                var file = new BlobName("ThisIsATest", IsRelative: true);
+                var file = new BlobPath("ThisIsATest", relative: true);
                 var r = await storage.ReadStateAsync<string>(context, file).ShouldBeSuccess();
                 r.Value!.Value.Should().BeNull();
 
@@ -120,7 +139,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
             return RunTest(async (context, storage, clock) =>
             {
 
-                var blob = new BlobName("race.json", IsRelative: true);
+                var blob = new BlobPath("race.json", relative: true);
 
                 var started = 0;
                 var startSemaphore = new SemaphoreSlim(0, numTasks + 1);
@@ -137,7 +156,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
 
                         for (var j = 0; j < numIncrementsPerTask; j++)
                         {
-                            await storage.ReadModifyWriteAsync<int>(context, blob, state => state + 1).ShouldBeSuccess();
+                            await storage.ReadModifyWriteAsync<int, int>(context, blob, state => (state, state + 1)).ShouldBeSuccess();
                         }
                     });
                 }
@@ -173,7 +192,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
             });
         }
 
-        private Task RunTest(Func<OperationContext, BlobFolderStorage, IClock, Task> runTest, IClock? clock = null, TestBlobFolderStorageConfiguration? configuration = null, bool elideStartup = false, TimeSpan? timeout = null, [CallerMemberName] string? caller = null)
+        private Task RunTest(Func<OperationContext, BlobFolderStorage, IClock, Task> runTest, IClock? clock = null, TestBlobFolderStorageConfiguration? configuration = null, bool elideStartup = false, TimeSpan? timeout = null, string? connectionString = null, [CallerMemberName] string? caller = null)
         {
             clock ??= SystemClock.Instance;
             timeout ??= Timeout.InfiniteTimeSpan;
@@ -188,6 +207,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
                 async context =>
                 {
                     using var storage = AzuriteStorageProcess.CreateAndStartEmpty(_fixture, TestGlobal.Logger);
+                    connectionString ??= storage.ConnectionString;
 
                     configuration ??= new TestBlobFolderStorageConfiguration()
                     {
@@ -200,7 +220,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
                         },
                     };
 
-                    configuration.Credentials = new AzureBlobStorageCredentials(connectionString: storage.ConnectionString);
+                    configuration.Credentials = new AzureBlobStorageCredentials(connectionString);
                     var blobFolderStorage = new BlobFolderStorage(tracer, configuration);
 
                     if (!elideStartup)

@@ -349,11 +349,6 @@ namespace ContentStoreTest.Distributed.Sessions
                 return GetServices(idx).LocalLocationStore.Instance;
             }
 
-            internal BlobContentLocationRegistry GetBlobContentLocationRegistry(int idx)
-            {
-                return GetServices(idx).BlobContentLocationRegistry.GetRequiredInstance();
-            }
-
             internal TransitioningContentLocationStore GetLocationStore(int idx) =>
                 ((TransitioningContentLocationStore)GetDistributedSession(idx).ContentLocationStore);
 

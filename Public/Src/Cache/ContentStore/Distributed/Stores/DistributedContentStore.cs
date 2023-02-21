@@ -130,13 +130,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             InnerContentStore = innerContentStoreFunc(this);
             _contentLocationStore = contentLocationStoreFactory.Create(LocalMachineLocation, InnerContentStore as ILocalContentStore);
 
-            if (contentLocationStoreFactory.Services.BlobContentLocationRegistry.TryGetInstance(out var registry)
-                && InnerContentStore is ILocalContentStore localContentStore)
-            {
-                registry.SetLocalContentStore(localContentStore);
-                LinkLifetime(registry);
-            }
-
             GlobalCacheCheckpointManager = contentLocationStoreFactory.Services.Dependencies.GlobalCacheCheckpointManager.InstanceOrDefault();
             _distributedContentSettings = contentLocationStoreFactory.Services.Dependencies.DistributedContentSettings.InstanceOrDefault();
 

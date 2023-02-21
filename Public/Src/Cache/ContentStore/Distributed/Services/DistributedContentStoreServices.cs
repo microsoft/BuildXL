@@ -319,8 +319,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
                 checkpointManager,
                 RocksDbContentMetadataStore.Instance,
                 eventStream,
-                clock,
-                registry: ContentLocationStoreServices.Instance.BlobContentLocationRegistry.InstanceOrDefault());
+                clock);
 
             return service;
         }

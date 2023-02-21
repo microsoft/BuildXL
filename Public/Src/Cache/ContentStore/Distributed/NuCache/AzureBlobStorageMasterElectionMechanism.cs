@@ -7,7 +7,6 @@ using System.Diagnostics.ContractsLight;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
-using BuildXL.Cache.ContentStore.Interfaces.Secrets;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Utils;
@@ -127,26 +126,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             public DateTime LastUpdateTimeUtc { get; init; }
 
             public DateTime LeaseExpiryTimeUtc { get; init; }
-
-            public bool IsExpired(DateTime now)
-            {
-                return LeaseExpiryTimeUtc < now;
-            }
-
-            public Role GetRole(MachineLocation location)
-            {
-                return location.Equals(Master) ? Role.Master : Role.Worker;
-            }
-
-            /// <inheritdoc />
-            public override string ToString()
-            {
-                return
-                    $"Master={Master}, CreationTimeUtc={CreationTimeUtc}, LastUpdateTimeUtc={LastUpdateTimeUtc}, LeaseExpiryTimeUtc={LeaseExpiryTimeUtc}";
-            }
         }
-
-        private record MasterLeaseMetadata(string? ETag = null, MasterLease? Lease = null);
 
         private bool TryReleaseLeaseIfHeld(MasterLease current, out MasterLease next)
         {
@@ -167,14 +147,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 return false;
             }
 
-            next = new MasterLease()
-            {
-                CreationTimeUtc = isMaster ? current!.CreationTimeUtc : now,
-                LastUpdateTimeUtc = now,
-                // The whole point of this method is to basically set the lease expiry time as now
-                LeaseExpiryTimeUtc = now,
-                Master = _primaryMachineLocation,
-            };
+            next = new MasterLease
+                   {
+                       CreationTimeUtc = isMaster ? current!.CreationTimeUtc : now,
+                       LastUpdateTimeUtc = now,
+                       // The whole point of this method is to basically set the lease expiry time as now
+                       LeaseExpiryTimeUtc = now,
+                       Master = _primaryMachineLocation,
+                   };
 
             return true;
         }
@@ -197,13 +177,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 return false;
             }
 
-            next = new MasterLease()
-            {
-                CreationTimeUtc = isMaster ? current!.CreationTimeUtc : now,
-                LastUpdateTimeUtc = now,
-                LeaseExpiryTimeUtc = now + _configuration.LeaseExpiryTime,
-                Master = _primaryMachineLocation
-            };
+            next = new MasterLease
+                   {
+                       CreationTimeUtc = isMaster ? current!.CreationTimeUtc : now,
+                       LastUpdateTimeUtc = now,
+                       LeaseExpiryTimeUtc = now + _configuration.LeaseExpiryTime,
+                       Master = _primaryMachineLocation
+                   };
 
             return true;
         }
@@ -236,25 +216,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 Tracer,
                 async context =>
                 {
-                    var result = await _storage.ReadModifyWriteAsync<MasterLease, MasterLease>(context, _configuration.FileName,
+                    var result = await _storage.ReadModifyWriteAsync<MasterLease, MasterLease>(context, new BlobPath(_configuration.FileName, relative: true),
                         current =>
                         {
                             var updated = tryUpdateLease(current, out var next);
                             return (NextState: next, Result: next, Updated: updated);
-                        }).ThrowIfFailureAsync();
+                        },
+                        defaultValue: () => new MasterLease()).ThrowIfFailureAsync();
 
                     return Result.Success(GetElectionState(result.Result));
                 },
                 timeout: _configuration.StorageInteractionTimeout,
                 extraEndMessage: r => $"{r!.GetValueOrDefault()} IsMasterEligible=[{_configuration.IsMasterEligible}]");
-        }
-
-        /// <summary>
-        /// WARNING: used for tests only.
-        /// </summary>
-        internal Task<BoolResult> CleanupStateAsync(OperationContext context)
-        {
-            return _storage.CleanupStateAsync(context, _configuration.FileName);
         }
     }
 }

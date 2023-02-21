@@ -8,6 +8,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using Azure.Storage.Blobs;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
@@ -135,7 +136,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         }
                         catch (Exception e)
                         {
-                            Tracer.Error(context, e, $"Failed to obtain {nameof(CheckpointState)} from blob `{blob.Name}`. Skipping.");
+                            Tracer.Error(context, e, $"Failed to obtain {nameof(CheckpointState)} from blob `{blob.Path}`. Skipping.");
                             continue;
                         }
                     }
@@ -169,9 +170,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                     var latestBlob = GetLatestBlob(context);
 
-                    var result = await _storage.WriteAsync(context, latestBlob.Name, checkpointState).ThrowIfFailureAsync();
+                    var result = await _storage.WriteAsync(context, new BlobPath(latestBlob.Name, relative: true), checkpointState).ThrowIfFailureAsync();
 
-                    return result & await _storage.WriteAsync(context, blobName, checkpointState);
+                    return result & await _storage.WriteAsync(context, new BlobPath(blobName, relative: true), checkpointState);
                 },
                 traceOperationStarted: false,
                 extraStartMessage: msg,
@@ -226,11 +227,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         try
                         {
                             var deleteSucceeded = (await _storage.DeleteIfExistsAsync(context, blob)).GetValueOr(false);
-                            Tracer.Info(context, $"Delete attempt Name=[{blob.Name}] Succeeded=[{deleteSucceeded}]");
+                            Tracer.Info(context, $"Delete attempt Name=[{blob.Path}] Succeeded=[{deleteSucceeded}]");
                         }
                         catch (Exception e)
                         {
-                            Tracer.Error(context, e, $"Delete attempt Name=[{blob.Name}]");
+                            Tracer.Error(context, e, $"Delete attempt Name=[{blob.Path}]");
                         }
                     }
 
@@ -239,14 +240,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 timeout: _configuration.GarbageCollectionTimeout);
         }
 
-        private async IAsyncEnumerable<BlobName> ListBlobsRecentFirstAsync(OperationContext context, bool includeWellknownLatestBlob = false)
+        private async IAsyncEnumerable<BlobPath> ListBlobsRecentFirstAsync(OperationContext context, bool includeWellknownLatestBlob = false)
         {
             if (includeWellknownLatestBlob)
             {
                 var latestBlob = GetLatestBlob(context);
                 if (await latestBlob.ExistsAsync())
                 {
-                    yield return latestBlob.Name;
+                    yield return new BlobPath(latestBlob.Name, relative: false);
                 }
             }
 
@@ -254,7 +255,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 .Select(name =>
                 {
                     // This should never fail, because ListBlobsAsync returns blobs that we know already match.
-                    ParseBlobName(name.Name, out var timestampUtc);
+                    ParseBlobName(name.Path, out var timestampUtc);
                     return (timestampUtc, name);
                 })
                 .OrderByDescending(kvp => kvp.timestampUtc)
@@ -266,7 +267,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
         }
 
-        private BlobWrapper GetLatestBlob(OperationContext context) => _storage.GetBlob(context.Token, $"{_configuration.KeySpacePrefix}.latest.json");
+        private BlobClient GetLatestBlob(OperationContext context)
+        {
+            return _storage.GetBlob(new BlobPath($"{_configuration.KeySpacePrefix}.latest.json", relative: true));
+        }
 
         private string GenerateBlobName()
         {

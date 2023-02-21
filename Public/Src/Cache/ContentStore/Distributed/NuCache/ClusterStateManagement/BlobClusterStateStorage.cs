@@ -56,7 +56,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             return context.PerformOperationAsync(Tracer, async () =>
             {
-                var (currentState, assignedMachineIds) = await _storage.ReadModifyWriteAsync<ClusterStateMachine, MachineId[]>(context, _configuration.FileName, currentState =>
+                var (currentState, assignedMachineIds) = await _storage.ReadModifyWriteAsync<ClusterStateMachine, MachineId[]>(context, new BlobPath(_configuration.FileName, relative: true), currentState =>
                 {
                     var now = _clock.UtcNow;
 
@@ -94,7 +94,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             return context.PerformOperationAsync(Tracer, async () =>
             {
-                var (currentState, priorMachineRecords) = await _storage.ReadModifyWriteAsync<ClusterStateMachine, MachineRecord[]>(context, _configuration.FileName, currentState =>
+                var (currentState, priorMachineRecords) = await _storage.ReadModifyWriteAsync<ClusterStateMachine, MachineRecord[]>(context, new BlobPath(_configuration.FileName, relative: true), currentState =>
                 {
                     var now = _clock.UtcNow;
 
@@ -118,7 +118,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             return context.PerformOperationAsync(Tracer, () =>
             {
-                return _storage.ReadAsync<ClusterStateMachine>(context, _configuration.FileName);
+                return _storage.ReadAsync<ClusterStateMachine>(context, new BlobPath(_configuration.FileName, relative: true));
             },
             traceOperationStarted: false);
         }

@@ -129,11 +129,11 @@ namespace BuildXL.Cache.MemoizationStore.Stores
                 });
         }
 
-        private Selector ParseSelector(BlobName name)
+        private Selector ParseSelector(BlobPath name)
         {
             try
             {
-                var match = _regex.Match(name.Name);
+                var match = _regex.Match(name.Path);
                 var hashString = match.Groups["hash"].Value;
                 var outputString = match.Groups["output"].Value;
 
@@ -150,15 +150,15 @@ namespace BuildXL.Cache.MemoizationStore.Stores
             return $"chl.{selector.ContentHash.Serialize()}_{HexUtilities.BytesToHex(selector.Output)}.blob";
         }
 
-        private string GetWeakFingerprintPath(Fingerprint weakFingerprint)
+        private BlobPath GetWeakFingerprintPath(Fingerprint weakFingerprint)
         {
             var fingerprintString = weakFingerprint.Serialize();
-            return $"{fingerprintString.Substring(0, 3)}/{fingerprintString}";
+            return new BlobPath($"{fingerprintString.Substring(0, 3)}/{fingerprintString}", relative: true);
         }
 
-        private BlobName GetName(StrongFingerprint strongFingerprint)
+        private BlobPath GetName(StrongFingerprint strongFingerprint)
         {
-            return $"{GetWeakFingerprintPath(strongFingerprint.WeakFingerprint)}/{AsBlobFileName(strongFingerprint.Selector)}";
+            return new BlobPath($"{GetWeakFingerprintPath(strongFingerprint.WeakFingerprint)}/{AsBlobFileName(strongFingerprint.Selector)}", relative: true);
         }
     }
 }

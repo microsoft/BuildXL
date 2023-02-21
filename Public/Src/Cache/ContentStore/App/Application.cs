@@ -51,7 +51,7 @@ namespace BuildXL.Cache.ContentStore.App
         private const string TmpCsvLogFileExt = ".csvtmp";
 
         /// <summary>
-        ///     Name of the environment variable in which to look for a Kusto connection string.
+        ///     Path of the environment variable in which to look for a Kusto connection string.
         /// </summary>
         private const string KustoConnectionStringEnvVarName = "KustoConnectionString";
 

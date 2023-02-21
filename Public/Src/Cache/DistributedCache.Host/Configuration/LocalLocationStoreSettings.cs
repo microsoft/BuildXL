@@ -70,69 +70,6 @@ namespace BuildXL.Cache.Host.Configuration
         /// Controls delay for GetBulk operation to allow for throttling
         /// </summary>
         public TimeSpanSetting? GlobalGetBulkLocationDelay { get; set; }
-
-        /// <summary>
-        /// Gets whether BlobContentLocationRegistry is enabled
-        /// </summary>
-        public bool EnableBlobContentLocationRegistry { get; set; }
-
-        public BlobContentLocationRegistryConfiguration BlobContentLocationRegistrySettings { get; set; } = new BlobContentLocationRegistryConfiguration();
-    }
-
-    public record BlobContentLocationRegistryConfiguration()
-        : BlobFolderStorageConfiguration(ContainerName: "contentlocations", FolderName: "partitions")
-    {
-        public string PartitionCheckpointManifestFileName { get; set; } = "manifest.v2.json";
-
-        /// <summary>
-        /// Indicates whether partitions are updated in the background on a timer loop
-        /// </summary>
-        public bool UpdateInBackground { get; set; } = true;
-
-        /// <summary>
-        /// Interval between between stages of content location dataflow
-        /// </summary>
-        public TimeSpanSetting StageInterval { get; set; } = TimeSpan.FromSeconds(30);
-
-        /// <summary>
-        /// Interval between updates of partitions output blob
-        /// </summary>
-        public TimeSpanSetting PartitionsUpdateInterval { get; set; } = TimeSpan.FromMinutes(10);
-
-        /// <summary>
-        /// Gets whether partitions should be processed into output blobs (i.e. containing sst files and content listings)
-        /// </summary>
-        public bool ProcessPartitions { get; set; } = true;
-
-        /// <summary>
-        /// Maximum number of diff sst snapshots for a particular partition allowed before using full sst snapshot instead.
-        /// </summary>
-        public int MaxSnapshotChainLength { get; set; } = 5;
-
-        /// <summary>
-        /// Maximum number of diff sst snapshots for a particular partition allowed before using full sst snapshot instead.
-        /// </summary>
-        public int MaxRetainedSnapshots => Math.Max(1, (MaxSnapshotChainLength * 2));
-
-        /// <summary>
-        /// Maximum parallelism for sst file download
-        /// </summary>
-        public int MaxDegreeOfParallelism { get; set; } = 4;
-
-        /// <summary>
-        /// Gets whether the local database should be updated with sst files
-        /// </summary>
-        public bool UpdateDatabase { get; set; } = false;
-
-        /// <summary>
-        /// The number of partitions to create. Changing this number causes partition to be recomputed
-        /// </summary>
-        public int PartitionCount { get; set; } = 256;
-
-        /// <summary>
-        /// The number of partitions to create. Changing this number causes partition to be recomputed
-        /// </summary>
-        public int Factor { get; set; } = 8;
     }
 
     [DataContract]

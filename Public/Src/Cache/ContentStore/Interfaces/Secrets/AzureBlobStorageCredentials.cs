@@ -89,7 +89,10 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Secrets
         /// <nodoc />
         public BlobServiceClient CreateBlobServiceClient(BlobClientOptions? blobClientOptions = null)
         {
-            blobClientOptions ??= new BlobClientOptions();
+            // We default to this specific version because tests run against the Azurite emulator. The emulator doesn't
+            // currently support any higher version than this, and we won't upgrade it because it's build process is
+            // weird as hell and they don't just provide binaries.
+            blobClientOptions ??= new BlobClientOptions(BlobClientOptions.ServiceVersion.V2021_02_12);
 
             if (_secret is PlainTextSecret plainText)
             {

@@ -31,9 +31,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
 
         /// <nodoc />
         public OptionalServiceDefinition<CheckpointManager> GlobalCacheCheckpointManager { get; init; }
-
-        /// <nodoc />
-        public OptionalServiceDefinition<RocksDbContentMetadataStore> GlobalCacheDatabaseStore { get; init; }
     }
 
     /// <summary>
@@ -87,9 +84,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
         /// <nodoc />
         public IServiceDefinition<AzureBlobStorageCheckpointRegistry> CheckpointRegistry { get; }
 
-        /// <nodoc />
-        public OptionalServiceDefinition<BlobContentLocationRegistry> BlobContentLocationRegistry { get; }
-
         public ContentLocationStoreServices(
             ContentLocationStoreFactoryArguments arguments,
             LocalLocationStoreConfiguration configuration)
@@ -114,26 +108,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
             CheckpointManager = Create(() => CreateCheckpointManager());
 
             CentralStorage = Create(() => CreateCentralStorage());
-
-            BlobContentLocationRegistry = CreateOptional(
-                () => Dependencies.DistributedContentSettings.InstanceOrDefault()?.LocationStoreSettings?.EnableBlobContentLocationRegistry == true
-                && !Configuration.DistributedContentConsumerOnly,
-                () => CreateBlobContentLocationRegistry());
-        }
-
-        private BlobContentLocationRegistry CreateBlobContentLocationRegistry()
-        {
-            var baseConfiguration = Arguments.Dependencies.DistributedContentSettings.GetRequiredInstance().LocationStoreSettings.BlobContentLocationRegistrySettings ?? new();
-            var database = (RocksDbContentMetadataDatabase)Dependencies.GlobalCacheCheckpointManager.GetRequiredInstance().Database;
-            return new BlobContentLocationRegistry(
-                baseConfiguration with
-                {
-                    Credentials = Configuration.AzureBlobStorageCheckpointRegistryConfiguration!.Credentials,
-                },
-                ClusterStateManager.Instance,
-                database,
-                localContentStore: null, // Set to null initially. Will be populated when content location store is initialized similar to LLS.
-                clock: Arguments.Clock);
         }
 
         private ClientGlobalCacheStore CreateClientGlobalCacheStore()

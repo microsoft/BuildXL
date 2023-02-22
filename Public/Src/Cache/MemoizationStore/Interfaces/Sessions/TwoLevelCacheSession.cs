@@ -60,9 +60,11 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
     /// Wraps multiple underlying cache sessions under a single wrapper.
     /// </summary>
     /// TODO: Derive from ContentSessionBase
-    public sealed class TwoLevelCacheSession : ICacheSession
+    public sealed class TwoLevelCacheSession : StartupShutdownSlimBase, ICacheSession
     {
-        private readonly Tracer _tracer = new Tracer(nameof(TwoLevelCacheSession));
+        /// <inheritdoc />
+        protected override Tracer Tracer { get; } = new Tracer(nameof(TwoLevelCacheSession));
+
         private readonly ICacheSession _localCacheSession;
         private readonly ICacheSession _remoteCacheSession;
         private readonly TwoLevelCacheConfiguration _config;
@@ -93,55 +95,38 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         public string Name { get; }
 
         /// <inheritdoc />
-        public Task<BoolResult> StartupAsync(Context context)
+        protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
         {
-            return StartupCall<Tracer>.RunAsync(
-                _tracer,
-                context,
-                async () =>
+            var (local, remote) = await MultiLevel(session => session.StartupAsync(context));
+
+            var result = local & remote;
+            if (!result.Succeeded)
+            {
+                // One of the initialization failed.
+                // Need to shut down the stores that were properly initialized.
+                if (local.Succeeded)
                 {
-                    // Important to parallelize session startup calls - 50 msec per path (approx).
-                    StartupStarted = true;
+                    await _localCacheSession.ShutdownAsync(context).TraceIfFailure(context);
+                }
 
-                    var (local, remote) = await MultiLevel(session => session.StartupAsync(context));
+                if (remote.Succeeded)
+                {
+                    await _remoteCacheSession.ShutdownAsync(context).TraceIfFailure(context);
+                }
+            }
+            else
+            {
+                _batchSinglePinNagleQueue = _config.BatchRemotePinsOnPut
+                    ? ResultNagleQueue<(Context context, ContentHash hash), PinResult>.CreateAndStart(
+                        execute: requests => ExecutePinBatch(context, requests),
+                        maxDegreeOfParallelism: 1,
+                        interval: _config.RemotePinOnPutBatchInterval,
+                        batchSize: _config.RemotePinOnPutBatchMaxSize)
+                    : null;
+            }
 
-                    var result = local & remote;
-                    if (!result.Succeeded)
-                    {
-                        // One of the initialization failed.
-                        // Need to shut down the stores that were properly initialized.
-                        if (local.Succeeded)
-                        {
-                            await _localCacheSession.ShutdownAsync(context).TraceIfFailure(context);
-                        }
-
-                        if (remote.Succeeded)
-                        {
-                            await _remoteCacheSession.ShutdownAsync(context).TraceIfFailure(context);
-                        }
-                    }
-                    else
-                    {
-                        _batchSinglePinNagleQueue = _config.BatchRemotePinsOnPut
-                            ? ResultNagleQueue<(Context context, ContentHash hash), PinResult>.CreateAndStart(
-                                execute: requests => ExecutePinBatch(context, requests),
-                                maxDegreeOfParallelism: int.MaxValue,
-                                interval: _config.RemotePinOnPutBatchInterval,
-                                batchSize: _config.RemotePinOnPutBatchMaxSize)
-                            : null;
-                    }
-
-                    StartupStarted = false;
-                    StartupCompleted = true;
-                    return result;
-                });
+            return result;
         }
-
-        /// <inheritdoc />
-        public bool StartupCompleted { get; private set; }
-
-        /// <inheritdoc />
-        public bool StartupStarted { get; private set; }
 
         /// <inheritdoc />
         public void Dispose()
@@ -151,28 +136,11 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         }
 
         /// <inheritdoc />
-        public Task<BoolResult> ShutdownAsync(Context context)
+        protected override async Task<BoolResult> ShutdownCoreAsync(OperationContext context)
         {
-            return ShutdownCall<Tracer>.RunAsync(
-                _tracer,
-                context,
-                async () =>
-                {
-                    ShutdownStarted = true;
-
-                    var (localResult, remoteResult) = await MultiLevel(store => store.ShutdownAsync(context));
-
-                    ShutdownStarted = false;
-                    ShutdownCompleted = true;
-                    return localResult & remoteResult;
-                });
+            var (localResult, remoteResult) = await MultiLevel(store => store.ShutdownAsync(context));
+            return localResult & remoteResult;
         }
-
-        /// <inheritdoc />
-        public bool ShutdownCompleted { get; private set; }
-
-        /// <inheritdoc />
-        public bool ShutdownStarted { get; private set; }
 
         /// <inheritdoc />
         public IAsyncEnumerable<GetSelectorResult> GetSelectors(
@@ -193,7 +161,7 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
             UrgencyHint urgencyHint = UrgencyHint.Nominal)
         {
             return await OperationContext(context, cts).PerformOperationAsync(
-                _tracer,
+                Tracer,
                 () => InternalGetContentHashListAsync(context, strongFingerprint, cts, urgencyHint),
                 traceErrorsOnly: true);
         }
@@ -257,7 +225,7 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         public Task<PinResult> PinAsync(Context context, ContentHash contentHash, CancellationToken cts, UrgencyHint urgencyHint = UrgencyHint.Nominal)
         {
             return OperationContext(context, cts).PerformOperationAsync(
-                _tracer,
+                Tracer,
                 async () =>
                 {
                     PinResult pinResult = await _localCacheSession.PinAsync(context, contentHash, cts, urgencyHint);
@@ -276,7 +244,7 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         public Task<OpenStreamResult> OpenStreamAsync(Context context, ContentHash contentHash, CancellationToken cts, UrgencyHint urgencyHint = UrgencyHint.Nominal)
         {
             return OperationContext(context, cts).PerformOperationAsync(
-                _tracer,
+                Tracer,
                 async () =>
                 {
                     var openLocalAsync = () => _localCacheSession.OpenStreamAsync(
@@ -320,7 +288,7 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
             UrgencyHint urgencyHint = UrgencyHint.Nominal)
         {
             return OperationContext(context, cts).PerformOperationAsync(
-                _tracer,
+                Tracer,
                 async () => (PlaceFileResult)await InternalPlaceFileAsync(
                     context,
                     contentHash,
@@ -409,7 +377,7 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
             UrgencyHint urgencyHint = UrgencyHint.Nominal)
         {
             return OperationContext(context, cts).PerformOperationAsync(
-                _tracer,
+                Tracer,
                 async () =>
                 {
                     if (_config.RemoteCacheIsReadOnly)
@@ -475,7 +443,7 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
             UrgencyHint urgencyHint = UrgencyHint.Nominal)
         {
             return OperationContext(context, cts).PerformOperationAsync(
-                _tracer,
+                Tracer,
                 async () =>
                 {
                     List<Task<StrongFingerprint>> strongFingerprintsList = strongFingerprints.ToList();
@@ -505,7 +473,7 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
             [CallerMemberName] string caller = "")
         {
             return OperationContext(context, cancellationToken).PerformOperationAsync(
-                _tracer,
+                Tracer,
                 async () =>
                 {
                     var localResult = await localPut();
@@ -534,7 +502,7 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
 
         private async Task<IReadOnlyList<PinResult>> ExecutePinBatch(Context nagleQueueContext, IReadOnlyList<(Context context, ContentHash hash)> requests)
         {
-            var context = nagleQueueContext.CreateNested(_tracer.Name);
+            var context = nagleQueueContext.CreateNested(Tracer.Name);
 
             var hashes = requests.Select(x => x.hash).ToList();
             var results = await _remoteCacheSession.PinAsync(nagleQueueContext, hashes, CancellationToken.None, UrgencyHint.Nominal);
@@ -544,7 +512,7 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
             for (var i = 0; i < requests.Count; i++)
             {
                 var result = orderedResults[i];
-                _tracer.Debug(requests[i].context, $"PinAsync({requests[i].hash.ToShortString()}) was bulkified with result=[{result.Code}]." +
+                Tracer.Debug(requests[i].context, $"PinAsync({requests[i].hash.ToShortString()}) was bulkified with result=[{result.Code}]." +
                     $" Bulk operation correlation ID: [{context.TraceId}]");
             }
 

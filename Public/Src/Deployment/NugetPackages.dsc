@@ -99,6 +99,12 @@ namespace NugetPackages {
             importFrom("BuildXL.Utilities").withQualifier(net6PackageQualifier).dll,
             importFrom("BuildXL.Utilities").withQualifier(net7PackageQualifier).dll,
             importFrom("BuildXL.Utilities").withQualifier(netstandard20PackageQualifier).dll,
+            
+            // BuildXL.Utilities.Core
+            importFrom("BuildXL.Utilities").withQualifier(net472packageQualifier).Utilities.Core.dll,
+            importFrom("BuildXL.Utilities").withQualifier(net6PackageQualifier).Utilities.Core.dll,
+            importFrom("BuildXL.Utilities").withQualifier(net7PackageQualifier).Utilities.Core.dll,
+            importFrom("BuildXL.Utilities").withQualifier(netstandard20PackageQualifier).Utilities.Core.dll,
 
             // BuildXL.Utilities.Branding
             importFrom("BuildXL.Utilities").withQualifier(net472packageQualifier).Branding.dll,

@@ -72,7 +72,8 @@ namespace BuildXL
                 {
                     WorkerId = workerId,
                     TargetId = semiStableHash,
-                    StdOutputPath = pipProcessErrorEventFields.OutputToLog,
+                    // Need to trim the payload as Batmon may not be able to display the error message if it is too long.
+                    StdOutputPath = pipProcessErrorEventFields.OutputToLog?.Substring(0, 2000),
                     PipDescription = pipProcessErrorEventFields.PipDescription,
                     ShortPipDescription = pipProcessErrorEventFields.ShortPipDescription,
                     PipExecutionTimeMs = pipProcessErrorEventFields.PipExecutionTimeMs

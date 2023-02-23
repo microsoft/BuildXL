@@ -47,6 +47,11 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         [DataMember]
         public TimeSpan RemotePinOnPutBatchInterval { get; set; } = TimeSpan.FromSeconds(1);
 
+
+        /// <nodoc />
+        [DataMember]
+        public int RemotePinOnPutBatchConcurrencyLimit { get; set; } = 1;
+
         /// <summary>
         /// This is an experimental feature that should only be used in the context where the local cache
         /// represents a *temporary* L1, which means that any content that we've already put into the L1,
@@ -119,7 +124,7 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
                 _batchSinglePinNagleQueue = _config.BatchRemotePinsOnPut
                     ? ResultNagleQueue<(Context context, ContentHash hash), PinResult>.CreateAndStart(
                         execute: requests => ExecutePinBatch(context, requests),
-                        maxDegreeOfParallelism: 1,
+                        maxDegreeOfParallelism: _config.RemotePinOnPutBatchConcurrencyLimit,
                         interval: _config.RemotePinOnPutBatchInterval,
                         batchSize: _config.RemotePinOnPutBatchMaxSize)
                     : null;

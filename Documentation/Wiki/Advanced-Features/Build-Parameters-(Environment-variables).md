@@ -38,7 +38,7 @@ In BuildXL each tool that runs in the engine starts with a basic environment var
     });
 ```
 ## Passthrough environment variables
-Environment variables can be marked as _passthrough_, meaning the environment variable value is not considered when fingerprinting the process. Global passthrough variables, which will be visible to processes and also untracked, may be set via the `/unsafe_GlobalPassthroughEnvVars`. Note this is an unsafe configuration.
+Environment variables can be marked as _passthrough_, meaning the environment variable value is not considered when fingerprinting the process. Global passthrough variables, which will be visible to processes and also untracked, may be set via a semicolon separated list passed on the command line via `/unsafe_GlobalPassthroughEnvVars`. Note this is an unsafe configuration.
 
 Different from basic environment variables, passthrough environment variables can also be set in unsafe when the pip is added into build graph.
 ```ts

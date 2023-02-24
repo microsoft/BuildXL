@@ -53,6 +53,9 @@ Historic perf information is used to speculatively limit the RAM utilization. If
                                 Specifies the minimum available machine wide RAM (in megabytes) allowed before the
                                 scheduler will stop scheduling more work to allow resources to be freed. Default is 500
                                 mb.
+    /enableLessAggresiveMemoryProjection
+                                Specifies that average job object memory counters from historical data should be used 
+                                for memory forecasting instead of peak values.
 
 Despite throttling the scheduler based on the historical data, builds can still experience high RAM usage. BuildXL has three ways to manage memory when (i) the maximum memory utilization is exceeded and (ii) there is less available memory than the specified minimum available machine RAM. 
 

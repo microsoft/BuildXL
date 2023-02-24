@@ -36,7 +36,7 @@ namespace BuildXL
         /// <summary>
         /// Annotates a dump for <c>WER</c>.
         /// </summary>
-        public static void CreateDump(Exception ex, BuildInfo buildInfo, IEnumerable<string> filesToAttach, string sessionId)
+        public static void CreateDump(Exception ex, BuildInfo buildInfo, IEnumerable<string> filesToAttach, string sessionId, bool failFastOnWERFailure = false)
         {
             try
             {
@@ -99,8 +99,11 @@ namespace BuildXL
             }
             catch (Exception werException)
             {
-                // Fall back on the standard FailFast in case there was an error in the custom WER reporting
-                Environment.FailFast(Strings.App_AppDomain_UnhandledException, new AggregateException("Failed to create custom Windows Error Reporting report", werException, ex));
+                if (failFastOnWERFailure)
+                {
+                    // Fall back on the standard FailFast in case there was an error in the custom WER reporting
+                    Environment.FailFast(Strings.App_AppDomain_UnhandledException, new AggregateException("Failed to create custom Windows Error Reporting report", werException, ex));
+                }
             }
 
             static void closeReportHandle(IntPtr reportHandle)

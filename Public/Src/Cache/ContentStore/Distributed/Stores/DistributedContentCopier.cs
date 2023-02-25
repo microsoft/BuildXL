@@ -29,6 +29,7 @@ using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using ContentStore.Grpc;
 using static BuildXL.Utilities.ConfigurationHelper;
+using ResultsExtensions = BuildXL.Cache.ContentStore.Interfaces.Results.ResultsExtensions;
 
 #nullable enable
 
@@ -186,15 +187,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 // It also has the increasing wait times between cycles
                 while (attemptCount < _retryIntervals.Count && (putResult == null || !putResult))
                 {
-                    bool retry;
-
                     // Limit the number of replicas that we will go though if this is one of the first n restricted attempts.
                     var maxReplicaCount = attemptCount < _settings.CopyAttemptsWithRestrictedReplicas
                         ? _settings.RestrictedCopyReplicaCount
                         : int.MaxValue;
                     maxReplicaCount = Math.Min(maxReplicaCount, locations.Count);
 
-                    (putResult, retry) = await WalkLocationsAndCopyAndPutAsync(
+                    (putResult, var retryCount, var shouldRetry) = await WalkLocationsAndCopyAndPutAsync(
                         context,
                         request,
                         badContentLocations,
@@ -205,7 +204,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                         maxReplicaCount,
                         totalRetries);
 
-                    totalRetries += maxReplicaCount;
+                    totalRetries += retryCount;
                     if (putResult || cts.IsCancellationRequested)
                     {
                         break;
@@ -213,11 +212,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
 
                     if (missingContentLocations.Count == locations.Count)
                     {
-                        Tracer.Warning(context, $"{AttemptTracePrefix(attemptCount)} All replicas {locations.Count} are reported missing (registered locations {hashInfo.Locations?.Count}, extra In-ring locations {locations.Count - hashInfo.Locations?.Count}). Not retrying for hash {hashInfo.ContentHash.ToShortString()}.");
+                        Tracer.Warning(context, $"{AttemptTracePrefix(attemptCount)} All replicas {maxReplicaCount} are reported missing (registered locations {hashInfo.Locations?.Count}, extra In-ring locations {locations.Count - hashInfo.Locations?.Count}). Not retrying for hash {hashInfo.ContentHash.ToShortString()}.");
                         break;
                     }
 
-                    if (!retry)
+                    if (!shouldRetry)
                     {
                         Tracer.Warning(context, $"{AttemptTracePrefix(attemptCount)} Cannot place {hashInfo.ContentHash.ToShortString()} due to error: {putResult.ErrorMessage}. Not retrying for hash {hashInfo.ContentHash.ToShortString()}.");
                         break;
@@ -236,7 +235,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                         // Log with the original attempt count
                         // Trace time remaining under trying to copy the first location of the next attempt.
                         TimeSpan waitedTime = _clock.UtcNow - lastFailureTimes[0];
-                        Tracer.Warning(context, $"{AttemptTracePrefix(attemptCount - 1)} All replicas {locations.Count} failed. Retrying for hash {hashInfo.ContentHash.ToShortString()} in { (waitedTime < waitDelay ? (waitDelay - waitedTime).TotalMilliseconds : 0)}ms...");
+                        Tracer.Warning(context, $"{AttemptTracePrefix(attemptCount - 1)} All replicas {maxReplicaCount} failed. Retrying for hash {hashInfo.ContentHash.ToShortString()} in { (waitedTime < waitDelay ? (waitDelay - waitedTime).TotalMilliseconds : 0)}ms...");
                     }
                     else
                     {
@@ -415,10 +414,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         }
 
         private PutResult CreateCanceledPutResult() => new ErrorResult("The operation was canceled").AsResult<PutResult>();
-        private PutResult CreateMaxRetryPutResult() => new ErrorResult($"Maximum total retries of {_maxRetryCount} attempted").AsResult<PutResult>();
+
+        private PutResult CreateMaxRetryPutResult(ResultBase? resultBase) =>
+            (resultBase != null
+                ? new ErrorResult(resultBase, $"Maximum total retries of {_maxRetryCount} attempted")
+                : new ErrorResult($"Maximum total retries of {_maxRetryCount} attempted")).AsResult<PutResult>();
+
+        private record struct WalkLocationsResult(PutResult Result, int AttemptedRetries, bool ShouldRetry);
 
         /// <nodoc />
-        private async Task<(PutResult result, bool retry)> WalkLocationsAndCopyAndPutAsync(
+        private async Task<WalkLocationsResult> WalkLocationsAndCopyAndPutAsync(
             OperationContext context,
             CopyRequest request,
             HashSet<MachineLocation> badContentLocations,
@@ -441,8 +446,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             string? lastErrorMessage = null;
 
             Contract.Assert(maxReplicaCount <= locations.Count);
-            
-            for (int replicaIndex = 0; replicaIndex < maxReplicaCount; replicaIndex++)
+            CopyFileResult? copyFileResult = null;
+            int replicaIndex;
+            for (replicaIndex = 0; replicaIndex < maxReplicaCount; replicaIndex++)
             {
                 var location = locations[replicaIndex];
 
@@ -454,8 +460,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 {
                     Tracer.Debug(
                             context,
-                            $"{AttemptTracePrefix(attemptCount)} Reached maximum number of total retries of {_maxRetryCount}.");
-                    return (result: CreateMaxRetryPutResult(), retry: false);
+                            $"{AttemptTracePrefix(attemptCount)} Reached maximum number of total retries of {_maxRetryCount}. TotalRetries={totalRetries}, ReplicaIndex={replicaIndex}.");
+                    // Including the last copy error into the final error message to make diagnostic simpler.
+                    return new (Result: CreateMaxRetryPutResult(copyFileResult), AttemptedRetries: replicaIndex + 1, ShouldRetry: false);
                 }
 
                 // if the file is explicitly reported missing by the remote, don't bother retrying.
@@ -483,12 +490,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
 
                 var tempLocation = AbsolutePath.CreateRandomFileName(workingFolder);
 
-                (PutResult result, bool retry) reportCancellationRequested()
+                WalkLocationsResult reportCancellationRequested()
                 {
                     Tracer.Debug(
                         context,
                         $"{AttemptTracePrefix(attemptCount)}: Could not copy file with hash {hashInfo.ContentHash.ToShortString()} to temp path {tempLocation} because cancellation was requested.");
-                    return (result: CreateCanceledPutResult(), retry: false);
+                    return new (Result: CreateCanceledPutResult(), AttemptedRetries: replicaIndex + 1, ShouldRetry: false);
                 }
 
                 try
@@ -499,7 +506,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                     }
 
                     // Gate entrance to both the copy logic and the logging which surrounds it
-                    CopyFileResult? copyFileResult = null;
                     try
                     {
                         var options = GetCopyOptions(attemptCount, totalRetryCount, request);
@@ -573,115 +579,126 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                         return reportCancellationRequested();
                     }
 
-                    if (copyFileResult != null)
+                    switch (copyFileResult.Code)
                     {
-                        switch (copyFileResult.Code)
+                        case CopyResultCode.Success:
+                            request.Host.ReportReputation(context, location, MachineReputation.Good);
+                            break;
+                        case CopyResultCode.FileNotFoundError:
+                            lastErrorMessage =
+                                $"Could not copy file with hash {hashInfo.ContentHash.ToShortString()} from path {sourcePath} to path {tempLocation} due to an error with the sourcepath: {copyFileResult}";
+                            missingContentLocations.Add(location);
+                            request.Host.ReportReputation(context, location, MachineReputation.Missing);
+                            break;
+                        case CopyResultCode.ServerUnavailable:
+                        case CopyResultCode.UnknownServerError:
+                            lastErrorMessage =
+                                $"Could not copy file with hash {hashInfo.ContentHash.ToShortString()} from path {sourcePath} to path {tempLocation} due to an error with the sourcepath: {copyFileResult}";
+                            request.Host.ReportReputation(context, location, MachineReputation.Bad);
+                            badContentLocations.Add(location);
+                            break;
+                        case CopyResultCode.ConnectionTimeoutError:
+                            lastErrorMessage =
+                                $"Could not copy file with hash {hashInfo.ContentHash.ToShortString()} from path {sourcePath} to path {tempLocation} due to a grpc connection timeout: {copyFileResult}";
+                            request.Host.ReportReputation(context, location, MachineReputation.Timeout);
+                            badContentLocations.Add(location);
+                            break;
+                        case CopyResultCode.TimeToFirstByteTimeoutError:
+                            lastErrorMessage =
+                                $"Could not copy file with hash {hashInfo.ContentHash.ToShortString()} from path {sourcePath} to path {tempLocation} due to timeout receiving the first bytes: {copyFileResult}";
+                            request.Host.ReportReputation(context, location, MachineReputation.Timeout);
+                            badContentLocations.Add(location);
+                            break;
+                        case CopyResultCode.DestinationPathError:
+                            var errorMessage = $"Could not copy file with hash {hashInfo.ContentHash.ToShortString()} from path {sourcePath} to temp path {tempLocation} due to an error with the destination path";
+                            lastErrorMessage = $"{errorMessage}: {copyFileResult}";
+                            Tracer.Warning(
+                                context,
+                                $"{AttemptTracePrefix(attemptCount)} {lastErrorMessage} Not trying another replica.");
+                            // Out of disk space issues are not retriable because its very unlikely that we'll succeed next time.
+                            return new (Result: new ErrorResult(copyFileResult, errorMessage).AsResult<PutResult>(), AttemptedRetries: replicaIndex + 1, ShouldRetry: !IsOutOfDiskSpaceError(lastErrorMessage));
+                        case CopyResultCode.CopyTimeoutError:
+                            lastErrorMessage =
+                                $"Could not copy file with hash {hashInfo.ContentHash.ToShortString()} from path {sourcePath} to path {tempLocation} due to copy timeout: {copyFileResult}";
+                            request.Host.ReportReputation(context, location, MachineReputation.Timeout);
+                            break;
+                        case CopyResultCode.CopyBandwidthTimeoutError:
+                            lastErrorMessage =
+                                $"Could not copy file with hash {hashInfo.ContentHash.ToShortString()} from path {sourcePath} to path {tempLocation} due to insufficient bandwidth timeout: {copyFileResult}";
+                            request.Host.ReportReputation(context, location, MachineReputation.Timeout);
+                            break;
+                        case CopyResultCode.InvalidHash:
+                            lastErrorMessage =
+                                $"Could not copy file with hash {hashInfo.ContentHash.ToShortString()} from path {sourcePath} to path {tempLocation} due to invalid hash: {copyFileResult}";
+                            break;
+                        case CopyResultCode.RpcError:
+                            lastErrorMessage =
+                                $"Could not copy file with hash {hashInfo.ContentHash.ToShortString()} from path {sourcePath} to temp path {tempLocation} due to communication error: {copyFileResult}";
+                            request.Host.ReportReputation(context, location, MachineReputation.Bad);
+                            break;
+                        case CopyResultCode.Unknown:
+                            lastErrorMessage =
+                                $"Could not copy file with hash {hashInfo.ContentHash.ToShortString()} from path {sourcePath} to temp path {tempLocation} due to an internal error: {copyFileResult}";
+                            request.Host.ReportReputation(context, location, MachineReputation.Bad);
+                            break;
+                        default:
+                            lastErrorMessage = $"File copier result code {copyFileResult.Code} is not recognized. Not trying another replica.";
+                            return new (
+                                Result: new ErrorResult(copyFileResult, $"{AttemptTracePrefix(attemptCount)} {lastErrorMessage}")
+                                    .AsResult<PutResult>(), AttemptedRetries: replicaIndex + 1, ShouldRetry: true);
+                    }
+
+                    if (copyFileResult.Succeeded)
+                    {
+                        // The copy succeeded, but it is possible that the resulting size doesn't match an expected one.
+                        if (hashInfo.Size != -1 && copyFileResult.Size != null && hashInfo.Size != copyFileResult.Size.Value)
                         {
-                            case CopyResultCode.Success:
-                                request.Host.ReportReputation(context, location, MachineReputation.Good);
-                                break;
-                            case CopyResultCode.FileNotFoundError:
-                                lastErrorMessage = $"Could not copy file with hash {hashInfo.ContentHash.ToShortString()} from path {sourcePath} to path {tempLocation} due to an error with the sourcepath: {copyFileResult}";
-                                missingContentLocations.Add(location);
-                                request.Host.ReportReputation(context, location, MachineReputation.Missing);
-                                break;
-                            case CopyResultCode.ServerUnavailable:
-                            case CopyResultCode.UnknownServerError:
-                                lastErrorMessage = $"Could not copy file with hash {hashInfo.ContentHash.ToShortString()} from path {sourcePath} to path {tempLocation} due to an error with the sourcepath: {copyFileResult}";
-                                request.Host.ReportReputation(context, location, MachineReputation.Bad);
-                                badContentLocations.Add(location);
-                                break;
-                            case CopyResultCode.ConnectionTimeoutError:
-                                lastErrorMessage = $"Could not copy file with hash {hashInfo.ContentHash.ToShortString()} from path {sourcePath} to path {tempLocation} due to a grpc connection timeout: {copyFileResult}";
-                                request.Host.ReportReputation(context, location, MachineReputation.Timeout);
-                                badContentLocations.Add(location);
-                                break;
-                            case CopyResultCode.TimeToFirstByteTimeoutError:
-                                lastErrorMessage = $"Could not copy file with hash {hashInfo.ContentHash.ToShortString()} from path {sourcePath} to path {tempLocation} due to timeout receiving the first bytes: {copyFileResult}";
-                                request.Host.ReportReputation(context, location, MachineReputation.Timeout);
-                                badContentLocations.Add(location);
-                                break;
-                            case CopyResultCode.DestinationPathError:
-                                lastErrorMessage = $"Could not copy file with hash {hashInfo.ContentHash.ToShortString()} from path {sourcePath} to temp path {tempLocation} due to an error with the destination path: {copyFileResult}";
-                                Tracer.Warning(
-                                    context,
-                                    $"{AttemptTracePrefix(attemptCount)} {lastErrorMessage} Not trying another replica.");
-                                return (result: new ErrorResult(copyFileResult).AsResult<PutResult>(), retry: true);
-                            case CopyResultCode.CopyTimeoutError:
-                                lastErrorMessage = $"Could not copy file with hash {hashInfo.ContentHash.ToShortString()} from path {sourcePath} to path {tempLocation} due to copy timeout: {copyFileResult}";
-                                request.Host.ReportReputation(context, location, MachineReputation.Timeout);
-                                break;
-                            case CopyResultCode.CopyBandwidthTimeoutError:
-                                lastErrorMessage = $"Could not copy file with hash {hashInfo.ContentHash.ToShortString()} from path {sourcePath} to path {tempLocation} due to insufficient bandwidth timeout: {copyFileResult}";
-                                request.Host.ReportReputation(context, location, MachineReputation.Timeout);
-                                break;
-                            case CopyResultCode.InvalidHash:
-                                lastErrorMessage = $"Could not copy file with hash {hashInfo.ContentHash.ToShortString()} from path {sourcePath} to path {tempLocation} due to invalid hash: {copyFileResult}";
-                                break;
-                            case CopyResultCode.RpcError:
-                                lastErrorMessage = $"Could not copy file with hash {hashInfo.ContentHash.ToShortString()} from path {sourcePath} to temp path {tempLocation} due to communication error: {copyFileResult}";
-                                request.Host.ReportReputation(context, location, MachineReputation.Bad);
-                                break;
-                            case CopyResultCode.Unknown:
-                                lastErrorMessage = $"Could not copy file with hash {hashInfo.ContentHash.ToShortString()} from path {sourcePath} to temp path {tempLocation} due to an internal error: {copyFileResult}";
-                                request.Host.ReportReputation(context, location, MachineReputation.Bad);
-                                break;
-                            default:
-                                lastErrorMessage = $"File copier result code {copyFileResult.Code} is not recognized. Not trying another replica.";
-                                return (result: new ErrorResult(copyFileResult, $"{AttemptTracePrefix(attemptCount)} {lastErrorMessage}").AsResult<PutResult>(), retry: true);
+                            lastErrorMessage =
+                                $"ContentHash {hashInfo.ContentHash.ToShortString()} at location {location} has content size {copyFileResult.Size.Value} mismatch from {hashInfo.Size}";
+                            Tracer.Warning(
+                                context,
+                                $"{AttemptTracePrefix(attemptCount)} {lastErrorMessage} Trying another replica.");
+                            // Not tracking the source as a machine with bad reputation, because it is possible that we provided the wrong size.
+
+                            continue;
                         }
 
-                        if (copyFileResult.Succeeded)
+                        PutResult putResult = await request.HandleCopyAsync((copyFileResult, tempLocation, attemptCount));
+
+                        if (putResult.Succeeded)
                         {
-                            // The copy succeeded, but it is possible that the resulting size doesn't match an expected one.
-                            if (hashInfo.Size != -1 && copyFileResult.Size != null && hashInfo.Size != copyFileResult.Size.Value)
+                            // The put succeeded, but this doesn't necessarily mean that we put the content we intended. Check the content hash
+                            // to ensure it's what is expected. This should only go wrong for a small portion of non-trusted puts.
+                            if (putResult.ContentHash != hashInfo.ContentHash)
                             {
                                 lastErrorMessage =
-                                    $"ContentHash {hashInfo.ContentHash.ToShortString()} at location {location} has content size {copyFileResult.Size.Value} mismatch from {hashInfo.Size}";
+                                    $"ContentHash at location {location} has ContentHash {putResult.ContentHash.ToShortString()} mismatch from {hashInfo.ContentHash.ToShortString()}";
+                                // If PutFileAsync re-hashed the file, then it could have found a content hash which differs from the expected content hash.
+                                // If this happens, we should fail this copy and move to the next location.
                                 Tracer.Warning(
                                     context,
                                     $"{AttemptTracePrefix(attemptCount)} {lastErrorMessage} Trying another replica.");
-                                // Not tracking the source as a machine with bad reputation, because it is possible that we provided the wrong size.
-
+                                badContentLocations.Add(location);
                                 continue;
                             }
 
-                            PutResult putResult = await request.HandleCopyAsync((copyFileResult, tempLocation, attemptCount));
-
-                            if (putResult.Succeeded)
-                            {
-                                // The put succeeded, but this doesn't necessarily mean that we put the content we intended. Check the content hash
-                                // to ensure it's what is expected. This should only go wrong for a small portion of non-trusted puts.
-                                if (putResult.ContentHash != hashInfo.ContentHash)
-                                {
-                                    lastErrorMessage =
-                                        $"ContentHash at location {location} has ContentHash {putResult.ContentHash.ToShortString()} mismatch from {hashInfo.ContentHash.ToShortString()}";
-                                    // If PutFileAsync re-hashed the file, then it could have found a content hash which differs from the expected content hash.
-                                    // If this happens, we should fail this copy and move to the next location.
-                                    Tracer.Warning(
-                                        context,
-                                        $"{AttemptTracePrefix(attemptCount)} {lastErrorMessage} Trying another replica.");
-                                    badContentLocations.Add(location);
-                                    continue;
-                                }
-
-                                // Successful case
-                                return (result: putResult, retry: false);
-                            }
-                            else if (putResult.IsCancelled)
-                            {
-                                return reportCancellationRequested();
-                            }
-                            else
-                            {
-                                // Nothing is known about the put's failure. Give up on all locations, do not retry.
-                                // An example of a failure requiring this: Failed to reserve space for content
-                                var errorMessage = $"Put file for content hash {hashInfo.ContentHash.ToShortString()} failed with error {putResult.ErrorMessage} ";
-                                Tracer.Warning(
-                                    context,
-                                    $"{AttemptTracePrefix(attemptCount)} {errorMessage} diagnostics {putResult.Diagnostics}");
-                                return (result: putResult, retry: false);
-                            }
+                            // Successful case
+                            return new (Result: putResult, AttemptedRetries: replicaIndex + 1, ShouldRetry: false);
+                        }
+                        else if (putResult.IsCancelled)
+                        {
+                            return reportCancellationRequested();
+                        }
+                        else
+                        {
+                            // Nothing is known about the put's failure. Give up on all locations, do not retry.
+                            // An example of a failure requiring this: Failed to reserve space for content
+                            var errorMessage =
+                                $"Put file for content hash {hashInfo.ContentHash.ToShortString()} failed with error {putResult.ErrorMessage} ";
+                            Tracer.Warning(
+                                context,
+                                $"{AttemptTracePrefix(attemptCount)} {errorMessage} diagnostics {putResult.Diagnostics}");
+                            return new (Result: putResult, AttemptedRetries: replicaIndex + 1, ShouldRetry: false);
                         }
                     }
 
@@ -700,8 +717,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 lastErrorMessage = ". " + lastErrorMessage;
             }
 
-            return (new PutResult(request.HashInfo.ContentHash, $"Unable to copy file{lastErrorMessage}"), retry: true);
+            // replicaIndex was incremented once again, so we don't have to do +1 to get the correct number of attempts.
+            return new (new PutResult(request.HashInfo.ContentHash, $"Unable to copy file{lastErrorMessage}"), AttemptedRetries: replicaIndex, ShouldRetry: true);
         }
+
+        private static bool IsOutOfDiskSpaceError(string error) => ResultsExtensions.IsOutOfDiskSpaceError(error);
 
         private void TrackCopyFileResultMetrics(Context context, CopyFileResult result, int attemptCount, CopySchedulingSummary? summary)
         {

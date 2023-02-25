@@ -339,7 +339,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     {
                         // Making sure that the extracted checkpoint directory exists before copying the files there.
                         _fileSystem.CreateDirectory(extractedCheckpointDirectory);
-
+                        
                         CheckpointManifest checkpointManifest = new CheckpointManifest();
                         if (checkpointId != null)
                         {
@@ -372,7 +372,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                                     isImmutable: true).ThrowIfFailure();
                                 checkpointManifest = LoadCheckpointManifest(checkpointFile);
                             }
-                            
 
                             if (_checkpointObserver != null)
                             {

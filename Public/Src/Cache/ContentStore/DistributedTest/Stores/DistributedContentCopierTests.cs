@@ -190,7 +190,8 @@ namespace ContentStoreTest.Distributed.Stores
                     maxRetryCount: retries + 1);
                 await using var _ = await distributedCopier.StartupWithAutoShutdownAsync(context);
 
-                var machineLocations = new MachineLocation[] { new MachineLocation(""), new MachineLocation(""), new MachineLocation(""), new MachineLocation(""), new MachineLocation("") };
+                var empty = new MachineLocation("");
+                var machineLocations = new [] { empty, empty, empty, empty, empty };
 
                 var hash = ContentHash.Random();
                 var hashWithLocations = new ContentHashWithSizeAndLocations(

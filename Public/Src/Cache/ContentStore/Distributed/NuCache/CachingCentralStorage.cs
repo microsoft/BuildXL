@@ -2,30 +2,18 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Data;
 using System.Diagnostics.ContractsLight;
-using System.IO;
-using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Distributed.Stores;
-using BuildXL.Cache.ContentStore.Extensions;
 using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
-using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
-using BuildXL.Utilities.Collections;
-using BuildXL.Utilities.Tasks;
-using ContentStore.Grpc;
+
 #nullable enable
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
@@ -129,8 +117,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             {
                 var fileAccessMode = isImmutable ? FileAccessMode.ReadOnly : FileAccessMode.Write;
                 var fileRealizationMode = isImmutable ? FileRealizationMode.Any : FileRealizationMode.Copy;
+                BoolResult? externalCacheResult = null;
 
-                if (PrivateCas.Contains(hash.Value) || await TryRetrieveFromExternalCacheAsync(context, hash.Value))
+                if (PrivateCas.Contains(hash.Value) ||
+                    (externalCacheResult = await TryRetrieveFromExternalCacheAsync(context, hash.Value)))
                 {
                     // First attempt to place file from content store
                     var placeResult = await PrivateCas.PlaceFileAsync(context, hash.Value, targetFilePath, fileAccessMode, FileReplacementMode.ReplaceExisting, fileRealizationMode, pinRequest: null);
@@ -139,15 +129,28 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         return Result.Success(new ContentHashWithSize(hash.Value, placeResult.FileSize));
                     }
                 }
+
+                if (externalCacheResult?.Succeeded == false)
+                {
+                    // We tried to use an external cache and failed.
+                    // We can't fallback to the blob storage in some cases, like if we run out of disk space.
+                    if (ResultsExtensions.IsOutOfDiskSpaceError(externalCacheResult.ToString()))
+                    {
+                        Tracer.Debug(context, $"Not falling back to blob storage due to unrecoverable error. Error={externalCacheResult}");
+                        return new Result<ContentHashWithSize>(externalCacheResult);
+                    }
+                }
+
+                Tracer.Debug(context, $"Falling back to blob storage. Error={externalCacheResult}");
             }
 
             Counters[CentralStorageCounters.TryGetFileFromFallback].Increment();
             return await TryGetFromFallbackAndPutAsync(context, targetFilePath, fallbackStorageId, isImmutable);
         }
 
-        protected async override Task<BoolResult> PruneInternalCacheCoreAsync(OperationContext context, string storageId)
+        protected override async Task<BoolResult> PruneInternalCacheCoreAsync(OperationContext context, string storageId)
         {
-            var (hash, fallbackStorageId) = ParseCompositeStorageId(storageId);
+            var (hash, _) = ParseCompositeStorageId(storageId);
             if (hash is null)
             {
                 return new BoolResult(errorMessage: $"Could not parse content hash from storage id `{storageId}`");
@@ -159,9 +162,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             });
         }
 
-        protected virtual Task<bool> TryRetrieveFromExternalCacheAsync(OperationContext context, ContentHash hash)
+        protected virtual Task<BoolResult> TryRetrieveFromExternalCacheAsync(OperationContext context, ContentHash hash)
         {
-            return BoolTask.False;
+            return BoolResult.SuccessTask;
         }
 
         private string CreateCompositeStorageId(ContentHash hash, string fallbackStorageId)

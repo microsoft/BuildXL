@@ -112,7 +112,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     return new PushFileResult(streamResult, "Should have been able to open the stream from the local CAS");
                 }
 
-                using var stream = streamResult.Stream!;
+                using var stream = streamResult.Stream;
                 return await _copier.PushFileAsync(
                     context,
                     hashWithSize,
@@ -127,19 +127,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             extraEndMessage: _ => $"Hash=[{hashWithSize.Hash.ToShortString()}]");
         }
 
-        protected override async Task<bool> TryRetrieveFromExternalCacheAsync(OperationContext context, ContentHash hash)
+        /// <inheritdoc />
+        protected override async Task<BoolResult> TryRetrieveFromExternalCacheAsync(OperationContext context, ContentHash hash)
         {
-            var putResult = await CopyLocalAndPutAsync(context, hash);
-            if (!putResult.Succeeded)
-            {
-                Tracer.Debug(context, $"Falling back to blob storage. Error={putResult}");
-            }
-            else
+            var result = await CopyLocalAndPutAsync(context, hash);
+            if (result.Succeeded)
             {
                 Counters[CentralStorageCounters.TryGetFileFromPeerSucceeded].Increment();
             }
 
-            return putResult.Succeeded;
+            return result;
         }
 
         private Task<PutResult> CopyLocalAndPutAsync(OperationContext operationContext, ContentHash hash)

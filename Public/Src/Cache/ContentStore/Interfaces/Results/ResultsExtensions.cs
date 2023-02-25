@@ -22,6 +22,12 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
     {
         private static readonly string Component = nameof(ResultsExtensions);
 
+
+        /// <summary>
+        /// Returns true if the given <paramref name="errorMessage"/> represents out-of-disk space error.
+        /// </summary>
+        public static bool IsOutOfDiskSpaceError(string errorMessage) => errorMessage.Contains("There is not enough space on the disk");
+
         /// <nodoc />
         public static string GetDiagnosticsMessageForTracing(this ResultBase result, string prefix = " ")
         {

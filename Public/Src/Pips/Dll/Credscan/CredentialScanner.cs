@@ -150,7 +150,10 @@ namespace BuildXL.Pips.Builders
                 {
                    Logger.Log.CredScanDetection(m_loggingContext, tuple.process.GetDescription(context), tuple.envVarKey);
                 }
-                return false;
+
+                return true;
+                // TODO Promote CredScan violations to an error. Bug #2034799
+                // return false;
             }
             return true;
         }

@@ -6,35 +6,18 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed;
-using BuildXL.Cache.ContentStore.Distributed.MetadataService;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.Test.MetadataService;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
-using BuildXL.Cache.ContentStore.Interfaces.Time;
-using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using BuildXL.Cache.Host.Configuration;
-using BuildXL.Cache.Host.Service;
 using ContentStoreTest.Distributed.Redis;
 using Xunit;
 using Xunit.Abstractions;
 
 namespace ContentStoreTest.Distributed.Sessions
 {
-    [Trait("Category", "Integration")]
-    [Trait("Category", "LongRunningTest")]
-    [Collection("Redis-based tests")]
-    [Trait("Category", "WindowsOSOnly")] // 'redis-server' executable no longer exists
-    public partial class ContentMetadataStoreDistributedContentTestsWithMerge : ContentMetadataStoreDistributedContentTests
-    {
-        public ContentMetadataStoreDistributedContentTestsWithMerge(LocalRedisFixture redis, ITestOutputHelper output) : base(redis, output)
-        {
-        }
-
-        protected override bool UseMergeOperators => true;
-    }
-
     [Trait("Category", "Integration")]
     [Trait("Category", "LongRunningTest")]
     [Collection("Redis-based tests")]
@@ -48,15 +31,6 @@ namespace ContentStoreTest.Distributed.Sessions
         {
         }
 
-        protected virtual bool UseMergeOperators => false;
-
-        protected override DistributedCacheServiceArguments ModifyArguments(DistributedCacheServiceArguments arguments)
-        {
-            arguments.Configuration.DistributedContentSettings.GlobalCacheDatabaseValidationMode = DatabaseValidationMode.Log;
-            arguments.Configuration.DistributedContentSettings.ContentMetadataUseMergeWrites = UseMergeOperators;
-            return base.ModifyArguments(arguments);
-        }
-
         [Fact]
         public Task TestServicePutAndRetrieveOnDifferentMachines()
         {
@@ -66,7 +40,6 @@ namespace ContentStoreTest.Distributed.Sessions
                 overrideDistributed: d =>
                 {
                     d.ContentMetadataPersistInterval = "1000s";
-                    d.ContentMetadataUseMergeWrites = true;
                 },
                 overrideRedis: r =>
                 {

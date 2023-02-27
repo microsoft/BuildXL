@@ -439,19 +439,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                             // If there are some bad locations, remove them.
                             Counters[ContentLocationDatabaseCounters.TotalNumberOfCleanedEntries].Increment();
 
-                            if (_configuration.UseMergeOperators)
-                            {
-                                // The logic for storing inactive machine depends on whether merge operators are used or not.
-                                // In case of merge operators we need to store the removals state change for inactive machines.
-                                var inactiveMachines = _getInactiveMachines();
-                                var inactiveMachinesSet = CreateChangeSet(exists: false, inactiveMachines.ToArray());
-                                var inactiveMachinesEntry = ContentLocationEntry.Create(inactiveMachinesSet, entry.ContentSize, entry.LastAccessTimeUtc, entry.CreationTimeUtc);
-                                Store(context, hash, inactiveMachinesEntry);
-                            }
-                            else
-                            {
-                                Store(context, hash, filteredEntry);
-                            }
+                            // The logic for storing inactive machine depends on whether merge operators are used or not.
+                            // In case of merge operators we need to store the removals state change for inactive machines.
+                            var inactiveMachines = _getInactiveMachines();
+                            var inactiveMachinesSet = CreateChangeSet(exists: false, inactiveMachines.ToArray());
+                            var inactiveMachinesEntry = ContentLocationEntry.Create(inactiveMachinesSet, entry.ContentSize, entry.LastAccessTimeUtc, entry.CreationTimeUtc);
+                            Store(context, hash, inactiveMachinesEntry);
 
                             NagleOperationTracer?.Enqueue((context, hash, EntryOperation.RemoveMachine, OperationReason.GarbageCollect));
                         }
@@ -745,112 +738,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             Store(context, hash, entry: null);
         }
 
-        protected virtual bool SetMachineExistenceAndUpdateDatabase(OperationContext context, ShortHash hash, MachineId? machine, bool existsOnMachine, long size, UnixTime? lastAccessTime, bool reconciling)
-        {
-            var created = false;
-            var reason = reconciling ? OperationReason.Reconcile : OperationReason.Unknown;
-
-            using (var _ = GetLock(hash).AcquireWriteLock())
-            {
-                if (TryGetEntryCore(context, hash, out var entry))
-                {
-                    var initialEntry = entry;
-
-                    // Don't update machines if entry already contains the machine
-                    MachineIdCollection machines = machine != null && (entry.Locations[machine.Value] != existsOnMachine)
-                        ? MachineIdCollection.Create(machine.Value)
-                        : MachineIdCollection.Empty;
-
-                    // Don't update last access time if the touch frequency interval has not elapsed since last access
-                    if (lastAccessTime != null && initialEntry.LastAccessTimeUtc.ToDateTime().IsRecent(lastAccessTime.Value.ToDateTime(), _configuration.TouchFrequency))
-                    {
-                        lastAccessTime = null;
-                    }
-
-                    entry = entry.SetMachineExistence(machines, existsOnMachine, lastAccessTime, size: size >= 0 ? (long?)size : null);
-
-                    if (entry == initialEntry)
-                    {
-                        if (_configuration.TraceNoStateChangeOperations)
-                        {
-                            NagleOperationTracer?.Enqueue((context, hash, existsOnMachine ? EntryOperation.AddMachineNoStateChange : EntryOperation.RemoveMachineNoStateChange, reason));
-                        }
-
-                        // The entry is unchanged.
-                        return false;
-                    }
-
-                    EntryOperation entryOperation;
-                    if (existsOnMachine)
-                    {
-                        entryOperation = initialEntry.Locations.Count == entry.Locations.Count ? EntryOperation.Touch : EntryOperation.AddMachine;
-                    }
-                    else
-                    {
-                        entryOperation = machine == null ? EntryOperation.Touch : EntryOperation.RemoveMachine;
-                    }
-
-                    // Not tracing touches if configured.
-                    if (_configuration.TraceTouches || entryOperation != EntryOperation.Touch)
-                    {
-                        NagleOperationTracer?.Enqueue((context, hash, entryOperation, reason));
-                    }
-                }
-                else
-                {
-                    if (!existsOnMachine || machine == null)
-                    {
-                        if (_configuration.TraceNoStateChangeOperations)
-                        {
-                            NagleOperationTracer?.Enqueue((context, hash, EntryOperation.RemoveOnUnknownMachine, reason));
-                        }
-
-                        // Attempting to remove a machine from or touch a missing entry should result in no changes
-                        return false;
-                    }
-
-                    lastAccessTime ??= Clock.UtcNow;
-                    var creationTime = UnixTime.Min(lastAccessTime.Value, Clock.UtcNow.ToUnixTime());
-
-                    entry = ContentLocationEntry.Create(MachineIdSet.Empty.SetExistence(MachineIdCollection.Create(machine.Value), existsOnMachine), size, lastAccessTime.Value, creationTime);
-                    created = true;
-                }
-
-                if (machine != null)
-                {
-                    if (existsOnMachine)
-                    {
-                        Counters[ContentLocationDatabaseCounters.TotalContentAddedCount].Increment();
-                        Counters[ContentLocationDatabaseCounters.TotalContentAddedSize].Add(entry.ContentSize);
-                    }
-                    else
-                    {
-                        Counters[ContentLocationDatabaseCounters.TotalContentRemovedCount].Increment();
-                        Counters[ContentLocationDatabaseCounters.TotalContentRemovedSize].Add(entry.ContentSize);
-                    }
-                }
-
-                if (entry.Locations.Count == 0)
-                {
-                    // Remove the hash when no more locations are registered
-                    Delete(context, hash);
-                    LogEntryDeletion(context, hash, reason, entry.ContentSize);
-                }
-                else
-                {
-                    Store(context, hash, entry);
-
-                    if (created)
-                    {
-                        Counters[ContentLocationDatabaseCounters.TotalNumberOfCreatedEntries].Increment();
-                        Counters[ContentLocationDatabaseCounters.UniqueContentAddedSize].Add(entry.ContentSize);
-                        NagleOperationTracer?.Enqueue((context, hash, EntryOperation.Create, reason));
-                    }
-                }
-
-                return true;
-            }
-        }
+        /// <summary>
+        /// Updates the location information for a given hash.
+        /// </summary>
+        protected abstract bool SetMachineExistenceAndUpdateDatabase(
+            OperationContext context,
+            ShortHash hash,
+            MachineId? machine,
+            bool existsOnMachine,
+            long size,
+            UnixTime? lastAccessTime,
+            bool reconciling);
 
         private void LogEntryDeletion(Context context, ShortHash hash, OperationReason reason, long size)
         {

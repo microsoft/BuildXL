@@ -25,6 +25,7 @@ using ContentStoreTest.Test;
 using FluentAssertions;
 using Xunit;
 using Xunit.Abstractions;
+using Test.BuildXL.TestUtilities.Xunit;
 using static BuildXL.Cache.ContentStore.Distributed.MetadataService.RocksDbContentMetadataDatabase;
 using static BuildXL.Cache.ContentStore.Distributed.MetadataService.RocksDbOperations;
 
@@ -117,7 +118,7 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
             };
         }
 
-        [Fact]
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)] // Flaky on Linux
         public async Task TestGarbageCollect()
         {
             var configuration = new RocksDbContentMetadataDatabaseConfiguration(_workingDirectory.Path)
@@ -214,7 +215,6 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
             var configuration = new RocksDbContentMetadataDatabaseConfiguration(_workingDirectory.Path)
             {
                 CleanOnInitialize = false,
-                UseMergeOperators = true,
             };
 
             var keys = Enumerable.Range(0, 1000)

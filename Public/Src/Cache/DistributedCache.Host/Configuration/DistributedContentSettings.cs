@@ -578,9 +578,6 @@ namespace BuildXL.Cache.Host.Configuration
         public bool? ContentLocationDatabaseOpenReadOnly { get; set; }
 
         [DataMember]
-        public bool? UseMergeOperatorForContentLocations { get; set; }
-
-        [DataMember]
         public bool? SortMergeableContentLocations { get; set; }
 
         [DataMember]
@@ -921,9 +918,6 @@ namespace BuildXL.Cache.Host.Configuration
 
         [DataMember]
         public bool ContentMetadataDisableDatabaseRegisterLocation { get; set; }
-
-        [DataMember]
-        public bool ContentMetadataUseMergeWrites { get; set; }
 
         /// <inheritdoc cref="ContentLocationDatabaseRocksDbTracingLevel"/>
         [DataMember]

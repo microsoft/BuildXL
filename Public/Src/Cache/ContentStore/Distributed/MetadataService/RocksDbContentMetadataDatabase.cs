@@ -281,7 +281,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                     }
                 }
 
-                var dbAlreadyExists = Directory.Exists(storeLocation);
                 Directory.CreateDirectory(storeLocation);
 
                 var settings = new RocksDbStoreConfiguration(storeLocation)
@@ -394,11 +393,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             public ColumnMetadata()
             {
             }
-        }
-
-        public ColumnGroup GetCurrentColumnGroup(Columns column)
-        {
-            return _columnMetadata[column].Group;
         }
 
         private Dictionary<Columns, ColumnMetadata> LoadColumnGroups(OperationContext context, RocksDbStore db)
@@ -780,10 +774,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                     SaveActiveSlot(context.TracingContext);
                 }
 
-                // At this point in time, we have unloaded the old database and loaded the new one. This means we're
-                // free to backup the old one's logs.
-                var oldStoreLocation = GetStoreLocation(activeSlot);
-
                 return possiblyLoaded;
             }
             catch (Exception ex) when (ex.IsRecoverableIoException())
@@ -846,105 +836,78 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             UnixTime? lastAccessTime,
             bool reconciling)
         {
-            if (_configuration.UseMergeOperators)
-            {
-                return _keyValueStore.Use(
-                    static (store, state) =>
-                    {
-                        store.ApplyBatch(
-                            state,
-                            state.db.NameOf(Columns.MergeContent),
-                            static (batch, state, columnHandle) =>
-                            {
-                                CompactTime? lastAccessTime = state.lastAccessTime?.ToDateTime().ToCompactTime();
-                                long? size = state.existsOnMachine ? state.size : (long?)null;
-                                var columnWriter = new RocksDbColumnWriter(batch, columnHandle);
+            return _keyValueStore.Use(
+                static (store, state) =>
+                {
+                    store.ApplyBatch(
+                        state,
+                        state.db.NameOf(Columns.MergeContent),
+                        static (batch, state, columnHandle) =>
+                        {
+                            CompactTime? lastAccessTime = state.lastAccessTime?.ToDateTime().ToCompactTime();
+                            long? size = state.existsOnMachine ? state.size : (long?)null;
+                            var columnWriter = new RocksDbColumnWriter(batch, columnHandle);
 
-                                columnWriter.MergeLocationEntry(
-                                    state.hash,
-                                    state.machine,
-                                    new MachineContentInfo(size, latestAccessTime: lastAccessTime),
-                                    isRemove: !state.existsOnMachine);
-                            });
+                            columnWriter.MergeLocationEntry(
+                                state.hash,
+                                state.machine,
+                                new MachineContentInfo(size, latestAccessTime: lastAccessTime),
+                                isRemove: !state.existsOnMachine);
+                        });
 
-                        return true;
-                    },
-                    (hash, size, lastAccessTime, existsOnMachine, machine, db: this)
-                ).ThrowOnError();
-            }
-
-            return base.SetMachineExistenceAndUpdateDatabase(context, hash, machine, existsOnMachine, size, lastAccessTime, reconciling);
+                    return true;
+                },
+                (hash, size, lastAccessTime, existsOnMachine, machine, db: this)
+            ).ThrowOnError();
         }
 
         public bool LocationAdded(OperationContext context, MachineId machine, IReadOnlyList<ShortHashWithSize> hashes, bool touch)
         {
-            if (_configuration.UseMergeOperators)
-            {
-                return _keyValueStore.Use(
-                    static (store, state) =>
-                    {
-                        store.ApplyBatch(
-                            state,
-                            state.db.NameOf(Columns.MergeContent),
-                            static (batch, state, columnHandle) =>
-                            {
-                                CompactTime? lastAccessTime = state.touch ? state.db.Clock.UtcNow : null;
-                                var columnWriter = new RocksDbColumnWriter(batch, columnHandle);
-
-                                foreach ((ShortHash hash, long size) in state.hashes.AsStructEnumerable())
-                                {
-                                    columnWriter.MergeLocationEntry(hash, state.machine, new MachineContentInfo(size, latestAccessTime: lastAccessTime));
-                                }
-                            });
-
-                        return true;
-                    },
-                    (hashes, touch, machine, db: this)
-                ).ThrowOnError();
-            }
-            else
-            {
-                foreach (var hash in hashes.AsStructEnumerable())
+            return _keyValueStore.Use(
+                static (store, state) =>
                 {
-                    base.LocationAdded(context, hash.Hash, machine, hash.Size, updateLastAccessTime: touch);
-                }
+                    store.ApplyBatch(
+                        state,
+                        state.db.NameOf(Columns.MergeContent),
+                        static (batch, state, columnHandle) =>
+                        {
+                            CompactTime? lastAccessTime = state.touch ? state.db.Clock.UtcNow : null;
+                            var columnWriter = new RocksDbColumnWriter(batch, columnHandle);
 
-                return true;
-            }
+                            foreach ((ShortHash hash, long size) in state.hashes.AsStructEnumerable())
+                            {
+                                columnWriter.MergeLocationEntry(hash, state.machine, new MachineContentInfo(size, latestAccessTime: lastAccessTime));
+                            }
+                        });
+
+                    return true;
+                },
+                (hashes, touch, machine, db: this)
+            ).ThrowOnError();
         }
 
         public bool LocationRemoved(OperationContext context, MachineId machine, IReadOnlyList<ShortHash> hashes)
         {
-            if (_configuration.UseMergeOperators)
-            {
-                return _keyValueStore.Use(
-                    static (store, state) =>
-                    {
-                        store.ApplyBatch(
-                            state,
-                            state.db.NameOf(Columns.MergeContent),
-                            static (batch, state, columnHandle) =>
+            return _keyValueStore.Use(
+                static (store, state) =>
+                {
+                    store.ApplyBatch(
+                        state,
+                        state.db.NameOf(Columns.MergeContent),
+                        static (batch, state, columnHandle) =>
+                        {
+                            var columnWriter = new RocksDbColumnWriter(batch, columnHandle);
+
+                            foreach (var hash in state.hashes.AsStructEnumerable())
                             {
-                                var columnWriter = new RocksDbColumnWriter(batch, columnHandle);
+                                columnWriter.MergeLocationEntry(hash, state.machine, default, isRemove: true);
+                            }
+                        });
 
-                                foreach (var hash in state.hashes.AsStructEnumerable())
-                                {
-                                    columnWriter.MergeLocationEntry(hash, state.machine, default, isRemove: true);
-                                }
-                            });
-
-                        return true;
-                    },
-                    (hashes, machine, db: this)
-                ).ThrowOnError();
-            }
-
-            foreach (var hash in hashes.AsStructEnumerable())
-            {
-                base.LocationRemoved(context, hash, machine);
-            }
-
-            return true;
+                    return true;
+                },
+                (hashes, machine, db: this)
+            ).ThrowOnError();
         }
 
         private static Span<byte> TrimTrailingZeros(Span<byte> span)
@@ -986,8 +949,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             var size = MemoryMarshal.AsBytes(span).Length;
             return size;
         }
-
-        private static readonly ContentLocationEntry EmptyLocationEntry = ContentLocationEntry.Create(MachineIdSet.Empty, -1, DateTime.UtcNow, DateTime.UtcNow);
 
         // NOTE: This should remain static to avoid allocations in TryGetEntryCore
         private static ContentLocationEntry? TryGetEntryCoreHelper(ShortHash hash, RocksDbStore store, RocksDbContentMetadataDatabase db)

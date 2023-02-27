@@ -3,7 +3,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -11,7 +10,6 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
-using BuildXL.Cache.ContentStore.Extensions;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Distributed;
@@ -29,7 +27,6 @@ using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.Host.Service.Internal;
-using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tracing;
 using ContentStoreTest.Distributed.ContentLocation;
 using ContentStoreTest.Distributed.Redis;
@@ -224,9 +221,9 @@ namespace ContentStoreTest.Distributed.Sessions
         }
 
         [Theory]
-        [InlineData(true, true)]
-        [InlineData(false, false)]
-        public Task SkipRestoreCheckpointTest(bool changeKeyspace, bool useMergeOperator)
+        [InlineData(true)]
+        [InlineData(false)]
+        public Task SkipRestoreCheckpointTest(bool changeKeyspace)
         {
             UseGrpcServer = true;
 
@@ -235,7 +232,6 @@ namespace ContentStoreTest.Distributed.Sessions
             ConfigureWithOneMaster(
                 s =>
                 {
-                    s.UseMergeOperatorForContentLocations = useMergeOperator;
                     if (changeKeyspace && s.TestIteration == 2)
                     {
                         s.KeySpacePrefix += s.TestIteration;
@@ -261,7 +257,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     var workerSession = sessions[context.GetFirstWorkerIndex()];
 
                     // Insert random file in session 0
-                    var putResult0 = await workerSession.PutRandomAsync(context, ContentHashType, false, ContentByteCount, Token).ShouldBeSuccess();
+                    await workerSession.PutRandomAsync(context, ContentHashType, false, ContentByteCount, Token).ShouldBeSuccess();
 
                     await masterStore.CreateCheckpointAsync(context).ShouldBeSuccess();
                     TestClock.UtcNow += TimeSpan.FromMinutes(10);

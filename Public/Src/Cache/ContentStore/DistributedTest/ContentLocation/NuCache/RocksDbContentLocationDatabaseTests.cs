@@ -62,10 +62,9 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
         }
 
         [Theory]
-        [InlineData(true, true)]
-        [InlineData(true, false)]
-        [InlineData(false, false)]
-        public Task TestCheckpoint(bool useMerge, bool useSortedMerge)
+        [InlineData(true)]
+        [InlineData(false)]
+        public Task TestCheckpoint(bool useSortedMerge)
         {
             // Touch should update the last access time but should keep the creation time as is.
             return TestDatabase(
@@ -84,7 +83,7 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
                     var touchTime = Clock.UtcNow;
                     db.ContentTouched(context, hash, touchTime);
 
-                    var checkpointPath = _workingDirectory.Path / $"Chkpt{useMerge}";
+                    var checkpointPath = _workingDirectory.Path / $"Chkpt{true}";
 
                     // No merges should happen yet.
                     db.Counters[ContentLocationDatabaseCounters.MergeEntry].Value.Should().Be(0);
@@ -93,7 +92,7 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
 
                     // Should be two merges: (add + add) + touch
                     // Merge is happening when the checkpoint is saved.
-                    if (useMerge)
+                    if (true)
                     {
                         ValidateMergeCount(useSortedMerge, db.Counters, 2);
                     }
@@ -105,14 +104,13 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
                     entry.Locations.Count.Should().Be(2);
                     entry.LastAccessTimeUtc.Should().Be(touchTime);
                     entry.CreationTimeUtc.Should().Be(creationTime);
-                }, useMerge, useSortedMerge);
+                }, useSortedMerge);
         }
 
         [Theory]
-        [InlineData(true, true)]
-        [InlineData(true, false)]
-        [InlineData(false, false)]
-        public Task TestAddAndTouch(bool useMerge, bool useSortedMerge)
+        [InlineData(true)]
+        [InlineData(false)]
+        public Task TestAddAndTouch(bool useSortedMerge)
         {
             // Touch should update the last access time but should keep the creation time as is.
             return TestDatabase(
@@ -138,19 +136,18 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
                     entry.CreationTimeUtc.Should().Be(creationTime);
 
                     // Should be two merges: (add + add) + touch
-                    if (useMerge)
+                    if (true)
                     {
                         ValidateMergeCount(useSortedMerge, db.Counters, 2);
                     }
 
-                }, useMerge, useSortedMerge);
+                }, useSortedMerge);
         }
 
         [Theory]
-        [InlineData(true, true)]
-        [InlineData(true, false)]
-        [InlineData(false, false)]
-        public Task TestAddAndRemove(bool useMerge, bool useSortedMerge)
+        [InlineData(true)]
+        [InlineData(false)]
+        public Task TestAddAndRemove(bool useSortedMerge)
         {
             return TestDatabase(
                 (context, db) =>
@@ -174,18 +171,17 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
                     db.TryGetEntry(context, hash, out entry).Should().BeTrue();
                     entry.Locations.Count.Should().Be(1, "Should have only 1 location");
 
-                    if (useMerge)
+                    if (true)
                     {
                         ValidateMergeCount(useSortedMerge, db.Counters, 3);
                     }
-                }, useMerge, useSortedMerge);
+                }, useSortedMerge);
         }
 
         [Theory]
-        [InlineData(true, true)]
-        [InlineData(true, false)]
-        [InlineData(false, false)]
-        public Task TestMultipleAddsAndRemovals(bool useMerge, bool useSortedMerge)
+        [InlineData(true)]
+        [InlineData(false)]
+        public Task TestMultipleAddsAndRemovals(bool useSortedMerge)
         {
             return TestDatabase(
                 (context, db) =>
@@ -194,8 +190,8 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
                     var hash = ContentHash.Random().ToShortHash();
                     db.LocationAdded(context, hash, 1.AsMachineId(), size: 42).Should().BeTrue();
                     db.LocationAdded(context, hash, 2.AsMachineId(), size: 42).Should().BeTrue();
-                    db.LocationRemoved(context, hash, 3.AsMachineId()).Should().Be(useMerge);
-                    db.LocationRemoved(context, hash, 4.AsMachineId()).Should().Be(useMerge);
+                    db.LocationRemoved(context, hash, 3.AsMachineId()).Should().Be(true);
+                    db.LocationRemoved(context, hash, 4.AsMachineId()).Should().Be(true);
 
                     // Should have both of them available
                     db.TryGetEntry(context, hash, out var entry).Should().BeTrue();
@@ -225,7 +221,7 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
                     entry.Locations[1.AsMachineId()].Should().BeTrue();
                     entry.Locations[3.AsMachineId()].Should().BeTrue();
                     entry.Locations[5.AsMachineId()].Should().BeTrue();
-                }, useMerge, useSortedMerge);
+                }, useSortedMerge);
         }
 
         [Theory]
@@ -265,10 +261,9 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
         }
 
         [Theory]
-        [InlineData(true, true)]
-        [InlineData(true, false)]
-        [InlineData(false, false)]
-        public Task TestAdd(bool useMerge, bool useSortedMerge)
+        [InlineData(true)]
+        [InlineData(false)]
+        public Task TestAdd(bool useSortedMerge)
         {
             // This test covers adding two locations in full details:
             // Checks the location count and the machine existence
@@ -287,14 +282,14 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
                     Clock.UtcNow += TimeSpan.FromSeconds(10);
 
                     db.LocationAdded(context, hash, location1, size: 42).Should().BeTrue();
-                    db.LocationAdded(context, hash, location1, size: 42).Should().Be(useMerge, "The operation should always return true when merge is on, and false when merge is off.");
+                    db.LocationAdded(context, hash, location1, size: 42).Should().Be(true, "The operation should always return true when merge is on, and false when merge is off.");
 
                     Clock.UtcNow += TimeSpan.FromSeconds(100);
                     var lastAccessTime = Clock.UtcNow;
 
                     db.LocationAdded(context, hash, location2, size: 42).Should().BeTrue();
-                    db.LocationAdded(context, hash, location2, size: 42).Should().Be(useMerge);
-                    db.LocationAdded(context, hash, location2, size: 42).Should().Be(useMerge);
+                    db.LocationAdded(context, hash, location2, size: 42).Should().Be(true);
+                    db.LocationAdded(context, hash, location2, size: 42).Should().Be(true);
 
                     db.TryGetEntry(context, hash, out var entry).Should().BeTrue();
 
@@ -309,18 +304,17 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
                     entry.LastAccessTimeUtc.Should().Be(lastAccessTime.ToUnixTime());
 
                     // We'll merge multiple times here.
-                    if (useMerge)
+                    if (true)
                     {
                         ValidateMergeCount(useSortedMerge, db.Counters, 5);
                     }
-                }, useMerge, useSortedMerge);
+                }, useSortedMerge);
         }
 
         [Theory]
-        [InlineData(true, true)]
-        [InlineData(true, false)]
-        [InlineData(false, false)]
-        public Task GarbageCollectionShouldRemoveEntry(bool useMerge, bool useSortedMerge)
+        [InlineData(true)]
+        [InlineData(false)]
+        public Task GarbageCollectionShouldRemoveEntry(bool useSortedMerge)
         {
             // This test covers adding two locations in full details:
             // Checks the location count and the machine existence
@@ -339,33 +333,24 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
 
                     // if merge is used, then the entry should still be available but with 0 locations.
                     // for the normal mode TryGetEntry should return false.
-                    db.TryGetEntry(context, hash, out entry).Should().Be(useMerge);
-                    if (useMerge)
-                    {
-                        entry.Should().NotBeNull();
-                        entry.Locations.Count.Should().Be(0);
-                    }
+                    db.TryGetEntry(context, hash, out entry).Should().Be(true);
+                    entry.Should().NotBeNull();
+                    entry.Locations.Count.Should().Be(0);
 
                     db.GarbageCollectAsync(context).GetAwaiter().GetResult().ShouldBeSuccess();
 
                     // The entry should be gone for sure in both modes after the GC is done.
                     db.TryGetEntry(context, hash, out entry).Should().BeFalse();
-                }, useMerge, useSortedMerge);
+                }, useSortedMerge);
         }
 
         private async Task<CounterCollection<ContentLocationDatabaseCounters>> TestDatabase(
-            Action<OperationContext, RocksDbContentLocationDatabase> test, bool useMergeOperators = true, bool useSortedMerge = true)
+            Action<OperationContext, RocksDbContentLocationDatabase> test, bool useSortedMerge = true)
         {
-            var path = _workingDirectory.Path;
-            if (useMergeOperators)
-            {
-                path /= "Merge";
-            }
-
+            var path = _workingDirectory.Path / "Merge";
             var configuration = new RocksDbContentLocationDatabaseConfiguration(path)
                                 {
                                     CleanOnInitialize = true,
-                                    UseMergeOperatorForContentLocations = useMergeOperators,
                                     SortMergeableContentLocations = useSortedMerge,
                                     TraceOperations = false,
                                 };
@@ -447,7 +432,7 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
             // Case 1
 
             sw = Stopwatch.StartNew();
-            var c2 = await TestDatabase(test, useMergeOperators: false);
+            var c2 = await TestDatabase(test, useSortedMerge: false);
             var noMergeDuration = sw.Elapsed;
 
             fullGC();
@@ -456,7 +441,7 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
             // Case 1
 
             sw = Stopwatch.StartNew();
-            var c1 = await TestDatabase(test, useMergeOperators: true);
+            var c1 = await TestDatabase(test, useSortedMerge: true);
             var mergeDuration = sw.Elapsed;
 
             string message =

@@ -66,11 +66,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// Specifies whether to trace the cases when the call to SetMachineExistence didn't change the database's state.
         /// </summary>
         public bool TraceNoStateChangeOperations { get; set; } = false;
-
-        /// <summary>
-        /// True if RocksDb merge operators are used for the content.
-        /// </summary>
-        public bool UseMergeOperators { get; set; }
     }
 
     /// <summary>
@@ -118,9 +113,25 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public long EnumerateEntriesWithSortedKeysFromStorageBufferSize { get; set; } = 100_000;
 
         /// <summary>
-        /// Whether to use RocksDb merge operator for content location entries.
+        /// Whether to use 'SetTotalOrderSeek' option during database enumeration.
         /// </summary>
-        public bool UseMergeOperatorForContentLocations { get; set; } = false;
+        /// <remarks>
+        /// Setting this flag is important in order to get the correct behavior for content enumeration of the database.
+        /// When the prefix extractor is used by calling SetIndexType(BlockBasedTableIndexType.Hash) and SetPrefixExtractor(SliceTransform.CreateNoOp())
+        /// then the full database enumeration may return already removed keys or the previous version for some values.
+        ///
+        /// Not setting this flag was causing issues during reconciliation because the database enumeration was producing values for already removed keys
+        /// and some keys were missing.
+        /// </remarks>
+        public bool UseReadOptionsWithSetTotalOrderSeekInDbEnumeration { get; set; } = true;
+
+        /// <summary>
+        /// Whether to use 'SetTotalOrderSeek' option during database garbage collection.
+        /// </summary>
+        /// <remarks>
+        /// See the remarks section for <see cref="UseReadOptionsWithSetTotalOrderSeekInDbEnumeration"/>.
+        /// </remarks>
+        public bool UseReadOptionsWithSetTotalOrderSeekInGarbageCollection { get; set; } = true;
 
         /// <summary>
         /// If true, then the locations will be merged without deserialization on the workers and sorted on the master.
@@ -151,7 +162,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             ApplyIfNotNull(settings.ContentLocationDatabaseMetadataGarbageCollectionMaximumSizeMb, v => configuration.MetadataGarbageCollectionMaximumSizeMb = v);
 
             ApplyIfNotNull(settings.ContentLocationDatabaseOpenReadOnly, v => configuration.OpenReadOnly = (v && !settings.IsMasterEligible));
-            ApplyIfNotNull(settings.UseMergeOperatorForContentLocations, v => configuration.UseMergeOperatorForContentLocations = v);
             ApplyIfNotNull(settings.SortMergeableContentLocations, v => configuration.SortMergeableContentLocations = v);
 
             ApplyIfNotNull(settings.ContentLocationDatabaseEnumerateEntriesWithSortedKeysFromStorageBufferSize, v => configuration.EnumerateEntriesWithSortedKeysFromStorageBufferSize = v);

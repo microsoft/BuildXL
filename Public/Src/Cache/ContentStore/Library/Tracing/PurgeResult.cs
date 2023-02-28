@@ -83,7 +83,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
         public void Merge(EvictResult evictResult)
         {
             VisitedFiles++;
-            EvictedSize += evictResult.EvictedSize;
+            EvictedSize += evictResult.EvictedPhysicalSize;
             EvictedFiles += evictResult.EvictedFiles;
             PinnedSize += evictResult.PinnedSize;
         }

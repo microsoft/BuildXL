@@ -449,18 +449,18 @@ namespace BuildXL.Cache.ContentStore.Tracing
         {
             if (_eventSource.IsEnabled())
             {
-                _eventSource.EvictStop(result.Succeeded, result.EvictedSize, result.EvictedFiles, result.PinnedSize);
+                _eventSource.EvictStop(result.Succeeded, result.EvictedPhysicalSize, result.EvictedFiles, result.PinnedSize);
             }
 
             _evictCallCounter.Completed(result.Duration.Ticks);
-            _evictBytesCount.Add(result.EvictedSize);
+            _evictBytesCount.Add(result.EvictedPhysicalSize);
             _evictFilesCount.Add(result.EvictedFiles);
 
             // Eviction messages are not "diagnostic"-level messages and we should trace them all the time
             // regardless of _traceDiagnosticEvents flag.
             if (context.IsEnabled)
             {
-                TracerOperationFinished(context, result, $"{Name}.Evict() stop {result.DurationMs}ms Hash={input.ToShortString()} Size={result.EvictedSize} Replicas={result.ReplicaCount} Age={AgeAsString(result.Age)} EffAge={AgeAsString(result.EffectiveAge)}");
+                TracerOperationFinished(context, result, $"{Name}.Evict() stop {result.DurationMs}ms Hash={input.ToShortString()} Size={result.EvictedPhysicalSize} Replicas={result.ReplicaCount} Age={AgeAsString(result.Age)} EffAge={AgeAsString(result.EffectiveAge)}");
             }
         }
 

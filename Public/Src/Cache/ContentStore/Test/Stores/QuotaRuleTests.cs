@@ -40,7 +40,7 @@ namespace ContentStoreTest.Stores
         private static void AssertPurged(PurgeResult result, EvictResult expectedResult)
         {
             result.EvictedFiles.Should().Be(expectedResult.EvictedFiles);
-            result.EvictedSize.Should().Be(expectedResult.EvictedSize);
+            result.EvictedSize.Should().Be(expectedResult.EvictedPhysicalSize);
             result.PinnedSize.Should().Be(expectedResult.PinnedSize);
         }
 

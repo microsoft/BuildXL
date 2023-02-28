@@ -213,7 +213,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         {
             if (Store.TryGetFileInfo(hash, out var fileInfo))
             {
-                info = new ContentInfo(hash, fileInfo.FileSize, fileInfo.LastAccessedTimeUtc);
+                info = new ContentInfo(hash, fileInfo.LogicalFileSize, fileInfo.LastAccessedTimeUtc);
                 return true;
             }
             else

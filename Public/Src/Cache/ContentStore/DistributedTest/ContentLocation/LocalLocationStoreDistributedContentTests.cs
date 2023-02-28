@@ -49,6 +49,8 @@ namespace ContentStoreTest.Distributed.Sessions
         private const string StorageAccountKeyEnvVar = "TestEventHub_StorageAccountKey";
         private const string StorageAccountNameEnvVar = "TestEventHub_StorageAccountName";
 
+        protected readonly long ClusterSizeForTests = 1024L;
+
         /// <nodoc />
         public LocalLocationStoreDistributedContentTests(LocalRedisFixture redis, ITestOutputHelper output)
             : base(redis, output)
@@ -2346,7 +2348,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
 
                     FileSystem.CreateDirectory(root);
-                    var dir = new MemoryContentDirectory(new PassThroughFileSystem(), root);
+                    var dir = new MemoryContentDirectory(new PassThroughFileSystem(), root, ClusterSizeForTests);
 
                     File.Copy(contentDirectoryPath.Path, dir.FilePath.Path, overwrite: true);
                     await dir.StartupAsync(context).ThrowIfFailure();
@@ -2539,7 +2541,7 @@ namespace ContentStoreTest.Distributed.Sessions
                         // Hashes with higher index will be newer from distributed perspective
                         var distributedLastAccessTime = baseTime + TimeSpan.FromSeconds((i + 1) * 10);
                         var hash = getHash(i);
-                        contentDirectory.TryAdd(hash, new ContentFileInfo(100, localLastAccessTime.ToFileTimeUtc(), 1)).Should().BeTrue();
+                        contentDirectory.TryAdd(hash, new ContentFileInfo(100, localLastAccessTime.ToFileTimeUtc(), 1, ClusterSizeForTests)).Should().BeTrue();
 
                         // Add hash and set distributed last access time
                         TestClock.UtcNow = distributedLastAccessTime;

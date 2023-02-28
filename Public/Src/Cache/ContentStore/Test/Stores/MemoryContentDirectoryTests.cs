@@ -35,7 +35,7 @@ namespace ContentStoreTest.Stores
 
         protected override IContentDirectory CreateContentDirectory(DisposableDirectory testDirectory)
         {
-            return new MemoryContentDirectory(FileSystem, testDirectory.Path, Host);
+            return new MemoryContentDirectory(FileSystem, testDirectory.Path, ClusterSizeForTests,  Host);
         }
 
         [Fact]
@@ -115,11 +115,23 @@ namespace ContentStoreTest.Stores
                     testDirectory,
                     async contentDirectory =>
                     {
+                        var expectedPhysicalSize = 0L;
+                        var expectedTotalPhysicalSize = 0L;
+                        var expectedTotalReplicaCount = 0;
                         // Verify that the full set of content is present in the initialized content directory
                         foreach (var content in allContent)
                         {
+                            expectedTotalPhysicalSize += content.Value.PhysicalFileSize;
+                            expectedTotalReplicaCount += content.Value.ReplicaCount;
+
                             contentDirectory.TryGetFileInfo(content.Key, out var contentInfo).Should().BeTrue();
+                            
+                            expectedPhysicalSize = ((content.Value.LogicalFileSize + ClusterSizeForTests - 1) / ClusterSizeForTests) * ClusterSizeForTests;
+                            Assert.Equal(expectedPhysicalSize, content.Value.PhysicalFileSize);
                         }
+
+                        Assert.Equal(expectedTotalPhysicalSize, await contentDirectory.GetSizeAsync());
+                        Assert.Equal(expectedTotalReplicaCount, await contentDirectory.GetTotalReplicaCountAsync());
 
                         foreach (var hash in await contentDirectory.GetLruOrderedCacheContentAsync())
                         {
@@ -167,7 +179,7 @@ namespace ContentStoreTest.Stores
             using (var testDirectory = new DisposableDirectory(FileSystem))
             {
                 // Construct a valid directory with some legit entries.
-                using (var directory = new MemoryContentDirectory(FileSystem, testDirectory.Path))
+                using (var directory = new MemoryContentDirectory(FileSystem, testDirectory.Path, ClusterSizeForTests))
                 {
                     await directory.StartupAsync(context).ShouldBeSuccess();
                     await PopulateRandomInfo(directory);
@@ -180,12 +192,12 @@ namespace ContentStoreTest.Stores
                 {
                     ContentFileInfo fileInfo = pair.Value;
                     var lastAccessedFileTimeUtc = (i++ % 2) == 0 ? -1 : long.MaxValue;
-                    var updatedFileInfo = new ContentFileInfo(fileInfo.FileSize, lastAccessedFileTimeUtc, fileInfo.ReplicaCount);
+                    var updatedFileInfo = new ContentFileInfo(fileInfo.LogicalFileSize, lastAccessedFileTimeUtc, fileInfo.ReplicaCount, ClusterSizeForTests);
                     return new KeyValuePair<ContentHash, ContentFileInfo>(pair.Key, updatedFileInfo);
-                });
+                }, ClusterSizeForTests);
 
                 // Load the directory again, fixing the bad timestamps.
-                using (var directory = new MemoryContentDirectory(FileSystem, testDirectory.Path))
+                using (var directory = new MemoryContentDirectory(FileSystem, testDirectory.Path, ClusterSizeForTests))
                 {
                     await directory.StartupAsync(context).ShouldBeSuccess();
                     await directory.ShutdownAsync(context).ShouldBeSuccess();
@@ -199,7 +211,7 @@ namespace ContentStoreTest.Stores
                     fileTimeUtc.Should().BePositive();
                     fileTimeUtc.Should().BeLessOrEqualTo(nowFileTimeUtc);
                     return pair;
-                });
+                }, ClusterSizeForTests);
             }
         }
     }

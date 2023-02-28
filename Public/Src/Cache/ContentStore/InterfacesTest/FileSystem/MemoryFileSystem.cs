@@ -269,6 +269,13 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
         }
 
         /// <inheritdoc />
+        public long GetClusterSize(AbsolutePath path)
+        {
+            // In memory file system does not have clusters
+            return 1;
+        }
+
+        /// <inheritdoc />
         public DateTime GetLastAccessTimeUtc(AbsolutePath path)
         {
             lock (_drives)

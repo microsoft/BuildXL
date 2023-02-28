@@ -162,6 +162,12 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
         }
 
         /// <nodoc />
+        public long GetClusterSize(AbsolutePath path)
+        {
+            return Inner.GetClusterSize(Redirect(path));
+        }
+
+        /// <nodoc />
         public int GetHardLinkCount(AbsolutePath path)
         {
             return Inner.GetHardLinkCount(Redirect(path));

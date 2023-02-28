@@ -741,6 +741,23 @@ namespace BuildXL.Cache.ContentStore.FileSystem
         }
 
         /// <inheritdoc />
+        public long GetClusterSize(AbsolutePath path)
+        {
+            if (OperatingSystemHelper.IsWindowsOS)
+            {
+                int result = GetDiskFreeSpaceW(path.GetPathRoot(), out var sectorsPerCluster, out var bytesPerSector, out _, out _);
+                if (result == 0)
+                {
+                    throw ThrowLastWin32Error(path.Path, $"Failed to GetDiskFreeSpaceW with path {path} to calculate cluster size");
+                }
+                return sectorsPerCluster * bytesPerSector;
+            }
+
+            // TODO: Add cluster size calculation for Linux and MacOS (https://dev.azure.com/mseng/1ES/_workitems/edit/2032551)
+            return 1L;
+        }
+
+        /// <inheritdoc />
         public DateTime GetLastAccessTimeUtc(AbsolutePath path)
         {
             return GetFileInfo(path).LastAccessTimeUtc;

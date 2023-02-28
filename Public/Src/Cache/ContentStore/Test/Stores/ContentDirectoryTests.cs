@@ -31,6 +31,8 @@ namespace ContentStoreTest.Stores
 
         private readonly IContentHasher _hasher;
 
+        protected readonly long ClusterSizeForTests = 1024L;
+
         protected ContentDirectoryTests(ILogger logger, MemoryClock clock, Lazy<IAbsFileSystem> fileSystem)
             : base(logger, fileSystem)
         {
@@ -71,7 +73,7 @@ namespace ContentStoreTest.Stores
                         await contentDirectory.UpdateAsync(hashInfoPair.Key, false, MemoryClock, fileInfo =>
                         {
                             fileInfo.Should().NotBeNull();
-                            fileInfo.FileSize.Should().Be(hashInfoPair.Value.FileSize);
+                            fileInfo.LogicalFileSize.Should().Be(hashInfoPair.Value.LogicalFileSize);
                             fileInfo.ReplicaCount.Should().Be(hashInfoPair.Value.ReplicaCount);
                             fileInfo.LastAccessedFileTimeUtc.Should().Be(hashInfoPair.Value.LastAccessedFileTimeUtc);
                             return null;
@@ -94,7 +96,7 @@ namespace ContentStoreTest.Stores
                 await PopulateRandomInfo(contentDirectory);
 
                 (await contentDirectory.GetCountAsync()).Should().Be(DefaultInfoCount);
-                (await contentDirectory.GetSizeAsync()).Should().Be(DefaultFileSize * DefaultInfoCount);
+                (await contentDirectory.GetSizeAsync()).Should().Be(ContentFileInfo.GetPhysicalSize(DefaultFileSize, ClusterSizeForTests) * DefaultInfoCount);
             });
         }
 
@@ -148,7 +150,7 @@ namespace ContentStoreTest.Stores
             return TestContentDirectory(context, async contentDirectory =>
             {
                 var firstHash = (await PopulateRandomInfo(contentDirectory))[0].Key;
-                var newInfo = new ContentFileInfo(MemoryClock, DefaultFileSize * 2, DefaultReplicaCount + 1);
+                var newInfo = new ContentFileInfo(MemoryClock, DefaultFileSize * 2, DefaultReplicaCount + 1, ClusterSizeForTests);
 
                 await contentDirectory.UpdateAsync(firstHash, false, MemoryClock, fileInfo =>
                 {
@@ -240,13 +242,13 @@ namespace ContentStoreTest.Stores
                         await contentDirectory.UpdateAsync(sha1ContentHash, true, MemoryClock, info =>
                         {
                             Assert.Null(info);
-                            return Task.FromResult(new ContentFileInfo(MemoryClock, 1, content.Length));
+                            return Task.FromResult(new ContentFileInfo(MemoryClock, 1, content.Length, ClusterSizeForTests));
                         });
 
                         await contentDirectory.UpdateAsync(sha256ContentHash, true, MemoryClock, info =>
                         {
                             Assert.Null(info);
-                            return Task.FromResult(new ContentFileInfo(MemoryClock, 2, content.Length));
+                            return Task.FromResult(new ContentFileInfo(MemoryClock, 2, content.Length, ClusterSizeForTests));
                         });
 
                         var hashes = (await contentDirectory.EnumerateContentHashesAsync()).ToList();
@@ -278,7 +280,7 @@ namespace ContentStoreTest.Stores
                 using (var stream = new MemoryStream(content))
                 {
                     ContentHash contentHash = await _hasher.GetContentHashAsync(stream);
-                    var newInfo = new ContentFileInfo(MemoryClock, content.Length);
+                    var newInfo = new ContentFileInfo(MemoryClock, content.Length, DefaultReplicaCount, ClusterSizeForTests);
 
                     if (shouldPopulateIteration == null || shouldPopulateIteration(i))
                     {

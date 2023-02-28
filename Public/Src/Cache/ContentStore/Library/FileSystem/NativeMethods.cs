@@ -105,6 +105,11 @@ namespace BuildXL.Cache.ContentStore.FileSystem
         [return: MarshalAs(UnmanagedType.Bool)]
         internal static extern bool FlushFileBuffers(SafeFileHandle hFile);
 
+        [DllImport(KERNEL32, SetLastError = true, CharSet = CharSet.Auto, BestFitMapping = false)]
+        internal static extern int GetDiskFreeSpaceW([In, MarshalAs(UnmanagedType.LPWStr)] string lpRootPathName,
+            out uint lpSectorsPerCluster, out uint lpBytesPerSector, out uint lpNumberOfFreeClusters,
+            out uint lpTotalNumberOfClusters);
+
         [StructLayout(LayoutKind.Sequential)]
         internal readonly struct FILE_TIME
         {

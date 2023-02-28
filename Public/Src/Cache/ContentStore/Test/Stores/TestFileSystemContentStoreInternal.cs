@@ -75,6 +75,8 @@ namespace ContentStoreTest.Stores
 
         public AbsolutePath RootPathForTest => RootPath;
 
+        public readonly long ClusterSizeForTests = 1024L;
+
         public ConcurrentDictionary<ContentHash, Pin> PinMapForTest => PinMap;
 
         public IContentDirectory ContentDirectoryForTest => ContentDirectory;
@@ -129,7 +131,7 @@ namespace ContentStoreTest.Stores
             var bytes = ThreadSafeRandom.GetBytes(100);
             var contentHash = bytes.CalculateHash(ContentHashType);
             await ContentDirectory.UpdateAsync(contentHash, false, Clock, fileInfo =>
-                Task.FromResult(new ContentFileInfo(Clock, 1, 100)));
+                Task.FromResult(new ContentFileInfo(Clock, 1, 100, ClusterSizeForTests)));
             (await ContentDirectory.GetCountAsync()).Should().Be(1);
             return bytes;
         }
@@ -207,10 +209,10 @@ namespace ContentStoreTest.Stores
 
         private async Task ClearStoreOfUnpinnedContent(Context context, MemoryClock clock)
         {
-            const int contentsToAdd = 4;
-            for (int i = 0; i < contentsToAdd; i++)
+            const int ContentsToAdd = 4;
+            for (int i = 0; i < ContentsToAdd; i++)
             {
-                var data = ThreadSafeRandom.GetBytes((int)(Configuration.MaxSizeQuota.Hard / (contentsToAdd - 1)));
+                var data = ThreadSafeRandom.GetBytes((int)(Configuration.MaxSizeQuota.Hard / (ContentsToAdd - 1)));
                 using (var dataStream = new MemoryStream(data))
                 {
                     var r = await PutStreamAsync(context, dataStream, ContentHashType, null);

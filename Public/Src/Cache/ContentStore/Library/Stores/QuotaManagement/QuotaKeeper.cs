@@ -274,13 +274,13 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// Reserve room for specified content size.
         /// </summary>
         /// <exception cref="CacheException">The exception is thrown if the reservation fails.</exception>
-        public async Task<ReserveTransaction> ReserveAsync(long contentSize)
+        public async Task<ReserveTransaction> ReserveAsync(long physicalContentSize)
         {
-            Contract.Assert(contentSize >= 0);
+            Contract.Assert(physicalContentSize >= 0);
 
             ShutdownStartedCancellationToken.ThrowIfCancellationRequested();
 
-            var reserveRequest = QuotaRequest.Reserve(contentSize);
+            var reserveRequest = QuotaRequest.Reserve(physicalContentSize);
 
             // To avoid potential race condition need to increase size first and only after that to add the request into the queue.
             IncreaseSize(ref _requestedSize, reserveRequest.ReserveSize);
@@ -290,7 +290,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
             if (!result)
             {
-                throw new CacheException($"Failed to reserve space for content size=[{contentSize}], result=[{result}]");
+                throw new CacheException($"Failed to reserve space for content size=[{physicalContentSize}], result=[{result}]");
             }
 
             return new ReserveTransaction(reserveRequest, OnReservationCommitted);
@@ -302,7 +302,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             var evictResult = await _store.EvictAsync(context, contentHashInfo, onlyUnlinked, evicted: null);
             if (evictResult.SuccessfullyEvictedHash)
             {
-                OnContentEvicted(evictResult.EvictedSize);
+                OnContentEvicted(evictResult.EvictedPhysicalSize);
             }
 
             return evictResult;
@@ -456,11 +456,11 @@ namespace BuildXL.Cache.ContentStore.Stores
             return BoolResult.Success;
         }
 
-        private bool IsAboveSoftLimit(long size, [NotNullWhen(true)]out string? exceedReason)
+        private bool IsAboveSoftLimit(long reserveSize, [NotNullWhen(true)]out string? exceedReason)
         {
             foreach (var rule in _rules)
             {
-                var checkResult = rule.IsInsideSoftLimit(size);
+                var checkResult = rule.IsInsideSoftLimit(reserveSize);
                 if (!checkResult)
                 {
                     exceedReason = checkResult.ErrorMessage!;
@@ -472,11 +472,11 @@ namespace BuildXL.Cache.ContentStore.Stores
             return false;
         }
 
-        private bool IsAboveHardLimit(long size, [NotNullWhen(true)]out string? exceedReason)
+        private bool IsAboveHardLimit(long reserveSize, [NotNullWhen(true)]out string? exceedReason)
         {
             foreach (var rule in _rules)
             {
-                var checkResult = rule.IsInsideHardLimit(size);
+                var checkResult = rule.IsInsideHardLimit(reserveSize);
                 if (!checkResult)
                 {
                     exceedReason = checkResult.ErrorMessage!;
@@ -536,9 +536,9 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <summary>
         /// Notifies the keeper that content of a given size is evicted.
         /// </summary>
-        public void OnContentEvicted(long size)
+        public void OnContentEvicted(long physicalSize)
         {
-            DecreaseSize(ref _allContentSize, size);
+            DecreaseSize(ref _allContentSize, physicalSize);
 
             lock (_evictionLock)
             {
@@ -770,20 +770,20 @@ namespace BuildXL.Cache.ContentStore.Stores
             }
         }
 
-        private void DecreaseSize(ref long size, long delta)
+        private void DecreaseSize(ref long physicalSize, long delta)
         {
             Contract.Assert(delta >= 0);
 
-            long newSize = Interlocked.Add(ref size, -1 * delta);
+            long newSize = Interlocked.Add(ref physicalSize, -1 * delta);
 
             Contract.Assert(newSize >= 0);
         }
 
-        private void IncreaseSize(ref long size, long delta)
+        private void IncreaseSize(ref long physicalSize, long delta)
         {
             Contract.Assert(delta >= 0);
 
-            Interlocked.Add(ref size, delta);
+            Interlocked.Add(ref physicalSize, delta);
         }
     }
 }

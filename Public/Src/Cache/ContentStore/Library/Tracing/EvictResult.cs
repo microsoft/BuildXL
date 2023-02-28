@@ -32,9 +32,10 @@ namespace BuildXL.Cache.ContentStore.Tracing
         /// <summary>
         ///     Initializes a new instance of the <see cref="EvictResult"/> class.
         /// </summary>
-        public EvictResult(ContentHashWithLastAccessTimeAndReplicaCount info, long evictedSize, long evictedFiles, long pinnedSize, bool successfullyEvictedHash)
+        public EvictResult(ContentHashWithLastAccessTimeAndReplicaCount info, long evictedLogicalSize, long evictedPhysicalSize, long evictedFiles, long pinnedSize, bool successfullyEvictedHash)
         {
-            EvictedSize = evictedSize;
+            EvictedLogicalSize = evictedLogicalSize;
+            EvictedPhysicalSize = evictedPhysicalSize;
             EvictedFiles = evictedFiles;
             PinnedSize = pinnedSize;
             EvictionInfo = info.EvictionInfo;
@@ -51,7 +52,12 @@ namespace BuildXL.Cache.ContentStore.Tracing
         /// <summary>
         ///     Gets number of bytes evicted.
         /// </summary>
-        public long EvictedSize { get; }
+        public long EvictedLogicalSize { get; }
+
+        /// <summary>
+        ///     Gets number of bytes evicted from disk.
+        /// </summary>
+        public long EvictedPhysicalSize { get; }
 
         /// <summary>
         ///     Gets number of files evicted.
@@ -107,14 +113,14 @@ namespace BuildXL.Cache.ContentStore.Tracing
             {
                 if (!SuccessfullyEvictedHash)
                 {
-                    return new DeleteResult(DeleteResult.ResultCode.ContentNotFound, contentHash, EvictedSize);
+                    return new DeleteResult(DeleteResult.ResultCode.ContentNotFound, contentHash, EvictedPhysicalSize);
                 }
 
-                return new DeleteResult(DeleteResult.ResultCode.Success, contentHash, EvictedSize);
+                return new DeleteResult(DeleteResult.ResultCode.Success, contentHash, EvictedPhysicalSize);
             }
 
             // !HasException && Succeeded && !SuccessfulyEvictedHash
-            return new DeleteResult(DeleteResult.ResultCode.ContentNotDeleted, contentHash, EvictedSize);
+            return new DeleteResult(DeleteResult.ResultCode.ContentNotDeleted, contentHash, EvictedPhysicalSize);
         }
 
         /// <nodoc />
@@ -127,7 +133,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
         public override string ToString()
         {
             return Succeeded
-                ? $"Success Size={EvictedSize} Files={EvictedFiles} Pinned={PinnedSize} LastAccessTime={LastAccessTime} Age={EvictionInfo.Age} ReplicaCount={ReplicaCount} EffectiveLastAccessTime={EffectiveLastAccessTime} EffectiveAge={EvictionInfo.EffectiveAge} Preferred={EvictionInfo.EvictionPreferred}"
+                ? $"Success LogicalSize={EvictedLogicalSize} PhysicalSize={EvictedPhysicalSize} Files={EvictedFiles} Pinned={PinnedSize} LastAccessTime={LastAccessTime} Age={EvictionInfo.Age} ReplicaCount={ReplicaCount} EffectiveLastAccessTime={EffectiveLastAccessTime} EffectiveAge={EvictionInfo.EffectiveAge} Preferred={EvictionInfo.EvictionPreferred}"
                 : GetErrorString();
         }
     }

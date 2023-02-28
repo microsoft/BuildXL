@@ -48,9 +48,9 @@ namespace BuildXL.Cache.ContentStore.Stores
         CounterSet GetCounters();
 
         /// <summary>
-        ///     Gets the total size in bytes of the content stored.
+        ///     Gets the total physical size in bytes of the content stored.
         /// </summary>
-        /// <returns>Total size in bytes of stored content.</returns>
+        /// <returns>Total physical size in bytes of stored content.</returns>
         /// <remarks>This must iterate over the entire content directory and is correspondingly expensive.</remarks>
         Task<long> GetSizeAsync();
 

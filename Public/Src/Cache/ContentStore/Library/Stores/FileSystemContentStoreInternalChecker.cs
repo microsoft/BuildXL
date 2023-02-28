@@ -342,9 +342,9 @@ namespace BuildXL.Cache.ContentStore.Stores
                 }
 
                 // The cache entry is invalid if the size in content directory doesn't mach an actual size
-                if (contentFileInfo.FileSize != fileInfo.Length)
+                if (contentFileInfo.LogicalFileSize != fileInfo.Length)
                 {
-                    return (isValid: false, error: $"File size mismatch. Expected size is {contentFileInfo.FileSize} and size on disk is {fileInfo.Length}.");
+                    return (isValid: false, error: $"File size mismatch. Expected size is {contentFileInfo.LogicalFileSize} and size on disk is {fileInfo.Length}.");
                 }
 
                 // Or if the content doesn't match the hash.

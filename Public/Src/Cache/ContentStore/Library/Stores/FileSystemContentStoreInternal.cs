@@ -154,6 +154,11 @@ namespace BuildXL.Cache.ContentStore.Stores
 
         private long _maxPinSize;
 
+        /// <summary>
+        /// Size in bytes of a cluster (bytesPerSector * sectorsPerCluster)
+        /// </summary>
+        private readonly long _clusterSize;
+
         private readonly ContentStoreSettings _settings;
 
         private readonly FileSystemContentStoreInternalChecker _checker;
@@ -193,13 +198,16 @@ namespace BuildXL.Cache.ContentStore.Stores
             _contentRootDirectory = RootPath / Constants.SharedDirectoryName;
             _tempFolder = _contentRootDirectory / TempFileSubdirectory;
 
+            _settings = settings ?? ContentStoreSettings.DefaultSettings;
+
+            // Use logical size in QuotaKeeper is equivalent to use clusterSize = 1
+            _clusterSize = _settings.UsePhysicalSizeInQuotaKeeper ? FileSystem.GetClusterSize(rootPath) : 1;
+
             // MemoryContentDirectory requires for the root path to exist. Making sure this is the case.
             FileSystem.CreateDirectory(RootPath);
-            ContentDirectory = new MemoryContentDirectory(FileSystem, RootPath, this);
+            ContentDirectory = new MemoryContentDirectory(FileSystem, RootPath, _clusterSize, this);
 
             _maxPinSize = -1;
-
-            _settings = settings ?? ContentStoreSettings.DefaultSettings;
 
             _checker = new FileSystemContentStoreInternalChecker(FileSystem, Clock, RootPath, _tracer, _settings.SelfCheckSettings, this);
 
@@ -242,7 +250,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                     new ContentHashWithLastAccessTimeAndReplicaCount(contentHash, Clock.UtcNow),
                     force: true, // Need to evict an invalid content even if it is pinned.
                     onlyUnlinked: false,
-                    size => { QuotaKeeper.OnContentEvicted(size); })
+                    physicalSize => { QuotaKeeper.OnContentEvicted(physicalSize); })
                 .TraceIfFailure(context);
 
 
@@ -306,9 +314,9 @@ namespace BuildXL.Cache.ContentStore.Stores
                     var hashInfoPairs = new ContentDirectorySnapshot<ContentFileInfo>();
                     foreach (var grouping in contentHashes.GroupByHash())
                     {
-                        var contentFileInfo = new ContentFileInfo(Clock, grouping.First().Payload.Length, grouping.Count());
+                        var contentFileInfo = new ContentFileInfo(Clock, grouping.First().Payload.Length, grouping.Count(), _clusterSize);
                         contentCount++;
-                        contentSize += contentFileInfo.TotalSize;
+                        contentSize += contentFileInfo.TotalPhysicalSize;
 
                         hashInfoPairs.Add(new PayloadFromDisk<ContentFileInfo>(grouping.Key, contentFileInfo));
                     }
@@ -631,7 +639,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 using (LockSet<ContentHash>.LockHandle contentHashHandle = await _lockSet.AcquireAsync(contentHash))
                 {
                     CheckPinned(contentHash, pinRequest);
-                    long contentSize = await GetContentSizeInternalAsync(context, contentHash, pinRequest?.PinContext);
+                    long contentSize = await GetLogicalContentSizeInternalAsync(context, contentHash, pinRequest?.PinContext);
                     if (contentSize >= 0)
                     {
                         // The user provided a hash for content that we already have. Try to satisfy the request without hashing the given file.
@@ -720,7 +728,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
                     if (placeLinkResult == CreateHardLinkResult.Success)
                     {
-                        var result = new PutResult(contentHash, fileInfo.FileSize, contentAlreadyExistsInCache: true);
+                        var result = new PutResult(contentHash, fileInfo.LogicalFileSize, contentAlreadyExistsInCache: true);
                         result.SetDiagnosticsForSuccess("FastPath");
                         return result;
                     }
@@ -1031,7 +1039,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             {
                 if (fileInfo == null || await RemoveEntryIfNotOnDiskAsync(context, contentHash))
                 {
-                    var txn = await ReserveAsync(contentSize);
+                    var txn = await ReserveAsync(physicalSize: ContentFileInfo.GetPhysicalSize(contentSize, _clusterSize));
                     FileSystem.CreateDirectory(primaryPath.GetParent());
 
                     if (!await onContentNotInCache(primaryPath))
@@ -1043,7 +1051,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                     txn.Commit();
                     PinContentIfContext(contentHash, pinContext);
                     addedContentSize = contentSize;
-                    return new ContentFileInfo(Clock, contentSize);
+                    return new ContentFileInfo(Clock, contentSize, replicaCount: 1, _clusterSize);
                 }
 
                 contentExistsInCache = await onContentAlreadyInCache(contentHash, primaryPath, fileInfo);
@@ -1056,7 +1064,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
                 PinContentIfContext(contentHash, pinContext);
 
-                addedContentSize = fileInfo.FileSize;
+                addedContentSize = fileInfo.LogicalFileSize;
                 return fileInfo;
             });
 
@@ -1103,7 +1111,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 using (LockSet<ContentHash>.LockHandle contentHashHandle = await _lockSet.AcquireAsync(contentHash))
                 {
                     CheckPinned(contentHash, pinRequest);
-                    long contentSize = await GetContentSizeInternalAsync(context, contentHash, pinRequest?.PinContext);
+                    long contentSize = await GetLogicalContentSizeInternalAsync(context, contentHash, pinRequest?.PinContext);
                     if (contentSize >= 0)
                     {
                         // The user provided a hash for content that we already have. Try to satisfy the request without hashing the given stream.
@@ -1704,7 +1712,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         {
             if (ContentDirectory.TryGetFileInfo(contentHash, out var fileInfo))
             {
-                size = fileInfo.TotalSize;
+                size = fileInfo.TotalPhysicalSize;
                 return true;
             }
 
@@ -1713,9 +1721,14 @@ namespace BuildXL.Cache.ContentStore.Stores
         }
 
         /// <summary>
+        ///     Called by EvictCoreAsync when content is evicted from the cache.
+        /// </summary>
+        public delegate void OnEvictedCallback(long physicalSize);
+
+        /// <summary>
         ///     Remove specified content.
         /// </summary>
-        public Task<EvictResult> EvictAsync(Context context, ContentHashWithLastAccessTimeAndReplicaCount contentHashInfo, bool onlyUnlinked, Action<long>? evicted)
+        public Task<EvictResult> EvictAsync(Context context, ContentHashWithLastAccessTimeAndReplicaCount contentHashInfo, bool onlyUnlinked, OnEvictedCallback? evicted)
         {
             // This operation respects pinned content and won't evict it if it's pinned.
             return EvictCoreAsync(context, contentHashInfo, force: false, onlyUnlinked, evicted);
@@ -1761,7 +1774,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 traceErrorsOnly: true).IgnoreFailure();
         }
 
-        private async Task<EvictResult> EvictCoreAsync(Context context, ContentHashWithLastAccessTimeAndReplicaCount contentHashInfo, bool force, bool onlyUnlinked, Action<long>? evicted, bool acquireLock = false)
+        private async Task<EvictResult> EvictCoreAsync(Context context, ContentHashWithLastAccessTimeAndReplicaCount contentHashInfo, bool force, bool onlyUnlinked, OnEvictedCallback? evictedCallback, bool acquireLock = false)
         {
             ContentHash contentHash = contentHashInfo.ContentHash;
 
@@ -1780,7 +1793,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 if (contentHashHandle == null)
                 {
                     _tracer.Debug(context, $"Skipping check of pinned size for {contentHash.ToShortString()} because another thread has a lock on it.");
-                    return new EvictResult(contentHashInfo, evictedSize: 0, evictedFiles: 0, pinnedSize: 0, successfullyEvictedHash: false);
+                    return new EvictResult(contentHashInfo, evictedLogicalSize: 0, evictedPhysicalSize: 0, evictedFiles: 0, pinnedSize: 0, successfullyEvictedHash: false);
                 }
 
                 // Only checked PinMap if force is false, otherwise even pinned content should be evicted.
@@ -1792,7 +1805,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                         pinnedSize = size;
                     }
 
-                    return new EvictResult(contentHashInfo, evictedSize: 0, evictedFiles: 0, pinnedSize: pinnedSize, successfullyEvictedHash: false);
+                    return new EvictResult(contentHashInfo, evictedLogicalSize: 0, evictedPhysicalSize: 0, evictedFiles: 0, pinnedSize: pinnedSize, successfullyEvictedHash: false);
                 }
 
                 // Intentionally tracking only (potentially) successful eviction.
@@ -1801,7 +1814,8 @@ namespace BuildXL.Cache.ContentStore.Stores
                     contentHash,
                     async () =>
                     {
-                        long evictedSize = 0;
+                        long evictedLogicalSize = 0;
+                        long evictedPhysicalSize = 0;
                         long evictedFiles = 0;
                         bool successfullyEvictedHash = false;
 
@@ -1819,7 +1833,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
                                 if (!force && PinMap.TryGetValue(contentHash, out pin) && pin.Count > 0)
                                 {
-                                    pinnedSize = fileInfo.TotalSize;
+                                    pinnedSize = fileInfo.TotalPhysicalSize;
 
                                     // Nothing was modified, so no need to save anything.
                                     return null;
@@ -1847,15 +1861,16 @@ namespace BuildXL.Cache.ContentStore.Stores
                                                     SafeForceDeleteFile(context, replicaPath);
                                                 }
 
-                                                evicted?.Invoke(fileInfo.FileSize);
+                                                evictedCallback?.Invoke(fileInfo.PhysicalFileSize);
                                                 _tracer.Diagnostic(
                                                     context,
-                                                    $"Evicted content hash=[{contentHash.ToShortString()}] replica=[{replicaIndex}] size=[{fileInfo.FileSize}]");
+                                                    $"Evicted content hash=[{contentHash.ToShortString()}] replica=[{replicaIndex}] logicalSize=[{fileInfo.LogicalFileSize}] physicalSize=[{fileInfo.PhysicalFileSize}]");
                                                 evictedFiles++;
-                                                evictedSize += fileInfo.FileSize;
-                                                evictions.Add(new ContentHashWithSize(contentHash, fileInfo.FileSize));
+                                                evictedLogicalSize += fileInfo.LogicalFileSize;
+                                                evictedPhysicalSize += fileInfo.PhysicalFileSize;
+                                                evictions.Add(new ContentHashWithSize(contentHash, fileInfo.LogicalFileSize));
 
-                                                _tracer.TrackMetric(context, "ContentHashEvictedBytes", fileInfo.FileSize);
+                                                _tracer.TrackMetric(context, "ContentHashEvictedBytes", fileInfo.LogicalFileSize);
                                             }
                                             catch (Exception exception)
                                             {
@@ -1908,7 +1923,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                                 return null;
                             });
 
-                        return new EvictResult(contentHashInfo, evictedSize, evictedFiles, pinnedSize, successfullyEvictedHash);
+                        return new EvictResult(contentHashInfo, evictedLogicalSize, evictedPhysicalSize, evictedFiles, pinnedSize, successfullyEvictedHash);
                     });
             }
         }
@@ -2037,7 +2052,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                             return null;
                         }
 
-                        contentSize = fileInfo.FileSize;
+                        contentSize = fileInfo.LogicalFileSize;
                         lastAccessTime = DateTime.FromFileTimeUtc(fileInfo.LastAccessedFileTimeUtc);
 
                         if (ShouldAttemptHardLink(destinationPath, accessMode, realizationMode))
@@ -2353,7 +2368,8 @@ namespace BuildXL.Cache.ContentStore.Stores
             if (replicaExistence == ReplicaExistence.DoesNotExist)
             {
                 // Create a new replica
-                var txn = await ReserveAsync(info.FileSize);
+                // QuotaKeeper works on the physical size and not on logical size
+                var txn = await ReserveAsync(info.PhysicalFileSize);
                 await RetryOnUnexpectedReplicaAsync(
                     context,
                     () => SafeCopyFileAsync(
@@ -2368,7 +2384,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
                 if (_announcer != null)
                 {
-                    await _announcer.ContentAdded(new ContentHashWithSize(contentHash, info.FileSize));
+                    await _announcer.ContentAdded(new ContentHashWithSize(contentHash, info.LogicalFileSize));
                 }
 
                 info.ReplicaCount++;
@@ -2411,7 +2427,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             return hardLinkResult;
         }
 
-        private async Task<ReserveTransaction> ReserveAsync(long size)
+        private async Task<ReserveTransaction> ReserveAsync(long physicalSize)
         {
             Contract.Requires(QuotaKeeper != null);
 
@@ -2420,11 +2436,11 @@ namespace BuildXL.Cache.ContentStore.Stores
                 // It is safe to pass ReserveTimeout, because if the timeout is not configured
                 // then ReserveTimeout equals to InfiniteTimeSpan and in that case
                 // WithTimeoutAsync will just ignore it.
-                return await QuotaKeeper.ReserveAsync(size).WithTimeoutAsync(_settings.ReserveTimeout);
+                return await QuotaKeeper.ReserveAsync(physicalSize).WithTimeoutAsync(_settings.ReserveTimeout);
             }
             catch (TimeoutException e)
             {
-                throw new CacheException($"Failed to reserve space for content size=[{size}] in '{_settings.ReserveTimeout}'", e);
+                throw new CacheException($"Failed to reserve space for content size=[{physicalSize}] in '{_settings.ReserveTimeout}'", e);
             }
         }
 
@@ -2715,7 +2731,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                             contentInfo = await GetContentSizeAndLastAccessTimeAsync(context, contentHash, pinRequest);
                         }
 
-                        results.Add(contentInfo != null ? new PinResult(contentInfo.FileSize, DateTime.FromFileTimeUtc(contentInfo.LastAccessedFileTimeUtc)) : PinResult.ContentNotFound);
+                        results.Add(contentInfo != null ? new PinResult(contentInfo.LogicalFileSize, DateTime.FromFileTimeUtc(contentInfo.LastAccessedFileTimeUtc)) : PinResult.ContentNotFound);
                     }
                 }
 
@@ -2826,7 +2842,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             using (await _lockSet.AcquireAsync(contentHash))
             {
                 var contentWasPinned = IsPinned(contentHash, pinRequest);
-                long contentSize = await GetContentSizeInternalAsync(context, contentHash, pinRequest?.PinContext);
+                long contentSize = await GetLogicalContentSizeInternalAsync(context, contentHash, pinRequest?.PinContext);
                 return new GetContentSizeResult(contentSize, contentWasPinned);
             }
         }
@@ -2839,10 +2855,10 @@ namespace BuildXL.Cache.ContentStore.Stores
             }
         }
 
-        private async Task<long> GetContentSizeInternalAsync(Context context, ContentHash contentHash, PinContext? pinContext = null)
+        private async Task<long> GetLogicalContentSizeInternalAsync(Context context, ContentHash contentHash, PinContext? pinContext = null)
         {
             var info = await GetContentSizeAndLastAccessTimeInternalAsync(context, contentHash, pinContext);
-            return info?.FileSize ?? -1;
+            return info?.LogicalFileSize ?? -1;
         }
 
         private async Task<ContentFileInfo?> GetContentSizeAndLastAccessTimeInternalAsync(Context context, ContentHash contentHash, PinContext? pinContext = null)
@@ -2959,7 +2975,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         {
             if (ContentDirectory.TryGetFileInfo(hash, out var entry))
             {
-                size = entry.FileSize;
+                size = entry.LogicalFileSize;
                 return true;
             }
 

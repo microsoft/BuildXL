@@ -22,7 +22,6 @@ namespace ContentStoreTest.Stores
 {
     public sealed class FileSystemContentStoreInternalSessionTests : FileSystemContentStoreInternalTestBase
     {
-        private static readonly ContentHash _emptyFileVsoHash = ComputeEmptyVsoHash();
         private readonly MemoryClock _clock;
 
         public FileSystemContentStoreInternalSessionTests()
@@ -91,7 +90,7 @@ namespace ContentStoreTest.Stores
                 // Add a content directory entry for which there is no blob on disk.
                 var nonexistentHash = ContentHash.Random();
                 await store.ContentDirectoryForTest.UpdateAsync(nonexistentHash, true, _clock, fileInfo =>
-                    Task.FromResult(new ContentFileInfo(_clock, 1, 100)));
+                    Task.FromResult(new ContentFileInfo(_clock, 1, 100, clusterSize: 1024L)));
                 (await store.ContentDirectoryForTest.GetCountAsync()).Should().Be(1);
 
                 // Ensure that the cache does not report containing the content and that the entry has been removed

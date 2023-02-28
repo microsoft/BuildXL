@@ -32,6 +32,11 @@ namespace BuildXL.Cache.ContentStore.Stores
         public bool UseEmptyContentShortcut { get; set; } = true;
 
         /// <summary>
+        /// Whether the physical size is used for quota purposes.
+        /// </summary>
+        public bool UsePhysicalSizeInQuotaKeeper { get; set; } = false;
+
+        /// <summary>
         /// A timeout for space reservation operation.
         /// </summary>
         public TimeSpan ReserveTimeout { get; set; } = Timeout.InfiniteTimeSpan;

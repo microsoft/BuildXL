@@ -50,7 +50,9 @@ namespace BuildXL.Cache.ContentStore.Stores
 
         private const byte BinaryFormatMagicFlag = 0xcd;
 
-        private const byte BinaryFormatVersion = 4;
+        private const byte BinaryFormatVersionConst = 4;
+        private readonly byte _binaryFormatVersion;
+
         private const int UnusedAccessCount = 0;
 
         // Size of header for v2 version of file
@@ -70,6 +72,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         private readonly AbsolutePath _filePath;
         private readonly AbsolutePath _backupFilePath;
         private readonly IContentDirectoryHost? _host;
+        private readonly long _clusterSize;
 
         private readonly Tracer _tracer;
 
@@ -102,17 +105,20 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <summary>
         ///     Initializes a new instance of the <see cref="MemoryContentDirectory" /> class.
         /// </summary>
-        public MemoryContentDirectory(IAbsFileSystem fileSystem, AbsolutePath directoryPath, IContentDirectoryHost? host = null)
+        public MemoryContentDirectory(IAbsFileSystem fileSystem, AbsolutePath directoryPath, long clusterSize, IContentDirectoryHost? host = null)
         {
             Contract.Requires(fileSystem != null);
             Contract.Requires(directoryPath != null);
 
             _tracer = new Tracer($"{nameof(MemoryContentDirectory)}({directoryPath})");
 
+            _binaryFormatVersion = clusterSize == 1L ? BinaryFormatVersionConst : Convert.ToByte(BinaryFormatVersionConst + 64);
+
             _fileSystem = fileSystem;
             _filePath = directoryPath / BinaryFileName;
             _backupFilePath = directoryPath / BinaryBackupFileName;
             _host = host;
+            _clusterSize = clusterSize;
 
             if (!_fileSystem.DirectoryExists(directoryPath))
             {
@@ -199,23 +205,23 @@ namespace BuildXL.Cache.ContentStore.Stores
             return Task.FromResult(replicaCount);
         }
 
-        private void GetSizeAndReplicaCount(out long contentSize, out long replicaCount)
+        private void GetSizeAndReplicaCount(out long physicalContentSize, out long replicaCount)
         {
-            if (_header.Version == BinaryFormatVersion && !ContentDirectoryInitialized)
+            if (_header.Version == _binaryFormatVersion && !ContentDirectoryInitialized)
             {
                 // Successfully loaded the header and we haven't yet initialized in-memory content directory
                 replicaCount = _header.ReplicaCount;
-                contentSize = _header.ContentSize;
+                physicalContentSize = _header.ContentSize;
                 return;
             }
 
-            contentSize = 0;
+            physicalContentSize = 0;
             replicaCount = 0;
 
             // NOTE: This blocks until content directory is initialized (this may entail reconstruction)
             foreach (var value in ContentDirectory.Values)
             {
-                contentSize += value.FileSize * value.ReplicaCount;
+                physicalContentSize += value.PhysicalFileSize * value.ReplicaCount;
                 replicaCount += value.ReplicaCount;
             }
         }
@@ -250,7 +256,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                     {
                         ContentFileInfo entry = entries[i].Value;
                         partitionContext.SerializeFull(entries[i].Key);
-                        partitionContext.Serialize(entry.FileSize);
+                        partitionContext.Serialize(entry.LogicalFileSize);
                         partitionContext.Serialize(entry.LastAccessedFileTimeUtc);
                         partitionContext.Serialize(UnusedAccessCount);
                         partitionContext.Serialize(entry.ReplicaCount);
@@ -264,7 +270,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                             var headerBuffer = new byte[22];
                             var headerContext = new BufferSerializeContext(headerBuffer);
                             headerContext.Serialize(BinaryFormatMagicFlag);
-                            headerContext.Serialize(BinaryFormatVersion);
+                            headerContext.Serialize(_binaryFormatVersion);
                             headerContext.Serialize(entries.Length);
                             headerContext.Serialize(contentSize);
                             headerContext.Serialize(replicaCount);
@@ -307,7 +313,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
                     directoryHeader.Version = headerContext.DeserializeByte();
                     directoryHeader.EntryCount = headerContext.DeserializeInt32();
-                    if (directoryHeader.Version == BinaryFormatVersion)
+                    if (directoryHeader.Version == _binaryFormatVersion)
                     {
                         header = new byte[BinaryHeaderExtraSizeV3];
                         stream.Stream.Read(header, 0, header.Length);
@@ -318,7 +324,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                     }
                     else
                     {
-                        throw new CacheException("{0}({3}) expected {1} but read binary format version {2}", Name, BinaryFormatVersion, directoryHeader.Version, path);
+                        throw new CacheException("{0}({3}) expected {1} but read binary format version {2}", Name, _binaryFormatVersion, directoryHeader.Version, path);
                     }
 
                     return directoryHeader;
@@ -344,7 +350,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                     // This will enforce the invariant that ContentDirectory property is not null.
                     await Task.Yield();
 
-                    var loadedContentDirectory = path != null && header.Version == BinaryFormatVersion
+                    var loadedContentDirectory = path != null && header.Version == _binaryFormatVersion
                         ? await DeserializeBodyAsync(context, header, path, isLoadingBackup)
                         : new ContentMap();
 
@@ -363,7 +369,8 @@ namespace BuildXL.Cache.ContentStore.Stores
                         await AddBulkAsync(
                             contentDirectory: contentDirectory,
                             backupContentDirectory: backupContentDirectory,
-                            hashInfoPairs: _host.Reconstruct(context));
+                            hashInfoPairs: _host.Reconstruct(context),
+                            clusterSize: _clusterSize);
                     }
                     else
                     {
@@ -441,7 +448,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                             var accessCount = serializeContext.DeserializeInt32();
                             var replicaCount = serializeContext.DeserializeInt32();
 
-                            var contentFileInfo = new ContentFileInfo(fileSize, lastAccessedFileTimeUtc, replicaCount);
+                            var contentFileInfo = new ContentFileInfo(fileSize, lastAccessedFileTimeUtc, replicaCount, _clusterSize);
                             Interlocked.Add(ref totalSize, fileSize * replicaCount);
                             Interlocked.Add(ref totalUniqueSize, fileSize);
                             Interlocked.Add(ref totalReplicaCount, replicaCount);
@@ -520,7 +527,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         public Task<IReadOnlyList<ContentInfo>> EnumerateContentInfoAsync()
         {
             var snapshot = ContentDirectory.ToArray();
-            return Task.FromResult<IReadOnlyList<ContentInfo>>(snapshot.Select(x => new ContentInfo(x.Key, x.Value.FileSize, DateTime.FromFileTimeUtc(x.Value.LastAccessedFileTimeUtc))).ToList());
+            return Task.FromResult<IReadOnlyList<ContentInfo>>(snapshot.Select(x => new ContentInfo(x.Key, x.Value.LogicalFileSize, DateTime.FromFileTimeUtc(x.Value.LastAccessedFileTimeUtc))).ToList());
         }
 
         /// <inheritdoc />
@@ -556,7 +563,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             ContentFileInfo? cloneInfo = null;
             if (existingInfo != null)
             {
-                cloneInfo = new ContentFileInfo(existingInfo.FileSize, existingInfo.LastAccessedFileTimeUtc, existingInfo.ReplicaCount);
+                cloneInfo = new ContentFileInfo(existingInfo.LogicalFileSize, existingInfo.LastAccessedFileTimeUtc, existingInfo.ReplicaCount, _clusterSize);
                 if (touch)
                 {
                     existingInfo.UpdateLastAccessed(clock);
@@ -588,7 +595,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             return ContentDirectory.TryGetValue(contentHash, out fileInfo);
         }
 
-        private static Task AddBulkAsync(ContentMap contentDirectory, ContentMap backupContentDirectory, ContentDirectorySnapshot<ContentFileInfo> hashInfoPairs)
+        private static Task AddBulkAsync(ContentMap contentDirectory, ContentMap backupContentDirectory, ContentDirectorySnapshot<ContentFileInfo> hashInfoPairs, long clusterSize)
         {
             return hashInfoPairs.ParallelAddToConcurrentDictionaryAsync(
                 contentDirectory, hashInfoPair => hashInfoPair.Hash, hashInfoPair =>
@@ -599,9 +606,10 @@ namespace BuildXL.Cache.ContentStore.Stores
                         // Recover the last access time from the backup. This has the affect that
                         // content mentioned in the backup will be older than newly discovered content
                         return new ContentFileInfo(
-                            info.FileSize,
+                            info.LogicalFileSize,
                             backupInfo.LastAccessedFileTimeUtc,
-                            info.ReplicaCount);
+                            info.ReplicaCount,
+                            clusterSize);
                     }
 
                     return info;
@@ -645,7 +653,8 @@ namespace BuildXL.Cache.ContentStore.Stores
             Context context,
             IAbsFileSystem fileSystem,
             AbsolutePath directoryPath,
-            Func<KeyValuePair<ContentHash, ContentFileInfo>, KeyValuePair<ContentHash, ContentFileInfo>> transformer)
+            Func<KeyValuePair<ContentHash, ContentFileInfo>, KeyValuePair<ContentHash, ContentFileInfo>> transformer,
+            long clusterSize)
         {
             Contract.Requires(fileSystem != null);
             Contract.Requires(directoryPath != null);
@@ -653,7 +662,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
             var entries = new Dictionary<ContentHash, ContentFileInfo>();
 
-            using (var contentDirectory = new MemoryContentDirectory(fileSystem, directoryPath))
+            using (var contentDirectory = new MemoryContentDirectory(fileSystem, directoryPath, clusterSize))
             {
                 try
                 {

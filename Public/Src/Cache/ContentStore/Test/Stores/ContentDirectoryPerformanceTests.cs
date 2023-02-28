@@ -28,6 +28,8 @@ namespace ContentStoreTest.Performance.Stores
         private readonly IClock _clock = new MemoryClock();
         private readonly PerformanceResultsFixture _resultsFixture;
 
+        protected readonly long ClusterSizeForTests = 1024L;
+
         protected ContentDirectoryPerformanceTests(ILogger logger, PerformanceResultsFixture resultsFixture)
             : base(() => new PassThroughFileSystem(logger), logger)
         {
@@ -39,16 +41,16 @@ namespace ContentStoreTest.Performance.Stores
         [Fact]
         public async Task Startup()
         {
-            const int count = 5;
+            const int Count = 5;
             var context = new Context(Logger);
-            var times = new List<TimeSpan>(count);
+            var times = new List<TimeSpan>(Count);
 
             using (var testDirectory = new DisposableDirectory(FileSystem))
             {
                 // Establish an existing serialized file.
                 await Run(context, testDirectory.Path, PopulateRandom);
 
-                for (var i = 0; i < count; i++)
+                for (var i = 0; i < Count; i++)
                 {
                     using (var directory = Create(testDirectory.Path))
                     {
@@ -70,24 +72,24 @@ namespace ContentStoreTest.Performance.Stores
             }
 
             double totalTime = times.Sum(x => x.TotalMilliseconds);
-            double averageTime = totalTime / count;
+            double averageTime = totalTime / Count;
             var name = GetType().Name + "." + nameof(Startup);
-            _resultsFixture.AddResults(Output, name, (long)averageTime, "milliseconds", count);
+            _resultsFixture.AddResults(Output, name, (long)averageTime, "milliseconds", Count);
         }
 
         [Fact]
         public async Task Shutdown()
         {
-            const int count = 5;
+            const int Count = 5;
             var context = new Context(Logger);
-            var times = new List<TimeSpan>(count);
+            var times = new List<TimeSpan>(Count);
 
             using (var testDirectory = new DisposableDirectory(FileSystem))
             {
                 // Establish an existing serialized file.
                 await Run(context, testDirectory.Path, PopulateRandom);
 
-                for (var i = 0; i < count; i++)
+                for (var i = 0; i < Count; i++)
                 {
                     using (var directory = Create(testDirectory.Path))
                     {
@@ -109,9 +111,9 @@ namespace ContentStoreTest.Performance.Stores
             }
 
             double totalTime = times.Sum(x => x.TotalMilliseconds);
-            double averageTime = totalTime / count;
+            double averageTime = totalTime / Count;
             var name = GetType().Name + "." + nameof(Shutdown);
-            _resultsFixture.AddResults(Output, name, (long)averageTime, "milliseconds", count);
+            _resultsFixture.AddResults(Output, name, (long)averageTime, "milliseconds", Count);
         }
 
         private async Task Run(Context context, AbsolutePath directoryPath, Func<IContentDirectory, Task> funcAsync)
@@ -143,7 +145,7 @@ namespace ContentStoreTest.Performance.Stores
                 var contentHash = ContentHash.Random();
 
                 await directory.UpdateAsync(contentHash, false, _clock, fileInfo =>
-                    Task.FromResult(new ContentFileInfo(_clock, 0, 7)));
+                    Task.FromResult(new ContentFileInfo(_clock, 0, 7, ClusterSizeForTests)));
             }
         }
     }
@@ -158,7 +160,7 @@ namespace ContentStoreTest.Performance.Stores
 
         protected override IContentDirectory Create(AbsolutePath directoryPath)
         {
-            return new MemoryContentDirectory(FileSystem, directoryPath);
+            return new MemoryContentDirectory(FileSystem, directoryPath, ClusterSizeForTests);
         }
     }
 }

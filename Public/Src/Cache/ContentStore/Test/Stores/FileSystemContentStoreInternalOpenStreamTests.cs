@@ -69,7 +69,7 @@ namespace ContentStoreTest.Stores
                 // Add a content directory entry for which there is no blob on disk.
                 var nonexistentHash = ContentHash.Random();
                 await store.ContentDirectoryForTest.UpdateAsync(nonexistentHash, true, _clock, fileInfo =>
-                    Task.FromResult(new ContentFileInfo(_clock, 1, 100)));
+                    Task.FromResult(new ContentFileInfo(_clock, 1, 100, clusterSize: 1024L)));
                 (await store.ContentDirectoryForTest.GetCountAsync()).Should().Be(1);
 
                 // Ensure that GetStream treats the missing blob as a miss despite the bad content directory entry.
@@ -92,8 +92,8 @@ namespace ContentStoreTest.Stores
                 using (var pinContext = store.CreatePinContext())
                 {
                     // Pin some new content.
-                    const int size = MaxSizeHard / 3;
-                    var r = await store.PutRandomAsync(context, size, ContentHashType, new PinRequest(pinContext));
+                    const int Size = MaxSizeHard / 3;
+                    var r = await store.PutRandomAsync(context, Size, ContentHashType, new PinRequest(pinContext));
                     contentHash = r.ContentHash;
                     store.PinMapForTest.ContainsKey(contentHash).Should().BeTrue();
                     store.PinMapForTest[contentHash].Count.Should().Be(1);
@@ -128,8 +128,8 @@ namespace ContentStoreTest.Stores
                 using (var pinContext = store.CreatePinContext())
                 {
                     // Pin some new content.
-                    const int size = MaxSizeHard / 3;
-                    var r = await store.PutRandomAsync(context, size, ContentHashType, new PinRequest(pinContext));
+                    const int Size = MaxSizeHard / 3;
+                    var r = await store.PutRandomAsync(context, Size, ContentHashType, new PinRequest(pinContext));
                     contentHash = r.ContentHash;
                     store.PinMapForTest.ContainsKey(contentHash).Should().BeTrue();
                     store.PinMapForTest[contentHash].Count.Should().Be(1);

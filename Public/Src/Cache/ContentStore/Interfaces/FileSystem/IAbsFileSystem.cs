@@ -131,6 +131,13 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         long GetFileSize(AbsolutePath path);
 
         /// <summary>
+        ///     Gets the size of each cluster in bytes.
+        /// </summary>
+        /// <param name="path">Path to the disk.</param>
+        /// <returns>Size of a cluster in bytes.</returns>
+        long GetClusterSize(AbsolutePath path);
+
+        /// <summary>
         ///     Gets the last access time of the file.
         /// </summary>
         /// <param name="path">Path to the file.</param>

@@ -14,7 +14,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <summary>
         ///     Gets its size in bytes.
         /// </summary>
-        public long FileSize { get; }
+        public long LogicalFileSize { get; }
 
         /// <summary>
         ///     Gets last time it was accessed.
@@ -32,38 +32,46 @@ namespace BuildXL.Cache.ContentStore.Stores
         public int ReplicaCount { get; set; }
 
         /// <summary>
-        /// Returns a total size of the content on disk.
+        /// Returns physical size of the content on disk.
         /// </summary>
-        public long TotalSize => FileSize * ReplicaCount;
+        public long PhysicalFileSize { get; }
+
+        /// <summary>
+        /// Returns a total physical size of the content on disk.
+        /// </summary>
+        public long TotalPhysicalSize => PhysicalFileSize * ReplicaCount; 
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="ContentFileInfo" /> class.
         /// </summary>
-        public ContentFileInfo(long fileSize, long lastAccessedFileTimeUtc, int replicaCount)
+        public ContentFileInfo(long logicalFileSize, long lastAccessedFileTimeUtc, int replicaCount, long clusterSize)
         {
-            FileSize = fileSize;
+            LogicalFileSize = logicalFileSize;
             LastAccessedFileTimeUtc = lastAccessedFileTimeUtc;
             ReplicaCount = replicaCount;
+            PhysicalFileSize = GetPhysicalSize(logicalFileSize, clusterSize);
         }
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="ContentFileInfo" /> class for newly inserted content
         /// </summary>
         /// <param name="clock">Clock to use for the current time.</param>
-        /// <param name="fileSize">Size of the content.</param>
+        /// <param name="logicalFileSize">Size of the content itself (different from the physical size).</param>
+        /// <param name="clusterSize">Size of each cluster.</param>
         /// <param name="replicaCount">Number of replicas.</param>
-        public ContentFileInfo(IClock clock, long fileSize, int replicaCount = 1)
+        public ContentFileInfo(IClock clock, long logicalFileSize, int replicaCount, long clusterSize)
         {
-            FileSize = fileSize;
+            LogicalFileSize = logicalFileSize;
             UpdateLastAccessed(clock);
             ReplicaCount = replicaCount;
+            PhysicalFileSize = GetPhysicalSize(logicalFileSize, clusterSize);
         }
 
         /// <inheritdoc />
         public bool Equals(ContentFileInfo? other)
         {
             return other != null &&
-                FileSize == other.FileSize &&
+                LogicalFileSize == other.LogicalFileSize &&
                 ReplicaCount == other.ReplicaCount &&
                 LastAccessedFileTimeUtc == other.LastAccessedFileTimeUtc;
         }
@@ -95,6 +103,14 @@ namespace BuildXL.Cache.ContentStore.Stores
                     LastAccessedFileTimeUtc = updatedFileTimeUtc;
                 }
             }
+        }
+
+        /// <summary>
+        ///     Returns the physical size based on <param ref="logicalFileSize"/> and <param ref="clusterSize"/>
+        /// </summary>
+        public static long GetPhysicalSize(long logicalFileSize, long clusterSize)
+        {
+            return (logicalFileSize % clusterSize) == 0 ? logicalFileSize : (logicalFileSize / clusterSize + 1) * clusterSize;
         }
     }
 }

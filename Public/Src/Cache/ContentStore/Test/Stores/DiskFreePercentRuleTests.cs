@@ -202,6 +202,11 @@ namespace ContentStoreTest.Stores
                 throw new NotImplementedException();
             }
 
+            public long GetClusterSize(AbsolutePath path)
+            {
+                throw new NotImplementedException();
+            }
+
             public int GetHardLinkCount(AbsolutePath path)
             {
                 throw new NotImplementedException();

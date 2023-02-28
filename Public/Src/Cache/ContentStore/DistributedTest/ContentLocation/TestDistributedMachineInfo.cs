@@ -25,6 +25,8 @@ namespace ContentStoreTest.Distributed
         public ILocalContentStore LocalContentStore => this;
         public MachineId LocalMachineId { get; }
 
+        protected readonly long ClusterSizeForTests = 1024L;
+
         /// <nodoc />
         public override bool AllowMultipleStartupAndShutdowns => true;
 
@@ -36,7 +38,7 @@ namespace ContentStoreTest.Distributed
         public TestDistributedMachineInfo(int machineId, string localContentDirectoryPath, IAbsFileSystem fileSystem, AbsolutePath machineInfoRoot)
         {
             LocalMachineId = new MachineId(machineId);
-            Directory = new MemoryContentDirectory(fileSystem, machineInfoRoot);
+            Directory = new MemoryContentDirectory(fileSystem, machineInfoRoot, ClusterSizeForTests);
             _fileSystem = fileSystem;
             _localContentDirectoryPath = new AbsolutePath(localContentDirectoryPath);
         }
@@ -67,7 +69,7 @@ namespace ContentStoreTest.Distributed
         {
             if (Directory.TryGetFileInfo(hash, out var fileInfo))
             {
-                info = new ContentInfo(hash, fileInfo.FileSize, fileInfo.LastAccessedTimeUtc);
+                info = new ContentInfo(hash, fileInfo.LogicalFileSize, fileInfo.LastAccessedTimeUtc);
                 return true;
             }
             else

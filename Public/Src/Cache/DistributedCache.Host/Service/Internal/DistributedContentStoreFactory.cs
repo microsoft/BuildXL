@@ -436,6 +436,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                 SelfCheckSettings = CreateSelfCheckSettings(settings),
                 OverrideUnixFileAccessMode = settings.OverrideUnixFileAccessMode,
                 UseRedundantPutFileShortcut = settings.UseRedundantPutFileShortcut,
+                UsePhysicalSizeInQuotaKeeper = settings.UsePhysicalSizeInQuotaKeeper,
                 TraceFileSystemContentStoreDiagnosticMessages = settings.TraceFileSystemContentStoreDiagnosticMessages,
 
                 SkipTouchAndLockAcquisitionWhenPinningFromHibernation = settings.UseFastHibernationPin,

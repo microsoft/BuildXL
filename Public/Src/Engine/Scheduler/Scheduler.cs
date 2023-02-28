@@ -2509,7 +2509,8 @@ namespace BuildXL.Scheduler
                         PipsFailed = m_pipTypesToLogCountersSnapshot[PipState.Failed],
                         PipsSkippedDueToFailedDependencies = m_pipTypesToLogCountersSnapshot.SkippedDueToFailedDependenciesCount,
                         PipsSuccessfullyExecuted = m_pipTypesToLogCountersSnapshot.DoneCount,
-                        PipsExecuting = m_pipTypesToLogCountersSnapshot.RunningCount,
+                        // This gives the number of pips that were in ExecuteProcess state and does not include pips from other steps like ChooseWorker, MaterializeInputs. 
+                        PipsExecuting = m_executionStepTracker.CurrentSnapshot[PipExecutionStep.ExecuteProcess],
                         PipsReadyToRun = pipsReady,
                         // Process pips executed only counts pips that went through cache lookup (i.e. service pips are not included)
                         ProcessPipsExecuted = m_numProcessPipsSatisfiedFromCache + m_numProcessPipsUnsatisfiedFromCache,

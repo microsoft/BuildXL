@@ -1,14 +1,33 @@
-By default, BuildXL does not log the reasons why it decided to run a pip instead of bringing it from cache. While some cache misses are expected or easily explained, e.g. changes to the code base, some other cache misses might tricky to classify. To help customers understand why they experience cache misses in their builds, BuildXL ships with tooling for doing cache miss analysis. Such analysis can potentially identify problems in a build that cause extra cache misses. Customers can elect to do the analysis at runtime, which will add some overhead to the overall build time, or after a build has finished.
+## Background
+A simplified explanation of BuildXL's cache lookup algorithm is:
+1. Collect inputs of a process pips. This can be file content, whether files exist, directory enumeration listings, process command lines, environment variables, the identity of the process itself (e.g. the hash of the executable), and other BuildXL settings that influence how a process is run (e.g. which file accesses are untracked).
+1. Create a "fingerprint" which is a hash of all of those inputs and query the cache to see if it has a record from a previous invocation.
+
+When a build has a cache miss, the difference in the fingerprint isn't particularly helpful since that is just a content hash. The useful thing is to compare the data used to create the fingerprint. Unfortunately this poses some challenges:
+1. The raw data that goes into fingerprints can grow to be very large, even excluding file content.
+1. One must know what input data to compare against. Diffing fingerprint input data for a specific pip that was a cache miss across all entries in the cache is not feasible. Even filtered down to a stable pip identifier, every pip across all invocations from that pip across past build sessions does not give a cohesive answer. It would be best to compare all pips against a specific past build that is expected to be a good baseline.
+1. Not every build executes every pip. Comparing against the last build might not yield any data if a pip were filtered out in the immediately prior build.
+
+### Fingerprint Store
+Due to these reasons, BuildXL has a separate database for cache miss analysis data called the *FingerprintStore*. This is a store which holds one complete build's worth of fingerprint input data. Data is carried forward across builds and overwritten on a pip by pip basis. This ensures that if a pip is filtered out from the current build, subsequent builds can still get cache miss analysis data for future misses of that pip.
+
+Cache miss analysis is not currently enabled by default. It can be enabled by the `/cachemiss` flag on the command line.
 
 ## Runtime Cache Miss Analysis
 Doing cache miss analysis at runtime is more convenient than doing it postmortem - there are no logs to download or tools to run - one just needs to check the `BuildXL.CacheMiss.log` file (note: the file might have a different name if `/logPrefix` argument was used to modify the default prefix). Runtime cache miss analysis can be enabled with the `/cachemiss` command line flag. This will perform cache miss analysis comparing processes that are misses in the current build session with the last time they ran on the same machine.
 
-Enabling cache miss analysis on distributed builds requires or on build sessions where the machine performing the build may not have been the machine that previously added the pip into the cache requires additional configuration.
+### Selecting a Baseline and utilizing a remote cache
+The FingerprintStore is separate from the cache actually delivering cache hits. So comparing against the wrong FingerprintStore baseline could yield incorrect results.
 
-Due to possibly event ingestion throttling and event message retention, the telemetry backend could drop events. For the cache miss analysis, this means that some of the cache miss results could be missing from the telemetry. Currently, the loss rate of per pip result is around 0.1%, but the number may vary. You may want to use the following Kusto query to check for the completeness of cache miss analysis results in the telemetry for a particular build that you are interested in. [CheckMissingEventInCachemissanalysis.csl](../Shared/Scripts/kusto/CheckMissingEventInCachemissanalysis.csl) for single pip reporting and [CheckMissingEventInCachemissanalysisbatchresults.csl](../Shared/Scripts/kusto/CheckMissingEventInCachemissanalysisbatchresults.csl) for batch reporting.
+The FingerprintStore database itself is stored in the content cache for use in future builds. This is useful when the build is configured to use a remote cache. The `/cachemiss` option can take a key to control which FingerprintStore database to use. The newest matching store will be used. For example a rolling build pipeline may want to use `/cachemiss:pipelineName` so it performs analysis on the last completed invocation of the pipeline. When the build is complete, it will add the FingerprintStore to the cache utilizing the same key (if the cache is configured to be writeable). When no key is specified, BuildXL will only ever utilize the local FingerprintStore even if BuildXL is configured to use a remote cache.
+
+In more complex scenarios, multiple keys can be passed which will find a baseline in precedence order. For example, consider a rolling build that publishes to the cache and developer builds that pull from the same cache. When a developer pulls their repo, they want the cache miss baseline to be the newest rolling build that is closest to their commit. Both builds could use the 3 last git commit hashes from their view of the repo as their identifier: `/cachemiss:[commit3:commit2:commit1]`. The developer machine build might pull commit3 before a rolling build has built it. If that is the case, it can find the FingerprintStore from commit2 and use that as its baseline. If none are found in the remote cache it will fall back to its local fingerprint store. The first key in the series is what is used to store the FingerprintStore in the cache.
+
+### Telemetry (Microsoft internal)
+When available, cache miss analysis data is pumped to telemetry. See the Telemetry section in the internal documentation at https://aka.ms/BuildXL
 
 ## Postmortem Cache Miss Analysis
-Currently there are two [analyzers](./Execution-Analyzer.md) that can generate a report describing the reasons for cache misses between two builds. The main difference between the analyzers is the fingerprints they compare --- the legacy analyzer compares cache lookup time fingerprints while the new analyzer compares execution time fingerprints. Because of this, in some scenarios, the analyzers might report different hashes for the same pair of builds; this does not affect the classification of cache misses.
+Cache miss analysis can be performed after a build finishes. This gives more flexibility on exactly what to compare.
 
 ### Cache Miss Analyzer
 A version of cache miss analysis that can handle incremental scheduling and graph filtering. The analysis relies on a persistent database that stores pip fingerprint data build-over-build. The analyzer uses snapshots of the database that are stored in the BuildXL logs folder. 
@@ -18,12 +37,13 @@ To use this analyzer, set the mode to **/m:CacheMiss** and the **/xl:** paramete
 
 The `analysis.txt` file in the output directory shows the first pip in each dependency chain that was a cache miss as well as the reasons for the miss. Full fingerprint computation inputs for each analyzed pip are kept in the "old" and "new" subdirectories; there will be a file for each pip's `SemiStableHash`.
 
-**Note:** This analyzer will only work with logs from BuildXL builds with **/SaveFingerprintStoreToLogs+**. **fingerprintStoreAnalysisMode** is **on** by default in Cloudbuild, but "off" for other builds.
+**Note:** This analyzer will only work with logs from BuildXL builds with a `/cachemiss` mode enabled or `/SaveFingerprintStoreToLogs+` which creates analysis data without performing the analysis at runtime
+
 
 ### Legacy Cache Miss Analyzer
-This method of analysis remains for builds without **/storeFingerprints** enabled. See Cache Miss Analyzer above for cache miss analysis with incremental scheduling and graph filtering. Use this analyzer to compare two distinct builds, to see which pips were cache misses in the second build, and why.
+This method of analysis remains for builds without `/cachemiss` or /storeFingerprints` enabled. See Cache Miss Analyzer above for cache miss analysis with incremental scheduling and graph filtering. Use this analyzer to compare two distinct builds, to see which pips were cache misses in the second build, and why.
 
-To use this analyzer, set the mode to **/m:CacheMissLegacy**, set the **/xl:** parameters to the full path to the execution logs of both builds (first build first, then the build you want to analyze against), set **/o:** to the full path of an output directory. For example:
+To use this analyzer, set the mode to `/m:CacheMissLegacy`, set the `/xl:` parameters to the full path to the execution logs of both builds (first build first, then the build you want to analyze against), set `/o:` to the full path of an output directory. For example:
 `bxlAnalayzer.exe /m:CacheMissLegacy /xl:F:\src\buildxl\Out\Logs\20171023-125957\BuildXL.xlg /xl:F:\src\buildxl\Out\Logs\20171023-130308\BuildXL.xlg /o:f:\src\buildxl\cachemiss`
 
 The "analysis.txt" file in the output directory shows the first pip in each dependency chain that was a cache miss as well as the reasons for the miss. Full fingerprint computation inputs for each analyzed pip are kept in the "old" and "new" subdirectories. There will be a file for each Pip's `SemiStableHash`.
@@ -32,7 +52,7 @@ The "analysis.txt" file in the output directory shows the first pip in each depe
 
 The new cache miss analyzer produces diff outputs in the form of Json. The new cache miss analyzer offers two different diff formats. The first format, called *CustomJsonDiff*, is a custom diff format resulting from our own diff algorithm that understands the semantics of weak and strong fingerprints. 
 
-The second diff format is *JsonDiffPatch*. This format shows the diff as a delta between two Json reprsentations. To output this format, BuildXL relies on an external diff algorithm. References about the algorithm and the diff syntaxk can be found in the following links: 
+The second diff format is *JsonDiffPatch*. This format shows the diff as a delta between two Json representations. To output this format, BuildXL relies on an external diff algorithm. References about the algorithm and the diff syntax can be found in the following links: 
 
 [General diff syntax reference](https://github.com/benjamine/jsondiffpatch/blob/master/docs/deltas.md)
 

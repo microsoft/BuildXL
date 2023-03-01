@@ -43,11 +43,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             IsRelative = relative;
         }
 
-        public static BlobPath CreateAbsolute(string path) => new(path, false);
+        public static BlobPath CreateAbsolute(string path) => new(path, relative: false);
 
         public override string ToString()
         {
             return Path;
+        }
+
+        public static implicit operator BlobPath(BlobClient blob)
+        {
+            return new BlobPath(blob.Name, relative: false);
         }
     }
 

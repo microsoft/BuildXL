@@ -1010,6 +1010,9 @@ namespace BuildXL.Cache.Host.Configuration
         public TimeSpanSetting? BlobCheckpointRegistryGetCheckpointStateTimeout { get; set; }
 
         [DataMember]
+        public TimeSpanSetting? BlobCheckpointRegistryLatestFileMaxAge { get; set; }
+
+        [DataMember]
         public RetryPolicyConfiguration BlobCheckpointRegistryRetryPolicy { get; set; }
 
         #endregion

@@ -8,7 +8,9 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using Azure;
 using Azure.Storage.Blobs;
+using Azure.Storage.Blobs.Models;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
@@ -56,9 +58,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         public TimeSpan CheckpointStateTimeout { get; set; } = TimeSpan.FromSeconds(30);
 
-        public TimeSpan PushCheckpointCandidateExpiry { get; } = TimeSpan.FromMinutes(10);
-
-        public int CheckpointContentFanOut { get; set; } = 5;
+        public TimeSpan? LatestFileMaxAge { get; set; } = null;
     }
 
     /// <summary>
@@ -91,6 +91,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private readonly Regex _blobNameRegex;
 
+        private readonly BlobPath _latestBlobPath;
+
         private readonly MachineLocation _primaryMachineLocation;
 
         private readonly SemaphoreSlim _gcGate = TaskUtilities.CreateMutex();
@@ -106,6 +108,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             _storage = new BlobFolderStorage(Tracer, configuration);
             _blobNameRegex = new Regex(@$"{Regex.Escape(_configuration.KeySpacePrefix)}_(?<timestampUtc>[0-9]+)\.json", RegexOptions.Compiled);
+            _latestBlobPath = new BlobPath($"{_configuration.KeySpacePrefix}.latest.json", relative: true);
 
             LinkLifetime(_storage);
         }
@@ -117,7 +120,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 Tracer,
                 async context =>
                 {
-                    var blobs = ListBlobsRecentFirstAsync(context, includeWellknownLatestBlob: true);
+                    var blobs = ListBlobsRecentFirstAsync(context);
 
                     await foreach (var blob in blobs)
                     {
@@ -161,18 +164,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             TriggerGarbageCollection(context);
 
-            var msg = checkpointState.ToString();
+            var blobPath = GenerateNewCheckpointBlobPath();
+            var msg = $"Path=[{blobPath}] LatestBlobPath=[{_latestBlobPath}] CheckpointState=[{checkpointState}]";
             return context.PerformOperationWithTimeoutAsync(
                 Tracer,
                 async context =>
                 {
-                    var blobName = GenerateBlobName();
+                    var writeTimestampResult = await _storage.WriteAsync(context, blobPath, checkpointState);
 
-                    var latestBlob = GetLatestBlob(context);
-
-                    var result = await _storage.WriteAsync(context, new BlobPath(latestBlob.Name, relative: true), checkpointState).ThrowIfFailureAsync();
-
-                    return result & await _storage.WriteAsync(context, new BlobPath(blobName, relative: true), checkpointState);
+                    var writeLatestResult = await _storage.WriteAsync(context, _latestBlobPath, checkpointState);
+                    return writeLatestResult & writeTimestampResult;
                 },
                 traceOperationStarted: false,
                 extraStartMessage: msg,
@@ -219,7 +220,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         retentionLimit++;
                     }
 
-                    var blobs = ListBlobsRecentFirstAsync(context, includeWellknownLatestBlob: true)
+                    var blobs = ListBlobsRecentFirstAsync(context)
                         .Skip(retentionLimit);
 
                     await foreach (var blob in blobs)
@@ -240,14 +241,37 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 timeout: _configuration.GarbageCollectionTimeout);
         }
 
-        private async IAsyncEnumerable<BlobPath> ListBlobsRecentFirstAsync(OperationContext context, bool includeWellknownLatestBlob = false)
+        private async IAsyncEnumerable<BlobPath> ListBlobsRecentFirstAsync(OperationContext context)
         {
-            if (includeWellknownLatestBlob)
+            var latestBlob = _storage.GetBlob(_latestBlobPath);
+            BlobProperties? properties = null;
+            try
             {
-                var latestBlob = GetLatestBlob(context);
-                if (await latestBlob.ExistsAsync())
+                properties = await latestBlob.GetPropertiesAsync(cancellationToken: context.Token);
+            }
+            catch (Exception exception)
+            {
+                Tracer.Error(context, exception, $"Failed to obtain properties from latest blob at path {_latestBlobPath}.");
+            }
+
+            if (properties is not null)
+            {
+                if (_configuration.LatestFileMaxAge is null)
                 {
-                    yield return new BlobPath(latestBlob.Name, relative: false);
+                    yield return _latestBlobPath;
+                }
+                else
+                {
+                    var now = _clock.UtcNow;
+                    var threshold = now - _configuration.LatestFileMaxAge;
+                    if (properties.CreatedOn >= threshold || properties.LastModified >= threshold)
+                    {
+                        yield return _latestBlobPath;
+                    }
+                    else
+                    {
+                        Tracer.Warning(context, $"Obtained latest blob from path {_latestBlobPath} successfully, but deemed too old to use. Falling back to listing. CreatedOn=[{properties?.CreatedOn.ToString() ?? "null"}] LastModified=[{properties?.LastModified.ToString() ?? "null"}]");
+                    }
                 }
             }
 
@@ -267,16 +291,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
         }
 
-        private BlobClient GetLatestBlob(OperationContext context)
-        {
-            return _storage.GetBlob(new BlobPath($"{_configuration.KeySpacePrefix}.latest.json", relative: true));
-        }
-
-        private string GenerateBlobName()
+        private BlobPath GenerateNewCheckpointBlobPath()
         {
             var now = _clock.UtcNow;
             var timestamp = now.ToFileTimeUtc();
-            return @$"{_configuration.KeySpacePrefix}_{timestamp}.json";
+            return new BlobPath(@$"{_configuration.KeySpacePrefix}_{timestamp}.json", relative: true);
         }
 
         private bool ParseBlobName(string blobName, out DateTime timestampUtc)

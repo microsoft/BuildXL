@@ -45,7 +45,7 @@ namespace BuildXL.LogGen.Generators
 
         private static string GetLocationParameter(LoggingSite site)
         {
-            var location = site.Payload.FirstOrDefault(p => p.Type.ToDisplayString(s_symbolDisplayFormat) == "BuildXL.Utilities.Instrumentation.Common.Location");
+            var location = site.Payload.FirstOrDefault(p => p.Type.ToDisplayString(s_symbolDisplayFormat) == "BuildXL.Utilities.Core.Location");
             return location?.Name ?? "null";
         }
     }

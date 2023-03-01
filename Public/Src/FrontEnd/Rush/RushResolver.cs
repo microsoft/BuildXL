@@ -9,9 +9,9 @@ using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Utilities.GenericProjectGraphResolver;
 using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Native.IO;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
-using BuildXL.Utilities.Instrumentation.Common;
 
 namespace BuildXL.FrontEnd.Rush
 {

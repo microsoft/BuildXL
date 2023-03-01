@@ -6,7 +6,7 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 
-namespace BuildXL.Utilities.Instrumentation.Common
+namespace BuildXL.Utilities.Core
 {
     /// <summary>
     /// A struct representing a location to log.
@@ -47,14 +47,14 @@ namespace BuildXL.Utilities.Instrumentation.Common
         public bool Equals([AllowNull]Location other) => string.Equals(File, other.File) && Line == other.Line && Position == other.Position;
 
         /// <inheritdoc />
-        public override bool Equals(object? obj)
+        public override bool Equals(object obj)
         {
             if (obj is null)
             {
                 return false;
             }
 
-            return obj is Location && Equals((Location) obj);
+            return obj is Location location && Equals(location);
         }
 
         /// <inheritdoc />

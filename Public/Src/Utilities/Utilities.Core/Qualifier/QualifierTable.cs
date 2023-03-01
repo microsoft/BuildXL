@@ -7,7 +7,6 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading.Tasks;
-using BuildXL.Utilities.Instrumentation.Common;
 
 namespace BuildXL.Utilities.Core.Qualifier
 {
@@ -265,7 +264,6 @@ namespace BuildXL.Utilities.Core.Qualifier
         /// </summary>
         public bool TryCreateQualifierForQualifierSpace(
             PathTable pathTable,
-            LoggingContext loggingContext,
             QualifierId qualifierId,
             QualifierSpaceId qualifierSpaceId,
             bool useDefaultsForCoercion,
@@ -273,7 +271,6 @@ namespace BuildXL.Utilities.Core.Qualifier
             out UnsupportedQualifierValue error)
         {
             Contract.RequiresNotNull(pathTable);
-            Contract.RequiresNotNull(loggingContext);
 #if DEBUG
             Contract.Requires(IsValidQualifierId(qualifierId));
             Contract.Requires(qualifierSpaceId.IsValid);
@@ -287,7 +284,6 @@ namespace BuildXL.Utilities.Core.Qualifier
             bool success = qualifierSpace.TryCreateQualifierForQualifierSpace(
                 StringTable,
                 pathTable,
-                loggingContext,
                 qualifier,
                 out resultingQualifier,
                 out error,

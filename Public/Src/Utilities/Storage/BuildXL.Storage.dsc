@@ -20,6 +20,7 @@ namespace Storage {
             importFrom("BuildXL.Cache.ContentStore").UtilitiesCore.dll,
             importFrom("BuildXL.Cache.ContentStore").Interfaces.dll,
             importFrom("BuildXL.Cache.MemoizationStore").Interfaces.dll,
+            importFrom("BuildXL.Utilities.Instrumentation").Common.dll,
 
             ...BuildXLSdk.systemMemoryDeployment,
         ],

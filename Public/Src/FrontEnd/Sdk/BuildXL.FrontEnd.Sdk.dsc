@@ -24,6 +24,7 @@ namespace Sdk {
             importFrom("BuildXL.Utilities").Script.Constants.dll,
             importFrom("BuildXL.Utilities").Storage.dll,
             importFrom("BuildXL.Utilities").Utilities.Core.dll,
+            importFrom("BuildXL.Utilities.Instrumentation").Common.dll,
 
             ...BuildXLSdk.tplPackages,
             ...BuildXLSdk.systemThreadingTasksDataflowPackageReference,

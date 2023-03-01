@@ -451,7 +451,6 @@ namespace BuildXL.FrontEnd.Script.Values
                     // But in order to do that, nested values should be evaluated with a default qualifier.
                     if (!kvp.Value.QualifierSpaceId.IsValid || context.FrontEndContext.QualifierTable.TryCreateQualifierForQualifierSpace(
                         context.PathTable,
-                        context.LoggingContext,
                         context.LastActiveModuleQualifier.QualifierId, // We are evaluating a top level entry, so the current qualifier comes from the root context
                         kvp.Value.QualifierSpaceId,
                         immutableContext.FrontEndHost.ShouldUseDefaultsOnCoercion(CurrentFileModule.Path),

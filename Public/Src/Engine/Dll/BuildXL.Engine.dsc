@@ -47,6 +47,7 @@ namespace Engine {
             importFrom("BuildXL.Utilities").Storage.dll,
             importFrom("BuildXL.Utilities").Script.Constants.dll,
             importFrom("BuildXL.Utilities").Utilities.Core.dll,
+            importFrom("BuildXL.Utilities.Instrumentation").Common.dll,
             importFrom("BuildXL.FrontEnd").Sdk.dll,
             ...importFrom("BuildXL.Cache.ContentStore").getGrpcPackages(true),
             ...importFrom("BuildXL.Cache.ContentStore").getGrpcAspNetCorePackages(),

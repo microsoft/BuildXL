@@ -16,6 +16,7 @@ namespace MemoizationStoreAdapter {
             importFrom("BuildXL.Utilities").Native.dll,
             importFrom("BuildXL.Utilities").Storage.dll,
             importFrom("BuildXL.Utilities").Utilities.Core.dll,
+            importFrom("BuildXL.Utilities.Instrumentation").Common.dll,
             importFrom("BuildXL.Utilities.Instrumentation").Tracing.dll,
             ...BuildXLSdk.bclAsyncPackages,
             importFrom("BuildXL.Cache.ContentStore").UtilitiesCore.dll,

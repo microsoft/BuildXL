@@ -258,7 +258,6 @@ namespace Test.BuildXL.FrontEnd.Sdk
             UnsupportedQualifierValue error;
             var result = table.TryCreateQualifierForQualifierSpace(
                 context.PathTable,
-                context.LoggingContext,
                 testQualifier,
                 testSpace,
                 useDefaultsForCoercion: useDefaultsOnCoercion,

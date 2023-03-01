@@ -5,7 +5,6 @@ using System;
 using BuildXL.FrontEnd.Script.Util;
 using BuildXL.FrontEnd.Script.Values;
 using BuildXL.Utilities.Core;
-using BuildXL.Utilities.Instrumentation.Common;
 using TypeScript.Net.Types;
 using LineInfo = TypeScript.Net.Utilities.LineInfo;
 

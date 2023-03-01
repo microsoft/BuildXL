@@ -4,7 +4,6 @@
 using System;
 using BuildXL.Native.IO;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Core;
 
 namespace BuildXL
 {

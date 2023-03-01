@@ -16,6 +16,7 @@ namespace Plugin {
             $.Ipc.Providers.dll,
             $.PluginGrpc.dll,
             Utilities.Core.dll,
+            importFrom("BuildXL.Utilities.Instrumentation").Common.dll,
         ],
         internalsVisibleTo: [
             "Test.BuildXL.Plugin",

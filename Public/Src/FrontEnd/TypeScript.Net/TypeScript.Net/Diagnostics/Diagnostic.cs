@@ -3,7 +3,7 @@
 
 using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
-using BuildXL.Utilities.Instrumentation.Common;
+using BuildXL.Utilities.Core;
 using JetBrains.Annotations;
 using TypeScript.Net.Types;
 using static BuildXL.Utilities.Core.FormattableStringEx;

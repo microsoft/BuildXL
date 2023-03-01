@@ -5,7 +5,7 @@ using System;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using BuildXL.Engine.Tracing;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 
 namespace BuildXL.Engine.Recovery

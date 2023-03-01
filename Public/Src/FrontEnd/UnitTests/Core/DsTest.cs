@@ -1149,7 +1149,6 @@ namespace Test.BuildXL.FrontEnd.Core
             if (
                 !frontEndHost.FrontEndContext.QualifierTable.TryCreateQualifierForQualifierSpace(
                     FrontEndContext.PathTable,
-                    FrontEndContext.LoggingContext,
                     qualifierId,
                     moduleInfo.QualifierSpaceId,
                     frontEndHost.ShouldUseDefaultsOnCoercion(specPath),

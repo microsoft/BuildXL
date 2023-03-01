@@ -17,6 +17,7 @@ namespace VstsAuthentication {
             importFrom("NuGet.Common").withQualifier({targetFramework: "netstandard2.0"}).pkg,
             importFrom("NuGet.Frameworks").withQualifier({targetFramework: "netstandard2.0"}).pkg,
             importFrom("NuGet.Packaging").withQualifier({targetFramework: "netstandard2.0"}).pkg,
+            importFrom("BuildXL.Utilities.Instrumentation").Common.dll,
             ...addIfLazy(BuildXLSdk.isFullFramework, () => [
                 NetFx.System.Net.Http.dll,
                 NetFx.Netstandard.dll,

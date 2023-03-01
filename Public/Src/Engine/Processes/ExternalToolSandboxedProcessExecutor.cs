@@ -38,7 +38,7 @@ namespace BuildXL.Processes
 
             if (!File.Exists(ExecutablePath))
             {
-                throw new BuildXLException($"Cannot find file '{ExecutablePath}' needed to externally execute process. Did you build all configurations?", rootCause: Utilities.ExceptionRootCause.MissingRuntimeDependency);
+                throw new BuildXLException($"Cannot find file '{ExecutablePath}' needed to externally execute process. Did you build all configurations?", rootCause: ExceptionRootCause.MissingRuntimeDependency);
             }
 
             string directory = Path.GetDirectoryName(executablePath);

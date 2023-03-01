@@ -63,7 +63,7 @@ namespace BuildXL.Utilities.Instrumentation.Common
         /// <summary>
         /// Hook for inspecting log messages on a logger
         /// </summary>
-        public void InspectMessage(int logEventId, EventLevel level, string message, Location? location = null)
+        public void InspectMessage(int logEventId, EventLevel level, string message, Core.Location? location = null)
         {
             var diagnostic = new Diagnostic(logEventId, level, message, location);
 

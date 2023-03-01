@@ -17,6 +17,7 @@ namespace Configuration {
             Interop.dll,
             Utilities.Core.dll,
             $.Collections.dll,
+            importFrom("BuildXL.Utilities.Instrumentation").Common.dll,
         ],
     });
 }

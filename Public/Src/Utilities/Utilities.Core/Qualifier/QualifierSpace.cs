@@ -8,7 +8,6 @@ using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Text;
 using BuildXL.Utilities.Collections;
-using BuildXL.Utilities.Instrumentation.Common;
 
 #pragma warning disable SA1649 // File name must match first type name
 
@@ -305,7 +304,6 @@ namespace BuildXL.Utilities.Core.Qualifier
         internal bool TryCreateQualifierForQualifierSpace(
             StringTable stringTable,
             PathTable pathTable,
-            LoggingContext loggingContext,
             Qualifier currentQualifier,
             out Qualifier qualifier,
             out UnsupportedQualifierValue error,
@@ -313,7 +311,6 @@ namespace BuildXL.Utilities.Core.Qualifier
         {
             Contract.RequiresNotNull(stringTable);
             Contract.RequiresNotNull(pathTable);
-            Contract.RequiresNotNull(loggingContext);
 
             StringId[] keys;
             StringId[] values;

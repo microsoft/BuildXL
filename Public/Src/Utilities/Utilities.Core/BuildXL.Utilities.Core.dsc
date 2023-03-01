@@ -17,7 +17,6 @@ namespace Utilities.Core {
             ),
             Collections.dll,
             Interop.dll,
-            importFrom("BuildXL.Utilities.Instrumentation").Common.dll,
 
             ...BuildXLSdk.tplPackages,
             ...BuildXLSdk.systemMemoryDeployment,

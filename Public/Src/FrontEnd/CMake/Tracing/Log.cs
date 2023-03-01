@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using BuildXL.Tracing;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 
 // Suppress missing XML comments on publicly visible types or members

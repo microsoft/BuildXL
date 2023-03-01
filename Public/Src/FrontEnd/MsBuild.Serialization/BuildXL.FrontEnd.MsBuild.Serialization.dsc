@@ -9,6 +9,7 @@ namespace MsBuild.Serialization {
         sources: globR(d`.`, "*.cs"),
         references: [
             importFrom("Newtonsoft.Json").pkg,
+            importFrom("BuildXL.Utilities").Utilities.Core.dll,
             SdkProjectGraph.dll
         ],
     });

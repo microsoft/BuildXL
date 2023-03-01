@@ -9,6 +9,7 @@ using LanguageServer;
 using Microsoft.VisualStudio.LanguageServer.Protocol;
 using TypeScript.Net.Types;
 using CancellationToken = System.Threading.CancellationToken;
+using Location = Microsoft.VisualStudio.LanguageServer.Protocol.Location;
 
 namespace BuildXL.Ide.LanguageServer.Providers
 {

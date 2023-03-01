@@ -232,7 +232,6 @@ namespace BuildXL.FrontEnd.Script.Values
 
             if (qualifierTable.TryCreateQualifierForQualifierSpace(
                 pathTable,
-                loggingContext,
                 QualifierId,
                 targetQualifierSpaceId,
                 useDefaultsForCoercion,

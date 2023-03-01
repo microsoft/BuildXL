@@ -2,7 +2,6 @@
 // Licensed under the MIT License.
 
 using System.Diagnostics.CodeAnalysis;
-using BuildXL.Utilities.Instrumentation.Common;
 
 namespace BuildXL.Utilities.Core.Qualifier
 {

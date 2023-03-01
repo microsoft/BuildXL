@@ -717,7 +717,6 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
                     ...(isDotNetCoreOrStandard ? [] : [
                         NetFx.System.Threading.Tasks.dll,
                     ]),
-                    importFrom("BuildXL.Utilities.Instrumentation").Common.dll,
                     ...(args.generateLogs || args.generateLogsInProc ? [
                         importFrom("BuildXL.Utilities.Instrumentation").Tracing.dll
                     ] : []),
@@ -779,6 +778,7 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
                 ...args.generateLogBinaryRefs,
                 ...Managed.Helpers.computeCompileClosure(framework, framework.standardReferences),
             ] : [
+                importFrom("BuildXL.Utilities").Utilities.Core.dll.compile,
                 importFrom("BuildXL.Utilities.Instrumentation").Tracing.dll.compile,
                 importFrom("BuildXL.Utilities.Instrumentation").Common.dll.compile,
                 ...Managed.Helpers.computeCompileClosure(framework, framework.standardReferences),

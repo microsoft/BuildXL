@@ -19,6 +19,7 @@ namespace ConsoleLogger {
             importFrom("BuildXL.Pips").dll,
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Utilities.Core.dll,
+            importFrom("BuildXL.Utilities.Instrumentation").Common.dll,
         ],
         internalsVisibleTo: [
             "Test.Bxl",

@@ -5,7 +5,7 @@ using System;
 using System.Diagnostics.ContractsLight;
 using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.Values;
-using BuildXL.Utilities.Instrumentation.Common;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.FrontEnd.Script.Core
 {

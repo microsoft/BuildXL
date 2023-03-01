@@ -5,6 +5,7 @@ using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.Tracing;
 using System.Globalization;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Utilities.Instrumentation.Common
 {

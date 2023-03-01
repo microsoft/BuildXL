@@ -3,6 +3,7 @@
 
 using System.Collections.Generic;
 using System.Linq;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.Utilities.Instrumentation.Common;

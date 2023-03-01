@@ -49,6 +49,7 @@ namespace LanguageService.Server {
             importFrom("BuildXL.Utilities").Script.Constants.dll,
             importFrom("BuildXL.Utilities").Storage.dll,
             importFrom("BuildXL.Utilities").Utilities.Core.dll,
+            importFrom("BuildXL.Utilities.Instrumentation").Common.dll,
             importFrom("Microsoft.VisualStudio.Threading").pkg,
             importFrom("Microsoft.VisualStudio.Validation").pkg,
             importFrom("Newtonsoft.Json").pkg,

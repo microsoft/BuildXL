@@ -2,7 +2,6 @@
 // Licensed under the MIT License.
 
 using BuildXL.Utilities.Core;
-using BuildXL.Utilities.Instrumentation.Common;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace BuildXL.Utilities.Configuration
@@ -79,7 +78,7 @@ namespace BuildXL.Utilities.Configuration
         }
 
         /// <summary>
-        /// Returns the resolver setting <see cref="BuildXL.Utilities.Instrumentation.Common.Location"/>
+        /// Returns the resolver setting <see cref="BuildXL.Utilities.Core.Location"/>
         /// </summary>
         public static Location Location(this IResolverSettings resolverSettings, PathTable pathTable)
         {

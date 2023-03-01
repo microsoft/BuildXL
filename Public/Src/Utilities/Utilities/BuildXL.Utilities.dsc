@@ -21,6 +21,8 @@ export const dll = BuildXLSdk.library({
         Interop.dll,
         Utilities.Core.dll,
 
+        importFrom("BuildXL.Utilities.Instrumentation").Common.dll,
+
         // Don't need to add the dependency for .net6+
         ...addIfLazy(qualifier.targetFramework === "netstandard2.0", () => [
             importFrom("Microsoft.Win32.Registry").pkg,

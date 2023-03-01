@@ -57,6 +57,7 @@ namespace LanguageService.Server {
             importFrom("BuildXL.Utilities").Configuration.dll,
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Utilities.Core.dll,
+            importFrom("BuildXL.Utilities.Instrumentation").Common.dll,
 
             importFrom("StreamJsonRpc").pkg,
             importFrom("Microsoft.VisualStudio.Validation").pkg,

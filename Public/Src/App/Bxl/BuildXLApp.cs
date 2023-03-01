@@ -51,7 +51,7 @@ using BuildXL.Utilities.CrashReporting;
 
 using static BuildXL.Utilities.Core.FormattableStringEx;
 using System.Runtime.InteropServices;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core.Tasks;
 
 namespace BuildXL
 {

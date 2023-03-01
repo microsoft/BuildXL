@@ -35,6 +35,7 @@ namespace Test {
 
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Collections.dll,
+            importFrom("BuildXL.Utilities").Utilities.Core.dll,
             ...BuildXLSdk.bclAsyncPackages,
             ...BuildXLSdk.fluentAssertionsWorkaround,
             ...BuildXLSdk.systemThreadingTasksDataflowPackageReference,

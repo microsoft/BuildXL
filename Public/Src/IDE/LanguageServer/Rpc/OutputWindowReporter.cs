@@ -2,7 +2,7 @@
 // Licensed under the MIT License.
 
 using System.Diagnostics.Tracing;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core.Tasks;
 
 namespace BuildXL.Ide.JsonRpc
 {

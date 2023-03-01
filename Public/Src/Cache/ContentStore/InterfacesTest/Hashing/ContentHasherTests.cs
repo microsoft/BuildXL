@@ -11,7 +11,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core.Tasks;
 using Xunit;
 
 namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing

@@ -12,7 +12,7 @@ using System.Threading.Tasks;
 using BuildXL.Ipc.Common;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Utilities.Core;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core.Tasks;
 using Grpc.Core;
 using Grpc.Net.Client;
 using Grpc.Net.Client.Configuration;

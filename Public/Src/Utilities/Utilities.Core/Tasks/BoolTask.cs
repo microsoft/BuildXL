@@ -3,7 +3,7 @@
 
 using System.Threading.Tasks;
 
-namespace BuildXL.Utilities.Tasks
+namespace BuildXL.Utilities.Core.Tasks
 {
     /// <summary>
     /// Provides completed tasks for 'true' and 'false'

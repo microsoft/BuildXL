@@ -7,7 +7,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.Utilities.Core;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core.Tasks;
 using BuildXL.Utilities.Tracing;
 using VSCode.DebugAdapter;
 using VSCode.DebugProtocol;

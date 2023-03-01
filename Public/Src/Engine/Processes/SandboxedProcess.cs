@@ -24,7 +24,7 @@ using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core.Tasks;
 using Microsoft.Win32.SafeHandles;
 using static BuildXL.Interop.Windows.Memory;
 using static BuildXL.Utilities.Core.OperatingSystemHelper;

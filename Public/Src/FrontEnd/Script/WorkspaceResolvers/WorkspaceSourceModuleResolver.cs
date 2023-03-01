@@ -24,7 +24,7 @@ using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.ParallelAlgorithms;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core.Tasks;
 using JetBrains.Annotations;
 using TypeScript.Net.Types;
 using static BuildXL.Utilities.Core.FormattableStringEx;

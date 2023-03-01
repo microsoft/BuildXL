@@ -32,7 +32,7 @@ using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Cache.MemoizationStore.InterfacesTest.Results;
 using BuildXL.Cache.MemoizationStore.Service;
 using BuildXL.Cache.MemoizationStore.Sessions;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core.Tasks;
 using ContentStoreTest.Distributed.Redis;
 using ContentStoreTest.Distributed.Sessions;
 using FluentAssertions;

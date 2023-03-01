@@ -21,7 +21,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using FluentAssertions;
 using BuildXL.Cache.ContentStore.Service;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core.Tasks;
 using System.Text.Json;
 using System.Runtime.Serialization;
 using BuildXL.Cache.ContentStore.Interfaces.Secrets;

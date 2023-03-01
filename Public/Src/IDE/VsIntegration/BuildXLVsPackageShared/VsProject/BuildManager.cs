@@ -10,7 +10,7 @@ using System.IO;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core.Tasks;
 using Microsoft.Win32.SafeHandles;
 
 #pragma warning disable SA1649 // File name must match first type name

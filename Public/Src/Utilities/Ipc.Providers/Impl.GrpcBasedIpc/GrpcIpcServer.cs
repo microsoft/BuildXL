@@ -11,7 +11,7 @@ using BuildXL.Ipc.Common;
 using BuildXL.Ipc.Grpc;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Utilities.Core;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core.Tasks;
 using Grpc.Core;
 using IpcResult = BuildXL.Ipc.Common.IpcResult;
 using static BuildXL.Ipc.GrpcBasedIpc.SerializationExtensions;

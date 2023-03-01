@@ -11,7 +11,7 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core.Tasks;
 
 namespace BuildXL.Utilities.ParallelAlgorithms
 {

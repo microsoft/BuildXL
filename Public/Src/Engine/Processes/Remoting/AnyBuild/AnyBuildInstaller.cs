@@ -14,7 +14,7 @@ using AnyBuild;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core.Tasks;
 
 #nullable enable
 

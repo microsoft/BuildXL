@@ -16,8 +16,8 @@ using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
-using BuildXL.Utilities.Tasks;
-using BuildXL.Utilities.Tracing;
+using BuildXL.Utilities.Core.Tasks;
+using BuildXL.Utilities.Core.Tracing;
 
 #nullable enable
 

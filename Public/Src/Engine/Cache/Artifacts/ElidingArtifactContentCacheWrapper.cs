@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core.Tasks;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 using OperationHints = BuildXL.Cache.ContentStore.Interfaces.Sessions.OperationHints;
 

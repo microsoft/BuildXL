@@ -20,7 +20,7 @@ using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.Host.Configuration;
 using BuildXL.Cache.MemoizationStore.Interfaces.Results;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core.Tasks;
 using OperationContext = BuildXL.Cache.ContentStore.Tracing.Internal.OperationContext;
 
 #nullable enable

@@ -25,7 +25,7 @@ using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Utilities.Collections;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core.Tasks;
 using BuildXL.Utilities.Tracing;
 using ContentStore.Grpc;
 using static BuildXL.Utilities.ConfigurationHelper;
@@ -520,7 +520,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                                     Attempt: attemptCount,
                                     PerformOperationAsync: async (arguments) =>
                                     {
-                                        var result = await TaskUtilities.AwaitWithProgressReportingAsync(
+                                        var result = await TaskUtilitiesExtension.AwaitWithProgressReportingAsync(
                                                     task: CopyFileAsync(arguments.Context, sourcePath, tempLocation, hashInfo, arguments.Context.Token, options),
                                                     period: _settings.PeriodicCopyTracingInterval,
                                                     action: timeSpan => Tracer.Debug(context, $"{Tracer.Name}.RemoteCopyFile from[{location}]) via stream in progress {(int)timeSpan.TotalSeconds}s, TotalBytesCopied=[{options.CopyStatistics.Bytes}]."),

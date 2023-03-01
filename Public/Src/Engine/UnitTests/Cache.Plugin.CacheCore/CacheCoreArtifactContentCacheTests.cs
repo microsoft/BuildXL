@@ -11,7 +11,7 @@ using BuildXL.Engine.Cache.Plugin.CacheCore;
 using BuildXL.Storage;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core.Tasks;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;

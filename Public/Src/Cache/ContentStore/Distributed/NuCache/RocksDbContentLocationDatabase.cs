@@ -27,7 +27,7 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.ConfigurationHelpers;
 using BuildXL.Utilities.Serialization;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core.Tasks;
 using BuildXL.Utilities.Tracing;
 using RocksDbSharp;
 using static BuildXL.Cache.ContentStore.Distributed.Tracing.TracingStructuredExtensions;

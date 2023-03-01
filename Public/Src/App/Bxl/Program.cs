@@ -17,7 +17,7 @@ using BuildXL.Storage;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core.Tasks;
 using Strings = bxl.Strings;
 
 namespace BuildXL

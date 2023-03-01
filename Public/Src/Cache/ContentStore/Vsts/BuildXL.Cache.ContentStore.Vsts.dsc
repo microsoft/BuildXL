@@ -21,6 +21,7 @@ namespace Vsts {
             importFrom("BuildXL.Utilities").Collections.dll,
             importFrom("BuildXL.Utilities").Native.dll,
             importFrom("BuildXL.Utilities").Authentication.dll,
+            importFrom("BuildXL.Utilities").Utilities.Core.dll,
             ...getAzureBlobStorageSdkPackages(true),
             importFrom("Microsoft.IdentityModel.Clients.ActiveDirectory").pkg,
             importFrom("Microsoft.VisualStudio.Services.BlobStore.Client").pkg,

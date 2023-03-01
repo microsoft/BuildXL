@@ -13,7 +13,7 @@ using BuildXL.Ipc.Common.Connectivity;
 using BuildXL.Ipc.Common.Multiplexing;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Utilities.Core;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core.Tasks;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;

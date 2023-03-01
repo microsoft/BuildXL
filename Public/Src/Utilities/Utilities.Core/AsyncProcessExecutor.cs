@@ -7,14 +7,13 @@ using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
 using BuildXL.Interop;
-using BuildXL.Utilities.Core;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core.Tasks;
 
 #if !PLATFORM_WIN
 using static BuildXL.Interop.Unix.IO;
 #endif
 
-namespace BuildXL.Utilities
+namespace BuildXL.Utilities.Core
 {
     /// <summary>
     /// Executes process asynchronously.

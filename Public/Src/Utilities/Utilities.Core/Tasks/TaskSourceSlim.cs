@@ -5,7 +5,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace BuildXL.Utilities.Tasks
+namespace BuildXL.Utilities.Core.Tasks
 {
     /// <summary>
     /// Represents the producer side of a <see cref="Task{TResult}"/> by wrapping existing <see cref="TaskCompletionSource{TResult}"/>.

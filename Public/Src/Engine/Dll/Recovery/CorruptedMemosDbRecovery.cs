@@ -11,7 +11,7 @@ using BuildXL.Native.IO;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core.Tasks;
 using JetBrains.Annotations;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 

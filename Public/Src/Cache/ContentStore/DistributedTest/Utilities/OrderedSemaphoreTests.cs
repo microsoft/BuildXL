@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core.Tasks;
 using ContentStoreTest.Test;
 using FluentAssertions;
 using Xunit;

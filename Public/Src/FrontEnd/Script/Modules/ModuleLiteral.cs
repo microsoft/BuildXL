@@ -16,7 +16,7 @@ using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Sdk.Evaluation;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Core.Qualifier;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core.Tasks;
 using JetBrains.Annotations;
 using TypeScript.Net.Utilities;
 using static BuildXL.Utilities.Core.FormattableStringEx;
@@ -622,10 +622,9 @@ namespace BuildXL.FrontEnd.Script.Values
 
             EvaluateAllNamedValues(context, evaluateTasks);
 
-            object[] results = await TaskUtilities.WithCancellationHandlingAsync(
-                context.LoggingContext,
+            object[] results = await TaskUtilitiesExtension.WithCancellationHandlingAsync(
                 Task.WhenAll(evaluateTasks),
-                context.Logger.EvaluationCanceled,
+                () => context.Logger.EvaluationCanceled(context.LoggingContext),
                 s_errorValueAsObjectArray,
                 context.EvaluationScheduler.CancellationToken);
 
@@ -731,15 +730,14 @@ namespace BuildXL.FrontEnd.Script.Values
             var evaluateTasks = new List<Task<object>>();
             EvaluateAllNamedValues(context, evaluateTasks);
 
-            object[] results = await TaskUtilities.WithCancellationHandlingAsync(
-                context.LoggingContext,
+            object[] results = await TaskUtilitiesExtension.WithCancellationHandlingAsync(
                 Task.WhenAll(evaluateTasks),
-                (loggingContext) =>
+                () =>
                 {
                     // Many modules are potentially being evaluated at the same time. Only log the cancelation event once.
                     if (Interlocked.Increment(ref context.Logger.EvaluationCancelledFirstLogged) == 1)
                     {
-                        context.Logger.EvaluationCanceled(loggingContext);
+                        context.Logger.EvaluationCanceled(context.LoggingContext);
                     }
                 },
                 s_errorValueAsObjectArray,

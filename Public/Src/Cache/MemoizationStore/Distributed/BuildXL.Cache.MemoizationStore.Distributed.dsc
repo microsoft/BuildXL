@@ -21,6 +21,7 @@ namespace Distributed {
             
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Collections.dll,
+            importFrom("BuildXL.Utilities").Utilities.Core.dll,
             ...BuildXLSdk.bclAsyncPackages,
             ...importFrom("BuildXL.Cache.ContentStore").getSerializationPackages(true),
         ],

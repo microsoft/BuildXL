@@ -17,7 +17,7 @@ using BuildXL.Ipc.Interfaces;
 using BuildXL.Storage;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.CLI;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core.Tasks;
 using Microsoft.VisualStudio.Services.Common;
 using Microsoft.VisualStudio.Services.Symbol.App.Core.Tracing;
 using Microsoft.VisualStudio.Services.Symbol.Common;

@@ -13,7 +13,7 @@ using BuildXL.Cache.InMemory;
 using BuildXL.Cache.Interfaces;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core.Tasks;
 
 namespace BuildXL.Cache.VerticalAggregator
 {

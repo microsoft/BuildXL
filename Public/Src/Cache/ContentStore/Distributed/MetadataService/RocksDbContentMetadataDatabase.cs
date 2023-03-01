@@ -29,7 +29,7 @@ using BuildXL.Native.IO;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core.Tasks;
 using RocksDbSharp;
 using static BuildXL.Cache.ContentStore.Distributed.MetadataService.RocksDbOperations;
 using static BuildXL.Engine.Cache.KeyValueStores.RocksDbStore;

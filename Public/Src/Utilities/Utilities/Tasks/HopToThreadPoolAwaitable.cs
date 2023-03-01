@@ -6,7 +6,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 
-namespace BuildXL.Utilities.Tasks
+namespace BuildXL.Utilities.Core.Tasks
 {
     /// <summary>
     /// Custom awaiter that enforces the continuation to run in the thread-pool's thread.

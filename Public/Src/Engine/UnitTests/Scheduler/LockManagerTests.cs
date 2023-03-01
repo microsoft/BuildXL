@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 using BuildXL.Pips;
 using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core.Tasks;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 

@@ -7,7 +7,7 @@ using System.Diagnostics.ContractsLight;
 using System.Runtime.ExceptionServices;
 using System.Threading;
 
-namespace BuildXL.Utilities
+namespace BuildXL.Utilities.Core
 {
     /// <summary>
     /// Represents a lazily-evaluated value and allows checking whether the value has already begun evaluating
@@ -101,7 +101,7 @@ namespace BuildXL.Utilities
                 {
                     // The only case where TryCreateValue returns false with infinite timeout
                     // is if this thread already has the lock meaning re-entrant call by valueFactory
-                    throw new InvalidOperationException(Strings.ErrorLazyReentrancy);
+                    throw new InvalidOperationException("ValueFactory attempted to access the Value property of this instance.");
                 }
 
                 return value;

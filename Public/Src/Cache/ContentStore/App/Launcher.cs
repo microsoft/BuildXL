@@ -11,7 +11,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.Host.Configuration;
 using BuildXL.Cache.Host.Service;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core.Tasks;
 using CLAP;
 
 // ReSharper disable once UnusedMember.Global

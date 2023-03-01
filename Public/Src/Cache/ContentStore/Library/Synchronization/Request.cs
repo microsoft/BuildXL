@@ -3,7 +3,7 @@
 
 using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core.Tasks;
 
 namespace BuildXL.Cache.ContentStore.Synchronization
 {

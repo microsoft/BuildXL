@@ -31,7 +31,7 @@ using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Core.Qualifier;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core.Tasks;
 using BuildXL.Utilities.Tracing;
 using Newtonsoft.Json;
 using TypeScript.Net.Utilities;
@@ -531,20 +531,18 @@ namespace BuildXL.FrontEnd.Core
         {
             Contract.Requires(evaluationFilter != null || Workspace != null, "Evaluation filter may be null if workspace is enabled");
 
-            return TaskUtilities.WithCancellationHandlingAsync(
-                FrontEndContext.LoggingContext,
+            return TaskUtilitiesExtension.WithCancellationHandlingAsync(
                 ConvertWorkspaceToEvaluationAsync(Workspace),
-                m_logger.FrontEndConvertPhaseCanceled,
+                () => m_logger.FrontEndConvertPhaseCanceled(FrontEndContext.LoggingContext),
                 ConversionResult.Failed,
                 FrontEndContext.CancellationToken).GetAwaiter().GetResult();
         }
 
         internal bool DoPhaseEvaluate(EvaluationFilter evaluationFilter, QualifierId[] qualifiersToEvaluate)
         {
-            return TaskUtilities.WithCancellationHandlingAsync(
-                FrontEndContext.LoggingContext,
+            return TaskUtilitiesExtension.WithCancellationHandlingAsync(
                 EvaluateAsync(evaluationFilter, qualifiersToEvaluate),
-                m_logger.FrontEndEvaluatePhaseCanceled,
+                () => m_logger.FrontEndEvaluatePhaseCanceled(FrontEndContext.LoggingContext),
                 false,
                 FrontEndContext.CancellationToken).GetAwaiter().GetResult();
         }
@@ -1173,10 +1171,9 @@ namespace BuildXL.FrontEnd.Core
                 initResolverTasks[i] = resolver.InitResolverAsync(resolverConfiguration, workspaceResolver);
             }
 
-            var results = await TaskUtilities.WithCancellationHandlingAsync(
-                FrontEndContext.LoggingContext,
+            var results = await TaskUtilitiesExtension.WithCancellationHandlingAsync(
                 TaskUtilities.SafeWhenAll(initResolverTasks),
-                m_logger.FrontEndBuildWorkspacePhaseCanceled,
+                () => m_logger.FrontEndBuildWorkspacePhaseCanceled(FrontEndContext.LoggingContext),
                 // If any task gets cancelled, return a single false result just to make sure we exit
                 // properly
                 new[] { false },
@@ -1400,7 +1397,7 @@ namespace BuildXL.FrontEnd.Core
 
             var numSpecs = modulesToEvaluate.Sum(m => m.Specs.Count) * qualifierIds.Length;
 
-            bool[] results = await TaskUtilities.AwaitWithProgressReporting(
+            bool[] results = await TaskUtilitiesExtension.AwaitWithProgressReporting(
                 items,
                 taskSelector: item => item.Task,
                 action: (elapsed, all, remaining) => LogModuleEvaluationProgress(numSpecs, elapsed, all, remaining),
@@ -1416,7 +1413,7 @@ namespace BuildXL.FrontEnd.Core
             {
                 var tasks = PipGraphFragmentManager.GetAllFragmentTasks();
                 numSpecs = tasks.Count;
-                results = await TaskUtilities.AwaitWithProgressReporting(
+                results = await TaskUtilitiesExtension.AwaitWithProgressReporting(
                     tasks,
                     taskSelector: item => item.Item2,
                     action: (elapsed, all, remaining) => LogFragmentEvaluationProgress(numSpecs, elapsed, all, remaining),

@@ -6,7 +6,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Utilities.ParallelAlgorithms;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core.Tasks;
 using Xunit;
 using static Test.BuildXL.Utilities.ParallelAlgorithmsTests.ParallelAlgorithmsHelper;
 

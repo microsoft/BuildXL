@@ -4,7 +4,7 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Threading.Tasks;
 
-namespace BuildXL.Utilities.Tasks
+namespace BuildXL.Utilities.Core.Tasks
 {
     /// <summary>
     /// This type is effectively 'void', but usable as a type parameter.

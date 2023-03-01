@@ -17,7 +17,7 @@ using BuildXL.Storage;
 using BuildXL.Storage.ChangeTracking;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core.Tasks;
 using Test.BuildXL.EngineTestUtilities;
 using Test.BuildXL.StorageTestUtilities;
 using Test.BuildXL.TestUtilities;

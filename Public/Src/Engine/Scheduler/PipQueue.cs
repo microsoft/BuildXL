@@ -12,7 +12,7 @@ using BuildXL.Scheduler.WorkDispatcher;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.Utilities.Tracing;
+using BuildXL.Utilities.Core.Tracing;
 
 namespace BuildXL.Scheduler
 {

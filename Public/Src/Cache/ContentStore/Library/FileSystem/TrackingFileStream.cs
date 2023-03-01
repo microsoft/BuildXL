@@ -5,7 +5,7 @@ using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Utilities.Tracing;
+using BuildXL.Utilities.Core.Tracing;
 using Microsoft.Win32.SafeHandles;
 
 namespace BuildXL.Cache.ContentStore.FileSystem

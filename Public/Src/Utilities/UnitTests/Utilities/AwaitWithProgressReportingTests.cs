@@ -5,7 +5,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Utilities.Core;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core.Tasks;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
@@ -31,7 +31,7 @@ namespace Test.BuildXL.Utilities
            int i = 0;
            int successValue = 42;
 
-           var result = TaskUtilities.AwaitWithProgressReportingAsync(
+           var result = TaskUtilitiesExtension.AwaitWithProgressReportingAsync(
                task: TestTask(TimeSpan.FromMilliseconds(taskTimeMilliseconds), successValue),
                period: TimeSpan.FromMilliseconds(reportPeriodMilliseconds),
                action: (time) => Interlocked.Increment(ref i),
@@ -55,7 +55,7 @@ namespace Test.BuildXL.Utilities
             int i = 0;
             int successValue = 42;
 
-            var result = TaskUtilities.AwaitWithProgressReportingAsync(
+            var result = TaskUtilitiesExtension.AwaitWithProgressReportingAsync(
                 task: TestTask(TimeSpan.FromMilliseconds(taskTimeMilliseconds), successValue),
                 period: TimeSpan.FromMilliseconds(reportPeriodMilliseconds),
                 action: (time) => Interlocked.Increment(ref i),
@@ -74,7 +74,7 @@ namespace Test.BuildXL.Utilities
 
            try
            {
-               var result = TaskUtilities.AwaitWithProgressReportingAsync(
+               var result = TaskUtilitiesExtension.AwaitWithProgressReportingAsync(
                    task: Task.Run(() => TestMethod(exceptionText)),
                    period: TimeSpan.FromHours(24),
                    action: (time) => Interlocked.Increment(ref i),

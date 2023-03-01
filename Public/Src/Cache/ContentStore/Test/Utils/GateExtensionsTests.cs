@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core.Tasks;
 using Xunit;
 
 namespace BuildXL.Cache.ContentStore.Test.Utils

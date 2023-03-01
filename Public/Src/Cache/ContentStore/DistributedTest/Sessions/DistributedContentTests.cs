@@ -37,7 +37,7 @@ using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.Host.Service;
 using BuildXL.Cache.Host.Service.Internal;
 using BuildXL.Utilities.Collections;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core.Tasks;
 using ContentStoreTest.Distributed.ContentLocation;
 using ContentStoreTest.Extensions;
 using ContentStoreTest.Test;

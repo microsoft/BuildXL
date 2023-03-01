@@ -19,7 +19,7 @@ using BuildXL.Cache.Interfaces;
 using BuildXL.Cache.MemoizationStore.Interfaces.Results;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Utilities.Core;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core.Tasks;
 using StrongFingerprint = BuildXL.Cache.Interfaces.StrongFingerprint;
 
 namespace BuildXL.Cache.MemoizationStoreAdapter

@@ -5,7 +5,7 @@ using System.Diagnostics.ContractsLight;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace BuildXL.Utilities.Tasks
+namespace BuildXL.Utilities.Core.Tasks
 {
     /// <summary>
     /// Static utilities related to <see cref="Task" />.

@@ -15,7 +15,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Utilities.Core;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core.Tasks;
 using Microsoft.Win32.SafeHandles;
 using static BuildXL.Interop.Dispatch;
 using static BuildXL.Interop.Unix.Memory;

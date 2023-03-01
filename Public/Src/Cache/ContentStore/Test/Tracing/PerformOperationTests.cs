@@ -3,7 +3,7 @@
 
 using System;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core.Tasks;
 using FluentAssertions;
 using System.Collections.Generic;
 using System.Threading;

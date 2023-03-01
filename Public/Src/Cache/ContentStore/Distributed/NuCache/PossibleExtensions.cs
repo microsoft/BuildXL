@@ -3,7 +3,7 @@
 
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Utilities.Core;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core.Tasks;
 
 #nullable enable
 

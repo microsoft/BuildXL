@@ -6,7 +6,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Distribution.Grpc;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core.Tasks;
 using static BuildXL.Engine.Distribution.Grpc.ClientConnectionManager;
 
 namespace BuildXL.Engine.Distribution

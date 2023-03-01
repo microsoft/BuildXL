@@ -3,9 +3,9 @@
 
 using System;
 using System.Threading.Tasks;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core.Tasks;
 
-namespace BuildXL.Utilities
+namespace BuildXL.Utilities.Core
 {
     /// <summary>
     /// Represents an async version of <see cref="Lazy{T}"/> which allows starting the underlying task to without waiting on the result

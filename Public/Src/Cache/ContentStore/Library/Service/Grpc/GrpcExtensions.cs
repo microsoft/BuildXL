@@ -10,7 +10,7 @@ using ContentStore.Grpc;
 using Google.Protobuf;
 using Grpc.Core;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Tracing;
+using BuildXL.Utilities.Core.Tracing;
 using BuildXL.Cache.ContentStore.Distributed;
 
 #nullable enable

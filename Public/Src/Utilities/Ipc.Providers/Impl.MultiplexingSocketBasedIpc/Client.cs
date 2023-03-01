@@ -12,7 +12,7 @@ using BuildXL.Ipc.Common.Multiplexing;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core.Tasks;
 
 namespace BuildXL.Ipc.MultiplexingSocketBasedIpc
 {

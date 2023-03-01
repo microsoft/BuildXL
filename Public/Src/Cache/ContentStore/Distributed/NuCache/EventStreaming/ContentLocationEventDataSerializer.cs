@@ -10,7 +10,7 @@ using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core.Tasks;
 using Microsoft.Azure.EventHubs;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming

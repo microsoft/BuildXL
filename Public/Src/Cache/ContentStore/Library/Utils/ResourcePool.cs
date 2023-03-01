@@ -14,8 +14,8 @@ using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
-using BuildXL.Utilities;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core;
+using BuildXL.Utilities.Core.Tasks;
 using BuildXL.Utilities.Tracing;
 
 namespace BuildXL.Cache.ContentStore.Utils

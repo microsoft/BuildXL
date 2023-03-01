@@ -8,7 +8,7 @@ using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
-using BuildXL.Utilities.Tracing;
+using BuildXL.Utilities.Core.Tracing;
 
 namespace BuildXL.Cache.ContentStore.Tracing
 {

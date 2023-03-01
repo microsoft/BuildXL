@@ -16,6 +16,7 @@ namespace Library {
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Collections.dll,
             importFrom("BuildXL.Utilities").Native.dll,
+            importFrom("BuildXL.Utilities").Utilities.Core.dll,
 
             ContentStore.Distributed.dll,
             ContentStore.Library.dll,

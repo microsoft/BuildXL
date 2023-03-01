@@ -5,7 +5,7 @@ using BuildXL.Distribution.Grpc;
 using BuildXL.Pips;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core.Tasks;
 
 namespace BuildXL.Engine.Distribution
 {

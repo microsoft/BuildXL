@@ -29,7 +29,7 @@ using BuildXL.Cache.ContentStore.Grpc;
 using BuildXL.Cache.Host.Service;
 using GrpcEnvironment = BuildXL.Cache.ContentStore.Service.Grpc.GrpcEnvironment;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core.Tasks;
 
 #nullable enable
 

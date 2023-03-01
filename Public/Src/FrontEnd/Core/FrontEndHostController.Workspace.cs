@@ -18,7 +18,7 @@ using BuildXL.Pips.Filter;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core.Tasks;
 using JetBrains.Annotations;
 using TypeScript.Net.DScript;
 using TypeScript.Net.Types;
@@ -100,10 +100,9 @@ namespace BuildXL.FrontEnd.Core
                 return Workspace.Failure(workspaceConfiguration: workspaceConfiguration, failures: failures.ToArray());
             }
 
-            var result = TaskUtilities.WithCancellationHandlingAsync(
-                FrontEndContext.LoggingContext,
+            var result = TaskUtilitiesExtension.WithCancellationHandlingAsync(
                 BuildAndFilterWorkspaceAsync(workspaceProvider, engineAbstraction, evaluationFilter),
-                m_logger.FrontEndBuildWorkspacePhaseCanceled,
+                () => m_logger.FrontEndBuildWorkspacePhaseCanceled(FrontEndContext.LoggingContext),
                 GetOrCreateComputationCancelledWorkspace(workspaceProvider),
                 FrontEndContext.CancellationToken).GetAwaiter().GetResult();
 
@@ -125,12 +124,11 @@ namespace BuildXL.FrontEnd.Core
             Contract.Requires(workspace != null);
 
             var result =
-                TaskUtilities.WithCancellationHandlingAsync(
-                FrontEndContext.LoggingContext,
+                TaskUtilitiesExtension.WithCancellationHandlingAsync(                
                     WithAnalysisProgressReportingAsync(
                         workspace.AllSpecCount,
                         ComputeSemanticWorkspaceAsync(workspace, workspace.WorkspaceConfiguration)),
-                    m_logger.FrontEndWorkspaceAnalysisPhaseCanceled,
+                    () => m_logger.FrontEndWorkspaceAnalysisPhaseCanceled(FrontEndContext.LoggingContext),
                     GetOrCreateComputationCancelledWorkspace(workspace.WorkspaceProvider),
                     FrontEndContext.CancellationToken).GetAwaiter().GetResult();
 
@@ -183,7 +181,7 @@ namespace BuildXL.FrontEnd.Core
         private async Task<bool> WithConversionProgressReportingAsync(int totalSpecs, Task<bool[]> task)
         {
             var counter = m_frontEndStatistics.SpecConversion;
-            var results = await TaskUtilities.AwaitWithProgressReportingAsync(
+            var results = await TaskUtilitiesExtension.AwaitWithProgressReportingAsync(
                 task,
                 period: EvaluationProgressReportingPeriod,
                 action: (elapsed) =>
@@ -201,7 +199,7 @@ namespace BuildXL.FrontEnd.Core
             var numParseTotal = numSpecs?.ToString(CultureInfo.InvariantCulture) ?? "?";
 
             var counter = m_frontEndStatistics.SpecBinding;
-            return TaskUtilities.AwaitWithProgressReportingAsync(
+            return TaskUtilitiesExtension.AwaitWithProgressReportingAsync(
                 task,
                 EvaluationProgressReportingPeriod,
                 (elapsed) =>
@@ -221,7 +219,7 @@ namespace BuildXL.FrontEnd.Core
         private Task<Workspace> WithAnalysisProgressReportingAsync(int numSpecsTotal, Task<Workspace> task)
         {
             var counter = m_frontEndStatistics.SpecTypeChecking;
-            return TaskUtilities.AwaitWithProgressReportingAsync(
+            return TaskUtilitiesExtension.AwaitWithProgressReportingAsync(
                 task,
                 EvaluationProgressReportingPeriod,
                 (elapsed) =>

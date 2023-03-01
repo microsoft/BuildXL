@@ -7,7 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Ipc.Common;
 using BuildXL.Ipc.Interfaces;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core.Tasks;
 
 namespace Test.BuildXL.Scheduler.Utils
 {
@@ -40,7 +40,7 @@ namespace Test.BuildXL.Scheduler.Utils
     {
         internal static readonly DummyIpcServer Instance = new DummyIpcServer();
 
-        public Task Completion => global::BuildXL.Utilities.Tasks.Unit.VoidTask;
+        public Task Completion => global::BuildXL.Utilities.Core.Tasks.Unit.VoidTask;
 
         public IServerConfig Config => null;
 

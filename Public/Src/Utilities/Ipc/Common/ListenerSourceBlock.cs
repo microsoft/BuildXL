@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Utilities.Core;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core.Tasks;
 
 namespace BuildXL.Ipc.Common
 {

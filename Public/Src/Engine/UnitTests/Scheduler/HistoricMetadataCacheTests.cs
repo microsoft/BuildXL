@@ -19,7 +19,7 @@ using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;

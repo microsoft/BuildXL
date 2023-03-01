@@ -8,7 +8,7 @@ using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Ipc.Interfaces;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace BuildXL.Ipc.Common.Connectivity

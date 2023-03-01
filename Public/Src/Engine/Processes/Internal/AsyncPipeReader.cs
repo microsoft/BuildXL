@@ -10,8 +10,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Native.IO;
 using BuildXL.Native.Streams;
+using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core.Tasks;
 using Overlapped = BuildXL.Native.Streams.Overlapped;
 
 namespace BuildXL.Processes.Internal

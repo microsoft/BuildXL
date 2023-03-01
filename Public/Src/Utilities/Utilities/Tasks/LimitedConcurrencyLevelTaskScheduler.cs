@@ -12,7 +12,7 @@ using System.Threading.Tasks;
 // downloaded  2/2/6/2013
 #pragma warning disable 1591
 
-namespace BuildXL.Utilities.Tasks
+namespace BuildXL.Utilities.Core.Tasks
 {
     /// <summary>
     /// Provides a task scheduler that ensures a maximum concurrency level while

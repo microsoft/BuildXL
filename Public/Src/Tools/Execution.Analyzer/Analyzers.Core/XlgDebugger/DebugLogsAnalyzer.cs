@@ -14,7 +14,7 @@ using BuildXL.ToolSupport;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core.Tasks;
 using BuildXL.Utilities.Tracing;
 using VSCode.DebugAdapter;
 using VSCode.DebugProtocol;

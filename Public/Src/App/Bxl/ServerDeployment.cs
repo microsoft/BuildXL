@@ -15,7 +15,7 @@ using BuildXL.App.Tracing;
 using BuildXL.Engine;
 using BuildXL.Native.IO;
 using BuildXL.Utilities.Core;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core.Tasks;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace BuildXL

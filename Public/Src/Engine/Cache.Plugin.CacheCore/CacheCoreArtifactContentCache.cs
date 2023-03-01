@@ -15,7 +15,7 @@ using BuildXL.Storage;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core.Tasks;
 using BuildXL.Utilities.Tracing;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 using static BuildXL.Cache.ContentStore.Interfaces.FileSystem.VfsUtilities;

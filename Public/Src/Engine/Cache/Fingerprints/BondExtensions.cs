@@ -14,7 +14,7 @@ using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Serialization;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core.Tasks;
 
 namespace BuildXL.Engine.Cache.Fingerprints
 {

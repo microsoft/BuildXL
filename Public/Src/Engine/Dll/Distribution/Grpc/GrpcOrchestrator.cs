@@ -4,7 +4,7 @@
 using System.Threading.Tasks;
 using BuildXL.Distribution.Grpc;
 using Grpc.Core;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core.Tasks;
 using BuildXL.Utilities.Configuration;
 using System;
 

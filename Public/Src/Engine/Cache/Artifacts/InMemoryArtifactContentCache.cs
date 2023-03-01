@@ -15,7 +15,7 @@ using BuildXL.Native.IO;
 using BuildXL.Storage;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core.Tasks;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace BuildXL.Engine.Cache.Artifacts

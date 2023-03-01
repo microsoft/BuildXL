@@ -701,7 +701,7 @@ namespace BuildXL.Engine
         public async Task<Possible<CacheInitializer>> AsTask()
         {
             // Need to justify using async here to the compiler
-            await BuildXL.Utilities.Tasks.BoolTask.False;
+            await BuildXL.Utilities.Core.Tasks.BoolTask.False;
             return await this;
         }
 

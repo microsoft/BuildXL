@@ -8,6 +8,7 @@ using System.Diagnostics.ContractsLight;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
+using BuildXL.Utilities.Core.Tracing;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.ParallelAlgorithms;
 using static BuildXL.Utilities.Core.FormattableStringEx;

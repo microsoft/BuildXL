@@ -21,7 +21,7 @@ using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.MemoizationStore.Interfaces.Caches;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Cache.MemoizationStore.Service;
-using BuildXL.Utilities.Tracing;
+using BuildXL.Utilities.Core.Tracing;
 using ContentStore.Grpc;
 using Grpc.Core;
 

@@ -13,7 +13,7 @@ using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core.Tasks;
 using JetBrains.Annotations;
 using TypeScript.Net.DScript;
 using TypeScript.Net.Parsing;

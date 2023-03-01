@@ -23,7 +23,7 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core.Tasks;
 using BuildXL.Utilities.Tracing;
 using Strings = bxl.Strings;
 using Logger = BuildXL.App.Tracing.Logger;

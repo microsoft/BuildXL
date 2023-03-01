@@ -19,7 +19,7 @@ using BuildXL.Utilities.Configuration.Mutable;
 using JetBrains.Annotations;
 using TypeScript.Net.DScript;
 using TypeScript.Net.Types;
-using ValueTaskFactory = BuildXL.Utilities.Tasks.ValueTaskFactory;
+using ValueTaskFactory = BuildXL.Utilities.Core.Tasks.ValueTaskFactory;
 
 namespace BuildXL.FrontEnd.Download
 {

@@ -27,6 +27,7 @@ using BuildXL.Cache.Host.Configuration;
 using BuildXL.Cache.Host.Service;
 using BuildXL.Launcher.Server;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using ContentStoreTest.Test;
 using FluentAssertions;

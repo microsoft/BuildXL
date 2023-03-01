@@ -15,7 +15,7 @@ using BuildXL.Engine.Cache.Fingerprints.TwoPhase;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core.Tasks;
 using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.Scheduler;
 using Xunit;

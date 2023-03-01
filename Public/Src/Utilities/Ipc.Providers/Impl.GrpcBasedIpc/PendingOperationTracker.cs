@@ -12,7 +12,7 @@ using BuildXL.Ipc.Common;
 using BuildXL.Ipc.Grpc;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Utilities.Core;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core.Tasks;
 using Grpc.Core;
 
 namespace BuildXL.Ipc.GrpcBasedIpc

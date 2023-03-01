@@ -4,7 +4,7 @@
 using System;
 using System.Diagnostics;
 
-namespace BuildXL.Utilities.Tracing
+namespace BuildXL.Utilities.Core.Tracing
 {
     /// <summary>
     /// Helpers for objects which track time. Replaces the need to use a new <see cref="Stopwatch"/> or <see cref="DateTime"/> for

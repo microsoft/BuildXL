@@ -4,7 +4,7 @@
 
 using System.Threading.Tasks;
 
-namespace BuildXL.Utilities.Tasks
+namespace BuildXL.Utilities.Core.Tasks
 {
     /// <summary>
     /// Factory class for constructing <see cref="ValueTask{TResult}"/>.

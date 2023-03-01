@@ -13,7 +13,6 @@ using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
-
 #nullable enable
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {

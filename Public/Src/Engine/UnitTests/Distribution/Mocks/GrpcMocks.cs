@@ -4,7 +4,7 @@
 using System;
 using System.Threading.Tasks;
 using BuildXL.Engine.Distribution;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core.Tasks;
 using BuildXL.Utilities;
 using System.Collections.Generic;
 using System.Threading;

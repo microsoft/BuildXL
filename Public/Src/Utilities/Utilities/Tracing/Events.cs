@@ -14,7 +14,7 @@ using BuildXL.Utilities.Instrumentation.Common;
 
 namespace BuildXL.Utilities.Tracing
 {
-    // Using has to be inside namespace due to BuildXL.Utilities.Tasks;
+    // Using has to be inside namespace due to BuildXL.Utilities.Core.Tasks;
     /// <summary>
     /// The BuildXL event source
     /// </summary>

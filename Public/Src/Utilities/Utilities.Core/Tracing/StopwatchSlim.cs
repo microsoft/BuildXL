@@ -3,7 +3,7 @@
 
 using System;
 
-namespace BuildXL.Utilities.Tracing
+namespace BuildXL.Utilities.Core.Tracing
 {
     /// <summary>
     /// Light-weight (allocation-free) implementation of <see cref="System.Diagnostics.Stopwatch"/>

@@ -10,7 +10,7 @@ using BuildXL.Native.Processes;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core.Tasks;
 using Xunit.Sdk;
 
 namespace Test.BuildXL.TestUtilities.Xunit

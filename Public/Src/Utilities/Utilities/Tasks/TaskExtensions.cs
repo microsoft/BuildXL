@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Core;
 
-namespace BuildXL.Utilities.Tasks
+namespace BuildXL.Utilities.Core.Tasks
 {
     /// <summary>
     /// Set of helper and extension methods for TPL-based operations.

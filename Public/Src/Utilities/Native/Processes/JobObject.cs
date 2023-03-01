@@ -14,7 +14,7 @@ using BuildXL.Native.IO.Windows;
 using BuildXL.Native.Processes;
 using BuildXL.Pips;
 using BuildXL.Utilities.Core;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core.Tasks;
 using BuildXL.Utilities.Instrumentation.Common;
 using Microsoft.Win32.SafeHandles;
 #if !FEATURE_SAFE_PROCESS_HANDLE
@@ -44,7 +44,7 @@ namespace BuildXL.Processes
         public const int InitialProcessIdListLength = 2048; // the number needed to make the bufferSizeForProcessIdList 8KB.
 
         private static readonly object s_syncRoot = new object();
-        private static readonly Lazy<CompletionPortDrainer> s_completionPortDrainer = BuildXL.Utilities.Lazy.Create(() => new CompletionPortDrainer());
+        private static readonly Lazy<CompletionPortDrainer> s_completionPortDrainer = Lazy.Create(() => new CompletionPortDrainer());
         private static bool s_terminateOnCloseOnCurrentProcessJob;
 
         /// <summary>

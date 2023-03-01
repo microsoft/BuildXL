@@ -8,7 +8,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Utilities.ParallelAlgorithms;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core.Tasks;
 using FluentAssertions;
 using Xunit;
 using Xunit.Abstractions;

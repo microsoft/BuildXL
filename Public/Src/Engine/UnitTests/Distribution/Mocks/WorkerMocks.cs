@@ -12,7 +12,7 @@ using BuildXL.Pips;
 using BuildXL.Scheduler;
 using System.Collections.Generic;
 using BuildXL.Scheduler.Distribution;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core.Tasks;
 using BuildXL.Utilities.Instrumentation.Common;
 using System.Threading;
 using System.Diagnostics.ContractsLight;

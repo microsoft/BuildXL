@@ -9,7 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Ipc.Common;
 using BuildXL.Ipc.Interfaces;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core.Tasks;
 
 namespace Tool.ServicePipDaemon
 {

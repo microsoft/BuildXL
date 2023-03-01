@@ -12,7 +12,7 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.Monitor.App.Notifications;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core.Tasks;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
 

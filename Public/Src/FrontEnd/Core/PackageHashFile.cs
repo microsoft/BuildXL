@@ -8,7 +8,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using BuildXL.Utilities.Core;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core.Tasks;
 using BuildXL.Utilities.Tracing;
 using TypeScript.Net.Extensions;
 

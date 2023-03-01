@@ -4,7 +4,7 @@
 using System;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core.Tasks;
 
 namespace BuildXL.Cache.ContentStore.Stores
 {

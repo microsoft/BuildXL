@@ -22,7 +22,7 @@ using BuildXL.Storage;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Diagnostics;
 using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core.Tasks;
 using BuildXL.Utilities.Threading;
 using Microsoft.Win32.SafeHandles;
 #if FEATURE_SAFE_PROCESS_HANDLE

@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Synchronization;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using ContentStoreTest.Test;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core.Tasks;
 using FluentAssertions;
 using Xunit;
 

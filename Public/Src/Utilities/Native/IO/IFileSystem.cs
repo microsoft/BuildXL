@@ -6,7 +6,7 @@ using System.Collections.Generic;
 using System.IO;
 using BuildXL.Native.IO.Windows;
 using BuildXL.Utilities.Core;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core.Tasks;
 using Microsoft.Win32.SafeHandles;
 
 namespace BuildXL.Native.IO

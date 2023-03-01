@@ -5,7 +5,7 @@ using System;
 
 namespace BuildXL.Utilities.Configuration
 {
-    // Using has to be inside namespace due to BuildXL.Utilities.Tasks;
+    // Using has to be inside namespace due to BuildXL.Utilities.Core.Tasks;
     /// <summary>
     /// Diagnostic levels for the logging
     /// </summary>

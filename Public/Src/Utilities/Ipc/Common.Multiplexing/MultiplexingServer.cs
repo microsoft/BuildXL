@@ -11,7 +11,7 @@ using System.Threading.Tasks.Dataflow;
 using BuildXL.Ipc.Common.Connectivity;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Utilities.Core;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core.Tasks;
 using JetBrains.Annotations;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 

@@ -6,7 +6,7 @@ using System.Diagnostics.ContractsLight;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace BuildXL.Utilities
+namespace BuildXL.Utilities.Core
 {
     /// <summary>
     /// Static helper class that allows to create instances of <see cref="Lazy{T}"/> using static helper function with type inference.

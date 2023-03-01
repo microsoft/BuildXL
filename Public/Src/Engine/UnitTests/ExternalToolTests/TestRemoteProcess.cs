@@ -7,7 +7,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Processes.Remoting;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 namespace ExternalToolTest.BuildXL.Scheduler
 {

@@ -24,7 +24,7 @@ using BuildXL.Cache.ContentStore.Service;
 using BuildXL.Utilities.CLI;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core.Tasks;
 
 namespace BuildXL.Cache.Host.Test
 {

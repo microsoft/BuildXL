@@ -17,7 +17,7 @@ using BuildXL.Ipc.Common.Connectivity;
 using BuildXL.Plugin.Grpc;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core.Tasks;
 
 namespace BuildXL.Plugin
 {

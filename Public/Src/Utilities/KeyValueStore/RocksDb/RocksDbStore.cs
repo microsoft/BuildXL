@@ -11,7 +11,7 @@ using System.Text;
 using System.Threading;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Serialization;
-using BuildXL.Utilities.Tracing;
+using BuildXL.Utilities.Core.Tracing;
 using RocksDbSharp;
 
 namespace BuildXL.Engine.Cache.KeyValueStores

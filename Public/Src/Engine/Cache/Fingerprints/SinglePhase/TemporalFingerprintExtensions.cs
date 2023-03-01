@@ -14,7 +14,7 @@ using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core.Tasks;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace BuildXL.Engine.Cache.Fingerprints.SinglePhase

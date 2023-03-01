@@ -6,7 +6,7 @@ using System.Collections.Generic;
 using System.Net;
 using System.Threading.Tasks;
 using BuildXL.Plugin.Grpc;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core.Tasks;
 using Grpc.Core;
 using Grpc.Core.Interceptors;
 using Grpc.Core.Logging;

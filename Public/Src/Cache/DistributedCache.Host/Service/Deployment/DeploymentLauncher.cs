@@ -29,7 +29,7 @@ using BuildXL.Native.IO;
 using BuildXL.Processes;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.ParallelAlgorithms;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Core.Tasks;
 using static BuildXL.Cache.Host.Configuration.DeploymentManifest;
 
 namespace BuildXL.Cache.Host.Service

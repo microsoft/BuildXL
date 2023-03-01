@@ -24,6 +24,7 @@ using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Utilities.Tracing;
+using BuildXL.Utilities.Core.Tracing;
 using ContentStore.Grpc;
 using Google.Protobuf;
 using Grpc.Core;

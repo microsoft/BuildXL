@@ -29,6 +29,7 @@ namespace BuildXL.AdoBuildRunner.Build
 
         private int ExecuteBuild(string arguments, string buildSourcesDirectory)
         {
+            arguments += " /ado";           // We want this argument in all builds run by the AdoBuildRunner
             var process = new Process()
             {
                 StartInfo =
@@ -100,7 +101,7 @@ namespace BuildXL.AdoBuildRunner.Build
 
             return ExecuteBuild(
                 ExtractAndEscapeCommandLineArguments(buildArguments) +
-                $" /ado /distributedBuildRole:master" +
+                $" /distributedBuildRole:master" +
                 $" /distributedBuildServicePort:{Constants.MachineGrpcPort}" +
                 $" /relatedActivityId:{buildContext.RelatedSessionId}",
                 buildContext.SourcesDirectory
@@ -115,7 +116,7 @@ namespace BuildXL.AdoBuildRunner.Build
             return ExecuteBuild(
                 "/p:BuildXLWorkerAttachTimeoutMin=20 " +  // By default, set the timeout to 20min in the workers to avoid unnecessary waiting upon connection failures
                 ExtractAndEscapeCommandLineArguments(buildArguments) +
-                $" /ado /distributedBuildRole:worker" +
+                $" /distributedBuildRole:worker" +
                 $" /distributedBuildServicePort:{Constants.MachineGrpcPort}" +
                 $" /distributedBuildOrchestratorLocation:{buildContext.OrchestratorLocation}" +
                 $" /relatedActivityId:{buildContext.RelatedSessionId}",

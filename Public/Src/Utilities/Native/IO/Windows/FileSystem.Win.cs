@@ -4119,7 +4119,9 @@ namespace BuildXL.Native.IO.Windows
         private bool SupportCopyOnWrite()
         {
 #if NETCOREAPP
-            if (Environment.GetEnvironmentVariable("EnableCopyOnWriteWin") != "1")
+            bool disableCopyOnWrite = string.Equals(Environment.GetEnvironmentVariable("DisableCopyOnWriteWin"), "1", StringComparison.Ordinal);
+
+            if (disableCopyOnWrite)
             {
                 return false;
             }
@@ -4130,10 +4132,15 @@ namespace BuildXL.Native.IO.Windows
                 FileShare.ReadWrite | FileShare.Delete,
                 out SafeFileHandle directoryHandle);
 
-            return directoryOpenResult.Succeeded && CheckIfVolumeSupportsCopyOnWriteByHandle(directoryHandle);
-#else
+            if (directoryOpenResult.Succeeded)
+            {
+                using (directoryHandle)
+                {
+                    return CheckIfVolumeSupportsCopyOnWriteByHandle(directoryHandle);
+                }
+            }
+#endif  
             return false;
-#endif
         }
 
         /// <inheritdoc />

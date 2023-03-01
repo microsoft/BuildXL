@@ -1409,15 +1409,9 @@ namespace Test.BuildXL.Storage
 
         private static bool SupportCopyOnWrite(string path)
         {
-            if (OperatingSystemHelper.IsWindowsOS)
-            {
-                Environment.SetEnvironmentVariable("EnableCopyOnWriteWin", "1");
-            }
+            using FileStream fileStream = FileUtilities.CreateFileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete);
 
-            using (FileStream fileStream = FileUtilities.CreateFileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete))
-            {
-                return FileUtilities.CheckIfVolumeSupportsCopyOnWriteByHandle(fileStream.SafeFileHandle);
-            }
+            return FileUtilities.CheckIfVolumeSupportsCopyOnWriteByHandle(fileStream.SafeFileHandle);
         }
     }
 }

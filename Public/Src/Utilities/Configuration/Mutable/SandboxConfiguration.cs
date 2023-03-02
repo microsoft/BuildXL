@@ -57,7 +57,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             ExplicitlyReportDirectoryProbes = OperatingSystemHelper.IsLinuxOS;
             PreserveFileSharingBehaviour = false;
             EnableLinuxPTraceSandbox = false;
-            AlwaysRemoteInjectDetoursFrom32BitProcess = false;
+            AlwaysRemoteInjectDetoursFrom32BitProcess = true;
             UnconditionallyEnableLinuxPTraceSandbox = false;
         }
 

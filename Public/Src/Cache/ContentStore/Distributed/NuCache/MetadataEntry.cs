@@ -48,7 +48,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <nodoc />
-        public static long DeserializeLastAccessTimeUtc(BuildXLReader reader)
+        public static long DeserializeLastAccessTimeUtc(ref SpanReader reader)
         {
             return reader.ReadInt64Compact();
         }
@@ -58,6 +58,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             writer.WriteCompact(LastAccessTimeUtc.ToFileTimeUtc());
             ContentHashListWithDeterminism.Serialize(writer);
+        }
+
+        /// <nodoc />
+        public void Serialize(ref SpanWriter writer)
+        {
+            writer.WriteCompact(LastAccessTimeUtc.ToFileTimeUtc());
+            ContentHashListWithDeterminism.Serialize(ref writer);
         }
     }
 }

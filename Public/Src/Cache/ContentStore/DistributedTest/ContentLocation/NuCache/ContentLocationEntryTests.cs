@@ -6,7 +6,6 @@ using System.Buffers;
 using System.Linq;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Utils;
-using BuildXL.Utilities.Serialization;
 using FluentAssertions;
 using Xunit;
 using Xunit.Abstractions;

@@ -646,6 +646,12 @@ namespace BuildXL.Cache.Host.Configuration
         public TimeSpanSetting? EventHubFlushShutdownTimeout { get; set; }
 
         [DataMember]
+        public bool? EventHubUseSpanBasedSerialization { get; set; }
+
+        [DataMember]
+        public bool? EventHubSelfCheckSerialization { get; set; }
+
+        [DataMember]
         [Validation.Range(1, int.MaxValue)]
         public int? EventProcessingMaxQueueSize { get; set; }
 

@@ -6,6 +6,8 @@ using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Text;
+using BuildXL.Utilities.Core;
 
 #nullable enable
 
@@ -55,15 +57,9 @@ namespace BuildXL.Utilities.Serialization
         }
 
         /// <nodoc />
-        public static void WriteInt32Compact(this ref SpanWriter writer, int value)
+        public static void WriteCompact(this ref SpanWriter writer, uint value)
         {
-            writer.WriteUInt64Compact(unchecked((uint)value));
-        }
-
-        /// <nodoc />
-        public static void WriteUInt32Compact(this ref SpanWriter writer, uint value)
-        {
-            writer.WriteUInt64Compact(unchecked((ulong)value));
+            writer.Write7BitEncodedInt(unchecked((int)value));
         }
 
         /// <nodoc />
@@ -82,20 +78,42 @@ namespace BuildXL.Utilities.Serialization
             return reader.Read7BitEncodedLong();
         }
 
-        /// <nodoc />
-        public static void WriteInt64Compact(this ref SpanWriter writer, long value)
+        /// <summary>
+        /// Compactly writes an int
+        /// </summary>
+        public static void WriteCompact(this ref SpanWriter writer, int value)
         {
-            writer.WriteUInt64Compact(unchecked((ulong)value));
-        }
-        
-        /// <nodoc />
-        public static void WriteCompact(this ref SpanWriter writer, long value)
-        {
-            writer.WriteUInt64Compact(unchecked((ulong)value));
+            writer.Write7BitEncodedInt(value);
         }
 
         /// <nodoc />
-        public static void WriteUInt64Compact(this ref SpanWriter writer, ulong value)
+        public static void WriteCompact(this ref SpanWriter writer, long value)
+        {
+            writer.WriteCompact(unchecked((ulong)value));
+        }
+
+        /// <nodoc />
+        public static void Write7BitEncodedInt(this ref SpanWriter writer, int value)
+        {
+            uint uValue = unchecked((uint)value);
+
+            // Write out an int 7 bits at a time. The high bit of the byte,
+            // when on, tells reader to continue reading more bytes.
+            //
+            // Using the constants 0x7F and ~0x7F below offers smaller
+            // codegen than using the constant 0x80.
+
+            while (uValue > 0x7Fu)
+            {
+                writer.Write(unchecked((byte)(uValue | ~0x7Fu)));
+                uValue >>= 7;
+            }
+
+            writer.Write((byte)uValue);
+        }
+
+        /// <nodoc />
+        public static void WriteCompact(this ref SpanWriter writer, ulong value)
         {
             int writeCount = 1;
             unchecked
@@ -287,9 +305,17 @@ namespace BuildXL.Utilities.Serialization
         }
 
         /// <summary>
-        /// Writes an array
+        /// Writes an array.
         /// </summary>
         public static void Write<T>(this ref SpanWriter writer, T[] value, WriteItemToSpan<T> write)
+        {
+            WriteReadOnlyListCore(ref writer, value, write);
+        }
+        
+        /// <summary>
+        /// Writes a readonly list.
+        /// </summary>
+        public static void Write<T>(this ref SpanWriter writer, IReadOnlyList<T> value, WriteItemToSpan<T> write)
         {
             WriteReadOnlyListCore(ref writer, value, write);
         }
@@ -297,11 +323,169 @@ namespace BuildXL.Utilities.Serialization
         private static void WriteReadOnlyListCore<T, TReadOnlyList>(this ref SpanWriter writer, TReadOnlyList value, WriteItemToSpan<T> write)
             where TReadOnlyList : IReadOnlyList<T>
         {
-            writer.WriteInt32Compact(value.Count);
+            writer.WriteCompact(value.Count);
             for (int i = 0; i < value.Count; i++)
             {
                 write(ref writer, value[i]);
             }
         }
+
+        /// <summary>
+        /// Reads a string from <paramref name="reader"/>.
+        /// </summary>
+        public static string ReadString(this ref SpanReader reader, Encoding? encoding = null)
+        {
+            // Adopted from BinaryReader.ReadString.
+            const int MaxCharBytesSize = 128;
+            encoding ??= Encoding.UTF8;
+            var maxCharsSize = encoding.GetMaxCharCount(MaxCharBytesSize);
+            var decoder = encoding.GetDecoder();
+
+            // Length of the string in bytes, not chars
+            int stringLength = reader.Read7BitEncodedInt();
+            if (stringLength < 0)
+            {
+                throw new InvalidOperationException($"The string length is invalid {stringLength}");
+            }
+
+            if (stringLength == 0)
+            {
+                return string.Empty;
+            }
+
+            // pooled buffers
+            using var pooledCharBuffer = Pools.GetCharArray(maxCharsSize);
+            var charBuffer = pooledCharBuffer.Instance;
+
+            StringBuilder? sb = null;
+            int currPos = 0;
+            do
+            {
+                int readLength = ((stringLength - currPos) > MaxCharBytesSize) ? MaxCharBytesSize : (stringLength - currPos);
+
+                var span = reader.ReadSpan(readLength, allowIncomplete: true);
+                int n = span.Length;
+                if (n == 0)
+                {
+                    throw new InvalidOleVariantTypeException("Unexpected end of binary stream.");
+                }
+
+#if NET5_0_OR_GREATER
+                int charsRead = decoder.GetChars(span, charBuffer.AsSpan(), flush: false);
+#else
+                var charBytes = span.ToArray();
+                int charsRead = decoder.GetChars(charBytes, 0, n, charBuffer, 0);
+#endif
+                if (currPos == 0 && span.Length == stringLength)
+                {
+                    return new string(charBuffer, 0, charsRead);
+                }
+
+                // Since we could be reading from an untrusted data source, limit the initial size of the
+                // StringBuilder instance we're about to get or create. It'll expand automatically as needed.
+                sb ??= StringBuilderCache.Acquire(Math.Min(stringLength, StringBuilderCache.MaxBuilderSize)); // Actual string length in chars may be smaller.
+                sb.Append(charBuffer, 0, charsRead);
+                currPos += n;
+            } while (currPos < stringLength);
+
+            // In this case we can return the buffer back, but not in the case when we read the whole string.
+            return StringBuilderCache.GetStringAndRelease(sb);
+        }
+
+        private const int MaxArrayPoolRentalSize = 64 * 1024; // try to keep rentals to a reasonable size
+
+        /// <summary>
+        /// Writes a given <paramref name="value"/> into <paramref name="writer"/>.
+        /// </summary>
+        public static void Write(this ref SpanWriter writer, string value, Encoding? encoding = null)
+        {
+            encoding ??= Encoding.UTF8;
+
+            // Adopted from BinaryWriter.Write(string value)
+#if NET5_0_OR_GREATER
+            if (value.Length <= 127 / 3)
+            {
+                // Max expansion: each char -> 3 bytes, so 127 bytes max of data, +1 for length prefix
+                Span<byte> buffer = stackalloc byte[128];
+                int actualByteCount = encoding.GetBytes(value, buffer.Slice(1));
+                buffer[0] = (byte)actualByteCount; // bypass call to Write7BitEncodedInt
+                var slice = buffer.Slice(0, actualByteCount + 1 /* length prefix */);
+                writer.WriteSpan(slice);
+                return;
+            }
+
+            if (value.Length <= MaxArrayPoolRentalSize / 3)
+            {
+                using var wrapper = Pools.GetByteArray(value.Length * 3); // max expansion: each char -> 3 bytes
+                var rented = wrapper.Instance;
+                int actualByteCount = encoding.GetBytes(value, rented);
+                writer.Write7BitEncodedInt(actualByteCount);
+                writer.Write(rented.AsSpan(0, actualByteCount));
+                return;
+            }
+
+            // Slow path
+            writer.Write7BitEncodedInt(encoding.GetByteCount(value));
+            WriteCharsCommonWithoutLengthPrefix(ref writer, value, encoding);
+#else
+            // Fairly naive version for the full framework.
+            var bytes = encoding.GetBytes(value);
+            writer.Write7BitEncodedInt(bytes.Length);
+            writer.Write(bytes);
+#endif
+        }
+#if NET5_0_OR_GREATER
+        private static void WriteCharsCommonWithoutLengthPrefix(this ref SpanWriter writer, ReadOnlySpan<char> chars, Encoding encoding)
+        {
+            // If our input is truly enormous, the call to GetMaxByteCount might overflow,
+            // which we want to avoid. Theoretically, any Encoding could expand from chars -> bytes
+            // at an enormous ratio and cause us problems anyway given small inputs, but this is so
+            // unrealistic that we needn't worry about it.
+
+            byte[] rented;
+
+            if (chars.Length <= MaxArrayPoolRentalSize)
+            {
+                // GetByteCount may walk the buffer contents, resulting in 2 passes over the data.
+                // We prefer GetMaxByteCount because it's a constant-time operation.
+
+                int maxByteCount = encoding.GetMaxByteCount(chars.Length);
+                if (maxByteCount <= MaxArrayPoolRentalSize)
+                {
+                    using var rentedHandlerInner = Pools.GetByteArray(maxByteCount);
+                    rented = rentedHandlerInner.Instance;
+                    int actualByteCount = encoding.GetBytes(chars, rented);
+                    WriteToOutStream(ref writer, rented, 0, actualByteCount);
+                    return;
+                }
+            }
+
+            // We're dealing with an enormous amount of data, so acquire an Encoder.
+            // It should be rare that callers pass sufficiently large inputs to hit
+            // this code path, and the cost of the operation is dominated by the transcoding
+            // step anyway, so it's ok for us to take the allocation here.
+
+            using var rentedHandler = Pools.GetByteArray(MaxArrayPoolRentalSize);
+            rented = rentedHandler.Instance;
+            Encoder encoder = encoding.GetEncoder();
+            bool completed;
+
+            do
+            {
+                encoder.Convert(chars, rented, flush: true, charsUsed: out int charsConsumed, bytesUsed: out int bytesWritten, completed: out completed);
+                if (bytesWritten != 0)
+                {
+                    WriteToOutStream(ref writer, rented, 0, bytesWritten);
+                }
+
+                chars = chars.Slice(charsConsumed);
+            } while (!completed);
+        }
+
+        private static void WriteToOutStream(ref SpanWriter writer, byte[] buffer, int offset, int count)
+        {
+            writer.Write(buffer.AsSpan(offset, count));
+        }
+#endif
     }
 }

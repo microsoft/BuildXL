@@ -454,17 +454,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             if (_latestAccessTime != DefaultInvalidLatestAccessTime || _size >= 0)
             {
-                writer.WriteUInt32Compact(_latestAccessTime);
+                writer.WriteCompact(_latestAccessTime);
 
                 bool mustSerializationEarliestTime = _earliestAccessTime != DefaultInvalidEarliestTime && _earliestAccessTime != _latestAccessTime;
                 var finalSize = Math.Max(_size, -1) + 1;
                 if (finalSize > 0 || mustSerializationEarliestTime)
                 {
-                    writer.WriteInt64Compact(finalSize);
+                    writer.WriteCompact(finalSize);
 
                     if (mustSerializationEarliestTime)
                     {
-                        writer.WriteUInt32Compact(_earliestAccessTime);
+                        writer.WriteCompact(_earliestAccessTime);
                     }
                 }
             }

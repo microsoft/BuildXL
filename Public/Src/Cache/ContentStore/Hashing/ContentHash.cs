@@ -306,23 +306,36 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <summary>
         ///     Serialize to a span.
         /// </summary>
-        public void Serialize(Span<byte> buffer, int offset = 0, SerializeHashBytesMethod serializeMethod = SerializeHashBytesMethod.Trimmed)
+        public int Serialize(Span<byte> buffer, int offset = 0, SerializeHashBytesMethod serializeMethod = SerializeHashBytesMethod.Trimmed)
         {
             var length = serializeMethod == SerializeHashBytesMethod.Trimmed ? ByteLength : MaxHashByteLength;
-            Serialize(buffer, offset, length);
+            return Serialize(buffer, offset, length);
         }
 
         /// <summary>
         ///     Serialize to a span.
         /// </summary>
-        public void Serialize(Span<byte> buffer, int offset, int length)
+        public int Serialize(Span<byte> buffer, int offset, int length)
         {
             unchecked
             {
                 buffer[offset++] = (byte)_hashType;
             }
 
-            _bytes.Serialize(buffer.Slice(offset), length);
+            return _bytes.Serialize(buffer.Slice(offset), length) + 1;
+        }
+
+        /// <summary>
+        ///     Serialize whole value to a target span.
+        /// </summary>
+        public int Serialize(Span<byte> targetSpan)
+        {
+            unchecked
+            {
+                targetSpan[0] = (byte)_hashType;
+            }
+
+            return _bytes.Serialize(targetSpan.Slice(1)) + 1;
         }
 
         /// <summary>

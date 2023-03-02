@@ -1,10 +1,13 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
+using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Cache.ContentStore.Tracing;
 using FileInfo = BuildXL.Cache.ContentStore.Interfaces.FileSystem.FileInfo;
 
 namespace BuildXL.Cache.ContentStore.FileSystem
@@ -14,6 +17,7 @@ namespace BuildXL.Cache.ContentStore.FileSystem
     /// </summary>
     public static class FileSystemExtensions
     {
+        private static readonly Tracer Tracer = new Tracer(nameof(FileSystemExtensions));
         /// <summary>
         ///     Remove all contents, subdirectories and files, from a directory.
         /// </summary>
@@ -44,6 +48,23 @@ namespace BuildXL.Cache.ContentStore.FileSystem
             foreach (FileInfo fileInfo in fileSystem.EnumerateFiles(path, EnumerateOptions.None))
             {
                 fileSystem.DeleteFile(fileInfo.FullPath);
+            }
+        }
+
+        /// <summary>
+        /// Tries deleting a given <paramref name="path"/> and traces an exception in case of an error.
+        /// </summary>
+        public static bool TryDeleteFile(this IAbsFileSystem fileSystem, Context context, AbsolutePath path)
+        {
+            try
+            {
+                fileSystem.DeleteFile(path);
+                return true;
+            }
+            catch (Exception e)
+            {
+                Tracer.Warning(context, e, $"Failed to delete file '{path}'");
+                return false;
             }
         }
     }

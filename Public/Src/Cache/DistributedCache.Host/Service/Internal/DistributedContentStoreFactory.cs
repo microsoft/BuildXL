@@ -603,6 +603,8 @@ namespace BuildXL.Cache.Host.Service.Internal
             ApplyIfNotNull(_distributedSettings.EventBatchSize, value => eventStoreConfiguration.EventBatchSize = value);
             ApplyIfNotNull(_distributedSettings.EventHubFlushShutdownTimeout, value => eventStoreConfiguration.FlushShutdownTimeout = value);
             ApplyIfNotNull(_distributedSettings.EventProcessingMaxQueueSize, value => eventStoreConfiguration.EventProcessingMaxQueueSize = value);
+            ApplyIfNotNull(_distributedSettings.EventHubUseSpanBasedSerialization, value => eventStoreConfiguration.UseSpanBasedSerialization = value);
+            ApplyIfNotNull(_distributedSettings.EventHubSelfCheckSerialization, value => eventStoreConfiguration.SelfCheckSerialization = value);
 
             var azureBlobStorageCheckpointRegistryConfiguration = new AzureBlobStorageCheckpointRegistryConfiguration()
             {

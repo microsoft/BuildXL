@@ -239,6 +239,15 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         }
 
         /// <summary>
+        ///     Serialize whole value to a binary writer.
+        /// </summary>
+        public void Serialize(ref SpanWriter writer)
+        {
+            writer.Write(_contentHashes, (ref SpanWriter w, ContentHash hash) => w.Write(hash));
+            WriteNullableArray(_payload, ref writer);
+        }
+
+        /// <summary>
         ///     Initializes a new instance of the <see cref="ContentHashList" /> class from its binary representation.
         /// </summary>
         public static ContentHashList Deserialize(BuildXLReader reader)
@@ -268,6 +277,20 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
 
         /// <nodoc />
         public static void WriteNullableArray(byte[] array, BuildXLWriter writer)
+        {
+            if (array == null)
+            {
+                writer.WriteCompact(-1);
+            }
+            else
+            {
+                writer.WriteCompact(array.Length);
+                writer.Write(array);
+            }
+        }
+
+        /// <nodoc />
+        public static void WriteNullableArray(byte[] array, ref SpanWriter writer)
         {
             if (array == null)
             {

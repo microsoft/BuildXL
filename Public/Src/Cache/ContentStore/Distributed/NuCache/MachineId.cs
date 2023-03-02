@@ -4,6 +4,8 @@
 using System;
 using System.Diagnostics.ContractsLight;
 using System.IO;
+using BuildXL.Utilities;
+using BuildXL.Utilities.Serialization;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
@@ -61,9 +63,22 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <nodoc />
+        public static MachineId Deserialize(ref SpanReader reader)
+        {
+            var index = reader.ReadInt32();
+            return new MachineId(index);
+        }
+
+        /// <nodoc />
         public bool IsValid()
         {
             return !Equals(Invalid);
+        }
+
+        /// <nodoc />
+        public void Serialize(ref SpanWriter writer)
+        {
+            writer.Write(Index);
         }
 
         /// <nodoc />

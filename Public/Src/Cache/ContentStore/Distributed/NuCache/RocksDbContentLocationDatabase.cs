@@ -1058,7 +1058,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private long DeserializeMetadataLastAccessTimeUtc(ReadOnlySpan<byte> data)
         {
-            return SerializationPool.Deserialize(data, static reader => MetadataEntry.DeserializeLastAccessTimeUtc(reader));
+            var reader = data.AsReader();
+            return MetadataEntry.DeserializeLastAccessTimeUtc(ref reader);
         }
 
         /// <inheritdoc />

@@ -49,6 +49,19 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         }
 
         /// <summary>
+        ///     Serializes an instance into a binary stream.
+        /// </summary>
+        public void Serialize(ref SpanWriter writer)
+        {
+            writer.Write(ContentHashList != null);
+            ContentHashList?.Serialize(ref writer);
+
+            var determinism = Determinism.Serialize();
+            writer.Write(determinism.Length);
+            writer.Write(determinism);
+        }
+
+        /// <summary>
         ///     Initializes a new instance of the <see cref="ContentHashListWithDeterminism"/> struct from its binary
         ///     representation.
         /// </summary>

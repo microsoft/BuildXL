@@ -45,6 +45,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         public bool SelfCheckSerialization { get; set; } = false;
 
         /// <summary>
+        /// If true then the new span-based serialization/deserialization mode is used, otherwise the old BuildXLReader/Writer-based approach is used.
+        /// </summary>
+        public bool UseSpanBasedSerialization { get; set; } = true;
+
+        /// <summary>
         /// If enabled, self-check serialization failures will trigger an error instead of just getting traced.
         /// </summary>
         public bool SelfCheckSerializationShouldFail { get; set; } = false;

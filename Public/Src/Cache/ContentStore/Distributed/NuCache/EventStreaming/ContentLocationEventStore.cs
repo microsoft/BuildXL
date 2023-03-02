@@ -10,6 +10,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.Hashing.FileSystemHelpers;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
@@ -63,7 +64,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         private readonly CentralStorage _storage;
         private readonly Interfaces.FileSystem.AbsolutePath _workingDirectory;
         
-        private readonly IAbsFileSystem _fileSystem;
+        protected readonly IAbsFileSystem FileSystem;
         private readonly DisposableDirectory _workingDisposableDirectory;
 
         protected readonly TimeSpan?[] EventQueueDelays;
@@ -89,9 +90,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
             IClock clock)
         {
             _configuration = configuration;
-            _fileSystem = new PassThroughFileSystem();
+            FileSystem = new PassThroughFileSystem();
             _storage = centralStorage;
-            _workingDisposableDirectory = new DisposableDirectory(_fileSystem, workingDirectory);
+            _workingDisposableDirectory = new DisposableDirectory(FileSystem, workingDirectory);
             _workingDirectory = workingDirectory;
             EventQueueDelays = new TimeSpan?[configuration.MaxEventProcessingConcurrency];
             EventHandler = eventHandler;
@@ -100,7 +101,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
             Tracer = tracer;
 
             ValidationMode validationMode = configuration.SelfCheckSerialization ? (configuration.SelfCheckSerializationShouldFail ? ValidationMode.Fail : ValidationMode.Trace) : ValidationMode.Off;
-
+            SerializationMode serializationMode = configuration.UseSpanBasedSerialization ? SerializationMode.SpanBased : SerializationMode.Legacy;
             // EventDataSerializer is not thread-safe.
             // This is usually not a problem, because the nagle queue that is used by this class
             // kind of guarantees that it would be just a single thread responsible for sending the events
@@ -110,7 +111,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
             // In this case this method can be called from multiple threads causing serialization/deserialization issues.
             // So to prevent random test failures because of the state corruption we're using lock
             // if the batch size is 1.
-            EventDataSerializer = new ContentLocationEventDataSerializer(validationMode, synchronize: _configuration.EventBatchSize == 1);
+            EventDataSerializer = new ContentLocationEventDataSerializer(FileSystem, serializationMode, validationMode, synchronize: _configuration.EventBatchSize == 1);
         }
 
         /// <summary>
@@ -247,18 +248,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                 var blobName = blobEvent.BlobId;
 
                 await _storage.TryGetFileAsync(context, blobName, blobFilePath).ThrowIfFailure();
-
-                using var stream = _fileSystem.Open(
-                    blobFilePath,
-                    FileAccess.Read,
-                    FileMode.Open,
-                    FileShare.Read | FileShare.Delete,
-                    FileOptions.DeleteOnClose,
-                    AbsFileSystemExtension.DefaultFileStreamBufferSize);
-                using var reader = BuildXLReader.Create(stream, leaveOpen: true);
-
-                // Calling ToList to force materialization of IEnumerable to avoid access of disposed stream.
-                return EventDataSerializer.DeserializeEvents(reader).ToList();
+                return EventDataSerializer.LoadFromFile(context, blobFilePath);
             }
         }
 
@@ -477,13 +467,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
 
                     try
                     {
-                        long size = 0;
-                        using (Stream stream = _fileSystem.Open(blobFilePath, FileAccess.ReadWrite, FileMode.Create, FileShare.Read | FileShare.Delete, FileOptions.None, AbsFileSystemExtension.DefaultFileStreamBufferSize))
-                        using (var writer = BuildXLWriter.Create(stream, leaveOpen: true))
-                        {
-                            EventDataSerializer.SerializeEvents(writer, eventDatas);
-                            size = stream.Position;
-                        }
+                        long size = await EventDataSerializer.SaveToFileAsync(context, blobFilePath, eventDatas);
 
                         // Uploading the checkpoint
                         var storageIdResult = await _storage.UploadFileAsync(context, blobFilePath, blobName).ThrowIfFailure();
@@ -495,7 +479,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                     }
                     finally
                     {
-                        _fileSystem.DeleteFile(blobFilePath);
+                        // Safely deleting the file to avoid masking an original exception in case the try block fails.
+                        FileSystem.TryDeleteFile(context.TracingContext, blobFilePath);
                     }
                 },
                 Counters[PublishLargeEvent],

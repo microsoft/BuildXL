@@ -4,6 +4,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Text;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Serialization;
 using FluentAssertions;
@@ -14,6 +15,81 @@ namespace Test.BuildXL.Utilities.SpanBasedSerialization
     public class SpanReaderExtensionTests
     {
         private const int Length = 42;
+
+        private static void StressTestWithRandomStrings(Action<string, byte[]> testFunc, int byteSize = 1024, int iterationCount = 500)
+        {
+            var random = new Random();
+            var data = new byte[byteSize];
+
+            var buffer = new byte[byteSize * 10];
+            for (int i = 0; i < iterationCount; i++)
+            {
+                random.NextBytes(data);
+                var inputString = Encoding.UTF8.GetString(data);
+                testFunc(inputString, buffer);
+            }
+        }
+
+        [Theory]
+        [InlineData(1)]
+        [InlineData(10)]
+        [InlineData(1024)]
+        [InlineData(102400)]
+        public void StringSerializationTests(int byteSize)
+        {
+            StressTestWithRandomStrings(
+                (inputString, buffer) =>
+                {
+                    var writer = new SpanWriter(buffer);
+                    writer.Write(inputString);
+
+                    var writtenSpan = writer.WrittenBytes;
+
+                    var reader = writtenSpan.AsReader();
+                    var deserializedString = reader.ReadString();
+                    deserializedString.Should().Be(inputString);
+                }, 
+                byteSize,
+                iterationCount: byteSize > 100_000 ? 50 : 500); // Using smaller iteration count for large inputs
+        }
+        
+        [Fact]
+        public void WriteViaBxlWriterReadViaSpanTest()
+        {
+            StressTestWithRandomStrings(
+                (inputString, buffer) =>
+                {
+                    using var memoryStream = new MemoryStream(buffer);
+
+                    // Writing with BuildXLWriter and reading via spans
+                    using var writer = new BuildXLWriter(debug: false, memoryStream, leaveOpen: true, logStats: false);
+                    writer.Write(inputString);
+
+                    memoryStream.Position = 0;
+                    var reader = memoryStream.ToArray().AsSpan().AsReader();
+                    var deserializedString = reader.ReadString();
+
+                    deserializedString.Should().Be(inputString);
+                });
+        }
+        
+        [Fact]
+        public void WriteViaSpanWriterReadViaBxlReaderTest()
+        {
+            StressTestWithRandomStrings(
+                (inputString, buffer) =>
+                {
+                    var writer = buffer.AsSpan().AsWriter();
+                    writer.Write(inputString);
+
+                    using var memoryStream = new MemoryStream(buffer);
+
+                    using var reader = new BuildXLReader(debug: false, stream: memoryStream, leaveOpen: true);
+                    var deserializedString = reader.ReadString();
+
+                    deserializedString.Should().Be(inputString);
+                });
+        }
 
         [Fact]
         public void AdvanceMovesForward()
@@ -107,7 +183,7 @@ namespace Test.BuildXL.Utilities.SpanBasedSerialization
         public void UInt32Compact(uint input)
         {
             Test(Length,
-                (ref SpanWriter writer) => writer.WriteUInt32Compact(input),
+                (ref SpanWriter writer) => writer.WriteCompact(input),
                 writer => writer.WriteCompact(input),
                 (ref SpanReader reader) => reader.ReadUInt32Compact().Should().Be(input),
                 reader => reader.ReadUInt32Compact().Should().Be(input)
@@ -122,7 +198,7 @@ namespace Test.BuildXL.Utilities.SpanBasedSerialization
         public void Int32Compact(int input)
         {
             Test(Length,
-                (ref SpanWriter writer) => writer.WriteInt32Compact(input),
+                (ref SpanWriter writer) => writer.WriteCompact(input),
                 writer => writer.WriteCompact(input),
                 (ref SpanReader reader) => reader.ReadInt32Compact().Should().Be(input),
                 reader => reader.ReadInt32Compact().Should().Be(input)
@@ -137,7 +213,7 @@ namespace Test.BuildXL.Utilities.SpanBasedSerialization
         public void Int64Compact(long input)
         {
             Test(Length,
-                (ref SpanWriter writer) => writer.WriteInt64Compact(input),
+                (ref SpanWriter writer) => writer.WriteCompact(input),
                 writer => writer.WriteCompact(input),
                 (ref SpanReader reader) => reader.ReadInt64Compact().Should().Be(input),
                 reader => reader.ReadInt64Compact().Should().Be(input)

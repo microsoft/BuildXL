@@ -16,18 +16,20 @@ using Xunit;
 using Xunit.Abstractions;
 using System.Diagnostics.ContractsLight;
 using System.Collections.Generic;
-using BuildXL.Cache.ContentStore.Distributed.Utilities;
+using System.Diagnostics;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Tracing;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
-using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using System.IO;
 using System.Threading;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using BuildXL.Cache.ContentStore.Utils;
+using BuildXL.Utilities.Serialization;
+using Microsoft.Azure.EventHubs;
+using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 
 namespace ContentStoreTest.Distributed.ContentLocation.NuCache
 {
@@ -39,6 +41,90 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
         {
         }
 
+        [Fact]
+        public async Task SerializeWithSpansAndSmallInitialFileSize()
+        {
+            var context = OperationContext();
+            var path = TestRootDirectoryPath / "Tmp.txt";
+            var messages = new[] { GenerateRandomEventData(0, numberOfHashes: 50_000, DateTime.Now) };
+            var oldSerializer = CreateContentLocationEventDataSerializer(useSpanBasedSerialization: true);
+
+            var serializedSize = await oldSerializer.SaveToFileAsync(context, path, messages, bufferSizeHint: 1);
+            serializedSize.Should().BeGreaterThan(1); // This means that we had to re-opened the memory-mapped file during serialization.
+        }
+
+        [Fact]
+        public async Task TaskTestFileSerializationDeserializationBackwardCompatibility()
+        {
+            const int largeEventContentCount = 0;
+            var context = OperationContext();
+            var path = TestRootDirectoryPath / "Tmp.txt";
+            var messages = new []
+                           {
+                               // GenerateRandomEventData(0, numberOfHashes: largeEventContentCount, DateTime.Now),
+                               // Not using touches because the touch time is not serialized.
+                               // GenerateRandomEventData(1, numberOfHashes: largeEventContentCount, DateTime.Now),
+                               GenerateRandomEventData(2, numberOfHashes: largeEventContentCount, DateTime.Now),
+                               //GenerateRandomEventData(3, numberOfHashes: largeEventContentCount, DateTime.Now),
+                           }.ToList();
+
+            var legacySerializer = CreateContentLocationEventDataSerializer(useSpanBasedSerialization: false);
+            var newSerializer = CreateContentLocationEventDataSerializer(useSpanBasedSerialization: true);
+            var legacyFileSize = await legacySerializer.SaveToFileAsync(context, path, messages);
+
+            var deserialized = legacySerializer.LoadFromFile(context, path, deleteOnClose: false);
+
+            // Checking the old deserialization
+            // Saving to the file doesn't split the large events.
+            deserialized.Count.Should().Be(messages.Count);
+            deserialized.Should().BeEquivalentTo(messages);
+
+            // The new deserialization.
+            deserialized = newSerializer.LoadFromFile(context, path, deleteOnClose: false);
+
+            deserialized.Should().BeEquivalentTo(messages);
+
+            // The new serialization + deserialization
+            var newFileSize = await newSerializer.SaveToFileAsync(context, path, messages);
+            newFileSize.Should().Be(legacyFileSize);
+
+            deserialized = newSerializer.LoadFromFile(context, path, deleteOnClose: false);
+            deserialized.Should().BeEquivalentTo(messages);
+        }
+
+        [Theory(Skip = "For manual testing only")]
+        [InlineData(true)]
+        [InlineData(false)]
+        public async Task BenchmarkSerialization(bool useSpanBasedSerialization)
+        {
+            var context = OperationContext();
+            var path = TestRootDirectoryPath / "Tmp.txt";
+            var messages = new[] { GenerateRandomEventData(0, numberOfHashes: 50_000, DateTime.Now) };
+            var serializer = CreateContentLocationEventDataSerializer(useSpanBasedSerialization, ValidationMode.Off);
+
+            // Warming up the check.
+            await serializer.SaveToFileAsync(context, path, messages);
+
+            var sw = Stopwatch.StartNew();
+
+            for (int i = 0; i < 1000; i++)
+            {
+                await serializer.SaveToFileAsync(context, TestRootDirectoryPath / $"{i}.txt", messages);
+            }
+
+            var writeDuration = sw.ElapsedMilliseconds;
+            sw = Stopwatch.StartNew();
+
+            for (int i = 0; i < 1000; i++)
+            {
+                var pathToRead = TestRootDirectoryPath / $"{i}.txt";
+                serializer.LoadFromFile(context, pathToRead);
+            }
+
+            // Failing to show the message more easily.
+            true.Should().BeFalse($"Mode: {(useSpanBasedSerialization ? "Span-based" : "Legacy")}, WriteDuration: {writeDuration}ms, ReadDuration: {sw.ElapsedMilliseconds}ms");
+        }
+        
         public static IEnumerable<object[]> EventKinds => Enum.GetValues(typeof(EventKind)).OfType<EventKind>().Select(k => new object[] { k, k.ToString() });
 
         [Theory]
@@ -73,17 +159,13 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
 
             await sendAndVerifyLargeEvent(kind);
 
-            using var stream = new MemoryStream();
-            using var writer = BuildXL.Utilities.Core.BuildXLWriter.Create(stream);
+            var arrayBuffer = serializeIntoBuffer(serializer, harness.Events);
 
-            serializer.SerializeEvents(writer, harness.Events);
-
-            stream.Position.Should().BeGreaterThan(ContentLocationEventDataSerializer.MaxEventDataPayloadSize,
+            arrayBuffer.WrittenCount.Should().BeGreaterThan(ContentLocationEventDataSerializer.MaxEventDataPayloadSize,
                 "Event should be larger than max event payload size to properly test serialization logic");
 
             bool canSplit = kind == EventKind.AddLocation
                 || kind == EventKind.AddLocationWithoutTouching
-                || kind == EventKind.RemoveLocation
                 || kind == EventKind.RemoveLocation
                 || kind == EventKind.Touch;
 
@@ -117,13 +199,21 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
 
                 harness.State.DownloadedCount.Should().Be(1);
                 harness.State.UploadedCount.Should().Be(1);
-                harness.State.UploadedSize.Should().BeGreaterOrEqualTo(stream.Position);
+                harness.State.UploadedSize.Should().BeGreaterOrEqualTo(arrayBuffer.WrittenCount);
                 harness.State.UploadedSize.Should().Be(harness.State.DownloadedSize);
+            }
+
+            static BxlArrayBufferWriter<byte> serializeIntoBuffer(ContentLocationEventDataSerializer serializer, List<ContentLocationEventData> events)
+            {
+                var arrayBuffer = new BxlArrayBufferWriter<byte>();
+                var writer = new SpanWriter(arrayBuffer);
+                serializer.SerializeEvents(ref writer, events);
+                return arrayBuffer;
             }
 
             async Task sendAndVerifyLargeEvent(EventKind kind)
             {
-                const int largeEventContentCount = 50000;
+                const int largeEventContentCount = 50_000;
 
                 switch (kind)
                 {
@@ -231,7 +321,7 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
 
             var serializer = CreateContentLocationEventDataSerializer();
             var largeMessage = GenerateRandomEventData(0, numberOfHashesPerItem, touchTime);
-            var serializedMessages = serializer.Serialize(OperationContext(), new[] { largeMessage }).ToList();
+            var serializedMessages = Serialize(serializer, new[] { largeMessage });
 
             // Round trip validation is performed by the serializer
             Output.WriteLine($"Number of serialized records: {serializedMessages.Count}");
@@ -239,13 +329,13 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
         }
 
         [Fact]
-        public void TwoHunderdEventsShouldBeSerializedIntoOneEventDAta()
+        public void TwoHunderdEventsShouldBeSerializedIntoOneEventData()
         {
             DateTime touchTime = DateTime.UtcNow;
 
             var serializer = CreateContentLocationEventDataSerializer();
             var largeMessage = Enumerable.Range(1, 200).Select<int, ContentLocationEventData>(n => GenerateRandomEventData(0, numberOfHashes: 2, touchTime: touchTime)).ToArray();
-            var serializedMessages = serializer.Serialize(OperationContext(), largeMessage).ToList();
+            var serializedMessages = Serialize(serializer, largeMessage);
 
             // Round trip validation is performed by the serializer
             Output.WriteLine($"Number of serialized records: {serializedMessages.Count}");
@@ -259,11 +349,11 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
             const int numberOfHashesPerItem = 200;
             DateTime touchTime = DateTime.UtcNow;
 
-            var serializer = CreateContentLocationEventDataSerializer();
+            var serializer = CreateContentLocationEventDataSerializer(useSpanBasedSerialization: false);
             var messages = Enumerable.Range(1, numberOfItems).Select<int, ContentLocationEventData>(n => GenerateRandomEventData(n, numberOfHashesPerItem, touchTime)).ToArray();
 
             // Round trip validation is performed by the serializer
-            var serializedMessages = serializer.Serialize(OperationContext(), messages).ToList();
+            var serializedMessages = Serialize(serializer, messages);
 
             Output.WriteLine($"Number of serialized records: {serializedMessages.Count}");
             serializedMessages.Count.Should().NotBe(1);
@@ -280,23 +370,109 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
             var messages = Enumerable.Range(1, numberOfItems).Select<int, ContentLocationEventData>(n => GenerateRandomEventData(n, numberOfHashesPerItem, touchTime)).ToArray();
 
             // Round trip validation is performed by the serializer
-            var serializedMessages = serializer.Serialize(OperationContext(), messages).ToList();
+            var serializedMessages = Serialize(serializer, messages);
             serializedMessages.Count.Should().Be(1); // All the cases we have should fit into one message.
+        }
+
+        [Fact]
+        public void SerializationRoundtripWithTouch()
+        {
+            DateTime touchTime = DateTime.UtcNow;
+
+            var serializer = CreateContentLocationEventDataSerializer();
+            ShortHash.TryParse("VSO0:84ABF22908660978EE63C9", out var hash).Should().BeTrue();
+            var message = new TouchContentLocationEventData(42.AsMachineId(), new ShortHash[] {hash}, touchTime);
+
+            // Round trip validation is performed by the serializer
+            var serializedMessages = Serialize(serializer, new [] { message });
+            serializedMessages.Count.Should().Be(1); // All the cases we have should fit into one message.
+        }
+
+        [Fact]
+        public void SerializationRoundtripWithMetadata()
+        {
+            var serializer = CreateContentLocationEventDataSerializer();
+            DateTime eventTime = DateTime.Now;
+            
+            var metadataEntry = new MetadataEntry(
+                new ContentHashListWithDeterminism(
+                    new ContentHashList(
+                        contentHashes: new ContentHash[] { ContentHash.Random() },
+                        payload: ContentHash.Random().ToByteArray()),
+                    determinism: CacheDeterminism.SinglePhaseNonDeterministic),
+                lastAccessTimeUtc: eventTime);
+            var message = new UpdateMetadataEntryEventData(42.AsMachineId(), StrongFingerprint.Random(), metadataEntry);
+
+            // Round trip validation is performed by the serializer
+            var serializedMessages = Serialize(serializer, new [] { message });
+            serializedMessages.Count.Should().Be(1); // All the cases we have should fit into one message.
+
+            var deserialized = serializer.DeserializeEvents(serializedMessages[0], eventTime);
+            deserialized.Count.Should().Be(1);
+            deserialized[0].Should().Be(message);
+        }
+
+        [Fact]
+        public async Task SerializationRoundtripWithMetadataLarge()
+        {
+            var context = OperationContext();
+            var path = TestRootDirectoryPath / "Tmp.txt";
+            var legacyPath = TestRootDirectoryPath / "Tmp.txt";
+
+            var serializer = CreateContentLocationEventDataSerializer();
+            var legacySerializer = CreateContentLocationEventDataSerializer(useSpanBasedSerialization: false);
+
+            var message = GenerateMetadataEvent(42.AsMachineId(), 50_000);
+
+            var length1 = await serializer.SaveToFileAsync(context, path, new[] {message});
+            var length2 = await legacySerializer.SaveToFileAsync(context, legacyPath, new[] {message});
+            length2.Should().Be(length1);
+
+            var data = FileSystem.ReadAllBytes(path);
+            var data2 = FileSystem.ReadAllBytes(legacyPath);
+            data.AsSpan().SequenceEqual(data2).Should().BeTrue();
+            var deserialized = serializer.LoadFromFile(context, path);
+            deserialized.Count.Should().Be(1);
+            deserialized[0].Should().Be(message);
+        }
+
+        private static List<EventData> Serialize(ContentLocationEventDataSerializer serializer, IReadOnlyList<ContentLocationEventData> messages)
+        {
+            return serializer.Serialize(OperationContext(), messages).ToList();
         }
 
         private static ContentLocationEventData GenerateRandomEventData(int index, int numberOfHashes, DateTime touchTime)
         {
             var random = new Random(index);
             var hashesAndSizes = Enumerable.Range(1, numberOfHashes).Select(n => (hash: new ShortHash(ContentHash.Random()), size: (long)random.Next(10_000_000))).ToList();
-            return (index % 3) switch
+            return (index % 4) switch
             {
                 0 => (ContentLocationEventData)new AddContentLocationEventData(new MachineId(index), hashesAndSizes.SelectArray(n => n.hash), hashesAndSizes.SelectArray(n => n.size)),
                 1 => new TouchContentLocationEventData(new MachineId(index), hashesAndSizes.SelectArray(n => n.hash), touchTime),
+                2 => GenerateMetadataEvent(new MachineId(index), numberOfHashes),
                 _ => new RemoveContentLocationEventData(new MachineId(index), hashesAndSizes.SelectArray(n => n.hash)),
             };
         }
 
-        private static ContentLocationEventDataSerializer CreateContentLocationEventDataSerializer() => new ContentLocationEventDataSerializer(ValidationMode.Fail);
+        private static ContentLocationEventData GenerateMetadataEvent(MachineId sender, int largeEventContentCount)
+        {
+            var contentHashes = Enumerable.Range(0, largeEventContentCount).Select(_ => ContentHash.Random()).ToArray();
+            return new UpdateMetadataEntryEventData(
+                sender,
+                StrongFingerprint.Random(),
+                new MetadataEntry(
+                    new ContentHashListWithDeterminism(
+                        new ContentHashList(contentHashes),
+                        CacheDeterminism.None),
+                    DateTime.UtcNow));
+        }
+
+        private ContentLocationEventDataSerializer CreateContentLocationEventDataSerializer(
+            bool useSpanBasedSerialization = true,
+            ValidationMode validationMode = ValidationMode.Fail) => new ContentLocationEventDataSerializer(
+            FileSystem,
+            useSpanBasedSerialization ? SerializationMode.SpanBased : SerializationMode.Legacy,
+            validationMode);
 
         private static OperationContext OperationContext() => new OperationContext(new Context(TestGlobal.Logger));
 

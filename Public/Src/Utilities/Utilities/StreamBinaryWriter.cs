@@ -50,7 +50,7 @@ namespace BuildXL.Utilities
         /// <summary>
         /// Helper struct that restores the position of <see cref="StreamBinaryWriter"/>.
         /// </summary>
-        public struct PositionRestorer : IDisposable
+        public readonly struct PositionRestorer : IDisposable
         {
             private readonly StreamBinaryWriter _writer;
 

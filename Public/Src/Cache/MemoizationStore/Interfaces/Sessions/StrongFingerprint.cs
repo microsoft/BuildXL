@@ -51,6 +51,19 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         }
 
         /// <summary>
+        ///     Serialize whole value to a binary writer.
+        /// </summary>
+        /// <remarks>
+        ///     The included <see cref="Fingerprint"/> needs to always come first in the serialization order. This is
+        ///     needed to be able to do prefix searches by weak fingerprint in key value stores.
+        /// </remarks>
+        public void Serialize(ref SpanWriter writer)
+        {
+            WeakFingerprint.Serialize(ref writer);
+            Selector.Serialize(ref writer);
+        }
+
+        /// <summary>
         ///     Initializes a new instance of the <see cref="StrongFingerprint" /> struct from its binary
         ///     representation.
         /// </summary>

@@ -11,6 +11,7 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.Tracing;
+using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Tracing;
@@ -89,7 +90,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                         .Select(
                             (_, index) =>
                             {
-                                var serializer = new ContentLocationEventDataSerializer(configuration.SelfCheckSerialization ? (configuration.SelfCheckSerializationShouldFail ? ValidationMode.Fail : ValidationMode.Trace) : ValidationMode.Off);
+                                ValidationMode validationMode = configuration.SelfCheckSerialization
+                                    ? (configuration.SelfCheckSerializationShouldFail ? ValidationMode.Fail : ValidationMode.Trace)
+                                    : ValidationMode.Off;
+                                SerializationMode serializationMode = configuration.UseSpanBasedSerialization
+                                    ? SerializationMode.SpanBased
+                                    : SerializationMode.Legacy;
+                                var serializer = new ContentLocationEventDataSerializer(FileSystem, serializationMode, validationMode);
                                 return ActionBlockSlim.CreateWithAsyncAction<ProcessEventsInput>(
                                     new ActionBlockSlimConfiguration(
                                         DegreeOfParallelism: 1,
@@ -123,7 +130,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         /// <inheritdoc />
         protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
         {
-            Tracer.Info(context, $"Initializing Event Hub-based content location event store with epoch '{_configuration.Epoch}'.");
+            Tracer.Info(context, $"Initializing Event Hub-based content location event store with epoch '{_configuration.Epoch}', UseSpanBasedSerialization={_configuration.UseSpanBasedSerialization}.");
 
             var baseInitializeResult = await base.StartupCoreAsync(context);
             if (!baseInitializeResult)

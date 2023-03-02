@@ -190,6 +190,19 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         }
 
         /// <summary>
+        ///     Serialize whole value to a binary writer.
+        /// </summary>
+        public void Serialize(ref SpanWriter writer)
+        {
+            Contract.Requires(Length > 0);
+
+            writer.Write(_length);
+            writer.EnsureLength(_length);
+            int bytesWritten = _bytes.Serialize(writer.Remaining, _length);
+            writer.Advance(bytesWritten);
+        }
+
+        /// <summary>
         ///     Initializes a new instance of the <see cref="Fingerprint"/> struct.
         /// </summary>
         public static Fingerprint Deserialize(BinaryReader reader)

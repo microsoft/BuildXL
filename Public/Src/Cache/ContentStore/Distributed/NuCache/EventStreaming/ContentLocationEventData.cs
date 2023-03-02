@@ -8,10 +8,10 @@ using System.Linq;
 using System.Text;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
-using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Serialization;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
 {
@@ -85,17 +85,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         /// <nodoc />
         public static ContentLocationEventData Deserialize(BuildXLReader reader, DateTime eventTimeUtc)
         {
-            Contract.Requires(reader != null);
-
             var kind = (EventKind)reader.ReadByte();
             var sender = MachineId.Deserialize(reader);
-            var hashes = reader.ReadReadOnlyList(r => r.ReadShortHash());
+            var hashes = reader.ReadArray(static r => r.ReadShortHash());
 
             switch (kind)
             {
                 case EventKind.AddLocation:
                 case EventKind.AddLocationWithoutTouching:
-                    return new AddContentLocationEventData(sender, hashes, reader.ReadReadOnlyList(r => r.ReadInt64Compact()), touch: kind == EventKind.AddLocation);
+                    return new AddContentLocationEventData(sender, hashes, reader.ReadArray(static r => r.ReadInt64Compact()), touch: kind == EventKind.AddLocation);
                 case EventKind.RemoveLocation:
                     return new RemoveContentLocationEventData(sender, hashes);
                 case EventKind.Touch:
@@ -103,9 +101,55 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                 case EventKind.Blob:
                     return new BlobContentLocationEventData(sender, reader.ReadString());
                 case EventKind.UpdateMetadataEntry:
-                    return new UpdateMetadataEntryEventData(sender, reader);
+                    return UpdateMetadataEntryEventData.Deserialize(reader, sender);
                 default:
                     throw new ArgumentOutOfRangeException($"Unknown event kind '{kind}'.");
+            }
+        }
+
+        /// <nodoc />
+        public static ContentLocationEventData Deserialize(ref SpanReader reader, DateTime eventTimeUtc)
+        {
+            var kind = (EventKind)reader.ReadByte();
+            var sender = MachineId.Deserialize(ref reader);
+            var hashes = reader.ReadArray(static (ref SpanReader r) => r.ReadShortHash());
+
+            switch (kind)
+            {
+                case EventKind.AddLocation:
+                case EventKind.AddLocationWithoutTouching:
+                    return new AddContentLocationEventData(sender, hashes, reader.ReadArray(static (ref SpanReader r) => r.ReadInt64Compact()), touch: kind == EventKind.AddLocation);
+                case EventKind.RemoveLocation:
+                    return new RemoveContentLocationEventData(sender, hashes);
+                case EventKind.Touch:
+                    return new TouchContentLocationEventData(sender, hashes, eventTimeUtc);
+                case EventKind.Blob:
+                    return new BlobContentLocationEventData(sender, reader.ReadString());
+                case EventKind.UpdateMetadataEntry:
+                    return UpdateMetadataEntryEventData.Deserialize(ref reader, sender);
+                default:
+                    throw new ArgumentOutOfRangeException($"Unknown event kind '{kind}'.");
+            }
+        }
+
+        /// <nodoc />
+        public virtual void Serialize(ref SpanWriter writer)
+        {
+            writer.Write((byte)SerializationKind);
+            Sender.Serialize(ref writer);
+            writer.Write(ContentHashes, static (ref SpanWriter w, ShortHash hash) => w.Write(hash));
+
+            switch (this) {
+                case AddContentLocationEventData addContentLocationEventData:
+                    writer.Write(addContentLocationEventData.ContentSizes, static (ref SpanWriter w, long size) => w.WriteCompact(size));
+                    break;
+                case RemoveContentLocationEventData removeContentLocationEventData:
+                case TouchContentLocationEventData touchContentLocationEventData:
+                    // Do nothing. No extra data. Touch timestamp is taken from event enqueue time
+                    break;
+                case BlobContentLocationEventData reconcileContentLocationEventData:
+                    writer.Write(reconcileContentLocationEventData.BlobId);
+                    break;
             }
         }
 
@@ -114,11 +158,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         {
             writer.Write((byte)SerializationKind);
             Sender.Serialize(writer);
-            writer.WriteReadOnlyList(ContentHashes, (w, hash) => w.Write(hash));
+            writer.WriteReadOnlyList(ContentHashes, static (w, hash) => w.Write(hash));
 
             switch (this) {
                 case AddContentLocationEventData addContentLocationEventData:
-                    writer.WriteReadOnlyList(addContentLocationEventData.ContentSizes, (w, size) => w.WriteCompact(size));
+                    writer.WriteReadOnlyList(addContentLocationEventData.ContentSizes, static (w, size) => w.WriteCompact(size));
                     break;
                 case RemoveContentLocationEventData removeContentLocationEventData:
                 case TouchContentLocationEventData touchContentLocationEventData:
@@ -172,6 +216,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                 case TouchContentLocationEventData touchContentLocationEventData:
                     result.AddRange(hashes.Select(t => new TouchContentLocationEventData(Sender, t, touchContentLocationEventData.AccessTime)));
                     break;
+                case UpdateMetadataEntryEventData update:
+                    result.AddRange(hashes.Select(t => new UpdateMetadataEntryEventData(Sender, update.StrongFingerprint, update.Entry)));
+                    break;
             }
 
             foreach (var r in result)
@@ -200,7 +247,22 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         /// <inheritdoc />
         public override bool Equals(object obj)
         {
-            return EqualityComparer<ContentLocationEventData>.Default.Equals(this, obj as ContentLocationEventData);
+            if (ReferenceEquals(this, obj))
+            {
+                return true;
+            }
+
+            if (obj is null)
+            {
+                return false;
+            }
+
+            if (GetType() != obj.GetType())
+            {
+                return false;
+            }
+
+            return Equals((ContentLocationEventData)obj);
         }
 
         /// <inheritdoc />
@@ -339,11 +401,27 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         }
 
         /// <nodoc />
-        public UpdateMetadataEntryEventData(MachineId sender, BuildXLReader reader)
-            : base(EventKind.UpdateMetadataEntry, sender, CollectionUtilities.EmptyArray<ShortHash>())
+        public static UpdateMetadataEntryEventData Deserialize(ref SpanReader reader, MachineId sender)
         {
-            StrongFingerprint = StrongFingerprint.Deserialize(reader);
-            Entry = MetadataEntry.Deserialize(reader);
+            var strongFingerprint = StrongFingerprint.Deserialize(ref reader);
+            var entry = MetadataEntry.Deserialize(ref reader);
+            return new UpdateMetadataEntryEventData(sender, strongFingerprint, entry);
+        }
+
+        /// <nodoc />
+        public static UpdateMetadataEntryEventData Deserialize(BuildXLReader reader, MachineId sender)
+        {
+            var strongFingerprint = StrongFingerprint.Deserialize(reader);
+            var entry = MetadataEntry.Deserialize(reader);
+            return new UpdateMetadataEntryEventData(sender, strongFingerprint, entry);
+        }
+
+        /// <inheritdoc />
+        public override void Serialize(ref SpanWriter writer)
+        {
+            base.Serialize(ref writer);
+            StrongFingerprint.Serialize(ref writer);
+            Entry.Serialize(ref writer);
         }
 
         /// <inheritdoc />

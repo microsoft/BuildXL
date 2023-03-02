@@ -54,6 +54,18 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         }
 
         /// <summary>
+        ///     Serialize whole value to a binary writer.
+        /// </summary>
+        public void Serialize(ref SpanWriter writer)
+        {
+            writer.EnsureLength(ContentHash.SerializedLength);
+            int length = ContentHash.Serialize(writer.Remaining);
+            writer.Advance(length);
+
+            ContentHashList.WriteNullableArray(Output, ref writer);
+        }
+
+        /// <summary>
         ///     Initializes a new instance of the <see cref="Selector" /> struct.
         /// </summary>
         public static Selector Deserialize(BuildXLReader reader)

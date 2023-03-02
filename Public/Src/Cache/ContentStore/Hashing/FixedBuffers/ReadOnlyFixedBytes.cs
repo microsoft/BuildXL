@@ -326,7 +326,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <summary>
         ///     Serialize value to a buffer.
         /// </summary>
-        public void Serialize(Span<byte> buffer, int length = MaxLength)
+        public int Serialize(Span<byte> buffer, int length = MaxLength)
         {
             var len = Math.Min(length, Math.Min(buffer.Length, MaxLength));
 
@@ -334,6 +334,8 @@ namespace BuildXL.Cache.ContentStore.Hashing
             {
                 AsSpan(s, len).CopyTo(buffer);
             }
+
+            return len;
         }
 
         /// <summary>

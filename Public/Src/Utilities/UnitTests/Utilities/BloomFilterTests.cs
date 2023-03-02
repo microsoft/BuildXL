@@ -32,7 +32,8 @@ namespace Test.BuildXL.Utilities
             Item[] items = GenerateUniqueRandomItems(new Random(123), count: 10);
             foreach (Item i in items)
             {
-                XAssert.IsFalse(filter.PossiblyContains(i.GetHash()));
+                (var high, var low) = i.GetHash();
+                XAssert.IsFalse(filter.PossiblyContains(high, low));
             }
         }
 
@@ -45,7 +46,8 @@ namespace Test.BuildXL.Utilities
             Item[] items = AddUniqueRandomItems(filter, new Random(123), NumElements);
             foreach (Item i in items)
             {
-                XAssert.IsTrue(filter.PossiblyContains(i.GetHash()));
+                (var high, var low) = i.GetHash();
+                XAssert.IsTrue(filter.PossiblyContains(high, low));
             }
         }
 
@@ -78,13 +80,15 @@ namespace Test.BuildXL.Utilities
 
             for (int i = 0; i < numberOfItems; i++)
             {
-                filter.Add(allItems[i].GetHash());
+                (var high, var low) = allItems[i].GetHash();
+                filter.Add(high, low);
             }
 
             int numberOfFalsePositives = 0;
             for (int i = numberOfItems; i < allItems.Length; i++)
             {
-                if (filter.PossiblyContains(allItems[i].GetHash()))
+                (var high, var low) = allItems[i].GetHash();
+                if (filter.PossiblyContains(high, low))
                 {
                     numberOfFalsePositives++;
                 }
@@ -107,7 +111,8 @@ namespace Test.BuildXL.Utilities
             Item[] items = GenerateUniqueRandomItems(random, count);
             foreach (Item item in items)
             {
-                filter.Add(item.GetHash());
+                (var high, var low) = item.GetHash();
+                filter.Add(high, low);
             }
 
             return items;
@@ -152,13 +157,15 @@ namespace Test.BuildXL.Utilities
                 return (high << 32) | low;
             }
 
-            public MurmurHash3 GetHash()
+            public Tuple<ulong, ulong> GetHash()
             {
                 unsafe
                 {
                     Item i = this;
                     Item* p = &i;
-                    return MurmurHash3.Create((byte*)p, (uint)sizeof(Item), 0);
+                    var murmurHash = MurmurHash3.Create((byte*)p, (uint)sizeof(Item), 0);
+
+                    return new Tuple<ulong, ulong>(murmurHash.High, murmurHash.Low);
                 }
             }
 

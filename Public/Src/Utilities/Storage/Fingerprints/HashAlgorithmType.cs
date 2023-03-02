@@ -16,7 +16,7 @@ namespace BuildXL.Storage.Fingerprints
         SHA1Managed = 0, 
 
         /// <summary>
-        /// <see cref="BuildXL.Utilities.MurmurHashEngine"/>
+        /// <see cref="MurmurHashEngine"/>
         /// </summary>
         MurmurHash3 = 1
     }

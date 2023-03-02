@@ -6,7 +6,7 @@ using System.Diagnostics.ContractsLight;
 using System.Security.Cryptography;
 using BuildXL.Cache.ContentStore.Hashing;
 
-namespace BuildXL.Utilities
+namespace BuildXL.Storage
 {
     /// <summary>
     /// Computes <see cref="MurmurHash3"/> hash for the input data

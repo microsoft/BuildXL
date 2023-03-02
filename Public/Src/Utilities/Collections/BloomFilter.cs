@@ -3,7 +3,6 @@
 
 using System;
 using System.Diagnostics.ContractsLight;
-using BuildXL.Cache.ContentStore.Hashing;
 
 namespace BuildXL.Utilities.Collections
 {
@@ -28,13 +27,13 @@ namespace BuildXL.Utilities.Collections
         }
 
         /// <summary>
-        /// Indicates if an item represented by <paramref name="hash"/> has possibly been added (false positives may occur).
+        /// Indicates if an item has possibly been added (false positives may occur).
         /// </summary>
-        public bool PossiblyContains(in MurmurHash3 hash)
+        public bool PossiblyContains(ulong high, ulong low)
         {
             for (int i = 0; i < m_parameters.NumberOfHashFunctions; i++)
             {
-                int index = (int)(hash.GetDerivedHash(i) % (ulong)m_parameters.NumberOfBits);
+                int index = (int)(unchecked(high + (low * (ulong)i)) % (ulong)m_parameters.NumberOfBits);
                 if (!m_bits[index])
                 {
                     return false;
@@ -45,14 +44,14 @@ namespace BuildXL.Utilities.Collections
         }
 
         /// <summary>
-        /// Adds an item represented by <paramref name="hash"/>. Subsequently, <see cref="PossiblyContains"/> for this item
+        /// Adds an item. Subsequently, <see cref="PossiblyContains"/> for this item
         /// is guaranteed to return true.
         /// </summary>
-        public void Add(in MurmurHash3 hash)
+        public void Add(ulong high, ulong low)
         {
             for (int i = 0; i < m_parameters.NumberOfHashFunctions; i++)
             {
-                int index = (int)(hash.GetDerivedHash(i) % (ulong)m_parameters.NumberOfBits);
+                int index = (int)(unchecked(high + (low * (ulong)i)) % (ulong)m_parameters.NumberOfBits);
                 m_bits[index] = true;
             }
         }
@@ -121,14 +120,14 @@ namespace BuildXL.Utilities.Collections
     /// </summary>
     public sealed class BloomFilter<T> : BloomFilter
     {
-        private readonly Func<T, MurmurHash3> m_hasher;
+        private readonly Func<T, Tuple<ulong, ulong>> m_hasher;
 
         /// <summary>
         /// Creates an empty filter with the given parameters.
         /// The <see cref="BloomFilter.Parameters.NumberOfBits"/> specifies the final size of the filter.
         /// The <paramref name="hasher"/> function is used to derive the 'k' hashes for each entry of type <typeparamref name="T"/>.
         /// </summary>
-        public BloomFilter(Parameters parameters, Func<T, MurmurHash3> hasher)
+        public BloomFilter(Parameters parameters, Func<T, Tuple<ulong, ulong>> hasher)
             : base(parameters)
         {
             Contract.RequiresNotNull(hasher);
@@ -142,7 +141,8 @@ namespace BuildXL.Utilities.Collections
         /// </summary>
         public bool PossiblyContains(T item)
         {
-            return PossiblyContains(m_hasher(item));
+            (ulong high, ulong low) = m_hasher(item);
+            return PossiblyContains(high, low);
         }
 
         /// <summary>
@@ -151,7 +151,8 @@ namespace BuildXL.Utilities.Collections
         /// </summary>
         public void Add(T item)
         {
-            Add(m_hasher(item));
+            (ulong high, ulong low) = m_hasher(item);
+            Add(high, low);
         }
     }
 }

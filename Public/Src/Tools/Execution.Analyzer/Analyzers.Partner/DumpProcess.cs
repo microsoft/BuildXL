@@ -66,7 +66,7 @@ namespace BuildXL.Execution.Analyzer
 
             return new DumpProcessAnalyzer(input)
             {
-                DumpFilePath = dumpFilePath,
+                DumpFilePath = dumpFilePath ?? Path.Combine(Environment.CurrentDirectory, "DumpProcess.html"),
                 CompressFile = compress,
                 TargetSemiStableHash = semistableHash,
                 Roots = roots,
@@ -360,6 +360,8 @@ namespace BuildXL.Execution.Analyzer
                     }
                 }
             }
+
+            Console.WriteLine($"Output saved to: {DumpFilePath}");
 
             return 0;
         }

@@ -254,7 +254,9 @@ namespace BuildXL.FrontEnd.Utilities
             var fileAccessManifest = new FileAccessManifest(pathTable)
                                      {
                                          FailUnexpectedFileAccesses = false,
-                                         ReportFileAccesses = true,
+                                         // The manifest is configured such that all relevant accesses are returned as unexpected ones, so we
+                                         // don't actually need to return all accesses
+                                         ReportFileAccesses = false,
                                          MonitorNtCreateFile = true,
                                          MonitorZwCreateOpenQueryFile = true,
                                          MonitorChildProcesses = true,

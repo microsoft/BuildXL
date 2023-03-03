@@ -121,7 +121,7 @@ namespace BuildXL.Processes
                 // the 'read' syscall won't receive EOF until we close this writer
                 m_lazyWriteHandle = new Lazy<SafeFileHandle>(() =>
                 {
-                    Process.LogProcessState($"Opening FIFO '{ReportsFifoPath}' for writing");
+                    Process.LogDebug($"Opening FIFO '{ReportsFifoPath}' for writing");
                     return IO.Open(ReportsFifoPath, IO.OpenFlags.O_WRONLY, 0);
                 });
 
@@ -152,7 +152,7 @@ namespace BuildXL.Processes
                 {
                     if (!Dispatch.IsProcessAlive(pid))
                     {
-                        Process.LogProcessState("CheckActiveProcesses");
+                        Process.LogDebug("CheckActiveProcesses");
                         RemovePid(pid);
                     }
                 }
@@ -169,7 +169,7 @@ namespace BuildXL.Processes
                 m_accessReportProcessingBlock.Complete();
                 m_accessReportProcessingBlock.Completion.ContinueWith(t =>
                 {
-                    Process.LogProcessState("Posting OpProcessTreeCompleted message");
+                    Process.LogDebug("Posting OpProcessTreeCompleted message");
                     Process.PostAccessReport(new AccessReport
                     {
                         Operation = FileOperation.OpProcessTreeCompleted,
@@ -189,7 +189,7 @@ namespace BuildXL.Processes
                     return; // already stopped
                 }
 
-                Process.LogProcessState($"Closing the write handle for FIFO '{ReportsFifoPath}'");
+                Process.LogDebug($"Closing the write handle for FIFO '{ReportsFifoPath}'");
                 // this will cause read() on the other end of the FIFO to return EOF once all native writers are done writing
                 m_lazyWriteHandle.Value.Dispose();
                 m_activeProcessesChecker.Cancel();
@@ -407,7 +407,7 @@ namespace BuildXL.Processes
                     var numRead = Read(readHandle, messageLengthBytes, 0, messageLengthBytes.Length);
                     if (numRead == 0) // EOF
                     {
-                        Process.LogProcessState("Exiting 'receive reports' loop.");
+                        Process.LogDebug("Exiting 'receive reports' loop.");
                         break;
                     }
 
@@ -565,7 +565,7 @@ namespace BuildXL.Processes
                 File.WriteAllBytes(famPath, manifestBytes.ToArray());
             }
 
-            process.LogProcessState($"Saved FAM to '{famPath}'");
+            process.LogDebug($"Saved FAM to '{famPath}'");
 
             // create a FIFO (named pipe)
             Analysis.IgnoreResult(FileUtilities.TryDeleteFile(fifoPath, retryOnFailure: false));
@@ -574,7 +574,7 @@ namespace BuildXL.Processes
                 throw new BuildXLException($"Creating FIFO {fifoPath} failed. (errno: {Marshal.GetLastWin32Error()})");
             }
 
-            process.LogProcessState($"Created FIFO at '{fifoPath}'");
+            process.LogDebug($"Created FIFO at '{fifoPath}'");
 
             // create and save info for this pip
             var info = new Info(m_failureCallback, process, fifoPath, famPath, IsInTestMode);

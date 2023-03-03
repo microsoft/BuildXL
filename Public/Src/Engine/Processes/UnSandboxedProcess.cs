@@ -170,7 +170,7 @@ namespace BuildXL.Processes
                 m_output.HookOutputStream ? line => FeedStdOut(m_output, line) : null,
                 m_error.HookOutputStream ? line => FeedStdErr(m_error, line) : null,
                 info.Provenance,
-                msg => LogProcessState(msg),
+                msg => LogDebug(msg),
                 () => 
                 {
                     if (string.IsNullOrEmpty(TimeoutDumpDirectory))
@@ -179,7 +179,7 @@ namespace BuildXL.Processes
                         return;
                     }
 
-                    LogProcessState($"Dumping process '{ProcessId}' and children into '{TimeoutDumpDirectory}'");
+                    LogDebug($"Dumping process '{ProcessId}' and children into '{TimeoutDumpDirectory}'");
 
                     if (!ProcessDumper.TryDumpProcessAndChildren(ProcessId, TimeoutDumpDirectory, out m_dumpCreationException, debugLogger: (message) => LogDebug(message)))
                     {
@@ -230,7 +230,7 @@ namespace BuildXL.Processes
 
             var lifetime = DateTime.UtcNow - startTime;
             var cpuTimes = GetCpuTimes();
-            LogProcessState(
+            LogDebug(
                 $"Process Times: " +
                 $"started = {startTime}, " +
                 $"exited = {exitTime} (since start = {toSeconds(exitTime - startTime)}s), " +
@@ -295,7 +295,7 @@ namespace BuildXL.Processes
                 await KillAsync();
             }
 
-            LogProcessState("Waiting for reports to be received");
+            LogDebug("Waiting for reports to be received");
             SandboxedProcessReports? reports = await (GetReportsAsync() ?? Task.FromResult<SandboxedProcessReports?>(null));
             m_reportsReceivedTime = DateTime.UtcNow;
             reports?.Freeze();
@@ -353,7 +353,7 @@ namespace BuildXL.Processes
         {
             Contract.Requires(Started);
 
-            LogProcessState($"UnsandboxedProcess::KillAsync({ProcessId})");
+            LogDebug($"UnsandboxedProcess::KillAsync({ProcessId})");
             return m_processExecutor.KillAsync(dumpProcessTree);
         }
 
@@ -431,7 +431,7 @@ namespace BuildXL.Processes
         /// <nodoc />
         internal void LogProcessState(string message)
         {
-            string fullMessage = I($"Exited: {m_processExecutor.ExitCompleted}, StdOut: {m_processExecutor.StdOutCompleted}, StdErr: {m_processExecutor.StdErrCompleted}, Reports: {ReportsCompleted()} :: {message}");
+            string fullMessage = I($"Ext: {m_processExecutor.ExitCompleted}, Out: {m_processExecutor.StdOutCompleted}, Err: {m_processExecutor.StdErrCompleted}, Rep: {ReportsCompleted()} :: {message}");
 
             if (DetoursListener != null)
             {

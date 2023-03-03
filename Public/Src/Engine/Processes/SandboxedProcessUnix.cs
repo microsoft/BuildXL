@@ -457,7 +457,7 @@ namespace BuildXL.Processes
             if (m_pipKextStats != null)
             {
                 var statsJson = Newtonsoft.Json.JsonConvert.SerializeObject(m_pipKextStats.Value);
-                LogProcessState($"Process Kext Stats: {statsJson}");
+                LogDebug($"Process Kext Stats: {statsJson}");
             }
 
             base.Dispose();
@@ -483,7 +483,7 @@ namespace BuildXL.Processes
                 foreach (int processId in distinctProcessIds)
                 {
                     bool killed = BuildXL.Interop.Unix.Process.ForceQuit(processId);
-                    LogProcessState($"KillAllChildProcesses: kill({processId}) = {killed}");
+                    LogDebug($"KillAllChildProcesses: kill({processId}) = {killed}");
                     SandboxConnection.NotifyPipProcessTerminated(PipId, processId);
                 }
             }
@@ -508,7 +508,7 @@ namespace BuildXL.Processes
             var aliveProcessNames = CoalesceProcesses(activeProcesses)?.Select(p => Path.GetFileName(p.Path));
             if (aliveProcessNames != null)
             {
-                LogProcessState("surviving processes: " + string.Join(",", aliveProcessNames));
+                LogDebug("surviving processes: " + string.Join(",", aliveProcessNames));
 
                 return aliveProcessNames
                     .Except(AllowedSurvivingChildProcessNames)
@@ -590,7 +590,7 @@ namespace BuildXL.Processes
                 .Replace("`", "\\`");
             string cmdLine = $"{CommandLineEscaping.EscapeAsCommandLineWord(info.FileName)} {escapedArguments} {redirectedStdin}";
 
-            LogProcessState("Feeding stdin");
+            LogDebug("Feeding stdin");
 
             var lines = new List<string>();
 
@@ -766,7 +766,7 @@ namespace BuildXL.Processes
                             bool shouldWait = ShouldWaitForSurvivingChildProcesses();
                             if (shouldWait)
                             {
-                                LogProcessState($"Main process exited but some child processes are still alive. Waiting the specified nested child process timeout to see whether they end naturally.");
+                                LogDebug($"Main process exited but some child processes are still alive. Waiting the specified nested child process timeout to see whether they end naturally.");
                                 await Task.Delay(ChildProcessTimeout);
                             }
 
@@ -775,7 +775,7 @@ namespace BuildXL.Processes
                         }
                         else
                         {
-                            LogProcessState($"Process exited but still waiting for reports :: exit time = {m_processExitTimeNs}, " +
+                            LogDebug($"Process exited but still waiting for reports :: exit time = {m_processExitTimeNs}, " +
                                 $"min enqueue time = {minEnqueueTime}, current drought = {SandboxConnection.CurrentDrought.TotalMilliseconds}ms");
                         }
                     }
@@ -797,7 +797,7 @@ namespace BuildXL.Processes
         {
             if (ShouldReportFileAccesses && report.Operation != FileOperation.OpDebugMessage)
             {
-                LogProcessState("Access report received: " + AccessReportToString(report));
+                LogDebug("Access report received: " + AccessReportToString(report));
             }
 
             Counters.IncrementCounter(SandboxedProcessCounters.AccessReportCount);

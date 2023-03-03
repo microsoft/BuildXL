@@ -4,7 +4,7 @@
 using System;
 using System.IO;
 using System.Linq;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using GVFS.FunctionalTests;
 using GVFS.FunctionalTests.Properties;
 using GVFS.FunctionalTests.Tools;

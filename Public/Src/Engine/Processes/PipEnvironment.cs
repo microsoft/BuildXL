@@ -8,10 +8,9 @@ using System.IO;
 using System.Linq;
 using BuildXL.Interop.Unix;
 using BuildXL.Pips.Operations;
-using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
-using static BuildXL.Utilities.BuildParameters;
+using static BuildXL.Utilities.Core.BuildParameters;
 
 namespace BuildXL.Processes
 {

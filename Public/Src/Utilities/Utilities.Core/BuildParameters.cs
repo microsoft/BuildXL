@@ -4,13 +4,12 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using BuildXL.Utilities.Collections;
-using BuildXL.Utilities.Core;
-using JetBrains.Annotations;
 
-namespace BuildXL.Utilities
+namespace BuildXL.Utilities.Core
 {
     /// <summary>
     /// Various utility methods/classes related to handling system environment variables.
@@ -81,7 +80,7 @@ namespace BuildXL.Utilities
             ///     but such heuristic would be unsound).
             /// </para>
             /// </remarks>
-            [NotNull]
+            [return: NotNull]
             IBuildParameters Select([NotNull]IEnumerable<string> keys);
 
             /// <summary>
@@ -99,7 +98,7 @@ namespace BuildXL.Utilities
             ///     appropriate for the target OS (see remarks for <see cref="IBuildParameters.Select"/>).
             /// </para>
             /// </remarks>
-            [NotNull]
+            [return: NotNull]
             IBuildParameters Override([NotNull]IEnumerable<KeyValuePair<string, string>> parameters);
 
             /// <summary>
@@ -112,7 +111,7 @@ namespace BuildXL.Utilities
             ///     returned dictionary; different implementations of this interface (e.g., for different target
             ///     operating systems) may choose to use either a case-sensitive or case-insensitive implementation).
             /// </remarks>
-            [NotNull]
+            [return: NotNull]
             IReadOnlyDictionary<string, string> ToDictionary();
 
             /// <summary>

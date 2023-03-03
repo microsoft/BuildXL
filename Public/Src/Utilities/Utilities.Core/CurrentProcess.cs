@@ -4,7 +4,7 @@
 using System;
 using BuildXL.Interop;
 
-namespace BuildXL.Utilities
+namespace BuildXL.Utilities.Core
 {
     /// <summary>
     /// Introspection and management specific to this running process.

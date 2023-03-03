@@ -25,7 +25,7 @@ using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using JetBrains.Annotations;
 using Microsoft.Win32.SafeHandles;
-using static BuildXL.Utilities.BuildParameters;
+using static BuildXL.Utilities.Core.BuildParameters;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace BuildXL.Engine

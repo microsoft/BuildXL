@@ -19,7 +19,6 @@ using BuildXL.Native.Streams;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes.Internal;
 using BuildXL.Storage;
-using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
@@ -79,11 +78,11 @@ namespace BuildXL.Processes
         private readonly string? m_survivingPipProcessChildrenDumpDirectory;
         private readonly int m_numRetriesPipeReadOnCancel;
 
-        private readonly PerformanceCollector.Aggregation m_peakWorkingSet = new PerformanceCollector.Aggregation();
-        private readonly PerformanceCollector.Aggregation m_workingSet = new PerformanceCollector.Aggregation();
+        private readonly Aggregation m_peakWorkingSet = new Aggregation();
+        private readonly Aggregation m_workingSet = new Aggregation();
 
-        private readonly PerformanceCollector.Aggregation m_peakCommitSize = new PerformanceCollector.Aggregation();
-        private readonly PerformanceCollector.Aggregation m_commitSize = new PerformanceCollector.Aggregation();
+        private readonly Aggregation m_peakCommitSize = new Aggregation();
+        private readonly Aggregation m_commitSize = new Aggregation();
 
         [SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope", Justification = "We own these objects.")]
         internal SandboxedProcess(SandboxedProcessInfo info)

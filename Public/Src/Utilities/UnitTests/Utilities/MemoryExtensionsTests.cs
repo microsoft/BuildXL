@@ -3,7 +3,7 @@
 
 using System;
 using System.Linq;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using Xunit;
 
 namespace Test.BuildXL.Utilities

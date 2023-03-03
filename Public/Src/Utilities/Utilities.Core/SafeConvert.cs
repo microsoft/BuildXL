@@ -3,7 +3,7 @@
 
 using System;
 
-namespace BuildXL.Utilities
+namespace BuildXL.Utilities.Core
 {
     /// <summary>
     /// Utilities for performing casts without having to worry about overflows

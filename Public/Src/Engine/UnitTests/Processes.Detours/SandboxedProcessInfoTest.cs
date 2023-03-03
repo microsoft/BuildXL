@@ -7,12 +7,11 @@ using System.IO;
 using System.Linq;
 using BuildXL.Processes;
 using BuildXL.Processes.Sideband;
-using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
-using static BuildXL.Utilities.BuildParameters;
+using static BuildXL.Utilities.Core.BuildParameters;
 
 namespace Test.BuildXL.Processes.Detours
 {

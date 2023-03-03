@@ -50,7 +50,7 @@ using BuildXL.Utilities.Tracing;
 using BuildXL.ViewModel;
 using JetBrains.Annotations;
 using Microsoft.Win32.SafeHandles;
-using static BuildXL.Utilities.BuildParameters;
+using static BuildXL.Utilities.Core.BuildParameters;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 using IOneBuildModuleConfiguration = BuildXL.Utilities.Configuration.IModuleConfiguration;
 using Logger = BuildXL.Engine.Tracing.Logger;

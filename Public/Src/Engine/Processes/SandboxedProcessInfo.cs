@@ -10,12 +10,10 @@ using System.Text;
 using BuildXL.Native.Processes;
 using BuildXL.Processes.Containers;
 using BuildXL.Processes.Sideband;
-using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
-using CanBeNullAttribute = JetBrains.Annotations.CanBeNullAttribute;
-using static BuildXL.Utilities.BuildParameters;
+using static BuildXL.Utilities.Core.BuildParameters;
 using BuildXL.Processes.Remoting;
 
 #nullable enable

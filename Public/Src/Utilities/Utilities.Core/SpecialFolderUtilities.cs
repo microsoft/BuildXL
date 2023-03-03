@@ -4,7 +4,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace BuildXL.Utilities
+namespace BuildXL.Utilities.Core
 {
     /// <summary>
     /// Helper method for Environment.GetFolder functionality on .NET Core

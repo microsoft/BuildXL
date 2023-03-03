@@ -35,7 +35,7 @@ using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Utilities.Core.Tasks;
 using BuildXL.Utilities.VmCommandProxy;
 using static BuildXL.Processes.SandboxedProcessFactory;
-using static BuildXL.Utilities.BuildParameters;
+using static BuildXL.Utilities.Core.BuildParameters;
 
 namespace BuildXL.Processes
 {

@@ -3,7 +3,7 @@
 
 using System;
 
-namespace BuildXL.Utilities
+namespace BuildXL.Utilities.Core
 {
     /// <summary>
     /// Set of extension methods for <see cref="Span{T}"/> and <see cref="Memory{T}"/>.

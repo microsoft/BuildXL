@@ -469,11 +469,11 @@ void PTraceSandbox::ReportOpen(std::string path, int oflag, std::string syscallN
     m_bxl->report_access(syscallName.c_str(), event);
 }
 
-void PTraceSandbox::ReportCreate(std::string syscallName, int dirfd, const char *pathname, mode_t mode, long returnValue)
+void PTraceSandbox::ReportCreate(std::string syscallName, int dirfd, const char *pathname, mode_t mode, long returnValue, bool checkCache)
 {
     // TODO: Figure out how to report the errno
     IOEvent event(ES_EVENT_TYPE_NOTIFY_CREATE, ES_ACTION_TYPE_NOTIFY, m_bxl->normalize_path_at(dirfd, pathname, /*oflags*/0, m_traceePid), m_bxl->GetProgramPath(), mode, false, "", returnValue);
-    m_bxl->report_access(syscallName.c_str(), event);
+    m_bxl->report_access(syscallName.c_str(), event, checkCache);
 }
 
 std::vector<std::tuple<pid_t, pid_t, std::string>>::iterator PTraceSandbox::FindParentProcess(pid_t pid)
@@ -677,7 +677,16 @@ HANDLER_FUNCTION(ftruncate)
 HANDLER_FUNCTION(rmdir)
 {
     auto path = ReadArgumentString(1, /*nullTerminated*/ true);
-    m_bxl->report_access(SYSCALL_NAME_STRING(rmdir), ES_EVENT_TYPE_NOTIFY_UNLINK, path.c_str(), "", /* mode */ 0, /* error */ 0);
+
+    // See comment about the need to propagate the returned value under HANDLER_FUNCTION(mkdir)
+    int status = 0;
+    ptrace(PTRACE_SYSCALL, m_traceePid, NULL, NULL);
+    waitpid(m_traceePid, &status, 0);
+
+    long returnValue = ReadArgumentLong(0);
+
+    // We don't want to use the cache since we want to distinguish between creation and deletion of directories
+    m_bxl->report_access(SYSCALL_NAME_STRING(rmdir), ES_EVENT_TYPE_NOTIFY_UNLINK, path.c_str(), "", S_IFDIR, returnValue, /* checkCache */ false);
 }
 
 HANDLER_FUNCTION(rename)
@@ -856,7 +865,7 @@ HANDLER_FUNCTION(mkdir)
 {
     auto path = ReadArgumentString(1, /*nullTerminated*/ true);
 
-    // For mkdir (and mkdirat below) we want to report the return value of the function as part of the
+    // For mkdir (also for rmdir and mkdirat) we want to report the return value of the function as part of the
     // report since on managed side bxl needs to understand whether the directory creation succeeded.
     // This is used to determine whether a directory was created by the build, which is an input for 
     // optimizations related to computing directory fingerprints in ObserverdInputProcessor
@@ -866,7 +875,8 @@ HANDLER_FUNCTION(mkdir)
 
     long returnValue = ReadArgumentLong(0);
 
-    ReportCreate(SYSCALL_NAME_STRING(mkdir), AT_FDCWD, path.c_str(), S_IFDIR, returnValue);
+    // We don't want to use the cache since we want to distinguish between creation and deletion of directories
+    ReportCreate(SYSCALL_NAME_STRING(mkdir), AT_FDCWD, path.c_str(), S_IFDIR, returnValue, /* checkCache */ false);
 }
 
 HANDLER_FUNCTION(mkdirat)
@@ -881,7 +891,8 @@ HANDLER_FUNCTION(mkdirat)
 
     long returnValue = ReadArgumentLong(0);
 
-    ReportCreate(SYSCALL_NAME_STRING(mkdirat), dirfd, path.c_str(), S_IFDIR, returnValue);
+    // We don't want to use the cache since we want to distinguish between creation and deletion of directories
+    ReportCreate(SYSCALL_NAME_STRING(mkdirat), dirfd, path.c_str(), S_IFDIR, returnValue, /* checkCache */ false);
 }
 
 HANDLER_FUNCTION(mknod)

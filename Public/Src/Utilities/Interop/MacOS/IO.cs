@@ -212,6 +212,22 @@ namespace BuildXL.Interop.Unix
             : Impl_Linux.SetTimeStampsForFilePath(path, followSymlink, buffer);
 
         /// <summary>
+        /// Deletes a directory
+        /// </summary>
+        public static int DeleteDirectory(string path)
+        {
+            if (IsMacOS)
+            {
+                System.IO.Directory.Delete(path); 
+                return 0;
+            }
+            else
+            {
+                return Impl_Linux.DeleteDirectory(path);
+            }
+        } 
+
+        /// <summary>
         /// Sets atime and mtime to current time.
         /// </summary>
         public static int Touch(string pathname, bool followSymlink)

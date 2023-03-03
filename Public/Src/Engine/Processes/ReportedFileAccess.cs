@@ -521,10 +521,12 @@ namespace BuildXL.Processes
         /// <summary>
         /// Whether this access represents a directory creation, and the directory was effectively created
         /// </summary>
-        public bool IsDirectoryEffectivelyCreated() =>
-            Error == 0 &&
-            (Operation == ReportedFileOperation.KAuthCreateDir ||
-            Operation == ReportedFileOperation.CreateDirectory);
+        public bool IsDirectoryEffectivelyCreated() => IsDirectoryCreation() && Error == 0;
+
+        /// <summary>
+        /// Whether this access represents a directory removal, and the directory was effectively removed
+        /// </summary>
+        public bool IsDirectoryEffectivelyRemoved() => IsDirectoryRemoval() && Error == 0;
 
         /// <summary>
         /// Whether this access represents a directory removal

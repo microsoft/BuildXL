@@ -88,8 +88,6 @@ namespace BuildXL.Scheduler.Fingerprints
                     // When processing a prior path set, shared opaques are already flagged as such, and therefore
                     // there are not non-populated ones
                     unPopulatedSharedOpaqueOutputs: null,
-                    // Created directories are not known at this stage
-                    createdDirectories: CollectionUtilities.EmptyArray<AbsolutePath>(),
                     pathSet.ObservedAccessedFileNames,
                     isCacheLookup: true);
             }
@@ -108,7 +106,6 @@ namespace BuildXL.Scheduler.Fingerprints
             CacheablePipInfo pip,
             ReadOnlyArray<ObservedFileAccess> accesses,
             [CanBeNull] IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> sharedDynamicDirectoryWriteAccesses,
-            IReadOnlyCollection<AbsolutePath> createdDirectories,
             bool trackFileChanges = true)
             where TTarget : struct, IObservedInputProcessingTarget<ObservedFileAccess>
         {
@@ -121,7 +118,6 @@ namespace BuildXL.Scheduler.Fingerprints
                     pip,
                     accesses,
                     sharedDynamicDirectoryWriteAccesses,
-                    createdDirectories,
                     default(SortedReadOnlyArray<StringId, CaseInsensitiveStringIdComparer>),
                     isCacheLookup: false,
                     trackFileChanges: trackFileChanges);
@@ -141,7 +137,6 @@ namespace BuildXL.Scheduler.Fingerprints
             CacheablePipInfo pip,
             ReadOnlyArray<TObservation> observations,
             [CanBeNull] IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> unPopulatedSharedOpaqueOutputs,
-            IReadOnlyCollection<AbsolutePath> createdDirectories,
             SortedReadOnlyArray<StringId, CaseInsensitiveStringIdComparer> observedAccessedFileNames,
             bool isCacheLookup,
             bool trackFileChanges = true)
@@ -149,7 +144,6 @@ namespace BuildXL.Scheduler.Fingerprints
             where TEnv : IObservedInputProcessingEnvironment
         {
             Contract.Requires(!isCacheLookup ^ observedAccessedFileNames.IsValid);
-            Contract.RequiresNotNull(createdDirectories);
 
             var envAdapter = environment as ObservedInputProcessingEnvironmentAdapter;
 
@@ -651,7 +645,6 @@ namespace BuildXL.Scheduler.Fingerprints
                                             EnumeratePatternRegex = enumeratePatternRegex
                                         },
                                         sharedOpaqueOutputs,
-                                        createdDirectories,
                                         environment.State.AlienFileEnumerationCache,
                                         enumerationMode: out mode,
                                         trackPathExistence: trackFileChanges);
@@ -1266,7 +1259,6 @@ namespace BuildXL.Scheduler.Fingerprints
             bool isReadOnlyDirectory,
             DirectoryMembershipHashedEventData eventData,
             IReadOnlyDictionary<AbsolutePath, bool> sharedOpaqueOutputs,
-            IReadOnlyCollection<AbsolutePath> createdDirectories,
             ConcurrentBigMap<AbsolutePath, IReadOnlyList<DirectoryMemberEntry>> alienFileEnumerationCache,
             out DirectoryEnumerationMode enumerationMode,
             bool trackPathExistence);
@@ -1935,7 +1927,6 @@ namespace BuildXL.Scheduler.Fingerprints
             bool isReadOnlyDirectory,
             DirectoryMembershipHashedEventData eventData,
             IReadOnlyDictionary<AbsolutePath, bool> sharedOpaqueOutputs,
-            IReadOnlyCollection<AbsolutePath> createdDirectories,
             ConcurrentBigMap<AbsolutePath, IReadOnlyList<DirectoryMemberEntry>> alienFileEnumerationCache,
             out DirectoryEnumerationMode enumerationMode,
             bool trackPathExistence = true)
@@ -1945,7 +1936,6 @@ namespace BuildXL.Scheduler.Fingerprints
             Contract.Assume(filter != null);
             Contract.Assert(m_directoryMembershipFilter == null, "This method may not be called concurrently");
             Contract.RequiresNotNull(sharedOpaqueOutputs);
-            Contract.RequiresNotNull(createdDirectories);
 
             try
             {
@@ -2022,7 +2012,7 @@ namespace BuildXL.Scheduler.Fingerprints
                             result = m_env.State.DirectoryMembershipFingerprinter.TryComputeDirectoryFingerprint(
                                 directoryPath,
                                 process,
-                                TryEnumerateDirectoryWithMinimalGraphWithAlienFiles(sharedOpaqueOutputs, createdDirectories, alienFileEnumerationCache, rule),
+                                TryEnumerateDirectoryWithMinimalGraphWithAlienFiles(sharedOpaqueOutputs, alienFileEnumerationCache, rule),
                                 cacheableFingerprint: cacheableFingerprint,
                                 rule: null /* Only apply the rule within the filesystem enumeration in TryEnumerateDirectoryWithMinimalGraphWithAlienFiles */,
                                 eventData: eventData);
@@ -2103,7 +2093,6 @@ namespace BuildXL.Scheduler.Fingerprints
 
         private Func<EnumerationRequest, PathExistence?> TryEnumerateDirectoryWithMinimalGraphWithAlienFiles(
             IReadOnlyDictionary<AbsolutePath, bool> sharedDynamicOutputs,
-            IReadOnlyCollection<AbsolutePath> createdDirectories,
             ConcurrentBigMap<AbsolutePath, IReadOnlyList<DirectoryMemberEntry>> alienFileEnumerationCache,
             DirectoryMembershipFingerprinterRule rule)
         {
@@ -2131,8 +2120,7 @@ namespace BuildXL.Scheduler.Fingerprints
                     // If we are trying to enumerate a directory that we know is created by the build, we don't need to enumerate the real file system for that. This is because
                     // the real file system enumeration is what may bring in alien files, but that's never the case for in-build created directories
                     // So this case matches the regular minimal graph enumeration mode
-                    if (!(createdDirectories.Contains(path) ||
-                        FileSystemView.ExistCreatedDirectoryInOutputFileSystem(path) ||
+                    if (!(FileSystemView.ExistCreatedDirectoryInOutputFileSystem(path) ||
                         // if the directory was created after the engine started, then we know it cannot contain sources
                         // This check should avoid races when a directory gets created in the filesystem (and picked up by another enumerating pip) but
                         // it hasn't reached the FileSystemView yet
@@ -2147,15 +2135,6 @@ namespace BuildXL.Scheduler.Fingerprints
                         if (!alienFileEnumerationCache.TryGetValue(path, out IReadOnlyList<(AbsolutePath, string)> alienFileEnumeration))
                         {
                             var alienFileEnumerationMutable = new List<DirectoryMemberEntry>();
-
-                            // On Linux, the directory modification time reflects the last time the content of the directory was modified (that is, a member was added/removed).
-                            // If this directory was not modified since the engine started, then it can only contain sources.
-                            // Observe this is safe to cache. Even if the directory gets modified later, all the additions will be output files, which we want to ignore anyway
-                            // We use this as an optimization on Linux so we can add the result of all the members of the enumeration without checking for other
-                            // properties of those files.
-                            // We ignore the case of users adding source files while the build is ongoing (which will break this, but also other areas of BuildXL where
-                            // our memory model of what's going on becomes out of sync with reality)
-                            var containsOnlySourceFiles = OperatingSystemHelper.IsLinuxOS && !m_env.State.FileTimestampTracker.PathModifiedAfterEngineStarted(path);
 
                             // 2) Query the real file system since we want inputs (including undeclared sources) to be part of the fingerprint
                             // and add the result to the final enumeration
@@ -2183,16 +2162,10 @@ namespace BuildXL.Scheduler.Fingerprints
                                         continue;
                                     }
 
-                                    // if the directory is not globally untracked (checked above) and it only contains sources, then we can add them directly without checking anything else
-                                    // The only exception are stale shared opaques, which we always want to ignore and could have been left behind from a previous build
-                                    if (containsOnlySourceFiles && !IsSharedOpaqueFile(realFileEntryPath))
-                                    {
-                                        alienFileEnumerationMutable.Add(realFileEntry);
-                                        continue;
-                                    }
-
                                     // If the entry is a directory created by other pip, even if that directory is empty, it will be
-                                    // ruled out here
+                                    // ruled out here. Observe the filesystem view is already populated with created directories coming
+                                    // from this same pip for the execution case, since that's reported as soon as the sandbox report comes
+                                    // back in SandboxedProcessReports
                                     if (FileSystemView.ExistCreatedDirectoryInOutputFileSystem(realFileEntryPath))
                                     {
                                         continue;
@@ -2228,16 +2201,6 @@ namespace BuildXL.Scheduler.Fingerprints
                                         continue;
                                     }
 
-                                    // If the path under consideration is a directory, we want to distinguish between a directory that is part of the original sources
-                                    // and a directory that was created during the build (and exclude the latter). Observe that if we are in the cache
-                                    // look up case, createdDirectories will always be empty, but at the same time the scrubber will guarantee that directories created
-                                    // by this pip containing shared opaques will also be removed. TODO: enabling lazy shared opaques implies start using sideband information
-                                    // or roundtriping created directories through the cache
-                                    if (createdDirectories.Contains(realFileEntryPath))
-                                    {
-                                        continue;
-                                    }
-
                                     // We can always remove any stale shared opaque files since those are permanently flagged.
                                     if (IsSharedOpaqueFile(realFileEntryPath))
                                     {
@@ -2250,7 +2213,15 @@ namespace BuildXL.Scheduler.Fingerprints
                                     // Otherwise, we run the risk of altering the file creation original timestamp.
                                     // We could have here an output produced by this pip that is a file rewrite (and whose creation will therefore had occurred after the engine
                                     // started. We do want those as part of the fingerprint, so don't rule it out here.
-                                    if (m_env.State.FileTimestampTracker.IsFileCreationTrackingSupported && !isOutputProducedByThisPip && 
+                                    // A similar route goes for directories that were rewritten by this pip. We want to include them in the same way we do for rewritten sources.
+                                    // Observe that rewritten directories occurring at execution time will have its creation time modified to be after engine start, so we need to
+                                    // check for this here. On the other hand, on cache lookup, the cache won't recreate the directory if it is already there, so although we don't
+                                    // report rewritten directories on cache replay, we don't need to.
+                                    if (m_env.State.FileTimestampTracker.IsFileCreationTrackingSupported && 
+                                        !isOutputProducedByThisPip &&
+                                        // If the directory was removed by the build but we are seeing it here as part of the enumeration, that means
+                                        // the directory got rewritten and thus the directory needs to be considered as part of the fingerprint
+                                        !FileSystemView.ExistRemovedDirectoryInOutputFileSystem(realFileEntryPath) &&
                                         m_env.State.FileTimestampTracker.PathCreatedAfterEngineStarted(realFileEntryPath))
                                     {
                                         continue;

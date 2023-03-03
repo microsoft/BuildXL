@@ -3904,8 +3904,8 @@ namespace BuildXL.Processes
         /// <remarks>
         /// Additionally, it returns the write accesses that were observed in shared dynamic
         /// directories, which are used later to determine pip ownership.
-        /// <paramref name="createdDirectories"/> contains the set of directories that were succesfully created during the pip execution. Observe
-        /// there is no guarantee those directories still exist, but there was a point in time when they were not there and the creation was successful. Only
+        /// <paramref name="createdDirectories"/> contains the set of directories that were succesfully created during the pip execution and didn't exist before the build ran. 
+        /// Observe there is no guarantee those directories still exist, but there was a point in time when they were not there and the creation was successful. Only
         /// populated if allowed undeclared reads is on, since these are used for computing directory fingerprint enumeration when undeclared files are allowed
         /// </remarks>
         /// <returns>Whether the operation succeeded. This operation may fail only in regards to shared dynamic write access processing.</returns>
@@ -4091,9 +4091,18 @@ namespace BuildXL.Processes
                                 !access.FlagsAndAttributes.HasFlag(FlagsAndAttributes.FILE_ATTRIBUTE_DIRECTORY) &&
                                 !access.IsDirectoryCreationOrRemoval();
 
+                            // We want to know if a directory was created by this pip. This means the create directory operation succeeded, but also that this directory was not deleted before by the build.
+                            // Directories that fall in this category were already reported in SandboxedProcessReports as report lines get received, so we only add it here if we can already find it. Consider the following cases:
+                            // 1) The directory was there before the build started but some other pip deletes it first. Then it will be reported in SandboxedProcessReports as a deleted directory and won't be added as a created one here. So we won't
+                            // consider it here as a created directory. This is correct since the directory is not actually created by the build.
+                            // 2) Consider now that the pip that deletes the directory in 1) is a cache hit. Removed directories are not reported on cache hit (because a cache replay does not remove them). This means the directory is now present.
+                            // And that means the directory cannot be effectively created by this pip (which may introduce a different behavior than the one in 1), but that's a bigger problem to solve). So we won't add it here either.
+                            // 3) The directory is removed and re-created by this same pip. In that case it will be reported to the output filesystem as removed and won't be added here. Similarly to 1), this is the right behavior. On cache replay, the directory
+                            // will never be removed, and the fact that it is still not considered as a created directory is sound.
                             if (m_pip.AllowUndeclaredSourceReads &&
                                 access.RequestedAccess.HasFlag(RequestedAccess.Write) &&
-                                access.IsDirectoryEffectivelyCreated())
+                                access.IsDirectoryEffectivelyCreated() &&
+                                m_fileSystemView.ExistCreatedDirectoryInOutputFileSystem(entry.Key))
                             {
                                 createdDirectoriesMutable.Add(entry.Key);
                             }

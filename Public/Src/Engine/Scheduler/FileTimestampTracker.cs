@@ -57,7 +57,9 @@ namespace BuildXL.Scheduler
 
             // if no timestamps were retrieved, that's an indication the path is absent, and in that case we return false
             // since the path is not created at all
-            return creationTime.HasValue && m_startOfBuildTimestamp.IsLessThan(creationTime.Value);
+            // note: the comparison is not strict to allow for tests that create sources and immediately start the engine right away, so creation
+            // dates and engine start date might match
+            return creationTime.HasValue && !m_startOfBuildTimestamp.IsGreaterThan(creationTime.Value);
         }
 
         /// <summary>

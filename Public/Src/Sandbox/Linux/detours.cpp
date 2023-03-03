@@ -733,7 +733,10 @@ INTERPOSE(int, ftruncate64, int fd, off_t length)({
 
 INTERPOSE(int, rmdir, const char *pathname)({
     AccessReportGroup report;
-    auto check = bxl->create_access(__func__, ES_EVENT_TYPE_NOTIFY_UNLINK, pathname, report);
+    // We need to know all the rmdir attempts so we can identify which failed/succeeded, so don't use the cache
+    // This is so we can track directory creation/deletion flow. Using the cache lumps all these operations into one report line
+    auto check = bxl->create_access(__func__, ES_EVENT_TYPE_NOTIFY_UNLINK, pathname, report, /* mode */ 0, /* flags */ 0 , /* checkCache */ false);
+
     return bxl->check_fwd_and_report_rmdir(report, check, ERROR_RETURN_VALUE, pathname);
 })
 
@@ -949,21 +952,23 @@ INTERPOSE(int, futimesat, int dirfd, const char *pathname, const struct timeval 
     return bxl->check_fwd_and_report_futimesat(report, check, ERROR_RETURN_VALUE, dirfd, pathname, times);
 })
 
-static AccessCheckResult report_create(const char *syscall, BxlObserver *bxl, int dirfd, const char *pathname, mode_t mode, AccessReportGroup &report)
+static AccessCheckResult report_create(const char *syscall, BxlObserver *bxl, int dirfd, const char *pathname, mode_t mode, AccessReportGroup &report, bool checkCache = true)
 {
     IOEvent event(ES_EVENT_TYPE_NOTIFY_CREATE, ES_ACTION_TYPE_NOTIFY, bxl->normalize_path_at(dirfd, pathname), bxl->GetProgramPath(), mode);
-    return bxl->create_access(__func__, event, report);
+    return bxl->create_access(__func__, event, report, checkCache);
 }
 
 INTERPOSE(int, mkdir, const char *pathname, mode_t mode)({
     AccessReportGroup report;
-    auto check = report_create(__func__, bxl, AT_FDCWD, pathname, S_IFDIR, report);
+    // We don't want to use the cache. Check comment in rmdir interposing for details.
+    auto check = report_create(__func__, bxl, AT_FDCWD, pathname, S_IFDIR, report, /* checkCache */ false);
     return bxl->check_fwd_and_report_mkdir(report, check, ERROR_RETURN_VALUE, pathname, mode);
 })
 
 INTERPOSE(int, mkdirat, int dirfd, const char *pathname, mode_t mode)({
     AccessReportGroup report;
-    auto check = report_create(__func__, bxl, dirfd, pathname, S_IFDIR, report);
+    // We don't want to use the cache. Check comment in rmdir interposing for details.
+    auto check = report_create(__func__, bxl, dirfd, pathname, S_IFDIR, report, /* checkCache */ false);
     return bxl->check_fwd_and_report_mkdirat(report, check, ERROR_RETURN_VALUE, dirfd, pathname, mode);
 })
 

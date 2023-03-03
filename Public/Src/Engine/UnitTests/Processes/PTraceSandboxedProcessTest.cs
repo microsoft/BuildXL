@@ -32,6 +32,7 @@ namespace Test.BuildXL.Processes
         public PTraceSandboxedProcessTest(ITestOutputHelper output)
             : base(output)
         {
+            RegisterEventSource(global::BuildXL.Processes.ETWLogger.Log);
             TestOutput = output;
         }
 
@@ -161,6 +162,60 @@ namespace Test.BuildXL.Processes
             // We should get a report where we see the creation attempt with a successful error code
             result.AllUnexpectedFileAccesses.Single(fa =>
                 fa.Operation == ReportedFileOperation.KAuthCreateDir &&
+                fa.Error == 0);
+        }
+
+        [Fact]
+        public async Task RemoveDirReturnValueIsReported()
+        {
+            // Create the artifact but leave the path as absent
+            var directory = FileArtifact.CreateSourceFile(CreateUniqueSourcePath("dir"));
+
+            var dummyFile = CreateSourceFileWithPrefix(prefix: "dummy");
+
+            var fam = new FileAccessManifest(Context.PathTable);
+            fam.ReportFileAccesses = true;
+            fam.FailUnexpectedFileAccesses = false;
+            fam.ReportUnexpectedFileAccesses = true;
+
+            // Turn on the ptrace sandbox unconditionally
+            fam.UnconditionallyEnableLinuxPTraceSandbox = true;
+
+            // Create a directory but make sure we perform it on an existing file
+            var info = ToProcessInfo(
+                ToProcess(
+                    // We need to spawn a process because the sandbox assumes the root process is never static and the interposing 
+                    // sandbox is always used for it.
+                    Operation.Spawn(
+                        Context.PathTable, waitToFinish: true, 
+                        Operation.WriteFile(dummyFile),
+                        // This tries to delete a directory on an absent path, and therefore it should fail
+                        Operation.DeleteDir(directory)
+                    )
+                ),
+                fileAccessManifest: fam);
+
+            var result = await RunProcess(info);
+           
+            // We should get a report where we see the deletion attempt that results in an absent dir error
+            result.FileAccesses.Single(fa =>
+                fa.Operation == ReportedFileOperation.KAuthDeleteDir &&
+                fa.Error != 0);
+
+            // Now perform the same operation but in a way it should succeed
+            FileUtilities.CreateDirectory(directory.Path.ToString(Context.PathTable));
+
+            info = ToProcessInfo(
+                ToProcess(
+                    Operation.DeleteDir(directory)
+                ),
+                fileAccessManifest: fam);
+
+            result = await RunProcess(info);
+
+            // We should get a report where we see the deletion attempt with a successful error code
+            result.FileAccesses.Single(fa =>
+                fa.Operation == ReportedFileOperation.KAuthDeleteDir &&
                 fa.Error == 0);
         }
     }

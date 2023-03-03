@@ -1089,7 +1089,23 @@ namespace Test.BuildXL.Executables.TestProcess
 
         private void DoDeleteDir()
         {
-            Directory.Delete(PathAsString);
+            // On Linux the managed implementation probes the path before actually
+            // attempting the deletion. This means that, for example, when the directory is absent 'rmdir' will actually not be called.
+            // The net effect on all platforms are the same. However, some tests are depending on the specific delete dir operation to 
+            // happen on error, so we call a Unix specific implementation to force 'rmdir' to happen even on failure.
+            if (OperatingSystemHelper.IsLinuxOS)
+            {
+                var ret = global::BuildXL.Interop.Unix.IO.DeleteDirectory(PathAsString);
+                // Preserve the exception throwing schema that the managed implementation does
+                if (ret > 0)
+                {
+                    throw new NativeWin32Exception(ret);
+                }
+            }
+            else
+            {
+                Directory.Delete(PathAsString);
+            }
         }
 
         // Writes random Content if Content not specified

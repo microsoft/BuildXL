@@ -537,7 +537,6 @@ namespace Test.BuildXL.Scheduler
                     CacheableProcess.GetProcessCacheInfo(process, Context),
                     ReadOnlyArray<TestObservation>.From(observations),
                     unPopulatedSharedOpaqueOutputs: null,
-                    createdDirectories: CollectionUtilities.EmptyArray<AbsolutePath>(),
                     default(SortedReadOnlyArray<StringId, CaseInsensitiveStringIdComparer>),
                     isCacheLookup: false).Result;
 
@@ -772,7 +771,6 @@ namespace Test.BuildXL.Scheduler
                     bool isReadOnlyDirectory,
                     DirectoryMembershipHashedEventData eventData,
                     IReadOnlyDictionary<AbsolutePath, bool> sharedOpaqueOutputs,
-                    IReadOnlyCollection<AbsolutePath> createdDirectories,
                     ConcurrentBigMap<AbsolutePath, IReadOnlyList<(AbsolutePath, string)>> alienFileEnumerationCache,
                     out DirectoryEnumerationMode mode,
                     bool trackPathExistence = false)

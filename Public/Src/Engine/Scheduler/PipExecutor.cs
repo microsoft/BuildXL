@@ -1418,7 +1418,6 @@ namespace BuildXL.Scheduler
                             fileAccessReportingContext,
                             executionResult.ObservedFileAccesses,
                             executionResult.SharedDynamicDirectoryWriteAccesses,
-                            executionResult.CreatedDirectories,
                             trackFileChanges: succeeded);
                     LogSubPhaseDuration(
                         operationContext, pip, SandboxedProcessCounters.PipExecutorPhaseValidateObservedFileAccesses, DateTime.UtcNow.Subtract(start),
@@ -1830,7 +1829,8 @@ namespace BuildXL.Scheduler
                         staleOutputsUnderSharedOpaqueDirectories: staleDynamicOutputs,
                         pluginManager: environment.PluginManager,
                         pipGraphFileSystemView: environment.PipGraphView,
-                        runLocation: runLocation);
+                        runLocation: runLocation,
+                        sandboxFileSystemView: environment.State.FileSystemView);
                     
                     resourceScope.RegisterQueryRamUsageMb(
                         () =>
@@ -3542,7 +3542,8 @@ namespace BuildXL.Scheduler
                 vmInitializer: environment.VmInitializer,
                 tempDirectoryCleaner: environment.TempCleaner,
                 reparsePointResolver: environment.ReparsePointAccessResolver,
-                pipGraphFileSystemView: environment.PipGraphView);
+                pipGraphFileSystemView: environment.PipGraphView,
+                sandboxFileSystemView: environment.State.FileSystemView);
 
             if (!await executor.TryInitializeWarningRegexAsync())
             {
@@ -4061,7 +4062,6 @@ namespace BuildXL.Scheduler
             FileAccessReportingContext fileAccessReportingContext,
             SortedReadOnlyArray<ObservedFileAccess, ObservedFileAccessExpandedPathComparer> observedFileAccesses,
             [CanBeNull] IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> sharedDynamicDirectoryWriteAccesses,
-            IReadOnlyCollection<AbsolutePath> createdDirectories,
             bool trackFileChanges = true)
         {
             Contract.Requires(environment != null);
@@ -4083,7 +4083,6 @@ namespace BuildXL.Scheduler
                 pip,
                 observedFileAccesses,
                 sharedDynamicDirectoryWriteAccesses,
-                createdDirectories,
                 trackFileChanges);
 
             LogInputAssertions(

@@ -16,6 +16,10 @@ using Test.BuildXL.Scheduler;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
+using BuildXL.Engine.Tracing;
+using BuildXL.Utilities.Instrumentation.Common;
+using BuildXL.Processes.Tracing;
+using LogEventId = BuildXL.Processes.Tracing.LogEventId;
 
 namespace IntegrationTest.BuildXL.Scheduler
 {
@@ -394,6 +398,126 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             // This should be a cache hit. Directories created by a pip are not part of the fingerprint
             RunScheduler().AssertCacheHit(pip.Process.PipId);
+        }
+
+        [Fact]
+        public void RewrittenDirectoriesUnderSharedOpaquesArePartOfTheFingerprint()
+        {
+            string dir = Path.Combine(SourceRoot, "dir");
+            AbsolutePath dirPath = AbsolutePath.Create(Context.PathTable, dir);
+            DirectoryArtifact dirToEnumerate = DirectoryArtifact.CreateWithZeroPartialSealId(dirPath);
+
+            Configuration.Logging.CacheMissAnalysisOption = CacheMissAnalysisOption.LocalMode();
+
+            AbsolutePath nestedDirPath = dirPath.Combine(Context.PathTable, "nested");
+            var nestedDir = DirectoryArtifact.CreateWithZeroPartialSealId(nestedDirPath);
+
+            // Create a nested directory so it is seen as a source artifact (with a file underneath since 
+            // the scrubbed may otherwise decide to delete an empty directory)
+            Directory.CreateDirectory(nestedDirPath.ToString(Context.PathTable));
+            var nestedSource = CreateSourceFile(nestedDirPath);
+
+            var dirDeletionBuilder = CreatePipBuilder(new List<Operation>
+                {
+                    // Delete the nested directory and its content
+                    Operation.DeleteFile(nestedSource),
+                    Operation.DeleteDir(nestedDir, doNotInfer: true),
+                    Operation.WriteFile(CreateOutputFileArtifact()) // dummy output
+                });
+
+            // This makes sure we use the right file system, which is aware of alien files
+            dirDeletionBuilder.Options |= global::BuildXL.Pips.Operations.Process.Options.AllowUndeclaredSourceReads;
+            // Define the shared opaque
+            dirDeletionBuilder.AddOutputDirectory(dirPath, global::BuildXL.Pips.Operations.SealDirectoryKind.SharedOpaque);
+
+            var dirDeletionPip = SchedulePipBuilder(dirDeletionBuilder);
+
+            var operations = new List<Operation>
+            {
+                // Re-create the nested directory
+                Operation.CreateDir(nestedDir, doNotInfer: true),
+                Operation.EnumerateDir(dirToEnumerate, doNotInfer: true),
+                Operation.WriteFile(CreateOutputFileArtifact()) // dummy output
+            };
+
+            var builder = CreatePipBuilder(operations);
+
+            // This makes sure we use the right file system, which is aware of alien files
+            builder.Options |= global::BuildXL.Pips.Operations.Process.Options.AllowUndeclaredSourceReads;
+            // Define the shared opaque
+            builder.AddOutputDirectory(dirPath, global::BuildXL.Pips.Operations.SealDirectoryKind.SharedOpaque);
+            builder.AddInputFile(dirDeletionPip.ProcessOutputs.GetOutputFiles().First());
+
+            var pip = SchedulePipBuilder(builder);
+
+            // Run once
+            RunScheduler().AssertSuccess();
+
+            // Run again. First re-create a nested directory so it is seen as a source artifact
+            Directory.CreateDirectory(nestedDirPath.ToString(Context.PathTable));
+            CreateSourceFile(nestedDirPath);
+
+            // Fingerprint should be stable
+            RunScheduler(runNameOrDescription: "Cached build").AssertSuccess().AssertCacheHit(pip.Process.PipId);
+
+            // Delete the directory and run again. The directory should have been part of the fingerprint, so this should be a miss
+            FileUtilities.DeleteDirectoryContents(nestedDirPath.ToString(Context.PathTable), deleteRootDirectory: true);
+            
+            RunScheduler().AssertCacheMiss(pip.Process.PipId);
+        }
+
+        [Fact]
+        public void RewrittenDirectoriesOnSamePipUnderSharedOpaquesArePartOfTheFingerprint()
+        {
+            string dir = Path.Combine(SourceRoot, "dir");
+            AbsolutePath dirPath = AbsolutePath.Create(Context.PathTable, dir);
+            DirectoryArtifact dirToEnumerate = DirectoryArtifact.CreateWithZeroPartialSealId(dirPath);
+
+            Configuration.Logging.CacheMissAnalysisOption = CacheMissAnalysisOption.LocalMode();
+
+            AbsolutePath nestedDirPath = dirPath.Combine(Context.PathTable, "nested");
+            var nestedDir = DirectoryArtifact.CreateWithZeroPartialSealId(nestedDirPath);
+
+            // Create a nested directory so it is seen as a source artifact (with a file underneath since 
+            // the scrubbed may otherwise decide to delete an empty directory)
+            Directory.CreateDirectory(nestedDirPath.ToString(Context.PathTable));
+            var nestedSource = CreateSourceFile(nestedDirPath);
+
+            var dirRewriteBuilder = CreatePipBuilder(new List<Operation>
+                {
+                    // Delete the nested directory and its content
+                    Operation.DeleteFile(nestedSource),
+                    Operation.DeleteDir(nestedDir, doNotInfer: true),
+                    // Re-create the nested directory
+                    Operation.CreateDir(nestedDir, doNotInfer: true),
+                    // Now enumerate
+                    Operation.EnumerateDir(dirToEnumerate, doNotInfer: true),
+                    Operation.WriteFile(CreateOutputFileArtifact()) // dummy output
+                });
+
+            // This makes sure we use the right file system, which is aware of alien files
+            dirRewriteBuilder.Options |= global::BuildXL.Pips.Operations.Process.Options.AllowUndeclaredSourceReads;
+            // Define the shared opaque
+            dirRewriteBuilder.AddOutputDirectory(dirPath, global::BuildXL.Pips.Operations.SealDirectoryKind.SharedOpaque);
+
+            var dirRewritePip = SchedulePipBuilder(dirRewriteBuilder);
+
+            // Run once
+            RunScheduler().AssertSuccess();
+
+            // Run again. First re-create a nested directory so it is seen as a source artifact
+            Directory.CreateDirectory(nestedDirPath.ToString(Context.PathTable));
+            CreateSourceFile(nestedDirPath);
+
+            // Fingerprint should be stable
+            RunScheduler(runNameOrDescription: "Cached build").AssertSuccess().AssertCacheHit(dirRewritePip.Process.PipId);
+
+            // Delete the directory and run again. The directory should have been part of the fingerprint, so the pip should be executed
+            FileUtilities.DeleteDirectoryContents(nestedDirPath.ToString(Context.PathTable), deleteRootDirectory: true);
+            // The pip should be a miss because the directory should be part of the fingerpring and now is not there
+            RunScheduler(runNameOrDescription: "Failed build").AssertCacheMissWithoutAssertingSuccess(dirRewritePip.Process.PipId);
+            // On Windows the pip actually fails when the directory is absent
+            AllowErrorEventMaybeLogged(LogEventId.PipProcessError);
         }
 
         /// <summary>

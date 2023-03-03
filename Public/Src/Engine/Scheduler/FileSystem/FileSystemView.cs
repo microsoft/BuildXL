@@ -558,16 +558,26 @@ namespace BuildXL.Scheduler.FileSystem
             GetOrAddExistence(path, FileSystemViewMode.Output, existence, updateParents: true, flags: FileSystemEntryFlags.OutputProducedAfterCaching);
         }
 
-        /// <summary>
-        /// Reports that a given directory was created by a pip to the output file system
-        /// </summary>
+        /// <inheritdoc/>
         public void ReportOutputFileSystemDirectoryCreated(AbsolutePath path)
         {
-            Contract.Requires(path.IsValid);
-            // We want to be able to later identify if the directory was created by a pip, as opposed to being
+            ReportOutputFileSystemDirectoryOperation(path, FileSystemEntryFlags.IsDirectoryCreatedByPip);
+        }
+
+        /// <inheritdoc/>
+        public void ReportOutputFileSystemDirectoryRemoved(AbsolutePath path)
+        {
+            ReportOutputFileSystemDirectoryOperation(path, FileSystemEntryFlags.IsDirectoryRemovedByPip);
+        }
+
+        private void ReportOutputFileSystemDirectoryOperation(AbsolutePath path, FileSystemEntryFlags flag)
+        {
+            // We want to be able to later identify if the directory was created or removed by a pip, as opposed to being
             // part of the output file system just because a file was created underneath. We flag the directory
-            // with FileSystemEntryFlags.IsDirectoryCreatedByPip for that purpose
-            GetOrAddExistence(path, FileSystemViewMode.Output, PathExistence.ExistsAsDirectory, updateParents: false, FileSystemEntryFlags.IsDirectoryCreatedByPip);
+            // with the given flag for that purpose
+            Contract.Requires(flag == FileSystemEntryFlags.IsDirectoryCreatedByPip || flag == FileSystemEntryFlags.IsDirectoryRemovedByPip);
+            Contract.Requires(path.IsValid);
+            GetOrAddExistence(path, FileSystemViewMode.Output, PathExistence.ExistsAsDirectory, updateParents: false, flag);
         }
 
         /// <summary>
@@ -583,12 +593,15 @@ namespace BuildXL.Scheduler.FileSystem
             GetOrAddExistence(path, FileSystemViewMode.Output, PathExistence.ExistsAsFile, updateParents: false, FileSystemEntryFlags.OutputProducedBeforeCaching);
         }
 
-        /// <summary>
-        /// Returns whether the give path represents a directory created by a pip the output file system knows about
-        /// </summary>
-        public bool ExistCreatedDirectoryInOutputFileSystem(AbsolutePath path)
+        /// <inheritdoc/>
+        public bool ExistCreatedDirectoryInOutputFileSystem(AbsolutePath path) => ExistDirectoryInOutputFileSystem(path, FileSystemEntryFlags.IsDirectoryCreatedByPip);
+
+        /// <inheritdoc/>
+        public bool ExistRemovedDirectoryInOutputFileSystem(AbsolutePath path) => ExistDirectoryInOutputFileSystem(path, FileSystemEntryFlags.IsDirectoryRemovedByPip);
+
+        private bool ExistDirectoryInOutputFileSystem(AbsolutePath path, FileSystemEntryFlags flag)
         {
-            if (PathExistenceCache.TryGetValue(path, out var entry) && entry.TryGetExistence(FileSystemViewMode.Output, out var existence) && entry.HasFlag(FileSystemEntryFlags.IsDirectoryCreatedByPip))
+            if (PathExistenceCache.TryGetValue(path, out var entry) && entry.TryGetExistence(FileSystemViewMode.Output, out var existence) && entry.HasFlag(flag))
             {
                 return existence == PathExistence.ExistsAsDirectory;
             }
@@ -661,10 +674,11 @@ namespace BuildXL.Scheduler.FileSystem
             IsRealFileSystemEnumerated = 1 << 0,
             IsDirectorySymlink = 1 << 1,
             CheckedIsDirectorySymlink = 1 << 2,
-            IsDirectoryCreatedByPip = 1 << 3,
+            IsDirectoryCreatedByPip = 1 << 3, // This means the pip created a directory that was non-existent before the pip ran
             DirectoryContainingFiles = 1 << 4,
             OutputProducedBeforeCaching = 1 << 5,
             OutputProducedAfterCaching = 1 << 6,
+            IsDirectoryRemovedByPip = 1 << 7, // This means a directory was deleted by a given pip
         }
 
         private readonly struct FileSystemEntry

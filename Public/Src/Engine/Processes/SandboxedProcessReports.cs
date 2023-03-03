@@ -11,8 +11,8 @@ using System.Linq;
 using System.Threading;
 using BuildXL.Native.IO;
 using BuildXL.Processes.Sideband;
-using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 using JetBrains.Annotations;
 using static BuildXL.Processes.IDetoursEventListener;
@@ -925,9 +925,25 @@ namespace BuildXL.Processes
             // The output file system is eventually notified of this as part of the regular flow under PipExecutor,
             // this is an optimization to minimize cache misses when MinimalGraphWithAlienFiles is used to
             // compute the directory enumeration fingerprint, since created directories matter for it.
-            if (finalPath.IsValid && m_fileSystemView != null && reportedAccess.IsDirectoryEffectivelyCreated())
+            if (finalPath.IsValid && m_fileSystemView != null)
             {
-                m_fileSystemView.ReportOutputFileSystemDirectoryCreated(finalPath);
+                // We want to be sure this is the first time the directory is created (to rule out cases where a pip removes a directory
+                // and the directory is later re-created)
+                if (reportedAccess.IsDirectoryEffectivelyCreated() && !m_fileSystemView.ExistRemovedDirectoryInOutputFileSystem(finalPath))
+                {
+                    m_fileSystemView.ReportOutputFileSystemDirectoryCreated(finalPath);
+                }
+
+                // Same here, we want to make sure that we only report removal if the directory was not created before by the build
+                // Observe directory removals are only reported on execution. On cache replay, the cache is unaware of directories and the
+                // removal operation won't occur (the cache only creates a directory when there is a file under that directory that needs to be replayed). 
+                // Downstream pips may therefore behave differently (e.g. a pip probes the existence of a directory and changes behavior based on the result). 
+                // And that means downstream pips may behave differently depending on whether the upstream was a cache hit or a miss, 
+                // but that's a bigger problem to solve, where the cache needs to start treating directories as first class citizens.
+                if (reportedAccess.IsDirectoryEffectivelyRemoved() && !m_fileSystemView.ExistCreatedDirectoryInOutputFileSystem(finalPath))
+                {
+                    m_fileSystemView.ReportOutputFileSystemDirectoryRemoved(finalPath);
+                }
             }
 
             // The access was denied based on file existence. Store it since we can change our minds later if

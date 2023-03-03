@@ -319,17 +319,17 @@ void BxlObserver::report_exec(const char *syscallName, const char *procName, con
     }
 }
 
-void BxlObserver::report_access(const char *syscallName, es_event_type_t eventType, const std::string &reportPath, const std::string &secondPath, mode_t mode, int error)
+void BxlObserver::report_access(const char *syscallName, es_event_type_t eventType, const std::string &reportPath, const std::string &secondPath, mode_t mode, int error, bool checkCache)
 {
     AccessReportGroup report;
-    create_access(syscallName, eventType, reportPath, secondPath, report, mode);
+    create_access(syscallName, eventType, reportPath, secondPath, report, mode, checkCache);
     report.SetErrno(error);
     SendReport(report);
 }
 
-AccessCheckResult BxlObserver::create_access(const char *syscallName, es_event_type_t eventType, const std::string &reportPath, const std::string &secondPath, AccessReportGroup &reportGroup, mode_t mode)
+AccessCheckResult BxlObserver::create_access(const char *syscallName, es_event_type_t eventType, const std::string &reportPath, const std::string &secondPath, AccessReportGroup &reportGroup, mode_t mode, bool checkCache)
 {
-    if (IsCacheHit(eventType, reportPath, secondPath))
+    if (checkCache && IsCacheHit(eventType, reportPath, secondPath))
     {
         return sNotChecked;
     }
@@ -391,9 +391,9 @@ void BxlObserver::report_access(const char *syscallName, es_event_type_t eventTy
     report_access(syscallName, eventType, normalize_path(pathname, flags), "", mode, error);
 }
 
-AccessCheckResult BxlObserver::create_access(const char *syscallName, es_event_type_t eventType, const char *pathname, AccessReportGroup &reportGroup, mode_t mode, int flags)
+AccessCheckResult BxlObserver::create_access(const char *syscallName, es_event_type_t eventType, const char *pathname, AccessReportGroup &reportGroup, mode_t mode, int flags, bool checkCache)
 {
-    return create_access(syscallName, eventType, normalize_path(pathname, flags), "", reportGroup, mode);
+    return create_access(syscallName, eventType, normalize_path(pathname, flags), "", reportGroup, mode, checkCache);
 }
 
 void BxlObserver::report_access_fd(const char *syscallName, es_event_type_t eventType, int fd, int error)

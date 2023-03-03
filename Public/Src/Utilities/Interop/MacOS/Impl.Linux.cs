@@ -265,6 +265,17 @@ namespace BuildXL.Interop.Unix
             return utimensat(AT_FDCWD, path, new[] { atime, mtime }, flags);
         }
 
+        /// <summary>
+        /// Linux specific implementation of remove directory
+        /// </summary>
+        /// <remarks>
+        /// The managed implementation probes the path before attempting deletion
+        /// </remarks>
+        internal static int DeleteDirectory(string path)
+        {
+            return rmdir(path);
+        }
+
         private static ulong ExtractValueFromProcLine(string line)
         {
             return line != null && ulong.TryParse(line.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries)[1], out var val) ? val : 0;
@@ -721,6 +732,9 @@ namespace BuildXL.Interop.Unix
 
         [DllImport(LibC, SetLastError = true, CharSet = CharSet.Ansi)]
         private static extern int statx(int fd, string pathname, int flags, uint mask, ref statx_buf buff);
+
+        [DllImport(LibC, SetLastError = true, CharSet = CharSet.Ansi)]
+        private static extern int rmdir(string pathname);
 
         [DllImport(LibC, SetLastError = true, CharSet = CharSet.Ansi)]
         private static extern int utimensat(int dirfd, string pathname, Timespec[] times, int flags);

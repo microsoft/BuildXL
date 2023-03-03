@@ -10,6 +10,7 @@ using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Exceptions;
@@ -1296,7 +1297,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         private static string GetRandomFileName()
         {
             // Don't use Path.GetRandomFileName(), it's not random enough when running multi-threaded.
-            return Guid.NewGuid().ToString("N").Substring(0, 12);
+            return ContentHash.Random().ToShortString(includeHashType: false).Substring(0, 12);
         }
 
         /// <summary>
@@ -2452,20 +2453,29 @@ namespace BuildXL.Cache.ContentStore.Stores
             FileReplacementMode replacementMode)
         {
             AbsolutePath tempPath = GetTemporaryFileName(contentHash);
-            await FileSystem.CopyFileAsync(sourcePath, tempPath, false);
-            ApplyPermissions(context, tempPath, FileAccessMode.ReadOnly);
-            FileSystem.MoveFile(tempPath, destinationPath, replacementMode == FileReplacementMode.ReplaceExisting);
+            try
+            {
+                await FileSystem.CopyFileAsync(sourcePath, tempPath, false);
+                ApplyPermissions(context, tempPath, FileAccessMode.ReadOnly);
+                FileSystem.MoveFile(tempPath, destinationPath, replacementMode == FileReplacementMode.ReplaceExisting);
+            }
+            catch
+            {
+                FileSystem.TryDeleteFile(context, tempPath);
+                throw;
+            }
         }
 
         private async Task RetryOnUnexpectedReplicaAsync(
-            Context context, Func<Task> tryFunc, ContentHash contentHash, int expectedReplicaCount)
+            Context context, Func<Task> tryFunc, ContentHash contentHash, int expectedReplicaCount, [CallerMemberName] string operation = "")
         {
             try
             {
                 await tryFunc();
             }
-            catch (IOException)
+            catch (IOException e)
             {
+                Tracer.Warning(context, e, $"IOException occurred running '{operation}'.");
                 RemoveExtraReplicasFromDiskFor(context, contentHash, expectedReplicaCount);
                 await tryFunc();
             }

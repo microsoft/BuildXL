@@ -242,9 +242,9 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <summary>
         /// Produces shorter string representation of the hash.
         /// </summary>
-        public string ToShortString()
+        public string ToShortString(bool includeHashType = true)
         {
-            return AsShortHash().ToString();
+            return AsShortHash().ToString(includeHashType);
         }
 
         /// <nodoc />

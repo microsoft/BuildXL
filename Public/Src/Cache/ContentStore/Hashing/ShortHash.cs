@@ -158,13 +158,21 @@ namespace BuildXL.Cache.ContentStore.Hashing
             return ToString(HashLength);
         }
 
+        /// <inheritdoc cref="ToString()"/>
+        public string ToString(bool includeHashType)
+        {
+            return ToString(HashLength, includeHashType);
+        }
+
         /// <summary>
         /// Gets string representation of the short hash with a given length.
         /// </summary>
-        public string ToString(int hashLength)
+        public string ToString(int hashLength, bool includeHashType = true)
         {
             Contract.Requires(hashLength <= HashLength, $"hashLength should be <= HashLength. hashLength={hashLength}, HashLength={HashLength}");
-            return $"{HashType.Serialize()}{ContentHash.SerializedDelimiter.ToString()}{Value.ToHex(1, hashLength)}";
+            return includeHashType
+                ? $"{HashType.Serialize()}{ContentHash.SerializedDelimiter}{Value.ToHex(1, hashLength)}"
+                : $"{Value.ToHex(1, hashLength)}";
         }
 
         /// <nodoc />
